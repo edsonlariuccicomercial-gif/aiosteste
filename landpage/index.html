@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Licit Pro | Inteligencia em Licitacoes - Precos de Alimentacao</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --primary: #1a365d;
+            --primary-light: #2b6cb0;
+            --accent: #38a169;
+            --accent-light: #48bb78;
+            --danger: #e53e3e;
+            --warning: #d69e2e;
+            --bg: #f7fafc;
+            --card: #ffffff;
+            --text: #2d3748;
+            --text-light: #718096;
+            --border: #e2e8f0;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        /* HEADER */
+        .header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+            color: white;
+            padding: 2rem 0;
+            text-align: center;
+        }
+        .header h1 {
+            font-size: 2.2rem;
+            margin-bottom: 0.5rem;
+        }
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+        .header .badge {
+            display: inline-block;
+            background: var(--accent);
+            padding: 0.3rem 1rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            margin-top: 0.8rem;
+            font-weight: 600;
+        }
+
+        .container { max-width: 1200px; margin: 0 auto; padding: 0 1.5rem; }
+
+        /* KPIs */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1.2rem;
+            margin: -2rem auto 2rem;
+            position: relative;
+            z-index: 10;
+        }
+        .kpi-card {
+            background: var(--card);
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            border-top: 4px solid var(--primary-light);
+        }
+        .kpi-card .value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+        .kpi-card .label {
+            font-size: 0.85rem;
+            color: var(--text-light);
+            margin-top: 0.3rem;
+        }
+        .kpi-card.accent { border-top-color: var(--accent); }
+        .kpi-card.accent .value { color: var(--accent); }
+        .kpi-card.warning { border-top-color: var(--warning); }
+        .kpi-card.warning .value { color: var(--warning); }
+
+        /* SECTIONS */
+        section {
+            margin-bottom: 2.5rem;
+        }
+        section h2 {
+            font-size: 1.5rem;
+            color: var(--primary);
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid var(--border);
+        }
+        section h3 {
+            font-size: 1.1rem;
+            color: var(--primary-light);
+            margin: 1.5rem 0 0.8rem;
+        }
+
+        /* TABLES */
+        .table-wrapper {
+            overflow-x: auto;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+            margin-bottom: 1.5rem;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--card);
+        }
+        thead { background: var(--primary); color: white; }
+        th {
+            padding: 0.8rem 1rem;
+            text-align: left;
+            font-weight: 600;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        td {
+            padding: 0.7rem 1rem;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.9rem;
+        }
+        tbody tr:hover { background: #edf2f7; }
+        .status-ok { color: var(--accent); font-weight: 600; }
+        .status-pending { color: var(--warning); font-weight: 600; }
+        .status-fail { color: var(--danger); font-weight: 600; }
+        .economy {
+            background: #c6f6d5;
+            color: #22543d;
+            padding: 0.2rem 0.6rem;
+            border-radius: 10px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        .valor { font-weight: 700; color: var(--primary); }
+
+        /* CITY CARDS */
+        .city-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 1.5rem;
+        }
+        .city-card {
+            background: var(--card);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+        }
+        .city-card .city-header {
+            background: linear-gradient(135deg, var(--primary), var(--primary-light));
+            color: white;
+            padding: 1rem 1.2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .city-card .city-header h3 { color: white; margin: 0; font-size: 1.1rem; }
+        .city-card .city-body { padding: 1.2rem; }
+        .city-card .city-body .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.4rem 0;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.9rem;
+        }
+        .city-card .city-body .info-row:last-child { border-bottom: none; }
+        .city-card .city-body .info-row .label { color: var(--text-light); }
+
+        /* PRICE TABLE - para precos unitarios */
+        .price-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--card);
+            font-size: 0.85rem;
+        }
+        .price-table thead { background: #2b6cb0; }
+        .price-table th { padding: 0.6rem 0.8rem; font-size: 0.78rem; }
+        .price-table td {
+            padding: 0.5rem 0.8rem;
+            text-align: center;
+            border-bottom: 1px solid var(--border);
+        }
+        .price-table td:first-child { text-align: left; font-weight: 500; }
+        .price-table .category-row {
+            background: #ebf8ff;
+            font-weight: 700;
+            color: var(--primary);
+        }
+        .price-table .best-price {
+            background: #c6f6d5;
+            color: #22543d;
+            font-weight: 700;
+            border-radius: 4px;
+        }
+        .price-table .no-data { color: #a0aec0; font-style: italic; }
+
+        /* COMPETITORS */
+        .competitor-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1rem;
+        }
+        .competitor-card {
+            background: var(--card);
+            border-radius: 10px;
+            padding: 1rem 1.2rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            border-left: 4px solid var(--primary-light);
+        }
+        .competitor-card h4 { font-size: 0.95rem; color: var(--primary); margin-bottom: 0.3rem; }
+        .competitor-card .meta { font-size: 0.8rem; color: var(--text-light); }
+
+        /* LINKS */
+        .links-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+        }
+        .link-card {
+            background: var(--card);
+            border-radius: 10px;
+            padding: 1rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            text-decoration: none;
+            color: var(--text);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .link-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+        }
+        .link-card .link-title { font-weight: 600; color: var(--primary); margin-bottom: 0.3rem; }
+        .link-card .link-desc { font-size: 0.8rem; color: var(--text-light); }
+
+        /* FOOTER */
+        .footer {
+            background: var(--primary);
+            color: white;
+            text-align: center;
+            padding: 1.5rem;
+            margin-top: 3rem;
+            font-size: 0.85rem;
+        }
+        .footer a { color: var(--accent-light); }
+
+        /* NOTA */
+        .nota {
+            background: #fffff0;
+            border-left: 4px solid var(--warning);
+            padding: 1rem 1.2rem;
+            border-radius: 0 8px 8px 0;
+            margin: 1rem 0;
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 { font-size: 1.5rem; }
+            .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+            .city-grid { grid-template-columns: 1fr; }
+            th, td { padding: 0.5rem; font-size: 0.8rem; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+    <div class="container">
+        <h1>Licit Pro - Inteligencia em Licitacoes</h1>
+        <p>Precos Reais de Alimentacao | Triangulo Mineiro e Alto Paranaiba</p>
+        <span class="badge">Dados: Jul/2025 - Fev/2026 | Fonte: PNCP</span>
+    </div>
+</div>
+
+<!-- KPIs -->
+<div class="container">
+    <div class="kpi-grid">
+        <div class="kpi-card">
+            <div class="value">5</div>
+            <div class="label">Cidades Monitoradas</div>
+        </div>
+        <div class="kpi-card accent">
+            <div class="value">R$ 36,2M</div>
+            <div class="label">Total Homologado</div>
+        </div>
+        <div class="kpi-card warning">
+            <div class="value">~31%</div>
+            <div class="label">Economia Media</div>
+        </div>
+        <div class="kpi-card">
+            <div class="value">22+</div>
+            <div class="label">Processos Mapeados</div>
+        </div>
+    </div>
+
+    <!-- PANORAMA POR CIDADE -->
+    <section>
+        <h2>Panorama por Cidade</h2>
+        <div class="city-grid">
+
+            <!-- ARAXA -->
+            <div class="city-card">
+                <div class="city-header">
+                    <h3>Araxa/MG</h3>
+                    <span class="economy">-54% economia</span>
+                </div>
+                <div class="city-body">
+                    <div class="info-row"><span class="label">CNPJ Prefeitura</span><span>18.140.756/0001-00</span></div>
+                    <div class="info-row"><span class="label">Processo Destaque</span><span>PE 002/2026</span></div>
+                    <div class="info-row"><span class="label">Objeto</span><span>Generos Alimenticios</span></div>
+                    <div class="info-row"><span class="label">Valor Estimado</span><span>R$ 19.903.414,74</span></div>
+                    <div class="info-row"><span class="label">Valor Homologado</span><span class="valor">R$ 9.089.231,89</span></div>
+                    <div class="info-row"><span class="label">Plataforma</span><span>Licitanet</span></div>
+                    <div class="info-row"><span class="label">Status</span><span class="status-ok">Homologado</span></div>
+                </div>
+            </div>
+
+            <!-- IGARAPAVA -->
+            <div class="city-card">
+                <div class="city-header">
+                    <h3>Igarapava/SP</h3>
+                    <span class="economy">-28% economia</span>
+                </div>
+                <div class="city-body">
+                    <div class="info-row"><span class="label">CNPJ Prefeitura</span><span>45.324.290/0001-67</span></div>
+                    <div class="info-row"><span class="label">Processo Destaque</span><span>PE 029/2025</span></div>
+                    <div class="info-row"><span class="label">Objeto</span><span>Alimentacao Escolar</span></div>
+                    <div class="info-row"><span class="label">Valor Estimado</span><span>R$ 7.942.362,80</span></div>
+                    <div class="info-row"><span class="label">Valor Homologado</span><span class="valor">R$ 5.690.677,60</span></div>
+                    <div class="info-row"><span class="label">Plataforma</span><span>BLL Compras</span></div>
+                    <div class="info-row"><span class="label">Status</span><span class="status-ok">Homologado</span></div>
+                </div>
+            </div>
+
+            <!-- FRUTAL -->
+            <div class="city-card">
+                <div class="city-header">
+                    <h3>Frutal/MG</h3>
+                    <span class="economy">-17% economia</span>
+                </div>
+                <div class="city-body">
+                    <div class="info-row"><span class="label">CNPJ Prefeitura</span><span>18.449.132/0001-60</span></div>
+                    <div class="info-row"><span class="label">Processo Destaque</span><span>PE 43/2025 (Carnes)</span></div>
+                    <div class="info-row"><span class="label">Objeto</span><span>Carnes + Hortifruti</span></div>
+                    <div class="info-row"><span class="label">Valor Estimado</span><span>R$ 5.393.152,85</span></div>
+                    <div class="info-row"><span class="label">Valor Homologado</span><span class="valor">R$ 4.480.129,81</span></div>
+                    <div class="info-row"><span class="label">Plataforma</span><span>Licitanet</span></div>
+                    <div class="info-row"><span class="label">Status</span><span class="status-ok">Homologado</span></div>
+                </div>
+            </div>
+
+            <!-- SACRAMENTO -->
+            <div class="city-card">
+                <div class="city-header">
+                    <h3>Sacramento/MG</h3>
+                    <span class="economy">-10% economia</span>
+                </div>
+                <div class="city-body">
+                    <div class="info-row"><span class="label">CNPJ Prefeitura</span><span>18.140.764/0001-48</span></div>
+                    <div class="info-row"><span class="label">Processo Destaque</span><span>PE 6/2025 (Carnes)</span></div>
+                    <div class="info-row"><span class="label">Objeto</span><span>Carnes + Hortifruti + Generos</span></div>
+                    <div class="info-row"><span class="label">Valor Estimado</span><span>R$ 5.131.559,85</span></div>
+                    <div class="info-row"><span class="label">Valor Homologado</span><span class="valor">R$ 4.643.249,05</span></div>
+                    <div class="info-row"><span class="label">Plataforma</span><span>Licitanet</span></div>
+                    <div class="info-row"><span class="label">Status</span><span class="status-ok">Homologado</span></div>
+                </div>
+            </div>
+
+            <!-- DELTA -->
+            <div class="city-card">
+                <div class="city-header">
+                    <h3>Delta/MG</h3>
+                    <span style="background:#d69e2e;color:#fff;padding:0.2rem 0.6rem;border-radius:10px;font-size:0.8rem;font-weight:600">Em andamento</span>
+                </div>
+                <div class="city-body">
+                    <div class="info-row"><span class="label">CNPJ Prefeitura</span><span>01.020.881/0001-75</span></div>
+                    <div class="info-row"><span class="label">Processo Destaque</span><span>PE 31/2025</span></div>
+                    <div class="info-row"><span class="label">Objeto</span><span>Merenda Escolar</span></div>
+                    <div class="info-row"><span class="label">Valor Estimado</span><span>R$ 13.559.703,55</span></div>
+                    <div class="info-row"><span class="label">Valor Homologado</span><span class="status-pending">Pendente</span></div>
+                    <div class="info-row"><span class="label">Plataforma</span><span>Licitanet</span></div>
+                    <div class="info-row"><span class="label">Status</span><span class="status-pending">Reaberto Jan/2026</span></div>
+                </div>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- TABELA COMPARATIVA DE PROCESSOS -->
+    <section>
+        <h2>Processos Licitatorios Detalhados</h2>
+
+        <h3>Araxa/MG</h3>
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr><th>Pregao</th><th>Objeto</th><th>Estimado</th><th>Homologado</th><th>Economia</th><th>Status</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>PE 002/2026</td><td>Generos Alimenticios - Diversas Secretarias</td><td>R$ 19.903.414,74</td><td class="valor">R$ 9.089.231,89</td><td><span class="economy">-54%</span></td><td class="status-ok">Homologado</td></tr>
+                    <tr><td>PE 004/2025</td><td>Carnes e Embutidos - Diversas Secretarias</td><td>R$ 5.509.498,92</td><td class="valor">R$ 3.737.329,00</td><td><span class="economy">-32%</span></td><td class="status-ok">Homologado</td></tr>
+                    <tr><td>PE 007/2025</td><td>Hortifrutigranjeiros - Diversas Secretarias</td><td>R$ 5.238.307,14</td><td class="valor">R$ 3.519.249,51</td><td><span class="economy">-33%</span></td><td class="status-ok">Homologado</td></tr>
+                    <tr><td>PE 015/2026</td><td>Hortifrutigranjeiros - Diversas Secretarias</td><td>R$ 12.678.950,32</td><td>-</td><td>-</td><td class="status-pending">Em andamento</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <h3>Igarapava/SP</h3>
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr><th>Pregao</th><th>Objeto</th><th>Estimado</th><th>Homologado</th><th>Economia</th><th>Status</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>PE 029/2025</td><td>Alimentacao Escolar (Pereciveis e Nao Pereciveis)</td><td>R$ 7.942.362,80</td><td class="valor">R$ 5.690.677,60</td><td><span class="economy">-28%</span></td><td class="status-ok">Homologado</td></tr>
+                    <tr><td>PE 026/2025</td><td>Cestas Basicas</td><td>R$ 752.619,60</td><td class="valor">R$ 592.365,60</td><td><span class="economy">-21%</span></td><td class="status-ok">Homologado</td></tr>
+                    <tr><td>PE 027/2025</td><td>Panificacao, Laticinios, Embutidos, Bebidas</td><td>R$ 925.877,42</td><td class="valor">R$ 812.660,47</td><td><span class="economy">-12%</span></td><td class="status-ok">Homologado</td></tr>
+                    <tr><td>PE 024/2025</td><td>Frutas, Verduras e Legumes (Cestas)</td><td>R$ 242.703,36</td><td class="valor">R$ 171.164,16</td><td><span class="economy">-29%</span></td><td class="status-ok">Homologado</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <h3>Frutal/MG</h3>
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr><th>Pregao</th><th>Objeto</th><th>Estimado</th><th>Homologado</th><th>Economia</th><th>Status</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>PE 43/2025</td><td>Carnes, Embutidos e Derivados</td><td>R$ 3.550.484,42</td><td class="valor">R$ 2.929.531,21</td><td><span class="economy">-17%</span></td><td class="status-ok">Homologado</td></tr>
+                    <tr><td>PE 59/2025</td><td>Hortifrutigranjeiros</td><td>R$ 1.842.668,43</td><td class="valor">R$ 1.550.598,60</td><td><span class="economy">-16%</span></td><td class="status-ok">Homologado</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <h3>Sacramento/MG</h3>
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr><th>Pregao</th><th>Objeto</th><th>Estimado</th><th>Homologado</th><th>Economia</th><th>Status</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>PE 6/2025</td><td>Carnes e Embutidos - Alimentacao, Saude</td><td>R$ 2.900.814,60</td><td class="valor">R$ 2.803.439,00</td><td><span class="economy">-3,4%</span></td><td class="status-ok">Homologado</td></tr>
+                    <tr><td>PE 7/2025</td><td>Generos Alimenticios e Padaria</td><td>R$ 796.068,20</td><td class="valor">R$ 758.246,25</td><td><span class="economy">-4,7%</span></td><td class="status-ok">Homologado</td></tr>
+                    <tr><td>PE 2/2026</td><td>Hortifrutigranjeiros Pereciveis</td><td>R$ 1.434.677,05</td><td class="valor">R$ 1.081.563,80</td><td><span class="economy">-25%</span></td><td class="status-ok">Homologado</td></tr>
+                    <tr><td>PE 14/2026</td><td>Carnes e Embutidos</td><td>R$ 1.524.900,10</td><td>-</td><td>-</td><td class="status-pending">Em andamento</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <h3>Delta/MG</h3>
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr><th>Pregao</th><th>Objeto</th><th>Estimado</th><th>Homologado</th><th>Economia</th><th>Status</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>PE 14/2025</td><td>Leites, Formulas Infantis, Suplementos</td><td>R$ 4.690.815,70</td><td class="valor">R$ 3.529.625,80</td><td><span class="economy">-25%</span></td><td class="status-ok">Homologado</td></tr>
+                    <tr><td>PE 27/2025</td><td>Generos Alimenticios</td><td>R$ 6.221.882,57</td><td>-</td><td>-</td><td class="status-pending">Reaberto</td></tr>
+                    <tr><td>PE 31/2025</td><td>Merenda Escolar</td><td>R$ 13.559.703,55</td><td>-</td><td>-</td><td class="status-pending">Reaberto Jan/2026</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- TABELA DE PRECOS UNITARIOS -->
+    <section>
+        <h2>Precos Unitarios por Item (Comparativo)</h2>
+        <div class="nota">
+            <strong>Fonte Araxa:</strong> Edital PE 002/2026 - Generos Alimenticios (162 itens extraidos do PDF).
+            Carnes (PE 004/2025), hortifruti (PE 007/2025), ovos e pao estao em editais separados.
+            Demais cidades: PDFs pendentes de extracao.
+        </div>
+
+        <div class="table-wrapper">
+            <table class="price-table">
+                <thead>
+                    <tr>
+                        <th>Item</th>
+                        <th>Unid.</th>
+                        <th>Araxa</th>
+                        <th>Igarapava</th>
+                        <th>Frutal</th>
+                        <th>Sacramento</th>
+                        <th>Delta</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="category-row"><td colspan="7">GRAOS E CEREAIS</td></tr>
+                    <tr><td>Arroz Tipo 1 (5kg)</td><td>pct</td><td class="best-price">R$ 28,50</td><td class="no-data">--</td><td class="no-data">--</td><td class="no-data">--</td><td class="no-data">--</td></tr>
+                    <tr><td>Feijao Carioca (1kg)</td><td>kg</td><td class="best-price">R$ 8,64</td><td class="no-data">--</td><td class="no-data">--</td><td class="no-data">--</td><td class="no-data">--</td></tr>
+                    <tr><td>Macarrao Espaguete (500g)</td><td>pct</td><td class="best-price">R$ 5,28</td><td class="no-data">--</td><td class="no-data">--</td><td class="no-data">--</td><td class="no-data">--</td></tr>
+                    <tr><td>Farinha de Trigo (1kg)</td><td>kg</td><td class="best-price">R$ 6,61</td><td class="no-data">--</td><td class="no-data">--</td><td class="no-data">--</td><td class="no-data">--</td></tr>
+                    <tr><td>Fuba de Milho (1kg)</td><td>pct</td><td class="best-price">R$ 5,63</td><td class="no-data">--</td><td class="no-data">--</td><td class="no-data">--</td><td class="no-data">--</td></tr>
+                    <tr><td>Farinha de Mandioca (500g)</td><td>un</td><td class="best-price">R$ 8,64</td><td class="no-data">--</td><td class="no-data">--</td><td class="no-data">--</td><td class="no-data">--</td></tr>
+
+                    <tr class="category-row"><td colspan="7">OLEOS, ACUCAR E TEMPEROS</td></tr>
+                    <tr><td>Oleo de Soja (900ml)</td><td>un</td><td class="best-price">R$ 10,61</td><td class="no-data">--</td><td class="no-data">--</td><td class="no-data">--</td><td class="no-data">--</td></tr>
+                    <tr><td>Acucar Cristal (5kg)</td><td>pct</td><td class="best-price">R$ 20,18</td><td class="no-data">--</td><td class="no-data">--</td><td class="no-data">--</td><td class="no-data">--</td></tr>
+                    <tr><td>Sal Refinado (1kg)</td><td>kg</td><td class="best-price">R$ 2,39</td><td class="no-data">--</td><td class="no-data">--</td><td class="no-data">--</td><td class="no-data">--</td></tr>
+                    <tr><td>Cafe Torrado e Moido (500g)</td><td>pct</td><td class="best-price">R$ 34,03</td><td class="no-data">--</td><td class="no-data">--</td><td class="no-data">--</td><td class="no-data">--</td></tr>
+                    <tr><td>Vinagre Branco (750ml)</td><td>un</td><td class="best-price">R$ 4,76</td><td class="no-data">--</td><td class="no-data">--</td><td class="no-data">--</td><td class="no-data">--</td></tr>
+                    <tr><td>Extrato de Tomate (300g)</td><td>un</td><td class="best-price">R$ 6,33</td><td class="no-data">--</td><td class="no-data">--</td><td class="no-data">--</td><td class="no-data">--</td></tr>
+
+                    <tr class="category-row"><td colspan="7">LATICINIOS E DERIVADOS</td></tr>
+                    <tr><td>Leite Integral UHT (1L)</td><td>un</td><td class="best-price">R$ 6,65</td><td class="no-data">--</td><td class="no-data">--</td><td class="no-data">--</td><td class="no-data">--</td></tr>
+                    <tr><td>Leite em Po Integral (~1kg)</td><td>un</td><td class="best-price">R$ 51,72</td><td class="no-data">--</td><td class="no-data">--</td><td class="no-data">--</td><td class="no-data">--</td></tr>
+                    <tr><td>Leite Condensado (395g)</td><td>un</td><td class="best-price">R$ 8,51</td><td class="no-data">--</td><td class="no-data">--</td><td class="no-data">--</td><td class="no-data">--</td></tr>
+                    <tr><td>Margarina c/ Sal (500g)</td><td>un</td><td class="best-price">R$ 10,64</td><td class="no-data">--</td><td class="no-data">--</td><td class="no-data">--</td><td class="no-data">--</td></tr>
+
+                    <tr class="category-row"><td colspan="7">OUTROS INDUSTRIALIZADOS</td></tr>
+                    <tr><td>Achocolatado em Po (2kg)</td><td>un</td><td class="best-price">R$ 49,16</td><td class="no-data">--</td><td class="no-data">--</td><td class="no-data">--</td><td class="no-data">--</td></tr>
+                    <tr><td>Bolacha de Leite (cx 1,5kg)</td><td>cx</td><td class="best-price">R$ 24,34</td><td class="no-data">--</td><td class="no-data">--</td><td class="no-data">--</td><td class="no-data">--</td></tr>
+
+                    <tr class="category-row"><td colspan="7">CARNES (edital separado)</td></tr>
+                    <tr><td>Carne Bovina Acem (kg)</td><td>kg</td><td class="no-data" title="PE 004/2025">*</td><td class="no-data">--</td><td class="no-data">--</td><td class="no-data">--</td><td class="no-data">--</td></tr>
+                    <tr><td>Carne Bovina Patinho (kg)</td><td>kg</td><td class="no-data" title="PE 004/2025">*</td><td class="no-data">--</td><td class="no-data">--</td><td class="no-data">--</td><td class="no-data">--</td></tr>
+                    <tr><td>Frango Coxa/Sobrecoxa (kg)</td><td>kg</td><td class="no-data" title="PE 004/2025">*</td><td class="no-data">--</td><td class="no-data">--</td><td class="no-data">--</td><td class="no-data">--</td></tr>
+                    <tr><td>Frango Peito (kg)</td><td>kg</td><td class="no-data" title="PE 004/2025">*</td><td class="no-data">--</td><td class="no-data">--</td><td class="no-data">--</td><td class="no-data">--</td></tr>
+                    <tr><td>Ovos (duzia)</td><td>dz</td><td class="no-data" title="Edital separado">*</td><td class="no-data">--</td><td class="no-data">--</td><td class="no-data">--</td><td class="no-data">--</td></tr>
+
+                    <tr class="category-row"><td colspan="7">HORTIFRUTI (edital separado)</td></tr>
+                    <tr><td>Banana Nanica (kg)</td><td>kg</td><td class="no-data" title="PE 007/2025">*</td><td class="no-data">--</td><td class="no-data">--</td><td class="no-data">--</td><td class="no-data">--</td></tr>
+                    <tr><td>Maca Nacional (kg)</td><td>kg</td><td class="no-data" title="PE 007/2025">*</td><td class="no-data">--</td><td class="no-data">--</td><td class="no-data">--</td><td class="no-data">--</td></tr>
+                    <tr><td>Laranja Pera (kg)</td><td>kg</td><td class="no-data" title="PE 007/2025">*</td><td class="no-data">--</td><td class="no-data">--</td><td class="no-data">--</td><td class="no-data">--</td></tr>
+                    <tr><td>Tomate (kg)</td><td>kg</td><td class="no-data" title="PE 007/2025">*</td><td class="no-data">--</td><td class="no-data">--</td><td class="no-data">--</td><td class="no-data">--</td></tr>
+                    <tr><td>Cebola (kg)</td><td>kg</td><td class="no-data" title="PE 007/2025">*</td><td class="no-data">--</td><td class="no-data">--</td><td class="no-data">--</td><td class="no-data">--</td></tr>
+                    <tr><td>Batata (kg)</td><td>kg</td><td class="no-data" title="PE 007/2025">*</td><td class="no-data">--</td><td class="no-data">--</td><td class="no-data">--</td><td class="no-data">--</td></tr>
+                    <tr><td>Cenoura (kg)</td><td>kg</td><td class="no-data" title="PE 007/2025">*</td><td class="no-data">--</td><td class="no-data">--</td><td class="no-data">--</td><td class="no-data">--</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <p style="font-size:0.8rem;color:var(--text-light);margin-top:0.5rem;">
+            * Araxa: carnes em PE 004/2025 (R$ 3,7M) | hortifruti em PE 007/2025 (R$ 3,5M) — PDFs pendentes de extracao.
+        </p>
+    </section>
+
+    <!-- LINKS PARA EDITAIS -->
+    <section>
+        <h2>Acesso Direto aos Editais e Atas</h2>
+        <p style="margin-bottom:1rem;color:var(--text-light);">Baixe os PDFs para extrair os precos unitarios por item:</p>
+        <div class="links-grid">
+            <a class="link-card" href="https://www.araxa.mg.gov.br/licitacao-listar" target="_blank">
+                <div class="link-title">Araxa - Portal de Licitacoes</div>
+                <div class="link-desc">PE 002/2026 (R$ 9M) - Generos Alimenticios completos</div>
+            </a>
+            <a class="link-card" href="https://bllcompras.com" target="_blank">
+                <div class="link-title">Igarapava - BLL Compras</div>
+                <div class="link-desc">PE 029/2025 (R$ 5,7M) - Alimentacao Escolar</div>
+            </a>
+            <a class="link-card" href="https://portal.licitanet.com.br" target="_blank">
+                <div class="link-title">Frutal - Licitanet</div>
+                <div class="link-desc">PE 43/2025 (Carnes) + PE 59/2025 (Hortifruti)</div>
+            </a>
+            <a class="link-card" href="https://sacramento.mg.gov.br/licitacao/" target="_blank">
+                <div class="link-title">Sacramento - Portal Municipal</div>
+                <div class="link-desc">PE 6/2025 (Carnes) + PE 2/2026 (Hortifruti)</div>
+            </a>
+            <a class="link-card" href="https://www.delta.mg.gov.br/licitacao" target="_blank">
+                <div class="link-title">Delta - Portal Municipal</div>
+                <div class="link-desc">PE 31/2025 - Merenda Escolar (em andamento)</div>
+            </a>
+            <a class="link-card" href="https://pncp.gov.br/app/editais" target="_blank">
+                <div class="link-title">PNCP - Busca Nacional</div>
+                <div class="link-desc">Portal Nacional de Contratacoes Publicas</div>
+            </a>
+        </div>
+    </section>
+
+    <!-- PLATAFORMAS DE LICITACAO -->
+    <section>
+        <h2>Plataformas Utilizadas por Cidade</h2>
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr><th>Cidade</th><th>Plataforma</th><th>URL</th><th>Observacao</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>Araxa/MG</td><td>Licitanet + Publicenter</td><td>portal.licitanet.com.br</td><td>Maior volume da regiao</td></tr>
+                    <tr><td>Igarapava/SP</td><td>BLL Compras + Sislicita</td><td>bllcompras.com / igarapava.sislicita.com.br</td><td>Divisa SP/MG</td></tr>
+                    <tr><td>Frutal/MG</td><td>Licitanet</td><td>portal.licitanet.com.br</td><td>E-mail: licitacao@frutal.mg.gov.br</td></tr>
+                    <tr><td>Sacramento/MG</td><td>Licitanet</td><td>portal.licitanet.com.br</td><td>Diario: plenussistemas.dioenet.com.br</td></tr>
+                    <tr><td>Delta/MG</td><td>Licitanet</td><td>portal.licitanet.com.br</td><td>Processos em reabertura</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- INSIGHTS ESTRATEGICOS -->
+    <section>
+        <h2>Insights Estrategicos</h2>
+        <div class="city-grid">
+            <div class="city-card">
+                <div class="city-header" style="background:linear-gradient(135deg,#22543d,#38a169)">
+                    <h3>Oportunidades</h3>
+                </div>
+                <div class="city-body">
+                    <div class="info-row"><span class="label">Delta/MG</span><span>PE 31 reaberto em Jan/2026 - R$ 13,5M em disputa</span></div>
+                    <div class="info-row"><span class="label">Araxa/MG</span><span>PE 015/2026 Hortifruti - R$ 12,7M em andamento</span></div>
+                    <div class="info-row"><span class="label">Sacramento/MG</span><span>PE 14/2026 Carnes - R$ 1,5M em andamento</span></div>
+                    <div class="info-row"><span class="label">Sacramento/MG</span><span>PE 1/2026 Generos - R$ 1,5M em andamento</span></div>
+                </div>
+            </div>
+            <div class="city-card">
+                <div class="city-header" style="background:linear-gradient(135deg,#744210,#d69e2e)">
+                    <h3>Analise de Economia</h3>
+                </div>
+                <div class="city-body">
+                    <div class="info-row"><span class="label">Araxa</span><span>54% de economia - margem alta, precos agressivos</span></div>
+                    <div class="info-row"><span class="label">Igarapava</span><span>28% de economia - competicao moderada</span></div>
+                    <div class="info-row"><span class="label">Sacramento</span><span>3-25% - carnes muito disputadas, hortifruti menos</span></div>
+                    <div class="info-row"><span class="label">Frutal</span><span>16-17% - mercado equilibrado</span></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+</div>
+
+<!-- FOOTER -->
+<div class="footer">
+    <p><strong>Licit Pro</strong> | Inteligencia em Licitacoes | Triangulo Mineiro e Alto Paranaiba</p>
+    <p style="margin-top:0.5rem;">Dados extraidos do <a href="https://pncp.gov.br" target="_blank">PNCP</a> | Periodo: Jul/2025 - Fev/2026</p>
+    <p style="margin-top:0.3rem;opacity:0.7;">Atualizado em 28/02/2026 | Araxa: 162 itens extraidos do PE 002/2026 | Demais cidades: PDFs pendentes</p>
+</div>
+
+</body>
+</html>
