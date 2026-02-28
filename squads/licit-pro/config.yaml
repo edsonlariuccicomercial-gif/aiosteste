@@ -1,0 +1,77 @@
+name: licit-pro
+version: 1.0.0
+tested: false
+updated_at: "2026-02-28"
+short-title: Licit Pro
+description: >-
+  Squad especializado em licitações públicas brasileiras.
+  6 agentes baseados em mentes elite do mercado: análise de editais,
+  precificação, pesquisa de preços, estratégia competitiva, jurídico
+  e monitoramento de caixas escolares de MG (SGD/SEE).
+  Frameworks: Lei 14.133/2021, SINAPI, SICRO, Res. SEE 5.131/2025.
+author: Edson Lariucci
+entry_agent: licit-chief
+slashPrefix: licitPro
+
+settings:
+  activation:
+    show_ecosystem_report: true
+    show_greeting: true
+    show_quick_commands: true
+
+agents:
+  - id: licit-chief
+    name: Orquestrador
+    file: agents/licit-chief.md
+    role: Triage, routing e coordenação do squad
+  - id: analista-editais
+    name: Analista de Editais
+    file: agents/analista-editais.md
+    role: Interpretação e análise de editais
+  - id: precificador
+    name: Precificador
+    file: agents/precificador.md
+    role: Composição de custos, BDI, planilhas
+  - id: pesquisador-precos
+    name: Pesquisador de Preços
+    file: agents/pesquisador-precos.md
+    role: Pesquisa de preços de mercado e histórico
+  - id: estrategista
+    name: Estrategista
+    file: agents/estrategista.md
+    role: Inteligência competitiva e análise de concorrentes
+  - id: juridico
+    name: Jurídico
+    file: agents/juridico.md
+    role: Lei 14.133/2021, compliance, impugnações
+  - id: monitor-caixas-mg
+    name: Monitor Caixas Escolares MG
+    file: agents/monitor-caixas-mg.md
+    role: Monitorar editais SGD, SREs, caixas escolares MG
+
+data_sources:
+  apis:
+    - name: Compras.gov.br
+      url: https://api.compras.dados.gov.br/
+    - name: PNCP
+      url: https://pncp.gov.br/api/consulta/swagger-ui/index.html
+    - name: Portal da Transparência
+      url: https://portaldatransparencia.gov.br/api-de-dados
+    - name: TCU Dados Abertos
+      url: https://sites.tcu.gov.br/dados-abertos/
+  portals:
+    - name: SGD Caixa Escolar MG
+      url: https://caixaescolar.educacao.mg.gov.br/
+    - name: Painel de Preços
+      url: https://paineldeprecos.planejamento.gov.br/
+    - name: Banco de Preços
+      url: https://www.bancodeprecos.com.br/
+    - name: SINAPI
+      url: https://www.caixa.gov.br/sinapi
+
+legal_framework:
+  - Lei 14.133/2021 (Nova Lei de Licitações)
+  - IN 65/2021 (Pesquisa de Preços)
+  - Decreto 7.983/2013 (SINAPI/SICRO obrigatório)
+  - Resolução SEE 5.131/2025 (Caixas Escolares MG)
+  - IN SA/SEE 02/2025 e 05/2025
