@@ -23,6 +23,16 @@ npm.cmd run ops:start-day
 npm.cmd run ops:start-day:collect
 ```
 
+### Fechamento do dia (recomendado)
+```powershell
+npm.cmd run ops:end-day
+```
+
+### Fechamento do dia com coleta
+```powershell
+npm.cmd run ops:end-day:collect
+```
+
 ### Modo rapido (recomendado)
 ```powershell
 npm.cmd run ops:daily
@@ -61,7 +71,9 @@ npm.cmd run dashboard:serve
 - `dashboard/data/operational-daily-snapshot.json`
 - `dashboard/data/operational-urgent.csv`
 - `dashboard/data/ops-daily-run-report.json`
+- `dashboard/data/ops-eod-summary.json`
 - `docs/ops/ops-daily-last-run.md`
+- `docs/ops/ops-daily-eod.md`
 
 ## Regra de decisao
 - Se `urgent48h > 0`: tratar todos os itens urgentes primeiro.

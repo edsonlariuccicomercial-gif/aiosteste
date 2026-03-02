@@ -1,0 +1,18 @@
+{
+  "generatedAt": "2026-03-02T23:55:22.320Z",
+  "source": {
+    "opsDailyReport": "dashboard\\data\\ops-daily-run-report.json",
+    "dailySnapshot": "dashboard\\data\\operational-daily-snapshot.json"
+  },
+  "metrics": {
+    "goNoGo": "GO",
+    "skuCoveragePct": 100,
+    "actionableQuotes": 0,
+    "urgent48h": 0,
+    "highPriority": 0,
+    "potentialRevenue": 0,
+    "skuWithHistory": 2,
+    "skuRegionWithHistory": 6
+  },
+  "note": "Operacao apta para continuidade no proximo ciclo."
+}

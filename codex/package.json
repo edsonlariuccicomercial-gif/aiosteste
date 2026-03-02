@@ -24,6 +24,8 @@
     "ops:health": "node scripts/ops-health-check.js",
     "ops:start-day": "npm.cmd run ops:daily && npm.cmd run ops:health",
     "ops:start-day:collect": "npm.cmd run ops:daily:collect && npm.cmd run ops:health",
+    "ops:end-day": "npm.cmd run ops:daily && npm.cmd run ops:health && node scripts/generate-ops-eod-summary.js",
+    "ops:end-day:collect": "npm.cmd run ops:daily:collect && npm.cmd run ops:health && node scripts/generate-ops-eod-summary.js",
     "orders:test:sync:olist": "node scripts/test-orders-sync-olist.js",
     "dashboard:serve": "node scripts/serve-dashboard.js",
     "orders:sync:olist": "node scripts/sync-sgd-orders-olist.js"
