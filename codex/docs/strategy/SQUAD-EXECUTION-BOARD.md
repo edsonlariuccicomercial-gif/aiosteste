@@ -22,9 +22,9 @@
 - Entrega 3: Atualizacao de status de pedido no dashboard (fila, enviado, aceito, erro).
 
 ## Squad Nimbus (Produto e Comercial)
-- Status: In Progress
+- Status: Done
 - Entrega 1: Plano de empacotamento comercial (Starter/Pro/Enterprise). (concluido)
-- Entrega 2: One-pager de venda para fornecedores MG. (em andamento)
+- Entrega 2: One-pager de venda para fornecedores MG. (concluido)
 - Entrega 3: Definicao de onboarding em 30 minutos. (concluido)
 
 ## Criticos Imediatos
@@ -39,6 +39,7 @@
 - Story 1.6 concluida: lance recomendado com historico e urgencia no dashboard.
 - Story 1.7 concluida: comando unico `ops:daily` com relatorios JSON/Markdown.
 - Story 1.8 concluida: empacotamento comercial inicial e onboarding em 30 minutos.
+- One-pager comercial consolidado: `docs/strategy/one-pager-comercial-fornecedor-mg.md`.
 
 ## KPI Operacional (meta semanal)
 - Oportunidades monitoradas/dia: >= 50
