@@ -40,6 +40,10 @@
 - Story 1.7 concluida: comando unico `ops:daily` com relatorios JSON/Markdown.
 - Story 1.8 concluida: empacotamento comercial inicial e onboarding em 30 minutos.
 - One-pager comercial consolidado: `docs/strategy/one-pager-comercial-fornecedor-mg.md`.
+- Story 1.9 concluida: gate GO/NO-GO (`ops:health`).
+- Story 1.10 concluida: indicador GO/NO-GO no dashboard.
+- Story 1.11 concluida: abertura do dia (`ops:start-day`).
+- Story 1.12 concluida: fechamento do dia (`ops:end-day`) com resumo executivo.
 
 ## KPI Operacional (meta semanal)
 - Oportunidades monitoradas/dia: >= 50
