@@ -1,0 +1,57 @@
+{
+  "generatedAt": "2026-03-02T23:38:13.095Z",
+  "withCollect": false,
+  "ok": true,
+  "missingRequired": [],
+  "artifacts": [
+    {
+      "key": "territoryAudit",
+      "relativePath": "dashboard\\data\\territory-coverage-report.json",
+      "exists": true,
+      "required": true,
+      "updatedAt": "2026-03-02T23:38:10.017Z"
+    },
+    {
+      "key": "skuAudit",
+      "relativePath": "dashboard\\data\\sku-coverage-report.json",
+      "exists": true,
+      "required": true,
+      "updatedAt": "2026-03-02T23:38:10.444Z"
+    },
+    {
+      "key": "snapshotDaily",
+      "relativePath": "dashboard\\data\\operational-daily-snapshot.json",
+      "exists": true,
+      "required": true,
+      "updatedAt": "2026-03-02T23:38:11.293Z"
+    },
+    {
+      "key": "urgentCsv",
+      "relativePath": "dashboard\\data\\operational-urgent.csv",
+      "exists": true,
+      "required": true,
+      "updatedAt": "2026-03-02T23:38:11.712Z"
+    },
+    {
+      "key": "priceHistory",
+      "relativePath": "dashboard\\data\\price-history.json",
+      "exists": true,
+      "required": true,
+      "updatedAt": "2026-03-02T23:38:12.150Z"
+    },
+    {
+      "key": "priceHistorySummary",
+      "relativePath": "dashboard\\data\\price-history-summary.json",
+      "exists": true,
+      "required": true,
+      "updatedAt": "2026-03-02T23:38:12.600Z"
+    }
+  ],
+  "metrics": {
+    "skuCoveragePct": 100,
+    "actionableQuotes": 0,
+    "urgent48h": 0,
+    "skuWithHistory": 2,
+    "skuRegionWithHistory": 6
+  }
+}

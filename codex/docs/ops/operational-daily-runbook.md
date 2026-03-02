@@ -13,6 +13,17 @@ Executar a rotina diaria de priorizacao e envio com evidencias objetivas, minimi
 - Ambiente Node funcional no projeto.
 
 ## Sequencia operacional
+### Modo rapido (recomendado)
+```powershell
+npm.cmd run ops:daily
+```
+
+### Modo completo (com coleta no inicio)
+```powershell
+npm.cmd run ops:daily:collect
+```
+
+### Modo manual (detalhado)
 1. Atualizar base de cotacoes.
 ```powershell
 npm.cmd run dashboard:collect
@@ -39,6 +50,8 @@ npm.cmd run dashboard:serve
 ## Artefatos esperados
 - `dashboard/data/operational-daily-snapshot.json`
 - `dashboard/data/operational-urgent.csv`
+- `dashboard/data/ops-daily-run-report.json`
+- `docs/ops/ops-daily-last-run.md`
 
 ## Regra de decisao
 - Se `urgent48h > 0`: tratar todos os itens urgentes primeiro.
