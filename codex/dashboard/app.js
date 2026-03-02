@@ -315,6 +315,7 @@ function historyRangeForSku(sku, sre) {
   if (exact) {
     return {
       min: Number(exact.min || 0),
+      median: Number(exact.median || 0),
       max: Number(exact.max || 0),
       count: Number(exact.count || 0),
       scope: "SKU+SRE",
@@ -325,6 +326,7 @@ function historyRangeForSku(sku, sre) {
   if (!fallback) return null;
   return {
     min: Number(fallback.min || 0),
+    median: Number(fallback.median || 0),
     max: Number(fallback.max || 0),
     count: Number(fallback.count || 0),
     scope: "SKU",
@@ -335,6 +337,21 @@ function historyRangeLabel(range) {
   if (!range || !range.count) return "-";
   const base = `${brl.format(range.min)} - ${brl.format(range.max)}`;
   return `${base} (n=${range.count}, ${range.scope})`;
+}
+
+function suggestedBid(row, minPrice, historyRange) {
+  const priceCurrent = Number(row.precoSugerido || 0);
+  const floor = Number(minPrice || 0);
+  const days = daysTo(row.prazo);
+
+  const reference = historyRange && historyRange.count
+    ? Number(historyRange.median || historyRange.min || priceCurrent || floor)
+    : Number(priceCurrent || floor);
+
+  const urgencyFactor = days <= 2 ? 0.97 : days <= 5 ? 0.985 : 1.0;
+  const adjusted = reference * urgencyFactor;
+  const safe = Math.max(floor, adjusted);
+  return Number(safe.toFixed(2));
 }
 
 function quoteMinPricing(row) {
@@ -530,6 +547,7 @@ function renderTable(rows) {
       const margin = marginPct(r);
       const quotePricing = quoteMinPricing(r);
       const historyRange = historyRangeForSku(quotePricing.sku, r.sre);
+      const bid = suggestedBid(r, quotePricing.minPrice, historyRange);
       return `
       <tr>
         <td class="priority ${p.cls}">${p.label}</td>
@@ -542,6 +560,7 @@ function renderTable(rows) {
         <td>${new Date(r.prazo + "T00:00:00").toLocaleDateString("pt-BR")}</td>
         <td>${historyRangeLabel(historyRange)}</td>
         <td>${quotePricing.minPrice ? brl.format(quotePricing.minPrice) : "-"}</td>
+        <td>${bid ? brl.format(bid) : "-"}</td>
         <td>${r.precoSugerido ? brl.format(r.precoSugerido) : "-"}</td>
         <td>${r.precoSugerido ? `${margin.toFixed(1)}%` : "-"}</td>
         <td>${syncBadge(r.id)}</td>
@@ -720,7 +739,9 @@ function exportCsvFromRows(rows, suffix) {
     "sre",
     "objeto",
     "sku_referencia",
+    "faixa_historica_sku",
     "preco_minimo_modelo",
+    "lance_recomendado",
     "confianca_objeto",
     "confianca_territorio",
     "prazo",
@@ -734,6 +755,8 @@ function exportCsvFromRows(rows, suffix) {
   for (const row of rows) {
     const p = priority(row);
     const quotePricing = quoteMinPricing(row);
+    const historyRange = historyRangeForSku(quotePricing.sku, row.sre);
+    const bid = suggestedBid(row, quotePricing.minPrice, historyRange);
     const line = [
       p.label,
       opportunityScore(row),
@@ -743,7 +766,9 @@ function exportCsvFromRows(rows, suffix) {
       row.sre,
       row.objeto,
       quotePricing.sku || "",
+      historyRangeLabel(historyRange),
       quotePricing.minPrice ? quotePricing.minPrice.toFixed(2) : "",
+      bid ? bid.toFixed(2) : "",
       row.confiancaObjeto || "",
       row.confiancaTerritorio || "",
       row.prazo,
