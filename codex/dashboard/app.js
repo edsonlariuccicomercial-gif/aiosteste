@@ -4,6 +4,7 @@ let quickMode = "all";
 let skuCosts = { items: [], regionFactorBySre: {}, defaults: {} };
 let objectSkuRules = { rules: [] };
 let priceHistorySummary = { skuSummary: [], skuRegionSummary: [] };
+let opsDailyReport = { ok: false, generatedAt: null };
 let internalOrders = [];
 let prequoteState = {};
 
@@ -19,6 +20,7 @@ const el = {
   kpiMargin: document.getElementById("kpi-margin"),
   kpiRevenue: document.getElementById("kpi-revenue"),
   kpiOlistSync: document.getElementById("kpi-olist-sync"),
+  opsHealthPill: document.getElementById("ops-health-pill"),
   table: document.getElementById("quote-table"),
   sre: document.getElementById("filter-sre"),
   city: document.getElementById("filter-city"),
@@ -587,8 +589,32 @@ function renderSim() {
   el.simProfit.textContent = brl.format(profit);
 }
 
+function renderOpsHealth() {
+  if (!el.opsHealthPill) return;
+  const generated = opsDailyReport?.generatedAt
+    ? new Date(opsDailyReport.generatedAt).toLocaleString("pt-BR")
+    : "sem data";
+  const ok = Boolean(opsDailyReport?.ok);
+
+  el.opsHealthPill.classList.remove("ops-go", "ops-nogo");
+  if (opsDailyReport?.generatedAt == null) {
+    el.opsHealthPill.textContent = "Ops: Sem relatorio";
+    el.opsHealthPill.classList.add("ops-nogo");
+    return;
+  }
+
+  if (ok) {
+    el.opsHealthPill.textContent = `Ops: GO (${generated})`;
+    el.opsHealthPill.classList.add("ops-go");
+  } else {
+    el.opsHealthPill.textContent = `Ops: NO-GO (${generated})`;
+    el.opsHealthPill.classList.add("ops-nogo");
+  }
+}
+
 function renderAll() {
   const rows = filteredRows();
+  renderOpsHealth();
   renderKPIs(rows);
   renderAlerts(rows);
   renderPrequoteOrders();
@@ -954,6 +980,16 @@ async function loadPriceHistorySummary() {
   }
 }
 
+async function loadOpsDailyReport() {
+  try {
+    const resp = await fetch("./data/ops-daily-run-report.json", { cache: "no-store" });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    opsDailyReport = await resp.json();
+  } catch (_e) {
+    opsDailyReport = { ok: false, generatedAt: null };
+  }
+}
+
 async function boot() {
   loadPrequoteState();
   await loadQuotes();
@@ -961,6 +997,7 @@ async function boot() {
   await loadSkuCosts();
   await loadObjectSkuRules();
   await loadPriceHistorySummary();
+  await loadOpsDailyReport();
   await loadInternalOrders();
   for (const order of internalOrders) ensurePrequoteOrder(order);
   savePrequoteState();

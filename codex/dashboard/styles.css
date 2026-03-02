@@ -62,6 +62,14 @@ body {
   padding: 22px 26px 10px;
 }
 
+.topbar-right {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
 .eyebrow {
   margin: 0;
   color: var(--muted);
@@ -104,6 +112,20 @@ h2 {
   padding: 8px 12px;
   font-size: 12px;
   background: rgba(8, 20, 15, 0.5);
+}
+
+.ops-pill {
+  font-weight: 600;
+}
+
+.ops-pill.ops-go {
+  border-color: rgba(78, 201, 138, 0.55);
+  color: #9ef0c6;
+}
+
+.ops-pill.ops-nogo {
+  border-color: rgba(255, 111, 111, 0.55);
+  color: #ffc4c4;
 }
 
 .layout {
@@ -186,6 +208,59 @@ select {
   margin: 10px 0 0;
   color: var(--muted);
   font-size: 12px;
+}
+
+.sku-coverage {
+  margin-top: 8px;
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+}
+
+.sku-unclassified {
+  margin-top: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.sku-unclassified strong {
+  width: 100%;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.sku-unclassified span {
+  display: inline-block;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 3px 8px;
+  font-size: 11px;
+  color: var(--warning);
+  background: rgba(31, 45, 36, 0.5);
+}
+
+.sku-coverage-actions {
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.sku-coverage-actions button {
+  background: #173024;
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 6px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.sku-coverage-actions small {
+  color: var(--muted);
+  font-size: 11px;
 }
 
 table {
@@ -312,6 +387,92 @@ th {
   color: var(--text);
 }
 
+.prequote-orders {
+  display: grid;
+  gap: 10px;
+}
+
+.prequote-order {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px;
+  background: rgba(10, 20, 16, 0.5);
+  display: grid;
+  gap: 8px;
+}
+
+.prequote-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.prequote-head small {
+  color: var(--muted);
+}
+
+.prequote-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.prequote-table th,
+.prequote-table td {
+  border-bottom: 1px solid var(--line);
+  padding: 7px 6px;
+  font-size: 12px;
+}
+
+.prequote-table input {
+  min-width: 110px;
+  padding: 6px 8px;
+}
+
+.prequote-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.prequote-actions button {
+  background: #173024;
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 6px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.prequote-actions .btn-primary {
+  background: #1f5a3d;
+  border-color: #58d796;
+}
+
+.prequote-total {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.prequote-status {
+  display: inline-block;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 3px 8px;
+  font-size: 11px;
+}
+
+.prequote-status-draft {
+  color: var(--warning);
+}
+
+.prequote-status-approved {
+  color: var(--accent);
+}
+
 @media (max-width: 1000px) {
   .kpis {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -329,10 +490,19 @@ th {
     align-items: flex-start;
   }
 
+  .topbar-right {
+    justify-content: flex-start;
+  }
+
   .kpis,
   .controls .control-grid,
   .sim-grid {
     grid-template-columns: 1fr;
+  }
+
+  .prequote-head {
+    flex-direction: column;
+    align-items: flex-start;
   }
 
   th,
