@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-03-02T21:25:36.692Z",
+  "generatedAt": "2026-03-02T21:35:20.055Z",
   "referenceDate": "2026-03-02",
   "inputs": {
     "scoreMin": 40,
@@ -24,5 +24,5 @@
     "sreDistribution": {}
   },
   "topActionable": [],
-  "executionMs": 2
+  "executionMs": 3
 }

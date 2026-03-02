@@ -15,6 +15,7 @@
     "dashboard:audit:sku": "node scripts/audit-sku-coverage.js",
     "dashboard:validate:sku": "node scripts/validate-sku-coverage.js",
     "dashboard:snapshot:daily": "node scripts/operational-daily-snapshot.js",
+    "dashboard:export:urgent": "node scripts/export-operational-urgent-csv.js",
     "orders:test:sync:olist": "node scripts/test-orders-sync-olist.js",
     "dashboard:serve": "node scripts/serve-dashboard.js",
     "orders:sync:olist": "node scripts/sync-sgd-orders-olist.js"
