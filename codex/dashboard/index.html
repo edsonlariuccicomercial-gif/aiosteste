@@ -74,11 +74,27 @@
           <button id="btn-export-urgent" type="button">Exportar Urgentes</button>
         </div>
         <p id="result-summary" class="result-summary"></p>
+        <div class="sku-coverage">
+          <p id="sku-coverage-summary" class="result-summary"></p>
+          <div class="sku-coverage-actions">
+            <button id="btn-copy-sku-suggestions" type="button">Copiar sugestoes de regras</button>
+            <small id="sku-copy-feedback"></small>
+          </div>
+          <div id="sku-unclassified" class="sku-unclassified"></div>
+        </div>
       </section>
 
       <section class="card alerts">
         <h2>Alertas criticos de prazo</h2>
         <div id="critical-alerts"></div>
+      </section>
+
+      <section class="card prequote">
+        <div class="table-head">
+          <h2>Pedidos com pre-cotacao</h2>
+        </div>
+        <p id="prequote-summary" class="result-summary"></p>
+        <div id="prequote-orders" class="prequote-orders"></div>
       </section>
 
       <section class="card table-wrap">
@@ -95,7 +111,10 @@
               <th>Escola</th>
               <th>SRE</th>
               <th>Objeto</th>
+              <th>SKU ref</th>
               <th>Prazo</th>
+              <th>Faixa historica (SKU)</th>
+              <th>Preco minimo (modelo)</th>
               <th>Preco sugerido</th>
               <th>Margem</th>
               <th>Sync Olist</th>
@@ -109,8 +128,20 @@
         <h2>Simulador de preco e margem</h2>
         <div class="sim-grid">
           <label>
-            Custo unitario (R$)
+            SKU de referencia
+            <select id="sim-sku"></select>
+          </label>
+          <label>
+            SRE (fator regional)
+            <select id="sim-region"></select>
+          </label>
+          <label>
+            Custo unitario base (R$)
             <input id="sim-cost" type="number" step="0.01" value="10" />
+          </label>
+          <label>
+            Frete (%)
+            <input id="sim-freight" type="number" step="0.01" value="2.5" />
           </label>
           <label>
             Despesas operacionais (%)
@@ -126,6 +157,7 @@
           </label>
         </div>
         <div class="sim-result">
+          <p>Custo ajustado (regiao + frete): <strong id="sim-effective-cost">R$ 0,00</strong></p>
           <p>Preco minimo recomendado: <strong id="sim-price">R$ 0,00</strong></p>
           <p>Lucro unitario estimado: <strong id="sim-profit">R$ 0,00</strong></p>
         </div>

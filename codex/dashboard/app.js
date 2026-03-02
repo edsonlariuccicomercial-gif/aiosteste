@@ -1,6 +1,13 @@
 let quotes = [];
 let syncStatus = {};
 let quickMode = "all";
+let skuCosts = { items: [], regionFactorBySre: {}, defaults: {} };
+let objectSkuRules = { rules: [] };
+let priceHistorySummary = { skuSummary: [], skuRegionSummary: [] };
+let internalOrders = [];
+let prequoteState = {};
+
+const PREQUOTE_STORAGE_KEY = "licitia.prequote.v1";
 
 const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -24,11 +31,21 @@ const el = {
   qaUrgent: document.getElementById("qa-urgent"),
   qaLowConfidence: document.getElementById("qa-low-confidence"),
   resultSummary: document.getElementById("result-summary"),
+  skuCoverageSummary: document.getElementById("sku-coverage-summary"),
+  skuUnclassified: document.getElementById("sku-unclassified"),
+  copySkuSuggestions: document.getElementById("btn-copy-sku-suggestions"),
+  skuCopyFeedback: document.getElementById("sku-copy-feedback"),
   criticalAlerts: document.getElementById("critical-alerts"),
+  prequoteSummary: document.getElementById("prequote-summary"),
+  prequoteOrders: document.getElementById("prequote-orders"),
   simCost: document.getElementById("sim-cost"),
+  simSku: document.getElementById("sim-sku"),
+  simRegion: document.getElementById("sim-region"),
+  simFreight: document.getElementById("sim-freight"),
   simOpex: document.getElementById("sim-opex"),
   simTax: document.getElementById("sim-tax"),
   simMargin: document.getElementById("sim-margin"),
+  simEffectiveCost: document.getElementById("sim-effective-cost"),
   simPrice: document.getElementById("sim-price"),
   simProfit: document.getElementById("sim-profit"),
 };
@@ -49,7 +66,7 @@ function clamp(value, min, max) {
 }
 
 function strategicObjectFit(row) {
-  const obj = String(row.objeto || "").toLowerCase();
+  const obj = normalizedText(row.objeto);
   if (obj.includes("alimentacao") || obj.includes("merenda")) return 15;
   if (obj.includes("pereciveis") || obj.includes("hortifrutigranjeiros")) return 14;
   if (obj.includes("limpeza") || obj.includes("higiene")) return 12;
@@ -68,9 +85,9 @@ function opportunityScore(row) {
   const margemScore = clamp(margin / 25, 0, 1) * 30;
   const fitScore = strategicObjectFit(row);
 
-  const confianca = String(row.confiancaObjeto || "").toLowerCase();
-  const objetoConfiavel = String(row.objeto || "").toLowerCase() !== "objeto nao identificado";
-  const confTerritorio = String(row.confiancaTerritorio || "").toLowerCase();
+  const confianca = normalizedText(row.confiancaObjeto);
+  const objetoConfiavel = normalizedText(row.objeto) !== "objeto nao identificado";
+  const confTerritorio = normalizedText(row.confiancaTerritorio);
   const territorioMapeado = confTerritorio ? confTerritorio !== "baixa" : (
     String(row.sre || "").toLowerCase() !== "sre nao mapeada" &&
     String(row.municipio || "").toLowerCase() !== "nao mapeado"
@@ -81,6 +98,100 @@ function opportunityScore(row) {
   const confiancaDadosScore = scoreObjeto + scoreTerritorio;
 
   return Math.round(prazoScore + margemScore + fitScore + confiancaDadosScore);
+}
+
+function normalizedText(value) {
+  return String(value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function moneyInput(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < 0) return 0;
+  return Number(n.toFixed(2));
+}
+
+function loadPrequoteState() {
+  try {
+    const raw = localStorage.getItem(PREQUOTE_STORAGE_KEY);
+    prequoteState = raw ? JSON.parse(raw) : {};
+  } catch (_e) {
+    prequoteState = {};
+  }
+}
+
+function savePrequoteState() {
+  try {
+    localStorage.setItem(PREQUOTE_STORAGE_KEY, JSON.stringify(prequoteState));
+  } catch (_e) {
+    // no-op (storage unavailable)
+  }
+}
+
+function ensurePrequoteOrder(order) {
+  if (!order || !order.id) return;
+  if (prequoteState[order.id]) return;
+
+  const items = Array.isArray(order.items) ? order.items : [];
+  prequoteState[order.id] = {
+    status: "draft",
+    updatedAt: null,
+    approvedAt: null,
+    items: items.map((item) => {
+      const qty = Number(item.qty || 0);
+      const baseUnit = moneyInput(item.unitPrice || 0);
+      return {
+        sku: String(item.sku || ""),
+        description: String(item.description || ""),
+        qty: Number.isFinite(qty) ? qty : 0,
+        baseUnitPrice: baseUnit,
+        proposedUnitPrice: baseUnit,
+      };
+    }),
+  };
+}
+
+function filteredInternalOrders() {
+  const sre = el.sre.value;
+  const city = el.city.value;
+  const query = normalizedText(el.query.value.trim());
+
+  return internalOrders
+    .filter((o) => (sre === "all" ? true : o.sre === sre))
+    .filter((o) => (city === "all" ? true : o.city === city))
+    .filter((o) => {
+      if (!query) return true;
+      const text = normalizedText(
+        [o.school, o.city, o.sre, ...(Array.isArray(o.items) ? o.items.map((i) => i.description || i.sku) : [])].join(" ")
+      );
+      return text.includes(query);
+    })
+    .sort((a, b) => String(b.confirmedAt || "").localeCompare(String(a.confirmedAt || "")));
+}
+
+function prequoteTotals(orderId) {
+  const draft = prequoteState[orderId];
+  const items = Array.isArray(draft?.items) ? draft.items : [];
+  const total = items.reduce((acc, item) => acc + Number(item.qty || 0) * Number(item.proposedUnitPrice || 0), 0);
+  return { total };
+}
+
+function prequoteStatusBadge(status) {
+  if (status === "approved") {
+    return '<span class="prequote-status prequote-status-approved">Aprovada</span>';
+  }
+  return '<span class="prequote-status prequote-status-draft">Pendente</span>';
 }
 
 function priority(row) {
@@ -96,6 +207,154 @@ function populateFilters() {
 
   el.sre.innerHTML = ['<option value="all">Todas</option>', ...sres.map((s) => `<option value="${s}">${s}</option>`)].join("");
   el.city.innerHTML = ['<option value="all">Todos</option>', ...cities.map((c) => `<option value="${c}">${c}</option>`)].join("");
+}
+
+function populateSimulatorOptions() {
+  if (el.simSku) {
+    const items = Array.isArray(skuCosts.items) ? skuCosts.items : [];
+    el.simSku.innerHTML = items
+      .map((item) => `<option value="${item.sku}">${item.sku} - ${item.descricao}</option>`)
+      .join("");
+  }
+
+  if (el.simRegion) {
+    const regional = skuCosts.regionFactorBySre || {};
+    const regions = Object.keys(regional).length
+      ? Object.keys(regional).sort()
+      : [...new Set(quotes.map((q) => q.sre))].sort();
+    el.simRegion.innerHTML = regions.map((sre) => `<option value="${sre}">${sre}</option>`).join("");
+  }
+
+  if (el.simFreight && skuCosts.defaults && Number.isFinite(skuCosts.defaults.fretePct)) {
+    el.simFreight.value = String(skuCosts.defaults.fretePct);
+  }
+}
+
+function baseCostForSku(sku) {
+  const items = Array.isArray(skuCosts.items) ? skuCosts.items : [];
+  const found = items.find((item) => item.sku === sku);
+  return found ? Number(found.custoBase || 0) : 0;
+}
+
+function serviceBandCostForRow(row, sku) {
+  const bands = Array.isArray(skuCosts.serviceCostBands) ? skuCosts.serviceCostBands : [];
+  if (!bands.length) return 0;
+
+  const prefix = String(sku || "").split("-").slice(0, 2).join("-");
+  const text = normalizedText([row.objeto, row.objectRaw].filter(Boolean).join(" "));
+
+  for (const band of bands) {
+    const bandPrefix = String(band.skuPrefix || "");
+    if (bandPrefix && !String(sku).startsWith(bandPrefix) && bandPrefix !== prefix) continue;
+    const keys = Array.isArray(band.keywords) ? band.keywords : [];
+    const match = keys.some((k) => {
+      const key = normalizedText(k);
+      return key && text.includes(key);
+    });
+    if (match) return Number(band.custoBase || 0);
+  }
+  return 0;
+}
+
+function findSkuByPrefix(prefix) {
+  const items = Array.isArray(skuCosts.items) ? skuCosts.items : [];
+  const found = items.find((item) => String(item.sku || "").startsWith(prefix));
+  return found ? found.sku : "";
+}
+
+function regionFactor(sre) {
+  const factor = Number((skuCosts.regionFactorBySre || {})[sre]);
+  return factor > 0 ? factor : 1;
+}
+
+function skuForQuote(row) {
+  const obj = normalizedText(row.objeto);
+  const rules = Array.isArray(objectSkuRules.rules) ? objectSkuRules.rules : [];
+
+  for (const rule of rules) {
+    const keywords = Array.isArray(rule.keywords) ? rule.keywords : [];
+    const hasMatch = keywords.some((keyword) => {
+      const normalizedKeyword = normalizedText(keyword);
+      return normalizedKeyword && obj.includes(normalizedKeyword);
+    });
+    if (hasMatch) {
+      const prefix = String(rule.skuPrefix || "");
+      const sku = findSkuByPrefix(prefix);
+      if (sku) return sku;
+    }
+  }
+
+  if (obj.includes("feijao")) return findSkuByPrefix("ALIM-FEIJAO");
+  if (obj.includes("alimentacao") || obj.includes("merenda") || obj.includes("arroz")) {
+    return findSkuByPrefix("ALIM-ARROZ");
+  }
+  if (obj.includes("limpeza") || obj.includes("higiene")) return findSkuByPrefix("LIMP-AGUA-SANITARIA");
+  if (obj.includes("escritorio") || obj.includes("consumo") || obj.includes("caderno")) {
+    return findSkuByPrefix("ESCR-CADERNO");
+  }
+  return "";
+}
+
+function pricingDefaults() {
+  const defaults = skuCosts.defaults || {};
+  const freightPct = Number.isFinite(Number(defaults.fretePct)) ? Number(defaults.fretePct) : 2.5;
+  const opexPct = Number.isFinite(Number(defaults.opexPct)) ? Number(defaults.opexPct) : 6;
+  const taxPct = Number.isFinite(Number(defaults.impostosPct)) ? Number(defaults.impostosPct) : 8.5;
+  const marginPct = Number.isFinite(Number(defaults.margemAlvoPct)) ? Number(defaults.margemAlvoPct) : 18;
+  return { freightPct, opexPct, taxPct, marginPct };
+}
+
+function historyRangeForSku(sku, sre) {
+  if (!sku) return null;
+  const byRegion = Array.isArray(priceHistorySummary.skuRegionSummary)
+    ? priceHistorySummary.skuRegionSummary
+    : [];
+  const bySku = Array.isArray(priceHistorySummary.skuSummary) ? priceHistorySummary.skuSummary : [];
+
+  const exact = byRegion.find((item) => item.sku === sku && item.sre === sre);
+  if (exact) {
+    return {
+      min: Number(exact.min || 0),
+      max: Number(exact.max || 0),
+      count: Number(exact.count || 0),
+      scope: "SKU+SRE",
+    };
+  }
+
+  const fallback = bySku.find((item) => item.sku === sku);
+  if (!fallback) return null;
+  return {
+    min: Number(fallback.min || 0),
+    max: Number(fallback.max || 0),
+    count: Number(fallback.count || 0),
+    scope: "SKU",
+  };
+}
+
+function historyRangeLabel(range) {
+  if (!range || !range.count) return "-";
+  const base = `${brl.format(range.min)} - ${brl.format(range.max)}`;
+  return `${base} (n=${range.count}, ${range.scope})`;
+}
+
+function quoteMinPricing(row) {
+  const sku = skuForQuote(row);
+  if (!sku) return { sku: "", minPrice: 0 };
+
+  const base = serviceBandCostForRow(row, sku) || baseCostForSku(sku);
+  if (!base) return { sku, minPrice: 0 };
+
+  const { freightPct, opexPct, taxPct, marginPct } = pricingDefaults();
+  const adjustedCost = base * regionFactor(row.sre) * (1 + freightPct / 100);
+  const divisor = 1 - opexPct / 100 - taxPct / 100 - marginPct / 100;
+  const minPrice = divisor > 0 ? adjustedCost / divisor : 0;
+  return { sku, minPrice };
+}
+
+function applySimulatorPreset() {
+  if (!el.simSku || !el.simCost) return;
+  const base = baseCostForSku(el.simSku.value);
+  if (base > 0) el.simCost.value = String(base.toFixed(2));
 }
 
 function filteredRows() {
@@ -183,11 +442,94 @@ function renderAlerts(rows) {
     .join("");
 }
 
+function renderPrequoteOrders() {
+  if (!el.prequoteOrders || !el.prequoteSummary) return;
+
+  const orders = filteredInternalOrders();
+  const approved = orders.filter((o) => prequoteState[o.id]?.status === "approved").length;
+  el.prequoteSummary.textContent = `Pedidos no filtro: ${orders.length}. Pre-cotacoes aprovadas: ${approved}.`;
+
+  if (!orders.length) {
+    el.prequoteOrders.innerHTML = "<small>Nenhum pedido com itens para o filtro atual.</small>";
+    return;
+  }
+
+  el.prequoteOrders.innerHTML = orders
+    .map((order) => {
+      ensurePrequoteOrder(order);
+      const draft = prequoteState[order.id];
+      const items = Array.isArray(draft?.items) ? draft.items : [];
+      const total = prequoteTotals(order.id).total;
+      const confirmedAt = order.confirmedAt
+        ? new Date(order.confirmedAt).toLocaleString("pt-BR")
+        : "Sem data";
+
+      const rows = items
+        .map((item, index) => {
+          const subtotal = Number(item.qty || 0) * Number(item.proposedUnitPrice || 0);
+          return `
+            <tr>
+              <td>${escapeHtml(item.sku || "-")}</td>
+              <td>${escapeHtml(item.description || "-")}</td>
+              <td>${Number(item.qty || 0)}</td>
+              <td>${brl.format(Number(item.baseUnitPrice || 0))}</td>
+              <td>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  class="prequote-input"
+                  data-order-id="${escapeHtml(order.id)}"
+                  data-item-index="${index}"
+                  value="${Number(item.proposedUnitPrice || 0).toFixed(2)}"
+                />
+              </td>
+              <td>${brl.format(subtotal)}</td>
+            </tr>
+          `;
+        })
+        .join("");
+
+      return `
+        <article class="prequote-order">
+          <div class="prequote-head">
+            <div>
+              <strong>${escapeHtml(order.id)} - ${escapeHtml(order.school)}</strong><br />
+              <small>${escapeHtml(order.city)} | ${escapeHtml(order.sre)} | Confirmado em ${confirmedAt}</small>
+            </div>
+            ${prequoteStatusBadge(draft?.status)}
+          </div>
+          <table class="prequote-table">
+            <thead>
+              <tr>
+                <th>SKU</th>
+                <th>Item</th>
+                <th>Qtd</th>
+                <th>Unit. base</th>
+                <th>Unit. pre-cotacao</th>
+                <th>Subtotal</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+          <div class="prequote-actions">
+            <button type="button" data-action="save-prequote" data-order-id="${escapeHtml(order.id)}">Salvar rascunho</button>
+            <button type="button" class="btn-primary" data-action="approve-prequote" data-order-id="${escapeHtml(order.id)}">Aprovar pre-cotacao</button>
+            <span class="prequote-total">Total proposto: <strong>${brl.format(total)}</strong></span>
+          </div>
+        </article>
+      `;
+    })
+    .join("");
+}
+
 function renderTable(rows) {
   el.table.innerHTML = rows
     .map((r) => {
       const p = priority(r);
       const margin = marginPct(r);
+      const quotePricing = quoteMinPricing(r);
+      const historyRange = historyRangeForSku(quotePricing.sku, r.sre);
       return `
       <tr>
         <td class="priority ${p.cls}">${p.label}</td>
@@ -196,7 +538,10 @@ function renderTable(rows) {
         <td>${r.escola}<br><small>${r.municipio}</small></td>
         <td>${r.sre}</td>
         <td>${r.objeto}</td>
+        <td>${quotePricing.sku || "-"}</td>
         <td>${new Date(r.prazo + "T00:00:00").toLocaleDateString("pt-BR")}</td>
+        <td>${historyRangeLabel(historyRange)}</td>
+        <td>${quotePricing.minPrice ? brl.format(quotePricing.minPrice) : "-"}</td>
         <td>${r.precoSugerido ? brl.format(r.precoSugerido) : "-"}</td>
         <td>${r.precoSugerido ? `${margin.toFixed(1)}%` : "-"}</td>
         <td>${syncBadge(r.id)}</td>
@@ -207,14 +552,18 @@ function renderTable(rows) {
 
 function renderSim() {
   const cost = Number(el.simCost.value || 0);
+  const freight = Number(el.simFreight.value || 0) / 100;
+  const factor = regionFactor(el.simRegion?.value || "");
+  const adjustedCost = cost * factor * (1 + freight);
   const opex = Number(el.simOpex.value || 0) / 100;
   const tax = Number(el.simTax.value || 0) / 100;
   const target = Number(el.simMargin.value || 0) / 100;
 
   const divisor = 1 - opex - tax - target;
-  const minPrice = divisor > 0 ? cost / divisor : 0;
-  const profit = minPrice - cost;
+  const minPrice = divisor > 0 ? adjustedCost / divisor : 0;
+  const profit = minPrice - adjustedCost;
 
+  el.simEffectiveCost.textContent = brl.format(adjustedCost);
   el.simPrice.textContent = brl.format(minPrice);
   el.simProfit.textContent = brl.format(profit);
 }
@@ -223,8 +572,10 @@ function renderAll() {
   const rows = filteredRows();
   renderKPIs(rows);
   renderAlerts(rows);
+  renderPrequoteOrders();
   renderTable(rows);
   renderSummary(rows);
+  renderSkuCoverage(rows);
   renderQuickModeState();
 }
 
@@ -233,6 +584,116 @@ function renderSummary(rows) {
   const open = rows.filter((r) => r.status !== "encerrado").length;
   const urgent = rows.filter((r) => r.status !== "encerrado" && daysTo(r.prazo) <= 2).length;
   el.resultSummary.textContent = `Resultado atual: ${rows.length} cotacoes (${open} abertas, ${urgent} urgentes).`;
+}
+
+function renderSkuCoverage(rows) {
+  if (!el.skuCoverageSummary || !el.skuUnclassified) return;
+
+  const total = rows.length;
+  if (!total) {
+    el.skuCoverageSummary.textContent = "Cobertura SKU: sem dados no filtro atual.";
+    el.skuUnclassified.innerHTML = "";
+    return;
+  }
+
+  const withSku = rows.filter((r) => quoteMinPricing(r).sku).length;
+  const coverage = ((withSku / total) * 100).toFixed(1);
+  el.skuCoverageSummary.textContent = `Cobertura SKU: ${withSku}/${total} (${coverage}%).`;
+
+  const counts = {};
+  for (const row of rows) {
+    const pricing = quoteMinPricing(row);
+    if (pricing.sku) continue;
+    const key = String(row.objeto || "Objeto nao informado");
+    counts[key] = (counts[key] || 0) + 1;
+  }
+
+  const pending = Object.entries(counts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 8);
+
+  if (!pending.length) {
+    el.skuUnclassified.innerHTML = '<small>Todos os objetos do filtro estao classificados em SKU.</small>';
+    return;
+  }
+
+  el.skuUnclassified.innerHTML = [
+    "<strong>Objetos nao classificados (top 8):</strong>",
+    ...pending.map(([objeto, count]) => `<span>${objeto} (${count})</span>`),
+  ].join("");
+}
+
+function unclassifiedObjects(rows) {
+  const counts = {};
+  for (const row of rows) {
+    const pricing = quoteMinPricing(row);
+    if (pricing.sku) continue;
+    const key = String(row.objeto || "Objeto nao informado");
+    counts[key] = (counts[key] || 0) + 1;
+  }
+  return Object.entries(counts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 8)
+    .map(([objeto, count]) => ({ objeto, count }));
+}
+
+function skuRuleSuggestions(rows) {
+  const pending = unclassifiedObjects(rows);
+  return pending.map((item) => {
+    const normalized = normalizedText(item.objeto)
+      .replace(/[^a-z0-9 ]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    const terms = normalized.split(" ").filter((t) => t.length >= 4).slice(0, 4);
+    return {
+      name: `Sugestao - ${item.objeto.slice(0, 50)}`,
+      skuPrefix: "DEFINIR-SKU-PREFIXO",
+      keywords: terms.length ? terms : [normalized || "definir_keyword"],
+      observacao: `Frequencia no filtro atual: ${item.count}`,
+    };
+  });
+}
+
+async function copySkuSuggestions() {
+  if (!el.skuCopyFeedback) return;
+  const rows = filteredRows();
+  const suggestions = skuRuleSuggestions(rows);
+  if (!suggestions.length) {
+    el.skuCopyFeedback.textContent = "Sem objetos pendentes para sugerir.";
+    return;
+  }
+
+  const text = JSON.stringify({ rules: suggestions }, null, 2);
+  let copied = false;
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      copied = true;
+    } catch (_e) {
+      copied = false;
+    }
+  }
+
+  if (!copied) {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.position = "fixed";
+    ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    try {
+      copied = document.execCommand("copy");
+    } catch (_e) {
+      copied = false;
+    }
+    ta.remove();
+  }
+
+  el.skuCopyFeedback.textContent = copied
+    ? "Sugestoes copiadas. Ajuste skuPrefix e keywords antes de colar no JSON."
+    : "Nao foi possivel copiar automaticamente.";
 }
 
 function renderQuickModeState() {
@@ -258,6 +719,8 @@ function exportCsvFromRows(rows, suffix) {
     "municipio",
     "sre",
     "objeto",
+    "sku_referencia",
+    "preco_minimo_modelo",
     "confianca_objeto",
     "confianca_territorio",
     "prazo",
@@ -270,6 +733,7 @@ function exportCsvFromRows(rows, suffix) {
   const lines = [headers.join(",")];
   for (const row of rows) {
     const p = priority(row);
+    const quotePricing = quoteMinPricing(row);
     const line = [
       p.label,
       opportunityScore(row),
@@ -278,6 +742,8 @@ function exportCsvFromRows(rows, suffix) {
       row.municipio,
       row.sre,
       row.objeto,
+      quotePricing.sku || "",
+      quotePricing.minPrice ? quotePricing.minPrice.toFixed(2) : "",
       row.confiancaObjeto || "",
       row.confiancaTerritorio || "",
       row.prazo,
@@ -310,12 +776,53 @@ function exportUrgentCsv() {
   exportCsvFromRows(urgentRows, "urgentes");
 }
 
+function updatePrequoteItem(orderId, itemIndex, value) {
+  const draft = prequoteState[orderId];
+  if (!draft || !Array.isArray(draft.items)) return;
+  const item = draft.items[itemIndex];
+  if (!item) return;
+  item.proposedUnitPrice = moneyInput(value);
+  draft.status = draft.status === "approved" ? "approved" : "draft";
+  draft.updatedAt = new Date().toISOString();
+  savePrequoteState();
+}
+
+function savePrequote(orderId) {
+  const draft = prequoteState[orderId];
+  if (!draft) return;
+  draft.status = "draft";
+  draft.updatedAt = new Date().toISOString();
+  savePrequoteState();
+  renderPrequoteOrders();
+}
+
+function approvePrequote(orderId) {
+  const draft = prequoteState[orderId];
+  if (!draft) return;
+  draft.status = "approved";
+  draft.updatedAt = new Date().toISOString();
+  draft.approvedAt = new Date().toISOString();
+  savePrequoteState();
+  renderPrequoteOrders();
+}
+
 ["change", "keyup"].forEach((eventName) => {
   [el.sre, el.city, el.status, el.query].forEach((node) => node.addEventListener(eventName, renderAll));
-  [el.simCost, el.simOpex, el.simTax, el.simMargin].forEach((node) =>
+  [el.simCost, el.simOpex, el.simTax, el.simMargin, el.simFreight].forEach((node) =>
     node.addEventListener(eventName, renderSim)
   );
 });
+
+if (el.simSku) {
+  el.simSku.addEventListener("change", () => {
+    applySimulatorPreset();
+    renderSim();
+  });
+}
+
+if (el.simRegion) {
+  el.simRegion.addEventListener("change", renderSim);
+}
 
 if (el.exportCsv) {
   el.exportCsv.addEventListener("click", exportFilteredCsv);
@@ -332,6 +839,33 @@ if (el.qaLowConfidence) {
   el.qaLowConfidence.addEventListener("click", () => {
     quickMode = "low_confidence";
     renderAll();
+  });
+}
+
+if (el.copySkuSuggestions) {
+  el.copySkuSuggestions.addEventListener("click", copySkuSuggestions);
+}
+
+if (el.prequoteOrders) {
+  el.prequoteOrders.addEventListener("input", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement)) return;
+    if (!target.classList.contains("prequote-input")) return;
+    const orderId = target.dataset.orderId || "";
+    const itemIndex = Number(target.dataset.itemIndex);
+    if (!orderId || !Number.isInteger(itemIndex)) return;
+    updatePrequoteItem(orderId, itemIndex, target.value);
+    renderPrequoteOrders();
+  });
+
+  el.prequoteOrders.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+    const action = target.dataset.action;
+    const orderId = target.dataset.orderId || "";
+    if (!action || !orderId) return;
+    if (action === "save-prequote") savePrequote(orderId);
+    if (action === "approve-prequote") approvePrequote(orderId);
   });
 }
 
@@ -355,10 +889,59 @@ async function loadSyncStatus() {
   }
 }
 
+async function loadSkuCosts() {
+  try {
+    const resp = await fetch("./data/sku-costs.json", { cache: "no-store" });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    skuCosts = await resp.json();
+  } catch (_e) {
+    skuCosts = { items: [], regionFactorBySre: {}, defaults: {} };
+  }
+}
+
+async function loadObjectSkuRules() {
+  try {
+    const resp = await fetch("./data/object-sku-rules.json", { cache: "no-store" });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    objectSkuRules = await resp.json();
+  } catch (_e) {
+    objectSkuRules = { rules: [] };
+  }
+}
+
+async function loadInternalOrders() {
+  try {
+    const resp = await fetch("./data/internal-orders.json", { cache: "no-store" });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    internalOrders = await resp.json();
+  } catch (_e) {
+    internalOrders = [];
+  }
+}
+
+async function loadPriceHistorySummary() {
+  try {
+    const resp = await fetch("./data/price-history-summary.json", { cache: "no-store" });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    priceHistorySummary = await resp.json();
+  } catch (_e) {
+    priceHistorySummary = { skuSummary: [], skuRegionSummary: [] };
+  }
+}
+
 async function boot() {
+  loadPrequoteState();
   await loadQuotes();
   await loadSyncStatus();
+  await loadSkuCosts();
+  await loadObjectSkuRules();
+  await loadPriceHistorySummary();
+  await loadInternalOrders();
+  for (const order of internalOrders) ensurePrequoteOrder(order);
+  savePrequoteState();
   populateFilters();
+  populateSimulatorOptions();
+  applySimulatorPreset();
   renderAll();
   renderSim();
 }
