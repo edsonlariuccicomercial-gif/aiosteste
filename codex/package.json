@@ -21,6 +21,7 @@
     "dashboard:history:validate": "node scripts/validate-price-history.js",
     "ops:daily": "npm.cmd run dashboard:audit:territory && npm.cmd run dashboard:audit:sku && npm.cmd run dashboard:validate:sku && npm.cmd run dashboard:snapshot:daily && npm.cmd run dashboard:export:urgent && npm.cmd run dashboard:history:build && npm.cmd run dashboard:history:summary && npm.cmd run dashboard:history:validate && node scripts/generate-ops-daily-report.js",
     "ops:daily:collect": "npm.cmd run dashboard:collect && npm.cmd run ops:daily && node scripts/generate-ops-daily-report.js --with-collect",
+    "ops:health": "node scripts/ops-health-check.js",
     "orders:test:sync:olist": "node scripts/test-orders-sync-olist.js",
     "dashboard:serve": "node scripts/serve-dashboard.js",
     "orders:sync:olist": "node scripts/sync-sgd-orders-olist.js"
