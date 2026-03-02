@@ -1,0 +1,28 @@
+{
+  "generatedAt": "2026-03-02T21:25:36.692Z",
+  "referenceDate": "2026-03-02",
+  "inputs": {
+    "scoreMin": 40,
+    "maxDaysToDeadline": 7,
+    "actionableStatuses": [
+      "analise de propostas",
+      "analise",
+      "aberto",
+      "pendente",
+      "em andamento"
+    ],
+    "quotesPath": "dashboard\\data\\quotes.json"
+  },
+  "metrics": {
+    "totalQuotes": 10,
+    "actionableQuotes": 0,
+    "urgent48h": 0,
+    "highPriority": 0,
+    "avgMarginPct": 0,
+    "potentialRevenue": 0,
+    "syncStatusCounts": {},
+    "sreDistribution": {}
+  },
+  "topActionable": [],
+  "executionMs": 2
+}

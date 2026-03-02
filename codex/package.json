@@ -9,9 +9,13 @@
   "scripts": {
     "lint": "node -e \"console.log('lint: sem regras configuradas ainda')\"",
     "typecheck": "node -e \"console.log('typecheck: sem tsconfig ainda')\"",
-    "test": "node -e \"console.log('test: sem suite automatizada ainda')\"",
+    "test": "node scripts/test-orders-sync-olist.js",
     "dashboard:collect": "node scripts/collect-sgd-orcamentos.js",
     "dashboard:audit:territory": "node scripts/audit-territory-coverage.js",
+    "dashboard:audit:sku": "node scripts/audit-sku-coverage.js",
+    "dashboard:validate:sku": "node scripts/validate-sku-coverage.js",
+    "dashboard:snapshot:daily": "node scripts/operational-daily-snapshot.js",
+    "orders:test:sync:olist": "node scripts/test-orders-sync-olist.js",
     "dashboard:serve": "node scripts/serve-dashboard.js",
     "orders:sync:olist": "node scripts/sync-sgd-orders-olist.js"
   },
