@@ -1,0 +1,16 @@
+{
+  "2026000112": {
+    "status": "synchronized",
+    "olistOrderId": "OL-TINY2-1772465131700",
+    "attempts": 2,
+    "syncedAt": "2026-03-02T15:25:31.700Z",
+    "lastError": "fetch failed"
+  },
+  "2026000141": {
+    "status": "synchronized",
+    "olistOrderId": "OL-TINY2-1772465132945",
+    "attempts": 2,
+    "syncedAt": "2026-03-02T15:25:32.945Z",
+    "lastError": "fetch failed"
+  }
+}

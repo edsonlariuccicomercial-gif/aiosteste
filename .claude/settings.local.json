@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "Bash(wc:*)",
+      "WebFetch(domain:lariuccieribeiropereira.catalogomobile.com.br)",
+      "Bash(claude mcp:*)",
+      "mcp__playwright__browser_navigate",
+      "mcp__playwright__browser_wait_for",
+      "mcp__playwright__browser_click",
+      "mcp__playwright__browser_evaluate",
+      "mcp__playwright__browser_take_screenshot",
+      "mcp__playwright__browser_fill_form",
+      "mcp__playwright__browser_type",
+      "mcp__playwright__browser_console_messages",
+      "Bash(npx netlify:*)",
+      "Bash(where netlify:*)",
+      "Bash(npm install:*)",
+      "Bash(netlify login:*)",
+      "Bash(netlify deploy:*)",
+      "Bash(netlify sites:create:*)",
+      "Bash(netlify api:*)",
+      "Bash(curl:*)",
+      "Bash(xargs ls:*)"
+    ]
+  }
+}

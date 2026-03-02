@@ -1,0 +1,57 @@
+{
+  "startedAt": "2026-03-02T14:04:37.636Z",
+  "loginUrl": "https://caixaescolar.educacao.mg.gov.br/selecionar-perfil",
+  "steps": [
+    {
+      "name": "open_profile_page",
+      "ok": true,
+      "data": {
+        "url": "https://caixaescolar.educacao.mg.gov.br/selecionar-perfil",
+        "title": "MG - SGD"
+      }
+    },
+    {
+      "name": "select_supplier_profile",
+      "ok": true,
+      "data": {
+        "clicked": true,
+        "url": "https://caixaescolar.educacao.mg.gov.br/selecionar-perfil",
+        "title": "MG - SGD"
+      }
+    },
+    {
+      "name": "fill_login_form",
+      "ok": true,
+      "data": {
+        "emailFilled": false,
+        "passFilled": false,
+        "submitted": true,
+        "url": "https://caixaescolar.educacao.mg.gov.br/login?profile=FORN",
+        "title": "MG - SGD",
+        "hasPasswordInputStill": true
+      }
+    },
+    {
+      "name": "extract_structure",
+      "ok": true,
+      "data": {
+        "url": "https://caixaescolar.educacao.mg.gov.br/login?profile=FORN",
+        "title": "MG - SGD",
+        "headings": [
+          "BEM-VINDO AO CAIXA ESCOLAR - SISTEMA DE GESTÃO DESCENTRALIZADA"
+        ],
+        "navItems": [],
+        "linksCount": 1,
+        "links": [
+          {
+            "text": "Esqueceu a senha?",
+            "href": "/esqueceu-senha?profile=FORN"
+          }
+        ],
+        "bodySample": "BEM-VINDO AO CAIXA ESCOLAR - SISTEMA DE GESTÃO DESCENTRALIZADA\n\nUma plataforma unificada para o planejamento, uso e monitoramento dos recursos descentralizados para as escolas da rede.\n\nTudo isso de forma ágil e transparente.\n\nFaça Seu Login\nDigite seus dados Cadastrais ou clique em \"Cadastre-se\" Para darmos início no seu registro\nCNPJ/CPF\nSenha\nEsqueceu a senha?\nCadastrar-se \nEntrar "
+      }
+    }
+  ],
+  "errors": [],
+  "finishedAt": "2026-03-02T14:04:48.116Z"
+}

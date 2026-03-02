@@ -1,0 +1,30 @@
+[
+  {
+    "id": "2026000112",
+    "school": "EE Coronel Paiva",
+    "city": "Curvelo",
+    "sre": "SRE Curvelo",
+    "contractRef": "ARP-2026-0008",
+    "confirmedAt": "2026-03-02T13:10:00Z",
+    "totalValue": 23740,
+    "workflowStatus": "APROVADO_PARA_FATURAMENTO",
+    "items": [
+      { "sku": "ARROZ-5KG", "description": "Arroz 5kg", "qty": 220, "unitPrice": 28.9 },
+      { "sku": "FEIJAO-1KG", "description": "Feijao 1kg", "qty": 300, "unitPrice": 8.7 }
+    ]
+  },
+  {
+    "id": "2026000141",
+    "school": "EE Maria Antonieta Romano Salgado",
+    "city": "Belo Horizonte",
+    "sre": "SRE Metropolitana B",
+    "contractRef": "ARP-2026-0011",
+    "confirmedAt": "2026-03-02T13:40:00Z",
+    "totalValue": 10590,
+    "workflowStatus": "APROVADO_PARA_FATURAMENTO",
+    "items": [
+      { "sku": "DET-500", "description": "Detergente 500ml", "qty": 380, "unitPrice": 2.95 },
+      { "sku": "ALC-70", "description": "Alcool 70%", "qty": 120, "unitPrice": 6.2 }
+    ]
+  }
+]

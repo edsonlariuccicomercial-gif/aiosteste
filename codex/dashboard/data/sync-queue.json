@@ -1,0 +1,74 @@
+[
+  {
+    "queueId": "Q-1772465075546-312",
+    "internalOrderId": "2026000112",
+    "idempotencyKey": "internal-order:2026000112",
+    "attempts": 2,
+    "status": "synced",
+    "nextAttemptAt": "2026-03-02T15:24:55.632Z",
+    "createdAt": "2026-03-02T15:24:35.547Z",
+    "updatedAt": "2026-03-02T15:25:28.621Z",
+    "lastError": "",
+    "payloadSnapshot": {
+      "id": "2026000112",
+      "school": "EE Coronel Paiva",
+      "city": "Curvelo",
+      "sre": "SRE Curvelo",
+      "contractRef": "ARP-2026-0008",
+      "totalValue": 23740,
+      "confirmedAt": "2026-03-02T13:10:00Z",
+      "items": [
+        {
+          "sku": "ARROZ-5KG",
+          "description": "Arroz 5kg",
+          "qty": 220,
+          "unitPrice": 28.9
+        },
+        {
+          "sku": "FEIJAO-1KG",
+          "description": "Feijao 1kg",
+          "qty": 300,
+          "unitPrice": 8.7
+        }
+      ],
+      "workflowStatus": "APROVADO_PARA_FATURAMENTO"
+    },
+    "syncedAt": "2026-03-02T15:25:31.700Z"
+  },
+  {
+    "queueId": "Q-1772465075547-947",
+    "internalOrderId": "2026000141",
+    "idempotencyKey": "internal-order:2026000141",
+    "attempts": 2,
+    "status": "synced",
+    "nextAttemptAt": "2026-03-02T15:24:55.635Z",
+    "createdAt": "2026-03-02T15:24:35.547Z",
+    "updatedAt": "2026-03-02T15:25:31.700Z",
+    "lastError": "",
+    "payloadSnapshot": {
+      "id": "2026000141",
+      "school": "EE Maria Antonieta Romano Salgado",
+      "city": "Belo Horizonte",
+      "sre": "SRE Metropolitana B",
+      "contractRef": "ARP-2026-0011",
+      "totalValue": 10590,
+      "confirmedAt": "2026-03-02T13:40:00Z",
+      "items": [
+        {
+          "sku": "DET-500",
+          "description": "Detergente 500ml",
+          "qty": 380,
+          "unitPrice": 2.95
+        },
+        {
+          "sku": "ALC-70",
+          "description": "Alcool 70%",
+          "qty": 120,
+          "unitPrice": 6.2
+        }
+      ],
+      "workflowStatus": "APROVADO_PARA_FATURAMENTO"
+    },
+    "syncedAt": "2026-03-02T15:25:32.945Z"
+  }
+]

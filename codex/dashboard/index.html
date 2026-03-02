@@ -1,0 +1,138 @@
+﻿<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LicitIA MG - Dashboard</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="bg-shape bg-a"></div>
+    <div class="bg-shape bg-b"></div>
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Painel operacional</p>
+        <h1>LicitIA MG</h1>
+      </div>
+      <div class="pill">Fornecedor â€¢ Caixa Escolar MG</div>
+    </header>
+
+    <main class="layout">
+      <section class="kpis">
+        <article class="card kpi">
+          <p>Cotacoes abertas</p>
+          <strong id="kpi-open">0</strong>
+        </article>
+        <article class="card kpi">
+          <p>Prazo ate 48h</p>
+          <strong id="kpi-urgent">0</strong>
+        </article>
+        <article class="card kpi">
+          <p>Margem media alvo</p>
+          <strong id="kpi-margin">0%</strong>
+        </article>
+        <article class="card kpi">
+          <p>Receita potencial</p>
+          <strong id="kpi-revenue">R$ 0,00</strong>
+        </article>
+        <article class="card kpi">
+          <p>Pedidos sincronizados Olist</p>
+          <strong id="kpi-olist-sync">0</strong>
+        </article>
+      </section>
+
+      <section class="card controls">
+        <h2>Filtro tatico</h2>
+        <div class="control-grid">
+          <label>
+            SRE
+            <select id="filter-sre"></select>
+          </label>
+          <label>
+            Municipio
+            <select id="filter-city"></select>
+          </label>
+          <label>
+            Status
+            <select id="filter-status">
+              <option value="all">Todos</option>
+              <option value="aberto">Aberto</option>
+              <option value="prazo_critico">Prazo critico</option>
+              <option value="encerrado">Encerrado</option>
+            </select>
+          </label>
+          <label>
+            Busca por objeto
+            <input id="filter-query" type="text" placeholder="Ex: arroz, papel, limpeza" />
+          </label>
+        </div>
+        <div class="quick-actions">
+          <button id="qa-all" type="button">Tudo</button>
+          <button id="qa-high" type="button">Prioridade Alta</button>
+          <button id="qa-urgent" type="button">Prazo 48h</button>
+          <button id="qa-low-confidence" type="button">Baixa confianca</button>
+          <button id="btn-export-urgent" type="button">Exportar Urgentes</button>
+        </div>
+        <p id="result-summary" class="result-summary"></p>
+      </section>
+
+      <section class="card alerts">
+        <h2>Alertas criticos de prazo</h2>
+        <div id="critical-alerts"></div>
+      </section>
+
+      <section class="card table-wrap">
+        <div class="table-head">
+          <h2>Fila de cotaÃ§Ãµes priorizada</h2>
+          <button id="btn-export-csv" type="button">Exportar CSV</button>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Prioridade</th>
+              <th>Score</th>
+              <th>ID</th>
+              <th>Escola</th>
+              <th>SRE</th>
+              <th>Objeto</th>
+              <th>Prazo</th>
+              <th>Preco sugerido</th>
+              <th>Margem</th>
+              <th>Sync Olist</th>
+            </tr>
+          </thead>
+          <tbody id="quote-table"></tbody>
+        </table>
+      </section>
+
+      <section class="card simulator">
+        <h2>Simulador de preco e margem</h2>
+        <div class="sim-grid">
+          <label>
+            Custo unitario (R$)
+            <input id="sim-cost" type="number" step="0.01" value="10" />
+          </label>
+          <label>
+            Despesas operacionais (%)
+            <input id="sim-opex" type="number" step="0.01" value="6" />
+          </label>
+          <label>
+            Impostos (%)
+            <input id="sim-tax" type="number" step="0.01" value="8.5" />
+          </label>
+          <label>
+            Margem alvo (%)
+            <input id="sim-margin" type="number" step="0.01" value="18" />
+          </label>
+        </div>
+        <div class="sim-result">
+          <p>Preco minimo recomendado: <strong id="sim-price">R$ 0,00</strong></p>
+          <p>Lucro unitario estimado: <strong id="sim-profit">R$ 0,00</strong></p>
+        </div>
+      </section>
+    </main>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
+

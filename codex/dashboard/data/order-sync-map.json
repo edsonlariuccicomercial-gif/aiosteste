@@ -1,0 +1,22 @@
+[
+  {
+    "internalOrderId": "2026000112",
+    "idempotencyKey": "internal-order:2026000112",
+    "olistOrderId": "OL-TINY2-1772465131700",
+    "status": "synchronized",
+    "syncedAt": "2026-03-02T15:25:31.700Z",
+    "provider": "tiny_api2",
+    "attempts": 2,
+    "lastError": "fetch failed"
+  },
+  {
+    "internalOrderId": "2026000141",
+    "idempotencyKey": "internal-order:2026000141",
+    "olistOrderId": "OL-TINY2-1772465132945",
+    "status": "synchronized",
+    "syncedAt": "2026-03-02T15:25:32.945Z",
+    "provider": "tiny_api2",
+    "attempts": 2,
+    "lastError": "fetch failed"
+  }
+]

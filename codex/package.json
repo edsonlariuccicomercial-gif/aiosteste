@@ -1,0 +1,25 @@
+{
+  "name": "codex",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "lint": "node -e \"console.log('lint: sem regras configuradas ainda')\"",
+    "typecheck": "node -e \"console.log('typecheck: sem tsconfig ainda')\"",
+    "test": "node -e \"console.log('test: sem suite automatizada ainda')\"",
+    "dashboard:collect": "node scripts/collect-sgd-orcamentos.js",
+    "dashboard:audit:territory": "node scripts/audit-territory-coverage.js",
+    "dashboard:serve": "node scripts/serve-dashboard.js",
+    "orders:sync:olist": "node scripts/sync-sgd-orders-olist.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "playwright": "^1.58.2"
+  }
+}
