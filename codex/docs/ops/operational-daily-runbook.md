@@ -33,6 +33,16 @@ npm.cmd run ops:end-day
 npm.cmd run ops:end-day:collect
 ```
 
+### Monitoramento proativo (com alertas)
+```powershell
+npm.cmd run ops:monitor
+```
+
+### Monitoramento proativo com coleta
+```powershell
+npm.cmd run ops:monitor:collect
+```
+
 ### Modo rapido (recomendado)
 ```powershell
 npm.cmd run ops:daily
@@ -72,8 +82,10 @@ npm.cmd run dashboard:serve
 - `dashboard/data/operational-urgent.csv`
 - `dashboard/data/ops-daily-run-report.json`
 - `dashboard/data/ops-eod-summary.json`
+- `dashboard/data/ops-alerts.json`
 - `docs/ops/ops-daily-last-run.md`
 - `docs/ops/ops-daily-eod.md`
+- `docs/ops/ops-alerts.md`
 
 ## Regra de decisao
 - Se `urgent48h > 0`: tratar todos os itens urgentes primeiro.

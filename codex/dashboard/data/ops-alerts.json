@@ -1,0 +1,9 @@
+{
+  "generatedAt": "2026-03-02T23:58:24.445Z",
+  "status": "GO",
+  "thresholds": {
+    "minSkuCoverage": 95,
+    "maxUrgent48h": 0
+  },
+  "alerts": []
+}
