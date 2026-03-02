@@ -13,6 +13,16 @@ Executar a rotina diaria de priorizacao e envio com evidencias objetivas, minimi
 - Ambiente Node funcional no projeto.
 
 ## Sequencia operacional
+### Abertura do dia (recomendado)
+```powershell
+npm.cmd run ops:start-day
+```
+
+### Abertura do dia com coleta
+```powershell
+npm.cmd run ops:start-day:collect
+```
+
 ### Modo rapido (recomendado)
 ```powershell
 npm.cmd run ops:daily
