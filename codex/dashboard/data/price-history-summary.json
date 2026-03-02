@@ -1,0 +1,87 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-03-02T21:40:31.444Z",
+  "sourceEntries": 10,
+  "skuSummary": [
+    {
+      "sku": "ALIM-ARROZ-5KG",
+      "count": 2,
+      "min": 5048.36,
+      "median": 5104.48,
+      "avg": 5104.48,
+      "max": 5160.6,
+      "lastCollectedAt": "2026-03-02"
+    },
+    {
+      "sku": "SERV-EVENTO-ESCOLAR",
+      "count": 8,
+      "min": 4908.06,
+      "median": 5034.33,
+      "avg": 5037.84,
+      "max": 5132.54,
+      "lastCollectedAt": "2026-03-02"
+    }
+  ],
+  "skuRegionSummary": [
+    {
+      "sku": "ALIM-ARROZ-5KG",
+      "sre": "SRE Curvelo",
+      "count": 1,
+      "min": 5048.36,
+      "median": 5048.36,
+      "avg": 5048.36,
+      "max": 5048.36,
+      "lastCollectedAt": "2026-03-02"
+    },
+    {
+      "sku": "ALIM-ARROZ-5KG",
+      "sre": "SRE Metropolitana B",
+      "count": 1,
+      "min": 5160.6,
+      "median": 5160.6,
+      "avg": 5160.6,
+      "max": 5160.6,
+      "lastCollectedAt": "2026-03-02"
+    },
+    {
+      "sku": "SERV-EVENTO-ESCOLAR",
+      "sre": "SRE Metropolitana B",
+      "count": 5,
+      "min": 4908.06,
+      "median": 5104.48,
+      "avg": 5065.2,
+      "max": 5132.54,
+      "lastCollectedAt": "2026-03-02"
+    },
+    {
+      "sku": "SERV-EVENTO-ESCOLAR",
+      "sre": "SRE Metropolitana C",
+      "count": 1,
+      "min": 4992.24,
+      "median": 4992.24,
+      "avg": 4992.24,
+      "max": 4992.24,
+      "lastCollectedAt": "2026-03-02"
+    },
+    {
+      "sku": "SERV-EVENTO-ESCOLAR",
+      "sre": "SRE Uberlandia",
+      "count": 1,
+      "min": 4964.18,
+      "median": 4964.18,
+      "avg": 4964.18,
+      "max": 4964.18,
+      "lastCollectedAt": "2026-03-02"
+    },
+    {
+      "sku": "SERV-EVENTO-ESCOLAR",
+      "sre": "SRE Varginha",
+      "count": 1,
+      "min": 5020.3,
+      "median": 5020.3,
+      "avg": 5020.3,
+      "max": 5020.3,
+      "lastCollectedAt": "2026-03-02"
+    }
+  ]
+}
