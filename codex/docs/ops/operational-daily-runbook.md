@@ -53,6 +53,11 @@ npm.cmd run ops:close-shift
 npm.cmd run ops:handoff
 ```
 
+### Atualizar tendencia operacional
+```powershell
+npm.cmd run ops:trend
+```
+
 ### Modo rapido (recomendado)
 ```powershell
 npm.cmd run ops:daily
@@ -94,10 +99,12 @@ npm.cmd run dashboard:serve
 - `dashboard/data/ops-eod-summary.json`
 - `dashboard/data/ops-alerts.json`
 - `dashboard/data/ops-handoff.json`
+- `dashboard/data/ops-trend-history.json`
 - `docs/ops/ops-daily-last-run.md`
 - `docs/ops/ops-daily-eod.md`
 - `docs/ops/ops-alerts.md`
 - `docs/ops/handoff-next-shift.md`
+- `docs/ops/ops-weekly-trend.md`
 
 ## Regra de decisao
 - Se `urgent48h > 0`: tratar todos os itens urgentes primeiro.
