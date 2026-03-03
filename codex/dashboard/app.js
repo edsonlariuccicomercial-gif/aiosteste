@@ -29,6 +29,7 @@ const el = {
   refreshPill: document.getElementById("refresh-pill"),
   trendHeadline: document.getElementById("trend-headline"),
   trendMetrics: document.getElementById("trend-metrics"),
+  opsAlertsList: document.getElementById("ops-alerts-list"),
   table: document.getElementById("quote-table"),
   sre: document.getElementById("filter-sre"),
   city: document.getElementById("filter-city"),
@@ -663,10 +664,34 @@ function renderTrend() {
   el.trendMetrics.innerHTML = chips.join("");
 }
 
+function renderOpsAlerts() {
+  if (!el.opsAlertsList) return;
+  const alerts = Array.isArray(opsAlertsReport?.alerts) ? opsAlertsReport.alerts : [];
+  if (!alerts.length) {
+    el.opsAlertsList.innerHTML = "<small>Nenhum alerta operacional ativo.</small>";
+    return;
+  }
+
+  el.opsAlertsList.innerHTML = alerts
+    .map((alert) => {
+      const sev = String(alert.severity || "").toLowerCase();
+      const code = String(alert.code || "ALERTA");
+      const msg = String(alert.message || "");
+      return `
+        <article class="ops-alert-item ${sev}">
+          <strong>[${sev.toUpperCase()}] ${code}</strong>
+          <span>${escapeHtml(msg)}</span>
+        </article>
+      `;
+    })
+    .join("");
+}
+
 function renderAll() {
   const rows = filteredRows();
   renderOpsHealth();
   renderTrend();
+  renderOpsAlerts();
   renderKPIs(rows);
   renderAlerts(rows);
   renderPrequoteOrders();
