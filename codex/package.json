@@ -33,6 +33,8 @@
     "ops:close-shift": "npm.cmd run ops:end-day && node scripts/ops-alert-check.js && npm.cmd run ops:handoff && npm.cmd run ops:trend",
     "ops:status": "node scripts/ops-status.js",
     "discovery:summary": "node scripts/discovery-summarize-interviews.js",
+    "discovery:validate": "node scripts/discovery-validate-interviews.js",
+    "discovery:status": "node scripts/discovery-status.js",
     "orders:test:sync:olist": "node scripts/test-orders-sync-olist.js",
     "dashboard:serve": "node scripts/serve-dashboard.js",
     "orders:sync:olist": "node scripts/sync-sgd-orders-olist.js"
