@@ -1,0 +1,40 @@
+{
+  "generatedAt": "2026-03-03T00:22:51.352Z",
+  "interviewsCompleted": 0,
+  "interviewsTarget": 10,
+  "interviewsRemaining": 10,
+  "sprintDays": 5,
+  "suggestedPerDay": 2,
+  "planDays": [
+    {
+      "date": "2026-03-03",
+      "targetInterviews": 2,
+      "focus": "Recrutamento ativo"
+    },
+    {
+      "date": "2026-03-04",
+      "targetInterviews": 2,
+      "focus": "Recrutamento ativo"
+    },
+    {
+      "date": "2026-03-05",
+      "targetInterviews": 2,
+      "focus": "Execucao + follow-up"
+    },
+    {
+      "date": "2026-03-06",
+      "targetInterviews": 2,
+      "focus": "Execucao + follow-up"
+    },
+    {
+      "date": "2026-03-07",
+      "targetInterviews": 2,
+      "focus": "Execucao + follow-up"
+    }
+  ],
+  "outreachTemplates": {
+    "whatsapp": "Oi, [NOME]. Estou fazendo uma pesquisa rapida (15 min) sobre rotina de cotacoes em caixa escolar MG. Posso te entrevistar essa semana?",
+    "emailSubject": "Convite rapido: entrevista sobre rotina de cotacoes (15 min)",
+    "emailBody": "Olá, [NOME]. Estou validando uma solução para reduzir perda de prazo e melhorar priorização de cotacoes em MG. Você teria 15 minutos para uma conversa nesta semana?"
+  }
+}
