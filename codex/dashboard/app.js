@@ -9,6 +9,9 @@ let opsAlertsReport = { freshness: null };
 let opsTrendHistory = { weekly: null };
 let internalOrders = [];
 let prequoteState = {};
+let refreshTimer = null;
+
+const DASHBOARD_REFRESH_MS = 60000;
 
 const PREQUOTE_STORAGE_KEY = "licitia.prequote.v1";
 
@@ -23,6 +26,7 @@ const el = {
   kpiRevenue: document.getElementById("kpi-revenue"),
   kpiOlistSync: document.getElementById("kpi-olist-sync"),
   opsHealthPill: document.getElementById("ops-health-pill"),
+  refreshPill: document.getElementById("refresh-pill"),
   trendHeadline: document.getElementById("trend-headline"),
   trendMetrics: document.getElementById("trend-metrics"),
   table: document.getElementById("quote-table"),
@@ -616,6 +620,15 @@ function renderOpsHealth() {
   }
 }
 
+function renderRefreshStatus(date) {
+  if (!el.refreshPill) return;
+  if (!date) {
+    el.refreshPill.textContent = "Atualizacao pendente";
+    return;
+  }
+  el.refreshPill.textContent = `Atualizado em ${date.toLocaleTimeString("pt-BR")}`;
+}
+
 function renderTrend() {
   if (!el.trendHeadline || !el.trendMetrics) return;
   const weekly = opsTrendHistory?.weekly;
@@ -1067,6 +1080,19 @@ async function boot() {
   applySimulatorPreset();
   renderAll();
   renderSim();
+  renderRefreshStatus(new Date());
+
+  if (refreshTimer) clearInterval(refreshTimer);
+  refreshTimer = setInterval(async () => {
+    await loadQuotes();
+    await loadSyncStatus();
+    await loadPriceHistorySummary();
+    await loadOpsDailyReport();
+    await loadOpsAlertsReport();
+    await loadOpsTrendHistory();
+    renderAll();
+    renderRefreshStatus(new Date());
+  }, DASHBOARD_REFRESH_MS);
 }
 
 boot();
