@@ -10,6 +10,7 @@ const FILES = {
   eod: path.join(DATA_DIR, "ops-eod-summary.json"),
   trend: path.join(DATA_DIR, "ops-trend-history.json"),
   handoff: path.join(DATA_DIR, "ops-handoff.json"),
+  discoverySummary: path.join(process.cwd(), "docs", "ops", "discovery-summary.json"),
 };
 
 function readJson(filePath, fallback = null) {
@@ -32,6 +33,7 @@ function main() {
   const eod = readJson(FILES.eod, {});
   const trend = readJson(FILES.trend, {});
   const handoff = readJson(FILES.handoff, {});
+  const discovery = readJson(FILES.discoverySummary, {});
 
   const status = {
     daily: daily?.ok ? "GO" : "NO-GO",
@@ -47,6 +49,10 @@ function main() {
   const trendPoints = toNumber(trend?.weekly?.points, 0);
   const trendGo = toNumber(trend?.weekly?.goCount, 0);
   const trendNoGo = toNumber(trend?.weekly?.noGoCount, 0);
+  const discoveryCompleted = toNumber(discovery?.metrics?.interviewsCompleted, 0);
+  const discoveryTarget = toNumber(discovery?.metrics?.interviewsTarget, 10);
+  const discoveryValidatedPct = toNumber(discovery?.metrics?.validatedPainPct, 0);
+  const discoveryDecision = String(discovery?.suggestedDecision || "N/A");
 
   console.log("Ops Status Summary");
   console.log(`- Daily: ${status.daily}`);
@@ -58,6 +64,8 @@ function main() {
   console.log(`- Acionaveis: ${actionable}`);
   console.log(`- Urgentes <= 48h: ${urgent48h}`);
   console.log(`- Trend (ultimos ciclos): pontos=${trendPoints}, GO=${trendGo}, NO-GO=${trendNoGo}`);
+  console.log(`- Discovery: entrevistas=${discoveryCompleted}/${discoveryTarget}, dor_validada=${discoveryValidatedPct}%`);
+  console.log(`- Discovery decisao sugerida: ${discoveryDecision}`);
 
   const finalGo =
     status.daily === "GO" &&
