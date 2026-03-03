@@ -10,6 +10,7 @@ let opsTrendHistory = { weekly: null };
 let internalOrders = [];
 let prequoteState = {};
 let refreshTimer = null;
+let isRefreshing = false;
 
 const DASHBOARD_REFRESH_MS = 60000;
 
@@ -632,6 +633,17 @@ function renderRefreshStatus(date) {
 }
 
 async function refreshDataAndRender() {
+  if (isRefreshing) return;
+  isRefreshing = true;
+  if (el.refreshNowBtn) {
+    el.refreshNowBtn.disabled = true;
+    el.refreshNowBtn.textContent = "Atualizando...";
+  }
+  if (el.refreshPill) {
+    el.refreshPill.textContent = "Atualizando...";
+  }
+
+  try {
   await loadQuotes();
   await loadSyncStatus();
   await loadPriceHistorySummary();
@@ -640,6 +652,13 @@ async function refreshDataAndRender() {
   await loadOpsTrendHistory();
   renderAll();
   renderRefreshStatus(new Date());
+  } finally {
+    isRefreshing = false;
+    if (el.refreshNowBtn) {
+      el.refreshNowBtn.disabled = false;
+      el.refreshNowBtn.textContent = "Atualizar agora";
+    }
+  }
 }
 
 function renderTrend() {

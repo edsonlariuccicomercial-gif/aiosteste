@@ -142,6 +142,11 @@ h2 {
   cursor: pointer;
 }
 
+.topbar-refresh-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
 .layout {
   display: grid;
   gap: 14px;
