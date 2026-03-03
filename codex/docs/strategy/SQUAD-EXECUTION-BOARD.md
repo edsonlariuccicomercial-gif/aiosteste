@@ -16,10 +16,10 @@
 - Entrega 3: Simulador com margem liquida (com impostos e frete). (concluido)
 
 ## Squad Flux (Pos-Licitacao e ERP)
-- Status: Parked (Fase 2)
+- Status: Done (Fase 2)
 - Entrega 1: Reenvio pontual por `internal_order_id` (concluido).
-- Entrega 2: Log detalhado de resposta Tiny por pedido.
-- Entrega 3: Atualizacao de status de pedido no dashboard (fila, enviado, aceito, erro).
+- Entrega 2: Log detalhado de resposta Tiny por pedido. (concluido)
+- Entrega 3: Atualizacao de status de pedido no dashboard (fila, enviado, aceito, erro). (concluido)
 
 ## Squad Nimbus (Produto e Comercial)
 - Status: Done

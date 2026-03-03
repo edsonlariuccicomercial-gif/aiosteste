@@ -428,16 +428,29 @@ function renderKPIs(rows) {
   el.kpiUrgent.textContent = String(urgent.length);
   el.kpiMargin.textContent = `${avgMargin.toFixed(1)}%`;
   el.kpiRevenue.textContent = brl.format(totalRevenue);
-  const synced = rows.filter((r) => syncStatus[r.id]?.status === "synchronized").length;
+  const synced = rows.filter((r) => resolvePipelineStatus(syncStatus[r.id]) === "aceito").length;
   el.kpiOlistSync.textContent = String(synced);
 }
 
+function resolvePipelineStatus(row) {
+  const pipeline = String(row?.pipelineStatus || "").toLowerCase();
+  if (pipeline === "fila" || pipeline === "enviado" || pipeline === "aceito" || pipeline === "erro") {
+    return pipeline;
+  }
+
+  const legacy = String(row?.status || "").toLowerCase();
+  if (legacy === "synchronized" || legacy === "synced") return "aceito";
+  if (legacy === "pending_retry" || legacy === "failed") return "erro";
+  if (legacy === "pending") return "fila";
+  return "fila";
+}
+
 function syncBadge(id) {
-  const s = syncStatus[id]?.status || "nao_enviado";
-  if (s === "synchronized") return '<span class="sync-badge sync-ok">Sincronizado</span>';
-  if (s === "pending_retry" || s === "pending") return '<span class="sync-badge sync-pending">Pendente</span>';
-  if (s === "failed") return '<span class="sync-badge sync-failed">Falhou</span>';
-  return '<span class="sync-badge sync-pending">Nao enviado</span>';
+  const status = resolvePipelineStatus(syncStatus[id]);
+  if (status === "aceito") return '<span class="sync-badge sync-ok">Aceito</span>';
+  if (status === "enviado") return '<span class="sync-badge sync-sent">Enviado</span>';
+  if (status === "erro") return '<span class="sync-badge sync-failed">Erro</span>';
+  return '<span class="sync-badge sync-queue">Fila</span>';
 }
 
 function alertBadge(days) {
@@ -917,7 +930,7 @@ function exportCsvFromRows(rows, suffix) {
       row.status,
       row.precoSugerido ?? "",
       (row.precoSugerido ? marginPct(row).toFixed(2) : ""),
-      syncStatus[row.id]?.status || "nao_enviado",
+      resolvePipelineStatus(syncStatus[row.id]),
     ].map(csvEscape);
     lines.push(line.join(","));
   }

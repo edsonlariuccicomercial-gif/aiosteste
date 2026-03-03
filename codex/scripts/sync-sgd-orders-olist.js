@@ -19,12 +19,17 @@ function loadDotEnv() {
 
 loadDotEnv();
 
-const DATA_DIR = path.join(process.cwd(), "dashboard", "data");
-const INTERNAL_ORDERS_PATH = path.join(DATA_DIR, "internal-orders.json");
-const LEGACY_SGD_ORDERS_PATH = path.join(DATA_DIR, "sgd-orders.json");
-const QUEUE_PATH = path.join(DATA_DIR, "sync-queue.json");
-const MAP_PATH = path.join(DATA_DIR, "order-sync-map.json");
-const STATUS_PATH = path.join(DATA_DIR, "sync-status.json");
+function resolvePaths() {
+  const dataDir = path.join(process.cwd(), "dashboard", "data");
+  return {
+    INTERNAL_ORDERS_PATH: path.join(dataDir, "internal-orders.json"),
+    LEGACY_SGD_ORDERS_PATH: path.join(dataDir, "sgd-orders.json"),
+    QUEUE_PATH: path.join(dataDir, "sync-queue.json"),
+    MAP_PATH: path.join(dataDir, "order-sync-map.json"),
+    STATUS_PATH: path.join(dataDir, "sync-status.json"),
+    LOG_PATH: path.join(dataDir, "order-sync-log.json"),
+  };
+}
 
 const MAX_ATTEMPTS = 5;
 const BASE_DELAY_SEC = 20;
@@ -130,7 +135,14 @@ function upsertQueueFromOrders(queue, orders, syncMap) {
   }
 }
 
-async function processQueue(queue, syncMap) {
+function appendSyncLog(syncLog, entry) {
+  syncLog.push(entry);
+  if (syncLog.length > 1000) {
+    syncLog.splice(0, syncLog.length - 1000);
+  }
+}
+
+async function processQueue(queue, syncMap, syncLog) {
   let processed = 0;
   let success = 0;
   let failed = 0;
@@ -161,6 +173,17 @@ async function processQueue(queue, syncMap) {
       };
       if (existing) Object.assign(existing, payload);
       else syncMap.push(payload);
+
+      appendSyncLog(syncLog, {
+        at: nowIso(),
+        internalOrderId: item.internalOrderId,
+        idempotencyKey: item.idempotencyKey,
+        attempt: item.attempts,
+        outcome: "success",
+        provider: result.provider || "",
+        olistOrderId: result.olistOrderId || "",
+        tinyResponse: result.raw || {},
+      });
       success += 1;
     } catch (err) {
       const msg = String(err.message || err);
@@ -186,6 +209,17 @@ async function processQueue(queue, syncMap) {
       };
       if (existing) Object.assign(existing, payload);
       else syncMap.push(payload);
+
+      appendSyncLog(syncLog, {
+        at: nowIso(),
+        internalOrderId: item.internalOrderId,
+        idempotencyKey: item.idempotencyKey,
+        attempt: item.attempts,
+        outcome: "error",
+        provider: existing?.provider || "",
+        olistOrderId: existing?.olistOrderId || "",
+        error: msg,
+      });
       failed += 1;
     }
   }
@@ -203,27 +237,64 @@ function clearStateForOrder(orderId, queue, syncMap) {
   }
 }
 
-function buildStatusMap(syncMap) {
+function computePipelineStatus(row) {
+  const queueStatus = String(row.queueStatus || "").toLowerCase();
+  const mapStatus = String(row.mapStatus || "").toLowerCase();
+  const attempts = Number(row.attempts || 0);
+  const hasOlistId = Boolean(row.olistOrderId);
+
+  if (mapStatus === "synchronized" || queueStatus === "synced") return "aceito";
+  if (queueStatus === "failed" || queueStatus === "dead_letter" || mapStatus === "failed") return "erro";
+  if (hasOlistId && mapStatus !== "synchronized") return "enviado";
+  if (queueStatus === "pending" && attempts > 0) return "enviado";
+  return "fila";
+}
+
+function buildStatusMap(syncMap, queue) {
   const byId = {};
+
+  for (const item of queue) {
+    const orderId = String(item.internalOrderId || "");
+    if (!orderId) continue;
+    byId[orderId] = {
+      status: item.status || "pending",
+      queueStatus: item.status || "pending",
+      mapStatus: "",
+      olistOrderId: "",
+      attempts: Number(item.attempts || 0),
+      syncedAt: item.syncedAt || "",
+      lastError: item.lastError || "",
+    };
+  }
+
   for (const row of syncMap) {
     const orderId = row.internalOrderId || row.sgdOrderId || "";
     if (!orderId) continue;
+    const prev = byId[orderId] || {};
     byId[orderId] = {
       status: row.status,
-      olistOrderId: row.olistOrderId,
-      attempts: row.attempts || 0,
-      syncedAt: row.syncedAt || "",
-      lastError: row.lastError || "",
+      queueStatus: prev.queueStatus || "",
+      mapStatus: row.status || "",
+      olistOrderId: row.olistOrderId || prev.olistOrderId || "",
+      attempts: Number(row.attempts || prev.attempts || 0),
+      syncedAt: row.syncedAt || prev.syncedAt || "",
+      lastError: row.lastError || prev.lastError || "",
     };
   }
+
+  for (const orderId of Object.keys(byId)) {
+    byId[orderId].pipelineStatus = computePipelineStatus(byId[orderId]);
+  }
+
   return byId;
 }
 
-async function run() {
-  const options = parseArgs(process.argv.slice(2));
-  const rawOrders = fs.existsSync(INTERNAL_ORDERS_PATH)
-    ? readJson(INTERNAL_ORDERS_PATH, [])
-    : readJson(LEGACY_SGD_ORDERS_PATH, []);
+async function run(argv = process.argv.slice(2)) {
+  const options = parseArgs(argv);
+  const paths = resolvePaths();
+  const rawOrders = fs.existsSync(paths.INTERNAL_ORDERS_PATH)
+    ? readJson(paths.INTERNAL_ORDERS_PATH, [])
+    : readJson(paths.LEGACY_SGD_ORDERS_PATH, []);
   const orders = rawOrders.map(normalizeOrder);
   const scopedOrders = options.onlyId ? orders.filter((o) => o.id === options.onlyId) : orders;
   const validOrders = [];
@@ -235,16 +306,18 @@ async function run() {
     else validOrders.push(order);
   }
 
-  const queue = readJson(QUEUE_PATH, []);
-  const syncMap = readJson(MAP_PATH, []);
+  const queue = readJson(paths.QUEUE_PATH, []);
+  const syncMap = readJson(paths.MAP_PATH, []);
+  const syncLog = readJson(paths.LOG_PATH, []);
   if (options.onlyId && options.forceResend) clearStateForOrder(options.onlyId, queue, syncMap);
 
   upsertQueueFromOrders(queue, validOrders, syncMap);
-  const stats = await processQueue(queue, syncMap);
+  const stats = await processQueue(queue, syncMap, syncLog);
 
-  writeJson(QUEUE_PATH, queue);
-  writeJson(MAP_PATH, syncMap);
-  writeJson(STATUS_PATH, buildStatusMap(syncMap));
+  writeJson(paths.QUEUE_PATH, queue);
+  writeJson(paths.MAP_PATH, syncMap);
+  writeJson(paths.STATUS_PATH, buildStatusMap(syncMap, queue));
+  writeJson(paths.LOG_PATH, syncLog);
 
   console.log("Sync Pos-Licitacao (LicitIA) -> Olist concluido.");
   console.log(`Pedidos validos: ${validOrders.length}`);
@@ -264,7 +337,13 @@ async function run() {
   }
 }
 
-run().catch((err) => {
-  console.error("Falha no sync:", err.message);
-  process.exit(1);
-});
+if (require.main === module) {
+  run().catch((err) => {
+    console.error("Falha no sync:", err.message);
+    process.exit(1);
+  });
+}
+
+module.exports = {
+  run,
+};

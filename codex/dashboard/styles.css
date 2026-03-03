@@ -385,6 +385,14 @@ th {
   color: var(--warning);
 }
 
+.sync-queue {
+  color: #d5e4dc;
+}
+
+.sync-sent {
+  color: #7bd7ff;
+}
+
 .sync-failed {
   color: var(--danger);
 }
