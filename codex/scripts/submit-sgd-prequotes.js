@@ -100,13 +100,10 @@ async function loginSgd(page) {
     await docInput.fill(cpfDigits);
   }
 
-  await Promise.allSettled([
-    page.waitForLoadState("networkidle", { timeout: 30000 }),
-    submitBtn.click(),
-  ]);
-
-  const pagePath = new URL(page.url()).pathname.toLowerCase();
-  if (/\/login$/.test(pagePath)) {
+  await submitBtn.click();
+  try {
+    await page.waitForURL((url) => !url.pathname.toLowerCase().includes("/login"), { timeout: 30000 });
+  } catch (_) {
     throw new Error("Autenticacao nao concluida em /login.");
   }
 }

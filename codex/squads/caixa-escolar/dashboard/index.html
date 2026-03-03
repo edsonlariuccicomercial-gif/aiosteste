@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Painel do Fornecedor — Caixa Escolar MG</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+
+  <!-- ===== TOPBAR ===== -->
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Painel do Fornecedor</p>
+      <h1>Caixa Escolar MG</h1>
+    </div>
+    <div class="topbar-right">
+      <span class="mode-indicator" id="mode-indicator"></span>
+      <div class="pill" id="pill-sre">SRE Uberaba</div>
+      <div class="pill" id="pill-fornecedor">LARIUCCI • Conquista-MG</div>
+      <button class="btn btn-sm" onclick="logout()" title="Sair">Sair</button>
+    </div>
+  </header>
+
+  <!-- ===== KPIs ===== -->
+  <section class="kpis">
+    <article class="card kpi">
+      <p>Orçamentos abertos</p>
+      <strong id="kpi-abertos">0</strong>
+    </article>
+    <article class="card kpi">
+      <p>Prazo urgente (&lt;3d)</p>
+      <strong id="kpi-urgentes">0</strong>
+    </article>
+    <article class="card kpi">
+      <p>Pré-orçamentos pendentes</p>
+      <strong id="kpi-pendentes">0</strong>
+    </article>
+    <article class="card kpi">
+      <p>Faturamento potencial</p>
+      <strong id="kpi-faturamento">R$ 0</strong>
+    </article>
+    <article class="card kpi">
+      <p>Margem média</p>
+      <strong id="kpi-margem">0%</strong>
+    </article>
+  </section>
+
+  <!-- ===== NAVEGAÇÃO TABS ===== -->
+  <nav class="tabs">
+    <button class="tab active" data-tab="orcamentos">Orçamentos</button>
+    <button class="tab" data-tab="pre-orcamento">Pré-Orçamento</button>
+    <button class="tab" data-tab="banco-precos">Banco de Preços</button>
+  </nav>
+
+  <!-- ===== TAB: ORÇAMENTOS ===== -->
+  <section id="tab-orcamentos" class="tab-content active">
+    <div class="card">
+      <div class="table-head">
+        <h2>Orçamentos — SRE Uberaba</h2>
+        <div class="table-head-actions">
+          <button id="btn-export-csv" class="btn btn-sm">Exportar CSV</button>
+        </div>
+      </div>
+
+      <!-- Filtros -->
+      <div class="filters">
+        <select id="filtro-municipio">
+          <option value="all">Todos os municípios</option>
+        </select>
+        <select id="filtro-grupo">
+          <option value="all">Todos os grupos</option>
+        </select>
+        <select id="filtro-status">
+          <option value="all">Todos os status</option>
+          <option value="aberto">Aberto</option>
+          <option value="encerrado">Encerrado</option>
+        </select>
+        <input type="text" id="filtro-texto" placeholder="Buscar escola, objeto, item..." />
+      </div>
+
+      <!-- Tabela -->
+      <div class="table-wrap">
+        <table id="tabela-orcamentos">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Escola</th>
+              <th>Município</th>
+              <th>Objeto</th>
+              <th>Grupo</th>
+              <th>Prazo</th>
+              <th>Status</th>
+              <th>Ação</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-orcamentos"></tbody>
+        </table>
+      </div>
+      <p id="orcamentos-empty" class="empty-msg" style="display:none;">Nenhum orçamento encontrado.</p>
+    </div>
+  </section>
+
+  <!-- ===== TAB: PRÉ-ORÇAMENTO ===== -->
+  <section id="tab-pre-orcamento" class="tab-content">
+    <div class="card">
+      <div class="table-head">
+        <h2 id="preorcamento-titulo">Selecione um orçamento</h2>
+        <div class="table-head-actions">
+          <button id="btn-preorcamento-voltar" class="btn btn-sm" style="display:none;">Voltar</button>
+        </div>
+      </div>
+
+      <!-- Seletor vazio -->
+      <div id="preorcamento-vazio">
+        <p class="empty-msg">Clique em "Pré-Orçar" na aba Orçamentos para gerar um pré-orçamento.</p>
+      </div>
+
+      <!-- Formulário de pré-orçamento -->
+      <div id="preorcamento-form" style="display:none;">
+        <div class="preorcamento-info">
+          <div class="info-row">
+            <span class="info-label">Escola:</span>
+            <span id="preorcamento-escola"></span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Município:</span>
+            <span id="preorcamento-municipio"></span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Prazo:</span>
+            <span id="preorcamento-prazo"></span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Frete estimado:</span>
+            <span id="preorcamento-frete"></span>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table id="tabela-preorcamento">
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th>Qtd</th>
+                <th>Custo Unit.</th>
+                <th>Margem %</th>
+                <th>Preço Unit.</th>
+                <th>Total</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-preorcamento"></tbody>
+            <tfoot>
+              <tr class="total-row">
+                <td colspan="4"></td>
+                <td><strong>TOTAL</strong></td>
+                <td><strong id="preorcamento-total">R$ 0,00</strong></td>
+              </tr>
+              <tr class="total-row">
+                <td colspan="4"></td>
+                <td>Margem média</td>
+                <td id="preorcamento-margem-media">0%</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        <div class="preorcamento-actions">
+          <button id="btn-aprovar" class="btn btn-accent">Aprovar</button>
+          <button id="btn-recusar" class="btn btn-danger">Recusar</button>
+          <button id="btn-editar-orcamento" class="btn btn-lg btn-warning" style="display:none;">Editar Orcamento</button>
+          <button id="btn-enviar-sgd" class="btn btn-lg btn-sgd" style="display:none;">Enviar ao SGD</button>
+        </div>
+      </div>
+
+      <!-- Lista de pré-orçamentos existentes -->
+      <div id="preorcamentos-lista" style="display:none;">
+        <h3>Pré-orçamentos salvos</h3>
+        <div class="table-wrap">
+          <table id="tabela-preorcamentos-lista">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Escola</th>
+                <th>Status</th>
+                <th>Total</th>
+                <th>Data</th>
+                <th>Ação</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-preorcamentos-lista"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== TAB: BANCO DE PREÇOS ===== -->
+  <section id="tab-banco-precos" class="tab-content">
+    <div class="card">
+      <div class="table-head">
+        <h2>Banco de Preços</h2>
+        <div class="table-head-actions">
+          <button id="btn-import-excel" class="btn btn-sm">Importar Cotacao</button>
+          <button id="btn-add-preco" class="btn btn-sm btn-accent">+ Novo Item</button>
+          <button id="btn-export-banco" class="btn btn-sm">Exportar CSV</button>
+        </div>
+      </div>
+
+      <div class="filters">
+        <select id="filtro-banco-grupo">
+          <option value="all">Todos os grupos</option>
+        </select>
+        <input type="text" id="filtro-banco-texto" placeholder="Buscar item..." />
+      </div>
+
+      <div class="table-wrap">
+        <table id="tabela-banco">
+          <thead>
+            <tr>
+              <th>Item</th>
+              <th>Grupo</th>
+              <th>Unidade</th>
+              <th>Custo Base</th>
+              <th>Margem</th>
+              <th>Preço Ref.</th>
+              <th>Última Cotação</th>
+              <th>Ação</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-banco"></tbody>
+        </table>
+      </div>
+      <p id="banco-empty" class="empty-msg" style="display:none;">Nenhum item no banco de preços.</p>
+    </div>
+  </section>
+
+  <!-- Hidden file input for Excel import -->
+  <input type="file" id="import-file-input" accept=".xlsx,.xls,.csv" style="display:none;" />
+
+  <!-- ===== MODAL: Import Excel Preview ===== -->
+  <div id="modal-import" class="modal-overlay" style="display:none;">
+    <div class="modal card" style="max-width:720px;">
+      <h2>Importar Cotacao</h2>
+      <p class="text-muted" style="font-size:0.8rem;margin-bottom:12px;" id="import-filename"></p>
+
+      <!-- Column mapping -->
+      <div class="import-mapping" id="import-mapping"></div>
+
+      <!-- Preview table -->
+      <div class="table-wrap" style="max-height:300px;overflow-y:auto;margin:12px 0;">
+        <table id="tabela-import-preview">
+          <thead id="thead-import-preview"></thead>
+          <tbody id="tbody-import-preview"></tbody>
+        </table>
+      </div>
+
+      <!-- Stats -->
+      <div id="import-stats" class="import-stats" style="display:none;"></div>
+
+      <div class="modal-actions">
+        <button id="btn-import-confirmar" class="btn btn-accent">Importar</button>
+        <button id="btn-import-cancelar" class="btn">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== MODAL: Editar item do banco de preços ===== -->
+  <div id="modal-banco" class="modal-overlay" style="display:none;">
+    <div class="modal card">
+      <h2 id="modal-banco-titulo">Novo Item</h2>
+      <div class="form-grid">
+        <label>
+          Item
+          <input type="text" id="modal-item" placeholder="Ex: Ventilador de parede 60cm" />
+        </label>
+        <label>
+          Grupo
+          <select id="modal-grupo"></select>
+        </label>
+        <label>
+          Unidade
+          <input type="text" id="modal-unidade" placeholder="Ex: Unidade, Resma, Kit" />
+        </label>
+        <label>
+          Custo Base (R$)
+          <input type="number" id="modal-custo" step="0.01" min="0" />
+        </label>
+        <label>
+          Margem (%)
+          <input type="number" id="modal-margem" step="1" min="0" max="100" />
+        </label>
+        <label>
+          Fonte / Fornecedor
+          <input type="text" id="modal-fonte" placeholder="Ex: Distribuidora X" />
+        </label>
+      </div>
+      <div class="modal-actions">
+        <button id="btn-modal-salvar" class="btn btn-accent">Salvar</button>
+        <button id="btn-modal-cancelar" class="btn">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="auth.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

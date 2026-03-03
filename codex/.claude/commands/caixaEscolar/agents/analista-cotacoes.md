@@ -1,0 +1,1 @@
+Read the file at squads/caixa-escolar/agents/analista-cotacoes.md and follow the instructions. This is the quote analysis specialist - analyzes budget requests, summarizes items, evaluates feasibility for suppliers.

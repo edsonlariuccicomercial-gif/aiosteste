@@ -1,0 +1,330 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# 8 LENTES DE EXTRACAO — Process Archaeology
+# ═══════════════════════════════════════════════════════════════════════════════
+# Cada processo e explorado por 8 angulos complementares.
+# Diferente do Clone 360 (6 blocos sequenciais), as lentes sao iterativas:
+# o archaeologist retorna a lentes anteriores conforme nova informacao emerge.
+#
+# Inspiracao metodologica:
+# - Goldratt (TOC): encontrar gargalos e dependencias (L7)
+# - Ohno (Toyota): perguntar "por que" ate chegar na raiz (L3, L8)
+# - Gawande (Checklist Manifesto): decompor em passos confiaveis (L2, L6)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+version: "1.0.0"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ROUND STRUCTURE
+# ─────────────────────────────────────────────────────────────────────────────
+# Lentes sao agrupadas em rounds de extracao:
+#
+# Round 1 (Exploracao):    L1 + L2  → Visao geral e sequencia
+# Round 2 (Profundidade):  L3 + L4 + L5 → Decisoes, excecoes, I/O
+# Round 3 (Precisao):      L6 + L7 + L8 → Qualidade, dependencias, tacito
+# Round N (Cirurgico):     Gap-driven → Perguntas cirurgicas nos gaps
+
+rounds:
+  R1:
+    name: "Exploracao"
+    lenses: [L1, L2]
+    goal: "Esqueleto do processo (~50% completo)"
+    duration: "15-30 min"
+  R2:
+    name: "Profundidade"
+    lenses: [L3, L4, L5]
+    goal: "Processo detalhado (~75% completo)"
+    duration: "15-30 min"
+  R3:
+    name: "Precisao"
+    lenses: [L6, L7, L8]
+    goal: "Processo completo (~90% completo)"
+    duration: "10-20 min"
+  RN:
+    name: "Cirurgico"
+    lenses: "gap-driven"
+    goal: "Processo >=95% completo"
+    duration: "5-15 min por round"
+    condition: "Repete ate completude >= 0.95 ou usuario parar"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# LENTE 1: VISAO GERAL
+# ─────────────────────────────────────────────────────────────────────────────
+lenses:
+  L1:
+    name: "Visao Geral"
+    icon: "🦅"
+    objective: "Entender o macro: inicio, fim, proposito, frequencia, contexto"
+    round: R1
+    pu_types_generated: [STEP, INPUT, OUTPUT]
+
+    questions:
+      abertura:
+        - "Descreve pra mim esse processo como se eu fosse alguem que nunca viu. Comeca com o que?"
+        - "Esse processo tem um nome? Como voce se refere a ele?"
+      trigger:
+        - "Quando esse processo dispara? O que acontece antes dele comecar?"
+        - "Quem ou o que inicia esse processo? E automatico, por demanda, agendado?"
+      endpoint:
+        - "Quando voce sabe que esse processo TERMINOU com sucesso?"
+        - "Qual e o entregavel final? O que sai pronto no final?"
+      contexto:
+        - "Com que frequencia voce faz isso? Diario? Semanal? Por demanda?"
+        - "Quanto tempo leva do inicio ao fim, em media?"
+        - "Alguem alem de voce participa desse processo em algum momento?"
+
+    rules:
+      - "Comecar SEMPRE pela abertura — dar espaco pro usuario descrever livremente"
+      - "Nao apressar — se o usuario divagar, deixar. Tem informacao util ali"
+      - "Registrar o vocabulario que o usuario usa (nome do processo, jargao, apelidos)"
+      - "Se o processo tem sub-processos, registrar e marcar pra explorar separadamente"
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # LENTE 2: SEQUENCIA DE PASSOS
+  # ─────────────────────────────────────────────────────────────────────────────
+  L2:
+    name: "Sequencia de Passos"
+    icon: "📋"
+    objective: "Capturar a sequencia linear que o usuario segue"
+    round: R1
+    pu_types_generated: [STEP]
+
+    questions:
+      sequencia:
+        - "Beleza, agora me conta passo a passo. Voce faz o que PRIMEIRO?"
+        - "E depois disso? O que vem em seguida?"
+        - "Continue... proximo passo?"
+      detalhamento:
+        - "Esse passo — quanto tempo leva?"
+        - "Voce usa alguma ferramenta ou template nesse passo?"
+        - "Esse passo e sempre igual ou muda dependendo da situacao?"
+      gaps:
+        - "Tem alguma coisa que voce faz ENTRE esses dois passos que parece tao natural que quase esquece de mencionar?"
+        - "Pausa rapida — voce mencionou {N} passos. Tem certeza que nao pulou nenhum?"
+
+    rules:
+      - "Numerar os passos conforme o usuario vai descrevendo"
+      - "Se o usuario pular passos (ir do 1 pro 5), perguntar o que tem no meio"
+      - "Se disser 'ai eu basicamente faço X', aprofundar — 'basicamente' esconde passos"
+      - "Registrar duracao estimada de cada passo quando o usuario mencionar"
+      - "Se o usuario mencionar decisao ('se isso, entao aquilo'), marcar pra L3"
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # LENTE 3: DECISOES
+  # ─────────────────────────────────────────────────────────────────────────────
+  L3:
+    name: "Decisoes"
+    icon: "🔀"
+    objective: "Extrair cada IF/THEN, cada 'depende', cada bifurcacao"
+    round: R2
+    pu_types_generated: [DECISION]
+
+    questions:
+      depende:
+        - "Voce disse 'depende' — depende de que exatamente? Me da os cenarios."
+        - "Quando voce decide ir pelo caminho A vs caminho B, o que voce olha?"
+        - "Qual criterio voce usa pra saber se ta bom ou se precisa refazer?"
+      condicoes:
+        - "Tem alguma situacao onde voce PULA esse passo? Quando?"
+        - "Em que condicao voce muda a ordem dos passos?"
+        - "Quando voce para tudo e recomeça do zero? O que dispara isso?"
+      regras:
+        - "Voce tem alguma regra de bolso aqui? Tipo 'se X acontecer, SEMPRE faco Y'?"
+        - "Qual e a decisao mais dificil nesse processo? A que exige mais experiencia?"
+      quantificacao:
+        - "Quando voce diz 'bom o suficiente' — o que isso significa em numero, prazo ou metrica?"
+        - "Qual e o limite? A partir de que ponto voce decide que nao vale a pena continuar?"
+
+    rules:
+      - "Cada 'depende' do usuario DEVE virar uma PU-DECISION com condicao explicita"
+      - "Se o usuario nao consegue explicar o criterio, marcar como TACIT e revisitar em L8"
+      - "Perguntar '5 Whys' quando a decisao parece arbitraria — ir ate a raiz"
+      - "Quantificar sempre que possivel: 'mais de 3 erros', 'menos de 24h', etc"
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # LENTE 4: EXCECOES E FALHAS
+  # ─────────────────────────────────────────────────────────────────────────────
+  L4:
+    name: "Excecoes e Falhas"
+    icon: "⚠️"
+    objective: "Capturar o que da errado, plano B, casos atipicos"
+    round: R2
+    pu_types_generated: [EXCEPTION]
+
+    questions:
+      falhas:
+        - "O que acontece quando esse passo da errado? Qual o plano B?"
+        - "Ja teve um caso atipico que te pegou de surpresa? O que voce fez?"
+        - "Quando esse processo FALHA, como voce percebe? Qual o sinal?"
+      abandono:
+        - "Tem alguma situacao onde voce abandona esse processo e faz outra coisa?"
+        - "Qual o pior cenario possivel nesse processo? Ja aconteceu?"
+      recuperacao:
+        - "Quando da errado no passo {N}, voce volta pro passo anterior ou faz algo diferente?"
+        - "Tem algum 'plano de emergencia' que voce ja usou? Me conta."
+      frequencia:
+        - "Com que frequencia esse tipo de problema acontece? Raro ou recorrente?"
+        - "Quais sao os 3 problemas mais comuns nesse processo?"
+
+    rules:
+      - "Excepcoes definem processos maduros — nao pular essa lente"
+      - "Classificar severidade: blocker (para tudo), degraded (continua com limitacao), cosmetic (incomodo menor)"
+      - "Se o usuario diz 'nunca da errado', desconfiar e insistir gentilmente"
+      - "Registrar frequencia de cada excecao — recorrente vs raro muda o design do squad"
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # LENTE 5: INPUTS E OUTPUTS
+  # ─────────────────────────────────────────────────────────────────────────────
+  L5:
+    name: "Inputs e Outputs"
+    icon: "📦"
+    objective: "Mapear tudo que entra e sai de cada passo"
+    round: R2
+    pu_types_generated: [INPUT, OUTPUT]
+
+    questions:
+      inputs:
+        - "Quando voce comeca esse passo, o que voce ja PRECISA ter em maos?"
+        - "Esse passo depende de alguma informacao que veio de outro passo?"
+        - "Voce precisa de acesso a alguma ferramenta, sistema ou pessoa pra esse passo?"
+      outputs:
+        - "O que esse passo PRODUZ que o proximo passo precisa?"
+        - "Sai algum documento, arquivo, mensagem ou entregavel desse passo?"
+      ferramentas:
+        - "Que ferramenta voce usa aqui? (Planilha, software, template, papel, nada?)"
+        - "Tem algum template ou modelo que voce segue nesse passo?"
+        - "Se essa ferramenta sumir amanha, como voce faria?"
+      dados:
+        - "Que dados ou metricas voce consulta durante esse passo?"
+        - "De onde vem esses dados? Voce mesmo gera ou vem de outro lugar?"
+
+    rules:
+      - "Cada passo deve ter pelo menos 1 input e 1 output identificado"
+      - "Ferramentas sao dados importantes — o squad pode automatizar ou substituir"
+      - "Se o input de um passo e o output de outro, registrar a conexao (dependency)"
+      - "Templates do usuario sao OURO — pedir pra descrever ou mostrar"
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # LENTE 6: QUALIDADE
+  # ─────────────────────────────────────────────────────────────────────────────
+  L6:
+    name: "Qualidade"
+    icon: "✅"
+    objective: "Extrair os criterios implicitos de 'bem feito'"
+    round: R3
+    pu_types_generated: [QUALITY_GATE]
+
+    questions:
+      criterios:
+        - "Como voce sabe que esse passo ficou BOM? O que voce olha?"
+        - "Se outra pessoa fizesse isso, o que voce checaria pra saber se ta certo?"
+        - "Qual a diferenca entre 'bom o suficiente' e 'excelente' nesse passo?"
+      antipadroes:
+        - "Voce ja pegou esse passo MAL FEITO? O que tava errado? O que denunciou?"
+        - "O que NUNCA pode acontecer nesse passo? Qual o erro imperdoavel?"
+      revisao:
+        - "Voce revisa o resultado desse passo antes de seguir? Como?"
+        - "Tem algum checkpoint onde voce para e avalia se ta no caminho certo?"
+
+    rules:
+      - "Criterios de qualidade viram quality gates no squad gerado"
+      - "Antipadroes viram veto conditions"
+      - "Se o usuario nao consegue articular o criterio, e TACIT — marcar pra L8"
+      - "'Bom o suficiente' precisa de quantificacao: 'menos de 3 erros', 'cliente aprova', etc"
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # LENTE 7: DEPENDENCIAS E ORDENACAO
+  # ─────────────────────────────────────────────────────────────────────────────
+  L7:
+    name: "Dependencias"
+    icon: "🔗"
+    objective: "Entender o que PRECISA acontecer antes do que"
+    round: R3
+    pu_types_generated: [DEPENDENCY]
+
+    questions:
+      ordem:
+        - "Voce pode fazer o passo {N} antes do passo {N-1}? Ou TEM que ser nessa ordem?"
+        - "Quais passos sao OBRIGATORIAMENTE sequenciais? E quais poderiam ser paralelos?"
+      externos:
+        - "Alguma coisa que voce faz aqui depende de outra pessoa ou sistema externo?"
+        - "Voce ja ficou parado esperando alguem pra continuar? Em qual passo?"
+      gargalos:
+        - "Onde esse processo mais TRAVA? Qual passo e o gargalo?"
+        - "Se voce pudesse acelerar UM passo, qual faria mais diferenca no tempo total?"
+      paralelismo:
+        - "Tem alguma parte que voce poderia fazer ao mesmo tempo que outra se tivesse ajuda?"
+        - "Quais passos sao independentes entre si?"
+
+    rules:
+      - "Gargalos (Goldratt) sao informacao critica — o squad precisa resolver ou mitigar"
+      - "Dependencias externas definem onde o squad precisa de handoff humano"
+      - "Passos paralelos podem virar agentes distintos no squad"
+      - "Construir grafo de dependencias: PU-X depends_on PU-Y"
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # LENTE 8: CONHECIMENTO TACITO
+  # ─────────────────────────────────────────────────────────────────────────────
+  L8:
+    name: "Tacito"
+    icon: "🧠"
+    objective: "Extrair o que o usuario faz sem pensar — o conhecimento nao-articulado"
+    round: R3
+    pu_types_generated: [TACIT]
+
+    questions:
+      ensino:
+        - "Se voce fosse ensinar esse processo pra alguem do zero, onde essa pessoa ia travar?"
+        - "O que voce faria diferente do que acabou de me descrever? Tem algo que na pratica e diferente?"
+      automatico:
+        - "Tem alguma coisa nesse processo que voce faz no AUTOMATICO mas nunca ensinou?"
+        - "Se alguem te observasse fazendo isso, o que essa pessoa notaria que voce mesmo nao nota?"
+      regras_quebradas:
+        - "Voce quebra suas proprias regras nesse processo? Quando? Por que?"
+        - "Tem algum passo que na teoria deveria existir mas na pratica voce pula?"
+      intuicao:
+        - "Quando voce olha pro resultado desse processo, o que voce 'sente' que ta certo antes de analisar?"
+        - "Voce ja tomou uma decisao 'errada' segundo o processo mas que deu certo? O que te fez desviar?"
+
+    rules:
+      - "Conhecimento tacito e o MAIS DIFICIL de extrair — paciencia e chave"
+      - "Se o usuario responder 'nao sei', reformular: 'Pensa na ultima vez que fez...' "
+      - "'Ah, isso e so experiencia' merece follow-up: 'Mas experiencia DE QUE especificamente?'"
+      - "Hesitacoes e reformulacoes sao pistas — registrar"
+      - "Maximo 5 perguntas — qualidade > quantidade"
+      - "Respostas desta lente frequentemente revelam PUs de outros tipos (DECISION, EXCEPTION) que estavam escondidos"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# REGRAS GLOBAIS DE EXTRACAO
+# ─────────────────────────────────────────────────────────────────────────────
+global_rules:
+  conversation:
+    - "Isto NAO e formulario. E CONVERSA. Adaptar perguntas ao fluxo"
+    - "Maximo 3 perguntas por mensagem (evitar interrogatorio)"
+    - "Cada mensagem do archaeologist deve conter insight, nao so pergunta"
+    - "Se o usuario der resposta longa, extrair e confirmar entendimento antes de prosseguir"
+    - "Vocabulario do usuario e sagrado — usar os termos dele, nao inventar nomenclatura"
+
+  zero_inference:
+    - "NAO inferir passos que o usuario nao mencionou"
+    - "Se algo parece faltar, PERGUNTAR — nao preencher"
+    - "Se precisar especular, marcar como [INFERRED] com confidence < 0.5"
+    - "Tudo que nao veio diretamente do usuario precisa de confirmacao"
+
+  gemba:
+    - "Quando processo envolve ferramenta/tela/interface, pedir pra MOSTRAR ao inves de CONTAR"
+    - "'Me mostra como faz' > 'Me conta como faz' — sempre que possivel"
+    - "Observar passos que o usuario faz sem perceber (cliques automaticos, atalhos)"
+    - "Captura os ~30% que o usuario esquece porque faz no automatico"
+
+  between_rounds:
+    - "Entre cada round, analisar PUs extraidos e identificar gaps"
+    - "Gerar perguntas cirurgicas para o proximo round baseado nos gaps"
+    - "Mostrar progresso ao usuario: 'Capturei X passos, Y decisoes, Z excecoes. Faltam...'"
+
+  completeness:
+    minimum_pus: 15
+    minimum_lens_coverage: 6  # de 8
+    minimum_confidence: 0.7   # media
+    minimum_step_coverage: "Cada passo de L2 deve ter pelo menos L3 ou L4 explorado"
+    minimum_quality_gates: 1  # Pelo menos 1 PU-QUALITY_GATE (L6)
+    minimum_dependencies: 1   # Pelo menos 1 PU-DEPENDENCY (L7)

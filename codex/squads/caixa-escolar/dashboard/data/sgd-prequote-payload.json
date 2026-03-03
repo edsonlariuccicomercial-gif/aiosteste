@@ -1,0 +1,29 @@
+{
+  "generatedAt": "2026-03-03T21:07:12.556Z",
+  "proposals": [
+    {
+      "budgetId": "2026004063",
+      "items": [
+        {
+          "name": "Alface",
+          "quantity": 20,
+          "unitPrice": 5.2,
+          "totalPrice": 104
+        },
+        {
+          "name": "Cebolinha Kilograma  Ou Unidade Ou Molho",
+          "quantity": 10,
+          "unitPrice": 6.5,
+          "totalPrice": 65
+        },
+        {
+          "name": "Repolho Branco Kg",
+          "quantity": 6,
+          "unitPrice": 6.37,
+          "totalPrice": 38.22
+        }
+      ],
+      "total": 207.22
+    }
+  ]
+}

@@ -1,0 +1,137 @@
+{
+  "updatedAt": "2026-03-03",
+  "itens": [
+    {
+      "id": "bp-001",
+      "grupo": "Climatização",
+      "item": "Ventilador de parede 60cm 6 pás",
+      "unidade": "Unidade",
+      "custoBase": 120.00,
+      "margemPadrao": 0.35,
+      "precoReferencia": 189.90,
+      "ultimaCotacao": "2026-02-15",
+      "fonte": "Distribuidora X"
+    },
+    {
+      "id": "bp-002",
+      "grupo": "Climatização",
+      "item": "Ventilador de coluna 50cm",
+      "unidade": "Unidade",
+      "custoBase": 95.00,
+      "margemPadrao": 0.35,
+      "precoReferencia": 149.90,
+      "ultimaCotacao": "2026-02-15",
+      "fonte": "Distribuidora X"
+    },
+    {
+      "id": "bp-003",
+      "grupo": "Material de Consumo Geral",
+      "item": "Papel A4 75g resma 500 folhas",
+      "unidade": "Resma",
+      "custoBase": 22.50,
+      "margemPadrao": 0.30,
+      "precoReferencia": 32.90,
+      "ultimaCotacao": "2026-02-20",
+      "fonte": "Atacadão Papelaria"
+    },
+    {
+      "id": "bp-004",
+      "grupo": "Material de Consumo Geral",
+      "item": "Caneta esferográfica azul cx 50un",
+      "unidade": "Caixa",
+      "custoBase": 35.00,
+      "margemPadrao": 0.30,
+      "precoReferencia": 49.90,
+      "ultimaCotacao": "2026-02-20",
+      "fonte": "Atacadão Papelaria"
+    },
+    {
+      "id": "bp-005",
+      "grupo": "Material Pedagógico",
+      "item": "Kit material pedagógico básico",
+      "unidade": "Kit",
+      "custoBase": 85.00,
+      "margemPadrao": 0.30,
+      "precoReferencia": 119.90,
+      "ultimaCotacao": "2026-01-28",
+      "fonte": "Didática Brasil"
+    },
+    {
+      "id": "bp-006",
+      "grupo": "Equipamentos Tecnológicos",
+      "item": "Notebook educacional 14pol 8GB",
+      "unidade": "Unidade",
+      "custoBase": 1850.00,
+      "margemPadrao": 0.20,
+      "precoReferencia": 2399.00,
+      "ultimaCotacao": "2026-02-10",
+      "fonte": "Tech Distribuição"
+    },
+    {
+      "id": "bp-007",
+      "grupo": "Equipamentos Tecnológicos",
+      "item": "Projetor multimídia 3600 lumens",
+      "unidade": "Unidade",
+      "custoBase": 2200.00,
+      "margemPadrao": 0.20,
+      "precoReferencia": 2890.00,
+      "ultimaCotacao": "2026-02-10",
+      "fonte": "Tech Distribuição"
+    },
+    {
+      "id": "bp-008",
+      "grupo": "Mobiliários Administrativos",
+      "item": "Cadeira giratória escritório",
+      "unidade": "Unidade",
+      "custoBase": 280.00,
+      "margemPadrao": 0.25,
+      "precoReferencia": 389.90,
+      "ultimaCotacao": "2026-01-15",
+      "fonte": "Movelaria Central"
+    },
+    {
+      "id": "bp-009",
+      "grupo": "Gêneros Alimentícios",
+      "item": "Arroz tipo 1 5kg",
+      "unidade": "Pacote",
+      "custoBase": 18.50,
+      "margemPadrao": 0.25,
+      "precoReferencia": 24.90,
+      "ultimaCotacao": "2026-02-28",
+      "fonte": "Atacadão Regional"
+    },
+    {
+      "id": "bp-010",
+      "grupo": "Gêneros Alimentícios",
+      "item": "Feijão carioca 1kg",
+      "unidade": "Pacote",
+      "custoBase": 7.80,
+      "margemPadrao": 0.25,
+      "precoReferencia": 10.90,
+      "ultimaCotacao": "2026-02-28",
+      "fonte": "Atacadão Regional"
+    },
+    {
+      "id": "bp-011",
+      "grupo": "Equipamentos de Cozinha",
+      "item": "Fogão industrial 6 bocas",
+      "unidade": "Unidade",
+      "custoBase": 1450.00,
+      "margemPadrao": 0.25,
+      "precoReferencia": 1950.00,
+      "ultimaCotacao": "2026-01-20",
+      "fonte": "Inox Industrial"
+    },
+    {
+      "id": "bp-012",
+      "grupo": "Utensílios de Cozinha",
+      "item": "Panela de pressão industrial 20L",
+      "unidade": "Unidade",
+      "custoBase": 320.00,
+      "margemPadrao": 0.25,
+      "precoReferencia": 429.90,
+      "ultimaCotacao": "2026-01-20",
+      "fonte": "Inox Industrial"
+    }
+  ]
+}

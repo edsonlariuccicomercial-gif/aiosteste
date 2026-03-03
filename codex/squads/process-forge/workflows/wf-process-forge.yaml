@@ -1,0 +1,300 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# WORKFLOW: Process Forge Pipeline
+# ═══════════════════════════════════════════════════════════════════════════════
+# Pipeline completo de extracao de processo e criacao de squad AIOS.
+# 6 fases (0-5), 5 quality gates, 3 agentes.
+# Pausavel e resumivel entre fases.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+workflow:
+  id: wf-process-forge
+  name: "Process Forge Pipeline"
+  version: "1.0.0"
+  description: "Extrai processos complexos da cabeca do usuario e transforma em squads AIOS"
+  type: "pipeline"
+  purpose: >
+    Pipeline que extrai processos complexos da cabeca do usuario e transforma
+    em squads AIOS funcionais. Combina arqueologia de processos (8 lentes de
+    extracao iterativa) com construcao AIOS (estrutura nuclear de squads).
+  orchestrator: "@forge-chief"
+
+  sequence:
+    - phase: "setup"
+      agent: "forge-chief"
+      action: "Coletar nome e escopo do processo, criar estrutura de diretorios"
+      creates: "minds/{slug}/.state.json"
+
+    - phase: "extraction"
+      agent: "process-archaeologist"
+      action: "Entrevista iterativa em N rounds usando 8 lentes de extracao"
+      requires: "minds/{slug}/.state.json"
+      creates: "minds/{slug}/01-extraction/process-units.yaml"
+      checkpoint:
+        id: QG-PF-001
+        blocking: true
+
+    - phase: "playback"
+      agent: "forge-chief"
+      action: "Apresentar processo extraido de volta pro usuario, coletar validacao"
+      requires: "minds/{slug}/01-extraction/process-units.yaml"
+      creates: "minds/{slug}/02-process-map/process-map.yaml"
+      checkpoint:
+        id: QG-PF-002
+        blocking: true
+
+    - phase: "architecture"
+      agent: "forge-smith"
+      action: "Decompor processo em agentes, mapear PUs para tasks, desenhar workflow"
+      requires: "minds/{slug}/02-process-map/process-map.yaml"
+      creates: "minds/{slug}/03-blueprint/squad-blueprint.yaml"
+      checkpoint:
+        id: QG-PF-003
+        blocking: true
+
+    - phase: "assembly"
+      agent: "forge-smith"
+      action: "Gerar todos os artefatos AIOS: config, agents, tasks, workflows"
+      requires: "minds/{slug}/03-blueprint/squad-blueprint.yaml"
+      creates: "minds/{slug}/04-squad/"
+      checkpoint:
+        id: QG-PF-004
+        blocking: true
+
+    - phase: "validation"
+      agent: "forge-chief"
+      action: "Smoke tests com cenarios reais, walkthrough com usuario, aprovacao final"
+      requires: "minds/{slug}/04-squad/"
+      creates: "minds/{slug}/05-validation/validation-report.yaml"
+      checkpoint:
+        id: QG-PF-005
+        blocking: true
+
+trigger: "/processForge"
+estimated_time: "2-12 horas (depende da complexidade)"
+resumable: true
+state_file: ".state.json"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PARTICIPANTS
+# ─────────────────────────────────────────────────────────────────────────────
+participants:
+  - agent: forge-chief
+    role: "Pipeline orchestration, playback validation, quality gate enforcement"
+    phases: [0, 2, 5]
+  - agent: process-archaeologist
+    role: "Process extraction via iterative interviews (8 lenses)"
+    phases: [1]
+  - agent: forge-smith
+    role: "Squad architecture and AIOS artifact generation"
+    phases: [3, 4, 5]
+  - role: user
+    involvement: "Source of process knowledge, validates at phases 2 and 5"
+    phases: [1, 2, 5]
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PHASES
+# ─────────────────────────────────────────────────────────────────────────────
+phases:
+  - phase: 0
+    name: "Setup"
+    agent: forge-chief
+    task: start
+    duration: "3-5 min"
+    blocking: false
+    description: >
+      Ativar Chief, coletar nome e escopo do processo, criar estrutura de
+      diretorios, inicializar state.
+    inputs:
+      - "Nome do processo (do usuario)"
+      - "Descricao breve (do usuario)"
+    outputs:
+      - "Diretorio minds/{slug}/ criado"
+      - ".state.json inicializado"
+    checkpoint:
+      type: "auto"
+      criteria: "Diretorio criado + state inicializado"
+
+  - phase: 1
+    name: "Extracao de Processo"
+    agent: process-archaeologist
+    task: extract-process
+    duration: "30-90 min"
+    blocking: true
+    description: >
+      Entrevista iterativa em N rounds. Round 1 (L1+L2): visao geral e passos.
+      Round 2 (L3+L4+L5): decisoes, excecoes, I/O. Round 3 (L6+L7+L8):
+      qualidade, dependencias, tacito. Round N: cirurgico ate completude >=95%.
+    inputs:
+      - "process_slug"
+      - "process_name"
+      - "scope"
+    outputs:
+      - "01-extraction/process-units.yaml"
+      - "01-extraction/extraction-metrics.yaml"
+      - "01-extraction/round-*.md"
+    quality_gate:
+      id: QG-PF-001
+      name: "Extraction Completeness"
+      criteria:
+        - ">=15 PUs extraidos"
+        - "6/8 lentes cobertas"
+        - "Confianca media >=0.7"
+        - ">=5 PU-STEPs"
+        - ">=2 PU-DECISIONs"
+        - ">=1 PU-QUALITY_GATEs"
+        - ">=1 PU-DEPENDENCYs"
+        - "<30% PUs inferred"
+      veto_conditions:
+        - "PUs total < 5"
+        - "Zero PU-DECISIONs"
+        - "Zero PU-QUALITY_GATEs"
+        - "Zero PU-DEPENDENCYs"
+        - ">50% PUs inferred"
+      blocking: true
+
+  - phase: 2
+    name: "Playback Validation"
+    agent: forge-chief
+    task: playback-validate
+    duration: "10-20 min"
+    blocking: true
+    description: >
+      Apresentar processo extraido de volta pro usuario em formato narrativo.
+      Usuario confirma, corrige ou complementa. Correcoes integradas nos PUs.
+      So avanca quando usuario confirmar "esse e meu processo".
+    inputs:
+      - "01-extraction/process-units.yaml"
+      - "01-extraction/extraction-metrics.yaml"
+    outputs:
+      - "02-process-map/process-map.yaml"
+      - "02-process-map/dependency-graph.yaml"
+      - "02-process-map/decision-trees.yaml"
+    quality_gate:
+      id: QG-PF-002
+      name: "User Validation"
+      criteria:
+        - "Usuario confirmou 'esse e meu processo'"
+        - "Todas as correcoes integradas"
+        - "Nenhum PU com 'usuario discorda' pendente"
+      veto_conditions:
+        - "Usuario rejeitou o processo"
+        - "Correcoes pendentes nao integradas"
+      blocking: true
+
+  - phase: 3
+    name: "Arquitetura do Squad"
+    agent: forge-smith
+    task: architect-squad
+    duration: "15-30 min"
+    blocking: true
+    description: >
+      Decompor processo validado em agentes, mapear PUs para tasks,
+      desenhar workflow e quality gates. Gerar squad blueprint.
+    inputs:
+      - "02-process-map/process-map.yaml"
+      - "01-extraction/process-units.yaml"
+    outputs:
+      - "03-blueprint/squad-blueprint.yaml"
+      - "03-blueprint/agent-decomposition.md"
+      - "03-blueprint/task-mapping.md"
+    quality_gate:
+      id: QG-PF-003
+      name: "Architecture Coherence"
+      criteria:
+        - "1-7 agentes definidos"
+        - "Cada PU-STEP mapeado para 1 task"
+        - "Cada PU-DECISION mapeado"
+        - "Sem dependencia circular"
+        - "Human touchpoints identificados"
+        - "Bottleneck abordado"
+      veto_conditions:
+        - "0 tasks geradas"
+        - "Dependencia circular"
+        - "PU-STEP orfao"
+      blocking: true
+
+  - phase: 4
+    name: "Montagem do Squad"
+    agent: forge-smith
+    task: assemble-squad
+    duration: "30-60 min"
+    blocking: true
+    description: >
+      Gerar todos os artefatos AIOS: squad.yaml, agents/*.md, tasks/*.md,
+      workflows/*.yaml, checklists, knowledge base. Validar contra estrutura nuclear.
+    inputs:
+      - "03-blueprint/squad-blueprint.yaml"
+    outputs:
+      - "04-squad/ (diretorio completo do squad AIOS)"
+    quality_gate:
+      id: QG-PF-004
+      name: "Nuclear Structure"
+      criteria:
+        - "squad.yaml valido (name + version)"
+        - "tasks/ com >=1 .md valido (8 campos)"
+        - "agents/ com >=1 .md valido"
+        - "workflow YAML valido"
+        - "Sem dependencia circular"
+        - "squad-validator.js PASS (se disponivel)"
+      veto_conditions:
+        - "squad.yaml invalido"
+        - "Task sem 8 campos obrigatorios"
+        - "squad-validator.js FAIL em checks mandatorios"
+      blocking: true
+
+  - phase: 5
+    name: "Validacao Final"
+    agent: forge-chief
+    task: validate-squad
+    duration: "10-20 min"
+    blocking: true
+    description: >
+      Smoke tests com cenarios reais, walkthrough com usuario,
+      aprovacao final. Squad marcado como pronto para producao.
+    inputs:
+      - "04-squad/ (squad completo)"
+      - "02-process-map/process-map.yaml"
+    outputs:
+      - "05-validation/validation-report.yaml"
+    quality_gate:
+      id: QG-PF-005
+      name: "Squad Operational"
+      criteria:
+        - "Validacao estrutural PASS"
+        - "2/3 smoke tests PASS"
+        - "Usuario aprova squad"
+      veto_conditions:
+        - "Usuario rejeita"
+        - "0/3 smoke tests passam"
+      blocking: true
+
+# ─────────────────────────────────────────────────────────────────────────────
+# FLOW RULES
+# ─────────────────────────────────────────────────────────────────────────────
+flow_rules:
+  - "Pipeline e UNIDIRECIONAL: fases nao voltam"
+  - "Quality gates sao BLOQUEANTES: se nao passa, nao avanca"
+  - "Excecao: usuario pode fazer override em QG-PF-001 (aceitar extracao incompleta)"
+  - "Pipeline e PAUSAVEL entre fases: .state.json persiste estado"
+  - "RESUMIR: *resume retoma da ultima fase incompleta"
+  - "ABORT: se usuario desistir, estado fica salvo pra retomar depois"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# COMPLEXITY MODES
+# ─────────────────────────────────────────────────────────────────────────────
+complexity_modes:
+  simple:
+    description: "Processo com 5-15 PUs"
+    estimated_time: "2-3 horas"
+    extraction_rounds: "2-3"
+    agents_expected: "1-2"
+  standard:
+    description: "Processo com 16-30 PUs"
+    estimated_time: "4-6 horas"
+    extraction_rounds: "3-4"
+    agents_expected: "2-4"
+  complex:
+    description: "Processo com 31+ PUs"
+    estimated_time: "8-12 horas"
+    extraction_rounds: "4-6"
+    agents_expected: "4-7"
