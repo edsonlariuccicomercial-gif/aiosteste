@@ -43,6 +43,16 @@ npm.cmd run ops:monitor
 npm.cmd run ops:monitor:collect
 ```
 
+### Fechar turno e gerar handoff (recomendado)
+```powershell
+npm.cmd run ops:close-shift
+```
+
+### Gerar somente handoff
+```powershell
+npm.cmd run ops:handoff
+```
+
 ### Modo rapido (recomendado)
 ```powershell
 npm.cmd run ops:daily
@@ -83,9 +93,11 @@ npm.cmd run dashboard:serve
 - `dashboard/data/ops-daily-run-report.json`
 - `dashboard/data/ops-eod-summary.json`
 - `dashboard/data/ops-alerts.json`
+- `dashboard/data/ops-handoff.json`
 - `docs/ops/ops-daily-last-run.md`
 - `docs/ops/ops-daily-eod.md`
 - `docs/ops/ops-alerts.md`
+- `docs/ops/handoff-next-shift.md`
 
 ## Regra de decisao
 - Se `urgent48h > 0`: tratar todos os itens urgentes primeiro.

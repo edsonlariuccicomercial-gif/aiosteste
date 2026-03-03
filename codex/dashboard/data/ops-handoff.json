@@ -1,0 +1,22 @@
+{
+  "generatedAt": "2026-03-03T00:02:20.606Z",
+  "status": {
+    "daily": "GO",
+    "alerts": "GO",
+    "eod": "GO"
+  },
+  "metrics": {
+    "skuCoveragePct": 100,
+    "actionableQuotes": 0,
+    "urgent48h": 0,
+    "highPriority": 0,
+    "potentialRevenue": 0,
+    "skuWithHistory": 2,
+    "skuRegionWithHistory": 6
+  },
+  "openAlerts": [],
+  "nextActions": [
+    "Abrir proximo ciclo com `npm.cmd run ops:start-day`.",
+    "Sem urgentes no momento; focar expansao de volume qualificado."
+  ]
+}
