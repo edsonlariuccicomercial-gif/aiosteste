@@ -28,8 +28,8 @@
 - Entrega 3: Definicao de onboarding em 30 minutos. (concluido)
 
 ## Criticos Imediatos
-- Consolidar pacote comercial (Starter/Pro/Enterprise) com proposta de valor.
-- Fechar one-pager comercial para fornecedores MG.
+- Consolidar pacote comercial (Starter/Pro/Enterprise) com proposta de valor. (concluido em Story 1.36)
+- Fechar one-pager comercial para fornecedores MG. (concluido em Story 1.36)
 - Formalizar onboarding de 30 minutos em fluxo padrao. (concluido em Story 1.35)
 - Manter rotina operacional automatizada (`ops:daily`) com monitoramento continuo.
 

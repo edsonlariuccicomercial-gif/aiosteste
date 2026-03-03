@@ -43,6 +43,7 @@
     "discovery:start-day": "npm.cmd run discovery:day && npm.cmd run discovery:next && npm.cmd run discovery:status",
     "discovery:end-day": "npm.cmd run discovery:cycle && node scripts/discovery-end-day-report.js && npm.cmd run discovery:go-check",
     "onboarding:start": "node scripts/onboarding-start.js",
+    "commercial:kit": "node scripts/commercial-kit.js",
     "orders:test:sync:olist": "node scripts/test-orders-sync-olist.js",
     "dashboard:serve": "node scripts/serve-dashboard.js",
     "orders:sync:olist": "node scripts/sync-sgd-orders-olist.js"
