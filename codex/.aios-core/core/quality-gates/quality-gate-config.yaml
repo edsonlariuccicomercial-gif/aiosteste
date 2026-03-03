@@ -14,19 +14,19 @@ layer1:
   checks:
     lint:
       enabled: true
-      command: "npm run lint"
+      command: "cmd /c npm run lint"
       failOn: "error"  # error | warning
       timeout: 60000   # 1 minute
     test:
       enabled: true
-      command: "npm test"
+      command: "cmd /c npm test"
       timeout: 300000  # 5 minutes
       coverage:
         enabled: true
         minimum: 80
     typecheck:
       enabled: true
-      command: "npm run typecheck"
+      command: "cmd /c npm run typecheck"
       timeout: 120000  # 2 minutes
 
 # Layer 2: PR Automation (external tools)

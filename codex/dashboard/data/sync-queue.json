@@ -1,41 +1,5 @@
 [
   {
-    "queueId": "Q-1772465075546-312",
-    "internalOrderId": "2026000112",
-    "idempotencyKey": "internal-order:2026000112",
-    "attempts": 2,
-    "status": "synced",
-    "nextAttemptAt": "2026-03-02T15:24:55.632Z",
-    "createdAt": "2026-03-02T15:24:35.547Z",
-    "updatedAt": "2026-03-02T15:25:28.621Z",
-    "lastError": "",
-    "payloadSnapshot": {
-      "id": "2026000112",
-      "school": "EE Coronel Paiva",
-      "city": "Curvelo",
-      "sre": "SRE Curvelo",
-      "contractRef": "ARP-2026-0008",
-      "totalValue": 23740,
-      "confirmedAt": "2026-03-02T13:10:00Z",
-      "items": [
-        {
-          "sku": "ARROZ-5KG",
-          "description": "Arroz 5kg",
-          "qty": 220,
-          "unitPrice": 28.9
-        },
-        {
-          "sku": "FEIJAO-1KG",
-          "description": "Feijao 1kg",
-          "qty": 300,
-          "unitPrice": 8.7
-        }
-      ],
-      "workflowStatus": "APROVADO_PARA_FATURAMENTO"
-    },
-    "syncedAt": "2026-03-02T15:25:31.700Z"
-  },
-  {
     "queueId": "Q-1772465075547-947",
     "internalOrderId": "2026000141",
     "idempotencyKey": "internal-order:2026000141",
@@ -70,5 +34,41 @@
       "workflowStatus": "APROVADO_PARA_FATURAMENTO"
     },
     "syncedAt": "2026-03-02T15:25:32.945Z"
+  },
+  {
+    "queueId": "Q-1772501222724-603",
+    "internalOrderId": "2026000112",
+    "idempotencyKey": "internal-order:2026000112",
+    "attempts": 1,
+    "status": "synced",
+    "nextAttemptAt": "2026-03-03T01:27:02.724Z",
+    "createdAt": "2026-03-03T01:27:02.725Z",
+    "updatedAt": "2026-03-03T01:27:02.725Z",
+    "lastError": "",
+    "payloadSnapshot": {
+      "id": "2026000112",
+      "school": "EE Coronel Paiva",
+      "city": "Curvelo",
+      "sre": "SRE Curvelo",
+      "contractRef": "ARP-2026-0008",
+      "totalValue": 23740,
+      "confirmedAt": "2026-03-02T13:10:00Z",
+      "items": [
+        {
+          "sku": "ARROZ-5KG",
+          "description": "Arroz 5kg",
+          "qty": 220,
+          "unitPrice": 28.9
+        },
+        {
+          "sku": "FEIJAO-1KG",
+          "description": "Feijao 1kg",
+          "qty": 300,
+          "unitPrice": 8.7
+        }
+      ],
+      "workflowStatus": "APROVADO_PARA_FATURAMENTO"
+    },
+    "syncedAt": "2026-03-03T01:27:02.726Z"
   }
 ]

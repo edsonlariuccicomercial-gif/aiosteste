@@ -1,10 +1,19 @@
 # Relatorio de Cobertura Territorial
 
-- Gerado em: 2026-03-02T16:15:30.120Z
+- Gerado em: 2026-03-03T17:46:36.893Z
 - Escolas no dataset: 10
-- Escolas mapeadas: 10
-- Escolas nao mapeadas: 0
-- Cobertura: 100%
+- Escolas mapeadas: 0
+- Escolas nao mapeadas: 10
+- Cobertura: 0%
 
 ## Pendencias de mapeamento
-- Nenhuma pendencia.
+- EE JOAQUIM TIAGO DE QUEIROZ
+- EE DOUTOR PEDRO DIAS DOS REIS
+- EE VICENTE MACEDO
+- EE ARMANDO SANTOS
+- EE DOM JOSE GASPAR
+- EE MARECHAL HUMBERTO ALENCAR CASTELO BRANCO
+- EE BERNARDO VASCONCELOS
+- EE PROFESSORA CORINA DE OLIVEIRA
+- EE DOUTOR JOSE MENDONCA
+- EE PROFESSORA CECILIA MARIA DE REZENDE NEVES

@@ -147,3 +147,7 @@ module.exports = {
   createProgram,
   run,
 };
+
+if (require.main === module) {
+  run();
+}

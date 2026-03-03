@@ -108,37 +108,27 @@
       <section class="card prequote">
         <div class="table-head">
           <h2>Pedidos com pre-cotacao</h2>
+          <div class="prequote-head-actions">
+            <button id="btn-export-prequote-json" type="button">Exportar aprovadas (JSON)</button>
+            <button id="btn-export-prequote-csv" type="button">Exportar aprovadas (CSV)</button>
+          </div>
         </div>
         <p id="prequote-summary" class="result-summary"></p>
+        <small id="prequote-feedback" class="prequote-feedback"></small>
         <div id="prequote-orders" class="prequote-orders"></div>
       </section>
 
-      <section class="card table-wrap">
+      <section class="card objeto-section">
         <div class="table-head">
-          <h2>Fila de cotaÃ§Ãµes priorizada</h2>
-          <button id="btn-export-csv" type="button">Exportar CSV</button>
+          <h2>Cotacoes por tipo de objeto</h2>
+          <div class="objeto-head-actions">
+            <button id="btn-expand-all" type="button">Expandir todos</button>
+            <button id="btn-collapse-all" type="button">Recolher todos</button>
+            <button id="btn-export-csv" type="button">Exportar CSV</button>
+          </div>
         </div>
-        <table>
-          <thead>
-            <tr>
-              <th>Prioridade</th>
-              <th>Score</th>
-              <th>ID</th>
-              <th>Escola</th>
-              <th>SRE</th>
-              <th>Objeto</th>
-              <th>SKU ref</th>
-              <th>Prazo</th>
-              <th>Faixa historica (SKU)</th>
-              <th>Preco minimo (modelo)</th>
-              <th>Lance recomendado</th>
-              <th>Preco sugerido</th>
-              <th>Margem</th>
-              <th>Sync Olist</th>
-            </tr>
-          </thead>
-          <tbody id="quote-table"></tbody>
-        </table>
+        <div id="objeto-overview" class="objeto-overview"></div>
+        <div id="objeto-groups"></div>
       </section>
 
       <section class="card simulator">

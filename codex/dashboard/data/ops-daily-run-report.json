@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-03-02T23:38:13.095Z",
+  "generatedAt": "2026-03-03T17:46:40.234Z",
   "withCollect": false,
   "ok": true,
   "missingRequired": [],
@@ -9,49 +9,49 @@
       "relativePath": "dashboard\\data\\territory-coverage-report.json",
       "exists": true,
       "required": true,
-      "updatedAt": "2026-03-02T23:38:10.017Z"
+      "updatedAt": "2026-03-03T17:46:36.896Z"
     },
     {
       "key": "skuAudit",
       "relativePath": "dashboard\\data\\sku-coverage-report.json",
       "exists": true,
       "required": true,
-      "updatedAt": "2026-03-02T23:38:10.444Z"
+      "updatedAt": "2026-03-03T17:46:37.346Z"
     },
     {
       "key": "snapshotDaily",
       "relativePath": "dashboard\\data\\operational-daily-snapshot.json",
       "exists": true,
       "required": true,
-      "updatedAt": "2026-03-02T23:38:11.293Z"
+      "updatedAt": "2026-03-03T17:46:38.290Z"
     },
     {
       "key": "urgentCsv",
       "relativePath": "dashboard\\data\\operational-urgent.csv",
       "exists": true,
       "required": true,
-      "updatedAt": "2026-03-02T23:38:11.712Z"
+      "updatedAt": "2026-03-03T17:46:38.762Z"
     },
     {
       "key": "priceHistory",
       "relativePath": "dashboard\\data\\price-history.json",
       "exists": true,
       "required": true,
-      "updatedAt": "2026-03-02T23:38:12.150Z"
+      "updatedAt": "2026-03-03T17:46:39.236Z"
     },
     {
       "key": "priceHistorySummary",
       "relativePath": "dashboard\\data\\price-history-summary.json",
       "exists": true,
       "required": true,
-      "updatedAt": "2026-03-02T23:38:12.600Z"
+      "updatedAt": "2026-03-03T17:46:39.712Z"
     }
   ],
   "metrics": {
     "skuCoveragePct": 100,
-    "actionableQuotes": 0,
+    "actionableQuotes": 32,
     "urgent48h": 0,
-    "skuWithHistory": 2,
-    "skuRegionWithHistory": 6
+    "skuWithHistory": 12,
+    "skuRegionWithHistory": 18
   }
 }

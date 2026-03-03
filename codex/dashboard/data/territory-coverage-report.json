@@ -1,8 +1,39 @@
 {
-  "generatedAt": "2026-03-02T16:15:30.120Z",
+  "generatedAt": "2026-03-03T17:46:36.893Z",
   "totalSchoolsInQuotes": 10,
-  "mappedSchools": 10,
-  "unmappedSchools": 0,
-  "coveragePct": 100,
-  "unmapped": []
+  "mappedSchools": 0,
+  "unmappedSchools": 10,
+  "coveragePct": 0,
+  "unmapped": [
+    {
+      "escola": "EE JOAQUIM TIAGO DE QUEIROZ"
+    },
+    {
+      "escola": "EE DOUTOR PEDRO DIAS DOS REIS"
+    },
+    {
+      "escola": "EE VICENTE MACEDO"
+    },
+    {
+      "escola": "EE ARMANDO SANTOS"
+    },
+    {
+      "escola": "EE DOM JOSE GASPAR"
+    },
+    {
+      "escola": "EE MARECHAL HUMBERTO ALENCAR CASTELO BRANCO"
+    },
+    {
+      "escola": "EE BERNARDO VASCONCELOS"
+    },
+    {
+      "escola": "EE PROFESSORA CORINA DE OLIVEIRA"
+    },
+    {
+      "escola": "EE DOUTOR JOSE MENDONCA"
+    },
+    {
+      "escola": "EE PROFESSORA CECILIA MARIA DE REZENDE NEVES"
+    }
+  ]
 }

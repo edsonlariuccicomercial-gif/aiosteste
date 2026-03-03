@@ -9,7 +9,8 @@ const OUT_MD = path.join("docs", "ops", "territory-coverage-report.md");
 
 function readJson(filePath, fallback) {
   try {
-    return JSON.parse(fs.readFileSync(filePath, "utf8"));
+    const raw = fs.readFileSync(filePath, "utf8").replace(/^\uFEFF/, "");
+    return JSON.parse(raw);
   } catch (_e) {
     return fallback;
   }

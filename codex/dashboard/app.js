@@ -14,6 +14,9 @@ let isRefreshing = false;
 let refreshTicker = null;
 let nextRefreshSec = 0;
 let lastRefreshAt = null;
+let expandedGroups = new Set();
+
+const SGD_ORCAMENTOS_URL = "https://caixaescolar.educacao.mg.gov.br/compras/orcamentos";
 
 const DASHBOARD_REFRESH_MS = 60000;
 
@@ -21,7 +24,7 @@ const PREQUOTE_STORAGE_KEY = "licitia.prequote.v1";
 
 const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 
-const today = new Date("2026-03-02T00:00:00");
+const today = new Date(new Date().toISOString().slice(0, 10) + "T00:00:00");
 
 const el = {
   kpiOpen: document.getElementById("kpi-open"),
@@ -36,6 +39,10 @@ const el = {
   trendMetrics: document.getElementById("trend-metrics"),
   opsAlertsList: document.getElementById("ops-alerts-list"),
   table: document.getElementById("quote-table"),
+  objetoOverview: document.getElementById("objeto-overview"),
+  objetoGroups: document.getElementById("objeto-groups"),
+  expandAll: document.getElementById("btn-expand-all"),
+  collapseAll: document.getElementById("btn-collapse-all"),
   sre: document.getElementById("filter-sre"),
   city: document.getElementById("filter-city"),
   status: document.getElementById("filter-status"),
@@ -53,7 +60,10 @@ const el = {
   skuCopyFeedback: document.getElementById("sku-copy-feedback"),
   criticalAlerts: document.getElementById("critical-alerts"),
   prequoteSummary: document.getElementById("prequote-summary"),
+  prequoteFeedback: document.getElementById("prequote-feedback"),
   prequoteOrders: document.getElementById("prequote-orders"),
+  exportPrequoteJson: document.getElementById("btn-export-prequote-json"),
+  exportPrequoteCsv: document.getElementById("btn-export-prequote-csv"),
   simCost: document.getElementById("sim-cost"),
   simSku: document.getElementById("sim-sku"),
   simRegion: document.getElementById("sim-region"),
@@ -83,11 +93,17 @@ function clamp(value, min, max) {
 
 function strategicObjectFit(row) {
   const obj = normalizedText(row.objeto);
-  if (obj.includes("alimentacao") || obj.includes("merenda")) return 15;
+  // Grupos de despesa do SGD (API) e labels legados
+  if (obj.includes("alimenta") || obj.includes("merenda") || obj.includes("generos")) return 15;
   if (obj.includes("pereciveis") || obj.includes("hortifrutigranjeiros")) return 14;
-  if (obj.includes("limpeza") || obj.includes("higiene")) return 12;
-  if (obj.includes("escritorio") || obj.includes("consumo")) return 10;
-  if (obj.includes("nao identificado")) return 2;
+  if (obj.includes("limpeza") || obj.includes("higiene") || obj.includes("saneante")) return 12;
+  if (obj.includes("escritorio") || obj.includes("consumo") || obj.includes("material")) return 10;
+  if (obj.includes("manutencao") || obj.includes("reforma")) return 11;
+  if (obj.includes("transporte")) return 9;
+  if (obj.includes("pedagogic") || obj.includes("educacion")) return 8;
+  if (obj.includes("capacitacao") || obj.includes("formacao")) return 7;
+  if (obj.includes("utensilios") || obj.includes("cozinha")) return 10;
+  if (obj.includes("nao identificado") || obj.startsWith("grupo #")) return 4;
   return 6;
 }
 
@@ -208,6 +224,11 @@ function prequoteStatusBadge(status) {
     return '<span class="prequote-status prequote-status-approved">Aprovada</span>';
   }
   return '<span class="prequote-status prequote-status-draft">Pendente</span>';
+}
+
+function setPrequoteFeedback(message) {
+  if (!el.prequoteFeedback) return;
+  el.prequoteFeedback.textContent = message || "";
 }
 
 function priority(row) {
@@ -382,6 +403,46 @@ function quoteMinPricing(row) {
   const divisor = 1 - opexPct / 100 - taxPct / 100 - marginPct / 100;
   const minPrice = divisor > 0 ? adjustedCost / divisor : 0;
   return { sku, minPrice };
+}
+
+function minPriceForSku(sku, sre) {
+  if (!sku) return 0;
+  const base = baseCostForSku(sku);
+  if (!base) return 0;
+
+  const { freightPct, opexPct, taxPct, marginPct } = pricingDefaults();
+  const adjustedCost = base * regionFactor(sre) * (1 + freightPct / 100);
+  const divisor = 1 - opexPct / 100 - taxPct / 100 - marginPct / 100;
+  if (divisor <= 0) return 0;
+  return Number((adjustedCost / divisor).toFixed(2));
+}
+
+function suggestedUnitPriceForSku(sku, sre, fallbackPrice) {
+  const floor = minPriceForSku(sku, sre);
+  const history = historyRangeForSku(sku, sre);
+  const historical = history && history.count
+    ? Number(history.median || history.min || 0)
+    : 0;
+  const reference = historical || Number(fallbackPrice || 0) || floor;
+  const safe = Math.max(floor, reference);
+  return Number(safe.toFixed(2));
+}
+
+function applySuggestedPrequote(orderId) {
+  const draft = prequoteState[orderId];
+  if (!draft || !Array.isArray(draft.items)) return;
+
+  const order = internalOrders.find((o) => o.id === orderId);
+  const sre = String(order?.sre || "");
+  for (const item of draft.items) {
+    const current = Number(item.proposedUnitPrice || item.baseUnitPrice || 0);
+    const suggested = suggestedUnitPriceForSku(String(item.sku || ""), sre, current);
+    if (suggested > 0) item.proposedUnitPrice = suggested;
+  }
+
+  draft.status = draft.status === "approved" ? "approved" : "draft";
+  draft.updatedAt = new Date().toISOString();
+  savePrequoteState();
 }
 
 function applySimulatorPreset() {
@@ -559,12 +620,158 @@ function renderPrequoteOrders() {
             <tbody>${rows}</tbody>
           </table>
           <div class="prequote-actions">
+            <button type="button" data-action="auto-suggest-prequote" data-order-id="${escapeHtml(order.id)}">Sugerir precos</button>
             <button type="button" data-action="save-prequote" data-order-id="${escapeHtml(order.id)}">Salvar rascunho</button>
             <button type="button" class="btn-primary" data-action="approve-prequote" data-order-id="${escapeHtml(order.id)}">Aprovar pre-cotacao</button>
             <span class="prequote-total">Total proposto: <strong>${brl.format(total)}</strong></span>
           </div>
         </article>
       `;
+    })
+    .join("");
+}
+
+function objetoIcon(objeto) {
+  const obj = normalizedText(objeto);
+  if (obj.includes("alimenta") || obj.includes("merenda") || obj.includes("generos")) return "\u{1F35A}";
+  if (obj.includes("pereciveis") || obj.includes("hortifrutigranjeiros")) return "\u{1F34E}";
+  if (obj.includes("limpeza") || obj.includes("higiene") || obj.includes("saneante")) return "\u{1F9F9}";
+  if (obj.includes("escritorio") || obj.includes("consumo") || obj.includes("material")) return "\u{1F4DD}";
+  if (obj.includes("manutencao") || obj.includes("reforma")) return "\u{1F527}";
+  if (obj.includes("transporte")) return "\u{1F69A}";
+  if (obj.includes("pedagogic") || obj.includes("educacion")) return "\u{1F4DA}";
+  if (obj.includes("capacitacao") || obj.includes("formacao")) return "\u{1F393}";
+  if (obj.includes("utensilios") || obj.includes("cozinha")) return "\u{1F373}";
+  if (obj.includes("servico") || obj.includes("terceiriz")) return "\u{2699}\uFE0F";
+  if (obj.includes("nao identificado") || obj.startsWith("grupo #")) return "\u{2753}";
+  return "\u{1F4E6}";
+}
+
+function groupByObjeto(rows) {
+  const map = {};
+  for (const row of rows) {
+    const key = row.objeto || "Objeto nao informado";
+    if (!map[key]) {
+      map[key] = { objeto: key, rows: [], totalRevenue: 0, urgentCount: 0, avgMargin: 0 };
+    }
+    map[key].rows.push(row);
+    if (row.status !== "encerrado") {
+      map[key].totalRevenue += Number(row.precoSugerido || 0);
+      if (daysTo(row.prazo) <= 2) map[key].urgentCount++;
+    }
+  }
+
+  const groups = Object.values(map);
+  for (const g of groups) {
+    const open = g.rows.filter((r) => r.status !== "encerrado");
+    g.avgMargin = open.length
+      ? open.reduce((acc, r) => acc + marginPct(r), 0) / open.length
+      : 0;
+  }
+
+  groups.sort((a, b) => {
+    if (b.urgentCount !== a.urgentCount) return b.urgentCount - a.urgentCount;
+    return b.rows.length - a.rows.length;
+  });
+
+  return groups;
+}
+
+function renderObjetoOverview(groups) {
+  if (!el.objetoOverview) return;
+  el.objetoOverview.innerHTML = groups
+    .map((g) => {
+      const icon = objetoIcon(g.objeto);
+      const urgentTag = g.urgentCount
+        ? `<span class="overview-urgent">${g.urgentCount} urg</span>`
+        : "";
+      return `<button type="button" class="overview-chip" data-objeto="${escapeHtml(g.objeto)}">
+        <span class="overview-icon">${icon}</span>
+        <span class="overview-label">${escapeHtml(g.objeto)}</span>
+        <span class="overview-count">${g.rows.length}</span>
+        ${urgentTag}
+      </button>`;
+    })
+    .join("");
+}
+
+function renderObjetoGroups(rows) {
+  if (!el.objetoGroups) return;
+
+  const groups = groupByObjeto(rows);
+  renderObjetoOverview(groups);
+
+  if (!groups.length) {
+    el.objetoGroups.innerHTML = "<small>Nenhuma cotacao no filtro atual.</small>";
+    return;
+  }
+
+  el.objetoGroups.innerHTML = groups
+    .map((g) => {
+      const icon = objetoIcon(g.objeto);
+      const expanded = expandedGroups.has(g.objeto);
+      const openCount = g.rows.filter((r) => r.status !== "encerrado").length;
+      const urgentBadge = g.urgentCount
+        ? `<span class="grupo-badge grupo-badge-urgent">${g.urgentCount} urgente${g.urgentCount > 1 ? "s" : ""}</span>`
+        : "";
+      const marginBadge = g.avgMargin > 0
+        ? `<span class="grupo-badge grupo-badge-margin">Margem ${g.avgMargin.toFixed(1)}%</span>`
+        : "";
+
+      const tableRows = g.rows
+        .map((r) => {
+          const p = priority(r);
+          const quotePricing = quoteMinPricing(r);
+          const historyRange = historyRangeForSku(quotePricing.sku, r.sre);
+          const bid = suggestedBid(r, quotePricing.minPrice, historyRange);
+          return `<tr>
+            <td class="priority ${p.cls}">${p.label}</td>
+            <td><strong>${opportunityScore(r)}</strong></td>
+            <td>${escapeHtml(r.id)}</td>
+            <td>${escapeHtml(r.escola)}<br><small>${escapeHtml(r.municipio)}</small></td>
+            <td>${escapeHtml(r.sre)}</td>
+            <td>${new Date(r.prazo + "T00:00:00").toLocaleDateString("pt-BR")}</td>
+            <td>${quotePricing.sku || "-"}</td>
+            <td>${bid ? brl.format(bid) : "-"}</td>
+            <td>${r.precoSugerido ? brl.format(r.precoSugerido) : "-"}</td>
+            <td>${syncBadge(r.id)}</td>
+          </tr>`;
+        })
+        .join("");
+
+      return `<article class="objeto-group-card ${expanded ? "expanded" : "collapsed"}">
+        <div class="objeto-group-header" data-objeto="${escapeHtml(g.objeto)}">
+          <span class="objeto-icon">${icon}</span>
+          <span class="objeto-name">${escapeHtml(g.objeto)}</span>
+          <span class="grupo-badge">${g.rows.length} cotacao${g.rows.length > 1 ? "es" : ""}</span>
+          <span class="grupo-badge">${openCount} aberta${openCount > 1 ? "s" : ""}</span>
+          ${urgentBadge}
+          ${marginBadge}
+          <a href="${SGD_ORCAMENTOS_URL}" target="_blank" rel="noopener" class="sgd-link-badge" title="Validar dados no SGD">Validar no SGD</a>
+          <span class="objeto-toggle">${expanded ? "\u25BC" : "\u25B6"}</span>
+        </div>
+        <div class="objeto-group-body" style="display:${expanded ? "block" : "none"}">
+          <div class="objeto-table-wrap">
+            <table class="objeto-table">
+              <thead>
+                <tr>
+                  <th>Prior.</th>
+                  <th>Score</th>
+                  <th>ID</th>
+                  <th>Escola</th>
+                  <th>SRE</th>
+                  <th>Prazo</th>
+                  <th>SKU</th>
+                  <th>Lance rec.</th>
+                  <th>Preco sug.</th>
+                  <th>Sync</th>
+                </tr>
+              </thead>
+              <tbody>${tableRows}</tbody>
+            </table>
+          </div>
+        </div>
+      </article>`;
     })
     .join("");
 }
@@ -747,7 +954,7 @@ function renderAll() {
   renderKPIs(rows);
   renderAlerts(rows);
   renderPrequoteOrders();
-  renderTable(rows);
+  renderObjetoGroups(rows);
   renderSummary(rows);
   renderSkuCoverage(rows);
   renderQuickModeState();
@@ -956,6 +1163,127 @@ function exportUrgentCsv() {
   exportCsvFromRows(urgentRows, "urgentes");
 }
 
+function approvedPrequoteRows() {
+  const rows = [];
+  for (const order of internalOrders) {
+    const draft = prequoteState[order.id];
+    if (!draft || draft.status !== "approved") continue;
+    const items = Array.isArray(draft.items) ? draft.items : [];
+    if (!items.length) continue;
+
+    const mappedItems = items.map((item) => {
+      const qty = Number(item.qty || 0);
+      const unitPrice = moneyInput(item.proposedUnitPrice || 0);
+      const subtotal = Number((qty * unitPrice).toFixed(2));
+      return {
+        sku: String(item.sku || ""),
+        description: String(item.description || ""),
+        qty,
+        unitPrice,
+        subtotal,
+      };
+    });
+
+    const total = Number(mappedItems.reduce((acc, item) => acc + item.subtotal, 0).toFixed(2));
+    rows.push({
+      orderId: order.id,
+      school: order.school || "",
+      city: order.city || "",
+      sre: order.sre || "",
+      contractRef: order.contractRef || "",
+      confirmedAt: order.confirmedAt || "",
+      approvedAt: draft.approvedAt || draft.updatedAt || "",
+      total,
+      items: mappedItems,
+    });
+  }
+  return rows;
+}
+
+function exportApprovedPrequoteJson() {
+  const rows = approvedPrequoteRows();
+  if (!rows.length) {
+    setPrequoteFeedback("Nenhuma pre-cotacao aprovada para exportar.");
+    return;
+  }
+
+  const payload = {
+    schemaVersion: 1,
+    generatedAt: new Date().toISOString(),
+    source: "dashboard-prequote",
+    orders: rows,
+  };
+
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `licitia-pre-cotacao-aprovadas-${new Date().toISOString().slice(0, 10)}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  setPrequoteFeedback(`Exportacao JSON concluida (${rows.length} pedido(s)).`);
+}
+
+function exportApprovedPrequoteCsv() {
+  const rows = approvedPrequoteRows();
+  if (!rows.length) {
+    setPrequoteFeedback("Nenhuma pre-cotacao aprovada para exportar.");
+    return;
+  }
+
+  const headers = [
+    "order_id",
+    "escola",
+    "municipio",
+    "sre",
+    "contrato_ref",
+    "confirmado_em",
+    "aprovado_em",
+    "sku",
+    "descricao",
+    "qtd",
+    "preco_unitario",
+    "subtotal",
+    "total_pedido",
+  ];
+  const lines = [headers.join(",")];
+
+  for (const order of rows) {
+    for (const item of order.items) {
+      const line = [
+        order.orderId,
+        order.school,
+        order.city,
+        order.sre,
+        order.contractRef,
+        order.confirmedAt,
+        order.approvedAt,
+        item.sku,
+        item.description,
+        item.qty,
+        item.unitPrice.toFixed(2),
+        item.subtotal.toFixed(2),
+        order.total.toFixed(2),
+      ].map(csvEscape);
+      lines.push(line.join(","));
+    }
+  }
+
+  const csvContent = "\uFEFF" + lines.join("\n");
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `licitia-pre-cotacao-aprovadas-${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  setPrequoteFeedback(`Exportacao CSV concluida (${rows.length} pedido(s)).`);
+}
+
 function updatePrequoteItem(orderId, itemIndex, value) {
   const draft = prequoteState[orderId];
   if (!draft || !Array.isArray(draft.items)) return;
@@ -1012,6 +1340,14 @@ if (el.exportUrgentCsv) {
   el.exportUrgentCsv.addEventListener("click", exportUrgentCsv);
 }
 
+if (el.exportPrequoteJson) {
+  el.exportPrequoteJson.addEventListener("click", exportApprovedPrequoteJson);
+}
+
+if (el.exportPrequoteCsv) {
+  el.exportPrequoteCsv.addEventListener("click", exportApprovedPrequoteCsv);
+}
+
 if (el.qaAll) el.qaAll.addEventListener("click", () => { quickMode = "all"; renderAll(); });
 if (el.qaHigh) el.qaHigh.addEventListener("click", () => { quickMode = "high"; renderAll(); });
 if (el.qaUrgent) el.qaUrgent.addEventListener("click", () => { quickMode = "urgent"; renderAll(); });
@@ -1044,14 +1380,69 @@ if (el.prequoteOrders) {
     const action = target.dataset.action;
     const orderId = target.dataset.orderId || "";
     if (!action || !orderId) return;
-    if (action === "save-prequote") savePrequote(orderId);
-    if (action === "approve-prequote") approvePrequote(orderId);
+    if (action === "auto-suggest-prequote") {
+      applySuggestedPrequote(orderId);
+      setPrequoteFeedback(`Sugestoes aplicadas para pedido ${orderId}.`);
+      renderPrequoteOrders();
+    }
+    if (action === "save-prequote") {
+      savePrequote(orderId);
+      setPrequoteFeedback(`Rascunho salvo para pedido ${orderId}.`);
+    }
+    if (action === "approve-prequote") {
+      approvePrequote(orderId);
+      setPrequoteFeedback(`Pre-cotacao aprovada para pedido ${orderId}.`);
+    }
   });
 }
 
 if (el.refreshNowBtn) {
   el.refreshNowBtn.addEventListener("click", () => {
     refreshDataAndRender();
+  });
+}
+
+if (el.expandAll) {
+  el.expandAll.addEventListener("click", () => {
+    const groups = groupByObjeto(filteredRows());
+    for (const g of groups) expandedGroups.add(g.objeto);
+    renderAll();
+  });
+}
+
+if (el.collapseAll) {
+  el.collapseAll.addEventListener("click", () => {
+    expandedGroups.clear();
+    renderAll();
+  });
+}
+
+if (el.objetoGroups) {
+  el.objetoGroups.addEventListener("click", (event) => {
+    const header = event.target.closest(".objeto-group-header");
+    if (!header) return;
+    if (event.target.closest(".sgd-link-badge")) return;
+    const objeto = header.dataset.objeto;
+    if (!objeto) return;
+    if (expandedGroups.has(objeto)) {
+      expandedGroups.delete(objeto);
+    } else {
+      expandedGroups.add(objeto);
+    }
+    renderAll();
+  });
+}
+
+if (el.objetoOverview) {
+  el.objetoOverview.addEventListener("click", (event) => {
+    const chip = event.target.closest(".overview-chip");
+    if (!chip) return;
+    const objeto = chip.dataset.objeto;
+    if (!objeto) return;
+    expandedGroups.add(objeto);
+    renderAll();
+    const card = el.objetoGroups?.querySelector(`.objeto-group-header[data-objeto="${CSS.escape(objeto)}"]`);
+    if (card) card.scrollIntoView({ behavior: "smooth", block: "start" });
   });
 }
 

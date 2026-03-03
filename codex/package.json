@@ -45,6 +45,9 @@
     "onboarding:start": "node scripts/onboarding-start.js",
     "commercial:kit": "node scripts/commercial-kit.js",
     "exec:status": "node scripts/executive-status.js",
+    "pncp:prices": "node scripts/fetch-pncp-prices.js",
+    "prequote:payload": "node scripts/build-sgd-prequote-payload.js",
+    "prequote:submit": "node scripts/submit-sgd-prequotes.js",
     "orders:test:sync:olist": "node scripts/test-orders-sync-olist.js",
     "dashboard:serve": "node scripts/serve-dashboard.js",
     "orders:sync:olist": "node scripts/sync-sgd-orders-olist.js"

@@ -288,16 +288,16 @@ class Layer1PreCommit extends BaseLayer {
   runCommand(command, timeout = 60000) {
     return new Promise((resolve, reject) => {
       const startTime = Date.now();
-      const [cmd, ...args] = command.split(' ');
-
-      // Use shell for npm commands on Windows
       const options = {
-        shell: true,
         cwd: process.cwd(),
         env: { ...process.env, FORCE_COLOR: '1' },
+        windowsHide: true,
       };
 
-      const child = spawn(cmd, args, options);
+      // On Windows, run through cmd.exe to avoid PowerShell execution-policy issues.
+      const child = process.platform === 'win32'
+        ? spawn('cmd.exe', ['/d', '/s', '/c', command], options)
+        : spawn('/bin/sh', ['-lc', command], options);
 
       let stdout = '';
       let stderr = '';
