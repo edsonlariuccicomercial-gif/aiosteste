@@ -11,6 +11,9 @@ let internalOrders = [];
 let prequoteState = {};
 let refreshTimer = null;
 let isRefreshing = false;
+let refreshTicker = null;
+let nextRefreshSec = 0;
+let lastRefreshAt = null;
 
 const DASHBOARD_REFRESH_MS = 60000;
 
@@ -629,7 +632,10 @@ function renderRefreshStatus(date) {
     el.refreshPill.textContent = "Atualizacao pendente";
     return;
   }
-  el.refreshPill.textContent = `Atualizado em ${date.toLocaleTimeString("pt-BR")}`;
+  const countdown = Number.isFinite(nextRefreshSec) && nextRefreshSec > 0
+    ? ` | prox em ${nextRefreshSec}s`
+    : "";
+  el.refreshPill.textContent = `Atualizado em ${date.toLocaleTimeString("pt-BR")}${countdown}`;
 }
 
 async function refreshDataAndRender() {
@@ -651,7 +657,9 @@ async function refreshDataAndRender() {
   await loadOpsAlertsReport();
   await loadOpsTrendHistory();
   renderAll();
-  renderRefreshStatus(new Date());
+  lastRefreshAt = new Date();
+  nextRefreshSec = Math.floor(DASHBOARD_REFRESH_MS / 1000);
+  renderRefreshStatus(lastRefreshAt);
   } finally {
     isRefreshing = false;
     if (el.refreshNowBtn) {
@@ -1145,6 +1153,15 @@ async function boot() {
   renderRefreshStatus(new Date());
 
   if (refreshTimer) clearInterval(refreshTimer);
+  if (refreshTicker) clearInterval(refreshTicker);
+
+  nextRefreshSec = Math.floor(DASHBOARD_REFRESH_MS / 1000);
+  refreshTicker = setInterval(() => {
+    if (isRefreshing) return;
+    nextRefreshSec = Math.max(0, nextRefreshSec - 1);
+    renderRefreshStatus(lastRefreshAt);
+  }, 1000);
+
   refreshTimer = setInterval(async () => {
     await refreshDataAndRender();
   }, DASHBOARD_REFRESH_MS);
