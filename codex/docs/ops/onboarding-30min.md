@@ -5,6 +5,15 @@ Data: 02/03/2026
 ## Objetivo
 Colocar um novo fornecedor em operacao com rotina diaria funcional, sem dependencia tecnica externa.
 
+## Comando unico (inicio da sessao)
+```powershell
+npm.cmd run onboarding:start
+```
+
+Saidas geradas:
+- `docs/ops/onboarding-session.json`
+- `docs/ops/onboarding-session.md`
+
 ## Estrutura de tempo
 
 1. Bloco 1 (0-10 min): acesso, credenciais e ambiente.
@@ -46,4 +55,3 @@ npm.cmd run dashboard:serve
 - Se coleta retornar 0 cotacoes: revisar credencial e artefatos em `.aios/sgd-audit-logged/`.
 - Se cobertura SKU < meta: curar `object-sku-rules.json` e rerodar auditoria.
 - Se dashboard ficar sem referencias de preco: rerodar `dashboard:history:build/summary`.
-

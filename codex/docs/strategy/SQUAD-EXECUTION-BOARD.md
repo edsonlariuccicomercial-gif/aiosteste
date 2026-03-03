@@ -30,7 +30,7 @@
 ## Criticos Imediatos
 - Consolidar pacote comercial (Starter/Pro/Enterprise) com proposta de valor.
 - Fechar one-pager comercial para fornecedores MG.
-- Formalizar onboarding de 30 minutos em fluxo padrao.
+- Formalizar onboarding de 30 minutos em fluxo padrao. (concluido em Story 1.35)
 - Manter rotina operacional automatizada (`ops:daily`) com monitoramento continuo.
 
 ## Entregas recentes (02/03/2026)
