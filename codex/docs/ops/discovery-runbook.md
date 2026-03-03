@@ -10,11 +10,17 @@ Executar a rotina de descoberta com velocidade e consistencia, do preenchimento 
 npm.cmd run discovery:cycle
 ```
 
+## Brief diario (inicio do dia)
+```powershell
+npm.cmd run discovery:day
+```
+
 ## O que o ciclo executa
 1. `discovery:validate` - valida formato e consistencia das entrevistas.
 2. `discovery:summary` - consolida metricas e decisao sugerida por regra.
 3. `discovery:status` - mostra status rapido no terminal.
 4. `discovery:plan` - gera plano de sprint para entrevistas restantes.
+5. `discovery:day` - gera checklist diario com foco e meta do dia.
 
 ## Fonte de dados
 - `docs/ops/discovery-interviews.json`
@@ -25,6 +31,7 @@ npm.cmd run discovery:cycle
 - `docs/ops/discovery-go-no-go-draft.md`
 - `docs/ops/discovery-sprint-plan.json`
 - `docs/ops/discovery-sprint-plan.md`
+- `docs/ops/discovery-daily-brief.md`
 
 ## Frequencia sugerida
 - Rodar no inicio e no fim de cada dia de descoberta.
