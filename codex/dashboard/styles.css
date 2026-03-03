@@ -178,6 +178,11 @@ h2 {
   background: rgba(10, 20, 16, 0.55);
 }
 
+.trend-chip-warn {
+  border-color: rgba(244, 185, 66, 0.55);
+  color: var(--warning);
+}
+
 .controls .control-grid,
 .sim-grid {
   display: grid;

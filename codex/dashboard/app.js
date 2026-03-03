@@ -5,6 +5,7 @@ let skuCosts = { items: [], regionFactorBySre: {}, defaults: {} };
 let objectSkuRules = { rules: [] };
 let priceHistorySummary = { skuSummary: [], skuRegionSummary: [] };
 let opsDailyReport = { ok: false, generatedAt: null };
+let opsAlertsReport = { freshness: null };
 let opsTrendHistory = { weekly: null };
 let internalOrders = [];
 let prequoteState = {};
@@ -630,14 +631,23 @@ function renderTrend() {
   const coverage = Number(weekly.avgSkuCoveragePct || 0);
   const urgent = Number(weekly.avgUrgent48h || 0);
   const actionable = Number(weekly.avgActionableQuotes || 0);
+  const freshnessMin = Number(opsAlertsReport?.freshness?.ageMin);
+  const hasFresh = Number.isFinite(freshnessMin);
+  const stale = Boolean(opsAlertsReport?.freshness?.isStale);
 
   el.trendHeadline.textContent =
     `Ultimos ${points} ciclos: GO ${goCount} | NO-GO ${noGoCount}`;
-  el.trendMetrics.innerHTML = [
+  const chips = [
     `<span class="trend-chip">Cobertura media: ${coverage}%</span>`,
     `<span class="trend-chip">Urgentes media: ${urgent}</span>`,
     `<span class="trend-chip">Acionaveis media: ${actionable}</span>`,
-  ].join("");
+  ];
+  if (hasFresh) {
+    chips.push(
+      `<span class="trend-chip ${stale ? "trend-chip-warn" : ""}">Frescor dados: ${freshnessMin} min</span>`
+    );
+  }
+  el.trendMetrics.innerHTML = chips.join("");
 }
 
 function renderAll() {
@@ -1029,6 +1039,16 @@ async function loadOpsTrendHistory() {
   }
 }
 
+async function loadOpsAlertsReport() {
+  try {
+    const resp = await fetch("./data/ops-alerts.json", { cache: "no-store" });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    opsAlertsReport = await resp.json();
+  } catch (_e) {
+    opsAlertsReport = { freshness: null };
+  }
+}
+
 async function boot() {
   loadPrequoteState();
   await loadQuotes();
@@ -1037,6 +1057,7 @@ async function boot() {
   await loadObjectSkuRules();
   await loadPriceHistorySummary();
   await loadOpsDailyReport();
+  await loadOpsAlertsReport();
   await loadOpsTrendHistory();
   await loadInternalOrders();
   for (const order of internalOrders) ensurePrequoteOrder(order);

@@ -27,6 +27,7 @@ function toNumber(value, fallback = 0) {
 function main() {
   const minSkuCoverage = toNumber(process.env.OPS_MIN_SKU_COVERAGE_PCT, 95);
   const maxUrgent48h = toNumber(process.env.OPS_MAX_URGENT_48H, 0);
+  const maxDataAgeMin = toNumber(process.env.OPS_MAX_DATA_AGE_MIN, 180);
 
   const ops = readJson(OPS_REPORT_PATH, {});
   const snapshot = readJson(SNAPSHOT_PATH, {});
@@ -59,6 +60,24 @@ function main() {
     });
   }
 
+  const opsGenerated = ops?.generatedAt ? new Date(ops.generatedAt) : null;
+  const ageMin = opsGenerated && !Number.isNaN(opsGenerated.getTime())
+    ? Math.max(0, Math.floor((Date.now() - opsGenerated.getTime()) / 60000))
+    : null;
+  if (ageMin == null) {
+    alerts.push({
+      severity: "critical",
+      code: "DATA_FRESHNESS_UNKNOWN",
+      message: "Nao foi possivel calcular frescor dos dados operacionais.",
+    });
+  } else if (ageMin > maxDataAgeMin) {
+    alerts.push({
+      severity: "warning",
+      code: "DATA_STALE",
+      message: `Dados operacionais com ${ageMin} min (limite ${maxDataAgeMin} min).`,
+    });
+  }
+
   const status = alerts.some((a) => a.severity === "critical")
     ? "NO-GO"
     : alerts.length
@@ -71,6 +90,12 @@ function main() {
     thresholds: {
       minSkuCoverage,
       maxUrgent48h,
+      maxDataAgeMin,
+    },
+    freshness: {
+      opsGeneratedAt: ops?.generatedAt || null,
+      ageMin,
+      isStale: ageMin == null ? true : ageMin > maxDataAgeMin,
     },
     alerts,
   };
@@ -84,6 +109,7 @@ function main() {
     "",
     `- Gerado em: ${generatedAt}`,
     `- Status: ${status}`,
+    `- Frescor: ${out.freshness.ageMin == null ? "desconhecido" : `${out.freshness.ageMin} min`}`,
     "",
     "## Alertas",
   ];

@@ -1,9 +1,15 @@
 {
-  "generatedAt": "2026-03-02T23:58:24.445Z",
+  "generatedAt": "2026-03-03T00:07:57.192Z",
   "status": "GO",
   "thresholds": {
     "minSkuCoverage": 95,
-    "maxUrgent48h": 0
+    "maxUrgent48h": 0,
+    "maxDataAgeMin": 180
+  },
+  "freshness": {
+    "opsGeneratedAt": "2026-03-03T00:07:56.692Z",
+    "ageMin": 0,
+    "isStale": false
   },
   "alerts": []
 }
