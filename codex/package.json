@@ -36,6 +36,7 @@
     "discovery:validate": "node scripts/discovery-validate-interviews.js",
     "discovery:status": "node scripts/discovery-status.js",
     "discovery:plan": "node scripts/discovery-plan-sprint.js",
+    "discovery:cycle": "npm.cmd run discovery:validate && npm.cmd run discovery:summary && npm.cmd run discovery:status && npm.cmd run discovery:plan",
     "orders:test:sync:olist": "node scripts/test-orders-sync-olist.js",
     "dashboard:serve": "node scripts/serve-dashboard.js",
     "orders:sync:olist": "node scripts/sync-sgd-orders-olist.js"
