@@ -27,6 +27,7 @@ const el = {
   kpiOlistSync: document.getElementById("kpi-olist-sync"),
   opsHealthPill: document.getElementById("ops-health-pill"),
   refreshPill: document.getElementById("refresh-pill"),
+  refreshNowBtn: document.getElementById("btn-refresh-now"),
   trendHeadline: document.getElementById("trend-headline"),
   trendMetrics: document.getElementById("trend-metrics"),
   opsAlertsList: document.getElementById("ops-alerts-list"),
@@ -630,6 +631,17 @@ function renderRefreshStatus(date) {
   el.refreshPill.textContent = `Atualizado em ${date.toLocaleTimeString("pt-BR")}`;
 }
 
+async function refreshDataAndRender() {
+  await loadQuotes();
+  await loadSyncStatus();
+  await loadPriceHistorySummary();
+  await loadOpsDailyReport();
+  await loadOpsAlertsReport();
+  await loadOpsTrendHistory();
+  renderAll();
+  renderRefreshStatus(new Date());
+}
+
 function renderTrend() {
   if (!el.trendHeadline || !el.trendMetrics) return;
   const weekly = opsTrendHistory?.weekly;
@@ -997,6 +1009,12 @@ if (el.prequoteOrders) {
   });
 }
 
+if (el.refreshNowBtn) {
+  el.refreshNowBtn.addEventListener("click", () => {
+    refreshDataAndRender();
+  });
+}
+
 async function loadQuotes() {
   try {
     const resp = await fetch("./data/quotes.json", { cache: "no-store" });
@@ -1109,14 +1127,7 @@ async function boot() {
 
   if (refreshTimer) clearInterval(refreshTimer);
   refreshTimer = setInterval(async () => {
-    await loadQuotes();
-    await loadSyncStatus();
-    await loadPriceHistorySummary();
-    await loadOpsDailyReport();
-    await loadOpsAlertsReport();
-    await loadOpsTrendHistory();
-    renderAll();
-    renderRefreshStatus(new Date());
+    await refreshDataAndRender();
   }, DASHBOARD_REFRESH_MS);
 }
 

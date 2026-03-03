@@ -132,6 +132,16 @@ h2 {
   color: #cbe0d4;
 }
 
+.topbar-refresh-btn {
+  background: #173024;
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
 .layout {
   display: grid;
   gap: 14px;
