@@ -40,6 +40,7 @@
     "discovery:next": "node scripts/discovery-next-actions.js",
     "discovery:go-check": "node scripts/discovery-go-check.js",
     "discovery:cycle": "npm.cmd run discovery:validate && npm.cmd run discovery:summary && npm.cmd run discovery:status && npm.cmd run discovery:plan",
+    "discovery:start-day": "npm.cmd run discovery:day && npm.cmd run discovery:next && npm.cmd run discovery:status",
     "orders:test:sync:olist": "node scripts/test-orders-sync-olist.js",
     "dashboard:serve": "node scripts/serve-dashboard.js",
     "orders:sync:olist": "node scripts/sync-sgd-orders-olist.js"

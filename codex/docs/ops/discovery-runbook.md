@@ -15,6 +15,11 @@ npm.cmd run discovery:cycle
 npm.cmd run discovery:day
 ```
 
+## Abertura do dia (comando unico)
+```powershell
+npm.cmd run discovery:start-day
+```
+
 ## Proximas acoes priorizadas
 ```powershell
 npm.cmd run discovery:next
@@ -33,6 +38,7 @@ npm.cmd run discovery:go-check
 5. `discovery:day` - gera checklist diario com foco e meta do dia.
 6. `discovery:next` - gera lista de acoes prioritarias com base no status atual.
 7. `discovery:go-check` - valida criterios minimos e retorna GO/NO-GO.
+8. `discovery:start-day` - gera brief, proximas acoes e status em sequencia.
 
 ## Fonte de dados
 - `docs/ops/discovery-interviews.json`
