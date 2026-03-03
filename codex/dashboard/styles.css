@@ -158,6 +158,26 @@ h2 {
   font-size: 1.55rem;
 }
 
+.trend-card {
+  display: grid;
+  gap: 8px;
+}
+
+.trend-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.trend-chip {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 4px 9px;
+  font-size: 11px;
+  color: var(--muted);
+  background: rgba(10, 20, 16, 0.55);
+}
+
 .controls .control-grid,
 .sim-grid {
   display: grid;

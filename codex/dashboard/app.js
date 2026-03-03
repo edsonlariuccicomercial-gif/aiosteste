@@ -5,6 +5,7 @@ let skuCosts = { items: [], regionFactorBySre: {}, defaults: {} };
 let objectSkuRules = { rules: [] };
 let priceHistorySummary = { skuSummary: [], skuRegionSummary: [] };
 let opsDailyReport = { ok: false, generatedAt: null };
+let opsTrendHistory = { weekly: null };
 let internalOrders = [];
 let prequoteState = {};
 
@@ -21,6 +22,8 @@ const el = {
   kpiRevenue: document.getElementById("kpi-revenue"),
   kpiOlistSync: document.getElementById("kpi-olist-sync"),
   opsHealthPill: document.getElementById("ops-health-pill"),
+  trendHeadline: document.getElementById("trend-headline"),
+  trendMetrics: document.getElementById("trend-metrics"),
   table: document.getElementById("quote-table"),
   sre: document.getElementById("filter-sre"),
   city: document.getElementById("filter-city"),
@@ -612,9 +615,35 @@ function renderOpsHealth() {
   }
 }
 
+function renderTrend() {
+  if (!el.trendHeadline || !el.trendMetrics) return;
+  const weekly = opsTrendHistory?.weekly;
+  if (!weekly) {
+    el.trendHeadline.textContent = "Sem historico de tendencia ainda.";
+    el.trendMetrics.innerHTML = "";
+    return;
+  }
+
+  const points = Number(weekly.points || 0);
+  const goCount = Number(weekly.goCount || 0);
+  const noGoCount = Number(weekly.noGoCount || 0);
+  const coverage = Number(weekly.avgSkuCoveragePct || 0);
+  const urgent = Number(weekly.avgUrgent48h || 0);
+  const actionable = Number(weekly.avgActionableQuotes || 0);
+
+  el.trendHeadline.textContent =
+    `Ultimos ${points} ciclos: GO ${goCount} | NO-GO ${noGoCount}`;
+  el.trendMetrics.innerHTML = [
+    `<span class="trend-chip">Cobertura media: ${coverage}%</span>`,
+    `<span class="trend-chip">Urgentes media: ${urgent}</span>`,
+    `<span class="trend-chip">Acionaveis media: ${actionable}</span>`,
+  ].join("");
+}
+
 function renderAll() {
   const rows = filteredRows();
   renderOpsHealth();
+  renderTrend();
   renderKPIs(rows);
   renderAlerts(rows);
   renderPrequoteOrders();
@@ -990,6 +1019,16 @@ async function loadOpsDailyReport() {
   }
 }
 
+async function loadOpsTrendHistory() {
+  try {
+    const resp = await fetch("./data/ops-trend-history.json", { cache: "no-store" });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    opsTrendHistory = await resp.json();
+  } catch (_e) {
+    opsTrendHistory = { weekly: null };
+  }
+}
+
 async function boot() {
   loadPrequoteState();
   await loadQuotes();
@@ -998,6 +1037,7 @@ async function boot() {
   await loadObjectSkuRules();
   await loadPriceHistorySummary();
   await loadOpsDailyReport();
+  await loadOpsTrendHistory();
   await loadInternalOrders();
   for (const order of internalOrders) ensurePrequoteOrder(order);
   savePrequoteState();
