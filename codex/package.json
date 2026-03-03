@@ -38,6 +38,7 @@
     "discovery:plan": "node scripts/discovery-plan-sprint.js",
     "discovery:day": "node scripts/discovery-daily-brief.js",
     "discovery:next": "node scripts/discovery-next-actions.js",
+    "discovery:go-check": "node scripts/discovery-go-check.js",
     "discovery:cycle": "npm.cmd run discovery:validate && npm.cmd run discovery:summary && npm.cmd run discovery:status && npm.cmd run discovery:plan",
     "orders:test:sync:olist": "node scripts/test-orders-sync-olist.js",
     "dashboard:serve": "node scripts/serve-dashboard.js",
