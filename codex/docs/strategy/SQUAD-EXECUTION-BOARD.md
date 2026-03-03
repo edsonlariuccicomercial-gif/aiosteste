@@ -44,6 +44,7 @@
 - Story 1.10 concluida: indicador GO/NO-GO no dashboard.
 - Story 1.11 concluida: abertura do dia (`ops:start-day`).
 - Story 1.12 concluida: fechamento do dia (`ops:end-day`) com resumo executivo.
+- Story 1.37 concluida: status executivo unificado (`exec:status`) com operacao, discovery, sync e comercial.
 
 ## KPI Operacional (meta semanal)
 - Oportunidades monitoradas/dia: >= 50
