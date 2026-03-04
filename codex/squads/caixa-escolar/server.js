@@ -116,7 +116,7 @@ app.post("/api/sgd/collect", async (_req, res) => {
 function runScript(cmd, args) {
   return new Promise((resolve, reject) => {
     const child = spawn(cmd, args, {
-      cwd: ROOT_DIR,
+      cwd: __dirname,
       env: { ...process.env },
       shell: false,
     });

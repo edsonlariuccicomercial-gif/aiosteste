@@ -19,6 +19,7 @@
       <span class="mode-indicator" id="mode-indicator"></span>
       <div class="pill" id="pill-sre">SRE Uberaba</div>
       <div class="pill" id="pill-fornecedor">LARIUCCI • Conquista-MG</div>
+      <a href="gdp-dashboard.html" class="btn btn-sm btn-gdp" title="Gestão de Pedidos Pós-Licitação">GDP</a>
       <button class="btn btn-sm" onclick="logout()" title="Sair">Sair</button>
     </div>
   </header>
@@ -47,11 +48,48 @@
     </article>
   </section>
 
+  <!-- ===== INTELIGÊNCIA ===== -->
+  <section class="intel-panel" id="intel-panel">
+    <div class="card">
+      <div class="intel-header" id="intel-toggle">
+        <h2>Inteligência</h2>
+        <span class="intel-chevron" id="intel-chevron">▼</span>
+      </div>
+      <div class="intel-body" id="intel-body">
+        <div class="intel-grid">
+          <div class="intel-card">
+            <p class="intel-label">Valor total disponível</p>
+            <strong class="intel-value" id="intel-valor-total">R$ 0</strong>
+          </div>
+          <div class="intel-card">
+            <p class="intel-label">Taxa de conversão</p>
+            <strong class="intel-value" id="intel-conversao">0%</strong>
+          </div>
+          <div class="intel-card">
+            <p class="intel-label">Prazo médio</p>
+            <strong class="intel-value" id="intel-prazo-medio">0 dias</strong>
+          </div>
+        </div>
+        <div class="intel-charts">
+          <div class="intel-chart-box">
+            <h3>Top 5 Categorias</h3>
+            <div id="intel-top-categorias"></div>
+          </div>
+          <div class="intel-chart-box">
+            <h3>Orçamentos por Município</h3>
+            <div id="intel-por-municipio"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- ===== NAVEGAÇÃO TABS ===== -->
   <nav class="tabs">
     <button class="tab active" data-tab="orcamentos">Orçamentos</button>
     <button class="tab" data-tab="pre-orcamento">Pré-Orçamento</button>
     <button class="tab" data-tab="banco-precos">Banco de Preços</button>
+    <button class="tab" data-tab="sgd">SGD</button>
   </nav>
 
   <!-- ===== TAB: ORÇAMENTOS ===== -->
@@ -60,12 +98,17 @@
       <div class="table-head">
         <h2>Orçamentos — SRE Uberaba</h2>
         <div class="table-head-actions">
+          <span id="ultima-atualizacao" class="badge badge-muted" style="display:none;"></span>
+          <button id="btn-collect-sgd" class="btn btn-sm btn-sgd" style="display:none;">Atualizar Orçamentos</button>
           <button id="btn-export-csv" class="btn btn-sm">Exportar CSV</button>
         </div>
       </div>
 
       <!-- Filtros -->
-      <div class="filters">
+      <div class="filters filters-5col">
+        <select id="filtro-ano">
+          <option value="all">Todos os anos</option>
+        </select>
         <select id="filtro-municipio">
           <option value="all">Todos os municípios</option>
         </select>
@@ -80,17 +123,26 @@
         <input type="text" id="filtro-texto" placeholder="Buscar escola, objeto, item..." />
       </div>
 
+      <!-- Barra de ações em lote -->
+      <div id="batch-bar" class="batch-bar" style="display:none;">
+        <span id="batch-count">0 selecionados</span>
+        <button id="btn-batch-preorcar" class="btn btn-sm btn-accent">Pré-Orçar Selecionados</button>
+        <button id="btn-batch-export" class="btn btn-sm">Exportar Selecionados</button>
+      </div>
+
       <!-- Tabela -->
       <div class="table-wrap">
         <table id="tabela-orcamentos">
           <thead>
             <tr>
+              <th><input type="checkbox" id="select-all" title="Selecionar todos" /></th>
               <th>ID</th>
               <th>Escola</th>
               <th>Município</th>
               <th>Objeto</th>
               <th>Grupo</th>
               <th>Prazo</th>
+              <th>Entrega</th>
               <th>Status</th>
               <th>Ação</th>
             </tr>
@@ -169,8 +221,9 @@
         <div class="preorcamento-actions">
           <button id="btn-aprovar" class="btn btn-accent">Aprovar</button>
           <button id="btn-recusar" class="btn btn-danger">Recusar</button>
-          <button id="btn-editar-orcamento" class="btn btn-lg btn-warning" style="display:none;">Editar Orcamento</button>
-          <button id="btn-enviar-sgd" class="btn btn-lg btn-sgd" style="display:none;">Enviar ao SGD</button>
+          <button id="btn-editar-orcamento" class="btn btn-warning" style="display:none;">Editar</button>
+          <button id="btn-enviar-sgd" class="btn btn-sgd" style="display:none;">Enviar ao SGD</button>
+          <button id="btn-ir-sgd" class="btn btn-sm" style="display:none;" onclick="switchTab('sgd')">Ver fila SGD</button>
         </div>
       </div>
 
@@ -233,6 +286,54 @@
         </table>
       </div>
       <p id="banco-empty" class="empty-msg" style="display:none;">Nenhum item no banco de preços.</p>
+    </div>
+  </section>
+
+  <!-- ===== TAB: SGD ===== -->
+  <section id="tab-sgd" class="tab-content">
+    <div class="card">
+      <div class="table-head">
+        <h2>Envio ao SGD</h2>
+        <div class="table-head-actions">
+          <span id="sgd-mode-badge" class="badge badge-muted"></span>
+          <button id="btn-sgd-enviar-todos" class="btn btn-sm btn-sgd" style="display:none;">Enviar Todos</button>
+          <button id="btn-sgd-baixar-todos" class="btn btn-sm">Baixar Payloads</button>
+        </div>
+      </div>
+
+      <!-- KPIs do SGD -->
+      <div class="sgd-kpis">
+        <div class="sgd-kpi-card">
+          <p>Prontos p/ envio</p>
+          <strong id="sgd-kpi-prontos">0</strong>
+        </div>
+        <div class="sgd-kpi-card">
+          <p>Enviados</p>
+          <strong id="sgd-kpi-enviados" class="text-accent">0</strong>
+        </div>
+        <div class="sgd-kpi-card">
+          <p>Valor total</p>
+          <strong id="sgd-kpi-valor">R$ 0</strong>
+        </div>
+      </div>
+
+      <!-- Tabela SGD -->
+      <div class="table-wrap">
+        <table id="tabela-sgd">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Escola</th>
+              <th>Município</th>
+              <th>Total</th>
+              <th>Status</th>
+              <th>Ação</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-sgd"></tbody>
+        </table>
+      </div>
+      <p id="sgd-empty" class="empty-msg" style="display:none;">Nenhum pré-orçamento aprovado. Aprove na aba Pré-Orçamento para enviar ao SGD.</p>
     </div>
   </section>
 

@@ -32,7 +32,9 @@
       "Obras",
       "Manutenção e Reformas",
       "Serviço de Transporte Contínuo",
-      "Serviços Operacionais Contínuos"
+      "Serviços Operacionais Contínuos",
+      "Conservação e pequenos reparos",
+      "Gás recarga"
     ]
   },
   "distancias": {
@@ -49,6 +51,7 @@
       "Delta": 75,
       "Fronteira": 250,
       "Frutal": 200,
+      "Ibia": 210,
       "Itapagipe": 170,
       "Iturama": 260,
       "Limeira do Oeste": 310,

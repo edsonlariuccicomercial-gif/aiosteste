@@ -21,7 +21,9 @@ const { chromium } = require("playwright");
 
 const API_BASE = "https://api.caixaescolar.educacao.mg.gov.br";
 const SGD_BASE = "https://caixaescolar.educacao.mg.gov.br";
-const OUTPUT_PATH = path.join(process.cwd(), "dashboard", "data", "quotes.json");
+const ROOT = process.cwd();
+const OUTPUT_PATH = path.join(ROOT, "dashboard", "data", "orcamentos.json");
+const QUOTES_PATH = path.join(ROOT, "dashboard", "data", "quotes.json");
 
 // Municipios da SRE Uberaba (fonte: sreuberaba.educacao.mg.gov.br)
 const SRE_UBERABA_MUNICIPIOS = [
@@ -253,6 +255,32 @@ function transformProposals(proposals, sreMap, expenseMap) {
 }
 
 // ---------------------------------------------------------------------------
+// Busca detalhes de um orcamento via API
+// ---------------------------------------------------------------------------
+async function fetchBudgetDetail(page, idSubprogram, idSchool, idBudget) {
+  try {
+    return await apiFetch(page, `/budget/by-subprogram/${idSubprogram}/by-school/${idSchool}/by-budget/${idBudget}`);
+  } catch (_) {
+    return null;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Busca itens de um orcamento via API
+// ---------------------------------------------------------------------------
+async function fetchBudgetItems(page, idSubprogram, idSchool, idBudget) {
+  try {
+    const json = await apiFetch(
+      page,
+      `/budget-item/by-subprogram/${idSubprogram}/by-school/${idSchool}/by-budget/${idBudget}?sortBy=:&page=1&limit=50`
+    );
+    return json.data || (Array.isArray(json) ? json : []);
+  } catch (_) {
+    return [];
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Estatisticas
 // ---------------------------------------------------------------------------
 function printStats(quotes) {
@@ -262,13 +290,13 @@ function printStats(quotes) {
 
   for (const q of quotes) {
     byMunicipio[q.municipio] = (byMunicipio[q.municipio] || 0) + 1;
-    byObjeto[q.objeto] = (byObjeto[q.objeto] || 0) + 1;
-    if (q.status === "prazo_critico") criticos++;
+    byObjeto[q.grupo || q.objeto] = (byObjeto[q.grupo || q.objeto] || 0) + 1;
+    if (q.status === "prazo_critico" || q.status === "aberto") criticos++;
   }
 
   console.log("\n=== Resumo da Coleta ===");
-  console.log(`Total: ${quotes.length} oportunidades ativas na SRE Uberaba`);
-  console.log(`Prazo critico (<=2 dias): ${criticos}`);
+  console.log(`Total: ${quotes.length} oportunidades na SRE Uberaba`);
+  console.log(`Abertos/ativos: ${criticos}`);
   console.log("\nPor municipio:");
   for (const [m, n] of Object.entries(byMunicipio).sort((a, b) => b[1] - a[1])) {
     console.log(`  ${m}: ${n}`);
@@ -316,17 +344,108 @@ async function run() {
 
     console.log(`[coleta] Total bruto: ${allProposals.length} propostas "Nao Enviada" na SRE Uberaba`);
 
-    // 5. Transformar e filtrar (somente prazo futuro)
+    // 5. Transformar para formato quotes.json (legado)
     const quotes = transformProposals(allProposals, sreMap, expenseMap);
 
-    // 6. Salvar
+    // 6. Buscar detalhes e itens de cada proposta via API
+    console.log(`\n[detalhes] Buscando detalhes e itens de ${allProposals.length} orcamentos...`);
+    const orcamentos = [];
+    const today = new Date(new Date().toISOString().slice(0, 10) + "T00:00:00");
+
+    for (let i = 0; i < allProposals.length; i++) {
+      const p = allProposals[i];
+      const municipio = sreMap[p.idCounty] || "Nao mapeado";
+      const resolved = resolveExpenseGroupName(p.expenseGroupId, expenseMap);
+
+      process.stdout.write(`  [${i + 1}/${allProposals.length}] ${p.nuBudgetOrder} ${p.schoolName?.substring(0, 30)}...`);
+
+      // Fetch detail
+      const detail = await fetchBudgetDetail(page, p.idSubprogram, p.idSchool, p.idBudget);
+
+      // Fetch items
+      const rawItems = await fetchBudgetItems(page, p.idSubprogram, p.idSchool, p.idBudget);
+
+      // Parse dates
+      const prazoProposta = p.dtProposalSubmission
+        ? new Date(p.dtProposalSubmission).toISOString().slice(0, 10) : "";
+      const prazoEntrega = detail?.dtDelivery
+        ? new Date(detail.dtDelivery).toISOString().slice(0, 10) : "";
+
+      // Determine status
+      const deadlineDate = prazoProposta ? new Date(prazoProposta + "T00:00:00") : today;
+      const daysLeft = Math.ceil((deadlineDate.getTime() - today.getTime()) / 86400000);
+      let status = "aberto";
+      if (daysLeft < 0) status = "encerrado";
+
+      // Map items to dashboard format
+      const itens = rawItems.map((item) => ({
+        nome: item.txBudgetItemType || item.txDescription || "",
+        descricao: item.txDescription || "",
+        categoria: item.txExpenseCategory || "Custeio",
+        unidade: item.txBudgetItemUnit || item.coBudgetItemUnit || "Unidade",
+        quantidade: parseFloat(item.nuQuantity) || 0,
+        garantia: item.txWarrantyRequired || "",
+      }));
+
+      // Determine participantes
+      let participantes = "PJ";
+      if (detail?.inNaturalPersonAllowed) participantes = "PF/PJ";
+
+      // Build orcamento in dashboard format
+      const orc = {
+        id: String(p.nuBudgetOrder),
+        idBudget: p.idBudget,
+        ano: parseInt(p.year, 10) || new Date().getFullYear(),
+        escola: p.schoolName || "",
+        municipio,
+        sre: "Uberaba",
+        grupo: detail?.expenseGroupDescription || resolved.name,
+        subPrograma: detail?.subprogramName || "",
+        objeto: detail?.initiativeDescription || resolved.name,
+        prazo: prazoProposta,
+        prazoEntrega,
+        status,
+        participantes,
+        itens,
+        // Extra fields for submit script
+        expenseGroupId: p.expenseGroupId,
+        idSchool: p.idSchool,
+        idSubprogram: p.idSubprogram,
+      };
+
+      orcamentos.push(orc);
+      console.log(` OK (${itens.length} itens, ${status})`);
+
+      // Small delay to avoid rate limiting
+      if (i % 10 === 9) await new Promise((r) => setTimeout(r, 500));
+    }
+
+    // 7. Salvar orcamentos.json (formato dashboard)
     fs.mkdirSync(path.dirname(OUTPUT_PATH), { recursive: true });
-    fs.writeFileSync(OUTPUT_PATH, JSON.stringify(quotes, null, 2), "utf8");
+    fs.writeFileSync(OUTPUT_PATH, JSON.stringify(orcamentos, null, 2), "utf8");
+    console.log(`\n[output] ${orcamentos.length} orcamentos salvos em ${OUTPUT_PATH}`);
 
-    console.log(`[output] ${quotes.length} cotacoes salvas em ${OUTPUT_PATH}`);
+    // 8. Salvar quotes.json (formato legado)
+    fs.writeFileSync(QUOTES_PATH, JSON.stringify(quotes, null, 2), "utf8");
+    console.log(`[output] ${quotes.length} quotes salvos em ${QUOTES_PATH}`);
 
-    // 7. Stats
-    printStats(quotes);
+    // 9. Metadata
+    const meta = {
+      collectedAt: new Date().toISOString(),
+      source: "sgd-api-fornecedor",
+      stats: {
+        total: orcamentos.length,
+        abertos: orcamentos.filter((o) => o.status === "aberto").length,
+        encerrados: orcamentos.filter((o) => o.status === "encerrado").length,
+        comItens: orcamentos.filter((o) => o.itens.length > 0).length,
+        municipios: [...new Set(orcamentos.map((o) => o.municipio))].length,
+      },
+    };
+    const metaPath = path.join(ROOT, "dashboard", "data", "sgd-collect-meta.json");
+    fs.writeFileSync(metaPath, JSON.stringify(meta, null, 2), "utf8");
+
+    // 10. Stats
+    printStats(orcamentos);
   } catch (err) {
     console.error("[erro] Falha na coleta:", err.message);
     process.exit(1);

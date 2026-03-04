@@ -114,22 +114,81 @@ async function openBudgetList(page) {
     timeout: 60000,
   });
   await page.waitForSelector("table tbody tr", { timeout: 30000 });
+
+  // SGD has a page-size <select> near the pagination with options: 5,10,20,30,50
+  // Set to 50 to minimize the number of pages we need to traverse
+  const pageSizeSelect = page.locator("select").filter({ has: page.locator('option:has-text("50")') }).first();
+  if (await pageSizeSelect.count()) {
+    try {
+      await pageSizeSelect.selectOption("50");
+      await page.waitForTimeout(2000);
+      await page.waitForSelector("table tbody tr", { timeout: 15000 }).catch(() => {});
+      console.log("  Page size set to 50.");
+    } catch (_) {}
+  }
 }
 
 async function goToBudgetPage(page, budgetId) {
-  const row = page.locator("table tbody tr", {
-    has: page.locator("td", { hasText: String(budgetId) }),
-  }).first();
+  const MAX_PAGES = 30;
+  const bid = String(budgetId);
 
-  if (!(await row.count())) return false;
-  const viewBtn = row.locator('button:has-text("Visualizar")').first();
-  if (!(await viewBtn.count())) return false;
+  for (let pageIdx = 0; pageIdx < MAX_PAGES; pageIdx++) {
+    // Search all rows on the current page
+    const rows = page.locator("table tbody tr");
+    const rowCount = await rows.count();
 
-  await Promise.allSettled([
-    page.waitForTimeout(400),
-    viewBtn.click({ timeout: 10000 }),
-  ]);
-  return true;
+    for (let i = 0; i < rowCount; i++) {
+      const rowText = await rows.nth(i).textContent().catch(() => "");
+      if (rowText && rowText.includes(bid)) {
+        const viewBtn = rows.nth(i).locator('button:has-text("Visualizar")').first();
+        if (await viewBtn.count()) {
+          await Promise.allSettled([
+            page.waitForTimeout(400),
+            viewBtn.click({ timeout: 10000 }),
+          ]);
+          return true;
+        }
+      }
+    }
+
+    // Not found on this page — try next page
+    // SGD uses <nav aria-label="Paginação"> with <ul><li><button>
+    // Structure: [first][prev][1][2]...[N][next][last]
+    // The "next" button is the second-to-last <li> in the list
+    const paginationNav = page.locator('nav[aria-label*="Pagina"]').first();
+    if (!(await paginationNav.count())) {
+      console.log(`  Budget ${bid}: no pagination found after page ${pageIdx + 1}.`);
+      return false;
+    }
+
+    const allLis = paginationNav.locator("li");
+    const liCount = await allLis.count();
+    if (liCount < 5) {
+      // Only nav buttons + 1 page = no more pages
+      console.log(`  Budget ${bid}: single page, not found.`);
+      return false;
+    }
+
+    // The next-page button is at index (liCount - 2)
+    const nextLi = allLis.nth(liCount - 2);
+    const nextBtn = nextLi.locator("button").first();
+    if (!(await nextBtn.count()) || (await nextBtn.isDisabled())) {
+      console.log(`  Budget ${bid}: reached last page (${pageIdx + 1}).`);
+      return false;
+    }
+
+    await nextBtn.click({ timeout: 10000 });
+    await page.waitForTimeout(1500);
+    try {
+      await page.waitForSelector("table tbody tr", { timeout: 15000 });
+    } catch (_) {
+      console.log(`  Budget ${bid}: table did not reload on page ${pageIdx + 2}.`);
+      return false;
+    }
+  }
+
+  console.log(`  Budget ${bid}: exceeded ${MAX_PAGES} pages, giving up.`);
+  return false;
 }
 
 async function fillProposalModal(page, proposal, doSubmit) {
@@ -213,7 +272,8 @@ async function run() {
     await loginSgd(page);
     await openBudgetList(page);
 
-    for (const proposal of proposals) {
+    for (let pi = 0; pi < proposals.length; pi++) {
+      const proposal = proposals[pi];
       const budgetId = String(proposal.budgetId || "");
       const itemCount = Array.isArray(proposal.items) ? proposal.items.length : 0;
       const result = {
@@ -224,13 +284,17 @@ async function run() {
         mode: args.submit ? "submit" : "dry-run",
       };
 
+      console.log(`\n[${pi + 1}/${proposals.length}] Processing budget ${budgetId} (${itemCount} items)...`);
+
       try {
         const found = await goToBudgetPage(page, budgetId);
         if (!found) {
-          result.message = "Orcamento nao encontrado na listagem atual.";
+          result.message = "Orcamento nao encontrado na listagem (todas as paginas verificadas).";
+          console.log(`  SKIP: ${result.message}`);
           results.push(result);
           continue;
         }
+        console.log(`  Found budget ${budgetId}, filling proposal...`);
 
         const fill = await fillProposalModal(page, proposal, args.submit);
         result.ok = Boolean(fill.ok);
@@ -244,7 +308,11 @@ async function run() {
       }
 
       results.push(result);
-      await page.waitForTimeout(350);
+
+      // Reload the budget list for the next proposal (reset pagination)
+      if (pi < proposals.length - 1) {
+        await openBudgetList(page);
+      }
     }
   } finally {
     await browser.close();

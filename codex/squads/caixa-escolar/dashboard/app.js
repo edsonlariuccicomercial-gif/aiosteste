@@ -1,6 +1,6 @@
 /* ===================================================================
    Painel do Fornecedor — Caixa Escolar MG
-   Vanilla JS | SRE Uberaba MVP
+   Vanilla JS | SRE Uberaba MVP — Fase 3
    =================================================================== */
 
 // ===== CONSTANTS =====
@@ -17,6 +17,7 @@ let preOrcamentos = {};
 let perfil = {};
 let sreData = {};
 let activePreOrcamentoId = null;
+let selectedOrcIds = new Set();
 
 // ===== SGD STATE =====
 let sgdAvailable = false;
@@ -28,6 +29,8 @@ const el = {
   kpiPendentes: document.getElementById("kpi-pendentes"),
   kpiFaturamento: document.getElementById("kpi-faturamento"),
   kpiMargem: document.getElementById("kpi-margem"),
+  // Filtros
+  filtroAno: document.getElementById("filtro-ano"),
   filtroMunicipio: document.getElementById("filtro-municipio"),
   filtroGrupo: document.getElementById("filtro-grupo"),
   filtroStatus: document.getElementById("filtro-status"),
@@ -35,6 +38,25 @@ const el = {
   tbodyOrcamentos: document.getElementById("tbody-orcamentos"),
   orcamentosEmpty: document.getElementById("orcamentos-empty"),
   btnExportCsv: document.getElementById("btn-export-csv"),
+  // Batch
+  selectAll: document.getElementById("select-all"),
+  batchBar: document.getElementById("batch-bar"),
+  batchCount: document.getElementById("batch-count"),
+  btnBatchPreorcar: document.getElementById("btn-batch-preorcar"),
+  btnBatchExport: document.getElementById("btn-batch-export"),
+  // Coleta SGD
+  btnCollectSgd: document.getElementById("btn-collect-sgd"),
+  ultimaAtualizacao: document.getElementById("ultima-atualizacao"),
+  // Inteligência
+  intelPanel: document.getElementById("intel-panel"),
+  intelToggle: document.getElementById("intel-toggle"),
+  intelBody: document.getElementById("intel-body"),
+  intelChevron: document.getElementById("intel-chevron"),
+  intelValorTotal: document.getElementById("intel-valor-total"),
+  intelConversao: document.getElementById("intel-conversao"),
+  intelPrazoMedio: document.getElementById("intel-prazo-medio"),
+  intelTopCategorias: document.getElementById("intel-top-categorias"),
+  intelPorMunicipio: document.getElementById("intel-por-municipio"),
   // Pré-orçamento
   preorcamentoTitulo: document.getElementById("preorcamento-titulo"),
   preorcamentoVazio: document.getElementById("preorcamento-vazio"),
@@ -83,7 +105,17 @@ const el = {
   // SGD + Editar
   btnEnviarSgd: document.getElementById("btn-enviar-sgd"),
   btnEditarOrcamento: document.getElementById("btn-editar-orcamento"),
+  btnIrSgd: document.getElementById("btn-ir-sgd"),
   modeIndicator: document.getElementById("mode-indicator"),
+  // SGD Tab
+  tbodySgd: document.getElementById("tbody-sgd"),
+  sgdEmpty: document.getElementById("sgd-empty"),
+  sgdModeBadge: document.getElementById("sgd-mode-badge"),
+  sgdKpiProntos: document.getElementById("sgd-kpi-prontos"),
+  sgdKpiEnviados: document.getElementById("sgd-kpi-enviados"),
+  sgdKpiValor: document.getElementById("sgd-kpi-valor"),
+  btnSgdEnviarTodos: document.getElementById("btn-sgd-enviar-todos"),
+  btnSgdBaixarTodos: document.getElementById("btn-sgd-baixar-todos"),
 };
 
 // ===== UTILITIES =====
@@ -111,7 +143,15 @@ function formatDate(dateIso) {
 
 function calcFreteEstimado(municipio) {
   if (!perfil.distancias || !perfil.distancias.estimativas) return 0;
-  const km = perfil.distancias.estimativas[municipio] || 0;
+  // Match normalizado: "Araxá" → "Araxa"
+  const normMun = normalizedText(municipio);
+  let km = perfil.distancias.estimativas[municipio] || 0;
+  if (km === 0) {
+    const entry = Object.entries(perfil.distancias.estimativas).find(
+      ([key]) => normalizedText(key) === normMun
+    );
+    if (entry) km = entry[1];
+  }
   const custoPorKm = perfil.config ? perfil.config.fretePadraoKm || 1.20 : 1.20;
   return km * custoPorKm;
 }
@@ -119,6 +159,11 @@ function calcFreteEstimado(municipio) {
 function findBancoItem(nomeItem) {
   const norm = normalizedText(nomeItem);
   return bancoPrecos.itens.find((bp) => normalizedText(bp.item) === norm) || null;
+}
+
+function isGrupoExcluido(grupo) {
+  if (!perfil.config || !perfil.config.gruposExcluidos) return false;
+  return perfil.config.gruposExcluidos.some((g) => normalizedText(g) === normalizedText(grupo));
 }
 
 // ===== DATA LOADING =====
@@ -190,17 +235,28 @@ async function boot() {
     saveBancoLocal();
   }
 
+  // Detect SGD API availability BEFORE rendering (so buttons render correctly)
+  sgdAvailable = await isSgdApiAvailable();
+  updateModeIndicator(sgdAvailable);
+
   populateFilters();
   bindEvents();
   renderAll();
 
-  // Detect SGD API availability
-  sgdAvailable = await isSgdApiAvailable();
-  updateModeIndicator(sgdAvailable);
+  // Mostrar botão coleta SGD apenas em modo local
+  if (sgdAvailable && el.btnCollectSgd) {
+    el.btnCollectSgd.style.display = "inline-block";
+  }
 }
 
 // ===== FILTERS =====
 function populateFilters() {
+  // Anos
+  const anos = [...new Set(orcamentos.map((o) => o.ano))].sort();
+  anos.forEach((a) => {
+    el.filtroAno.appendChild(new Option(String(a), String(a)));
+  });
+
   // Municípios
   const municipios = [...new Set(orcamentos.map((o) => o.municipio))].sort();
   municipios.forEach((m) => {
@@ -229,12 +285,14 @@ function populateFilters() {
 }
 
 function filteredOrcamentos() {
+  const ano = el.filtroAno.value;
   const mun = el.filtroMunicipio.value;
   const grupo = el.filtroGrupo.value;
   const status = el.filtroStatus.value;
   const query = normalizedText(el.filtroTexto.value.trim());
 
   return orcamentos
+    .filter((o) => ano === "all" || String(o.ano) === ano)
     .filter((o) => mun === "all" || o.municipio === mun)
     .filter((o) => grupo === "all" || o.grupo === grupo)
     .filter((o) => status === "all" || o.status === status)
@@ -258,8 +316,10 @@ function filteredOrcamentos() {
 function renderAll() {
   renderKPIs();
   renderOrcamentos();
+  renderIntel();
   renderPreOrcamentosLista();
   renderBanco();
+  renderSgd();
 }
 
 function renderKPIs() {
@@ -285,9 +345,78 @@ function renderKPIs() {
   el.kpiMargem.textContent = pct(margemMedia);
 }
 
+// ===== INTELIGÊNCIA (Passo 2) =====
+function renderIntel() {
+  const abertos = orcamentos.filter((o) => o.status === "aberto");
+
+  // Valor total disponível — estimativa baseada em média dos pré-orçamentos existentes
+  const preValues = Object.values(preOrcamentos).filter((p) => p.totalGeral > 0);
+  const avgPreValue = preValues.length ? preValues.reduce((s, p) => s + p.totalGeral, 0) / preValues.length : 0;
+  const valorTotal = preValues.reduce((s, p) => s + p.totalGeral, 0) + (abertos.length - preValues.length) * avgPreValue;
+  el.intelValorTotal.textContent = brl.format(valorTotal);
+
+  // Taxa de conversão
+  const totalGerados = Object.values(preOrcamentos).length;
+  const totalAprovados = Object.values(preOrcamentos).filter((p) => p.status === "aprovado" || p.status === "enviado").length;
+  const taxaConversao = totalGerados > 0 ? totalAprovados / totalGerados : 0;
+  el.intelConversao.textContent = pct(taxaConversao);
+
+  // Prazo médio
+  const prazoDias = abertos.map((o) => daysTo(o.prazo)).filter((d) => d < 999);
+  const prazoMedio = prazoDias.length ? Math.round(prazoDias.reduce((a, b) => a + b, 0) / prazoDias.length) : 0;
+  el.intelPrazoMedio.textContent = prazoMedio + " dias";
+
+  // Top 5 categorias
+  const grupoCounts = {};
+  orcamentos.forEach((o) => { grupoCounts[o.grupo] = (grupoCounts[o.grupo] || 0) + 1; });
+  const topGrupos = Object.entries(grupoCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  const maxGrupo = topGrupos.length ? topGrupos[0][1] : 1;
+
+  el.intelTopCategorias.innerHTML = topGrupos.map(([grupo, count]) => {
+    const widthPct = Math.round((count / maxGrupo) * 100);
+    return `<div class="intel-bar-row">
+      <span class="intel-bar-label" title="${escapeHtml(grupo)}">${escapeHtml(grupo)}</span>
+      <div class="intel-bar-track">
+        <div class="intel-bar-fill" style="width:${widthPct}%"></div>
+      </div>
+      <span class="intel-bar-value">${count}</span>
+    </div>`;
+  }).join("");
+
+  // Orçamentos por município
+  const munCounts = {};
+  orcamentos.forEach((o) => { munCounts[o.municipio] = (munCounts[o.municipio] || 0) + 1; });
+  const topMun = Object.entries(munCounts).sort((a, b) => b[1] - a[1]).slice(0, 8);
+  const maxMun = topMun.length ? topMun[0][1] : 1;
+
+  el.intelPorMunicipio.innerHTML = topMun.map(([mun, count]) => {
+    const widthPct = Math.round((count / maxMun) * 100);
+    return `<div class="intel-bar-row">
+      <span class="intel-bar-label">${escapeHtml(mun)}</span>
+      <div class="intel-bar-track">
+        <div class="intel-bar-fill intel-bar-fill-alt" style="width:${widthPct}%"></div>
+      </div>
+      <span class="intel-bar-value">${count}</span>
+    </div>`;
+  }).join("");
+}
+
+function toggleIntel() {
+  const isOpen = el.intelBody.style.display !== "none";
+  el.intelBody.style.display = isOpen ? "none" : "block";
+  el.intelChevron.textContent = isOpen ? "▶" : "▼";
+}
+
+// ===== RENDER ORÇAMENTOS (Passo 1 + 3) =====
 function renderOrcamentos() {
   const list = filteredOrcamentos();
   el.orcamentosEmpty.style.display = list.length ? "none" : "block";
+
+  // Limpar seleção de IDs que não estão mais na lista filtrada
+  const listIds = new Set(list.map((o) => o.id));
+  for (const id of selectedOrcIds) {
+    if (!listIds.has(id)) selectedOrcIds.delete(id);
+  }
 
   el.tbodyOrcamentos.innerHTML = list.map((o) => {
     const days = daysTo(o.prazo);
@@ -302,10 +431,27 @@ function renderOrcamentos() {
       statusLabel = days <= 0 ? "Vencido" : `${days}d`;
     }
 
+    // Coluna Entrega (Passo 1)
+    const entregaDays = o.prazoEntrega ? daysTo(o.prazoEntrega) : 999;
+    const daysBetween = o.prazo && o.prazoEntrega
+      ? Math.ceil((new Date(o.prazoEntrega + "T00:00:00") - new Date(o.prazo + "T00:00:00")) / 86400000)
+      : 999;
+    let entregaBadge = formatDate(o.prazoEntrega);
+    if (daysBetween < 30 && daysBetween >= 0) {
+      entregaBadge = `<span class="badge badge-warning-soft">${formatDate(o.prazoEntrega)}</span>`;
+    }
+
+    // Grupo excluído (Passo 1)
+    const excluido = isGrupoExcluido(o.grupo);
+    let grupoBadge = escapeGrupo(o.grupo, excluido);
+
+    // Ações
     const preOrc = preOrcamentos[o.id];
     let actionBtn = "";
     if (o.status === "aberto") {
-      if (preOrc) {
+      if (excluido) {
+        actionBtn = '<span class="badge badge-fora-escopo">Fora do escopo</span>';
+      } else if (preOrc) {
         const pBadge = preOrc.status === "enviado"
           ? '<span class="badge badge-enviado">Enviado</span>'
           : preOrc.status === "aprovado"
@@ -319,17 +465,145 @@ function renderOrcamentos() {
       }
     }
 
+    // Checkbox (Passo 3) — só para abertos não excluídos sem pré-orçamento
+    const canSelect = o.status === "aberto" && !excluido && !preOrc;
+    const checked = selectedOrcIds.has(o.id) ? "checked" : "";
+    const checkboxHtml = canSelect
+      ? `<input type="checkbox" class="row-check" data-id="${o.id}" ${checked} />`
+      : "";
+
     return `<tr>
+      <td>${checkboxHtml}</td>
       <td class="font-mono text-muted">${escapeHtml(o.id)}</td>
       <td>${escapeHtml(o.escola)}</td>
       <td>${escapeHtml(o.municipio)}</td>
       <td class="obj-cell" title="${escapeHtml(o.objeto)}">${escapeHtml(o.objeto)}</td>
-      <td>${escapeHtml(o.grupo)}</td>
+      <td>${grupoBadge}</td>
       <td class="nowrap">${formatDate(o.prazo)}</td>
+      <td class="nowrap">${entregaBadge}</td>
       <td><span class="badge ${statusClass}">${statusLabel}</span></td>
       <td class="nowrap">${actionBtn}</td>
     </tr>`;
   }).join("");
+
+  // Bind checkboxes
+  el.tbodyOrcamentos.querySelectorAll(".row-check").forEach((cb) => {
+    cb.addEventListener("change", () => {
+      if (cb.checked) selectedOrcIds.add(cb.dataset.id);
+      else selectedOrcIds.delete(cb.dataset.id);
+      updateBatchBar();
+    });
+  });
+
+  updateBatchBar();
+}
+
+function escapeGrupo(grupo, excluido) {
+  if (excluido) {
+    return `${escapeHtml(grupo)} <span class="badge badge-fora-escopo" style="font-size:0.65rem">Excluído</span>`;
+  }
+  return escapeHtml(grupo);
+}
+
+// ===== BATCH OPERATIONS (Passo 3) =====
+function updateBatchBar() {
+  const count = selectedOrcIds.size;
+  if (count > 0) {
+    el.batchBar.style.display = "flex";
+    el.batchCount.textContent = `${count} selecionado${count > 1 ? "s" : ""}`;
+  } else {
+    el.batchBar.style.display = "none";
+  }
+
+  // Sync select-all checkbox
+  const checkboxes = el.tbodyOrcamentos.querySelectorAll(".row-check");
+  if (checkboxes.length > 0) {
+    const allChecked = [...checkboxes].every((cb) => cb.checked);
+    el.selectAll.checked = allChecked;
+    el.selectAll.indeterminate = !allChecked && count > 0;
+  } else {
+    el.selectAll.checked = false;
+    el.selectAll.indeterminate = false;
+  }
+}
+
+function toggleSelectAll() {
+  const checkboxes = el.tbodyOrcamentos.querySelectorAll(".row-check");
+  const shouldCheck = el.selectAll.checked;
+  checkboxes.forEach((cb) => {
+    cb.checked = shouldCheck;
+    if (shouldCheck) selectedOrcIds.add(cb.dataset.id);
+    else selectedOrcIds.delete(cb.dataset.id);
+  });
+  updateBatchBar();
+}
+
+function batchPreOrcar() {
+  if (selectedOrcIds.size === 0) return;
+  const ids = [...selectedOrcIds];
+  let count = 0;
+
+  ids.forEach((orcId) => {
+    const orc = orcamentos.find((o) => o.id === orcId);
+    if (!orc || isGrupoExcluido(orc.grupo) || preOrcamentos[orcId]) return;
+
+    const margemPadrao = perfil.config ? perfil.config.margemPadrao || 0.30 : 0.30;
+    const frete = calcFreteEstimado(orc.municipio);
+
+    const itens = (orc.itens || []).map((item) => {
+      const bp = findBancoItem(item.nome);
+      const custoUnit = bp ? bp.custoBase : 0;
+      const margem = bp ? bp.margemPadrao : margemPadrao;
+      const precoUnit = custoUnit > 0 ? Math.round(custoUnit * (1 + margem) * 100) / 100 : 0;
+
+      return {
+        nome: item.nome,
+        descricao: item.descricao || "",
+        quantidade: item.quantidade || 0,
+        unidade: item.unidade || "Unidade",
+        custoUnitario: custoUnit,
+        margem: margem,
+        precoUnitario: precoUnit,
+        precoTotal: Math.round(precoUnit * (item.quantidade || 0) * 100) / 100,
+      };
+    });
+
+    const totalGeral = itens.reduce((s, i) => s + i.precoTotal, 0);
+    const margens = itens.filter((i) => i.custoUnitario > 0).map((i) => i.margem);
+    const margemMedia = margens.length ? margens.reduce((a, b) => a + b, 0) / margens.length : margemPadrao;
+
+    preOrcamentos[orcId] = {
+      orcamentoId: orcId,
+      escola: orc.escola,
+      municipio: orc.municipio,
+      grupo: orc.grupo,
+      status: "pendente",
+      criadoEm: new Date().toISOString().slice(0, 10),
+      freteEstimado: frete,
+      itens: itens,
+      totalGeral: Math.round(totalGeral * 100) / 100,
+      margemMedia: margemMedia,
+    };
+    count++;
+  });
+
+  savePreOrcamentos();
+  selectedOrcIds.clear();
+  renderAll();
+  alert(`${count} pré-orçamento${count > 1 ? "s" : ""} gerado${count > 1 ? "s" : ""}.`);
+}
+
+function batchExportCsv() {
+  if (selectedOrcIds.size === 0) return;
+  const list = orcamentos.filter((o) => selectedOrcIds.has(o.id));
+  const header = "ID;Escola;Municipio;SRE;Objeto;Grupo;Prazo;PrazoEntrega;Status;Itens";
+  const rows = list.map((o) => {
+    const itensStr = (o.itens || []).map((i) => `${i.nome} (${i.quantidade} ${i.unidade})`).join(" | ");
+    return [o.id, o.escola, o.municipio, o.sre, o.objeto, o.grupo, o.prazo, o.prazoEntrega, o.status, itensStr]
+      .map((v) => `"${String(v || "").replace(/"/g, '""')}"`)
+      .join(";");
+  });
+  downloadCsv("orcamentos-selecionados.csv", [header, ...rows].join("\n"));
 }
 
 // ===== PRÉ-ORÇAMENTO =====
@@ -400,7 +674,27 @@ window.abrirPreOrcamento = function (orcId) {
 
   const orc = orcamentos.find((o) => o.id === orcId);
   el.preorcamentoPrazo.textContent = orc ? formatDate(orc.prazo) : "—";
-  el.preorcamentoFrete.textContent = brl.format(pre.freteEstimado || 0) + " (estimativa)";
+
+  // Frete real (Passo 1) — mostra valor e km quando disponível
+  const frete = pre.freteEstimado || 0;
+  let km = 0;
+  if (perfil.distancias && perfil.distancias.estimativas) {
+    km = perfil.distancias.estimativas[pre.municipio] || 0;
+    if (km === 0) {
+      const normMun = normalizedText(pre.municipio);
+      const entry = Object.entries(perfil.distancias.estimativas).find(
+        ([key]) => normalizedText(key) === normMun
+      );
+      if (entry) km = entry[1];
+    }
+  }
+  if (frete > 0 && km > 0) {
+    el.preorcamentoFrete.textContent = `${brl.format(frete)} (${km} km)`;
+  } else if (frete > 0) {
+    el.preorcamentoFrete.textContent = brl.format(frete);
+  } else {
+    el.preorcamentoFrete.textContent = "Sem frete (mesmo município)";
+  }
 
   renderPreOrcamentoItens();
 
@@ -413,11 +707,17 @@ window.abrirPreOrcamento = function (orcId) {
   const showEditar = pre.status === "aprovado" || pre.status === "enviado";
   el.btnEditarOrcamento.style.display = showEditar ? "inline-block" : "none";
 
-  // Botão SGD: aparece quando aprovado e servidor local ativo
-  const showSgd = sgdAvailable && pre.status === "aprovado";
+  // Botão SGD: aparece sempre que aprovado (modo local envia API, modo Netlify baixa payload)
+  const showSgd = pre.status === "aprovado";
   el.btnEnviarSgd.style.display = showSgd ? "inline-block" : "none";
+  el.btnEnviarSgd.textContent = sgdAvailable ? "Enviar ao SGD" : "Baixar Payload SGD";
+
+  // Link para aba SGD quando enviado
+  const showIrSgd = pre.status === "aprovado" || pre.status === "enviado";
+  el.btnIrSgd.style.display = showIrSgd ? "inline-block" : "none";
 };
 
+// ===== RENDER PRÉ-ORÇAMENTO ITENS (Passo 5 — PNCP) =====
 function renderPreOrcamentoItens() {
   const pre = preOrcamentos[activePreOrcamentoId];
   if (!pre) return;
@@ -433,11 +733,23 @@ function renderPreOrcamentoItens() {
       ? `<input type="number" class="preorcamento-input" value="${(item.margem * 100).toFixed(0)}" step="1" min="0" max="100" onchange="updatePreItem(${idx}, 'margem', this.value)" />`
       : pct(item.margem);
 
+    // PNCP ref (Passo 5) — busca preço de referência no banco
+    const bp = findBancoItem(item.nome);
+    let pncpHint = "";
+    if (bp && bp.precoReferencia > 0) {
+      const diff = item.custoUnitario > 0
+        ? Math.abs(item.custoUnitario - bp.custoBase) / bp.custoBase
+        : 0;
+      const diffClass = diff > 0.30 ? "pncp-alert" : "pncp-ok";
+      pncpHint = `<span class="pncp-tooltip ${diffClass}" title="Ref. Banco: ${brl.format(bp.precoReferencia)} (custo: ${brl.format(bp.custoBase)})">Ref: ${brl.format(bp.precoReferencia)}</span>`;
+    }
+
     return `<tr>
       <td>
         <strong>${escapeHtml(item.nome)}</strong>
         <br><span class="text-muted" style="font-size:0.75rem">${escapeHtml(item.descricao)}</span>
         <br><span class="text-muted" style="font-size:0.72rem">${item.quantidade} ${escapeHtml(item.unidade)}</span>
+        ${pncpHint}
       </td>
       <td class="text-right">${item.quantidade}</td>
       <td class="text-right">${custoInput}</td>
@@ -474,8 +786,11 @@ window.updatePreItem = function (idx, field, value) {
   pre.margemMedia = margens.length ? margens.reduce((a, b) => a + b, 0) / margens.length : 0;
 
   savePreOrcamentos();
-  renderPreOrcamentoItens();
-  renderKPIs();
+  // Defer innerHTML replacement to avoid destroying the active input mid-blur
+  requestAnimationFrame(() => {
+    renderPreOrcamentoItens();
+    renderKPIs();
+  });
 };
 
 // Aprovar pré-orçamento
@@ -498,11 +813,14 @@ function aprovarPreOrcamento() {
   renderPreOrcamentoItens();
   renderKPIs();
   renderOrcamentos();
+  renderIntel();
 
   el.btnAprovar.style.display = "none";
   el.btnRecusar.style.display = "none";
   el.btnEditarOrcamento.style.display = "inline-block";
-  el.btnEnviarSgd.style.display = sgdAvailable ? "inline-block" : "none";
+  el.btnEnviarSgd.style.display = "inline-block";
+  el.btnEnviarSgd.textContent = sgdAvailable ? "Enviar ao SGD" : "Baixar Payload SGD";
+  el.btnIrSgd.style.display = "inline-block";
 }
 
 // Recusar pré-orçamento
@@ -517,6 +835,7 @@ function recusarPreOrcamento() {
   renderPreOrcamentoItens();
   renderKPIs();
   renderOrcamentos();
+  renderIntel();
 
   el.btnAprovar.style.display = "none";
   el.btnRecusar.style.display = "none";
@@ -691,10 +1010,10 @@ window.removerBancoItem = function (id) {
 // ===== EXPORT CSV =====
 function exportCsvOrcamentos() {
   const list = filteredOrcamentos();
-  const header = "ID;Escola;Municipio;SRE;Objeto;Grupo;Prazo;Status;Itens";
+  const header = "ID;Escola;Municipio;SRE;Objeto;Grupo;Prazo;PrazoEntrega;Status;Itens";
   const rows = list.map((o) => {
     const itensStr = (o.itens || []).map((i) => `${i.nome} (${i.quantidade} ${i.unidade})`).join(" | ");
-    return [o.id, o.escola, o.municipio, o.sre, o.objeto, o.grupo, o.prazo, o.status, itensStr]
+    return [o.id, o.escola, o.municipio, o.sre, o.objeto, o.grupo, o.prazo, o.prazoEntrega, o.status, itensStr]
       .map((v) => `"${String(v || "").replace(/"/g, '""')}"`)
       .join(";");
   });
@@ -726,13 +1045,16 @@ function downloadCsv(filename, content) {
 }
 
 // ===== TABS =====
-function switchTab(tabId) {
+window.switchTab = function switchTab(tabId) {
   document.querySelectorAll(".tab").forEach((t) => {
     t.classList.toggle("active", t.dataset.tab === tabId);
   });
   document.querySelectorAll(".tab-content").forEach((tc) => {
     tc.classList.toggle("active", tc.id === "tab-" + tabId);
   });
+  // Re-render tab content on switch
+  if (tabId === "sgd") renderSgd();
+  if (tabId === "pre-orcamento" && !activePreOrcamentoId) renderPreOrcamentosLista();
 }
 
 // ===== EVENTS =====
@@ -744,10 +1066,14 @@ function bindEvents() {
       if (tab.dataset.tab === "pre-orcamento" && !activePreOrcamentoId) {
         renderPreOrcamentosLista();
       }
+      if (tab.dataset.tab === "sgd") {
+        renderSgd();
+      }
     });
   });
 
   // Filtros orçamentos
+  el.filtroAno.addEventListener("change", renderOrcamentos);
   el.filtroMunicipio.addEventListener("change", renderOrcamentos);
   el.filtroGrupo.addEventListener("change", renderOrcamentos);
   el.filtroStatus.addEventListener("change", renderOrcamentos);
@@ -792,6 +1118,23 @@ function bindEvents() {
 
   // SGD
   el.btnEnviarSgd.addEventListener("click", enviarParaSgd);
+
+  // Select all (Passo 3)
+  el.selectAll.addEventListener("change", toggleSelectAll);
+
+  // Batch actions (Passo 3)
+  el.btnBatchPreorcar.addEventListener("click", batchPreOrcar);
+  el.btnBatchExport.addEventListener("click", batchExportCsv);
+
+  // Inteligência toggle (Passo 2)
+  el.intelToggle.addEventListener("click", toggleIntel);
+
+  // Coleta SGD (Passo 4)
+  el.btnCollectSgd.addEventListener("click", coletarSgd);
+
+  // SGD Tab
+  el.btnSgdEnviarTodos.addEventListener("click", sgdEnviarTodos);
+  el.btnSgdBaixarTodos.addEventListener("click", sgdBaixarTodos);
 
   // Keyboard: Escape fecha modais
   document.addEventListener("keydown", (e) => {
@@ -991,27 +1334,59 @@ function updateModeIndicator(isLocal) {
   }
 }
 
+function buildSgdPayload(pre) {
+  return {
+    budgetId: pre.orcamentoId,
+    items: pre.itens.map((i) => ({
+      name: i.nome,
+      quantity: i.quantidade,
+      unitPrice: i.precoUnitario,
+      totalPrice: i.precoTotal,
+    })),
+    total: pre.totalGeral,
+  };
+}
+
+function downloadSgdPayload(pre) {
+  const proposal = buildSgdPayload(pre);
+  const payload = {
+    generatedAt: new Date().toISOString(),
+    proposals: [proposal],
+  };
+  const json = JSON.stringify(payload, null, 2);
+  const blob = new Blob([json], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `sgd-payload-${pre.orcamentoId}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 async function enviarParaSgd() {
-  if (!activePreOrcamentoId || !sgdAvailable) return;
+  if (!activePreOrcamentoId) return;
   const pre = preOrcamentos[activePreOrcamentoId];
   if (!pre || pre.status !== "aprovado") return;
 
+  // Modo Netlify: baixa payload JSON e marca como enviado
+  if (!sgdAvailable) {
+    downloadSgdPayload(pre);
+    pre.status = "enviado";
+    pre.enviadoEm = new Date().toISOString().slice(0, 10);
+    savePreOrcamentos();
+    renderAll();
+    abrirPreOrcamento(activePreOrcamentoId);
+    return;
+  }
+
+  // Modo Local: envia via API
   el.btnEnviarSgd.disabled = true;
   el.btnEnviarSgd.innerHTML = '<span class="sgd-spinner"></span>Enviando...';
 
   try {
-    const payload = {
-      orcamentoId: pre.orcamentoId,
-      escola: pre.escola,
-      municipio: pre.municipio,
-      itens: pre.itens.map((i) => ({
-        nome: i.nome,
-        quantidade: i.quantidade,
-        precoUnitario: i.precoUnitario,
-        precoTotal: i.precoTotal,
-      })),
-      totalGeral: pre.totalGeral,
-    };
+    const payload = buildSgdPayload(pre);
 
     const r = await fetch("/api/sgd/submit", {
       method: "POST",
@@ -1026,6 +1401,7 @@ async function enviarParaSgd() {
       pre.enviadoEm = new Date().toISOString().slice(0, 10);
       savePreOrcamentos();
       renderAll();
+      abrirPreOrcamento(activePreOrcamentoId);
       alert("Proposta enviada ao SGD com sucesso!");
     } else {
       alert("Erro ao enviar: " + (result.error || "Falha desconhecida"));
@@ -1034,7 +1410,216 @@ async function enviarParaSgd() {
     alert("Erro de conexao com o servidor: " + err.message);
   } finally {
     el.btnEnviarSgd.disabled = false;
-    el.btnEnviarSgd.textContent = "Enviar ao SGD";
+    el.btnEnviarSgd.textContent = sgdAvailable ? "Enviar ao SGD" : "Baixar Payload SGD";
+  }
+}
+
+// ===== SGD TAB =====
+function renderSgd() {
+  const allPre = Object.values(preOrcamentos);
+  const ready = allPre.filter((p) => p.status === "aprovado");
+  const sent = allPre.filter((p) => p.status === "enviado");
+  const sgdItems = [...ready, ...sent];
+
+  // KPIs
+  el.sgdKpiProntos.textContent = ready.length;
+  el.sgdKpiEnviados.textContent = sent.length;
+  el.sgdKpiValor.textContent = brl.format(sgdItems.reduce((s, p) => s + (p.totalGeral || 0), 0));
+
+  // Mode badge
+  el.sgdModeBadge.textContent = sgdAvailable ? "API ativa" : "Offline — baixar payload";
+  el.sgdModeBadge.className = sgdAvailable ? "badge badge-aprovado" : "badge badge-muted";
+
+  // Botão enviar todos (só modo local, só se tem prontos)
+  el.btnSgdEnviarTodos.style.display = sgdAvailable && ready.length > 0 ? "inline-block" : "none";
+  el.btnSgdBaixarTodos.style.display = sgdItems.length > 0 ? "inline-block" : "none";
+
+  // Empty
+  el.sgdEmpty.style.display = sgdItems.length ? "none" : "block";
+
+  // Tabela
+  el.tbodySgd.innerHTML = sgdItems
+    .sort((a, b) => (a.status === "aprovado" ? -1 : 1))
+    .map((p) => {
+      const isSent = p.status === "enviado";
+      const badgeClass = isSent ? "badge-enviado" : "badge-aprovado";
+      const badgeLabel = isSent ? "Enviado" : "Pronto";
+      const dateInfo = isSent ? formatDate(p.enviadoEm) : formatDate(p.aprovadoEm);
+
+      let actions = "";
+      if (isSent) {
+        actions = `<button class="btn btn-inline" onclick="sgdBaixarPayload('${p.orcamentoId}')">Payload</button>`;
+      } else if (sgdAvailable) {
+        actions = `<button class="btn btn-inline btn-sgd" onclick="sgdEnviarUnico('${p.orcamentoId}')">Enviar</button>
+          <button class="btn btn-inline" onclick="sgdBaixarPayload('${p.orcamentoId}')">Payload</button>`;
+      } else {
+        actions = `<button class="btn btn-inline btn-sgd" onclick="sgdBaixarPayload('${p.orcamentoId}')">Baixar</button>`;
+      }
+
+      return `<tr>
+        <td class="font-mono text-muted">${escapeHtml(p.orcamentoId)}</td>
+        <td>${escapeHtml(p.escola)}</td>
+        <td>${escapeHtml(p.municipio)}</td>
+        <td class="text-right font-mono">${brl.format(p.totalGeral || 0)}</td>
+        <td><span class="badge ${badgeClass}">${badgeLabel}</span> <span class="text-muted" style="font-size:0.72rem">${dateInfo}</span></td>
+        <td class="nowrap">${actions}</td>
+      </tr>`;
+    }).join("");
+}
+
+window.sgdBaixarPayload = function (orcId) {
+  const pre = preOrcamentos[orcId];
+  if (!pre) return;
+  downloadSgdPayload(pre);
+  if (pre.status === "aprovado") {
+    pre.status = "enviado";
+    pre.enviadoEm = new Date().toISOString().slice(0, 10);
+    savePreOrcamentos();
+    renderSgd();
+    renderKPIs();
+  }
+};
+
+window.sgdEnviarUnico = async function (orcId) {
+  const pre = preOrcamentos[orcId];
+  if (!pre || pre.status !== "aprovado" || !sgdAvailable) return;
+
+  try {
+    const payload = buildSgdPayload(pre);
+    const r = await fetch("/api/sgd/submit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const result = await r.json();
+
+    if (r.ok && result.success) {
+      pre.status = "enviado";
+      pre.enviadoEm = new Date().toISOString().slice(0, 10);
+      savePreOrcamentos();
+      renderAll();
+      alert(`Proposta ${orcId} enviada ao SGD!`);
+    } else {
+      alert("Erro: " + (result.error || "Falha"));
+    }
+  } catch (err) {
+    alert("Erro de conexão: " + err.message);
+  }
+};
+
+async function sgdEnviarTodos() {
+  const ready = Object.values(preOrcamentos).filter((p) => p.status === "aprovado");
+  if (ready.length === 0 || !sgdAvailable) return;
+
+  if (!confirm(`Enviar ${ready.length} proposta(s) ao SGD?`)) return;
+
+  el.btnSgdEnviarTodos.disabled = true;
+  el.btnSgdEnviarTodos.innerHTML = '<span class="sgd-spinner"></span>Enviando...';
+
+  let ok = 0;
+  let fail = 0;
+
+  for (const pre of ready) {
+    try {
+      const payload = buildSgdPayload(pre);
+      const r = await fetch("/api/sgd/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const result = await r.json();
+
+      if (r.ok && result.success) {
+        pre.status = "enviado";
+        pre.enviadoEm = new Date().toISOString().slice(0, 10);
+        ok++;
+      } else {
+        fail++;
+      }
+    } catch (_) {
+      fail++;
+    }
+  }
+
+  savePreOrcamentos();
+  renderAll();
+
+  el.btnSgdEnviarTodos.disabled = false;
+  el.btnSgdEnviarTodos.textContent = "Enviar Todos";
+  alert(`${ok} enviado(s), ${fail} erro(s).`);
+}
+
+function sgdBaixarTodos() {
+  const items = Object.values(preOrcamentos).filter((p) => p.status === "aprovado" || p.status === "enviado");
+  if (items.length === 0) return;
+
+  const payload = {
+    generatedAt: new Date().toISOString(),
+    proposals: items.map((p) => buildSgdPayload(p)),
+  };
+  const json = JSON.stringify(payload, null, 2);
+  const blob = new Blob([json], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "sgd-prequote-payload.json";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+
+  // Marcar todos aprovados como enviados
+  items.forEach((p) => {
+    if (p.status === "aprovado") {
+      p.status = "enviado";
+      p.enviadoEm = new Date().toISOString().slice(0, 10);
+    }
+  });
+  savePreOrcamentos();
+  renderSgd();
+  renderKPIs();
+}
+
+// ===== COLETA AO VIVO SGD (Passo 4) =====
+async function coletarSgd() {
+  if (!sgdAvailable) return;
+
+  el.btnCollectSgd.disabled = true;
+  el.btnCollectSgd.innerHTML = '<span class="sgd-spinner"></span>Coletando...';
+
+  try {
+    const r = await fetch("/api/sgd/collect", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+    });
+
+    const result = await r.json();
+
+    if (r.ok && result.success) {
+      // Recarregar dados
+      const orcData = await fetchJson("data/orcamentos.json");
+      orcamentos = Array.isArray(orcData) ? orcData : [];
+
+      renderAll();
+
+      // Atualizar badge de última atualização
+      const now = new Date();
+      const dd = String(now.getDate()).padStart(2, "0");
+      const mm = String(now.getMonth() + 1).padStart(2, "0");
+      const hh = String(now.getHours()).padStart(2, "0");
+      const mi = String(now.getMinutes()).padStart(2, "0");
+      el.ultimaAtualizacao.textContent = `Atualizado: ${dd}/${mm} ${hh}:${mi}`;
+      el.ultimaAtualizacao.style.display = "inline-block";
+
+      alert("Dados atualizados com sucesso!");
+    } else {
+      alert("Erro na coleta: " + (result.error || "Falha desconhecida"));
+    }
+  } catch (err) {
+    alert("Erro de conexão: " + err.message);
+  } finally {
+    el.btnCollectSgd.disabled = false;
+    el.btnCollectSgd.textContent = "Atualizar Orçamentos";
   }
 }
 

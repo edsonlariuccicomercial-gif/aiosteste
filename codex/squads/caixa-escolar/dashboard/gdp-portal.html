@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Portal Escolar — GDP Pedidos</title>
+  <style>
+    :root {
+      --bg: #0f172a; --surface: #1e293b; --surface2: #334155; --surface3: #475569;
+      --border: #475569; --text: #f1f5f9; --muted: #94a3b8; --dim: #64748b;
+      --accent: #3b82f6; --accent-hover: #2563eb; --accent-light: rgba(59,130,246,0.12);
+      --success: #22c55e; --success-light: rgba(34,197,94,0.12);
+      --warning: #f59e0b; --warning-light: rgba(245,158,11,0.12);
+      --danger: #ef4444; --danger-light: rgba(239,68,68,0.12);
+      --purple: #8b5cf6;
+    }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:var(--text); min-height:100vh; }
+
+    /* ─── LOGIN ─── */
+    .login-wrapper {
+      min-height:100vh; display:flex; align-items:center; justify-content:center;
+      background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
+    }
+    .login-card {
+      background:var(--surface); border:1px solid var(--border); border-radius:16px;
+      padding:2.5rem; width:400px; max-width:90vw;
+    }
+    .login-logo { text-align:center; margin-bottom:1.5rem; }
+    .login-logo h1 { font-size:1.6rem; }
+    .login-logo h1 span { color:var(--accent); }
+    .login-logo p { color:var(--muted); font-size:0.85rem; margin-top:0.3rem; }
+    .form-group { margin-bottom:1rem; }
+    .form-group label { display:block; font-size:0.8rem; color:var(--muted); margin-bottom:0.4rem; text-transform:uppercase; letter-spacing:0.05em; }
+    .form-group input {
+      width:100%; padding:0.75rem 1rem; background:var(--bg); border:1px solid var(--border);
+      border-radius:8px; color:var(--text); font-size:0.95rem; outline:none; transition:border 0.2s;
+    }
+    .form-group input:focus { border-color:var(--accent); }
+    .btn {
+      padding:0.75rem 1.5rem; border:none; border-radius:8px; font-size:0.9rem;
+      font-weight:600; cursor:pointer; transition:all 0.2s; display:inline-flex; align-items:center; gap:0.5rem;
+    }
+    .btn-primary { background:var(--accent); color:#fff; width:100%; justify-content:center; }
+    .btn-primary:hover { background:var(--accent-hover); }
+    .btn-success { background:var(--success); color:#000; }
+    .btn-success:hover { opacity:0.9; }
+    .btn-outline { background:transparent; border:1px solid var(--border); color:var(--text); }
+    .btn-outline:hover { background:var(--surface2); }
+    .btn-danger { background:var(--danger); color:#fff; }
+    .btn-sm { padding:0.4rem 0.8rem; font-size:0.8rem; }
+    .login-error { color:var(--danger); font-size:0.85rem; text-align:center; margin-top:0.5rem; display:none; }
+    .login-hint { color:var(--dim); font-size:0.75rem; text-align:center; margin-top:1.5rem; padding-top:1rem; border-top:1px solid var(--border); }
+    .login-hint strong { color:var(--muted); }
+
+    /* ─── APP SHELL ─── */
+    .app { display:none; }
+    .topbar {
+      background:var(--surface); border-bottom:1px solid var(--border);
+      padding:0.8rem 2rem; display:flex; align-items:center; justify-content:space-between;
+    }
+    .topbar-left { display:flex; align-items:center; gap:1rem; }
+    .topbar h1 { font-size:1.1rem; }
+    .topbar h1 span { color:var(--accent); }
+    .topbar-right { display:flex; align-items:center; gap:1rem; }
+    .user-badge {
+      background:var(--accent-light); color:var(--accent); padding:0.3rem 0.8rem;
+      border-radius:999px; font-size:0.8rem; font-weight:600;
+    }
+    .saldo-badge {
+      padding:0.3rem 0.8rem; border-radius:999px; font-size:0.8rem; font-weight:700;
+    }
+    .saldo-ok { background:var(--success-light); color:var(--success); }
+    .saldo-low { background:var(--warning-light); color:var(--warning); }
+
+    .main-content { padding:1.5rem 2rem; }
+
+    /* ─── STEPS ─── */
+    .steps {
+      display:flex; align-items:center; gap:0; margin-bottom:2rem;
+      background:var(--surface); border-radius:12px; padding:1rem 1.5rem; border:1px solid var(--border);
+    }
+    .step {
+      display:flex; align-items:center; gap:0.5rem; padding:0.4rem 0.8rem; border-radius:8px;
+      font-size:0.85rem; color:var(--dim); font-weight:600; transition:all 0.3s;
+    }
+    .step.active { background:var(--accent-light); color:var(--accent); }
+    .step.done { color:var(--success); }
+    .step-num {
+      width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+      font-size:0.7rem; font-weight:800; border:2px solid currentColor;
+    }
+    .step.active .step-num { background:var(--accent); color:#fff; border-color:var(--accent); }
+    .step.done .step-num { background:var(--success); color:#fff; border-color:var(--success); }
+    .step-divider { width:40px; height:2px; background:var(--border); margin:0 0.3rem; }
+
+    /* ─── CATALOG ─── */
+    .section-title { font-size:1rem; font-weight:700; margin-bottom:1rem; }
+    .catalog-controls { display:flex; gap:1rem; margin-bottom:1rem; flex-wrap:wrap; }
+    .search-input {
+      flex:1; min-width:200px; padding:0.6rem 1rem; background:var(--surface);
+      border:1px solid var(--border); border-radius:8px; color:var(--text); font-size:0.9rem; outline:none;
+    }
+    .search-input:focus { border-color:var(--accent); }
+
+    .product-grid {
+      display:grid; grid-template-columns:repeat(auto-fill, minmax(260px,1fr)); gap:1rem;
+    }
+    .product-card {
+      background:var(--surface); border:1px solid var(--border); border-radius:12px;
+      padding:1rem; transition:all 0.2s; position:relative;
+    }
+    .product-card:hover { border-color:var(--accent); transform:translateY(-1px); }
+    .product-card.in-cart { border-color:var(--success); box-shadow:0 0 0 1px var(--success); }
+    .product-name { font-weight:700; font-size:0.9rem; margin-bottom:0.5rem; line-height:1.3; }
+    .product-price { font-size:1.3rem; font-weight:800; color:var(--success); margin-bottom:0.8rem; }
+    .product-meta { font-size:0.75rem; color:var(--muted); margin-bottom:0.8rem; }
+    .qty-controls { display:flex; align-items:center; gap:0.5rem; }
+    .qty-btn {
+      width:32px; height:32px; border-radius:8px; border:1px solid var(--border);
+      background:var(--surface2); color:var(--text); font-size:1rem; cursor:pointer;
+      display:flex; align-items:center; justify-content:center; transition:all 0.2s;
+    }
+    .qty-btn:hover { background:var(--accent); border-color:var(--accent); }
+    .qty-input {
+      width:50px; text-align:center; padding:0.4rem; background:var(--bg);
+      border:1px solid var(--border); border-radius:6px; color:var(--text); font-size:0.9rem; font-weight:700;
+    }
+    .add-btn {
+      flex:1; padding:0.5rem; border:none; border-radius:8px; font-size:0.8rem;
+      font-weight:700; cursor:pointer; transition:all 0.2s;
+    }
+    .add-btn.add { background:var(--accent); color:#fff; }
+    .add-btn.add:hover { background:var(--accent-hover); }
+    .add-btn.remove { background:var(--danger-light); color:var(--danger); }
+    .in-cart-badge {
+      position:absolute; top:0.5rem; right:0.5rem; background:var(--success);
+      color:#000; padding:0.15rem 0.5rem; border-radius:999px; font-size:0.65rem; font-weight:800;
+    }
+
+    /* ─── CART ─── */
+    .cart-float {
+      position:fixed; bottom:1.5rem; right:1.5rem; background:var(--accent);
+      color:#fff; padding:0.8rem 1.5rem; border-radius:999px; font-weight:700;
+      cursor:pointer; box-shadow:0 4px 20px rgba(59,130,246,0.4); transition:all 0.2s;
+      z-index:100; display:none; font-size:0.9rem;
+    }
+    .cart-float:hover { transform:scale(1.05); }
+    .cart-float .cart-count {
+      background:#fff; color:var(--accent); width:22px; height:22px; border-radius:50%;
+      display:inline-flex; align-items:center; justify-content:center; font-size:0.75rem;
+      margin-left:0.5rem;
+    }
+
+    /* ─── TABLE ─── */
+    .table-wrap {
+      background:var(--surface); border:1px solid var(--border); border-radius:12px; overflow:hidden;
+    }
+    table { width:100%; border-collapse:collapse; }
+    th {
+      background:var(--surface2); padding:0.7rem 1rem; text-align:left;
+      font-size:0.75rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--muted);
+    }
+    td { padding:0.7rem 1rem; font-size:0.85rem; border-top:1px solid rgba(71,85,105,0.3); }
+    tr:hover td { background:rgba(59,130,246,0.04); }
+
+    /* ─── ORDER SUMMARY ─── */
+    .order-summary {
+      background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:1.5rem;
+    }
+    .summary-row { display:flex; justify-content:space-between; padding:0.5rem 0; font-size:0.9rem; }
+    .summary-row.total { border-top:2px solid var(--border); margin-top:0.5rem; padding-top:1rem; font-size:1.1rem; font-weight:800; }
+    .summary-row.total .val { color:var(--success); }
+
+    /* ─── CONFIRMATION ─── */
+    .confirm-card {
+      background:var(--surface); border:1px solid var(--success); border-radius:16px;
+      padding:2rem; text-align:center; max-width:600px; margin:0 auto;
+    }
+    .confirm-icon { font-size:4rem; margin-bottom:1rem; }
+    .confirm-title { font-size:1.4rem; font-weight:800; color:var(--success); margin-bottom:0.5rem; }
+    .confirm-sub { color:var(--muted); margin-bottom:1.5rem; }
+    .protocol {
+      background:var(--bg); padding:1rem; border-radius:8px; font-family:monospace;
+      font-size:1.3rem; font-weight:800; color:var(--accent); letter-spacing:0.1em; margin-bottom:1.5rem;
+    }
+    .confirm-details { text-align:left; font-size:0.85rem; }
+    .confirm-details dt { color:var(--muted); font-size:0.75rem; text-transform:uppercase; margin-top:0.8rem; }
+    .confirm-details dd { font-weight:600; }
+
+    .hidden { display:none !important; }
+
+    @media(max-width:768px) {
+      .topbar { padding:0.8rem 1rem; flex-wrap:wrap; gap:0.5rem; }
+      .main-content { padding:1rem; }
+      .steps { flex-wrap:wrap; padding:0.8rem; }
+      .step-divider { width:20px; }
+      .product-grid { grid-template-columns:1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ═══ LOGIN SCREEN ═══ -->
+<div class="login-wrapper" id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">
+      <h1>📦 Portal <span>GDP</span></h1>
+      <p>Gestão de Pedidos Pós-Licitação</p>
+    </div>
+    <div class="form-group">
+      <label>Login da Escola</label>
+      <input type="text" id="login-user" placeholder="ex: ceopee" autofocus>
+    </div>
+    <div class="form-group">
+      <label>Senha</label>
+      <input type="password" id="login-pass" placeholder="••••••••">
+    </div>
+    <button class="btn btn-primary" onclick="doLogin()">Entrar no Portal</button>
+    <div class="login-error" id="login-error">Login ou senha inválidos</div>
+    <div class="login-hint">
+      <strong>Escolas cadastradas para teste:</strong><br>
+      alceu.novaes | ceopee | bernardo.vasconcelos | tapira | maestro<br>
+      Senha: <strong>escola2025</strong>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ APP ═══ -->
+<div class="app" id="app">
+
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="topbar-left">
+      <h1>📦 Portal <span>GDP</span></h1>
+      <span class="user-badge" id="topbar-escola"></span>
+    </div>
+    <div class="topbar-right">
+      <span>ARP: <strong>Lariucci & Ribeiro Pereira</strong></span>
+      <span class="saldo-badge saldo-ok" id="topbar-saldo"></span>
+      <a href="gdp-dashboard.html" class="btn btn-outline btn-sm" style="text-decoration:none;">GDP Dashboard</a>
+      <a href="index.html" class="btn btn-outline btn-sm" style="text-decoration:none;color:var(--success);">Caixa Escolar</a>
+      <button class="btn btn-outline btn-sm" onclick="logout()">Sair</button>
+    </div>
+  </div>
+
+  <div class="main-content">
+
+    <!-- STEPS -->
+    <div class="steps">
+      <div class="step active" id="step-1"><div class="step-num">1</div> Catálogo</div>
+      <div class="step-divider"></div>
+      <div class="step" id="step-2"><div class="step-num">2</div> Carrinho</div>
+      <div class="step-divider"></div>
+      <div class="step" id="step-3"><div class="step-num">3</div> Revisão</div>
+      <div class="step-divider"></div>
+      <div class="step" id="step-4"><div class="step-num">4</div> Confirmação</div>
+    </div>
+
+    <!-- PHASE 1: CATALOG -->
+    <div id="phase-catalog">
+      <div class="catalog-controls">
+        <input type="text" class="search-input" id="catalog-search" placeholder="Buscar produto..." oninput="filterCatalog()">
+        <select class="search-input" style="flex:0;min-width:150px;" id="catalog-sort" onchange="filterCatalog()">
+          <option value="name">Nome A-Z</option>
+          <option value="price-asc">Menor preço</option>
+          <option value="price-desc">Maior preço</option>
+        </select>
+        <div style="color:var(--muted);font-size:0.85rem;display:flex;align-items:center;" id="catalog-count"></div>
+      </div>
+      <div class="product-grid" id="product-grid"></div>
+    </div>
+
+    <!-- PHASE 2: CART -->
+    <div id="phase-cart" class="hidden">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+        <h2 class="section-title" style="margin:0;">Carrinho de Pedido</h2>
+        <button class="btn btn-outline btn-sm" onclick="goToPhase(1)">Voltar ao Catálogo</button>
+      </div>
+      <div class="table-wrap" style="margin-bottom:1.5rem;">
+        <table>
+          <thead><tr><th>Produto</th><th>Preço Unit.</th><th>Qtd</th><th>Subtotal</th><th></th></tr></thead>
+          <tbody id="cart-tbody"></tbody>
+        </table>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div id="cart-total" style="font-size:1.2rem;font-weight:800;"></div>
+        <button class="btn btn-success" onclick="goToPhase(3)" id="btn-review">Revisar Pedido</button>
+      </div>
+    </div>
+
+    <!-- PHASE 3: REVIEW -->
+    <div id="phase-review" class="hidden">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+        <h2 class="section-title" style="margin:0;">Revisão do Pedido</h2>
+        <button class="btn btn-outline btn-sm" onclick="goToPhase(2)">Voltar ao Carrinho</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 360px;gap:1.5rem;">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>#</th><th>Produto</th><th>Preço Unit.</th><th>Qtd</th><th>Subtotal</th></tr></thead>
+            <tbody id="review-tbody"></tbody>
+          </table>
+        </div>
+        <div class="order-summary">
+          <h3 style="font-size:0.9rem;margin-bottom:1rem;">Resumo do Pedido</h3>
+          <div id="review-summary"></div>
+          <div style="margin-top:1.5rem;">
+            <div class="form-group">
+              <label>Observações (opcional)</label>
+              <textarea id="order-obs" style="width:100%;padding:0.5rem;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);min-height:60px;font-family:inherit;resize:vertical;"></textarea>
+            </div>
+            <button class="btn btn-success" style="width:100%;justify-content:center;" onclick="confirmOrder()">
+              Confirmar Pedido
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PHASE 4: CONFIRMATION -->
+    <div id="phase-confirm" class="hidden">
+      <div class="confirm-card">
+        <div class="confirm-icon">✅</div>
+        <div class="confirm-title">Pedido Registrado com Sucesso!</div>
+        <div class="confirm-sub">Seu pedido foi enviado para validação. Acompanhe o status abaixo.</div>
+        <div class="protocol" id="confirm-protocol"></div>
+        <dl class="confirm-details" id="confirm-details"></dl>
+        <div style="margin-top:2rem;display:flex;gap:1rem;justify-content:center;">
+          <button class="btn btn-primary" onclick="newOrder()">Novo Pedido</button>
+          <button class="btn btn-outline" onclick="printOrder()">Imprimir</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- CART FLOAT -->
+<div class="cart-float" id="cart-float" onclick="goToPhase(2)">
+  🛒 Carrinho <span class="cart-count" id="cart-float-count">0</span>
+</div>
+
+<script>
+let credentials = null;
+let arpData = null;
+let currentUser = null;
+let schoolProducts = [];
+let cart = {};
+
+// ─── LOAD DATA ───
+async function init() {
+  const [credRes, arpRes] = await Promise.all([
+    fetch('./data/escolas-credentials.json'),
+    fetch('./data/lariucci-arp-2025.json')
+  ]);
+  credentials = await credRes.json();
+  arpData = await arpRes.json();
+
+  // Enter key on login
+  document.getElementById('login-pass').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
+  document.getElementById('login-user').addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('login-pass').focus(); });
+}
+
+// ─── LOGIN ───
+function doLogin() {
+  const user = document.getElementById('login-user').value.trim().toLowerCase();
+  const pass = document.getElementById('login-pass').value;
+
+  const escola = credentials.escolas.find(e => e.login === user && e.senha === pass);
+  if (!escola) {
+    const err = document.getElementById('login-error');
+    err.style.display = 'block';
+    setTimeout(() => err.style.display = 'none', 3000);
+    return;
+  }
+
+  currentUser = escola;
+  loadSchoolProducts();
+  renderApp();
+
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+}
+
+function logout() {
+  currentUser = null;
+  cart = {};
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('login-user').value = '';
+  document.getElementById('login-pass').value = '';
+  document.getElementById('cart-float').style.display = 'none';
+}
+
+// ─── LOAD PRODUCTS ───
+function loadSchoolProducts() {
+  const escola = arpData.escolas.find(e => e.nome === currentUser.categoria_catalogo);
+  schoolProducts = escola ? escola.produtos : [];
+}
+
+// ─── RENDER APP ───
+function renderApp() {
+  document.getElementById('topbar-escola').textContent = currentUser.nome;
+  const pct = ((currentUser.saldo_disponivel / currentUser.saldo_total) * 100).toFixed(0);
+  document.getElementById('topbar-saldo').textContent = `Saldo: R$ ${fmt(currentUser.saldo_disponivel)} (${pct}%)`;
+  document.getElementById('topbar-saldo').className = `saldo-badge ${pct > 30 ? 'saldo-ok' : 'saldo-low'}`;
+
+  goToPhase(1);
+  renderCatalog();
+}
+
+// ─── PHASES ───
+function goToPhase(n) {
+  ['catalog','cart','review','confirm'].forEach((p,i) => {
+    document.getElementById(`phase-${p}`).classList.toggle('hidden', i+1 !== n);
+    const step = document.getElementById(`step-${i+1}`);
+    step.classList.remove('active','done');
+    if (i+1 < n) step.classList.add('done');
+    if (i+1 === n) step.classList.add('active');
+  });
+
+  if (n === 2) renderCart();
+  if (n === 3) renderReview();
+}
+
+// ─── CATALOG ───
+function renderCatalog(items) {
+  const data = items || schoolProducts;
+  const grid = document.getElementById('product-grid');
+  document.getElementById('catalog-count').textContent = `${data.length} produtos disponíveis`;
+
+  grid.innerHTML = data.map((p, i) => {
+    const inCart = cart[p.produto];
+    return `
+      <div class="product-card ${inCart ? 'in-cart' : ''}">
+        ${inCart ? `<span class="in-cart-badge">${inCart} no carrinho</span>` : ''}
+        <div class="product-name">${p.produto}</div>
+        <div class="product-price">R$ ${p.preco.toFixed(2).replace('.',',')}</div>
+        <div class="product-meta">Item ${p.item} | ARP Lariucci</div>
+        <div class="qty-controls">
+          <button class="qty-btn" onclick="changeQty('${esc(p.produto)}', -1)">−</button>
+          <input type="number" class="qty-input" id="qty-${i}" value="${inCart || 1}" min="1" max="999"
+                 onchange="updateQtyInput('${esc(p.produto)}', this.value, ${i})">
+          <button class="qty-btn" onclick="changeQty('${esc(p.produto)}', 1)">+</button>
+          <button class="add-btn ${inCart ? 'remove' : 'add'}"
+                  onclick="${inCart ? `removeFromCart('${esc(p.produto)}')` : `addToCart('${esc(p.produto)}', ${i})`}">
+            ${inCart ? 'Remover' : 'Adicionar'}
+          </button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function filterCatalog() {
+  const search = document.getElementById('catalog-search').value.toLowerCase();
+  const sort = document.getElementById('catalog-sort').value;
+
+  let filtered = schoolProducts.filter(p => p.produto.toLowerCase().includes(search));
+
+  if (sort === 'price-asc') filtered.sort((a,b) => a.preco - b.preco);
+  else if (sort === 'price-desc') filtered.sort((a,b) => b.preco - a.preco);
+  else filtered.sort((a,b) => a.produto.localeCompare(b.produto));
+
+  renderCatalog(filtered);
+}
+
+// ─── CART LOGIC ───
+function addToCart(name, idx) {
+  const qty = parseInt(document.getElementById(`qty-${idx}`).value) || 1;
+  cart[name] = qty;
+  updateCartFloat();
+  renderCatalog();
+}
+
+function removeFromCart(name) {
+  delete cart[name];
+  updateCartFloat();
+  renderCatalog();
+}
+
+function changeQty(name, delta) {
+  if (cart[name]) {
+    cart[name] = Math.max(1, cart[name] + delta);
+    renderCatalog();
+    renderCart();
+  }
+}
+
+function updateQtyInput(name, val, idx) {
+  const n = Math.max(1, parseInt(val) || 1);
+  document.getElementById(`qty-${idx}`).value = n;
+  if (cart[name]) { cart[name] = n; }
+}
+
+function updateCartFloat() {
+  const count = Object.keys(cart).length;
+  const el = document.getElementById('cart-float');
+  el.style.display = count > 0 ? 'block' : 'none';
+  document.getElementById('cart-float-count').textContent = count;
+}
+
+function esc(s) { return s.replace(/'/g, "\\'").replace(/"/g, '&quot;'); }
+function fmt(n) { return n.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2}); }
+
+// ─── RENDER CART ───
+function renderCart() {
+  const tbody = document.getElementById('cart-tbody');
+  const items = Object.entries(cart);
+
+  if (items.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:2rem;">Carrinho vazio. Adicione produtos do catálogo.</td></tr>';
+    document.getElementById('cart-total').textContent = '';
+    document.getElementById('btn-review').style.display = 'none';
+    return;
+  }
+
+  document.getElementById('btn-review').style.display = 'inline-flex';
+  let total = 0;
+
+  tbody.innerHTML = items.map(([name, qty]) => {
+    const prod = schoolProducts.find(p => p.produto === name);
+    if (!prod) return '';
+    const sub = prod.preco * qty;
+    total += sub;
+    return `
+      <tr>
+        <td style="font-weight:600;">${name}</td>
+        <td>R$ ${prod.preco.toFixed(2).replace('.',',')}</td>
+        <td>
+          <div style="display:flex;align-items:center;gap:0.3rem;">
+            <button class="qty-btn" style="width:26px;height:26px;font-size:0.8rem;" onclick="cartQty('${esc(name)}',-1)">−</button>
+            <span style="width:30px;text-align:center;font-weight:700;">${qty}</span>
+            <button class="qty-btn" style="width:26px;height:26px;font-size:0.8rem;" onclick="cartQty('${esc(name)}',1)">+</button>
+          </div>
+        </td>
+        <td style="font-weight:700;color:var(--success);">R$ ${fmt(sub)}</td>
+        <td><button class="btn btn-sm btn-outline" style="color:var(--danger);border-color:var(--danger);" onclick="removeFromCart('${esc(name)}');renderCart();updateCartFloat();">X</button></td>
+      </tr>
+    `;
+  }).join('');
+
+  document.getElementById('cart-total').innerHTML = `Total: <span style="color:var(--success);">R$ ${fmt(total)}</span> (${items.length} itens)`;
+}
+
+function cartQty(name, delta) {
+  cart[name] = Math.max(1, (cart[name]||1) + delta);
+  renderCart();
+  updateCartFloat();
+}
+
+// ─── RENDER REVIEW ───
+function renderReview() {
+  const items = Object.entries(cart);
+  let total = 0;
+  let totalQty = 0;
+
+  document.getElementById('review-tbody').innerHTML = items.map(([name, qty], i) => {
+    const prod = schoolProducts.find(p => p.produto === name);
+    if (!prod) return '';
+    const sub = prod.preco * qty;
+    total += sub;
+    totalQty += qty;
+    return `<tr><td>${i+1}</td><td>${name}</td><td>R$ ${prod.preco.toFixed(2).replace('.',',')}</td><td>${qty}</td><td style="font-weight:700;color:var(--success);">R$ ${fmt(sub)}</td></tr>`;
+  }).join('');
+
+  const remaining = currentUser.saldo_disponivel - total;
+  const canOrder = remaining >= 0;
+
+  document.getElementById('review-summary').innerHTML = `
+    <div class="summary-row"><span>Escola</span><span style="font-weight:600;">${currentUser.nome}</span></div>
+    <div class="summary-row"><span>CNPJ</span><span>${currentUser.cnpj}</span></div>
+    <div class="summary-row"><span>Responsável</span><span>${currentUser.responsavel}</span></div>
+    <div class="summary-row"><span>ARP</span><span>Lariucci & Ribeiro Pereira</span></div>
+    <div class="summary-row"><span>Itens</span><span>${items.length} produtos (${totalQty} unidades)</span></div>
+    <div class="summary-row"><span>Saldo ATA</span><span>R$ ${fmt(currentUser.saldo_disponivel)}</span></div>
+    <div class="summary-row total"><span>Total do Pedido</span><span class="val">R$ ${fmt(total)}</span></div>
+    <div class="summary-row"><span>Saldo após pedido</span><span style="color:${canOrder ? 'var(--success)' : 'var(--danger)'}; font-weight:700;">R$ ${fmt(remaining)}</span></div>
+    ${!canOrder ? '<div style="color:var(--danger);font-size:0.8rem;margin-top:0.5rem;font-weight:600;">⚠️ Saldo insuficiente! Reduza itens do pedido.</div>' : ''}
+  `;
+}
+
+// ─── CONFIRM ORDER ───
+function confirmOrder() {
+  const items = Object.entries(cart);
+  let total = 0;
+  items.forEach(([name, qty]) => {
+    const prod = schoolProducts.find(p => p.produto === name);
+    if (prod) total += prod.preco * qty;
+  });
+
+  if (total > currentUser.saldo_disponivel) {
+    alert('Saldo insuficiente! Reduza os itens do pedido.');
+    return;
+  }
+
+  // Generate protocol
+  const now = new Date();
+  const proto = `PED-${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}-${String(Math.floor(Math.random()*9999)).padStart(4,'0')}`;
+
+  // Update saldo
+  currentUser.saldo_disponivel -= total;
+  const pct = ((currentUser.saldo_disponivel / currentUser.saldo_total) * 100).toFixed(0);
+  document.getElementById('topbar-saldo').textContent = `Saldo: R$ ${fmt(currentUser.saldo_disponivel)} (${pct}%)`;
+
+  // Show confirmation
+  document.getElementById('confirm-protocol').textContent = proto;
+  document.getElementById('confirm-details').innerHTML = `
+    <dt>Escola</dt><dd>${currentUser.nome_completo}</dd>
+    <dt>CNPJ</dt><dd>${currentUser.cnpj}</dd>
+    <dt>Responsável</dt><dd>${currentUser.responsavel} — ${currentUser.cargo}</dd>
+    <dt>SRE</dt><dd>${currentUser.sre}</dd>
+    <dt>Fornecedor</dt><dd>Lariucci & Ribeiro Pereira</dd>
+    <dt>ARP</dt><dd>ARP-LARIUCCI-2025</dd>
+    <dt>Total do Pedido</dt><dd style="color:var(--success);font-size:1.1rem;">R$ ${fmt(total)}</dd>
+    <dt>Itens</dt><dd>${items.length} produtos</dd>
+    <dt>Saldo Restante</dt><dd>R$ ${fmt(currentUser.saldo_disponivel)}</dd>
+    <dt>Data/Hora</dt><dd>${now.toLocaleString('pt-BR')}</dd>
+    <dt>Observações</dt><dd>${document.getElementById('order-obs').value || 'Nenhuma'}</dd>
+    <dt>Status</dt><dd style="color:var(--warning);font-weight:700;">Aguardando validação</dd>
+    <dt>Próxima Etapa</dt><dd>Validação pelo Gestor de Pedidos → Compliance → Logística</dd>
+  `;
+
+  goToPhase(4);
+}
+
+function newOrder() {
+  cart = {};
+  updateCartFloat();
+  goToPhase(1);
+  renderCatalog();
+}
+
+function printOrder() { window.print(); }
+
+// Init
+init();
+</script>
+
+</body>
+</html>

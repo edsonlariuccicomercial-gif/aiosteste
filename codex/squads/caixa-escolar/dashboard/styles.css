@@ -556,6 +556,18 @@ tfoot td {
   cursor: not-allowed;
 }
 
+/* ===== BTN GDP ===== */
+.btn-gdp {
+  background: rgba(139, 92, 246, 0.15);
+  border-color: #8b5cf6;
+  color: #8b5cf6;
+  text-decoration: none;
+}
+
+.btn-gdp:hover {
+  background: rgba(139, 92, 246, 0.3);
+}
+
 /* ===== SGD SPINNER ===== */
 .sgd-spinner {
   display: inline-block;
@@ -613,6 +625,245 @@ tfoot td {
   margin-bottom: 12px;
 }
 
+/* ===== FILTERS 5 COLUMNS ===== */
+.filters-5col {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+/* ===== BADGE FORA DO ESCOPO ===== */
+.badge-fora-escopo {
+  background: rgba(100, 100, 100, 0.15);
+  color: #888;
+  border: 1px solid rgba(100, 100, 100, 0.2);
+}
+
+/* ===== BADGE WARNING SOFT (Entrega <30d) ===== */
+.badge-warning-soft {
+  background: var(--warning-dim);
+  color: var(--warning);
+  border: 1px solid rgba(244, 185, 66, 0.3);
+  font-size: 0.72rem;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 600;
+}
+
+/* ===== BADGE MUTED ===== */
+.badge-muted {
+  background: rgba(100, 100, 100, 0.12);
+  color: var(--muted);
+  border: 1px solid rgba(100, 100, 100, 0.2);
+  font-size: 0.68rem;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+/* ===== INTELLIGENCE PANEL (Passo 2) ===== */
+.intel-panel {
+  margin-bottom: var(--gap);
+}
+
+.intel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  user-select: none;
+}
+
+.intel-header h2 {
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.intel-chevron {
+  font-size: 0.8rem;
+  color: var(--muted);
+  transition: transform 0.2s;
+}
+
+.intel-body {
+  margin-top: 14px;
+}
+
+.intel-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--gap);
+  margin-bottom: 16px;
+}
+
+.intel-card {
+  padding: 12px;
+  background: var(--bg-soft);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  text-align: center;
+}
+
+.intel-label {
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+
+.intel-value {
+  font-size: 1.3rem;
+  font-weight: 700;
+  display: block;
+  color: var(--accent);
+}
+
+.intel-charts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--gap);
+}
+
+.intel-chart-box {
+  padding: 12px;
+  background: var(--bg-soft);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.intel-chart-box h3 {
+  font-size: 0.82rem;
+  font-weight: 600;
+  margin-bottom: 10px;
+  color: var(--muted);
+}
+
+.intel-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.intel-bar-label {
+  font-size: 0.72rem;
+  color: var(--text);
+  min-width: 100px;
+  max-width: 140px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.intel-bar-track {
+  flex: 1;
+  height: 8px;
+  background: rgba(143, 197, 157, 0.08);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.intel-bar-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.intel-bar-fill-alt {
+  background: #6495ed;
+}
+
+.intel-bar-value {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--muted);
+  min-width: 20px;
+  text-align: right;
+}
+
+/* ===== BATCH BAR (Passo 3) ===== */
+.batch-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  margin-bottom: 10px;
+  background: var(--accent-dim);
+  border: 1px solid rgba(78, 201, 138, 0.3);
+  border-radius: 8px;
+  font-size: 0.82rem;
+  color: var(--accent);
+}
+
+.batch-bar span:first-child {
+  font-weight: 600;
+}
+
+/* ===== CHECKBOX STYLING ===== */
+.row-check,
+#select-all {
+  accent-color: var(--accent);
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+/* ===== PNCP TOOLTIP (Passo 5) ===== */
+.pncp-tooltip {
+  display: inline-block;
+  font-size: 0.68rem;
+  padding: 1px 6px;
+  border-radius: 4px;
+  margin-top: 3px;
+  cursor: help;
+}
+
+.pncp-ok {
+  background: rgba(78, 201, 138, 0.1);
+  color: var(--accent);
+  border: 1px solid rgba(78, 201, 138, 0.2);
+}
+
+.pncp-alert {
+  background: var(--danger-dim);
+  color: var(--danger);
+  border: 1px solid rgba(255, 111, 111, 0.3);
+  font-weight: 600;
+}
+
+/* ===== SGD TAB ===== */
+.sgd-kpis {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--gap);
+  margin-bottom: 16px;
+}
+
+.sgd-kpi-card {
+  padding: 12px;
+  background: var(--bg-soft);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  text-align: center;
+}
+
+.sgd-kpi-card p {
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+
+.sgd-kpi-card strong {
+  font-size: 1.3rem;
+  font-weight: 700;
+  display: block;
+}
+
+.sgd-status-ready {
+  color: var(--accent);
+}
+
+.sgd-status-sent {
+  color: #6495ed;
+}
+
 /* ===== UTILITY ===== */
 .text-accent { color: var(--accent); }
 .text-warning { color: var(--warning); }
@@ -622,3 +873,15 @@ tfoot td {
 .text-center { text-align: center; }
 .font-mono { font-family: "JetBrains Mono", "Fira Code", monospace; }
 .nowrap { white-space: nowrap; }
+
+/* ===== RESPONSIVE — Intel & Filters ===== */
+@media (max-width: 900px) {
+  .intel-grid { grid-template-columns: 1fr; }
+  .intel-charts { grid-template-columns: 1fr; }
+  .filters-5col { grid-template-columns: repeat(3, 1fr); }
+}
+
+@media (max-width: 600px) {
+  .filters-5col { grid-template-columns: 1fr; }
+  .batch-bar { flex-wrap: wrap; }
+}

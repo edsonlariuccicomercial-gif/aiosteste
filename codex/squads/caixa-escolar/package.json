@@ -6,7 +6,11 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node server.js"
+    "dev": "node server.js",
+    "sgd:collect": "node ../../scripts/collect-sgd-orcamentos.js",
+    "sgd:submit": "node ../../scripts/submit-sgd-prequotes.js",
+    "sgd:submit:dry": "node ../../scripts/submit-sgd-prequotes.js",
+    "sgd:submit:live": "node ../../scripts/submit-sgd-prequotes.js --submit"
   },
   "dependencies": {
     "dotenv": "^16.4.7",
