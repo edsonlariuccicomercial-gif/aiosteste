@@ -1,0 +1,22 @@
+{
+  "2026000112": {
+    "status": "synchronized",
+    "queueStatus": "synced",
+    "mapStatus": "synchronized",
+    "olistOrderId": "OL-1772463692839-934",
+    "attempts": 1,
+    "syncedAt": "2026-03-03T01:27:02.726Z",
+    "lastError": "",
+    "pipelineStatus": "aceito"
+  },
+  "2026000141": {
+    "status": "synchronized",
+    "queueStatus": "synced",
+    "mapStatus": "synchronized",
+    "olistOrderId": "OL-TINY2-1772465132945",
+    "attempts": 2,
+    "syncedAt": "2026-03-02T15:25:32.945Z",
+    "lastError": "fetch failed",
+    "pipelineStatus": "aceito"
+  }
+}

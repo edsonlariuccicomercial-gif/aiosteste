@@ -1,0 +1,32 @@
+{
+  "generatedAt": "2026-03-03T01:32:39.268Z",
+  "pitch": "LicitIA MG transforma cotacoes do SGD em rotina comercial acionavel com velocidade e previsibilidade.",
+  "offers": [
+    {
+      "plan": "Starter",
+      "priceRef": "R$ 497/mes",
+      "scope": "Dashboard + filtros + exportacao + rotina operacional"
+    },
+    {
+      "plan": "Pro",
+      "priceRef": "R$ 1.497/mes",
+      "scope": "Starter + historico de preco + lance recomendado + suporte prioritario"
+    },
+    {
+      "plan": "Enterprise",
+      "priceRef": "sob proposta",
+      "scope": "Pro + customizacoes + SLA + integracoes dedicadas"
+    }
+  ],
+  "expectedOutcomes": [
+    "Reducao de risco de perder prazo.",
+    "Menor tempo para montar fila diaria de acao.",
+    "Melhor consistencia na precificacao.",
+    "Escalada operacional com menos dependencia de heroi."
+  ],
+  "cta": "Agende uma operacao assistida de 7 dias com sua base real para medir ganho em velocidade, cobertura e qualidade de decisao.",
+  "references": {
+    "onePager": "docs\\strategy\\one-pager-comercial-fornecedor-mg.md",
+    "packaging": "docs\\strategy\\commercial-packaging-plan.md"
+  }
+}

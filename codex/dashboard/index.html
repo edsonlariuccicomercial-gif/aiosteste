@@ -1,0 +1,177 @@
+﻿<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LicitIA MG - Dashboard</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="bg-shape bg-a"></div>
+    <div class="bg-shape bg-b"></div>
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Painel operacional</p>
+        <h1>LicitIA MG</h1>
+      </div>
+      <div class="topbar-right">
+        <div id="ops-health-pill" class="pill ops-pill">Ops: carregando...</div>
+        <div id="refresh-pill" class="pill refresh-pill">Atualizando...</div>
+        <button id="btn-refresh-now" type="button" class="topbar-refresh-btn">Atualizar agora</button>
+        <div class="pill">Fornecedor â€¢ Caixa Escolar MG</div>
+      </div>
+    </header>
+
+    <main class="layout">
+      <section class="kpis">
+        <article class="card kpi">
+          <p>Cotacoes abertas</p>
+          <strong id="kpi-open">0</strong>
+        </article>
+        <article class="card kpi">
+          <p>Prazo ate 48h</p>
+          <strong id="kpi-urgent">0</strong>
+        </article>
+        <article class="card kpi">
+          <p>Margem media alvo</p>
+          <strong id="kpi-margin">0%</strong>
+        </article>
+        <article class="card kpi">
+          <p>Receita potencial</p>
+          <strong id="kpi-revenue">R$ 0,00</strong>
+        </article>
+        <article class="card kpi">
+          <p>Pedidos sincronizados Olist</p>
+          <strong id="kpi-olist-sync">0</strong>
+        </article>
+      </section>
+
+      <section class="card trend-card">
+        <h2>Tendencia semanal</h2>
+        <p id="trend-headline" class="result-summary">Carregando tendencia...</p>
+        <div id="trend-metrics" class="trend-metrics"></div>
+      </section>
+
+      <section class="card ops-alerts-card">
+        <h2>Alertas operacionais</h2>
+        <div id="ops-alerts-list" class="ops-alerts-list"></div>
+      </section>
+
+      <section class="card controls">
+        <h2>Filtro tatico</h2>
+        <div class="control-grid">
+          <label>
+            SRE
+            <select id="filter-sre"></select>
+          </label>
+          <label>
+            Municipio
+            <select id="filter-city"></select>
+          </label>
+          <label>
+            Status
+            <select id="filter-status">
+              <option value="all">Todos</option>
+              <option value="aberto">Aberto</option>
+              <option value="prazo_critico">Prazo critico</option>
+              <option value="encerrado">Encerrado</option>
+            </select>
+          </label>
+          <label>
+            Busca por objeto
+            <input id="filter-query" type="text" placeholder="Ex: arroz, papel, limpeza" />
+          </label>
+        </div>
+        <div class="quick-actions">
+          <button id="qa-all" type="button">Tudo</button>
+          <button id="qa-high" type="button">Prioridade Alta</button>
+          <button id="qa-urgent" type="button">Prazo 48h</button>
+          <button id="qa-low-confidence" type="button">Baixa confianca</button>
+          <button id="btn-export-urgent" type="button">Exportar Urgentes</button>
+        </div>
+        <p id="result-summary" class="result-summary"></p>
+        <div class="sku-coverage">
+          <p id="sku-coverage-summary" class="result-summary"></p>
+          <div class="sku-coverage-actions">
+            <button id="btn-copy-sku-suggestions" type="button">Copiar sugestoes de regras</button>
+            <small id="sku-copy-feedback"></small>
+          </div>
+          <div id="sku-unclassified" class="sku-unclassified"></div>
+        </div>
+      </section>
+
+      <section class="card alerts">
+        <h2>Alertas criticos de prazo</h2>
+        <div id="critical-alerts"></div>
+      </section>
+
+      <section class="card prequote">
+        <div class="table-head">
+          <h2>Pedidos com pre-cotacao</h2>
+          <div class="prequote-head-actions">
+            <button id="btn-export-prequote-json" type="button">Exportar aprovadas (JSON)</button>
+            <button id="btn-export-prequote-csv" type="button">Exportar aprovadas (CSV)</button>
+          </div>
+        </div>
+        <p id="prequote-summary" class="result-summary"></p>
+        <small id="prequote-feedback" class="prequote-feedback"></small>
+        <div id="prequote-orders" class="prequote-orders"></div>
+      </section>
+
+      <section class="card objeto-section">
+        <div class="table-head">
+          <h2>Cotacoes por tipo de objeto</h2>
+          <div class="objeto-head-actions">
+            <button id="btn-expand-all" type="button">Expandir todos</button>
+            <button id="btn-collapse-all" type="button">Recolher todos</button>
+            <button id="btn-export-csv" type="button">Exportar CSV</button>
+          </div>
+        </div>
+        <div id="objeto-overview" class="objeto-overview"></div>
+        <div id="objeto-groups"></div>
+      </section>
+
+      <section class="card simulator">
+        <h2>Simulador de preco e margem</h2>
+        <div class="sim-grid">
+          <label>
+            SKU de referencia
+            <select id="sim-sku"></select>
+          </label>
+          <label>
+            SRE (fator regional)
+            <select id="sim-region"></select>
+          </label>
+          <label>
+            Custo unitario base (R$)
+            <input id="sim-cost" type="number" step="0.01" value="10" />
+          </label>
+          <label>
+            Frete (%)
+            <input id="sim-freight" type="number" step="0.01" value="2.5" />
+          </label>
+          <label>
+            Despesas operacionais (%)
+            <input id="sim-opex" type="number" step="0.01" value="6" />
+          </label>
+          <label>
+            Impostos (%)
+            <input id="sim-tax" type="number" step="0.01" value="8.5" />
+          </label>
+          <label>
+            Margem alvo (%)
+            <input id="sim-margin" type="number" step="0.01" value="18" />
+          </label>
+        </div>
+        <div class="sim-result">
+          <p>Custo ajustado (regiao + frete): <strong id="sim-effective-cost">R$ 0,00</strong></p>
+          <p>Preco minimo recomendado: <strong id="sim-price">R$ 0,00</strong></p>
+          <p>Lucro unitario estimado: <strong id="sim-profit">R$ 0,00</strong></p>
+        </div>
+      </section>
+    </main>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
+

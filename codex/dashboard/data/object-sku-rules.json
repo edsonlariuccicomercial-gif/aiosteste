@@ -1,0 +1,91 @@
+{
+  "updatedAt": "2026-03-03",
+  "version": 2,
+  "rules": [
+    {
+      "name": "Alimentacao feijao",
+      "skuPrefix": "ALIM-FEIJAO",
+      "keywords": ["feijao", "feijão", "carioca", "leguminosas"]
+    },
+    {
+      "name": "Alimentacao arroz e merenda",
+      "skuPrefix": "ALIM-ARROZ",
+      "keywords": ["arroz", "merenda", "alimentacao", "alimentação", "generos alimenticios", "gêneros alimentícios"]
+    },
+    {
+      "name": "Limpeza e higiene",
+      "skuPrefix": "LIMP-AGUA-SANITARIA",
+      "keywords": ["limpeza", "higiene", "agua sanitaria", "água sanitária", "saneante", "desinfetante"]
+    },
+    {
+      "name": "Escritorio e consumo escolar",
+      "skuPrefix": "ESCR-CADERNO",
+      "keywords": ["escritorio", "escritório", "consumo", "caderno", "papelaria", "material escolar"]
+    },
+    {
+      "name": "Servicos e eventos escolares",
+      "skuPrefix": "SERV-EVENTO",
+      "keywords": [
+        "confraternizacao",
+        "confraternizações",
+        "evento",
+        "formatura",
+        "excursao",
+        "rodizio",
+        "pizza",
+        "premio saeb",
+        "prêmio saeb"
+      ]
+    },
+    {
+      "name": "Manutencao e reformas",
+      "skuPrefix": "MANUT-REFORMA",
+      "keywords": ["manutencao", "manutenção", "reforma", "reformas", "reparo", "reparos", "predial"]
+    },
+    {
+      "name": "Capacitacao e formacao",
+      "skuPrefix": "CAPAC-FORMACAO",
+      "keywords": ["capacitacao", "capacitação", "formacao", "formação", "treinamento", "profissionais da educacao", "profissionais da educação"]
+    },
+    {
+      "name": "Servicos operacionais continuos",
+      "skuPrefix": "SERV-OPERACIONAL",
+      "keywords": ["servicos operacionais", "serviços operacionais", "operacionais contínuos", "operacionais continuos"]
+    },
+    {
+      "name": "Gas recarga",
+      "skuPrefix": "GAS-RECARGA",
+      "keywords": ["gas recarga", "gás recarga", "gas de cozinha", "gás de cozinha", "botijao", "botijão"]
+    },
+    {
+      "name": "Equipamentos de cozinha",
+      "skuPrefix": "EQUIP-COZINHA",
+      "keywords": ["equipamentos de cozinha", "equipamento de cozinha", "utensilios", "utensílios", "fogao", "fogão"]
+    },
+    {
+      "name": "Material pedagogico de seguranca",
+      "skuPrefix": "MATPED-SEGURANCA",
+      "keywords": ["material pedagogico de seguranca", "material pedagógico de segurança", "pedagogico de seguranca", "pedagógico de segurança"]
+    },
+    {
+      "name": "Equipamentos tecnologicos",
+      "skuPrefix": "EQUIP-TECNOLOGIA",
+      "keywords": ["equipamentos tecnologicos", "equipamentos tecnológicos", "tecnologico", "tecnológico", "computador", "notebook", "impressora"]
+    },
+    {
+      "name": "Equipamentos de seguranca",
+      "skuPrefix": "EQUIP-SEGURANCA",
+      "keywords": ["equipamentos de seguranca", "equipamentos de segurança", "seguranca predial", "segurança predial", "extintor", "camera"]
+    },
+    {
+      "name": "Mobiliarios administrativos",
+      "skuPrefix": "MOBIL-ADMINISTRATIVO",
+      "keywords": ["mobiliarios", "mobiliários", "mobiliario", "mobiliário", "administrativo", "mesa", "cadeira", "armario", "armário"]
+    },
+    {
+      "name": "Material de consumo geral",
+      "skuPrefix": "ESCR-CADERNO",
+      "keywords": ["material de consumo geral", "consumo geral"]
+    }
+  ]
+}

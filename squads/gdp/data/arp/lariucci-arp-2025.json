@@ -1,0 +1,621 @@
+{
+  "arp": {
+    "identificacao": "ARP-LARIUCCI-2025",
+    "fornecedor": {
+      "razao_social": "Lariucci & Ribeiro Pereira",
+      "email_pedidos": "angelaribeiro.comercial@gmail.com",
+      "email_comercial": "edsonlariucci.comercial@gmail.com",
+      "catalogo_id": 7770,
+      "plataforma": "CatálogoMobile"
+    },
+    "vigencia": {
+      "inicio": "2025-01-01",
+      "fim": "2026-09-19",
+      "status": "VIGENTE"
+    },
+    "data_extracao": "2026-02-28",
+    "total_escolas": 32,
+    "total_itens": 343
+  },
+  "escolas": [
+    {
+      "id": "alceu-novaes",
+      "nome": "ALCEU NOVAES - CONTRAPARTIDA/Aquisição 26/2025",
+      "categoria_id": 471826,
+      "total_itens": 43,
+      "produtos": [
+        {"item": 1, "produto": "Açucar 5 kg - Delta", "preco": 16.23, "estoque": 0},
+        {"item": 2, "produto": "Alface", "preco": 4.20, "estoque": 0},
+        {"item": 3, "produto": "Alho", "preco": 19.80, "estoque": 0},
+        {"item": 4, "produto": "Amido de milho", "preco": 7.50, "estoque": 0},
+        {"item": 5, "produto": "Arroz Casa grande - 5 Kg", "preco": 19.70, "estoque": 0},
+        {"item": 6, "produto": "Banana Prata", "preco": 5.00, "estoque": 0},
+        {"item": 7, "produto": "Batata", "preco": 3.40, "estoque": 0},
+        {"item": 8, "produto": "Beterraba", "preco": 3.44, "estoque": 0},
+        {"item": 9, "produto": "Biscoito doce (rosquinha tradicional de coco) 500 gr", "preco": 6.99, "estoque": 0},
+        {"item": 10, "produto": "Biscoito tipo maisena 400 gr", "preco": 6.24, "estoque": 0},
+        {"item": 11, "produto": "Bolacha Cream Cracker 350gr", "preco": 6.24, "estoque": 0},
+        {"item": 12, "produto": "Carne Bovina Moida", "preco": 28.63, "estoque": 0},
+        {"item": 13, "produto": "Carne Bovina Picada", "preco": 28.63, "estoque": 0},
+        {"item": 14, "produto": "Carne Pernil", "preco": 22.90, "estoque": 0},
+        {"item": 15, "produto": "Cebola", "preco": 3.40, "estoque": 0},
+        {"item": 16, "produto": "Cenoura", "preco": 3.44, "estoque": 0},
+        {"item": 17, "produto": "Coco ralado", "preco": 32.50, "estoque": 0},
+        {"item": 18, "produto": "Colorau", "preco": 9.73, "estoque": 0},
+        {"item": 19, "produto": "Couve", "preco": 4.20, "estoque": 0},
+        {"item": 20, "produto": "Extrato de tomate 350 gr - QUERO", "preco": 4.24, "estoque": 0},
+        {"item": 21, "produto": "Farinha de mandioca 500 gr - Amafil", "preco": 4.98, "estoque": 0},
+        {"item": 22, "produto": "Farinha de trigo Sol", "preco": 4.25, "estoque": 0},
+        {"item": 23, "produto": "Feijão carioca Cocal", "preco": 5.70, "estoque": 0},
+        {"item": 24, "produto": "Feijao preto tipo 1 - Camil", "preco": 5.63, "estoque": 0},
+        {"item": 25, "produto": "Filé de Peito", "preco": 19.89, "estoque": 0},
+        {"item": 26, "produto": "Fubá 500 gr - Ravena", "preco": 3.74, "estoque": 0},
+        {"item": 27, "produto": "Iogurte de frutas 90 gr - Diversos sabores", "preco": 2.49, "estoque": 0},
+        {"item": 28, "produto": "Laranja", "preco": 3.90, "estoque": 0},
+        {"item": 29, "produto": "Linguiça suína", "preco": 18.90, "estoque": 0},
+        {"item": 30, "produto": "Macarrão Espaguete 500gr", "preco": 3.98, "estoque": 0},
+        {"item": 31, "produto": "Manteiga de leite 500gr", "preco": 21.75, "estoque": 0},
+        {"item": 32, "produto": "Margarina 500gr - Claybom", "preco": 7.38, "estoque": 0},
+        {"item": 33, "produto": "Melancia", "preco": 3.90, "estoque": 0},
+        {"item": 34, "produto": "Oleo de soja", "preco": 9.40, "estoque": 0},
+        {"item": 35, "produto": "Orégano", "preco": 48.90, "estoque": 0},
+        {"item": 36, "produto": "Pão Francês 50 gr", "preco": 1.11, "estoque": 0},
+        {"item": 37, "produto": "Polpa de frutas congelada 100% natural - Frutpres", "preco": 12.90, "estoque": 0},
+        {"item": 38, "produto": "Polvilho Azedo 500 gr", "preco": 12.38, "estoque": 0},
+        {"item": 39, "produto": "Polvilho doce 500 gr", "preco": 12.38, "estoque": 0},
+        {"item": 40, "produto": "Repolho", "preco": 3.48, "estoque": 0},
+        {"item": 41, "produto": "Sal refinado", "preco": 1.75, "estoque": 0},
+        {"item": 42, "produto": "Tomate", "preco": 4.80, "estoque": 0},
+        {"item": 43, "produto": "Vinagre Vinho Branco 750 ml", "preco": 4.90, "estoque": 0}
+      ]
+    },
+    {
+      "id": "america",
+      "nome": "AMERICA",
+      "categoria_id": 223534,
+      "total_itens": 7,
+      "produtos": [
+        {"item": 1, "produto": "Amido de milho KG", "preco": 7.80, "estoque": 17},
+        {"item": 2, "produto": "Extrato de Tomate 350 gr", "preco": 2.79, "estoque": 200},
+        {"item": 3, "produto": "Farinha de mandioca 500gr", "preco": 4.80, "estoque": 50},
+        {"item": 4, "produto": "Maça", "preco": 10.40, "estoque": 260},
+        {"item": 5, "produto": "Macarrão Parafuso 500gr", "preco": 2.58, "estoque": 120},
+        {"item": 6, "produto": "Polpa de Caju (Kg) - Frutpress", "preco": 13.40, "estoque": 60},
+        {"item": 7, "produto": "Polpa de Uva (Kg) - Frutpress", "preco": 17.90, "estoque": 60}
+      ]
+    },
+    {
+      "id": "armando",
+      "nome": "ARMANDO",
+      "categoria_id": 229415,
+      "total_itens": 13,
+      "produtos": [
+        {"item": 1, "produto": "Açafrão pct 500 gr - Pachá", "preco": 10.39, "estoque": 0},
+        {"item": 2, "produto": "Amido de milho 1kg - Pachá", "preco": 7.77, "estoque": 0},
+        {"item": 3, "produto": "Aveia em flocos 500gr - Pachá", "preco": 7.79, "estoque": 0},
+        {"item": 4, "produto": "Biscoito doce tipo maisena pct 170g - Vilma", "preco": 2.70, "estoque": 0},
+        {"item": 5, "produto": "Biscoito saldado tipo crem cracker pct 170g - Vilma", "preco": 2.70, "estoque": 0},
+        {"item": 6, "produto": "Colorau pct 500g - Pachá", "preco": 7.79, "estoque": 0},
+        {"item": 7, "produto": "Extrato de tomate concentrado 1,02kg - Quero", "preco": 11.04, "estoque": 0},
+        {"item": 8, "produto": "Feijão Preto pct 1kg - João Pedro", "preco": 5.85, "estoque": 0},
+        {"item": 9, "produto": "Ovo São João - Duzia", "preco": 7.76, "estoque": 0},
+        {"item": 10, "produto": "Polpa de fruta 100gr - Abacaxi - Frutpress", "preco": 1.79, "estoque": 0},
+        {"item": 11, "produto": "Polpa de fruta 100gr - Laranja - Frutpress", "preco": 1.79, "estoque": 0},
+        {"item": 12, "produto": "Queijo minas/meia cura - Canastra", "preco": 48.10, "estoque": 0},
+        {"item": 13, "produto": "Sal Refinado - Pirâmide", "preco": 1.89, "estoque": 0}
+      ]
+    },
+    {
+      "id": "bandeira",
+      "nome": "BANDEIRA",
+      "categoria_id": 229081,
+      "total_itens": 10,
+      "produtos": [
+        {"item": 1, "produto": "Abóbora Cabotiá", "preco": 4.49, "estoque": 0},
+        {"item": 2, "produto": "Alho", "preco": 34.90, "estoque": 0},
+        {"item": 3, "produto": "Café Grão Dourado 500 gr", "preco": 33.90, "estoque": 0},
+        {"item": 4, "produto": "Extrato de Tomate QUERO PUCH", "preco": 11.89, "estoque": 0},
+        {"item": 5, "produto": "Maça", "preco": 13.86, "estoque": 0},
+        {"item": 6, "produto": "Mandioca In Natura", "preco": 5.59, "estoque": 0},
+        {"item": 7, "produto": "Manteiga de leite D' Nata 500gr", "preco": 24.80, "estoque": 0},
+        {"item": 8, "produto": "Milho Verde em Conserva 1,7 kg - Fugini", "preco": 19.50, "estoque": 0},
+        {"item": 9, "produto": "Repolho", "preco": 4.19, "estoque": 0},
+        {"item": 10, "produto": "Tomate", "preco": 7.48, "estoque": 0}
+      ]
+    },
+    {
+      "id": "bernardo-vasc-02-2026",
+      "nome": "BERNARDO VASC. 02°-2026",
+      "categoria_id": 728190,
+      "total_itens": 8,
+      "produtos": [
+        {"item": 1, "produto": "Açucar 5 kg", "preco": 13.95, "estoque": 0},
+        {"item": 2, "produto": "Cacau 200 gr", "preco": 28.78, "estoque": 0},
+        {"item": 3, "produto": "Extrato de tomate 300 gr", "preco": 2.57, "estoque": 0},
+        {"item": 4, "produto": "Feijão Carioca", "preco": 7.20, "estoque": 0},
+        {"item": 5, "produto": "Pão francês", "preco": 1.10, "estoque": 0},
+        {"item": 6, "produto": "Polvilho doce", "preco": 10.40, "estoque": 0},
+        {"item": 7, "produto": "Rosquinha caseira doce", "preco": 1.50, "estoque": 0},
+        {"item": 8, "produto": "Sal refinado", "preco": 1.82, "estoque": 0}
+      ]
+    },
+    {
+      "id": "bernardo-vasconcelos",
+      "nome": "BERNARDO VASCONCELOS",
+      "categoria_id": 233285,
+      "total_itens": 18,
+      "produtos": [
+        {"item": 1, "produto": "Amendoim em grãos - Pachá", "preco": 17.00, "estoque": 0},
+        {"item": 2, "produto": "Amido de milho Kg - Pachá", "preco": 6.54, "estoque": 0},
+        {"item": 3, "produto": "Arroz 5kg - Litoral", "preco": 26.56, "estoque": 0},
+        {"item": 4, "produto": "Aveia 500gr - Pachá", "preco": 15.17, "estoque": 0},
+        {"item": 5, "produto": "Café 500gr - Padre", "preco": 34.31, "estoque": 0},
+        {"item": 6, "produto": "Coco ralado KG - Pachá", "preco": 24.58, "estoque": 0},
+        {"item": 7, "produto": "Colorau - Pachá", "preco": 11.12, "estoque": 0},
+        {"item": 8, "produto": "Farinha de mandioca - Pachá", "preco": 5.55, "estoque": 0},
+        {"item": 9, "produto": "Farinha de trigo", "preco": 3.78, "estoque": 0},
+        {"item": 10, "produto": "Feijão Preto - Fufu Legal", "preco": 7.83, "estoque": 0},
+        {"item": 11, "produto": "Fermento em pó 250 gr - Apty", "preco": 7.49, "estoque": 0},
+        {"item": 12, "produto": "Fubá - Pachá", "preco": 3.60, "estoque": 0},
+        {"item": 13, "produto": "Macarrão espaguete 500 gr", "preco": 2.60, "estoque": 0},
+        {"item": 14, "produto": "Macarrão parafuso 500 gr", "preco": 2.60, "estoque": 0},
+        {"item": 15, "produto": "Milho de canjica amarelo - Pachá", "preco": 2.15, "estoque": 0},
+        {"item": 16, "produto": "Milho de pipoca 500 gr - Pachá", "preco": 3.40, "estoque": 0},
+        {"item": 17, "produto": "Óleo de soja 900 ml", "preco": 7.43, "estoque": 0},
+        {"item": 18, "produto": "Polpa de frutas - Frutpress", "preco": 16.64, "estoque": 0}
+      ]
+    },
+    {
+      "id": "brasil",
+      "nome": "BRASIL",
+      "categoria_id": 233283,
+      "total_itens": 11,
+      "produtos": [
+        {"item": 1, "produto": "Amido de milho Kg - Pachá", "preco": 7.74, "estoque": 0},
+        {"item": 2, "produto": "Extrato de Tomate 340 gr - Bonare", "preco": 3.54, "estoque": 0},
+        {"item": 3, "produto": "Farinha de Milho 500gr - Pachá", "preco": 4.28, "estoque": 0},
+        {"item": 4, "produto": "Farinha de trigo - Lunar", "preco": 4.49, "estoque": 0},
+        {"item": 5, "produto": "Feijao Carioca Da Casa", "preco": 5.37, "estoque": 0},
+        {"item": 6, "produto": "Fubá mimoso fino 500 gr - Kiflor", "preco": 2.04, "estoque": 0},
+        {"item": 7, "produto": "Margarina 500gr - Delícia", "preco": 8.84, "estoque": 0},
+        {"item": 8, "produto": "Mussarela Fatiada Canto de Minas", "preco": 50.31, "estoque": 0},
+        {"item": 9, "produto": "Polpa de frutas Frutpress", "preco": 12.92, "estoque": 0},
+        {"item": 10, "produto": "Polvilho doce Maniva", "preco": 12.10, "estoque": 0},
+        {"item": 11, "produto": "Sal refinado - Pirâmide", "preco": 1.90, "estoque": 0}
+      ]
+    },
+    {
+      "id": "ceopee",
+      "nome": "CEOPEE",
+      "categoria_id": 249383,
+      "total_itens": 29,
+      "produtos": [
+        {"item": 1, "produto": "Abacaxi", "preco": 8.25, "estoque": 0},
+        {"item": 2, "produto": "Alface", "preco": 4.80, "estoque": 0},
+        {"item": 3, "produto": "Alho", "preco": 17.50, "estoque": 0},
+        {"item": 4, "produto": "Arroz 5 kg", "preco": 18.10, "estoque": 0},
+        {"item": 5, "produto": "Banana nanica", "preco": 5.98, "estoque": 0},
+        {"item": 6, "produto": "Batata inglesa", "preco": 4.20, "estoque": 0},
+        {"item": 7, "produto": "Beterraba", "preco": 4.10, "estoque": 0},
+        {"item": 8, "produto": "Café La Santé 500 gr", "preco": 28.80, "estoque": 0},
+        {"item": 9, "produto": "Cará", "preco": 8.00, "estoque": 0},
+        {"item": 10, "produto": "Carne bovina", "preco": 29.90, "estoque": 0},
+        {"item": 11, "produto": "Carne bovina moída", "preco": 29.90, "estoque": 0},
+        {"item": 12, "produto": "Cebola", "preco": 2.89, "estoque": 0},
+        {"item": 13, "produto": "Cenoura", "preco": 4.20, "estoque": 0},
+        {"item": 14, "produto": "Chuchu", "preco": 7.50, "estoque": 0},
+        {"item": 15, "produto": "Extrato de tomate 340 gr", "preco": 3.20, "estoque": 0},
+        {"item": 16, "produto": "Farinha de milho", "preco": 3.90, "estoque": 0},
+        {"item": 17, "produto": "Farinha de milho - Milharina", "preco": 5.50, "estoque": 0},
+        {"item": 18, "produto": "Farinha de trigo Sol", "preco": 4.30, "estoque": 0},
+        {"item": 19, "produto": "Feijão carioca", "preco": 6.20, "estoque": 0},
+        {"item": 20, "produto": "Filé de peito", "preco": 18.80, "estoque": 0},
+        {"item": 21, "produto": "Laranja pera", "preco": 5.20, "estoque": 0},
+        {"item": 22, "produto": "Manteiga de leite 500 gr", "preco": 21.50, "estoque": 0},
+        {"item": 23, "produto": "Óleo de soja 900 ml", "preco": 7.25, "estoque": 0},
+        {"item": 24, "produto": "Ovos cartela c/ 30 und", "preco": 12.50, "estoque": 0},
+        {"item": 25, "produto": "Polpa de frutas 100 gr", "preco": 2.49, "estoque": 0},
+        {"item": 26, "produto": "Queijo meia cura", "preco": 48.90, "estoque": 0},
+        {"item": 27, "produto": "Repolho", "preco": 3.10, "estoque": 0},
+        {"item": 28, "produto": "Tomate", "preco": 7.20, "estoque": 0},
+        {"item": 29, "produto": "Vagem", "preco": 11.20, "estoque": 0}
+      ]
+    },
+    {
+      "id": "clemente",
+      "nome": "CLEMENTE",
+      "categoria_id": 249115,
+      "total_itens": 16,
+      "produtos": [
+        {"item": 1, "produto": "Açucar", "preco": 18.90, "estoque": 0},
+        {"item": 2, "produto": "Alho", "preco": 19.40, "estoque": 0},
+        {"item": 3, "produto": "Arroz 5 Kg", "preco": 18.80, "estoque": 0},
+        {"item": 4, "produto": "Cacau 500 gr", "preco": 68.90, "estoque": 0},
+        {"item": 5, "produto": "Cebola", "preco": 3.66, "estoque": 0},
+        {"item": 6, "produto": "Cenoura", "preco": 3.46, "estoque": 0},
+        {"item": 7, "produto": "Extrato de tomate 850 gr", "preco": 16.90, "estoque": 0},
+        {"item": 8, "produto": "Feijão Carioca", "preco": 6.20, "estoque": 0},
+        {"item": 9, "produto": "Feijão preto", "preco": 6.20, "estoque": 0},
+        {"item": 10, "produto": "Filé de tilápia", "preco": 49.26, "estoque": 0},
+        {"item": 11, "produto": "Linguiça suína", "preco": 21.90, "estoque": 0},
+        {"item": 12, "produto": "Milho in natura", "preco": 8.76, "estoque": 0},
+        {"item": 13, "produto": "Mussarela", "preco": 48.90, "estoque": 0},
+        {"item": 14, "produto": "Óleo 900 ml", "preco": 8.30, "estoque": 0},
+        {"item": 15, "produto": "Queijo parmesão 100 gr", "preco": 9.90, "estoque": 0},
+        {"item": 16, "produto": "Trigo p/ Quibe 500 gr", "preco": 5.98, "estoque": 0}
+      ]
+    },
+    {
+      "id": "corina",
+      "nome": "CORINA",
+      "categoria_id": 233288,
+      "total_itens": 1,
+      "produtos": [
+        {"item": 1, "produto": "Polpa de frutas congelada 100% natural - Frutpres", "preco": 14.45, "estoque": 0}
+      ]
+    },
+    {
+      "id": "dom-jose",
+      "nome": "DOM JOSÉ",
+      "categoria_id": 229078,
+      "total_itens": 7,
+      "produtos": [
+        {"item": 1, "produto": "Açafrão 500 gr - Pachá", "preco": 10.21, "estoque": 0},
+        {"item": 2, "produto": "Arroz 5 Kg - Albaruska", "preco": 37.12, "estoque": 0},
+        {"item": 3, "produto": "Cacau em Pó 500 gr - Pachá", "preco": 51.09, "estoque": 0},
+        {"item": 4, "produto": "Colorau 500 gr - Pachá", "preco": 8.75, "estoque": 0},
+        {"item": 5, "produto": "Farinha de milho - Pachá", "preco": 8.76, "estoque": 0},
+        {"item": 6, "produto": "Feijão Preto João Pedro", "preco": 6.80, "estoque": 0},
+        {"item": 7, "produto": "Polpa de Maracujá - Frutpress", "preco": 29.35, "estoque": 0}
+      ]
+    },
+    {
+      "id": "horizonta",
+      "nome": "HORIZONTA",
+      "categoria_id": 233286,
+      "total_itens": 8,
+      "produtos": [
+        {"item": 1, "produto": "Açafrão", "preco": 14.30, "estoque": 0},
+        {"item": 2, "produto": "Aveia 500 gr", "preco": 7.54, "estoque": 0},
+        {"item": 3, "produto": "Coco ralado", "preco": 23.90, "estoque": 0},
+        {"item": 4, "produto": "Fermento em pó 100 gr", "preco": 2.98, "estoque": 0},
+        {"item": 5, "produto": "Polpa de caju", "preco": 13.48, "estoque": 0},
+        {"item": 6, "produto": "Polpa de goiaba", "preco": 12.98, "estoque": 0},
+        {"item": 7, "produto": "Polpa de manga", "preco": 13.48, "estoque": 0},
+        {"item": 8, "produto": "Queijo Minas Padrão 500 gr", "preco": 19.50, "estoque": 0}
+      ]
+    },
+    {
+      "id": "irmao-afonso",
+      "nome": "IRMAO AFONSO",
+      "categoria_id": 227608,
+      "total_itens": 6,
+      "produtos": [
+        {"item": 1, "produto": "Batata Inglesa", "preco": 3.90, "estoque": 0},
+        {"item": 2, "produto": "Carne Pernil", "preco": 18.75, "estoque": 0},
+        {"item": 3, "produto": "Cebola", "preco": 3.75, "estoque": 0},
+        {"item": 4, "produto": "Cenoura", "preco": 2.50, "estoque": 0},
+        {"item": 5, "produto": "Polpa de Frutas 100 gr - Frutpres", "preco": 1.59, "estoque": 0},
+        {"item": 6, "produto": "Repolho", "preco": 3.13, "estoque": 0}
+      ]
+    },
+    {
+      "id": "ivan-mattar",
+      "nome": "IVAN MATTAR",
+      "categoria_id": 225025,
+      "total_itens": 4,
+      "produtos": [
+        {"item": 1, "produto": "Extrato de Tomate 340 gr - Bonare", "preco": 2.87, "estoque": 0},
+        {"item": 2, "produto": "Farinha de mandioca 500gr", "preco": 2.59, "estoque": 84},
+        {"item": 3, "produto": "Fermento em pó 250gr", "preco": 7.14, "estoque": 100},
+        {"item": 4, "produto": "Peito de Frango c/ Osso", "preco": 11.70, "estoque": 60}
+      ]
+    },
+    {
+      "id": "jose-mendonca",
+      "nome": "JOSE MENDONÇA",
+      "categoria_id": 661144,
+      "total_itens": 6,
+      "produtos": [
+        {"item": 1, "produto": "Açafrão 500 gr", "preco": 11.47, "estoque": 0},
+        {"item": 2, "produto": "Amido de milho 500 gr", "preco": 2.61, "estoque": 0},
+        {"item": 3, "produto": "Biscoito de água e sal 400 gr", "preco": 2.46, "estoque": 0},
+        {"item": 4, "produto": "Café 500 gr", "preco": 34.93, "estoque": 0},
+        {"item": 5, "produto": "Farinha de mandioca 500 gr", "preco": 2.24, "estoque": 0},
+        {"item": 6, "produto": "Vinagre 750 ml", "preco": 2.51, "estoque": 0}
+      ]
+    },
+    {
+      "id": "jose-mendonca-2026",
+      "nome": "JOSÉ MENDONÇA 2026",
+      "categoria_id": 727939,
+      "total_itens": 7,
+      "produtos": [
+        {"item": 1, "produto": "Filé de tilápia", "preco": 44.70, "estoque": 0},
+        {"item": 2, "produto": "Maça", "preco": 10.20, "estoque": 0},
+        {"item": 3, "produto": "Orégano", "preco": 45.36, "estoque": 0},
+        {"item": 4, "produto": "Pão de queijo congelado", "preco": 12.47, "estoque": 0},
+        {"item": 5, "produto": "Polpa de frutas congelada 100% natural", "preco": 14.40, "estoque": 0},
+        {"item": 6, "produto": "Queijo Tipo Minas/Frescal", "preco": 44.10, "estoque": 0},
+        {"item": 7, "produto": "Sal refinado", "preco": 1.25, "estoque": 0}
+      ]
+    },
+    {
+      "id": "lauriston",
+      "nome": "LAURISTON",
+      "categoria_id": 225076,
+      "total_itens": 16,
+      "produtos": [
+        {"item": 1, "produto": "Açafrao 500 gr - Pachá", "preco": 10.40, "estoque": 50},
+        {"item": 2, "produto": "Alho", "preco": 17.55, "estoque": 120},
+        {"item": 3, "produto": "Amido de milho 500 gr", "preco": 5.19, "estoque": 60},
+        {"item": 4, "produto": "Aveia 500gr", "preco": 8.45, "estoque": 50},
+        {"item": 5, "produto": "Batata Inglesa", "preco": 4.90, "estoque": 800},
+        {"item": 6, "produto": "Cebola", "preco": 4.05, "estoque": 0},
+        {"item": 7, "produto": "Colorau 500gr - Pachá", "preco": 6.47, "estoque": 60},
+        {"item": 8, "produto": "Extrato de tomate 1,02 Kg - Elefante", "preco": 18.28, "estoque": 600},
+        {"item": 9, "produto": "Feijao preto João Pedro", "preco": 6.50, "estoque": 300},
+        {"item": 10, "produto": "Fermento em pó 100 gr", "preco": 5.19, "estoque": 0},
+        {"item": 11, "produto": "Maça", "preco": 13.76, "estoque": 300},
+        {"item": 12, "produto": "Macarrão parafuso 500 gr", "preco": 3.76, "estoque": 0},
+        {"item": 13, "produto": "Mussarela", "preco": 44.90, "estoque": 0},
+        {"item": 14, "produto": "Polpa de acerola", "preco": 18.20, "estoque": 0},
+        {"item": 15, "produto": "Polpa de Caju (Kg) - Frutpress", "preco": 18.20, "estoque": 500},
+        {"item": 16, "produto": "Queijo Meia Cura Ralado - Caxambu", "preco": 78.90, "estoque": 100}
+      ]
+    },
+    {
+      "id": "loren-rios",
+      "nome": "LOREN RIOS",
+      "categoria_id": 233284,
+      "total_itens": 5,
+      "produtos": [
+        {"item": 1, "produto": "Amido de Milho", "preco": 6.75, "estoque": 0},
+        {"item": 2, "produto": "Farinha de Mandioca 500 gr", "preco": 3.38, "estoque": 0},
+        {"item": 3, "produto": "Polpa de caju 100 gr", "preco": 1.72, "estoque": 0},
+        {"item": 4, "produto": "Polpa de manga 100 gr", "preco": 1.72, "estoque": 0},
+        {"item": 5, "produto": "Queijo Canastra", "preco": 48.90, "estoque": 0}
+      ]
+    },
+    {
+      "id": "luiza-oliveira",
+      "nome": "LUIZA OLIVEIRA",
+      "categoria_id": 356043,
+      "total_itens": 13,
+      "produtos": [
+        {"item": 1, "produto": "Banana Prata", "preco": 5.68, "estoque": 0},
+        {"item": 2, "produto": "Batata Inglesa", "preco": 4.90, "estoque": 0},
+        {"item": 3, "produto": "Café Vasconcelos 500 gr", "preco": 32.40, "estoque": 0},
+        {"item": 4, "produto": "Extrato de tomate 840 gr", "preco": 11.05, "estoque": 0},
+        {"item": 5, "produto": "Feijão Preto", "preco": 6.98, "estoque": 0},
+        {"item": 6, "produto": "Filé de tilápia", "preco": 46.67, "estoque": 0},
+        {"item": 7, "produto": "Maça", "preco": 13.80, "estoque": 0},
+        {"item": 8, "produto": "Manteiga de leite 500 gr", "preco": 23.50, "estoque": 0},
+        {"item": 9, "produto": "Óleo de soja 900 ml", "preco": 8.45, "estoque": 0},
+        {"item": 10, "produto": "Polpa de abacaxi 100 gr", "preco": 1.80, "estoque": 0},
+        {"item": 11, "produto": "Polpa de manga 100 gr", "preco": 1.80, "estoque": 0},
+        {"item": 12, "produto": "Polpa de maracujá 100 gr", "preco": 2.80, "estoque": 0},
+        {"item": 13, "produto": "Queijo Minas", "preco": 52.00, "estoque": 0}
+      ]
+    },
+    {
+      "id": "maestro",
+      "nome": "MAESTRO",
+      "categoria_id": 233287,
+      "total_itens": 17,
+      "produtos": [
+        {"item": 1, "produto": "Açafrão 500 gr - Pachá", "preco": 10.36, "estoque": 0},
+        {"item": 2, "produto": "Amido de milho 500 gr - Pachá", "preco": 4.07, "estoque": 0},
+        {"item": 3, "produto": "Aveia 500 gr - Pachá", "preco": 8.37, "estoque": 0},
+        {"item": 4, "produto": "Cacau em Pó 200 gr - Pachá", "preco": 18.82, "estoque": 0},
+        {"item": 5, "produto": "Coco ralado 500 gr - Pachá", "preco": 23.81, "estoque": 0},
+        {"item": 6, "produto": "Extrato de tomate 1,02 kg - D'ajuda", "preco": 13.07, "estoque": 0},
+        {"item": 7, "produto": "Farinha de Trigo - Sol", "preco": 4.62, "estoque": 0},
+        {"item": 8, "produto": "Manteiga de leite 500 gr", "preco": 30.67, "estoque": 0},
+        {"item": 9, "produto": "Margarina", "preco": 16.63, "estoque": 0},
+        {"item": 10, "produto": "Óleo de soja 900 ml - ABC", "preco": 8.37, "estoque": 0},
+        {"item": 11, "produto": "Polpa de abacaxi", "preco": 20.83, "estoque": 0},
+        {"item": 12, "produto": "Polpa de acerola", "preco": 22.40, "estoque": 0},
+        {"item": 13, "produto": "Polpa de caju", "preco": 22.40, "estoque": 0},
+        {"item": 14, "produto": "Polpa de goiaba", "preco": 22.40, "estoque": 0},
+        {"item": 15, "produto": "Polpa de morango", "preco": 23.86, "estoque": 0},
+        {"item": 16, "produto": "Queijo mussarela", "preco": 50.14, "estoque": 0},
+        {"item": 17, "produto": "Queijo ralado 50 gr", "preco": 7.64, "estoque": 0}
+      ]
+    },
+    {
+      "id": "olavo-bilac",
+      "nome": "OLAVO BILAC - Boulanger Pucci",
+      "categoria_id": 674187,
+      "total_itens": 7,
+      "produtos": [
+        {"item": 1, "produto": "Açucar 5 kg", "preco": 14.60, "estoque": 0},
+        {"item": 2, "produto": "Cacau em pó 100% 500 gr", "preco": 44.50, "estoque": 0},
+        {"item": 3, "produto": "Feijão Carioca", "preco": 5.90, "estoque": 0},
+        {"item": 4, "produto": "Feijão Preto", "preco": 5.90, "estoque": 0},
+        {"item": 5, "produto": "Filé de Tilapia", "preco": 43.90, "estoque": 0},
+        {"item": 6, "produto": "Maça", "preco": 10.90, "estoque": 0},
+        {"item": 7, "produto": "Polpa de Frutas", "preco": 15.90, "estoque": 0}
+      ]
+    },
+    {
+      "id": "paulo-pontes",
+      "nome": "PAULO PONTES - PAS 11/2026",
+      "categoria_id": 229079,
+      "total_itens": 3,
+      "produtos": [
+        {"item": 1, "produto": "Aveia 500 gr", "preco": 8.32, "estoque": 0},
+        {"item": 2, "produto": "Bolacha de maisena 350 gr", "preco": 5.72, "estoque": 0},
+        {"item": 3, "produto": "Polpa de Frutas Frutpress", "preco": 14.95, "estoque": 0}
+      ]
+    },
+    {
+      "id": "polivalente",
+      "nome": "POLIVALENTE",
+      "categoria_id": 229076,
+      "total_itens": 7,
+      "produtos": [
+        {"item": 1, "produto": "Batata inglesa", "preco": 4.20, "estoque": 0},
+        {"item": 2, "produto": "Café Vasconcelos 500 gr", "preco": 31.20, "estoque": 0},
+        {"item": 3, "produto": "Colorau 500 gr", "preco": 5.84, "estoque": 0},
+        {"item": 4, "produto": "Extrato de Tomate QUERO", "preco": 11.05, "estoque": 0},
+        {"item": 5, "produto": "Maça", "preco": 12.90, "estoque": 0},
+        {"item": 6, "produto": "Queijo Minas", "preco": 48.10, "estoque": 0},
+        {"item": 7, "produto": "Rosquinha de coco krokero 1,5 Kg", "preco": 21.29, "estoque": 0}
+      ]
+    },
+    {
+      "id": "profa-neide",
+      "nome": "Profª Neide O. Gomes",
+      "categoria_id": 736454,
+      "total_itens": 7,
+      "produtos": [
+        {"item": 1, "produto": "Biscoito Agua e Sal 360gr", "preco": 4.98, "estoque": 0},
+        {"item": 2, "produto": "Café 500 gr", "preco": 25.60, "estoque": 0},
+        {"item": 3, "produto": "Coxa e Sobrecoxa", "preco": 9.98, "estoque": 0},
+        {"item": 4, "produto": "Feijao preto tipo 1", "preco": 6.89, "estoque": 0},
+        {"item": 5, "produto": "Manteiga de leite 500gr", "preco": 23.52, "estoque": 0},
+        {"item": 6, "produto": "Pernil suíno", "preco": 18.98, "estoque": 0},
+        {"item": 7, "produto": "Polpa de frutas congelada 100% natural", "preco": 14.40, "estoque": 0}
+      ]
+    },
+    {
+      "id": "professor-chaves",
+      "nome": "PROFESSOR CHAVES",
+      "categoria_id": 227603,
+      "total_itens": 6,
+      "produtos": [
+        {"item": 1, "produto": "Abobora Cabotiá", "preco": 4.42, "estoque": 0},
+        {"item": 2, "produto": "Chuchu", "preco": 5.33, "estoque": 0},
+        {"item": 3, "produto": "Couve", "preco": 3.55, "estoque": 0},
+        {"item": 4, "produto": "Limao", "preco": 4.90, "estoque": 0},
+        {"item": 5, "produto": "Milho Verde - Espigas", "preco": 6.50, "estoque": 0},
+        {"item": 6, "produto": "Ovo - Cartela c/ 30 Und", "preco": 19.95, "estoque": 0}
+      ]
+    },
+    {
+      "id": "santa-terezinha",
+      "nome": "SANTA TEREZINHA",
+      "categoria_id": 225024,
+      "total_itens": 7,
+      "produtos": [
+        {"item": 1, "produto": "Amido de milho 500 gr", "preco": 4.40, "estoque": 70},
+        {"item": 2, "produto": "Café Vasconcelos 500 mg", "preco": 28.80, "estoque": 0},
+        {"item": 3, "produto": "Coxa e Sobrecoxa", "preco": 19.90, "estoque": 0},
+        {"item": 4, "produto": "Maça", "preco": 10.11, "estoque": 490},
+        {"item": 5, "produto": "Macarrão espaguete 500 gr", "preco": 3.89, "estoque": 0},
+        {"item": 6, "produto": "Macarrão Padre Nosso 500 gr", "preco": 4.42, "estoque": 0},
+        {"item": 7, "produto": "Macarrão parafuso 500 gr", "preco": 3.89, "estoque": 0}
+      ]
+    },
+    {
+      "id": "santo-antonio",
+      "nome": "SANTO ANTÔNIO",
+      "categoria_id": 233289,
+      "total_itens": 3,
+      "produtos": [
+        {"item": 1, "produto": "Polpa de acerola c/ laranja - 100 gr", "preco": 1.70, "estoque": 0},
+        {"item": 2, "produto": "Polpa de Frutas Maracujá 100 gr", "preco": 2.98, "estoque": 0},
+        {"item": 3, "produto": "Polpa de Morango 100 gr", "preco": 2.89, "estoque": 0}
+      ]
+    },
+    {
+      "id": "sao-benedito",
+      "nome": "SÃO BENEDITO",
+      "categoria_id": 353730,
+      "total_itens": 6,
+      "produtos": [
+        {"item": 1, "produto": "Açucar Cristal 5 kg", "preco": 18.00, "estoque": 0},
+        {"item": 2, "produto": "Arroz tipo I - 5 kg", "preco": 23.49, "estoque": 0},
+        {"item": 3, "produto": "Aveia 5600 gr", "preco": 8.39, "estoque": 0},
+        {"item": 4, "produto": "Colorau", "preco": 8.39, "estoque": 0},
+        {"item": 5, "produto": "Óleo de Soja 900 ml", "preco": 7.48, "estoque": 0},
+        {"item": 6, "produto": "Polpa de Frutas", "preco": 14.00, "estoque": 0}
+      ]
+    },
+    {
+      "id": "sao-benedito-proc",
+      "nome": "SÃO BENEDITO PROC. 004/2025",
+      "categoria_id": 229082,
+      "total_itens": 11,
+      "produtos": [
+        {"item": 1, "produto": "Açúcar 5 kg", "preco": 18.53, "estoque": 0},
+        {"item": 2, "produto": "Amido de Milho", "preco": 7.17, "estoque": 0},
+        {"item": 3, "produto": "Arroz 5 kg", "preco": 24.90, "estoque": 0},
+        {"item": 4, "produto": "Aveia 500 gr", "preco": 9.29, "estoque": 0},
+        {"item": 5, "produto": "Cacau", "preco": 95.98, "estoque": 0},
+        {"item": 6, "produto": "Colorau", "preco": 10.68, "estoque": 0},
+        {"item": 7, "produto": "Feijão Carioca", "preco": 5.06, "estoque": 0},
+        {"item": 8, "produto": "Filé de Tilápia", "preco": 42.98, "estoque": 0},
+        {"item": 9, "produto": "Óleo de Soja", "preco": 7.59, "estoque": 0},
+        {"item": 10, "produto": "Polvilho Azedo", "preco": 9.98, "estoque": 0},
+        {"item": 11, "produto": "Queijo Minas", "preco": 44.90, "estoque": 0}
+      ]
+    },
+    {
+      "id": "tapira",
+      "nome": "TAPIRA",
+      "categoria_id": 353749,
+      "total_itens": 17,
+      "produtos": [
+        {"item": 1, "produto": "Açafrão (Kg)", "preco": 20.97, "estoque": 0},
+        {"item": 2, "produto": "Açucar 5KG", "preco": 20.29, "estoque": 0},
+        {"item": 3, "produto": "Arroz 5kg - Litoral", "preco": 24.40, "estoque": 0},
+        {"item": 4, "produto": "Carne Bovina Picada", "preco": 39.90, "estoque": 0},
+        {"item": 5, "produto": "Carne Pernil", "preco": 25.90, "estoque": 0},
+        {"item": 6, "produto": "Extrato de tomate 300 gr - Fugini", "preco": 3.90, "estoque": 0},
+        {"item": 7, "produto": "Farinha de trigo", "preco": 4.19, "estoque": 0},
+        {"item": 8, "produto": "Feijao Carioca Ligeirinho", "preco": 5.60, "estoque": 0},
+        {"item": 9, "produto": "Filé de Peito", "preco": 22.37, "estoque": 0},
+        {"item": 10, "produto": "Filé de Tilápia", "preco": 48.90, "estoque": 0},
+        {"item": 11, "produto": "Fubá de Canjica Kg - Pachá", "preco": 14.10, "estoque": 0},
+        {"item": 12, "produto": "Manteiga de leite (sem sal) D' Nata 500gr", "preco": 26.50, "estoque": 0},
+        {"item": 13, "produto": "Margarina (sem sal)", "preco": 15.98, "estoque": 0},
+        {"item": 14, "produto": "Ovos - Duzia", "preco": 11.49, "estoque": 0},
+        {"item": 15, "produto": "Polpa de frutas Frutpress", "preco": 21.00, "estoque": 0},
+        {"item": 16, "produto": "Queijo tipo parmesão", "preco": 78.90, "estoque": 0},
+        {"item": 17, "produto": "Sal refinado - Pirâmide", "preco": 2.25, "estoque": 0}
+      ]
+    },
+    {
+      "id": "vasco-santos",
+      "nome": "VASCO SANTOS",
+      "categoria_id": 229077,
+      "total_itens": 15,
+      "produtos": [
+        {"item": 1, "produto": "Abacaxi", "preco": 9.75, "estoque": 0},
+        {"item": 2, "produto": "Açafrão 500 gr", "preco": 7.77, "estoque": 0},
+        {"item": 3, "produto": "Alho", "preco": 17.55, "estoque": 0},
+        {"item": 4, "produto": "Arroz João Pedro 5 Kg", "preco": 17.80, "estoque": 0},
+        {"item": 5, "produto": "Banana Prata", "preco": 7.15, "estoque": 0},
+        {"item": 6, "produto": "Batata inglesa", "preco": 4.20, "estoque": 0},
+        {"item": 7, "produto": "Café Dona Beija 500 gr", "preco": 37.90, "estoque": 0},
+        {"item": 8, "produto": "Colorau 500 gr", "preco": 6.24, "estoque": 0},
+        {"item": 9, "produto": "Extrato de tomate Bonare 1,7 kgs", "preco": 18.20, "estoque": 0},
+        {"item": 10, "produto": "Filé de Peito", "preco": 18.00, "estoque": 0},
+        {"item": 11, "produto": "Maça", "preco": 11.80, "estoque": 0},
+        {"item": 12, "produto": "Polpa de Frutas", "preco": 16.80, "estoque": 0},
+        {"item": 13, "produto": "Polpa de maracujá", "preco": 28.34, "estoque": 0},
+        {"item": 14, "produto": "Queijo Meia Cura", "preco": 45.50, "estoque": 0},
+        {"item": 15, "produto": "Tilápia", "preco": 46.67, "estoque": 0}
+      ]
+    },
+    {
+      "id": "vicente-macedo",
+      "nome": "VICENTE MACEDO",
+      "categoria_id": 229080,
+      "total_itens": 9,
+      "produtos": [
+        {"item": 1, "produto": "Alho", "preco": 19.90, "estoque": 0},
+        {"item": 2, "produto": "Batata inglesa", "preco": 5.19, "estoque": 0},
+        {"item": 3, "produto": "Cacau em pó 200 gr", "preco": 20.90, "estoque": 0},
+        {"item": 4, "produto": "Carne suína Pernil", "preco": 23.40, "estoque": 0},
+        {"item": 5, "produto": "Maça", "preco": 11.90, "estoque": 0},
+        {"item": 6, "produto": "Manteiga de leite 500 gr", "preco": 28.90, "estoque": 0},
+        {"item": 7, "produto": "Ovos - Cartela c/ 20 und", "preco": 11.50, "estoque": 0},
+        {"item": 8, "produto": "Queijo Meia Cura Ralado", "preco": 55.50, "estoque": 0},
+        {"item": 9, "produto": "Trigo p/ Quibe", "preco": 18.90, "estoque": 0}
+      ]
+    }
+  ]
+}

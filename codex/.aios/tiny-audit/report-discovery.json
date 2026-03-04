@@ -1,0 +1,182 @@
+{
+  "startedAt": "2026-03-02T15:09:41.538Z",
+  "pages": [
+    {
+      "label": "home",
+      "url": "https://erp.tiny.com.br/",
+      "title": "ERP da Olist - Login",
+      "links": [
+        {
+          "text": "",
+          "href": "https://olist.com/"
+        },
+        {
+          "text": "Ajuda do Sistema ERP",
+          "href": "https://suporte.olist.com"
+        }
+      ],
+      "buttons": [
+        "login",
+        "contratar mais usuários",
+        "cancelar"
+      ],
+      "body": "carregando sistema\nAjuda do Sistema ERP\nEste usuário já está logado em outro dispositivo\nAo efetuar o login, as demais sessões deste usuário serão fechadas e os dados não salvos serão perdidos.\n\nPara acessar o Sistema ERP da Olist em mais dispositivos, contrate mais usuários.\nlogincontratar mais usuárioscancelar"
+    },
+    {
+      "label": "candidate_1",
+      "url": "https://erp.olist.com/",
+      "title": "ERP da Olist - Login",
+      "links": [
+        {
+          "text": "",
+          "href": "https://olist.com/"
+        },
+        {
+          "text": "Ajuda do Sistema ERP",
+          "href": "https://suporte.olist.com"
+        }
+      ],
+      "buttons": [
+        "login",
+        "contratar mais usuários",
+        "cancelar"
+      ],
+      "body": "carregando sistema\nAjuda do Sistema ERP\nEste usuário já está logado em outro dispositivo\nAo efetuar o login, as demais sessões deste usuário serão fechadas e os dados não salvos serão perdidos.\n\nPara acessar o Sistema ERP da Olist em mais dispositivos, contrate mais usuários.\nlogincontratar mais usuárioscancelar"
+    },
+    {
+      "label": "candidate_2",
+      "url": "https://erp.tiny.com.br/integracoes/marketplaces",
+      "title": "500 Internal Server Error",
+      "links": [],
+      "buttons": [],
+      "body": "Internal Server Error\n\nThe server encountered an internal error or misconfiguration and was unable to complete your request.\n\nPlease contact the server administrator at erp@olist.com to inform them of the time this error occurred, and the actions you performed just before this error.\n\nMore information about this error may be available in the server error log."
+    },
+    {
+      "label": "candidate_3",
+      "url": "https://erp.olist.com/",
+      "title": "ERP da Olist - Login",
+      "links": [
+        {
+          "text": "",
+          "href": "https://olist.com/"
+        },
+        {
+          "text": "Ajuda do Sistema ERP",
+          "href": "https://suporte.olist.com"
+        }
+      ],
+      "buttons": [
+        "login",
+        "contratar mais usuários",
+        "cancelar"
+      ],
+      "body": "carregando sistema\nAjuda do Sistema ERP\nEste usuário já está logado em outro dispositivo\nAo efetuar o login, as demais sessões deste usuário serão fechadas e os dados não salvos serão perdidos.\n\nPara acessar o Sistema ERP da Olist em mais dispositivos, contrate mais usuários.\nlogincontratar mais usuárioscancelar"
+    },
+    {
+      "label": "candidate_4",
+      "url": "https://erp.olist.com/",
+      "title": "ERP da Olist - Login",
+      "links": [
+        {
+          "text": "",
+          "href": "https://olist.com/"
+        },
+        {
+          "text": "Ajuda do Sistema ERP",
+          "href": "https://suporte.olist.com"
+        }
+      ],
+      "buttons": [
+        "login",
+        "contratar mais usuários",
+        "cancelar"
+      ],
+      "body": "carregando sistema\nAjuda do Sistema ERP\nEste usuário já está logado em outro dispositivo\nAo efetuar o login, as demais sessões deste usuário serão fechadas e os dados não salvos serão perdidos.\n\nPara acessar o Sistema ERP da Olist em mais dispositivos, contrate mais usuários.\nlogincontratar mais usuárioscancelar"
+    },
+    {
+      "label": "candidate_5",
+      "url": "https://erp.olist.com/",
+      "title": "ERP da Olist - Login",
+      "links": [
+        {
+          "text": "",
+          "href": "https://olist.com/"
+        },
+        {
+          "text": "Ajuda do Sistema ERP",
+          "href": "https://suporte.olist.com"
+        }
+      ],
+      "buttons": [
+        "login",
+        "contratar mais usuários",
+        "cancelar"
+      ],
+      "body": "carregando sistema\nAjuda do Sistema ERP\nEste usuário já está logado em outro dispositivo\nAo efetuar o login, as demais sessões deste usuário serão fechadas e os dados não salvos serão perdidos.\n\nPara acessar o Sistema ERP da Olist em mais dispositivos, contrate mais usuários.\nlogincontratar mais usuárioscancelar"
+    },
+    {
+      "label": "candidate_6",
+      "url": "https://erp.tiny.com.br/vendas/pedidos",
+      "title": "500 Internal Server Error",
+      "links": [],
+      "buttons": [],
+      "body": "Internal Server Error\n\nThe server encountered an internal error or misconfiguration and was unable to complete your request.\n\nPlease contact the server administrator at erp@olist.com to inform them of the time this error occurred, and the actions you performed just before this error.\n\nMore information about this error may be available in the server error log."
+    },
+    {
+      "label": "candidate_7",
+      "url": "https://erp.olist.com/",
+      "title": "ERP da Olist - Login",
+      "links": [
+        {
+          "text": "",
+          "href": "https://olist.com/"
+        },
+        {
+          "text": "Ajuda do Sistema ERP",
+          "href": "https://suporte.olist.com"
+        }
+      ],
+      "buttons": [
+        "login",
+        "contratar mais usuários",
+        "cancelar"
+      ],
+      "body": "carregando sistema\nAjuda do Sistema ERP\nEste usuário já está logado em outro dispositivo\nAo efetuar o login, as demais sessões deste usuário serão fechadas e os dados não salvos serão perdidos.\n\nPara acessar o Sistema ERP da Olist em mais dispositivos, contrate mais usuários.\nlogincontratar mais usuárioscancelar"
+    }
+  ],
+  "findings": [
+    {
+      "label": "home",
+      "hits": []
+    },
+    {
+      "label": "candidate_1",
+      "hits": []
+    },
+    {
+      "label": "candidate_2",
+      "hits": []
+    },
+    {
+      "label": "candidate_3",
+      "hits": []
+    },
+    {
+      "label": "candidate_4",
+      "hits": []
+    },
+    {
+      "label": "candidate_5",
+      "hits": []
+    },
+    {
+      "label": "candidate_6",
+      "hits": []
+    },
+    {
+      "label": "candidate_7",
+      "hits": []
+    }
+  ],
+  "finishedAt": "2026-03-02T15:10:06.716Z"
+}

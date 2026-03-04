@@ -1,0 +1,24 @@
+{
+  "generatedAt": "2026-03-03T00:04:49.029Z",
+  "entries": [
+    {
+      "timestamp": "2026-03-03T00:04:48.595Z",
+      "dailyStatus": "GO",
+      "alertsStatus": "GO",
+      "eodStatus": "GO",
+      "skuCoveragePct": 100,
+      "actionableQuotes": 0,
+      "urgent48h": 0,
+      "highPriority": 0,
+      "potentialRevenue": 0
+    }
+  ],
+  "weekly": {
+    "points": 1,
+    "goCount": 1,
+    "noGoCount": 0,
+    "avgSkuCoveragePct": 100,
+    "avgUrgent48h": 0,
+    "avgActionableQuotes": 0
+  }
+}

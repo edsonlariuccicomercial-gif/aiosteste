@@ -1,0 +1,229 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# PROCESS UNITS (PUs) — Classification & Validation Rules
+# ═══════════════════════════════════════════════════════════════════════════════
+# Equivalente aos MIUs do Clone 360, mas desenhado para processos operacionais.
+# Cada PU e uma unidade atomica de conhecimento processual.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+version: "1.0.0"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TIPOS DE PU
+# ─────────────────────────────────────────────────────────────────────────────
+types:
+  STEP:
+    description: "Passo concreto e executavel do processo"
+    required_fields:
+      - content        # Descricao do passo
+      - executor_hint  # human | agent | hybrid | worker
+      - estimated_time # Tempo estimado
+    optional_fields:
+      - tools_used
+      - templates_used
+    validation:
+      - "Content deve ser acao concreta (verbo + objeto)"
+      - "Nao pode ser vago: 'fazer a coisa' e invalido"
+      - "Deve ser atomico: se tem 'e' ligando duas acoes, quebrar em 2 PUs"
+    example:
+      pu_id: "PU-oferta-003"
+      type: STEP
+      content: "Escrever headline da pagina de vendas usando formula PAS (Problem-Agitate-Solution)"
+      executor_hint: agent
+      estimated_time: "15min"
+      tools_used: ["Google Docs", "template-headline.md"]
+
+  DECISION:
+    description: "Ponto de bifurcacao com condicao e branches"
+    required_fields:
+      - content     # Descricao da decisao
+      - condition   # IF {condicao}
+      - branches    # THEN A / ELSE B
+      - criteria    # O que determina a escolha
+    optional_fields:
+      - quantification  # Numeros/metricas se aplicavel
+    validation:
+      - "Condition deve ser explicita, nao vaga"
+      - "Deve ter pelo menos 2 branches"
+      - "Criteria deve vir do usuario, nao ser inventado"
+      - "'Depende' sem explicacao = invalido"
+    example:
+      pu_id: "PU-oferta-007"
+      type: DECISION
+      content: "Decidir se a oferta vai ter garantia ou nao"
+      condition: "IF ticket > R$500"
+      branches:
+        - "THEN: garantia de 30 dias com reembolso total"
+        - "ELSE: garantia de 7 dias padrao"
+      criteria: "Ticket alto = risco percebido maior = precisa garantia forte"
+
+  EXCEPTION:
+    description: "Caso atipico, falha, plano B"
+    required_fields:
+      - content   # Descricao da excecao
+      - trigger   # O que causa
+      - response  # O que o usuario faz
+      - severity  # blocker | degraded | cosmetic
+    optional_fields:
+      - frequency     # raro | ocasional | recorrente
+      - recovery_time # Tempo pra resolver
+    validation:
+      - "Trigger deve ser especifico, nao generico"
+      - "Response deve ser acao concreta"
+      - "Severity baseada no impacto no processo"
+    example:
+      pu_id: "PU-oferta-012"
+      type: EXCEPTION
+      content: "Cliente reclama que a promessa e exagerada"
+      trigger: "Headline agressiva demais gera expectativa irreal"
+      response: "Reescrever headline com proof elements, adicionar disclaimer"
+      severity: degraded
+      frequency: ocasional
+
+  QUALITY_GATE:
+    description: "Criterio de qualidade que define 'bem feito'"
+    required_fields:
+      - content      # O que e checado
+      - criteria     # Como saber se ta certo
+      - applies_to   # PU-IDs dos passos que valida
+    optional_fields:
+      - antipatterns  # O que NUNCA pode acontecer
+      - blocking      # true se para o processo, false se e warning
+    validation:
+      - "Criteria deve ser verificavel, nao subjetivo"
+      - "Deve referenciar passos especificos"
+    example:
+      pu_id: "PU-oferta-015"
+      type: QUALITY_GATE
+      content: "Validar que a oferta tem todos os 4 elementos da Value Equation"
+      criteria: "Dream Outcome + Perceived Likelihood + Time Delay + Effort/Sacrifice — todos presentes"
+      applies_to: ["PU-oferta-003", "PU-oferta-005", "PU-oferta-008"]
+      blocking: true
+
+  DEPENDENCY:
+    description: "Relacao obrigatoria entre passos"
+    required_fields:
+      - content    # Descricao da dependencia
+      - from_pu    # PU que precisa estar completo
+      - to_pu      # PU que depende
+      - type       # blocking | soft | external
+    optional_fields:
+      - reason     # Por que essa dependencia existe
+    validation:
+      - "from_pu e to_pu devem existir no banco de PUs"
+      - "Nao pode criar dependencia circular"
+    example:
+      pu_id: "PU-oferta-018"
+      type: DEPENDENCY
+      content: "Headline depende da pesquisa de dores do publico"
+      from_pu: "PU-oferta-001"
+      to_pu: "PU-oferta-003"
+      dependency_type: blocking
+      reason: "Sem pesquisa de dores, headline sera generica"
+
+  INPUT:
+    description: "Material, dado ou recurso necessario para um passo"
+    required_fields:
+      - content      # O que e o input
+      - consumed_by  # PU-ID do passo que usa
+      - source       # De onde vem (externo, passo anterior, usuario)
+    optional_fields:
+      - format       # Tipo do input (documento, dado, template, etc)
+    validation:
+      - "consumed_by deve existir como PU-STEP"
+      - "source deve ser identificavel"
+    example:
+      pu_id: "PU-oferta-020"
+      type: INPUT
+      content: "Lista de 10 maiores dores do publico-alvo"
+      consumed_by: "PU-oferta-003"
+      source: "Pesquisa de mercado (passo anterior)"
+      format: "Lista em markdown"
+
+  OUTPUT:
+    description: "Entregavel, resultado ou artefato produzido por um passo"
+    required_fields:
+      - content       # O que e o output
+      - produced_by   # PU-ID do passo que gera
+    optional_fields:
+      - consumed_by   # PU-IDs que usam esse output
+      - format        # Tipo do output
+    validation:
+      - "produced_by deve existir como PU-STEP"
+    example:
+      pu_id: "PU-oferta-022"
+      type: OUTPUT
+      content: "Pagina de vendas completa e revisada"
+      produced_by: "PU-oferta-010"
+      consumed_by: ["PU-oferta-011"]
+      format: "HTML/landing page"
+
+  TACIT:
+    description: "Conhecimento nao-articulado, intuicao, regra informal"
+    required_fields:
+      - content        # Descricao do conhecimento tacito
+      - manifestation  # Como se manifesta na pratica
+    optional_fields:
+      - related_steps  # PU-IDs dos passos onde aparece
+      - heuristic      # Regra de bolso (se possivel extrair)
+    validation:
+      - "Deve vir diretamente do usuario — nunca inventar tacit knowledge"
+      - "Se o usuario nao confirmou, marcar inferred: true"
+    example:
+      pu_id: "PU-oferta-025"
+      type: TACIT
+      content: "Quando leio a headline e nao sinto vontade de continuar lendo, sei que ta fraca"
+      manifestation: "Teste de 3 segundos: se a headline nao prende em 3 segundos, reescreve"
+      related_steps: ["PU-oferta-003"]
+      heuristic: "Se EU nao clicaria, o cliente tambem nao"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CAMPOS UNIVERSAIS (presentes em todo PU)
+# ─────────────────────────────────────────────────────────────────────────────
+universal_fields:
+  required:
+    - pu_id          # "PU-{process_slug}-{sequence:3d}" (ex: PU-oferta-003)
+    - type           # Um dos 8 tipos acima
+    - content        # Descricao atomica
+    - source_lens    # L1-L8 (qual lente extraiu)
+    - source_round   # R1, R2, R3, RN
+    - confidence     # 0.0-1.0
+    - inferred       # boolean — se true, precisa confirmacao do usuario
+
+  optional:
+    - depends_on     # Lista de PU-IDs que este PU depende
+    - related_to     # Lista de PU-IDs relacionados (cross-reference)
+    - user_confirmed # boolean — usuario validou este PU no playback
+    - notes          # Observacoes do archaeologist
+
+# ─────────────────────────────────────────────────────────────────────────────
+# REGRAS DE VALIDACAO GLOBAL
+# ─────────────────────────────────────────────────────────────────────────────
+validation_rules:
+  id_format: "^PU-[a-z0-9-]+-\\d{3}$"
+  confidence_range: [0.0, 1.0]
+  inferred_threshold: 0.3  # Se >30% dos PUs sao inferred, extracao precisa de mais rounds
+  minimum_per_process: 15
+  minimum_steps: 5             # Processo com menos de 5 STEPs e suspeito
+  minimum_decisions: 2         # Processo sem decisao e provavelmente incompleto
+  minimum_quality_gates: 1     # Processo sem criterio de qualidade = extracao superficial
+  minimum_dependencies: 1      # Processo sem dependencia = mapeamento incompleto de ordem
+
+# ─────────────────────────────────────────────────────────────────────────────
+# REGRAS DE REJEICAO
+# ─────────────────────────────────────────────────────────────────────────────
+rejection_rules:
+  - rule: "PU generico"
+    description: "Conteudo que qualquer pessoa diria (ex: 'fazer certo', 'entregar qualidade')"
+    action: "Rejeitar e pedir detalhe especifico"
+  - rule: "PU sem proveniencia"
+    description: "PU que nao veio de nenhuma lente ou round"
+    action: "Rejeitar — todo PU precisa de source_lens e source_round"
+  - rule: "PU duplicado"
+    description: "Mesmo conteudo ja existe em outro PU"
+    action: "Merge com o existente, preservar o de maior confidence"
+  - rule: "PU composto"
+    description: "PU com 'e' ou 'depois' ligando duas acoes distintas"
+    action: "Quebrar em 2+ PUs atomicos"
+  - rule: "DECISION sem criteria"
+    description: "Decisao com 'depende' mas sem explicacao do que depende"
+    action: "Marcar como incompleto, gerar pergunta cirurgica pra proximo round"

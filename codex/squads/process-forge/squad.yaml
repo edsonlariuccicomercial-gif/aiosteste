@@ -1,0 +1,169 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# SQUAD: Process Forge
+# Extrai processos complexos da cabeca do dono e transforma em squads AIOS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+name: process-forge
+title: "Process Forge"
+version: "1.0.0"
+author: "Euriler Jube"
+description: >
+  Squad especialista em extracao profunda de processos e metodologias
+  proprietarias do usuario. Combina arqueologia de processos (8 lentes
+  de extracao iterativa) com construcao AIOS (estrutura nuclear de squads).
+  Transforma conhecimento tacito em squads funcionais e validados.
+
+slash_prefix: "processForge"
+pattern_prefix: "PF"
+target_user: "Empreendedores e experts que tem processos complexos na cabeca e querem transforma-los em squads AIOS"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# USE CASES
+# ─────────────────────────────────────────────────────────────────────────────
+use_cases:
+  - id: UC1
+    name: "Extracao Completa de Processo"
+    description: "Pipeline completo: entrevista iterativa, playback, arquitetura, montagem e validacao do squad"
+  - id: UC2
+    name: "Extracao Somente"
+    description: "Extrair e documentar processo sem gerar squad (artefato reutilizavel)"
+  - id: UC3
+    name: "Squad de Processo Existente"
+    description: "Construir squad a partir de processo ja documentado (pular extracao)"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TIER SYSTEM
+# ─────────────────────────────────────────────────────────────────────────────
+tiers:
+  orchestrator:
+    - forge-chief
+  tier_1:
+    - process-archaeologist
+    - forge-smith
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TASKS
+# ─────────────────────────────────────────────────────────────────────────────
+tasks:
+  - start
+  - extract-process
+  - playback-validate
+  - architect-squad
+  - assemble-squad
+  - validate-squad
+
+# ─────────────────────────────────────────────────────────────────────────────
+# WORKFLOWS
+# ─────────────────────────────────────────────────────────────────────────────
+workflows:
+  - wf-process-forge
+
+# ─────────────────────────────────────────────────────────────────────────────
+# QUALITY GATES
+# ─────────────────────────────────────────────────────────────────────────────
+quality_gates:
+  - id: QG-PF-001
+    name: "Extraction Completeness"
+    phase: 1
+    transition: "Extracao -> Playback"
+    blocking: true
+    criteria: ">=15 PUs, 6/8 lentes cobertas, confianca media >=0.7"
+    veto: "PUs <5 ou zero decisoes extraidas"
+
+  - id: QG-PF-002
+    name: "User Validation"
+    phase: 2
+    transition: "Playback -> Arquitetura"
+    blocking: true
+    criteria: "Usuario confirma 'esse e meu processo', correcoes integradas"
+    veto: "Usuario rejeita o processo extraido"
+
+  - id: QG-PF-003
+    name: "Architecture Coherence"
+    phase: 3
+    transition: "Arquitetura -> Montagem"
+    blocking: true
+    criteria: "1-7 agentes, cada PU-STEP mapeado, sem dependencia circular"
+    veto: "0 tasks geradas ou dependencia circular"
+
+  - id: QG-PF-004
+    name: "Nuclear Structure"
+    phase: 4
+    transition: "Montagem -> Validacao"
+    blocking: true
+    criteria: "squad-validator.js PASS, tasks com 8 campos obrigatorios"
+    veto: "Validator FAIL em checks mandatorios"
+
+  - id: QG-PF-005
+    name: "Squad Operational"
+    phase: 5
+    transition: "Validacao -> Producao"
+    blocking: true
+    criteria: "2/3 smoke tests OK, usuario aprova squad gerado"
+    veto: "Usuario rejeita squad ou smoke test revela passo critico faltando"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PIPELINE
+# ─────────────────────────────────────────────────────────────────────────────
+pipeline:
+  estimated_time: "2-12 horas (depende da complexidade do processo)"
+  resumable: true
+  state_file: ".state.json"
+
+  phases:
+    - phase: 0
+      name: "Setup"
+      task: start
+      agent: forge-chief
+      blocking: false
+      duration: "3-5min"
+    - phase: 1
+      name: "Extracao de Processo"
+      task: extract-process
+      agent: process-archaeologist
+      blocking: true
+      duration: "30-90min"
+    - phase: 2
+      name: "Playback Validation"
+      task: playback-validate
+      agent: forge-chief
+      blocking: true
+      duration: "10-20min"
+    - phase: 3
+      name: "Arquitetura do Squad"
+      task: architect-squad
+      agent: forge-smith
+      blocking: true
+      duration: "15-30min"
+    - phase: 4
+      name: "Montagem do Squad"
+      task: assemble-squad
+      agent: forge-smith
+      blocking: true
+      duration: "30-60min"
+    - phase: 5
+      name: "Validacao Final"
+      task: validate-squad
+      agent: forge-chief
+      blocking: true
+      duration: "10-20min"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# OUTPUT STRUCTURE
+# ─────────────────────────────────────────────────────────────────────────────
+output:
+  base_path: "squads/process-forge/minds/{process_slug}/"
+  directories:
+    - "01-extraction/"
+    - "02-process-map/"
+    - "03-blueprint/"
+    - "04-squad/"
+    - "05-validation/"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# DEPENDENCIES
+# ─────────────────────────────────────────────────────────────────────────────
+dependencies:
+  required: []
+  optional:
+    - squad-creator  # Para squad-validator.js (validacao de estrutura nuclear)

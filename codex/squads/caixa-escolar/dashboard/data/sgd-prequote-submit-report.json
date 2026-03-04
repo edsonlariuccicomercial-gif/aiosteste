@@ -1,0 +1,17 @@
+{
+  "generatedAt": "2026-03-03T21:44:34.904Z",
+  "payloadPath": "dashboard\\data\\sgd-prequote-payload.json",
+  "submit": false,
+  "total": 1,
+  "success": 0,
+  "failed": 1,
+  "results": [
+    {
+      "budgetId": "2026004063",
+      "ok": false,
+      "message": "Orcamento nao encontrado na listagem (todas as paginas verificadas).",
+      "itemCount": 3,
+      "mode": "dry-run"
+    }
+  ]
+}

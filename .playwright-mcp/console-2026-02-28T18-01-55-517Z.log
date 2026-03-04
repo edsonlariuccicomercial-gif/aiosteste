@@ -1,0 +1,2 @@
+[  168798ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ https://lariuccieribeiropereira.catalogomobile.com.br/api/company:0
+[  183323ms] [ERROR] Failed to load resource: the server responded with a status of 401 () @ https://lariuccieribeiropereira.catalogomobile.com.br/api/v1/categories?company_id=7770:0

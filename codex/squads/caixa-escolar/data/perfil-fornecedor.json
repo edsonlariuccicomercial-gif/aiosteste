@@ -1,0 +1,62 @@
+{
+  "fornecedor": {
+    "razao_social": "Edson de Sousa Gonçalves",
+    "nome_fantasia": "LARIUCCI",
+    "cnpj": "36.802.147/0001-42",
+    "municipio": "Conquista",
+    "uf": "MG",
+    "cnae_primario": "47.12-1 - Comércio varejista alimentícios",
+    "cnae_secundario": "46.47-8 - Comércio atacadista papelaria"
+  },
+  "atuacao": {
+    "sres_full": {
+      "sres": ["Uberaba", "Uberlândia"],
+      "grupos": [
+        "Gêneros Alimentícios",
+        "Material de Consumo Geral",
+        "Material Pedagógico",
+        "Equipamentos Tecnológicos",
+        "Mobiliários Administrativos",
+        "Prêmio SAEB",
+        "Projetos Pedagógicos e Atividades Educacionais",
+        "Material Pedagógico de Segurança",
+        "Material Pedagógico Musical",
+        "Equipamentos Pedagógicos",
+        "Equipamentos de Segurança",
+        "Climatização",
+        "Equipamentos de Cozinha",
+        "Utensílios de Cozinha",
+        "Mobiliários de Cozinha",
+        "Capacitação e Formação para Profissionais da Educação"
+      ],
+      "descricao": "Atende TUDO menos Obras, Transporte e Manutenção/Reformas"
+    },
+    "demais_sres": {
+      "sres": ["Todas as demais SREs de MG"],
+      "grupos": [
+        "Material Pedagógico",
+        "Material de Consumo Geral",
+        "Equipamentos Tecnológicos",
+        "Mobiliários Administrativos",
+        "Prêmio SAEB",
+        "Projetos Pedagógicos e Atividades Educacionais",
+        "Material Pedagógico de Segurança",
+        "Material Pedagógico Musical",
+        "Equipamentos Pedagógicos",
+        "Equipamentos de Segurança",
+        "Climatização",
+        "Capacitação e Formação para Profissionais da Educação"
+      ],
+      "descricao": "Papelaria, brindes, livros, SIMAVE/SAEB, equipamentos, escritório. SEM alimentação e SEM obras"
+    },
+    "exclusoes_globais": [
+      "Obras",
+      "Manutenção e Reformas",
+      "Serviço de Transporte Contínuo",
+      "Serviços Operacionais Contínuos",
+      "Regularização de Conselho",
+      "Gás recarga",
+      "Conservação e pequenos reparos"
+    ]
+  }
+}

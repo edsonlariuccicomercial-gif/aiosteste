@@ -1,0 +1,2217 @@
+[
+  {
+    "id": "2026004143",
+    "idBudget": 153529,
+    "ano": 2026,
+    "escola": "EE JOAQUIM TIAGO DE QUEIROZ",
+    "municipio": "Iturama",
+    "sre": "Uberaba",
+    "grupo": "Material de Consumo Geral",
+    "subPrograma": "Subprograma - Manutenção Escolar e Desenvolvimento do Ensino 2026",
+    "objeto": "Manutenção, custeio e conservação da unidade escolar.",
+    "prazo": "2026-03-04",
+    "prazoEntrega": "2026-03-06",
+    "status": "aberto",
+    "participantes": "PJ",
+    "itens": [],
+    "expenseGroupId": 3626,
+    "idSchool": 10957,
+    "idSubprogram": 695
+  },
+  {
+    "id": "2026004359",
+    "idBudget": 153765,
+    "ano": 2026,
+    "escola": "EE JOAQUIM TIAGO DE QUEIROZ",
+    "municipio": "Iturama",
+    "sre": "Uberaba",
+    "grupo": "Material de Consumo Geral",
+    "subPrograma": "Subprograma - Manutenção Escolar e Desenvolvimento do Ensino 2026",
+    "objeto": "Manutenção, custeio e conservação da unidade escolar.",
+    "prazo": "2026-03-04",
+    "prazoEntrega": "2026-03-06",
+    "status": "aberto",
+    "participantes": "PJ",
+    "itens": [
+      {
+        "nome": "Papel toalha",
+        "descricao": "Papel Interfolha \n2 Dobras –\n        pacote com\n    1 000 FOLHAS\nCor: Branco\n      20 x 20 cm\n   Composição\n   100% fibras naturais 100% celulose - Marcas de preferência: SA Papéis/Alveflor/Pérola",
+        "categoria": "Custeio",
+        "unidade": "Pacote",
+        "quantidade": 10,
+        "garantia": ""
+      }
+    ],
+    "expenseGroupId": 3626,
+    "idSchool": 10957,
+    "idSubprogram": 695
+  },
+  {
+    "id": "2026006650",
+    "idBudget": 156512,
+    "ano": 2026,
+    "escola": "EE JOAQUIM TIAGO DE QUEIROZ",
+    "municipio": "Iturama",
+    "sre": "Uberaba",
+    "grupo": "Conservação e pequenos reparos",
+    "subPrograma": "Subprograma - Manutenção Escolar e Desenvolvimento do Ensino 2026",
+    "objeto": "Custear despesas emergenciais não previstas anteriormente.",
+    "prazo": "2026-03-05",
+    "prazoEntrega": "2026-04-07",
+    "status": "aberto",
+    "participantes": "PJ",
+    "itens": [
+      {
+        "nome": "Serviços de conservação e pequenos reparos",
+        "descricao": "Prestação de serviços de instalação de barreira física em alvenaria cimentícia nos beirais da edificação, para impedir entrada de pássaros nos forros e pintura do local trabalhado após o serviço.",
+        "categoria": "Custeio",
+        "unidade": "M2",
+        "quantidade": 189.9,
+        "garantia": "Obrigatório termo de visita técnica para verificação de medidas e condições estruturais do local."
+      }
+    ],
+    "expenseGroupId": 2743,
+    "idSchool": 10957,
+    "idSubprogram": 695
+  },
+  {
+    "id": "2026008576",
+    "idBudget": 158840,
+    "ano": 2026,
+    "escola": "EE JOAQUIM TIAGO DE QUEIROZ",
+    "municipio": "Iturama",
+    "sre": "Uberaba",
+    "grupo": "Material de Consumo Geral",
+    "subPrograma": "Subprograma - Manutenção Escolar e Desenvolvimento do Ensino 2026",
+    "objeto": "Manutenção, custeio e conservação da unidade escolar.",
+    "prazo": "2026-03-07",
+    "prazoEntrega": "2026-03-09",
+    "status": "aberto",
+    "participantes": "PJ",
+    "itens": [
+      {
+        "nome": "Café em pó (torrado e moído)",
+        "descricao": "Café torrado e moído. Pó fino, homogêneo, coloração castanho escuro. Embalagem atóxica. Embalagem com rótulo contendo: nome do fornecedor, informações nutricionais, lote, gramatura, datas de fabricação e vencimento. Validade mínima de 3 (três) meses a contar da data de entrega do produto. Pacote com 500 gramas ou quilo.  MARCA PREFERNCIAL: VASCONCELOS; 3 CORAÇÕES; MELITTA",
+        "categoria": "Custeio",
+        "unidade": "KG",
+        "quantidade": 60,
+        "garantia": ""
+      }
+    ],
+    "expenseGroupId": 3626,
+    "idSchool": 10957,
+    "idSubprogram": 695
+  },
+  {
+    "id": "2026009485",
+    "idBudget": 159989,
+    "ano": 2026,
+    "escola": "EE ALONSO DE MORAIS ANDRADE",
+    "municipio": "Itapagipe",
+    "sre": "Uberaba",
+    "grupo": "Gás recarga",
+    "subPrograma": "Subprograma - Manutenção Escolar e Desenvolvimento do Ensino 2026",
+    "objeto": "Assegurar o funcionamento diário e a manutenção operacional da unidade de ensino. Os recursos serão gastos conforme a necessidade operacional da unidade de ensino. Contratação de serviços essenciais (internet, telefone, serviços contábeis), contratação de pessoas físicas e/ou jurídicas para serviços, materiais de secretaria e escritório, materiais para uso em sala de aula e pelo professor: giz, pincéis para quadro, materiais pedagógicos de consumo (cartolinas, cola, EVA, etc.), materiais de limpeza: sabão, desinfetantes, detergentes, vassouras, rodos, sacos de lixo, luvas, entre outros; Gás (recarga de botijões P13 ou similares); Utensílios de cozinha; Materiais de processamento de dados: mídias, cabos de consumo, peças de pequeno valor para manutenção de computadores (mouse, teclado, etc.); Contratação de serviços de Manutenção de computadores, notebooks, impressoras e copiadoras, rede de internet, alarme, Câmeras, televisões e projetores.  Serviços de instalação de cabeamentos elétricos, serviços de instalação de internet, câmeras, televisões, projetores e sistema de som e áudio. Aquisição de Uniformes e EPI´S para as auxiliares de serviços básicos, cortinas e acessórios para salas de aulas e administrativo e outras despesas e serviços de custeio em geral.",
+    "prazo": "2026-03-06",
+    "prazoEntrega": "2026-03-10",
+    "status": "aberto",
+    "participantes": "PJ",
+    "itens": [
+      {
+        "nome": "Refil botijão - 13 kg - gás combustível",
+        "descricao": "GÁS DE COZINHA P13: \nO gás (GLP )deve atender a normas técnicas da ABNT e da ANP (Agência Nacional do Petróleo e do Gás Natural) para garantir a segurança e qualidade.\nO valor de referência por unidade é de R$104,86, conforme pesquisa de preço realizada em 03/03/2026.\nAs entregas serão realizadas conforme cronograma de entrega em entregas parceladas de 3 unidades, totalizando 10 entregas ,que pode ser solicitado pelo e-mail da escola Alonso: escola.159131@educacao.mg.gov.br.\n \n",
+        "categoria": "Custeio",
+        "unidade": "UN",
+        "quantidade": 30,
+        "garantia": ""
+      }
+    ],
+    "expenseGroupId": 2983,
+    "idSchool": 10351,
+    "idSubprogram": 695
+  },
+  {
+    "id": "2026006143",
+    "idBudget": 155887,
+    "ano": 2026,
+    "escola": "EE DOUTOR PEDRO DIAS DOS REIS",
+    "municipio": "Ibiá",
+    "sre": "Uberaba",
+    "grupo": "Equipamentos Tecnológicos",
+    "subPrograma": "Subprograma - Manutenção Escolar e Desenvolvimento do Ensino 2026",
+    "objeto": "Reserva para imprevistos, instalar concertina nos murros da escola,  pequenos reparos gerais, pintura parcial da escola ou algum lugar que tiver necessidade; revitalização da biblioteca.",
+    "prazo": "2026-03-13",
+    "prazoEntrega": "2026-04-07",
+    "status": "aberto",
+    "participantes": "PJ",
+    "itens": [
+      {
+        "nome": "Suporte móvel para tv",
+        "descricao": "suporte para tv 70 pol",
+        "categoria": "Capital",
+        "unidade": "UN",
+        "quantidade": 14,
+        "garantia": ""
+      },
+      {
+        "nome": "Cabos elétricos",
+        "descricao": "cabo de rede",
+        "categoria": "Custeio",
+        "unidade": "M",
+        "quantidade": 140,
+        "garantia": ""
+      },
+      {
+        "nome": "Cabo flexível",
+        "descricao": "metros de fio 6mm",
+        "categoria": "Custeio",
+        "unidade": "M",
+        "quantidade": 300,
+        "garantia": ""
+      },
+      {
+        "nome": "Cabos elétricos",
+        "descricao": "fio 2/5",
+        "categoria": "Custeio",
+        "unidade": "M",
+        "quantidade": 150,
+        "garantia": ""
+      },
+      {
+        "nome": "Mini chave",
+        "descricao": "DISJUNTOR BIPOLAR COM CAIXA",
+        "categoria": "Custeio",
+        "unidade": "UN",
+        "quantidade": 1,
+        "garantia": ""
+      },
+      {
+        "nome": "Suporte metálico de parede para tv",
+        "descricao": "haste de aterramento",
+        "categoria": "Custeio",
+        "unidade": "UN",
+        "quantidade": 1,
+        "garantia": ""
+      },
+      {
+        "nome": "Manutenção de equipamentos eletrônicos",
+        "descricao": "barra de tubulação/eletroduto galvanizado 3/4",
+        "categoria": "Custeio",
+        "unidade": "UN",
+        "quantidade": 1,
+        "garantia": ""
+      },
+      {
+        "nome": "Manutenção de equipamentos eletrônicos",
+        "descricao": "Abraçadeiras 3/4",
+        "categoria": "Custeio",
+        "unidade": "UN",
+        "quantidade": 30,
+        "garantia": ""
+      },
+      {
+        "nome": "Cabo HDMI",
+        "descricao": "cabo HDMI de 10metros- NECESSARIO TERMO DE VISTORIA COM ASSINATURA do responsável pelo orçamento.",
+        "categoria": "Custeio",
+        "unidade": "M",
+        "quantidade": 14,
+        "garantia": "GARANTIA DE UM ANO DOS SERVIÇOS PARA MANUTENÇÃO EM CASO DE ALGUM PROBLEMA NA PARTE ELÉTRICA."
+      }
+    ],
+    "expenseGroupId": 2925,
+    "idSchool": 10349,
+    "idSubprogram": 686
+  },
+  {
+    "id": "2026006457",
+    "idBudget": 156274,
+    "ano": 2026,
+    "escola": "EE DOUTOR PEDRO DIAS DOS REIS",
+    "municipio": "Ibiá",
+    "sre": "Uberaba",
+    "grupo": "Material Pedagógico",
+    "subPrograma": "Subprograma - Manutenção Escolar e Desenvolvimento do Ensino 2026",
+    "objeto": "Aquisição de materiais de papelaria essenciais para apoiar o bom funcionamento das atividades administrativas e pedagógicas da instituição.",
+    "prazo": "2026-03-06",
+    "prazoEntrega": "2026-03-12",
+    "status": "aberto",
+    "participantes": "PJ",
+    "itens": [
+      {
+        "nome": "Impressão de cópias em preto e branco ou coloridas",
+        "descricao": "impressão de cópias  Ciclo I da Avaliação Continua da Aprendizagem",
+        "categoria": "Custeio",
+        "unidade": "UN",
+        "quantidade": 10740,
+        "garantia": ""
+      }
+    ],
+    "expenseGroupId": 3117,
+    "idSchool": 10349,
+    "idSubprogram": 686
+  },
+  {
+    "id": "2026006531",
+    "idBudget": 156365,
+    "ano": 2026,
+    "escola": "EE DOUTOR PEDRO DIAS DOS REIS",
+    "municipio": "Ibiá",
+    "sre": "Uberaba",
+    "grupo": "Equipamentos Tecnológicos",
+    "subPrograma": "Subprograma - Manutenção Escolar e Desenvolvimento do Ensino 2026",
+    "objeto": "Adquirir os 4 ar-condicionados para o auditório;  6 Televisões, 2 impressoras coloridas. ",
+    "prazo": "2026-03-09",
+    "prazoEntrega": "2026-04-02",
+    "status": "aberto",
+    "participantes": "PJ",
+    "itens": [
+      {
+        "nome": "Impressora 3d",
+        "descricao": "Multifuncional Canon Maxify GX7010 GX-7010 GX 7010, imprime, copia e digitaliza com alta qualidade. Possui velocidade impressão em preto de 45ipm e colorido de 25ipm, textos nítidos, tela LCD de 2,7” sensível ao toque, conexão USB, Ethernet e Wireless, imprima de onde você quiser. Tinta GI-16 CMYK que lhe proporcionam brilho e nitidez. VOLTAGEM: 100-240V.",
+        "categoria": "Capital",
+        "unidade": "UN",
+        "quantidade": 2,
+        "garantia": "garantia de um ano em problemas relativos ao funcionamento do  produto."
+      }
+    ],
+    "expenseGroupId": 2925,
+    "idSchool": 10349,
+    "idSubprogram": 686
+  },
+  {
+    "id": "2026006717",
+    "idBudget": 156595,
+    "ano": 2026,
+    "escola": "EE VICENTE MACEDO",
+    "municipio": "Frutal",
+    "sre": "Uberaba",
+    "grupo": "Serviços Operacionais Contínuos",
+    "subPrograma": "Subprograma - Manutenção Escolar e Desenvolvimento do Ensino 2026",
+    "objeto": "As ações de manutenção operacional e custeio tiveram como propósito assegurar o funcionamento pleno e eficiente da escola, oferecendo condições adequadas de trabalho, organização e segurança a toda a comunidade escolar. As medidas adotadas foram planejadas para suprir as demandas essenciais de infraestrutura, serviços e materiais, garantindo continuidade, qualidade e eficiência nas atividades pedagógicas e administrativas.\n\nA compra de gás viabiliza o preparo adequado da merenda. Os serviços de internet e telefonia asseguram comunicação eficaz entre os setores internos, famílias, professores e órgãos da rede. A contratação de assessoria contábil é indispensável para o cumprimento das responsabilidades legais e financeiras, assegurando transparência e correta prestação de contas. Já os serviços logísticos para envio e recebimento de documentos junto à SRE agilizam o fluxo institucional e garantem o andamento adequado dos processos escolares.A manutenção dos aparelhos de ar-condicionado, incluindo limpeza, troca de filtros e ajustes \ntécnicos, assegurará conforto térmico e maior eficiência dos equipamentos nas salas e setores \nadministrativos.\n\n\nAs ações voltadas à segurança, higiene e limpeza mantêm a escola organizada, protegida e acolhedora. A aquisição de materiais de limpeza e a contratação de serviços especializados preservam os ambientes, evitando riscos sanitários e promovendo um espaço saudável para estudantes, funcionários e visitantes. A compra de EPIs para os Auxiliares de Serviços Gerais reforça a proteção no exercício das atividades, cumprindo as normas legais e garantindo segurança no trabalho.\n\nA aquisição de materiais de escritório sustenta o funcionamento das rotinas administrativas e pedagógicas, permitindo organização documental, elaboração de planejamentos e execução dos procedimentos internos.\n\nEm conjunto, todas essas ações asseguram uma infraestrutura adequada, maior segurança, melhor organização e condições dignas de trabalho, garantindo que a escola opere plenamente e ofereça um ambiente de qualidade para toda a comunidade escolar.",
+    "prazo": "2026-03-05",
+    "prazoEntrega": "2026-03-05",
+    "status": "aberto",
+    "participantes": "PJ",
+    "itens": [
+      {
+        "nome": "Fretes e transportes de encomendas",
+        "descricao": "Transporte de documentos da escola Vicente Macedo com destino a SRE de Uberaba, será de acordo com a necessidade da escola, perante assinatura de contrato com previsão até 31/12/2026.\n",
+        "categoria": "Custeio",
+        "unidade": "Unidade",
+        "quantidade": 25,
+        "garantia": ""
+      }
+    ],
+    "expenseGroupId": 3530,
+    "idSchool": 10348,
+    "idSubprogram": 695
+  },
+  {
+    "id": "2026009711",
+    "idBudget": 160244,
+    "ano": 2026,
+    "escola": "EE VICENTE MACEDO",
+    "municipio": "Frutal",
+    "sre": "Uberaba",
+    "grupo": "Equipamentos de Cozinha",
+    "subPrograma": "Subprograma - Manutenção Escolar e Desenvolvimento do Ensino 2026",
+    "objeto": "A iniciativa tem como propósito assegurar o funcionamento contínuo e eficiente da infraestrutura escolar por meio de ações de manutenção planejadas, preventivas e corretivas. Essas intervenções buscam preservar a estrutura física da escola, garantir a segurança de todos, evitar danos prematuros aos elementos construtivos e manter condições adequadas para o desenvolvimento das atividades pedagógicas e administrativas.\n\nAs medidas incluem serviços essenciais de conservação, como limpeza e manutenção de telhados, calhas, ralos, caixas d’água e redes de esgoto e drenagem, prevenindo infiltrações e assegurando o bom desempenho dos sistemas hidrossanitários. Também abrangem dedetização, desratização, poda de pequenos arbustos e capina, contribuindo para a higiene, organização e salubridade das áreas externas.\n\nNo que se refere ao sistema elétrico, serão realizados ajustes pontuais e substituição de lâmpadas, luminárias, tomadas, interruptores e disjuntores, visando maior eficiência, segurança e continuidade no fornecimento de energia. Na rede hidráulica, haverá reparos e trocas de torneiras, registros, sifões e tubulações, prevenindo desperdícios, garantindo melhor higiene e permitindo avaliações necessárias devido à recorrente falta de água.\n\nAs ações contemplam ainda a recuperação de esquadrias e elementos estruturais, incluindo conserto de portas, janelas, fechaduras, vidros, espelhos, pisos e revestimentos, além de pintura em áreas deterioradas, assegurando funcionalidade, boa aparência e durabilidade das instalações.\n\nA contratação de empresa especializada permitirá maior precisão técnica, redução de riscos, conformidade com normas de segurança e resposta mais eficiente às demandas estruturais da escola. Esse suporte profissional contribui para preservar o patrimônio público, prolongar a vida útil dos espaços e garantir condições adequadas ao dia a dia da unidade escolar.\n\nTodas as intervenções serão executadas por profissionais habilitados, observando padrões técnicos e de segurança e respeitando os limites previstos para pequenos reparos. Assim, a iniciativa assegura uma escola mais organizada, segura e apropriada ao exercício das atividades educativas, oferecendo um ambiente funcional, acolhedor e bem cuidado para toda a comunidade escolar.",
+    "prazo": "2026-03-08",
+    "prazoEntrega": "2026-03-08",
+    "status": "aberto",
+    "participantes": "PJ",
+    "itens": [
+      {
+        "nome": "Registro regulador de gás",
+        "descricao": "Mangueira flexível com rosca NPT macho e fêmea giratória 1/2, de 1,5mt, cobert. trançada em aço inoxidável e fios de nylon resistente. Atendendo a Norma NBR. \n\nPressão de Trabalho: 2,0 MPa / 20 bar / 290 psi. \nPressão de Ruptura: 10,0 MPa / 100 bar / 1450 psi. \nTemperatura de Trabalho: -20°C a 90°C \n \nRegistro 1/2 angular 90° macho/macho, abre e fecha o gás.\n Adapt. fêmea, com aperto em abraçadeira. Para encaixe em bico espigão/mamadeira de seu eletrodoméstico. Anel de vedação. Fita veda rosca.",
+        "categoria": "Custeio",
+        "unidade": "Unidade",
+        "quantidade": 2,
+        "garantia": "06 meses de garantia."
+      }
+    ],
+    "expenseGroupId": 2791,
+    "idSchool": 10348,
+    "idSubprogram": 695
+  },
+  {
+    "id": "2026009732",
+    "idBudget": 160268,
+    "ano": 2026,
+    "escola": "EE VICENTE MACEDO",
+    "municipio": "Frutal",
+    "sre": "Uberaba",
+    "grupo": "Serviços Operacionais Contínuos",
+    "subPrograma": "Subprograma - Manutenção Escolar e Desenvolvimento do Ensino 2026",
+    "objeto": "As ações de manutenção operacional e custeio tiveram como propósito assegurar o funcionamento pleno e eficiente da escola, oferecendo condições adequadas de trabalho, organização e segurança a toda a comunidade escolar. As medidas adotadas foram planejadas para suprir as demandas essenciais de infraestrutura, serviços e materiais, garantindo continuidade, qualidade e eficiência nas atividades pedagógicas e administrativas.\n\nA compra de gás viabiliza o preparo adequado da merenda. Os serviços de internet e telefonia asseguram comunicação eficaz entre os setores internos, famílias, professores e órgãos da rede. A contratação de assessoria contábil é indispensável para o cumprimento das responsabilidades legais e financeiras, assegurando transparência e correta prestação de contas. Já os serviços logísticos para envio e recebimento de documentos junto à SRE agilizam o fluxo institucional e garantem o andamento adequado dos processos escolares.A manutenção dos aparelhos de ar-condicionado, incluindo limpeza, troca de filtros e ajustes \ntécnicos, assegurará conforto térmico e maior eficiência dos equipamentos nas salas e setores \nadministrativos.\n\n\nAs ações voltadas à segurança, higiene e limpeza mantêm a escola organizada, protegida e acolhedora. A aquisição de materiais de limpeza e a contratação de serviços especializados preservam os ambientes, evitando riscos sanitários e promovendo um espaço saudável para estudantes, funcionários e visitantes. A compra de EPIs para os Auxiliares de Serviços Gerais reforça a proteção no exercício das atividades, cumprindo as normas legais e garantindo segurança no trabalho.\n\nA aquisição de materiais de escritório sustenta o funcionamento das rotinas administrativas e pedagógicas, permitindo organização documental, elaboração de planejamentos e execução dos procedimentos internos.\n\nEm conjunto, todas essas ações asseguram uma infraestrutura adequada, maior segurança, melhor organização e condições dignas de trabalho, garantindo que a escola opere plenamente e ofereça um ambiente de qualidade para toda a comunidade escolar.",
+    "prazo": "2026-03-04",
+    "prazoEntrega": "2026-03-04",
+    "status": "aberto",
+    "participantes": "PJ",
+    "itens": [
+      {
+        "nome": "Serviço de assinatura digital",
+        "descricao": "Certificado digital E-CNPJ Tipo A (validade de 36 meses TOKEN reutilizado ICP PLUS*\nPLUS é um beneficio de reemissão gratuita, durante o período de vigência(03 anos) caso ocorra algum dano ao arquivo do CERTIFICADO DIGITAL. NÃO ENVIAR PROPOSTA, PROCESSO DE REGULARIZAÇÃO NO SISTEMA.",
+        "categoria": "Custeio",
+        "unidade": "Unidade",
+        "quantidade": 0.1,
+        "garantia": ""
+      }
+    ],
+    "expenseGroupId": 3530,
+    "idSchool": 10348,
+    "idSubprogram": 695
+  },
+  {
+    "id": "2026009499",
+    "idBudget": 160004,
+    "ano": 2026,
+    "escola": "EE PADRE HENRIQUE PEETERS",
+    "municipio": "Campo Florido",
+    "sre": "Uberaba",
+    "grupo": "Mobiliários Administrativos",
+    "subPrograma": "Subprograma - Manutenção Escolar e Desenvolvimento do Ensino 2026",
+    "objeto": "A iniciativa de aquisição de mobiliários e equipamentos tem como objetivo aprimorar as condições estruturais e funcionais da escola, garantindo ambientes mais organizados, confortáveis e adequados para o desenvolvimento das atividades administrativas e pedagógicas. Para isso, serão adquiridos armários porta celular para as salas de aula, para que os alunos possam guardar os aparelhos de forma segura durante as aulas, bebedouros industriais, pois os que temos na escola o armazenamento é muito pequeno e sempre falta água , aparelhos de ar condicionado para a secretaria e a biblioteca para dar mais conforto e consequentemente maior rendimento tanto no trabalho dos servidores quanto na aprendizagem dos alunos liquidificadores industriais para preparação do lanche,  freezer para acondicionar alimentos perecíveis, tanquinho para ajudar no trabalho diário das ASBs e quadro de vidro quadriculado para salas de aula, beneficiando alunos e professores no processo ensino-aprendizagem.  A climatização dos ambientes será aprimorada com a instalação de aparelhos de ar-condicionado em setores estratégicos, como secretaria proporcionando conforto térmico e melhores condições de trabalho e aprendizagem.  De forma integrada, todos esses investimentos contribuirão para modernizar a infraestrutura escolar, qualificar os ambientes de ensino, apoiar o trabalho pedagógico, administrativo e técnico, e proporcionar maior bem-estar à comunidade escolar. A iniciativa reforça o compromisso com a melhoria contínua do espaço físico e com a oferta de condições adequadas para o desenvolvimento das atividades educacionais e profissionais. ",
+    "prazo": "2026-03-08",
+    "prazoEntrega": "2026-03-23",
+    "status": "aberto",
+    "participantes": "PF/PJ",
+    "itens": [
+      {
+        "nome": "Quadro de vidro",
+        "descricao": "Descrição\n\nLOUSA DE VIDRO QUADRICULADA INSTALADA , VIDRO TEMPERADO DE 6MM, CANTOS ARREDONDADOS E LAPIDADOS. 08 FUROS PARA FIXAÇÃO, 08 ESPAÇADORES EM AÇO, ACABAMENTO COM TAMPA: MATERIAL AÇO INOX POLIDO DESTACANDO A LOUSA, PELÍCULA DE SEGURANÇA QUADRICULADA APLICADA ATRÁS DO VIDRO. SUPORTE EM ACRÍLICO PARA APAGADOR .  VISITA TÉCNICA ATÉ 01DIA ANTES PARA VERIFICAR O LOCAL DA INSTALAÇÃO, BEM COMO OS MATERIAIS A SEREM UTILIZADOS. ATESTADO DE VISITA TÉCNICA ASSINADO PELA DIREÇÃO DA ESCOLA \n",
+        "categoria": "Capital",
+        "unidade": "Unidade",
+        "quantidade": 14,
+        "garantia": "GARANTIA CONFORME DESCRIÇÃO E INSTALAÇÃO"
+      },
+      {
+        "nome": "Bebedouro industrial",
+        "descricao": "Bebedouro industrial 200 L com gabinete em aço inox 430, reservatório em polietileno atóxico e serpentina em inox 304. Termostato de 0 a 7 °C, compressor Embraco 1/3 HP, gás R134A e tensão 127 V. Possui 4 torneiras cromadas, filtro externo, bóia de nível, pés reguláveis e mangueira de escoamento. Atende até 600 pessoas. Garantia de 6 meses. Exige catálogo, ficha técnica e visita técnica prévia com atestado assinado pela direção.",
+        "categoria": "Capital",
+        "unidade": "Unidade",
+        "quantidade": 2,
+        "garantia": "GARANTIA DE UM ANO E INSTALAÇÃO"
+      },
+      {
+        "nome": "Armário cofre",
+        "descricao": "Armário Porta Celulares Escolar - 44 Nichos Caracteristicas: Estrutura 100% em Aço Galvanizado. Portas com visor em acrílico pars visualização dos aparelhos Nichos em EVA . 01 Fechadura com 2 chaves. Cor Chumbo .  Os armários deverão ser instalados nas salas de aula. Necessário fazer visita técnica  para verificar o local da instalação, bem como os materiais a serem utilizados na instalação. Atestado de visita técnica assinado pela direção da escola",
+        "categoria": "Capital",
+        "unidade": "Unidade",
+        "quantidade": 14,
+        "garantia": ""
+      }
+    ],
+    "expenseGroupId": 3464,
+    "idSchool": 11149,
+    "idSubprogram": 695
+  },
+  {
+    "id": "2026003109",
+    "idBudget": 152277,
+    "ano": 2026,
+    "escola": "EE ARMANDO SANTOS",
+    "municipio": "Araxá",
+    "sre": "Uberaba",
+    "grupo": "Serviços Operacionais Contínuos",
+    "subPrograma": "Subprograma - Manutenção Escolar e Desenvolvimento do Ensino 2026",
+    "objeto": "Os recursos de manutenção predial são necessários para a escola e têm como objetivo garantir a conservação e o bom funcionamento de sua estrutura. Eles são essenciais para manter salas de aula, banheiros e áreas comuns em condições adequadas de uso. A manutenção previne acidentes e assegura a segurança de estudantes e profissionais. Ambientes bem cuidados favorecem o conforto e o aprendizado. Esses recursos também contribuem para a durabilidade do patrimônio público. A manutenção predial evita gastos maiores com reformas futuras. Além disso, promove um ambiente escolar mais organizado e acolhedor. Assim, os recursos de manutenção predial são fundamentais para a qualidade do ensino e do espaço escolar.",
+    "prazo": "2026-03-03",
+    "prazoEntrega": "2026-12-20",
+    "status": "aberto",
+    "participantes": "PJ",
+    "itens": [
+      {
+        "nome": "Serviço de limpeza de caixas d’água",
+        "descricao": "Limpeza de sete caixas d'agua de 1000L cada ( limpeza ser realizada semestralmente).",
+        "categoria": "Custeio",
+        "unidade": "Unidade",
+        "quantidade": 14,
+        "garantia": "O serviço de limpeza e higienização da caixa d’água deve ser realizado conforme procedimentos técnicos adequados, utilizando produtos apropriados e em conformidade com as normas sanitárias vigentes com emissão de laudos técnicos após o serviço realizado."
+      }
+    ],
+    "expenseGroupId": 3530,
+    "idSchool": 10329,
+    "idSubprogram": 695
+  },
+  {
+    "id": "2026003113",
+    "idBudget": 152283,
+    "ano": 2026,
+    "escola": "EE ARMANDO SANTOS",
+    "municipio": "Araxá",
+    "sre": "Uberaba",
+    "grupo": "Serviços Operacionais Contínuos",
+    "subPrograma": "Subprograma - Manutenção Escolar e Desenvolvimento do Ensino 2026",
+    "objeto": "Os recursos de manutenção predial são necessários para a escola e têm como objetivo garantir a conservação e o bom funcionamento de sua estrutura. Eles são essenciais para manter salas de aula, banheiros e áreas comuns em condições adequadas de uso. A manutenção previne acidentes e assegura a segurança de estudantes e profissionais. Ambientes bem cuidados favorecem o conforto e o aprendizado. Esses recursos também contribuem para a durabilidade do patrimônio público. A manutenção predial evita gastos maiores com reformas futuras. Além disso, promove um ambiente escolar mais organizado e acolhedor. Assim, os recursos de manutenção predial são fundamentais para a qualidade do ensino e do espaço escolar.",
+    "prazo": "2026-03-03",
+    "prazoEntrega": "2026-12-20",
+    "status": "aberto",
+    "participantes": "PJ",
+    "itens": [
+      {
+        "nome": "Serviço de limpeza de caixas d’água",
+        "descricao": "Limpeza de uma caixa d'água de 500L ( limpeza a ser realizada semestralmente).",
+        "categoria": "Custeio",
+        "unidade": "Unidade",
+        "quantidade": 2,
+        "garantia": "O serviço de limpeza e higienização da caixa d’água deve ser realizado conforme procedimentos técnicos adequados, utilizando produtos apropriados e em conformidade com as normas sanitárias vigentes com emissão de laudos técnicos após o serviço realizado."
+      }
+    ],
+    "expenseGroupId": 3530,
+    "idSchool": 10329,
+    "idSubprogram": 695
+  },
+  {
+    "id": "2026003122",
+    "idBudget": 152295,
+    "ano": 2026,
+    "escola": "EE ARMANDO SANTOS",
+    "municipio": "Araxá",
+    "sre": "Uberaba",
+    "grupo": "Serviços Operacionais Contínuos",
+    "subPrograma": "Subprograma - Manutenção Escolar e Desenvolvimento do Ensino 2026",
+    "objeto": "Os recursos de manutenção predial são necessários para a escola e têm como objetivo garantir a conservação e o bom funcionamento de sua estrutura. Eles são essenciais para manter salas de aula, banheiros e áreas comuns em condições adequadas de uso. A manutenção previne acidentes e assegura a segurança de estudantes e profissionais. Ambientes bem cuidados favorecem o conforto e o aprendizado. Esses recursos também contribuem para a durabilidade do patrimônio público. A manutenção predial evita gastos maiores com reformas futuras. Além disso, promove um ambiente escolar mais organizado e acolhedor. Assim, os recursos de manutenção predial são fundamentais para a qualidade do ensino e do espaço escolar.",
+    "prazo": "2026-03-03",
+    "prazoEntrega": "2026-12-20",
+    "status": "aberto",
+    "participantes": "PJ",
+    "itens": [
+      {
+        "nome": "Serviço de limpeza de caixas de gordura e esgoto",
+        "descricao": "Limpeza de duas caixas de gordura( limpeza a ser realizada semestralmente) ",
+        "categoria": "Custeio",
+        "unidade": "Unidade",
+        "quantidade": 4,
+        "garantia": "O serviço de limpeza de caixa de gordura deve ser realizado conforme procedimentos técnicos adequados, utilizando produtos apropriados e em conformidade com as normas sanitárias vigentes com emissão de laudos técnicos após o serviço realizado."
+      }
+    ],
+    "expenseGroupId": 3530,
+    "idSchool": 10329,
+    "idSubprogram": 695
+  },
+  {
+    "id": "2026003127",
+    "idBudget": 152300,
+    "ano": 2026,
+    "escola": "EE ARMANDO SANTOS",
+    "municipio": "Araxá",
+    "sre": "Uberaba",
+    "grupo": "Serviços Operacionais Contínuos",
+    "subPrograma": "Subprograma - Manutenção Escolar e Desenvolvimento do Ensino 2026",
+    "objeto": "Os recursos de manutenção predial são necessários para a escola e têm como objetivo garantir a conservação e o bom funcionamento de sua estrutura. Eles são essenciais para manter salas de aula, banheiros e áreas comuns em condições adequadas de uso. A manutenção previne acidentes e assegura a segurança de estudantes e profissionais. Ambientes bem cuidados favorecem o conforto e o aprendizado. Esses recursos também contribuem para a durabilidade do patrimônio público. A manutenção predial evita gastos maiores com reformas futuras. Além disso, promove um ambiente escolar mais organizado e acolhedor. Assim, os recursos de manutenção predial são fundamentais para a qualidade do ensino e do espaço escolar.",
+    "prazo": "2026-03-03",
+    "prazoEntrega": "2026-12-20",
+    "status": "aberto",
+    "participantes": "PJ",
+    "itens": [
+      {
+        "nome": "Serviço de dedetização e controle de pragas",
+        "descricao": "Deve ser realizada a desratização, dedetização contra roedores e demais insetos nos ambientes do prédio escolar. ( deverá ser realizado semestralmente).",
+        "categoria": "Custeio",
+        "unidade": "Unidade",
+        "quantidade": 2,
+        "garantia": "O serviço de desratização, dedetização contra roedores e demais insetos deve ser realizado conforme procedimentos técnicos adequados, utilizando produtos apropriados e em conformidade com as normas sanitárias vigentes.\n\n"
+      }
+    ],
+    "expenseGroupId": 3530,
+    "idSchool": 10329,
+    "idSubprogram": 695
+  },
+  {
+    "id": "2026007685",
+    "idBudget": 157796,
+    "ano": 2026,
+    "escola": "EE DOM JOSE GASPAR",
+    "municipio": "Araxá",
+    "sre": "Uberaba",
+    "grupo": "Serviços Operacionais Contínuos",
+    "subPrograma": "Subprograma - Manutenção Escolar e Desenvolvimento do Ensino 2026",
+    "objeto": "Pagamentos mensais de Contas: serviços operacionais contínuos:  internet e telefone, Vigilância Eletrônica, Sistema de Segurança, Impostos, Contador, Despesas com cartório, para regularização de conselho, Gás de Cozinha, Itens de Papelaria (Folha A4, Tonners), Dedetização e Limpeza de Caixa D'água, Uniformes e EPI's ASB's Cozinha e Serviços Gerais, Itens de Limpeza, Manutenção em Fogões e Panelas de Pressão e Liquidificadores, Manutenção, formatação, atualização de computadores da sala de informática e administrativos, Roteadores Wi-fi, Rede Lógica, Manutenção das Copiadoras e Impressoras, Manutenção do Sistema de Sonorização, Manutenção (Tais como: Troca de peças, válvulas, gatilho, mangueira, manômetro) e Recarga gás dos extintores, Aquisição de itens de manutenção hidráulico e elétrico, Contratação de empresa para jardinagem e conservação do ambiente externo, Manutenção e conserto dos Toldos. Contratação de serviço para manutenção nas câmeras adquiridas pela escola, Manutenção do portão e controles dos portões de entrada e estacionamento. Aquisição de material esportivo (Bolas, Redes, Jogos, Petecas, dentre outros relacionados a atividades esportivas). Utensílios de cozinha, material de consumo geral. *Ação Extraordinária - Emergencial, garantir cobertura de despesas não previstas (será reservado 15% do valor total do plano no valor de \"R$ 56.455,74 (cinquenta e seis mil, quatrocentos e cinquenta e cinco reais e setenta e quatro centavos)\").",
+    "prazo": "2026-03-03",
+    "prazoEntrega": "2026-03-03",
+    "status": "aberto",
+    "participantes": "PJ",
+    "itens": [
+      {
+        "nome": "Serviços contábeis",
+        "descricao": "Prestação de serviços contábeis para elaboração de: Rais, DCTF, ECF Fiscal, E-Social, GFIPs, DIRF, regularização de situação fiscal para emissão de CND Federal, registros de atas, regulamentos e estatuto em Cartórios e regularização de CNPJ e demais serviços fiscais e contábeis que uma entidade para fins não econômicos necessitar para estar em dia com suas obrigações fiscais e tributárias. (Contrato anual) (Processo somente para regularização, não enviar propostas.)",
+        "categoria": "Custeio",
+        "unidade": "Unidade",
+        "quantidade": 1,
+        "garantia": ""
+      }
+    ],
+    "expenseGroupId": 3530,
+    "idSchool": 10333,
+    "idSubprogram": 695
+  },
+  {
+    "id": "2026007698",
+    "idBudget": 157809,
+    "ano": 2026,
+    "escola": "EE DOM JOSE GASPAR",
+    "municipio": "Araxá",
+    "sre": "Uberaba",
+    "grupo": "Gás recarga",
+    "subPrograma": "Subprograma - Manutenção Escolar e Desenvolvimento do Ensino 2026",
+    "objeto": "Pagamentos mensais de Contas: serviços operacionais contínuos:  internet e telefone, Vigilância Eletrônica, Sistema de Segurança, Impostos, Contador, Despesas com cartório, para regularização de conselho, Gás de Cozinha, Itens de Papelaria (Folha A4, Tonners), Dedetização e Limpeza de Caixa D'água, Uniformes e EPI's ASB's Cozinha e Serviços Gerais, Itens de Limpeza, Manutenção em Fogões e Panelas de Pressão e Liquidificadores, Manutenção, formatação, atualização de computadores da sala de informática e administrativos, Roteadores Wi-fi, Rede Lógica, Manutenção das Copiadoras e Impressoras, Manutenção do Sistema de Sonorização, Manutenção (Tais como: Troca de peças, válvulas, gatilho, mangueira, manômetro) e Recarga gás dos extintores, Aquisição de itens de manutenção hidráulico e elétrico, Contratação de empresa para jardinagem e conservação do ambiente externo, Manutenção e conserto dos Toldos. Contratação de serviço para manutenção nas câmeras adquiridas pela escola, Manutenção do portão e controles dos portões de entrada e estacionamento. Aquisição de material esportivo (Bolas, Redes, Jogos, Petecas, dentre outros relacionados a atividades esportivas). Utensílios de cozinha, material de consumo geral. *Ação Extraordinária - Emergencial, garantir cobertura de despesas não previstas (será reservado 15% do valor total do plano no valor de \"R$ 56.455,74 (cinquenta e seis mil, quatrocentos e cinquenta e cinco reais e setenta e quatro centavos)\").",
+    "prazo": "2026-03-03",
+    "prazoEntrega": "2026-03-03",
+    "status": "aberto",
+    "participantes": "PJ",
+    "itens": [
+      {
+        "nome": "Refil botijão - 13 kg - gás combustível",
+        "descricao": "GLP em Botijão de Gás - P13. (Contrato pelo período de 01/02/2026 a 31/07/2026) (Obs: Processo somente para regularização, não enviar propostas.)",
+        "categoria": "Custeio",
+        "unidade": "Unidade",
+        "quantidade": 1,
+        "garantia": ""
+      }
+    ],
+    "expenseGroupId": 2983,
+    "idSchool": 10333,
+    "idSubprogram": 695
+  },
+  {
+    "id": "2026007746",
+    "idBudget": 157863,
+    "ano": 2025,
+    "escola": "EE DOM JOSE GASPAR",
+    "municipio": "Araxá",
+    "sre": "Uberaba",
+    "grupo": "Serviços Operacionais Contínuos",
+    "subPrograma": "Subprograma - Manutenção Escolar e Desenvolvimento do Ensino 2026",
+    "objeto": "Pagamentos mensais de Contas: serviços operacionais contínuos:  internet e telefone, Vigilância Eletrônica, Sistema de Segurança, Impostos, Contador, Despesas com cartório, para regularização de conselho, Gás de Cozinha, Itens de Papelaria (Folha A4, Tonners), Dedetização e Limpeza de Caixa D'água, Uniformes e EPI's ASB's Cozinha e Serviços Gerais, Itens de Limpeza, Manutenção em Fogões e Panelas de Pressão e Liquidificadores, Manutenção, formatação, atualização de computadores da sala de informática e administrativos, Roteadores Wi-fi, Rede Lógica, Manutenção das Copiadoras e Impressoras, Manutenção do Sistema de Sonorização, Manutenção (Tais como: Troca de peças, válvulas, gatilho, mangueira, manômetro) e Recarga gás dos extintores, Aquisição de itens de manutenção hidráulico e elétrico, Contratação de empresa para jardinagem e conservação do ambiente externo, Manutenção e conserto dos Toldos. Contratação de serviço para manutenção nas câmeras adquiridas pela escola, Manutenção do portão e controles dos portões de entrada e estacionamento. Aquisição de material esportivo (Bolas, Redes, Jogos, Petecas, dentre outros relacionados a atividades esportivas). Utensílios de cozinha, material de consumo geral. *Ação Extraordinária - Emergencial, garantir cobertura de despesas não previstas (será reservado 15% do valor total do plano no valor de \"R$ 56.455,74 (cinquenta e seis mil, quatrocentos e cinquenta e cinco reais e setenta e quatro centavos)\").",
+    "prazo": "2026-03-03",
+    "prazoEntrega": "2026-03-03",
+    "status": "aberto",
+    "participantes": "PJ",
+    "itens": [
+      {
+        "nome": "Serviço de dedetização e controle de pragas",
+        "descricao": "Dedetização, desinfecção, desinsetização, imunização, desratização, pulverização e congêneros. (Obs: Processo somente para regularização, não enviar propostas).",
+        "categoria": "Custeio",
+        "unidade": "Unidade",
+        "quantidade": 1,
+        "garantia": ""
+      }
+    ],
+    "expenseGroupId": 3530,
+    "idSchool": 10333,
+    "idSubprogram": 695
+  },
+  {
+    "id": "2026002838",
+    "idBudget": 151948,
+    "ano": 2026,
+    "escola": "EE MARECHAL HUMBERTO ALENCAR CASTELO BRANCO",
+    "municipio": "Uberaba",
+    "sre": "Uberaba",
+    "grupo": "Equipamentos Pedagógicos",
+    "subPrograma": "Subprograma - Manutenção Escolar e Desenvolvimento do Ensino 2026",
+    "objeto": "Aquisição de Mobiliário para Atendimento Escolar: Atendimento da Unidade Escolar de Acordo com a Necessida da Escola. ",
+    "prazo": "2026-03-03",
+    "prazoEntrega": "2026-03-25",
+    "status": "aberto",
+    "participantes": "PJ",
+    "itens": [
+      {
+        "nome": "Painéis",
+        "descricao": "QUADRO DE AVISO(CARDÁPIO DE MERENDA ESCOLAR) EM ACRÍLICO CRISTAL 5MM DE ESPESSURA CORTE LASER, APLICAÇÃO DE 06 BOLSAS EM ACRÍLICO CRISTAL 2 MM DE ESPESSURA FIXADO COM PROLONGADOR DE INOX NA MEDIDA 1160X 630 - FABRICAÇÃO E INSTALAÇÃO. ",
+        "categoria": "Capital",
+        "unidade": "Unidade",
+        "quantidade": 2,
+        "garantia": "MONTAGEM DE TODO SERVIÇO"
+      },
+      {
+        "nome": "Painéis",
+        "descricao": "QUADRO DE AVISOS DIVERSOS EM ACRÍLICO 5MM DE ESPESSURA, CORTE LASER FIXADO COM PROLONGADOR DE INOX NA MEDIDA 2000X1000 - FABRICAÇÃO E INSTALAÇÃO. ",
+        "categoria": "Capital",
+        "unidade": "Unidade",
+        "quantidade": 1,
+        "garantia": "MONTAGEM DE TODO SERVIÇO"
+      },
+      {
+        "nome": "Painéis",
+        "descricao": "QUADRO DE AVISO DIVERSOS EM ACRÍLICO CRISTAL 5MM DE ESPESSURA , CORTE , LASER, FIXADO COM PROLONGADOR DE INOX NA MEDIDA 1000X1000 - FABRICAÇÃO E INSTALAÇÃO. ",
+        "categoria": "Capital",
+        "unidade": "Unidade",
+        "quantidade": 1,
+        "garantia": "MONTAGEM DE TODO SERVIÇO"
+      }
+    ],
+    "expenseGroupId": 2887,
+    "idSchool": 10374,
+    "idSubprogram": 695
+  },
+  {
+    "id": "2026002929",
+    "idBudget": 152063,
+    "ano": 2026,
+    "escola": "EE MARECHAL HUMBERTO ALENCAR CASTELO BRANCO",
+    "municipio": "Uberaba",
+    "sre": "Uberaba",
+    "grupo": "Capacitação e Formação para Profissionais da Educação",
+    "subPrograma": "Subprograma - Manutenção Escolar e Desenvolvimento do Ensino 2026",
+    "objeto": "Apoio Ocupacional Minas Acolher para Avançar; Transporte para Culminância de Projetos Pedagógicos. ",
+    "prazo": "2026-03-05",
+    "prazoEntrega": "2026-03-14",
+    "status": "aberto",
+    "participantes": "PJ",
+    "itens": [
+      {
+        "nome": "Contratação de serviços de treinamento. capacitação e aperfeiçoamento de pessoal, referentes às temáticas inclusão, equidade e saúde mental",
+        "descricao": "PALESTRA 01 - PALESTRA TRANSFORMADORA TEMA SAÚDE MENTAL  ( 80 CANECAS PERSONALIZADAS ) COM VÉDEO MAKER ( VIDEOS E FOTOS) COFFE BREAK TRACIONAL \n\nPALESTRA 02 - TEMA MOTIVACIONAL - COM 76 CHAVEIROS PERSONALIZADOS COM VIDEO MAKER ( VIDEOS E FOTOS) COFFEE BREAK SIMPLES. ",
+        "categoria": "Custeio",
+        "unidade": "Unidade",
+        "quantidade": 2,
+        "garantia": ""
+      }
+    ],
+    "expenseGroupId": 3578,
+    "idSchool": 10374,
+    "idSubprogram": 695
+  },
+  {
+    "id": "2026004030",
+    "idBudget": 153390,
+    "ano": 2026,
+    "escola": "EE BERNARDO VASCONCELOS",
+    "municipio": "Uberaba",
+    "sre": "Uberaba",
+    "grupo": "Serviços Operacionais Contínuos",
+    "subPrograma": "Subprograma - Manutenção Escolar e Desenvolvimento do Ensino 2026",
+    "objeto": "Projetos Pedagógicos",
+    "prazo": "2026-03-03",
+    "prazoEntrega": "2026-03-11",
+    "status": "aberto",
+    "participantes": "PJ",
+    "itens": [
+      {
+        "nome": "Serviço de assinatura digital",
+        "descricao": "Software para controle de horários de aulas- Asc Time Tables básico- Licença Vitalícia ",
+        "categoria": "Custeio",
+        "unidade": "Unidade",
+        "quantidade": 1,
+        "garantia": ""
+      }
+    ],
+    "expenseGroupId": 3530,
+    "idSchool": 10378,
+    "idSubprogram": 695
+  },
+  {
+    "id": "2026004152",
+    "idBudget": 153543,
+    "ano": 2026,
+    "escola": "EE MARECHAL HUMBERTO ALENCAR CASTELO BRANCO",
+    "municipio": "Uberaba",
+    "sre": "Uberaba",
+    "grupo": "Material de Consumo Geral",
+    "subPrograma": "Subprograma - Manutenção Escolar e Desenvolvimento do Ensino 2026",
+    "objeto": "Manutençao Opercional e Custeio da Unidade escolar: Regarga de Gás de Cozinha; Regularização de Conselho Escolar ( Despesa com Cartório) Utensilios de Cozinha; Serviços Operacionais Contínuos ( Telefone, Internet, Serviços Contabeis, Sistema de Segurança), Material de Cosnumo em Geral ( Material de Limpeza e Material de Espedientes em Geral ) ",
+    "prazo": "2026-03-04",
+    "prazoEntrega": "2026-03-11",
+    "status": "aberto",
+    "participantes": "PJ",
+    "itens": [
+      {
+        "nome": "Carimbo",
+        "descricao": "CARIMBO AUTOMATICO NA MEDIDA 10C25MM COM O ESCRITO( 2ºVIA) PARA USO DA SECRETÁRIA ESCOLAR.",
+        "categoria": "Custeio",
+        "unidade": "Unidade",
+        "quantidade": 1,
+        "garantia": "\nUMA ALMOFADA DE TINTA INTERNA, DISPENSADNO O USO DE CARIMBEIRAS SEPARADAS "
+      }
+    ],
+    "expenseGroupId": 3626,
+    "idSchool": 10374,
+    "idSubprogram": 695
+  },
+  {
+    "id": "2026004226",
+    "idBudget": 153626,
+    "ano": 2026,
+    "escola": "EE BERNARDO VASCONCELOS",
+    "municipio": "Uberaba",
+    "sre": "Uberaba",
+    "grupo": "Gêneros Alimentícios",
+    "subPrograma": "Subprograma - Alimentação Estadual 2026",
+    "objeto": "Alimentação Geral (Mercado Comum)",
+    "prazo": "2026-03-04",
+    "prazoEntrega": "2026-03-11",
+    "status": "aberto",
+    "participantes": "PJ",
+    "itens": [
+      {
+        "nome": "Mussarela Kg",
+        "descricao": "Queijo tipo mussarela, fornecido em quilogramas, devendo ser entregue fatiado, com porcionamento aproximado de 40 (quarenta) gramas por fatia, próprio para consumo, acondicionado em embalagem adequada, íntegra e devidamente identificada, observadas as normas sanitárias vigentes. A entrega deverá ocorrer de forma parcelada, conforme cronograma e necessidade da unidade escolar.",
+        "categoria": "Custeio",
+        "unidade": "KG",
+        "quantidade": 160,
+        "garantia": ""
+      },
+      {
+        "nome": "Pao Doce Comum Kg",
+        "descricao": "Pão doce, com peso unitário aproximado de 75 (setenta e cinco) gramas, devendo ser entregue de forma parcelada, conforme cronograma e necessidade da unidade escolar.",
+        "categoria": "Custeio",
+        "unidade": "KG",
+        "quantidade": 95,
+        "garantia": ""
+      }
+    ],
+    "expenseGroupId": 3031,
+    "idSchool": 10378,
+    "idSubprogram": 631
+  },
+  {
+    "id": "2026004610",
+    "idBudget": 154048,
+    "ano": 2026,
+    "escola": "EE PROFESSORA CORINA DE OLIVEIRA",
+    "municipio": "Uberaba",
+    "sre": "Uberaba",
+    "grupo": "Gêneros Alimentícios",
+    "subPrograma": "Subprograma - Alimentação Estadual 2026",
+    "objeto": "ITENS PERECÍCEIS E NÃO PERECÍVEIS DE MERCADO COMUM, INCLUSIVE MAÇÃ E FRANGO",
+    "prazo": "2026-03-03",
+    "prazoEntrega": "2026-03-03",
+    "status": "aberto",
+    "participantes": "PJ",
+    "itens": [
+      {
+        "nome": "Extrato De Tomate Kg",
+        "descricao": "EXTRATO DE TOMATE ELEFANTE - 130 LATAS DE 850gr",
+        "categoria": "Custeio",
+        "unidade": "KG",
+        "quantidade": 130,
+        "garantia": "A presente justificativa tem por finalidade fundamentar a aquisição do extrato de tomate da marca Elefante, embalagem de 850 g, diante da necessidade de atendimento às demandas de preparo de refeições na instituição, observando princípios de economicidade, eficiência e qualidade na alimentação dos usuários.\nA embalagem de extrato de tomate de 850gr proporciona maior rendimento e melhor custo-benefício em comparação às embalagens menores, reduzindo a necessidade de reposições frequentes e desperdícios.\nFoi realizada pesquisa de mercado junto a fornecedores e estabelecimentos atacadistas e varejistas, verificando-se que não há disponibilidade de três marcas distintas que apresentem, simultaneamente, a mesma quantidade e qualidade técnica comparável à marca Elefante.\n"
+      }
+    ],
+    "expenseGroupId": 3031,
+    "idSchool": 10384,
+    "idSubprogram": 631
+  },
+  {
+    "id": "2026005049",
+    "idBudget": 154543,
+    "ano": 2026,
+    "escola": "EE MARECHAL HUMBERTO ALENCAR CASTELO BRANCO",
+    "municipio": "Uberaba",
+    "sre": "Uberaba",
+    "grupo": "Equipamentos de Cozinha",
+    "subPrograma": "Subprograma - Manutenção Escolar e Desenvolvimento do Ensino 2026",
+    "objeto": "Manutenção Operacional e Custeio Escolar - Ação Extraordinária - Emergencial( Garantir Cobertura de Despesas não Previstas) . ",
+    "prazo": "2026-03-07",
+    "prazoEntrega": "2026-03-12",
+    "status": "aberto",
+    "participantes": "PJ",
+    "itens": [
+      {
+        "nome": "Geladeira/ refrigerador com termostato",
+        "descricao": "SERVIÇOS DE REPARO EM REFRIGERADOR INDUSTRICAL DA MARCA FRILUX - SUBSTITUIÇÃO DO MOTOR DO COMPRESSOR; RECARGA DE GÁS COMPLETA CONFORME ESPECIFICAÇÃO DO EQUIPAMENTO SUBSTIUIÇÃO DE GAXETAS DAS PORTAS TOTAL 06 UNIDADES. MODELO COM POTÊNCIA 1/3 + HP, SUPERIOR AO PADRÃO CONVENCIONAL DE 1/3 HP, INDICADO PARA SUPORTAR MAIOR CARGA TÉRMICA E MELHOR DESEMPENHO DE REFRIGERAÇÃO. ",
+        "categoria": "Capital",
+        "unidade": "Unidade",
+        "quantidade": 1,
+        "garantia": "03 meses de garantia do serviço e das peças. "
+      }
+    ],
+    "expenseGroupId": 2791,
+    "idSchool": 10374,
+    "idSubprogram": 695
+  },
+  {
+    "id": "2026005479",
+    "idBudget": 155048,
+    "ano": 2026,
+    "escola": "EE BERNARDO VASCONCELOS",
+    "municipio": "Uberaba",
+    "sre": "Uberaba",
+    "grupo": "Utensílios de Cozinha",
+    "subPrograma": "Subprograma - Manutenção Escolar e Desenvolvimento do Ensino 2026",
+    "objeto": "Manutenção Emergencial",
+    "prazo": "2026-03-05",
+    "prazoEntrega": "2026-03-12",
+    "status": "aberto",
+    "participantes": "PJ",
+    "itens": [
+      {
+        "nome": "Água sanitária",
+        "descricao": "Água Sanitária para limpeza e desinfecção de pisos, paredes e superfícies. Composição: hipoclorito de sódio, cloreto de sódio e água, com teor de cloro ativo de 2% a 2,5% p/p. Líquido com odor característico. Embalagem de 5L, certificada pelo INMETRO. Fabricante deve apresentar ficha técnica, FISPQ e registros conforme ANVISA e Ministério da Saúde, com dados completos no rótulo. Os produtos serão entregues de forma parcelada, conforme a necessidade da Caixa Escolar.",
+        "categoria": "Custeio",
+        "unidade": "Unidade",
+        "quantidade": 200,
+        "garantia": ""
+      },
+      {
+        "nome": "Álcool",
+        "descricao": "Álcool etílico hidratado 70% em forma líquida: Pronto uso para limpeza de superfícies em geral, sem necessidade de enxágue. Composição química: Álcool Etílico, Espessante, Emoliente, Neutralizante. Os produtos serão entregues de forma parcelada, conforme a necessidade da Caixa Escolar.",
+        "categoria": "Custeio",
+        "unidade": "Unidade",
+        "quantidade": 35,
+        "garantia": ""
+      },
+      {
+        "nome": "Álcool",
+        "descricao": "Álcool Gel: Gel à base de álcool para higienização, a 70%, com ação antisséptica, sem enxágue. Composição: Álcool etílico, polímero carboxílico, neutralizante, umectante, conservante, quelante e água deionizada. Embalagem de 5L, contendo data de fabricação, validade, nome e registro do químico responsável com CRQ, razão social, endereço e CNPJ do fabricante deverão constar visivelmente na embalagem. Os produtos serão entregues de forma parcelada, conforme a necessidade da Caixa Escolar.",
+        "categoria": "Custeio",
+        "unidade": "Unidade",
+        "quantidade": 20,
+        "garantia": ""
+      },
+      {
+        "nome": "Balde",
+        "descricao": "Balde de plástico: Capacidade aproximada de 10 litros, preto, sem tampa, com alça. Os produtos serão entregues de forma parcelada, conforme a necessidade da Caixa Escolar.",
+        "categoria": "Custeio",
+        "unidade": "Unidade",
+        "quantidade": 10,
+        "garantia": ""
+      },
+      {
+        "nome": "Saco plástico em rolo (bobina)",
+        "descricao": "Bobina de saco plástico picotada, 40 x 60cm. Plástico liso, totalmente transparente, fundo reto, de alta densidade, resistente a rasgaduras e perfurações e permitindo a selagem. Capacidade 8 kg, material: polietileno de baixa densidade (PEBD),  rolo com 350 unidades. Os produtos serão entregues de forma parcelada, conforme a necessidade da Caixa Escolar.",
+        "categoria": "Custeio",
+        "unidade": "Unidade",
+        "quantidade": 30,
+        "garantia": ""
+      },
+      {
+        "nome": "Caneca em melamina",
+        "descricao": "Caneca plástica para merenda escolar, redonda, com alça, capacidade 300 mL, cor azul/rosa, de alta resistência, aplicação bebida quente.\n\n",
+        "categoria": "Custeio",
+        "unidade": "Unidade",
+        "quantidade": 50,
+        "garantia": ""
+      },
+      {
+        "nome": "Peneira coador",
+        "descricao": "Coador de café em tecido G. Arame galvanizado nº 14, cabo de madeira em eucalipto (torneada, lixada e polida). Ideal para coar até 5 litros de café. Diâmetro da boca 14 cm. Os produtos serão entregues de forma parcelada, conforme a necessidade da Caixa Escolar.",
+        "categoria": "Custeio",
+        "unidade": "Unidade",
+        "quantidade": 10,
+        "garantia": ""
+      },
+      {
+        "nome": "Copo plástico descartável (200 ml)",
+        "descricao": "Copo Descartável para água: Caixa com 25 mangas- capacidade para 180 mL para água, acondicionado em mangas com 100 unidades cada, caixa com 25 mangas copo fabricado em plástico PP, descartável, cor transparente, pesando no mínimo 198 grs, acondicionados em caixa. Os produtos serão entregues de forma parcelada, conforme a necessidade da Caixa Escolar.",
+        "categoria": "Custeio",
+        "unidade": "Unidade",
+        "quantidade": 5,
+        "garantia": ""
+      },
+      {
+        "nome": "Talheres - colher de sopa e sobremesa",
+        "descricao": "Colher de sopa aço inoxidável comprimento: 20 cm Material do cabo: Aço inoxidável Diâmetro da Colher: 4 cm; - Diâmetro maior do cabo: 1,7 cm; - Comprimento total: 20 cm; - Peso: 40 g / 0,04 kg.",
+        "categoria": "Custeio",
+        "unidade": "Unidade",
+        "quantidade": 100,
+        "garantia": ""
+      },
+      {
+        "nome": "Copo de vidro",
+        "descricao": "Copo de vidro liso, redondo, transparente de 450 ml.",
+        "categoria": "Custeio",
+        "unidade": "Unidade",
+        "quantidade": 30,
+        "garantia": ""
+      },
+      {
+        "nome": "Ralador",
+        "descricao": "Descascador para legumes, material plástico. Material lâmina aço inox. Medida 16.5x 3.5cm.\n\n",
+        "categoria": "Custeio",
+        "unidade": "Unidade",
+        "quantidade": 3,
+        "garantia": ""
+      },
+      {
+        "nome": "Copo de vidro",
+        "descricao": "Copo Americano Clássico 190ml, Vidro, para café.",
+        "categoria": "Custeio",
+        "unidade": "Unidade",
+        "quantidade": 30,
+        "garantia": ""
+      },
+      {
+        "nome": "Desinfetante",
+        "descricao": "DESINFETANTE LÍQUIDO; pronto uso, para limpeza geral, indicado para limpeza e desinfecção de sanitários, ralos, pisos, azulejos e demais superfícies laváveis. Com ação bactericida e germicida. Composição: resina acrílica nitrilo butadieno 0,2%, óleo de eucalipto 0,2%, cloreto de alquil dimetil amônio 50%. Ph puro 7,49. EMBALAGEM DE 5 LITROS. Aroma Lavanda. Os produtos serão entregues de forma parcelada, conforme a necessidade da Caixa Escolar.",
+        "categoria": "Custeio",
+        "unidade": "Unidade",
+        "quantidade": 160,
+        "garantia": ""
+      },
+      {
+        "nome": "Detergente",
+        "descricao": "Detergente líquido neutro, sem fragrância, com glicerina, pronto para uso. Galão plástico resistente de 5 litros. Composição: Linear Alquilbenzeno Sulfonato de Sódio (tensoativo biodegradável), coadjuvantes, conservantes, espessantes e veículo. Produto biodegradável, viscoso, suave às mãos, sem formol, pH 5,5 a 8,0 e matéria ativa aniônica entre 6,50% e 7,90%. Os produtos serão entregues de forma parcelada, conforme a necessidade da Caixa Escolar.",
+        "categoria": "Custeio",
+        "unidade": "Unidade",
+        "quantidade": 200,
+        "garantia": ""
+      },
+      {
+        "nome": "Escova de limpeza",
+        "descricao": "Escova de lavar roupas com base de plástico anatômico",
+        "categoria": "Custeio",
+        "unidade": "Unidade",
+        "quantidade": 10,
+        "garantia": ""
+      },
+      {
+        "nome": "Esponjas de cozinha / limpeza",
+        "descricao": "Esponja limpeza pesada: ESPONJA FIBRAÇO, o fibraço é um produto não tecido à base de fibra sintética e mineral abrasivo unido por resina à prova d'água. É recomendada para limpeza das sujeiras mais críticas. Dimensões: 102 mm x 260mm e 87 mm x 125 mm. Os produtos serão entregues de forma parcelada, conforme a necessidade da Caixa Escolar.\n",
+        "categoria": "Custeio",
+        "unidade": "Unidade",
+        "quantidade": 100,
+        "garantia": ""
+      },
+      {
+        "nome": "Esponjas de cozinha / limpeza",
+        "descricao": "Esponja multiuso dupla face, fibra verde de média abrasividade e espuma amarela, tamanho 75 x 100 mm. Produto de primeira qualidade, embalado em pacote com 10 unidades, contendo marca do fabricante. Embalagem certificada pelo INMETRO. Fabricante deve possuir laudos técnicos e registros conforme ANVISA e Ministério da Saúde, com dados completos no rótulo. Os produtos serão entregues de forma parcelada, conforme a necessidade da Caixa Escolar.",
+        "categoria": "Custeio",
+        "unidade": "Unidade",
+        "quantidade": 350,
+        "garantia": ""
+      },
+      {
+        "nome": "Faca para cozinha industrial",
+        "descricao": "Faca para corte 10 polegadas, com lâmina em aço inox (material que não enferruje) cabo revestido em plástico, medindo aproximadamente altura: 44cm, largura 17 cm, comprimento 2,3cm resistente e de alta qualidade.\n\n",
+        "categoria": "Custeio",
+        "unidade": "Unidade",
+        "quantidade": 2,
+        "garantia": ""
+      },
+      {
+        "nome": "Faca para cozinha industrial",
+        "descricao": "Faca para cozinha, lâmina inox com espessura mínima de 1,0mm comprimento mínimo 19 cm, cabo em inox, primeira linha.",
+        "categoria": "Custeio",
+        "unidade": "Unidade",
+        "quantidade": 2,
+        "garantia": ""
+      },
+      {
+        "nome": "Esponja de aço",
+        "descricao": "Lã de aço: Esponja de aço para limpeza de superfícies com sujeiras difíceis e polimento de objetos de alumínio. Pacote com 8 unidades. Os produtos serão entregues de forma parcelada, conforme a necessidade da Caixa Escolar.",
+        "categoria": "Custeio",
+        "unidade": "Unidade",
+        "quantidade": 100,
+        "garantia": ""
+      },
+      {
+        "nome": "Luva de procedimento em látex g",
+        "descricao": "Luva de borracha em látex natural, forrada, para serviços gerais, fabricada de acordo com a NBR 13393 – tamanho G, validade mínima 12 meses.\n\n",
+        "categoria": "Custeio",
+        "unidade": "Unidade",
+        "quantidade": 20,
+        "garantia": ""
+      },
+      {
+        "nome": "Pano de chão",
+        "descricao": "Pano de chão alvejado: Saco branco fechado e alvejado grosso, 100% algodão. Alto poder de absorção de água. Medidas aproximadas 0,50cm X 0,70cm (pano fechado). Os produtos serão entregues de forma parcelada, conforme a necessidade da Caixa Escolar.",
+        "categoria": "Custeio",
+        "unidade": "Unidade",
+        "quantidade": 70,
+        "garantia": ""
+      },
+      {
+        "nome": "Pano de limpeza",
+        "descricao": "Pano de copa/cozinha: 100% algodão, cor branca com estampas variadas e silkadas, excelente absolvição de água, não soltar fiapos durante a secagem da louça, todos os lados arrematados, medidas aproximadas 0,50cm X 0,77 cm (pano aberto). Os produtos serão entregues de forma parcelada, conforme a necessidade da Caixa Escolar.",
+        "categoria": "Custeio",
+        "unidade": "Unidade",
+        "quantidade": 70,
+        "garantia": ""
+      },
+      {
+        "nome": "Papel higiênico",
+        "descricao": "PAPEL HIGIÊNICO EXTRA BRANCO. Macio, picotado e texturizado. Folha dupla, 100% fibras celulósicas. Rolo de 30m x10cm. Pacote com 48 rolos. Os produtos serão entregues de forma parcelada, conforme a necessidade da Caixa Escolar.",
+        "categoria": "Custeio",
+        "unidade": "Unidade",
+        "quantidade": 100,
+        "garantia": ""
+      },
+      {
+        "nome": "Sabão líquido",
+        "descricao": "Refil de sabonete líquido para saboneteiras de parede: Para uso em saboneteira de parede, sabonete líquido, perfumado, ph entre 7,0 e 8,0, para higiene das mãos, aroma erva doce. Refil de 800 ml. Os produtos serão entregues de forma parcelada, conforme a necessidade da Caixa Escolar.",
+        "categoria": "Custeio",
+        "unidade": "Unidade",
+        "quantidade": 50,
+        "garantia": ""
+      },
+      {
+        "nome": "Rodo",
+        "descricao": "Rodo grande com cabo: Rodo para limpeza. Rodo com cabo de madeira plastificada com rosca, medindo 1,50 cm de comprimento, suporte plástico medindo aproximadamente 50 cm com borracha dupla. Os produtos serão entregues de forma parcelada, conforme a necessidade da Caixa Escolar.",
+        "categoria": "Custeio",
+        "unidade": "Unidade",
+        "quantidade": 30,
+        "garantia": ""
+      },
+      {
+        "nome": "Rodo",
+        "descricao": "Rodo para limpeza. Rodo com cabo de madeira plastificada com rosca, medindo 1,50 cm de comprimento, suporte plástico medindo aproximadamente 40 cm com borracha dupla. Os produtos serão entregues de forma parcelada, conforme a necessidade da Caixa Escolar.",
+        "categoria": "Custeio",
+        "unidade": "Unidade",
+        "quantidade": 30,
+        "garantia": ""
+      },
+      {
+        "nome": "Sabão líquido",
+        "descricao": "Sabão pastoso gel 5L, fragrância pinho, limpeza pesada. Os produtos serão entregues de forma parcelada, conforme a necessidade da Caixa Escolar.",
+        "categoria": "Custeio",
+        "unidade": "Unidade",
+        "quantidade": 150,
+        "garantia": ""
+      },
+      {
+        "nome": "Sacos de lixo",
+        "descricao": "Saco plástico para lixo - Capacidade para 100 litros. O produto deverá\natender as normas da abnt nbr 9191. Pacote com 100 unidades, cor preta. Os produtos serão entregues de forma parcelada, conforme a necessidade da Caixa Escolar.\n",
+        "categoria": "Custeio",
+        "unidade": "Pacote",
+        "quantidade": 20,
+        "garantia": ""
+      },
+      {
+        "nome": "Sacos de lixo",
+        "descricao": "Saco de lixo preto – 30 litros. Confeccionado de polietileno de baixa densidade, recicláveis ou virgens, solda contínua, uniforme, homogênea e com dobras na lateral. Embalagem com 50 unidades. Os produtos serão entregues de forma parcelada, conforme a necessidade da Caixa Escolar.",
+        "categoria": "Custeio",
+        "unidade": "Pacote",
+        "quantidade": 20,
+        "garantia": ""
+      },
+      {
+        "nome": "Sacos de lixo",
+        "descricao": "Saco de lixo preto – 50 litros. Confeccionado de polietileno de baixa densidade, recicláveis ou virgens, solda contínua, uniforme, homogênea e com dobras na lateral. Embalagem com 50 unidades. Os produtos serão entregues de forma parcelada, conforme a necessidade da Caixa Escolar.",
+        "categoria": "Custeio",
+        "unidade": "Pacote",
+        "quantidade": 20,
+        "garantia": ""
+      },
+      {
+        "nome": "Papel toalha",
+        "descricao": "Toalhas de Papel Interfolhadas 20x21cm pacote com 1.000 folhas. Os produtos serão entregues de forma parcelada, conforme a necessidade da Caixa Escolar.",
+        "categoria": "Custeio",
+        "unidade": "Unidade",
+        "quantidade": 120,
+        "garantia": ""
+      },
+      {
+        "nome": "Touca descartável em TNT com elástico",
+        "descricao": "Touca descartável. Tipo sanfonada. Pacote com 100 unidades. Os produtos serão entregues de forma parcelada, conforme a necessidade da Caixa Escolar.",
+        "categoria": "Custeio",
+        "unidade": "Pacote",
+        "quantidade": 12,
+        "garantia": ""
+      },
+      {
+        "nome": "Vassouras",
+        "descricao": "Vassoura piaçava, de primeira qualidade, com cabo de madeira resistente fixado ao corpo através do revestimento com folhas de flandres. Os produtos serão entregues de forma parcelada, conforme a necessidade da Caixa Escolar.",
+        "categoria": "Custeio",
+        "unidade": "Unidade",
+        "quantidade": 20,
+        "garantia": ""
+      },
+      {
+        "nome": "Jarra",
+        "descricao": "Jarra para água, fabricada em vidro transparente, liso, em formato retangular, com capacidade de 1,5 litros, com alça, tampa com mecanismo para saída d' água.\n\n",
+        "categoria": "Custeio",
+        "unidade": "Unidade",
+        "quantidade": 4,
+        "garantia": ""
+      },
+      {
+        "nome": "Escumadeira",
+        "descricao": "Kit com 3 colheres (Colher de arroz, concha e escumadeira) tamanho médio, cabo longo com madeira, material alumínio batido resistente. ",
+        "categoria": "Custeio",
+        "unidade": "Unidade",
+        "quantidade": 3,
+        "garantia": ""
+      },
+      {
+        "nome": "Bacia",
+        "descricao": "Bacia de alumínio resistente número 40, redonda, uso diverso.",
+        "categoria": "Custeio",
+        "unidade": "Unidade",
+        "quantidade": 2,
+        "garantia": ""
+      },
+      {
+        "nome": "Bacia",
+        "descricao": "Bacia de alumínio resistente número 50, redonda, uso diverso.",
+        "categoria": "Custeio",
+        "unidade": "Unidade",
+        "quantidade": 2,
+        "garantia": ""
+      },
+      {
+        "nome": "Escorredor industrial",
+        "descricao": "Escorredor Industrial Alumínio para Arroz, Macarrão E Afins – 34 Litros.",
+        "categoria": "Capital",
+        "unidade": "Unidade",
+        "quantidade": 2,
+        "garantia": ""
+      },
+      {
+        "nome": "Garrafa térmica",
+        "descricao": "Garrafa térmica, 1 litro, cor preta, resistente.",
+        "categoria": "Custeio",
+        "unidade": "Unidade",
+        "quantidade": 6,
+        "garantia": ""
+      },
+      {
+        "nome": "Pratos em vidro temperado",
+        "descricao": "Prato fundo em vidro liso e transparente: Material: vidro temperado incolor; dimensões\naproximadas: 3 cm de altura, 22 cm de diâmetro, Características Gerais: fundo, transparente; liso; vidro temperado, resistente a impactos. Os produtos serão entregues de forma parcelada, conforme a necessidade da Caixa Escolar.\n",
+        "categoria": "Custeio",
+        "unidade": "Unidade",
+        "quantidade": 200,
+        "garantia": ""
+      },
+      {
+        "nome": "Assadeira",
+        "descricao": "Forma para bolo retangular medindo 44x30x4,8cm, material alumínio resistente.",
+        "categoria": "Custeio",
+        "unidade": "Unidade",
+        "quantidade": 6,
+        "garantia": ""
+      }
+    ],
+    "expenseGroupId": 3415,
+    "idSchool": 10378,
+    "idSubprogram": 695
+  },
+  {
+    "id": "2026007169",
+    "idBudget": 157171,
+    "ano": 2026,
+    "escola": "EE DOUTOR JOSE MENDONCA",
+    "municipio": "Uberaba",
+    "sre": "Uberaba",
+    "grupo": "Material de Consumo Geral",
+    "subPrograma": "Subprograma - Manutenção Escolar e Desenvolvimento do Ensino 2026",
+    "objeto": "SERVIÇO DE TELEFONIA E INTERNET, MANUTENÇÃO DE COPIADORAS E AQUISIÇÃO DE TONNER,\nMATERIAIS DE LIMPEZA, AQUISIÇÃO DE UNIFORMES ASBS, RECARGA DE GÁS, AQUISIÇÃO DE UTENSÍLIOS PARA A MANUTENÇÃO DA COZINHA,SERVIÇOS DE MONITORAMENTO E SEGURANÇA, HONORÁRIOS CONTADOR E DESPESAS CARTÓRIO",
+    "prazo": "2026-03-04",
+    "prazoEntrega": "2026-03-14",
+    "status": "aberto",
+    "participantes": "PJ",
+    "itens": [
+      {
+        "nome": "Tonner",
+        "descricao": "Toner Copiadora Original Ricoh MP3055",
+        "categoria": "Custeio",
+        "unidade": "Unidade",
+        "quantidade": 12,
+        "garantia": "Bom estado de utilização."
+      }
+    ],
+    "expenseGroupId": 3626,
+    "idSchool": 10389,
+    "idSubprogram": 695
+  },
+  {
+    "id": "2026007175",
+    "idBudget": 157177,
+    "ano": 2026,
+    "escola": "EE DOUTOR JOSE MENDONCA",
+    "municipio": "Uberaba",
+    "sre": "Uberaba",
+    "grupo": "Material de Consumo Geral",
+    "subPrograma": "Subprograma - Manutenção Escolar e Desenvolvimento do Ensino 2026",
+    "objeto": "SERVIÇO DE TELEFONIA E INTERNET, MANUTENÇÃO DE COPIADORAS E AQUISIÇÃO DE TONNER,\nMATERIAIS DE LIMPEZA, AQUISIÇÃO DE UNIFORMES ASBS, RECARGA DE GÁS, AQUISIÇÃO DE UTENSÍLIOS PARA A MANUTENÇÃO DA COZINHA,SERVIÇOS DE MONITORAMENTO E SEGURANÇA, HONORÁRIOS CONTADOR E DESPESAS CARTÓRIO",
+    "prazo": "2026-03-04",
+    "prazoEntrega": "2026-03-14",
+    "status": "aberto",
+    "participantes": "PJ",
+    "itens": [
+      {
+        "nome": "Tonner",
+        "descricao": "Toner Copiadora Original Brother DCP7065.",
+        "categoria": "Custeio",
+        "unidade": "Unidade",
+        "quantidade": 4,
+        "garantia": "Bom estado de utilização."
+      }
+    ],
+    "expenseGroupId": 3626,
+    "idSchool": 10389,
+    "idSubprogram": 695
+  },
+  {
+    "id": "2026009015",
+    "idBudget": 159415,
+    "ano": 2026,
+    "escola": "EE PROFESSORA CORINA DE OLIVEIRA",
+    "municipio": "Uberaba",
+    "sre": "Uberaba",
+    "grupo": "Material de Consumo Geral",
+    "subPrograma": "Subprograma - Manutenção Escolar e Desenvolvimento do Ensino 2026",
+    "objeto": "PAPELARIA, MANUTENÇÃO DAS REDES DE ESPORTES, AQUISIÇÃO DE BANNERS PARA INFORMAÇÕES ESPECÍFICAS DE CADA PROJETO, MATERIAIS DE INCENTIVO À AVALIAÇÕES EXTERNAS, ÔNIBUS PARA EXCURSÃO DE ALUNOS, AQUISIÇÃO DE MATERIAIS ESPORTIVOS",
+    "prazo": "2026-03-10",
+    "prazoEntrega": "2026-03-10",
+    "status": "aberto",
+    "participantes": "PF/PJ",
+    "itens": [
+      {
+        "nome": "Cartucho de tinta para impressora",
+        "descricao": "Garrafa Ecotank T544 - T544120 - cor preta - conteúdo 70 ml",
+        "categoria": "Custeio",
+        "unidade": "Unidade",
+        "quantidade": 14,
+        "garantia": "Marca: Epson"
+      },
+      {
+        "nome": "Cartucho de tinta para impressora",
+        "descricao": "Garrafa Ecotank T544 - T544420 - cor Yellow - conteúdo 70 ml",
+        "categoria": "Custeio",
+        "unidade": "Unidade",
+        "quantidade": 6,
+        "garantia": "Marca: Epson"
+      },
+      {
+        "nome": "Cartucho de tinta para impressora",
+        "descricao": "Garrafa Ecotank T544 - T544220 - cor Ciano - conteúdo 70 ml",
+        "categoria": "Custeio",
+        "unidade": "Unidade",
+        "quantidade": 6,
+        "garantia": "Marca: Epson"
+      },
+      {
+        "nome": "Cartucho de tinta para impressora",
+        "descricao": "Garrafa Ecotank T544 - T544320 - cor Mangenta - conteúdo 70 ml",
+        "categoria": "Custeio",
+        "unidade": "Unidade",
+        "quantidade": 6,
+        "garantia": "Marca: Epson"
+      },
+      {
+        "nome": "Cartucho de tinta para impressora",
+        "descricao": "Garrafa Ecotank T504 - T504120AL - cor preta - conteúdo 127 ml",
+        "categoria": "Custeio",
+        "unidade": "Unidade",
+        "quantidade": 14,
+        "garantia": "Marca: Epson"
+      },
+      {
+        "nome": "Cartucho de tinta para impressora",
+        "descricao": "Garrafa Ecotank T504 - T504220AL - cor Ciano - conteúdo 70 ml",
+        "categoria": "Custeio",
+        "unidade": "Unidade",
+        "quantidade": 6,
+        "garantia": "Marca: Epson"
+      },
+      {
+        "nome": "Cartucho de tinta para impressora",
+        "descricao": "Garrafa Ecotank T504 - T504320AL - cor Mangenta - conteúdo 70 ml",
+        "categoria": "Custeio",
+        "unidade": "UN",
+        "quantidade": 6,
+        "garantia": "Marca: Epson"
+      },
+      {
+        "nome": "Cartucho de tinta para impressora",
+        "descricao": "Garrafa Ecotank T504 - T504420AL - cor Yellow - conteúdo 70 ml",
+        "categoria": "Custeio",
+        "unidade": "Unidade",
+        "quantidade": 6,
+        "garantia": "Marca: Epson"
+      },
+      {
+        "nome": "Tonner",
+        "descricao": "Tonner compatível W1330X 330X com CHIP M432FDN, M432, 432FDN, M432, M408DN, M408, 408DN",
+        "categoria": "Custeio",
+        "unidade": "Unidade",
+        "quantidade": 12,
+        "garantia": "Rendimento aproximado (considerando cobertura de 5%) preto: 15.000 impressões"
+      },
+      {
+        "nome": "Tonner",
+        "descricao": "Tonner Compatível PB-211 PB210 PANTUM P2500W M6650",
+        "categoria": "Custeio",
+        "unidade": "UN",
+        "quantidade": 12,
+        "garantia": "Rendimento: 1600 cópias; cor da impressão: preta"
+      },
+      {
+        "nome": "Tonner",
+        "descricao": "Tonner compatível HP MFP M134A com CHIP ",
+        "categoria": "Custeio",
+        "unidade": "Unidade",
+        "quantidade": 3,
+        "garantia": ""
+      }
+    ],
+    "expenseGroupId": 3626,
+    "idSchool": 10384,
+    "idSubprogram": 695
+  },
+  {
+    "id": "2026009775",
+    "idBudget": 160315,
+    "ano": 2026,
+    "escola": "EE SANTA TEREZINHA",
+    "municipio": "Uberaba",
+    "sre": "Uberaba",
+    "grupo": "Material de Consumo Geral",
+    "subPrograma": "Subprograma - Manutenção Escolar e Desenvolvimento do Ensino 2026",
+    "objeto": "MANUTENÇÃO PREDIAL E INTERVENÇÃO",
+    "prazo": "2026-03-08",
+    "prazoEntrega": "2026-03-08",
+    "status": "aberto",
+    "participantes": "PJ",
+    "itens": [
+      {
+        "nome": "Serviço de dedetização e controle de pragas",
+        "descricao": "Dedetização de todo do ambiente escolar interno e externo.",
+        "categoria": "Custeio",
+        "unidade": "Unidade",
+        "quantidade": 1,
+        "garantia": ""
+      },
+      {
+        "nome": "Serviço de limpeza de caixas d’água",
+        "descricao": "Higienização das caixas d’água, de 500 litros e 1000 litros. \n",
+        "categoria": "Custeio",
+        "unidade": "Unidade",
+        "quantidade": 6,
+        "garantia": ""
+      },
+      {
+        "nome": "Filtro bebedouro",
+        "descricao": "Trocas de filtros",
+        "categoria": "Custeio",
+        "unidade": "Unidade",
+        "quantidade": 4,
+        "garantia": "06 MESES."
+      }
+    ],
+    "expenseGroupId": 3626,
+    "idSchool": 10397,
+    "idSubprogram": 695
+  },
+  {
+    "id": "2026009786",
+    "idBudget": 160327,
+    "ano": 2026,
+    "escola": "EE SANTA TEREZINHA",
+    "municipio": "Uberaba",
+    "sre": "Uberaba",
+    "grupo": "Manutenção e Reformas",
+    "subPrograma": "Subprograma - Manutenção Escolar e Desenvolvimento do Ensino 2026",
+    "objeto": "MANUTENÇÃO PREDIAL E INTERVENÇÃO",
+    "prazo": "2026-03-08",
+    "prazoEntrega": "2026-03-08",
+    "status": "aberto",
+    "participantes": "PJ",
+    "itens": [
+      {
+        "nome": "Caixa d'água em polietileno 1000 litros. com tampa",
+        "descricao": "Apresentar orçamento incluso a mão de obra e material p/ instalação. Descrição - Material: Produzida em polietileno virgem, material atóxico e resistente à corrosão. Vedação: Tampa c/ sistema de encaixe ou rosca que dispensa parafusos, vedando contra sujeira e insetos, além de superfície interna lisa p/ fácil limpeza. Durabilidade: Resistente a variações climáticas, com proteção UV. Dimensões (aproximadas): Altura c/ tampa: ~0,97m; Diâmetro: ~1,52m. Peso: Aprox. 16,7 kg a 20 kg (vazia). ",
+        "categoria": "Custeio",
+        "unidade": "Unidade",
+        "quantidade": 2,
+        "garantia": "01 da intalação e 5 anos contra defeitos de fabricação"
+      }
+    ],
+    "expenseGroupId": 3079,
+    "idSchool": 10397,
+    "idSubprogram": 695
+  },
+  {
+    "id": "2026004063",
+    "idBudget": 153432,
+    "ano": 2026,
+    "escola": "EE PROFESSORA CECILIA MARIA DE REZENDE NEVES",
+    "municipio": "Tapira",
+    "sre": "Uberaba",
+    "grupo": "Gêneros Alimentícios",
+    "subPrograma": "Subprograma - Alimentação Estadual 2026",
+    "objeto": "\nHortifrutigranjeiros (Mercado comum): destinado às aquisições de frutas, legumes, verduras, ovos e outros produtos perecíveis de origem vegetal e animal.\nFrigorífico: destinado à compra de carnes, aves, peixes e demais produtos cárneos.\nGeral: destinado à aquisição de itens alimentares não perecíveis, como arroz, feijão, massas, farináceos, entre outros.\nPadaria: destinado à compra de pães e produtos de panificação.\nEssa sugestão busca contribuir para uma maior padronização e transparência das informações financeiras, além de permitir uma melhor análise dos gastos realizados em cada tipo de produto.\nA iniciativa contempla a aquisição de hortifrutigranjeiros, frigoríficos e itens gerais não perecíveis, assegurando a oferta regular e de qualidade dos alimentos utilizados na alimentação escolar. No eixo dos hortifrutigranjeiros, a ação garante o fornecimento contínuo de frutas, legumes, verduras, ovos e outros produtos perecíveis de origem vegetal e animal, fundamentais para a promoção de hábitos alimentares saudáveis.  Já no eixo de frigorífico, a iniciativa volta-se à aquisição de equipamentos adequados para conservação e armazenamento de carnes, aves, peixes e demais produtos cárneos.  Além disso, contribui para a otimização dos processos internos, ampliando a eficiência no manejo dos insumos utilizados no dia a dia da cozinha escolar. No eixo dos itens gerais não perecíveis, como arroz, feijão, massas, farináceos e demais produtos de longa duração, a iniciativa busca garantir regularidade no abastecimento, segurança no preparo das refeições e funcionalidade no planejamento alimentar da unidade escolar. \nDestinado às aquisições realizadas diretamente da agricultura familiar, conforme normativas vigentes. A iniciativa tem como objetivo fortalecer de maneira ampla e estruturada a aquisição de alimentos provenientes da agricultura familiar, assegurando que a alimentação escolar seja composta por produtos frescos, seguros, nutritivos, diversificados e de alta qualidade. Ao priorizar os pequenos produtores rurais, a escola cumpre o princípio de valorização das economias locais, gerando impacto direto no desenvolvimento socioeconômico regional e ampliando oportunidades de geração de trabalho e renda para famílias agricultoras.Além do impacto econômico e ambiental, a iniciativa qualifica o cardápio escolar ao permitir a inserção sistemática de alimentos in natura e minimamente processados, como frutas, legumes, verduras, grãos, raízes, tubérculos, ovos e produtos artesanais de origem vegetal e animal. Essa diversidade contribui diretamente para refeições mais ricas, equilibradas, coloridas e atrativas, favorecendo a adesão dos estudantes à alimentação escolar e fortalecendo hábitos de vida mais saudáveis.\nProdutos cultivados localmente tendem a apresentar maior frescor, melhor textura e maior valor nutricional, o que potencializa a qualidade das refeições servidas. A aproximação entre a escola e os agricultores locais também favorece o fortalecimento de vínculos comunitários, permitindo que os estudantes reconheçam a importância da produção rural, compreendam a origem dos alimentos e valorizem o trabalho das famílias agricultoras. Essa relação amplia a percepção da comunidade escolar sobre sustentabilidade, economia local e segurança alimentar. Por fim, investir na agricultura familiar significa fortalecer políticas públicas que valorizam o campo, ampliam a oferta de alimentos saudáveis, apoiam pequenos produtores e asseguram à comunidade escolar refeições de qualidade superior. A iniciativa se consolida como uma estratégia essencial para integrar saúde, educação, desenvolvimento territorial e sustentabilidade, promovendo benefícios duradouros e alinhados às diretrizes de uma alimentação escolar equilibrada, segura, justa e humanizada.\n30% do valor disponível ou que vier a ser disponibilizado será utilizado na aquisição de produtos da agricultura familiar.",
+    "prazo": "2026-03-06",
+    "prazoEntrega": "2026-03-06",
+    "status": "aberto",
+    "participantes": "PF/PJ",
+    "itens": [
+      {
+        "nome": "Alface",
+        "descricao": "alface ",
+        "categoria": "Custeio",
+        "unidade": "Unidade",
+        "quantidade": 20,
+        "garantia": ""
+      },
+      {
+        "nome": "Cebolinha Kilograma  Ou Unidade Ou Molho",
+        "descricao": "cebolinha de folha ",
+        "categoria": "Custeio",
+        "unidade": "Pacote",
+        "quantidade": 10,
+        "garantia": ""
+      },
+      {
+        "nome": "Repolho Branco Kg",
+        "descricao": "repolho branco",
+        "categoria": "Custeio",
+        "unidade": "Unidade",
+        "quantidade": 6,
+        "garantia": ""
+      }
+    ],
+    "expenseGroupId": 3031,
+    "idSchool": 11187,
+    "idSubprogram": 631
+  },
+  {
+    "id": "2026007531",
+    "idBudget": 157607,
+    "ano": 2026,
+    "escola": "EE PROFESSORA CECILIA MARIA DE REZENDE NEVES",
+    "municipio": "Tapira",
+    "sre": "Uberaba",
+    "grupo": "Gêneros Alimentícios",
+    "subPrograma": "Subprograma - Alimentação Estadual 2026",
+    "objeto": "\nHortifrutigranjeiros (Mercado comum): destinado às aquisições de frutas, legumes, verduras, ovos e outros produtos perecíveis de origem vegetal e animal.\nFrigorífico: destinado à compra de carnes, aves, peixes e demais produtos cárneos.\nGeral: destinado à aquisição de itens alimentares não perecíveis, como arroz, feijão, massas, farináceos, entre outros.\nPadaria: destinado à compra de pães e produtos de panificação.\nEssa sugestão busca contribuir para uma maior padronização e transparência das informações financeiras, além de permitir uma melhor análise dos gastos realizados em cada tipo de produto.\nA iniciativa contempla a aquisição de hortifrutigranjeiros, frigoríficos e itens gerais não perecíveis, assegurando a oferta regular e de qualidade dos alimentos utilizados na alimentação escolar. No eixo dos hortifrutigranjeiros, a ação garante o fornecimento contínuo de frutas, legumes, verduras, ovos e outros produtos perecíveis de origem vegetal e animal, fundamentais para a promoção de hábitos alimentares saudáveis.  Já no eixo de frigorífico, a iniciativa volta-se à aquisição de equipamentos adequados para conservação e armazenamento de carnes, aves, peixes e demais produtos cárneos.  Além disso, contribui para a otimização dos processos internos, ampliando a eficiência no manejo dos insumos utilizados no dia a dia da cozinha escolar. No eixo dos itens gerais não perecíveis, como arroz, feijão, massas, farináceos e demais produtos de longa duração, a iniciativa busca garantir regularidade no abastecimento, segurança no preparo das refeições e funcionalidade no planejamento alimentar da unidade escolar. \nDestinado às aquisições realizadas diretamente da agricultura familiar, conforme normativas vigentes. A iniciativa tem como objetivo fortalecer de maneira ampla e estruturada a aquisição de alimentos provenientes da agricultura familiar, assegurando que a alimentação escolar seja composta por produtos frescos, seguros, nutritivos, diversificados e de alta qualidade. Ao priorizar os pequenos produtores rurais, a escola cumpre o princípio de valorização das economias locais, gerando impacto direto no desenvolvimento socioeconômico regional e ampliando oportunidades de geração de trabalho e renda para famílias agricultoras.Além do impacto econômico e ambiental, a iniciativa qualifica o cardápio escolar ao permitir a inserção sistemática de alimentos in natura e minimamente processados, como frutas, legumes, verduras, grãos, raízes, tubérculos, ovos e produtos artesanais de origem vegetal e animal. Essa diversidade contribui diretamente para refeições mais ricas, equilibradas, coloridas e atrativas, favorecendo a adesão dos estudantes à alimentação escolar e fortalecendo hábitos de vida mais saudáveis.\nProdutos cultivados localmente tendem a apresentar maior frescor, melhor textura e maior valor nutricional, o que potencializa a qualidade das refeições servidas. A aproximação entre a escola e os agricultores locais também favorece o fortalecimento de vínculos comunitários, permitindo que os estudantes reconheçam a importância da produção rural, compreendam a origem dos alimentos e valorizem o trabalho das famílias agricultoras. Essa relação amplia a percepção da comunidade escolar sobre sustentabilidade, economia local e segurança alimentar. Por fim, investir na agricultura familiar significa fortalecer políticas públicas que valorizam o campo, ampliam a oferta de alimentos saudáveis, apoiam pequenos produtores e asseguram à comunidade escolar refeições de qualidade superior. A iniciativa se consolida como uma estratégia essencial para integrar saúde, educação, desenvolvimento territorial e sustentabilidade, promovendo benefícios duradouros e alinhados às diretrizes de uma alimentação escolar equilibrada, segura, justa e humanizada.\n30% do valor disponível ou que vier a ser disponibilizado será utilizado na aquisição de produtos da agricultura familiar.",
+    "prazo": "2026-03-04",
+    "prazoEntrega": "2026-03-04",
+    "status": "aberto",
+    "participantes": "PF/PJ",
+    "itens": [
+      {
+        "nome": "Oleo Vegetal Soja Litro",
+        "descricao": "óleo",
+        "categoria": "Custeio",
+        "unidade": "L",
+        "quantidade": 95,
+        "garantia": ""
+      }
+    ],
+    "expenseGroupId": 3031,
+    "idSchool": 11187,
+    "idSubprogram": 631
+  },
+  {
+    "id": "2026009033",
+    "idBudget": 159439,
+    "ano": 2026,
+    "escola": "EE PROFESSORA CECILIA MARIA DE REZENDE NEVES",
+    "municipio": "Tapira",
+    "sre": "Uberaba",
+    "grupo": "Gêneros Alimentícios",
+    "subPrograma": "Subprograma - Alimentação Estadual 2026",
+    "objeto": "Aquisição alimentos básicos e diversificados, sendo os principais produtos milho, mandioca, feijão, arroz, leite, carnes, hortaliças, frutas (como banana), café, e aves/ovos.",
+    "prazo": "2026-03-08",
+    "prazoEntrega": "2026-03-08",
+    "status": "aberto",
+    "participantes": "PF/PJ",
+    "itens": [
+      {
+        "nome": "Sal Kg",
+        "descricao": "sal ",
+        "categoria": "Custeio",
+        "unidade": "KG",
+        "quantidade": 15,
+        "garantia": ""
+      }
+    ],
+    "expenseGroupId": 3031,
+    "idSchool": 11187,
+    "idSubprogram": 631
+  },
+  {
+    "id": "2026009036",
+    "idBudget": 159444,
+    "ano": 2026,
+    "escola": "EE PROFESSORA CECILIA MARIA DE REZENDE NEVES",
+    "municipio": "Tapira",
+    "sre": "Uberaba",
+    "grupo": "Gêneros Alimentícios",
+    "subPrograma": "Subprograma - Alimentação Estadual 2026",
+    "objeto": "Aquisição alimentos básicos e diversificados, sendo os principais produtos milho, mandioca, feijão, arroz, leite, carnes, hortaliças, frutas (como banana), café, e aves/ovos.",
+    "prazo": "2026-03-08",
+    "prazoEntrega": "2026-03-08",
+    "status": "aberto",
+    "participantes": "PF/PJ",
+    "itens": [
+      {
+        "nome": "Feijao Preto Kg",
+        "descricao": "feijão preto",
+        "categoria": "Custeio",
+        "unidade": "KG",
+        "quantidade": 7,
+        "garantia": ""
+      }
+    ],
+    "expenseGroupId": 3031,
+    "idSchool": 11187,
+    "idSubprogram": 631
+  },
+  {
+    "id": "2026009039",
+    "idBudget": 159448,
+    "ano": 2026,
+    "escola": "EE PROFESSORA CECILIA MARIA DE REZENDE NEVES",
+    "municipio": "Tapira",
+    "sre": "Uberaba",
+    "grupo": "Gêneros Alimentícios",
+    "subPrograma": "Subprograma - Alimentação Estadual 2026",
+    "objeto": "Aquisição alimentos básicos e diversificados, sendo os principais produtos milho, mandioca, feijão, arroz, leite, carnes, hortaliças, frutas (como banana), café, e aves/ovos.",
+    "prazo": "2026-03-08",
+    "prazoEntrega": "2026-03-08",
+    "status": "aberto",
+    "participantes": "PF/PJ",
+    "itens": [
+      {
+        "nome": "Farinha De Milho Kg",
+        "descricao": "farinha de milho",
+        "categoria": "Custeio",
+        "unidade": "KG",
+        "quantidade": 6,
+        "garantia": ""
+      }
+    ],
+    "expenseGroupId": 3031,
+    "idSchool": 11187,
+    "idSubprogram": 631
+  },
+  {
+    "id": "2026009042",
+    "idBudget": 159452,
+    "ano": 2026,
+    "escola": "EE PROFESSORA CECILIA MARIA DE REZENDE NEVES",
+    "municipio": "Tapira",
+    "sre": "Uberaba",
+    "grupo": "Gêneros Alimentícios",
+    "subPrograma": "Subprograma - Alimentação Estadual 2026",
+    "objeto": "Aquisição alimentos básicos e diversificados, sendo os principais produtos milho, mandioca, feijão, arroz, leite, carnes, hortaliças, frutas (como banana), café, e aves/ovos.",
+    "prazo": "2026-03-08",
+    "prazoEntrega": "2026-03-08",
+    "status": "aberto",
+    "participantes": "PF/PJ",
+    "itens": [
+      {
+        "nome": "Farinha De Mandioca Kg",
+        "descricao": "farinha de mandioca",
+        "categoria": "Custeio",
+        "unidade": "KG",
+        "quantidade": 36,
+        "garantia": ""
+      }
+    ],
+    "expenseGroupId": 3031,
+    "idSchool": 11187,
+    "idSubprogram": 631
+  },
+  {
+    "id": "2026009045",
+    "idBudget": 159455,
+    "ano": 2026,
+    "escola": "EE PROFESSORA CECILIA MARIA DE REZENDE NEVES",
+    "municipio": "Tapira",
+    "sre": "Uberaba",
+    "grupo": "Gêneros Alimentícios",
+    "subPrograma": "Subprograma - Alimentação Estadual 2026",
+    "objeto": "Aquisição alimentos básicos e diversificados, sendo os principais produtos milho, mandioca, feijão, arroz, leite, carnes, hortaliças, frutas (como banana), café, e aves/ovos.",
+    "prazo": "2026-03-08",
+    "prazoEntrega": "2026-03-08",
+    "status": "aberto",
+    "participantes": "PF/PJ",
+    "itens": [
+      {
+        "nome": "Aveia",
+        "descricao": "aveia",
+        "categoria": "Custeio",
+        "unidade": "KG",
+        "quantidade": 15,
+        "garantia": ""
+      }
+    ],
+    "expenseGroupId": 3031,
+    "idSchool": 11187,
+    "idSubprogram": 631
+  },
+  {
+    "id": "2026009048",
+    "idBudget": 159458,
+    "ano": 2026,
+    "escola": "EE PROFESSORA CECILIA MARIA DE REZENDE NEVES",
+    "municipio": "Tapira",
+    "sre": "Uberaba",
+    "grupo": "Gêneros Alimentícios",
+    "subPrograma": "Subprograma - Alimentação Estadual 2026",
+    "objeto": "Aquisição alimentos básicos e diversificados, sendo os principais produtos milho, mandioca, feijão, arroz, leite, carnes, hortaliças, frutas (como banana), café, e aves/ovos.",
+    "prazo": "2026-03-08",
+    "prazoEntrega": "2026-03-08",
+    "status": "aberto",
+    "participantes": "PF/PJ",
+    "itens": [
+      {
+        "nome": "Canjiquinha Kg",
+        "descricao": "canjiquinha",
+        "categoria": "Custeio",
+        "unidade": "KG",
+        "quantidade": 25,
+        "garantia": ""
+      }
+    ],
+    "expenseGroupId": 3031,
+    "idSchool": 11187,
+    "idSubprogram": 631
+  },
+  {
+    "id": "2026009054",
+    "idBudget": 159467,
+    "ano": 2026,
+    "escola": "EE PROFESSORA CECILIA MARIA DE REZENDE NEVES",
+    "municipio": "Tapira",
+    "sre": "Uberaba",
+    "grupo": "Gêneros Alimentícios",
+    "subPrograma": "Subprograma - Alimentação Estadual 2026",
+    "objeto": "Aquisição alimentos básicos e diversificados, sendo os principais produtos milho, mandioca, feijão, arroz, leite, carnes, hortaliças, frutas (como banana), café, e aves/ovos.",
+    "prazo": "2026-03-08",
+    "prazoEntrega": "2026-03-08",
+    "status": "aberto",
+    "participantes": "PF/PJ",
+    "itens": [
+      {
+        "nome": "Oregano Desidratado Kg",
+        "descricao": "óregano",
+        "categoria": "Custeio",
+        "unidade": "KG",
+        "quantidade": 1,
+        "garantia": ""
+      }
+    ],
+    "expenseGroupId": 3031,
+    "idSchool": 11187,
+    "idSubprogram": 631
+  },
+  {
+    "id": "2026009062",
+    "idBudget": 159476,
+    "ano": 2026,
+    "escola": "EE PROFESSORA CECILIA MARIA DE REZENDE NEVES",
+    "municipio": "Tapira",
+    "sre": "Uberaba",
+    "grupo": "Gêneros Alimentícios",
+    "subPrograma": "Subprograma - Alimentação Estadual 2026",
+    "objeto": "Aquisição alimentos básicos e diversificados, sendo os principais produtos milho, mandioca, feijão, arroz, leite, carnes, hortaliças, frutas (como banana), café, e aves/ovos.",
+    "prazo": "2026-03-08",
+    "prazoEntrega": "2026-03-08",
+    "status": "aberto",
+    "participantes": "PF/PJ",
+    "itens": [
+      {
+        "nome": "Manjericao Kg",
+        "descricao": "óregano",
+        "categoria": "Custeio",
+        "unidade": "KG",
+        "quantidade": 0.2,
+        "garantia": ""
+      }
+    ],
+    "expenseGroupId": 3031,
+    "idSchool": 11187,
+    "idSubprogram": 631
+  },
+  {
+    "id": "2026009190",
+    "idBudget": 159640,
+    "ano": 2026,
+    "escola": "EE PROFESSORA CECILIA MARIA DE REZENDE NEVES",
+    "municipio": "Tapira",
+    "sre": "Uberaba",
+    "grupo": "Gêneros Alimentícios",
+    "subPrograma": "Subprograma - Alimentação Estadual 2026",
+    "objeto": "Aquisição alimentos básicos e diversificados, sendo os principais produtos milho, mandioca, feijão, arroz, leite, carnes, hortaliças, frutas (como banana), café, e aves/ovos.",
+    "prazo": "2026-03-08",
+    "prazoEntrega": "2026-03-08",
+    "status": "aberto",
+    "participantes": "PF/PJ",
+    "itens": [
+      {
+        "nome": "Canela - Po - Pau Kg",
+        "descricao": "canela",
+        "categoria": "Custeio",
+        "unidade": "KG",
+        "quantidade": 0.1,
+        "garantia": ""
+      }
+    ],
+    "expenseGroupId": 3031,
+    "idSchool": 11187,
+    "idSubprogram": 631
+  },
+  {
+    "id": "2026009192",
+    "idBudget": 159643,
+    "ano": 2026,
+    "escola": "EE PROFESSORA CECILIA MARIA DE REZENDE NEVES",
+    "municipio": "Tapira",
+    "sre": "Uberaba",
+    "grupo": "Gêneros Alimentícios",
+    "subPrograma": "Subprograma - Alimentação Estadual 2026",
+    "objeto": "Aquisição alimentos básicos e diversificados, sendo os principais produtos milho, mandioca, feijão, arroz, leite, carnes, hortaliças, frutas (como banana), café, e aves/ovos.",
+    "prazo": "2026-03-08",
+    "prazoEntrega": "2026-03-08",
+    "status": "aberto",
+    "participantes": "PF/PJ",
+    "itens": [
+      {
+        "nome": "Macarrao Kg",
+        "descricao": "macarrão",
+        "categoria": "Custeio",
+        "unidade": "KG",
+        "quantidade": 86,
+        "garantia": ""
+      }
+    ],
+    "expenseGroupId": 3031,
+    "idSchool": 11187,
+    "idSubprogram": 631
+  },
+  {
+    "id": "2026009196",
+    "idBudget": 159648,
+    "ano": 2026,
+    "escola": "EE PROFESSORA CECILIA MARIA DE REZENDE NEVES",
+    "municipio": "Tapira",
+    "sre": "Uberaba",
+    "grupo": "Gêneros Alimentícios",
+    "subPrograma": "Subprograma - Alimentação Estadual 2026",
+    "objeto": "Aquisição alimentos básicos e diversificados, sendo os principais produtos milho, mandioca, feijão, arroz, leite, carnes, hortaliças, frutas (como banana), café, e aves/ovos.",
+    "prazo": "2026-03-08",
+    "prazoEntrega": "2026-03-08",
+    "status": "aberto",
+    "participantes": "PF/PJ",
+    "itens": [
+      {
+        "nome": "Coco Ralado Kg",
+        "descricao": "coco ralado",
+        "categoria": "Custeio",
+        "unidade": "KG",
+        "quantidade": 12,
+        "garantia": ""
+      }
+    ],
+    "expenseGroupId": 3031,
+    "idSchool": 11187,
+    "idSubprogram": 631
+  },
+  {
+    "id": "2026009198",
+    "idBudget": 159651,
+    "ano": 2026,
+    "escola": "EE PROFESSORA CECILIA MARIA DE REZENDE NEVES",
+    "municipio": "Tapira",
+    "sre": "Uberaba",
+    "grupo": "Gêneros Alimentícios",
+    "subPrograma": "Subprograma - Alimentação Estadual 2026",
+    "objeto": "Aquisição alimentos básicos e diversificados, sendo os principais produtos milho, mandioca, feijão, arroz, leite, carnes, hortaliças, frutas (como banana), café, e aves/ovos.",
+    "prazo": "2026-03-08",
+    "prazoEntrega": "2026-03-08",
+    "status": "aberto",
+    "participantes": "PF/PJ",
+    "itens": [
+      {
+        "nome": "Fermento Em Po Kg",
+        "descricao": "fermento em pó",
+        "categoria": "Custeio",
+        "unidade": "KG",
+        "quantidade": 1.5,
+        "garantia": ""
+      }
+    ],
+    "expenseGroupId": 3031,
+    "idSchool": 11187,
+    "idSubprogram": 631
+  },
+  {
+    "id": "2026009201",
+    "idBudget": 159657,
+    "ano": 2026,
+    "escola": "EE PROFESSORA CECILIA MARIA DE REZENDE NEVES",
+    "municipio": "Tapira",
+    "sre": "Uberaba",
+    "grupo": "Gêneros Alimentícios",
+    "subPrograma": "Subprograma - Alimentação Estadual 2026",
+    "objeto": "Aquisição alimentos básicos e diversificados, sendo os principais produtos milho, mandioca, feijão, arroz, leite, carnes, hortaliças, frutas (como banana), café, e aves/ovos.",
+    "prazo": "2026-03-08",
+    "prazoEntrega": "2026-03-08",
+    "status": "aberto",
+    "participantes": "PF/PJ",
+    "itens": [
+      {
+        "nome": "Colorau-Colorifico Kg",
+        "descricao": "colorau",
+        "categoria": "Custeio",
+        "unidade": "KG",
+        "quantidade": 1,
+        "garantia": ""
+      }
+    ],
+    "expenseGroupId": 3031,
+    "idSchool": 11187,
+    "idSubprogram": 631
+  },
+  {
+    "id": "2026009209",
+    "idBudget": 159666,
+    "ano": 2026,
+    "escola": "EE PROFESSORA CECILIA MARIA DE REZENDE NEVES",
+    "municipio": "Tapira",
+    "sre": "Uberaba",
+    "grupo": "Gêneros Alimentícios",
+    "subPrograma": "Subprograma - Alimentação Estadual 2026",
+    "objeto": "Aquisição alimentos básicos e diversificados, sendo os principais produtos milho, mandioca, feijão, arroz, leite, carnes, hortaliças, frutas (como banana), café, e aves/ovos.",
+    "prazo": "2026-03-08",
+    "prazoEntrega": "2026-03-08",
+    "status": "aberto",
+    "participantes": "PF/PJ",
+    "itens": [
+      {
+        "nome": "Açafrão Pó",
+        "descricao": "açafrão",
+        "categoria": "Custeio",
+        "unidade": "KG",
+        "quantidade": 0.1,
+        "garantia": ""
+      }
+    ],
+    "expenseGroupId": 3031,
+    "idSchool": 11187,
+    "idSubprogram": 631
+  },
+  {
+    "id": "2026009210",
+    "idBudget": 159668,
+    "ano": 2026,
+    "escola": "EE PROFESSORA CECILIA MARIA DE REZENDE NEVES",
+    "municipio": "Tapira",
+    "sre": "Uberaba",
+    "grupo": "Gêneros Alimentícios",
+    "subPrograma": "Subprograma - Alimentação Estadual 2026",
+    "objeto": "Aquisição alimentos básicos e diversificados, sendo os principais produtos milho, mandioca, feijão, arroz, leite, carnes, hortaliças, frutas (como banana), café, e aves/ovos.",
+    "prazo": "2026-03-08",
+    "prazoEntrega": "2026-03-08",
+    "status": "aberto",
+    "participantes": "PF/PJ",
+    "itens": [
+      {
+        "nome": "Margarina Kg",
+        "descricao": "margarina",
+        "categoria": "Custeio",
+        "unidade": "KG",
+        "quantidade": 11,
+        "garantia": ""
+      }
+    ],
+    "expenseGroupId": 3031,
+    "idSchool": 11187,
+    "idSubprogram": 631
+  },
+  {
+    "id": "2026009212",
+    "idBudget": 159670,
+    "ano": 2026,
+    "escola": "EE PROFESSORA CECILIA MARIA DE REZENDE NEVES",
+    "municipio": "Tapira",
+    "sre": "Uberaba",
+    "grupo": "Gêneros Alimentícios",
+    "subPrograma": "Subprograma - Alimentação Estadual 2026",
+    "objeto": "Aquisição alimentos básicos e diversificados, sendo os principais produtos milho, mandioca, feijão, arroz, leite, carnes, hortaliças, frutas (como banana), café, e aves/ovos.",
+    "prazo": "2026-03-08",
+    "prazoEntrega": "2026-03-08",
+    "status": "aberto",
+    "participantes": "PF/PJ",
+    "itens": [
+      {
+        "nome": "Polvilho Doce Kg",
+        "descricao": "polvilho doce",
+        "categoria": "Custeio",
+        "unidade": "KG",
+        "quantidade": 27,
+        "garantia": ""
+      }
+    ],
+    "expenseGroupId": 3031,
+    "idSchool": 11187,
+    "idSubprogram": 631
+  },
+  {
+    "id": "2026009215",
+    "idBudget": 159674,
+    "ano": 2026,
+    "escola": "EE PROFESSORA CECILIA MARIA DE REZENDE NEVES",
+    "municipio": "Tapira",
+    "sre": "Uberaba",
+    "grupo": "Gêneros Alimentícios",
+    "subPrograma": "Subprograma - Alimentação Estadual 2026",
+    "objeto": "Aquisição alimentos básicos e diversificados, sendo os principais produtos milho, mandioca, feijão, arroz, leite, carnes, hortaliças, frutas (como banana), café, e aves/ovos.",
+    "prazo": "2026-03-08",
+    "prazoEntrega": "2026-03-08",
+    "status": "aberto",
+    "participantes": "PF/PJ",
+    "itens": [
+      {
+        "nome": "Biscoito Doce - Sal",
+        "descricao": "biscoito doce",
+        "categoria": "Custeio",
+        "unidade": "KG",
+        "quantidade": 22,
+        "garantia": ""
+      }
+    ],
+    "expenseGroupId": 3031,
+    "idSchool": 11187,
+    "idSubprogram": 631
+  },
+  {
+    "id": "2026009222",
+    "idBudget": 159683,
+    "ano": 2026,
+    "escola": "EE PROFESSORA CECILIA MARIA DE REZENDE NEVES",
+    "municipio": "Tapira",
+    "sre": "Uberaba",
+    "grupo": "Gêneros Alimentícios",
+    "subPrograma": "Subprograma - Alimentação Estadual 2026",
+    "objeto": "Aquisição alimentos básicos e diversificados, sendo os principais produtos milho, mandioca, feijão, arroz, leite, carnes, hortaliças, frutas (como banana), café, e aves/ovos.",
+    "prazo": "2026-03-08",
+    "prazoEntrega": "2026-03-08",
+    "status": "aberto",
+    "participantes": "PF/PJ",
+    "itens": [
+      {
+        "nome": "Biscoito Doce - Sal",
+        "descricao": "biscoito de sal",
+        "categoria": "Custeio",
+        "unidade": "KG",
+        "quantidade": 5,
+        "garantia": ""
+      }
+    ],
+    "expenseGroupId": 3031,
+    "idSchool": 11187,
+    "idSubprogram": 631
+  },
+  {
+    "id": "2026009224",
+    "idBudget": 159685,
+    "ano": 2026,
+    "escola": "EE PROFESSORA CECILIA MARIA DE REZENDE NEVES",
+    "municipio": "Tapira",
+    "sre": "Uberaba",
+    "grupo": "Gêneros Alimentícios",
+    "subPrograma": "Subprograma - Alimentação Estadual 2026",
+    "objeto": "Aquisição alimentos básicos e diversificados, sendo os principais produtos milho, mandioca, feijão, arroz, leite, carnes, hortaliças, frutas (como banana), café, e aves/ovos.",
+    "prazo": "2026-03-08",
+    "prazoEntrega": "2026-03-08",
+    "status": "aberto",
+    "participantes": "PF/PJ",
+    "itens": [
+      {
+        "nome": "Vinagre Litro",
+        "descricao": "vinagre",
+        "categoria": "Custeio",
+        "unidade": "L",
+        "quantidade": 1,
+        "garantia": ""
+      }
+    ],
+    "expenseGroupId": 3031,
+    "idSchool": 11187,
+    "idSubprogram": 631
+  },
+  {
+    "id": "2026009261",
+    "idBudget": 159730,
+    "ano": 2026,
+    "escola": "EE PROFESSORA CECILIA MARIA DE REZENDE NEVES",
+    "municipio": "Tapira",
+    "sre": "Uberaba",
+    "grupo": "Gêneros Alimentícios",
+    "subPrograma": "Subprograma - Alimentação Estadual 2026",
+    "objeto": "Aquisição alimentos básicos e diversificados, sendo os principais produtos milho, mandioca, feijão, arroz, leite, carnes, hortaliças, frutas (como banana), café, e aves/ovos.",
+    "prazo": "2026-03-08",
+    "prazoEntrega": "2026-03-08",
+    "status": "aberto",
+    "participantes": "PF/PJ",
+    "itens": [
+      {
+        "nome": "Amido De Milho",
+        "descricao": "amido de milho",
+        "categoria": "Custeio",
+        "unidade": "KG",
+        "quantidade": 1.1,
+        "garantia": ""
+      }
+    ],
+    "expenseGroupId": 3031,
+    "idSchool": 11187,
+    "idSubprogram": 631
+  },
+  {
+    "id": "2026009266",
+    "idBudget": 159736,
+    "ano": 2026,
+    "escola": "EE PROFESSORA CECILIA MARIA DE REZENDE NEVES",
+    "municipio": "Tapira",
+    "sre": "Uberaba",
+    "grupo": "Gêneros Alimentícios",
+    "subPrograma": "Subprograma - Alimentação Estadual 2026",
+    "objeto": "Aquisição alimentos básicos e diversificados, sendo os principais produtos milho, mandioca, feijão, arroz, leite, carnes, hortaliças, frutas (como banana), café, e aves/ovos.",
+    "prazo": "2026-03-08",
+    "prazoEntrega": "2026-03-08",
+    "status": "aberto",
+    "participantes": "PF/PJ",
+    "itens": [
+      {
+        "nome": "Mussarela Kg",
+        "descricao": "mussarela",
+        "categoria": "Custeio",
+        "unidade": "KG",
+        "quantidade": 8,
+        "garantia": ""
+      }
+    ],
+    "expenseGroupId": 3031,
+    "idSchool": 11187,
+    "idSubprogram": 631
+  },
+  {
+    "id": "2026009268",
+    "idBudget": 159738,
+    "ano": 2026,
+    "escola": "EE PROFESSORA CECILIA MARIA DE REZENDE NEVES",
+    "municipio": "Tapira",
+    "sre": "Uberaba",
+    "grupo": "Gêneros Alimentícios",
+    "subPrograma": "Subprograma - Alimentação Estadual 2026",
+    "objeto": "Aquisição alimentos básicos e diversificados, sendo os principais produtos milho, mandioca, feijão, arroz, leite, carnes, hortaliças, frutas (como banana), café, e aves/ovos.",
+    "prazo": "2026-03-08",
+    "prazoEntrega": "2026-03-08",
+    "status": "aberto",
+    "participantes": "PF/PJ",
+    "itens": [
+      {
+        "nome": "Cafe - Po De Cafe Kg",
+        "descricao": "café",
+        "categoria": "Custeio",
+        "unidade": "KG",
+        "quantidade": 30,
+        "garantia": ""
+      }
+    ],
+    "expenseGroupId": 3031,
+    "idSchool": 11187,
+    "idSubprogram": 631
+  },
+  {
+    "id": "2026009273",
+    "idBudget": 159743,
+    "ano": 2026,
+    "escola": "EE PROFESSORA CECILIA MARIA DE REZENDE NEVES",
+    "municipio": "Tapira",
+    "sre": "Uberaba",
+    "grupo": "Gêneros Alimentícios",
+    "subPrograma": "Subprograma - Alimentação Estadual 2026",
+    "objeto": "Aquisição alimentos básicos e diversificados, sendo os principais produtos milho, mandioca, feijão, arroz, leite, carnes, hortaliças, frutas (como banana), café, e aves/ovos.",
+    "prazo": "2026-03-08",
+    "prazoEntrega": "2026-03-08",
+    "status": "aberto",
+    "participantes": "PF/PJ",
+    "itens": [
+      {
+        "nome": "Iogurte Garrafa Litro",
+        "descricao": "iogurte ",
+        "categoria": "Custeio",
+        "unidade": "L",
+        "quantidade": 30,
+        "garantia": ""
+      }
+    ],
+    "expenseGroupId": 3031,
+    "idSchool": 11187,
+    "idSubprogram": 631
+  },
+  {
+    "id": "2026009276",
+    "idBudget": 159748,
+    "ano": 2026,
+    "escola": "EE PROFESSORA CECILIA MARIA DE REZENDE NEVES",
+    "municipio": "Tapira",
+    "sre": "Uberaba",
+    "grupo": "Gêneros Alimentícios",
+    "subPrograma": "Subprograma - Alimentação Estadual 2026",
+    "objeto": "Aquisição alimentos básicos e diversificados, sendo os principais produtos milho, mandioca, feijão, arroz, leite, carnes, hortaliças, frutas (como banana), café, e aves/ovos.",
+    "prazo": "2026-03-08",
+    "prazoEntrega": "2026-03-08",
+    "status": "aberto",
+    "participantes": "PF/PJ",
+    "itens": [
+      {
+        "nome": "Carne Bovina Acem Kg",
+        "descricao": "carne Acem moido",
+        "categoria": "Custeio",
+        "unidade": "KG",
+        "quantidade": 72,
+        "garantia": ""
+      }
+    ],
+    "expenseGroupId": 3031,
+    "idSchool": 11187,
+    "idSubprogram": 631
+  },
+  {
+    "id": "2026009279",
+    "idBudget": 159752,
+    "ano": 2026,
+    "escola": "EE PROFESSORA CECILIA MARIA DE REZENDE NEVES",
+    "municipio": "Tapira",
+    "sre": "Uberaba",
+    "grupo": "Gêneros Alimentícios",
+    "subPrograma": "Subprograma - Alimentação Estadual 2026",
+    "objeto": "Aquisição alimentos básicos e diversificados, sendo os principais produtos milho, mandioca, feijão, arroz, leite, carnes, hortaliças, frutas (como banana), café, e aves/ovos.",
+    "prazo": "2026-03-08",
+    "prazoEntrega": "2026-03-08",
+    "status": "aberto",
+    "participantes": "PF/PJ",
+    "itens": [
+      {
+        "nome": "File De Peixe - Tilapia Kg",
+        "descricao": "peixe filé de tilápia ",
+        "categoria": "Custeio",
+        "unidade": "KG",
+        "quantidade": 23,
+        "garantia": ""
+      }
+    ],
+    "expenseGroupId": 3031,
+    "idSchool": 11187,
+    "idSubprogram": 631
+  },
+  {
+    "id": "2026009280",
+    "idBudget": 159755,
+    "ano": 2026,
+    "escola": "EE PROFESSORA CECILIA MARIA DE REZENDE NEVES",
+    "municipio": "Tapira",
+    "sre": "Uberaba",
+    "grupo": "Gêneros Alimentícios",
+    "subPrograma": "Subprograma - Alimentação Estadual 2026",
+    "objeto": "Aquisição alimentos básicos e diversificados, sendo os principais produtos milho, mandioca, feijão, arroz, leite, carnes, hortaliças, frutas (como banana), café, e aves/ovos.",
+    "prazo": "2026-03-08",
+    "prazoEntrega": "2026-03-08",
+    "status": "aberto",
+    "participantes": "PF/PJ",
+    "itens": [
+      {
+        "nome": "Linguica Kg",
+        "descricao": "linguiça suina",
+        "categoria": "Custeio",
+        "unidade": "KG",
+        "quantidade": 4,
+        "garantia": ""
+      }
+    ],
+    "expenseGroupId": 3031,
+    "idSchool": 11187,
+    "idSubprogram": 631
+  }
+]

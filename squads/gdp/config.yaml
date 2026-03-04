@@ -1,0 +1,69 @@
+name: gdp
+version: 1.0.0
+tested: false
+updated_at: "2026-02-28"
+short-title: Gestão de Pedidos
+description: >-
+  Squad especializado em gestão de pedidos pós-licitação.
+  6 agentes baseados em mentes elite: gestão de ATA/ARP,
+  processamento de pedidos, portal escolar, compliance contratual,
+  logística de entregas e dashboard analytics.
+  Frameworks: Lei 14.133/2021, SRP, ARP, SGD/MG.
+author: Edson Lariucci
+entry_agent: gdp-chief
+slashPrefix: gdp
+
+settings:
+  activation:
+    show_ecosystem_report: true
+    show_greeting: true
+    show_quick_commands: true
+
+agents:
+  - id: gdp-chief
+    name: Orquestrador GDP
+    file: agents/gdp-chief.md
+    role: Triage, routing e coordenação do squad de pedidos
+  - id: gestor-arp
+    name: Gestor de ARP
+    file: agents/gestor-arp.md
+    role: Gestão do ciclo de vida da ATA de Registro de Preços
+  - id: gestor-pedidos
+    name: Gestor de Pedidos
+    file: agents/gestor-pedidos.md
+    role: Processamento e validação de pedidos contra contratos
+  - id: portal-escolar
+    name: Portal Escolar
+    file: agents/portal-escolar.md
+    role: Portal web para escolas fazerem pedidos
+  - id: compliance-contratos
+    name: Compliance Contratual
+    file: agents/compliance-contratos.md
+    role: Conformidade legal e fiscalização contratual
+  - id: logistica-entregas
+    name: Logística de Entregas
+    file: agents/logistica-entregas.md
+    role: Rastreamento de entregas, ateste e notas fiscais
+  - id: dashboard-analytics
+    name: Dashboard Analytics
+    file: agents/dashboard-analytics.md
+    role: Relatórios, analytics e auditoria
+
+data_sources:
+  apis:
+    - name: Compras.gov.br
+      url: https://api.compras.dados.gov.br/
+    - name: PNCP
+      url: https://pncp.gov.br/api/consulta/swagger-ui/index.html
+  portals:
+    - name: SGD Caixa Escolar MG
+      url: https://caixaescolar.educacao.mg.gov.br/
+    - name: PNCP
+      url: https://pncp.gov.br/
+
+legal_framework:
+  - Lei 14.133/2021 (Nova Lei de Licitações)
+  - Decreto 11.462/2023 (Regulamento SRP)
+  - IN 65/2021 (Pesquisa de Preços)
+  - Art. 82-86 (Sistema de Registro de Preços)
+  - Art. 117 (Fiscal do Contrato)

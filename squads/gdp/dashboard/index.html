@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GDP Dashboard — Gestão de Pedidos Lariucci</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --surface: #1e293b;
+      --surface2: #334155;
+      --border: #475569;
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --accent: #3b82f6;
+      --accent2: #8b5cf6;
+      --success: #22c55e;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    .header {
+      background: linear-gradient(135deg, var(--surface), var(--surface2));
+      border-bottom: 1px solid var(--border);
+      padding: 1rem 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .header h1 {
+      font-size: 1.4rem;
+      font-weight: 700;
+    }
+
+    .header h1 span { color: var(--accent); }
+
+    .header-badge {
+      background: var(--success);
+      color: #000;
+      padding: 0.2rem 0.6rem;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      font-weight: 700;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+    }
+
+    .main { padding: 1.5rem 2rem; }
+
+    /* KPI Cards */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    .kpi-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.2rem;
+      transition: transform 0.2s;
+    }
+
+    .kpi-card:hover { transform: translateY(-2px); }
+
+    .kpi-label {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.5rem;
+    }
+
+    .kpi-value {
+      font-size: 2rem;
+      font-weight: 800;
+    }
+
+    .kpi-value.blue { color: var(--accent); }
+    .kpi-value.purple { color: var(--accent2); }
+    .kpi-value.green { color: var(--success); }
+    .kpi-value.orange { color: var(--warning); }
+
+    .kpi-sub {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 0.3rem;
+    }
+
+    /* Controls */
+    .controls {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .search-box {
+      flex: 1;
+      min-width: 250px;
+      position: relative;
+    }
+
+    .search-box input {
+      width: 100%;
+      padding: 0.7rem 1rem 0.7rem 2.5rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 0.9rem;
+      outline: none;
+    }
+
+    .search-box input:focus { border-color: var(--accent); }
+
+    .search-box::before {
+      content: '🔍';
+      position: absolute;
+      left: 0.8rem;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 0.9rem;
+    }
+
+    select {
+      padding: 0.7rem 1rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 0.9rem;
+      outline: none;
+      cursor: pointer;
+    }
+
+    select:focus { border-color: var(--accent); }
+
+    .btn {
+      padding: 0.7rem 1.2rem;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: white;
+    }
+
+    .btn-primary:hover { background: #2563eb; }
+
+    .btn-success {
+      background: var(--success);
+      color: #000;
+    }
+
+    /* Tabs */
+    .tabs {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1.5rem;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 0;
+    }
+
+    .tab {
+      padding: 0.7rem 1.2rem;
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s;
+    }
+
+    .tab.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+
+    .tab:hover { color: var(--text); }
+
+    /* Tables */
+    .table-container {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th {
+      background: var(--surface2);
+      padding: 0.8rem 1rem;
+      text-align: left;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      position: sticky;
+      top: 0;
+      cursor: pointer;
+    }
+
+    th:hover { color: var(--text); }
+
+    td {
+      padding: 0.7rem 1rem;
+      font-size: 0.85rem;
+      border-top: 1px solid rgba(71,85,105,0.3);
+    }
+
+    tr:hover td { background: rgba(59,130,246,0.05); }
+
+    .price {
+      font-weight: 700;
+      color: var(--success);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .stock-badge {
+      padding: 0.15rem 0.5rem;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .stock-ok { background: rgba(34,197,94,0.15); color: var(--success); }
+    .stock-low { background: rgba(245,158,11,0.15); color: var(--warning); }
+    .stock-zero { background: rgba(239,68,68,0.15); color: var(--danger); }
+
+    /* School Cards */
+    .school-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 1rem;
+    }
+
+    .school-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.2rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .school-card:hover {
+      border-color: var(--accent);
+      transform: translateY(-2px);
+    }
+
+    .school-card.selected {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 1px var(--accent);
+    }
+
+    .school-name {
+      font-weight: 700;
+      font-size: 0.95rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .school-stats {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .school-stats span { font-weight: 600; color: var(--accent); }
+
+    /* Charts */
+    .chart-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .chart-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.2rem;
+    }
+
+    .chart-title {
+      font-size: 0.85rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+    }
+
+    .bar-chart { display: flex; flex-direction: column; gap: 0.5rem; }
+
+    .bar-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .bar-label {
+      width: 120px;
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      text-align: right;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .bar-track {
+      flex: 1;
+      height: 20px;
+      background: var(--surface2);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .bar-fill {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.5s ease;
+      display: flex;
+      align-items: center;
+      padding-left: 0.4rem;
+      font-size: 0.65rem;
+      font-weight: 700;
+    }
+
+    .bar-fill.blue { background: linear-gradient(90deg, var(--accent), #60a5fa); }
+    .bar-fill.purple { background: linear-gradient(90deg, var(--accent2), #a78bfa); }
+
+    /* Footer */
+    .footer {
+      text-align: center;
+      padding: 2rem;
+      color: var(--text-muted);
+      font-size: 0.75rem;
+    }
+
+    .hidden { display: none !important; }
+
+    /* Print */
+    @media print {
+      body { background: white; color: #000; }
+      .header { background: #f1f5f9; }
+      .kpi-card, .table-container, .chart-card, .school-card {
+        background: white;
+        border: 1px solid #ddd;
+      }
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .header { flex-direction: column; gap: 0.5rem; }
+      .main { padding: 1rem; }
+      .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+      .chart-grid { grid-template-columns: 1fr; }
+      .controls { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <h1>📦 <span>GDP</span> Dashboard</h1>
+    <span class="header-badge">ARP VIGENTE</span>
+  </div>
+  <div class="header-right">
+    <span>Fornecedor: <strong>Lariucci & Ribeiro Pereira</strong></span>
+    <span>|</span>
+    <span id="current-date"></span>
+  </div>
+</div>
+
+<div class="main">
+  <!-- KPI Cards -->
+  <div class="kpi-grid" id="kpi-grid"></div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab active" data-tab="escolas" onclick="switchTab('escolas')">Escolas</button>
+    <button class="tab" data-tab="produtos" onclick="switchTab('produtos')">Todos os Produtos</button>
+    <button class="tab" data-tab="analytics" onclick="switchTab('analytics')">Analytics</button>
+  </div>
+
+  <!-- Tab: Escolas -->
+  <div id="tab-escolas">
+    <div class="controls">
+      <div class="search-box">
+        <input type="text" id="school-search" placeholder="Buscar escola..." oninput="filterSchools()">
+      </div>
+    </div>
+    <div class="school-grid" id="school-grid"></div>
+
+    <div id="school-detail" class="hidden" style="margin-top:1.5rem;">
+      <div class="controls">
+        <h2 id="detail-title" style="font-size:1.1rem;"></h2>
+        <button class="btn btn-primary" onclick="closeDetail()">Voltar</button>
+      </div>
+      <div class="table-container" style="max-height:500px; overflow-y:auto;">
+        <table>
+          <thead>
+            <tr>
+              <th>Item</th>
+              <th>Produto</th>
+              <th>Preço Unit.</th>
+              <th>Estoque</th>
+            </tr>
+          </thead>
+          <tbody id="detail-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab: Produtos -->
+  <div id="tab-produtos" class="hidden">
+    <div class="controls">
+      <div class="search-box">
+        <input type="text" id="product-search" placeholder="Buscar produto..." oninput="filterProducts()">
+      </div>
+      <select id="school-filter" onchange="filterProducts()">
+        <option value="">Todas as Escolas</option>
+      </select>
+      <select id="sort-filter" onchange="filterProducts()">
+        <option value="name-asc">Nome A-Z</option>
+        <option value="name-desc">Nome Z-A</option>
+        <option value="price-asc">Preço: Menor</option>
+        <option value="price-desc">Preço: Maior</option>
+        <option value="stock-desc">Estoque: Maior</option>
+      </select>
+      <button class="btn btn-success" onclick="exportCSV()">Exportar CSV</button>
+    </div>
+    <div class="table-container" style="max-height:600px; overflow-y:auto;">
+      <table>
+        <thead>
+          <tr>
+            <th onclick="sortBy('escola')">Escola</th>
+            <th onclick="sortBy('produto')">Produto</th>
+            <th onclick="sortBy('preco')">Preço Unit.</th>
+            <th onclick="sortBy('estoque')">Estoque</th>
+          </tr>
+        </thead>
+        <tbody id="products-tbody"></tbody>
+      </table>
+    </div>
+    <div style="padding:0.8rem 1rem; color: var(--text-muted); font-size:0.8rem;" id="product-count"></div>
+  </div>
+
+  <!-- Tab: Analytics -->
+  <div id="tab-analytics" class="hidden">
+    <div class="chart-grid">
+      <div class="chart-card">
+        <div class="chart-title">Top 10 Escolas por Quantidade de Itens</div>
+        <div class="bar-chart" id="chart-schools"></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Top 10 Produtos Mais Caros</div>
+        <div class="bar-chart" id="chart-expensive"></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Distribuição por Faixa de Preço</div>
+        <div class="bar-chart" id="chart-price-range"></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Categorias de Produtos</div>
+        <div class="bar-chart" id="chart-categories"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  📦 GDP Dashboard — Gestão de Pedidos Pós-Licitação | Fornecedor: Lariucci & Ribeiro Pereira | Dados extraídos em 28/02/2026
+</div>
+
+<script>
+// Load ARP data
+let arpData = null;
+let allProducts = [];
+
+async function loadData() {
+  try {
+    const res = await fetch('./data/lariucci-arp-2025.json');
+    arpData = await res.json();
+  } catch(e) {
+    // Fallback: try relative path
+    try {
+      const res = await fetch('../data/arp/lariucci-arp-2025.json');
+      arpData = await res.json();
+    } catch(e2) {
+      // Use inline data as ultimate fallback
+      arpData = window.__arpDataInline;
+    }
+  }
+
+  if (!arpData) {
+    document.querySelector('.main').innerHTML = '<p style="padding:2rem;color:var(--danger);">Erro ao carregar dados da ARP. Verifique se o arquivo lariucci-arp-2025.json está acessível.</p>';
+    return;
+  }
+
+  // Flatten products
+  allProducts = [];
+  arpData.escolas.forEach(escola => {
+    escola.produtos.forEach(p => {
+      allProducts.push({
+        escola: escola.nome,
+        escolaId: escola.id,
+        produto: p.produto,
+        preco: p.preco,
+        estoque: p.estoque
+      });
+    });
+  });
+
+  renderKPIs();
+  renderSchools();
+  renderProducts();
+  renderAnalytics();
+  populateSchoolFilter();
+}
+
+// Date
+document.getElementById('current-date').textContent = new Date().toLocaleDateString('pt-BR', {
+  weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+});
+
+// KPIs
+function renderKPIs() {
+  const totalEscolas = arpData.escolas.length;
+  const totalProdutos = allProducts.length;
+  const avgPrice = allProducts.reduce((s, p) => s + p.preco, 0) / allProducts.length;
+  const withStock = allProducts.filter(p => p.estoque > 0).length;
+  const uniqueProducts = new Set(allProducts.map(p => p.produto.toLowerCase().trim())).size;
+  const maxPrice = Math.max(...allProducts.map(p => p.preco));
+
+  const kpis = [
+    { label: 'Escolas Atendidas', value: totalEscolas, cls: 'blue', sub: 'Caixas escolares vinculadas' },
+    { label: 'Total de Itens', value: totalProdutos, cls: 'purple', sub: `${uniqueProducts} produtos únicos` },
+    { label: 'Preço Médio', value: `R$ ${avgPrice.toFixed(2).replace('.', ',')}`, cls: 'green', sub: `Máx: R$ ${maxPrice.toFixed(2).replace('.', ',')}` },
+    { label: 'Com Estoque', value: withStock, cls: 'orange', sub: `${((withStock/totalProdutos)*100).toFixed(1)}% dos itens` },
+  ];
+
+  document.getElementById('kpi-grid').innerHTML = kpis.map(k => `
+    <div class="kpi-card">
+      <div class="kpi-label">${k.label}</div>
+      <div class="kpi-value ${k.cls}">${k.value}</div>
+      <div class="kpi-sub">${k.sub}</div>
+    </div>
+  `).join('');
+}
+
+// Tabs
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
+
+  ['escolas', 'produtos', 'analytics'].forEach(t => {
+    document.getElementById(`tab-${t}`).classList.toggle('hidden', t !== tab);
+  });
+}
+
+// Schools
+function renderSchools(filter = '') {
+  const grid = document.getElementById('school-grid');
+  const filtered = arpData.escolas.filter(e =>
+    e.nome.toLowerCase().includes(filter.toLowerCase())
+  );
+
+  grid.innerHTML = filtered.map(e => {
+    const total = e.produtos.reduce((s, p) => s + p.preco, 0);
+    const withStock = e.produtos.filter(p => p.estoque > 0).length;
+    return `
+      <div class="school-card" onclick="showSchoolDetail('${e.id}')">
+        <div class="school-name">${e.nome}</div>
+        <div class="school-stats">
+          <span>${e.total_itens} itens</span>
+          <span>Média: R$ ${(total / e.produtos.length).toFixed(2).replace('.', ',')}</span>
+          ${withStock > 0 ? `<span style="color:var(--success)">${withStock} c/ estoque</span>` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function filterSchools() {
+  renderSchools(document.getElementById('school-search').value);
+}
+
+function showSchoolDetail(schoolId) {
+  const escola = arpData.escolas.find(e => e.id === schoolId);
+  if (!escola) return;
+
+  document.getElementById('school-grid').classList.add('hidden');
+  document.getElementById('school-detail').classList.remove('hidden');
+  document.getElementById('detail-title').textContent = `${escola.nome} — ${escola.total_itens} itens`;
+
+  document.getElementById('detail-tbody').innerHTML = escola.produtos.map(p => `
+    <tr>
+      <td>${p.item}</td>
+      <td>${p.produto}</td>
+      <td class="price">R$ ${p.preco.toFixed(2).replace('.', ',')}</td>
+      <td><span class="stock-badge ${p.estoque > 50 ? 'stock-ok' : p.estoque > 0 ? 'stock-low' : 'stock-zero'}">${p.estoque}</span></td>
+    </tr>
+  `).join('');
+}
+
+function closeDetail() {
+  document.getElementById('school-grid').classList.remove('hidden');
+  document.getElementById('school-detail').classList.add('hidden');
+}
+
+// Products
+function renderProducts(items = null) {
+  const data = items || allProducts;
+  document.getElementById('products-tbody').innerHTML = data.map(p => `
+    <tr>
+      <td>${p.escola}</td>
+      <td>${p.produto}</td>
+      <td class="price">R$ ${p.preco.toFixed(2).replace('.', ',')}</td>
+      <td><span class="stock-badge ${p.estoque > 50 ? 'stock-ok' : p.estoque > 0 ? 'stock-low' : 'stock-zero'}">${p.estoque}</span></td>
+    </tr>
+  `).join('');
+  document.getElementById('product-count').textContent = `Exibindo ${data.length} de ${allProducts.length} itens`;
+}
+
+function filterProducts() {
+  const search = document.getElementById('product-search').value.toLowerCase();
+  const school = document.getElementById('school-filter').value;
+  const sort = document.getElementById('sort-filter').value;
+
+  let filtered = allProducts.filter(p => {
+    const matchSearch = p.produto.toLowerCase().includes(search) || p.escola.toLowerCase().includes(search);
+    const matchSchool = !school || p.escolaId === school;
+    return matchSearch && matchSchool;
+  });
+
+  const [field, dir] = sort.split('-');
+  filtered.sort((a, b) => {
+    let va, vb;
+    if (field === 'name') { va = a.produto; vb = b.produto; }
+    else if (field === 'price') { va = a.preco; vb = b.preco; }
+    else if (field === 'stock') { va = a.estoque; vb = b.estoque; }
+    if (typeof va === 'string') return dir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
+    return dir === 'asc' ? va - vb : vb - va;
+  });
+
+  renderProducts(filtered);
+}
+
+function populateSchoolFilter() {
+  const sel = document.getElementById('school-filter');
+  arpData.escolas.forEach(e => {
+    const opt = document.createElement('option');
+    opt.value = e.id;
+    opt.textContent = e.nome;
+    sel.appendChild(opt);
+  });
+}
+
+let currentSort = { field: null, dir: 'asc' };
+function sortBy(field) {
+  if (currentSort.field === field) {
+    currentSort.dir = currentSort.dir === 'asc' ? 'desc' : 'asc';
+  } else {
+    currentSort = { field, dir: 'asc' };
+  }
+  const sorted = [...allProducts].sort((a, b) => {
+    const va = a[field], vb = b[field];
+    if (typeof va === 'string') return currentSort.dir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
+    return currentSort.dir === 'asc' ? va - vb : vb - va;
+  });
+  renderProducts(sorted);
+}
+
+// Export CSV
+function exportCSV() {
+  const rows = [['Escola', 'Produto', 'Preco', 'Estoque']];
+  allProducts.forEach(p => {
+    rows.push([`"${p.escola}"`, `"${p.produto}"`, p.preco.toFixed(2).replace('.', ','), p.estoque]);
+  });
+  const csv = rows.map(r => r.join(';')).join('\n');
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `arp-lariucci-${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// Analytics
+function renderAnalytics() {
+  // Top schools by item count
+  const schoolCounts = arpData.escolas.map(e => ({ name: e.nome, count: e.total_itens }))
+    .sort((a, b) => b.count - a.count).slice(0, 10);
+  const maxCount = schoolCounts[0].count;
+  document.getElementById('chart-schools').innerHTML = schoolCounts.map(s => `
+    <div class="bar-row">
+      <div class="bar-label" title="${s.name}">${s.name}</div>
+      <div class="bar-track">
+        <div class="bar-fill blue" style="width:${(s.count/maxCount*100)}%">${s.count}</div>
+      </div>
+    </div>
+  `).join('');
+
+  // Most expensive products
+  const expensive = [...allProducts].sort((a, b) => b.preco - a.preco).slice(0, 10);
+  const maxPrice = expensive[0].preco;
+  document.getElementById('chart-expensive').innerHTML = expensive.map(p => `
+    <div class="bar-row">
+      <div class="bar-label" title="${p.produto}">${p.produto}</div>
+      <div class="bar-track">
+        <div class="bar-fill purple" style="width:${(p.preco/maxPrice*100)}%">R$ ${p.preco.toFixed(2).replace('.', ',')}</div>
+      </div>
+    </div>
+  `).join('');
+
+  // Price ranges
+  const ranges = [
+    { label: 'Até R$ 5', min: 0, max: 5 },
+    { label: 'R$ 5 - R$ 10', min: 5, max: 10 },
+    { label: 'R$ 10 - R$ 20', min: 10, max: 20 },
+    { label: 'R$ 20 - R$ 50', min: 20, max: 50 },
+    { label: 'Acima R$ 50', min: 50, max: 999 },
+  ];
+  const rangeCounts = ranges.map(r => ({
+    label: r.label,
+    count: allProducts.filter(p => p.preco >= r.min && p.preco < r.max).length
+  }));
+  const maxRange = Math.max(...rangeCounts.map(r => r.count));
+  document.getElementById('chart-price-range').innerHTML = rangeCounts.map(r => `
+    <div class="bar-row">
+      <div class="bar-label">${r.label}</div>
+      <div class="bar-track">
+        <div class="bar-fill blue" style="width:${(r.count/maxRange*100)}%">${r.count} itens</div>
+      </div>
+    </div>
+  `).join('');
+
+  // Product categories
+  const categories = {};
+  allProducts.forEach(p => {
+    const name = p.produto.toLowerCase();
+    let cat = 'Outros';
+    if (name.includes('polpa')) cat = 'Polpas/Frutas';
+    else if (name.includes('feij')) cat = 'Grãos/Cereais';
+    else if (name.includes('arroz') || name.includes('fubá') || name.includes('farinha') || name.includes('macarr') || name.includes('aveia')) cat = 'Grãos/Cereais';
+    else if (name.includes('carne') || name.includes('filé') || name.includes('peito') || name.includes('pernil') || name.includes('linguiça') || name.includes('tilápia') || name.includes('frango')) cat = 'Carnes/Proteínas';
+    else if (name.includes('queijo') || name.includes('mussarela') || name.includes('manteiga') || name.includes('iogurte') || name.includes('margarina')) cat = 'Laticínios';
+    else if (name.includes('alface') || name.includes('batata') || name.includes('cebola') || name.includes('cenoura') || name.includes('tomate') || name.includes('repolho') || name.includes('couve') || name.includes('beterraba') || name.includes('abóbora') || name.includes('chuchu') || name.includes('vagem') || name.includes('alho')) cat = 'Hortifruti';
+    else if (name.includes('banana') || name.includes('maça') || name.includes('laranja') || name.includes('melancia') || name.includes('abacaxi') || name.includes('limao')) cat = 'Frutas';
+    else if (name.includes('açucar') || name.includes('café') || name.includes('óleo') || name.includes('oleo') || name.includes('sal') || name.includes('vinagre') || name.includes('extrato') || name.includes('colorau') || name.includes('açafrão') || name.includes('cacau') || name.includes('amido') || name.includes('coco') || name.includes('fermento') || name.includes('orégano') || name.includes('polvilho')) cat = 'Mercearia';
+    else if (name.includes('biscoito') || name.includes('bolacha') || name.includes('rosquinha') || name.includes('pão')) cat = 'Padaria/Biscoitos';
+    else if (name.includes('ovo')) cat = 'Ovos';
+    categories[cat] = (categories[cat] || 0) + 1;
+  });
+
+  const catArr = Object.entries(categories).map(([k, v]) => ({ label: k, count: v })).sort((a, b) => b.count - a.count);
+  const maxCat = catArr[0].count;
+  document.getElementById('chart-categories').innerHTML = catArr.map(c => `
+    <div class="bar-row">
+      <div class="bar-label">${c.label}</div>
+      <div class="bar-track">
+        <div class="bar-fill purple" style="width:${(c.count/maxCat*100)}%">${c.count}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+// Initialize
+loadData();
+</script>
+
+</body>
+</html>

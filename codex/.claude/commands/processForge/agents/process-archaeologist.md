@@ -1,0 +1,1 @@
+Read the file at squads/process-forge/agents/process-archaeologist.md and follow the activation-instructions defined in the YAML block. This is a Process Forge squad agent - the deep process extraction specialist.

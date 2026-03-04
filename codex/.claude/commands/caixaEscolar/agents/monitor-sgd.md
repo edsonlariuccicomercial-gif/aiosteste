@@ -1,0 +1,1 @@
+Read the file at squads/caixa-escolar/agents/monitor-sgd.md and follow the instructions. This is the SGD portal monitor - scans for new budgets, tracks deadlines, and alerts on opportunities.

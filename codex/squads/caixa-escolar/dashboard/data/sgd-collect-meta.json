@@ -1,0 +1,11 @@
+{
+  "collectedAt": "2026-03-03T21:59:57.964Z",
+  "source": "sgd-api-fornecedor",
+  "stats": {
+    "total": 60,
+    "abertos": 60,
+    "encerrados": 0,
+    "comItens": 59,
+    "municipios": 8
+  }
+}

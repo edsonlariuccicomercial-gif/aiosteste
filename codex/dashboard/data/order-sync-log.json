@@ -1,0 +1,14 @@
+[
+  {
+    "at": "2026-03-03T01:27:02.726Z",
+    "internalOrderId": "2026000112",
+    "idempotencyKey": "internal-order:2026000112",
+    "attempt": 1,
+    "outcome": "success",
+    "provider": "mock",
+    "olistOrderId": "OL-1772463692839-934",
+    "tinyResponse": {
+      "deduplicated": true
+    }
+  }
+]

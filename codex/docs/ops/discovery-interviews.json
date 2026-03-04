@@ -1,0 +1,23 @@
+{
+  "generatedAt": null,
+  "interviews": [
+    {
+      "id": "01",
+      "date": "YYYY-MM-DD",
+      "company": "",
+      "role": "",
+      "segment": "",
+      "opportunitiesPerWeek": 0,
+      "mainPain": "",
+      "frequency1to5": 0,
+      "intensity1to5": 0,
+      "urgency1to5": 0,
+      "estimatedImpact": "",
+      "currentSolution": "",
+      "currentFailure": "",
+      "wouldPay": false,
+      "monthlyPriceRange": "",
+      "keyQuote": ""
+    }
+  ]
+}

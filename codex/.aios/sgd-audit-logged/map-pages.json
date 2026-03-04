@@ -1,0 +1,265 @@
+{
+  "generatedAt": "2026-03-02T14:08:33.904Z",
+  "mapped": [
+    {
+      "key": "home",
+      "ok": true,
+      "url": "https://caixaescolar.educacao.mg.gov.br/",
+      "title": "MG - SGD",
+      "headings": [
+        "Compras",
+        "Fornecedor"
+      ],
+      "buttons": [
+        "Mudar Senha",
+        "Sair",
+        "Orçamento",
+        "Situação de Cadastro"
+      ],
+      "fields": [],
+      "tableHeaders": [],
+      "tableRows": [],
+      "links": [
+        {
+          "text": "",
+          "href": "/"
+        },
+        {
+          "text": "Início",
+          "href": "/"
+        },
+        {
+          "text": "Situação de Cadastro",
+          "href": "/fornecedor/complemento-cadastro"
+        },
+        {
+          "text": "Orçamento",
+          "href": "/compras/orcamentos"
+        },
+        {
+          "text": "",
+          "href": "#"
+        },
+        {
+          "text": "Orçamento",
+          "href": "/compras/orcamentos"
+        },
+        {
+          "text": "Situação de Cadastro",
+          "href": "/fornecedor/complemento-cadastro"
+        }
+      ]
+    },
+    {
+      "key": "cadastro",
+      "ok": true,
+      "url": "https://caixaescolar.educacao.mg.gov.br/fornecedor/complemento-cadastro",
+      "title": "MG - SGD",
+      "headings": [],
+      "buttons": [
+        "Mudar Senha",
+        "Sair",
+        "Visualizar"
+      ],
+      "fields": [],
+      "tableHeaders": [],
+      "tableRows": [],
+      "links": [
+        {
+          "text": "",
+          "href": "/"
+        },
+        {
+          "text": "Início",
+          "href": "/"
+        },
+        {
+          "text": "Situação de Cadastro",
+          "href": "/fornecedor/complemento-cadastro"
+        },
+        {
+          "text": "Orçamento",
+          "href": "/compras/orcamentos"
+        },
+        {
+          "text": "",
+          "href": "#"
+        }
+      ]
+    },
+    {
+      "key": "orcamentos",
+      "ok": true,
+      "url": "https://caixaescolar.educacao.mg.gov.br/compras/orcamentos",
+      "title": "MG - SGD",
+      "headings": [],
+      "buttons": [
+        "Mudar Senha",
+        "Sair",
+        "Limpar",
+        "Buscar",
+        "ID do Orçamento",
+        "Ano",
+        "Escola",
+        "Prazo Proposta",
+        "Status",
+        "Excluir",
+        "Editar",
+        "Visualizar",
+        "Excluir",
+        "Editar",
+        "Visualizar",
+        "Excluir",
+        "Editar",
+        "Visualizar",
+        "Excluir",
+        "Editar",
+        "Visualizar",
+        "Excluir",
+        "Editar",
+        "Visualizar",
+        "Excluir",
+        "Editar",
+        "Visualizar",
+        "Excluir",
+        "Editar",
+        "Visualizar",
+        "Excluir",
+        "Editar",
+        "Visualizar",
+        "Excluir",
+        "Editar",
+        "Visualizar",
+        "Excluir",
+        "Editar",
+        "Visualizar",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "10"
+      ],
+      "fields": [
+        {
+          "tag": "input",
+          "type": "text",
+          "name": "",
+          "id": "",
+          "placeholder": ""
+        },
+        {
+          "tag": "input",
+          "type": "text",
+          "name": "",
+          "id": "school-name",
+          "placeholder": "Digite o nome da Escola"
+        },
+        {
+          "tag": "input",
+          "type": "text",
+          "name": "",
+          "id": "",
+          "placeholder": ""
+        },
+        {
+          "tag": "input",
+          "type": "text",
+          "name": "",
+          "id": "",
+          "placeholder": ""
+        },
+        {
+          "tag": "input",
+          "type": "text",
+          "name": "",
+          "id": "",
+          "placeholder": ""
+        },
+        {
+          "tag": "select",
+          "type": "",
+          "name": "",
+          "id": "",
+          "placeholder": ""
+        }
+      ],
+      "tableHeaders": [
+        "ID do Orçamento",
+        "Ano",
+        "Escola",
+        "Prazo Proposta",
+        "Status",
+        "Ações"
+      ],
+      "tableRows": [
+        [
+          "2025000001",
+          "2025",
+          "EE PROFESSORA MARIA ANTONIETA ROMANO SALGADO",
+          "23/12/2025",
+          "Cancelado",
+          "Excluir Editar  Visualizar"
+        ],
+        [
+          "2025000003",
+          "2025",
+          "EE PEDRO GONZAGA",
+          "29/12/2025",
+          "Prazo Encerrado",
+          "Excluir Editar  Visualizar"
+        ],
+        [
+          "2025000004",
+          "2025",
+          "EE ESCRITORA CAROLINA MARIA DE JESUS",
+          "30/12/2025",
+          "Cancelado",
+          "Excluir Editar  Visualizar"
+        ],
+        [
+          "2025000005",
+          "2025",
+          "EE GUILHERMINO DE OLIVEIRA",
+          "30/12/2025",
+          "Prazo Encerrado",
+          "Excluir Editar  Visualizar"
+        ],
+        [
+          "2025000006",
+          "2026",
+          "EE CORONEL PAIVA",
+          "04/01/2026",
+          "Cancelado",
+          "Excluir Editar  Visualizar"
+        ]
+      ],
+      "links": [
+        {
+          "text": "",
+          "href": "/"
+        },
+        {
+          "text": "Início",
+          "href": "/"
+        },
+        {
+          "text": "Situação de Cadastro",
+          "href": "/fornecedor/complemento-cadastro"
+        },
+        {
+          "text": "Orçamento",
+          "href": "/compras/orcamentos"
+        },
+        {
+          "text": "",
+          "href": "#"
+        }
+      ]
+    }
+  ]
+}

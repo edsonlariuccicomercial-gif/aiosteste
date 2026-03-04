@@ -1,0 +1,113 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# TEMPLATE: Squad Blueprint
+# ═══════════════════════════════════════════════════════════════════════════════
+# Gerado pelo @forge-smith na Fase 3 (Arquitetura do Squad).
+# Transforma o process map validado em arquitetura de squad AIOS.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# --- METADATA ---
+blueprint:
+  name: "{nome-do-squad}"
+  source_process: "{slug do processo}"
+  generated_at: ""
+  generated_by: "@forge-smith"
+  process_map_path: "minds/{slug}/02-process-map/process-map.yaml"
+
+# --- SQUAD DEFINITION ---
+squad:
+  name: "{nome-do-squad}"
+  version: "1.0.0"
+  description: "{Descricao baseada no processo extraido}"
+  slash_prefix: "{camelCase}"
+
+# --- AGENT DECOMPOSITION ---
+# Como o processo foi decomposto em agentes
+agent_decomposition:
+  rationale: "{Por que esses agentes e nao outros}"
+  total_agents: 0
+
+  agents:
+    - id: "{agent-id}"
+      role: "{Papel no processo}"
+      responsible_for:
+        steps: []      # step_numbers do process map
+        decisions: []  # PU-IDs de decisoes que este agente toma
+      executor_profile: "{human|agent|hybrid}"
+      pu_count: 0      # Quantos PUs este agente cobre
+      estimated_effort: "{% do processo total}"
+
+# --- TASK MAPPING ---
+# Como PUs viram tasks AIOS
+task_mapping:
+  total_tasks: 0
+
+  tasks:
+    - task_name: "{nome-da-task}"
+      source_steps: []     # step_numbers do process map
+      source_pus: []       # PU-IDs que alimentam esta task
+      assigned_agent: "{agent-id}"
+      execution_type: "{deterministic|semantic|interactive}"
+      entrada: []          # Inputs (do PU-INPUT)
+      saida: []            # Outputs (do PU-OUTPUT)
+      checklist: []        # Criterios de qualidade (do PU-QUALITY_GATE)
+
+# --- WORKFLOW DESIGN ---
+workflow:
+  name: "wf-{squad-name}"
+  total_phases: 0
+
+  phases:
+    - phase: 0
+      name: "{Nome da fase}"
+      tasks: []            # task_names nesta fase
+      agent: "{agent-id}"
+      blocking: true
+      quality_gate: ""     # ID do gate, se existir
+
+# --- QUALITY GATES (do processo -> do squad) ---
+quality_gates:
+  - id: "QG-{PREFIX}-{N}"
+    source_pu: "PU-xxx"    # PU-QUALITY_GATE original
+    transition: "{fase} -> {fase}"
+    blocking: true
+    criteria: "{Criterio traduzido do processo}"
+
+# --- EXCEPTION HANDLING ---
+exception_strategy:
+  - exception_pu: "PU-xxx"
+    handling: "{Como o squad lida com esta excecao}"
+    agent_responsible: "{agent-id}"
+    fallback: "{Plano B se o agent nao resolver}"
+
+# --- HUMAN TOUCHPOINTS ---
+# Pontos onde o dono PRECISA intervir
+human_touchpoints:
+  - step: 0
+    reason: "{Por que precisa do humano}"
+    agent: "{agent-id}"
+    interaction_type: "{approval|input|decision|review}"
+
+# --- DEPENDENCY GRAPH ---
+dependency_graph:
+  sequential_tasks: []   # Pares [task_A, task_B]
+  parallel_tasks: []     # Grupos de tasks paralelas
+  bottleneck_task: ""    # Task gargalo
+  critical_path: []      # Sequencia critica
+
+# --- VALIDATION CHECKLIST ---
+validation:
+  architecture_coherence:
+    - check: "Cada PU-STEP mapeado para exatamente 1 task"
+      status: false
+    - check: "Cada PU-DECISION mapeado para decision point em task ou quality gate"
+      status: false
+    - check: "Sem dependencia circular no grafo"
+      status: false
+    - check: "1-7 agentes (decomposicao razoavel)"
+      status: false
+    - check: "Cada task tem agente atribuido"
+      status: false
+    - check: "Cada human touchpoint identificado"
+      status: false
+    - check: "Bottleneck abordado no design"
+      status: false

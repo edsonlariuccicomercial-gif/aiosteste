@@ -1,0 +1,106 @@
+{
+  "startedAt": "2026-03-02T14:07:43.153Z",
+  "steps": [
+    {
+      "name": "open_profile",
+      "ok": true,
+      "data": {
+        "url": "https://caixaescolar.educacao.mg.gov.br/selecionar-perfil",
+        "title": "MG - SGD"
+      }
+    },
+    {
+      "name": "select_profile_and_enter",
+      "ok": true,
+      "data": {
+        "checked": {
+          "found": true,
+          "checked": true,
+          "name": "provider",
+          "value": "FORN"
+        },
+        "url": "https://caixaescolar.educacao.mg.gov.br/login?profile=FORN"
+      }
+    },
+    {
+      "name": "login_submit",
+      "ok": true,
+      "data": {
+        "url": "https://caixaescolar.educacao.mg.gov.br/",
+        "cnpjFilled": true,
+        "title": "MG - SGD"
+      }
+    },
+    {
+      "name": "extract",
+      "ok": true,
+      "data": {
+        "url": "https://caixaescolar.educacao.mg.gov.br/",
+        "title": "MG - SGD",
+        "hasLoginText": false,
+        "looksLogged": true,
+        "headings": [],
+        "navCount": 6,
+        "nav": [
+          {
+            "text": "",
+            "href": "/"
+          },
+          {
+            "text": "Início",
+            "href": "/"
+          },
+          {
+            "text": "Fornecedor",
+            "href": ""
+          },
+          {
+            "text": "Situação de Cadastro",
+            "href": "/fornecedor/complemento-cadastro"
+          },
+          {
+            "text": "Compras",
+            "href": ""
+          },
+          {
+            "text": "Orçamento",
+            "href": "/compras/orcamentos"
+          }
+        ],
+        "linksCount": 7,
+        "links": [
+          {
+            "text": "",
+            "href": "/"
+          },
+          {
+            "text": "Início",
+            "href": "/"
+          },
+          {
+            "text": "Situação de Cadastro",
+            "href": "/fornecedor/complemento-cadastro"
+          },
+          {
+            "text": "Orçamento",
+            "href": "/compras/orcamentos"
+          },
+          {
+            "text": "",
+            "href": "#"
+          },
+          {
+            "text": "Orçamento",
+            "href": "/compras/orcamentos"
+          },
+          {
+            "text": "Situação de Cadastro",
+            "href": "/fornecedor/complemento-cadastro"
+          }
+        ]
+      }
+    }
+  ],
+  "errors": [],
+  "finishedAt": "2026-03-02T14:07:51.250Z"
+}

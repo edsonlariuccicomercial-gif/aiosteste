@@ -1,0 +1,13 @@
+{
+  "generatedAt": "2026-03-03T01:23:24.829Z",
+  "interviewsCompleted": 0,
+  "interviewsTarget": 10,
+  "validatedPainPct": 0,
+  "wouldPayPct": 0,
+  "suggestedDecision": "NO-GO",
+  "topPains": [],
+  "source": {
+    "summaryJson": "docs\\ops\\discovery-summary.json",
+    "summaryMd": "docs\\ops\\discovery-summary.md"
+  }
+}
