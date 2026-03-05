@@ -220,8 +220,9 @@ async function executeSgdScan() {
   }
 
   // Filter budgets: only SRE Uberaba schools
+  // API field: schoolName (not txSchoolName)
   const filtered = budgets.filter((b) => {
-    const escola = sreNorm(b.txSchoolName || b.school || b.txSchool || "");
+    const escola = sreNorm(b.schoolName || b.txSchoolName || "");
     return sreSchools.has(escola);
   });
   console.log(`[SGD Scan] Filtered to ${filtered.length} SRE Uberaba budgets (from ${budgets.length} total)`);
@@ -233,45 +234,49 @@ async function executeSgdScan() {
     const id = String(b.idBudget || b.id || "");
     if (!id) continue;
 
-    // Extract fields from the SGD response
-    const escola = b.txSchoolName || b.school || b.txSchool || "";
+    // API list fields: schoolName, year, dtProposalSubmission, expenseGroupId, idCounty
+    const escola = b.schoolName || b.txSchoolName || "";
     const escolaNorm = sreNorm(escola);
-    const municipio = b.txMunicipality || b.municipality || schoolToMunicipio[escolaNorm] || "";
+    const municipio = schoolToMunicipio[escolaNorm] || "";
 
     const orcamento = {
       id: id,
       idBudget: b.idBudget || b.id,
-      ano: b.nuYear || new Date().getFullYear(),
+      ano: b.year || new Date().getFullYear(),
       escola: escola,
       municipio: municipio,
-      sre: b.txSre || sreData.nome || "Uberaba",
-      grupo: b.txExpenseGroup || b.expenseGroup || "",
-      subPrograma: b.txSubprogram || b.subprogram || "",
+      sre: "Uberaba",
+      grupo: "",
+      subPrograma: "",
       objeto: "",
-      prazo: b.dtDeadline ? b.dtDeadline.slice(0, 10) : "",
-      prazoEntrega: b.dtDeliveryDeadline ? b.dtDeliveryDeadline.slice(0, 10) : "",
+      prazo: b.dtProposalSubmission ? b.dtProposalSubmission.slice(0, 10) : "",
+      prazoEntrega: "",
       status: "aberto",
-      participantes: b.dsParticipantType || "PJ",
+      participantes: "PJ",
       itens: [],
-      idAxis: null,
-      expenseGroupId: b.idExpenseGroup || b.expenseGroupId || null,
+      idAxis: b.idAxis || null,
+      valorEstimado: null,
+      expenseGroupId: b.expenseGroupId || null,
       idSchool: b.idSchool || null,
       idSubprogram: b.idSubprogram || null,
     };
 
-    // Fetch budget detail (for txObject, idAxis) and items
+    // Fetch budget detail (for initiativeDescription/objeto, dates, etc.)
     if (orcamento.idSubprogram && orcamento.idSchool && orcamento.idBudget) {
       try {
         const detail = await client.getBudgetDetail(
           orcamento.idSubprogram, orcamento.idSchool, orcamento.idBudget
         );
-        orcamento.objeto = detail.txObject || b.txObject || b.object || "";
-        orcamento.idAxis = detail.idAxis || null;
-        if (detail.dtDeadline) orcamento.prazo = detail.dtDeadline.slice(0, 10);
-        if (detail.dtDeliveryDeadline) orcamento.prazoEntrega = detail.dtDeliveryDeadline.slice(0, 10);
+        orcamento.objeto = detail.initiativeDescription || "";
+        orcamento.idAxis = detail.idAxis || orcamento.idAxis;
+        orcamento.grupo = detail.expenseGroupDescription || "";
+        orcamento.subPrograma = detail.subprogramName || "";
+        orcamento.valorEstimado = detail.estimatedValue ? parseFloat(detail.estimatedValue) : null;
+        orcamento.participantes = detail.inNaturalPersonAllowed ? "PJ/PF" : "PJ";
+        if (detail.dtProposalSubmission) orcamento.prazo = detail.dtProposalSubmission.slice(0, 10);
+        if (detail.dtDelivery) orcamento.prazoEntrega = detail.dtDelivery.slice(0, 10);
       } catch (err) {
         console.warn(`[SGD Scan] Could not fetch detail for budget ${id}: ${err.message}`);
-        orcamento.objeto = b.txObject || b.object || "";
       }
 
       try {

@@ -1879,8 +1879,9 @@ async function varrerSgd() {
       }
 
       // Step 2: Filter only SRE Uberaba budgets
+      // API field: schoolName (not txSchoolName)
       const filtered = allBudgets.filter((b) => {
-        const escola = sreNorm(b.txSchoolName || b.schoolName || "");
+        const escola = sreNorm(b.schoolName || b.txSchoolName || "");
         return sreSchools.has(escola);
       });
       btn.innerHTML = `<span class="sgd-spinner"></span>SRE Uberaba: ${filtered.length} de ${allBudgets.length}. Buscando detalhes...`;
@@ -1895,18 +1896,18 @@ async function varrerSgd() {
         const id = String(b.idBudget || b.id || "");
         if (!id) continue;
 
-        const escolaRaw = b.txSchoolName || b.schoolName || "";
+        const escolaRaw = b.schoolName || b.txSchoolName || "";
         const escolaNorm = sreNorm(escolaRaw);
-        const municipio = schoolToMunicipio[escolaNorm] || b.txMunicipality || "";
+        const municipio = schoolToMunicipio[escolaNorm] || "";
 
-        // Fetch budget detail (for txObject, idAxis, dates)
+        // Fetch budget detail (for initiativeDescription/objeto, idAxis, dates)
         let detail = {};
         let budgetItems = [];
         try {
           if (b.idSubprogram && b.idSchool && b.idBudget) {
             detail = await BrowserSgdClient.getBudgetDetail(b.idSubprogram, b.idSchool, b.idBudget);
             const itemsRes = await BrowserSgdClient.getBudgetItems(b.idSubprogram, b.idSchool, b.idBudget);
-            budgetItems = itemsRes.data || itemsRes.items || [];
+            budgetItems = itemsRes.data || [];
             if (!Array.isArray(budgetItems)) budgetItems = [];
           }
         } catch (err) {
@@ -1914,14 +1915,16 @@ async function varrerSgd() {
         }
 
         const orc = {
-          id, idBudget: b.idBudget, ano: b.nuYear || detail.nuYear || new Date().getFullYear(),
+          id, idBudget: b.idBudget, ano: detail.year || b.year || new Date().getFullYear(),
           escola: escolaRaw, municipio,
-          sre: "Uberaba", grupo: b.txExpenseGroup || detail.txExpenseGroup || "",
-          subPrograma: b.txSubprogram || detail.txSubprogram || "",
-          objeto: detail.txObject || b.txObject || "",
-          prazo: (b.dtDeadline || detail.dtDeadline || "").slice(0, 10),
-          prazoEntrega: (b.dtDeliveryDeadline || detail.dtDeliveryDeadline || "").slice(0, 10),
-          status: "aberto", participantes: b.dsParticipantType || "PJ",
+          sre: "Uberaba",
+          grupo: detail.expenseGroupDescription || "",
+          subPrograma: detail.subprogramName || "",
+          objeto: detail.initiativeDescription || "",
+          prazo: (b.dtProposalSubmission || detail.dtProposalSubmission || "").slice(0, 10),
+          prazoEntrega: (detail.dtDelivery || "").slice(0, 10),
+          valorEstimado: detail.estimatedValue ? parseFloat(detail.estimatedValue) : null,
+          status: "aberto", participantes: detail.inNaturalPersonAllowed ? "PJ/PF" : "PJ",
           itens: budgetItems.map((bi) => ({
             nome: bi.txBudgetItemType || bi.txName || "",
             descricao: bi.txDescription || "",
