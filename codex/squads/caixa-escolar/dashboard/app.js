@@ -302,13 +302,27 @@ async function boot() {
 
   orcamentos = Array.isArray(orcData) ? orcData : [];
   // In Netlify mode, merge with localStorage orcamentos (from browser SGD scan)
+  // localStorage has newer/detailed data from scans, so prefer it
   const localOrc = localStorage.getItem("caixaescolar.orcamentos");
   if (localOrc) {
     try {
       const parsed = JSON.parse(localOrc);
-      if (Array.isArray(parsed)) {
-        const existingIds = new Set(orcamentos.map((o) => o.id));
-        parsed.forEach((o) => { if (!existingIds.has(o.id)) orcamentos.push(o); });
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        // If localStorage has data from a scan, use it as the primary source
+        const localMap = new Map(parsed.map((o) => [o.id, o]));
+        // Update existing orcamentos with localStorage data (which has details)
+        orcamentos.forEach((o, idx) => {
+          if (localMap.has(o.id)) {
+            const lo = localMap.get(o.id);
+            // Prefer localStorage data if it has more details
+            if (lo.itens && lo.itens.length > 0 && (!o.itens || o.itens.length === 0)) {
+              orcamentos[idx] = Object.assign({}, o, lo);
+            }
+            localMap.delete(o.id);
+          }
+        });
+        // Add any remaining from localStorage that aren't in static file
+        localMap.forEach((o) => orcamentos.push(o));
       }
     } catch (_) { /* ignore */ }
   }
@@ -1438,17 +1452,37 @@ function buildSgdPayload(pre) {
     idSubprogram: orc ? orc.idSubprogram : pre.idSubprogram,
     idSchool: orc ? orc.idSchool : pre.idSchool,
     idBudget: orc ? orc.idBudget : pre.idBudget,
+    idAxis: orc ? orc.idAxis : null,
     dtGoodsDelivery: pre.dtGoodsDelivery || (orc && orc.prazoEntrega ? orc.prazoEntrega + "T00:00:00.000Z" : new Date().toISOString()),
     dtServiceDelivery: pre.dtServiceDelivery || (orc && orc.prazoEntrega ? orc.prazoEntrega + "T00:00:00.000Z" : new Date().toISOString()),
-    itens: pre.itens.map((i, idx) => ({
-      nome: i.nome,
-      quantidade: i.quantidade,
-      precoUnitario: i.precoUnitario,
-      precoTotal: i.precoTotal,
-      observacao: i.observacao || "",
-      garantia: i.garantia || "Garantia de 12 meses conforme CDC",
-      idBudgetItem: i.idBudgetItem || (orc && orc.itens && orc.itens[idx] ? orc.itens[idx].idBudgetItem : null),
-    })),
+    itens: pre.itens.map((i, idx) => {
+      // Try to get idBudgetItem: 1) from pre-orcamento item, 2) from orcamento item by index, 3) by name match
+      let idBudgetItem = i.idBudgetItem;
+      if (!idBudgetItem && orc && orc.itens) {
+        // Try index match first
+        if (orc.itens[idx] && orc.itens[idx].idBudgetItem) {
+          idBudgetItem = orc.itens[idx].idBudgetItem;
+        } else {
+          // Try name match
+          const norm = (s) => (s || "").replace(/\s+/g, " ").toLowerCase().trim();
+          const itemName = norm(i.nome);
+          const match = orc.itens.find((oi) => {
+            const oiName = norm(oi.nome);
+            return oiName.includes(itemName) || itemName.includes(oiName);
+          });
+          if (match) idBudgetItem = match.idBudgetItem;
+        }
+      }
+      return {
+        nome: i.nome,
+        quantidade: i.quantidade,
+        precoUnitario: i.precoUnitario,
+        precoTotal: i.precoTotal,
+        observacao: i.observacao || "",
+        garantia: i.garantia || "Garantia de 12 meses conforme CDC",
+        idBudgetItem,
+      };
+    }),
     totalGeral: pre.totalGeral,
   };
 }
@@ -1639,24 +1673,60 @@ async function browserSgdSubmit(payload) {
   const { idSubprogram, idSchool, idBudget } = payload;
   if (!idSubprogram || !idSchool || !idBudget) throw new Error("IDs SGD ausentes no payload");
 
-  const detail = await BrowserSgdClient.getBudgetDetail(idSubprogram, idSchool, idBudget);
-  const idAxis = detail.idAxis;
+  // Use saved idAxis from orcamento if available
+  const orc = orcamentos.find((o) => o.id === payload.orcamentoId);
+  let idAxis = orc ? orc.idAxis : null;
+
+  if (!idAxis) {
+    const detail = await BrowserSgdClient.getBudgetDetail(idSubprogram, idSchool, idBudget);
+    idAxis = detail.idAxis;
+  }
   if (!idAxis) throw new Error("idAxis nao encontrado");
 
-  const itemsRes = await BrowserSgdClient.getBudgetItems(idSubprogram, idSchool, idBudget);
-  const budgetItems = itemsRes.data || [];
+  // Check if all items already have idBudgetItem from the scan
+  const allHaveIds = payload.itens.every((i) => i.idBudgetItem);
+
+  let budgetItems = [];
+  if (!allHaveIds) {
+    // Fetch budget items from API for mapping
+    const itemsRes = await BrowserSgdClient.getBudgetItems(idSubprogram, idSchool, idBudget);
+    budgetItems = itemsRes.data || [];
+
+    // Also try matching from saved orcamento items
+    if (budgetItems.length === 0 && orc && orc.itens && orc.itens.length > 0) {
+      budgetItems = orc.itens.map((i) => ({
+        idBudgetItem: i.idBudgetItem,
+        txBudgetItemType: i.nome,
+        txDescription: i.descricao,
+      }));
+    }
+  }
 
   const norm = (s) => (s || "").replace(/\n/g, " ").replace(/\s+/g, " ").toLowerCase().trim();
   const proposalItems = payload.itens.map((item, idx) => {
-    const itemName = norm(item.nome);
-    let matched = budgetItems.find((bi) => {
-      const biName = norm(bi.txBudgetItemType || bi.txDescription || "");
-      const biDesc = norm(bi.txDescription || "");
-      return biName.includes(itemName) || itemName.includes(biName) || biDesc.includes(itemName) || itemName.includes(biDesc);
-    });
-    if (!matched && budgetItems[idx]) matched = budgetItems[idx];
-    const idBudgetItem = item.idBudgetItem || (matched ? matched.idBudgetItem : null);
-    if (!idBudgetItem) throw new Error(`Item "${item.nome}" nao mapeado no SGD`);
+    // 1. Use saved idBudgetItem directly
+    let idBudgetItem = item.idBudgetItem;
+
+    // 2. If not found, try matching from orcamento's saved items
+    if (!idBudgetItem && orc && orc.itens) {
+      const orcItem = orc.itens[idx];
+      if (orcItem && orcItem.idBudgetItem) idBudgetItem = orcItem.idBudgetItem;
+    }
+
+    // 3. Fallback: fuzzy match against API budget items
+    if (!idBudgetItem && budgetItems.length > 0) {
+      const itemName = norm(item.nome);
+      let matched = budgetItems.find((bi) => {
+        const biName = norm(bi.txBudgetItemType || bi.txDescription || "");
+        const biDesc = norm(bi.txDescription || "");
+        return biName.includes(itemName) || itemName.includes(biName) || biDesc.includes(itemName) || itemName.includes(biDesc);
+      });
+      if (!matched && budgetItems[idx]) matched = budgetItems[idx];
+      if (matched) idBudgetItem = matched.idBudgetItem || matched.id;
+    }
+
+    if (!idBudgetItem) throw new Error(`Item "${item.nome}" nao mapeado no SGD. Tente varrer o SGD novamente para atualizar os itens.`);
+
     const p = { nuValueByItem: item.precoUnitario, idBudgetItem, txItemObservation: item.observacao || item.nome || "Conforme especificado" };
     if (item.garantia) p.txWarrantyDescription = item.garantia;
     return p;
@@ -1780,6 +1850,21 @@ async function varrerSgd() {
       sgdAvailable = true;
       updateModeIndicator(false);
 
+      // Build SRE Uberaba school name lookup for filtering
+      const sreNorm = (s) => (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").toUpperCase().trim();
+      const sreSchools = new Set();
+      const schoolToMunicipio = {};
+      if (sreData && sreData.municipios) {
+        sreData.municipios.forEach((m) => {
+          (m.escolas || []).forEach((e) => {
+            const n = sreNorm(e);
+            sreSchools.add(n);
+            schoolToMunicipio[n] = m.nome;
+          });
+        });
+      }
+
+      // Step 1: Fetch all budget summaries (paginated)
       const allBudgets = [];
       let page = 1;
       while (true) {
@@ -1790,32 +1875,85 @@ async function varrerSgd() {
         const total = data.meta ? data.meta.totalItems : 0;
         if (allBudgets.length >= total || items.length < 50) break;
         page++;
-        btn.innerHTML = `<span class="sgd-spinner"></span>Varrendo... ${allBudgets.length}/${total}`;
+        btn.innerHTML = `<span class="sgd-spinner"></span>Listando... ${allBudgets.length}/${total}`;
       }
 
-      // Convert to local orcamento format
+      // Step 2: Filter only SRE Uberaba budgets
+      const filtered = allBudgets.filter((b) => {
+        const escola = sreNorm(b.txSchoolName || b.schoolName || "");
+        return sreSchools.has(escola);
+      });
+      btn.innerHTML = `<span class="sgd-spinner"></span>SRE Uberaba: ${filtered.length} de ${allBudgets.length}. Buscando detalhes...`;
+
+      // Step 3: Fetch detail + items for each SRE budget
       let novos = 0;
-      const existingIds = new Set(orcamentos.map((o) => o.id));
-      for (const b of allBudgets) {
+      let atualizados = 0;
+      const existingMap = new Map(orcamentos.map((o) => [o.id, o]));
+
+      for (let i = 0; i < filtered.length; i++) {
+        const b = filtered[i];
         const id = String(b.idBudget || b.id || "");
         if (!id) continue;
-        if (existingIds.has(id)) continue;
-        orcamentos.push({
-          id, idBudget: b.idBudget, ano: b.year || new Date().getFullYear(),
-          escola: b.schoolName || "", municipio: b.txMunicipality || "",
-          sre: b.txSre || "Uberaba", grupo: b.txExpenseGroup || "",
-          subPrograma: b.txSubprogram || "", objeto: b.txObject || "",
-          prazo: b.dtDeadline ? b.dtDeadline.slice(0, 10) : "",
-          prazoEntrega: b.dtDeliveryDeadline ? b.dtDeliveryDeadline.slice(0, 10) : "",
+
+        const escolaRaw = b.txSchoolName || b.schoolName || "";
+        const escolaNorm = sreNorm(escolaRaw);
+        const municipio = schoolToMunicipio[escolaNorm] || b.txMunicipality || "";
+
+        // Fetch budget detail (for txObject, idAxis, dates)
+        let detail = {};
+        let budgetItems = [];
+        try {
+          if (b.idSubprogram && b.idSchool && b.idBudget) {
+            detail = await BrowserSgdClient.getBudgetDetail(b.idSubprogram, b.idSchool, b.idBudget);
+            const itemsRes = await BrowserSgdClient.getBudgetItems(b.idSubprogram, b.idSchool, b.idBudget);
+            budgetItems = itemsRes.data || itemsRes.items || [];
+            if (!Array.isArray(budgetItems)) budgetItems = [];
+          }
+        } catch (err) {
+          console.warn(`[Varrer] Detalhe budget ${id}: ${err.message}`);
+        }
+
+        const orc = {
+          id, idBudget: b.idBudget, ano: b.nuYear || detail.nuYear || new Date().getFullYear(),
+          escola: escolaRaw, municipio,
+          sre: "Uberaba", grupo: b.txExpenseGroup || detail.txExpenseGroup || "",
+          subPrograma: b.txSubprogram || detail.txSubprogram || "",
+          objeto: detail.txObject || b.txObject || "",
+          prazo: (b.dtDeadline || detail.dtDeadline || "").slice(0, 10),
+          prazoEntrega: (b.dtDeliveryDeadline || detail.dtDeliveryDeadline || "").slice(0, 10),
           status: "aberto", participantes: b.dsParticipantType || "PJ",
-          itens: [], idSchool: b.idSchool, idSubprogram: b.idSubprogram,
-        });
-        novos++;
+          itens: budgetItems.map((bi) => ({
+            nome: bi.txBudgetItemType || bi.txName || "",
+            descricao: bi.txDescription || "",
+            categoria: bi.txExpenseCategory || "Custeio",
+            unidade: bi.txBudgetItemUnit || bi.txUnit || "",
+            quantidade: bi.nuQuantity || 0,
+            garantia: bi.txWarrantyRequired || "",
+            idBudgetItem: bi.idBudgetItem || bi.id || null,
+          })),
+          idSchool: b.idSchool, idSubprogram: b.idSubprogram,
+          idAxis: detail.idAxis || null,
+        };
+
+        if (existingMap.has(id)) {
+          const existing = existingMap.get(id);
+          Object.assign(existing, orc, {
+            status: existing.status === "encerrado" ? "encerrado" : orc.status,
+          });
+          atualizados++;
+        } else {
+          orcamentos.push(orc);
+          novos++;
+        }
+
+        if ((i + 1) % 5 === 0 || i === filtered.length - 1) {
+          btn.innerHTML = `<span class="sgd-spinner"></span>Detalhando ${i + 1}/${filtered.length}...`;
+        }
       }
 
       // Save to localStorage for persistence in Netlify mode
       localStorage.setItem("caixaescolar.orcamentos", JSON.stringify(orcamentos));
-      showToast(novos > 0 ? `${novos} novo(s) orçamento(s) de ${allBudgets.length} varridos!` : `Varredura: ${allBudgets.length} orçamentos, nenhum novo.`);
+      showToast(`SRE Uberaba: ${novos} novo(s), ${atualizados} atualizado(s) de ${filtered.length} orcamentos (${allBudgets.length} total SGD).`);
     }
 
     renderAll();

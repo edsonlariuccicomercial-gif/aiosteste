@@ -204,29 +204,39 @@ async function executeSgdScan() {
   const existingOrcamentos = readJson(orcamentosPath) || [];
   const existingMap = new Map(existingOrcamentos.map((o) => [o.id, o]));
 
-  // Load SRE data for enrichment
+  // Load SRE data for filtering + enrichment (only SRE Uberaba for now)
   const sreData = readJson(path.join(DATA_DIR, "sre-uberaba.json")) || {};
-  const municipiosMap = {};
+  const sreNorm = (s) => (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").toUpperCase().trim();
+  const sreSchools = new Set();
+  const schoolToMunicipio = {};
   if (sreData.municipios) {
     sreData.municipios.forEach((m) => {
-      if (m.escolas) {
-        m.escolas.forEach((e) => {
-          municipiosMap[e.nome || e.name] = m.nome || m.name;
-        });
-      }
+      (m.escolas || []).forEach((e) => {
+        const n = sreNorm(e);
+        sreSchools.add(n);
+        schoolToMunicipio[n] = m.nome || m.name;
+      });
     });
   }
+
+  // Filter budgets: only SRE Uberaba schools
+  const filtered = budgets.filter((b) => {
+    const escola = sreNorm(b.txSchoolName || b.school || b.txSchool || "");
+    return sreSchools.has(escola);
+  });
+  console.log(`[SGD Scan] Filtered to ${filtered.length} SRE Uberaba budgets (from ${budgets.length} total)`);
 
   let novos = 0;
   let atualizados = 0;
 
-  for (const b of budgets) {
+  for (const b of filtered) {
     const id = String(b.idBudget || b.id || "");
     if (!id) continue;
 
     // Extract fields from the SGD response
     const escola = b.txSchoolName || b.school || b.txSchool || "";
-    const municipio = b.txMunicipality || b.municipality || municipiosMap[escola] || "";
+    const escolaNorm = sreNorm(escola);
+    const municipio = b.txMunicipality || b.municipality || schoolToMunicipio[escolaNorm] || "";
 
     const orcamento = {
       id: id,
@@ -237,19 +247,33 @@ async function executeSgdScan() {
       sre: b.txSre || sreData.nome || "Uberaba",
       grupo: b.txExpenseGroup || b.expenseGroup || "",
       subPrograma: b.txSubprogram || b.subprogram || "",
-      objeto: b.txObject || b.object || "",
+      objeto: "",
       prazo: b.dtDeadline ? b.dtDeadline.slice(0, 10) : "",
       prazoEntrega: b.dtDeliveryDeadline ? b.dtDeliveryDeadline.slice(0, 10) : "",
       status: "aberto",
       participantes: b.dsParticipantType || "PJ",
       itens: [],
+      idAxis: null,
       expenseGroupId: b.idExpenseGroup || b.expenseGroupId || null,
       idSchool: b.idSchool || null,
       idSubprogram: b.idSubprogram || null,
     };
 
-    // Try to fetch items for this budget
+    // Fetch budget detail (for txObject, idAxis) and items
     if (orcamento.idSubprogram && orcamento.idSchool && orcamento.idBudget) {
+      try {
+        const detail = await client.getBudgetDetail(
+          orcamento.idSubprogram, orcamento.idSchool, orcamento.idBudget
+        );
+        orcamento.objeto = detail.txObject || b.txObject || b.object || "";
+        orcamento.idAxis = detail.idAxis || null;
+        if (detail.dtDeadline) orcamento.prazo = detail.dtDeadline.slice(0, 10);
+        if (detail.dtDeliveryDeadline) orcamento.prazoEntrega = detail.dtDeliveryDeadline.slice(0, 10);
+      } catch (err) {
+        console.warn(`[SGD Scan] Could not fetch detail for budget ${id}: ${err.message}`);
+        orcamento.objeto = b.txObject || b.object || "";
+      }
+
       try {
         const itemsRes = await client.getBudgetItems(
           orcamento.idSubprogram, orcamento.idSchool, orcamento.idBudget
@@ -293,11 +317,12 @@ async function executeSgdScan() {
     atualizados,
     total: existingOrcamentos.length,
     budgetsScanned: budgets.length,
+    sreUberaba: filtered.length,
     user: userInfo.txName || userInfo.name || "",
   };
   writeJson(path.join(DATA_DIR, "sgd-scan-log.json"), scanLog);
 
-  console.log(`[SGD Scan] Done: ${novos} novos, ${atualizados} atualizados, ${existingOrcamentos.length} total`);
+  console.log(`[SGD Scan] Done: ${novos} novos, ${atualizados} atualizados, ${existingOrcamentos.length} total (SRE Uberaba: ${filtered.length} de ${budgets.length})`);
   return scanLog;
 }
 
