@@ -21,6 +21,97 @@ let selectedOrcIds = new Set();
 
 // ===== SGD STATE =====
 let sgdAvailable = false;
+let sgdLocalServer = false; // true = Express server available, false = direct API mode
+const SGD_API = "https://api.caixaescolar.educacao.mg.gov.br";
+const SGD_CRED_KEY = "caixaescolar.sgd.credentials";
+
+// ===== BROWSER SGD CLIENT (direct API calls, no server needed) =====
+const BrowserSgdClient = {
+  cookie: null,
+  networkId: null,
+  cookieExpiry: 0,
+
+  getCredentials() {
+    const saved = localStorage.getItem(SGD_CRED_KEY);
+    if (saved) return JSON.parse(saved);
+    return null;
+  },
+
+  promptCredentials() {
+    const cnpj = prompt("CNPJ do fornecedor (somente números):");
+    if (!cnpj) return null;
+    const pass = prompt("Senha SGD:");
+    if (!pass) return null;
+    const cred = { cnpj: cnpj.replace(/\D/g, ""), pass };
+    localStorage.setItem(SGD_CRED_KEY, JSON.stringify(cred));
+    return cred;
+  },
+
+  async login() {
+    const cred = this.getCredentials() || this.promptCredentials();
+    if (!cred) throw new Error("Credenciais SGD não informadas.");
+    const r = await fetch(`${SGD_API}/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ txCpfCnpj: cred.cnpj, txPassword: cred.pass }),
+      credentials: "include",
+    });
+    if (!r.ok) {
+      localStorage.removeItem(SGD_CRED_KEY);
+      throw new Error("Login SGD falhou. Verifique CNPJ/senha.");
+    }
+    this.cookieExpiry = Date.now() + 23 * 3600000;
+    // In browser mode, cookies are managed by the browser automatically
+    return true;
+  },
+
+  async ensureAuth() {
+    if (Date.now() > this.cookieExpiry) await this.login();
+  },
+
+  headers() {
+    const h = { "Content-Type": "application/json" };
+    if (this.networkId) h["x-network-being-managed-id"] = String(this.networkId);
+    return h;
+  },
+
+  async listBudgets(page = 1, limit = 50) {
+    await this.ensureAuth();
+    const url = `${SGD_API}/budget-proposal/summary-by-supplier-profile?filter.supplierStatus=$eq:NAEN&page=${page}&limit=${limit}`;
+    const r = await fetch(url, { headers: this.headers(), credentials: "include" });
+    if (!r.ok) throw new Error(`listBudgets failed (${r.status})`);
+    const data = await r.json();
+    if (!this.networkId && data.data && data.data[0]) this.networkId = data.data[0].idNetwork;
+    return data;
+  },
+
+  async getBudgetDetail(idSub, idSchool, idBudget) {
+    await this.ensureAuth();
+    const r = await fetch(`${SGD_API}/budget/by-subprogram/${idSub}/by-school/${idSchool}/by-budget/${idBudget}`, { headers: this.headers(), credentials: "include" });
+    if (!r.ok) throw new Error(`getBudgetDetail failed (${r.status})`);
+    return r.json();
+  },
+
+  async getBudgetItems(idSub, idSchool, idBudget) {
+    await this.ensureAuth();
+    const r = await fetch(`${SGD_API}/budget-item/by-subprogram/${idSub}/by-school/${idSchool}/by-budget/${idBudget}?limit=9999`, { headers: this.headers(), credentials: "include" });
+    if (!r.ok) throw new Error(`getBudgetItems failed (${r.status})`);
+    return r.json();
+  },
+
+  async sendProposal(idSub, idSchool, idBudget, payload) {
+    await this.ensureAuth();
+    const r = await fetch(`${SGD_API}/budget-proposal/send-proposal/by-subprogram/${idSub}/by-school/${idSchool}/by-budget/${idBudget}`, {
+      method: "POST",
+      headers: this.headers(),
+      body: JSON.stringify(payload),
+      credentials: "include",
+    });
+    const body = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(`sendProposal failed (${r.status}): ${JSON.stringify(body)}`);
+    return body;
+  },
+};
 
 // ===== ELEMENT CACHE =====
 const el = {
@@ -226,6 +317,17 @@ async function boot() {
   ]);
 
   orcamentos = Array.isArray(orcData) ? orcData : [];
+  // In Netlify mode, merge with localStorage orcamentos (from browser SGD scan)
+  const localOrc = localStorage.getItem("caixaescolar.orcamentos");
+  if (localOrc) {
+    try {
+      const parsed = JSON.parse(localOrc);
+      if (Array.isArray(parsed)) {
+        const existingIds = new Set(orcamentos.map((o) => o.id));
+        parsed.forEach((o) => { if (!existingIds.has(o.id)) orcamentos.push(o); });
+      }
+    } catch (_) { /* ignore */ }
+  }
   perfil = perfilData || {};
   sreData = sreInfo || {};
 
@@ -243,10 +345,10 @@ async function boot() {
   bindEvents();
   renderAll();
 
-  // Mostrar botão coleta SGD apenas em modo local
-  if (sgdAvailable && el.btnCollectSgd) {
-    el.btnCollectSgd.style.display = "inline-block";
-  }
+  // Mostrar botões SGD em qualquer modo (local ou Netlify com credenciais)
+  if (el.btnCollectSgd) el.btnCollectSgd.style.display = "inline-block";
+  const btnVarrer = document.getElementById("btn-varrer-sgd");
+  if (btnVarrer) btnVarrer.style.display = "inline-block";
 }
 
 // ===== FILTERS =====
@@ -710,11 +812,14 @@ window.abrirPreOrcamento = function (orcId) {
   // Botão SGD: aparece sempre que aprovado (modo local envia API, modo Netlify baixa payload)
   const showSgd = pre.status === "aprovado";
   el.btnEnviarSgd.style.display = showSgd ? "inline-block" : "none";
-  el.btnEnviarSgd.textContent = sgdAvailable ? "Enviar ao SGD" : "Baixar Payload SGD";
+  el.btnEnviarSgd.textContent = "Enviar ao SGD";
 
   // Link para aba SGD quando enviado
   const showIrSgd = pre.status === "aprovado" || pre.status === "enviado";
   el.btnIrSgd.style.display = showIrSgd ? "inline-block" : "none";
+
+  // Render SGD extra fields (datas, obs, garantia)
+  renderSgdFields();
 };
 
 // ===== RENDER PRÉ-ORÇAMENTO ITENS (Passo 5 — PNCP) =====
@@ -819,7 +924,7 @@ function aprovarPreOrcamento() {
   el.btnRecusar.style.display = "none";
   el.btnEditarOrcamento.style.display = "inline-block";
   el.btnEnviarSgd.style.display = "inline-block";
-  el.btnEnviarSgd.textContent = sgdAvailable ? "Enviar ao SGD" : "Baixar Payload SGD";
+  el.btnEnviarSgd.textContent = "Enviar ao SGD";
   el.btnIrSgd.style.display = "inline-block";
 }
 
@@ -1129,8 +1234,10 @@ function bindEvents() {
   // Inteligência toggle (Passo 2)
   el.intelToggle.addEventListener("click", toggleIntel);
 
-  // Coleta SGD (Passo 4)
-  el.btnCollectSgd.addEventListener("click", coletarSgd);
+  // Varredura SGD (Fase 4)
+  el.btnCollectSgd.addEventListener("click", varrerSgd);
+  const btnVarrer = document.getElementById("btn-varrer-sgd");
+  if (btnVarrer) btnVarrer.addEventListener("click", varrerSgd);
 
   // SGD Tab
   el.btnSgdEnviarTodos.addEventListener("click", sgdEnviarTodos);
@@ -1316,16 +1423,22 @@ function editarOrcamentoAprovado() {
 // ===== SGD INTEGRATION =====
 
 async function isSgdApiAvailable() {
+  // 1. Try local Express server
   try {
     const r = await fetch("/api/sgd/status", { signal: AbortSignal.timeout(2000) });
-    return r.ok;
-  } catch (_) {
-    return false;
-  }
+    if (r.ok) {
+      sgdLocalServer = true;
+      return true;
+    }
+  } catch (_) { /* no local server */ }
+
+  // 2. In Netlify mode, SGD is available if user has credentials saved
+  sgdLocalServer = false;
+  return !!localStorage.getItem(SGD_CRED_KEY);
 }
 
 function updateModeIndicator(isLocal) {
-  if (isLocal) {
+  if (sgdLocalServer) {
     el.modeIndicator.textContent = "Modo Local";
     el.modeIndicator.className = "mode-indicator mode-local";
   } else {
@@ -1335,15 +1448,24 @@ function updateModeIndicator(isLocal) {
 }
 
 function buildSgdPayload(pre) {
+  const orc = orcamentos.find((o) => o.id === pre.orcamentoId);
   return {
-    budgetId: pre.orcamentoId,
-    items: pre.itens.map((i) => ({
-      name: i.nome,
-      quantity: i.quantidade,
-      unitPrice: i.precoUnitario,
-      totalPrice: i.precoTotal,
+    orcamentoId: pre.orcamentoId,
+    idSubprogram: orc ? orc.idSubprogram : pre.idSubprogram,
+    idSchool: orc ? orc.idSchool : pre.idSchool,
+    idBudget: orc ? orc.idBudget : pre.idBudget,
+    dtGoodsDelivery: pre.dtGoodsDelivery || (orc && orc.prazoEntrega ? orc.prazoEntrega + "T00:00:00.000Z" : new Date().toISOString()),
+    dtServiceDelivery: pre.dtServiceDelivery || (orc && orc.prazoEntrega ? orc.prazoEntrega + "T00:00:00.000Z" : new Date().toISOString()),
+    itens: pre.itens.map((i, idx) => ({
+      nome: i.nome,
+      quantidade: i.quantidade,
+      precoUnitario: i.precoUnitario,
+      precoTotal: i.precoTotal,
+      observacao: i.observacao || "",
+      garantia: i.garantia || "Garantia de 12 meses conforme CDC",
+      idBudgetItem: i.idBudgetItem || (orc && orc.itens && orc.itens[idx] ? orc.itens[idx].idBudgetItem : null),
     })),
-    total: pre.totalGeral,
+    totalGeral: pre.totalGeral,
   };
 }
 
@@ -1351,6 +1473,7 @@ function downloadSgdPayload(pre) {
   const proposal = buildSgdPayload(pre);
   const payload = {
     generatedAt: new Date().toISOString(),
+    format: "sgd-rest-api-v4",
     proposals: [proposal],
   };
   const json = JSON.stringify(payload, null, 2);
@@ -1370,47 +1493,55 @@ async function enviarParaSgd() {
   const pre = preOrcamentos[activePreOrcamentoId];
   if (!pre || pre.status !== "aprovado") return;
 
-  // Modo Netlify: baixa payload JSON e marca como enviado
-  if (!sgdAvailable) {
-    downloadSgdPayload(pre);
-    pre.status = "enviado";
-    pre.enviadoEm = new Date().toISOString().slice(0, 10);
-    savePreOrcamentos();
-    renderAll();
-    abrirPreOrcamento(activePreOrcamentoId);
-    return;
-  }
+  // Read extra fields from the form
+  const dtGoodsEl = document.getElementById("sgd-dt-goods");
+  const dtServiceEl = document.getElementById("sgd-dt-service");
+  if (dtGoodsEl && dtGoodsEl.value) pre.dtGoodsDelivery = dtGoodsEl.value + "T00:00:00.000Z";
+  if (dtServiceEl && dtServiceEl.value) pre.dtServiceDelivery = dtServiceEl.value + "T00:00:00.000Z";
 
-  // Modo Local: envia via API
+  // Read per-item obs/garantia from form
+  pre.itens.forEach((item, idx) => {
+    const obsEl = document.getElementById(`sgd-obs-${idx}`);
+    const garEl = document.getElementById(`sgd-garantia-${idx}`);
+    if (obsEl) item.observacao = obsEl.value;
+    if (garEl) item.garantia = garEl.value;
+  });
+  savePreOrcamentos();
+
+  // Envia via API (local ou direta)
   el.btnEnviarSgd.disabled = true;
   el.btnEnviarSgd.innerHTML = '<span class="sgd-spinner"></span>Enviando...';
 
   try {
     const payload = buildSgdPayload(pre);
+    let success = false;
 
-    const r = await fetch("/api/sgd/submit", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
+    if (sgdLocalServer) {
+      const r = await fetch("/api/sgd/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const result = await r.json();
+      if (r.ok && result.success) success = true;
+      else throw new Error(result.error || "Falha no envio");
+    } else {
+      success = await browserSgdSubmit(payload);
+    }
 
-    const result = await r.json();
-
-    if (r.ok && result.success) {
+    if (success) {
       pre.status = "enviado";
       pre.enviadoEm = new Date().toISOString().slice(0, 10);
       savePreOrcamentos();
       renderAll();
       abrirPreOrcamento(activePreOrcamentoId);
       alert("Proposta enviada ao SGD com sucesso!");
-    } else {
-      alert("Erro ao enviar: " + (result.error || "Falha desconhecida"));
     }
   } catch (err) {
-    alert("Erro de conexao com o servidor: " + err.message);
+    alert("Erro: " + err.message);
   } finally {
     el.btnEnviarSgd.disabled = false;
-    el.btnEnviarSgd.textContent = sgdAvailable ? "Enviar ao SGD" : "Baixar Payload SGD";
+    el.btnEnviarSgd.textContent = "Enviar ao SGD";
   }
 }
 
@@ -1427,11 +1558,12 @@ function renderSgd() {
   el.sgdKpiValor.textContent = brl.format(sgdItems.reduce((s, p) => s + (p.totalGeral || 0), 0));
 
   // Mode badge
-  el.sgdModeBadge.textContent = sgdAvailable ? "API ativa" : "Offline — baixar payload";
-  el.sgdModeBadge.className = sgdAvailable ? "badge badge-aprovado" : "badge badge-muted";
+  const hasCreds = sgdAvailable || !!localStorage.getItem(SGD_CRED_KEY);
+  el.sgdModeBadge.textContent = hasCreds ? (sgdLocalServer ? "API Local" : "API Direta") : "Sem credenciais";
+  el.sgdModeBadge.className = hasCreds ? "badge badge-aprovado" : "badge badge-muted";
 
-  // Botão enviar todos (só modo local, só se tem prontos)
-  el.btnSgdEnviarTodos.style.display = sgdAvailable && ready.length > 0 ? "inline-block" : "none";
+  // Botão enviar todos (se tem prontos)
+  el.btnSgdEnviarTodos.style.display = ready.length > 0 ? "inline-block" : "none";
   el.btnSgdBaixarTodos.style.display = sgdItems.length > 0 ? "inline-block" : "none";
 
   // Empty
@@ -1449,11 +1581,9 @@ function renderSgd() {
       let actions = "";
       if (isSent) {
         actions = `<button class="btn btn-inline" onclick="sgdBaixarPayload('${p.orcamentoId}')">Payload</button>`;
-      } else if (sgdAvailable) {
+      } else {
         actions = `<button class="btn btn-inline btn-sgd" onclick="sgdEnviarUnico('${p.orcamentoId}')">Enviar</button>
           <button class="btn btn-inline" onclick="sgdBaixarPayload('${p.orcamentoId}')">Payload</button>`;
-      } else {
-        actions = `<button class="btn btn-inline btn-sgd" onclick="sgdBaixarPayload('${p.orcamentoId}')">Baixar</button>`;
       }
 
       return `<tr>
@@ -1482,23 +1612,33 @@ window.sgdBaixarPayload = function (orcId) {
 
 window.sgdEnviarUnico = async function (orcId) {
   const pre = preOrcamentos[orcId];
-  if (!pre || pre.status !== "aprovado" || !sgdAvailable) return;
+  if (!pre || pre.status !== "aprovado") return;
 
   try {
     const payload = buildSgdPayload(pre);
-    const r = await fetch("/api/sgd/submit", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    const result = await r.json();
+    let success = false;
 
-    if (r.ok && result.success) {
+    if (sgdLocalServer) {
+      // Local Express server
+      const r = await fetch("/api/sgd/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const result = await r.json();
+      if (r.ok && result.success) success = true;
+      else throw new Error(result.error || "Falha no envio");
+    } else {
+      // Direct browser API call
+      success = await browserSgdSubmit(payload);
+    }
+
+    if (success) {
       pre.status = "enviado";
       pre.enviadoEm = new Date().toISOString().slice(0, 10);
       savePreOrcamentos();
       renderAll();
-      alert(`Proposta ${orcId} enviada ao SGD!`);
+      showToast(`Proposta ${orcId} enviada ao SGD!`);
     } else {
       alert("Erro: " + (result.error || "Falha"));
     }
@@ -1507,9 +1647,51 @@ window.sgdEnviarUnico = async function (orcId) {
   }
 };
 
+// Browser-side SGD submit (direct API, Netlify mode)
+async function browserSgdSubmit(payload) {
+  await BrowserSgdClient.login();
+  if (!BrowserSgdClient.networkId) await BrowserSgdClient.listBudgets(1, 1);
+
+  const { idSubprogram, idSchool, idBudget } = payload;
+  if (!idSubprogram || !idSchool || !idBudget) throw new Error("IDs SGD ausentes no payload");
+
+  const detail = await BrowserSgdClient.getBudgetDetail(idSubprogram, idSchool, idBudget);
+  const idAxis = detail.idAxis;
+  if (!idAxis) throw new Error("idAxis nao encontrado");
+
+  const itemsRes = await BrowserSgdClient.getBudgetItems(idSubprogram, idSchool, idBudget);
+  const budgetItems = itemsRes.data || [];
+
+  const norm = (s) => (s || "").replace(/\n/g, " ").replace(/\s+/g, " ").toLowerCase().trim();
+  const proposalItems = payload.itens.map((item, idx) => {
+    const itemName = norm(item.nome);
+    let matched = budgetItems.find((bi) => {
+      const biName = norm(bi.txBudgetItemType || bi.txDescription || "");
+      const biDesc = norm(bi.txDescription || "");
+      return biName.includes(itemName) || itemName.includes(biName) || biDesc.includes(itemName) || itemName.includes(biDesc);
+    });
+    if (!matched && budgetItems[idx]) matched = budgetItems[idx];
+    const idBudgetItem = item.idBudgetItem || (matched ? matched.idBudgetItem : null);
+    if (!idBudgetItem) throw new Error(`Item "${item.nome}" nao mapeado no SGD`);
+    const p = { nuValueByItem: item.precoUnitario, idBudgetItem, txItemObservation: item.observacao || item.nome || "Conforme especificado" };
+    if (item.garantia) p.txWarrantyDescription = item.garantia;
+    return p;
+  });
+
+  const sgdPayload = {
+    dtGoodsDelivery: payload.dtGoodsDelivery || new Date().toISOString(),
+    dtServiceDelivery: payload.dtServiceDelivery || new Date().toISOString(),
+    idAxis,
+    budgetProposalItems: proposalItems,
+  };
+
+  await BrowserSgdClient.sendProposal(idSubprogram, idSchool, idBudget, sgdPayload);
+  return true;
+}
+
 async function sgdEnviarTodos() {
   const ready = Object.values(preOrcamentos).filter((p) => p.status === "aprovado");
-  if (ready.length === 0 || !sgdAvailable) return;
+  if (ready.length === 0) return;
 
   if (!confirm(`Enviar ${ready.length} proposta(s) ao SGD?`)) return;
 
@@ -1522,14 +1704,21 @@ async function sgdEnviarTodos() {
   for (const pre of ready) {
     try {
       const payload = buildSgdPayload(pre);
-      const r = await fetch("/api/sgd/submit", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const result = await r.json();
+      let success = false;
 
-      if (r.ok && result.success) {
+      if (sgdLocalServer) {
+        const r = await fetch("/api/sgd/submit", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const result = await r.json();
+        success = r.ok && result.success;
+      } else {
+        success = await browserSgdSubmit(payload);
+      }
+
+      if (success) {
         pre.status = "enviado";
         pre.enviadoEm = new Date().toISOString().slice(0, 10);
         ok++;
@@ -1580,47 +1769,163 @@ function sgdBaixarTodos() {
   renderKPIs();
 }
 
-// ===== COLETA AO VIVO SGD (Passo 4) =====
-async function coletarSgd() {
-  if (!sgdAvailable) return;
+// ===== VARREDURA SGD (Fase 4) =====
+async function varrerSgd() {
+  const btn = document.getElementById("btn-varrer-sgd") || el.btnCollectSgd;
+  if (!btn) return;
 
-  el.btnCollectSgd.disabled = true;
-  el.btnCollectSgd.innerHTML = '<span class="sgd-spinner"></span>Coletando...';
+  btn.disabled = true;
+  btn.innerHTML = '<span class="sgd-spinner"></span>Varrendo SGD...';
 
   try {
-    const r = await fetch("/api/sgd/collect", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-    });
+    if (sgdLocalServer) {
+      // Mode 1: Use local Express server
+      const r = await fetch("/api/sgd/scan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      const result = await r.json();
+      if (!r.ok || !result.success) throw new Error(result.error || "Falha na varredura");
 
-    const result = await r.json();
-
-    if (r.ok && result.success) {
-      // Recarregar dados
       const orcData = await fetchJson("data/orcamentos.json");
       orcamentos = Array.isArray(orcData) ? orcData : [];
-
-      renderAll();
-
-      // Atualizar badge de última atualização
-      const now = new Date();
-      const dd = String(now.getDate()).padStart(2, "0");
-      const mm = String(now.getMonth() + 1).padStart(2, "0");
-      const hh = String(now.getHours()).padStart(2, "0");
-      const mi = String(now.getMinutes()).padStart(2, "0");
-      el.ultimaAtualizacao.textContent = `Atualizado: ${dd}/${mm} ${hh}:${mi}`;
-      el.ultimaAtualizacao.style.display = "inline-block";
-
-      alert("Dados atualizados com sucesso!");
+      showToast(result.novos > 0 ? `${result.novos} novo(s) orçamento(s)!` : "Nenhum orçamento novo.");
     } else {
-      alert("Erro na coleta: " + (result.error || "Falha desconhecida"));
+      // Mode 2: Direct browser API calls (Netlify mode)
+      await BrowserSgdClient.login();
+      sgdAvailable = true;
+      updateModeIndicator(false);
+
+      const allBudgets = [];
+      let page = 1;
+      while (true) {
+        const data = await BrowserSgdClient.listBudgets(page, 50);
+        const items = data.data || [];
+        if (items.length === 0) break;
+        allBudgets.push(...items);
+        const total = data.meta ? data.meta.totalItems : 0;
+        if (allBudgets.length >= total || items.length < 50) break;
+        page++;
+        btn.innerHTML = `<span class="sgd-spinner"></span>Varrendo... ${allBudgets.length}/${total}`;
+      }
+
+      // Convert to local orcamento format
+      let novos = 0;
+      const existingIds = new Set(orcamentos.map((o) => o.id));
+      for (const b of allBudgets) {
+        const id = String(b.idBudget || b.id || "");
+        if (!id) continue;
+        if (existingIds.has(id)) continue;
+        orcamentos.push({
+          id, idBudget: b.idBudget, ano: b.year || new Date().getFullYear(),
+          escola: b.schoolName || "", municipio: b.txMunicipality || "",
+          sre: b.txSre || "Uberaba", grupo: b.txExpenseGroup || "",
+          subPrograma: b.txSubprogram || "", objeto: b.txObject || "",
+          prazo: b.dtDeadline ? b.dtDeadline.slice(0, 10) : "",
+          prazoEntrega: b.dtDeliveryDeadline ? b.dtDeliveryDeadline.slice(0, 10) : "",
+          status: "aberto", participantes: b.dsParticipantType || "PJ",
+          itens: [], idSchool: b.idSchool, idSubprogram: b.idSubprogram,
+        });
+        novos++;
+      }
+
+      // Save to localStorage for persistence in Netlify mode
+      localStorage.setItem("caixaescolar.orcamentos", JSON.stringify(orcamentos));
+      showToast(novos > 0 ? `${novos} novo(s) orçamento(s) de ${allBudgets.length} varridos!` : `Varredura: ${allBudgets.length} orçamentos, nenhum novo.`);
     }
+
+    renderAll();
+
+    const now = new Date();
+    const dd = String(now.getDate()).padStart(2, "0");
+    const mm = String(now.getMonth() + 1).padStart(2, "0");
+    const hh = String(now.getHours()).padStart(2, "0");
+    const mi = String(now.getMinutes()).padStart(2, "0");
+    el.ultimaAtualizacao.textContent = `Atualizado: ${dd}/${mm} ${hh}:${mi}`;
+    el.ultimaAtualizacao.style.display = "inline-block";
   } catch (err) {
-    alert("Erro de conexão: " + err.message);
+    alert("Erro: " + err.message);
   } finally {
-    el.btnCollectSgd.disabled = false;
-    el.btnCollectSgd.textContent = "Atualizar Orçamentos";
+    btn.disabled = false;
+    btn.textContent = "Varrer SGD";
   }
+}
+
+// Legacy alias for existing button binding
+async function coletarSgd() {
+  return varrerSgd();
+}
+
+// ===== TOAST =====
+function showToast(msg, duration = 4000) {
+  let container = document.getElementById("toast-container");
+  if (!container) {
+    container = document.createElement("div");
+    container.id = "toast-container";
+    container.style.cssText = "position:fixed;top:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px;";
+    document.body.appendChild(container);
+  }
+  const toast = document.createElement("div");
+  toast.className = "toast-msg";
+  toast.textContent = msg;
+  container.appendChild(toast);
+  setTimeout(() => {
+    toast.style.opacity = "0";
+    setTimeout(() => toast.remove(), 300);
+  }, duration);
+}
+
+// ===== SGD FIELDS RENDERING =====
+function renderSgdFields() {
+  const pre = preOrcamentos[activePreOrcamentoId];
+  if (!pre) return;
+
+  const container = document.getElementById("sgd-extra-fields");
+  if (!container) return;
+
+  const orc = orcamentos.find((o) => o.id === pre.orcamentoId);
+  const defaultDate = orc && orc.prazoEntrega ? orc.prazoEntrega : new Date().toISOString().slice(0, 10);
+  const isAprovado = pre.status === "aprovado";
+
+  // Date fields
+  const dtGoods = pre.dtGoodsDelivery ? pre.dtGoodsDelivery.slice(0, 10) : defaultDate;
+  const dtService = pre.dtServiceDelivery ? pre.dtServiceDelivery.slice(0, 10) : defaultDate;
+
+  let html = `
+    <div class="sgd-fields-header"><h3>Dados para envio ao SGD</h3></div>
+    <div class="sgd-dates-grid">
+      <label>
+        Prazo Entrega Bens
+        <input type="date" id="sgd-dt-goods" value="${dtGoods}" ${isAprovado ? "" : "disabled"} />
+      </label>
+      <label>
+        Prazo Entrega/Execução
+        <input type="date" id="sgd-dt-service" value="${dtService}" ${isAprovado ? "" : "disabled"} />
+      </label>
+    </div>
+    <div class="sgd-items-fields">
+  `;
+
+  pre.itens.forEach((item, idx) => {
+    const obs = item.observacao || (item.descricao ? item.descricao.slice(0, 200) : "");
+    const gar = item.garantia || "Garantia de 12 meses conforme CDC";
+    html += `
+      <div class="sgd-item-field">
+        <strong>${escapeHtml(item.nome)}</strong>
+        <label>
+          Observação
+          <textarea id="sgd-obs-${idx}" rows="2" ${isAprovado ? "" : "disabled"}>${escapeHtml(obs)}</textarea>
+        </label>
+        <label>
+          Garantia Ofertada
+          <textarea id="sgd-garantia-${idx}" rows="1" ${isAprovado ? "" : "disabled"}>${escapeHtml(gar)}</textarea>
+        </label>
+      </div>
+    `;
+  });
+
+  html += "</div>";
+  container.innerHTML = html;
 }
 
 // ===== INIT =====
