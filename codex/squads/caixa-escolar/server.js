@@ -255,11 +255,15 @@ async function executeSgdScan() {
       participantes: "PJ",
       itens: [],
       idAxis: b.idAxis || null,
+      idNetwork: b.idNetwork || null,
       valorEstimado: null,
       expenseGroupId: b.expenseGroupId || null,
       idSchool: b.idSchool || null,
       idSubprogram: b.idSubprogram || null,
     };
+
+    // Switch to budget's own networkId (each SRE has different networkId)
+    if (b.idNetwork) client.networkId = b.idNetwork;
 
     // Fetch budget detail (for initiativeDescription/objeto, dates, etc.)
     if (orcamento.idSubprogram && orcamento.idSchool && orcamento.idBudget) {

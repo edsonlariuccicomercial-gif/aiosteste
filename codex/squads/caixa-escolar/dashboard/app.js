@@ -1673,9 +1673,12 @@ async function browserSgdSubmit(payload) {
   const { idSubprogram, idSchool, idBudget } = payload;
   if (!idSubprogram || !idSchool || !idBudget) throw new Error("IDs SGD ausentes no payload");
 
-  // Use saved idAxis from orcamento if available
+  // Use saved idAxis and networkId from orcamento if available
   const orc = orcamentos.find((o) => o.id === payload.orcamentoId);
   let idAxis = orc ? orc.idAxis : null;
+
+  // Switch to budget's networkId if available (each SRE has different networkId)
+  if (orc && orc.idNetwork) BrowserSgdClient.networkId = orc.idNetwork;
 
   if (!idAxis) {
     const detail = await BrowserSgdClient.getBudgetDetail(idSubprogram, idSchool, idBudget);
@@ -1900,6 +1903,11 @@ async function varrerSgd() {
         const escolaNorm = sreNorm(escolaRaw);
         const municipio = schoolToMunicipio[escolaNorm] || "";
 
+        // Use this budget's own networkId (each SRE has different networkId)
+        const budgetNetworkId = b.idNetwork || BrowserSgdClient.networkId;
+        const savedNetworkId = BrowserSgdClient.networkId;
+        BrowserSgdClient.networkId = budgetNetworkId;
+
         // Fetch budget detail (for initiativeDescription/objeto, idAxis, dates)
         let detail = {};
         let budgetItems = [];
@@ -1913,6 +1921,7 @@ async function varrerSgd() {
         } catch (err) {
           console.warn(`[Varrer] Detalhe budget ${id}: ${err.message}`);
         }
+        BrowserSgdClient.networkId = savedNetworkId;
 
         const orc = {
           id, idBudget: b.idBudget, ano: detail.year || b.year || new Date().getFullYear(),
@@ -1935,7 +1944,8 @@ async function varrerSgd() {
             idBudgetItem: bi.idBudgetItem || bi.id || null,
           })),
           idSchool: b.idSchool, idSubprogram: b.idSubprogram,
-          idAxis: detail.idAxis || null,
+          idNetwork: b.idNetwork || null,
+          idAxis: detail.idAxis || b.idAxis || null,
         };
 
         if (existingMap.has(id)) {
