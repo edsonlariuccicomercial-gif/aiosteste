@@ -300,31 +300,22 @@ async function boot() {
     fetchJson("data/sre-uberaba.json"),
   ]);
 
-  orcamentos = Array.isArray(orcData) ? orcData : [];
-  // In Netlify mode, merge with localStorage orcamentos (from browser SGD scan)
-  // localStorage has newer/detailed data from scans, so prefer it
+  // Prefer localStorage orcamentos (from SGD scan) over static file
+  // Static file has old/incomplete data; scan has full details
   const localOrc = localStorage.getItem("caixaescolar.orcamentos");
   if (localOrc) {
     try {
       const parsed = JSON.parse(localOrc);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        // If localStorage has data from a scan, use it as the primary source
-        const localMap = new Map(parsed.map((o) => [o.id, o]));
-        // Update existing orcamentos with localStorage data (which has details)
-        orcamentos.forEach((o, idx) => {
-          if (localMap.has(o.id)) {
-            const lo = localMap.get(o.id);
-            // Prefer localStorage data if it has more details
-            if (lo.itens && lo.itens.length > 0 && (!o.itens || o.itens.length === 0)) {
-              orcamentos[idx] = Object.assign({}, o, lo);
-            }
-            localMap.delete(o.id);
-          }
-        });
-        // Add any remaining from localStorage that aren't in static file
-        localMap.forEach((o) => orcamentos.push(o));
+        orcamentos = parsed;
+      } else {
+        orcamentos = Array.isArray(orcData) ? orcData : [];
       }
-    } catch (_) { /* ignore */ }
+    } catch (_) {
+      orcamentos = Array.isArray(orcData) ? orcData : [];
+    }
+  } else {
+    orcamentos = Array.isArray(orcData) ? orcData : [];
   }
   perfil = perfilData || {};
   sreData = sreInfo || {};
