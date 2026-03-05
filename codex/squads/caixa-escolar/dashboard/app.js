@@ -1881,9 +1881,9 @@ async function varrerSgd() {
       btn.innerHTML = `<span class="sgd-spinner"></span>SRE Uberaba: ${filtered.length} de ${allBudgets.length}. Buscando detalhes...`;
 
       // Step 3: Fetch detail + items for each SRE budget
+      // Replace orcamentos entirely with fresh scan data (discard stale entries)
+      const scanResults = [];
       let novos = 0;
-      let atualizados = 0;
-      const existingMap = new Map(orcamentos.map((o) => [o.id, o]));
 
       for (let i = 0; i < filtered.length; i++) {
         const b = filtered[i];
@@ -1939,25 +1939,18 @@ async function varrerSgd() {
           idAxis: detail.idAxis || b.idAxis || null,
         };
 
-        if (existingMap.has(id)) {
-          const existing = existingMap.get(id);
-          Object.assign(existing, orc, {
-            status: existing.status === "encerrado" ? "encerrado" : orc.status,
-          });
-          atualizados++;
-        } else {
-          orcamentos.push(orc);
-          novos++;
-        }
+        scanResults.push(orc);
+        novos++;
 
         if ((i + 1) % 5 === 0 || i === filtered.length - 1) {
           btn.innerHTML = `<span class="sgd-spinner"></span>Detalhando ${i + 1}/${filtered.length}...`;
         }
       }
 
-      // Save to localStorage for persistence in Netlify mode
+      // Replace orcamentos with fresh scan data
+      orcamentos = scanResults;
       localStorage.setItem("caixaescolar.orcamentos", JSON.stringify(orcamentos));
-      showToast(`SRE Uberaba: ${novos} novo(s), ${atualizados} atualizado(s) de ${filtered.length} orcamentos (${allBudgets.length} total SGD).`);
+      showToast(`SRE Uberaba: ${novos} orçamento(s) carregados de ${allBudgets.length} total SGD.`);
     }
 
     renderAll();
