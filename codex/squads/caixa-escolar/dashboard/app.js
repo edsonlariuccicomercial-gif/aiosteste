@@ -25,11 +25,11 @@ let sgdLocalServer = false; // true = Express server available, false = direct A
 const SGD_API = "https://api.caixaescolar.educacao.mg.gov.br";
 const SGD_CRED_KEY = "caixaescolar.sgd.credentials";
 
-// ===== BROWSER SGD CLIENT (direct API calls, no server needed) =====
+// ===== BROWSER SGD CLIENT (via Netlify Function proxy) =====
+const PROXY_URL = "/.netlify/functions/sgd-proxy";
 const BrowserSgdClient = {
   cookie: null,
   networkId: null,
-  cookieExpiry: 0,
 
   getCredentials() {
     const saved = localStorage.getItem(SGD_CRED_KEY);
@@ -38,7 +38,7 @@ const BrowserSgdClient = {
   },
 
   promptCredentials() {
-    const cnpj = prompt("CNPJ do fornecedor (somente números):");
+    const cnpj = prompt("CNPJ do fornecedor (somente numeros):");
     if (!cnpj) return null;
     const pass = prompt("Senha SGD:");
     if (!pass) return null;
@@ -47,69 +47,53 @@ const BrowserSgdClient = {
     return cred;
   },
 
-  async login() {
-    const cred = this.getCredentials() || this.promptCredentials();
-    if (!cred) throw new Error("Credenciais SGD não informadas.");
-    const r = await fetch(`${SGD_API}/auth/login`, {
+  async proxy(body) {
+    const r = await fetch(PROXY_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ txCpfCnpj: cred.cnpj, txPassword: cred.pass }),
-      credentials: "include",
+      body: JSON.stringify(body),
     });
-    if (!r.ok) {
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || `Proxy error (${r.status})`);
+    return data;
+  },
+
+  async login() {
+    const cred = this.getCredentials() || this.promptCredentials();
+    if (!cred) throw new Error("Credenciais SGD nao informadas.");
+    const result = await this.proxy({ action: "login", cnpj: cred.cnpj, password: cred.pass });
+    if (!result.cookie) {
       localStorage.removeItem(SGD_CRED_KEY);
-      throw new Error("Login SGD falhou. Verifique CNPJ/senha.");
+      throw new Error("Login SGD falhou.");
     }
-    this.cookieExpiry = Date.now() + 23 * 3600000;
-    // In browser mode, cookies are managed by the browser automatically
+    this.cookie = result.cookie;
     return true;
   },
 
   async ensureAuth() {
-    if (Date.now() > this.cookieExpiry) await this.login();
-  },
-
-  headers() {
-    const h = { "Content-Type": "application/json" };
-    if (this.networkId) h["x-network-being-managed-id"] = String(this.networkId);
-    return h;
+    if (!this.cookie) await this.login();
   },
 
   async listBudgets(page = 1, limit = 50) {
     await this.ensureAuth();
-    const url = `${SGD_API}/budget-proposal/summary-by-supplier-profile?filter.supplierStatus=$eq:NAEN&page=${page}&limit=${limit}`;
-    const r = await fetch(url, { headers: this.headers(), credentials: "include" });
-    if (!r.ok) throw new Error(`listBudgets failed (${r.status})`);
-    const data = await r.json();
+    const data = await this.proxy({ action: "list-budgets", cookie: this.cookie, networkId: this.networkId, page, limit });
     if (!this.networkId && data.data && data.data[0]) this.networkId = data.data[0].idNetwork;
     return data;
   },
 
   async getBudgetDetail(idSub, idSchool, idBudget) {
     await this.ensureAuth();
-    const r = await fetch(`${SGD_API}/budget/by-subprogram/${idSub}/by-school/${idSchool}/by-budget/${idBudget}`, { headers: this.headers(), credentials: "include" });
-    if (!r.ok) throw new Error(`getBudgetDetail failed (${r.status})`);
-    return r.json();
+    return this.proxy({ action: "budget-detail", cookie: this.cookie, networkId: this.networkId, idSubprogram: idSub, idSchool, idBudget });
   },
 
   async getBudgetItems(idSub, idSchool, idBudget) {
     await this.ensureAuth();
-    const r = await fetch(`${SGD_API}/budget-item/by-subprogram/${idSub}/by-school/${idSchool}/by-budget/${idBudget}?limit=9999`, { headers: this.headers(), credentials: "include" });
-    if (!r.ok) throw new Error(`getBudgetItems failed (${r.status})`);
-    return r.json();
+    return this.proxy({ action: "budget-items", cookie: this.cookie, networkId: this.networkId, idSubprogram: idSub, idSchool, idBudget });
   },
 
   async sendProposal(idSub, idSchool, idBudget, payload) {
     await this.ensureAuth();
-    const r = await fetch(`${SGD_API}/budget-proposal/send-proposal/by-subprogram/${idSub}/by-school/${idSchool}/by-budget/${idBudget}`, {
-      method: "POST",
-      headers: this.headers(),
-      body: JSON.stringify(payload),
-      credentials: "include",
-    });
-    const body = await r.json().catch(() => ({}));
-    if (!r.ok) throw new Error(`sendProposal failed (${r.status}): ${JSON.stringify(body)}`);
-    return body;
+    return this.proxy({ action: "send-proposal", cookie: this.cookie, networkId: this.networkId, idSubprogram: idSub, idSchool, idBudget, payload });
   },
 };
 
