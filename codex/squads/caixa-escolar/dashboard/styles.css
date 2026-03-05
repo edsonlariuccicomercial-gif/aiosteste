@@ -864,6 +864,107 @@ tfoot td {
   color: #6495ed;
 }
 
+/* ===== SGD EXTRA FIELDS (Fase 4) ===== */
+.sgd-extra-fields {
+  margin-top: 16px;
+}
+
+.sgd-fields-header h3 {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #6495ed;
+  margin-bottom: 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(100, 149, 237, 0.2);
+}
+
+.sgd-dates-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.sgd-dates-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.sgd-dates-grid input[type="date"] {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--text);
+  padding: 8px 10px;
+  font-size: 0.85rem;
+  outline: none;
+}
+
+.sgd-dates-grid input[type="date"]:focus {
+  border-color: #6495ed;
+}
+
+.sgd-items-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sgd-item-field {
+  padding: 10px;
+  background: var(--bg-soft);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.sgd-item-field strong {
+  font-size: 0.82rem;
+  display: block;
+  margin-bottom: 6px;
+}
+
+.sgd-item-field label {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-top: 6px;
+}
+
+.sgd-item-field textarea {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--text);
+  padding: 6px 8px;
+  font-size: 0.82rem;
+  font-family: inherit;
+  resize: vertical;
+  outline: none;
+}
+
+.sgd-item-field textarea:focus {
+  border-color: #6495ed;
+}
+
+/* ===== TOAST (Fase 4) ===== */
+.toast-msg {
+  background: var(--accent-dim);
+  color: var(--accent);
+  border: 1px solid rgba(78, 201, 138, 0.3);
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  transition: opacity 0.3s;
+}
+
 /* ===== UTILITY ===== */
 .text-accent { color: var(--accent); }
 .text-warning { color: var(--warning); }

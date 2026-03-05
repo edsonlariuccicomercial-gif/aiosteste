@@ -19,6 +19,7 @@
       <span class="mode-indicator" id="mode-indicator"></span>
       <div class="pill" id="pill-sre">SRE Uberaba</div>
       <div class="pill" id="pill-fornecedor">LARIUCCI • Conquista-MG</div>
+      <button id="btn-varrer-sgd" class="btn btn-sm btn-sgd" style="display:none;" title="Varrer novos orçamentos no SGD">Varrer SGD</button>
       <a href="gdp-dashboard.html" class="btn btn-sm btn-gdp" title="Gestão de Pedidos Pós-Licitação">GDP</a>
       <button class="btn btn-sm" onclick="logout()" title="Sair">Sair</button>
     </div>
@@ -217,6 +218,9 @@
             </tfoot>
           </table>
         </div>
+
+        <!-- SGD Extra Fields (Fase 4) — datas, observações, garantia -->
+        <div id="sgd-extra-fields" class="sgd-extra-fields"></div>
 
         <div class="preorcamento-actions">
           <button id="btn-aprovar" class="btn btn-accent">Aprovar</button>
