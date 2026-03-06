@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LARIUCCI Brindes - Admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Inter', sans-serif; background: #f0f2f5; min-height: 100vh; }
+
+    .login-page {
+      display: flex; align-items: center; justify-content: center;
+      min-height: 100vh; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    }
+    .login-box {
+      background: #fff; border-radius: 16px; padding: 48px 40px;
+      width: 400px; max-width: 90vw; box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+    .login-box h1 {
+      text-align: center; font-size: 28px; color: #1a1a2e; margin-bottom: 8px;
+    }
+    .login-box p {
+      text-align: center; color: #666; margin-bottom: 32px; font-size: 14px;
+    }
+    .form-group { margin-bottom: 20px; }
+    .form-group label { display: block; font-weight: 600; margin-bottom: 6px; color: #333; font-size: 14px; }
+    .form-group input {
+      width: 100%; padding: 12px 16px; border: 2px solid #e0e0e0; border-radius: 8px;
+      font-size: 15px; transition: border-color 0.2s;
+    }
+    .form-group input:focus { outline: none; border-color: #0f3460; }
+    .btn-login {
+      width: 100%; padding: 14px; background: #0f3460; color: #fff; border: none;
+      border-radius: 8px; font-size: 16px; font-weight: 700; cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn-login:hover { background: #1a1a2e; }
+    .btn-login:disabled { background: #999; cursor: not-allowed; }
+    .login-error {
+      background: #fee; color: #c00; padding: 10px; border-radius: 6px;
+      margin-bottom: 16px; font-size: 13px; display: none; text-align: center;
+    }
+    .back-link {
+      display: block; text-align: center; margin-top: 20px;
+      color: #0f3460; text-decoration: none; font-size: 13px;
+    }
+
+    /* Admin Panel */
+    .admin-panel { display: none; }
+    .admin-header {
+      background: #1a1a2e; color: #fff; padding: 16px 32px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .admin-header h2 { font-size: 20px; }
+    .admin-header .user-info { display: flex; align-items: center; gap: 12px; }
+    .admin-header .user-info span { font-size: 14px; opacity: 0.8; }
+    .btn-logout {
+      padding: 8px 16px; background: rgba(255,255,255,0.15); color: #fff;
+      border: 1px solid rgba(255,255,255,0.3); border-radius: 6px;
+      cursor: pointer; font-size: 13px;
+    }
+    .btn-logout:hover { background: rgba(255,255,255,0.25); }
+
+    .admin-content {
+      max-width: 800px; margin: 40px auto; padding: 0 20px;
+    }
+    .card {
+      background: #fff; border-radius: 12px; padding: 32px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.08); margin-bottom: 24px;
+    }
+    .card h3 { font-size: 18px; color: #1a1a2e; margin-bottom: 8px; }
+    .card p { color: #666; font-size: 14px; margin-bottom: 20px; line-height: 1.5; }
+
+    .btn-update {
+      padding: 16px 32px; background: #27ae60; color: #fff; border: none;
+      border-radius: 8px; font-size: 16px; font-weight: 700; cursor: pointer;
+      transition: background 0.2s; display: inline-flex; align-items: center; gap: 10px;
+    }
+    .btn-update:hover { background: #219a52; }
+    .btn-update:disabled { background: #999; cursor: not-allowed; }
+    .btn-update svg { width: 20px; height: 20px; }
+
+    .progress-area {
+      margin-top: 20px; display: none;
+    }
+    .progress-bar-wrap {
+      background: #e0e0e0; border-radius: 8px; height: 12px; overflow: hidden;
+      margin-bottom: 12px;
+    }
+    .progress-bar {
+      height: 100%; background: linear-gradient(90deg, #27ae60, #2ecc71);
+      border-radius: 8px; transition: width 0.5s ease; width: 0%;
+    }
+    .progress-text { font-size: 13px; color: #666; }
+
+    .status-info {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px;
+    }
+    .stat-box {
+      background: #f8f9fa; border-radius: 8px; padding: 16px; text-align: center;
+    }
+    .stat-box .stat-value { font-size: 28px; font-weight: 800; color: #1a1a2e; }
+    .stat-box .stat-label { font-size: 12px; color: #666; margin-top: 4px; }
+
+    .log-area {
+      background: #1a1a2e; color: #27ae60; border-radius: 8px; padding: 16px;
+      font-family: 'Courier New', monospace; font-size: 12px; max-height: 200px;
+      overflow-y: auto; display: none; margin-top: 16px; line-height: 1.6;
+    }
+
+    .success-msg {
+      background: #e8f5e9; color: #2e7d32; padding: 16px; border-radius: 8px;
+      margin-top: 16px; display: none; font-size: 14px;
+    }
+    .error-msg {
+      background: #fce4ec; color: #c62828; padding: 16px; border-radius: 8px;
+      margin-top: 16px; display: none; font-size: 14px;
+    }
+
+    /* Mobile */
+    @media (max-width: 600px) {
+      .login-box { padding: 32px 24px; border-radius: 12px; }
+      .login-box h1 { font-size: 24px; }
+
+      .admin-header { padding: 12px 16px; flex-wrap: wrap; gap: 8px; }
+      .admin-header h2 { font-size: 16px; }
+      .admin-header .user-info span { display: none; }
+
+      .admin-content { margin: 20px auto; padding: 0 12px; }
+      .card { padding: 20px 16px; border-radius: 10px; }
+      .card h3 { font-size: 16px; }
+      .card p { font-size: 13px; }
+
+      .status-info { grid-template-columns: 1fr; gap: 10px; }
+      .stat-box .stat-value { font-size: 22px; }
+      .stat-box .stat-label { font-size: 11px; }
+
+      .btn-update {
+        width: 100%; justify-content: center;
+        padding: 14px 20px; font-size: 15px;
+      }
+
+      .log-area { font-size: 11px; padding: 12px; max-height: 160px; }
+      .success-msg, .error-msg { font-size: 13px; padding: 12px; }
+      .progress-text { font-size: 12px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Login Page -->
+  <div class="login-page" id="loginPage">
+    <div class="login-box">
+      <h1>LARIUCCI</h1>
+      <p>Painel Administrativo</p>
+      <div class="login-error" id="loginError">Usuario ou senha incorretos</div>
+      <div class="form-group">
+        <label>Usuario</label>
+        <input type="text" id="loginUser" placeholder="Digite seu usuario" autocomplete="username">
+      </div>
+      <div class="form-group">
+        <label>Senha</label>
+        <input type="password" id="loginPass" placeholder="Digite sua senha" autocomplete="current-password">
+      </div>
+      <button class="btn-login" id="btnLogin" onclick="doLogin()">ENTRAR</button>
+      <a href="index.html" class="back-link">Voltar para a loja</a>
+    </div>
+  </div>
+
+  <!-- Admin Panel -->
+  <div class="admin-panel" id="adminPanel">
+    <div class="admin-header">
+      <h2>LARIUCCI Admin</h2>
+      <div class="user-info">
+        <span>Administrador</span>
+        <button class="btn-logout" onclick="doLogout()">Sair</button>
+      </div>
+    </div>
+
+    <div class="admin-content">
+      <!-- Stats -->
+      <div class="card">
+        <h3>Status Atual</h3>
+        <div class="status-info">
+          <div class="stat-box">
+            <div class="stat-value" id="statProducts">--</div>
+            <div class="stat-label">Produtos</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-value" id="statUpdated">--</div>
+            <div class="stat-label">Ultima Atualizacao</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Update -->
+      <div class="card">
+        <h3>Atualizar Produtos</h3>
+        <p>
+          Clique no botao abaixo para buscar os produtos mais recentes do fornecedor,
+          aplicar a margem de 60% e atualizar a loja. O processo leva cerca de 1-2 minutos.
+        </p>
+        <button class="btn-update" id="btnUpdate" onclick="updateProducts()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M23 4v6h-6"/><path d="M1 20v-6h6"/>
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+          </svg>
+          ATUALIZAR PRODUTOS
+        </button>
+
+        <div class="progress-area" id="progressArea">
+          <div class="progress-bar-wrap">
+            <div class="progress-bar" id="progressBar"></div>
+          </div>
+          <div class="progress-text" id="progressText">Iniciando...</div>
+        </div>
+
+        <div class="log-area" id="logArea"></div>
+        <div class="success-msg" id="successMsg"></div>
+        <div class="error-msg" id="errorMsg"></div>
+      </div>
+
+      <!-- Link to store -->
+      <div class="card" style="text-align:center;">
+        <a href="index.html" style="color:#0f3460;font-weight:600;text-decoration:none;font-size:15px;">
+          Abrir Loja LARIUCCI Brindes
+        </a>
+      </div>
+    </div>
+  </div>
+
+<script>
+const SESSION_KEY = 'lariucci_admin_session';
+const PRODUCTS_KEY = 'lariucci_products_data';
+
+// Check session on load
+window.addEventListener('DOMContentLoaded', () => {
+  const raw = sessionStorage.getItem(SESSION_KEY);
+  if (raw) {
+    const session = JSON.parse(raw);
+    // Invalidate old sessions that lack user/pass fields
+    if (session.user && session.pass) {
+      showAdmin(session);
+    } else {
+      sessionStorage.removeItem(SESSION_KEY);
+    }
+  }
+  // Enter key on password field
+  document.getElementById('loginPass').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') doLogin();
+  });
+});
+
+function doLogin() {
+  const user = document.getElementById('loginUser').value.trim();
+  const pass = document.getElementById('loginPass').value;
+
+  if (!user || !pass) return;
+
+  // Store credentials for API calls
+  const creds = { user, pass, token: btoa(user + ':' + pass) };
+  sessionStorage.setItem(SESSION_KEY, JSON.stringify(creds));
+
+  // Try a lightweight check — we'll validate on actual API call
+  document.getElementById('loginError').style.display = 'none';
+  showAdmin(creds);
+}
+
+function showAdmin(creds) {
+  document.getElementById('loginPage').style.display = 'none';
+  document.getElementById('adminPanel').style.display = 'block';
+  loadStats();
+}
+
+function doLogout() {
+  sessionStorage.removeItem(SESSION_KEY);
+  document.getElementById('adminPanel').style.display = 'none';
+  document.getElementById('loginPage').style.display = 'flex';
+  document.getElementById('loginUser').value = '';
+  document.getElementById('loginPass').value = '';
+}
+
+function loadStats() {
+  try {
+    const stored = localStorage.getItem(PRODUCTS_KEY);
+    if (stored) {
+      const data = JSON.parse(stored);
+      document.getElementById('statProducts').textContent = data.meta?.totalProducts || '--';
+      const date = data.meta?.generatedAt;
+      if (date) {
+        const d = new Date(date);
+        document.getElementById('statUpdated').textContent =
+          d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
+      }
+      return;
+    }
+  } catch(e) {}
+
+  // Try loading from the JSON file
+  fetch('data/products-reseller.json')
+    .then(r => r.json())
+    .then(data => {
+      document.getElementById('statProducts').textContent = data.meta?.totalProducts || '--';
+      const date = data.meta?.generatedAt;
+      if (date) {
+        const d = new Date(date);
+        document.getElementById('statUpdated').textContent =
+          d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
+      }
+    })
+    .catch(() => {});
+}
+
+function addLog(msg) {
+  const log = document.getElementById('logArea');
+  log.style.display = 'block';
+  log.innerHTML += '> ' + msg + '\n';
+  log.scrollTop = log.scrollHeight;
+}
+
+function setProgress(pct, text) {
+  document.getElementById('progressBar').style.width = pct + '%';
+  document.getElementById('progressText').textContent = text;
+}
+
+async function updateProducts() {
+  const session = JSON.parse(sessionStorage.getItem(SESSION_KEY));
+  if (!session) { doLogout(); return; }
+
+  const btn = document.getElementById('btnUpdate');
+  const progressArea = document.getElementById('progressArea');
+  const logArea = document.getElementById('logArea');
+  const successMsg = document.getElementById('successMsg');
+  const errorMsg = document.getElementById('errorMsg');
+
+  // Reset UI
+  btn.disabled = true;
+  btn.textContent = 'ATUALIZANDO...';
+  progressArea.style.display = 'block';
+  logArea.style.display = 'block';
+  logArea.innerHTML = '';
+  successMsg.style.display = 'none';
+  errorMsg.style.display = 'none';
+
+  setProgress(10, 'Conectando ao servidor...');
+  addLog('Iniciando atualizacao de produtos...');
+
+  try {
+    setProgress(20, 'Buscando produtos do fornecedor...');
+    addLog('Chamando API de atualizacao (pode levar 1-2 min)...');
+
+    const res = await fetch('/.netlify/functions/update-products', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user: session.user, pass: session.pass })
+    });
+
+    setProgress(70, 'Processando resposta...');
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      if (res.status === 403) {
+        throw new Error('Usuario ou senha incorretos.');
+      }
+      throw new Error(err.error || 'Erro do servidor (codigo ' + res.status + '). Tente novamente.');
+    }
+
+    const freshData = await res.json();
+    setProgress(75, 'Mesclando com dados de categorias e imagens...');
+    addLog('Recebidos ' + freshData.products.length + ' produtos frescos');
+
+    // Load static data (has categories, subcategories, images, menu)
+    let staticData = null;
+    try {
+      const staticRes = await fetch('data/products-reseller.json');
+      staticData = await staticRes.json();
+      addLog('Dados estaticos carregados (categorias, imagens)');
+    } catch(e) {
+      addLog('Aviso: dados estaticos nao encontrados, usando apenas dados frescos');
+    }
+
+    // Merge: use fresh prices/stock, keep static categories/subcategories/images
+    if (staticData) {
+      const staticMap = {};
+      for (const p of staticData.products) staticMap[p.id] = p;
+
+      for (const p of freshData.products) {
+        const sp = staticMap[p.id];
+        if (sp) {
+          p.categories = sp.categories;
+          p.subcategories = sp.subcategories;
+          if (sp.allImages && sp.allImages.length > 1) {
+            p.allImages = sp.allImages;
+            p.mainImage = sp.mainImage;
+            p.thumbs = sp.thumbs || [];
+          }
+        }
+      }
+      // Carry over menu and categories from static
+      freshData.menu = staticData.menu;
+      freshData.categories = staticData.categories;
+    }
+
+    setProgress(85, 'Salvando dados localmente...');
+    addLog('Salvando no armazenamento local...');
+
+    // Save to localStorage for the store to use
+    const data = freshData;
+    localStorage.setItem(PRODUCTS_KEY, JSON.stringify(data));
+
+    setProgress(100, 'Concluido!');
+    addLog('Atualizacao concluida com sucesso!');
+    addLog(data.products.length + ' produtos com margem de 60%');
+    addLog('Data: ' + new Date().toLocaleString('pt-BR'));
+
+    successMsg.innerHTML = '<strong>Produtos atualizados com sucesso!</strong><br>' +
+      data.products.length + ' produtos carregados com margem de 60%.<br>' +
+      'A loja ja esta usando os dados atualizados.';
+    successMsg.style.display = 'block';
+
+    loadStats();
+  } catch (error) {
+    setProgress(0, 'Erro na atualizacao');
+    addLog('ERRO: ' + error.message);
+    errorMsg.innerHTML = '<strong>Erro ao atualizar:</strong> ' + error.message +
+      '<br>Tente novamente em alguns minutos.';
+    errorMsg.style.display = 'block';
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">' +
+      '<path d="M23 4v6h-6"/><path d="M1 20v-6h6"/>' +
+      '<path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>' +
+      '</svg> ATUALIZAR PRODUTOS';
+  }
+}
+</script>
+
+</body>
+</html>
