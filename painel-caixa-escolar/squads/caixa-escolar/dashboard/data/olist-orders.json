@@ -1,0 +1,60 @@
+[
+  {
+    "olistOrderId": "OL-1772740620146-290",
+    "idempotencyKey": "portal-order:TEST-001",
+    "syncedAt": "2026-03-05T19:57:00.146Z",
+    "payload": {
+      "external_order_id": "TEST-001",
+      "order_date": "2026-03-05T19:57:00.145Z",
+      "customer": {
+        "school_name": "E.E. Teste",
+        "city": ""
+      },
+      "items": [
+        {
+          "sku": "ITEM-0",
+          "description": "Arroz",
+          "qty": 1,
+          "unitPrice": 18.1
+        }
+      ],
+      "totals": {
+        "total_value": 18.1,
+        "currency": "BRL"
+      },
+      "metadata": {
+        "source": "LICITIA_POS_LICITACAO",
+        "contract_ref": ""
+      }
+    }
+  },
+  {
+    "olistOrderId": "OL-1772740668429-775",
+    "idempotencyKey": "portal-order:PED-20260305-4495",
+    "syncedAt": "2026-03-05T19:57:48.429Z",
+    "payload": {
+      "external_order_id": "PED-20260305-4495",
+      "order_date": "2026-03-05T19:57:48.428Z",
+      "customer": {
+        "school_name": "Escola Estadual Alceu Novaes",
+        "city": "Belo Horizonte"
+      },
+      "items": [
+        {
+          "sku": "Arroz Casa grande - 5 Kg",
+          "description": "Arroz Casa grande - 5 Kg",
+          "qty": 1,
+          "unitPrice": 19.7
+        }
+      ],
+      "totals": {
+        "total_value": 19.7,
+        "currency": "BRL"
+      },
+      "metadata": {
+        "source": "LICITIA_POS_LICITACAO",
+        "contract_ref": "ARP-LARIUCCI-2025"
+      }
+    }
+  }
+]

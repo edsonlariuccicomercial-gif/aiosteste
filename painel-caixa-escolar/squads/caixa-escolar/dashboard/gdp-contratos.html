@@ -1,0 +1,1803 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GDP Contratos — Gestao Pos-Licitacao</title>
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script>if(window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
+  <style>
+    :root {
+      --bg:#0f172a;--s1:#1e293b;--s2:#334155;--s3:#475569;--bdr:#475569;
+      --txt:#f1f5f9;--mut:#94a3b8;--dim:#64748b;
+      --blue:#3b82f6;--purple:#8b5cf6;--green:#22c55e;--yellow:#f59e0b;--red:#ef4444;--cyan:#06b6d4;
+      --blue-l:rgba(59,130,246,.12);--green-l:rgba(34,197,94,.12);--yellow-l:rgba(245,158,11,.12);--red-l:rgba(239,68,68,.12);--purple-l:rgba(139,92,246,.12);--cyan-l:rgba(6,182,212,.12);
+    }
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--txt);min-height:100vh}
+
+    /* Topbar */
+    .topbar{background:var(--s1);border-bottom:1px solid var(--bdr);padding:.8rem 2rem;display:flex;align-items:center;justify-content:space-between}
+    .topbar h1{font-size:1.1rem} .topbar h1 span{color:var(--blue)}
+    .topbar-right{display:flex;align-items:center;gap:1rem;font-size:.85rem;color:var(--mut)}
+    .topbar-right a{color:var(--blue);text-decoration:none;font-weight:600}
+    .topbar-right a.green{color:var(--green)}
+
+    /* Badges */
+    .badge{padding:.2rem .6rem;border-radius:999px;font-size:.7rem;font-weight:700;display:inline-block}
+    .badge-blue{background:var(--blue-l);color:var(--blue)}
+    .badge-green{background:var(--green-l);color:var(--green)}
+    .badge-yellow{background:var(--yellow-l);color:var(--yellow)}
+    .badge-red{background:var(--red-l);color:var(--red)}
+    .badge-purple{background:var(--purple-l);color:var(--purple)}
+
+    /* Main */
+    .main{padding:1.5rem 2rem;max-width:1400px;margin:0 auto}
+
+    /* Tabs */
+    .tabs{display:flex;gap:.5rem;margin-bottom:1.5rem;border-bottom:1px solid var(--bdr)}
+    .tab{padding:.7rem 1.2rem;background:none;border:none;color:var(--mut);font-size:.9rem;font-weight:600;cursor:pointer;border-bottom:2px solid transparent;transition:all .2s}
+    .tab.active{color:var(--blue);border-bottom-color:var(--blue)}
+    .tab:hover{color:var(--txt)}
+    .tab .count{background:var(--s2);padding:.1rem .4rem;border-radius:999px;font-size:.7rem;margin-left:.3rem}
+
+    /* KPI Cards */
+    .kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;margin-bottom:2rem}
+    .kpi{background:var(--s1);border:1px solid var(--bdr);border-radius:12px;padding:1.2rem}
+    .kpi-label{font-size:.75rem;color:var(--mut);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.4rem}
+    .kpi-value{font-size:1.8rem;font-weight:800}
+    .kpi-sub{font-size:.72rem;color:var(--dim);margin-top:.2rem}
+    .blue{color:var(--blue)}.green{color:var(--green)}.yellow{color:var(--yellow)}.red{color:var(--red)}.purple{color:var(--purple)}
+
+    /* Cards */
+    .card{background:var(--s1);border:1px solid var(--bdr);border-radius:12px;padding:1.5rem;margin-bottom:1.5rem}
+    .card h2{font-size:1rem;margin-bottom:1rem;display:flex;align-items:center;gap:.5rem}
+    .card h3{font-size:.85rem;margin-bottom:.8rem;color:var(--mut)}
+
+    /* Upload */
+    .upload-zone{border:2px dashed var(--bdr);border-radius:12px;padding:3rem;text-align:center;cursor:pointer;transition:all .3s;margin-bottom:1.5rem}
+    .upload-zone:hover,.upload-zone.dragover{border-color:var(--blue);background:var(--blue-l)}
+    .upload-zone h3{font-size:1.1rem;margin-bottom:.5rem}
+    .upload-zone p{color:var(--mut);font-size:.85rem}
+    .upload-zone input{display:none}
+
+    /* Tables */
+    .table-wrap{background:var(--s1);border:1px solid var(--bdr);border-radius:12px;overflow:hidden}
+    table{width:100%;border-collapse:collapse}
+    th{background:var(--s2);padding:.7rem 1rem;text-align:left;font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;color:var(--mut);position:sticky;top:0}
+    td{padding:.6rem 1rem;font-size:.85rem;border-top:1px solid rgba(71,85,105,.3)}
+    tr:hover td{background:rgba(59,130,246,.04)}
+    .text-right{text-align:right}
+    .text-center{text-align:center}
+    .font-mono{font-family:monospace}
+    .nowrap{white-space:nowrap}
+
+    /* Progress bar */
+    .progress{height:8px;background:var(--s2);border-radius:4px;overflow:hidden}
+    .progress-fill{height:100%;border-radius:4px;transition:width .5s}
+    .progress-fill.green{background:var(--green)}
+    .progress-fill.yellow{background:var(--yellow)}
+    .progress-fill.red{background:var(--red)}
+    .progress-fill.blue{background:var(--blue)}
+
+    /* Buttons */
+    .btn{padding:.6rem 1.2rem;border:none;border-radius:8px;font-size:.85rem;font-weight:700;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:.4rem}
+    .btn-blue{background:var(--blue);color:#fff}.btn-blue:hover{background:#2563eb}
+    .btn-green{background:var(--green);color:#000}.btn-green:hover{opacity:.9}
+    .btn-red{background:var(--red);color:#fff}
+    .btn-outline{background:transparent;border:1px solid var(--bdr);color:var(--txt)}.btn-outline:hover{background:var(--s2)}
+    .btn-sm{padding:.4rem .8rem;font-size:.8rem}
+    .btn:disabled{opacity:.4;cursor:not-allowed}
+
+    /* Forms */
+    select,input[type="text"],input[type="number"],input[type="date"]{
+      padding:.5rem .8rem;background:var(--s1);border:1px solid var(--bdr);border-radius:8px;color:var(--txt);font-size:.85rem;outline:none}
+    select:focus,input:focus{border-color:var(--blue)}
+
+    /* Preview */
+    .preview-header{background:var(--s2);padding:1rem 1.5rem;border-radius:12px 12px 0 0;margin-bottom:0}
+    .preview-header h3{color:var(--txt);font-size:.95rem}
+    .preview-meta{display:flex;gap:2rem;margin-top:.5rem;font-size:.8rem;color:var(--mut)}
+    .preview-body{max-height:500px;overflow-y:auto}
+
+    /* Supplier selector */
+    .supplier-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1rem;margin:1rem 0}
+    .supplier-card{background:var(--bg);border:2px solid var(--bdr);border-radius:10px;padding:1rem;cursor:pointer;transition:all .2s}
+    .supplier-card:hover{border-color:var(--blue)}
+    .supplier-card.selected{border-color:var(--green);background:var(--green-l)}
+    .supplier-card h4{font-size:.9rem;margin-bottom:.3rem}
+    .supplier-card p{font-size:.75rem;color:var(--mut)}
+
+    /* Contract cards */
+    .contract-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:1rem}
+    .contract-card{background:var(--s1);border:1px solid var(--bdr);border-radius:12px;padding:1.2rem;cursor:pointer;transition:all .2s}
+    .contract-card:hover{border-color:var(--blue);transform:translateY(-2px)}
+    .contract-card h3{font-size:.95rem;margin-bottom:.5rem}
+    .contract-card .meta{font-size:.78rem;color:var(--mut);margin-bottom:.8rem}
+
+    /* Empty state */
+    .empty{text-align:center;padding:3rem;color:var(--mut)}
+    .empty h3{margin-bottom:.5rem}
+
+    .hidden{display:none!important}
+    @media(max-width:768px){.main{padding:1rem}.kpi-grid{grid-template-columns:repeat(2,1fr)}.topbar{flex-wrap:wrap;gap:.5rem}}
+  </style>
+</head>
+<body>
+
+<div class="topbar">
+  <div style="display:flex;align-items:center;gap:1rem">
+    <h1><span>GDP</span> Contratos</h1>
+    <span class="badge badge-blue">Gestao Pos-Licitacao</span>
+  </div>
+  <div class="topbar-right">
+    <span>Fornecedor: <strong style="color:var(--txt)">Lariucci & Ribeiro Pereira</strong></span>
+    <span>|</span>
+    <a href="gdp-dashboard.html">Dashboard</a>
+    <a href="gdp-portal.html">Portal Escolar</a>
+    <a href="gdp-entregador.html" style="color:var(--yellow)">Entregador</a>
+    <a href="index.html" class="green">Caixa Escolar</a>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- KPIs -->
+  <div class="kpi-grid" id="kpi-grid">
+    <div class="kpi"><div class="kpi-label">Contratos Ativos</div><div class="kpi-value blue" id="kpi-contratos">0</div><div class="kpi-sub">Em vigencia</div></div>
+    <div class="kpi"><div class="kpi-label">Itens Contratados</div><div class="kpi-value purple" id="kpi-itens">0</div><div class="kpi-sub">Total de itens ganhos</div></div>
+    <div class="kpi"><div class="kpi-label">Valor Total Contratado</div><div class="kpi-value green" id="kpi-valor">R$ 0</div><div class="kpi-sub">Soma de todos os contratos</div></div>
+    <div class="kpi"><div class="kpi-label">Entregas Pendentes</div><div class="kpi-value yellow" id="kpi-pendentes">0</div><div class="kpi-sub">Itens com saldo a entregar</div></div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab active" data-tab="importar" onclick="switchTab('importar')">Importar Mapa</button>
+    <button class="tab" data-tab="contratos" onclick="switchTab('contratos')">Contratos <span class="count" id="tab-count-contratos">0</span></button>
+    <button class="tab" data-tab="itens" onclick="switchTab('itens')">Itens do Contrato</button>
+    <button class="tab" data-tab="usuarios" onclick="switchTab('usuarios')">Usuarios</button>
+    <button class="tab" data-tab="pedidos" onclick="switchTab('pedidos')">Pedidos <span class="count" id="tab-count-pedidos">0</span></button>
+    <button class="tab" data-tab="entregas" onclick="switchTab('entregas')">Entregas <span class="count" id="tab-count-entregas">0</span></button>
+  </div>
+
+  <!-- Tab: Contratos -->
+  <div id="tab-contratos" class="hidden">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+      <div style="display:flex;gap:.8rem;align-items:center">
+        <input type="text" id="busca-contrato" placeholder="Buscar escola ou edital..." oninput="renderContratos()" style="min-width:280px">
+        <select id="filtro-status-contrato" onchange="renderContratos()">
+          <option value="">Todos os status</option>
+          <option value="ativo">Ativo</option>
+          <option value="encerrado">Encerrado</option>
+        </select>
+      </div>
+      <button class="btn btn-blue" onclick="switchTab('importar')">+ Importar Mapa</button>
+    </div>
+    <div class="contract-grid" id="contract-grid"></div>
+    <div class="empty hidden" id="contratos-empty">
+      <h3>Nenhum contrato cadastrado</h3>
+      <p>Importe um Mapa de Apuracao para criar o primeiro contrato.</p>
+      <button class="btn btn-blue" style="margin-top:1rem" onclick="switchTab('importar')">Importar Mapa</button>
+    </div>
+  </div>
+
+  <!-- Tab: Importar Mapa -->
+  <div id="tab-importar">
+    <div class="card">
+      <h2>Importar Mapa de Apuracao</h2>
+      <p style="color:var(--mut);font-size:.85rem;margin-bottom:1rem">Envie o arquivo Word (.docx) do Mapa de Apuracao e Classificacao de Propostas. O sistema vai extrair automaticamente os itens, fornecedores e a classificacao.</p>
+      <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-input').click()">
+        <h3>Arraste o arquivo aqui</h3>
+        <p>Formatos aceitos: Word (.docx), Excel (.xlsx), PDF (.pdf), Imagem (.jpg, .png)</p>
+        <input type="file" id="file-input" accept=".docx,.doc,.pdf,.xlsx,.xls,.csv,.jpg,.jpeg,.png" onchange="handleFileUpload(this.files[0])">
+      </div>
+    </div>
+
+    <!-- Preview after parsing -->
+    <div id="import-preview" class="hidden">
+      <div class="card">
+        <div class="preview-header">
+          <h3 id="preview-title"></h3>
+          <div class="preview-meta">
+            <span id="preview-edital"></span>
+            <span id="preview-criterio"></span>
+            <span id="preview-data"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Supplier selection -->
+      <div class="card">
+        <h2>Selecione seu fornecedor</h2>
+        <p style="color:var(--mut);font-size:.85rem;margin-bottom:.5rem">Clique no fornecedor que representa sua empresa para identificar os itens ganhos.</p>
+        <div class="supplier-grid" id="supplier-grid"></div>
+      </div>
+
+      <!-- Items preview -->
+      <div class="card">
+        <h2>Itens do Mapa</h2>
+        <div class="table-wrap">
+          <div class="preview-body">
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Descricao</th>
+                  <th>Unidade</th>
+                  <th>Qtd</th>
+                  <th id="th-fornecedores"></th>
+                  <th>Vencedor</th>
+                </tr>
+              </thead>
+              <tbody id="preview-items-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Won items summary -->
+      <div class="card" id="won-items-card" class="hidden">
+        <h2 id="won-items-title">Itens Ganhos</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>#</th><th>Descricao</th><th>Unidade</th><th>Qtd</th><th>Preco Unit.</th><th>Total</th></tr></thead>
+            <tbody id="won-items-tbody"></tbody>
+            <tfoot><tr><th colspan="5" style="text-align:right">Total Contrato</th><th id="won-items-total" style="color:var(--green);font-size:1rem"></th></tr></tfoot>
+          </table>
+        </div>
+        <div style="margin-top:1rem;display:flex;gap:.8rem;justify-content:flex-end">
+          <button class="btn btn-outline" onclick="cancelImport()">Cancelar</button>
+          <button class="btn btn-green" id="btn-criar-contrato" onclick="criarContrato()" disabled>Criar Contrato</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab: Itens do Contrato -->
+  <div id="tab-itens" class="hidden">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+      <div style="display:flex;gap:.8rem;align-items:center">
+        <select id="filtro-contrato-itens" onchange="renderItens()">
+          <option value="">Todos os contratos</option>
+        </select>
+        <input type="text" id="busca-item" placeholder="Buscar item..." oninput="renderItens()">
+      </div>
+      <button class="btn btn-outline btn-sm" onclick="exportItensCSV()">Exportar CSV</button>
+    </div>
+    <div class="table-wrap" style="max-height:600px;overflow-y:auto">
+      <table>
+        <thead>
+          <tr>
+            <th>Escola</th>
+            <th>Item</th>
+            <th>Unidade</th>
+            <th class="text-right">Contratado</th>
+            <th class="text-right">Entregue</th>
+            <th class="text-right">Saldo</th>
+            <th>Execucao</th>
+            <th class="text-right">Preco</th>
+            <th class="text-right">Valor Saldo</th>
+          </tr>
+        </thead>
+        <tbody id="itens-tbody"></tbody>
+      </table>
+    </div>
+    <div class="empty hidden" id="itens-empty"><h3>Nenhum item encontrado</h3><p>Importe um mapa para criar contratos.</p></div>
+  </div>
+
+  <!-- Tab: Pedidos -->
+  <div id="tab-pedidos" class="hidden">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+      <div style="display:flex;gap:.8rem;align-items:center">
+        <select id="filtro-contrato-pedidos" onchange="renderPedidos()">
+          <option value="">Todos os contratos</option>
+        </select>
+        <select id="filtro-status-pedido" onchange="renderPedidos()">
+          <option value="">Todos os status</option>
+          <option value="recebido">Recebido</option>
+          <option value="separando">Separando</option>
+          <option value="entregue">Entregue</option>
+        </select>
+      </div>
+      <button class="btn btn-blue" onclick="novoPedidoManual()">+ Registrar Pedido</button>
+    </div>
+    <div class="table-wrap" style="max-height:600px;overflow-y:auto">
+      <table>
+        <thead>
+          <tr>
+            <th>Protocolo</th>
+            <th>Escola</th>
+            <th>Data</th>
+            <th class="text-right">Itens</th>
+            <th class="text-right">Valor</th>
+            <th>Status</th>
+            <th>Acoes</th>
+          </tr>
+        </thead>
+        <tbody id="pedidos-tbody"></tbody>
+      </table>
+    </div>
+    <div class="empty hidden" id="pedidos-empty"><h3>Nenhum pedido registrado</h3><p>Os pedidos das escolas aparecerao aqui quando forem recebidos.</p></div>
+  </div>
+
+  <!-- Modal: Contract Detail -->
+  <div id="modal-contrato" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1000;display:flex;align-items:flex-start;justify-content:center;padding:2rem;overflow-y:auto">
+    <div style="background:var(--bg);border:1px solid var(--bdr);border-radius:14px;width:900px;max-width:95vw;max-height:90vh;overflow-y:auto">
+      <div style="padding:1.5rem;border-bottom:1px solid var(--bdr);display:flex;justify-content:space-between;align-items:center">
+        <h2 id="modal-contrato-titulo" style="font-size:1.1rem"></h2>
+        <button class="btn btn-outline btn-sm" onclick="fecharModalContrato()">Fechar</button>
+      </div>
+      <div style="padding:1.5rem" id="modal-contrato-body"></div>
+    </div>
+  </div>
+
+  <!-- Modal: Novo Pedido -->
+  <div id="modal-pedido" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1000;display:flex;align-items:flex-start;justify-content:center;padding:2rem;overflow-y:auto">
+    <div style="background:var(--bg);border:1px solid var(--bdr);border-radius:14px;width:700px;max-width:95vw;max-height:90vh;overflow-y:auto">
+      <div style="padding:1.5rem;border-bottom:1px solid var(--bdr);display:flex;justify-content:space-between;align-items:center">
+        <h2 style="font-size:1.1rem">Registrar Pedido Manual</h2>
+        <button class="btn btn-outline btn-sm" onclick="fecharModalPedido()">Fechar</button>
+      </div>
+      <div style="padding:1.5rem" id="modal-pedido-body"></div>
+    </div>
+  </div>
+
+  <!-- Tab: Usuarios (Escolas) -->
+  <div id="tab-usuarios" class="hidden">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+      <div style="display:flex;gap:.8rem;align-items:center">
+        <input type="text" id="busca-usuario" placeholder="Buscar escola, CNPJ..." oninput="renderUsuarios()">
+      </div>
+      <button class="btn btn-blue" onclick="novoUsuario()">+ Cadastrar Escola</button>
+    </div>
+    <div class="table-wrap" style="max-height:600px;overflow-y:auto">
+      <table>
+        <thead>
+          <tr>
+            <th>Escola</th>
+            <th>CNPJ</th>
+            <th>Municipio</th>
+            <th>SRE</th>
+            <th>Responsavel</th>
+            <th>Email</th>
+            <th>Telefone</th>
+            <th>Login</th>
+            <th>Acoes</th>
+          </tr>
+        </thead>
+        <tbody id="usuarios-tbody"></tbody>
+      </table>
+    </div>
+    <div class="empty hidden" id="usuarios-empty"><h3>Nenhuma escola cadastrada</h3><p>Cadastre escolas para que elas possam acessar o Portal.</p></div>
+  </div>
+
+  <!-- Tab: Entregas -->
+  <div id="tab-entregas" class="hidden">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+      <div style="display:flex;gap:.8rem;align-items:center">
+        <input type="text" id="busca-entrega" placeholder="Buscar escola ou protocolo..." oninput="renderEntregas()">
+      </div>
+      <span style="color:var(--mut);font-size:.8rem">Dados sincronizados automaticamente do app Entregador</span>
+    </div>
+    <div class="table-wrap" style="max-height:600px;overflow-y:auto">
+      <table>
+        <thead>
+          <tr>
+            <th>Protocolo</th>
+            <th>Escola</th>
+            <th>Data Entrega</th>
+            <th>Recebedor</th>
+            <th>Foto</th>
+            <th>Assinatura</th>
+            <th>Obs</th>
+            <th>Acoes</th>
+          </tr>
+        </thead>
+        <tbody id="entregas-tbody"></tbody>
+      </table>
+    </div>
+    <div class="empty hidden" id="entregas-empty"><h3>Nenhuma entrega registrada</h3><p>As entregas aparecerao aqui assim que o entregador confirmar pelo app.</p></div>
+  </div>
+
+  <!-- Modal: Comprovante Entrega -->
+  <div id="modal-comprovante" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:1000;display:flex;align-items:flex-start;justify-content:center;padding:1rem;overflow-y:auto">
+    <div style="background:var(--bg);border:1px solid var(--bdr);border-radius:14px;width:700px;max-width:95vw;max-height:90vh;overflow-y:auto">
+      <div style="padding:1.5rem;border-bottom:1px solid var(--bdr);display:flex;justify-content:space-between;align-items:center">
+        <h2 id="modal-comprovante-titulo" style="font-size:1.1rem">Comprovante de Entrega</h2>
+        <button class="btn btn-outline btn-sm" onclick="fecharComprovante()">Fechar</button>
+      </div>
+      <div style="padding:1.5rem" id="modal-comprovante-body"></div>
+    </div>
+  </div>
+
+  <!-- Modal: Usuario -->
+  <div id="modal-usuario" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1000;display:flex;align-items:flex-start;justify-content:center;padding:2rem;overflow-y:auto">
+    <div style="background:var(--bg);border:1px solid var(--bdr);border-radius:14px;width:700px;max-width:95vw;max-height:90vh;overflow-y:auto">
+      <div style="padding:1.5rem;border-bottom:1px solid var(--bdr);display:flex;justify-content:space-between;align-items:center">
+        <h2 id="modal-usuario-titulo" style="font-size:1.1rem">Cadastrar Escola</h2>
+        <button class="btn btn-outline btn-sm" onclick="fecharModalUsuario()">Fechar</button>
+      </div>
+      <div style="padding:1.5rem" id="modal-usuario-body"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Toast -->
+<div id="toast-container" style="position:fixed;top:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px"></div>
+
+<script>
+// ===== CONSTANTS =====
+const CONTRACTS_KEY = "gdp.contratos.v1";
+const ORDERS_KEY = "gdp.pedidos.v1";
+const PROOFS_KEY = "gdp.entregas.provas.v1";
+const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+
+// ===== STATE =====
+let contratos = [];
+let pedidos = [];
+let provasEntrega = [];
+let parsedMapa = null;
+let selectedSupplierIdx = null;
+
+// ===== STORAGE =====
+function loadData() {
+  try { contratos = JSON.parse(localStorage.getItem(CONTRACTS_KEY)) || []; } catch(_) { contratos = []; }
+  try { pedidos = JSON.parse(localStorage.getItem(ORDERS_KEY)) || []; } catch(_) { pedidos = []; }
+  try { provasEntrega = JSON.parse(localStorage.getItem(PROOFS_KEY)) || []; } catch(_) { provasEntrega = []; }
+}
+function saveContratos() { localStorage.setItem(CONTRACTS_KEY, JSON.stringify(contratos)); }
+function savePedidos() { localStorage.setItem(ORDERS_KEY, JSON.stringify(pedidos)); }
+
+// ===== TABS =====
+function switchTab(tab) {
+  document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+  document.querySelector(`[data-tab="${tab}"]`).classList.add("active");
+  ["importar","contratos","itens","usuarios","pedidos","entregas"].forEach(t => {
+    document.getElementById(`tab-${t}`).classList.toggle("hidden", t !== tab);
+  });
+  if (tab === "contratos") renderContratos();
+  if (tab === "itens") renderItens();
+  if (tab === "pedidos") renderPedidos();
+  if (tab === "usuarios") renderUsuarios();
+}
+
+// ===== DOCX PARSER =====
+async function parseDocx(file) {
+  const zip = await JSZip.loadAsync(file);
+  const xml = await zip.file("word/document.xml").async("string");
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(xml, "application/xml");
+  const ns = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
+
+  // Extract paragraphs (only those NOT inside tables)
+  const paragraphs = [];
+  doc.querySelectorAll("p").forEach(p => {
+    // Skip paragraphs inside table cells
+    let parent = p.parentElement;
+    let inTable = false;
+    while (parent) {
+      if (parent.localName === "tc" || parent.localName === "tbl") { inTable = true; break; }
+      parent = parent.parentElement;
+    }
+    if (inTable) return;
+    const texts = [];
+    p.querySelectorAll("t").forEach(t => texts.push(t.textContent));
+    const text = texts.join("").trim();
+    if (text) paragraphs.push(text);
+  });
+
+  // Extract tables
+  const tables = [];
+  doc.querySelectorAll("tbl").forEach(tbl => {
+    const rows = [];
+    tbl.querySelectorAll("tr").forEach(tr => {
+      const cells = [];
+      tr.querySelectorAll("tc").forEach(tc => {
+        const texts = [];
+        tc.querySelectorAll("t").forEach(t => texts.push(t.textContent));
+        cells.push(texts.join("").trim());
+      });
+      rows.push(cells);
+    });
+    tables.push(rows);
+  });
+
+  return { paragraphs, tables };
+}
+
+function interpretMapa(parsed) {
+  const { paragraphs, tables } = parsed;
+  if (tables.length < 1) throw new Error("Mapa invalido: nenhuma tabela encontrada no arquivo");
+
+  // Metadata from paragraphs
+  let escola = "", edital = "", criterio = "", dataApuracao = "";
+  for (const p of paragraphs) {
+    const pUp = p.toUpperCase();
+    if (pUp.includes("CAIXA ESCOLAR") && !escola) escola = p;
+    if (pUp.includes("EDITAL")) {
+      const m = p.match(/Edital\s+n[°ºo]?\s*([\d\/\-]+)/i);
+      if (m) edital = m[1];
+    }
+    if (pUp.includes("CRIT")) {
+      const m = p.match(/Crit.rio.*?[–\-]\s*(.*)/i);
+      if (m) criterio = m[1].trim();
+    }
+    if (pUp.includes("AUTENTICA")) {
+      const m = p.match(/(\d{2}\/\d{2}\/\d{4})/);
+      if (m) dataApuracao = m[1];
+    }
+  }
+  // Fallback: if no escola found, use first paragraph
+  if (!escola && paragraphs.length > 1) escola = paragraphs[1] || paragraphs[0];
+
+  // Table 0: Items + supplier prices
+  const mainTable = tables[0];
+  const headerRow = mainTable[0];
+
+  // Smart column detection: find key columns by header text
+  let colItem = -1, colDesc = -1, colUnd = -1, colQtd = -1, firstSupplierCol = -1;
+  const skipHeaders = ["preco/unidade","preco","valor","total","item","n","num","descri","und","unid","quant","qtd","qtde"];
+  for (let c = 0; c < headerRow.length; c++) {
+    const h = String(headerRow[c]).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+    if (!h) continue;
+    if ((h === "item" || h === "n" || h === "num" || h === "n.") && colItem < 0) colItem = c;
+    else if ((h.includes("descri") || h.includes("produto") || h.includes("especif") || h.includes("material")) && colDesc < 0) colDesc = c;
+    else if ((h.includes("und") || h.includes("unid") || h === "un") && colUnd < 0) colUnd = c;
+    else if ((h.includes("quant") || h.includes("qtd")) && colQtd < 0) colQtd = c;
+  }
+  // Fallback to fixed positions if detection fails
+  if (colDesc < 0) colDesc = 1;
+  if (colUnd < 0) colUnd = 2;
+  if (colQtd < 0) colQtd = 3;
+  firstSupplierCol = Math.max(colDesc, colUnd, colQtd) + 1;
+
+  // Suppliers are columns after the last known field
+  const supplierNames = [];
+  for (let c = firstSupplierCol; c < headerRow.length; c++) {
+    const h = String(headerRow[c]).trim();
+    const hLow = h.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    if (h && !skipHeaders.some(s => hLow.includes(s))) {
+      supplierNames.push(h);
+    }
+  }
+
+  // Detect data start row (skip sub-headers like "Preco/unidade")
+  let dataStartRow = 1;
+  if (mainTable.length > 2) {
+    const row1 = mainTable[1];
+    const row1Text = row1.map(c => String(c).toLowerCase()).join(" ");
+    if (row1Text.includes("preco") || row1Text.includes("valor") || row1Text.includes("unidade")) dataStartRow = 2;
+  }
+
+  // Parse items
+  const itens = [];
+  let itemNum = 0;
+  for (let r = dataStartRow; r < mainTable.length; r++) {
+    const row = mainTable[r];
+    const descricao = row[colDesc] || "";
+    if (!descricao) continue;
+    itemNum++;
+
+    const unidade = row[colUnd] || "";
+    const quantidade = parseFloat(String(row[colQtd] || "0").replace(/\./g, "").replace(",", ".")) || 0;
+
+    const precos = {};
+    for (let s = 0; s < supplierNames.length; s++) {
+      const raw = String(row[firstSupplierCol + s] || "");
+      const cleaned = raw.replace(/[^\d,\.]/g, "").replace(",", ".");
+      const price = parseFloat(cleaned) || 0;
+      precos[supplierNames[s]] = price;
+    }
+
+    itens.push({ num: itemNum, descricao, unidade, quantidade, precos });
+  }
+
+  // Table 1: Classification (optional — may not exist in Excel/PDF)
+  const fornecedores = [];
+  if (tables.length < 2) {
+    // No classification table — infer suppliers from item prices
+    for (let s = 0; s < supplierNames.length; s++) {
+      const itensGanhos = [];
+      for (const item of itens) {
+        const prices = Object.entries(item.precos).filter(([,v]) => v > 0);
+        if (prices.length === 0) continue;
+        const minPrice = Math.min(...prices.map(([,v]) => v));
+        if (item.precos[supplierNames[s]] === minPrice) itensGanhos.push(item.num);
+      }
+      fornecedores.push({ ordem: s + 1, nome: supplierNames[s], itensGanhos });
+    }
+    return { escola, edital, criterio, dataApuracao, supplierNames, itens, fornecedores };
+  }
+  const classTable = tables[1];
+  for (let r = 1; r < classTable.length; r++) {
+    const row = classTable[r];
+    const ordem = parseInt(row[0]) || r;
+    const nome = row[1] || "";
+    const itensStr = row[2] || "";
+
+    // Parse "1,2,4,5,6,7,8,9 e 10" or "3" or "–"
+    let itensGanhos = [];
+    if (itensStr && itensStr !== "\u2013" && itensStr !== "-" && itensStr !== "\u00a0") {
+      const parts = itensStr.replace(/\s*e\s*/g, ",").split(",");
+      itensGanhos = parts.map(s => parseInt(s.trim())).filter(n => !isNaN(n));
+    }
+
+    if (nome) {
+      fornecedores.push({ ordem, nome, itensGanhos });
+    }
+  }
+
+  return { escola, edital, criterio, dataApuracao, supplierNames, itens, fornecedores };
+}
+
+// ===== EXCEL/CSV PARSER (SheetJS) =====
+async function parseExcel(file) {
+  const data = await file.arrayBuffer();
+  const wb = XLSX.read(data, { type: "array" });
+
+  const paragraphs = [];
+  const tables = [];
+
+  for (const sheetName of wb.SheetNames) {
+    const ws = wb.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
+    if (!rows.length) continue;
+
+    // Heuristic: rows with mostly empty cells are metadata paragraphs
+    // Rows that form a grid (3+ columns with data) are table rows
+    let currentTable = [];
+    for (const row of rows) {
+      const nonEmpty = row.filter(c => c !== "" && c !== null && c !== undefined);
+      if (nonEmpty.length === 0) {
+        // Empty row = table separator
+        if (currentTable.length > 0) { tables.push(currentTable); currentTable = []; }
+        continue;
+      }
+      if (nonEmpty.length <= 2 && row.length <= 3) {
+        // Looks like metadata/header text
+        if (currentTable.length > 0) { tables.push(currentTable); currentTable = []; }
+        paragraphs.push(nonEmpty.join(" ").trim());
+      } else {
+        // Table row
+        currentTable.push(row.map(c => String(c).trim()));
+      }
+    }
+    if (currentTable.length > 0) tables.push(currentTable);
+  }
+
+  if (tables.length === 0) throw new Error("Nenhuma tabela encontrada na planilha");
+  return { paragraphs, tables };
+}
+
+// ===== PDF PARSER (pdf.js) =====
+async function parsePDF(file) {
+  if (!window.pdfjsLib) throw new Error("Biblioteca PDF nao carregada. Recarregue a pagina.");
+  const data = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data }).promise;
+
+  const allLines = [];
+  for (let p = 1; p <= pdf.numPages; p++) {
+    const page = await pdf.getPage(p);
+    const content = await page.getTextContent();
+
+    // Group text items by Y position to reconstruct rows
+    const yMap = new Map();
+    for (const item of content.items) {
+      const y = Math.round(item.transform[5]); // Y coordinate
+      if (!yMap.has(y)) yMap.set(y, []);
+      yMap.get(y).push({ x: item.transform[4], text: item.str });
+    }
+
+    // Sort by Y descending (PDF coordinates are bottom-up)
+    const sortedYs = [...yMap.keys()].sort((a, b) => b - a);
+    for (const y of sortedYs) {
+      const items = yMap.get(y).sort((a, b) => a.x - b.x);
+      const lineText = items.map(i => i.text).join(" ").trim();
+      if (lineText) allLines.push({ y, items, text: lineText });
+    }
+  }
+
+  // Heuristic: detect table rows by tab-like spacing between text items
+  const paragraphs = [];
+  const tables = [];
+  let currentTable = [];
+
+  for (const line of allLines) {
+    // Detect if this line has tabular structure (multiple spaced columns)
+    const gaps = [];
+    for (let i = 1; i < line.items.length; i++) {
+      const gap = line.items[i].x - (line.items[i-1].x + line.items[i-1].text.length * 5);
+      gaps.push(gap);
+    }
+    const bigGaps = gaps.filter(g => g > 20).length;
+
+    if (bigGaps >= 2 && line.items.length >= 3) {
+      // Tabular line — split by large gaps into columns
+      const cells = [];
+      let currentCell = line.items[0].text;
+      for (let i = 1; i < line.items.length; i++) {
+        const gap = line.items[i].x - (line.items[i-1].x + line.items[i-1].text.length * 5);
+        if (gap > 20) {
+          cells.push(currentCell.trim());
+          currentCell = line.items[i].text;
+        } else {
+          currentCell += " " + line.items[i].text;
+        }
+      }
+      cells.push(currentCell.trim());
+      currentTable.push(cells);
+    } else {
+      // Paragraph text
+      if (currentTable.length > 2) { tables.push(currentTable); }
+      currentTable = [];
+      paragraphs.push(line.text);
+    }
+  }
+  if (currentTable.length > 2) tables.push(currentTable);
+
+  if (tables.length === 0) throw new Error("Nenhuma tabela encontrada no PDF. O arquivo pode ser uma imagem escaneada — nesse caso, converta para Excel primeiro.");
+  return { paragraphs, tables };
+}
+
+// ===== FILE UPLOAD =====
+async function handleFileUpload(file) {
+  if (!file) return;
+  const ext = file.name.split('.').pop().toLowerCase();
+
+  if (ext === 'docx') {
+    try {
+      const parsed = await parseDocx(file);
+      parsedMapa = interpretMapa(parsed);
+      selectedSupplierIdx = null;
+      renderImportPreview();
+      showToast("Mapa parseado com sucesso!");
+    } catch (err) {
+      showToast("Erro ao parsear DOCX: " + err.message, 5000);
+      console.error(err);
+    }
+  } else if (['xlsx', 'xls', 'csv'].includes(ext)) {
+    try {
+      const parsed = await parseExcel(file);
+      parsedMapa = interpretMapa(parsed);
+      selectedSupplierIdx = null;
+      renderImportPreview();
+      showToast("Excel/CSV parseado com sucesso!");
+    } catch (err) {
+      showToast("Erro ao parsear Excel: " + err.message, 5000);
+      console.error(err);
+    }
+  } else if (ext === 'pdf') {
+    try {
+      const parsed = await parsePDF(file);
+      parsedMapa = interpretMapa(parsed);
+      selectedSupplierIdx = null;
+      renderImportPreview();
+      showToast("PDF parseado com sucesso!");
+    } catch (err) {
+      showToast("Erro ao parsear PDF: " + err.message, 5000);
+      console.error(err);
+    }
+  } else if (['jpg', 'jpeg', 'png'].includes(ext)) {
+    showToast("Imagem detectada. Para importar mapas em imagem, converta para PDF ou Excel primeiro. Dica: use o app CamScanner ou Adobe Scan para converter foto em PDF.", 8000);
+  } else {
+    showToast("Formato nao suportado: ." + ext, 5000);
+  }
+}
+
+// Drag & drop
+const uploadZone = document.getElementById("upload-zone");
+uploadZone.addEventListener("dragover", e => { e.preventDefault(); uploadZone.classList.add("dragover"); });
+uploadZone.addEventListener("dragleave", () => uploadZone.classList.remove("dragover"));
+uploadZone.addEventListener("drop", e => {
+  e.preventDefault();
+  uploadZone.classList.remove("dragover");
+  if (e.dataTransfer.files.length) handleFileUpload(e.dataTransfer.files[0]);
+});
+
+// ===== RENDER IMPORT PREVIEW =====
+function renderImportPreview() {
+  if (!parsedMapa) return;
+  const m = parsedMapa;
+
+  document.getElementById("import-preview").classList.remove("hidden");
+  document.getElementById("preview-title").textContent = m.escola || "Mapa de Apuracao";
+  document.getElementById("preview-edital").textContent = m.edital ? `Edital ${m.edital}` : "";
+  document.getElementById("preview-criterio").textContent = m.criterio || "";
+  document.getElementById("preview-data").textContent = m.dataApuracao || "";
+
+  // Supplier grid
+  const grid = document.getElementById("supplier-grid");
+  grid.innerHTML = m.fornecedores.map((f, idx) => {
+    const count = f.itensGanhos.length;
+    return `<div class="supplier-card" id="sup-${idx}" onclick="selectSupplier(${idx})">
+      <h4>${esc(f.nome)}</h4>
+      <p>${count > 0 ? `${count} item(ns) ganho(s): ${f.itensGanhos.join(", ")}` : "Nenhum item ganho"}</p>
+    </div>`;
+  }).join("");
+
+  // Items table
+  const thForn = document.getElementById("th-fornecedores");
+  thForn.colSpan = m.supplierNames.length;
+  thForn.textContent = "Precos por Fornecedor";
+
+  // Rebuild thead with supplier columns
+  const thead = thForn.closest("thead");
+  thead.innerHTML = `<tr>
+    <th>#</th><th>Descricao</th><th>Unidade</th><th class="text-right">Qtd</th>
+    ${m.supplierNames.map(s => `<th class="text-right nowrap">${esc(s.length > 20 ? s.slice(0, 18) + "..." : s)}</th>`).join("")}
+    <th>Vencedor</th>
+  </tr>`;
+
+  const tbody = document.getElementById("preview-items-tbody");
+  tbody.innerHTML = m.itens.map(item => {
+    // Find winner for this item
+    const winner = m.fornecedores.find(f => f.itensGanhos.includes(item.num));
+    const winnerName = winner ? winner.nome : "-";
+    const winnerShort = winnerName.length > 20 ? winnerName.slice(0, 18) + "..." : winnerName;
+
+    return `<tr>
+      <td class="text-center">${item.num}</td>
+      <td>${esc(item.descricao)}</td>
+      <td class="nowrap">${esc(item.unidade)}</td>
+      <td class="text-right font-mono">${item.quantidade}</td>
+      ${m.supplierNames.map(s => {
+        const p = item.precos[s];
+        const isWinner = winner && s === winner.nome;
+        return `<td class="text-right font-mono ${isWinner ? 'green' : ''}" style="${isWinner ? 'font-weight:700' : ''}">${p > 0 ? brl.format(p) : "-"}</td>`;
+      }).join("")}
+      <td class="nowrap"><span class="badge badge-green">${esc(winnerShort)}</span></td>
+    </tr>`;
+  }).join("");
+
+  renderWonItems();
+}
+
+function selectSupplier(idx) {
+  selectedSupplierIdx = idx;
+  document.querySelectorAll(".supplier-card").forEach((c, i) => {
+    c.classList.toggle("selected", i === idx);
+  });
+  renderWonItems();
+}
+
+function renderWonItems() {
+  const card = document.getElementById("won-items-card");
+  const btn = document.getElementById("btn-criar-contrato");
+
+  if (selectedSupplierIdx === null || !parsedMapa) {
+    card.classList.add("hidden");
+    btn.disabled = true;
+    return;
+  }
+
+  card.classList.remove("hidden");
+  const supplier = parsedMapa.fornecedores[selectedSupplierIdx];
+  const wonItems = parsedMapa.itens.filter(i => supplier.itensGanhos.includes(i.num));
+
+  document.getElementById("won-items-title").textContent = `Itens Ganhos por ${supplier.nome} (${wonItems.length})`;
+
+  let total = 0;
+  document.getElementById("won-items-tbody").innerHTML = wonItems.map(item => {
+    const preco = item.precos[supplier.nome] || 0;
+    const subtotal = preco * item.quantidade;
+    total += subtotal;
+    return `<tr>
+      <td class="text-center">${item.num}</td>
+      <td>${esc(item.descricao)}</td>
+      <td class="nowrap">${esc(item.unidade)}</td>
+      <td class="text-right font-mono">${item.quantidade}</td>
+      <td class="text-right font-mono">${brl.format(preco)}</td>
+      <td class="text-right font-mono" style="font-weight:700;color:var(--green)">${brl.format(subtotal)}</td>
+    </tr>`;
+  }).join("");
+
+  document.getElementById("won-items-total").textContent = brl.format(total);
+  btn.disabled = wonItems.length === 0;
+}
+
+// ===== CREATE CONTRACT =====
+function criarContrato() {
+  if (!parsedMapa || selectedSupplierIdx === null) return;
+  const m = parsedMapa;
+  const supplier = m.fornecedores[selectedSupplierIdx];
+  const wonItems = m.itens.filter(i => supplier.itensGanhos.includes(i.num));
+
+  if (wonItems.length === 0) {
+    showToast("Nenhum item ganho por este fornecedor.", 3000);
+    return;
+  }
+
+  const now = new Date();
+  const id = `CTR-${now.getFullYear()}${String(now.getMonth()+1).padStart(2,"0")}${String(now.getDate()).padStart(2,"0")}-${String(Math.floor(Math.random()*9999)).padStart(4,"0")}`;
+
+  const contrato = {
+    id,
+    escola: m.escola,
+    edital: m.edital,
+    criterio: m.criterio,
+    dataApuracao: m.dataApuracao,
+    dataCriacao: now.toISOString(),
+    fornecedor: supplier.nome,
+    status: "ativo",
+    itens: wonItems.map(item => ({
+      num: item.num,
+      descricao: item.descricao,
+      unidade: item.unidade,
+      qtdContratada: item.quantidade,
+      precoUnitario: item.precos[supplier.nome] || 0,
+      qtdEntregue: 0
+    })),
+    fornecedoresMapa: m.fornecedores.map(f => ({
+      nome: f.nome,
+      itensGanhos: f.itensGanhos
+    }))
+  };
+
+  contratos.push(contrato);
+  saveContratos();
+
+  // Alimentar banco de precos com dados de concorrentes
+  alimentarBancoConcorrentes(m, supplier.nome);
+
+  // Reset import
+  parsedMapa = null;
+  selectedSupplierIdx = null;
+  document.getElementById("import-preview").classList.add("hidden");
+  document.getElementById("file-input").value = "";
+
+  showToast(`Contrato ${id} criado com ${wonItems.length} itens!`);
+  renderAll();
+  switchTab("contratos");
+}
+
+// Alimentar banco de precos (Caixa Escolar) com precos dos concorrentes do mapa
+function alimentarBancoConcorrentes(mapa, meuNome) {
+  const BANCO_KEY = "caixaescolar.banco.v1";
+  let banco;
+  try { banco = JSON.parse(localStorage.getItem(BANCO_KEY)); } catch(_) { banco = null; }
+  if (!banco || !Array.isArray(banco.itens)) banco = { updatedAt: "", itens: [] };
+
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const norm = s => (s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+
+  let updated = 0;
+  for (const item of mapa.itens) {
+    // Encontrar ou criar item no banco
+    const itemNorm = norm(item.descricao);
+    let bp = banco.itens.find(b => norm(b.item) === itemNorm);
+    if (!bp) {
+      bp = {
+        id: "bp-" + String(Date.now()).slice(-6) + String(Math.random()).slice(2, 5),
+        item: item.descricao,
+        grupo: "Mapa Importado",
+        unidade: item.unidade || "Unidade",
+        custoBase: 0,
+        margemPadrao: 0.30,
+        precoReferencia: 0,
+        ultimaCotacao: todayStr,
+        fonte: "Mapa " + (mapa.edital || ""),
+        propostas: [],
+        concorrentes: [],
+        custosFornecedor: []
+      };
+      banco.itens.push(bp);
+    }
+
+    // Garantir arrays existem
+    if (!bp.concorrentes) bp.concorrentes = [];
+    if (!bp.propostas) bp.propostas = [];
+
+    // Registrar precos de CADA fornecedor
+    for (const [fornecedor, preco] of Object.entries(item.precos)) {
+      if (preco <= 0) continue;
+
+      if (norm(fornecedor) === norm(meuNome)) {
+        // Meu preco — registrar como proposta
+        const jaExiste = bp.propostas.find(p => p.edital === (mapa.edital || "") && p.escola === (mapa.escola || ""));
+        if (!jaExiste) {
+          bp.propostas.push({
+            edital: mapa.edital || "",
+            escola: mapa.escola || "",
+            preco: preco,
+            data: todayStr,
+            resultado: "pendente"
+          });
+        }
+        // Atualizar preco referencia se nao tiver
+        if (!bp.precoReferencia || bp.precoReferencia === 0) bp.precoReferencia = preco;
+      } else {
+        // Concorrente — registrar
+        const jaExiste = bp.concorrentes.find(c => norm(c.nome) === norm(fornecedor) && c.edital === (mapa.edital || ""));
+        if (!jaExiste) {
+          bp.concorrentes.push({
+            nome: fornecedor,
+            preco: preco,
+            edital: mapa.edital || "",
+            escola: mapa.escola || "",
+            data: todayStr
+          });
+        }
+      }
+    }
+
+    bp.ultimaCotacao = todayStr;
+    updated++;
+  }
+
+  banco.updatedAt = todayStr;
+  localStorage.setItem(BANCO_KEY, JSON.stringify(banco));
+  showToast(`Inteligencia: ${updated} itens com precos de concorrentes registrados no Banco de Precos.`, 5000);
+}
+
+function cancelImport() {
+  parsedMapa = null;
+  selectedSupplierIdx = null;
+  document.getElementById("import-preview").classList.add("hidden");
+  document.getElementById("file-input").value = "";
+}
+
+// ===== RENDER CONTRATOS =====
+function renderContratos() {
+  const busca = (document.getElementById("busca-contrato").value || "").toLowerCase();
+  const statusFiltro = document.getElementById("filtro-status-contrato").value;
+
+  let filtered = contratos.filter(c => {
+    const matchBusca = !busca || c.escola.toLowerCase().includes(busca) || c.edital.toLowerCase().includes(busca) || c.id.toLowerCase().includes(busca);
+    const matchStatus = !statusFiltro || c.status === statusFiltro;
+    return matchBusca && matchStatus;
+  });
+
+  const grid = document.getElementById("contract-grid");
+  const empty = document.getElementById("contratos-empty");
+
+  if (filtered.length === 0) {
+    grid.innerHTML = "";
+    empty.classList.remove("hidden");
+    return;
+  }
+  empty.classList.add("hidden");
+
+  grid.innerHTML = filtered.map(c => {
+    const totalContratado = c.itens.reduce((s, i) => s + i.precoUnitario * i.qtdContratada, 0);
+    const totalEntregue = c.itens.reduce((s, i) => s + i.precoUnitario * i.qtdEntregue, 0);
+    const pctExec = totalContratado > 0 ? (totalEntregue / totalContratado * 100) : 0;
+    const itensPendentes = c.itens.filter(i => i.qtdEntregue < i.qtdContratada).length;
+    const badgeClass = c.status === "ativo" ? "badge-green" : "badge-red";
+
+    return `<div class="contract-card" onclick="abrirContrato('${c.id}')">
+      <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:.5rem">
+        <span class="font-mono" style="font-size:.75rem;color:var(--dim)">${c.id}</span>
+        <span class="badge ${badgeClass}">${c.status}</span>
+      </div>
+      <h3>${esc(c.escola.length > 60 ? c.escola.slice(0, 58) + "..." : c.escola)}</h3>
+      <div class="meta">Edital ${esc(c.edital)} | ${c.itens.length} itens | ${esc(c.fornecedor)}</div>
+      <div style="display:flex;justify-content:space-between;font-size:.8rem;margin-bottom:.5rem">
+        <span style="color:var(--green);font-weight:700">${brl.format(totalContratado)}</span>
+        <span style="color:var(--mut)">${itensPendentes} pendentes</span>
+      </div>
+      <div class="progress"><div class="progress-fill ${pctExec >= 80 ? 'green' : pctExec >= 40 ? 'yellow' : 'blue'}" style="width:${pctExec}%"></div></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:.3rem">
+        <span style="font-size:.7rem;color:var(--dim)">${pctExec.toFixed(0)}% executado</span>
+        <button class="btn btn-sm btn-red" onclick="event.stopPropagation();excluirContrato('${c.id}')" style="font-size:.7rem;padding:.2rem .6rem">Excluir</button>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+function excluirContrato(id) {
+  const c = contratos.find(x => x.id === id);
+  if (!c) return;
+  if (!confirm(`Excluir contrato ${c.id} — ${c.escola}?\n\nEsta ação não pode ser desfeita.`)) return;
+  contratos = contratos.filter(x => x.id !== id);
+  saveContratos();
+  renderAll();
+  showToast(`Contrato ${id} excluído.`);
+}
+
+// ===== CONTRACT DETAIL MODAL =====
+function abrirContrato(id) {
+  const c = contratos.find(x => x.id === id);
+  if (!c) return;
+
+  document.getElementById("modal-contrato-titulo").textContent = `${c.id} — ${c.escola.length > 50 ? c.escola.slice(0, 48) + "..." : c.escola}`;
+
+  const totalContratado = c.itens.reduce((s, i) => s + i.precoUnitario * i.qtdContratada, 0);
+  const totalEntregue = c.itens.reduce((s, i) => s + i.precoUnitario * i.qtdEntregue, 0);
+  const totalSaldo = totalContratado - totalEntregue;
+
+  let html = `
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1.5rem">
+      <div class="kpi" style="margin:0"><div class="kpi-label">Contratado</div><div class="kpi-value green" style="font-size:1.3rem">${brl.format(totalContratado)}</div></div>
+      <div class="kpi" style="margin:0"><div class="kpi-label">Entregue</div><div class="kpi-value blue" style="font-size:1.3rem">${brl.format(totalEntregue)}</div></div>
+      <div class="kpi" style="margin:0"><div class="kpi-label">Saldo</div><div class="kpi-value yellow" style="font-size:1.3rem">${brl.format(totalSaldo)}</div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.8rem;margin-bottom:1.5rem;font-size:.85rem">
+      <div><strong style="color:var(--mut)">Edital:</strong> ${esc(c.edital)}</div>
+      <div><strong style="color:var(--mut)">Fornecedor:</strong> ${esc(c.fornecedor)}</div>
+      <div><strong style="color:var(--mut)">Data Apuracao:</strong> ${esc(c.dataApuracao)}</div>
+      <div><strong style="color:var(--mut)">Status:</strong> <span class="badge ${c.status === 'ativo' ? 'badge-green' : 'badge-red'}">${c.status}</span></div>
+    </div>
+    <h3 style="margin-bottom:.8rem;font-size:.9rem">Itens do Contrato</h3>
+    <div class="table-wrap" style="max-height:400px;overflow-y:auto">
+      <table>
+        <thead><tr><th>#</th><th>Item</th><th>Unid</th><th class="text-right">Contrat.</th><th class="text-right">Entreg.</th><th class="text-right">Saldo</th><th>Exec.</th><th class="text-right">Preco</th><th class="text-center">Entregar</th></tr></thead>
+        <tbody>${c.itens.map((item, idx) => {
+          const saldo = item.qtdContratada - item.qtdEntregue;
+          const pct = item.qtdContratada > 0 ? (item.qtdEntregue / item.qtdContratada * 100) : 0;
+          return `<tr>
+            <td class="text-center">${item.num}</td>
+            <td>${esc(item.descricao)}</td>
+            <td class="nowrap">${esc(item.unidade)}</td>
+            <td class="text-right font-mono">${item.qtdContratada}</td>
+            <td class="text-right font-mono">${item.qtdEntregue}</td>
+            <td class="text-right font-mono" style="font-weight:700;color:${saldo > 0 ? 'var(--yellow)' : 'var(--green)'}">${saldo}</td>
+            <td style="min-width:80px"><div class="progress"><div class="progress-fill ${pct >= 80 ? 'green' : pct >= 40 ? 'yellow' : 'blue'}" style="width:${pct}%"></div></div><span style="font-size:.65rem;color:var(--dim)">${pct.toFixed(0)}%</span></td>
+            <td class="text-right font-mono">${brl.format(item.precoUnitario)}</td>
+            <td class="text-center">${saldo > 0 ? `<input type="number" min="0" max="${saldo}" value="0" style="width:60px;text-align:center" id="entrega-${c.id}-${idx}">` : '<span class="badge badge-green">OK</span>'}</td>
+          </tr>`;
+        }).join("")}</tbody>
+      </table>
+    </div>
+    <div style="margin-top:1rem;display:flex;gap:.8rem;justify-content:flex-end">
+      <button class="btn btn-outline" onclick="fecharModalContrato()">Fechar</button>
+      <button class="btn btn-red btn-sm" onclick="excluirContrato('${c.id}')">Excluir Contrato</button>
+      <button class="btn btn-green" onclick="registrarEntregas('${c.id}')">Registrar Entregas</button>
+    </div>`;
+
+  document.getElementById("modal-contrato-body").innerHTML = html;
+  document.getElementById("modal-contrato").classList.remove("hidden");
+}
+
+function fecharModalContrato() {
+  document.getElementById("modal-contrato").classList.add("hidden");
+}
+
+function registrarEntregas(contratoId) {
+  const c = contratos.find(x => x.id === contratoId);
+  if (!c) return;
+
+  let count = 0;
+  c.itens.forEach((item, idx) => {
+    const input = document.getElementById(`entrega-${c.id}-${idx}`);
+    if (input) {
+      const qty = parseInt(input.value) || 0;
+      if (qty > 0) {
+        const saldo = item.qtdContratada - item.qtdEntregue;
+        item.qtdEntregue += Math.min(qty, saldo);
+        count += qty;
+      }
+    }
+  });
+
+  if (count === 0) {
+    showToast("Preencha pelo menos uma quantidade para registrar.", 3000);
+    return;
+  }
+
+  saveContratos();
+  showToast(`${count} unidades registradas como entregues!`);
+  renderAll();
+  abrirContrato(contratoId); // Refresh modal
+}
+
+function excluirContrato(id) {
+  if (!confirm("Tem certeza que deseja excluir este contrato?")) return;
+  contratos = contratos.filter(c => c.id !== id);
+  saveContratos();
+  fecharModalContrato();
+  renderAll();
+  showToast("Contrato excluido.");
+}
+
+// ===== RENDER ITENS (ALL CONTRACTS) =====
+function renderItens() {
+  // Populate filter
+  const sel = document.getElementById("filtro-contrato-itens");
+  const prevVal = sel.value;
+  while (sel.options.length > 1) sel.remove(1);
+  contratos.forEach(c => {
+    const short = c.escola.length > 40 ? c.escola.slice(0, 38) + "..." : c.escola;
+    sel.appendChild(new Option(`${c.id} — ${short}`, c.id));
+  });
+  if (prevVal) sel.value = prevVal;
+
+  const filtroContrato = sel.value;
+  const busca = (document.getElementById("busca-item").value || "").toLowerCase();
+
+  const allItens = [];
+  const source = filtroContrato ? contratos.filter(c => c.id === filtroContrato) : contratos;
+  source.forEach(c => {
+    c.itens.forEach(item => {
+      allItens.push({ ...item, contratoId: c.id, escola: c.escola });
+    });
+  });
+
+  const filtered = allItens.filter(i => !busca || i.descricao.toLowerCase().includes(busca) || i.escola.toLowerCase().includes(busca));
+
+  const tbody = document.getElementById("itens-tbody");
+  const empty = document.getElementById("itens-empty");
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = "";
+    empty.classList.remove("hidden");
+    return;
+  }
+  empty.classList.add("hidden");
+
+  tbody.innerHTML = filtered.map(i => {
+    const saldo = i.qtdContratada - i.qtdEntregue;
+    const pct = i.qtdContratada > 0 ? (i.qtdEntregue / i.qtdContratada * 100) : 0;
+    const valorSaldo = saldo * i.precoUnitario;
+    const escolaShort = i.escola.length > 30 ? i.escola.slice(0, 28) + "..." : i.escola;
+    return `<tr>
+      <td class="nowrap" title="${esc(i.escola)}">${esc(escolaShort)}</td>
+      <td>${esc(i.descricao)}</td>
+      <td class="nowrap">${esc(i.unidade)}</td>
+      <td class="text-right font-mono">${i.qtdContratada}</td>
+      <td class="text-right font-mono">${i.qtdEntregue}</td>
+      <td class="text-right font-mono" style="font-weight:700;color:${saldo > 0 ? 'var(--yellow)' : 'var(--green)'}">${saldo}</td>
+      <td style="min-width:100px"><div class="progress"><div class="progress-fill ${pct >= 80 ? 'green' : pct >= 40 ? 'yellow' : 'blue'}" style="width:${pct}%"></div></div><span style="font-size:.65rem;color:var(--dim)">${pct.toFixed(0)}%</span></td>
+      <td class="text-right font-mono">${brl.format(i.precoUnitario)}</td>
+      <td class="text-right font-mono" style="color:var(--yellow)">${brl.format(valorSaldo)}</td>
+    </tr>`;
+  }).join("");
+}
+
+// ===== RENDER PEDIDOS =====
+function renderPedidos() {
+  const sel = document.getElementById("filtro-contrato-pedidos");
+  const prevVal = sel.value;
+  while (sel.options.length > 1) sel.remove(1);
+  contratos.forEach(c => {
+    const short = c.escola.length > 40 ? c.escola.slice(0, 38) + "..." : c.escola;
+    sel.appendChild(new Option(`${c.id} — ${short}`, c.id));
+  });
+  if (prevVal) sel.value = prevVal;
+
+  const filtroContrato = sel.value;
+  const filtroStatus = document.getElementById("filtro-status-pedido").value;
+
+  let filtered = pedidos;
+  if (filtroContrato) filtered = filtered.filter(p => p.contratoId === filtroContrato);
+  if (filtroStatus) filtered = filtered.filter(p => p.status === filtroStatus);
+
+  const tbody = document.getElementById("pedidos-tbody");
+  const empty = document.getElementById("pedidos-empty");
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = "";
+    empty.classList.remove("hidden");
+    return;
+  }
+  empty.classList.add("hidden");
+
+  tbody.innerHTML = filtered.map(p => {
+    const badgeMap = { recebido: "badge-yellow", separando: "badge-blue", entregue: "badge-green" };
+    const nextStatus = { recebido: "separando", separando: "entregue" };
+    const next = nextStatus[p.status];
+
+    return `<tr>
+      <td class="font-mono">${esc(p.id)}</td>
+      <td>${esc(p.escola.length > 30 ? p.escola.slice(0, 28) + "..." : p.escola)}</td>
+      <td class="nowrap">${esc(p.data)}</td>
+      <td class="text-right">${p.itens.length}</td>
+      <td class="text-right font-mono" style="color:var(--green);font-weight:700">${brl.format(p.valor)}</td>
+      <td><span class="badge ${badgeMap[p.status] || 'badge-yellow'}">${p.status}</span></td>
+      <td class="nowrap">
+  ${next ? `<button class="btn btn-sm btn-outline" onclick="avancarPedido('${p.id}','${next}')">${next}</button> ` : '<span style="color:var(--green);font-size:.8rem">Concluido</span> '}
+  ${!p.olistId ? `<button class="btn btn-sm btn-blue" onclick="enviarPedidoOlist('${p.id}')">Olist</button>` : `<span style="font-size:.7rem;color:var(--dim)">${p.olistId}</span>`}
+</td>
+    </tr>`;
+  }).join("");
+}
+
+function avancarPedido(pedidoId, novoStatus) {
+  const p = pedidos.find(x => x.id === pedidoId);
+  if (!p) return;
+
+  p.status = novoStatus;
+
+  // If entregue, update contract quantities
+  if (novoStatus === "entregue") {
+    const c = contratos.find(x => x.id === p.contratoId);
+    if (c) {
+      p.itens.forEach(pi => {
+        const item = c.itens.find(ci => ci.num === pi.itemNum || ci.descricao === pi.descricao);
+        if (item) {
+          const saldo = item.qtdContratada - item.qtdEntregue;
+          item.qtdEntregue += Math.min(pi.qtd, saldo);
+        }
+      });
+      saveContratos();
+    }
+  }
+
+  savePedidos();
+  renderAll();
+  showToast(`Pedido ${pedidoId} → ${novoStatus}`);
+}
+
+// ===== NOVO PEDIDO MANUAL =====
+function novoPedidoManual() {
+  if (contratos.length === 0) {
+    showToast("Crie um contrato primeiro.", 3000);
+    return;
+  }
+
+  let html = `
+    <div style="margin-bottom:1rem">
+      <label style="font-size:.8rem;color:var(--mut);display:block;margin-bottom:.3rem">Contrato</label>
+      <select id="pedido-contrato" style="width:100%" onchange="renderPedidoItens()">
+        ${contratos.map(c => `<option value="${c.id}">${c.id} — ${esc(c.escola.length > 40 ? c.escola.slice(0, 38) + "..." : c.escola)}</option>`).join("")}
+      </select>
+    </div>
+    <div id="pedido-itens-container"></div>
+    <div style="margin-top:1rem;display:flex;justify-content:flex-end;gap:.8rem">
+      <button class="btn btn-outline" onclick="fecharModalPedido()">Cancelar</button>
+      <button class="btn btn-green" onclick="salvarPedidoManual()">Registrar Pedido</button>
+    </div>`;
+
+  document.getElementById("modal-pedido-body").innerHTML = html;
+  document.getElementById("modal-pedido").classList.remove("hidden");
+  renderPedidoItens();
+}
+
+function renderPedidoItens() {
+  const contratoId = document.getElementById("pedido-contrato").value;
+  const c = contratos.find(x => x.id === contratoId);
+  if (!c) return;
+
+  const container = document.getElementById("pedido-itens-container");
+  const itensComSaldo = c.itens.filter(i => i.qtdContratada - i.qtdEntregue > 0);
+
+  container.innerHTML = `
+    <label style="font-size:.8rem;color:var(--mut);display:block;margin-bottom:.5rem">Itens (preencha a quantidade pedida)</label>
+    <div class="table-wrap" style="max-height:300px;overflow-y:auto">
+      <table>
+        <thead><tr><th>Item</th><th>Unid</th><th class="text-right">Saldo</th><th class="text-right">Preco</th><th class="text-center">Qtd Pedida</th></tr></thead>
+        <tbody>${itensComSaldo.map((item, idx) => {
+          const saldo = item.qtdContratada - item.qtdEntregue;
+          return `<tr>
+            <td>${esc(item.descricao)}</td>
+            <td class="nowrap">${esc(item.unidade)}</td>
+            <td class="text-right font-mono">${saldo}</td>
+            <td class="text-right font-mono">${brl.format(item.precoUnitario)}</td>
+            <td class="text-center"><input type="number" min="0" max="${saldo}" value="0" style="width:70px;text-align:center" id="ped-qty-${idx}" data-item-num="${item.num}" data-desc="${esc(item.descricao)}"></td>
+          </tr>`;
+        }).join("")}</tbody>
+      </table>
+    </div>`;
+}
+
+function salvarPedidoManual() {
+  const contratoId = document.getElementById("pedido-contrato").value;
+  const c = contratos.find(x => x.id === contratoId);
+  if (!c) return;
+
+  const itens = [];
+  let valor = 0;
+  document.querySelectorAll("[id^='ped-qty-']").forEach(input => {
+    const qty = parseInt(input.value) || 0;
+    if (qty > 0) {
+      const itemNum = parseInt(input.dataset.itemNum);
+      const desc = input.dataset.desc;
+      const item = c.itens.find(i => i.num === itemNum);
+      if (item) {
+        itens.push({ itemNum, descricao: desc, qtd: qty, precoUnitario: item.precoUnitario });
+        valor += qty * item.precoUnitario;
+      }
+    }
+  });
+
+  if (itens.length === 0) {
+    showToast("Preencha pelo menos um item.", 3000);
+    return;
+  }
+
+  const now = new Date();
+  const id = `PED-${now.getFullYear()}${String(now.getMonth()+1).padStart(2,"0")}${String(now.getDate()).padStart(2,"0")}-${String(Math.floor(Math.random()*9999)).padStart(4,"0")}`;
+
+  pedidos.push({
+    id,
+    contratoId,
+    escola: c.escola,
+    data: now.toISOString().slice(0, 10),
+    itens,
+    valor,
+    status: "recebido"
+  });
+
+  savePedidos();
+  fecharModalPedido();
+  renderAll();
+  showToast(`Pedido ${id} registrado!`);
+}
+
+function fecharModalPedido() {
+  document.getElementById("modal-pedido").classList.add("hidden");
+}
+
+// ===== EXPORT CSV =====
+function exportItensCSV() {
+  const rows = [["Escola","Item","Unidade","Contratado","Entregue","Saldo","Preco","Valor Saldo"]];
+  contratos.forEach(c => {
+    c.itens.forEach(i => {
+      const saldo = i.qtdContratada - i.qtdEntregue;
+      rows.push([
+        `"${c.escola}"`, `"${i.descricao}"`, `"${i.unidade}"`,
+        i.qtdContratada, i.qtdEntregue, saldo,
+        i.precoUnitario.toFixed(2).replace(".", ","),
+        (saldo * i.precoUnitario).toFixed(2).replace(".", ",")
+      ]);
+    });
+  });
+  const csv = rows.map(r => r.join(";")).join("\n");
+  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `gdp-contratos-itens-${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast("CSV exportado!");
+}
+
+// ===== KPIs =====
+function renderKPIs() {
+  const ativos = contratos.filter(c => c.status === "ativo");
+  const totalItens = ativos.reduce((s, c) => s + c.itens.length, 0);
+  const totalValor = ativos.reduce((s, c) => s + c.itens.reduce((s2, i) => s2 + i.precoUnitario * i.qtdContratada, 0), 0);
+  const pendentes = ativos.reduce((s, c) => s + c.itens.filter(i => i.qtdEntregue < i.qtdContratada).length, 0);
+
+  document.getElementById("kpi-contratos").textContent = ativos.length;
+  document.getElementById("kpi-itens").textContent = totalItens;
+  document.getElementById("kpi-valor").textContent = brl.format(totalValor);
+  document.getElementById("kpi-pendentes").textContent = pendentes;
+  document.getElementById("tab-count-contratos").textContent = contratos.length;
+  document.getElementById("tab-count-pedidos").textContent = pedidos.length;
+}
+
+// ===== RENDER ALL =====
+function renderAll() {
+  renderKPIs();
+  renderContratos();
+  renderPedidos();
+  renderEntregas();
+}
+
+// ===== UTILITIES =====
+function esc(s) { return (s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
+function showToast(msg, duration = 3000) {
+  const container = document.getElementById("toast-container");
+  const toast = document.createElement("div");
+  toast.style.cssText = "background:var(--s1);border:1px solid var(--bdr);color:var(--txt);padding:.6rem 1.2rem;border-radius:8px;font-size:.85rem;box-shadow:0 4px 12px rgba(0,0,0,.3);transition:opacity .3s";
+  toast.textContent = msg;
+  container.appendChild(toast);
+  setTimeout(() => { toast.style.opacity = "0"; setTimeout(() => toast.remove(), 300); }, duration);
+}
+
+// ===== USUARIOS (ESCOLAS) =====
+const USUARIOS_KEY = "gdp.usuarios.v1";
+let usuarios = [];
+
+function loadUsuarios() {
+  try { usuarios = JSON.parse(localStorage.getItem(USUARIOS_KEY)) || []; } catch(_) { usuarios = []; }
+  // Also load from credentials file
+  if (usuarios.length === 0) {
+    fetch('./data/escolas-credentials.json').then(r => r.json()).then(data => {
+      if (data.escolas && data.escolas.length > 0 && usuarios.length === 0) {
+        usuarios = data.escolas.map(e => ({
+          id: e.id,
+          nome: e.nome_completo || e.nome,
+          cnpj: e.cnpj || '',
+          municipio: e.municipio || '',
+          sre: e.sre || '',
+          responsavel: e.responsavel || '',
+          cargo: e.cargo || '',
+          email: e.email || '',
+          telefone: e.telefone || '',
+          login: e.login || '',
+          senha: e.senha || 'escola2025',
+          categoria_catalogo: e.categoria_catalogo || '',
+          arp_vinculada: e.arp_vinculada || '',
+          saldo_disponivel: e.saldo_disponivel || 0,
+          saldo_total: e.saldo_total || 0
+        }));
+        saveUsuarios();
+        renderUsuarios();
+      }
+    }).catch(() => {});
+  }
+}
+function saveUsuarios() { localStorage.setItem(USUARIOS_KEY, JSON.stringify(usuarios)); }
+
+function renderUsuarios() {
+  const busca = (document.getElementById("busca-usuario").value || "").toLowerCase();
+  const filtered = usuarios.filter(u => {
+    return !busca || (u.nome||'').toLowerCase().includes(busca) || (u.cnpj||'').includes(busca) || (u.email||'').toLowerCase().includes(busca) || (u.municipio||'').toLowerCase().includes(busca);
+  });
+
+  const tbody = document.getElementById("usuarios-tbody");
+  const empty = document.getElementById("usuarios-empty");
+
+  if (filtered.length === 0) { tbody.innerHTML = ""; empty.classList.remove("hidden"); return; }
+  empty.classList.add("hidden");
+
+  tbody.innerHTML = filtered.map(u => `<tr>
+    <td style="font-weight:600">${esc(u.nome)}</td>
+    <td class="font-mono" style="font-size:.8rem">${esc(u.cnpj)}</td>
+    <td>${esc(u.municipio)}</td>
+    <td>${esc(u.sre)}</td>
+    <td>${esc(u.responsavel)}</td>
+    <td style="font-size:.8rem">${esc(u.email)}</td>
+    <td style="font-size:.8rem">${esc(u.telefone)}</td>
+    <td class="font-mono">${esc(u.login)}</td>
+    <td class="nowrap">
+      <button class="btn btn-sm btn-outline" onclick="editarUsuario('${u.id}')">Editar</button>
+      <button class="btn btn-sm btn-red" onclick="excluirUsuario('${u.id}')">Excluir</button>
+    </td>
+  </tr>`).join("");
+}
+
+function novoUsuario() {
+  renderFormUsuario(null);
+  document.getElementById("modal-usuario").classList.remove("hidden");
+}
+
+function editarUsuario(id) {
+  const u = usuarios.find(x => x.id === id);
+  if (!u) return;
+  renderFormUsuario(u);
+  document.getElementById("modal-usuario").classList.remove("hidden");
+}
+
+function renderFormUsuario(u) {
+  const isEdit = !!u;
+  document.getElementById("modal-usuario-titulo").textContent = isEdit ? "Editar Escola" : "Cadastrar Escola";
+  document.getElementById("modal-usuario-body").innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Nome da Escola</label><input type="text" id="usr-nome" value="${esc(u?.nome||'')}" style="width:100%"></div>
+      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">CNPJ</label><input type="text" id="usr-cnpj" value="${esc(u?.cnpj||'')}" style="width:100%"></div>
+      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Municipio</label><input type="text" id="usr-municipio" value="${esc(u?.municipio||'')}" style="width:100%"></div>
+      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">SRE</label><input type="text" id="usr-sre" value="${esc(u?.sre||'')}" style="width:100%"></div>
+      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Responsavel</label><input type="text" id="usr-responsavel" value="${esc(u?.responsavel||'')}" style="width:100%"></div>
+      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Cargo</label><input type="text" id="usr-cargo" value="${esc(u?.cargo||'')}" style="width:100%"></div>
+      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Email</label><input type="text" id="usr-email" value="${esc(u?.email||'')}" style="width:100%"></div>
+      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Telefone</label><input type="text" id="usr-telefone" value="${esc(u?.telefone||'')}" style="width:100%"></div>
+      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Login</label><input type="text" id="usr-login" value="${esc(u?.login||'')}" style="width:100%"></div>
+      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Senha</label><input type="text" id="usr-senha" value="${esc(u?.senha||'escola2025')}" style="width:100%"></div>
+      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Catalogo (categoria)</label><input type="text" id="usr-catalogo" value="${esc(u?.categoria_catalogo||'')}" style="width:100%"></div>
+      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">ARP Vinculada</label><input type="text" id="usr-arp" value="${esc(u?.arp_vinculada||'ARP-LARIUCCI-2025')}" style="width:100%"></div>
+      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Saldo Total (R$)</label><input type="number" id="usr-saldo-total" value="${u?.saldo_total||0}" style="width:100%"></div>
+      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Saldo Disponivel (R$)</label><input type="number" id="usr-saldo-disp" value="${u?.saldo_disponivel||0}" style="width:100%"></div>
+    </div>
+    <div style="margin-top:1.5rem;display:flex;gap:.8rem;justify-content:flex-end">
+      <button class="btn btn-outline" onclick="fecharModalUsuario()">Cancelar</button>
+      <button class="btn btn-green" onclick="salvarUsuario('${isEdit ? u.id : ''}')">${isEdit ? 'Salvar' : 'Cadastrar'}</button>
+    </div>
+  `;
+}
+
+function salvarUsuario(editId) {
+  const nome = document.getElementById("usr-nome").value.trim();
+  const login = document.getElementById("usr-login").value.trim();
+  if (!nome || !login) { showToast("Nome e Login sao obrigatorios.", 3000); return; }
+
+  const data = {
+    nome: nome,
+    cnpj: document.getElementById("usr-cnpj").value.trim(),
+    municipio: document.getElementById("usr-municipio").value.trim(),
+    sre: document.getElementById("usr-sre").value.trim(),
+    responsavel: document.getElementById("usr-responsavel").value.trim(),
+    cargo: document.getElementById("usr-cargo").value.trim(),
+    email: document.getElementById("usr-email").value.trim(),
+    telefone: document.getElementById("usr-telefone").value.trim(),
+    login: login,
+    senha: document.getElementById("usr-senha").value.trim() || 'escola2025',
+    categoria_catalogo: document.getElementById("usr-catalogo").value.trim(),
+    arp_vinculada: document.getElementById("usr-arp").value.trim(),
+    saldo_total: parseFloat(document.getElementById("usr-saldo-total").value) || 0,
+    saldo_disponivel: parseFloat(document.getElementById("usr-saldo-disp").value) || 0
+  };
+
+  if (editId) {
+    const u = usuarios.find(x => x.id === editId);
+    if (u) Object.assign(u, data);
+  } else {
+    data.id = login.replace(/[^a-z0-9]/gi, '-').toLowerCase();
+    usuarios.push(data);
+  }
+
+  saveUsuarios();
+  fecharModalUsuario();
+  renderUsuarios();
+  showToast(editId ? "Escola atualizada!" : "Escola cadastrada!");
+}
+
+function excluirUsuario(id) {
+  if (!confirm("Excluir esta escola?")) return;
+  usuarios = usuarios.filter(u => u.id !== id);
+  saveUsuarios();
+  renderUsuarios();
+  showToast("Escola excluida.");
+}
+
+function fecharModalUsuario() { document.getElementById("modal-usuario").classList.add("hidden"); }
+
+// ===== ENVIAR PEDIDO AO OLIST =====
+async function enviarPedidoOlist(pedidoId) {
+  const p = pedidos.find(x => x.id === pedidoId);
+  if (!p) return;
+
+  const items = p.itens.map(i => ({
+    sku: i.descricao,
+    description: i.descricao,
+    name: i.descricao,
+    qty: i.qtd,
+    unitPrice: i.precoUnitario,
+    itemNum: i.itemNum
+  }));
+
+  try {
+    const resp = await fetch("/api/olist/order", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        orderId: p.id,
+        school: p.escola,
+        items: items,
+        totalValue: p.valor,
+        arp: "ARP-LARIUCCI-2025"
+      })
+    });
+    const data = await resp.json();
+    if (data.success) {
+      p.olistId = data.olistOrderId;
+      savePedidos();
+      renderPedidos();
+      showToast("Pedido " + p.id + " enviado ao Olist: " + data.olistOrderId);
+    } else {
+      showToast("Erro: " + data.error, 5000);
+    }
+  } catch (err) {
+    showToast("Erro de conexao: " + err.message, 5000);
+  }
+}
+
+// ===== ENTREGAS =====
+async function carregarEntregasServidor() {
+  try {
+    const resp = await fetch("/api/sync-entregas");
+    const data = await resp.json();
+    if (data.ok && data.provas && data.provas.length > 0) {
+      // Merge servidor com local
+      for (const sp of data.provas) {
+        const idx = provasEntrega.findIndex(p => p.pedidoId === sp.pedidoId);
+        if (idx >= 0) {
+          provasEntrega[idx] = sp;
+        } else {
+          provasEntrega.push(sp);
+        }
+      }
+      localStorage.setItem(PROOFS_KEY, JSON.stringify(provasEntrega));
+    }
+  } catch (_) {}
+}
+
+function renderEntregas() {
+  // Re-read proofs from localStorage
+  try { provasEntrega = JSON.parse(localStorage.getItem(PROOFS_KEY)) || []; } catch(_) { provasEntrega = []; }
+  // Tambem buscar do servidor (async)
+  carregarEntregasServidor().then(() => _renderEntregasUI());
+  _renderEntregasUI();
+}
+
+function _renderEntregasUI() {
+
+  const countEl = document.getElementById("tab-count-entregas");
+  if (countEl) countEl.textContent = provasEntrega.length;
+
+  const tbody = document.getElementById("entregas-tbody");
+  const empty = document.getElementById("entregas-empty");
+  const busca = (document.getElementById("busca-entrega")?.value || "").toLowerCase();
+
+  let filtered = provasEntrega;
+  if (busca) {
+    filtered = filtered.filter(p =>
+      (p.pedidoId || "").toLowerCase().includes(busca) ||
+      (p.escola || "").toLowerCase().includes(busca) ||
+      (p.recebedor || "").toLowerCase().includes(busca)
+    );
+  }
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = "";
+    empty.classList.remove("hidden");
+    return;
+  }
+  empty.classList.add("hidden");
+
+  tbody.innerHTML = filtered.map((p, idx) => {
+    const dataFmt = p.dataEntrega ? new Date(p.dataEntrega).toLocaleString("pt-BR") : "-";
+    const temFoto = p.foto ? '<span style="color:var(--green);font-weight:700">Sim</span>' : '<span style="color:var(--dim)">Nao</span>';
+    const temAssinatura = p.assinatura ? '<span style="color:var(--green);font-weight:700">Sim</span>' : '<span style="color:var(--dim)">Nao</span>';
+    return `<tr>
+      <td><strong>${esc(p.pedidoId || "")}</strong></td>
+      <td>${esc(p.escola || "")}</td>
+      <td>${dataFmt}</td>
+      <td>${esc(p.recebedor || "")}</td>
+      <td style="text-align:center">${temFoto}</td>
+      <td style="text-align:center">${temAssinatura}</td>
+      <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(p.obs || "-")}</td>
+      <td><button class="btn btn-outline btn-sm" onclick="verComprovante(${idx})" style="border:1px solid var(--bdr);background:transparent;color:var(--blue);border-radius:6px;cursor:pointer;padding:.3rem .6rem;font-size:.75rem">Ver</button></td>
+    </tr>`;
+  }).join("");
+}
+
+function verComprovante(idx) {
+  const p = provasEntrega[idx];
+  if (!p) return;
+
+  document.getElementById("modal-comprovante-titulo").textContent = "Comprovante — " + (p.pedidoId || "");
+  const dataFmt = p.dataEntrega ? new Date(p.dataEntrega).toLocaleString("pt-BR") : "-";
+
+  let html = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem">
+      <div>
+        <div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Escola</div>
+        <div style="font-weight:700">${esc(p.escola || "-")}</div>
+      </div>
+      <div>
+        <div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Data da Entrega</div>
+        <div style="font-weight:700">${dataFmt}</div>
+      </div>
+      <div>
+        <div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Recebedor</div>
+        <div style="font-weight:700">${esc(p.recebedor || "-")}</div>
+      </div>
+      <div>
+        <div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Observacoes</div>
+        <div>${esc(p.obs || "Nenhuma")}</div>
+      </div>
+    </div>
+  `;
+
+  if (p.foto) {
+    html += `<div style="margin-bottom:1.5rem">
+      <div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.5rem">Foto da Entrega</div>
+      <img src="${p.foto}" style="width:100%;max-height:400px;object-fit:contain;border-radius:10px;border:1px solid var(--bdr);background:var(--s1)" alt="Foto da entrega">
+    </div>`;
+  } else {
+    html += `<div style="margin-bottom:1.5rem;padding:2rem;text-align:center;color:var(--dim);background:var(--s1);border-radius:10px;border:1px solid var(--bdr)">Sem foto registrada</div>`;
+  }
+
+  if (p.assinatura) {
+    html += `<div style="margin-bottom:1rem">
+      <div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.5rem">Assinatura do Recebedor</div>
+      <div style="background:var(--s1);border:1px solid var(--bdr);border-radius:10px;padding:.5rem;text-align:center">
+        <img src="${p.assinatura}" style="max-width:100%;max-height:200px" alt="Assinatura">
+      </div>
+    </div>`;
+  }
+
+  document.getElementById("modal-comprovante-body").innerHTML = html;
+  document.getElementById("modal-comprovante").classList.remove("hidden");
+  document.getElementById("modal-comprovante").style.display = "flex";
+}
+
+function fecharComprovante() {
+  document.getElementById("modal-comprovante").classList.add("hidden");
+  document.getElementById("modal-comprovante").style.display = "none";
+}
+
+// ===== INIT =====
+loadData();
+loadUsuarios();
+renderAll();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,23 @@
+{
+  "generatedAt": "2026-03-03T23:40:55.059Z",
+  "proposals": [
+    {
+      "budgetId": "2026004226",
+      "items": [
+        {
+          "name": "Mussarela Kg",
+          "quantity": 160,
+          "unitPrice": 7.15,
+          "totalPrice": 1144
+        },
+        {
+          "name": "Pao Doce Comum Kg",
+          "quantity": 95,
+          "unitPrice": 7.15,
+          "totalPrice": 679.25
+        }
+      ],
+      "total": 1823.25
+    }
+  ]
+}

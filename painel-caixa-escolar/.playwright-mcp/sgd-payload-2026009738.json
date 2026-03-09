@@ -1,0 +1,23 @@
+{
+  "generatedAt": "2026-03-05T00:36:35.768Z",
+  "format": "sgd-rest-api-v4",
+  "proposals": [
+    {
+      "orcamentoId": "2026009738",
+      "dtGoodsDelivery": "2026-03-05T00:36:35.768Z",
+      "dtServiceDelivery": "2026-03-05T00:36:35.768Z",
+      "itens": [
+        {
+          "nome": "Ventilador de parede 60cm 6 pás",
+          "quantidade": 12,
+          "precoUnitario": 162,
+          "precoTotal": 1944,
+          "observacao": "",
+          "garantia": "Garantia de 12 meses conforme CDC",
+          "idBudgetItem": null
+        }
+      ],
+      "totalGeral": 1944
+    }
+  ]
+}

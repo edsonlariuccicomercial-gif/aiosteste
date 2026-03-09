@@ -1,0 +1,5 @@
+[   69720ms] [ERROR] Failed to load resource: the server responded with a status of 401 () @ https://api.caixaescolar.educacao.mg.gov.br/county/by-network:0
+[   73947ms] [ERROR] Failed to load resource: the server responded with a status of 401 () @ https://api.caixaescolar.educacao.mg.gov.br/county/by-network:0
+[  244779ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ https://api.caixaescolar.educacao.mg.gov.br/budget/151948:0
+[  244806ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ https://api.caixaescolar.educacao.mg.gov.br/budget-proposal/151948:0
+[  244835ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ https://api.caixaescolar.educacao.mg.gov.br/budget/detail/151948:0

@@ -1,0 +1,1 @@
+[   30913ms] [ERROR] Service worker registration failed with: AbortError: Failed to register a ServiceWorker for scope ('https://caixaescolar.educacao.mg.gov.br/') with script ('https://caixaescolar.educacao.mg.gov.br/ngsw-worker.js'): The Service Worker system has shutdown. @ https://caixaescolar.educacao.mg.gov.br/main-PR3S6QZ3.js:0

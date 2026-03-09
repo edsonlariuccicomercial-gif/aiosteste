@@ -1,0 +1,26 @@
+[build]
+  functions = "netlify/functions"
+  publish = "."
+
+[functions]
+  node_bundler = "esbuild"
+
+[[redirects]]
+  from = "/api/olist/order"
+  to = "/.netlify/functions/olist-order"
+  status = 200
+
+[[redirects]]
+  from = "/api/send-order-email"
+  to = "/.netlify/functions/send-order-email"
+  status = 200
+
+[[redirects]]
+  from = "/api/sync-entregas"
+  to = "/.netlify/functions/sync-entregas"
+  status = 200
+
+[[redirects]]
+  from = "/api/sync-pedidos"
+  to = "/.netlify/functions/sync-pedidos"
+  status = 200
