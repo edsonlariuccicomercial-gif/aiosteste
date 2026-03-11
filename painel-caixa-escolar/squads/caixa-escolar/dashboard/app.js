@@ -61,7 +61,7 @@ const BrowserSgdClient = {
   async login() {
     const cred = this.getCredentials() || this.promptCredentials();
     if (!cred) throw new Error("Credenciais SGD nao informadas.");
-    const result = await this.proxy({ action: "login", cnpj: cred.cnpj, password: cred.pass });
+    const result = await this.proxy({ action: "login", cnpj: cred.cnpj, password: cred.pass || cred.password });
     if (!result.cookie) {
       localStorage.removeItem(SGD_CRED_KEY);
       throw new Error("Login SGD falhou.");
@@ -358,6 +358,19 @@ async function boot() {
   if (el.btnCollectSgd) el.btnCollectSgd.style.display = "inline-block";
   const btnVarrer = document.getElementById("btn-varrer-sgd");
   if (btnVarrer) btnVarrer.style.display = "inline-block";
+
+  // Restore active module from localStorage
+  const savedModule = localStorage.getItem(MODULE_STORAGE_KEY) || "radar";
+  switchModule(savedModule);
+
+  // Load empresa data into topbar if saved
+  try {
+    const empresaData = JSON.parse(localStorage.getItem(EMPRESA_STORAGE_KEY) || "{}");
+    const pillSre = document.getElementById("pill-sre");
+    const pillFornecedor = document.getElementById("pill-fornecedor");
+    if (empresaData.sre && pillSre) pillSre.textContent = empresaData.sre;
+    if (empresaData.nome && pillFornecedor) pillFornecedor.textContent = empresaData.nome;
+  } catch (_) { /* ignore */ }
 }
 
 // ===== FILTERS =====
@@ -1465,14 +1478,197 @@ function downloadCsv(filename, content) {
   URL.revokeObjectURL(url);
 }
 
+// ===== MODULE NAVIGATION =====
+const MODULE_STORAGE_KEY = "nexedu.activeModule";
+const EMPRESA_STORAGE_KEY = "nexedu.empresa";
+const USUARIOS_STORAGE_KEY = "nexedu.usuarios";
+
+window.switchModule = function switchModule(moduleId) {
+  // GDP navigates away
+  if (moduleId === "gdp") {
+    window.location.href = "gdp-contratos.html";
+    return;
+  }
+
+  // Update sidebar active state
+  document.querySelectorAll(".sidebar-item").forEach((item) => {
+    item.classList.toggle("active", item.dataset.module === moduleId);
+  });
+
+  // Hide all tab-content sections
+  document.querySelectorAll(".tab-content").forEach((tc) => {
+    tc.classList.remove("active");
+  });
+
+  const tabsIntel = document.getElementById("tabs-intel-precos");
+
+  if (moduleId === "radar") {
+    // Show orçamentos directly, hide horizontal tabs
+    if (tabsIntel) tabsIntel.style.display = "none";
+    document.getElementById("tab-orcamentos").classList.add("active");
+  } else if (moduleId === "intel-precos") {
+    // Show horizontal tabs for Intel. Preços
+    if (tabsIntel) tabsIntel.style.display = "flex";
+    // Activate first tab by default
+    const activeSub = tabsIntel.querySelector(".tab.active");
+    const tabId = activeSub ? activeSub.dataset.tab : "pre-orcamento";
+    switchTab(tabId);
+  } else if (moduleId === "config") {
+    if (tabsIntel) tabsIntel.style.display = "none";
+    document.getElementById("config-panel").classList.add("active");
+    loadConfigData();
+  }
+
+  // Persist
+  localStorage.setItem(MODULE_STORAGE_KEY, moduleId);
+
+  // Close mobile sidebar
+  closeSidebar();
+};
+
+function closeSidebar() {
+  const sidebar = document.getElementById("sidebar");
+  const overlay = document.getElementById("sidebar-overlay");
+  if (sidebar) sidebar.classList.remove("open");
+  if (overlay) overlay.classList.remove("active");
+}
+
+function toggleSidebar() {
+  const sidebar = document.getElementById("sidebar");
+  const overlay = document.getElementById("sidebar-overlay");
+  if (sidebar) sidebar.classList.toggle("open");
+  if (overlay) overlay.classList.toggle("active");
+}
+
+// ===== CONFIG PANEL =====
+function loadConfigData() {
+  try {
+    const data = JSON.parse(localStorage.getItem(EMPRESA_STORAGE_KEY) || "{}");
+    const cfgNome = document.getElementById("cfg-nome");
+    const cfgRazaoSocial = document.getElementById("cfg-razao-social");
+    const cfgCnpj = document.getElementById("cfg-cnpj");
+    const cfgLogradouro = document.getElementById("cfg-logradouro");
+    const cfgNumero = document.getElementById("cfg-numero");
+    const cfgBairro = document.getElementById("cfg-bairro");
+    const cfgCidade = document.getElementById("cfg-cidade");
+    const cfgUf = document.getElementById("cfg-uf");
+    const cfgCep = document.getElementById("cfg-cep");
+    const cfgTelefone = document.getElementById("cfg-telefone");
+    const cfgEmail = document.getElementById("cfg-email");
+    if (cfgNome) cfgNome.value = data.nome || "";
+    if (cfgRazaoSocial) cfgRazaoSocial.value = data.razaoSocial || "";
+    if (cfgCnpj) cfgCnpj.value = data.cnpj || "";
+    if (cfgLogradouro) cfgLogradouro.value = data.logradouro || "";
+    if (cfgNumero) cfgNumero.value = data.numero || "";
+    if (cfgBairro) cfgBairro.value = data.bairro || "";
+    if (cfgCidade) cfgCidade.value = data.cidade || "";
+    if (cfgUf) cfgUf.value = data.uf || "";
+    if (cfgCep) cfgCep.value = data.cep || "";
+    if (cfgTelefone) cfgTelefone.value = data.telefone || "";
+    if (cfgEmail) cfgEmail.value = data.email || "";
+  } catch (_) { /* ignore */ }
+  renderUsuarios();
+}
+
+function saveConfigEmpresa() {
+  const data = {
+    nome: (document.getElementById("cfg-nome") || {}).value || "",
+    razaoSocial: (document.getElementById("cfg-razao-social") || {}).value || "",
+    cnpj: (document.getElementById("cfg-cnpj") || {}).value || "",
+    logradouro: (document.getElementById("cfg-logradouro") || {}).value || "",
+    numero: (document.getElementById("cfg-numero") || {}).value || "",
+    bairro: (document.getElementById("cfg-bairro") || {}).value || "",
+    cidade: (document.getElementById("cfg-cidade") || {}).value || "",
+    uf: (document.getElementById("cfg-uf") || {}).value || "",
+    cep: (document.getElementById("cfg-cep") || {}).value || "",
+    telefone: (document.getElementById("cfg-telefone") || {}).value || "",
+    email: (document.getElementById("cfg-email") || {}).value || "",
+  };
+  localStorage.setItem(EMPRESA_STORAGE_KEY, JSON.stringify(data));
+
+  // Update topbar pills with saved data
+  const pillSre = document.getElementById("pill-sre");
+  const pillFornecedor = document.getElementById("pill-fornecedor");
+  if (data.cidade && data.uf && pillSre) pillSre.textContent = data.cidade + "-" + data.uf;
+  if (data.nome && pillFornecedor) pillFornecedor.textContent = data.nome;
+
+  if (typeof showToast === "function") showToast("Dados da empresa salvos!");
+}
+
+function renderUsuarios() {
+  const tbody = document.getElementById("tbody-usuarios");
+  const emptyMsg = document.getElementById("usuarios-empty");
+  if (!tbody) return;
+
+  const usuarios = JSON.parse(localStorage.getItem(USUARIOS_STORAGE_KEY) || "[]");
+  tbody.innerHTML = "";
+
+  if (usuarios.length === 0) {
+    if (emptyMsg) emptyMsg.style.display = "block";
+    return;
+  }
+  if (emptyMsg) emptyMsg.style.display = "none";
+
+  usuarios.forEach((u, idx) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${u.nome || ""}</td>
+      <td>${u.email || ""}</td>
+      <td>${u.usuario || ""}</td>
+      <td>${u.perfil || "Operador"}</td>
+      <td><span class="badge badge-${u.ativo !== false ? "aprovado" : "vencido"}">${u.ativo !== false ? "Ativo" : "Inativo"}</span></td>
+      <td><button class="btn btn-inline btn-danger" onclick="removeUsuario(${idx})">Remover</button></td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+window.addUsuario = function addUsuario() {
+  const nome = (document.getElementById("usr-nome") || {}).value || "";
+  const email = (document.getElementById("usr-email") || {}).value || "";
+  const usuario = (document.getElementById("usr-usuario") || {}).value || "";
+  const senha = (document.getElementById("usr-senha") || {}).value || "";
+  const perfil = (document.getElementById("usr-perfil") || {}).value || "Operador";
+
+  if (!nome || !usuario || !senha) {
+    alert("Preencha pelo menos Nome, Usuário e Senha.");
+    return;
+  }
+
+  const usuarios = JSON.parse(localStorage.getItem(USUARIOS_STORAGE_KEY) || "[]");
+  usuarios.push({ nome, email, usuario, senha: btoa(senha), perfil, ativo: true });
+  localStorage.setItem(USUARIOS_STORAGE_KEY, JSON.stringify(usuarios));
+  renderUsuarios();
+
+  // Clear form
+  ["usr-nome", "usr-email", "usr-usuario", "usr-senha"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = "";
+  });
+  const selPerfil = document.getElementById("usr-perfil");
+  if (selPerfil) selPerfil.value = "Operador";
+};
+
+window.removeUsuario = function removeUsuario(idx) {
+  const usuarios = JSON.parse(localStorage.getItem(USUARIOS_STORAGE_KEY) || "[]");
+  if (idx >= 0 && idx < usuarios.length) {
+    usuarios.splice(idx, 1);
+    localStorage.setItem(USUARIOS_STORAGE_KEY, JSON.stringify(usuarios));
+    renderUsuarios();
+  }
+};
+
 // ===== TABS =====
 window.switchTab = function switchTab(tabId) {
-  document.querySelectorAll(".tab").forEach((t) => {
+  document.querySelectorAll("#tabs-intel-precos .tab").forEach((t) => {
     t.classList.toggle("active", t.dataset.tab === tabId);
   });
+  // Hide all tab-contents except config
   document.querySelectorAll(".tab-content").forEach((tc) => {
-    tc.classList.toggle("active", tc.id === "tab-" + tabId);
+    if (tc.id !== "config-panel") tc.classList.remove("active");
   });
+  const target = document.getElementById("tab-" + tabId);
+  if (target) target.classList.add("active");
   // Re-render tab content on switch
   if (tabId === "sgd") renderSgd();
   if (tabId === "pre-orcamento" && !activePreOrcamentoId) renderPreOrcamentosLista();
@@ -1480,16 +1676,39 @@ window.switchTab = function switchTab(tabId) {
 
 // ===== EVENTS =====
 function bindEvents() {
-  // Tab navigation
-  document.querySelectorAll(".tab").forEach((tab) => {
+  // Sidebar module navigation
+  document.querySelectorAll(".sidebar-item").forEach((item) => {
+    item.addEventListener("click", () => {
+      switchModule(item.dataset.module);
+    });
+  });
+
+  // Sidebar toggle (mobile)
+  const sidebarToggle = document.getElementById("sidebar-toggle");
+  const sidebarOverlay = document.getElementById("sidebar-overlay");
+  if (sidebarToggle) sidebarToggle.addEventListener("click", toggleSidebar);
+  if (sidebarOverlay) sidebarOverlay.addEventListener("click", closeSidebar);
+
+  // Config tabs
+  document.querySelectorAll(".config-tab").forEach((tab) => {
+    tab.addEventListener("click", () => {
+      document.querySelectorAll(".config-tab").forEach((t) => t.classList.toggle("active", t === tab));
+      document.querySelectorAll(".config-content").forEach((c) => c.classList.remove("active"));
+      const target = document.getElementById("config-" + tab.dataset.configTab);
+      if (target) target.classList.add("active");
+    });
+  });
+
+  // Config save
+  const btnCfgSalvar = document.getElementById("btn-cfg-salvar");
+  if (btnCfgSalvar) btnCfgSalvar.addEventListener("click", saveConfigEmpresa);
+  const btnAddUsuario = document.getElementById("btn-add-usuario");
+  if (btnAddUsuario) btnAddUsuario.addEventListener("click", addUsuario);
+
+  // Tab navigation (Intel. Preços sub-tabs)
+  document.querySelectorAll("#tabs-intel-precos .tab").forEach((tab) => {
     tab.addEventListener("click", () => {
       switchTab(tab.dataset.tab);
-      if (tab.dataset.tab === "pre-orcamento" && !activePreOrcamentoId) {
-        renderPreOrcamentosLista();
-      }
-      if (tab.dataset.tab === "sgd") {
-        renderSgd();
-      }
     });
   });
 
@@ -1601,7 +1820,7 @@ function parseUnitConversion(unidadeStr, precoOriginal) {
   return { unidade: unidadeStr, preco: precoOriginal, convertido: false };
 }
 
-// ===== MULTI-FORMAT IMPORT =====
+// ===== MULTI-FORMAT IMPORT (PDF, DOCX, Excel, JPEG/OCR, Mapa de Apuracao) =====
 let importData = { rows: [], headers: [], mapping: {} };
 
 function openImportDialog() {
@@ -1609,18 +1828,15 @@ function openImportDialog() {
   el.importFileInput.click();
 }
 
+// --- File Router ---
 function handleExcelUpload(file) {
   const ext = file.name.split(".").pop().toLowerCase();
 
-  if (ext === "pdf") {
-    handlePdfUpload(file);
-    return;
-  }
-  if (["jpg", "jpeg", "png"].includes(ext)) {
-    alert("Imagens requerem extração manual. Use PDF ou Excel para importação automática.\n\nDica: Tire uma foto do documento e converta para PDF antes de importar.");
-    return;
-  }
+  if (ext === "pdf") { handlePdfUpload(file); return; }
+  if (ext === "docx" || ext === "doc") { handleDocxUpload(file); return; }
+  if (["jpg", "jpeg", "png"].includes(ext)) { handleImageOcr(file); return; }
 
+  // Excel / CSV
   const reader = new FileReader();
   reader.onload = function (e) {
     try {
@@ -1628,15 +1844,26 @@ function handleExcelUpload(file) {
       const sheet = wb.Sheets[wb.SheetNames[0]];
       const json = XLSX.utils.sheet_to_json(sheet, { header: 1 });
 
-      if (json.length < 2) {
-        alert("Planilha vazia ou sem dados.");
-        return;
-      }
+      if (json.length < 2) { alert("Planilha vazia ou sem dados."); return; }
 
       const headers = json[0].map((h) => String(h || "").trim());
       const rows = json.slice(1).filter((r) => r.some((c) => c != null && c !== ""));
 
+      // Check for Mapa de Apuracao pattern in Excel
+      if (detectMapaApuracao(headers)) {
+        // Try to find classification table in second sheet
+        let classTable = null;
+        if (wb.SheetNames.length > 1) {
+          const sheet2 = wb.Sheets[wb.SheetNames[1]];
+          const json2 = XLSX.utils.sheet_to_json(sheet2, { header: 1 });
+          if (json2.length > 1) classTable = json2;
+        }
+        handleMapaApuracao([headers, ...rows], classTable, "Excel");
+        return;
+      }
+
       importData = { rows, headers, mapping: autoDetectColumns(headers) };
+      showFormatBadge("Excel");
       previewImportData();
     } catch (err) {
       alert("Erro ao ler arquivo: " + err.message);
@@ -1645,12 +1872,10 @@ function handleExcelUpload(file) {
   reader.readAsArrayBuffer(file);
 }
 
+// --- PDF Handler (text + scanned fallback) ---
 async function handlePdfUpload(file) {
   try {
-    if (typeof pdfjsLib === "undefined") {
-      alert("PDF.js não carregou. Recarregue a página e tente novamente.");
-      return;
-    }
+    if (typeof pdfjsLib === "undefined") { alert("PDF.js nao carregou. Recarregue a pagina."); return; }
     pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
 
     const arrayBuffer = await file.arrayBuffer();
@@ -1662,7 +1887,6 @@ async function handlePdfUpload(file) {
       const textContent = await page.getTextContent();
       const items = textContent.items;
 
-      // Group by Y coordinate (same line)
       const lines = {};
       items.forEach((item) => {
         const y = Math.round(item.transform[5]);
@@ -1670,7 +1894,6 @@ async function handlePdfUpload(file) {
         lines[y].push({ x: item.transform[4], text: item.str.trim() });
       });
 
-      // Sort lines by Y (top to bottom), cells by X (left to right)
       const sortedYs = Object.keys(lines).map(Number).sort((a, b) => b - a);
       sortedYs.forEach((y) => {
         const cells = lines[y].sort((a, b) => a.x - b.x).map((c) => c.text).filter((t) => t);
@@ -1678,12 +1901,13 @@ async function handlePdfUpload(file) {
       });
     }
 
+    // If no text extracted, it's a scanned PDF — fallback to OCR
     if (allRows.length < 2) {
-      alert("PDF não contém dados tabulares suficientes.");
+      await handleScannedPdfOcr(pdf);
       return;
     }
 
-    // Detect header row: the row with most text-like columns
+    // Detect header row
     let headerIdx = 0;
     let maxTextCols = 0;
     allRows.slice(0, 5).forEach((row, i) => {
@@ -1699,40 +1923,466 @@ async function handlePdfUpload(file) {
     while (headers.length < maxCols) headers.push("Col" + headers.length);
     rows.forEach((r) => { while (r.length < maxCols) r.push(""); });
 
+    // Check for Mapa pattern
+    if (detectMapaApuracao(headers)) {
+      handleMapaApuracao([headers, ...rows], null, "PDF");
+      return;
+    }
+
     importData = { rows, headers, mapping: autoDetectColumns(headers) };
+    showFormatBadge("PDF");
     previewImportData();
   } catch (err) {
     alert("Erro ao ler PDF: " + err.message);
   }
 }
 
+// --- Scanned PDF OCR fallback ---
+async function handleScannedPdfOcr(pdf) {
+  if (typeof Tesseract === "undefined") {
+    alert("Tesseract.js nao carregou. Recarregue a pagina para habilitar OCR.");
+    return;
+  }
+
+  const ocrProgress = document.getElementById("ocr-progress");
+  const ocrPct = document.getElementById("ocr-pct");
+  const ocrBar = document.getElementById("ocr-bar");
+  ocrProgress.style.display = "block";
+  el.modalImport.style.display = "flex";
+
+  try {
+    const worker = await Tesseract.createWorker("por", 1, {
+      logger: (m) => {
+        if (m.status === "recognizing text") {
+          const pct = Math.round(m.progress * 100);
+          ocrPct.textContent = pct + "%";
+          ocrBar.value = pct;
+        }
+      }
+    });
+
+    let allText = "";
+    const pagesToProcess = Math.min(pdf.numPages, 8);
+    for (let p = 1; p <= pagesToProcess; p++) {
+      ocrPct.textContent = `Pagina ${p}/${pagesToProcess}...`;
+      const page = await pdf.getPage(p);
+      const viewport = page.getViewport({ scale: 2.0 });
+      const canvas = document.createElement("canvas");
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      const ctx = canvas.getContext("2d");
+      await page.render({ canvasContext: ctx, viewport }).promise;
+      const { data: { text } } = await worker.recognize(canvas);
+      allText += text + "\n";
+    }
+
+    await worker.terminate();
+    ocrProgress.style.display = "none";
+
+    const parsed = parseOcrTextToTable(allText);
+    if (!parsed) { alert("OCR nao detectou dados tabulares suficientes."); closeImportModal(); return; }
+
+    if (detectMapaApuracao(parsed.headers)) {
+      handleMapaApuracao([parsed.headers, ...parsed.rows], null, "PDF (OCR)");
+      return;
+    }
+
+    importData = { rows: parsed.rows, headers: parsed.headers, mapping: autoDetectColumns(parsed.headers) };
+    showFormatBadge("PDF (OCR)");
+    previewImportData();
+  } catch (err) {
+    ocrProgress.style.display = "none";
+    alert("Erro no OCR: " + err.message);
+  }
+}
+
+// --- DOCX Handler (via mammoth.js) ---
+async function handleDocxUpload(file) {
+  try {
+    if (typeof mammoth === "undefined") { alert("mammoth.js nao carregou. Recarregue a pagina."); return; }
+
+    const arrayBuffer = await file.arrayBuffer();
+    const result = await mammoth.convertToHtml({ arrayBuffer });
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(result.value, "text/html");
+    const tables = [...doc.querySelectorAll("table")];
+
+    if (tables.length === 0) { alert("Documento DOCX nao contem tabelas."); return; }
+
+    // Extract all tables as arrays
+    const parsedTables = tables.map((table) => {
+      const rows = [...table.querySelectorAll("tr")];
+      return rows.map((tr) =>
+        [...tr.querySelectorAll("td,th")].map((cell) => cell.textContent.trim())
+      );
+    });
+
+    // Check if first table is Mapa de Apuracao
+    const firstTable = parsedTables[0];
+    if (firstTable.length >= 2 && detectMapaApuracao(firstTable[0])) {
+      const classTable = parsedTables.length > 1 ? parsedTables[1] : null;
+      handleMapaApuracao(firstTable, classTable, "DOCX");
+      return;
+    }
+
+    // Standard import from first table
+    const headers = firstTable[0];
+    const rows = firstTable.slice(1).filter((r) => r.some((c) => c));
+    importData = { rows, headers, mapping: autoDetectColumns(headers) };
+    showFormatBadge("DOCX");
+    previewImportData();
+  } catch (err) {
+    alert("Erro ao ler DOCX: " + err.message);
+  }
+}
+
+// --- Image OCR Handler (JPEG/PNG via Tesseract.js) ---
+async function handleImageOcr(file) {
+  if (typeof Tesseract === "undefined") {
+    alert("Tesseract.js nao carregou. Recarregue a pagina para habilitar OCR.");
+    return;
+  }
+
+  const ocrProgress = document.getElementById("ocr-progress");
+  const ocrPct = document.getElementById("ocr-pct");
+  const ocrBar = document.getElementById("ocr-bar");
+  ocrProgress.style.display = "block";
+  el.modalImport.style.display = "flex";
+
+  try {
+    const worker = await Tesseract.createWorker("por", 1, {
+      logger: (m) => {
+        if (m.status === "recognizing text") {
+          const pct = Math.round(m.progress * 100);
+          ocrPct.textContent = pct + "%";
+          ocrBar.value = pct;
+        }
+      }
+    });
+
+    const { data: { text } } = await worker.recognize(file);
+    await worker.terminate();
+    ocrProgress.style.display = "none";
+
+    const parsed = parseOcrTextToTable(text);
+    if (!parsed) { alert("OCR nao detectou dados tabulares suficientes."); closeImportModal(); return; }
+
+    if (detectMapaApuracao(parsed.headers)) {
+      handleMapaApuracao([parsed.headers, ...parsed.rows], null, "Imagem (OCR)");
+      return;
+    }
+
+    importData = { rows: parsed.rows, headers: parsed.headers, mapping: autoDetectColumns(parsed.headers) };
+    showFormatBadge("Imagem (OCR)");
+    previewImportData();
+  } catch (err) {
+    ocrProgress.style.display = "none";
+    alert("Erro no OCR: " + err.message);
+  }
+}
+
+// --- Parse OCR raw text into table structure ---
+function parseOcrTextToTable(text) {
+  const lines = text.split("\n").map((l) => l.trim()).filter((l) => l);
+  const rows = lines.map((l) => l.split(/\s{2,}|\t|(?<=\d)\s+(?=[A-Z])|(?<=\w)\s{3,}/).map((c) => c.trim()).filter((c) => c));
+  const validRows = rows.filter((r) => r.length >= 2);
+
+  if (validRows.length < 2) return null;
+
+  // Header detection: row with most text columns in first 5 rows
+  let headerIdx = 0;
+  let maxTextCols = 0;
+  validRows.slice(0, 5).forEach((row, i) => {
+    const textCols = row.filter((c) => isNaN(parseFloat(String(c).replace(",", ".")))).length;
+    if (textCols > maxTextCols) { maxTextCols = textCols; headerIdx = i; }
+  });
+
+  const headers = validRows[headerIdx];
+  const dataRows = validRows.slice(headerIdx + 1);
+
+  // Normalize column count
+  const maxCols = Math.max(headers.length, ...dataRows.map((r) => r.length));
+  while (headers.length < maxCols) headers.push("Col" + headers.length);
+  dataRows.forEach((r) => { while (r.length < maxCols) r.push(""); });
+
+  return { headers, rows: dataRows };
+}
+
+// --- Format badge helper ---
+function showFormatBadge(format) {
+  const badge = document.getElementById("import-format-badge");
+  if (badge) { badge.textContent = format; badge.style.display = "inline-block"; }
+}
+
+// --- Mapa de Apuracao Detection ---
+function detectMapaApuracao(headerRow) {
+  if (!headerRow || headerRow.length < 4) return false;
+  const norm = headerRow.map((h) => normalizedText(h));
+  // Pattern 1: multiple "Licitante" columns
+  const licitanteCount = norm.filter((h) => /licitante|proponente/.test(h)).length;
+  if (licitanteCount >= 2) return true;
+  // Pattern 2: has Item+Qtde+multiple "Valor" columns
+  const hasItem = norm.some((h) => /\bitem\b|\bdescri/.test(h));
+  const hasQtde = norm.some((h) => /\bqtd|\bquant/.test(h));
+  const valorCount = norm.filter((h) => /^valor$/.test(h.trim())).length;
+  if (hasItem && hasQtde && valorCount >= 2) return true;
+  return false;
+}
+
+// --- Mapa de Apuracao Handler ---
+function handleMapaApuracao(priceTableRows, classTableRows, format) {
+  // priceTableRows: array of arrays, first row = headers (may include sub-header row)
+  // classTableRows: array of arrays from Table 2 (classification), or null
+
+  let headers = priceTableRows[0];
+  let dataStartIdx = 1;
+
+  // Some maps have a sub-header row (e.g., "Item | Descricao | Un | Qtde | Valor | Valor | Valor")
+  // If row[1] looks like a sub-header (all text, no numbers), skip it
+  if (priceTableRows.length > 2) {
+    const row1 = priceTableRows[1];
+    const allText = row1.every((c) => isNaN(parseFloat(String(c).replace(",", "."))));
+    if (allText && row1.some((c) => /valor|item|descri/i.test(c))) {
+      dataStartIdx = 2;
+    }
+  }
+
+  const dataRows = priceTableRows.slice(dataStartIdx).filter((r) => r.some((c) => c && String(c).trim()));
+
+  // Identify structural columns
+  const normHeaders = headers.map((h) => normalizedText(h));
+  let itemCol = normHeaders.findIndex((h) => /^\s*item\s*$/.test(h)); // numeric item number
+  let descCol = normHeaders.findIndex((h) => /descri|produto|material/.test(h));
+  let unCol = normHeaders.findIndex((h) => /\bun\b|\buni\b|\bunid/.test(h));
+  let qtdCol = normHeaders.findIndex((h) => /\bqtd|\bquant/.test(h));
+
+  // If item col is the numeric index and desc is separate, use desc as the name
+  // If no desc column, use item column as name
+  const nameCol = descCol >= 0 ? descCol : itemCol;
+
+  // Identify licitante columns (all columns that are NOT structural)
+  const structCols = new Set([itemCol, descCol, unCol, qtdCol].filter((c) => c >= 0));
+  const licitantes = [];
+  headers.forEach((h, i) => {
+    if (!structCols.has(i) && h && String(h).trim()) {
+      // Extract licitante name from header (may contain line breaks / "Licitante 1\nNome")
+      let name = String(h).trim().replace(/^licitante\s*\d+\s*/i, "").trim();
+      if (!name) name = String(h).trim();
+      // Skip sub-labels like "Valor"
+      if (/^valor$/i.test(name)) name = "Licitante " + (licitantes.length + 1);
+      licitantes.push({ colIdx: i, name });
+    }
+  });
+
+  // Auto-detect my company from config (nome, nomeFantasia, razaoSocial, CNPJ)
+  const empresa = JSON.parse(localStorage.getItem(EMPRESA_STORAGE_KEY) || "{}");
+  const searchNames = [empresa.nome, empresa.nomeFantasia, empresa.razaoSocial, empresa.cnpj]
+    .filter(Boolean).map((n) => normalizedText(n)).filter((n) => n.length > 2);
+  let myCompanyIdx = -1;
+  if (searchNames.length > 0) {
+    myCompanyIdx = licitantes.findIndex((l) => {
+      const ln = normalizedText(l.name);
+      return searchNames.some((myName) =>
+        ln.includes(myName) || myName.includes(ln) ||
+        ln.split(/\s+/).some((w) => w.length > 3 && myName.includes(w)) ||
+        myName.split(/\s+/).some((w) => w.length > 3 && ln.includes(w))
+      );
+    });
+  }
+
+  // Parse classification table (Table 2) to find won items
+  let wonItemNumbers = new Set();
+  let classificationData = [];
+  if (classTableRows && classTableRows.length > 1) {
+    const classHeaders = classTableRows[0].map((h) => normalizedText(h));
+    const itensSelCol = classHeaders.findIndex((h) => /itens|selecion/.test(h));
+    // Prioritize "licitante/empresa/fornecedor" over "ordem"
+    let licitanteCol = classHeaders.findIndex((h) => /licitante|empresa|fornecedor/.test(h));
+    if (licitanteCol < 0) licitanteCol = classHeaders.findIndex((h) => /ordem/.test(h));
+    const nameClassCol = licitanteCol >= 0 ? licitanteCol : 1;
+
+    classTableRows.slice(1).forEach((row) => {
+      if (!row || row.every((c) => !c || !String(c).trim())) return;
+      const rowName = String(row[nameClassCol] || "").trim();
+      const rowItems = itensSelCol >= 0 ? String(row[itensSelCol] || "") : "";
+      const itemNums = rowItems.match(/\d+/g);
+      classificationData.push({ nome: rowName, itens: itemNums ? itemNums.map(Number) : [] });
+
+      // Check if this row is MY company (match against licitante name or any empresa searchNames)
+      const rowNorm = normalizedText(rowName);
+      const isMe = (myCompanyIdx >= 0 && (
+        rowNorm.includes(normalizedText(licitantes[myCompanyIdx].name)) ||
+        normalizedText(licitantes[myCompanyIdx].name).split(/\s+/).some((w) => w.length > 3 && rowNorm.includes(w))
+      )) || searchNames.some((sn) => rowNorm.includes(sn) || sn.split(/\s+/).some((w) => w.length > 3 && rowNorm.includes(w)));
+
+      if (isMe && itemNums) {
+        itemNums.forEach((n) => wonItemNumbers.add(Number(n)));
+      }
+    });
+  }
+
+  // Store enriched import data
+  importData = {
+    rows: dataRows,
+    headers,
+    mapping: autoDetectColumns(headers),
+    isMapa: true,
+    licitantes,
+    myCompanyIdx,
+    wonItems: wonItemNumbers,
+    classificationData,
+    nameCol,
+    itemCol,
+    descCol,
+    unCol,
+    qtdCol,
+    valoresTotal: true, // Mapa values are typically totals
+  };
+
+  showFormatBadge("Mapa de Apuracao (" + format + ")");
+  previewMapaApuracao();
+}
+
+// --- Mapa Preview ---
+function previewMapaApuracao() {
+  const { rows, headers, licitantes, myCompanyIdx, wonItems, classificationData,
+    nameCol, itemCol, qtdCol, unCol } = importData;
+
+  el.importFilename.textContent = el.importFileInput.files[0]
+    ? el.importFileInput.files[0].name : "";
+
+  // Show mapa panel
+  const mapaPanel = document.getElementById("mapa-apuracao-panel");
+  mapaPanel.style.display = "block";
+
+  // Show detected company
+  const empresaEl = document.getElementById("mapa-empresa-detectada");
+  if (myCompanyIdx >= 0) {
+    empresaEl.textContent = licitantes[myCompanyIdx].name;
+    empresaEl.style.color = "var(--accent)";
+  } else {
+    empresaEl.textContent = "Nao detectada — clique Alterar";
+    empresaEl.style.color = "#f59e0b";
+  }
+
+  // Show classification
+  const classEl = document.getElementById("mapa-classificacao");
+  if (classificationData.length > 0) {
+    classEl.innerHTML = "<strong>Classificacao:</strong><br>" +
+      classificationData.map((c) => {
+        const isMe = myCompanyIdx >= 0 && normalizedText(c.nome).includes(
+          normalizedText(licitantes[myCompanyIdx].name).split(/\s+/).find((w) => w.length > 3) || ""
+        );
+        return `<span style="color:${isMe ? "var(--accent)" : "var(--muted)"}">${isMe ? "★ " : ""}${escapeHtml(c.nome)}: itens ${c.itens.join(", ")}</span>`;
+      }).join("<br>");
+  } else {
+    classEl.innerHTML = '<span style="color:var(--muted)">Tabela de classificacao nao encontrada. Todos os itens serao importados.</span>';
+  }
+
+  // Show total toggle (checked by default for Mapa)
+  const toggleDiv = document.getElementById("import-total-toggle");
+  toggleDiv.style.display = "block";
+  const chk = document.getElementById("chk-valores-totais");
+  chk.checked = true;
+
+  // Hide standard column mapping for Mapa (we auto-detect)
+  el.importMapping.innerHTML = `<p style="font-size:0.78rem;color:var(--muted);">
+    ${licitantes.length} licitantes detectados: ${licitantes.map((l) => escapeHtml(l.name)).join(", ")}
+  </p>`;
+
+  // Legend
+  const legendHtml = `<div class="mapa-legend">
+    <span class="leg-won">Itens ganhos (seu preco)</span>
+    <span class="leg-lost">Concorrentes</span>
+  </div>`;
+
+  // Preview table with all rows
+  const previewRows = rows.slice(0, 15);
+  const thCols = [];
+  if (itemCol >= 0) thCols.push({ idx: itemCol, label: "#" });
+  if (nameCol >= 0) thCols.push({ idx: nameCol, label: "Produto" });
+  if (unCol >= 0) thCols.push({ idx: unCol, label: "Un" });
+  if (qtdCol >= 0) thCols.push({ idx: qtdCol, label: "Qtde" });
+  licitantes.forEach((l, li) => {
+    thCols.push({ idx: l.colIdx, label: escapeHtml(l.name), isLic: true, licIdx: li });
+  });
+
+  el.theadImportPreview.innerHTML = "<tr>" + thCols.map((c) => {
+    const cls = c.isLic && c.licIdx === myCompanyIdx ? ' style="color:var(--accent);font-weight:700;"' : "";
+    return `<th${cls}>${c.label}</th>`;
+  }).join("") + "</tr>";
+
+  el.tbodyImportPreview.innerHTML = legendHtml + previewRows.map((row) => {
+    const itemNum = itemCol >= 0 ? parseInt(String(row[itemCol]), 10) : 0;
+    const isWon = wonItems.size > 0 ? wonItems.has(itemNum) : false;
+    const rowClass = isWon ? "mapa-won-row" : "mapa-competitor-row";
+
+    return `<tr class="${rowClass}">` + thCols.map((c) => {
+      let val = escapeHtml(row[c.idx] != null ? row[c.idx] : "");
+      if (c.isLic && c.licIdx === myCompanyIdx) val = `<span class="mapa-my-price">${val}</span>`;
+      else if (c.isLic) val = `<span class="mapa-competitor-price">${val}</span>`;
+      return `<td>${val}</td>`;
+    }).join("") + "</tr>";
+  }).join("");
+
+  if (rows.length > 15) {
+    el.tbodyImportPreview.innerHTML += `<tr><td colspan="${thCols.length}" style="text-align:center;color:var(--muted);font-size:0.78rem;">... +${rows.length - 15} itens</td></tr>`;
+  }
+
+  el.importStats.style.display = "none";
+  el.modalImport.style.display = "flex";
+
+  // Wire alterar empresa button
+  const btnAlterar = document.getElementById("btn-mapa-alterar-empresa");
+  btnAlterar.onclick = () => {
+    const sel = prompt("Qual licitante e a sua empresa?\n\n" +
+      licitantes.map((l, i) => `${i + 1}. ${l.name}`).join("\n") +
+      "\n\nDigite o numero:");
+    const idx = parseInt(sel, 10) - 1;
+    if (idx >= 0 && idx < licitantes.length) {
+      importData.myCompanyIdx = idx;
+      // Re-parse won items for the new company
+      if (classificationData.length > 0) {
+        const newWon = new Set();
+        classificationData.forEach((c) => {
+          const cNorm = normalizedText(c.nome);
+          const lNorm = normalizedText(licitantes[idx].name);
+          if (lNorm.split(/\s+/).some((w) => w.length > 3 && cNorm.includes(w))) {
+            c.itens.forEach((n) => newWon.add(n));
+          }
+        });
+        importData.wonItems = newWon;
+      }
+      previewMapaApuracao();
+    }
+  };
+}
+
+// --- Auto-detect column mapping ---
 function autoDetectColumns(headers) {
-  const mapping = { item: -1, preco: -1, unidade: -1, fornecedor: -1 };
+  const mapping = { item: -1, preco: -1, unidade: -1, fornecedor: -1, quantidade: -1 };
   const norms = headers.map((h) => normalizedText(h));
 
   norms.forEach((h, i) => {
     if (mapping.item < 0 && /\b(item|produto|descricao|material|nome|mercadoria)\b/.test(h)) mapping.item = i;
     if (mapping.preco < 0 && /\b(preco|valor|custo|unitario|unit|preco\s*unit|vlr)\b/.test(h)) mapping.preco = i;
-    if (mapping.unidade < 0 && /\b(unidade|un|und|medida|embalagem|emb)\b/.test(h)) mapping.unidade = i;
+    if (mapping.unidade < 0 && /\b(unidade|un\b|und|medida|embalagem|emb)\b/.test(h)) mapping.unidade = i;
     if (mapping.fornecedor < 0 && /\b(fornecedor|fonte|marca|empresa|fabricante)\b/.test(h)) mapping.fornecedor = i;
+    if (mapping.quantidade < 0 && /\b(qtd|qtde|quant|quantidade)\b/.test(h)) mapping.quantidade = i;
   });
 
-  // If no item column found but we have at least 2 columns, assume first text column is item
   if (mapping.item < 0 && headers.length >= 2) {
     for (let i = 0; i < headers.length; i++) {
       if (mapping.preco !== i && mapping.unidade !== i && mapping.fornecedor !== i) {
-        mapping.item = i;
-        break;
+        mapping.item = i; break;
       }
     }
   }
 
-  // If no price column found, try second numeric-looking column
   if (mapping.preco < 0 && headers.length >= 2) {
     for (let i = headers.length - 1; i >= 0; i--) {
       if (mapping.item !== i && /\d|r\$|valor|preco/.test(norms[i])) {
-        mapping.preco = i;
-        break;
+        mapping.preco = i; break;
       }
     }
   }
@@ -1740,12 +2390,21 @@ function autoDetectColumns(headers) {
   return mapping;
 }
 
+// --- Standard preview (non-Mapa) ---
 function previewImportData() {
   const { rows, headers, mapping } = importData;
 
   el.importFilename.textContent = el.importFileInput.files[0]
-    ? el.importFileInput.files[0].name
-    : "";
+    ? el.importFileInput.files[0].name : "";
+
+  // Hide mapa-specific UI
+  document.getElementById("mapa-apuracao-panel").style.display = "none";
+
+  // Show total toggle if we have a quantity column
+  const toggleDiv = document.getElementById("import-total-toggle");
+  toggleDiv.style.display = mapping.quantidade >= 0 ? "block" : "none";
+  const chk = document.getElementById("chk-valores-totais");
+  chk.checked = false;
 
   // Column mapping dropdowns
   const colOpts = headers.map((h, i) => `<option value="${i}">${escapeHtml(h)}</option>`).join("");
@@ -1760,14 +2419,12 @@ function previewImportData() {
     </label>`;
   }).join("");
 
-  // Bind mapping change
   el.importMapping.querySelectorAll("select").forEach((s) => {
     s.addEventListener("change", () => {
       importData.mapping[s.dataset.map] = parseInt(s.value, 10);
     });
   });
 
-  // Preview: first 5 rows
   const previewRows = rows.slice(0, 5);
   el.theadImportPreview.innerHTML = "<tr>" + headers.map((h) => `<th>${escapeHtml(h)}</th>`).join("") + "</tr>";
   el.tbodyImportPreview.innerHTML = previewRows.map((row) =>
@@ -1778,42 +2435,64 @@ function previewImportData() {
   el.modalImport.style.display = "flex";
 }
 
+// --- Close modal ---
 function closeImportModal() {
   el.modalImport.style.display = "none";
+  document.getElementById("mapa-apuracao-panel").style.display = "none";
+  document.getElementById("import-total-toggle").style.display = "none";
+  document.getElementById("ocr-progress").style.display = "none";
+  document.getElementById("import-format-badge").style.display = "none";
   importData = { rows: [], headers: [], mapping: {} };
 }
 
-function mergeImportIntoBanco() {
-  const { rows, mapping } = importData;
+// --- Parse price from string ---
+function parsePriceValue(val) {
+  if (!val && val !== 0) return 0;
+  const s = String(val).replace(/[^\d,.\-]/g, "");
+  if (!s || s === "-") return 0;
+  // Handle "1.234,56" format (Brazilian) — remove dots, replace comma with dot
+  const hasDotAndComma = s.includes(".") && s.includes(",");
+  if (hasDotAndComma) return parseFloat(s.replace(/\./g, "").replace(",", ".")) || 0;
+  // Handle "1234,56" (comma as decimal)
+  if (s.includes(",")) return parseFloat(s.replace(",", ".")) || 0;
+  return parseFloat(s) || 0;
+}
 
-  if (mapping.item < 0) {
-    alert("Selecione a coluna de Item / Produto.");
+// --- Merge into Banco de Precos ---
+function mergeImportIntoBanco() {
+  if (importData.isMapa) {
+    mergeMapaIntoBanco();
     return;
   }
 
-  let updated = 0;
-  let added = 0;
-  let converted = 0;
+  const { rows, mapping } = importData;
+  if (mapping.item < 0) { alert("Selecione a coluna de Item / Produto."); return; }
+
+  const valoresTotal = document.getElementById("chk-valores-totais")?.checked || false;
+  let updated = 0, added = 0, converted = 0;
   const todayStr = new Date().toISOString().slice(0, 10);
 
   rows.forEach((row) => {
     const itemName = String(row[mapping.item] || "").trim();
     if (!itemName || itemName.length < 2) return;
-
-    // Skip rows that look like garbage (no letters, only numbers/symbols)
     if (!/[a-zA-ZÀ-ÿ]{2,}/.test(itemName)) return;
 
-    let preco = mapping.preco >= 0 ? parseFloat(String(row[mapping.preco]).replace(/[^\d,.-]/g, "").replace(",", ".")) || 0 : 0;
+    let preco = mapping.preco >= 0 ? parsePriceValue(row[mapping.preco]) : 0;
     const unidadeRaw = mapping.unidade >= 0 ? String(row[mapping.unidade] || "").trim() : "";
     const fornecedor = mapping.fornecedor >= 0 ? String(row[mapping.fornecedor] || "").trim() : "";
 
-    // Unit conversion intelligence (caixa → unidades, fardo → unidades, etc.)
+    // If values are totals, divide by quantity
+    if (valoresTotal && mapping.quantidade >= 0 && preco > 0) {
+      const qtd = parseFloat(String(row[mapping.quantidade]).replace(/[^\d]/g, "")) || 1;
+      if (qtd > 0) preco = Math.round((preco / qtd) * 100) / 100;
+    }
+
+    // Unit conversion intelligence
     const conv = parseUnitConversion(unidadeRaw, preco);
     if (conv.convertido) converted++;
     const unidade = conv.unidade;
     preco = conv.preco;
 
-    // Try to match existing item
     const normName = normalizedText(itemName);
     const existing = bancoPrecos.itens.find((bp) => normalizedText(bp.item) === normName);
 
@@ -1823,7 +2502,6 @@ function mergeImportIntoBanco() {
       if (fornecedor) existing.fonte = fornecedor;
       existing.precoReferencia = Math.round(existing.custoBase * (1 + existing.margemPadrao) * 100) / 100;
       existing.ultimaCotacao = todayStr;
-      // Track as fornecedor cost
       if (preco > 0 && fornecedor) {
         if (!existing.custosFornecedor) existing.custosFornecedor = [];
         existing.custosFornecedor.push({ fornecedor, preco, data: todayStr });
@@ -1832,36 +2510,103 @@ function mergeImportIntoBanco() {
     } else {
       const margemPadrao = 0.30;
       const newId = "bp-" + String(Date.now()).slice(-6) + String(Math.random()).slice(2, 5);
-      const newItem = {
-        id: newId,
-        item: itemName,
-        grupo: "Importado",
-        unidade: unidade || "Unidade",
-        custoBase: preco,
-        margemPadrao: margemPadrao,
-        precoReferencia: Math.round(preco * (1 + margemPadrao) * 100) / 100,
-        ultimaCotacao: todayStr,
-        fonte: fornecedor,
-        propostas: [],
-        concorrentes: [],
+      bancoPrecos.itens.push({
+        id: newId, item: itemName, grupo: "Importado", unidade: unidade || "Unidade",
+        custoBase: preco, margemPadrao, precoReferencia: Math.round(preco * (1 + margemPadrao) * 100) / 100,
+        ultimaCotacao: todayStr, fonte: fornecedor, propostas: [], concorrentes: [],
         custosFornecedor: fornecedor && preco > 0 ? [{ fornecedor, preco, data: todayStr }] : [],
-      };
-      bancoPrecos.itens.push(newItem);
+      });
       added++;
     }
   });
 
-  saveBancoLocal();
-  renderBanco();
-
+  saveBancoLocal(); renderBanco();
   let msg = `${updated} atualizados, ${added} novos.`;
   if (converted > 0) msg += ` ${converted} convertidos (caixa/fardo → unidade).`;
-  el.importStats.innerHTML = msg;
-  el.importStats.style.display = "block";
+  el.importStats.innerHTML = msg; el.importStats.style.display = "block";
+  setTimeout(() => { closeImportModal(); }, 3000);
+}
 
-  setTimeout(() => {
-    closeImportModal();
-  }, 3000);
+// --- Merge Mapa de Apuracao into Banco ---
+function mergeMapaIntoBanco() {
+  const { rows, licitantes, myCompanyIdx, wonItems, nameCol, itemCol, qtdCol, unCol } = importData;
+  const valoresTotal = document.getElementById("chk-valores-totais")?.checked || importData.valoresTotal;
+  const todayStr = new Date().toISOString().slice(0, 10);
+
+  let added = 0, updated = 0, concorrentesAdded = 0;
+  const importAll = wonItems.size === 0; // If no classification, import all
+
+  rows.forEach((row) => {
+    const itemNum = itemCol >= 0 ? parseInt(String(row[itemCol]), 10) : 0;
+    const itemName = nameCol >= 0 ? String(row[nameCol] || "").trim() : "";
+    if (!itemName || itemName.length < 2) return;
+    if (!/[a-zA-ZÀ-ÿ]{2,}/.test(itemName)) return;
+
+    const unidade = unCol >= 0 ? String(row[unCol] || "").trim() : "Unidade";
+    const qtd = qtdCol >= 0 ? (parseFloat(String(row[qtdCol]).replace(/[^\d]/g, "")) || 1) : 1;
+    const isWon = importAll || wonItems.has(itemNum);
+
+    // Get my price (from my company's column)
+    let myPrice = 0;
+    if (myCompanyIdx >= 0) {
+      const rawPrice = parsePriceValue(row[licitantes[myCompanyIdx].colIdx]);
+      myPrice = valoresTotal && qtd > 0 ? Math.round((rawPrice / qtd) * 100) / 100 : rawPrice;
+    }
+
+    // Collect ALL licitante prices (for concorrentes)
+    const allPrices = licitantes.map((l, li) => {
+      const raw = parsePriceValue(row[l.colIdx]);
+      const unit = valoresTotal && qtd > 0 && raw > 0 ? Math.round((raw / qtd) * 100) / 100 : raw;
+      return { nome: l.name, preco: unit, isMe: li === myCompanyIdx };
+    }).filter((p) => p.preco > 0);
+
+    const normName = normalizedText(itemName);
+    const existing = bancoPrecos.itens.find((bp) => normalizedText(bp.item) === normName);
+
+    if (existing) {
+      // Update with my price if won
+      if (isWon && myPrice > 0) {
+        existing.custoBase = myPrice;
+        existing.precoReferencia = Math.round(myPrice * (1 + existing.margemPadrao) * 100) / 100;
+        existing.ultimaCotacao = todayStr;
+      }
+      // Add competitor prices
+      if (!existing.concorrentes) existing.concorrentes = [];
+      allPrices.forEach((p) => {
+        if (!p.isMe && p.preco > 0) {
+          existing.concorrentes.push({ nome: p.nome, preco: p.preco, data: todayStr, edital: "Mapa Import" });
+          concorrentesAdded++;
+        }
+      });
+      updated++;
+    } else if (isWon || importAll) {
+      // Create new item
+      const margemPadrao = 0.30;
+      const custoBase = myPrice || 0;
+      const newId = "bp-" + String(Date.now()).slice(-6) + String(Math.random()).slice(2, 5);
+      const competitorPrices = allPrices.filter((p) => !p.isMe && p.preco > 0)
+        .map((p) => ({ nome: p.nome, preco: p.preco, data: todayStr, edital: "Mapa Import" }));
+      concorrentesAdded += competitorPrices.length;
+
+      bancoPrecos.itens.push({
+        id: newId, item: itemName, grupo: "Mapa Apuracao", unidade: unidade || "Unidade",
+        custoBase, margemPadrao, precoReferencia: Math.round(custoBase * (1 + margemPadrao) * 100) / 100,
+        ultimaCotacao: todayStr, fonte: "Mapa de Apuracao",
+        propostas: [], concorrentes: competitorPrices,
+        custosFornecedor: myPrice > 0 ? [{ fornecedor: "Meu preco (mapa)", preco: myPrice, data: todayStr }] : [],
+      });
+      added++;
+    }
+  });
+
+  saveBancoLocal(); renderBanco();
+
+  const wonCount = wonItems.size || rows.length;
+  let msg = `Mapa importado! ${added} novos, ${updated} atualizados.`;
+  if (wonItems.size > 0) msg += ` ${wonItems.size} itens ganhos.`;
+  msg += ` ${concorrentesAdded} precos de concorrentes registrados.`;
+  el.importStats.innerHTML = msg; el.importStats.style.display = "block";
+  setTimeout(() => { closeImportModal(); }, 4000);
 }
 
 // ===== EDITAR ORÇAMENTO APROVADO =====
@@ -2308,16 +3053,55 @@ async function varrerSgd() {
 
       // Build SRE Uberaba school name lookup for filtering
       const sreNorm = (s) => (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").toUpperCase().trim();
-      const sreSchools = new Set();
+      const sreSchoolsList = [];
       const schoolToMunicipio = {};
       if (sreData && sreData.municipios) {
         sreData.municipios.forEach((m) => {
           (m.escolas || []).forEach((e) => {
             const n = sreNorm(e);
-            sreSchools.add(n);
+            sreSchoolsList.push(n);
             schoolToMunicipio[n] = m.nome;
           });
         });
+      }
+
+      // Confirmed SRE Uberaba municipality IDs (SGD API idCounty field)
+      // Discovered by cross-referencing unique school names from sre-uberaba.json
+      const sreCountyMap = {
+        2623: "Uberaba", 2857: "Uberaba",
+        2568: "Araxa", 2494: "Sacramento", 2158: "Iturama",
+        2805: "Pirajuba", 2480: "Santa Juliana", 2631: "Frutal",
+        2422: "Campos Altos",
+      };
+      const sreCountyIds = new Set(Object.keys(sreCountyMap).map(Number));
+
+      // Word-boundary checking to prevent partial matches (e.g., "EE BRASIL" must NOT match "EE BRASILIANO BRAZ")
+      function containsWholeMatch(haystack, needle) {
+        const idx = haystack.indexOf(needle);
+        if (idx === -1) return false;
+        const endIdx = idx + needle.length;
+        if (endIdx < haystack.length && /[A-Z0-9]/.test(haystack[endIdx])) return false;
+        if (idx > 0 && /[A-Z0-9]/.test(haystack[idx - 1])) return false;
+        return true;
+      }
+
+      function findSreMatch(sgdSchoolName) {
+        const norm = sreNorm(sgdSchoolName);
+        if (sreSchoolsList.includes(norm)) return norm;
+        for (const sre of sreSchoolsList) {
+          if (containsWholeMatch(norm, sre)) return sre;
+        }
+        for (const sre of sreSchoolsList) {
+          const expanded = sre.replace(/^EE\s+/, "ESCOLA ESTADUAL ");
+          if (containsWholeMatch(norm, expanded)) return sre;
+        }
+        const sgdCore = norm
+          .replace(/^CAIXA ESCOLAR\s*(DA|DE|DO)?\s*/i, "")
+          .replace(/^ASSOCIACAO\s*(DA|DE|DO)?\s*/i, "")
+          .replace(/^CE\s+/, "")
+          .trim();
+        if (sgdCore && sreSchoolsList.includes(sgdCore)) return sgdCore;
+        return null;
       }
 
       // Step 1: Fetch all budget summaries (paginated)
@@ -2334,12 +3118,42 @@ async function varrerSgd() {
         btn.innerHTML = `<span class="sgd-spinner"></span>Listando... ${allBudgets.length}/${total}`;
       }
 
-      // Step 2: Filter only SRE Uberaba budgets
-      // API field: schoolName (not txSchoolName)
-      const filtered = allBudgets.filter((b) => {
-        const escola = sreNorm(b.schoolName || b.txSchoolName || "");
-        return sreSchools.has(escola);
+      // Step 2: County-first filter — ACCEPT all budgets from known SRE Uberaba municipalities
+      // This guarantees we never miss a school just because the name format differs
+      const matched = [];
+      const rejected = [];
+      const filtered = [];
+
+      allBudgets.forEach((b) => {
+        const escola = b.schoolName || b.txSchoolName || "";
+        const county = b.idCounty;
+
+        if (sreCountyIds.has(county)) {
+          // PRIMARY: County is confirmed SRE Uberaba — ALWAYS accept regardless of name
+          const nameMatch = findSreMatch(escola);
+          b._sreMatch = nameMatch || sreNorm(escola);
+          filtered.push(b);
+          matched.push({ sgd: escola, county, mun: nameMatch ? schoolToMunicipio[nameMatch] || "?" : "?", via: nameMatch ? "county+name" : "county-only" });
+        } else {
+          // FALLBACK: Unknown county — only accept via strict name match (for municipalities not yet in whitelist)
+          const nameMatch = findSreMatch(escola);
+          if (nameMatch) {
+            // Name matched but county not in whitelist — likely false positive, reject
+            rejected.push({ sgd: escola, sre: nameMatch, county, reason: "name match but county not SRE Uberaba" });
+          }
+        }
       });
+
+      // Debug logs
+      console.log(`[Varrer] ${matched.length} aceitos:`, matched);
+      if (rejected.length > 0) {
+        console.log(`[Varrer] ${rejected.length} rejeitados (nome bateu mas county errado):`, rejected);
+      }
+      // Log unique counties found in accepted budgets for verification
+      const acceptedCounties = {};
+      matched.forEach((m) => { acceptedCounties[m.county] = (acceptedCounties[m.county] || 0) + 1; });
+      console.log(`[Varrer] Counties aceitos:`, acceptedCounties);
+      console.log(`[Varrer] SRE Uberaba: ${filtered.length} aceitos de ${allBudgets.length} total`);
       btn.innerHTML = `<span class="sgd-spinner"></span>SRE Uberaba: ${filtered.length} de ${allBudgets.length}. Buscando detalhes...`;
 
       // Step 3: Fetch detail + items for each SRE budget
@@ -2353,8 +3167,8 @@ async function varrerSgd() {
         if (!id) continue;
 
         const escolaRaw = b.schoolName || b.txSchoolName || "";
-        const escolaNorm = sreNorm(escolaRaw);
-        const municipio = schoolToMunicipio[escolaNorm] || "";
+        const sreMatchKey = b._sreMatch || findSreMatch(escolaRaw) || sreNorm(escolaRaw);
+        const municipio = schoolToMunicipio[sreMatchKey] || sreCountyMap[b.idCounty] || "";
 
         // Use this budget's own networkId (each SRE has different networkId)
         const budgetNetworkId = b.idNetwork || BrowserSgdClient.networkId;

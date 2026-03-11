@@ -3,30 +3,60 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Painel do Fornecedor — Caixa Escolar MG</title>
+  <title>NexEdu — Painel do Fornecedor</title>
   <link rel="stylesheet" href="styles.css?v=7" />
   <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 </head>
 <body>
 
-  <!-- ===== TOPBAR ===== -->
-  <header class="topbar">
-    <div>
-      <p class="eyebrow">Painel do Fornecedor</p>
-      <h1>Caixa Escolar MG</h1>
-    </div>
-    <div class="topbar-right">
-      <span class="mode-indicator" id="mode-indicator"></span>
-      <div class="pill" id="pill-sre">SRE Uberaba</div>
-      <div class="pill" id="pill-fornecedor">LARIUCCI • Conquista-MG</div>
-      <button id="btn-varrer-sgd" class="btn btn-sm btn-sgd" style="display:none;" title="Varrer novos orçamentos no SGD">Varrer SGD</button>
-      <a href="gdp-dashboard.html" class="btn btn-sm btn-gdp" title="Gestão de Pedidos Pós-Licitação">GDP</a>
-      <button class="btn btn-sm" onclick="logout()" title="Sair">Sair</button>
-    </div>
-  </header>
+  <!-- ===== SIDEBAR ===== -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">NexEdu</div>
+    <nav class="sidebar-nav">
+      <button class="sidebar-item active" data-module="radar" title="Radar de Oportunidades">
+        <span class="sidebar-icon">📡</span>
+        <span class="sidebar-label">RADAR</span>
+      </button>
+      <button class="sidebar-item" data-module="intel-precos" title="Inteligência de Preços">
+        <span class="sidebar-icon">💰</span>
+        <span class="sidebar-label">INTELIGÊNCIA DE PREÇOS</span>
+      </button>
+      <button class="sidebar-item" data-module="gdp" title="Gestão de Pedidos Pós-Licitação">
+        <span class="sidebar-icon">📦</span>
+        <span class="sidebar-label">GDP</span>
+      </button>
+    </nav>
+    <button class="sidebar-item sidebar-config" data-module="config" title="Configurações">
+      <span class="sidebar-icon">⚙️</span>
+      <span class="sidebar-label">Configurações</span>
+    </button>
+  </aside>
 
-  <!-- ===== KPIs ===== -->
+  <!-- ===== MAIN AREA ===== -->
+  <div class="main-area" id="main-area">
+
+    <!-- ===== TOPBAR ===== -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="sidebar-toggle" id="sidebar-toggle" title="Menu">☰</button>
+        <div>
+          <p class="eyebrow">Painel do Fornecedor</p>
+          <h1>NexEdu</h1>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <span class="mode-indicator" id="mode-indicator"></span>
+        <div class="pill" id="pill-sre">SRE Uberaba</div>
+        <div class="pill" id="pill-fornecedor">LARIUCCI • Conquista-MG</div>
+        <button id="btn-varrer-sgd" class="btn btn-sm btn-sgd" style="display:none;" title="Varrer novos orçamentos no SGD">Varrer SGD</button>
+        <button class="btn btn-sm" onclick="logout()" title="Sair">Sair</button>
+      </div>
+    </header>
+
+    <!-- ===== KPIs ===== -->
   <section class="kpis">
     <article class="card kpi">
       <p>Orçamentos abertos</p>
@@ -86,11 +116,12 @@
     </div>
   </section>
 
-  <!-- ===== NAVEGAÇÃO TABS ===== -->
-  <nav class="tabs">
-    <button class="tab active" data-tab="orcamentos">Orçamentos</button>
-    <button class="tab" data-tab="pre-orcamento">Pré-Orçamento</button>
+  <!-- ===== NAVEGAÇÃO TABS (Intel. Preços) ===== -->
+  <nav class="tabs" id="tabs-intel-precos" style="display:none;">
+    <button class="tab active" data-tab="pre-orcamento">Pré-Orçamento</button>
     <button class="tab" data-tab="banco-precos">Banco de Preços</button>
+    <button class="tab" data-tab="dashboard-precos">Dashboard</button>
+    <button class="tab" data-tab="rentabilidade">Rentabilidade</button>
     <button class="tab" data-tab="sgd">SGD</button>
   </nav>
 
@@ -98,7 +129,7 @@
   <section id="tab-orcamentos" class="tab-content active">
     <div class="card">
       <div class="table-head">
-        <h2>Orçamentos — SRE Uberaba</h2>
+        <h2>Oportunidades — SRE Uberaba</h2>
         <div class="table-head-actions">
           <span id="ultima-atualizacao" class="badge badge-muted" style="display:none;"></span>
           <button id="btn-collect-sgd" class="btn btn-sm btn-sgd" style="display:none;">Atualizar Orçamentos</button>
@@ -221,10 +252,50 @@
           </table>
         </div>
 
+        <!-- Simulador de Margem -->
+        <div id="margin-simulator" class="margin-simulator" style="display:none;">
+          <div class="sim-header">
+            <h3>Simulador de Cenários</h3>
+            <button class="btn btn-sm" onclick="toggleSimulator()">Fechar</button>
+          </div>
+          <div class="sim-scenarios">
+            <div class="sim-card sim-conservador" onclick="applyScenario(0.35)">
+              <div class="sim-label">Conservador</div>
+              <div class="sim-value">35%</div>
+              <div class="sim-detail" id="sim-conservador-total">R$ 0</div>
+            </div>
+            <div class="sim-card sim-moderado" onclick="applyScenario(0.25)">
+              <div class="sim-label">Moderado</div>
+              <div class="sim-value">25%</div>
+              <div class="sim-detail" id="sim-moderado-total">R$ 0</div>
+            </div>
+            <div class="sim-card sim-agressivo" onclick="applyScenario(0.15)">
+              <div class="sim-label">Agressivo</div>
+              <div class="sim-value">15%</div>
+              <div class="sim-detail" id="sim-agressivo-total">R$ 0</div>
+            </div>
+            <div class="sim-card sim-otimo" onclick="applyScenario('otimo')">
+              <div class="sim-label">Ótimo</div>
+              <div class="sim-value" id="sim-otimo-pct">?%</div>
+              <div class="sim-detail" id="sim-otimo-total">Melhor competitividade</div>
+            </div>
+          </div>
+          <div class="sim-slider">
+            <label>Margem Global: <strong id="sim-slider-val">25%</strong></label>
+            <input type="range" id="sim-slider" min="5" max="50" value="25" step="1" oninput="previewScenario(this.value)">
+            <div class="sim-preview">
+              <span>Total: <strong id="sim-preview-total">R$ 0</strong></span>
+              <span>Competitivos: <strong id="sim-preview-comp">0/0</strong></span>
+              <button class="btn btn-sm btn-accent" onclick="applyScenario(document.getElementById('sim-slider').value / 100)">Aplicar</button>
+            </div>
+          </div>
+        </div>
+
         <!-- SGD Extra Fields (Fase 4) — datas, observações, garantia -->
         <div id="sgd-extra-fields" class="sgd-extra-fields"></div>
 
         <div class="preorcamento-actions">
+          <button id="btn-simular" class="btn btn-sm" onclick="toggleSimulator()" style="margin-right:auto;">Simular Cenários</button>
           <button id="btn-aprovar" class="btn btn-accent">Aprovar</button>
           <button id="btn-recusar" class="btn btn-danger">Recusar</button>
           <button id="btn-editar-orcamento" class="btn btn-warning" style="display:none;">Editar</button>
@@ -298,6 +369,175 @@
     </div>
   </section>
 
+  <!-- ===== TAB: DASHBOARD PREÇOS ===== -->
+  <section id="tab-dashboard-precos" class="tab-content">
+    <div class="card">
+      <div class="table-head">
+        <h2>Dashboard de Inteligência de Preços</h2>
+      </div>
+
+      <!-- Alertas -->
+      <div id="pricing-alerts" class="pricing-alerts"></div>
+
+      <!-- KPIs de Preço -->
+      <div class="pricing-kpis">
+        <article class="pricing-kpi-card">
+          <p>Itens no Banco</p>
+          <strong id="pk-total-itens">0</strong>
+        </article>
+        <article class="pricing-kpi-card">
+          <p>Custo Médio</p>
+          <strong id="pk-custo-medio">R$ 0</strong>
+        </article>
+        <article class="pricing-kpi-card">
+          <p>Margem Média</p>
+          <strong id="pk-margem-media">0%</strong>
+        </article>
+        <article class="pricing-kpi-card">
+          <p>Competitivos</p>
+          <strong id="pk-competitivos" class="text-accent">0%</strong>
+        </article>
+        <article class="pricing-kpi-card">
+          <p>Cotações Vencidas (&gt;90d)</p>
+          <strong id="pk-vencidos" class="text-danger">0</strong>
+        </article>
+        <article class="pricing-kpi-card">
+          <p>Faturamento Aprovado</p>
+          <strong id="pk-faturamento">R$ 0</strong>
+        </article>
+      </div>
+
+      <!-- Charts -->
+      <div class="pricing-charts">
+        <div class="pricing-chart-box">
+          <h3>Top 10 Itens Mais Cotados</h3>
+          <div id="chart-top-cotados"></div>
+        </div>
+        <div class="pricing-chart-box">
+          <h3>Margem por Grupo</h3>
+          <div id="chart-margem-grupo"></div>
+        </div>
+      </div>
+
+      <div class="pricing-charts">
+        <div class="pricing-chart-box">
+          <h3>Evolução de Custos (Últimas Cotações)</h3>
+          <div id="chart-evolucao-custos"></div>
+        </div>
+        <div class="pricing-chart-box">
+          <h3>Competitividade por Grupo</h3>
+          <div id="chart-competitividade"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== TAB: RENTABILIDADE ===== -->
+  <section id="tab-rentabilidade" class="tab-content">
+    <div class="card">
+      <div class="table-head">
+        <h2>Relatório de Rentabilidade</h2>
+        <div class="table-head-actions">
+          <button id="btn-export-rentabilidade" class="btn btn-sm">Exportar CSV</button>
+        </div>
+      </div>
+
+      <!-- KPIs Rentabilidade -->
+      <div class="pricing-kpis">
+        <article class="pricing-kpi-card">
+          <p>Faturamento Total</p>
+          <strong id="rk-faturamento">R$ 0</strong>
+        </article>
+        <article class="pricing-kpi-card">
+          <p>Custo Total</p>
+          <strong id="rk-custo">R$ 0</strong>
+        </article>
+        <article class="pricing-kpi-card">
+          <p>Lucro Bruto</p>
+          <strong id="rk-lucro" class="text-accent">R$ 0</strong>
+        </article>
+        <article class="pricing-kpi-card">
+          <p>Margem Bruta</p>
+          <strong id="rk-margem">0%</strong>
+        </article>
+        <article class="pricing-kpi-card">
+          <p>Escolas Atendidas</p>
+          <strong id="rk-escolas">0</strong>
+        </article>
+        <article class="pricing-kpi-card">
+          <p>Propostas Enviadas</p>
+          <strong id="rk-propostas">0</strong>
+        </article>
+      </div>
+
+      <!-- Sub-tabs -->
+      <div class="rent-tabs">
+        <button class="rent-tab active" onclick="switchRentTab('escola')">Por Escola</button>
+        <button class="rent-tab" onclick="switchRentTab('produto')">Por Produto</button>
+        <button class="rent-tab" onclick="switchRentTab('grupo')">Por Grupo</button>
+      </div>
+
+      <!-- Por Escola -->
+      <div id="rent-escola" class="rent-content active">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Escola</th>
+                <th>Município</th>
+                <th>Propostas</th>
+                <th>Faturamento</th>
+                <th>Custo</th>
+                <th>Lucro</th>
+                <th>Margem</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-rent-escola"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Por Produto -->
+      <div id="rent-produto" class="rent-content" style="display:none;">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Produto</th>
+                <th>Grupo</th>
+                <th>Vezes Cotado</th>
+                <th>Preço Médio</th>
+                <th>Custo Médio</th>
+                <th>Margem Média</th>
+                <th>Volume Total</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-rent-produto"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Por Grupo -->
+      <div id="rent-grupo" class="rent-content" style="display:none;">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Grupo</th>
+                <th>Itens</th>
+                <th>Faturamento</th>
+                <th>Custo</th>
+                <th>Lucro</th>
+                <th>Margem Média</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-rent-grupo"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- ===== TAB: SGD ===== -->
   <section id="tab-sgd" class="tab-content">
     <div class="card">
@@ -346,17 +586,159 @@
     </div>
   </section>
 
-  <!-- Hidden file input for Excel import -->
-  <input type="file" id="import-file-input" accept=".xlsx,.xls,.csv,.pdf,.jpg,.jpeg,.png" style="display:none;" />
+  <!-- ===== PAINEL DE CONFIGURAÇÕES ===== -->
+  <section id="config-panel" class="tab-content">
+    <div class="card">
+      <div class="table-head">
+        <h2>Configurações</h2>
+      </div>
+      <nav class="config-tabs">
+        <button class="config-tab active" data-config-tab="empresa">Dados da Empresa</button>
+        <button class="config-tab" data-config-tab="usuarios">Cadastro de Usuários</button>
+      </nav>
+      <!-- Dados da Empresa -->
+      <div id="config-empresa" class="config-content active">
+        <div class="form-grid">
+          <label>
+            Nome Fantasia
+            <input type="text" id="cfg-nome" placeholder="Ex: Lariucci" />
+          </label>
+          <label>
+            Razao Social
+            <input type="text" id="cfg-razao-social" placeholder="Ex: Edson de Sousa Goncalves" />
+          </label>
+          <label>
+            CNPJ
+            <input type="text" id="cfg-cnpj" placeholder="00.000.000/0001-00" />
+          </label>
+          <label>
+            Logradouro
+            <input type="text" id="cfg-logradouro" placeholder="Ex: Rua das Flores" />
+          </label>
+          <label>
+            Número
+            <input type="text" id="cfg-numero" placeholder="Ex: 123" />
+          </label>
+          <label>
+            Bairro
+            <input type="text" id="cfg-bairro" placeholder="Ex: Centro" />
+          </label>
+          <label>
+            Cidade
+            <input type="text" id="cfg-cidade" placeholder="Ex: Uberaba" />
+          </label>
+          <label>
+            UF
+            <input type="text" id="cfg-uf" placeholder="Ex: MG" maxlength="2" />
+          </label>
+          <label>
+            CEP
+            <input type="text" id="cfg-cep" placeholder="00000-000" />
+          </label>
+          <label>
+            Telefone
+            <input type="text" id="cfg-telefone" placeholder="(34) 99999-0000" />
+          </label>
+          <label>
+            Email
+            <input type="email" id="cfg-email" placeholder="contato@empresa.com" />
+          </label>
+        </div>
+        <div class="modal-actions" style="margin-top:16px;">
+          <button id="btn-cfg-salvar" class="btn btn-accent">Salvar Dados</button>
+        </div>
+      </div>
+      <!-- Cadastro de Usuários -->
+      <div id="config-usuarios" class="config-content">
+        <div class="table-wrap">
+          <table id="tabela-usuarios">
+            <thead>
+              <tr>
+                <th>Nome</th>
+                <th>Email</th>
+                <th>Usuário</th>
+                <th>Perfil</th>
+                <th>Status</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-usuarios"></tbody>
+          </table>
+        </div>
+        <p id="usuarios-empty" class="empty-msg">Nenhum usuário cadastrado.</p>
+        <!-- Formulário de cadastro de usuário -->
+        <div id="form-usuario" class="form-grid" style="margin-top:16px; padding:16px; border:1px solid var(--line); border-radius:8px;">
+          <label>
+            Nome
+            <input type="text" id="usr-nome" placeholder="Nome completo" />
+          </label>
+          <label>
+            Email
+            <input type="email" id="usr-email" placeholder="email@exemplo.com" />
+          </label>
+          <label>
+            Usuário
+            <input type="text" id="usr-usuario" placeholder="Nome de usuário" />
+          </label>
+          <label>
+            Senha
+            <input type="password" id="usr-senha" placeholder="Senha de acesso" />
+          </label>
+          <label>
+            Perfil
+            <select id="usr-perfil">
+              <option value="Operador">Operador</option>
+              <option value="Admin">Admin</option>
+            </select>
+          </label>
+        </div>
+        <div class="modal-actions" style="margin-top:16px;">
+          <button id="btn-add-usuario" class="btn btn-accent">+ Adicionar Usuário</button>
+        </div>
+      </div>
+    </div>
+  </section>
 
-  <!-- ===== MODAL: Import Excel Preview ===== -->
+  </div><!-- /main-area -->
+
+  <!-- Hidden file input for Excel import -->
+  <input type="file" id="import-file-input" accept=".xlsx,.xls,.csv,.pdf,.jpg,.jpeg,.png,.docx,.doc" style="display:none;" />
+
+  <!-- ===== MODAL: Import Multi-Formato ===== -->
   <div id="modal-import" class="modal-overlay" style="display:none;">
-    <div class="modal card" style="max-width:720px;">
-      <h2>Importar Cotacao</h2>
-      <p class="text-muted" style="font-size:0.8rem;margin-bottom:12px;" id="import-filename"></p>
+    <div class="modal card" style="max-width:800px;">
+      <h2>Importar Mapa de Precos</h2>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+        <p class="text-muted" style="font-size:0.8rem;margin:0;" id="import-filename"></p>
+        <span id="import-format-badge" class="badge" style="display:none;"></span>
+      </div>
+
+      <!-- OCR progress -->
+      <div id="ocr-progress" style="display:none;margin:16px 0;">
+        <p style="font-size:0.85rem;margin-bottom:8px;">Processando OCR (reconhecimento de texto)... <strong id="ocr-pct">0%</strong></p>
+        <progress id="ocr-bar" value="0" max="100" style="width:100%;height:8px;"></progress>
+      </div>
+
+      <!-- Mapa de Apuracao panel -->
+      <div id="mapa-apuracao-panel" style="display:none;margin:12px 0;padding:12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);">
+        <h3 style="font-size:0.85rem;margin-bottom:8px;">Mapa de Apuracao Detectado</h3>
+        <p style="font-size:0.8rem;margin-bottom:8px;">
+          Sua empresa: <strong id="mapa-empresa-detectada" style="color:var(--accent);">—</strong>
+          <button class="btn btn-sm" id="btn-mapa-alterar-empresa" style="margin-left:8px;">Alterar</button>
+        </p>
+        <div id="mapa-classificacao" style="font-size:0.8rem;"></div>
+      </div>
 
       <!-- Column mapping -->
       <div class="import-mapping" id="import-mapping"></div>
+
+      <!-- Total/Unit toggle -->
+      <div id="import-total-toggle" style="margin:8px 0;display:none;">
+        <label style="font-size:0.8rem;display:flex;align-items:center;gap:6px;cursor:pointer;">
+          <input type="checkbox" id="chk-valores-totais" />
+          Valores sao totais (dividir por Qtde para obter unitario)
+        </label>
+      </div>
 
       <!-- Preview table -->
       <div class="table-wrap" style="max-height:300px;overflow-y:auto;margin:12px 0;">
@@ -414,6 +796,23 @@
           <input type="number" id="modal-preco-fornecedor" step="0.01" min="0" placeholder="Último preço do fornecedor" />
         </label>
       </div>
+
+      <!-- Multi-Fornecedor -->
+      <div id="modal-multi-fornecedor" style="display:none; margin-top:12px; padding:12px; border:1px solid var(--line); border-radius:8px;">
+        <h3 style="font-size:0.85rem; margin-bottom:8px;">Histórico de Fornecedores</h3>
+        <div class="table-wrap" style="max-height:200px; overflow-y:auto;">
+          <table>
+            <thead><tr><th>Fornecedor</th><th>Preço</th><th>Data</th><th></th></tr></thead>
+            <tbody id="tbody-modal-fornecedores"></tbody>
+          </table>
+        </div>
+        <div style="display:flex; gap:8px; margin-top:8px;">
+          <input type="text" id="modal-new-forn-nome" placeholder="Fornecedor" style="flex:1;" />
+          <input type="number" id="modal-new-forn-preco" placeholder="Preço" step="0.01" style="width:100px;" />
+          <button class="btn btn-sm btn-accent" onclick="addModalFornecedor()">+ Adicionar</button>
+        </div>
+      </div>
+
       <div class="modal-actions">
         <button id="btn-modal-salvar" class="btn btn-accent">Salvar</button>
         <button id="btn-modal-cancelar" class="btn">Cancelar</button>
@@ -421,7 +820,11 @@
     </div>
   </div>
 
+  <!-- Sidebar overlay (mobile) -->
+  <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
   <script src="auth.js"></script>
-  <script src="app.js?v=6"></script>
+  <script src="app.js?v=7"></script>
+  <script src="pricing-intel.js?v=1"></script>
 </body>
 </html>
