@@ -1,3 +1,11 @@
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '10mb',
+    },
+  },
+};
+
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
 function corsHeaders(res) {
@@ -12,9 +20,12 @@ export default async function handler(req, res) {
   if (req.method === "OPTIONS") return res.status(204).end();
   if (req.method !== "POST") return res.status(405).json({ error: "Method Not Allowed" });
 
-  const { texto, formato, fornecedor, contexto } = req.body || {};
+  const { texto, formato, fornecedor, contexto, _ocrMessages } = req.body || {};
 
-  if (!texto || texto.trim().length < 10) {
+  // OCR mode: images sent via _ocrMessages
+  const isOCR = _ocrMessages && Array.isArray(_ocrMessages) && _ocrMessages.length > 0;
+
+  if (!isOCR && (!texto || texto.trim().length < 10)) {
     return res.status(400).json({ error: "Texto insuficiente para análise" });
   }
 
@@ -22,7 +33,21 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: "OPENAI_API_KEY não configurada no servidor" });
   }
 
-  const systemPrompt = `Você é um especialista em extrair dados de tabelas de preços de fornecedores para licitações públicas de Caixas Escolares em Minas Gerais.
+  try {
+    let model, messages, maxTokens;
+
+    if (isOCR) {
+      // OCR mode: forward image content to vision-capable model
+      model = "gpt-4o-mini";
+      messages = [
+        { role: "system", content: "Você é um OCR especialista em extrair dados de tabelas de licitações públicas de Caixas Escolares em Minas Gerais. Analise as imagens e extraia TODOS os dados incluindo PREÇOS UNITÁRIOS de cada fornecedor. Retorne APENAS JSON válido, sem markdown." },
+        ..._ocrMessages
+      ];
+      maxTokens = 8000;
+    } else {
+      // Text mode: original behavior
+      model = "gpt-4o-mini";
+      const systemPrompt = `Você é um especialista em extrair dados de tabelas de preços de fornecedores para licitações públicas de Caixas Escolares em Minas Gerais.
 
 REGRAS:
 1. Extraia TODOS os itens encontrados no texto
@@ -54,7 +79,13 @@ CONTEXTO DO FORNECEDOR: ${fornecedor || "Não informado"}
 FORMATO ORIGINAL: ${formato || "Não informado"}
 ${contexto ? "CONTEXTO ADICIONAL: " + contexto : ""}`;
 
-  try {
+      messages = [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: `Extraia os itens desta tabela de preços:\n\n${texto.slice(0, 15000)}` },
+      ];
+      maxTokens = 4000;
+    }
+
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -62,14 +93,11 @@ ${contexto ? "CONTEXTO ADICIONAL: " + contexto : ""}`;
         "Authorization": `Bearer ${OPENAI_API_KEY}`,
       },
       body: JSON.stringify({
-        model: "gpt-4o-mini",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: `Extraia os itens desta tabela de preços:\n\n${texto.slice(0, 15000)}` },
-        ],
+        model,
+        messages,
         temperature: 0.1,
         response_format: { type: "json_object" },
-        max_tokens: 4000,
+        max_tokens: maxTokens,
       }),
     });
 
@@ -81,11 +109,21 @@ ${contexto ? "CONTEXTO ADICIONAL: " + contexto : ""}`;
 
     const parsed = JSON.parse(data.choices[0].message.content);
 
+    if (isOCR) {
+      // OCR mode: return the full structured response (escola, fornecedores, itens, etc.)
+      return res.status(200).json({
+        ...parsed,
+        tokens_usados: data.usage?.total_tokens || 0,
+        custo_estimado: ((data.usage?.total_tokens || 0) * 0.00000015).toFixed(4),
+        modelo: model,
+      });
+    }
+
     return res.status(200).json({
       itens: parsed.itens || parsed,
       tokens_usados: data.usage?.total_tokens || 0,
       custo_estimado: ((data.usage?.total_tokens || 0) * 0.00000015).toFixed(4),
-      modelo: "gpt-4o-mini",
+      modelo: model,
       fornecedor: fornecedor,
     });
   } catch (err) {

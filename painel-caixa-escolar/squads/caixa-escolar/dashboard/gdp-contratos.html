@@ -158,8 +158,8 @@
   <!-- Tabs -->
   <div class="tabs">
     <button class="tab active" data-tab="contratos" onclick="switchTab('contratos')">Contratos <span class="count" id="tab-count-contratos">0</span></button>
-    <button class="tab" data-tab="itens" onclick="switchTab('itens')">Itens do Contrato</button>
-    <button class="tab" data-tab="usuarios" onclick="switchTab('usuarios')">Usuarios</button>
+    <button class="tab" data-tab="itens" onclick="switchTab('itens')">Itens do Contrato <span class="count" id="tab-count-itens">0</span></button>
+    <button class="tab" data-tab="usuarios" onclick="switchTab('usuarios')">Usuarios <span class="count" id="tab-count-usuarios">0</span></button>
     <button class="tab" data-tab="pedidos" onclick="switchTab('pedidos')">Pedidos <span class="count" id="tab-count-pedidos">0</span></button>
     <button class="tab" data-tab="entregas" onclick="switchTab('entregas')">Entregas <span class="count" id="tab-count-entregas">0</span></button>
   </div>
@@ -175,13 +175,16 @@
           <option value="encerrado">Encerrado</option>
         </select>
       </div>
-      <button class="btn btn-blue" onclick="switchTab('importar')">+ Importar Mapa</button>
+      <div style="display:flex;gap:.5rem">
+        <button class="btn btn-blue" onclick="switchTab('importar')">+ Importar Mapa</button>
+        <button class="btn btn-outline" onclick="novoContratoManual()">+ Contrato Manual</button>
+      </div>
     </div>
     <div class="contract-grid" id="contract-grid"></div>
     <div class="empty hidden" id="contratos-empty">
       <h3>Nenhum contrato cadastrado</h3>
       <p>Importe um Mapa de Apuracao para criar o primeiro contrato.</p>
-      <button class="btn btn-blue" style="margin-top:1rem" onclick="switchTab('importar')">Importar Mapa</button>
+      <button class="btn btn-outline" style="margin-top:1rem" onclick="novoContratoManual()">Inserir Contrato Manualmente</button>
     </div>
   </div>
 
@@ -199,7 +202,7 @@
         <button class="btn btn-outline" id="btn-mode-lista" onclick="document.getElementById('file-input-lista').click()" style="flex:1;padding:1rem">
           <div style="font-size:1.2rem;margin-bottom:.3rem">📦</div>
           <div style="font-weight:700">Lista de Produtos</div>
-          <div style="font-size:.75rem;font-weight:400;opacity:.8">Planilha com itens e precos unitarios fechados</div>
+          <div style="font-size:.75rem;font-weight:400;opacity:.8">Word/Excel/PDF com itens e precos unitarios fechados</div>
         </button>
         <button class="btn btn-outline" id="btn-mode-crono" onclick="document.getElementById('file-input-crono').click()" style="flex:1;padding:1rem">
           <div style="font-size:1.2rem;margin-bottom:.3rem">📅</div>
@@ -216,7 +219,7 @@
     <div id="import-mode-mapa"></div>
 
     <div style="display:none">
-      <input type="file" id="file-input-lista" accept=".xlsx,.xls,.csv" onchange="handleListaUpload(this.files[0])">
+      <input type="file" id="file-input-lista" accept=".xlsx,.xls,.csv,.docx,.doc,.pdf" onchange="handleListaUpload(this.files[0])">
     </div>
     <div id="import-mode-lista" class="hidden">
 
@@ -398,13 +401,13 @@
   </div>
 
   <!-- Modal: Contract Detail -->
-  <div id="modal-contrato" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1000;display:flex;align-items:flex-start;justify-content:center;padding:2rem;overflow-y:auto">
-    <div style="background:var(--bg);border:1px solid var(--bdr);border-radius:14px;width:900px;max-width:95vw;max-height:90vh;overflow-y:auto">
-      <div style="padding:1.5rem;border-bottom:1px solid var(--bdr);display:flex;justify-content:space-between;align-items:center">
-        <h2 id="modal-contrato-titulo" style="font-size:1.1rem"></h2>
+  <div id="modal-contrato" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1000;display:flex;align-items:center;justify-content:center;padding:1rem;overflow-y:auto">
+    <div style="background:var(--bg);border:1px solid var(--bdr);border-radius:14px;width:960px;max-width:98vw;max-height:95vh;display:flex;flex-direction:column">
+      <div style="padding:1rem 1.5rem;border-bottom:1px solid var(--bdr);display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
+        <h2 id="modal-contrato-titulo" style="font-size:1.1rem;margin:0"></h2>
         <button class="btn btn-outline btn-sm" onclick="fecharModalContrato()">Fechar</button>
       </div>
-      <div style="padding:1.5rem" id="modal-contrato-body"></div>
+      <div style="padding:1.5rem;overflow-y:auto;flex:1" id="modal-contrato-body"></div>
     </div>
   </div>
 
@@ -921,7 +924,186 @@ async function parsePDF(file) {
   }
   if (currentTable.length > 2) tables.push(currentTable);
 
-  if (tables.length === 0) throw new Error("Nenhuma tabela encontrada no PDF. O arquivo pode ser uma imagem escaneada — nesse caso, converta para Excel primeiro.");
+  if (tables.length === 0) {
+    // PDF escaneado — tentar OCR via renderização + AI
+    return await parsePdfViaOCR(pdf);
+  }
+  return { paragraphs, tables };
+}
+
+async function parsePdfViaOCR(pdf) {
+  const totalPages = pdf.numPages;
+  showToast(`PDF escaneado detectado (${totalPages} pgs). Processando via OCR (IA)... Aguarde.`, 10000);
+
+  // Render all pages to images
+  const allImages = [];
+  for (let p = 1; p <= totalPages; p++) {
+    const page = await pdf.getPage(p);
+    const scale = 1.5;
+    const viewport = page.getViewport({ scale });
+    const canvas = document.createElement("canvas");
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    const ctx = canvas.getContext("2d");
+    await page.render({ canvasContext: ctx, viewport }).promise;
+    allImages.push(canvas.toDataURL("image/jpeg", 0.6));
+  }
+
+  // Process in batches of 3 pages to stay under payload limits
+  const batchSize = 3;
+  const batches = [];
+  for (let i = 0; i < allImages.length; i += batchSize) {
+    batches.push(allImages.slice(i, i + batchSize));
+  }
+
+  const results = [];
+  let fornecedoresCtx = []; // supplier names from first batch to pass to subsequent batches
+  for (let b = 0; b < batches.length; b++) {
+    if (batches.length > 1) {
+      showToast(`OCR: processando lote ${b + 1} de ${batches.length}...`, 8000);
+    }
+    const partial = await ocrParseImages(batches[b], b === 0, fornecedoresCtx);
+    results.push(partial);
+    // Capture supplier names from first batch
+    if (b === 0 && partial.fornecedores && partial.fornecedores.length > 0) {
+      fornecedoresCtx = partial.fornecedores.map(f => typeof f === "string" ? f : (f.nome || ""));
+    } else if (b === 0 && partial.itens && partial.itens.length > 0) {
+      // Infer from first item precos keys
+      for (const item of partial.itens) {
+        if (item.precos && typeof item.precos === "object") {
+          fornecedoresCtx = Object.keys(item.precos);
+          break;
+        }
+      }
+    }
+  }
+
+  // Merge all raw results then convert
+  if (results.length === 1) return ocrToMapaFormat(results[0]);
+  return mergeOcrResults(results);
+}
+
+function mergeOcrResults(results) {
+  // First result has metadata (escola, edital, etc)
+  const merged = { escola: "", edital: "", dataApuracao: "", criterio: "", fornecedores: [], itens: [] };
+  for (const r of results) {
+    if (r.escola && !merged.escola) merged.escola = r.escola;
+    if (r.edital && !merged.edital) merged.edital = r.edital;
+    if (r.dataApuracao && !merged.dataApuracao) merged.dataApuracao = r.dataApuracao;
+    if (r.criterio && !merged.criterio) merged.criterio = r.criterio;
+    if (r.fornecedores && r.fornecedores.length > merged.fornecedores.length) {
+      merged.fornecedores = r.fornecedores;
+    }
+    if (r.itens) merged.itens.push(...r.itens);
+  }
+  // Renumber items sequentially
+  merged.itens.forEach((item, idx) => { item.num = idx + 1; });
+  return ocrToMapaFormat(merged);
+}
+
+async function ocrParseImages(imageDataUrls, isFirstBatch, fornecedoresCtx) {
+  const jsonExample = `{
+  "escola": "Caixa Escolar ...",
+  "edital": "PE 001/2026",
+  "dataApuracao": "01/01/2026",
+  "criterio": "Menor preço por item",
+  "fornecedores": [{"nome": "Empresa A", "cnpj": "00.000.000/0001-00"}, {"nome": "Empresa B", "cnpj": ""}],
+  "itens": [
+    {"num": 1, "descricao": "Arroz tipo 1 5kg", "unidade": "Pct", "quantidade": 100, "precos": {"Empresa A": 22.50, "Empresa B": 23.00}, "vencedor": "Empresa A"},
+    {"num": 2, "descricao": "Feijao carioca 1kg", "unidade": "Pct", "quantidade": 80, "precos": {"Empresa A": 8.90, "Empresa B": 7.50}, "vencedor": "Empresa B"}
+  ]
+}`;
+  let prompt;
+  if (isFirstBatch !== false) {
+    prompt = `Extraia TODOS os dados desta tabela de Mapa de Apuração de licitação pública. IMPORTANTE: extraia os PREÇOS UNITÁRIOS de cada fornecedor para cada item. Retorne EXATAMENTE neste formato JSON (os precos de cada item devem ser um objeto com o nome do fornecedor como chave e o valor unitario como numero):\n${jsonExample}\nRetorne APENAS o JSON válido, sem markdown, sem código.`;
+  } else {
+    const nomes = (fornecedoresCtx || []).join('", "');
+    prompt = `Continue extraindo os itens das páginas adicionais do mesmo Mapa de Apuração de licitação. Os fornecedores são: ["${nomes}"]. Para CADA item extraia o preço unitário de CADA fornecedor. Retorne JSON: {"itens": [{"num": 1, "descricao": "...", "unidade": "...", "quantidade": 0, "precos": {"${(fornecedoresCtx||[])[0] || 'Fornecedor A'}": 0.00, "${(fornecedoresCtx||[])[1] || 'Fornecedor B'}": 0.00}, "vencedor": "..."}]}. Retorne APENAS JSON, sem markdown.`;
+  }
+
+  const content = [];
+  content.push({ type: "text", text: prompt });
+  imageDataUrls.forEach(url => {
+    content.push({ type: "image_url", image_url: { url, detail: "high" } });
+  });
+
+  try {
+    const baseUrl = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
+      ? "" : window.location.origin;
+    const resp = await fetch(baseUrl + "/api/ai-parse-price", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        texto: "__OCR_IMAGE_MODE__",
+        formato: "mapa_apuracao_ocr",
+        fornecedor: "",
+        contexto: "Mapa de Apuração e Classificação de Propostas de licitação pública",
+        _ocrMessages: [{ role: "user", content }]
+      })
+    });
+
+    if (!resp.ok) {
+      const errData = await resp.json().catch(() => ({}));
+      throw new Error(errData.error || errData.detail || "Erro na API OCR: " + resp.status);
+    }
+
+    const data = await resp.json();
+    if (data.escola || data.itens || data.fornecedores) {
+      return data; // raw OCR result — conversion happens in parsePdfViaOCR
+    }
+    throw new Error("Formato de resposta OCR não reconhecido");
+  } catch (err) {
+    throw new Error("OCR falhou: " + err.message + ". Tente converter o PDF para Excel primeiro.");
+  }
+}
+
+function ocrToMapaFormat(ocr) {
+  const paragraphs = [];
+  if (ocr.escola) paragraphs.push("ESCOLA: " + ocr.escola);
+  if (ocr.edital) paragraphs.push("EDITAL: " + ocr.edital);
+  if (ocr.dataApuracao) paragraphs.push("DATA: " + ocr.dataApuracao);
+  if (ocr.criterio) paragraphs.push("CRITÉRIO: " + ocr.criterio);
+
+  // Collect supplier names from fornecedores array or from item precos keys
+  let fornecedorNames = (ocr.fornecedores || []).map(f => typeof f === "string" ? f : (f.nome || ""));
+  if (fornecedorNames.length === 0 && ocr.itens && ocr.itens.length > 0) {
+    // Infer supplier names from the first item that has precos
+    for (const item of ocr.itens) {
+      if (item.precos && typeof item.precos === "object") {
+        fornecedorNames = Object.keys(item.precos);
+        break;
+      }
+    }
+  }
+
+  const tables = [];
+  const header = ["Item", "Descrição", "Unidade", "Qtd"];
+  fornecedorNames.forEach(name => header.push(name));
+  header.push("Vencedor");
+
+  const rows = [header];
+  (ocr.itens || []).forEach(item => {
+    const row = [
+      String(item.num || item.item || ""),
+      item.descricao || item.nome || item.description || "",
+      item.unidade || item.und || "Un",
+      String(item.quantidade || item.qtd || item.qty || "")
+    ];
+    fornecedorNames.forEach(name => {
+      let preco = "";
+      if (item.precos && typeof item.precos === "object") {
+        preco = item.precos[name] ?? "";
+      } else if (item.precoUnitario) {
+        preco = item.precoUnitario;
+      }
+      // Convert comma decimal to dot for number handling
+      if (typeof preco === "string") preco = preco.replace(",", ".");
+      row.push(String(preco || ""));
+    });
+    row.push(item.vencedor || item.winner || "");
+    rows.push(row);
+  });
+  tables.push(rows);
   return { paragraphs, tables };
 }
 
@@ -1226,49 +1408,109 @@ async function handleListaUpload(file) {
   if (!file) return;
   setImportMode('lista');
   const ext = file.name.split('.').pop().toLowerCase();
-  if (!['xlsx', 'xls', 'csv'].includes(ext)) {
-    showToast("Formato nao suportado. Use Excel (.xlsx) ou CSV.", 4000);
+
+  if (['xlsx', 'xls', 'csv'].includes(ext)) {
+    try {
+      const data = await file.arrayBuffer();
+      const wb = XLSX.read(data, { type: "array" });
+
+      parsedListaSheets = {};
+      for (const sheetName of wb.SheetNames) {
+        const ws = wb.Sheets[sheetName];
+        const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
+        const itens = parseSheetToItems(rows);
+        if (itens.length > 0) {
+          parsedListaSheets[sheetName] = itens;
+        }
+      }
+
+      const sheetNames = Object.keys(parsedListaSheets);
+      if (sheetNames.length === 0) {
+        showToast("Nenhum item encontrado na planilha. Verifique se ha colunas de descricao/produto.", 5000);
+        return;
+      }
+
+      const firstSheet = wb.Sheets[wb.SheetNames[0]];
+      const allRows = XLSX.utils.sheet_to_json(firstSheet, { header: 1, defval: "" });
+      autoFillMetadataFromRows(allRows);
+
+      if (sheetNames.length > 1) {
+        renderSheetSelector(sheetNames);
+      } else {
+        parsedLista = parsedListaSheets[sheetNames[0]];
+        renderListaPreview();
+        showToast(`${parsedLista.length} itens encontrados!`);
+      }
+    } catch (err) {
+      showToast("Erro ao ler planilha: " + err.message, 5000);
+      console.error(err);
+    }
+  } else if (ext === 'docx' || ext === 'doc') {
+    try {
+      const parsed = await parseDocx(file);
+      loadListaFromTables(parsed);
+    } catch (err) {
+      showToast("Erro ao ler Word: " + err.message, 5000);
+      console.error(err);
+    }
+  } else if (ext === 'pdf') {
+    try {
+      const parsed = await parsePDF(file);
+      loadListaFromTables(parsed);
+    } catch (err) {
+      showToast("Erro ao ler PDF: " + err.message, 5000);
+      console.error(err);
+    }
+  } else {
+    showToast("Formato nao suportado. Use Excel, Word ou PDF.", 4000);
+  }
+}
+
+function loadListaFromTables(parsed) {
+  const { paragraphs, tables } = parsed;
+  if (!tables || tables.length === 0) {
+    showToast("Nenhuma tabela encontrada no arquivo.", 5000);
     return;
   }
 
-  try {
-    const data = await file.arrayBuffer();
-    const wb = XLSX.read(data, { type: "array" });
+  parsedListaSheets = {};
+  tables.forEach((tbl, idx) => {
+    const itens = parseSheetToItems(tbl);
+    if (itens.length > 0) {
+      parsedListaSheets[`Tabela ${idx + 1}`] = itens;
+    }
+  });
 
-    // Parse all sheets
-    parsedListaSheets = {};
-    for (const sheetName of wb.SheetNames) {
-      const ws = wb.Sheets[sheetName];
-      const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
-      const itens = parseSheetToItems(rows);
-      if (itens.length > 0) {
-        parsedListaSheets[sheetName] = itens;
+  const sheetNames = Object.keys(parsedListaSheets);
+  if (sheetNames.length === 0) {
+    showToast("Nenhum item encontrado nas tabelas. Verifique se ha colunas de descricao/produto.", 5000);
+    return;
+  }
+
+  // Auto-fill metadata from paragraphs
+  if (paragraphs && paragraphs.length > 0) {
+    for (const p of paragraphs) {
+      const pUp = p.toUpperCase();
+      if (pUp.includes("CAIXA ESCOLAR") || pUp.includes("ESCOLA")) {
+        const el = document.getElementById("lista-escola");
+        if (el && !el.value) el.value = p.trim();
+      }
+      if (pUp.includes("EDITAL") || pUp.includes("PREGAO")) {
+        const m = p.match(/(?:Edital|Preg[aã]o)\s+(?:n[°ºo]?\s*)?([\d\/\-\.]+)/i);
+        if (m) {
+          const el = document.getElementById("lista-edital");
+          if (el && !el.value) el.value = m[0].trim();
+        }
       }
     }
+  }
 
-    const sheetNames = Object.keys(parsedListaSheets);
-    if (sheetNames.length === 0) {
-      showToast("Nenhum item encontrado na planilha. Verifique se ha colunas de descricao/produto.", 5000);
-      return;
-    }
-
-    // Try to auto-fill escola name from header rows
-    const firstSheet = wb.Sheets[wb.SheetNames[0]];
-    const allRows = XLSX.utils.sheet_to_json(firstSheet, { header: 1, defval: "" });
-    autoFillMetadataFromRows(allRows);
-
-    // If multiple sheets, show selector
-    if (sheetNames.length > 1) {
-      renderSheetSelector(sheetNames);
-    } else {
-      // Single sheet — load directly
-      parsedLista = parsedListaSheets[sheetNames[0]];
-      renderListaPreview();
-      showToast(`${parsedLista.length} itens encontrados!`);
-    }
-  } catch (err) {
-    showToast("Erro ao ler planilha: " + err.message, 5000);
-    console.error(err);
+  if (sheetNames.length > 1) {
+    renderSheetSelector(sheetNames);
+  } else {
+    parsedLista = parsedListaSheets[sheetNames[0]];
+    renderListaPreview();
+    showToast(`${parsedLista.length} itens encontrados!`);
   }
 }
 
@@ -2289,7 +2531,8 @@ function vincularEscolaContrato(contratoId) {
   document.getElementById("modal-contrato-titulo").textContent = "Vincular Escolas — " + titulo;
   document.getElementById("modal-contrato-body").innerHTML = `
     <div style="margin-bottom:1rem;color:var(--mut);font-size:.85rem">Selecione as escolas que devem ter acesso a este contrato no Portal:</div>
-    <div style="max-height:300px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:.8rem 1rem;background:var(--surface)">
+    <input type="text" id="busca-vincular-escola" placeholder="Buscar escola..." oninput="filtrarEscolasVinculo()" autocomplete="off" style="width:100%;margin-bottom:.8rem">
+    <div id="lista-escolas-vinculo" style="max-height:300px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:.8rem 1rem;background:var(--surface)">
       ${opts}
     </div>
     <div style="margin-top:1.5rem;display:flex;gap:.8rem;justify-content:flex-end">
@@ -2298,6 +2541,14 @@ function vincularEscolaContrato(contratoId) {
     </div>
   `;
   document.getElementById("modal-contrato").classList.remove("hidden");
+}
+
+function filtrarEscolasVinculo() {
+  const q = (document.getElementById("busca-vincular-escola").value || "").toLowerCase();
+  document.querySelectorAll("#lista-escolas-vinculo label").forEach(label => {
+    const text = label.textContent.toLowerCase();
+    label.style.display = text.includes(q) ? "" : "none";
+  });
 }
 
 function salvarVinculoEscolas(contratoId) {
@@ -2331,6 +2582,148 @@ function excluirContrato(id) {
 }
 
 // ===== CONTRACT DETAIL MODAL =====
+function novoContratoManual() {
+  document.getElementById("modal-contrato-titulo").textContent = "Novo Contrato Manual";
+  document.getElementById("modal-contrato-body").innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Escola / Órgão</label><input type="text" id="mc-escola" placeholder="Nome da escola" style="width:100%"></div>
+      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Número do Edital</label><input type="text" id="mc-edital" placeholder="Ex: PE 001/2026" style="width:100%"></div>
+      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Número do Processo</label><input type="text" id="mc-processo" placeholder="Ex: 001/2026" style="width:100%"></div>
+      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Vigência</label><input type="text" id="mc-vigencia" placeholder="Ex: 01/01/2026 a 31/12/2026" style="width:100%"></div>
+      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Fornecedor</label><input type="text" id="mc-fornecedor" value="Lariucci & Ribeiro Pereira" style="width:100%"></div>
+      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Status</label><select id="mc-status" style="width:100%"><option value="ativo">Ativo</option><option value="encerrado">Encerrado</option></select></div>
+      <div style="grid-column:1/-1"><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Objeto</label><input type="text" id="mc-objeto" placeholder="Descrição do objeto" style="width:100%"></div>
+      <div style="grid-column:1/-1"><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Observações</label><textarea id="mc-obs" placeholder="Informações adicionais..." style="width:100%;min-height:50px;padding:.5rem .8rem;background:var(--s1);border:1px solid var(--bdr);border-radius:8px;color:var(--txt);font-size:.85rem;resize:vertical"></textarea></div>
+    </div>
+    <div style="margin-top:1.5rem;display:flex;gap:.8rem;justify-content:flex-end">
+      <button class="btn btn-outline" onclick="fecharModalContrato()">Cancelar</button>
+      <button class="btn btn-green" onclick="salvarContratoManual()">Criar Contrato</button>
+    </div>
+  `;
+  document.getElementById("modal-contrato").classList.remove("hidden");
+}
+
+function salvarContratoManual() {
+  const escola = (document.getElementById("mc-escola").value || "").trim();
+  if (!escola) { showToast("Nome da escola é obrigatório.", 3000); return; }
+  const id = "CTR-" + Date.now().toString(36).toUpperCase();
+  const c = {
+    id,
+    escola,
+    edital: (document.getElementById("mc-edital").value || "").trim(),
+    processo: (document.getElementById("mc-processo").value || "").trim(),
+    vigencia: (document.getElementById("mc-vigencia").value || "").trim(),
+    fornecedor: (document.getElementById("mc-fornecedor").value || "").trim(),
+    status: document.getElementById("mc-status").value || "ativo",
+    objeto: (document.getElementById("mc-objeto").value || "").trim(),
+    observacoes: (document.getElementById("mc-obs").value || "").trim(),
+    dataApuracao: new Date().toISOString().split("T")[0],
+    itens: []
+  };
+  contratos.push(c);
+  saveContratos();
+  fecharModalContrato();
+  renderAll();
+  showToast("Contrato " + id + " criado! Adicione itens clicando no contrato.");
+}
+
+function adicionarItemContrato(contratoId) {
+  const c = contratos.find(x => x.id === contratoId);
+  if (!c) return;
+  const nextNum = c.itens.length + 1;
+  document.getElementById("modal-contrato-titulo").textContent = "Adicionar Item — " + c.id;
+  document.getElementById("modal-contrato-body").innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr;gap:1rem">
+      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Descrição do Produto</label><input type="text" id="ai-descricao" placeholder="Ex: Arroz tipo 1, 5kg" style="width:100%"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem">
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Unidade</label><input type="text" id="ai-unidade" value="Un" placeholder="Un/Kg/Cx/Pct" style="width:100%"></div>
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Qtd Contratada</label><input type="number" id="ai-qtd" value="1" min="1" style="width:100%"></div>
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Preço Unitário (R$)</label><input type="number" id="ai-preco" value="0" step="0.01" min="0" style="width:100%"></div>
+      </div>
+    </div>
+    <div style="margin-top:1.5rem;display:flex;gap:.8rem;justify-content:flex-end">
+      <button class="btn btn-outline" onclick="abrirContrato('${contratoId}')">Cancelar</button>
+      <button class="btn btn-green" onclick="salvarItemContrato('${contratoId}')">Adicionar</button>
+      <button class="btn btn-blue" onclick="salvarItemContrato('${contratoId}',true)">Adicionar + Novo</button>
+    </div>
+  `;
+}
+
+function salvarItemContrato(contratoId, continuar) {
+  const c = contratos.find(x => x.id === contratoId);
+  if (!c) return;
+  const descricao = (document.getElementById("ai-descricao").value || "").trim();
+  if (!descricao) { showToast("Descrição é obrigatória.", 3000); return; }
+  const item = {
+    num: c.itens.length + 1,
+    descricao,
+    unidade: (document.getElementById("ai-unidade").value || "Un").trim(),
+    qtdContratada: parseInt(document.getElementById("ai-qtd").value) || 1,
+    qtdEntregue: 0,
+    precoUnitario: parseFloat(document.getElementById("ai-preco").value) || 0
+  };
+  c.itens.push(item);
+  saveContratos();
+  showToast("Item " + item.num + " adicionado: " + descricao.slice(0, 40));
+  if (continuar) {
+    adicionarItemContrato(contratoId);
+  } else {
+    abrirContrato(contratoId);
+    renderAll();
+  }
+}
+
+function editarItemContrato(contratoId, idx) {
+  const c = contratos.find(x => x.id === contratoId);
+  if (!c || !c.itens[idx]) return;
+  const item = c.itens[idx];
+  document.getElementById("modal-contrato-titulo").textContent = "Editar Item #" + item.num + " — " + c.id;
+  document.getElementById("modal-contrato-body").innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr;gap:1rem">
+      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Descrição do Produto</label><input type="text" id="ei-descricao" value="${esc(item.descricao)}" style="width:100%"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:1rem">
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Unidade</label><input type="text" id="ei-unidade" value="${esc(item.unidade)}" style="width:100%"></div>
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Qtd Contratada</label><input type="number" id="ei-qtd" value="${item.qtdContratada}" min="0" style="width:100%"></div>
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Qtd Entregue</label><input type="number" id="ei-entregue" value="${item.qtdEntregue}" min="0" style="width:100%"></div>
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Preço Unitário (R$)</label><input type="number" id="ei-preco" value="${item.precoUnitario}" step="0.01" min="0" style="width:100%"></div>
+      </div>
+    </div>
+    <div style="margin-top:1.5rem;display:flex;gap:.8rem;justify-content:flex-end">
+      <button class="btn btn-outline" onclick="abrirContrato('${contratoId}')">Cancelar</button>
+      <button class="btn btn-sm btn-red" onclick="excluirItemContrato('${contratoId}',${idx})" style="margin-right:auto">Excluir Item</button>
+      <button class="btn btn-green" onclick="salvarEdicaoItem('${contratoId}',${idx})">Salvar</button>
+    </div>
+  `;
+}
+
+function salvarEdicaoItem(contratoId, idx) {
+  const c = contratos.find(x => x.id === contratoId);
+  if (!c || !c.itens[idx]) return;
+  const descricao = (document.getElementById("ei-descricao").value || "").trim();
+  if (!descricao) { showToast("Descrição é obrigatória.", 3000); return; }
+  c.itens[idx].descricao = descricao;
+  c.itens[idx].unidade = (document.getElementById("ei-unidade").value || "Un").trim();
+  c.itens[idx].qtdContratada = parseInt(document.getElementById("ei-qtd").value) || 0;
+  c.itens[idx].qtdEntregue = parseInt(document.getElementById("ei-entregue").value) || 0;
+  c.itens[idx].precoUnitario = parseFloat(document.getElementById("ei-preco").value) || 0;
+  saveContratos();
+  showToast("Item atualizado!");
+  abrirContrato(contratoId);
+  renderAll();
+}
+
+function excluirItemContrato(contratoId, idx) {
+  const c = contratos.find(x => x.id === contratoId);
+  if (!c || !c.itens[idx]) return;
+  if (!confirm("Excluir item: " + c.itens[idx].descricao + "?")) return;
+  c.itens.splice(idx, 1);
+  c.itens.forEach((item, i) => item.num = i + 1);
+  saveContratos();
+  showToast("Item excluído.");
+  abrirContrato(contratoId);
+  renderAll();
+}
+
 function abrirContrato(id) {
   const c = contratos.find(x => x.id === id);
   if (!c) return;
@@ -2363,30 +2756,36 @@ function abrirContrato(id) {
       </div>
       <div style="margin-top:.6rem;text-align:right"><button class="btn btn-sm btn-blue" onclick="salvarDadosContrato('${c.id}')">Salvar Dados</button></div>
     </div>
-    <h3 style="margin-bottom:.8rem;font-size:.9rem">Itens do Contrato</h3>
-    <div class="table-wrap" style="max-height:400px;overflow-y:auto">
-      <table>
-        <thead><tr><th>#</th><th>Item</th><th>Unid</th><th class="text-right">Contrat.</th><th class="text-right">Entreg.</th><th class="text-right">Saldo</th><th>Exec.</th><th class="text-right">Preco</th><th class="text-center">Entregar</th><th class="text-center">Tiny</th></tr></thead>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.8rem">
+      <h3 style="font-size:.9rem;margin:0">Itens do Contrato</h3>
+      <button class="btn btn-sm btn-green" onclick="adicionarItemContrato('${c.id}')">+ Adicionar Item</button>
+    </div>
+    <div class="table-wrap" style="max-height:50vh;overflow-y:auto">
+      <table style="font-size:.82rem">
+        <thead><tr><th>#</th><th>Item</th><th>Unid</th><th class="text-right">Contr.</th><th class="text-right">Entr.</th><th class="text-right">Saldo</th><th>%</th><th class="text-right">Preco</th><th class="text-center">Acoes</th></tr></thead>
         <tbody>${c.itens.map((item, idx) => {
           const saldo = item.qtdContratada - item.qtdEntregue;
           const pct = item.qtdContratada > 0 ? (item.qtdEntregue / item.qtdContratada * 100) : 0;
           return `<tr>
             <td class="text-center">${item.num}</td>
-            <td>${esc(item.descricao)}</td>
+            <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(item.descricao)}">${esc(item.descricao)}</td>
             <td class="nowrap">${esc(item.unidade)}</td>
             <td class="text-right font-mono">${item.qtdContratada}</td>
             <td class="text-right font-mono">${item.qtdEntregue}</td>
             <td class="text-right font-mono" style="font-weight:700;color:${saldo > 0 ? 'var(--yellow)' : 'var(--green)'}">${saldo}</td>
-            <td style="min-width:80px"><div class="progress"><div class="progress-fill ${pct >= 80 ? 'green' : pct >= 40 ? 'yellow' : 'blue'}" style="width:${pct}%"></div></div><span style="font-size:.65rem;color:var(--dim)">${pct.toFixed(0)}%</span></td>
+            <td style="min-width:60px"><div class="progress"><div class="progress-fill ${pct >= 80 ? 'green' : pct >= 40 ? 'yellow' : 'blue'}" style="width:${pct}%"></div></div><span style="font-size:.6rem;color:var(--dim)">${pct.toFixed(0)}%</span></td>
             <td class="text-right font-mono">${brl.format(item.precoUnitario)}</td>
-            <td class="text-center">${saldo > 0 ? `<input type="number" min="0" max="${saldo}" value="0" style="width:60px;text-align:center" id="entrega-${c.id}-${idx}">` : '<span class="badge badge-green">OK</span>'}</td>
-            <td class="text-center"><button class="btn btn-sm btn-purple" style="font-size:.7rem;padding:.2rem .5rem" onclick="cadastrarTinyItem('${c.id}',${idx})" title="Cadastrar este item no Tiny">Tiny</button></td>
+            <td class="text-center" style="white-space:nowrap">
+              <button class="btn btn-sm btn-outline" style="font-size:.6rem;padding:.15rem .35rem" onclick="editarItemContrato('${c.id}',${idx})" title="Editar item">✏️</button>
+              <button class="btn btn-sm btn-purple" style="font-size:.6rem;padding:.15rem .35rem" onclick="cadastrarTinyItem('${c.id}',${idx})" title="Cadastrar no Tiny">Tiny</button>
+              <button class="btn btn-sm btn-red" style="font-size:.6rem;padding:.15rem .35rem" onclick="excluirItemContrato('${c.id}',${idx})" title="Excluir item">✕</button>
+            </td>
           </tr>`;
         }).join("")}</tbody>
       </table>
     </div>
-    <div style="margin-top:1rem;display:flex;gap:.8rem;justify-content:flex-end;flex-wrap:wrap">
-      <button class="btn btn-outline" onclick="fecharModalContrato()">Fechar</button>
+    <div style="margin-top:1rem;padding-top:.8rem;border-top:1px solid var(--bdr);display:flex;justify-content:flex-end">
+      <button class="btn btn-outline btn-sm" onclick="fecharModalContrato()">Fechar</button>
     </div>
     <div id="tiny-result-${c.id}" class="hidden" style="margin-top:1rem;padding:1rem;border-radius:8px;background:var(--s1);border:1px solid var(--bdr);font-size:.85rem"></div>`;
 
@@ -2790,7 +3189,9 @@ function renderKPIs() {
   document.getElementById("kpi-valor").textContent = brl.format(totalValor);
   document.getElementById("kpi-pendentes").textContent = pendentes;
   document.getElementById("tab-count-contratos").textContent = contratos.length;
+  document.getElementById("tab-count-itens").textContent = contratos.reduce((s, c) => s + (c.itens ? c.itens.length : 0), 0);
   document.getElementById("tab-count-pedidos").textContent = pedidos.length;
+  document.getElementById("tab-count-usuarios").textContent = usuarios.length;
 }
 
 // ===== RENDER ALL =====
