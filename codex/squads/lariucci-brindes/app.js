@@ -235,24 +235,9 @@ function placeOrder() {
 // --- Init ---
 async function init() {
   try {
-    // Check localStorage for admin-updated data first, fallback to static JSON
-    let data;
-    const stored = localStorage.getItem('lariucci_products_data');
-    if (stored) {
-      data = JSON.parse(stored);
-    }
-    // If no stored data or missing menu, load static file
-    if (!data || !data.menu) {
-      const resp = await fetch('data/products-reseller.json');
-      const staticData = await resp.json();
-      if (!data) {
-        data = staticData;
-      } else {
-        // Merge: keep fresh products, add missing menu/categories
-        data.menu = staticData.menu;
-        data.categories = data.categories || staticData.categories;
-      }
-    }
+    const resp = await fetch('data/products-reseller.json');
+    const data = await resp.json();
+
     allProducts = data.products;
     menuData = data.menu;
     buildCategoryMap(data);

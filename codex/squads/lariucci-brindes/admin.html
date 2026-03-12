@@ -283,33 +283,19 @@ function doLogout() {
 }
 
 function loadStats() {
-  try {
-    const stored = localStorage.getItem(PRODUCTS_KEY);
-    if (stored) {
-      const data = JSON.parse(stored);
-      document.getElementById('statProducts').textContent = data.meta?.totalProducts || '--';
-      const date = data.meta?.generatedAt;
-      if (date) {
-        const d = new Date(date);
-        document.getElementById('statUpdated').textContent =
-          d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
-      }
-      return;
+  function showMeta(data) {
+    document.getElementById('statProducts').textContent = data.meta?.totalProducts || '--';
+    const date = data.meta?.generatedAt;
+    if (date) {
+      const d = new Date(date);
+      document.getElementById('statUpdated').textContent =
+        d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
     }
-  } catch(e) {}
+  }
 
-  // Try loading from the JSON file
   fetch('data/products-reseller.json')
     .then(r => r.json())
-    .then(data => {
-      document.getElementById('statProducts').textContent = data.meta?.totalProducts || '--';
-      const date = data.meta?.generatedAt;
-      if (date) {
-        const d = new Date(date);
-        document.getElementById('statUpdated').textContent =
-          d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
-      }
-    })
+    .then(data => showMeta(data))
     .catch(() => {});
 }
 
@@ -348,16 +334,16 @@ async function updateProducts() {
   addLog('Iniciando atualizacao de produtos...');
 
   try {
-    setProgress(20, 'Buscando produtos do fornecedor...');
-    addLog('Chamando API de atualizacao (pode levar 1-2 min)...');
+    setProgress(20, 'Solicitando atualizacao ao servidor...');
+    addLog('Disparando redeploy com produtos frescos do fornecedor...');
 
-    const res = await fetch('/.netlify/functions/update-products', {
+    const res = await fetch('/api/update-products', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ user: session.user, pass: session.pass })
     });
 
-    setProgress(70, 'Processando resposta...');
+    setProgress(80, 'Processando resposta...');
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
@@ -367,60 +353,19 @@ async function updateProducts() {
       throw new Error(err.error || 'Erro do servidor (codigo ' + res.status + '). Tente novamente.');
     }
 
-    const freshData = await res.json();
-    setProgress(75, 'Mesclando com dados de categorias e imagens...');
-    addLog('Recebidos ' + freshData.products.length + ' produtos frescos');
+    const result = await res.json();
 
-    // Load static data (has categories, subcategories, images, menu)
-    let staticData = null;
-    try {
-      const staticRes = await fetch('data/products-reseller.json');
-      staticData = await staticRes.json();
-      addLog('Dados estaticos carregados (categorias, imagens)');
-    } catch(e) {
-      addLog('Aviso: dados estaticos nao encontrados, usando apenas dados frescos');
-    }
-
-    // Merge: use fresh prices/stock, keep static categories/subcategories/images
-    if (staticData) {
-      const staticMap = {};
-      for (const p of staticData.products) staticMap[p.id] = p;
-
-      for (const p of freshData.products) {
-        const sp = staticMap[p.id];
-        if (sp) {
-          p.categories = sp.categories;
-          p.subcategories = sp.subcategories;
-          if (sp.allImages && sp.allImages.length > 1) {
-            p.allImages = sp.allImages;
-            p.mainImage = sp.mainImage;
-            p.thumbs = sp.thumbs || [];
-          }
-        }
-      }
-      // Carry over menu and categories from static
-      freshData.menu = staticData.menu;
-      freshData.categories = staticData.categories;
-    }
-
-    setProgress(85, 'Salvando dados localmente...');
-    addLog('Salvando no armazenamento local...');
-
-    // Save to localStorage for the store to use
-    const data = freshData;
-    localStorage.setItem(PRODUCTS_KEY, JSON.stringify(data));
-
-    setProgress(100, 'Concluido!');
-    addLog('Atualizacao concluida com sucesso!');
-    addLog(data.products.length + ' produtos com margem de 60%');
+    setProgress(100, 'Redeploy iniciado!');
+    addLog('Redeploy disparado com sucesso!');
+    addLog('O site sera atualizado automaticamente em 1-2 minutos.');
+    addLog('Todos os visitantes verao os produtos atualizados apos o deploy concluir.');
     addLog('Data: ' + new Date().toLocaleString('pt-BR'));
 
-    successMsg.innerHTML = '<strong>Produtos atualizados com sucesso!</strong><br>' +
-      data.products.length + ' produtos carregados com margem de 60%.<br>' +
-      'A loja ja esta usando os dados atualizados.';
+    successMsg.innerHTML = '<strong>Atualizacao iniciada com sucesso!</strong><br>' +
+      'O site esta sendo reconstruido com os produtos mais recentes do fornecedor.<br>' +
+      'Em 1-2 minutos todos os visitantes verao os dados atualizados.<br>' +
+      '<small>Voce pode recarregar a pagina apos 2 minutos para ver as mudancas.</small>';
     successMsg.style.display = 'block';
-
-    loadStats();
   } catch (error) {
     setProgress(0, 'Erro na atualizacao');
     addLog('ERRO: ' + error.message);
