@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>NexEdu — Painel do Fornecedor</title>
+  <title>Licit-IAX — Painel do Fornecedor</title>
   <link rel="stylesheet" href="styles.css?v=7" />
   <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -14,7 +14,7 @@
 
   <!-- ===== SIDEBAR ===== -->
   <aside class="sidebar" id="sidebar">
-    <div class="sidebar-brand">NexEdu</div>
+    <div class="sidebar-brand">Licit-IAX</div>
     <nav class="sidebar-nav">
       <button class="sidebar-item active" data-module="radar" title="Radar de Oportunidades">
         <span class="sidebar-icon">📡</span>
@@ -44,47 +44,23 @@
         <button class="sidebar-toggle" id="sidebar-toggle" title="Menu">☰</button>
         <div>
           <p class="eyebrow">Painel do Fornecedor</p>
-          <h1>NexEdu</h1>
+          <h1>Licit-IAX</h1>
         </div>
       </div>
       <div class="topbar-right">
         <span class="mode-indicator" id="mode-indicator"></span>
         <div class="pill" id="pill-sre">SRE Uberaba</div>
-        <div class="pill" id="pill-fornecedor">LARIUCCI • Conquista-MG</div>
+
         <button id="btn-varrer-sgd" class="btn btn-sm btn-sgd" style="display:none;" title="Varrer novos orçamentos no SGD">Varrer SGD</button>
         <button class="btn btn-sm" onclick="logout()" title="Sair">Sair</button>
       </div>
     </header>
 
-    <!-- ===== KPIs ===== -->
-  <section class="kpis">
-    <article class="card kpi">
-      <p>Orçamentos abertos</p>
-      <strong id="kpi-abertos">0</strong>
-    </article>
-    <article class="card kpi">
-      <p>Prazo urgente (&lt;3d)</p>
-      <strong id="kpi-urgentes">0</strong>
-    </article>
-    <article class="card kpi">
-      <p>Pré-orçamentos pendentes</p>
-      <strong id="kpi-pendentes">0</strong>
-    </article>
-    <article class="card kpi">
-      <p>Faturamento potencial</p>
-      <strong id="kpi-faturamento">R$ 0</strong>
-    </article>
-    <article class="card kpi">
-      <p>Margem média</p>
-      <strong id="kpi-margem">0%</strong>
-    </article>
-  </section>
-
-  <!-- ===== INTELIGÊNCIA ===== -->
-  <section class="intel-panel" id="intel-panel">
+  <!-- ===== RADAR DASHBOARD ===== -->
+  <section class="intel-panel" id="radar-dashboard">
     <div class="card">
       <div class="intel-header" id="intel-toggle">
-        <h2>Inteligência</h2>
+        <h2>Radar — Visão Geral</h2>
         <span class="intel-chevron" id="intel-chevron">▼</span>
       </div>
       <div class="intel-body" id="intel-body">
@@ -116,13 +92,94 @@
     </div>
   </section>
 
+  <!-- ===== INTEL PREÇOS: KPIs + DASHBOARD (acima das tabs) ===== -->
+  <section id="intel-precos-dashboard" style="display:none;">
+    <section class="kpis">
+      <article class="card kpi">
+        <p>Orçamentos abertos</p>
+        <strong id="kpi-abertos">0</strong>
+      </article>
+      <article class="card kpi">
+        <p>Prazo urgente (&lt;3d)</p>
+        <strong id="kpi-urgentes">0</strong>
+      </article>
+      <article class="card kpi">
+        <p>Pré-orçamentos pendentes</p>
+        <strong id="kpi-pendentes">0</strong>
+      </article>
+      <article class="card kpi">
+        <p>Faturamento potencial</p>
+        <strong id="kpi-faturamento">R$ 0</strong>
+      </article>
+      <article class="card kpi">
+        <p>Margem média</p>
+        <strong id="kpi-margem">0%</strong>
+      </article>
+    </section>
+
+    <div class="card">
+      <div class="table-head">
+        <h2>Dashboard de Inteligência de Preços</h2>
+      </div>
+      <div id="pricing-alerts" class="pricing-alerts"></div>
+      <div class="pricing-kpis">
+        <article class="pricing-kpi-card">
+          <p>Itens no Banco</p>
+          <strong id="pk-total-itens">0</strong>
+        </article>
+        <article class="pricing-kpi-card">
+          <p>Custo Médio</p>
+          <strong id="pk-custo-medio">R$ 0</strong>
+        </article>
+        <article class="pricing-kpi-card">
+          <p>Margem Média</p>
+          <strong id="pk-margem-media">0%</strong>
+        </article>
+        <article class="pricing-kpi-card">
+          <p>Competitivos</p>
+          <strong id="pk-competitivos" class="text-accent">0%</strong>
+        </article>
+        <article class="pricing-kpi-card">
+          <p>Cotações Vencidas (&gt;90d)</p>
+          <strong id="pk-vencidos" class="text-danger">0</strong>
+        </article>
+        <article class="pricing-kpi-card">
+          <p>Faturamento Aprovado</p>
+          <strong id="pk-faturamento">R$ 0</strong>
+        </article>
+      </div>
+      <div class="pricing-charts">
+        <div class="pricing-chart-box">
+          <h3>Top 10 Itens Mais Cotados</h3>
+          <div id="chart-top-cotados"></div>
+        </div>
+        <div class="pricing-chart-box">
+          <h3>Margem por Grupo</h3>
+          <div id="chart-margem-grupo"></div>
+        </div>
+      </div>
+      <div class="pricing-charts">
+        <div class="pricing-chart-box">
+          <h3>Evolução de Custos (Últimas Cotações)</h3>
+          <div id="chart-evolucao-custos"></div>
+        </div>
+        <div class="pricing-chart-box">
+          <h3>Competitividade por Grupo</h3>
+          <div id="chart-competitividade"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- ===== NAVEGAÇÃO TABS (Intel. Preços) ===== -->
   <nav class="tabs" id="tabs-intel-precos" style="display:none;">
     <button class="tab active" data-tab="pre-orcamento">Pré-Orçamento</button>
+    <button class="tab" data-tab="aprovados">Aprovados</button>
+    <button class="tab" data-tab="envio-sgd">Envio SGD</button>
+    <button class="tab" data-tab="historico">Histórico</button>
     <button class="tab" data-tab="banco-precos">Banco de Preços</button>
-    <button class="tab" data-tab="dashboard-precos">Dashboard</button>
+
     <button class="tab" data-tab="rentabilidade">Rentabilidade</button>
-    <button class="tab" data-tab="sgd">SGD</button>
   </nav>
 
   <!-- ===== TAB: ORÇAMENTOS ===== -->
@@ -300,7 +357,7 @@
           <button id="btn-recusar" class="btn btn-danger">Recusar</button>
           <button id="btn-editar-orcamento" class="btn btn-warning" style="display:none;">Editar</button>
           <button id="btn-enviar-sgd" class="btn btn-sgd" style="display:none;">Enviar ao SGD</button>
-          <button id="btn-ir-sgd" class="btn btn-sm" style="display:none;" onclick="switchTab('sgd')">Ver fila SGD</button>
+          <button id="btn-ir-sgd" class="btn btn-sm" style="display:none;" onclick="switchTab('envio-sgd')">Ver fila SGD</button>
         </div>
       </div>
 
@@ -333,8 +390,11 @@
         <h2>Banco de Preços</h2>
         <div class="table-head-actions">
           <button id="btn-import-excel" class="btn btn-sm">Importar Cotacao</button>
+          <button id="btn-import-ai" class="btn btn-sm btn-sgd">Importar com IA</button>
+          <button id="btn-pncp-batch" class="btn btn-sm" title="Consultar preços de referência no PNCP para todos os itens">Consultar PNCP</button>
           <button id="btn-add-preco" class="btn btn-sm btn-accent">+ Novo Item</button>
           <button id="btn-export-banco" class="btn btn-sm">Exportar CSV</button>
+          <button id="btn-excluir-selecionados-banco" class="btn btn-sm btn-danger" style="display:none;">Excluir Selecionados (<span id="banco-sel-count">0</span>)</button>
           <button id="btn-limpar-banco" class="btn btn-sm btn-danger">Limpar Banco</button>
         </div>
       </div>
@@ -346,10 +406,20 @@
         <input type="text" id="filtro-banco-texto" placeholder="Buscar item..." />
       </div>
 
+      <!-- PNCP Progress -->
+      <div id="pncp-progress" style="display:none;margin:8px 0;padding:8px 12px;background:var(--bg);border-radius:6px;border:1px solid var(--line);">
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:0.8rem;">
+          <span class="label">Consultando PNCP...</span>
+          <span class="pct">0%</span>
+        </div>
+        <progress class="bar" value="0" max="100" style="width:100%;height:6px;margin-top:4px;"></progress>
+      </div>
+
       <div class="table-wrap">
         <table id="tabela-banco">
           <thead>
             <tr>
+              <th style="width:30px"><input type="checkbox" id="banco-select-all" title="Selecionar todos" /></th>
               <th>Item</th>
               <th>Marca</th>
               <th>Grupo</th>
@@ -369,68 +439,6 @@
     </div>
   </section>
 
-  <!-- ===== TAB: DASHBOARD PREÇOS ===== -->
-  <section id="tab-dashboard-precos" class="tab-content">
-    <div class="card">
-      <div class="table-head">
-        <h2>Dashboard de Inteligência de Preços</h2>
-      </div>
-
-      <!-- Alertas -->
-      <div id="pricing-alerts" class="pricing-alerts"></div>
-
-      <!-- KPIs de Preço -->
-      <div class="pricing-kpis">
-        <article class="pricing-kpi-card">
-          <p>Itens no Banco</p>
-          <strong id="pk-total-itens">0</strong>
-        </article>
-        <article class="pricing-kpi-card">
-          <p>Custo Médio</p>
-          <strong id="pk-custo-medio">R$ 0</strong>
-        </article>
-        <article class="pricing-kpi-card">
-          <p>Margem Média</p>
-          <strong id="pk-margem-media">0%</strong>
-        </article>
-        <article class="pricing-kpi-card">
-          <p>Competitivos</p>
-          <strong id="pk-competitivos" class="text-accent">0%</strong>
-        </article>
-        <article class="pricing-kpi-card">
-          <p>Cotações Vencidas (&gt;90d)</p>
-          <strong id="pk-vencidos" class="text-danger">0</strong>
-        </article>
-        <article class="pricing-kpi-card">
-          <p>Faturamento Aprovado</p>
-          <strong id="pk-faturamento">R$ 0</strong>
-        </article>
-      </div>
-
-      <!-- Charts -->
-      <div class="pricing-charts">
-        <div class="pricing-chart-box">
-          <h3>Top 10 Itens Mais Cotados</h3>
-          <div id="chart-top-cotados"></div>
-        </div>
-        <div class="pricing-chart-box">
-          <h3>Margem por Grupo</h3>
-          <div id="chart-margem-grupo"></div>
-        </div>
-      </div>
-
-      <div class="pricing-charts">
-        <div class="pricing-chart-box">
-          <h3>Evolução de Custos (Últimas Cotações)</h3>
-          <div id="chart-evolucao-custos"></div>
-        </div>
-        <div class="pricing-chart-box">
-          <h3>Competitividade por Grupo</h3>
-          <div id="chart-competitividade"></div>
-        </div>
-      </div>
-    </div>
-  </section>
 
   <!-- ===== TAB: RENTABILIDADE ===== -->
   <section id="tab-rentabilidade" class="tab-content">
@@ -538,8 +546,28 @@
     </div>
   </section>
 
-  <!-- ===== TAB: SGD ===== -->
-  <section id="tab-sgd" class="tab-content">
+  <!-- ===== TAB: APROVADOS / CONTRATOS ===== -->
+  <section id="tab-aprovados" class="tab-content">
+    <div class="card">
+      <div class="table-head">
+        <h2>Orçamentos Aprovados & Contratos</h2>
+        <div class="table-head-actions">
+          <button id="btn-export-contratos" class="btn btn-sm">Exportar CSV</button>
+        </div>
+      </div>
+      <div class="pricing-kpis" id="kpi-aprovados">
+        <article class="pricing-kpi-card"><p>Contratos Ativos</p><strong id="ak-ativos">0</strong></article>
+        <article class="pricing-kpi-card"><p>Em Entrega</p><strong id="ak-entrega">0</strong></article>
+        <article class="pricing-kpi-card"><p>Concluídos</p><strong id="ak-concluidos">0</strong></article>
+        <article class="pricing-kpi-card"><p>Valor em Contratos</p><strong id="ak-valor" class="text-accent">R$ 0</strong></article>
+      </div>
+      <div id="lista-aprovados"></div>
+      <p id="aprovados-empty" class="empty-msg" style="display:none;">Nenhum contrato registrado. Registre resultados na aba "Envio SGD".</p>
+    </div>
+  </section>
+
+  <!-- ===== TAB: ENVIO SGD ===== -->
+  <section id="tab-envio-sgd" class="tab-content">
     <div class="card">
       <div class="table-head">
         <h2>Envio ao SGD</h2>
@@ -559,6 +587,10 @@
         <div class="sgd-kpi-card">
           <p>Enviados</p>
           <strong id="sgd-kpi-enviados" class="text-accent">0</strong>
+        </div>
+        <div class="sgd-kpi-card">
+          <p>Ganhos</p>
+          <strong id="sgd-kpi-ganhos" class="text-accent">0</strong>
         </div>
         <div class="sgd-kpi-card">
           <p>Valor total</p>
@@ -586,6 +618,31 @@
     </div>
   </section>
 
+  <!-- ===== TAB: HISTÓRICO GANHOS/PERDIDOS ===== -->
+  <section id="tab-historico" class="tab-content">
+    <div class="card">
+      <div class="table-head">
+        <h2>Histórico de Propostas — Referência de Preços</h2>
+      </div>
+      <div class="pricing-kpis" id="kpi-historico">
+        <article class="pricing-kpi-card"><p>Total Propostas</p><strong id="hk-total">0</strong></article>
+        <article class="pricing-kpi-card"><p>Ganhas</p><strong id="hk-ganhos" class="text-accent">0</strong></article>
+        <article class="pricing-kpi-card"><p>Perdidas</p><strong id="hk-perdidos" class="text-danger">0</strong></article>
+        <article class="pricing-kpi-card"><p>Taxa de Conversão</p><strong id="hk-taxa">0%</strong></article>
+        <article class="pricing-kpi-card"><p>Faturamento Ganho</p><strong id="hk-faturamento" class="text-accent">R$ 0</strong></article>
+        <article class="pricing-kpi-card"><p>Delta Médio (perdas)</p><strong id="hk-delta" class="text-danger">—</strong></article>
+      </div>
+      <div class="rent-tabs" id="sub-tabs-historico">
+        <button class="rent-tab active" onclick="switchHistoricoTab('ganhos')">Ganhos</button>
+        <button class="rent-tab" onclick="switchHistoricoTab('perdidos')">Perdidos</button>
+        <button class="rent-tab" onclick="switchHistoricoTab('analise')">Análise Comparativa</button>
+      </div>
+      <div id="hist-ganhos" class="rent-content active"></div>
+      <div id="hist-perdidos" class="rent-content" style="display:none;"></div>
+      <div id="hist-analise" class="rent-content" style="display:none;"></div>
+    </div>
+  </section>
+
   <!-- ===== PAINEL DE CONFIGURAÇÕES ===== -->
   <section id="config-panel" class="tab-content">
     <div class="card">
@@ -595,6 +652,7 @@
       <nav class="config-tabs">
         <button class="config-tab active" data-config-tab="empresa">Dados da Empresa</button>
         <button class="config-tab" data-config-tab="usuarios">Cadastro de Usuários</button>
+        <button class="config-tab" data-config-tab="sincronizar">Sincronizar Dados</button>
       </nav>
       <!-- Dados da Empresa -->
       <div id="config-empresa" class="config-content active">
@@ -695,6 +753,16 @@
         <div class="modal-actions" style="margin-top:16px;">
           <button id="btn-add-usuario" class="btn btn-accent">+ Adicionar Usuário</button>
         </div>
+      </div>
+      <!-- Sincronizar Dados -->
+      <div id="config-sincronizar" class="config-content">
+        <p style="color:var(--muted);margin-bottom:16px;">Use Exportar/Importar para transferir seus dados (contratos, banco de precos, configuracoes) entre maquinas diferentes.</p>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;">
+          <button class="btn btn-accent" onclick="exportarTodosDados()">📤 Exportar Todos os Dados</button>
+          <button class="btn btn-secondary" onclick="document.getElementById('sync-import-file').click()">📥 Importar Dados de Arquivo</button>
+          <input type="file" id="sync-import-file" accept=".json" style="display:none" onchange="importarTodosDados(this.files[0])" />
+        </div>
+        <div id="sync-status" style="margin-top:16px;font-size:.85rem;color:var(--muted);"></div>
       </div>
     </div>
   </section>
@@ -816,6 +884,69 @@
       <div class="modal-actions">
         <button id="btn-modal-salvar" class="btn btn-accent">Salvar</button>
         <button id="btn-modal-cancelar" class="btn">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== MODAL: Registrar Resultado SGD ===== -->
+  <div id="modal-resultado" class="modal-overlay" style="display:none;">
+    <div class="modal card" style="max-width:600px;">
+      <h2>Registrar Resultado</h2>
+      <p class="text-muted" style="font-size:0.82rem;" id="res-escola-info"></p>
+
+      <div style="display:flex;gap:12px;margin:16px 0;">
+        <button class="btn btn-accent" id="btn-res-ganho" onclick="selectResultado('ganho')" style="flex:1;padding:16px;font-size:1rem;">GANHEI</button>
+        <button class="btn btn-danger" id="btn-res-perdido" onclick="selectResultado('perdido')" style="flex:1;padding:16px;font-size:1rem;">PERDI</button>
+      </div>
+
+      <div id="campos-perda" style="display:none;">
+        <label>Valor do vencedor (total) <input type="number" id="res-valor-vencedor" step="0.01" placeholder="R$" /></label>
+        <label>Fornecedor vencedor <input type="text" id="res-fornecedor-vencedor" placeholder="Nome do fornecedor" /></label>
+        <label>Motivo principal
+          <select id="res-motivo">
+            <option value="preco">Preço mais alto</option>
+            <option value="tecnico">Critério técnico</option>
+            <option value="desclassificado">Desclassificado</option>
+            <option value="outro">Outro</option>
+          </select>
+        </label>
+      </div>
+
+      <div id="campos-ganho" style="display:none;">
+        <label style="display:flex;align-items:center;gap:8px;">
+          <input type="checkbox" id="res-gerar-contrato" checked />
+          Gerar contrato automaticamente
+        </label>
+      </div>
+
+      <label>Observações <textarea id="res-observacoes" rows="2" placeholder="Notas sobre o resultado..."></textarea></label>
+      <label>Data do resultado <input type="date" id="res-data" /></label>
+
+      <div class="modal-actions">
+        <button class="btn btn-accent" id="btn-salvar-resultado" onclick="salvarResultado()" style="display:none;">Salvar Resultado</button>
+        <button class="btn" onclick="fecharModalResultado()">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== MODAL: Detalhes do Contrato ===== -->
+  <div id="modal-contrato" class="modal-overlay" style="display:none;">
+    <div class="modal card" style="max-width:700px;">
+      <h2 id="modal-contrato-titulo">Contrato</h2>
+      <div id="modal-contrato-body"></div>
+      <div class="modal-actions">
+        <button class="btn" onclick="document.getElementById('modal-contrato').style.display='none'">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== MODAL: Fontes de Preço B2B ===== -->
+  <div id="modal-fontes" class="modal-overlay" style="display:none;">
+    <div class="modal card" style="max-width:700px;">
+      <h2 id="modal-fontes-titulo">Fontes de Preço</h2>
+      <div id="modal-fontes-body"></div>
+      <div class="modal-actions">
+        <button class="btn" onclick="document.getElementById('modal-fontes').style.display='none'">Fechar</button>
       </div>
     </div>
   </div>

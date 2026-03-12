@@ -262,11 +262,6 @@
     </div>
     <button class="btn btn-primary" onclick="doLogin()">Entrar no Portal</button>
     <div class="login-error" id="login-error">Login ou senha inválidos</div>
-    <div class="login-hint">
-      <strong>Escolas cadastradas para teste:</strong><br>
-      alceu.novaes | ceopee | bernardo.vasconcelos | tapira | maestro<br>
-      Senha: <strong>escola2025</strong>
-    </div>
   </div>
 </div>
 
@@ -282,7 +277,7 @@
     <div class="topbar-right">
       <span>ARP: <strong>Lariucci & Ribeiro Pereira</strong></span>
       <span class="saldo-badge saldo-ok" id="topbar-saldo"></span>
-      <a href="index.html" class="btn btn-outline btn-sm" style="color:#22c55e;text-decoration:none">← NexEdu</a>
+      <a href="index.html" class="btn btn-outline btn-sm" style="color:#22c55e;text-decoration:none" onclick="localStorage.setItem('nexedu.activeModule','radar')">← Licit-IAX</a>
       <button class="btn btn-outline btn-sm" onclick="logout()">Sair</button>
     </div>
   </div>
@@ -301,6 +296,10 @@
       <button class="escola-tab active" data-tab="catalogo" onclick="switchEscolaTab('catalogo')">Catalogo</button>
       <button class="escola-tab" data-tab="saldo" onclick="switchEscolaTab('saldo')">Saldo Contrato</button>
       <button class="escola-tab" data-tab="meus-pedidos" onclick="switchEscolaTab('meus-pedidos')">Meus Pedidos</button>
+    </div>
+
+    <!-- CONTRACT INFO PANEL (shown when contract selected) -->
+    <div id="contract-info-panel" class="hidden" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1rem 1.5rem;margin-bottom:1rem;display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.8rem;font-size:.82rem">
     </div>
 
     <div id="tab-catalogo-wrapper" class="hidden">
@@ -675,14 +674,20 @@ function showContractSelection() {
     const saldoDisp = Math.round((totalValue - totalEntregue) * 100) / 100;
     const delivered = c.itens.reduce((s, item) => s + (item.qtdEntregue || 0), 0);
     const total = c.itens.reduce((s, item) => s + item.qtdContratada, 0);
+    // Build simplified title: Processo + recurso first
+    const titleParts = [];
+    if (c.processo) titleParts.push('Proc. ' + c.processo);
+    if (c.objeto) titleParts.push(c.objeto.length > 30 ? c.objeto.slice(0, 28) + '...' : c.objeto);
+    else if (c.edital) titleParts.push(c.edital);
+    const cardTitle = titleParts.length > 0 ? titleParts.join(' — ') : c.id;
     cardsHtml += `
       <div class="contract-card" onclick="selectContract('ctr', ${i})">
         <span class="contract-card-badge badge-ativo">${c.status || 'ativo'}</span>
         <div class="contract-card-icon">📁</div>
-        <div class="contract-card-title">${c.edital || c.id}</div>
-        <div class="contract-card-detail">${c.itens.length} itens contratados</div>
-        <div class="contract-card-detail">Fornecedor: ${c.fornecedor || 'Lariucci'}</div>
+        <div class="contract-card-title">${cardTitle}</div>
+        <div class="contract-card-detail">${c.itens.length} itens · ${c.fornecedor || 'Lariucci'}</div>
         <div class="contract-card-detail">Entregue: ${delivered}/${total} unidades</div>
+        ${c.vigencia ? '<div class="contract-card-detail">Vigencia: ' + c.vigencia + '</div>' : ''}
         <div class="contract-card-value">Contrato: ${brl(totalValue)}</div>
         <div class="contract-card-detail" style="color:var(--success);font-weight:700">Saldo: ${brl(saldoDisp)}</div>
       </div>
@@ -753,7 +758,8 @@ function selectContract(type, idx) {
         estoque: 0
       };
     });
-    selectedContract = { type: 'ctr', idx, label: c.edital || c.id, contrato: c };
+    const ctrLabel = [c.processo ? 'Proc. ' + c.processo : '', c.objeto || c.edital || c.id].filter(Boolean).join(' — ');
+    selectedContract = { type: 'ctr', idx, label: ctrLabel, contrato: c };
 
     // Calculate saldo from contract data (consistent with qtdDisponivel)
     const contratoTotal = c.itens.reduce((s, i) => s + (i.precoUnitario * i.qtdContratada), 0);
@@ -770,6 +776,26 @@ function selectContract(type, idx) {
 
   // Show selected contract label
   document.getElementById('selected-contract-label').textContent = `📁 ${selectedContract.label}`;
+
+  // Show contract info panel
+  const infoPanel = document.getElementById('contract-info-panel');
+  if (selectedContract.contrato) {
+    const cc = selectedContract.contrato;
+    let infoHtml = '';
+    if (cc.processo) infoHtml += `<div><span style="color:var(--dim);font-size:.72rem;text-transform:uppercase;display:block">Processo</span><strong>${cc.processo}</strong></div>`;
+    if (cc.edital) infoHtml += `<div><span style="color:var(--dim);font-size:.72rem;text-transform:uppercase;display:block">Edital</span><strong>${cc.edital}</strong></div>`;
+    if (cc.objeto) infoHtml += `<div><span style="color:var(--dim);font-size:.72rem;text-transform:uppercase;display:block">Objeto</span><strong>${cc.objeto.length > 50 ? cc.objeto.slice(0,48) + '...' : cc.objeto}</strong></div>`;
+    if (cc.vigencia) infoHtml += `<div><span style="color:var(--dim);font-size:.72rem;text-transform:uppercase;display:block">Vigencia</span><strong>${cc.vigencia}</strong></div>`;
+    if (cc.observacoes) infoHtml += `<div style="grid-column:1/-1"><span style="color:var(--dim);font-size:.72rem;text-transform:uppercase;display:block">Observacoes</span><span style="color:var(--muted)">${cc.observacoes}</span></div>`;
+    if (infoHtml) {
+      infoPanel.innerHTML = infoHtml;
+      infoPanel.classList.remove('hidden');
+    } else {
+      infoPanel.classList.add('hidden');
+    }
+  } else {
+    infoPanel.classList.add('hidden');
+  }
 
   // Hide contract selection, show tabs and catalog
   document.getElementById('contract-selection-screen').classList.add('hidden');
@@ -792,6 +818,8 @@ function backToContracts() {
   cart = {};
   selectedContract = null;
   updateCartFloat();
+  const infoPanel = document.getElementById('contract-info-panel');
+  if (infoPanel) infoPanel.classList.add('hidden');
   showContractSelection();
 }
 
@@ -1153,6 +1181,14 @@ async function confirmOrder() {
     }).catch(() => {});
   });
 
+  const _ctrId = (selectedContract && selectedContract.contrato) ? selectedContract.contrato.id : (currentUser.arp_vinculada || "ARP-LARIUCCI-2025");
+  const _ctr = selectedContract ? selectedContract.contrato : null;
+  const _obsParts = [];
+  if (_ctr && _ctr.processo) _obsParts.push("Processo: " + _ctr.processo);
+  if (_ctr && _ctr.edital) _obsParts.push("Edital: " + _ctr.edital);
+  if (_ctr && _ctr.objeto) _obsParts.push("Objeto: " + _ctr.objeto);
+  if (_ctr && _ctr.vigencia) _obsParts.push("Vigencia: " + _ctr.vigencia);
+  if (_ctr && _ctr.observacoes) _obsParts.push(_ctr.observacoes);
   escolaOrders.push({
     protocol: proto,
     school: currentUser.nome_completo,
@@ -1161,7 +1197,9 @@ async function confirmOrder() {
     total: total,
     olistId: olistId,
     olistStatus: olistStatus,
-    items: orderItems
+    items: orderItems,
+    contratoId: _ctrId,
+    obsContrato: _obsParts.join(" | ")
   });
   localStorage.setItem('gdp.escola.pedidos', JSON.stringify(escolaOrders));
   schedulCloudSync();
@@ -1169,12 +1207,14 @@ async function confirmOrder() {
   // Sincronizar pedido com servidor (para entregador e contratos verem)
   const pedidoSync = {
     id: proto,
-    contratoId: (selectedContract && selectedContract.contrato) ? selectedContract.contrato.id : (currentUser.arp_vinculada || "ARP-LARIUCCI-2025"),
+    contratoId: _ctrId,
     escola: currentUser.nome_completo,
     data: now.toISOString().slice(0,10),
     itens: orderItems.map(i => ({ itemNum: i.itemNum, descricao: i.name, qtd: i.qty, precoUnitario: i.unitPrice })),
     valor: total,
-    status: 'recebido'
+    status: 'recebido',
+    obs: _obsParts.join(" | "),
+    saldoDeduzido: true
   };
   fetch("/api/sync-pedidos", {
     method: "POST",
@@ -1188,6 +1228,23 @@ async function confirmOrder() {
     if (!pedidosLocal.find(p => p.id === proto)) {
       pedidosLocal.push(pedidoSync);
       localStorage.setItem('gdp.pedidos.v1', JSON.stringify(pedidosLocal));
+      schedulCloudSync();
+    }
+  } catch(_) {}
+
+  // Deduzir saldo do contrato imediatamente
+  try {
+    const contratosLocal = JSON.parse(localStorage.getItem('gdp.contratos.v1') || '[]');
+    const ctrLocal = contratosLocal.find(c => c.id === ctrId);
+    if (ctrLocal) {
+      orderItems.forEach(oi => {
+        const item = ctrLocal.itens.find(ci => ci.num === oi.itemNum || ci.descricao === oi.name);
+        if (item) {
+          const saldo = item.qtdContratada - item.qtdEntregue;
+          item.qtdEntregue += Math.min(oi.qty, saldo);
+        }
+      });
+      localStorage.setItem('gdp.contratos.v1', JSON.stringify(contratosLocal));
       schedulCloudSync();
     }
   } catch(_) {}
@@ -1239,7 +1296,12 @@ function renderSaldo() {
 
 function renderMeusPedidos() {
   if (!currentUser) return;
-  const myOrders = escolaOrders.filter(o => o.school === currentUser.nome_completo || o.school === currentUser.nome);
+  let myOrders = escolaOrders.filter(o => o.school === currentUser.nome_completo || o.school === currentUser.nome);
+  // Filter by selected contract if inside a contract view
+  if (selectedContract && selectedContract.contrato) {
+    const ctrId = selectedContract.contrato.id;
+    myOrders = myOrders.filter(o => o.contratoId === ctrId);
+  }
   const tbody = document.getElementById('meus-pedidos-tbody');
   const empty = document.getElementById('meus-pedidos-empty');
 

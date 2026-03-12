@@ -397,6 +397,7 @@
   </style>
 </head>
 <body>
+<script>window.location.replace('gdp-contratos.html');</script>
 
 <div class="header">
   <div class="header-left">
@@ -406,10 +407,7 @@
   <div class="header-right">
     <span>Fornecedor: <strong>Lariucci & Ribeiro Pereira</strong></span>
     <span>|</span>
-    <a href="gdp-contratos.html" style="color:#3b82f6;text-decoration:none;font-weight:600;font-size:0.85rem">Contratos</a>
-    <a href="gdp-portal.html" style="color:#3b82f6;text-decoration:none;font-weight:600;font-size:0.85rem">Portal Escolar</a>
-    <a href="gdp-entregador.html" style="color:#f59e0b;text-decoration:none;font-weight:600;font-size:0.85rem">Entregador</a>
-    <a href="index.html" style="color:#22c55e;text-decoration:none;font-weight:600;font-size:0.85rem">Caixa Escolar</a>
+    <a href="index.html" style="color:#22c55e;text-decoration:none;font-weight:600;font-size:0.85rem" onclick="localStorage.setItem('nexedu.activeModule','radar')">← Licit-IAX</a>
     <span>|</span>
     <span id="current-date"></span>
   </div>
@@ -421,9 +419,12 @@
 
   <!-- Tabs -->
   <div class="tabs">
-    <button class="tab active" data-tab="escolas" onclick="switchTab('escolas')">Escolas</button>
+    <button class="tab active" data-tab="escolas" onclick="switchTab('escolas')">Catálogos</button>
     <button class="tab" data-tab="produtos" onclick="switchTab('produtos')">Todos os Produtos</button>
     <button class="tab" data-tab="analytics" onclick="switchTab('analytics')">Analytics</button>
+    <button class="tab" data-tab="link-portal" onclick="window.location.href='gdp-portal.html'">Portal Escolar</button>
+    <button class="tab" data-tab="link-entregador" onclick="window.location.href='gdp-entregador.html'">Entregador</button>
+    <button class="tab" data-tab="link-contratos" onclick="window.location.href='gdp-contratos.html'">Contratos</button>
   </div>
 
   <!-- Tab: Escolas -->
@@ -614,12 +615,15 @@ function renderSchools(filter = '') {
     const total = e.produtos.reduce((s, p) => s + p.preco, 0);
     const withStock = e.produtos.filter(p => p.estoque > 0).length;
     return `
-      <div class="school-card" onclick="showSchoolDetail('${e.id}')">
-        <div class="school-name">${e.nome}</div>
-        <div class="school-stats">
-          <span>${e.total_itens} itens</span>
-          <span>Média: R$ ${(total / e.produtos.length).toFixed(2).replace('.', ',')}</span>
-          ${withStock > 0 ? `<span style="color:var(--success)">${withStock} c/ estoque</span>` : ''}
+      <div class="school-card" style="position:relative;">
+        <button onclick="event.stopPropagation();deleteCatalogo('${e.id}')" title="Excluir catálogo" style="position:absolute;top:8px;right:8px;background:rgba(239,68,68,0.15);color:var(--danger);border:none;border-radius:6px;padding:4px 8px;font-size:0.75rem;font-weight:600;cursor:pointer;">✕ Excluir</button>
+        <div onclick="showSchoolDetail('${e.id}')" style="cursor:pointer;">
+          <div class="school-name">${e.nome}</div>
+          <div class="school-stats">
+            <span>${e.total_itens} itens</span>
+            <span>Média: R$ ${(total / e.produtos.length).toFixed(2).replace('.', ',')}</span>
+            ${withStock > 0 ? `<span style="color:var(--success)">${withStock} c/ estoque</span>` : ''}
+          </div>
         </div>
       </div>
     `;
@@ -809,6 +813,19 @@ function renderAnalytics() {
       </div>
     </div>
   `).join('');
+}
+
+// Delete catalogo
+function deleteCatalogo(schoolId) {
+  const escola = arpData.escolas.find(e => e.id === schoolId);
+  if (!escola) return;
+  if (!confirm(`Excluir o catálogo "${escola.nome}"? Esta ação não pode ser desfeita.`)) return;
+  arpData.escolas = arpData.escolas.filter(e => e.id !== schoolId);
+  allProducts = allProducts.filter(p => p.escolaId !== schoolId);
+  renderKPIs();
+  renderSchools();
+  renderProducts();
+  renderAnalytics();
 }
 
 // Initialize

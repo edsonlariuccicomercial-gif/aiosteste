@@ -19,6 +19,89 @@ let sreData = {};
 let activePreOrcamentoId = null;
 let selectedOrcIds = new Set();
 
+// ===== SUPABASE CLOUD SYNC =====
+const SUPABASE_URL = "https://ohxoxencxktpzskltbsk.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9oeG94ZW5jeGt0cHpza2x0YnNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMyMTUwNDQsImV4cCI6MjA4ODc5MTA0NH0.-w8f1xjW1cW2-OZpg1Sql8PqwFDzDqyWw4pHEx6jGSk";
+const RESULTADOS_STORAGE_KEY = "caixaescolar.resultados.v1";
+const CONTRATOS_STORAGE_KEY = "caixaescolar.contratos.v1";
+const PNCP_CACHE_KEY = "caixaescolar.pncp.cache";
+const SYNC_KEYS = [
+  "nexedu.empresa", "caixaescolar.banco.v1", "caixaescolar.preorcamentos.v1",
+  "caixaescolar.resultados.v1", "caixaescolar.contratos.v1",
+  "gdp.contratos.v1", "gdp.pedidos.v1", "gdp.entregas.provas.v1", "gdp.usuarios.v1"
+];
+
+function getSyncUserId() {
+  const emp = JSON.parse(localStorage.getItem("nexedu.empresa") || "{}");
+  return emp.nome || emp.cnpj || "default";
+}
+
+async function cloudSave(key, data) {
+  const userId = getSyncUserId();
+  try {
+    await fetch(`${SUPABASE_URL}/rest/v1/sync_data?user_id=eq.${encodeURIComponent(userId)}&key=eq.${encodeURIComponent(key)}`, {
+      method: "DELETE",
+      headers: { "apikey": SUPABASE_KEY, "Authorization": "Bearer " + SUPABASE_KEY }
+    });
+    await fetch(`${SUPABASE_URL}/rest/v1/sync_data`, {
+      method: "POST",
+      headers: {
+        "apikey": SUPABASE_KEY, "Authorization": "Bearer " + SUPABASE_KEY,
+        "Content-Type": "application/json", "Prefer": "return=minimal"
+      },
+      body: JSON.stringify({ user_id: userId, key, data, updated_at: new Date().toISOString() })
+    });
+  } catch (e) { console.warn("Cloud save failed:", key, e); }
+}
+
+async function cloudLoadAll() {
+  const userId = getSyncUserId();
+  try {
+    const resp = await fetch(
+      `${SUPABASE_URL}/rest/v1/sync_data?user_id=eq.${encodeURIComponent(userId)}&select=key,data,updated_at`,
+      { headers: { "apikey": SUPABASE_KEY, "Authorization": "Bearer " + SUPABASE_KEY } }
+    );
+    if (!resp.ok) return null;
+    const rows = await resp.json();
+    return rows;
+  } catch (e) { console.warn("Cloud load failed:", e); return null; }
+}
+
+async function syncFromCloud() {
+  const rows = await cloudLoadAll();
+  if (!rows || rows.length === 0) return false;
+  let synced = 0;
+  for (const row of rows) {
+    const local = localStorage.getItem(row.key);
+    const localData = local ? JSON.parse(local) : null;
+    // Cloud wins if local is empty, or cloud is newer
+    if (!localData || (row.data && JSON.stringify(row.data) !== JSON.stringify(localData))) {
+      localStorage.setItem(row.key, JSON.stringify(row.data));
+      synced++;
+    }
+  }
+  return synced > 0;
+}
+
+async function syncToCloud() {
+  const promises = SYNC_KEYS.map(key => {
+    const raw = localStorage.getItem(key);
+    if (!raw) return Promise.resolve();
+    try {
+      const data = JSON.parse(raw);
+      return cloudSave(key, data);
+    } catch(_) { return Promise.resolve(); }
+  });
+  await Promise.all(promises);
+}
+
+// Auto-sync: save to cloud whenever localStorage changes
+let _syncTimeout = null;
+function schedulCloudSync() {
+  if (_syncTimeout) clearTimeout(_syncTimeout);
+  _syncTimeout = setTimeout(() => syncToCloud(), 2000);
+}
+
 // ===== SGD STATE =====
 let sgdAvailable = false;
 let sgdLocalServer = false; // true = Express server available, false = direct API mode
@@ -123,7 +206,7 @@ const el = {
   btnCollectSgd: document.getElementById("btn-collect-sgd"),
   ultimaAtualizacao: document.getElementById("ultima-atualizacao"),
   // Inteligência
-  intelPanel: document.getElementById("intel-panel"),
+  intelPanel: document.getElementById("radar-dashboard"),
   intelToggle: document.getElementById("intel-toggle"),
   intelBody: document.getElementById("intel-body"),
   intelChevron: document.getElementById("intel-chevron"),
@@ -185,12 +268,13 @@ const el = {
   btnEditarOrcamento: document.getElementById("btn-editar-orcamento"),
   btnIrSgd: document.getElementById("btn-ir-sgd"),
   modeIndicator: document.getElementById("mode-indicator"),
-  // SGD Tab
+  // SGD Tab (now "envio-sgd")
   tbodySgd: document.getElementById("tbody-sgd"),
   sgdEmpty: document.getElementById("sgd-empty"),
   sgdModeBadge: document.getElementById("sgd-mode-badge"),
   sgdKpiProntos: document.getElementById("sgd-kpi-prontos"),
   sgdKpiEnviados: document.getElementById("sgd-kpi-enviados"),
+  sgdKpiGanhos: document.getElementById("sgd-kpi-ganhos"),
   sgdKpiValor: document.getElementById("sgd-kpi-valor"),
   btnSgdEnviarTodos: document.getElementById("btn-sgd-enviar-todos"),
   btnSgdBaixarTodos: document.getElementById("btn-sgd-baixar-todos"),
@@ -217,6 +301,11 @@ function formatDate(dateIso) {
   if (!dateIso) return "—";
   const [y, m, d] = dateIso.split("-");
   return `${d}/${m}/${y}`;
+}
+
+function setTextSafe(id, text) {
+  const elem = document.getElementById(id);
+  if (elem) elem.textContent = text;
 }
 
 function calcFreteEstimado(municipio) {
@@ -303,11 +392,73 @@ function saveBancoLocal() {
   try {
     bancoPrecos.updatedAt = new Date().toISOString().slice(0, 10);
     localStorage.setItem(BANCO_STORAGE_KEY, JSON.stringify(bancoPrecos));
+    schedulCloudSync();
   } catch (_) { /* no-op */ }
+}
+
+// ===== EXPORTAR / IMPORTAR DADOS (SYNC ENTRE MAQUINAS) =====
+function exportarTodosDados() {
+  const allKeys = [
+    EMPRESA_STORAGE_KEY, BANCO_STORAGE_KEY, "nexedu.auth",
+    "gdp.contratos.v1", "gdp.pedidos.v1", "gdp.entregas.provas.v1", "gdp.usuarios.v1"
+  ];
+  const dados = {};
+  allKeys.forEach(k => {
+    const v = localStorage.getItem(k);
+    if (v) { try { dados[k] = JSON.parse(v); } catch(_) { dados[k] = v; } }
+  });
+  dados._exportDate = new Date().toISOString();
+  dados._source = location.hostname;
+
+  const blob = new Blob([JSON.stringify(dados, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `nexedu-dados-${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  const st = document.getElementById("sync-status");
+  if (st) st.textContent = "Dados exportados em " + new Date().toLocaleTimeString();
+}
+
+function importarTodosDados(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const dados = JSON.parse(e.target.result);
+      const importDate = dados._exportDate || "desconhecida";
+      delete dados._exportDate;
+      delete dados._source;
+
+      const keys = Object.keys(dados);
+      if (keys.length === 0) { alert("Arquivo vazio ou invalido."); return; }
+
+      if (!confirm(`Importar dados de ${importDate}?\n\n${keys.length} conjuntos:\n${keys.join("\n")}\n\nDados existentes serao sobrescritos!`)) return;
+
+      keys.forEach(k => localStorage.setItem(k, typeof dados[k] === "string" ? dados[k] : JSON.stringify(dados[k])));
+
+      const st = document.getElementById("sync-status");
+      if (st) st.textContent = `${keys.length} conjuntos importados! Recarregando...`;
+      setTimeout(() => location.reload(), 1000);
+    } catch (err) {
+      alert("Erro ao importar: " + err.message);
+    }
+  };
+  reader.readAsText(file);
 }
 
 // ===== BOOT =====
 async function boot() {
+  // Cloud sync: pull latest data, then push local data (ensures first machine populates cloud)
+  try {
+    const synced = await syncFromCloud();
+    if (synced) console.log("[Boot] Cloud data synced to localStorage");
+  } catch (e) { console.warn("[Boot] Cloud sync pull failed:", e); }
+  // Push local data to cloud (fills Supabase on first run / existing data)
+  try { await syncToCloud(); console.log("[Boot] Local data pushed to cloud"); }
+  catch (e) { console.warn("[Boot] Cloud push failed:", e); }
+
   loadPreOrcamentos();
 
   const [orcData, bancoData, perfilData, sreInfo] = await Promise.all([
@@ -360,8 +511,7 @@ async function boot() {
   if (btnVarrer) btnVarrer.style.display = "inline-block";
 
   // Restore active module from localStorage
-  const savedModule = localStorage.getItem(MODULE_STORAGE_KEY) || "radar";
-  switchModule(savedModule);
+  switchModule("radar");
 
   // Load empresa data into topbar if saved
   try {
@@ -477,6 +627,8 @@ function renderAll() {
   renderPreOrcamentosLista();
   renderBanco();
   renderSgd();
+  renderAprovados();
+  renderHistorico();
 }
 
 function renderKPIs() {
@@ -1292,6 +1444,7 @@ function renderBanco() {
     }
 
     return `<tr>
+      <td><input type="checkbox" class="banco-item-check" data-id="${item.id}" /></td>
       <td><strong>${escapeHtml(item.item)}</strong>
         ${propostas.length > 0 ? `<br><span class="text-muted" style="font-size:0.7rem">${propostas.length} proposta(s)</span>` : ""}
       </td>
@@ -1309,6 +1462,11 @@ function renderBanco() {
       </td>
     </tr>`;
   }).join("");
+
+  // Reset select-all checkbox
+  const selectAll = document.getElementById("banco-select-all");
+  if (selectAll) selectAll.checked = false;
+  updateBancoSelectionUI();
 }
 
 function openBancoModal(item) {
@@ -1402,6 +1560,27 @@ function salvarBancoItem() {
   closeBancoModal();
   renderBanco();
 }
+
+// ===== BANCO: BULK SELECTION & DELETE =====
+function updateBancoSelectionUI() {
+  const checks = document.querySelectorAll(".banco-item-check:checked");
+  const btn = document.getElementById("btn-excluir-selecionados-banco");
+  const countEl = document.getElementById("banco-sel-count");
+  if (btn) {
+    btn.style.display = checks.length > 0 ? "inline-block" : "none";
+    if (countEl) countEl.textContent = checks.length;
+  }
+}
+
+window.excluirSelecionadosBanco = function () {
+  const checks = document.querySelectorAll(".banco-item-check:checked");
+  const ids = Array.from(checks).map(c => c.dataset.id);
+  if (ids.length === 0) return;
+  if (!confirm(`Excluir ${ids.length} item(ns) do banco de preços?`)) return;
+  bancoPrecos.itens = bancoPrecos.itens.filter(i => !ids.includes(i.id));
+  saveBancoLocal();
+  renderBanco();
+};
 
 window.editarBancoItem = function (id) {
   const item = bancoPrecos.itens.find((i) => i.id === id);
@@ -1505,16 +1684,28 @@ window.switchModule = function switchModule(moduleId) {
   if (moduleId === "radar") {
     // Show orçamentos directly, hide horizontal tabs
     if (tabsIntel) tabsIntel.style.display = "none";
+    const radarDash = document.getElementById("radar-dashboard");
+    if (radarDash) radarDash.style.display = "";
+    const ipDash = document.getElementById("intel-precos-dashboard");
+    if (ipDash) ipDash.style.display = "none";
     document.getElementById("tab-orcamentos").classList.add("active");
   } else if (moduleId === "intel-precos") {
-    // Show horizontal tabs for Intel. Preços
+    // Show horizontal tabs for Intel. Preços, hide radar dashboard
     if (tabsIntel) tabsIntel.style.display = "flex";
+    const radarDash = document.getElementById("radar-dashboard");
+    if (radarDash) radarDash.style.display = "none";
+    const ipDash = document.getElementById("intel-precos-dashboard");
+    if (ipDash) ipDash.style.display = "";
     // Activate first tab by default
     const activeSub = tabsIntel.querySelector(".tab.active");
     const tabId = activeSub ? activeSub.dataset.tab : "pre-orcamento";
     switchTab(tabId);
   } else if (moduleId === "config") {
     if (tabsIntel) tabsIntel.style.display = "none";
+    const radarDash = document.getElementById("radar-dashboard");
+    if (radarDash) radarDash.style.display = "none";
+    const ipDash = document.getElementById("intel-precos-dashboard");
+    if (ipDash) ipDash.style.display = "none";
     document.getElementById("config-panel").classList.add("active");
     loadConfigData();
   }
@@ -1585,6 +1776,7 @@ function saveConfigEmpresa() {
     email: (document.getElementById("cfg-email") || {}).value || "",
   };
   localStorage.setItem(EMPRESA_STORAGE_KEY, JSON.stringify(data));
+  schedulCloudSync();
 
   // Update topbar pills with saved data
   const pillSre = document.getElementById("pill-sre");
@@ -1670,7 +1862,9 @@ window.switchTab = function switchTab(tabId) {
   const target = document.getElementById("tab-" + tabId);
   if (target) target.classList.add("active");
   // Re-render tab content on switch
-  if (tabId === "sgd") renderSgd();
+  if (tabId === "envio-sgd") renderSgd();
+  if (tabId === "aprovados") renderAprovados();
+  if (tabId === "historico") renderHistorico();
   if (tabId === "pre-orcamento" && !activePreOrcamentoId) renderPreOrcamentosLista();
 }
 
@@ -1887,16 +2081,45 @@ async function handlePdfUpload(file) {
       const textContent = await page.getTextContent();
       const items = textContent.items;
 
-      const lines = {};
-      items.forEach((item) => {
-        const y = Math.round(item.transform[5]);
-        if (!lines[y]) lines[y] = [];
-        lines[y].push({ x: item.transform[4], text: item.str.trim() });
+      // Group text items by Y-coordinate with tolerance (items within 3px = same line)
+      const rawItems = items.filter((item) => item.str.trim()).map((item) => ({
+        x: item.transform[4],
+        y: Math.round(item.transform[5]),
+        text: item.str.trim(),
+      }));
+
+      // Merge nearby Y coordinates into line groups (tolerance of 3px)
+      const yTolerance = 3;
+      const lineGroups = [];
+      const sortedByY = [...rawItems].sort((a, b) => b.y - a.y);
+      sortedByY.forEach((item) => {
+        const existing = lineGroups.find((g) => Math.abs(g.y - item.y) <= yTolerance);
+        if (existing) {
+          existing.items.push(item);
+        } else {
+          lineGroups.push({ y: item.y, items: [item] });
+        }
       });
 
-      const sortedYs = Object.keys(lines).map(Number).sort((a, b) => b - a);
-      sortedYs.forEach((y) => {
-        const cells = lines[y].sort((a, b) => a.x - b.x).map((c) => c.text).filter((t) => t);
+      // Sort each line's items by X position and build row cells
+      lineGroups.sort((a, b) => b.y - a.y);
+      lineGroups.forEach((group) => {
+        const sorted = group.items.sort((a, b) => a.x - b.x);
+        // Detect column boundaries: items with X gap > 20px are separate columns
+        const cells = [];
+        let currentCell = sorted[0] ? sorted[0].text : "";
+        let lastX = sorted[0] ? sorted[0].x : 0;
+        for (let i = 1; i < sorted.length; i++) {
+          const gap = sorted[i].x - lastX;
+          if (gap > 20) {
+            cells.push(currentCell);
+            currentCell = sorted[i].text;
+          } else {
+            currentCell += " " + sorted[i].text;
+          }
+          lastX = sorted[i].x;
+        }
+        if (currentCell) cells.push(currentCell);
         if (cells.length >= 2) allRows.push(cells);
       });
     }
@@ -1925,7 +2148,20 @@ async function handlePdfUpload(file) {
 
     // Check for Mapa pattern
     if (detectMapaApuracao(headers)) {
-      handleMapaApuracao([headers, ...rows], null, "PDF");
+      // Try to find classification table within PDF rows
+      // (rows that have "Ordem"/"Licitante"/"Itens" pattern after main data)
+      let classTable = null;
+      for (let ri = rows.length - 1; ri >= Math.max(0, rows.length - 20); ri--) {
+        const rowNorm = rows[ri].map((c) => normalizedText(c));
+        const hasOrdemOrLic = rowNorm.some((c) => /ordem|licitante|classificac/.test(c));
+        const hasItens = rowNorm.some((c) => /itens|selecion/.test(c));
+        if (hasOrdemOrLic && hasItens) {
+          // Found classification header row — extract classification table
+          classTable = rows.splice(ri);
+          break;
+        }
+      }
+      handleMapaApuracao([headers, ...rows], classTable, "PDF");
       return;
     }
 
@@ -2126,6 +2362,14 @@ function detectMapaApuracao(headerRow) {
   const hasQtde = norm.some((h) => /\bqtd|\bquant/.test(h));
   const valorCount = norm.filter((h) => /^valor$/.test(h.trim())).length;
   if (hasItem && hasQtde && valorCount >= 2) return true;
+  // Pattern 3: Has Item+Qtde and more than 4 structural columns (extra cols = licitante prices)
+  if (hasItem && hasQtde && headerRow.length >= 6) {
+    const structCount = norm.filter((h) => /\bitem\b|\bdescri|\bun\b|\buni|\bqtd|\bquant/.test(h)).length;
+    if (headerRow.length - structCount >= 2) return true;
+  }
+  // Pattern 4: file/title context — "mapa" or "apuracao" in any header
+  const hasMapaRef = norm.some((h) => /mapa|apuracao|apuração/.test(h));
+  if (hasMapaRef && hasItem) return true;
   return false;
 }
 
@@ -2190,6 +2434,19 @@ function handleMapaApuracao(priceTableRows, classTableRows, format) {
     });
   }
 
+  // If auto-detection failed and we have licitantes, prompt user to choose
+  if (myCompanyIdx < 0 && licitantes.length > 0) {
+    const sel = prompt(
+      "Empresa nao detectada automaticamente.\nQual licitante e a sua empresa?\n\n" +
+      licitantes.map((l, i) => `${i + 1}. ${l.name}`).join("\n") +
+      "\n\nDigite o numero (ou 0 para nenhum):"
+    );
+    const idx = parseInt(sel, 10) - 1;
+    if (idx >= 0 && idx < licitantes.length) {
+      myCompanyIdx = idx;
+    }
+  }
+
   // Parse classification table (Table 2) to find won items
   let wonItemNumbers = new Set();
   let classificationData = [];
@@ -2208,17 +2465,48 @@ function handleMapaApuracao(priceTableRows, classTableRows, format) {
       const itemNums = rowItems.match(/\d+/g);
       classificationData.push({ nome: rowName, itens: itemNums ? itemNums.map(Number) : [] });
 
-      // Check if this row is MY company (match against licitante name or any empresa searchNames)
+      // Match against: my licitante name from price table, searchNames from config,
+      // AND cross-reference licitante names from price table headers
       const rowNorm = normalizedText(rowName);
-      const isMe = (myCompanyIdx >= 0 && (
-        rowNorm.includes(normalizedText(licitantes[myCompanyIdx].name)) ||
-        normalizedText(licitantes[myCompanyIdx].name).split(/\s+/).some((w) => w.length > 3 && rowNorm.includes(w))
-      )) || searchNames.some((sn) => rowNorm.includes(sn) || sn.split(/\s+/).some((w) => w.length > 3 && rowNorm.includes(w)));
+      let isMe = false;
+
+      if (myCompanyIdx >= 0) {
+        const myLicName = normalizedText(licitantes[myCompanyIdx].name);
+        // Direct match: classification row name matches my licitante column header name
+        isMe = rowNorm.includes(myLicName) || myLicName.includes(rowNorm) ||
+          myLicName.split(/\s+/).some((w) => w.length > 3 && rowNorm.includes(w)) ||
+          rowNorm.split(/\s+/).some((w) => w.length > 3 && myLicName.includes(w));
+      }
+
+      // Also try matching via empresa searchNames
+      if (!isMe && searchNames.length > 0) {
+        isMe = searchNames.some((sn) =>
+          rowNorm.includes(sn) || sn.includes(rowNorm) ||
+          sn.split(/\s+/).some((w) => w.length > 3 && rowNorm.includes(w)) ||
+          rowNorm.split(/\s+/).some((w) => w.length > 3 && sn.includes(w))
+        );
+      }
 
       if (isMe && itemNums) {
         itemNums.forEach((n) => wonItemNumbers.add(Number(n)));
       }
     });
+
+    // Cross-reference: if myCompanyIdx is set but no won items found from classification,
+    // try matching licitante column header name against classification names word by word
+    if (wonItemNumbers.size === 0 && myCompanyIdx >= 0) {
+      const myLicName = normalizedText(licitantes[myCompanyIdx].name);
+      const myWords = myLicName.split(/\s+/).filter((w) => w.length > 2);
+      classificationData.forEach((c) => {
+        const cNorm = normalizedText(c.nome);
+        const cWords = cNorm.split(/\s+/).filter((w) => w.length > 2);
+        // Match if at least 2 words overlap, or any word > 4 chars matches
+        const overlap = myWords.filter((w) => cWords.some((cw) => cw.includes(w) || w.includes(cw)));
+        if (overlap.length >= 2 || overlap.some((w) => w.length > 4)) {
+          c.itens.forEach((n) => wonItemNumbers.add(n));
+        }
+      });
+    }
   }
 
   // Store enriched import data
@@ -2258,7 +2546,9 @@ function previewMapaApuracao() {
   // Show detected company
   const empresaEl = document.getElementById("mapa-empresa-detectada");
   if (myCompanyIdx >= 0) {
-    empresaEl.textContent = licitantes[myCompanyIdx].name;
+    const wonCount = wonItems.size;
+    empresaEl.textContent = licitantes[myCompanyIdx].name +
+      (wonCount > 0 ? ` (${wonCount} itens ganhos)` : " (classificacao nao encontrada — importa todos)");
     empresaEl.style.color = "var(--accent)";
   } else {
     empresaEl.textContent = "Nao detectada — clique Alterar";
@@ -2270,9 +2560,14 @@ function previewMapaApuracao() {
   if (classificationData.length > 0) {
     classEl.innerHTML = "<strong>Classificacao:</strong><br>" +
       classificationData.map((c) => {
-        const isMe = myCompanyIdx >= 0 && normalizedText(c.nome).includes(
-          normalizedText(licitantes[myCompanyIdx].name).split(/\s+/).find((w) => w.length > 3) || ""
-        );
+        let isMe = false;
+        if (myCompanyIdx >= 0) {
+          const myLicName = normalizedText(licitantes[myCompanyIdx].name);
+          const cNorm = normalizedText(c.nome);
+          isMe = cNorm.includes(myLicName) || myLicName.includes(cNorm) ||
+            myLicName.split(/\s+/).some((w) => w.length > 3 && cNorm.includes(w)) ||
+            cNorm.split(/\s+/).some((w) => w.length > 3 && myLicName.includes(w));
+        }
         return `<span style="color:${isMe ? "var(--accent)" : "var(--muted)"}">${isMe ? "★ " : ""}${escapeHtml(c.nome)}: itens ${c.itens.join(", ")}</span>`;
       }).join("<br>");
   } else {
@@ -2653,6 +2948,17 @@ function updateModeIndicator(isLocal) {
   }
 }
 
+// F1: Monta observação SGD incluindo marca quando disponível
+function buildObservacaoSgd(item) {
+  const marca = (item.marca || "").trim();
+  const obs = (item.observacao || item.descricao || item.nome || "Conforme especificado").trim();
+  if (marca) {
+    if (obs.toLowerCase().includes(marca.toLowerCase())) return obs;
+    return `[Marca: ${marca}] ${obs}`;
+  }
+  return obs;
+}
+
 function buildSgdPayload(pre) {
   const orc = orcamentos.find((o) => o.id === pre.orcamentoId);
   return {
@@ -2687,7 +2993,7 @@ function buildSgdPayload(pre) {
         quantidade: i.quantidade,
         precoUnitario: i.precoUnitario,
         precoTotal: i.precoTotal,
-        observacao: i.observacao || "",
+        observacao: buildObservacaoSgd(i),
         garantia: i.garantia || "Garantia de 12 meses conforme CDC",
         idBudgetItem,
       };
@@ -2766,11 +3072,14 @@ function renderSgd() {
   const allPre = Object.values(preOrcamentos);
   const ready = allPre.filter((p) => p.status === "aprovado");
   const sent = allPre.filter((p) => p.status === "enviado");
-  const sgdItems = [...ready, ...sent];
+  const ganhos = allPre.filter((p) => p.status === "ganho");
+  const perdidos = allPre.filter((p) => p.status === "perdido");
+  const sgdItems = [...ready, ...sent, ...ganhos, ...perdidos];
 
   // KPIs
   el.sgdKpiProntos.textContent = ready.length;
   el.sgdKpiEnviados.textContent = sent.length;
+  if (el.sgdKpiGanhos) el.sgdKpiGanhos.textContent = ganhos.length;
   el.sgdKpiValor.textContent = brl.format(sgdItems.reduce((s, p) => s + (p.totalGeral || 0), 0));
 
   // Mode badge
@@ -2786,20 +3095,28 @@ function renderSgd() {
   el.sgdEmpty.style.display = sgdItems.length ? "none" : "block";
 
   // Tabela
+  const statusOrder = { aprovado: 0, enviado: 1, ganho: 2, perdido: 3 };
   el.tbodySgd.innerHTML = sgdItems
-    .sort((a, b) => (a.status === "aprovado" ? -1 : 1))
+    .sort((a, b) => (statusOrder[a.status] || 9) - (statusOrder[b.status] || 9))
     .map((p) => {
-      const isSent = p.status === "enviado";
-      const badgeClass = isSent ? "badge-enviado" : "badge-aprovado";
-      const badgeLabel = isSent ? "Enviado" : "Pronto";
-      const dateInfo = isSent ? formatDate(p.enviadoEm) : formatDate(p.aprovadoEm);
+      const badgeMap = {
+        aprovado: { cls: "badge-aprovado", label: "Pronto" },
+        enviado: { cls: "badge-enviado", label: "Enviado" },
+        ganho: { cls: "badge-ok", label: "Ganho" },
+        perdido: { cls: "badge-vencido", label: "Perdido" },
+      };
+      const badge = badgeMap[p.status] || { cls: "badge-muted", label: p.status };
+      const dateInfo = p.enviadoEm ? formatDate(p.enviadoEm) : formatDate(p.aprovadoEm);
 
       let actions = "";
-      if (isSent) {
-        actions = `<button class="btn btn-inline" onclick="sgdBaixarPayload('${p.orcamentoId}')">Payload</button>`;
-      } else {
+      if (p.status === "aprovado") {
         actions = `<button class="btn btn-inline btn-sgd" onclick="sgdEnviarUnico('${p.orcamentoId}')">Enviar</button>
           <button class="btn btn-inline" onclick="sgdBaixarPayload('${p.orcamentoId}')">Payload</button>`;
+      } else if (p.status === "enviado") {
+        actions = `<button class="btn btn-inline btn-accent" onclick="abrirModalResultado('${p.orcamentoId}')">Resultado</button>
+          <button class="btn btn-inline" onclick="sgdBaixarPayload('${p.orcamentoId}')">Payload</button>`;
+      } else {
+        actions = `<button class="btn btn-inline" onclick="sgdBaixarPayload('${p.orcamentoId}')">Payload</button>`;
       }
 
       return `<tr>
@@ -2807,7 +3124,7 @@ function renderSgd() {
         <td>${escapeHtml(p.escola)}</td>
         <td>${escapeHtml(p.municipio)}</td>
         <td class="text-right font-mono">${brl.format(p.totalGeral || 0)}</td>
-        <td><span class="badge ${badgeClass}">${badgeLabel}</span> <span class="text-muted" style="font-size:0.72rem">${dateInfo}</span></td>
+        <td><span class="badge ${badge.cls}">${badge.label}</span> <span class="text-muted" style="font-size:0.72rem">${dateInfo}</span></td>
         <td class="nowrap">${actions}</td>
       </tr>`;
     }).join("");
@@ -2928,7 +3245,7 @@ async function browserSgdSubmit(payload) {
 
     if (!idBudgetItem) throw new Error(`Item "${item.nome}" nao mapeado no SGD. Tente varrer o SGD novamente para atualizar os itens.`);
 
-    const p = { nuValueByItem: item.precoUnitario, idBudgetItem, txItemObservation: item.observacao || item.nome || "Conforme especificado" };
+    const p = { nuValueByItem: item.precoUnitario, idBudgetItem, txItemObservation: buildObservacaoSgd(item) };
     if (item.garantia) p.txWarrantyDescription = item.garantia;
     return p;
   });
@@ -3317,7 +3634,7 @@ function renderSgdFields() {
   `;
 
   pre.itens.forEach((item, idx) => {
-    const obs = item.observacao || (item.descricao ? item.descricao.slice(0, 200) : "");
+    const obs = buildObservacaoSgd(item);
     const gar = item.garantia || "Garantia de 12 meses conforme CDC";
     html += `
       <div class="sgd-item-field">
@@ -3355,6 +3672,822 @@ function renderSgdFields() {
     });
   }
 }
+
+// ===== F2: REGISTRO DE RESULTADOS SGD =====
+let currentResultadoOrcamentoId = null;
+let selectedResultado = null;
+
+window.abrirModalResultado = function (orcId) {
+  currentResultadoOrcamentoId = orcId;
+  selectedResultado = null;
+  const pre = preOrcamentos[orcId];
+  if (!pre) return;
+
+  document.getElementById("res-escola-info").textContent = `${pre.escola} — ${pre.municipio} — ${brl.format(pre.totalGeral || 0)}`;
+  document.getElementById("res-data").value = new Date().toISOString().slice(0, 10);
+  document.getElementById("res-observacoes").value = "";
+  document.getElementById("res-valor-vencedor").value = "";
+  document.getElementById("res-fornecedor-vencedor").value = "";
+  document.getElementById("campos-perda").style.display = "none";
+  document.getElementById("campos-ganho").style.display = "none";
+  document.getElementById("btn-salvar-resultado").style.display = "none";
+  document.getElementById("btn-res-ganho").classList.remove("active");
+  document.getElementById("btn-res-perdido").classList.remove("active");
+  document.getElementById("modal-resultado").style.display = "flex";
+};
+
+window.selectResultado = function (tipo) {
+  selectedResultado = tipo;
+  document.getElementById("campos-perda").style.display = tipo === "perdido" ? "block" : "none";
+  document.getElementById("campos-ganho").style.display = tipo === "ganho" ? "block" : "none";
+  document.getElementById("btn-salvar-resultado").style.display = "inline-block";
+  document.getElementById("btn-res-ganho").style.opacity = tipo === "ganho" ? "1" : "0.4";
+  document.getElementById("btn-res-perdido").style.opacity = tipo === "perdido" ? "1" : "0.4";
+};
+
+window.fecharModalResultado = function () {
+  document.getElementById("modal-resultado").style.display = "none";
+  currentResultadoOrcamentoId = null;
+  selectedResultado = null;
+};
+
+window.salvarResultado = function () {
+  if (!currentResultadoOrcamentoId || !selectedResultado) return;
+  const pre = preOrcamentos[currentResultadoOrcamentoId];
+  if (!pre) return;
+
+  const resultado = {
+    id: "res-" + Date.now(),
+    orcamentoId: currentResultadoOrcamentoId,
+    escola: pre.escola,
+    municipio: pre.municipio,
+    grupo: pre.grupo || "Geral",
+    resultado: selectedResultado,
+    dataResultado: document.getElementById("res-data").value,
+    valorProposto: pre.totalGeral,
+    valorVencedor: parseFloat(document.getElementById("res-valor-vencedor").value) || null,
+    fornecedorVencedor: document.getElementById("res-fornecedor-vencedor").value || null,
+    motivoPerda: selectedResultado === "perdido" ? document.getElementById("res-motivo").value : null,
+    observacoes: document.getElementById("res-observacoes").value,
+    itens: pre.itens.map(item => ({
+      nome: item.nome, marca: item.marca, precoUnitario: item.precoUnitario,
+      precoVencedor: null, delta: null, ganhou: selectedResultado === "ganho",
+    })),
+    contrato: { gerado: false, contratoId: null },
+  };
+
+  // Delta se perdeu
+  if (resultado.resultado === "perdido" && resultado.valorVencedor) {
+    resultado.deltaTotalPercent = parseFloat(((resultado.valorProposto - resultado.valorVencedor) / resultado.valorVencedor * 100).toFixed(1));
+  }
+
+  // Salvar resultado
+  const resultados = JSON.parse(localStorage.getItem(RESULTADOS_STORAGE_KEY) || "[]");
+  resultados.push(resultado);
+  localStorage.setItem(RESULTADOS_STORAGE_KEY, JSON.stringify(resultados));
+
+  // Atualizar status do pré-orçamento
+  pre.status = selectedResultado === "ganho" ? "ganho" : "perdido";
+  savePreOrcamentos();
+
+  // Se ganhou e checkbox marcado → gerar contrato
+  if (resultado.resultado === "ganho" && document.getElementById("res-gerar-contrato").checked) {
+    const contrato = gerarContratoDeResultado(resultado, pre);
+    resultado.contrato = { gerado: true, contratoId: contrato.contratoId };
+    resultados[resultados.length - 1] = resultado;
+    localStorage.setItem(RESULTADOS_STORAGE_KEY, JSON.stringify(resultados));
+  }
+
+  // Alimentar banco de preços
+  alimentarBancoComResultado(resultado);
+
+  fecharModalResultado();
+  renderSgd();
+  renderKPIs();
+  schedulCloudSync();
+  showToast(resultado.resultado === "ganho" ? "Resultado registrado — contrato gerado!" : "Resultado registrado — histórico atualizado");
+};
+
+// ===== F3: GERAR CONTRATO DE RESULTADO =====
+function gerarContratoDeResultado(resultado, pre) {
+  const contratos = JSON.parse(localStorage.getItem(CONTRATOS_STORAGE_KEY) || "[]");
+  const escolaContratos = contratos.filter(c => c.escola && c.escola.nome === pre.escola);
+  const seq = (escolaContratos.length + 1).toString().padStart(3, "0");
+  const ano = new Date().getFullYear();
+  const escolaId = (pre.escola || "").replace(/\s+/g, "-").substring(0, 20).toUpperCase();
+
+  const contrato = {
+    contratoId: `CTR-${escolaId}-${ano}-${seq}`,
+    resultadoId: resultado.id,
+    orcamentoId: pre.orcamentoId,
+    escola: { nome: pre.escola, municipio: pre.municipio },
+    status: "ativo",
+    dataContrato: new Date().toISOString().split("T")[0],
+    dataLimiteEntrega: pre.dtGoodsDelivery ? pre.dtGoodsDelivery.split("T")[0] : null,
+    valorTotal: pre.totalGeral,
+    itens: pre.itens.map(item => ({
+      nome: item.nome, marca: item.marca, unidade: item.unidade || "Un",
+      quantidade: item.quantidade, precoUnitario: item.precoUnitario,
+      precoTotal: item.precoTotal, entregue: 0, pendente: item.quantidade,
+    })),
+    entregas: [],
+    historico: [{ data: new Date().toISOString(), evento: "Contrato gerado a partir de proposta aprovada", usuario: "sistema" }],
+  };
+
+  contratos.push(contrato);
+  localStorage.setItem(CONTRATOS_STORAGE_KEY, JSON.stringify(contratos));
+  schedulCloudSync();
+  return contrato;
+}
+
+function alimentarBancoComResultado(resultado) {
+  if (!bancoPrecos || !bancoPrecos.itens) return;
+  resultado.itens.forEach(itemRes => {
+    const bp = bancoPrecos.itens.find(b =>
+      b.item && itemRes.nome && (b.item.toLowerCase().includes(itemRes.nome.toLowerCase()) || itemRes.nome.toLowerCase().includes(b.item.toLowerCase()))
+    );
+    if (bp) {
+      if (!bp.historicoResultados) bp.historicoResultados = [];
+      bp.historicoResultados.push({
+        data: resultado.dataResultado, resultado: resultado.resultado,
+        precoPraticado: itemRes.precoUnitario, precoVencedor: itemRes.precoVencedor,
+        escola: resultado.escola,
+      });
+      if (resultado.resultado === "ganho") {
+        const ganhos = bp.historicoResultados.filter(h => h.resultado === "ganho");
+        if (ganhos.length >= 2) bp.precoReferenciaHistorico = ganhos.reduce((s, h) => s + h.precoPraticado, 0) / ganhos.length;
+      }
+      if (resultado.resultado === "perdido" && resultado.fornecedorVencedor) {
+        if (!bp.concorrentes) bp.concorrentes = [];
+        bp.concorrentes.push({
+          nome: resultado.fornecedorVencedor,
+          preco: itemRes.precoVencedor || resultado.valorVencedor,
+          data: resultado.dataResultado, edital: resultado.escola,
+        });
+      }
+    }
+  });
+  saveBancoLocal();
+}
+
+// ===== F4: ABA APROVADOS / CONTRATOS =====
+function renderAprovados() {
+  const contratos = JSON.parse(localStorage.getItem(CONTRATOS_STORAGE_KEY) || "[]");
+  const ativos = contratos.filter(c => c.status === "ativo");
+  const emEntrega = contratos.filter(c => c.status === "em_entrega");
+  const entregues = contratos.filter(c => c.status === "entregue");
+  const valorAtivo = contratos.reduce((s, c) => s + (c.valorTotal || 0), 0);
+
+  setTextSafe("ak-ativos", ativos.length);
+  setTextSafe("ak-entrega", emEntrega.length);
+  setTextSafe("ak-concluidos", entregues.length);
+  setTextSafe("ak-valor", brl.format(valorAtivo));
+
+  const emptyEl = document.getElementById("aprovados-empty");
+  const listaEl = document.getElementById("lista-aprovados");
+  if (!listaEl) return;
+
+  if (contratos.length === 0) {
+    if (emptyEl) emptyEl.style.display = "block";
+    listaEl.innerHTML = "";
+    return;
+  }
+  if (emptyEl) emptyEl.style.display = "none";
+
+  // Agrupar por escola
+  const porEscola = {};
+  contratos.forEach(c => {
+    const nome = c.escola ? c.escola.nome : "Sem escola";
+    if (!porEscola[nome]) porEscola[nome] = [];
+    porEscola[nome].push(c);
+  });
+
+  const statusBadge = (s) => {
+    const map = { ativo: "badge-aprovado", em_entrega: "badge-enviado", entregue: "badge-ok", cancelado: "badge-vencido" };
+    return map[s] || "badge-muted";
+  };
+
+  let html = "";
+  for (const [escola, ctrs] of Object.entries(porEscola)) {
+    html += `<div style="margin-bottom:16px;padding:12px;border:1px solid var(--line);border-radius:8px;">
+      <h4 style="margin-bottom:8px;">${escapeHtml(escola)} <span class="badge badge-muted">${ctrs.length} contrato(s)</span></h4>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Contrato</th><th>Data</th><th>Valor</th><th>Status</th><th>Entrega</th><th>Ações</th></tr></thead>
+        <tbody>${ctrs.map(c => {
+          const totalItens = c.itens ? c.itens.reduce((s, i) => s + (i.quantidade || 0), 0) : 0;
+          const entregueItens = c.itens ? c.itens.reduce((s, i) => s + (i.entregue || 0), 0) : 0;
+          return `<tr>
+            <td><strong>${escapeHtml(c.contratoId)}</strong></td>
+            <td>${formatDate(c.dataContrato)}</td>
+            <td class="text-right font-mono">${brl.format(c.valorTotal || 0)}</td>
+            <td><span class="badge ${statusBadge(c.status)}">${c.status}</span></td>
+            <td>${entregueItens}/${totalItens}</td>
+            <td><button class="btn btn-inline" onclick="verContrato('${c.contratoId}')">Detalhes</button>
+              <button class="btn btn-inline btn-accent" onclick="registrarEntrega('${c.contratoId}')">Entrega</button></td>
+          </tr>`;
+        }).join("")}</tbody>
+      </table></div>
+    </div>`;
+  }
+  listaEl.innerHTML = html;
+}
+
+window.verContrato = function (contratoId) {
+  const contratos = JSON.parse(localStorage.getItem(CONTRATOS_STORAGE_KEY) || "[]");
+  const c = contratos.find(x => x.contratoId === contratoId);
+  if (!c) return;
+
+  const body = document.getElementById("modal-contrato-body");
+  document.getElementById("modal-contrato-titulo").textContent = c.contratoId;
+  body.innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;font-size:0.85rem;">
+      <div><strong>Escola:</strong> ${escapeHtml(c.escola?.nome || "")}</div>
+      <div><strong>Município:</strong> ${escapeHtml(c.escola?.municipio || "")}</div>
+      <div><strong>Status:</strong> <span class="badge">${c.status}</span></div>
+      <div><strong>Valor:</strong> ${brl.format(c.valorTotal || 0)}</div>
+      <div><strong>Data:</strong> ${formatDate(c.dataContrato)}</div>
+      <div><strong>Entrega até:</strong> ${formatDate(c.dataLimiteEntrega)}</div>
+    </div>
+    <h4 style="margin:12px 0 8px;">Itens</h4>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Item</th><th>Marca</th><th>Qtd</th><th>Preço</th><th>Entregue</th><th>Pendente</th></tr></thead>
+      <tbody>${(c.itens || []).map(i => `<tr>
+        <td>${escapeHtml(i.nome)}</td><td>${escapeHtml(i.marca || "")}</td>
+        <td>${i.quantidade}</td><td class="font-mono">${brl.format(i.precoUnitario)}</td>
+        <td>${i.entregue || 0}</td><td>${i.pendente || i.quantidade}</td>
+      </tr>`).join("")}</tbody>
+    </table></div>
+    <h4 style="margin:12px 0 8px;">Histórico</h4>
+    <div style="font-size:0.8rem;">${(c.historico || []).map(h => `<div style="padding:4px 0;border-bottom:1px solid var(--line);">${formatDate(h.data?.slice(0,10))} — ${escapeHtml(h.evento)}</div>`).join("")}</div>
+  `;
+  document.getElementById("modal-contrato").style.display = "flex";
+};
+
+window.registrarEntrega = function (contratoId) {
+  const contratos = JSON.parse(localStorage.getItem(CONTRATOS_STORAGE_KEY) || "[]");
+  const c = contratos.find(x => x.contratoId === contratoId);
+  if (!c) return;
+
+  const qtdStr = prompt("Quantidade entregue (todos os itens proporcionalmente):");
+  const qtd = parseInt(qtdStr);
+  if (!qtd || qtd <= 0) return;
+
+  c.itens.forEach(item => {
+    const entregar = Math.min(qtd, item.pendente || item.quantidade);
+    item.entregue = (item.entregue || 0) + entregar;
+    item.pendente = (item.pendente || item.quantidade) - entregar;
+  });
+
+  const todosEntregues = c.itens.every(i => (i.pendente || 0) <= 0);
+  if (todosEntregues) c.status = "entregue";
+  else c.status = "em_entrega";
+
+  c.historico = c.historico || [];
+  c.historico.push({ data: new Date().toISOString(), evento: `Entrega registrada: ${qtd} un`, usuario: "operador" });
+
+  localStorage.setItem(CONTRATOS_STORAGE_KEY, JSON.stringify(contratos));
+  schedulCloudSync();
+  renderAprovados();
+  showToast("Entrega registrada!");
+};
+
+// ===== F4: ABA HISTÓRICO GANHOS/PERDIDOS =====
+function renderHistorico() {
+  const resultados = JSON.parse(localStorage.getItem(RESULTADOS_STORAGE_KEY) || "[]");
+  const ganhos = resultados.filter(r => r.resultado === "ganho");
+  const perdidos = resultados.filter(r => r.resultado === "perdido");
+  const totalGanho = ganhos.reduce((s, r) => s + (r.valorProposto || 0), 0);
+  const taxaConversao = resultados.length ? ((ganhos.length / resultados.length) * 100).toFixed(0) : 0;
+
+  const perdasPorPreco = perdidos.filter(r => r.motivoPerda === "preco" && r.deltaTotalPercent);
+  const deltaMedia = perdasPorPreco.length ? (perdasPorPreco.reduce((s, r) => s + r.deltaTotalPercent, 0) / perdasPorPreco.length).toFixed(1) : null;
+
+  setTextSafe("hk-total", resultados.length);
+  setTextSafe("hk-ganhos", ganhos.length);
+  setTextSafe("hk-perdidos", perdidos.length);
+  setTextSafe("hk-taxa", taxaConversao + "%");
+  setTextSafe("hk-faturamento", brl.format(totalGanho));
+  setTextSafe("hk-delta", deltaMedia ? deltaMedia + "%" : "—");
+
+  // Render active sub-tab
+  const activeBtn = document.querySelector("#sub-tabs-historico .rent-tab.active");
+  const activeTab = activeBtn ? (activeBtn.textContent.includes("Ganho") ? "ganhos" : activeBtn.textContent.includes("Perdido") ? "perdidos" : "analise") : "ganhos";
+  renderHistoricoContent(activeTab, ganhos, perdidos, resultados);
+}
+
+window.switchHistoricoTab = function (tab) {
+  document.querySelectorAll("#sub-tabs-historico .rent-tab").forEach(t => t.classList.remove("active"));
+  document.querySelector(`#sub-tabs-historico .rent-tab[onclick*="${tab}"]`).classList.add("active");
+  ["ganhos", "perdidos", "analise"].forEach(t => {
+    const el = document.getElementById("hist-" + t);
+    if (el) el.style.display = t === tab ? "block" : "none";
+  });
+  const resultados = JSON.parse(localStorage.getItem(RESULTADOS_STORAGE_KEY) || "[]");
+  renderHistoricoContent(tab, resultados.filter(r => r.resultado === "ganho"), resultados.filter(r => r.resultado === "perdido"), resultados);
+};
+
+function renderHistoricoContent(tab, ganhos, perdidos, todos) {
+  const container = document.getElementById("hist-" + tab);
+  if (!container) return;
+
+  if (tab === "ganhos" || tab === "perdidos") {
+    const items = tab === "ganhos" ? ganhos : perdidos;
+    if (items.length === 0) { container.innerHTML = '<p class="empty-msg">Nenhum registro.</p>'; return; }
+    container.innerHTML = `<div class="table-wrap"><table>
+      <thead><tr><th>Escola</th><th>Município</th><th>Valor</th><th>Data</th>${tab === "perdidos" ? "<th>Vencedor</th><th>Delta</th><th>Motivo</th>" : "<th>Contrato</th>"}<th>Obs</th></tr></thead>
+      <tbody>${items.map(r => `<tr>
+        <td>${escapeHtml(r.escola)}</td><td>${escapeHtml(r.municipio)}</td>
+        <td class="font-mono text-right">${brl.format(r.valorProposto || 0)}</td>
+        <td>${formatDate(r.dataResultado)}</td>
+        ${tab === "perdidos" ? `<td>${escapeHtml(r.fornecedorVencedor || "—")}</td><td class="text-danger">${r.deltaTotalPercent ? "+" + r.deltaTotalPercent + "%" : "—"}</td><td>${escapeHtml(r.motivoPerda || "—")}</td>` : `<td>${r.contrato?.contratoId || "—"}</td>`}
+        <td style="max-width:200px;font-size:0.78rem;">${escapeHtml(r.observacoes || "")}</td>
+      </tr>`).join("")}</tbody>
+    </table></div>`;
+  }
+
+  if (tab === "analise") {
+    // Análise por grupo
+    const porGrupo = {};
+    todos.forEach(r => {
+      const g = r.grupo || "Geral";
+      if (!porGrupo[g]) porGrupo[g] = { ganhos: [], perdidos: [] };
+      porGrupo[g][r.resultado === "ganho" ? "ganhos" : "perdidos"].push(r);
+    });
+
+    if (Object.keys(porGrupo).length === 0) { container.innerHTML = '<p class="empty-msg">Sem dados para análise.</p>'; return; }
+
+    let html = `<div class="table-wrap"><table>
+      <thead><tr><th>Grupo</th><th>Ganhos</th><th>Perdidos</th><th>Taxa</th><th>Valor Médio Ganho</th><th>Insight</th></tr></thead><tbody>`;
+
+    for (const [grupo, dados] of Object.entries(porGrupo)) {
+      const total = dados.ganhos.length + dados.perdidos.length;
+      const taxa = ((dados.ganhos.length / total) * 100).toFixed(0);
+      const precoMedioGanho = dados.ganhos.length ? (dados.ganhos.reduce((s, r) => s + r.valorProposto, 0) / dados.ganhos.length) : null;
+
+      let insight = "";
+      if (dados.perdidos.length > dados.ganhos.length) insight = "Revisar precificação";
+      else if (parseInt(taxa) >= 80) insight = "Domínio competitivo";
+      else if (parseInt(taxa) >= 50) insight = "Competitivo — otimizar";
+
+      html += `<tr>
+        <td><strong>${escapeHtml(grupo)}</strong></td>
+        <td class="text-accent">${dados.ganhos.length}</td>
+        <td class="text-danger">${dados.perdidos.length}</td>
+        <td>${taxa}%</td>
+        <td class="font-mono">${precoMedioGanho ? brl.format(precoMedioGanho) : "—"}</td>
+        <td style="font-size:0.8rem;">${insight}</td>
+      </tr>`;
+    }
+    html += "</tbody></table></div>";
+    container.innerHTML = html;
+  }
+}
+
+// ===== F5: AI IMPORT =====
+window.importarComIA = async function () {
+  // Trigger file input
+  const input = document.getElementById("import-file-input");
+  if (!input) return;
+
+  const file = input.files && input.files[0];
+  if (!file) {
+    // If no file yet, trigger the file picker with a flag
+    input._aiMode = true;
+    input.click();
+    return;
+  }
+
+  await processAIImport(file);
+};
+
+async function processAIImport(file) {
+  const btnAI = document.getElementById("btn-import-ai");
+  if (btnAI) { btnAI.disabled = true; btnAI.textContent = "Analisando com IA..."; }
+
+  try {
+    // Extract text based on file type
+    let textoExtraido = "";
+    const ext = file.name.split(".").pop().toLowerCase();
+
+    if (["xlsx", "xls", "csv"].includes(ext)) {
+      const data = await file.arrayBuffer();
+      const wb = XLSX.read(data, { type: "array" });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      textoExtraido = XLSX.utils.sheet_to_csv(ws, { FS: "|" });
+    } else if (ext === "pdf") {
+      const data = new Uint8Array(await file.arrayBuffer());
+      const pdf = await pdfjsLib.getDocument(data).promise;
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const content = await page.getTextContent();
+        textoExtraido += content.items.map(item => item.str).join(" ") + "\n";
+      }
+    } else if (["jpg", "jpeg", "png"].includes(ext)) {
+      const result = await Tesseract.recognize(file, "por", {
+        logger: m => {
+          if (m.status === "recognizing text" && m.progress) {
+            if (btnAI) btnAI.textContent = `OCR ${Math.round(m.progress * 100)}%...`;
+          }
+        }
+      });
+      textoExtraido = result.data.text;
+    } else if (["docx", "doc"].includes(ext)) {
+      const data = await file.arrayBuffer();
+      const result = await mammoth.extractRawText({ arrayBuffer: data });
+      textoExtraido = result.value;
+    }
+
+    if (textoExtraido.trim().length < 10) throw new Error("Não foi possível extrair texto suficiente do arquivo.");
+
+    if (btnAI) btnAI.textContent = "Enviando para IA...";
+    const fornecedor = prompt("Nome do fornecedor (opcional):") || "";
+
+    const resp = await fetch("/.netlify/functions/ai-parse-price", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ texto: textoExtraido, formato: ext, fornecedor }),
+    });
+
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || "Erro no servidor");
+
+    const itens = data.itens || [];
+    if (itens.length === 0) throw new Error("IA não identificou itens na tabela.");
+
+    // Match with existing banco
+    const matchResult = matchAIResultWithBanco(itens);
+
+    // Show preview in import modal
+    const modal = document.getElementById("modal-import");
+    document.getElementById("import-filename").textContent = file.name + " (IA)";
+    const fmtBadge = document.getElementById("import-format-badge");
+    if (fmtBadge) { fmtBadge.textContent = "AI Parse"; fmtBadge.style.display = "inline"; }
+
+    // Build preview table
+    const thead = document.getElementById("thead-import-preview");
+    const tbody = document.getElementById("tbody-import-preview");
+    thead.innerHTML = "<tr><th>Status</th><th>Item</th><th>Marca</th><th>Un</th><th>Preço</th><th>Categoria</th></tr>";
+    tbody.innerHTML = itens.map(item => {
+      const matched = matchResult.matched.find(m => m.ai === item);
+      const ambig = matchResult.ambiguous.find(m => m.ai === item);
+      let status = '<span class="badge badge-ok">Novo</span>';
+      if (matched) status = '<span class="badge badge-aprovado">Match</span>';
+      else if (ambig) status = '<span class="badge badge-enviado">Parcial</span>';
+      return `<tr><td>${status}</td><td>${escapeHtml(item.nome || "")}</td><td>${escapeHtml(item.marca || "")}</td><td>${escapeHtml(item.unidade || "")}</td><td class="font-mono">${item.preco ? brl.format(item.preco) : "—"}</td><td>${escapeHtml(item.categoria || "")}</td></tr>`;
+    }).join("");
+
+    // Stats
+    const statsEl = document.getElementById("import-stats");
+    if (statsEl) {
+      statsEl.style.display = "block";
+      statsEl.innerHTML = `<div style="padding:8px;background:var(--bg);border-radius:6px;font-size:0.82rem;">
+        <strong>IA identificou ${itens.length} itens</strong> |
+        Match: ${matchResult.matched.length} | Parcial: ${matchResult.ambiguous.length} | Novos: ${matchResult.new.length} |
+        Tokens: ${data.tokens_usados} | Custo: ~$${data.custo_estimado} | Fornecedor: ${data.fornecedor || "—"}
+      </div>`;
+    }
+
+    // Store for confirm
+    window._aiImportData = { itens, matchResult, fornecedor: data.fornecedor };
+
+    // Override confirm button
+    const btnConfirm = document.getElementById("btn-import-confirmar");
+    btnConfirm.onclick = function () { confirmarAIImport(); };
+
+    // Hide mapping (not needed for AI)
+    document.getElementById("import-mapping").style.display = "none";
+    const totalToggle = document.getElementById("import-total-toggle");
+    if (totalToggle) totalToggle.style.display = "none";
+
+    if (modal) modal.style.display = "flex";
+
+  } catch (err) {
+    showToast("Erro AI Import: " + err.message, 5000);
+  } finally {
+    if (btnAI) { btnAI.disabled = false; btnAI.textContent = "Importar com IA"; }
+  }
+}
+
+function matchAIResultWithBanco(aiItens) {
+  const result = { matched: [], new: [], ambiguous: [] };
+  const itens = bancoPrecos.itens || [];
+
+  aiItens.forEach(aiItem => {
+    const nome = (aiItem.nome || "").toLowerCase().trim();
+    let bestMatch = null, bestScore = 0;
+
+    itens.forEach(bp => {
+      const bpNome = (bp.item || "").toLowerCase().trim();
+      const words1 = nome.split(/\s+/);
+      const words2 = bpNome.split(/\s+/);
+      const common = words1.filter(w => words2.some(w2 => w2.includes(w) || w.includes(w2)));
+      const score = common.length / Math.max(words1.length, words2.length);
+      if (score > bestScore) { bestScore = score; bestMatch = bp; }
+    });
+
+    if (bestScore >= 0.8) result.matched.push({ ai: aiItem, banco: bestMatch, score: bestScore });
+    else if (bestScore >= 0.5) result.ambiguous.push({ ai: aiItem, banco: bestMatch, score: bestScore });
+    else result.new.push({ ai: aiItem });
+  });
+  return result;
+}
+
+function confirmarAIImport() {
+  const data = window._aiImportData;
+  if (!data) return;
+
+  let added = 0, updated = 0;
+  data.itens.forEach(aiItem => {
+    const matched = data.matchResult.matched.find(m => m.ai === aiItem);
+    if (matched && matched.banco) {
+      // Update existing
+      if (aiItem.preco > 0) {
+        matched.banco.custoBase = aiItem.preco;
+        matched.banco.precoReferencia = Math.round(aiItem.preco * (1 + (matched.banco.margemPadrao || 0.30)) * 100) / 100;
+        matched.banco.ultimaCotacao = new Date().toISOString().slice(0, 10);
+        if (aiItem.marca) matched.banco.marca = aiItem.marca;
+        if (data.fornecedor) {
+          if (!matched.banco.custosFornecedor) matched.banco.custosFornecedor = [];
+          matched.banco.custosFornecedor.push({ fornecedor: data.fornecedor, preco: aiItem.preco, data: new Date().toISOString().slice(0, 10) });
+        }
+        updated++;
+      }
+    } else {
+      // Add new
+      bancoPrecos.itens.push({
+        id: "bp-" + Date.now() + "-" + Math.random().toString(36).slice(2, 6),
+        grupo: aiItem.categoria || "Importado IA",
+        item: aiItem.nome, unidade: aiItem.unidade || "Un",
+        custoBase: aiItem.preco || 0, margemPadrao: 0.30,
+        precoReferencia: Math.round((aiItem.preco || 0) * 1.30 * 100) / 100,
+        ultimaCotacao: new Date().toISOString().slice(0, 10),
+        fonte: data.fornecedor || "AI Import", marca: aiItem.marca || "",
+        custosFornecedor: data.fornecedor && aiItem.preco ? [{ fornecedor: data.fornecedor, preco: aiItem.preco, data: new Date().toISOString().slice(0, 10) }] : [],
+      });
+      added++;
+    }
+  });
+
+  saveBancoLocal();
+  renderBanco();
+  document.getElementById("modal-import").style.display = "none";
+  window._aiImportData = null;
+  showToast(`AI Import: ${updated} atualizados, ${added} novos adicionados`);
+}
+
+// ===== F7: PNCP INTEGRATION =====
+async function consultarPNCP(itemNome, itemId) {
+  try {
+    const resp = await fetch("/.netlify/functions/pncp-search", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "search", termo: itemNome, uf: "MG" }),
+    });
+
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || "Erro PNCP");
+
+    const resultados = data.data || data || [];
+    if (!Array.isArray(resultados) || resultados.length === 0) return null;
+
+    // Extract prices from search results
+    const precos = [];
+    for (const contratacao of resultados.slice(0, 5)) {
+      try {
+        const cnpj = contratacao.orgaoEntidade?.cnpj || contratacao.cnpjCompra;
+        const ano = contratacao.anoCompra;
+        const seq = contratacao.sequencialCompra;
+        if (!cnpj || !ano || !seq) continue;
+
+        const itemsResp = await fetch("/.netlify/functions/pncp-search", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "items", cnpj, ano, seq }),
+        });
+        const itemsData = await itemsResp.json();
+        const itensArray = Array.isArray(itemsData) ? itemsData : (itemsData.data || []);
+
+        const keyword = itemNome.toLowerCase().split(" ")[0];
+        itensArray.forEach(i => {
+          if (i.descricao && i.descricao.toLowerCase().includes(keyword)) {
+            const preco = i.valorHomologado || i.valorUnitarioEstimado;
+            if (preco > 0) {
+              precos.push({
+                preco, orgao: contratacao.orgaoEntidade?.razaoSocial || "",
+                data: contratacao.dataPublicacaoPncp, descricao: i.descricao,
+              });
+            }
+          }
+        });
+      } catch (_) { /* skip */ }
+    }
+
+    if (precos.length === 0) return null;
+
+    const valores = precos.map(p => p.preco);
+    valores.sort((a, b) => a - b);
+    const mediana = valores.length % 2 ? valores[Math.floor(valores.length / 2)] : (valores[valores.length / 2 - 1] + valores[valores.length / 2]) / 2;
+
+    const stats = {
+      mediana, media: valores.reduce((a, b) => a + b, 0) / valores.length,
+      min: Math.min(...valores), max: Math.max(...valores),
+      amostras: valores.length, detalhes: precos,
+      dataConsulta: new Date().toISOString(),
+    };
+
+    // Save to banco
+    const item = bancoPrecos.itens.find(i => i.id === itemId);
+    if (item) {
+      item.pncp = stats;
+      item.precoReferencia = stats.mediana;
+      item.ultimaConsultaPncp = stats.dataConsulta;
+      saveBancoLocal();
+    }
+
+    // Cache 7 days
+    const cache = JSON.parse(localStorage.getItem(PNCP_CACHE_KEY) || "{}");
+    cache[itemId] = { ...stats, expira: Date.now() + 7 * 24 * 60 * 60 * 1000 };
+    localStorage.setItem(PNCP_CACHE_KEY, JSON.stringify(cache));
+
+    return stats;
+  } catch (err) {
+    console.warn("PNCP error:", err);
+    return null;
+  }
+}
+
+window.consultarPncpBatch = async function () {
+  const cache = JSON.parse(localStorage.getItem(PNCP_CACHE_KEY) || "{}");
+  const pendentes = (bancoPrecos.itens || []).filter(item => {
+    const cached = cache[item.id];
+    return !cached || cached.expira < Date.now();
+  });
+
+  if (pendentes.length === 0) { showToast("Todos os itens já têm consulta PNCP válida (cache 7 dias)"); return; }
+
+  const progressEl = document.getElementById("pncp-progress");
+  if (progressEl) progressEl.style.display = "block";
+
+  let processados = 0;
+  for (const item of pendentes) {
+    await consultarPNCP(item.item, item.id);
+    processados++;
+    if (progressEl) {
+      const pct = Math.round(processados / pendentes.length * 100);
+      progressEl.querySelector(".pct").textContent = pct + "%";
+      progressEl.querySelector(".label").textContent = `${processados}/${pendentes.length} itens consultados`;
+      progressEl.querySelector(".bar").value = pct;
+    }
+    await new Promise(r => setTimeout(r, 1200)); // Rate limit
+  }
+
+  if (progressEl) progressEl.style.display = "none";
+  renderBanco();
+  showToast(`PNCP: ${processados} itens atualizados`);
+};
+
+// ===== F6: FONTES B2B =====
+window.abrirGerenciadorFontes = function (itemId) {
+  const item = bancoPrecos.itens.find(i => i.id === itemId);
+  if (!item) return;
+  const fontes = item.fontesPreco || [];
+
+  const isExpired = (f) => f.validade && new Date(f.validade) < new Date();
+  const tipoLabel = { manual: "Manual", b2b_portal: "Portal B2B", b2b_api: "API", tabela_fornecedor: "Tabela" };
+
+  let html = `<h4 style="margin-bottom:8px;">${escapeHtml(item.item)}</h4>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Fornecedor</th><th>Tipo</th><th>Preço</th><th>Atualizado</th><th>Válido até</th><th>Freq.</th><th></th></tr></thead>
+      <tbody>${fontes.length === 0 ? '<tr><td colspan="7" class="text-muted">Nenhuma fonte cadastrada.</td></tr>' : fontes.map((f, idx) => {
+        const exp = isExpired(f);
+        return `<tr style="${exp ? "opacity:0.5;" : ""}">
+          <td>${escapeHtml(f.fornecedor)}</td>
+          <td><span class="badge">${tipoLabel[f.tipo] || f.tipo}</span></td>
+          <td class="font-mono">${brl.format(f.preco)}</td>
+          <td>${formatDate(f.dataAtualizacao)}</td>
+          <td>${f.validade ? formatDate(f.validade) : "—"} ${exp ? '<span class="badge badge-vencido">Expirado</span>' : ""}</td>
+          <td>${f.frequencia || "—"}</td>
+          <td><button class="btn btn-inline btn-danger" onclick="removerFontePreco('${itemId}',${idx})">X</button></td>
+        </tr>`;
+      }).join("")}</tbody>
+    </table></div>
+    <h4 style="margin:12px 0 8px;">Adicionar Fonte</h4>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;">
+      <label style="flex:1;min-width:120px;">Fornecedor<input type="text" id="nf-fornecedor" placeholder="Nome" /></label>
+      <label style="width:80px;">Preço<input type="number" id="nf-preco" step="0.01" /></label>
+      <label style="width:120px;">Válido até<input type="date" id="nf-validade" /></label>
+      <label style="width:120px;">Tipo<select id="nf-tipo"><option value="manual">Manual</option><option value="tabela_fornecedor">Tabela</option><option value="b2b_portal">Portal B2B</option></select></label>
+      <label style="width:120px;">Frequência<select id="nf-freq"><option value="semanal">Semanal</option><option value="quinzenal">Quinzenal</option><option value="mensal">Mensal</option></select></label>
+      <button class="btn btn-accent btn-sm" onclick="adicionarFontePreco('${itemId}')">Adicionar</button>
+    </div>`;
+
+  document.getElementById("modal-fontes-titulo").textContent = "Fontes de Preço";
+  document.getElementById("modal-fontes-body").innerHTML = html;
+  document.getElementById("modal-fontes").style.display = "flex";
+};
+
+window.adicionarFontePreco = function (itemId) {
+  const item = bancoPrecos.itens.find(i => i.id === itemId);
+  if (!item) return;
+  const fornecedor = document.getElementById("nf-fornecedor").value.trim();
+  const preco = parseFloat(document.getElementById("nf-preco").value);
+  if (!fornecedor || !preco) { alert("Preencha fornecedor e preço."); return; }
+
+  if (!item.fontesPreco) item.fontesPreco = [];
+  item.fontesPreco.push({
+    tipo: document.getElementById("nf-tipo").value,
+    fornecedor, preco,
+    dataAtualizacao: new Date().toISOString().slice(0, 10),
+    validade: document.getElementById("nf-validade").value || null,
+    frequencia: document.getElementById("nf-freq").value,
+    ativo: true,
+  });
+
+  // Update custoBase to best price
+  const activesFontes = item.fontesPreco.filter(f => f.ativo && (!f.validade || new Date(f.validade) >= new Date()));
+  if (activesFontes.length > 0) {
+    item.custoBase = Math.min(...activesFontes.map(f => f.preco));
+    item.precoReferencia = Math.round(item.custoBase * (1 + (item.margemPadrao || 0.30)) * 100) / 100;
+  }
+
+  saveBancoLocal();
+  abrirGerenciadorFontes(itemId); // Re-render
+  showToast("Fonte adicionada!");
+};
+
+window.removerFontePreco = function (itemId, idx) {
+  const item = bancoPrecos.itens.find(i => i.id === itemId);
+  if (!item || !item.fontesPreco) return;
+  item.fontesPreco.splice(idx, 1);
+  saveBancoLocal();
+  abrirGerenciadorFontes(itemId);
+};
+
+// ===== BIND NEW EVENTS =====
+(function bindNewEvents() {
+  // AI Import button
+  const btnAI = document.getElementById("btn-import-ai");
+  if (btnAI) {
+    btnAI.addEventListener("click", () => {
+      const input = document.getElementById("import-file-input");
+      input._aiMode = true;
+      input.click();
+    });
+  }
+
+  // Hook file input for AI mode
+  const fileInput = document.getElementById("import-file-input");
+  if (fileInput) {
+    const origHandler = fileInput.onchange;
+    fileInput.addEventListener("change", function (e) {
+      if (this._aiMode && this.files && this.files[0]) {
+        this._aiMode = false;
+        processAIImport(this.files[0]);
+        e.stopImmediatePropagation();
+        return;
+      }
+    });
+  }
+
+  // Banco: select-all checkbox
+  const selectAllBanco = document.getElementById("banco-select-all");
+  if (selectAllBanco) {
+    selectAllBanco.addEventListener("change", function () {
+      document.querySelectorAll(".banco-item-check").forEach(c => { c.checked = this.checked; });
+      updateBancoSelectionUI();
+    });
+  }
+
+  // Banco: delegate individual checkbox changes
+  const tbodyBanco = document.getElementById("tbody-banco");
+  if (tbodyBanco) {
+    tbodyBanco.addEventListener("change", function (e) {
+      if (e.target.classList.contains("banco-item-check")) updateBancoSelectionUI();
+    });
+  }
+
+  // Banco: bulk delete button
+  const btnExcluirSel = document.getElementById("btn-excluir-selecionados-banco");
+  if (btnExcluirSel) btnExcluirSel.addEventListener("click", excluirSelecionadosBanco);
+
+  // PNCP batch button
+  const btnPncp = document.getElementById("btn-pncp-batch");
+  if (btnPncp) btnPncp.addEventListener("click", consultarPncpBatch);
+
+  // Export contratos
+  const btnExpCtr = document.getElementById("btn-export-contratos");
+  if (btnExpCtr) {
+    btnExpCtr.addEventListener("click", () => {
+      const contratos = JSON.parse(localStorage.getItem(CONTRATOS_STORAGE_KEY) || "[]");
+      const header = "ContratoID;Escola;Municipio;Valor;Status;Data;Entregue";
+      const rows = contratos.map(c => {
+        const entregue = c.itens ? c.itens.reduce((s, i) => s + (i.entregue || 0), 0) : 0;
+        return [c.contratoId, c.escola?.nome, c.escola?.municipio, c.valorTotal, c.status, c.dataContrato, entregue].map(v => `"${String(v || "").replace(/"/g, '""')}"`).join(";");
+      });
+      if (typeof downloadCsv === "function") downloadCsv("contratos.csv", [header, ...rows].join("\n"));
+    });
+  }
+})();
 
 // ===== INIT =====
 boot();

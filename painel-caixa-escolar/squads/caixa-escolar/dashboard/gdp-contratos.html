@@ -140,10 +140,8 @@
     <a href="gdp-portal.html">Portal Escolar</a>
     <a href="gdp-entregador.html">Entregador</a>
     <span>|</span>
-    <a href="#" onclick="exportarDados();return false" title="Exportar todos os dados para arquivo JSON">📤 Exportar</a>
-    <a href="#" onclick="document.getElementById('import-dados-file').click();return false" title="Importar dados de outra maquina">📥 Importar</a>
-    <input type="file" id="import-dados-file" accept=".json" style="display:none" onchange="importarDados(this.files[0])">
-    <a href="index.html" class="green">← NexEdu</a>
+
+    <a href="index.html" class="green" onclick="localStorage.setItem('nexedu.activeModule','radar')">← Licit-IAX</a>
   </div>
 </div>
 
@@ -159,8 +157,7 @@
 
   <!-- Tabs -->
   <div class="tabs">
-    <button class="tab active" data-tab="importar" onclick="switchTab('importar')">Importar Mapa</button>
-    <button class="tab" data-tab="contratos" onclick="switchTab('contratos')">Contratos <span class="count" id="tab-count-contratos">0</span></button>
+    <button class="tab active" data-tab="contratos" onclick="switchTab('contratos')">Contratos <span class="count" id="tab-count-contratos">0</span></button>
     <button class="tab" data-tab="itens" onclick="switchTab('itens')">Itens do Contrato</button>
     <button class="tab" data-tab="usuarios" onclick="switchTab('usuarios')">Usuarios</button>
     <button class="tab" data-tab="pedidos" onclick="switchTab('pedidos')">Pedidos <span class="count" id="tab-count-pedidos">0</span></button>
@@ -168,7 +165,7 @@
   </div>
 
   <!-- Tab: Contratos -->
-  <div id="tab-contratos" class="hidden">
+  <div id="tab-contratos">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
       <div style="display:flex;gap:.8rem;align-items:center">
         <input type="text" id="busca-contrato" placeholder="Buscar escola ou edital..." oninput="renderContratos()" style="min-width:280px">
@@ -189,14 +186,76 @@
   </div>
 
   <!-- Tab: Importar Mapa -->
-  <div id="tab-importar">
+  <div id="tab-importar" class="hidden">
+    <!-- Import mode selector -->
     <div class="card">
-      <h2>Importar Mapa de Apuracao</h2>
-      <p style="color:var(--mut);font-size:.85rem;margin-bottom:1rem">Envie o arquivo Word (.docx) do Mapa de Apuracao e Classificacao de Propostas. O sistema vai extrair automaticamente os itens, fornecedores e a classificacao.</p>
-      <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-input').click()">
-        <h3>Arraste o arquivo aqui</h3>
-        <p>Formatos aceitos: Word (.docx), Excel (.xlsx), PDF (.pdf), Imagem (.jpg, .png)</p>
-        <input type="file" id="file-input" accept=".docx,.doc,.pdf,.xlsx,.xls,.csv,.jpg,.jpeg,.png" onchange="handleFileUpload(this.files[0])">
+      <h2>Importar Dados para Contrato</h2>
+      <div style="display:flex;gap:1rem;margin-bottom:1.5rem">
+        <button class="btn btn-blue" id="btn-mode-mapa" onclick="setImportMode('mapa')" style="flex:1;padding:1rem">
+          <div style="font-size:1.2rem;margin-bottom:.3rem">📋</div>
+          <div style="font-weight:700">Mapa de Apuracao</div>
+          <div style="font-size:.75rem;font-weight:400;opacity:.8">Word/Excel com fornecedores e classificacao</div>
+        </button>
+        <button class="btn btn-outline" id="btn-mode-lista" onclick="setImportMode('lista')" style="flex:1;padding:1rem">
+          <div style="font-size:1.2rem;margin-bottom:.3rem">📦</div>
+          <div style="font-weight:700">Lista de Produtos</div>
+          <div style="font-size:.75rem;font-weight:400;opacity:.8">Planilha com itens e precos unitarios fechados</div>
+        </button>
+      </div>
+    </div>
+
+    <!-- Mode: Mapa de Apuracao -->
+    <div id="import-mode-mapa">
+      <div class="card">
+        <h3 style="margin-bottom:.5rem">Importar Mapa de Apuracao</h3>
+        <p style="color:var(--mut);font-size:.85rem;margin-bottom:1rem">Envie o arquivo Word (.docx) do Mapa de Apuracao e Classificacao de Propostas. O sistema vai extrair automaticamente os itens, fornecedores e a classificacao.</p>
+        <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-input').click()">
+          <h3>Arraste o arquivo aqui</h3>
+          <p>Formatos aceitos: Word (.docx), Excel (.xlsx), PDF (.pdf), Imagem (.jpg, .png)</p>
+          <input type="file" id="file-input" accept=".docx,.doc,.pdf,.xlsx,.xls,.csv,.jpg,.jpeg,.png" onchange="handleFileUpload(this.files[0])">
+        </div>
+      </div>
+    </div>
+
+    <!-- Mode: Lista de Produtos -->
+    <div id="import-mode-lista" class="hidden">
+      <div class="card">
+        <h3 style="margin-bottom:.5rem">Importar Lista de Produtos</h3>
+        <p style="color:var(--mut);font-size:.85rem;margin-bottom:1rem">Envie uma planilha Excel (.xlsx/.csv) com a lista de produtos e precos unitarios ja fechados. A planilha deve conter colunas como: descricao, unidade, quantidade, preco unitario.</p>
+        <div class="upload-zone" id="upload-zone-lista" onclick="document.getElementById('file-input-lista').click()">
+          <h3>Arraste a planilha aqui</h3>
+          <p>Formatos aceitos: Excel (.xlsx, .xls), CSV (.csv)</p>
+          <input type="file" id="file-input-lista" accept=".xlsx,.xls,.csv" onchange="handleListaUpload(this.files[0])">
+        </div>
+      </div>
+
+      <!-- Dados do contrato -->
+      <div class="card" id="lista-dados-contrato" class="hidden" style="display:none">
+        <h3 style="margin-bottom:1rem">Dados do Contrato</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+          <div><label style="font-size:.8rem;color:var(--mut);display:block;margin-bottom:.3rem">Escola / Orgao</label><input type="text" id="lista-escola" placeholder="Nome da escola ou orgao" style="width:100%"></div>
+          <div><label style="font-size:.8rem;color:var(--mut);display:block;margin-bottom:.3rem">Numero do Processo</label><input type="text" id="lista-processo" placeholder="Ex: 001/2026" style="width:100%"></div>
+          <div><label style="font-size:.8rem;color:var(--mut);display:block;margin-bottom:.3rem">Numero do Edital</label><input type="text" id="lista-edital" placeholder="Ex: PE 001/2026" style="width:100%"></div>
+          <div><label style="font-size:.8rem;color:var(--mut);display:block;margin-bottom:.3rem">Vigencia</label><input type="text" id="lista-vigencia" placeholder="Ex: 01/01/2026 a 31/12/2026" style="width:100%"></div>
+          <div style="grid-column:1/-1"><label style="font-size:.8rem;color:var(--mut);display:block;margin-bottom:.3rem">Objeto</label><input type="text" id="lista-objeto" placeholder="Descricao do objeto do contrato" style="width:100%"></div>
+          <div style="grid-column:1/-1"><label style="font-size:.8rem;color:var(--mut);display:block;margin-bottom:.3rem">Observacoes</label><textarea id="lista-observacoes" placeholder="Informacoes adicionais que serao replicadas nos pedidos..." style="width:100%;min-height:60px;padding:.5rem .8rem;background:var(--s1);border:1px solid var(--bdr);border-radius:8px;color:var(--txt);font-size:.85rem;resize:vertical"></textarea></div>
+        </div>
+      </div>
+
+      <!-- Preview da lista importada -->
+      <div class="card" id="lista-preview" style="display:none">
+        <h3 style="margin-bottom:.8rem">Itens Importados <span id="lista-count" style="color:var(--blue)"></span></h3>
+        <div class="table-wrap" style="max-height:400px;overflow-y:auto">
+          <table>
+            <thead><tr><th>#</th><th>Descricao</th><th>Unidade</th><th class="text-right">Qtd</th><th class="text-right">Preco Unit.</th><th class="text-right">Total</th></tr></thead>
+            <tbody id="lista-preview-tbody"></tbody>
+            <tfoot><tr><th colspan="5" style="text-align:right">Total</th><th id="lista-total" style="color:var(--green);font-size:1rem"></th></tr></tfoot>
+          </table>
+        </div>
+        <div style="margin-top:1rem;display:flex;gap:.8rem;justify-content:flex-end">
+          <button class="btn btn-outline" onclick="cancelListaImport()">Cancelar</button>
+          <button class="btn btn-green" onclick="criarContratoLista()">Criar Contrato</button>
+        </div>
       </div>
     </div>
 
@@ -294,30 +353,32 @@
 
   <!-- Tab: Pedidos -->
   <div id="tab-pedidos" class="hidden">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
-      <div style="display:flex;gap:.8rem;align-items:center">
-        <select id="filtro-contrato-pedidos" onchange="renderPedidos()">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:.5rem">
+      <div style="display:flex;gap:.8rem;align-items:center;flex-wrap:wrap">
+        <input type="text" id="busca-pedido" placeholder="Buscar escola..." oninput="renderPedidos()" style="min-width:200px">
+        <select id="filtro-contrato-pedido" onchange="renderPedidos()">
           <option value="">Todos os contratos</option>
         </select>
         <select id="filtro-status-pedido" onchange="renderPedidos()">
           <option value="">Todos os status</option>
           <option value="recebido">Recebido</option>
-          <option value="separando">Separando</option>
-          <option value="entregue">Entregue</option>
+          <option value="concluido">Concluído</option>
         </select>
+        <input type="date" id="filtro-data-pedido" onchange="renderPedidos()">
       </div>
-      <!-- Registrar Pedido removido (Story 3.2) -->
     </div>
     <div class="table-wrap" style="max-height:600px;overflow-y:auto">
       <table>
         <thead>
           <tr>
             <th>Protocolo</th>
+            <th>Contrato</th>
             <th>Escola</th>
             <th>Data</th>
             <th class="text-right">Itens</th>
             <th class="text-right">Valor</th>
             <th>Status</th>
+            <th>Observacao</th>
             <th>Acoes</th>
           </tr>
         </thead>
@@ -383,6 +444,12 @@
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
       <div style="display:flex;gap:.8rem;align-items:center">
         <input type="text" id="busca-entrega" placeholder="Buscar escola ou protocolo..." oninput="renderEntregas()">
+        <input type="date" id="filtro-data-entrega" onchange="renderEntregas()">
+        <select id="filtro-status-entrega" onchange="renderEntregas()">
+          <option value="">Todos os status</option>
+          <option value="entregue">Entregue</option>
+          <option value="concluido">Concluído</option>
+        </select>
       </div>
       <span style="color:var(--mut);font-size:.8rem">Dados sincronizados automaticamente do app Entregador</span>
     </div>
@@ -396,6 +463,7 @@
             <th>Recebedor</th>
             <th>Foto</th>
             <th>Assinatura</th>
+            <th>Status</th>
             <th>Obs</th>
             <th>Acoes</th>
           </tr>
@@ -530,7 +598,8 @@ function savePedidos() { localStorage.setItem(ORDERS_KEY, JSON.stringify(pedidos
 // ===== TABS =====
 function switchTab(tab) {
   document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
-  document.querySelector(`[data-tab="${tab}"]`).classList.add("active");
+  const tabBtn = document.querySelector(`[data-tab="${tab}"]`);
+  if (tabBtn) tabBtn.classList.add("active");
   ["importar","contratos","itens","usuarios","pedidos","entregas"].forEach(t => {
     document.getElementById(`tab-${t}`).classList.toggle("hidden", t !== tab);
   });
@@ -1140,6 +1209,369 @@ function alimentarBancoConcorrentes(mapa, meuNome) {
   showToast(`Inteligencia: ${updated} itens com precos de concorrentes registrados no Banco de Precos.`, 5000);
 }
 
+// ===== IMPORT MODE SWITCHER =====
+let currentImportMode = "mapa";
+function setImportMode(mode) {
+  currentImportMode = mode;
+  document.getElementById("import-mode-mapa").classList.toggle("hidden", mode !== "mapa");
+  document.getElementById("import-mode-lista").classList.toggle("hidden", mode !== "lista");
+  document.getElementById("btn-mode-mapa").className = mode === "mapa" ? "btn btn-blue" : "btn btn-outline";
+  document.getElementById("btn-mode-lista").className = mode === "lista" ? "btn btn-blue" : "btn btn-outline";
+  // Style fix for flex children
+  document.getElementById("btn-mode-mapa").style.flex = "1";
+  document.getElementById("btn-mode-mapa").style.padding = "1rem";
+  document.getElementById("btn-mode-lista").style.flex = "1";
+  document.getElementById("btn-mode-lista").style.padding = "1rem";
+}
+
+// ===== LISTA DE PRODUTOS IMPORT =====
+let parsedLista = null;
+let parsedListaSheets = null;
+
+async function handleListaUpload(file) {
+  if (!file) return;
+  const ext = file.name.split('.').pop().toLowerCase();
+  if (!['xlsx', 'xls', 'csv'].includes(ext)) {
+    showToast("Formato nao suportado. Use Excel (.xlsx) ou CSV.", 4000);
+    return;
+  }
+
+  try {
+    const data = await file.arrayBuffer();
+    const wb = XLSX.read(data, { type: "array" });
+
+    // Parse all sheets
+    parsedListaSheets = {};
+    for (const sheetName of wb.SheetNames) {
+      const ws = wb.Sheets[sheetName];
+      const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
+      const itens = parseSheetToItems(rows);
+      if (itens.length > 0) {
+        parsedListaSheets[sheetName] = itens;
+      }
+    }
+
+    const sheetNames = Object.keys(parsedListaSheets);
+    if (sheetNames.length === 0) {
+      showToast("Nenhum item encontrado na planilha. Verifique se ha colunas de descricao/produto.", 5000);
+      return;
+    }
+
+    // Try to auto-fill escola name from header rows
+    const firstSheet = wb.Sheets[wb.SheetNames[0]];
+    const allRows = XLSX.utils.sheet_to_json(firstSheet, { header: 1, defval: "" });
+    autoFillMetadataFromRows(allRows);
+
+    // If multiple sheets, show selector
+    if (sheetNames.length > 1) {
+      renderSheetSelector(sheetNames);
+    } else {
+      // Single sheet — load directly
+      parsedLista = parsedListaSheets[sheetNames[0]];
+      renderListaPreview();
+      showToast(`${parsedLista.length} itens encontrados!`);
+    }
+  } catch (err) {
+    showToast("Erro ao ler planilha: " + err.message, 5000);
+    console.error(err);
+  }
+}
+
+function parseSheetToItems(rows) {
+  if (rows.length < 2) return [];
+
+  // Find the header row (first row with at least 3 non-empty cells that look like headers)
+  let headerIdx = -1;
+  for (let i = 0; i < Math.min(15, rows.length); i++) {
+    const filled = rows[i].filter(c => String(c).trim().length > 0).length;
+    const headerLike = rows[i].some(c => {
+      const s = String(c).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").trim();
+      return ["item","descricao","produto","unid","quant","preco","valor","qtd","unidade"].some(k => s.includes(k));
+    });
+    if (filled >= 3 && headerLike) { headerIdx = i; break; }
+  }
+  if (headerIdx === -1) return [];
+
+  const header = rows[headerIdx].map(h => String(h).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").trim());
+  const colMap = detectColumns(header);
+
+  if (colMap.descricao === -1) return [];
+
+  // Also scan sub-header rows (headerIdx+1) for additional labels like "valor unitário"
+  let colReaj = -1;
+  // Check the row right after header for sub-labels
+  if (headerIdx + 1 < rows.length) {
+    const subRow = rows[headerIdx + 1].map(c => String(c).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").trim());
+    for (let i = 0; i < subRow.length; i++) {
+      if (subRow[i].includes("valor unit") || subRow[i].includes("reajust")) {
+        colReaj = i; break;
+      }
+    }
+  }
+
+  // Check main header for reajustado column too
+  if (colReaj === -1) {
+    for (let i = header.length - 1; i >= 0; i--) {
+      if (header[i].includes("reajust")) { colReaj = i; break; }
+    }
+  }
+
+  // If price column not found by header, detect it from data:
+  // Find the first column after unidade that has numeric values (likely price)
+  if (colMap.preco === -1) {
+    const startCol = Math.max(colMap.unidade >= 0 ? colMap.unidade + 1 : 3, 2);
+    // Check first data rows to find a column with decimal numbers (prices)
+    for (let col = startCol; col < (rows[headerIdx] || []).length && col < 10; col++) {
+      let numericCount = 0;
+      let hasDecimal = false;
+      for (let r = headerIdx + 1; r < Math.min(headerIdx + 6, rows.length); r++) {
+        const val = rows[r][col];
+        if (typeof val === "number" && val > 0) {
+          numericCount++;
+          if (val !== Math.floor(val)) hasDecimal = true;
+        }
+      }
+      // If most data rows have numbers in this col and at least one has decimals, it's likely price
+      if (numericCount >= 2 && hasDecimal) {
+        colMap.preco = col;
+        break;
+      }
+    }
+  }
+
+  const itens = [];
+  let num = 0;
+  // Skip sub-header row if it exists (row after header that has no item number)
+  const dataStart = (headerIdx + 1 < rows.length && !rows[headerIdx + 1][0]) ? headerIdx + 2 : headerIdx + 1;
+
+  for (let i = dataStart; i < rows.length; i++) {
+    const row = rows[i];
+    const desc = colMap.descricao >= 0 ? String(row[colMap.descricao] || "").trim() : "";
+    if (!desc || desc.length < 2) continue;
+
+    // Skip sub-header rows
+    const descLower = desc.toLowerCase();
+    if (descLower.includes("descri") || descLower.includes("total")) continue;
+
+    const unidade = colMap.unidade >= 0 ? String(row[colMap.unidade] || "Un").trim() : "Un";
+    const qtd = colMap.quantidade >= 0 ? parseNum(row[colMap.quantidade]) : 1;
+
+    // Prefer reajusted price if available
+    let preco = 0;
+    if (colReaj >= 0 && parseNum(row[colReaj]) > 0) {
+      preco = parseNum(row[colReaj]);
+    } else if (colMap.preco >= 0) {
+      preco = parseNum(row[colMap.preco]);
+    }
+
+    num++;
+    itens.push({ num, descricao: desc, unidade, quantidade: qtd || 1, preco });
+  }
+
+  return itens;
+}
+
+function renderSheetSelector(sheetNames) {
+  document.getElementById("lista-dados-contrato").style.display = "block";
+  document.getElementById("lista-preview").style.display = "block";
+
+  // Show sheet tabs
+  let selectorHtml = `<div style="margin-bottom:1rem">
+    <label style="font-size:.8rem;color:var(--mut);display:block;margin-bottom:.5rem">A planilha possui ${sheetNames.length} abas. Selecione quais importar:</label>
+    <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+      ${sheetNames.map((name, i) => {
+        const count = parsedListaSheets[name].length;
+        return `<label style="display:flex;align-items:center;gap:.4rem;background:var(--s1);border:1px solid var(--bdr);border-radius:8px;padding:.5rem .8rem;cursor:pointer;font-size:.85rem">
+          <input type="checkbox" class="sheet-check" value="${esc(name)}" checked onchange="updateListaFromSheets()">
+          <strong>${esc(name)}</strong> <span style="color:var(--mut);font-size:.75rem">(${count} itens)</span>
+        </label>`;
+      }).join("")}
+    </div>
+  </div>`;
+
+  // Insert selector before the table
+  const previewCard = document.getElementById("lista-preview");
+  let existing = document.getElementById("sheet-selector");
+  if (existing) existing.remove();
+  const div = document.createElement("div");
+  div.id = "sheet-selector";
+  div.innerHTML = selectorHtml;
+  previewCard.insertBefore(div, previewCard.querySelector(".table-wrap"));
+
+  updateListaFromSheets();
+}
+
+function updateListaFromSheets() {
+  const checks = document.querySelectorAll(".sheet-check:checked");
+  const selectedNames = Array.from(checks).map(c => c.value);
+
+  // Merge items from selected sheets
+  let merged = [];
+  let num = 0;
+  for (const name of selectedNames) {
+    const items = parsedListaSheets[name] || [];
+    for (const item of items) {
+      num++;
+      merged.push({ ...item, num, aba: name });
+    }
+  }
+
+  parsedLista = merged;
+  renderListaPreview();
+}
+
+function detectColumns(header) {
+  const map = { descricao: -1, unidade: -1, quantidade: -1, preco: -1 };
+  const patterns = {
+    descricao: ["descricao", "produto", "nome", "material", "especificacao", "mercadoria"],
+    unidade: ["unidade", "unid.", "unid", "medida", "und"],
+    quantidade: ["quantidade", "qtd", "qtde", "quant.", "quant", "qty"],
+    preco: ["r$ unit", "preco unit", "preco", "valor unit", "unitario", "vl unit", "vl. unit"]
+  };
+
+  for (const [field, keywords] of Object.entries(patterns)) {
+    for (let i = 0; i < header.length; i++) {
+      if (keywords.some(k => header[i].includes(k))) {
+        map[field] = i;
+        break;
+      }
+    }
+  }
+
+  // Fallback: if descricao not found, look for "item" but only if it's a text column (not numeric)
+  if (map.descricao === -1) {
+    for (let i = 0; i < header.length; i++) {
+      if (header[i] === "item" && i > 0) continue; // skip first col that's likely #
+      if (header[i].includes("item") && !header[i].includes("qtd")) { map.descricao = i; break; }
+    }
+  }
+
+  return map;
+}
+
+function parseNum(val) {
+  if (typeof val === "number") return val;
+  const s = String(val).replace(/[^\d.,-]/g, "").replace(/\.(?=.*[.,])/g, "").replace(",", ".");
+  return parseFloat(s) || 0;
+}
+
+function autoFillMetadataFromRows(rows) {
+  // Scan top 15 rows for metadata
+  for (let i = 0; i < Math.min(15, rows.length); i++) {
+    const rowText = rows[i].map(c => String(c).trim()).join(" ").toUpperCase();
+    // Look for escola/caixa escolar
+    if (rowText.includes("CAIXA ESCOLAR") || rowText.includes("ESCOLA ESTADUAL") || rowText.includes("ESCOLA MUNICIPAL")) {
+      // Try to find the actual name (non-label cell)
+      for (const cell of rows[i]) {
+        const s = String(cell).trim();
+        if (s.length > 5 && !s.toUpperCase().startsWith("CAIXA ESCOLAR:") && !s.toUpperCase().startsWith("ESCOLA ESTADUAL:") && !s.toUpperCase().startsWith("ESCOLA MUNICIPAL:")) {
+          const el = document.getElementById("lista-escola");
+          if (el && !el.value) el.value = s;
+          break;
+        }
+      }
+    }
+    // Look for processo/edital number
+    const match = rowText.match(/(\d{1,4}\/20\d{2})/);
+    if (match) {
+      const el = document.getElementById("lista-processo");
+      if (el && !el.value) el.value = match[1];
+    }
+  }
+}
+
+function renderListaPreview() {
+  if (!parsedLista) return;
+  document.getElementById("lista-dados-contrato").style.display = "block";
+  document.getElementById("lista-preview").style.display = "block";
+  document.getElementById("lista-count").textContent = `(${parsedLista.length} itens)`;
+
+  let total = 0;
+  document.getElementById("lista-preview-tbody").innerHTML = parsedLista.map(item => {
+    const subtotal = item.preco * item.quantidade;
+    total += subtotal;
+    return `<tr>
+      <td class="text-center">${item.num}</td>
+      <td>${esc(item.descricao)}</td>
+      <td class="nowrap">${esc(item.unidade)}</td>
+      <td class="text-right font-mono">${item.quantidade}</td>
+      <td class="text-right font-mono">${item.preco > 0 ? brl.format(item.preco) : '-'}</td>
+      <td class="text-right font-mono" style="font-weight:700;color:var(--green)">${subtotal > 0 ? brl.format(subtotal) : '-'}</td>
+    </tr>`;
+  }).join("");
+  document.getElementById("lista-total").textContent = brl.format(total);
+}
+
+function criarContratoLista() {
+  if (!parsedLista || parsedLista.length === 0) return;
+
+  const escola = (document.getElementById("lista-escola")?.value || "").trim();
+  if (!escola) { showToast("Preencha o nome da escola/orgao.", 3000); return; }
+
+  const now = new Date();
+  const id = `CTR-${now.getFullYear()}${String(now.getMonth()+1).padStart(2,"0")}${String(now.getDate()).padStart(2,"0")}-${String(Math.floor(Math.random()*9999)).padStart(4,"0")}`;
+
+  const contrato = {
+    id,
+    escola,
+    edital: (document.getElementById("lista-edital")?.value || "").trim(),
+    processo: (document.getElementById("lista-processo")?.value || "").trim(),
+    vigencia: (document.getElementById("lista-vigencia")?.value || "").trim(),
+    objeto: (document.getElementById("lista-objeto")?.value || "").trim(),
+    observacoes: (document.getElementById("lista-observacoes")?.value || "").trim(),
+    criterio: "",
+    dataApuracao: now.toISOString().slice(0, 10),
+    dataCriacao: now.toISOString(),
+    fornecedor: "Lariucci & Ribeiro Pereira",
+    status: "ativo",
+    itens: parsedLista.map(item => ({
+      num: item.num,
+      descricao: item.descricao,
+      unidade: item.unidade,
+      qtdContratada: item.quantidade,
+      precoUnitario: item.preco,
+      qtdEntregue: 0
+    })),
+    fornecedoresMapa: []
+  };
+
+  contratos.push(contrato);
+  saveContratos();
+
+  // Reset
+  cancelListaImport();
+  showToast(`Contrato ${id} criado com ${parsedLista.length} itens!`);
+  parsedLista = null;
+  renderAll();
+  switchTab("contratos");
+}
+
+function cancelListaImport() {
+  parsedLista = null;
+  document.getElementById("lista-dados-contrato").style.display = "none";
+  document.getElementById("lista-preview").style.display = "none";
+  document.getElementById("file-input-lista").value = "";
+  document.getElementById("lista-escola").value = "";
+  document.getElementById("lista-processo").value = "";
+  document.getElementById("lista-edital").value = "";
+  document.getElementById("lista-vigencia").value = "";
+  document.getElementById("lista-objeto").value = "";
+  document.getElementById("lista-observacoes").value = "";
+}
+
+// Drag & drop for lista upload
+(function() {
+  const zone = document.getElementById("upload-zone-lista");
+  if (!zone) return;
+  zone.addEventListener("dragover", e => { e.preventDefault(); zone.classList.add("dragover"); });
+  zone.addEventListener("dragleave", () => zone.classList.remove("dragover"));
+  zone.addEventListener("drop", e => {
+    e.preventDefault();
+    zone.classList.remove("dragover");
+    if (e.dataTransfer.files.length) handleListaUpload(e.dataTransfer.files[0]);
+  });
+})();
+
 function cancelImport() {
   parsedMapa = null;
   selectedSupplierIdx = null;
@@ -1181,7 +1613,7 @@ function renderContratos() {
         <span class="badge ${badgeClass}">${c.status}</span>
       </div>
       <h3>${esc(c.escola.length > 60 ? c.escola.slice(0, 58) + "..." : c.escola)}</h3>
-      <div class="meta">Edital ${esc(c.edital)} | ${c.itens.length} itens | ${esc(c.fornecedor)}</div>
+      <div class="meta">${c.processo ? 'Proc. ' + esc(c.processo) + ' | ' : ''}${c.edital ? 'Edital ' + esc(c.edital) + ' | ' : ''}${c.itens.length} itens | ${esc(c.fornecedor)}</div>
       <div style="display:flex;justify-content:space-between;font-size:.8rem;margin-bottom:.5rem">
         <span style="color:var(--green);font-weight:700">${brl.format(totalContratado)}</span>
         <span style="color:var(--mut)">${itensPendentes} pendentes</span>
@@ -1285,11 +1717,21 @@ function abrirContrato(id) {
       <div class="kpi" style="margin:0"><div class="kpi-label">Entregue</div><div class="kpi-value blue" style="font-size:1.3rem">${brl.format(totalEntregue)}</div></div>
       <div class="kpi" style="margin:0"><div class="kpi-label">Saldo</div><div class="kpi-value yellow" style="font-size:1.3rem">${brl.format(totalSaldo)}</div></div>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.8rem;margin-bottom:1.5rem;font-size:.85rem">
-      <div><strong style="color:var(--mut)">Edital:</strong> ${esc(c.edital)}</div>
-      <div><strong style="color:var(--mut)">Fornecedor:</strong> ${esc(c.fornecedor)}</div>
-      <div><strong style="color:var(--mut)">Data Apuracao:</strong> ${esc(c.dataApuracao)}</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.8rem;margin-bottom:1rem;font-size:.85rem">
+      <div><strong style="color:var(--mut)">Edital:</strong> ${esc(c.edital || '-')}</div>
+      <div><strong style="color:var(--mut)">Fornecedor:</strong> ${esc(c.fornecedor || '-')}</div>
+      <div><strong style="color:var(--mut)">Data Apuracao:</strong> ${esc(c.dataApuracao || '-')}</div>
       <div><strong style="color:var(--mut)">Status:</strong> <span class="badge ${c.status === 'ativo' ? 'badge-green' : 'badge-red'}">${c.status}</span></div>
+    </div>
+    <div style="background:var(--bg);border-radius:10px;padding:1rem;margin-bottom:1.5rem">
+      <h3 style="font-size:.8rem;text-transform:uppercase;color:var(--mut);letter-spacing:.04em;margin-bottom:.8rem">Dados do Contrato</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.8rem">
+        <div><label style="font-size:.72rem;color:var(--dim);display:block;margin-bottom:.2rem">Numero do Processo</label><input type="text" id="ctr-processo-${c.id}" value="${esc(c.processo || '')}" placeholder="Ex: 001/2026" style="width:100%"></div>
+        <div><label style="font-size:.72rem;color:var(--dim);display:block;margin-bottom:.2rem">Vigencia</label><input type="text" id="ctr-vigencia-${c.id}" value="${esc(c.vigencia || '')}" placeholder="Ex: 01/01/2026 a 31/12/2026" style="width:100%"></div>
+        <div style="grid-column:1/-1"><label style="font-size:.72rem;color:var(--dim);display:block;margin-bottom:.2rem">Objeto</label><input type="text" id="ctr-objeto-${c.id}" value="${esc(c.objeto || '')}" placeholder="Descricao do objeto" style="width:100%"></div>
+        <div style="grid-column:1/-1"><label style="font-size:.72rem;color:var(--dim);display:block;margin-bottom:.2rem">Observacoes (replicadas automaticamente nos pedidos)</label><textarea id="ctr-obs-${c.id}" placeholder="Informacoes adicionais..." style="width:100%;min-height:50px;padding:.5rem .8rem;background:var(--s1);border:1px solid var(--bdr);border-radius:8px;color:var(--txt);font-size:.85rem;resize:vertical">${esc(c.observacoes || '')}</textarea></div>
+      </div>
+      <div style="margin-top:.6rem;text-align:right"><button class="btn btn-sm btn-blue" onclick="salvarDadosContrato('${c.id}')">Salvar Dados</button></div>
     </div>
     <h3 style="margin-bottom:.8rem;font-size:.9rem">Itens do Contrato</h3>
     <div class="table-wrap" style="max-height:400px;overflow-y:auto">
@@ -1365,6 +1807,29 @@ function excluirContrato(id) {
   showToast("Contrato excluido.");
 }
 
+function salvarDadosContrato(id) {
+  const c = contratos.find(x => x.id === id);
+  if (!c) return;
+  c.processo = (document.getElementById(`ctr-processo-${id}`)?.value || "").trim();
+  c.vigencia = (document.getElementById(`ctr-vigencia-${id}`)?.value || "").trim();
+  c.objeto = (document.getElementById(`ctr-objeto-${id}`)?.value || "").trim();
+  c.observacoes = (document.getElementById(`ctr-obs-${id}`)?.value || "").trim();
+  saveContratos();
+  showToast("Dados do contrato salvos!");
+}
+
+function getObsContrato(contratoId) {
+  const c = contratos.find(x => x.id === contratoId);
+  if (!c) return "";
+  const parts = [];
+  if (c.processo) parts.push("Processo: " + c.processo);
+  if (c.edital) parts.push("Edital: " + c.edital);
+  if (c.objeto) parts.push("Objeto: " + c.objeto);
+  if (c.vigencia) parts.push("Vigencia: " + c.vigencia);
+  if (c.observacoes) parts.push(c.observacoes);
+  return parts.join(" | ");
+}
+
 // ===== RENDER ITENS (ALL CONTRACTS) =====
 function renderItens() {
   // Populate filter
@@ -1421,21 +1886,29 @@ function renderItens() {
 
 // ===== RENDER PEDIDOS =====
 function renderPedidos() {
-  const sel = document.getElementById("filtro-contrato-pedidos");
-  const prevVal = sel.value;
-  while (sel.options.length > 1) sel.remove(1);
-  contratos.forEach(c => {
-    const short = c.escola.length > 40 ? c.escola.slice(0, 38) + "..." : c.escola;
-    sel.appendChild(new Option(`${c.id} — ${short}`, c.id));
+  // Populate contract filter
+  const selContrato = document.getElementById("filtro-contrato-pedido");
+  const prevContrato = selContrato.value;
+  while (selContrato.options.length > 1) selContrato.remove(1);
+  // Get unique contratoIds from pedidos
+  const ctrIds = [...new Set(pedidos.map(p => p.contratoId).filter(Boolean))];
+  ctrIds.forEach(cid => {
+    const c = contratos.find(x => x.id === cid);
+    const label = c ? `${c.id} — ${c.escola.length > 30 ? c.escola.slice(0, 28) + "..." : c.escola}${c.processo ? ' (Proc. ' + c.processo + ')' : ''}` : cid;
+    selContrato.appendChild(new Option(label, cid));
   });
-  if (prevVal) sel.value = prevVal;
+  if (prevContrato) selContrato.value = prevContrato;
 
-  const filtroContrato = sel.value;
+  const busca = (document.getElementById("busca-pedido")?.value || "").toLowerCase();
+  const filtroData = document.getElementById("filtro-data-pedido")?.value || "";
   const filtroStatus = document.getElementById("filtro-status-pedido").value;
+  const filtroContrato = selContrato.value;
 
   let filtered = pedidos;
-  if (filtroContrato) filtered = filtered.filter(p => p.contratoId === filtroContrato);
+  if (busca) filtered = filtered.filter(p => (p.escola || "").toLowerCase().includes(busca) || (p.contratoId || "").toLowerCase().includes(busca));
+  if (filtroData) filtered = filtered.filter(p => (p.data || "").includes(filtroData));
   if (filtroStatus) filtered = filtered.filter(p => p.status === filtroStatus);
+  if (filtroContrato) filtered = filtered.filter(p => p.contratoId === filtroContrato);
 
   const tbody = document.getElementById("pedidos-tbody");
   const empty = document.getElementById("pedidos-empty");
@@ -1448,21 +1921,24 @@ function renderPedidos() {
   empty.classList.add("hidden");
 
   tbody.innerHTML = filtered.map(p => {
-    const badgeMap = { recebido: "badge-yellow", separando: "badge-blue", entregue: "badge-green" };
-    const nextStatus = { recebido: "separando", separando: "entregue" };
-    const next = nextStatus[p.status];
-
+    const badgeMap = { recebido: "badge-yellow", concluido: "badge-green" };
+    const acoes = p.status === "recebido"
+      ? `<button class="btn btn-sm btn-green" onclick="avancarPedido('${p.id}','concluido')">Concluir</button>`
+      : '<span style="color:var(--green);font-size:.8rem;font-weight:600">Concluido</span>';
+    const obsText = p.obs || getObsContrato(p.contratoId) || "-";
+    const c = contratos.find(x => x.id === p.contratoId);
+    const ctrLabel = c ? `${c.id}` : (p.contratoId || "-");
+    const ctrDetail = c ? [c.processo ? 'Proc. ' + c.processo : '', c.edital ? 'Ed. ' + c.edital : ''].filter(Boolean).join(' | ') : '';
     return `<tr>
       <td class="font-mono">${esc(p.id)}</td>
+      <td style="font-size:.8rem"><strong class="font-mono">${esc(ctrLabel)}</strong>${ctrDetail ? '<br><span style="color:var(--mut);font-size:.72rem">' + esc(ctrDetail) + '</span>' : ''}</td>
       <td>${esc(p.escola.length > 30 ? p.escola.slice(0, 28) + "..." : p.escola)}</td>
       <td class="nowrap">${esc(p.data)}</td>
       <td class="text-right">${p.itens.length}</td>
       <td class="text-right font-mono" style="color:var(--green);font-weight:700">${brl.format(p.valor)}</td>
       <td><span class="badge ${badgeMap[p.status] || 'badge-yellow'}">${p.status}</span></td>
-      <td class="nowrap">
-  ${next ? `<button class="btn btn-sm btn-outline" onclick="avancarPedido('${p.id}','${next}')">${next}</button> ` : '<span style="color:var(--green);font-size:.8rem">Concluido</span> '}
-  <!-- Olist removido (Story 3.2) -->
-</td>
+      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.8rem;color:var(--mut)" title="${esc(obsText)}">${esc(obsText)}</td>
+      <td class="nowrap">${acoes}</td>
     </tr>`;
   }).join("");
 }
@@ -1471,10 +1947,8 @@ function avancarPedido(pedidoId, novoStatus) {
   const p = pedidos.find(x => x.id === pedidoId);
   if (!p) return;
 
-  p.status = novoStatus;
-
-  // If entregue, update contract quantities
-  if (novoStatus === "entregue") {
+  // Se o pedido ainda nao teve saldo deduzido (pedidos antigos), deduzir agora
+  if (novoStatus === "concluido" && !p.saldoDeduzido) {
     const c = contratos.find(x => x.id === p.contratoId);
     if (c) {
       p.itens.forEach(pi => {
@@ -1487,6 +1961,10 @@ function avancarPedido(pedidoId, novoStatus) {
       saveContratos();
     }
   }
+
+  p.status = novoStatus;
+  // Auto-preencher obs se ainda nao tem
+  if (!p.obs) p.obs = getObsContrato(p.contratoId);
 
   savePedidos();
   renderAll();
@@ -1580,13 +2058,25 @@ function salvarPedidoManual() {
     data: now.toISOString().slice(0, 10),
     itens,
     valor,
-    status: "recebido"
+    status: "recebido",
+    obs: getObsContrato(contratoId),
+    saldoDeduzido: true
   });
+
+  // Deduzir saldo do contrato imediatamente ao criar pedido
+  itens.forEach(pi => {
+    const item = c.itens.find(ci => ci.num === pi.itemNum || ci.descricao === pi.descricao);
+    if (item) {
+      const saldo = item.qtdContratada - item.qtdEntregue;
+      item.qtdEntregue += Math.min(pi.qtd, saldo);
+    }
+  });
+  saveContratos();
 
   savePedidos();
   fecharModalPedido();
   renderAll();
-  showToast(`Pedido ${id} registrado!`);
+  showToast(`Pedido ${id} registrado! Saldo do contrato atualizado.`);
 }
 
 function fecharModalPedido() {
@@ -1972,6 +2462,8 @@ function _renderEntregasUI() {
   const tbody = document.getElementById("entregas-tbody");
   const empty = document.getElementById("entregas-empty");
   const busca = (document.getElementById("busca-entrega")?.value || "").toLowerCase();
+  const filtroData = document.getElementById("filtro-data-entrega")?.value || "";
+  const filtroStatus = document.getElementById("filtro-status-entrega")?.value || "";
 
   let filtered = provasEntrega;
   if (busca) {
@@ -1980,6 +2472,16 @@ function _renderEntregasUI() {
       (p.escola || "").toLowerCase().includes(busca) ||
       (p.recebedor || "").toLowerCase().includes(busca)
     );
+  }
+  if (filtroData) {
+    filtered = filtered.filter(p => {
+      if (!p.dataEntrega) return false;
+      const d = new Date(p.dataEntrega).toISOString().split("T")[0];
+      return d === filtroData;
+    });
+  }
+  if (filtroStatus) {
+    filtered = filtered.filter(p => (p.statusEntrega || "entregue") === filtroStatus);
   }
 
   if (filtered.length === 0) {
@@ -1993,6 +2495,8 @@ function _renderEntregasUI() {
     const dataFmt = p.dataEntrega ? new Date(p.dataEntrega).toLocaleString("pt-BR") : "-";
     const temFoto = p.foto ? '<span style="color:var(--green);font-weight:700">Sim</span>' : '<span style="color:var(--dim)">Nao</span>';
     const temAssinatura = p.assinatura ? '<span style="color:var(--green);font-weight:700">Sim</span>' : '<span style="color:var(--dim)">Nao</span>';
+    const status = p.statusEntrega || "entregue";
+    const statusBadge = status === "concluido" ? "badge-green" : "badge-yellow";
     return `<tr>
       <td><strong>${esc(p.pedidoId || "")}</strong></td>
       <td>${esc(p.escola || "")}</td>
@@ -2000,8 +2504,13 @@ function _renderEntregasUI() {
       <td>${esc(p.recebedor || "")}</td>
       <td style="text-align:center">${temFoto}</td>
       <td style="text-align:center">${temAssinatura}</td>
+      <td><span class="badge ${statusBadge}">${status}</span></td>
       <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(p.obs || "-")}</td>
-      <td><button class="btn btn-outline btn-sm" onclick="verComprovante(${idx})" style="border:1px solid var(--bdr);background:transparent;color:var(--blue);border-radius:6px;cursor:pointer;padding:.3rem .6rem;font-size:.75rem">Ver</button></td>
+      <td class="nowrap">
+        <button class="btn btn-outline btn-sm" onclick="verComprovante(${idx})" style="border:1px solid var(--bdr);background:transparent;color:var(--blue);border-radius:6px;cursor:pointer;padding:.3rem .6rem;font-size:.75rem">Ver</button>
+        ${status !== "concluido" ? `<button class="btn btn-sm btn-green" onclick="concluirEntrega(${idx})" style="padding:.3rem .6rem;font-size:.75rem;margin-left:.3rem">Concluir</button>` : '<span style="color:var(--green);font-size:.75rem;font-weight:600;margin-left:.3rem">OK</span>'}
+        <button onclick="excluirEntrega(${idx})" title="Excluir entrega" style="background:rgba(239,68,68,.15);color:var(--red);border:none;border-radius:6px;padding:.3rem .6rem;font-size:.75rem;font-weight:700;cursor:pointer;margin-left:.3rem">✕</button>
+      </td>
     </tr>`;
   }).join("");
 }
@@ -2060,6 +2569,27 @@ function verComprovante(idx) {
 function fecharComprovante() {
   document.getElementById("modal-comprovante").classList.add("hidden");
   document.getElementById("modal-comprovante").style.display = "none";
+}
+
+function concluirEntrega(idx) {
+  const p = provasEntrega[idx];
+  if (!p) return;
+  p.statusEntrega = "concluido";
+  localStorage.setItem(PROOFS_KEY, JSON.stringify(provasEntrega));
+  schedulCloudSync();
+  _renderEntregasUI();
+  showToast(`Entrega "${p.pedidoId || ""}" concluída`);
+}
+
+function excluirEntrega(idx) {
+  const p = provasEntrega[idx];
+  if (!p) return;
+  if (!confirm(`Excluir entrega "${p.pedidoId || ""}" — ${p.escola || ""}?`)) return;
+  provasEntrega.splice(idx, 1);
+  localStorage.setItem(PROOFS_KEY, JSON.stringify(provasEntrega));
+  schedulCloudSync();
+  _renderEntregasUI();
+  showToast("Entrega excluída");
 }
 
 // ===== TINY ERP — CADASTRO DE PRODUTOS =====
