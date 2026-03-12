@@ -196,12 +196,50 @@
     .escola-tab.active { color:var(--accent); border-bottom-color:var(--accent); }
     .escola-tab:hover { color:var(--text); }
 
+    /* ─── CONTRACT SELECTION ─── */
+    .contract-selection { max-width:900px; margin:0 auto; }
+    .school-folder {
+      background:var(--surface); border:1px solid var(--border); border-radius:16px;
+      padding:1.5rem; margin-bottom:1rem;
+    }
+    .school-folder-header {
+      display:flex; align-items:center; gap:1rem; margin-bottom:1.5rem;
+      padding-bottom:1rem; border-bottom:1px solid var(--border);
+    }
+    .school-folder-icon {
+      width:48px; height:48px; border-radius:12px; background:var(--accent-light);
+      display:flex; align-items:center; justify-content:center; font-size:1.5rem;
+    }
+    .school-folder-name { font-size:1.2rem; font-weight:800; }
+    .school-folder-meta { font-size:0.8rem; color:var(--muted); margin-top:0.2rem; }
+    .contract-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(250px,1fr)); gap:1rem; }
+    .contract-card {
+      background:var(--bg); border:1px solid var(--border); border-radius:12px;
+      padding:1.2rem; cursor:pointer; transition:all 0.2s; position:relative;
+    }
+    .contract-card:hover { border-color:var(--accent); transform:translateY(-2px); box-shadow:0 4px 12px rgba(59,130,246,0.15); }
+    .contract-card-icon { font-size:2rem; margin-bottom:0.8rem; }
+    .contract-card-title { font-weight:700; font-size:0.9rem; margin-bottom:0.4rem; line-height:1.3; }
+    .contract-card-detail { font-size:0.78rem; color:var(--muted); margin-bottom:0.2rem; }
+    .contract-card-badge {
+      position:absolute; top:0.8rem; right:0.8rem; padding:0.2rem 0.6rem;
+      border-radius:999px; font-size:0.65rem; font-weight:700; text-transform:uppercase;
+    }
+    .badge-ativo { background:var(--success-light); color:var(--success); }
+    .badge-arp { background:var(--accent-light); color:var(--accent); }
+    .contract-card-value { font-size:1.1rem; font-weight:800; color:var(--success); margin-top:0.5rem; }
+
+    /* ─── ORDER ACTION BUTTONS ─── */
+    .order-actions { display:flex; gap:0.4rem; flex-wrap:wrap; }
+    .order-actions .btn { padding:0.25rem 0.6rem; font-size:0.7rem; }
+
     @media(max-width:768px) {
       .topbar { padding:0.8rem 1rem; flex-wrap:wrap; gap:0.5rem; }
       .main-content { padding:1rem; }
       .steps { flex-wrap:wrap; padding:0.8rem; }
       .step-divider { width:20px; }
       .product-grid { grid-template-columns:1fr; }
+      .contract-grid { grid-template-columns:1fr; }
     }
   </style>
 </head>
@@ -244,20 +282,28 @@
     <div class="topbar-right">
       <span>ARP: <strong>Lariucci & Ribeiro Pereira</strong></span>
       <span class="saldo-badge saldo-ok" id="topbar-saldo"></span>
+      <a href="index.html" class="btn btn-outline btn-sm" style="color:#22c55e;text-decoration:none">← NexEdu</a>
       <button class="btn btn-outline btn-sm" onclick="logout()">Sair</button>
     </div>
   </div>
 
   <div class="main-content">
 
-    <!-- ESCOLA TABS -->
-    <div class="escola-tabs">
+    <!-- CONTRACT SELECTION (shown after login, before catalog) -->
+    <div id="contract-selection-screen">
+      <div class="contract-selection" id="contract-selection"></div>
+    </div>
+
+    <!-- ESCOLA TABS (hidden until contract selected) -->
+    <div class="escola-tabs hidden" id="escola-tabs-bar">
+      <button class="escola-tab" style="color:var(--accent);font-size:0.8rem;" onclick="backToContracts()">← Contratos</button>
+      <span id="selected-contract-label" style="padding:0.7rem 0.5rem;font-size:0.8rem;color:var(--muted);border-bottom:2px solid transparent;"></span>
       <button class="escola-tab active" data-tab="catalogo" onclick="switchEscolaTab('catalogo')">Catalogo</button>
       <button class="escola-tab" data-tab="saldo" onclick="switchEscolaTab('saldo')">Saldo Contrato</button>
       <button class="escola-tab" data-tab="meus-pedidos" onclick="switchEscolaTab('meus-pedidos')">Meus Pedidos</button>
     </div>
 
-    <div id="tab-catalogo-wrapper">
+    <div id="tab-catalogo-wrapper" class="hidden">
 
     <!-- STEPS -->
     <div class="steps">
@@ -280,6 +326,7 @@
           <option value="price-desc">Maior preço</option>
         </select>
         <div style="color:var(--muted);font-size:0.85rem;display:flex;align-items:center;" id="catalog-count"></div>
+        <button class="btn btn-success btn-sm" onclick="adicionarTodos()" style="white-space:nowrap">Adicionar Todos</button>
       </div>
       <div class="product-grid" id="product-grid"></div>
     </div>
@@ -339,9 +386,10 @@
         <div class="confirm-sub">Seu pedido foi registrado e enviado para separação. Acompanhe o status abaixo.</div>
         <div class="protocol" id="confirm-protocol"></div>
         <dl class="confirm-details" id="confirm-details"></dl>
-        <div style="margin-top:2rem;display:flex;gap:1rem;justify-content:center;">
+        <div style="margin-top:2rem;display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;">
           <button class="btn btn-primary" onclick="newOrder()">Novo Pedido</button>
           <button class="btn btn-outline" onclick="printOrder()">Imprimir</button>
+          <button class="btn btn-outline" onclick="downloadPedidoPDF(document.getElementById('confirm-protocol').textContent)">Baixar PDF</button>
         </div>
       </div>
     </div>
@@ -405,12 +453,74 @@
 </div>
 
 <script>
+// ===== SUPABASE CLOUD SYNC =====
+const SUPABASE_URL = "https://ohxoxencxktpzskltbsk.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9oeG94ZW5jeGt0cHpza2x0YnNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMyMTUwNDQsImV4cCI6MjA4ODc5MTA0NH0.-w8f1xjW1cW2-OZpg1Sql8PqwFDzDqyWw4pHEx6jGSk";
+const PORTAL_SYNC_KEYS = ["gdp.contratos.v1", "gdp.pedidos.v1", "gdp.escola.pedidos", "gdp.usuarios.v1"];
+
+function getSyncUserId() {
+  const emp = JSON.parse(localStorage.getItem("nexedu.empresa") || "{}");
+  return emp.nome || emp.cnpj || "default";
+}
+
+async function cloudSave(key, data) {
+  const userId = getSyncUserId();
+  try {
+    await fetch(`${SUPABASE_URL}/rest/v1/sync_data?user_id=eq.${encodeURIComponent(userId)}&key=eq.${encodeURIComponent(key)}`, {
+      method: "DELETE", headers: { "apikey": SUPABASE_KEY, "Authorization": "Bearer " + SUPABASE_KEY }
+    });
+    await fetch(`${SUPABASE_URL}/rest/v1/sync_data`, {
+      method: "POST",
+      headers: { "apikey": SUPABASE_KEY, "Authorization": "Bearer " + SUPABASE_KEY, "Content-Type": "application/json", "Prefer": "return=minimal" },
+      body: JSON.stringify({ user_id: userId, key, data, updated_at: new Date().toISOString() })
+    });
+  } catch (e) { console.warn("Cloud save failed:", key, e); }
+}
+
+async function syncFromCloud() {
+  const userId = getSyncUserId();
+  try {
+    const resp = await fetch(
+      `${SUPABASE_URL}/rest/v1/sync_data?user_id=eq.${encodeURIComponent(userId)}&select=key,data,updated_at`,
+      { headers: { "apikey": SUPABASE_KEY, "Authorization": "Bearer " + SUPABASE_KEY } }
+    );
+    if (!resp.ok) return false;
+    const rows = await resp.json();
+    let synced = 0;
+    for (const row of rows) {
+      const local = localStorage.getItem(row.key);
+      const localData = local ? JSON.parse(local) : null;
+      if (!localData || (row.data && JSON.stringify(row.data) !== JSON.stringify(localData))) {
+        localStorage.setItem(row.key, JSON.stringify(row.data));
+        synced++;
+      }
+    }
+    return synced > 0;
+  } catch (e) { console.warn("Cloud sync failed:", e); return false; }
+}
+
+async function syncToCloud() {
+  const promises = PORTAL_SYNC_KEYS.map(key => {
+    const raw = localStorage.getItem(key);
+    if (!raw) return Promise.resolve();
+    try { return cloudSave(key, JSON.parse(raw)); } catch(_) { return Promise.resolve(); }
+  });
+  await Promise.all(promises);
+}
+
+let _syncTimeout = null;
+function schedulCloudSync() {
+  if (_syncTimeout) clearTimeout(_syncTimeout);
+  _syncTimeout = setTimeout(() => syncToCloud(), 2000);
+}
+
 let credentials = null;
 let arpData = null;
 let currentUser = null;
 let schoolProducts = [];
 let cart = {};
 let escolaOrders = JSON.parse(localStorage.getItem('gdp.escola.pedidos') || '[]');
+let selectedContract = null; // currently selected contract
 
 // ─── LOAD DATA ───
 async function init() {
@@ -457,7 +567,15 @@ function doLogin() {
           categoria_catalogo: usr.categoria_catalogo || usr.catalogo || '',
           arp_vinculada: usr.arp_vinculada || usr.arp || 'ARP-LARIUCCI-2025',
           saldo_disponivel: parseFloat(usr.saldo_disponivel) || 0,
-          saldo_total: parseFloat(usr.saldo_total) || 0
+          saldo_total: parseFloat(usr.saldo_total) || 0,
+          contratos_vinculados: usr.contratos_vinculados || [],
+          logradouro: usr.logradouro || '',
+          numero: usr.numero || '',
+          complemento: usr.complemento || '',
+          bairro: usr.bairro || '',
+          cep: usr.cep || '',
+          uf: usr.uf || 'MG',
+          ie: usr.ie || 'ISENTO'
         };
       }
     } catch(_) {}
@@ -470,16 +588,24 @@ function doLogin() {
   }
 
   currentUser = escola;
-  loadSchoolProducts();
-  renderApp();
+  selectedContract = null;
 
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
+
+  // Show school name in topbar
+  document.getElementById('topbar-escola').textContent = currentUser.nome;
+  const pct = ((currentUser.saldo_disponivel / currentUser.saldo_total) * 100).toFixed(0);
+  document.getElementById('topbar-saldo').textContent = `Saldo: R$ ${fmt(currentUser.saldo_disponivel)} (${pct}%)`;
+  document.getElementById('topbar-saldo').className = `saldo-badge ${pct > 30 ? 'saldo-ok' : 'saldo-low'}`;
+
+  showContractSelection();
 }
 
 function logout() {
   currentUser = null;
   cart = {};
+  selectedContract = null;
   // Replace history entry so browser back button won't go to supplier dashboard
   window.history.replaceState(null, '', 'gdp-portal.html');
   document.getElementById('app').style.display = 'none';
@@ -487,23 +613,194 @@ function logout() {
   document.getElementById('login-user').value = '';
   document.getElementById('login-pass').value = '';
   document.getElementById('cart-float').style.display = 'none';
+  document.getElementById('escola-tabs-bar').classList.add('hidden');
+  document.getElementById('tab-catalogo-wrapper').classList.add('hidden');
 }
 
-// ─── LOAD PRODUCTS ───
+// ─── CONTRACT SELECTION ───
+function getSchoolContracts() {
+  // Load contracts from Contratos module (gdp.contratos.v1)
+  let contratos = [];
+  try { contratos = JSON.parse(localStorage.getItem('gdp.contratos.v1')) || []; } catch(_) {}
+
+  // Primary: match by contratos_vinculados (explicit link set in Usuarios tab)
+  const vinculados = currentUser.contratos_vinculados || [];
+  if (vinculados.length > 0) {
+    return contratos.filter(c => vinculados.includes(c.id));
+  }
+
+  // Fallback: match by school name (normalize for comparison)
+  const norm = s => (s || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const schoolNorm = norm(currentUser.nome_completo || currentUser.nome);
+
+  const matched = contratos.filter(c => {
+    const cn = norm(c.escola);
+    return cn === schoolNorm || cn.includes(schoolNorm) || schoolNorm.includes(cn);
+  });
+
+  return matched;
+}
+
+function showContractSelection() {
+  const contracts = getSchoolContracts();
+
+  // Also get ARP catalog as a source
+  const arpEscola = arpData.escolas.find(e => e.nome === currentUser.categoria_catalogo);
+
+  // Build folder view
+  const schoolName = currentUser.nome_completo || currentUser.nome;
+  const container = document.getElementById('contract-selection');
+
+  let cardsHtml = '';
+
+  // ARP catalog card (always available if exists)
+  if (arpEscola && arpEscola.produtos.length > 0) {
+    const totalValue = arpEscola.produtos.reduce((s, p) => s + p.preco, 0);
+    cardsHtml += `
+      <div class="contract-card" onclick="selectContract('arp')">
+        <span class="contract-card-badge badge-arp">Catálogo ARP</span>
+        <div class="contract-card-icon">📋</div>
+        <div class="contract-card-title">${currentUser.categoria_catalogo || 'Catálogo Geral'}</div>
+        <div class="contract-card-detail">${arpEscola.produtos.length} produtos disponíveis</div>
+        <div class="contract-card-detail">ARP Lariucci & Ribeiro Pereira</div>
+        <div class="contract-card-value">Saldo: R$ ${fmt(currentUser.saldo_disponivel)}</div>
+      </div>
+    `;
+  }
+
+  // Contract cards from Contratos module
+  contracts.forEach((c, i) => {
+    const totalValue = c.itens.reduce((s, item) => s + (item.precoUnitario * item.qtdContratada), 0);
+    const totalEntregue = c.itens.reduce((s, item) => s + (item.precoUnitario * (item.qtdEntregue || 0)), 0);
+    const saldoDisp = Math.round((totalValue - totalEntregue) * 100) / 100;
+    const delivered = c.itens.reduce((s, item) => s + (item.qtdEntregue || 0), 0);
+    const total = c.itens.reduce((s, item) => s + item.qtdContratada, 0);
+    cardsHtml += `
+      <div class="contract-card" onclick="selectContract('ctr', ${i})">
+        <span class="contract-card-badge badge-ativo">${c.status || 'ativo'}</span>
+        <div class="contract-card-icon">📁</div>
+        <div class="contract-card-title">${c.edital || c.id}</div>
+        <div class="contract-card-detail">${c.itens.length} itens contratados</div>
+        <div class="contract-card-detail">Fornecedor: ${c.fornecedor || 'Lariucci'}</div>
+        <div class="contract-card-detail">Entregue: ${delivered}/${total} unidades</div>
+        <div class="contract-card-value">Contrato: ${brl(totalValue)}</div>
+        <div class="contract-card-detail" style="color:var(--success);font-weight:700">Saldo: ${brl(saldoDisp)}</div>
+      </div>
+    `;
+  });
+
+  if (!cardsHtml) {
+    cardsHtml = `<div style="text-align:center;color:var(--muted);padding:2rem;">Nenhum contrato encontrado para esta escola.</div>`;
+  }
+
+  container.innerHTML = `
+    <div class="school-folder">
+      <div class="school-folder-header">
+        <div class="school-folder-icon">🏫</div>
+        <div>
+          <div class="school-folder-name">${schoolName}</div>
+          <div class="school-folder-meta">${currentUser.municipio || ''} · ${currentUser.sre || ''} · CNPJ: ${currentUser.cnpj || ''}</div>
+        </div>
+      </div>
+      <div style="font-size:0.85rem;color:var(--muted);margin-bottom:1rem;">Selecione um contrato para fazer pedidos:</div>
+      <div class="contract-grid">${cardsHtml}</div>
+    </div>
+  `;
+
+  // Show contract selection, hide tabs and catalog
+  document.getElementById('contract-selection-screen').classList.remove('hidden');
+  document.getElementById('escola-tabs-bar').classList.add('hidden');
+  document.getElementById('tab-catalogo-wrapper').classList.add('hidden');
+  document.getElementById('tab-saldo').classList.add('hidden');
+  document.getElementById('tab-meus-pedidos').classList.add('hidden');
+  document.getElementById('cart-float').style.display = 'none';
+}
+
+function selectContract(type, idx) {
+  const contracts = getSchoolContracts();
+
+  if (type === 'arp') {
+    // Use ARP catalog products
+    const arpEscola = arpData.escolas.find(e => e.nome === currentUser.categoria_catalogo);
+    schoolProducts = arpEscola ? arpEscola.produtos : [];
+    selectedContract = { type: 'arp', label: currentUser.categoria_catalogo || 'Catálogo ARP' };
+  } else {
+    // Use contract items as products
+    const c = contracts[idx];
+    // Compute pending order quantities per item for this contract
+    const pedidosLocal = (() => { try { return JSON.parse(localStorage.getItem('gdp.pedidos.v1') || '[]'); } catch(_) { return []; } })();
+    const pedidosPend = pedidosLocal.filter(p => p.contratoId === c.id && p.status !== 'entregue');
+    const qtdPedidaPorItem = {};
+    pedidosPend.forEach(p => {
+      (p.itens || []).forEach(pi => {
+        const key = (pi.descricao || '').toUpperCase();
+        qtdPedidaPorItem[key] = (qtdPedidaPorItem[key] || 0) + (pi.qtd || 0);
+      });
+    });
+
+    schoolProducts = c.itens.map(item => {
+      const pedida = qtdPedidaPorItem[item.descricao.toUpperCase()] || 0;
+      const disponivel = Math.max(0, item.qtdContratada - (item.qtdEntregue || 0) - pedida);
+      return {
+        item: item.num,
+        produto: item.descricao,
+        sku: item.sku || '',
+        preco: item.precoUnitario,
+        unidade: item.unidade || 'UN',
+        qtdContratada: item.qtdContratada,
+        qtdEntregue: (item.qtdEntregue || 0) + pedida,
+        qtdDisponivel: disponivel,
+        estoque: 0
+      };
+    });
+    selectedContract = { type: 'ctr', idx, label: c.edital || c.id, contrato: c };
+
+    // Calculate saldo from contract data (consistent with qtdDisponivel)
+    const contratoTotal = c.itens.reduce((s, i) => s + (i.precoUnitario * i.qtdContratada), 0);
+    const saldoUsado = schoolProducts.reduce((s, p) => s + (p.preco * p.qtdEntregue), 0);
+    currentUser.saldo_total = Math.round(contratoTotal * 100) / 100;
+    currentUser.saldo_disponivel = Math.round((contratoTotal - saldoUsado) * 100) / 100;
+    if (currentUser.saldo_disponivel < 0) currentUser.saldo_disponivel = 0;
+
+    // Update topbar saldo
+    const pctSaldo = currentUser.saldo_total > 0 ? ((currentUser.saldo_disponivel / currentUser.saldo_total) * 100).toFixed(0) : 0;
+    document.getElementById('topbar-saldo').textContent = `Saldo: R$ ${fmt(currentUser.saldo_disponivel)} (${pctSaldo}%)`;
+    document.getElementById('topbar-saldo').className = `saldo-badge ${pctSaldo > 30 ? 'saldo-ok' : 'saldo-low'}`;
+  }
+
+  // Show selected contract label
+  document.getElementById('selected-contract-label').textContent = `📁 ${selectedContract.label}`;
+
+  // Hide contract selection, show tabs and catalog
+  document.getElementById('contract-selection-screen').classList.add('hidden');
+  document.getElementById('escola-tabs-bar').classList.remove('hidden');
+  document.getElementById('tab-catalogo-wrapper').classList.remove('hidden');
+
+  // Reset tabs to catalogo
+  document.querySelectorAll('.escola-tab').forEach(t => t.classList.remove('active'));
+  document.querySelector('.escola-tab[data-tab="catalogo"]').classList.add('active');
+  document.getElementById('tab-saldo').classList.add('hidden');
+  document.getElementById('tab-meus-pedidos').classList.add('hidden');
+
+  cart = {};
+  updateCartFloat();
+  goToPhase(1);
+  renderCatalog();
+}
+
+function backToContracts() {
+  cart = {};
+  selectedContract = null;
+  updateCartFloat();
+  showContractSelection();
+}
+
+function brl(n) { return 'R$ ' + fmt(n); }
+
+// ─── LOAD PRODUCTS (legacy fallback) ───
 function loadSchoolProducts() {
   const escola = arpData.escolas.find(e => e.nome === currentUser.categoria_catalogo);
   schoolProducts = escola ? escola.produtos : [];
-}
-
-// ─── RENDER APP ───
-function renderApp() {
-  document.getElementById('topbar-escola').textContent = currentUser.nome;
-  const pct = ((currentUser.saldo_disponivel / currentUser.saldo_total) * 100).toFixed(0);
-  document.getElementById('topbar-saldo').textContent = `Saldo: R$ ${fmt(currentUser.saldo_disponivel)} (${pct}%)`;
-  document.getElementById('topbar-saldo').className = `saldo-badge ${pct > 30 ? 'saldo-ok' : 'saldo-low'}`;
-
-  goToPhase(1);
-  renderCatalog();
 }
 
 // ─── PHASES ───
@@ -515,6 +812,13 @@ function goToPhase(n) {
     if (i+1 < n) step.classList.add('done');
     if (i+1 === n) step.classList.add('active');
   });
+  // Hide cart float except on catalog phase
+  const cartFloat = document.getElementById('cart-float');
+  if (n === 1 && Object.keys(cart).length > 0) {
+    cartFloat.style.display = 'block';
+  } else {
+    cartFloat.style.display = 'none';
+  }
 
   if (n === 2) renderCart();
   if (n === 3) renderReview();
@@ -533,11 +837,13 @@ function renderCatalog(items) {
         ${inCart ? `<span class="in-cart-badge">${inCart} no carrinho</span>` : ''}
         <div class="product-name">${p.produto}</div>
         <div class="product-price">R$ ${p.preco.toFixed(2).replace('.',',')}</div>
-        <div class="product-meta">Item ${p.item} | ARP Lariucci</div>
+        <div class="product-meta">Item ${p.item} | ${p.unidade || 'UN'}</div>
+        <div style="font-size:.75rem;margin-top:.2rem;font-weight:600;color:${(p.qtdDisponivel||0) > 0 ? 'var(--success)' : 'var(--danger)'}">Disponivel: ${p.qtdDisponivel || 0} de ${p.qtdContratada || 0} ${p.unidade || 'UN'}</div>
         <div class="qty-controls">
           <button class="qty-btn" onclick="changeQty('${esc(p.produto)}', -1)">−</button>
-          <input type="number" class="qty-input" id="qty-${i}" value="${inCart || 1}" min="1" max="999"
-                 onchange="updateQtyInput('${esc(p.produto)}', this.value, ${i})">
+          <input type="number" class="qty-input" id="qty-${i}" value="${inCart || 1}" min="1" max="${p.qtdDisponivel || 999}"
+                 onchange="updateQtyInput('${esc(p.produto)}', this.value, ${i})"
+                 onkeydown="if(event.key==='Enter'){event.preventDefault();${inCart ? `removeFromCart('${esc(p.produto)}')` : `addToCart('${esc(p.produto)}', ${i})`}}">
           <button class="qty-btn" onclick="changeQty('${esc(p.produto)}', 1)">+</button>
           <button class="add-btn ${inCart ? 'remove' : 'add'}"
                   onclick="${inCart ? `removeFromCart('${esc(p.produto)}')` : `addToCart('${esc(p.produto)}', ${i})`}">
@@ -563,8 +869,22 @@ function filterCatalog() {
 }
 
 // ─── CART LOGIC ───
+function getMaxQty(name) {
+  const prod = schoolProducts.find(p => p.produto === name);
+  return prod ? (prod.qtdDisponivel || prod.qtdContratada || 999) : 999;
+}
+
 function addToCart(name, idx) {
-  const qty = parseInt(document.getElementById(`qty-${idx}`).value) || 1;
+  const max = getMaxQty(name);
+  let qty = parseInt(document.getElementById(`qty-${idx}`).value) || 1;
+  if (qty > max) {
+    qty = max;
+    alert(`Quantidade máxima disponível: ${max}. Para pedir mais, é necessário um aditivo contratual.`);
+  }
+  if (max <= 0) {
+    alert('Sem saldo disponível para este item. É necessário um aditivo contratual.');
+    return;
+  }
   cart[name] = qty;
   updateCartFloat();
   renderCatalog();
@@ -577,24 +897,52 @@ function removeFromCart(name) {
 }
 
 function changeQty(name, delta) {
-  // Find the product index
   const idx = schoolProducts.findIndex(p => p.produto === name);
   const input = document.getElementById(`qty-${idx}`);
+  const max = getMaxQty(name);
   if (cart[name]) {
-    cart[name] = Math.max(1, cart[name] + delta);
+    let newQty = cart[name] + delta;
+    if (newQty > max) {
+      alert(`Limite: ${max} unidades disponíveis. Para pedir mais, é necessário um aditivo contratual.`);
+      newQty = max;
+    }
+    cart[name] = Math.max(1, newQty);
     if (input) input.value = cart[name];
     renderCatalog();
     renderCart();
   } else if (input) {
-    const newVal = Math.max(1, (parseInt(input.value) || 1) + delta);
-    input.value = newVal;
+    let newVal = (parseInt(input.value) || 1) + delta;
+    if (newVal > max) newVal = max;
+    input.value = Math.max(1, newVal);
   }
 }
 
 function updateQtyInput(name, val, idx) {
-  const n = Math.max(1, parseInt(val) || 1);
+  const max = getMaxQty(name);
+  let n = Math.max(1, parseInt(val) || 1);
+  if (n > max) {
+    n = max;
+    alert(`Limite: ${max} unidades disponíveis. Para pedir mais, é necessário um aditivo contratual.`);
+  }
   document.getElementById(`qty-${idx}`).value = n;
   if (cart[name]) { cart[name] = n; }
+}
+
+function adicionarTodos() {
+  let added = 0;
+  schoolProducts.forEach((p, i) => {
+    const max = p.qtdDisponivel || 0;
+    if (max > 0 && !cart[p.produto]) {
+      cart[p.produto] = max;
+      added++;
+    }
+  });
+  if (added === 0) {
+    alert('Todos os itens já estão no carrinho ou sem saldo disponível.');
+    return;
+  }
+  updateCartFloat();
+  renderCatalog();
 }
 
 function updateCartFloat() {
@@ -626,15 +974,16 @@ function renderCart() {
     const prod = schoolProducts.find(p => p.produto === name);
     if (!prod) return '';
     const sub = prod.preco * qty;
+    const max = prod.qtdDisponivel || prod.qtdContratada || 999;
     total += sub;
     return `
       <tr>
-        <td style="font-weight:600;">${name}</td>
+        <td style="font-weight:600;">${name}<div style="font-size:.7rem;color:var(--muted);font-weight:400">Disponível: ${max} ${prod.unidade || 'UN'}</div></td>
         <td>R$ ${prod.preco.toFixed(2).replace('.',',')}</td>
         <td>
           <div style="display:flex;align-items:center;gap:0.3rem;">
             <button class="qty-btn" style="width:26px;height:26px;font-size:0.8rem;" onclick="cartQty('${esc(name)}',-1)">−</button>
-            <span style="width:30px;text-align:center;font-weight:700;">${qty}</span>
+            <span style="width:30px;text-align:center;font-weight:700;${qty >= max ? 'color:var(--danger)' : ''}">${qty}</span>
             <button class="qty-btn" style="width:26px;height:26px;font-size:0.8rem;" onclick="cartQty('${esc(name)}',1)">+</button>
           </div>
         </td>
@@ -648,7 +997,13 @@ function renderCart() {
 }
 
 function cartQty(name, delta) {
-  cart[name] = Math.max(1, (cart[name]||1) + delta);
+  const max = getMaxQty(name);
+  let newQty = (cart[name]||1) + delta;
+  if (newQty > max) {
+    alert(`Limite: ${max} unidades disponíveis. Para pedir mais, é necessário um aditivo contratual.`);
+    newQty = max;
+  }
+  cart[name] = Math.max(1, newQty);
   renderCart();
   updateCartFloat();
 }
@@ -668,7 +1023,8 @@ function renderReview() {
     return `<tr><td>${i+1}</td><td>${name}</td><td>R$ ${prod.preco.toFixed(2).replace('.',',')}</td><td>${qty}</td><td style="font-weight:700;color:var(--success);">R$ ${fmt(sub)}</td></tr>`;
   }).join('');
 
-  const remaining = currentUser.saldo_disponivel - total;
+  total = Math.round(total * 100) / 100;
+  const remaining = Math.round((currentUser.saldo_disponivel - total) * 100) / 100;
   const canOrder = remaining >= 0;
 
   document.getElementById('review-summary').innerHTML = `
@@ -697,7 +1053,9 @@ async function confirmOrder() {
     }
   });
 
-  if (total > currentUser.saldo_disponivel) {
+  // Round to 2 decimals to avoid floating point precision issues
+  total = Math.round(total * 100) / 100;
+  if (total > Math.round(currentUser.saldo_disponivel * 100) / 100) {
     alert('Saldo insuficiente! Reduza os itens do pedido.');
     return;
   }
@@ -724,6 +1082,16 @@ async function confirmOrder() {
         items: orderItems,
         totalValue: total,
         obs: document.getElementById('order-obs').value || "",
+        // Dados para NF-e
+        logradouro: currentUser.logradouro || "",
+        numero: currentUser.numero || "",
+        complemento: currentUser.complemento || "",
+        bairro: currentUser.bairro || "",
+        cep: currentUser.cep || "",
+        uf: currentUser.uf || "MG",
+        ie: currentUser.ie || "ISENTO",
+        telefone: currentUser.telefone || "",
+        email: currentUser.email || "",
       }),
     });
     const data = await resp.json();
@@ -762,26 +1130,28 @@ async function confirmOrder() {
 
   goToPhase(4);
 
-  // Send email copy to school
-  if (currentUser.email) {
+  // Send email copy to school and to supplier
+  const emailPayload = {
+    schoolName: currentUser.nome_completo,
+    protocol: proto,
+    date: now.toLocaleString('pt-BR'),
+    items: orderItems,
+    total: total,
+    obs: document.getElementById('order-obs').value || "",
+    olistId: olistId,
+    responsible: currentUser.responsavel,
+    cnpj: currentUser.cnpj,
+    sre: currentUser.sre
+  };
+  const emailRecipients = ['edsonlariucci.comercial@gmail.com'];
+  if (currentUser.email) emailRecipients.push(currentUser.email);
+  emailRecipients.forEach(addr => {
     fetch("/api/send-order-email", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        to: currentUser.email,
-        schoolName: currentUser.nome_completo,
-        protocol: proto,
-        date: now.toLocaleString('pt-BR'),
-        items: orderItems,
-        total: total,
-        obs: document.getElementById('order-obs').value || "",
-        olistId: olistId,
-        responsible: currentUser.responsavel,
-        cnpj: currentUser.cnpj,
-        sre: currentUser.sre
-      })
+      body: JSON.stringify({ ...emailPayload, to: addr })
     }).catch(() => {});
-  }
+  });
 
   escolaOrders.push({
     protocol: proto,
@@ -794,11 +1164,12 @@ async function confirmOrder() {
     items: orderItems
   });
   localStorage.setItem('gdp.escola.pedidos', JSON.stringify(escolaOrders));
+  schedulCloudSync();
 
   // Sincronizar pedido com servidor (para entregador e contratos verem)
   const pedidoSync = {
     id: proto,
-    contratoId: currentUser.arp_vinculada || "ARP-LARIUCCI-2025",
+    contratoId: (selectedContract && selectedContract.contrato) ? selectedContract.contrato.id : (currentUser.arp_vinculada || "ARP-LARIUCCI-2025"),
     escola: currentUser.nome_completo,
     data: now.toISOString().slice(0,10),
     itens: orderItems.map(i => ({ itemNum: i.itemNum, descricao: i.name, qtd: i.qty, precoUnitario: i.unitPrice })),
@@ -817,6 +1188,7 @@ async function confirmOrder() {
     if (!pedidosLocal.find(p => p.id === proto)) {
       pedidosLocal.push(pedidoSync);
       localStorage.setItem('gdp.pedidos.v1', JSON.stringify(pedidosLocal));
+      schedulCloudSync();
     }
   } catch(_) {}
 }
@@ -824,18 +1196,19 @@ async function confirmOrder() {
 function newOrder() {
   cart = {};
   updateCartFloat();
-  goToPhase(1);
-  renderCatalog();
+  backToContracts();
 }
 
 function printOrder() { window.print(); }
 
 // ─── TAB SWITCHING ───
 function switchEscolaTab(tab) {
-  document.querySelectorAll('.escola-tab').forEach(t => t.classList.remove('active'));
-  document.querySelector(`.escola-tab[data-tab="${tab}"]`).classList.add('active');
+  document.querySelectorAll('.escola-tab[data-tab]').forEach(t => t.classList.remove('active'));
+  const activeTab = document.querySelector(`.escola-tab[data-tab="${tab}"]`);
+  if (activeTab) activeTab.classList.add('active');
 
-  // Hide all tab contents
+  // Hide contract selection, show tab contents
+  document.getElementById('contract-selection-screen').classList.add('hidden');
   document.getElementById('tab-catalogo-wrapper').classList.toggle('hidden', tab !== 'catalogo');
   document.getElementById('tab-saldo').classList.toggle('hidden', tab !== 'saldo');
   document.getElementById('tab-meus-pedidos').classList.toggle('hidden', tab !== 'meus-pedidos');
@@ -855,7 +1228,12 @@ function renderSaldo() {
   document.getElementById('saldo-disponivel').textContent = 'R$ ' + fmt(currentUser.saldo_disponivel);
 
   document.getElementById('saldo-tbody').innerHTML = schoolProducts.map((p, i) => {
-    return '<tr><td>' + (i+1) + '</td><td>' + p.produto + '</td><td>R$ ' + p.preco.toFixed(2).replace('.',',') + '</td><td>-</td><td>-</td><td>-</td></tr>';
+    const qtdContr = p.qtdContratada || 0;
+    const qtdEntr = p.qtdEntregue || 0;
+    const qtdDisp = p.qtdDisponivel || (qtdContr - qtdEntr);
+    const valorContr = p.preco * qtdContr;
+    return '<tr><td>' + (i+1) + '</td><td>' + p.produto + '</td><td>R$ ' + p.preco.toFixed(2).replace('.',',') +
+      '</td><td>' + qtdContr + '</td><td>' + qtdEntr + '</td><td style="font-weight:700;color:' + (qtdDisp > 0 ? 'var(--success)' : 'var(--danger)') + '">' + qtdDisp + '</td></tr>';
   }).join('');
 }
 
@@ -876,7 +1254,8 @@ function renderMeusPedidos() {
     const statusBadge = o.olistId ?
       '<span style="background:rgba(34,197,94,.12);color:var(--success);padding:.2rem .6rem;border-radius:999px;font-size:.7rem;font-weight:700;">Enviado</span>' :
       '<span style="background:rgba(245,158,11,.12);color:var(--warning);padding:.2rem .6rem;border-radius:999px;font-size:.7rem;font-weight:700;">Pendente</span>';
-    return '<tr><td style="font-family:monospace;font-weight:700;">' + o.protocol + '</td><td>' + (o.date || '') + '</td><td>' + (o.itemCount || 0) + '</td><td style="color:var(--success);font-weight:700;">R$ ' + fmt(o.total || 0) + '</td><td>' + statusBadge + '</td><td><button onclick="verPedido(\'' + o.protocol + '\')" style="background:var(--accent);color:#fff;border:none;padding:.3rem .8rem;border-radius:6px;cursor:pointer;font-size:.75rem;font-weight:700;">Ver</button></td></tr>';
+    const esc = o.protocol.replace(/'/g, "\\'");
+    return '<tr><td style="font-family:monospace;font-weight:700;">' + o.protocol + '</td><td>' + (o.date || '') + '</td><td>' + (o.itemCount || 0) + '</td><td style="color:var(--success);font-weight:700;">R$ ' + fmt(o.total || 0) + '</td><td>' + statusBadge + '</td><td><div class="order-actions"><button class="btn btn-sm btn-outline" onclick="verPedido(\'' + esc + '\')" title="Ver detalhes">Ver</button><button class="btn btn-sm btn-outline" onclick="editarPedido(\'' + esc + '\')" title="Editar pedido" style="color:var(--warning);border-color:var(--warning);">Editar</button><button class="btn btn-sm btn-outline" onclick="downloadPedidoPDF(\'' + esc + '\')" title="Baixar PDF" style="color:var(--accent);border-color:var(--accent);">PDF</button><button class="btn btn-sm btn-outline" onclick="excluirPedido(\'' + esc + '\')" title="Excluir pedido" style="color:var(--danger);border-color:var(--danger);">Excluir</button></div></td></tr>';
   }).join('');
 }
 
@@ -904,6 +1283,16 @@ function verPedido(protocol) {
     html += '</tbody></table></div>';
   }
 
+  // Action buttons
+  const esc = protocol.replace(/'/g, "\\'");
+  html += '<div style="margin-top:1.2rem;display:flex;gap:.6rem;justify-content:flex-end;flex-wrap:wrap">';
+  html += '<button class="btn btn-sm btn-outline" onclick="downloadPedidoPDF(\'' + esc + '\')" style="color:var(--accent);border-color:var(--accent);">Baixar PDF</button>';
+  if (!order.olistId) {
+    html += '<button class="btn btn-sm btn-outline" onclick="fecharModalPedido();editarPedido(\'' + esc + '\')" style="color:var(--warning);border-color:var(--warning);">Editar</button>';
+    html += '<button class="btn btn-sm btn-outline" onclick="fecharModalPedido();excluirPedido(\'' + esc + '\')" style="color:var(--danger);border-color:var(--danger);">Excluir</button>';
+  }
+  html += '</div>';
+
   document.getElementById('modal-pedido-body').innerHTML = html;
   modal.style.display = 'flex';
 }
@@ -912,8 +1301,149 @@ function fecharModalPedido() {
   document.getElementById('modal-pedido').style.display = 'none';
 }
 
-// Init
-init();
+// ─── EDITAR PEDIDO ───
+function editarPedido(protocol) {
+  const order = escolaOrders.find(o => o.protocol === protocol);
+  if (!order) return;
+  if (order.olistId) { alert('Este pedido ja foi enviado ao Olist e nao pode ser editado.'); return; }
+
+  const modal = document.getElementById('modal-pedido');
+  document.getElementById('modal-pedido-titulo').textContent = 'Editar Pedido ' + protocol;
+
+  let html = '<form id="form-editar-pedido"><p style="color:var(--muted);font-size:.8rem;margin-bottom:1rem">Altere as quantidades desejadas. Itens com quantidade 0 serao removidos.</p>';
+  html += '<div style="border:1px solid var(--border);border-radius:10px;overflow:hidden"><table style="width:100%;border-collapse:collapse">';
+  html += '<thead><tr style="background:var(--surface2)"><th style="padding:.5rem .8rem;text-align:left;font-size:.72rem;text-transform:uppercase;color:var(--muted)">Produto</th><th style="padding:.5rem .8rem;text-align:center;font-size:.72rem;text-transform:uppercase;color:var(--muted)">Preco Unit.</th><th style="padding:.5rem .8rem;text-align:center;font-size:.72rem;text-transform:uppercase;color:var(--muted)">Qtd</th><th style="padding:.5rem .8rem;text-align:right;font-size:.72rem;text-transform:uppercase;color:var(--muted)">Subtotal</th></tr></thead><tbody>';
+  (order.items || []).forEach((item, i) => {
+    const sub = (item.qty || 0) * (item.unitPrice || 0);
+    html += '<tr style="border-top:1px solid rgba(71,85,105,.3)"><td style="padding:.5rem .8rem;font-size:.85rem">' + (item.name || item.description || '') + '</td><td style="padding:.5rem .8rem;text-align:center">R$ ' + fmt(item.unitPrice || 0) + '</td><td style="padding:.5rem .8rem;text-align:center"><input type="number" min="0" value="' + (item.qty || 0) + '" data-idx="' + i + '" class="edit-qty-input" style="width:60px;text-align:center;padding:.3rem;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-weight:700;"></td><td style="padding:.5rem .8rem;text-align:right;color:var(--success);font-weight:700">R$ ' + fmt(sub) + '</td></tr>';
+  });
+  html += '</tbody></table></div>';
+  html += '<div style="margin-top:1rem;display:flex;gap:.8rem;justify-content:flex-end"><button type="button" class="btn btn-outline btn-sm" onclick="fecharModalPedido()">Cancelar</button><button type="button" class="btn btn-success btn-sm" onclick="salvarEdicaoPedido(\'' + protocol.replace(/'/g, "\\'") + '\')">Salvar Alteracoes</button></div></form>';
+
+  document.getElementById('modal-pedido-body').innerHTML = html;
+  modal.style.display = 'flex';
+}
+
+function salvarEdicaoPedido(protocol) {
+  const order = escolaOrders.find(o => o.protocol === protocol);
+  if (!order) return;
+
+  const inputs = document.querySelectorAll('.edit-qty-input');
+  const newItems = [];
+  let newTotal = 0;
+  inputs.forEach(inp => {
+    const idx = parseInt(inp.dataset.idx);
+    const qty = parseInt(inp.value) || 0;
+    if (qty > 0 && order.items[idx]) {
+      const item = { ...order.items[idx], qty };
+      newTotal += qty * (item.unitPrice || 0);
+      newItems.push(item);
+    }
+  });
+
+  if (newItems.length === 0) {
+    if (confirm('Todos os itens foram removidos. Deseja excluir o pedido?')) {
+      excluirPedido(protocol);
+    }
+    return;
+  }
+
+  newTotal = Math.round(newTotal * 100) / 100;
+  order.items = newItems;
+  order.total = newTotal;
+  order.itemCount = newItems.length;
+  localStorage.setItem('gdp.escola.pedidos', JSON.stringify(escolaOrders));
+
+  // Update pedidos.v1 too
+  try {
+    const pedidosLocal = JSON.parse(localStorage.getItem('gdp.pedidos.v1') || '[]');
+    const pedSync = pedidosLocal.find(p => p.id === protocol);
+    if (pedSync) {
+      pedSync.itens = newItems.map(i => ({ itemNum: i.itemNum, descricao: i.name, qtd: i.qty, precoUnitario: i.unitPrice }));
+      pedSync.valor = newTotal;
+      localStorage.setItem('gdp.pedidos.v1', JSON.stringify(pedidosLocal));
+    }
+  } catch(_) {}
+
+  schedulCloudSync();
+  fecharModalPedido();
+  renderMeusPedidos();
+  alert('Pedido ' + protocol + ' atualizado com sucesso!');
+}
+
+// ─── EXCLUIR PEDIDO ───
+function excluirPedido(protocol) {
+  const order = escolaOrders.find(o => o.protocol === protocol);
+  if (!order) return;
+  if (order.olistId) { alert('Este pedido ja foi enviado ao Olist. Contate o fornecedor para cancelamento.'); return; }
+
+  if (!confirm('Tem certeza que deseja excluir o pedido ' + protocol + '?\n\nValor: R$ ' + fmt(order.total || 0) + '\nItens: ' + (order.itemCount || 0) + '\n\nEsta acao nao pode ser desfeita.')) return;
+
+  escolaOrders = escolaOrders.filter(o => o.protocol !== protocol);
+  localStorage.setItem('gdp.escola.pedidos', JSON.stringify(escolaOrders));
+
+  // Remove from pedidos.v1 too
+  try {
+    const pedidosLocal = JSON.parse(localStorage.getItem('gdp.pedidos.v1') || '[]');
+    const filtered = pedidosLocal.filter(p => p.id !== protocol);
+    localStorage.setItem('gdp.pedidos.v1', JSON.stringify(filtered));
+  } catch(_) {}
+
+  // Recalculate saldo
+  try {
+    if (currentUser && selectedContract && selectedContract.type) {
+      selectContract(selectedContract.type, selectedContract.idx);
+    }
+  } catch(_) {}
+
+  schedulCloudSync();
+  renderMeusPedidos();
+  alert('Pedido ' + protocol + ' excluido com sucesso.');
+}
+
+// ─── DOWNLOAD PDF ───
+function downloadPedidoPDF(protocol) {
+  const order = escolaOrders.find(o => o.protocol === protocol);
+  if (!order) { alert('Pedido nao encontrado.'); return; }
+
+  const items = order.items || [];
+  const escola = order.school || currentUser?.nome_completo || '';
+  const cnpj = currentUser?.cnpj || '';
+  const resp = currentUser?.responsavel || '';
+  const sre = currentUser?.sre || '';
+
+  let itemsRows = '';
+  items.forEach((item, i) => {
+    const sub = ((item.qty || 0) * (item.unitPrice || 0));
+    itemsRows += '<tr><td style="padding:6px 10px;border:1px solid #cbd5e1;text-align:center;">' + (i+1) + '</td><td style="padding:6px 10px;border:1px solid #cbd5e1;">' + (item.name || item.description || '') + '</td><td style="padding:6px 10px;border:1px solid #cbd5e1;text-align:center;">' + (item.qty || 0) + '</td><td style="padding:6px 10px;border:1px solid #cbd5e1;text-align:right;">R$ ' + fmt(item.unitPrice || 0) + '</td><td style="padding:6px 10px;border:1px solid #cbd5e1;text-align:right;font-weight:700;">R$ ' + fmt(sub) + '</td></tr>';
+  });
+
+  const totalUnits = items.reduce((s, i) => s + (i.qty || 0), 0);
+
+  const html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Pedido ' + protocol + '</title><style>body{font-family:Arial,sans-serif;margin:0;padding:20px;color:#1e293b;font-size:12px;}h1{font-size:18px;margin:0 0 4px;color:#1e293b;}table{width:100%;border-collapse:collapse;margin-top:12px;}th{background:#f1f5f9;padding:8px 10px;text-align:left;font-size:11px;text-transform:uppercase;color:#64748b;border:1px solid #cbd5e1;}td{font-size:12px;}.header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #3b82f6;padding-bottom:12px;margin-bottom:16px;}.logo{font-size:22px;font-weight:800;color:#3b82f6;}.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px;}.info-item{}.info-label{font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.5px;}.info-value{font-weight:600;font-size:12px;}.total-row{background:#f0fdf4;font-weight:800;font-size:14px;}.footer{margin-top:20px;padding-top:12px;border-top:1px solid #e2e8f0;font-size:10px;color:#94a3b8;text-align:center;}@media print{body{margin:0;padding:15px;}}</style></head><body><div class="header"><div><div class="logo">GDP Pedidos</div><div style="color:#64748b;font-size:11px;">Lariucci & Ribeiro Pereira</div></div><div style="text-align:right"><div style="font-size:16px;font-weight:800;color:#3b82f6;font-family:monospace;">' + protocol + '</div><div style="color:#64748b;font-size:11px;">' + (order.date || '') + '</div></div></div><div class="info-grid"><div class="info-item"><div class="info-label">Escola</div><div class="info-value">' + escola + '</div></div><div class="info-item"><div class="info-label">CNPJ</div><div class="info-value">' + cnpj + '</div></div><div class="info-item"><div class="info-label">Responsavel</div><div class="info-value">' + resp + '</div></div><div class="info-item"><div class="info-label">SRE</div><div class="info-value">' + sre + '</div></div><div class="info-item"><div class="info-label">Status</div><div class="info-value">' + (order.olistId ? 'Enviado ao Olist (' + order.olistId + ')' : 'Pendente') + '</div></div><div class="info-item"><div class="info-label">Itens</div><div class="info-value">' + items.length + ' produtos (' + totalUnits + ' unidades)</div></div></div><table><thead><tr><th style="text-align:center;width:30px">#</th><th>Produto</th><th style="text-align:center;width:50px">Qtd</th><th style="text-align:right;width:90px">Preco Unit.</th><th style="text-align:right;width:90px">Subtotal</th></tr></thead><tbody>' + itemsRows + '</tbody><tfoot><tr class="total-row"><td colspan="4" style="padding:10px;border:1px solid #cbd5e1;text-align:right;">TOTAL</td><td style="padding:10px;border:1px solid #cbd5e1;text-align:right;color:#16a34a;font-size:16px;">R$ ' + fmt(order.total || 0) + '</td></tr></tfoot></table><div class="footer"><p>Documento gerado automaticamente pelo sistema GDP — Portal Escolar</p><p>Lariucci & Ribeiro Pereira — ARP 2025</p></div></body></html>';
+
+  const blob = new Blob([html], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+  const printWin = window.open(url, '_blank');
+  if (printWin) {
+    printWin.onload = () => { printWin.print(); };
+  } else {
+    // Fallback: download as HTML
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = protocol + '.html';
+    a.click();
+  }
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+
+// Init — sync from cloud then load, then push local to cloud
+(async function() {
+  try { await syncFromCloud(); } catch(_) {}
+  escolaOrders = JSON.parse(localStorage.getItem('gdp.escola.pedidos') || '[]');
+  init();
+  try { await syncToCloud(); } catch(_) {}
+})();
 </script>
 
 </body>

@@ -86,6 +86,8 @@
     .btn{padding:.6rem 1.2rem;border:none;border-radius:8px;font-size:.85rem;font-weight:700;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:.4rem}
     .btn-blue{background:var(--blue);color:#fff}.btn-blue:hover{background:#2563eb}
     .btn-green{background:var(--green);color:#000}.btn-green:hover{opacity:.9}
+    .btn-purple{background:var(--purple);color:#fff}.btn-purple:hover{opacity:.9}
+    .btn-purple:disabled{opacity:.5;cursor:not-allowed}
     .btn-red{background:var(--red);color:#fff}
     .btn-outline{background:transparent;border:1px solid var(--bdr);color:var(--txt)}.btn-outline:hover{background:var(--s2)}
     .btn-sm{padding:.4rem .8rem;font-size:.8rem}
@@ -135,10 +137,13 @@
   <div class="topbar-right">
     <span>Fornecedor: <strong style="color:var(--txt)">Lariucci & Ribeiro Pereira</strong></span>
     <span>|</span>
-    <a href="gdp-dashboard.html">Dashboard</a>
     <a href="gdp-portal.html">Portal Escolar</a>
-    <a href="gdp-entregador.html" style="color:var(--yellow)">Entregador</a>
-    <a href="index.html" class="green">Caixa Escolar</a>
+    <a href="gdp-entregador.html">Entregador</a>
+    <span>|</span>
+    <a href="#" onclick="exportarDados();return false" title="Exportar todos os dados para arquivo JSON">📤 Exportar</a>
+    <a href="#" onclick="document.getElementById('import-dados-file').click();return false" title="Importar dados de outra maquina">📥 Importar</a>
+    <input type="file" id="import-dados-file" accept=".json" style="display:none" onchange="importarDados(this.files[0])">
+    <a href="index.html" class="green">← NexEdu</a>
   </div>
 </div>
 
@@ -301,7 +306,7 @@
           <option value="entregue">Entregue</option>
         </select>
       </div>
-      <button class="btn btn-blue" onclick="novoPedidoManual()">+ Registrar Pedido</button>
+      <!-- Registrar Pedido removido (Story 3.2) -->
     </div>
     <div class="table-wrap" style="max-height:600px;overflow-y:auto">
       <table>
@@ -435,6 +440,77 @@ const ORDERS_KEY = "gdp.pedidos.v1";
 const PROOFS_KEY = "gdp.entregas.provas.v1";
 const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 
+// ===== SUPABASE CLOUD SYNC =====
+const SUPABASE_URL = "https://ohxoxencxktpzskltbsk.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9oeG94ZW5jeGt0cHpza2x0YnNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMyMTUwNDQsImV4cCI6MjA4ODc5MTA0NH0.-w8f1xjW1cW2-OZpg1Sql8PqwFDzDqyWw4pHEx6jGSk";
+const GDP_SYNC_KEYS = [CONTRACTS_KEY, ORDERS_KEY, PROOFS_KEY, "gdp.usuarios.v1", "caixaescolar.banco.v1"];
+
+function getSyncUserId() {
+  const emp = JSON.parse(localStorage.getItem("nexedu.empresa") || "{}");
+  return emp.nome || emp.cnpj || "default";
+}
+
+async function cloudSave(key, data) {
+  const userId = getSyncUserId();
+  try {
+    await fetch(`${SUPABASE_URL}/rest/v1/sync_data?user_id=eq.${encodeURIComponent(userId)}&key=eq.${encodeURIComponent(key)}`, {
+      method: "DELETE",
+      headers: { "apikey": SUPABASE_KEY, "Authorization": "Bearer " + SUPABASE_KEY }
+    });
+    await fetch(`${SUPABASE_URL}/rest/v1/sync_data`, {
+      method: "POST",
+      headers: {
+        "apikey": SUPABASE_KEY, "Authorization": "Bearer " + SUPABASE_KEY,
+        "Content-Type": "application/json", "Prefer": "return=minimal"
+      },
+      body: JSON.stringify({ user_id: userId, key, data, updated_at: new Date().toISOString() })
+    });
+  } catch (e) { console.warn("Cloud save failed:", key, e); }
+}
+
+async function cloudLoadAll() {
+  const userId = getSyncUserId();
+  try {
+    const resp = await fetch(
+      `${SUPABASE_URL}/rest/v1/sync_data?user_id=eq.${encodeURIComponent(userId)}&select=key,data,updated_at`,
+      { headers: { "apikey": SUPABASE_KEY, "Authorization": "Bearer " + SUPABASE_KEY } }
+    );
+    if (!resp.ok) return null;
+    return await resp.json();
+  } catch (e) { console.warn("Cloud load failed:", e); return null; }
+}
+
+async function syncFromCloud() {
+  const rows = await cloudLoadAll();
+  if (!rows || rows.length === 0) return false;
+  let synced = 0;
+  for (const row of rows) {
+    const local = localStorage.getItem(row.key);
+    const localData = local ? JSON.parse(local) : null;
+    if (!localData || (row.data && JSON.stringify(row.data) !== JSON.stringify(localData))) {
+      localStorage.setItem(row.key, JSON.stringify(row.data));
+      synced++;
+    }
+  }
+  return synced > 0;
+}
+
+async function syncToCloud() {
+  const promises = GDP_SYNC_KEYS.map(key => {
+    const raw = localStorage.getItem(key);
+    if (!raw) return Promise.resolve();
+    try { return cloudSave(key, JSON.parse(raw)); }
+    catch(_) { return Promise.resolve(); }
+  });
+  await Promise.all(promises);
+}
+
+let _syncTimeout = null;
+function schedulCloudSync() {
+  if (_syncTimeout) clearTimeout(_syncTimeout);
+  _syncTimeout = setTimeout(() => syncToCloud(), 2000);
+}
+
 // ===== STATE =====
 let contratos = [];
 let pedidos = [];
@@ -448,8 +524,8 @@ function loadData() {
   try { pedidos = JSON.parse(localStorage.getItem(ORDERS_KEY)) || []; } catch(_) { pedidos = []; }
   try { provasEntrega = JSON.parse(localStorage.getItem(PROOFS_KEY)) || []; } catch(_) { provasEntrega = []; }
 }
-function saveContratos() { localStorage.setItem(CONTRACTS_KEY, JSON.stringify(contratos)); }
-function savePedidos() { localStorage.setItem(ORDERS_KEY, JSON.stringify(pedidos)); }
+function saveContratos() { localStorage.setItem(CONTRACTS_KEY, JSON.stringify(contratos)); schedulCloudSync(); }
+function savePedidos() { localStorage.setItem(ORDERS_KEY, JSON.stringify(pedidos)); schedulCloudSync(); }
 
 // ===== TABS =====
 function switchTab(tab) {
@@ -496,9 +572,15 @@ async function parseDocx(file) {
     tbl.querySelectorAll("tr").forEach(tr => {
       const cells = [];
       tr.querySelectorAll("tc").forEach(tc => {
-        const texts = [];
-        tc.querySelectorAll("t").forEach(t => texts.push(t.textContent));
-        cells.push(texts.join("").trim());
+        // Group text by paragraph to preserve spacing
+        const paragraphs = [];
+        tc.querySelectorAll("p").forEach(p => {
+          const pTexts = [];
+          p.querySelectorAll("t").forEach(t => pTexts.push(t.textContent));
+          const pText = pTexts.join("").trim();
+          if (pText) paragraphs.push(pText);
+        });
+        cells.push(paragraphs.join(" ").trim());
       });
       rows.push(cells);
     });
@@ -558,9 +640,15 @@ function interpretMapa(parsed) {
   const supplierNames = [];
   for (let c = firstSupplierCol; c < headerRow.length; c++) {
     const h = String(headerRow[c]).trim();
+    if (!h) continue;
     const hLow = h.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-    if (h && !skipHeaders.some(s => hLow.includes(s))) {
-      supplierNames.push(h);
+    // Skip only exact structural headers (not partial matches)
+    const isStructural = /^(item|n\.?|num|descri|und|unid|un|quant|qtd|qtde|preco|valor|total|preco\/unidade)$/i.test(hLow.trim());
+    if (!isStructural) {
+      // Extract supplier name: remove "Licitante N" prefix if present
+      let name = h.replace(/^Licitante\s*\d+\s*/i, "").trim();
+      if (!name || /^(valor|preco)$/i.test(name)) name = h; // keep full if stripped to nothing
+      supplierNames.push(name);
     }
   }
 
@@ -585,14 +673,24 @@ function interpretMapa(parsed) {
     const quantidade = parseFloat(String(row[colQtd] || "0").replace(/\./g, "").replace(",", ".")) || 0;
 
     const precos = {};
+    const precosTotal = {};
     for (let s = 0; s < supplierNames.length; s++) {
       const raw = String(row[firstSupplierCol + s] || "");
-      const cleaned = raw.replace(/[^\d,\.]/g, "").replace(",", ".");
-      const price = parseFloat(cleaned) || 0;
-      precos[supplierNames[s]] = price;
+      const cleaned = raw.replace(/[^\d,\.]/g, "");
+      // Handle Brazilian format: "1.234,56" → 1234.56
+      let price = 0;
+      if (cleaned) {
+        const hasDotAndComma = cleaned.includes(".") && cleaned.includes(",");
+        if (hasDotAndComma) price = parseFloat(cleaned.replace(/\./g, "").replace(",", ".")) || 0;
+        else if (cleaned.includes(",")) price = parseFloat(cleaned.replace(",", ".")) || 0;
+        else price = parseFloat(cleaned) || 0;
+      }
+      precosTotal[supplierNames[s]] = price;
+      // Convert to unit price: total / quantity
+      precos[supplierNames[s]] = (price > 0 && quantidade > 0) ? Math.round((price / quantidade) * 100) / 100 : price;
     }
 
-    itens.push({ num: itemNum, descricao, unidade, quantidade, precos });
+    itens.push({ num: itemNum, descricao, unidade, quantidade, precos, precosTotal });
   }
 
   // Table 1: Classification (optional — may not exist in Excel/PDF)
@@ -618,10 +716,12 @@ function interpretMapa(parsed) {
     const nome = row[1] || "";
     const itensStr = row[2] || "";
 
-    // Parse "1,2,4,5,6,7,8,9 e 10" or "3" or "–"
+    // Parse "1,2,4,5,6,7,8,9 e 10" or "5-7-12-29-34" or "3" or "–"
     let itensGanhos = [];
     if (itensStr && itensStr !== "\u2013" && itensStr !== "-" && itensStr !== "\u00a0") {
-      const parts = itensStr.replace(/\s*e\s*/g, ",").split(",");
+      // Support multiple separators: comma, hyphen, "e", semicolon, space
+      const normalized = itensStr.replace(/\s*e\s*/g, ",").replace(/[\-;]/g, ",");
+      const parts = normalized.split(",");
       itensGanhos = parts.map(s => parseInt(s.trim())).filter(n => !isNaN(n));
     }
 
@@ -683,20 +783,25 @@ async function parsePDF(file) {
     const page = await pdf.getPage(p);
     const content = await page.getTextContent();
 
-    // Group text items by Y position to reconstruct rows
-    const yMap = new Map();
-    for (const item of content.items) {
-      const y = Math.round(item.transform[5]); // Y coordinate
-      if (!yMap.has(y)) yMap.set(y, []);
-      yMap.get(y).push({ x: item.transform[4], text: item.str });
+    // Group text items by Y position with tolerance (items within 3px = same line)
+    const rawItems = content.items.filter(i => i.str.trim()).map(i => ({
+      x: i.transform[4], y: Math.round(i.transform[5]), text: i.str
+    }));
+
+    const lineGroups = [];
+    const yTolerance = 3;
+    const sortedByY = [...rawItems].sort((a, b) => b.y - a.y);
+    for (const item of sortedByY) {
+      const existing = lineGroups.find(g => Math.abs(g.y - item.y) <= yTolerance);
+      if (existing) { existing.items.push(item); }
+      else { lineGroups.push({ y: item.y, items: [item] }); }
     }
 
-    // Sort by Y descending (PDF coordinates are bottom-up)
-    const sortedYs = [...yMap.keys()].sort((a, b) => b - a);
-    for (const y of sortedYs) {
-      const items = yMap.get(y).sort((a, b) => a.x - b.x);
+    lineGroups.sort((a, b) => b.y - a.y);
+    for (const group of lineGroups) {
+      const items = group.items.sort((a, b) => a.x - b.x);
       const lineText = items.map(i => i.text).join(" ").trim();
-      if (lineText) allLines.push({ y, items, text: lineText });
+      if (lineText) allLines.push({ y: group.y, items, text: lineText });
     }
   }
 
@@ -845,8 +950,10 @@ function renderImportPreview() {
       <td class="text-right font-mono">${item.quantidade}</td>
       ${m.supplierNames.map(s => {
         const p = item.precos[s];
+        const pTotal = item.precosTotal ? item.precosTotal[s] : p;
         const isWinner = winner && s === winner.nome;
-        return `<td class="text-right font-mono ${isWinner ? 'green' : ''}" style="${isWinner ? 'font-weight:700' : ''}">${p > 0 ? brl.format(p) : "-"}</td>`;
+        const title = pTotal !== p && pTotal > 0 ? `Total: ${brl.format(pTotal)}` : "";
+        return `<td class="text-right font-mono ${isWinner ? 'green' : ''}" style="${isWinner ? 'font-weight:700' : ''}" title="${title}">${p > 0 ? brl.format(p) : "-"}</td>`;
       }).join("")}
       <td class="nowrap"><span class="badge badge-green">${esc(winnerShort)}</span></td>
     </tr>`;
@@ -990,31 +1097,32 @@ function alimentarBancoConcorrentes(mapa, meuNome) {
     if (!bp.concorrentes) bp.concorrentes = [];
     if (!bp.propostas) bp.propostas = [];
 
-    // Registrar precos de CADA fornecedor
-    for (const [fornecedor, preco] of Object.entries(item.precos)) {
-      if (preco <= 0) continue;
+    // Registrar precos UNITARIOS de CADA fornecedor
+    for (const [fornecedor, precoUnit] of Object.entries(item.precos)) {
+      if (precoUnit <= 0) continue;
 
       if (norm(fornecedor) === norm(meuNome)) {
-        // Meu preco — registrar como proposta
+        // Meu preco — registrar como proposta e atualizar custo base
         const jaExiste = bp.propostas.find(p => p.edital === (mapa.edital || "") && p.escola === (mapa.escola || ""));
         if (!jaExiste) {
           bp.propostas.push({
             edital: mapa.edital || "",
             escola: mapa.escola || "",
-            preco: preco,
+            preco: precoUnit,
             data: todayStr,
             resultado: "pendente"
           });
         }
-        // Atualizar preco referencia se nao tiver
-        if (!bp.precoReferencia || bp.precoReferencia === 0) bp.precoReferencia = preco;
+        // Atualizar custo base e preco referencia
+        bp.custoBase = precoUnit;
+        bp.precoReferencia = Math.round(precoUnit * (1 + bp.margemPadrao) * 100) / 100;
       } else {
-        // Concorrente — registrar
+        // Concorrente — registrar preco unitario
         const jaExiste = bp.concorrentes.find(c => norm(c.nome) === norm(fornecedor) && c.edital === (mapa.edital || ""));
         if (!jaExiste) {
           bp.concorrentes.push({
             nome: fornecedor,
-            preco: preco,
+            preco: precoUnit,
             edital: mapa.edital || "",
             escola: mapa.escola || "",
             data: todayStr
@@ -1081,10 +1189,73 @@ function renderContratos() {
       <div class="progress"><div class="progress-fill ${pctExec >= 80 ? 'green' : pctExec >= 40 ? 'yellow' : 'blue'}" style="width:${pctExec}%"></div></div>
       <div style="display:flex;justify-content:space-between;align-items:center;margin-top:.3rem">
         <span style="font-size:.7rem;color:var(--dim)">${pctExec.toFixed(0)}% executado</span>
-        <button class="btn btn-sm btn-red" onclick="event.stopPropagation();excluirContrato('${c.id}')" style="font-size:.7rem;padding:.2rem .6rem">Excluir</button>
+        <div style="display:flex;gap:.4rem">
+          <button class="btn btn-sm btn-blue" onclick="event.stopPropagation();vincularEscolaContrato('${c.id}')" style="font-size:.7rem;padding:.2rem .6rem" title="Vincular escola a este contrato">Vincular Escola</button>
+          <button class="btn btn-sm btn-red" onclick="event.stopPropagation();excluirContrato('${c.id}')" style="font-size:.7rem;padding:.2rem .6rem">Excluir</button>
+        </div>
       </div>
+      ${getEscolasVinculadasBadges(c.id)}
     </div>`;
   }).join("");
+}
+
+function getEscolasVinculadasBadges(contratoId) {
+  const linked = usuarios.filter(u => (u.contratos_vinculados || []).includes(contratoId));
+  if (linked.length === 0) return '<div style="font-size:.7rem;color:var(--dim);margin-top:.3rem;font-style:italic">Nenhuma escola vinculada</div>';
+  return '<div style="display:flex;flex-wrap:wrap;gap:.3rem;margin-top:.3rem">' +
+    linked.map(u => '<span style="background:var(--blue);color:#fff;font-size:.65rem;padding:.15rem .5rem;border-radius:10px">' + esc(u.nome.length > 25 ? u.nome.slice(0,23)+'...' : u.nome) + '</span>').join('') +
+    '</div>';
+}
+
+function vincularEscolaContrato(contratoId) {
+  if (usuarios.length === 0) {
+    showToast("Cadastre escolas na aba Usuarios primeiro.", 3000);
+    return;
+  }
+
+  const opts = usuarios.map(u => {
+    const jaVinculado = (u.contratos_vinculados || []).includes(contratoId);
+    return '<label style="display:flex;align-items:center;gap:.5rem;font-size:.85rem;padding:.4rem 0;cursor:pointer">' +
+      '<input type="checkbox" class="vincular-escola-chk" value="' + esc(u.id) + '" ' + (jaVinculado ? 'checked' : '') + '> ' +
+      esc(u.nome) + (u.municipio ? ' <span style="color:var(--dim);font-size:.75rem">(' + esc(u.municipio) + ')</span>' : '') +
+      '</label>';
+  }).join("");
+
+  const c = contratos.find(x => x.id === contratoId);
+  const titulo = c ? c.escola.slice(0, 50) : contratoId;
+
+  document.getElementById("modal-contrato-titulo").textContent = "Vincular Escolas — " + titulo;
+  document.getElementById("modal-contrato-body").innerHTML = `
+    <div style="margin-bottom:1rem;color:var(--mut);font-size:.85rem">Selecione as escolas que devem ter acesso a este contrato no Portal:</div>
+    <div style="max-height:300px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:.8rem 1rem;background:var(--surface)">
+      ${opts}
+    </div>
+    <div style="margin-top:1.5rem;display:flex;gap:.8rem;justify-content:flex-end">
+      <button class="btn btn-outline" onclick="document.getElementById('modal-contrato').classList.add('hidden')">Cancelar</button>
+      <button class="btn btn-green" onclick="salvarVinculoEscolas('${contratoId}')">Salvar Vinculos</button>
+    </div>
+  `;
+  document.getElementById("modal-contrato").classList.remove("hidden");
+}
+
+function salvarVinculoEscolas(contratoId) {
+  const checkedIds = [...document.querySelectorAll(".vincular-escola-chk:checked")].map(cb => cb.value);
+  const uncheckedIds = [...document.querySelectorAll(".vincular-escola-chk:not(:checked)")].map(cb => cb.value);
+
+  for (const u of usuarios) {
+    if (!u.contratos_vinculados) u.contratos_vinculados = [];
+    if (checkedIds.includes(u.id) && !u.contratos_vinculados.includes(contratoId)) {
+      u.contratos_vinculados.push(contratoId);
+    }
+    if (uncheckedIds.includes(u.id)) {
+      u.contratos_vinculados = u.contratos_vinculados.filter(id => id !== contratoId);
+    }
+  }
+
+  saveUsuarios();
+  document.getElementById("modal-contrato").classList.add("hidden");
+  renderContratos();
+  showToast("Escolas vinculadas ao contrato com sucesso!");
 }
 
 function excluirContrato(id) {
@@ -1141,11 +1312,13 @@ function abrirContrato(id) {
         }).join("")}</tbody>
       </table>
     </div>
-    <div style="margin-top:1rem;display:flex;gap:.8rem;justify-content:flex-end">
+    <div style="margin-top:1rem;display:flex;gap:.8rem;justify-content:flex-end;flex-wrap:wrap">
       <button class="btn btn-outline" onclick="fecharModalContrato()">Fechar</button>
       <button class="btn btn-red btn-sm" onclick="excluirContrato('${c.id}')">Excluir Contrato</button>
+      <button class="btn btn-purple" onclick="cadastrarTiny('${c.id}')" title="Cadastrar itens deste contrato no Tiny ERP">Cadastrar no Tiny</button>
       <button class="btn btn-green" onclick="registrarEntregas('${c.id}')">Registrar Entregas</button>
-    </div>`;
+    </div>
+    <div id="tiny-result-${c.id}" class="hidden" style="margin-top:1rem;padding:1rem;border-radius:8px;background:var(--s1);border:1px solid var(--bdr);font-size:.85rem"></div>`;
 
   document.getElementById("modal-contrato-body").innerHTML = html;
   document.getElementById("modal-contrato").classList.remove("hidden");
@@ -1288,7 +1461,7 @@ function renderPedidos() {
       <td><span class="badge ${badgeMap[p.status] || 'badge-yellow'}">${p.status}</span></td>
       <td class="nowrap">
   ${next ? `<button class="btn btn-sm btn-outline" onclick="avancarPedido('${p.id}','${next}')">${next}</button> ` : '<span style="color:var(--green);font-size:.8rem">Concluido</span> '}
-  ${!p.olistId ? `<button class="btn btn-sm btn-blue" onclick="enviarPedidoOlist('${p.id}')">Olist</button>` : `<span style="font-size:.7rem;color:var(--dim)">${p.olistId}</span>`}
+  <!-- Olist removido (Story 3.2) -->
 </td>
     </tr>`;
   }).join("");
@@ -1479,6 +1652,59 @@ function showToast(msg, duration = 3000) {
   setTimeout(() => { toast.style.opacity = "0"; setTimeout(() => toast.remove(), 300); }, duration);
 }
 
+// ===== EXPORTAR / IMPORTAR DADOS =====
+function exportarDados() {
+  const keys = [
+    CONTRACTS_KEY, ORDERS_KEY, PROOFS_KEY, "gdp.usuarios.v1",
+    "caixaescolar.banco.v1", "nexedu.empresa", "nexedu.auth"
+  ];
+  const dados = {};
+  keys.forEach(k => {
+    const v = localStorage.getItem(k);
+    if (v) dados[k] = JSON.parse(v);
+  });
+  dados._exportDate = new Date().toISOString();
+  dados._source = location.hostname;
+
+  const blob = new Blob([JSON.stringify(dados, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `gdp-dados-${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast("Dados exportados com sucesso!");
+}
+
+function importarDados(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const dados = JSON.parse(e.target.result);
+      const importDate = dados._exportDate || "desconhecida";
+      delete dados._exportDate;
+      delete dados._source;
+
+      const keys = Object.keys(dados);
+      if (keys.length === 0) { showToast("Arquivo vazio ou invalido.", 3000); return; }
+
+      if (!confirm(`Importar dados de ${importDate}?\n\n${keys.length} chaves encontradas:\n${keys.join(", ")}\n\nATENCAO: Dados existentes serao sobrescritos!`)) return;
+
+      keys.forEach(k => {
+        localStorage.setItem(k, JSON.stringify(dados[k]));
+      });
+
+      showToast(`${keys.length} conjuntos de dados importados! Recarregando...`, 3000);
+      setTimeout(() => location.reload(), 1500);
+    } catch (err) {
+      showToast("Erro ao importar: " + err.message, 5000);
+    }
+  };
+  reader.readAsText(file);
+  file.value = "";
+}
+
 // ===== USUARIOS (ESCOLAS) =====
 const USUARIOS_KEY = "gdp.usuarios.v1";
 let usuarios = [];
@@ -1512,7 +1738,7 @@ function loadUsuarios() {
     }).catch(() => {});
   }
 }
-function saveUsuarios() { localStorage.setItem(USUARIOS_KEY, JSON.stringify(usuarios)); }
+function saveUsuarios() { localStorage.setItem(USUARIOS_KEY, JSON.stringify(usuarios)); schedulCloudSync(); }
 
 function renderUsuarios() {
   const busca = (document.getElementById("busca-usuario").value || "").toLowerCase();
@@ -1557,6 +1783,18 @@ function editarUsuario(id) {
 function renderFormUsuario(u) {
   const isEdit = !!u;
   document.getElementById("modal-usuario-titulo").textContent = isEdit ? "Editar Escola" : "Cadastrar Escola";
+
+  // Build contract checkboxes
+  const vinculados = u?.contratos_vinculados || [];
+  const contratosOpts = contratos.map(c => {
+    const checked = vinculados.includes(c.id) ? 'checked' : '';
+    const label = c.id + ' — ' + esc(c.escola.length > 45 ? c.escola.slice(0,43)+'...' : c.escola);
+    return '<label style="display:flex;align-items:center;gap:.5rem;font-size:.82rem;padding:.3rem 0;cursor:pointer"><input type="checkbox" class="usr-contrato-chk" value="' + c.id + '" ' + checked + '> ' + label + '</label>';
+  }).join("");
+  const contratosSection = contratos.length > 0
+    ? '<div style="max-height:140px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:.5rem .8rem;background:var(--surface)">' + contratosOpts + '</div>'
+    : '<div style="color:var(--mut);font-size:.82rem">Nenhum contrato importado ainda.</div>';
+
   document.getElementById("modal-usuario-body").innerHTML = `
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
       <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Nome da Escola</label><input type="text" id="usr-nome" value="${esc(u?.nome||'')}" style="width:100%"></div>
@@ -1567,12 +1805,34 @@ function renderFormUsuario(u) {
       <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Cargo</label><input type="text" id="usr-cargo" value="${esc(u?.cargo||'')}" style="width:100%"></div>
       <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Email</label><input type="text" id="usr-email" value="${esc(u?.email||'')}" style="width:100%"></div>
       <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Telefone</label><input type="text" id="usr-telefone" value="${esc(u?.telefone||'')}" style="width:100%"></div>
+    </div>
+    <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--brd,#475569)">
+      <div style="font-size:.8rem;font-weight:700;margin-bottom:.8rem;color:var(--acc,#3b82f6)">Endereco (para NF-e)</div>
+      <div style="display:grid;grid-template-columns:2fr 1fr;gap:1rem">
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Logradouro</label><input type="text" id="usr-logradouro" value="${esc(u?.logradouro||'')}" placeholder="Rua, Av, Pca..." style="width:100%"></div>
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Numero</label><input type="text" id="usr-numero" value="${esc(u?.numero||'')}" placeholder="S/N" style="width:100%"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-top:.5rem">
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Complemento</label><input type="text" id="usr-complemento" value="${esc(u?.complemento||'')}" style="width:100%"></div>
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Bairro</label><input type="text" id="usr-bairro" value="${esc(u?.bairro||'')}" style="width:100%"></div>
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">CEP</label><input type="text" id="usr-cep" value="${esc(u?.cep||'')}" placeholder="00000-000" style="width:100%"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:.5rem">
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">UF</label><input type="text" id="usr-uf" value="${esc(u?.uf||'MG')}" maxlength="2" style="width:100%"></div>
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Inscricao Estadual</label><input type="text" id="usr-ie" value="${esc(u?.ie||'ISENTO')}" style="width:100%"></div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:1rem">
       <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Login</label><input type="text" id="usr-login" value="${esc(u?.login||'')}" style="width:100%"></div>
       <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Senha</label><input type="text" id="usr-senha" value="${esc(u?.senha||'escola2025')}" style="width:100%"></div>
       <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Catalogo (categoria)</label><input type="text" id="usr-catalogo" value="${esc(u?.categoria_catalogo||'')}" style="width:100%"></div>
       <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">ARP Vinculada</label><input type="text" id="usr-arp" value="${esc(u?.arp_vinculada||'ARP-LARIUCCI-2025')}" style="width:100%"></div>
       <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Saldo Total (R$)</label><input type="number" id="usr-saldo-total" value="${u?.saldo_total||0}" style="width:100%"></div>
       <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Saldo Disponivel (R$)</label><input type="number" id="usr-saldo-disp" value="${u?.saldo_disponivel||0}" style="width:100%"></div>
+    </div>
+    <div style="margin-top:1rem">
+      <label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Contratos Vinculados</label>
+      ${contratosSection}
     </div>
     <div style="margin-top:1.5rem;display:flex;gap:.8rem;justify-content:flex-end">
       <button class="btn btn-outline" onclick="fecharModalUsuario()">Cancelar</button>
@@ -1595,12 +1855,20 @@ function salvarUsuario(editId) {
     cargo: document.getElementById("usr-cargo").value.trim(),
     email: document.getElementById("usr-email").value.trim(),
     telefone: document.getElementById("usr-telefone").value.trim(),
+    logradouro: document.getElementById("usr-logradouro").value.trim(),
+    numero: document.getElementById("usr-numero").value.trim(),
+    complemento: document.getElementById("usr-complemento").value.trim(),
+    bairro: document.getElementById("usr-bairro").value.trim(),
+    cep: document.getElementById("usr-cep").value.trim(),
+    uf: document.getElementById("usr-uf").value.trim() || "MG",
+    ie: document.getElementById("usr-ie").value.trim() || "ISENTO",
     login: login,
     senha: document.getElementById("usr-senha").value.trim() || 'escola2025',
     categoria_catalogo: document.getElementById("usr-catalogo").value.trim(),
     arp_vinculada: document.getElementById("usr-arp").value.trim(),
     saldo_total: parseFloat(document.getElementById("usr-saldo-total").value) || 0,
-    saldo_disponivel: parseFloat(document.getElementById("usr-saldo-disp").value) || 0
+    saldo_disponivel: parseFloat(document.getElementById("usr-saldo-disp").value) || 0,
+    contratos_vinculados: [...document.querySelectorAll(".usr-contrato-chk:checked")].map(cb => cb.value)
   };
 
   if (editId) {
@@ -1683,6 +1951,7 @@ async function carregarEntregasServidor() {
         }
       }
       localStorage.setItem(PROOFS_KEY, JSON.stringify(provasEntrega));
+      schedulCloudSync();
     }
   } catch (_) {}
 }
@@ -1793,10 +2062,253 @@ function fecharComprovante() {
   document.getElementById("modal-comprovante").style.display = "none";
 }
 
+// ===== TINY ERP — CADASTRO DE PRODUTOS =====
+const TINY_NCM_MAP = [
+  { keywords: ["embalagem", "plastica", "freezer"], ncm: "3923.29.90" },
+  { keywords: ["isqueiro", "gas"], ncm: "9613.10.00" },
+  { keywords: ["sabao", "barra"], ncm: "3401.19.00" },
+  { keywords: ["vassoura", "nylon", "piacava"], ncm: "9603.10.00" },
+  { keywords: ["cloro", "gel"], ncm: "2828.90.11" },
+  { keywords: ["lixeira", "plastica", "pedal"], ncm: "3924.90.00" },
+  { keywords: ["escova", "alimentos", "legumes"], ncm: "9603.90.00" },
+  { keywords: ["rodo", "magico", "refil"], ncm: "9603.90.00" },
+  { keywords: ["mangueira", "jardim"], ncm: "3917.39.00" },
+  { keywords: ["detergente"], ncm: "3402.20.00" },
+  { keywords: ["agua", "sanitaria"], ncm: "2828.90.11" },
+  { keywords: ["esponja"], ncm: "3926.90.90" },
+  { keywords: ["pano", "chao"], ncm: "6307.10.00" },
+  { keywords: ["desinfetante"], ncm: "3808.94.19" },
+  { keywords: ["luva", "latex", "borracha"], ncm: "4015.19.00" },
+  { keywords: ["papel", "higienico"], ncm: "4818.10.00" },
+  { keywords: ["papel", "toalha"], ncm: "4818.20.00" },
+  { keywords: ["saco", "lixo"], ncm: "3923.29.90" },
+  { keywords: ["balde"], ncm: "3924.10.00" },
+  { keywords: ["alcool"], ncm: "2207.10.90" },
+  { keywords: ["sabonete"], ncm: "3401.11.90" },
+  { keywords: ["cera", "piso"], ncm: "3405.40.00" },
+  { keywords: ["amaciante"], ncm: "3809.91.90" },
+  { keywords: ["limpador", "multiuso"], ncm: "3402.20.00" },
+  { keywords: ["inseticida"], ncm: "3808.91.99" },
+  { keywords: ["ventilador"], ncm: "8414.51.90" },
+  { keywords: ["bebedouro"], ncm: "8418.69.99" },
+  { keywords: ["cadeira", "escolar"], ncm: "9401.80.00" },
+  { keywords: ["mesa", "escolar"], ncm: "9403.70.00" },
+  { keywords: ["quadro", "branco", "lousa"], ncm: "9610.00.00" },
+  { keywords: ["caneta", "pilot", "marcador"], ncm: "9608.20.00" },
+  { keywords: ["apagador"], ncm: "9603.90.00" },
+  { keywords: ["lampada", "led"], ncm: "8539.50.00" },
+  { keywords: ["tomada", "extensao", "filtro", "linha"], ncm: "8536.69.90" },
+  { keywords: ["cadeado"], ncm: "8301.10.00" },
+  { keywords: ["toner", "cartucho", "impressora"], ncm: "8443.99.33" },
+  { keywords: ["resma", "sulfite", "a4"], ncm: "4802.56.10" },
+  { keywords: ["grampeador"], ncm: "8472.90.29" },
+  { keywords: ["tesoura"], ncm: "8213.00.00" },
+  { keywords: ["cola", "branca", "bastao"], ncm: "3506.10.90" },
+  { keywords: ["fita", "adesiva", "durex", "crepe"], ncm: "3919.10.00" },
+  { keywords: ["clips", "clipe"], ncm: "7319.90.00" },
+  { keywords: ["borracha", "apagar"], ncm: "4016.92.00" },
+  { keywords: ["lapis"], ncm: "9609.10.00" },
+  { keywords: ["caneta", "esferografica"], ncm: "9608.10.00" },
+  { keywords: ["envelope"], ncm: "4817.10.00" },
+  { keywords: ["pasta", "arquivo"], ncm: "4819.60.00" },
+  { keywords: ["copo", "descartavel"], ncm: "3924.10.00" },
+  { keywords: ["guardanapo"], ncm: "4818.30.00" },
+  { keywords: ["panela", "caldeira"], ncm: "7323.93.00" },
+  { keywords: ["tinta", "acrilica", "parede"], ncm: "3209.10.00" },
+  { keywords: ["vassoura", "gari"], ncm: "9603.10.00" },
+  { keywords: ["pa", "lixo"], ncm: "7323.99.00" },
+  { keywords: ["dispenser", "sabonete", "papel"], ncm: "3924.90.00" },
+  // ─── Alimentícios ───
+  { keywords: ["acucar", "cristal", "refinado"], ncm: "1701.14.00" },
+  { keywords: ["biscoito", "bolacha", "cream cracker"], ncm: "1905.31.00" },
+  { keywords: ["cacau", "chocolate", "achocolatado"], ncm: "1805.00.00" },
+  { keywords: ["extrato", "tomate", "molho"], ncm: "2002.90.00" },
+  { keywords: ["feijao", "carioca", "preto"], ncm: "0713.33.19" },
+  { keywords: ["polvilho", "amido", "mandioca"], ncm: "1108.14.00" },
+  { keywords: ["sal", "refinado", "iodado"], ncm: "2501.00.20" },
+  { keywords: ["pao", "frances", "forma"], ncm: "1905.90.10" },
+  { keywords: ["rosca", "rosquinha"], ncm: "1905.90.90" },
+  { keywords: ["arroz"], ncm: "1006.30.21" },
+  { keywords: ["macarrao", "espaguete", "massa"], ncm: "1902.19.00" },
+  { keywords: ["oleo", "soja", "vegetal"], ncm: "1507.90.11" },
+  { keywords: ["cafe", "torrado", "moido"], ncm: "0901.21.00" },
+  { keywords: ["leite", "integral", "desnatado"], ncm: "0401.10.10" },
+  { keywords: ["farinha", "trigo"], ncm: "1101.00.10" },
+  { keywords: ["margarina", "manteiga"], ncm: "1517.10.00" },
+  { keywords: ["vinagre"], ncm: "2209.00.00" },
+  { keywords: ["fuba", "milho", "quirera"], ncm: "1102.20.00" },
+  { keywords: ["sardinha", "atum", "conserva"], ncm: "1604.13.10" },
+  { keywords: ["suco", "refresco", "nectar"], ncm: "2009.89.90" },
+];
+
+function findNcmLocal(description) {
+  const lower = (description || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  let best = null, bestScore = 0;
+  for (const entry of TINY_NCM_MAP) {
+    const score = entry.keywords.filter(kw => lower.includes(kw)).length;
+    if (score > bestScore) { bestScore = score; best = entry; }
+  }
+  return best;
+}
+
+function getBaseUrl() {
+  // Vercel API routes use /api/ prefix
+  if (location.hostname.includes("vercel.app") || location.hostname.includes("netlify.app")) return "/api";
+  return "/api"; // Works with both Vercel and local dev
+}
+
+async function cadastrarTiny(contratoId) {
+  const c = contratos.find(x => x.id === contratoId);
+  if (!c) return;
+
+  const resultDiv = document.getElementById("tiny-result-" + contratoId);
+  if (!resultDiv) return;
+
+  // Show preview with NCM mapping before sending
+  const preview = c.itens.map((item, i) => {
+    const ncm = findNcmLocal(item.descricao);
+    return {
+      num: item.num,
+      descricao: item.descricao,
+      unidade: item.unidade,
+      precoUnitario: item.precoUnitario,
+      ncm: ncm ? ncm.ncm : "",
+      ncmAuto: !!ncm
+    };
+  });
+
+  // Show editable NCM table
+  let tableHtml = `
+    <h4 style="margin-bottom:.8rem">Revisao NCM — ${c.itens.length} itens</h4>
+    <p style="color:var(--mut);font-size:.8rem;margin-bottom:.8rem">Verifique os codigos NCM antes de enviar. Itens sem NCM serao cadastrados sem classificacao fiscal.</p>
+    <div class="table-wrap" style="max-height:350px;overflow-y:auto">
+      <table>
+        <thead><tr><th>#</th><th>Item</th><th>Unid</th><th class="text-right">Preco</th><th>NCM</th><th>Status</th></tr></thead>
+        <tbody>
+          ${preview.map((p, i) => `<tr>
+            <td>${p.num}</td>
+            <td style="max-width:280px">${esc(p.descricao.length > 60 ? p.descricao.slice(0, 58) + "..." : p.descricao)}</td>
+            <td>${esc(p.unidade)}</td>
+            <td class="text-right font-mono">${brl.format(p.precoUnitario)}</td>
+            <td><input type="text" id="ncm-${contratoId}-${i}" value="${p.ncm}" style="width:110px;font-family:monospace;font-size:.8rem" placeholder="0000.00.00"></td>
+            <td>${p.ncmAuto ? '<span class="badge badge-green">Auto</span>' : '<span class="badge badge-yellow">Manual</span>'}</td>
+          </tr>`).join("")}
+        </tbody>
+      </table>
+    </div>
+    <div style="margin-top:1rem;display:flex;gap:.8rem;justify-content:flex-end">
+      <button class="btn btn-outline btn-sm" onclick="document.getElementById('tiny-result-${contratoId}').classList.add('hidden')">Cancelar</button>
+      <button class="btn btn-purple" id="btn-enviar-tiny-${contratoId}" onclick="enviarTiny('${contratoId}')">Enviar para Tiny</button>
+    </div>
+  `;
+
+  resultDiv.innerHTML = tableHtml;
+  resultDiv.classList.remove("hidden");
+}
+
+async function enviarTiny(contratoId) {
+  const c = contratos.find(x => x.id === contratoId);
+  if (!c) return;
+
+  const btn = document.getElementById("btn-enviar-tiny-" + contratoId);
+  if (btn) { btn.disabled = true; btn.textContent = "Enviando..."; }
+
+  const resultDiv = document.getElementById("tiny-result-" + contratoId);
+
+  // Collect NCM values from inputs
+  const itens = c.itens.map((item, i) => {
+    const ncmInput = document.getElementById("ncm-" + contratoId + "-" + i);
+    return {
+      num: item.num,
+      descricao: item.descricao,
+      descricaoCompleta: item.descricao,
+      unidade: item.unidade,
+      precoUnitario: item.precoUnitario,
+      ncm: ncmInput ? ncmInput.value.trim() : ""
+    };
+  });
+
+  try {
+    const resp = await fetch("/api/tiny-produtos", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ itens, contractId: contratoId, action: "cadastrar" })
+    });
+
+    const data = await resp.json();
+
+    if (!data.success) {
+      resultDiv.innerHTML = `<div style="color:var(--red)">Erro: ${esc(data.error || "Falha desconhecida")}</div>
+        <button class="btn btn-outline btn-sm" style="margin-top:.5rem" onclick="this.parentElement.classList.add('hidden')">Fechar</button>`;
+      return;
+    }
+
+    // Show results
+    const s = data.summary;
+    let html = `
+      <h4 style="margin-bottom:.8rem">Resultado — Cadastro Tiny ERP</h4>
+      <div style="display:flex;gap:1rem;margin-bottom:1rem">
+        <div class="kpi" style="margin:0;flex:1"><div class="kpi-label">Cadastrados</div><div class="kpi-value green" style="font-size:1.3rem">${s.cadastrados}</div></div>
+        <div class="kpi" style="margin:0;flex:1"><div class="kpi-label">Ja Existiam</div><div class="kpi-value blue" style="font-size:1.3rem">${s.existentes}</div></div>
+        <div class="kpi" style="margin:0;flex:1"><div class="kpi-label">Erros</div><div class="kpi-value ${s.erros > 0 ? 'red' : 'green'}" style="font-size:1.3rem">${s.erros}</div></div>
+      </div>
+      <div class="table-wrap" style="max-height:250px;overflow-y:auto">
+        <table>
+          <thead><tr><th>#</th><th>SKU</th><th>Descricao</th><th>NCM</th><th>Status</th></tr></thead>
+          <tbody>
+            ${data.results.map(r => `<tr>
+              <td>${r.num}</td>
+              <td class="font-mono" style="font-size:.75rem">${esc(r.sku || "")}</td>
+              <td style="max-width:250px">${esc((r.descricao || "").slice(0, 50))}</td>
+              <td class="font-mono">${esc(r.ncm || "-")}</td>
+              <td>${r.status === "ok" ? '<span class="badge badge-green">OK</span>' :
+                   r.status === "existente" ? '<span class="badge badge-blue">Existente</span>' :
+                   '<span class="badge badge-red" title="' + esc(r.error || "") + '">Erro</span>'}</td>
+            </tr>`).join("")}
+          </tbody>
+        </table>
+      </div>
+      <div style="margin-top:.8rem;display:flex;gap:.8rem;justify-content:flex-end">
+        <button class="btn btn-outline btn-sm" onclick="this.parentElement.parentElement.classList.add('hidden')">Fechar</button>
+      </div>
+    `;
+
+    resultDiv.innerHTML = html;
+
+    // Save SKUs back to contract items so Portal orders use the same SKUs
+    let changed = false;
+    data.results.forEach(r => {
+      if (r.sku && (r.status === "ok" || r.status === "existente")) {
+        const item = c.itens.find(it => it.num === r.num);
+        if (item && item.sku !== r.sku) { item.sku = r.sku; changed = true; }
+      }
+    });
+    if (changed) {
+      localStorage.setItem("gdp.contratos.v1", JSON.stringify(contratos));
+    }
+
+    showToast(`Tiny: ${s.cadastrados} cadastrados, ${s.existentes} existentes, ${s.erros} erros`);
+  } catch (err) {
+    resultDiv.innerHTML = `<div style="color:var(--red)">Erro de conexao: ${esc(err.message)}</div>
+      <p style="color:var(--mut);font-size:.8rem;margin-top:.5rem">Verifique se o TINY_API_TOKEN esta configurado nas variaveis do Netlify.</p>
+      <button class="btn btn-outline btn-sm" style="margin-top:.5rem" onclick="this.parentElement.classList.add('hidden')">Fechar</button>`;
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = "Enviar para Tiny"; }
+  }
+}
+
 // ===== INIT =====
-loadData();
-loadUsuarios();
-renderAll();
+(async function initGDP() {
+  try {
+    const synced = await syncFromCloud();
+    if (synced) console.log("[GDP] Cloud data synced to localStorage");
+  } catch (e) { console.warn("[GDP] Cloud sync pull failed:", e); }
+  loadData();
+  loadUsuarios();
+  renderAll();
+  // Push local data to cloud (populates Supabase with existing data)
+  try { await syncToCloud(); } catch(_) {}
+})();
 </script>
 
 </body>

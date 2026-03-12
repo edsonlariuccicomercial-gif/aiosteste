@@ -24,3 +24,8 @@
   from = "/api/sync-pedidos"
   to = "/.netlify/functions/sync-pedidos"
   status = 200
+
+[[redirects]]
+  from = "/api/tiny/produtos"
+  to = "/.netlify/functions/tiny-produtos"
+  status = 200
