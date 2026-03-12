@@ -191,43 +191,34 @@
     <div class="card">
       <h2>Importar Dados para Contrato</h2>
       <div style="display:flex;gap:1rem;margin-bottom:1.5rem">
-        <button class="btn btn-blue" id="btn-mode-mapa" onclick="setImportMode('mapa')" style="flex:1;padding:1rem">
+        <button class="btn btn-blue" id="btn-mode-mapa" onclick="document.getElementById('file-input').click()" style="flex:1;padding:1rem">
           <div style="font-size:1.2rem;margin-bottom:.3rem">📋</div>
           <div style="font-weight:700">Mapa de Apuracao</div>
           <div style="font-size:.75rem;font-weight:400;opacity:.8">Word/Excel com fornecedores e classificacao</div>
         </button>
-        <button class="btn btn-outline" id="btn-mode-lista" onclick="setImportMode('lista')" style="flex:1;padding:1rem">
+        <button class="btn btn-outline" id="btn-mode-lista" onclick="document.getElementById('file-input-lista').click()" style="flex:1;padding:1rem">
           <div style="font-size:1.2rem;margin-bottom:.3rem">📦</div>
           <div style="font-weight:700">Lista de Produtos</div>
           <div style="font-size:.75rem;font-weight:400;opacity:.8">Planilha com itens e precos unitarios fechados</div>
         </button>
+        <button class="btn btn-outline" id="btn-mode-crono" onclick="document.getElementById('file-input-crono').click()" style="flex:1;padding:1rem">
+          <div style="font-size:1.2rem;margin-bottom:.3rem">📅</div>
+          <div style="font-weight:700">Cronograma de Entrega</div>
+          <div style="font-size:.75rem;font-weight:400;opacity:.8">PDF/JSON com datas de entrega e quantidades por data</div>
+        </button>
       </div>
     </div>
 
-    <!-- Mode: Mapa de Apuracao -->
-    <div id="import-mode-mapa">
-      <div class="card">
-        <h3 style="margin-bottom:.5rem">Importar Mapa de Apuracao</h3>
-        <p style="color:var(--mut);font-size:.85rem;margin-bottom:1rem">Envie o arquivo Word (.docx) do Mapa de Apuracao e Classificacao de Propostas. O sistema vai extrair automaticamente os itens, fornecedores e a classificacao.</p>
-        <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-input').click()">
-          <h3>Arraste o arquivo aqui</h3>
-          <p>Formatos aceitos: Word (.docx), Excel (.xlsx), PDF (.pdf), Imagem (.jpg, .png)</p>
-          <input type="file" id="file-input" accept=".docx,.doc,.pdf,.xlsx,.xls,.csv,.jpg,.jpeg,.png" onchange="handleFileUpload(this.files[0])">
-        </div>
-      </div>
+    <!-- Hidden file inputs for direct picker -->
+    <div style="display:none">
+      <input type="file" id="file-input" accept=".docx,.doc,.pdf,.xlsx,.xls,.csv,.jpg,.jpeg,.png" onchange="handleFileUpload(this.files[0])">
     </div>
+    <div id="import-mode-mapa"></div>
 
-    <!-- Mode: Lista de Produtos -->
+    <div style="display:none">
+      <input type="file" id="file-input-lista" accept=".xlsx,.xls,.csv" onchange="handleListaUpload(this.files[0])">
+    </div>
     <div id="import-mode-lista" class="hidden">
-      <div class="card">
-        <h3 style="margin-bottom:.5rem">Importar Lista de Produtos</h3>
-        <p style="color:var(--mut);font-size:.85rem;margin-bottom:1rem">Envie uma planilha Excel (.xlsx/.csv) com a lista de produtos e precos unitarios ja fechados. A planilha deve conter colunas como: descricao, unidade, quantidade, preco unitario.</p>
-        <div class="upload-zone" id="upload-zone-lista" onclick="document.getElementById('file-input-lista').click()">
-          <h3>Arraste a planilha aqui</h3>
-          <p>Formatos aceitos: Excel (.xlsx, .xls), CSV (.csv)</p>
-          <input type="file" id="file-input-lista" accept=".xlsx,.xls,.csv" onchange="handleListaUpload(this.files[0])">
-        </div>
-      </div>
 
       <!-- Dados do contrato -->
       <div class="card" id="lista-dados-contrato" class="hidden" style="display:none">
@@ -255,6 +246,23 @@
         <div style="margin-top:1rem;display:flex;gap:.8rem;justify-content:flex-end">
           <button class="btn btn-outline" onclick="cancelListaImport()">Cancelar</button>
           <button class="btn btn-green" onclick="criarContratoLista()">Criar Contrato</button>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:none">
+      <input type="file" id="file-input-crono" accept=".pdf,.xlsx,.xls,.docx,.json" onchange="handleCronoFiles(this.files)" multiple>
+    </div>
+    <div id="import-mode-crono" class="hidden">
+
+      <!-- Cronograma preview -->
+      <div class="card" id="crono-preview" style="display:none">
+        <h3 style="margin-bottom:.8rem">Cronograma Importado</h3>
+        <div id="crono-escola-info" style="margin-bottom:1rem;padding:.8rem 1rem;background:var(--s1);border-radius:8px;font-size:.85rem"></div>
+        <div id="crono-contratos-list"></div>
+        <div style="margin-top:1rem;display:flex;gap:.8rem;justify-content:flex-end">
+          <button class="btn btn-outline" onclick="cancelCronoImport()">Cancelar</button>
+          <button class="btn btn-green" onclick="importarCronograma()">Criar Contratos + Pedidos Agendados</button>
         </div>
       </div>
     </div>
@@ -361,6 +369,7 @@
         </select>
         <select id="filtro-status-pedido" onchange="renderPedidos()">
           <option value="">Todos os status</option>
+          <option value="agendado">Agendado</option>
           <option value="recebido">Recebido</option>
           <option value="concluido">Concluído</option>
         </select>
@@ -961,15 +970,7 @@ async function handleFileUpload(file) {
   }
 }
 
-// Drag & drop
-const uploadZone = document.getElementById("upload-zone");
-uploadZone.addEventListener("dragover", e => { e.preventDefault(); uploadZone.classList.add("dragover"); });
-uploadZone.addEventListener("dragleave", () => uploadZone.classList.remove("dragover"));
-uploadZone.addEventListener("drop", e => {
-  e.preventDefault();
-  uploadZone.classList.remove("dragover");
-  if (e.dataTransfer.files.length) handleFileUpload(e.dataTransfer.files[0]);
-});
+// Drag & drop (disabled — file pickers open directly from buttons)
 
 // ===== RENDER IMPORT PREVIEW =====
 function renderImportPreview() {
@@ -1213,15 +1214,8 @@ function alimentarBancoConcorrentes(mapa, meuNome) {
 let currentImportMode = "mapa";
 function setImportMode(mode) {
   currentImportMode = mode;
-  document.getElementById("import-mode-mapa").classList.toggle("hidden", mode !== "mapa");
   document.getElementById("import-mode-lista").classList.toggle("hidden", mode !== "lista");
-  document.getElementById("btn-mode-mapa").className = mode === "mapa" ? "btn btn-blue" : "btn btn-outline";
-  document.getElementById("btn-mode-lista").className = mode === "lista" ? "btn btn-blue" : "btn btn-outline";
-  // Style fix for flex children
-  document.getElementById("btn-mode-mapa").style.flex = "1";
-  document.getElementById("btn-mode-mapa").style.padding = "1rem";
-  document.getElementById("btn-mode-lista").style.flex = "1";
-  document.getElementById("btn-mode-lista").style.padding = "1rem";
+  document.getElementById("import-mode-crono").classList.toggle("hidden", mode !== "crono");
 }
 
 // ===== LISTA DE PRODUTOS IMPORT =====
@@ -1230,6 +1224,7 @@ let parsedListaSheets = null;
 
 async function handleListaUpload(file) {
   if (!file) return;
+  setImportMode('lista');
   const ext = file.name.split('.').pop().toLowerCase();
   if (!['xlsx', 'xls', 'csv'].includes(ext)) {
     showToast("Formato nao suportado. Use Excel (.xlsx) ou CSV.", 4000);
@@ -1579,6 +1574,625 @@ function cancelImport() {
   document.getElementById("file-input").value = "";
 }
 
+// ===== CRONOGRAMA DE ENTREGA IMPORT =====
+let parsedCrono = null;
+let cronoFiles = [];
+
+async function handleCronoFiles(files) {
+  if (!files || files.length === 0) return;
+  setImportMode('crono');
+  cronoFiles = [];
+  const allContratos = [];
+  let escola = '', cnpj = '', endereco = '', telefone = '', fornecedor = '';
+  let allDatas = new Set();
+
+  for (const file of files) {
+    const ext = file.name.split('.').pop().toLowerCase();
+    try {
+      let result;
+      if (ext === 'json') {
+        result = await readCronoJSON(file);
+      } else if (ext === 'pdf') {
+        result = await readCronoPDF(file);
+      } else if (ext === 'xlsx' || ext === 'xls') {
+        result = await readCronoExcel(file);
+      } else if (ext === 'docx') {
+        result = await readCronoWord(file);
+      } else {
+        showToast("Formato nao suportado: " + ext, 3000);
+        continue;
+      }
+      if (result) {
+        if (result.escola) escola = result.escola;
+        if (result.cnpj) cnpj = result.cnpj;
+        if (result.endereco) endereco = result.endereco;
+        if (result.telefone) telefone = result.telefone;
+        if (result.fornecedor) fornecedor = result.fornecedor;
+        (result.datas || []).forEach(d => allDatas.add(d));
+        (result.contratos || []).forEach(c => allContratos.push(c));
+        cronoFiles.push(file.name);
+      }
+    } catch(err) {
+      showToast("Erro ao ler " + file.name + ": " + err.message, 3000);
+    }
+  }
+
+  if (allContratos.length === 0) {
+    showToast("Nenhum cronograma encontrado nos arquivos.", 3000);
+    return;
+  }
+
+  parsedCrono = {
+    escola, cnpj, endereco, telefone, fornecedor,
+    datas: [...allDatas].sort((a, b) => {
+      const [da, ma] = a.split('/'); const [db, mb] = b.split('/');
+      return (parseInt(ma)*100 + parseInt(da)) - (parseInt(mb)*100 + parseInt(db));
+    }),
+    contratos: allContratos
+  };
+  renderCronoPreview();
+}
+
+function handleCronoUpload(file) { handleCronoFiles([file]); }
+
+async function readCronoJSON(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => { try { resolve(JSON.parse(e.target.result)); } catch(err) { reject(err); } };
+    reader.readAsText(file, 'utf-8');
+  });
+}
+
+async function readCronoPDF(file) {
+  if (!window.pdfjsLib) throw new Error("PDF.js nao carregado");
+  const data = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data }).promise;
+
+  // Only parse page 1 (the actual data table)
+  const page = await pdf.getPage(1);
+  const content = await page.getTextContent();
+
+  // Group text items by Y coordinate (rows) using X for column positioning
+  const rowMap = {};
+  content.items.forEach(item => {
+    const y = Math.round(item.transform[5]);
+    const x = Math.round(item.transform[4]);
+    if (!rowMap[y]) rowMap[y] = [];
+    rowMap[y].push({ x, text: item.str.trim() });
+  });
+
+  // Sort rows top-to-bottom (Y descending in PDF coords)
+  const sortedYs = Object.keys(rowMap).map(Number).sort((a, b) => b - a);
+  const rows = sortedYs.map(y => {
+    const cells = rowMap[y].sort((a, b) => a.x - b.x);
+    return cells;
+  });
+
+  // Extract header info from top rows
+  let escola = '', cnpj = '', processo = '', fornecedor = '', recurso = 'Geral';
+  const allText = rows.map(r => r.map(c => c.text).join(' ')).join('\n');
+
+  const escolaMatch = allText.match(/Caixa Escolar[^\n]*/i);
+  if (escolaMatch) escola = escolaMatch[0].replace(/CNJP.*/, '').replace(/CNPJ.*/, '').trim();
+  const cnpjMatch = allText.match(/CNJ?P\s*n?[°º]?\s*([\d.\/\-]+)/i);
+  if (cnpjMatch) cnpj = cnpjMatch[1];
+  const procMatch = allText.match(/(?:PAS|PROCESSO)[^\d]*(\d{1,4}\/\d{4})/i);
+  if (procMatch) processo = procMatch[1];
+  const fornMatch = allText.match(/FORNECEDOR:\s*([^\n]+)/i);
+  if (fornMatch) fornecedor = fornMatch[1].trim();
+
+  const fnLower = file.name.toLowerCase();
+  if (fnLower.includes('federal') || allText.toLowerCase().includes('pnae')) recurso = 'PNAE';
+  else if (fnLower.includes('estadual') || allText.toLowerCase().includes('contrapartida')) recurso = 'Contrapartida';
+
+  // Find the header row with "Data DD/MM" patterns to get column positions
+  let dateColumns = []; // { x, date }
+  let headerRowIdx = -1;
+  for (let ri = 0; ri < rows.length; ri++) {
+    const dateCols = rows[ri].filter(c => /^Data\s+\d{2}\/\d{2}$/.test(c.text) || /^\d{2}\/\d{2}$/.test(c.text));
+    if (dateCols.length >= 5) {
+      dateColumns = dateCols.map(c => ({
+        x: c.x,
+        date: c.text.replace('Data ', '')
+      }));
+      headerRowIdx = ri;
+      break;
+    }
+  }
+
+  // Also check for "Data" and "DD/MM" on separate items at same Y
+  if (dateColumns.length === 0) {
+    for (let ri = 0; ri < rows.length; ri++) {
+      const row = rows[ri];
+      const dateItems = [];
+      for (let ci = 0; ci < row.length; ci++) {
+        if (row[ci].text === 'Data' && ci + 1 < row.length && /^\d{2}\/\d{2}$/.test(row[ci + 1].text)) {
+          dateItems.push({ x: row[ci].x, date: row[ci + 1].text });
+          ci++; // skip the date part
+        }
+      }
+      if (dateItems.length >= 5) {
+        dateColumns = dateItems;
+        headerRowIdx = ri;
+        break;
+      }
+    }
+  }
+
+  if (dateColumns.length === 0 || headerRowIdx < 0) {
+    // Fallback to text-based parsing
+    let fullText = '';
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const pg = await pdf.getPage(i);
+      const ct = await pg.getTextContent();
+      const lines = [];
+      let lastY = null, curLine = '';
+      ct.items.forEach(it => {
+        const yy = Math.round(it.transform[5]);
+        if (lastY !== null && Math.abs(yy - lastY) > 3) { lines.push(curLine); curLine = ''; }
+        curLine += it.str + ' ';
+        lastY = yy;
+      });
+      if (curLine.trim()) lines.push(curLine);
+      fullText += lines.join('\n') + '\n';
+    }
+    return parseCronoText(fullText, file.name);
+  }
+
+  const datas = dateColumns.map(d => d.date);
+
+  // Find column positions for PRODUTO, VR. UNIT., TOTAL
+  let prodXMin = 0, prodXMax = 0, precoX = 0, totalX = 0, itemNumX = 0;
+  const headerRow = rows[headerRowIdx];
+  headerRow.forEach(c => {
+    if (c.text === 'PRODUTO') { prodXMin = c.x; }
+    if (c.text.includes('VR.') || c.text.includes('UNIT')) { precoX = c.x; }
+    if (c.text === 'TOTAL') { totalX = c.x; }
+    if (c.text.includes('ITENS')) { itemNumX = c.x; }
+  });
+
+  // Parse data rows (rows after header)
+  const items = [];
+  const dateXPositions = dateColumns.map(d => d.x);
+  const firstDateX = Math.min(...dateXPositions);
+
+  for (let ri = headerRowIdx + 1; ri < rows.length; ri++) {
+    const row = rows[ri];
+    if (row.length < 5) continue;
+
+    // Find product name (between unit and price columns)
+    let unidade = '', descricao = '', preco = 0, itemNum = '';
+    const qtdByDate = {};
+    let totalQty = 0;
+
+    // Collect text items by position
+    const beforeDates = row.filter(c => c.x < firstDateX - 10);
+    const inDates = row.filter(c => c.x >= firstDateX - 10);
+
+    // Parse unit, product, price from pre-date columns
+    beforeDates.forEach(c => {
+      if (/^(Kg|Pc\([^)]*\)|Lt\([^)]*\)|Fr\([^)]*\)|Un|L)$/i.test(c.text)) {
+        unidade = c.text;
+      } else if (/^R\$/.test(c.text)) {
+        const pStr = c.text.replace('R$', '').replace(/\s+/g, '').replace(',', '.');
+        preco = parseFloat(pStr) || 0;
+      } else if (/^[A-ZÁÀÂÃÉÊÍÓÔÕÚÜÇÑ]{2,}/.test(c.text) && c.text.length > 2) {
+        descricao = descricao ? descricao + ' ' + c.text : c.text;
+      }
+    });
+
+    if (!descricao || !unidade) continue;
+
+    // Fix broken prices like "1 9,40" → merge adjacent number fragments before dates
+    if (preco === 0) {
+      const priceItems = beforeDates.filter(c => /^\d/.test(c.text) || /^,\d/.test(c.text) || /R\$/.test(c.text));
+      if (priceItems.length > 0) {
+        const pStr = priceItems.map(c => c.text).join('').replace('R$', '').replace(/\s+/g, '').replace(',', '.');
+        preco = parseFloat(pStr) || 0;
+      }
+    }
+
+    // Match quantities to dates by closest X position
+    inDates.forEach(c => {
+      const val = parseInt(c.text);
+      if (isNaN(val)) return;
+
+      // Find closest date column
+      let closestDate = null;
+      let closestDist = Infinity;
+      dateColumns.forEach(dc => {
+        const dist = Math.abs(c.x - dc.x);
+        if (dist < closestDist) { closestDist = dist; closestDate = dc.date; }
+      });
+
+      // Check if this is a TOTAL column (far right) or ITEM NUM
+      if (closestDist > 30) {
+        // Could be total qty or item number - check X position
+        if (totalX > 0 && Math.abs(c.x - totalX) < 20) {
+          totalQty = val;
+        } else if (itemNumX > 0 && Math.abs(c.x - itemNumX) < 20) {
+          itemNum = String(val);
+        } else if (c.x > dateColumns[dateColumns.length - 1].x + 20) {
+          // After last date - first is total, last might be item num
+          if (!totalQty) totalQty = val;
+          else itemNum = String(val);
+        }
+        return;
+      }
+
+      if (closestDate && val > 0) {
+        qtdByDate[closestDate] = val;
+      }
+    });
+
+    if (Object.keys(qtdByDate).length === 0) continue;
+    if (!totalQty) totalQty = Object.values(qtdByDate).reduce((s, v) => s + v, 0);
+
+    items.push({
+      num: itemNum,
+      descricao,
+      unidade,
+      precoUnitario: preco,
+      qtdContratada: totalQty,
+      cronograma: qtdByDate
+    });
+  }
+
+  if (items.length === 0) {
+    showToast("PDF: nenhum item extraido de " + file.name + ". Tente importar como JSON.", 4000);
+    return null;
+  }
+
+  const total = items.reduce((s, it) => s + it.precoUnitario * it.qtdContratada, 0);
+  const endMatch = allText.match(/Rua[^\n–—]*/i);
+
+  return {
+    escola: escola || 'Escola nao identificada',
+    cnpj,
+    endereco: endMatch ? endMatch[0].trim() : '',
+    telefone: '',
+    fornecedor,
+    datas,
+    contratos: [{
+      processo,
+      recurso,
+      tipo: recurso === 'PNAE' ? 'Federal' : (recurso === 'Contrapartida' ? 'Estadual' : 'Geral'),
+      objeto: 'Aquisicao de generos alimenticios - ' + recurso,
+      obs: 'Recurso ' + recurso + ' - Processo de Aquisicao Simplificada ' + processo,
+      itens: items,
+      total: Math.round(total * 100) / 100
+    }]
+  };
+}
+
+async function readCronoExcel(file) {
+  if (!window.XLSX) throw new Error("SheetJS nao carregado");
+  const data = await file.arrayBuffer();
+  const wb = XLSX.read(data, { type: 'array' });
+  let fullText = '';
+  wb.SheetNames.forEach(name => {
+    const ws = wb.Sheets[name];
+    const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+    rows.forEach(row => { fullText += row.join('\t') + '\n'; });
+    fullText += '\n===SHEET===\n';
+  });
+  return parseCronoText(fullText, file.name);
+}
+
+async function readCronoWord(file) {
+  // Extract text from docx using JSZip
+  const data = await file.arrayBuffer();
+  const zip = await JSZip.loadAsync(data);
+  const docXml = await zip.file('word/document.xml').async('text');
+  const text = docXml.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+  return parseCronoText(text, file.name);
+}
+
+function parseCronoText(text, filename) {
+  // Extract escola info
+  let escola = '', cnpj = '', endereco = '', telefone = '', fornecedor = '';
+  const escolaMatch = text.match(/Caixa Escolar[^\n]*/i);
+  if (escolaMatch) escola = escolaMatch[0].replace(/CNJP.*/, '').trim();
+  const cnpjMatch = text.match(/CNJ?P\s*n?[°º]?\s*([\d./-]+)/i);
+  if (cnpjMatch) cnpj = cnpjMatch[1];
+  const foneMatch = text.match(/Fone:\s*([^\n–—]+)/i);
+  if (foneMatch) telefone = foneMatch[1].trim();
+  const fornMatch = text.match(/FORNECEDOR:\s*([^\n]+)/i);
+  if (fornMatch) fornecedor = fornMatch[1].trim();
+
+  // Extract process number
+  const procMatch = text.match(/(?:PROCESSO|PAS)\s*(?:DE AQUISI[ÇC][ÃA]O SIMPLIFICADA)?\s*(\d{1,4}\/\d{4})/i);
+  const processo = procMatch ? procMatch[1] : '';
+
+  // Detect resource type from filename or text
+  let recurso = 'Geral';
+  const fnLower = filename.toLowerCase();
+  const textLower = text.toLowerCase();
+  if (fnLower.includes('federal') || textLower.includes('pnae')) recurso = 'PNAE';
+  else if (fnLower.includes('estadual') || textLower.includes('contrapartida')) recurso = 'Contrapartida';
+
+  // Find delivery dates: "Data DD/MM" pattern
+  const dateRegex = /Data\s+(\d{2}\/\d{2})/gi;
+  const datas = [];
+  let dm;
+  while ((dm = dateRegex.exec(text)) !== null) {
+    if (!datas.includes(dm[1])) datas.push(dm[1]);
+  }
+  // Cap at unique dates (avoid duplicates from page 2)
+  const uniqueDatas = [...new Set(datas)];
+
+  if (uniqueDatas.length === 0) {
+    showToast("Nenhuma data de entrega encontrada no arquivo: " + filename, 3000);
+    return null;
+  }
+
+  // Parse items: look for lines with product data
+  // Format: QTY UNIT PRODUCT PRICE date_qtys... TOTAL TOTAL_VALUE ITEM_NUM
+  // Or tabular: UNIT PRODUCT PRICE date_qtys...
+  const items = [];
+  const lines = text.split('\n');
+
+  for (let li = 0; li < lines.length; li++) {
+    const line = lines[li].trim();
+    if (!line) continue;
+
+    // Try to match product lines - look for unit patterns at the start
+    const unitMatch = line.match(/^(\d+[\.,]?\d*)\s+(Kg|Pc\([^)]+\)|Lt\([^)]+\)|Fr\([^)]+\)|Un|L)\s+(.+)/i) ||
+                      line.match(/^(Kg|Pc\([^)]+\)|Lt\([^)]+\)|Fr\([^)]+\)|Un|L)\s+(.+)/i);
+
+    if (!unitMatch) continue;
+
+    let unidade, restLine;
+    if (unitMatch[3]) {
+      // Format: QTY UNIT REST
+      unidade = unitMatch[2];
+      restLine = unitMatch[3];
+    } else {
+      // Format: UNIT REST
+      unidade = unitMatch[1];
+      restLine = unitMatch[2];
+    }
+
+    // Extract product name (uppercase letters until price)
+    const prodMatch = restLine.match(/^([A-ZÀÁÂÃÉÊÍÓÔÕÚÜÇÑ\s\/]+)\s+R\$\s*([\d\s.,]+)/);
+    if (!prodMatch) continue;
+
+    const descricao = prodMatch[1].trim();
+    const precoRaw = prodMatch[2].replace(/\s+/g, '').replace(',', '.');
+    const preco = parseFloat(precoRaw) || 0;
+    if (!descricao || preco <= 0) continue;
+
+    // Extract quantities after price - these are the date quantities
+    const afterPrice = restLine.substring(restLine.indexOf(prodMatch[0]) + prodMatch[0].length).trim();
+    const nums = afterPrice.split(/\s+/).map(n => parseInt(n) || 0);
+
+    // Last few numbers are: TOTAL, TOTAL_VALUE parts, ITEM_NUM
+    // Try to find the cronograma quantities by matching against date count
+    const cronograma = {};
+    let totalQty = 0;
+
+    // The quantities should align with the dates
+    for (let di = 0; di < uniqueDatas.length && di < nums.length; di++) {
+      if (nums[di] > 0) {
+        cronograma[uniqueDatas[di]] = nums[di];
+        totalQty += nums[di];
+      }
+    }
+
+    // Try to get total from after the date quantities
+    const totalIdx = uniqueDatas.length;
+    if (totalIdx < nums.length && nums[totalIdx] > 0) {
+      totalQty = nums[totalIdx]; // Use the explicit total
+    }
+
+    // Get item number (usually last number)
+    const itemNum = nums.length > 0 ? String(nums[nums.length - 1]) : '';
+
+    if (totalQty > 0 && Object.keys(cronograma).length > 0) {
+      items.push({
+        num: itemNum,
+        descricao,
+        unidade,
+        precoUnitario: preco,
+        qtdContratada: totalQty,
+        cronograma
+      });
+    }
+  }
+
+  if (items.length === 0) {
+    showToast("Nenhum item encontrado no cronograma: " + filename, 3000);
+    return null;
+  }
+
+  const total = items.reduce((s, it) => s + it.precoUnitario * it.qtdContratada, 0);
+
+  // Try to get address from text
+  const endMatch = text.match(/Rua[^\n–—]*/i);
+  if (endMatch) endereco = endMatch[0].trim();
+
+  return {
+    escola: escola || 'Escola não identificada',
+    cnpj, endereco, telefone, fornecedor,
+    datas: uniqueDatas,
+    contratos: [{
+      processo,
+      recurso,
+      tipo: recurso === 'PNAE' ? 'Federal' : (recurso === 'Contrapartida' ? 'Estadual' : 'Geral'),
+      objeto: `Aquisição de gêneros alimentícios - ${recurso}`,
+      obs: `Recurso ${recurso} - Processo de Aquisição Simplificada ${processo}`,
+      itens: items,
+      total: Math.round(total * 100) / 100
+    }]
+  };
+}
+
+function renderCronoPreview() {
+  if (!parsedCrono) return;
+  document.getElementById("crono-preview").style.display = "block";
+
+  // Escola info
+  document.getElementById("crono-escola-info").innerHTML = `
+    <strong>${parsedCrono.escola || ''}</strong><br>
+    <span style="color:var(--mut)">CNPJ: ${parsedCrono.cnpj || ''} | ${parsedCrono.endereco || ''} | ${parsedCrono.telefone || ''}</span><br>
+    <span style="color:var(--mut)">Fornecedor: ${parsedCrono.fornecedor || ''}</span><br>
+    <span style="color:var(--blue);font-weight:600">${parsedCrono.datas.length} datas de entrega programadas</span>
+  `;
+
+  // Contracts list
+  let html = '';
+  (parsedCrono.contratos || []).forEach((ctr, ci) => {
+    const totalPedidos = parsedCrono.datas.length;
+    html += `<div class="card" style="margin-bottom:1rem;border-left:3px solid var(--blue)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.8rem">
+        <div>
+          <h4 style="margin:0;color:var(--blue)">Contrato ${ci+1}: ${esc(ctr.recurso || '')} — Proc. ${esc(ctr.processo || '')}</h4>
+          <div style="font-size:.82rem;color:var(--mut)">${esc(ctr.objeto || ctr.obs || '')}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:1.1rem;font-weight:800;color:var(--green)">${brl.format(ctr.total)}</div>
+          <div style="font-size:.8rem;color:var(--mut)">${ctr.itens.length} itens</div>
+        </div>
+      </div>
+      <div style="font-size:.82rem;margin-bottom:.5rem;font-weight:600">Itens do contrato:</div>
+      <div class="table-wrap" style="max-height:250px;overflow-y:auto">
+        <table><thead><tr><th>#</th><th>Produto</th><th>Unid.</th><th class="text-right">Qtd</th><th class="text-right">Preco Unit.</th><th class="text-right">Total</th></tr></thead><tbody>`;
+    ctr.itens.forEach(it => {
+      const sub = it.precoUnitario * it.qtdContratada;
+      html += `<tr><td>${esc(it.num)}</td><td>${esc(it.descricao)}</td><td>${esc(it.unidade)}</td><td class="text-right">${it.qtdContratada}</td><td class="text-right">${brl.format(it.precoUnitario)}</td><td class="text-right font-mono" style="color:var(--green)">${brl.format(sub)}</td></tr>`;
+    });
+    html += `</tbody></table></div>
+      <div style="margin-top:.8rem;font-size:.82rem;font-weight:600">Pedidos agendados (${totalPedidos} entregas):</div>
+      <div style="display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.4rem">`;
+    parsedCrono.datas.forEach(d => {
+      const itensData = ctr.itens.filter(it => it.cronograma && it.cronograma[d] > 0);
+      const valorData = itensData.reduce((s, it) => s + it.precoUnitario * it.cronograma[d], 0);
+      html += `<div style="background:var(--s1);border:1px solid var(--bdr);border-radius:6px;padding:.3rem .6rem;font-size:.72rem;text-align:center;min-width:80px">
+        <div style="font-weight:700">${d}/2025</div>
+        <div style="color:var(--mut)">${itensData.length} itens</div>
+        <div style="color:var(--green);font-weight:600">${brl.format(valorData)}</div>
+      </div>`;
+    });
+    html += '</div></div>';
+  });
+
+  document.getElementById("crono-contratos-list").innerHTML = html;
+}
+
+function cancelCronoImport() {
+  parsedCrono = null;
+  document.getElementById("crono-preview").style.display = "none";
+  document.getElementById("file-input-crono").value = "";
+}
+
+function importarCronograma() {
+  if (!parsedCrono || !parsedCrono.contratos) return;
+  const now = new Date();
+  const ano = now.getFullYear();
+
+  parsedCrono.contratos.forEach(ctr => {
+    // Create contract
+    const ctrId = `CTR-${ano}${String(now.getMonth()+1).padStart(2,"0")}${String(now.getDate()).padStart(2,"0")}-${String(Math.floor(Math.random()*9999)).padStart(4,"0")}`;
+    const contrato = {
+      id: ctrId,
+      escola: parsedCrono.escola,
+      edital: '',
+      processo: ctr.processo || '',
+      vigencia: parsedCrono.datas[0] + '/2025 a ' + parsedCrono.datas[parsedCrono.datas.length - 1] + '/2025',
+      objeto: ctr.objeto || ctr.recurso || '',
+      observacoes: ctr.obs || '',
+      criterio: '',
+      dataApuracao: now.toISOString().slice(0, 10),
+      dataCriacao: now.toISOString(),
+      fornecedor: parsedCrono.fornecedor || 'Lariucci & Ribeiro Pereira',
+      status: 'ativo',
+      itens: ctr.itens.map(it => ({
+        num: it.num,
+        descricao: it.descricao,
+        unidade: it.unidade,
+        qtdContratada: it.qtdContratada,
+        precoUnitario: it.precoUnitario,
+        qtdEntregue: 0
+      })),
+      fornecedoresMapa: [],
+      cronograma: true
+    };
+    contratos.push(contrato);
+
+    // Build obs for pedidos
+    const obsParts = [];
+    if (ctr.processo) obsParts.push("Processo: " + ctr.processo);
+    if (ctr.recurso) obsParts.push("Recurso: " + ctr.recurso);
+    if (ctr.objeto) obsParts.push("Objeto: " + ctr.objeto);
+    if (ctr.obs) obsParts.push(ctr.obs);
+    const obsStr = obsParts.join(" | ");
+
+    // Create scheduled pedidos for each date
+    parsedCrono.datas.forEach(dataStr => {
+      const itensNaData = [];
+      let valorPedido = 0;
+      ctr.itens.forEach(it => {
+        const qty = (it.cronograma && it.cronograma[dataStr]) || 0;
+        if (qty > 0) {
+          itensNaData.push({
+            itemNum: it.num,
+            descricao: it.descricao,
+            unidade: it.unidade,
+            qtd: qty,
+            precoUnitario: it.precoUnitario
+          });
+          valorPedido += qty * it.precoUnitario;
+        }
+      });
+
+      if (itensNaData.length === 0) return;
+
+      // Parse date: "04/02" → "2025-02-04"
+      const [dd, mm] = dataStr.split('/');
+      const dataISO = `2025-${mm}-${dd}`;
+      const dataFmt = `${dd}/${mm}/2025`;
+
+      const pedId = `PED-${dataISO.replace(/-/g,'')}-${ctr.processo.replace(/\//g,'')}-${String(Math.floor(Math.random()*999)).padStart(3,"0")}`;
+
+      pedidos.push({
+        id: pedId,
+        contratoId: ctrId,
+        escola: parsedCrono.escola,
+        data: dataISO,
+        dataEntrega: dataFmt,
+        itens: itensNaData,
+        valor: Math.round(valorPedido * 100) / 100,
+        status: 'agendado',
+        obs: obsStr,
+        saldoDeduzido: false,
+        cronograma: true
+      });
+    });
+  });
+
+  saveContratos();
+  savePedidos();
+  renderAll();
+
+  // Reset
+  cancelCronoImport();
+  switchTab("contratos");
+  showToast(`Cronograma importado: ${parsedCrono.contratos.length} contratos + ${pedidos.filter(p => p.cronograma).length} pedidos agendados criados!`, 5000);
+}
+
+// Drag & drop for crono upload
+(function() {
+  const zone = document.getElementById("upload-zone-crono");
+  if (!zone) return;
+  zone.addEventListener("dragover", e => { e.preventDefault(); zone.classList.add("dragover"); });
+  zone.addEventListener("dragleave", () => zone.classList.remove("dragover"));
+  zone.addEventListener("drop", e => {
+    e.preventDefault();
+    zone.classList.remove("dragover");
+    if (e.dataTransfer.files.length) handleCronoFiles(e.dataTransfer.files);
+  });
+})();
+
 // ===== RENDER CONTRATOS =====
 function renderContratos() {
   const busca = (document.getElementById("busca-contrato").value || "").toLowerCase();
@@ -1610,10 +2224,11 @@ function renderContratos() {
     return `<div class="contract-card" onclick="abrirContrato('${c.id}')">
       <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:.5rem">
         <span class="font-mono" style="font-size:.75rem;color:var(--dim)">${c.id}</span>
-        <span class="badge ${badgeClass}">${c.status}</span>
+        <span class="badge ${badgeClass}" onclick="event.stopPropagation();toggleStatusContrato('${c.id}')" style="cursor:pointer" title="Clique para alternar status">${c.status}</span>
       </div>
       <h3>${esc(c.escola.length > 60 ? c.escola.slice(0, 58) + "..." : c.escola)}</h3>
       <div class="meta">${c.processo ? 'Proc. ' + esc(c.processo) + ' | ' : ''}${c.edital ? 'Edital ' + esc(c.edital) + ' | ' : ''}${c.itens.length} itens | ${esc(c.fornecedor)}</div>
+      ${c.observacoes ? '<div style="font-size:.75rem;color:var(--cyan);margin-bottom:.5rem;max-height:2.4em;overflow:hidden;text-overflow:ellipsis" title="' + esc(c.observacoes) + '">📝 ' + esc(c.observacoes.length > 80 ? c.observacoes.slice(0,78)+'...' : c.observacoes) + '</div>' : ''}
       <div style="display:flex;justify-content:space-between;font-size:.8rem;margin-bottom:.5rem">
         <span style="color:var(--green);font-weight:700">${brl.format(totalContratado)}</span>
         <span style="color:var(--mut)">${itensPendentes} pendentes</span>
@@ -1622,7 +2237,7 @@ function renderContratos() {
       <div style="display:flex;justify-content:space-between;align-items:center;margin-top:.3rem">
         <span style="font-size:.7rem;color:var(--dim)">${pctExec.toFixed(0)}% executado</span>
         <div style="display:flex;gap:.4rem">
-          <button class="btn btn-sm btn-blue" onclick="event.stopPropagation();vincularEscolaContrato('${c.id}')" style="font-size:.7rem;padding:.2rem .6rem" title="Vincular escola a este contrato">Vincular Escola</button>
+          <button class="btn btn-sm btn-blue" onclick="event.stopPropagation();vincularEscolaContrato('${c.id}')" style="font-size:.7rem;padding:.2rem .6rem" title="Vincular escola a este contrato"><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${temEscolaVinculada(c.id) ? 'var(--green)' : 'var(--red)'};margin-right:4px"></span>Vincular Escola</button>
           <button class="btn btn-sm btn-red" onclick="event.stopPropagation();excluirContrato('${c.id}')" style="font-size:.7rem;padding:.2rem .6rem">Excluir</button>
         </div>
       </div>
@@ -1637,6 +2252,21 @@ function getEscolasVinculadasBadges(contratoId) {
   return '<div style="display:flex;flex-wrap:wrap;gap:.3rem;margin-top:.3rem">' +
     linked.map(u => '<span style="background:var(--blue);color:#fff;font-size:.65rem;padding:.15rem .5rem;border-radius:10px">' + esc(u.nome.length > 25 ? u.nome.slice(0,23)+'...' : u.nome) + '</span>').join('') +
     '</div>';
+}
+
+function temEscolaVinculada(contratoId) {
+  return usuarios.some(u => (u.contratos_vinculados || []).includes(contratoId));
+}
+
+function toggleStatusContrato(id) {
+  const c = contratos.find(x => x.id === id);
+  if (!c) return;
+  const novoStatus = c.status === 'ativo' ? 'encerrado' : 'ativo';
+  if (!confirm(`Alterar status do contrato ${c.id} para "${novoStatus}"?`)) return;
+  c.status = novoStatus;
+  saveContratos();
+  renderAll();
+  showToast(`Contrato ${c.id} → ${novoStatus}`);
 }
 
 function vincularEscolaContrato(contratoId) {
@@ -1736,7 +2366,7 @@ function abrirContrato(id) {
     <h3 style="margin-bottom:.8rem;font-size:.9rem">Itens do Contrato</h3>
     <div class="table-wrap" style="max-height:400px;overflow-y:auto">
       <table>
-        <thead><tr><th>#</th><th>Item</th><th>Unid</th><th class="text-right">Contrat.</th><th class="text-right">Entreg.</th><th class="text-right">Saldo</th><th>Exec.</th><th class="text-right">Preco</th><th class="text-center">Entregar</th></tr></thead>
+        <thead><tr><th>#</th><th>Item</th><th>Unid</th><th class="text-right">Contrat.</th><th class="text-right">Entreg.</th><th class="text-right">Saldo</th><th>Exec.</th><th class="text-right">Preco</th><th class="text-center">Entregar</th><th class="text-center">Tiny</th></tr></thead>
         <tbody>${c.itens.map((item, idx) => {
           const saldo = item.qtdContratada - item.qtdEntregue;
           const pct = item.qtdContratada > 0 ? (item.qtdEntregue / item.qtdContratada * 100) : 0;
@@ -1750,15 +2380,13 @@ function abrirContrato(id) {
             <td style="min-width:80px"><div class="progress"><div class="progress-fill ${pct >= 80 ? 'green' : pct >= 40 ? 'yellow' : 'blue'}" style="width:${pct}%"></div></div><span style="font-size:.65rem;color:var(--dim)">${pct.toFixed(0)}%</span></td>
             <td class="text-right font-mono">${brl.format(item.precoUnitario)}</td>
             <td class="text-center">${saldo > 0 ? `<input type="number" min="0" max="${saldo}" value="0" style="width:60px;text-align:center" id="entrega-${c.id}-${idx}">` : '<span class="badge badge-green">OK</span>'}</td>
+            <td class="text-center"><button class="btn btn-sm btn-purple" style="font-size:.7rem;padding:.2rem .5rem" onclick="cadastrarTinyItem('${c.id}',${idx})" title="Cadastrar este item no Tiny">Tiny</button></td>
           </tr>`;
         }).join("")}</tbody>
       </table>
     </div>
     <div style="margin-top:1rem;display:flex;gap:.8rem;justify-content:flex-end;flex-wrap:wrap">
       <button class="btn btn-outline" onclick="fecharModalContrato()">Fechar</button>
-      <button class="btn btn-red btn-sm" onclick="excluirContrato('${c.id}')">Excluir Contrato</button>
-      <button class="btn btn-purple" onclick="cadastrarTiny('${c.id}')" title="Cadastrar itens deste contrato no Tiny ERP">Cadastrar no Tiny</button>
-      <button class="btn btn-green" onclick="registrarEntregas('${c.id}')">Registrar Entregas</button>
     </div>
     <div id="tiny-result-${c.id}" class="hidden" style="margin-top:1rem;padding:1rem;border-radius:8px;background:var(--s1);border:1px solid var(--bdr);font-size:.85rem"></div>`;
 
@@ -1921,10 +2549,15 @@ function renderPedidos() {
   empty.classList.add("hidden");
 
   tbody.innerHTML = filtered.map(p => {
-    const badgeMap = { recebido: "badge-yellow", concluido: "badge-green" };
-    const acoes = p.status === "recebido"
-      ? `<button class="btn btn-sm btn-green" onclick="avancarPedido('${p.id}','concluido')">Concluir</button>`
-      : '<span style="color:var(--green);font-size:.8rem;font-weight:600">Concluido</span>';
+    const badgeMap = { agendado: "badge-blue", recebido: "badge-yellow", concluido: "badge-green" };
+    let acoes = '';
+    if (p.status === "agendado") {
+      acoes = `<button class="btn btn-sm" style="background:var(--blue);color:#fff" onclick="transmitirPedido('${p.id}')">Transmitir</button>`;
+    } else if (p.status === "recebido") {
+      acoes = `<button class="btn btn-sm btn-green" onclick="avancarPedido('${p.id}','concluido')">Concluir</button>`;
+    } else {
+      acoes = '<span style="color:var(--green);font-size:.8rem;font-weight:600">Concluido</span>';
+    }
     const obsText = p.obs || getObsContrato(p.contratoId) || "-";
     const c = contratos.find(x => x.id === p.contratoId);
     const ctrLabel = c ? `${c.id}` : (p.contratoId || "-");
@@ -1933,14 +2566,41 @@ function renderPedidos() {
       <td class="font-mono">${esc(p.id)}</td>
       <td style="font-size:.8rem"><strong class="font-mono">${esc(ctrLabel)}</strong>${ctrDetail ? '<br><span style="color:var(--mut);font-size:.72rem">' + esc(ctrDetail) + '</span>' : ''}</td>
       <td>${esc(p.escola.length > 30 ? p.escola.slice(0, 28) + "..." : p.escola)}</td>
-      <td class="nowrap">${esc(p.data)}</td>
+      <td class="nowrap">${esc(p.dataEntrega || p.data)}</td>
       <td class="text-right">${p.itens.length}</td>
       <td class="text-right font-mono" style="color:var(--green);font-weight:700">${brl.format(p.valor)}</td>
       <td><span class="badge ${badgeMap[p.status] || 'badge-yellow'}">${p.status}</span></td>
       <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.8rem;color:var(--mut)" title="${esc(obsText)}">${esc(obsText)}</td>
-      <td class="nowrap">${acoes}</td>
+      <td class="nowrap" style="display:flex;gap:.3rem;align-items:center">${acoes}<button class="btn btn-sm" style="background:rgba(239,68,68,.15);color:var(--red);border:none;font-size:.7rem;padding:.3rem .5rem;font-weight:700;cursor:pointer" onclick="excluirPedido('${p.id}')" title="Excluir pedido">✕</button></td>
     </tr>`;
   }).join("");
+}
+
+function transmitirPedido(pedidoId) {
+  const p = pedidos.find(x => x.id === pedidoId);
+  if (!p) return;
+  if (!confirm(`Transmitir pedido ${pedidoId}?\nData entrega: ${p.dataEntrega || p.data}\nValor: R$ ${p.valor.toFixed(2).replace('.',',')}\n\nIsso mudará o status para "recebido" e deduzirá do saldo do contrato.`)) return;
+
+  // Deduzir saldo do contrato
+  const c = contratos.find(x => x.id === p.contratoId);
+  if (c) {
+    p.itens.forEach(pi => {
+      const normDesc = (pi.descricao || '').toUpperCase().trim();
+      const item = c.itens.find(ci => ci.num === pi.itemNum || (ci.descricao || '').toUpperCase().trim() === normDesc);
+      if (item) {
+        const saldo = item.qtdContratada - item.qtdEntregue;
+        item.qtdEntregue += Math.min(pi.qtd, saldo);
+      }
+    });
+    saveContratos();
+  }
+
+  p.status = 'recebido';
+  p.saldoDeduzido = true;
+  if (!p.obs) p.obs = getObsContrato(p.contratoId);
+  savePedidos();
+  renderAll();
+  showToast(`Pedido ${pedidoId} transmitido! Status: recebido`);
 }
 
 function avancarPedido(pedidoId, novoStatus) {
@@ -1969,6 +2629,16 @@ function avancarPedido(pedidoId, novoStatus) {
   savePedidos();
   renderAll();
   showToast(`Pedido ${pedidoId} → ${novoStatus}`);
+}
+
+function excluirPedido(pedidoId) {
+  const p = pedidos.find(x => x.id === pedidoId);
+  if (!p) return;
+  if (!confirm(`Excluir pedido ${pedidoId}?\nEscola: ${p.escola}\nValor: ${brl.format(p.valor)}\n\nEsta ação não pode ser desfeita.`)) return;
+  pedidos = pedidos.filter(x => x.id !== pedidoId);
+  savePedidos();
+  renderAll();
+  showToast(`Pedido ${pedidoId} excluído.`);
 }
 
 // ===== NOVO PEDIDO MANUAL =====
@@ -2289,11 +2959,9 @@ function renderFormUsuario(u) {
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
       <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Nome da Escola</label><input type="text" id="usr-nome" value="${esc(u?.nome||'')}" style="width:100%"></div>
       <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">CNPJ</label><input type="text" id="usr-cnpj" value="${esc(u?.cnpj||'')}" style="width:100%"></div>
-      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Municipio</label><input type="text" id="usr-municipio" value="${esc(u?.municipio||'')}" style="width:100%"></div>
       <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">SRE</label><input type="text" id="usr-sre" value="${esc(u?.sre||'')}" style="width:100%"></div>
-      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Responsavel</label><input type="text" id="usr-responsavel" value="${esc(u?.responsavel||'')}" style="width:100%"></div>
-      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Cargo</label><input type="text" id="usr-cargo" value="${esc(u?.cargo||'')}" style="width:100%"></div>
       <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Email</label><input type="text" id="usr-email" value="${esc(u?.email||'')}" style="width:100%"></div>
+      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Responsavel</label><input type="text" id="usr-responsavel" value="${esc(u?.responsavel||'')}" style="width:100%"></div>
       <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Telefone</label><input type="text" id="usr-telefone" value="${esc(u?.telefone||'')}" style="width:100%"></div>
     </div>
     <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--brd,#475569)">
@@ -2307,7 +2975,8 @@ function renderFormUsuario(u) {
         <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Bairro</label><input type="text" id="usr-bairro" value="${esc(u?.bairro||'')}" style="width:100%"></div>
         <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">CEP</label><input type="text" id="usr-cep" value="${esc(u?.cep||'')}" placeholder="00000-000" style="width:100%"></div>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:.5rem">
+      <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:1rem;margin-top:.5rem">
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Municipio</label><input type="text" id="usr-municipio" value="${esc(u?.municipio||'')}" style="width:100%"></div>
         <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">UF</label><input type="text" id="usr-uf" value="${esc(u?.uf||'MG')}" maxlength="2" style="width:100%"></div>
         <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Inscricao Estadual</label><input type="text" id="usr-ie" value="${esc(u?.ie||'ISENTO')}" style="width:100%"></div>
       </div>
@@ -2315,15 +2984,13 @@ function renderFormUsuario(u) {
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:1rem">
       <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Login</label><input type="text" id="usr-login" value="${esc(u?.login||'')}" style="width:100%"></div>
       <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Senha</label><input type="text" id="usr-senha" value="${esc(u?.senha||'escola2025')}" style="width:100%"></div>
-      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Catalogo (categoria)</label><input type="text" id="usr-catalogo" value="${esc(u?.categoria_catalogo||'')}" style="width:100%"></div>
       <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">ARP Vinculada</label><input type="text" id="usr-arp" value="${esc(u?.arp_vinculada||'ARP-LARIUCCI-2025')}" style="width:100%"></div>
-      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Saldo Total (R$)</label><input type="number" id="usr-saldo-total" value="${u?.saldo_total||0}" style="width:100%"></div>
-      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Saldo Disponivel (R$)</label><input type="number" id="usr-saldo-disp" value="${u?.saldo_disponivel||0}" style="width:100%"></div>
+      <div></div>
     </div>
-    <div style="margin-top:1rem">
-      <label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Contratos Vinculados</label>
-      ${contratosSection}
-    </div>
+    <input type="hidden" id="usr-cargo" value="${esc(u?.cargo||'')}">
+    <input type="hidden" id="usr-catalogo" value="${esc(u?.categoria_catalogo||'')}">
+    <input type="hidden" id="usr-saldo-total" value="${u?.saldo_total||0}">
+    <input type="hidden" id="usr-saldo-disp" value="${u?.saldo_disponivel||0}">
     <div style="margin-top:1.5rem;display:flex;gap:.8rem;justify-content:flex-end">
       <button class="btn btn-outline" onclick="fecharModalUsuario()">Cancelar</button>
       <button class="btn btn-green" onclick="salvarUsuario('${isEdit ? u.id : ''}')">${isEdit ? 'Salvar' : 'Cadastrar'}</button>
@@ -2685,6 +3352,30 @@ function getBaseUrl() {
   // Vercel API routes use /api/ prefix
   if (location.hostname.includes("vercel.app") || location.hostname.includes("netlify.app")) return "/api";
   return "/api"; // Works with both Vercel and local dev
+}
+
+async function cadastrarTinyItem(contratoId, itemIdx) {
+  const c = contratos.find(x => x.id === contratoId);
+  if (!c || !c.itens[itemIdx]) return;
+  const item = c.itens[itemIdx];
+  const ncm = findNcmLocal(item.descricao);
+  const ncmCode = ncm ? ncm.ncm : "";
+  if (!confirm(`Cadastrar no Tiny ERP:\n\n${item.descricao}\nUnid: ${item.unidade} | Preço: ${brl.format(item.precoUnitario)}\nNCM: ${ncmCode || '(sem NCM)'}`)) return;
+  try {
+    const resp = await fetch("/api/tiny-produtos", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ itens: [{ num: item.num, descricao: item.descricao, descricaoCompleta: item.descricao, unidade: item.unidade, precoUnitario: item.precoUnitario, ncm: ncmCode }], contractId: contratoId, action: "cadastrar" })
+    });
+    const data = await resp.json();
+    if (data.success) {
+      showToast(`Item "${item.descricao.slice(0,40)}" cadastrado no Tiny!`);
+    } else {
+      showToast("Erro: " + (data.error || "Falha"), 4000);
+    }
+  } catch(err) {
+    showToast("Erro: " + err.message, 4000);
+  }
 }
 
 async function cadastrarTiny(contratoId) {

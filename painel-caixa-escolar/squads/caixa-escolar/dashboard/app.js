@@ -620,6 +620,9 @@ function filteredOrcamentos() {
 
 // ===== RENDER =====
 function renderAll() {
+  // Limpar campos de busca ao carregar
+  if (el.filtroTexto) el.filtroTexto.value = "";
+  if (el.filtroBancoTexto) el.filtroBancoTexto.value = "";
   populateFilters();
   renderKPIs();
   renderOrcamentos();
@@ -646,12 +649,14 @@ function renderKPIs() {
   const margens = aprovados.map((p) => p.margemMedia || 0).filter((m) => m > 0);
   const margemMedia = margens.length ? margens.reduce((a, b) => a + b, 0) / margens.length : 0;
 
-  el.kpiAbertos.textContent = abertos.length;
-  el.kpiUrgentes.textContent = urgentes.length;
-  el.kpiUrgentes.className = urgentes.length > 0 ? "urgente" : "";
-  el.kpiPendentes.textContent = pendentes.length;
-  el.kpiFaturamento.textContent = brl.format(faturamento);
-  el.kpiMargem.textContent = pct(margemMedia);
+  if (el.kpiAbertos) el.kpiAbertos.textContent = abertos.length;
+  if (el.kpiUrgentes) {
+    el.kpiUrgentes.textContent = urgentes.length;
+    el.kpiUrgentes.style.color = urgentes.length > 0 ? "#ef4444" : "";
+  }
+  if (el.kpiPendentes) el.kpiPendentes.textContent = pendentes.length;
+  if (el.kpiFaturamento) el.kpiFaturamento.textContent = brl.format(faturamento);
+  if (el.kpiMargem) el.kpiMargem.textContent = pct(margemMedia);
 }
 
 // ===== INTELIGÊNCIA (Passo 2) =====
@@ -668,12 +673,12 @@ function renderIntel() {
   const totalGerados = Object.values(preOrcamentos).length;
   const totalAprovados = Object.values(preOrcamentos).filter((p) => p.status === "aprovado" || p.status === "enviado").length;
   const taxaConversao = totalGerados > 0 ? totalAprovados / totalGerados : 0;
-  el.intelConversao.textContent = pct(taxaConversao);
+  if (el.intelConversao) el.intelConversao.textContent = pct(taxaConversao);
 
   // Prazo médio
   const prazoDias = abertos.map((o) => daysTo(o.prazo)).filter((d) => d < 999);
   const prazoMedio = prazoDias.length ? Math.round(prazoDias.reduce((a, b) => a + b, 0) / prazoDias.length) : 0;
-  el.intelPrazoMedio.textContent = prazoMedio + " dias";
+  if (el.intelPrazoMedio) el.intelPrazoMedio.textContent = prazoMedio + " dias";
 
   // Top 5 categorias
   const grupoCounts = {};

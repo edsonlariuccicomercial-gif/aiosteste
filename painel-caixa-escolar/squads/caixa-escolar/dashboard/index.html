@@ -70,12 +70,12 @@
             <strong class="intel-value" id="intel-valor-total">R$ 0</strong>
           </div>
           <div class="intel-card">
-            <p class="intel-label">Taxa de conversão</p>
-            <strong class="intel-value" id="intel-conversao">0%</strong>
+            <p class="intel-label">Oportunidades</p>
+            <strong class="intel-value" id="kpi-abertos">0</strong>
           </div>
           <div class="intel-card">
-            <p class="intel-label">Prazo médio</p>
-            <strong class="intel-value" id="intel-prazo-medio">0 dias</strong>
+            <p class="intel-label">Prazo urgente / Prazo médio</p>
+            <strong class="intel-value"><span id="kpi-urgentes">0</span> / <span id="intel-prazo-medio">0 dias</span></strong>
           </div>
         </div>
         <div class="intel-charts">
@@ -94,28 +94,7 @@
 
   <!-- ===== INTEL PREÇOS: KPIs + DASHBOARD (acima das tabs) ===== -->
   <section id="intel-precos-dashboard" style="display:none;">
-    <section class="kpis">
-      <article class="card kpi">
-        <p>Orçamentos abertos</p>
-        <strong id="kpi-abertos">0</strong>
-      </article>
-      <article class="card kpi">
-        <p>Prazo urgente (&lt;3d)</p>
-        <strong id="kpi-urgentes">0</strong>
-      </article>
-      <article class="card kpi">
-        <p>Pré-orçamentos pendentes</p>
-        <strong id="kpi-pendentes">0</strong>
-      </article>
-      <article class="card kpi">
-        <p>Faturamento potencial</p>
-        <strong id="kpi-faturamento">R$ 0</strong>
-      </article>
-      <article class="card kpi">
-        <p>Margem média</p>
-        <strong id="kpi-margem">0%</strong>
-      </article>
-    </section>
+    <span id="kpi-margem" style="display:none">0%</span>
 
     <div class="card">
       <div class="table-head">
@@ -123,6 +102,10 @@
       </div>
       <div id="pricing-alerts" class="pricing-alerts"></div>
       <div class="pricing-kpis">
+        <article class="pricing-kpi-card">
+          <p>Pré-orçamentos / Faturamento</p>
+          <strong><span id="kpi-pendentes">0</span> / <span id="kpi-faturamento">R$ 0</span></strong>
+        </article>
         <article class="pricing-kpi-card">
           <p>Itens no Banco</p>
           <strong id="pk-total-itens">0</strong>
@@ -210,7 +193,7 @@
           <option value="aberto">Aberto</option>
           <option value="vencido">Vencido</option>
         </select>
-        <input type="text" id="filtro-texto" placeholder="Buscar escola, objeto, item..." />
+        <input type="text" id="filtro-texto" placeholder="Buscar escola, objeto, item..." autocomplete="off" />
       </div>
 
       <!-- Barra de ações em lote -->
@@ -403,7 +386,7 @@
         <select id="filtro-banco-grupo">
           <option value="all">Todos os grupos</option>
         </select>
-        <input type="text" id="filtro-banco-texto" placeholder="Buscar item..." />
+        <input type="text" id="filtro-banco-texto" placeholder="Buscar item..." autocomplete="off" />
       </div>
 
       <!-- PNCP Progress -->

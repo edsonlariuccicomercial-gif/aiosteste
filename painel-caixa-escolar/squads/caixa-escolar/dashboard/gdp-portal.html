@@ -389,6 +389,7 @@
           <button class="btn btn-primary" onclick="newOrder()">Novo Pedido</button>
           <button class="btn btn-outline" onclick="printOrder()">Imprimir</button>
           <button class="btn btn-outline" onclick="downloadPedidoPDF(document.getElementById('confirm-protocol').textContent)">Baixar PDF</button>
+          <button class="btn btn-outline" onclick="goToPhase(1);renderCatalog();">Voltar ao Catalogo</button>
         </div>
       </div>
     </div>
@@ -423,9 +424,10 @@
     <!-- TAB: MEUS PEDIDOS -->
     <div id="tab-meus-pedidos" class="hidden">
       <h2 class="section-title">Meus Pedidos</h2>
+      <div id="meus-pedidos-resumo" style="display:none;margin-bottom:1rem;padding:1rem 1.5rem;background:var(--surface);border:1px solid var(--border);border-radius:10px;"></div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Protocolo</th><th>Data</th><th>Itens</th><th>Valor Total</th><th>Status</th><th>Acoes</th></tr></thead>
+          <thead><tr><th>Protocolo</th><th>Contrato</th><th>Data</th><th>Itens</th><th>Valor Total</th><th>Obs</th><th>Status</th><th>Acoes</th></tr></thead>
           <tbody id="meus-pedidos-tbody"></tbody>
         </table>
       </div>
@@ -667,13 +669,22 @@ function showContractSelection() {
     `;
   }
 
+  // Load pedidos for accurate saldo calculation
+  let _pedidosAll = [];
+  try { _pedidosAll = JSON.parse(localStorage.getItem('gdp.pedidos.v1') || '[]'); } catch(_) {}
+
   // Contract cards from Contratos module
   contracts.forEach((c, i) => {
     const totalValue = c.itens.reduce((s, item) => s + (item.precoUnitario * item.qtdContratada), 0);
+    // Calculate used amount: qtdEntregue from contract + pending pedidos not yet reflected
+    const pedidosCtr = _pedidosAll.filter(p => p.contratoId === c.id);
+    const valorPedidos = pedidosCtr.reduce((s, p) => s + (p.valor || 0), 0);
     const totalEntregue = c.itens.reduce((s, item) => s + (item.precoUnitario * (item.qtdEntregue || 0)), 0);
-    const saldoDisp = Math.round((totalValue - totalEntregue) * 100) / 100;
+    const saldoDisp = Math.round((totalValue - Math.max(totalEntregue, valorPedidos)) * 100) / 100;
     const delivered = c.itens.reduce((s, item) => s + (item.qtdEntregue || 0), 0);
     const total = c.itens.reduce((s, item) => s + item.qtdContratada, 0);
+    const qtdPedida = pedidosCtr.reduce((s, p) => s + (p.itens || []).reduce((ss, pi) => ss + (pi.qtd || 0), 0), 0);
+    const entregueOuPedido = Math.max(delivered, qtdPedida);
     // Build simplified title: Processo + recurso first
     const titleParts = [];
     if (c.processo) titleParts.push('Proc. ' + c.processo);
@@ -686,7 +697,8 @@ function showContractSelection() {
         <div class="contract-card-icon">📁</div>
         <div class="contract-card-title">${cardTitle}</div>
         <div class="contract-card-detail">${c.itens.length} itens · ${c.fornecedor || 'Lariucci'}</div>
-        <div class="contract-card-detail">Entregue: ${delivered}/${total} unidades</div>
+        <div class="contract-card-detail">Pedido/Entregue: ${entregueOuPedido}/${total} unidades</div>
+        ${pedidosCtr.length > 0 ? '<div class="contract-card-detail">' + pedidosCtr.length + ' pedido(s) realizado(s)</div>' : ''}
         ${c.vigencia ? '<div class="contract-card-detail">Vigencia: ' + c.vigencia + '</div>' : ''}
         <div class="contract-card-value">Contrato: ${brl(totalValue)}</div>
         <div class="contract-card-detail" style="color:var(--success);font-weight:700">Saldo: ${brl(saldoDisp)}</div>
@@ -902,6 +914,15 @@ function getMaxQty(name) {
   return prod ? (prod.qtdDisponivel || prod.qtdContratada || 999) : 999;
 }
 
+function getCartTotal() {
+  let total = 0;
+  Object.entries(cart).forEach(([name, qty]) => {
+    const prod = schoolProducts.find(p => p.produto === name);
+    if (prod) total += prod.preco * qty;
+  });
+  return Math.round(total * 100) / 100;
+}
+
 function addToCart(name, idx) {
   const max = getMaxQty(name);
   let qty = parseInt(document.getElementById(`qty-${idx}`).value) || 1;
@@ -912,6 +933,23 @@ function addToCart(name, idx) {
   if (max <= 0) {
     alert('Sem saldo disponível para este item. É necessário um aditivo contratual.');
     return;
+  }
+  // Check if adding would exceed available balance
+  const prod = schoolProducts.find(p => p.produto === name);
+  if (prod) {
+    const currentTotal = getCartTotal();
+    const adding = prod.preco * qty;
+    const oldInCart = cart[name] ? prod.preco * cart[name] : 0;
+    const newTotal = currentTotal - oldInCart + adding;
+    if (newTotal > currentUser.saldo_disponivel) {
+      const maxByBudget = Math.floor((currentUser.saldo_disponivel - currentTotal + oldInCart) / prod.preco);
+      if (maxByBudget <= 0) {
+        alert('Saldo insuficiente! Seu saldo disponível é R$ ' + fmt(currentUser.saldo_disponivel) + ' e o carrinho já tem R$ ' + fmt(currentTotal) + '.');
+        return;
+      }
+      qty = Math.min(qty, maxByBudget);
+      alert('Quantidade ajustada para ' + qty + ' para não ultrapassar o saldo disponível (R$ ' + fmt(currentUser.saldo_disponivel) + ').');
+    }
   }
   cart[name] = qty;
   updateCartFloat();
@@ -931,8 +969,21 @@ function changeQty(name, delta) {
   if (cart[name]) {
     let newQty = cart[name] + delta;
     if (newQty > max) {
-      alert(`Limite: ${max} unidades disponíveis. Para pedir mais, é necessário um aditivo contratual.`);
+      alert(`Limite: ${max} unidades disponíveis.`);
       newQty = max;
+    }
+    // Budget check on increase
+    if (delta > 0) {
+      const prod = schoolProducts.find(p => p.produto === name);
+      if (prod) {
+        const currentTotal = getCartTotal();
+        const newItemTotal = prod.preco * newQty;
+        const oldItemTotal = prod.preco * cart[name];
+        if (currentTotal - oldItemTotal + newItemTotal > currentUser.saldo_disponivel) {
+          alert('Saldo insuficiente! Não é possível aumentar a quantidade.');
+          return;
+        }
+      }
     }
     cart[name] = Math.max(1, newQty);
     if (input) input.value = cart[name];
@@ -958,15 +1009,21 @@ function updateQtyInput(name, val, idx) {
 
 function adicionarTodos() {
   let added = 0;
+  let saldoRestante = currentUser.saldo_disponivel - getCartTotal();
   schoolProducts.forEach((p, i) => {
     const max = p.qtdDisponivel || 0;
-    if (max > 0 && !cart[p.produto]) {
-      cart[p.produto] = max;
-      added++;
+    if (max > 0 && !cart[p.produto] && saldoRestante > 0) {
+      const maxByBudget = Math.floor(saldoRestante / p.preco);
+      const qty = Math.min(max, maxByBudget);
+      if (qty > 0) {
+        cart[p.produto] = qty;
+        saldoRestante -= p.preco * qty;
+        added++;
+      }
     }
   });
   if (added === 0) {
-    alert('Todos os itens já estão no carrinho ou sem saldo disponível.');
+    alert('Todos os itens já estão no carrinho ou saldo insuficiente.');
     return;
   }
   updateCartFloat();
@@ -1028,8 +1085,20 @@ function cartQty(name, delta) {
   const max = getMaxQty(name);
   let newQty = (cart[name]||1) + delta;
   if (newQty > max) {
-    alert(`Limite: ${max} unidades disponíveis. Para pedir mais, é necessário um aditivo contratual.`);
+    alert(`Limite: ${max} unidades disponíveis.`);
     newQty = max;
+  }
+  if (delta > 0) {
+    const prod = schoolProducts.find(p => p.produto === name);
+    if (prod) {
+      const currentTotal = getCartTotal();
+      const newItemTotal = prod.preco * newQty;
+      const oldItemTotal = prod.preco * (cart[name] || 1);
+      if (currentTotal - oldItemTotal + newItemTotal > currentUser.saldo_disponivel) {
+        alert('Saldo insuficiente! Não é possível aumentar a quantidade.');
+        return;
+      }
+    }
   }
   cart[name] = Math.max(1, newQty);
   renderCart();
@@ -1066,6 +1135,21 @@ function renderReview() {
     <div class="summary-row"><span>Saldo após pedido</span><span style="color:${canOrder ? 'var(--success)' : 'var(--danger)'}; font-weight:700;">R$ ${fmt(remaining)}</span></div>
     ${!canOrder ? '<div style="color:var(--danger);font-size:0.8rem;margin-top:0.5rem;font-weight:600;">⚠️ Saldo insuficiente! Reduza itens do pedido.</div>' : ''}
   `;
+
+  // Auto-preencher campo Observações com dados do contrato
+  const obsField = document.getElementById('order-obs');
+  if (obsField && !obsField.value) {
+    const _ctr = selectedContract ? selectedContract.contrato : null;
+    if (_ctr) {
+      const parts = [];
+      if (_ctr.processo) parts.push('Processo: ' + _ctr.processo);
+      if (_ctr.edital) parts.push('Edital: ' + _ctr.edital);
+      if (_ctr.objeto) parts.push('Objeto: ' + _ctr.objeto);
+      if (_ctr.vigencia) parts.push('Vigência: ' + _ctr.vigencia);
+      if (_ctr.observacoes) parts.push(_ctr.observacoes);
+      if (parts.length > 0) obsField.value = parts.join(' | ');
+    }
+  }
 }
 
 // ─── CONFIRM ORDER ───
@@ -1238,7 +1322,8 @@ async function confirmOrder() {
     const ctrLocal = contratosLocal.find(c => c.id === ctrId);
     if (ctrLocal) {
       orderItems.forEach(oi => {
-        const item = ctrLocal.itens.find(ci => ci.num === oi.itemNum || ci.descricao === oi.name);
+        const normName = (oi.name || '').toUpperCase().trim();
+        const item = ctrLocal.itens.find(ci => ci.num === oi.itemNum || ci.descricao === oi.name || (ci.descricao || '').toUpperCase().trim() === normName);
         if (item) {
           const saldo = item.qtdContratada - item.qtdEntregue;
           item.qtdEntregue += Math.min(oi.qty, saldo);
@@ -1253,7 +1338,8 @@ async function confirmOrder() {
 function newOrder() {
   cart = {};
   updateCartFloat();
-  backToContracts();
+  goToPhase(1);
+  renderCatalog();
 }
 
 function printOrder() { window.print(); }
@@ -1302,6 +1388,54 @@ function renderMeusPedidos() {
     const ctrId = selectedContract.contrato.id;
     myOrders = myOrders.filter(o => o.contratoId === ctrId);
   }
+
+  // Render contract balance summary
+  const resumoEl = document.getElementById('meus-pedidos-resumo');
+  if (selectedContract && selectedContract.contrato) {
+    const cc = selectedContract.contrato;
+    const valorContrato = cc.itens.reduce((s, it) => s + (it.precoUnitario * it.qtdContratada), 0);
+    const totalPedidos = myOrders.reduce((s, o) => s + (o.total || 0), 0);
+    const saldoRest = Math.max(0, Math.round((valorContrato - totalPedidos) * 100) / 100);
+    // Also get from pedidos.v1 for more accuracy
+    let pedidosV1 = [];
+    try { pedidosV1 = JSON.parse(localStorage.getItem('gdp.pedidos.v1') || '[]').filter(p => p.contratoId === cc.id); } catch(_) {}
+    const totalPedidosV1 = pedidosV1.reduce((s, p) => s + (p.valor || 0), 0);
+    const totalUsado = Math.max(totalPedidos, totalPedidosV1);
+    const saldoFinal = Math.max(0, Math.round((valorContrato - totalUsado) * 100) / 100);
+    const pct = valorContrato > 0 ? ((saldoFinal / valorContrato) * 100).toFixed(0) : 0;
+    const ctrName = cc.processo ? 'Proc. ' + cc.processo : cc.id;
+
+    resumoEl.innerHTML = `
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1rem;align-items:center;">
+        <div>
+          <div style="font-size:.72rem;color:var(--muted);text-transform:uppercase;">Contrato</div>
+          <div style="font-weight:700;font-size:1rem;">${ctrName}</div>
+          ${cc.objeto ? '<div style="font-size:.8rem;color:var(--muted);">' + (cc.objeto.length > 40 ? cc.objeto.slice(0,38) + '...' : cc.objeto) + '</div>' : ''}
+        </div>
+        <div style="text-align:center;">
+          <div style="font-size:.72rem;color:var(--muted);text-transform:uppercase;">Valor do Contrato</div>
+          <div style="font-weight:700;font-size:1.1rem;">R$ ${fmt(valorContrato)}</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="font-size:.72rem;color:var(--muted);text-transform:uppercase;">Total Pedido</div>
+          <div style="font-weight:700;font-size:1.1rem;color:var(--warning);">R$ ${fmt(totalUsado)}</div>
+          <div style="font-size:.75rem;color:var(--muted);">${myOrders.length} pedido(s)</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="font-size:.72rem;color:var(--muted);text-transform:uppercase;">Saldo Disponível</div>
+          <div style="font-weight:800;font-size:1.2rem;color:${pct > 30 ? 'var(--success)' : 'var(--danger)'};">R$ ${fmt(saldoFinal)}</div>
+          <div style="font-size:.75rem;color:var(--muted);">${pct}% restante</div>
+        </div>
+      </div>
+      <div style="margin-top:.8rem;background:var(--bg);border-radius:6px;height:8px;overflow:hidden;">
+        <div style="height:100%;width:${Math.min(100, 100 - pct)}%;background:${pct > 30 ? 'var(--success)' : 'var(--danger)'};border-radius:6px;transition:width .3s;"></div>
+      </div>
+    `;
+    resumoEl.style.display = 'block';
+  } else {
+    resumoEl.style.display = 'none';
+  }
+
   const tbody = document.getElementById('meus-pedidos-tbody');
   const empty = document.getElementById('meus-pedidos-empty');
 
@@ -1312,12 +1446,30 @@ function renderMeusPedidos() {
   }
   empty.style.display = 'none';
 
+  // Load contracts for obs lookup
+  let _allContratos = [];
+  try { _allContratos = JSON.parse(localStorage.getItem('gdp.contratos.v1')) || []; } catch(_) {}
+
   tbody.innerHTML = myOrders.map((o, idx) => {
     const statusBadge = o.olistId ?
       '<span style="background:rgba(34,197,94,.12);color:var(--success);padding:.2rem .6rem;border-radius:999px;font-size:.7rem;font-weight:700;">Enviado</span>' :
       '<span style="background:rgba(245,158,11,.12);color:var(--warning);padding:.2rem .6rem;border-radius:999px;font-size:.7rem;font-weight:700;">Pendente</span>';
     const esc = o.protocol.replace(/'/g, "\\'");
-    return '<tr><td style="font-family:monospace;font-weight:700;">' + o.protocol + '</td><td>' + (o.date || '') + '</td><td>' + (o.itemCount || 0) + '</td><td style="color:var(--success);font-weight:700;">R$ ' + fmt(o.total || 0) + '</td><td>' + statusBadge + '</td><td><div class="order-actions"><button class="btn btn-sm btn-outline" onclick="verPedido(\'' + esc + '\')" title="Ver detalhes">Ver</button><button class="btn btn-sm btn-outline" onclick="editarPedido(\'' + esc + '\')" title="Editar pedido" style="color:var(--warning);border-color:var(--warning);">Editar</button><button class="btn btn-sm btn-outline" onclick="downloadPedidoPDF(\'' + esc + '\')" title="Baixar PDF" style="color:var(--accent);border-color:var(--accent);">PDF</button><button class="btn btn-sm btn-outline" onclick="excluirPedido(\'' + esc + '\')" title="Excluir pedido" style="color:var(--danger);border-color:var(--danger);">Excluir</button></div></td></tr>';
+    // Build obs from contract data in real-time
+    const ctr = _allContratos.find(c => c.id === o.contratoId);
+    let obsText = o.obsContrato || '';
+    if (!obsText && ctr) {
+      const parts = [];
+      if (ctr.processo) parts.push('Processo: ' + ctr.processo);
+      if (ctr.edital) parts.push('Edital: ' + ctr.edital);
+      if (ctr.objeto) parts.push('Objeto: ' + ctr.objeto);
+      if (ctr.vigencia) parts.push('Vigência: ' + ctr.vigencia);
+      if (ctr.observacoes) parts.push(ctr.observacoes);
+      obsText = parts.join(' | ');
+    }
+    const ctrLabel = ctr ? (ctr.processo ? 'Proc. ' + ctr.processo : ctr.id) : (o.contratoId || '-');
+    const obsShort = obsText.length > 40 ? obsText.slice(0, 38) + '...' : (obsText || '-');
+    return '<tr><td style="font-family:monospace;font-weight:700;">' + o.protocol + '</td><td style="font-size:.8rem">' + ctrLabel + '</td><td>' + (o.date || '') + '</td><td>' + (o.itemCount || 0) + '</td><td style="color:var(--success);font-weight:700;">R$ ' + fmt(o.total || 0) + '</td><td style="font-size:.75rem;color:var(--muted);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + obsText.replace(/"/g, '&quot;') + '">' + obsShort + '</td><td>' + statusBadge + '</td><td><div class="order-actions"><button class="btn btn-sm btn-outline" onclick="verPedido(\'' + esc + '\')" title="Ver detalhes">Ver</button><button class="btn btn-sm btn-outline" onclick="editarPedido(\'' + esc + '\')" title="Editar pedido" style="color:var(--warning);border-color:var(--warning);">Editar</button><button class="btn btn-sm btn-outline" onclick="downloadPedidoPDF(\'' + esc + '\')" title="Baixar PDF" style="color:var(--accent);border-color:var(--accent);">PDF</button></div></td></tr>';
   }).join('');
 }
 
@@ -1328,11 +1480,32 @@ function verPedido(protocol) {
   const modal = document.getElementById('modal-pedido');
   document.getElementById('modal-pedido-titulo').textContent = 'Pedido ' + protocol;
 
+  // Lookup contract data for obs
+  let _ctrModal = null;
+  try { const _cs = JSON.parse(localStorage.getItem('gdp.contratos.v1') || '[]'); _ctrModal = _cs.find(c => c.id === order.contratoId); } catch(_) {}
+  let _obsModal = order.obsContrato || '';
+  if (!_obsModal && _ctrModal) {
+    const pp = [];
+    if (_ctrModal.processo) pp.push('Processo: ' + _ctrModal.processo);
+    if (_ctrModal.edital) pp.push('Edital: ' + _ctrModal.edital);
+    if (_ctrModal.objeto) pp.push('Objeto: ' + _ctrModal.objeto);
+    if (_ctrModal.vigencia) pp.push('Vigência: ' + _ctrModal.vigencia);
+    if (_ctrModal.observacoes) pp.push(_ctrModal.observacoes);
+    _obsModal = pp.join(' | ');
+  }
+
   let html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem">';
   html += '<div><div style="font-size:.72rem;color:var(--muted);text-transform:uppercase;margin-bottom:.3rem">Escola</div><div style="font-weight:700">' + (order.school || '') + '</div></div>';
   html += '<div><div style="font-size:.72rem;color:var(--muted);text-transform:uppercase;margin-bottom:.3rem">Data</div><div style="font-weight:700">' + (order.date || '') + '</div></div>';
   html += '<div><div style="font-size:.72rem;color:var(--muted);text-transform:uppercase;margin-bottom:.3rem">Valor Total</div><div style="font-weight:700;color:var(--success);font-size:1.2rem">R$ ' + fmt(order.total || 0) + '</div></div>';
   html += '<div><div style="font-size:.72rem;color:var(--muted);text-transform:uppercase;margin-bottom:.3rem">Status Olist</div><div style="font-weight:700">' + (order.olistId || 'Pendente') + '</div></div>';
+  if (_ctrModal) {
+    const ctrName = _ctrModal.processo ? 'Proc. ' + _ctrModal.processo : _ctrModal.id;
+    html += '<div><div style="font-size:.72rem;color:var(--muted);text-transform:uppercase;margin-bottom:.3rem">Contrato</div><div style="font-weight:700">' + ctrName + '</div></div>';
+  }
+  if (_obsModal) {
+    html += '<div style="grid-column:1/-1"><div style="font-size:.72rem;color:var(--muted);text-transform:uppercase;margin-bottom:.3rem">Dados do Contrato</div><div style="font-size:.85rem;color:var(--muted)">' + _obsModal + '</div></div>';
+  }
   html += '</div>';
 
   if (order.items && order.items.length > 0) {
@@ -1351,7 +1524,6 @@ function verPedido(protocol) {
   html += '<button class="btn btn-sm btn-outline" onclick="downloadPedidoPDF(\'' + esc + '\')" style="color:var(--accent);border-color:var(--accent);">Baixar PDF</button>';
   if (!order.olistId) {
     html += '<button class="btn btn-sm btn-outline" onclick="fecharModalPedido();editarPedido(\'' + esc + '\')" style="color:var(--warning);border-color:var(--warning);">Editar</button>';
-    html += '<button class="btn btn-sm btn-outline" onclick="fecharModalPedido();excluirPedido(\'' + esc + '\')" style="color:var(--danger);border-color:var(--danger);">Excluir</button>';
   }
   html += '</div>';
 
@@ -1474,15 +1646,140 @@ function downloadPedidoPDF(protocol) {
   const resp = currentUser?.responsavel || '';
   const sre = currentUser?.sre || '';
 
+  // Lookup contract data
+  let ctrData = null;
+  try { const cs = JSON.parse(localStorage.getItem('gdp.contratos.v1') || '[]'); ctrData = cs.find(c => c.id === order.contratoId); } catch(_) {}
+  let obsText = order.obsContrato || '';
+  if (!obsText && ctrData) {
+    const pp = [];
+    if (ctrData.processo) pp.push('Processo: ' + ctrData.processo);
+    if (ctrData.edital) pp.push('Edital: ' + ctrData.edital);
+    if (ctrData.objeto) pp.push('Objeto: ' + ctrData.objeto);
+    if (ctrData.vigencia) pp.push('Vigência: ' + ctrData.vigencia);
+    if (ctrData.observacoes) pp.push(ctrData.observacoes);
+    obsText = pp.join(' | ');
+  }
+
   let itemsRows = '';
   items.forEach((item, i) => {
     const sub = ((item.qty || 0) * (item.unitPrice || 0));
-    itemsRows += '<tr><td style="padding:6px 10px;border:1px solid #cbd5e1;text-align:center;">' + (i+1) + '</td><td style="padding:6px 10px;border:1px solid #cbd5e1;">' + (item.name || item.description || '') + '</td><td style="padding:6px 10px;border:1px solid #cbd5e1;text-align:center;">' + (item.qty || 0) + '</td><td style="padding:6px 10px;border:1px solid #cbd5e1;text-align:right;">R$ ' + fmt(item.unitPrice || 0) + '</td><td style="padding:6px 10px;border:1px solid #cbd5e1;text-align:right;font-weight:700;">R$ ' + fmt(sub) + '</td></tr>';
+    itemsRows += '<tr><td style="padding:6px 10px;border:1px solid #cbd5e1;text-align:center;">' + (i+1) + '</td><td style="padding:6px 10px;border:1px solid #cbd5e1;">' + (item.name || item.description || '') + '</td><td style="padding:6px 10px;border:1px solid #cbd5e1;text-align:center;">' + (item.unit || 'UN') + '</td><td style="padding:6px 10px;border:1px solid #cbd5e1;text-align:center;">' + (item.qty || 0) + '</td><td style="padding:6px 10px;border:1px solid #cbd5e1;text-align:right;">R$ ' + fmt(item.unitPrice || 0) + '</td><td style="padding:6px 10px;border:1px solid #cbd5e1;text-align:right;font-weight:700;">R$ ' + fmt(sub) + '</td></tr>';
   });
 
   const totalUnits = items.reduce((s, i) => s + (i.qty || 0), 0);
 
-  const html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Pedido ' + protocol + '</title><style>body{font-family:Arial,sans-serif;margin:0;padding:20px;color:#1e293b;font-size:12px;}h1{font-size:18px;margin:0 0 4px;color:#1e293b;}table{width:100%;border-collapse:collapse;margin-top:12px;}th{background:#f1f5f9;padding:8px 10px;text-align:left;font-size:11px;text-transform:uppercase;color:#64748b;border:1px solid #cbd5e1;}td{font-size:12px;}.header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #3b82f6;padding-bottom:12px;margin-bottom:16px;}.logo{font-size:22px;font-weight:800;color:#3b82f6;}.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px;}.info-item{}.info-label{font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.5px;}.info-value{font-weight:600;font-size:12px;}.total-row{background:#f0fdf4;font-weight:800;font-size:14px;}.footer{margin-top:20px;padding-top:12px;border-top:1px solid #e2e8f0;font-size:10px;color:#94a3b8;text-align:center;}@media print{body{margin:0;padding:15px;}}</style></head><body><div class="header"><div><div class="logo">GDP Pedidos</div><div style="color:#64748b;font-size:11px;">Lariucci & Ribeiro Pereira</div></div><div style="text-align:right"><div style="font-size:16px;font-weight:800;color:#3b82f6;font-family:monospace;">' + protocol + '</div><div style="color:#64748b;font-size:11px;">' + (order.date || '') + '</div></div></div><div class="info-grid"><div class="info-item"><div class="info-label">Escola</div><div class="info-value">' + escola + '</div></div><div class="info-item"><div class="info-label">CNPJ</div><div class="info-value">' + cnpj + '</div></div><div class="info-item"><div class="info-label">Responsavel</div><div class="info-value">' + resp + '</div></div><div class="info-item"><div class="info-label">SRE</div><div class="info-value">' + sre + '</div></div><div class="info-item"><div class="info-label">Status</div><div class="info-value">' + (order.olistId ? 'Enviado ao Olist (' + order.olistId + ')' : 'Pendente') + '</div></div><div class="info-item"><div class="info-label">Itens</div><div class="info-value">' + items.length + ' produtos (' + totalUnits + ' unidades)</div></div></div><table><thead><tr><th style="text-align:center;width:30px">#</th><th>Produto</th><th style="text-align:center;width:50px">Qtd</th><th style="text-align:right;width:90px">Preco Unit.</th><th style="text-align:right;width:90px">Subtotal</th></tr></thead><tbody>' + itemsRows + '</tbody><tfoot><tr class="total-row"><td colspan="4" style="padding:10px;border:1px solid #cbd5e1;text-align:right;">TOTAL</td><td style="padding:10px;border:1px solid #cbd5e1;text-align:right;color:#16a34a;font-size:16px;">R$ ' + fmt(order.total || 0) + '</td></tr></tfoot></table><div class="footer"><p>Documento gerado automaticamente pelo sistema GDP — Portal Escolar</p><p>Lariucci & Ribeiro Pereira — ARP 2025</p></div></body></html>';
+  // Contract info section
+  let ctrSection = '';
+  if (ctrData) {
+    ctrSection = '<div style="margin-bottom:16px;padding:10px 14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;">';
+    ctrSection += '<div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#64748b;margin-bottom:6px;">Dados do Contrato</div>';
+    ctrSection += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 16px;font-size:11px;">';
+    if (ctrData.processo) ctrSection += '<div><span style="color:#64748b;">Processo:</span> <strong>' + ctrData.processo + '</strong></div>';
+    if (ctrData.edital) ctrSection += '<div><span style="color:#64748b;">Edital:</span> <strong>' + ctrData.edital + '</strong></div>';
+    if (ctrData.objeto) ctrSection += '<div style="grid-column:1/-1"><span style="color:#64748b;">Objeto:</span> <strong>' + ctrData.objeto + '</strong></div>';
+    if (ctrData.vigencia) ctrSection += '<div><span style="color:#64748b;">Vigência:</span> <strong>' + ctrData.vigencia + '</strong></div>';
+    if (ctrData.observacoes) ctrSection += '<div style="grid-column:1/-1"><span style="color:#64748b;">Observações:</span> ' + ctrData.observacoes + '</div>';
+    ctrSection += '</div></div>';
+  } else if (obsText) {
+    ctrSection = '<div style="margin-bottom:16px;padding:10px 14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;font-size:11px;">';
+    ctrSection += '<div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#64748b;margin-bottom:4px;">Observações</div>';
+    ctrSection += obsText + '</div>';
+  }
+
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Pedido ${protocol}</title>
+<style>
+  body{font-family:Arial,sans-serif;margin:0;padding:20px;color:#1e293b;font-size:12px;}
+  table{width:100%;border-collapse:collapse;margin-top:12px;}
+  th{background:#f1f5f9;padding:8px 10px;text-align:left;font-size:10px;text-transform:uppercase;color:#64748b;border:1px solid #cbd5e1;}
+  td{font-size:11px;}
+  .header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #1e40af;padding-bottom:12px;margin-bottom:16px;}
+  .info-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px 16px;margin-bottom:16px;}
+  .info-label{font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.5px;}
+  .info-value{font-weight:600;font-size:12px;}
+  .total-row{background:#f0fdf4;font-weight:800;font-size:14px;}
+  .signature-section{margin-top:40px;page-break-inside:avoid;}
+  .sig-grid{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:30px;}
+  .sig-box{text-align:center;}
+  .sig-line{border-top:1px solid #1e293b;margin-top:60px;padding-top:6px;}
+  .sig-name{font-weight:700;font-size:12px;}
+  .sig-role{font-size:10px;color:#64748b;}
+  .footer{margin-top:24px;padding-top:10px;border-top:1px solid #e2e8f0;font-size:9px;color:#94a3b8;text-align:center;}
+  @media print{body{margin:0;padding:15px;}}
+</style></head><body>
+
+<div class="header">
+  <div>
+    <div style="font-size:20px;font-weight:800;color:#1e40af;">LARIUCCI & RIBEIRO PEREIRA LTDA</div>
+    <div style="color:#64748b;font-size:10px;margin-top:2px;">CNPJ: 26.917.392/0001-70</div>
+    <div style="color:#64748b;font-size:10px;">Rua João Pinheiro, 495 — Uberaba/MG — CEP 38010-300</div>
+    <div style="color:#64748b;font-size:10px;">Tel: (34) 3312-5000 | edsonlariucci.comercial@gmail.com</div>
+  </div>
+  <div style="text-align:right">
+    <div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:1px;">Pedido de Fornecimento</div>
+    <div style="font-size:18px;font-weight:800;color:#1e40af;font-family:monospace;margin-top:2px;">${protocol}</div>
+    <div style="color:#64748b;font-size:11px;">${order.date || ''}</div>
+  </div>
+</div>
+
+<div class="info-grid">
+  <div><div class="info-label">Escola / Órgão</div><div class="info-value">${escola}</div></div>
+  <div><div class="info-label">CNPJ</div><div class="info-value">${cnpj}</div></div>
+  <div><div class="info-label">Responsável</div><div class="info-value">${resp}</div></div>
+  <div><div class="info-label">SRE</div><div class="info-value">${sre}</div></div>
+  <div><div class="info-label">Status</div><div class="info-value">${order.olistId ? 'Enviado (' + order.olistId + ')' : 'Pendente'}</div></div>
+  <div><div class="info-label">Qtd. Itens</div><div class="info-value">${items.length} produtos (${totalUnits} unidades)</div></div>
+</div>
+
+${ctrSection}
+
+<table>
+  <thead><tr>
+    <th style="text-align:center;width:28px">#</th>
+    <th>Produto / Descrição</th>
+    <th style="text-align:center;width:45px">Unid.</th>
+    <th style="text-align:center;width:40px">Qtd</th>
+    <th style="text-align:right;width:80px">Preço Unit.</th>
+    <th style="text-align:right;width:80px">Subtotal</th>
+  </tr></thead>
+  <tbody>${itemsRows}</tbody>
+  <tfoot><tr class="total-row">
+    <td colspan="5" style="padding:10px;border:1px solid #cbd5e1;text-align:right;font-size:13px;">VALOR TOTAL</td>
+    <td style="padding:10px;border:1px solid #cbd5e1;text-align:right;color:#16a34a;font-size:16px;">R$ ${fmt(order.total || 0)}</td>
+  </tr></tfoot>
+</table>
+
+<div class="signature-section">
+  <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#64748b;margin-bottom:4px;">Termos de Recebimento</div>
+  <div style="font-size:10px;color:#475569;margin-bottom:8px;">
+    Declaro que recebi os produtos acima descritos em perfeito estado de conservação, conforme quantidades e especificações indicadas.
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:20px;font-size:11px;">
+    <div><span style="color:#64748b;">Data do recebimento:</span> ____/____/________</div>
+    <div><span style="color:#64748b;">Hora:</span> ____:____</div>
+    <div><span style="color:#64748b;">Nota Fiscal nº:</span> __________________</div>
+  </div>
+  <div class="sig-grid">
+    <div class="sig-box">
+      <div class="sig-line">
+        <div class="sig-name">Recebedor(a)</div>
+        <div class="sig-role">Nome / Cargo / Matrícula</div>
+      </div>
+    </div>
+    <div class="sig-box">
+      <div class="sig-line">
+        <div class="sig-name">Entregador</div>
+        <div class="sig-role">Lariucci & Ribeiro Pereira Ltda</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  <p>Documento gerado automaticamente pelo sistema GDP — Gestão de Pedidos</p>
+  <p>Lariucci & Ribeiro Pereira Ltda — CNPJ 26.917.392/0001-70</p>
+</div>
+
+</body></html>`;
 
   const blob = new Blob([html], { type: 'text/html' });
   const url = URL.createObjectURL(blob);
@@ -1490,7 +1787,6 @@ function downloadPedidoPDF(protocol) {
   if (printWin) {
     printWin.onload = () => { printWin.print(); };
   } else {
-    // Fallback: download as HTML
     const a = document.createElement('a');
     a.href = url;
     a.download = protocol + '.html';
