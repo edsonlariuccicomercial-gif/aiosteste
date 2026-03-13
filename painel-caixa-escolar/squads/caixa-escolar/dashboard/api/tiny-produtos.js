@@ -77,6 +77,84 @@ const NCM_MAP = [
   { keywords: ["fuba", "milho", "quirera"], ncm: "1102.20.00" },
   { keywords: ["sardinha", "atum", "conserva"], ncm: "1604.13.10" },
   { keywords: ["suco", "refresco", "nectar"], ncm: "2009.89.90" },
+  // ─── Hortifruti ───
+  { keywords: ["alface"], ncm: "0705.11.00" },
+  { keywords: ["tomate"], ncm: "0702.00.00" },
+  { keywords: ["cebola"], ncm: "0703.10.19" },
+  { keywords: ["cebolinha"], ncm: "0703.90.00" },
+  { keywords: ["couve"], ncm: "0704.90.00" },
+  { keywords: ["repolho"], ncm: "0704.90.00" },
+  { keywords: ["batata"], ncm: "0701.90.00" },
+  { keywords: ["cenoura"], ncm: "0706.10.00" },
+  { keywords: ["beterraba"], ncm: "0706.90.00" },
+  { keywords: ["chuchu"], ncm: "0709.99.00" },
+  { keywords: ["abobora", "abobrinha", "moranga"], ncm: "0709.93.00" },
+  { keywords: ["pimentao"], ncm: "0709.60.00" },
+  { keywords: ["quiabo"], ncm: "0709.99.00" },
+  { keywords: ["jilo"], ncm: "0709.99.00" },
+  { keywords: ["mandioca", "aipim"], ncm: "0714.10.00" },
+  { keywords: ["inhame", "cara"], ncm: "0714.40.00" },
+  { keywords: ["banana"], ncm: "0803.10.00" },
+  { keywords: ["laranja"], ncm: "0805.10.00" },
+  { keywords: ["limao"], ncm: "0805.50.00" },
+  { keywords: ["maca"], ncm: "0808.10.00" },
+  { keywords: ["mamao"], ncm: "0807.20.00" },
+  { keywords: ["melancia"], ncm: "0807.11.00" },
+  { keywords: ["abacaxi"], ncm: "0804.30.00" },
+  { keywords: ["manga"], ncm: "0804.50.20" },
+  { keywords: ["alho"], ncm: "0703.20.10" },
+  { keywords: ["cheiro", "verde", "salsa", "coentro"], ncm: "0709.99.00" },
+  { keywords: ["milho", "espiga"], ncm: "0710.40.00" },
+  // ─── Carnes e Proteínas ───
+  { keywords: ["frango", "coxa", "sobrecoxa", "peito", "asa"], ncm: "0207.14.00" },
+  { keywords: ["carne", "bovina", "acem", "patinho", "musculo"], ncm: "0201.30.00" },
+  { keywords: ["carne", "suina", "porco", "lombo", "costela"], ncm: "0203.29.00" },
+  { keywords: ["linguica", "calabresa"], ncm: "1601.00.00" },
+  { keywords: ["salsicha"], ncm: "1601.00.00" },
+  { keywords: ["ovo", "ovos", "galinha"], ncm: "0407.21.00" },
+  { keywords: ["peixe", "tilapia", "merluza", "pescada"], ncm: "0304.89.00" },
+  // ─── Laticínios ───
+  { keywords: ["queijo", "mussarela", "prato"], ncm: "0406.10.10" },
+  { keywords: ["requeijao"], ncm: "0406.10.90" },
+  { keywords: ["iogurte"], ncm: "0403.10.00" },
+  { keywords: ["creme", "leite"], ncm: "0401.40.10" },
+  { keywords: ["leite", "condensado"], ncm: "0402.99.00" },
+  { keywords: ["leite", "po"], ncm: "0402.21.10" },
+  // ─── Temperos e Condimentos ───
+  { keywords: ["colorau", "colorific", "urucum"], ncm: "0910.91.00" },
+  { keywords: ["pimenta", "reino"], ncm: "0904.12.00" },
+  { keywords: ["oregano"], ncm: "1211.90.90" },
+  { keywords: ["louro"], ncm: "0910.99.00" },
+  { keywords: ["cominho"], ncm: "0909.31.00" },
+  { keywords: ["caldo", "galinha", "carne", "tempero"], ncm: "2104.10.11" },
+  { keywords: ["mostarda"], ncm: "2103.30.21" },
+  { keywords: ["maionese"], ncm: "2103.90.11" },
+  { keywords: ["catchup", "ketchup"], ncm: "2103.20.10" },
+  // ─── Grãos e Cereais ───
+  { keywords: ["aveia"], ncm: "1104.12.00" },
+  { keywords: ["granola"], ncm: "1904.20.00" },
+  { keywords: ["ervilha"], ncm: "2005.40.00" },
+  { keywords: ["milho", "conserva", "lata"], ncm: "2005.80.00" },
+  { keywords: ["lentilha"], ncm: "0713.40.10" },
+  { keywords: ["soja", "proteina"], ncm: "2106.10.00" },
+  // ─── Materiais Escolares ───
+  { keywords: ["caderno"], ncm: "4820.10.00" },
+  { keywords: ["giz"], ncm: "2509.00.10" },
+  { keywords: ["pincel", "atomico"], ncm: "9608.20.00" },
+  { keywords: ["cartolina"], ncm: "4802.55.10" },
+  { keywords: ["tnt", "tecido"], ncm: "5603.12.00" },
+  // ─── Descartáveis ───
+  { keywords: ["prato", "descartavel"], ncm: "3924.10.00" },
+  { keywords: ["talher", "garfo", "faca", "colher", "descartavel"], ncm: "3924.10.00" },
+  { keywords: ["marmitex", "marmita", "quentinha"], ncm: "7612.90.19" },
+  { keywords: ["filme", "pvc", "plastico"], ncm: "3920.43.00" },
+  { keywords: ["papel", "aluminio"], ncm: "7607.11.90" },
+  // ─── Higiene Pessoal ───
+  { keywords: ["shampoo", "xampu"], ncm: "3305.10.00" },
+  { keywords: ["creme", "dental", "dentifricio"], ncm: "3306.10.00" },
+  { keywords: ["escova", "dental", "dente"], ncm: "9603.21.00" },
+  { keywords: ["fralda", "descartavel"], ncm: "9619.00.00" },
+  { keywords: ["absorvente"], ncm: "9619.00.00" },
 ];
 
 function findNcm(description) {
@@ -91,16 +169,9 @@ function findNcm(description) {
 
 function generateSku(item, contractId) {
   const num = String(item.num || 1).padStart(3, "0");
-  const words = (item.descricao || "ITEM")
-    .toUpperCase()
-    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^A-Z0-9\s]/g, "")
-    .split(/\s+/)
-    .filter(w => w.length > 2 && !["COM", "PARA", "POR", "QUE", "DOS", "DAS", "MINIMA", "MINIMO", "CAPACIDADE"].includes(w))
-    .slice(0, 3)
-    .join("-");
-  const prefix = (contractId || "CTR").replace(/[^A-Z0-9]/gi, "").slice(-6);
-  return `${prefix}-${num}-${words || "PROD"}`;
+  const prefix = (contractId || "000").replace(/[^0-9]/g, "").slice(-6).padStart(6, "0");
+  const rand = String(Math.floor(Math.random() * 99)).padStart(2, "0");
+  return `${prefix}${num}${rand}`;
 }
 
 function normalizeUnit(unidade) {
@@ -247,6 +318,7 @@ export default async function handler(req, res) {
         situacao: "A",
         classe_ipi: "",
         descricao_complementar: item.descricaoCompleta || "",
+        marca: "Licit-IAX",
       },
     };
 

@@ -347,6 +347,7 @@
           <tr>
             <th>Escola</th>
             <th>Item</th>
+            <th>NCM</th>
             <th>Unidade</th>
             <th class="text-right">Contratado</th>
             <th class="text-right">Entregue</th>
@@ -401,13 +402,13 @@
   </div>
 
   <!-- Modal: Contract Detail -->
-  <div id="modal-contrato" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1000;display:flex;align-items:center;justify-content:center;padding:1rem;overflow-y:auto">
-    <div style="background:var(--bg);border:1px solid var(--bdr);border-radius:14px;width:960px;max-width:98vw;max-height:95vh;display:flex;flex-direction:column">
-      <div style="padding:1rem 1.5rem;border-bottom:1px solid var(--bdr);display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
-        <h2 id="modal-contrato-titulo" style="font-size:1.1rem;margin:0"></h2>
+  <div id="modal-contrato" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1000;display:flex;align-items:flex-start;justify-content:center;padding:.5rem;overflow-y:auto">
+    <div style="background:var(--bg);border:1px solid var(--bdr);border-radius:14px;width:1100px;max-width:99vw;max-height:98vh;display:flex;flex-direction:column;margin-top:.5rem">
+      <div style="padding:.8rem 1.2rem;border-bottom:1px solid var(--bdr);display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
+        <h2 id="modal-contrato-titulo" style="font-size:1rem;margin:0"></h2>
         <button class="btn btn-outline btn-sm" onclick="fecharModalContrato()">Fechar</button>
       </div>
-      <div style="padding:1.5rem;overflow-y:auto;flex:1" id="modal-contrato-body"></div>
+      <div style="padding:1rem 1.2rem;overflow-y:auto;flex:1" id="modal-contrato-body"></div>
     </div>
   </div>
 
@@ -1281,14 +1282,18 @@ function criarContrato() {
     dataCriacao: now.toISOString(),
     fornecedor: supplier.nome,
     status: "ativo",
-    itens: wonItems.map(item => ({
-      num: item.num,
-      descricao: item.descricao,
-      unidade: item.unidade,
-      qtdContratada: item.quantidade,
-      precoUnitario: item.precos[supplier.nome] || 0,
-      qtdEntregue: 0
-    })),
+    itens: wonItems.map(item => {
+      const ncmMatch = findNcmLocal(item.descricao);
+      return {
+        num: item.num,
+        descricao: item.descricao,
+        unidade: item.unidade,
+        qtdContratada: item.quantidade,
+        precoUnitario: item.precos[supplier.nome] || 0,
+        qtdEntregue: 0,
+        ncm: ncmMatch ? ncmMatch.ncm : ""
+      };
+    }),
     fornecedoresMapa: m.fornecedores.map(f => ({
       nome: f.nome,
       itensGanhos: f.itensGanhos
@@ -1555,7 +1560,7 @@ function parseSheetToItems(rows) {
 
   // If price column not found by header, detect it from data:
   // Find the first column after unidade that has numeric values (likely price)
-  if (colMap.preco === -1) {
+  if (colMap.preco === -1 && colMap.valorTotal === -1) {
     const startCol = Math.max(colMap.unidade >= 0 ? colMap.unidade + 1 : 3, 2);
     // Check first data rows to find a column with decimal numbers (prices)
     for (let col = startCol; col < (rows[headerIdx] || []).length && col < 10; col++) {
@@ -1570,7 +1575,14 @@ function parseSheetToItems(rows) {
       }
       // If most data rows have numbers in this col and at least one has decimals, it's likely price
       if (numericCount >= 2 && hasDecimal) {
-        colMap.preco = col;
+        // Check if this is likely a total column (values seem too high for unit prices)
+        // Heuristic: compare value with quantity — if value/qty gives reasonable unit price, it's a total
+        const hdrLabel = header[col] || '';
+        if (hdrLabel.includes('valor') || hdrLabel.includes('total') || hdrLabel.includes('subtotal')) {
+          colMap.valorTotal = col;
+        } else {
+          colMap.preco = col;
+        }
         break;
       }
     }
@@ -1595,10 +1607,20 @@ function parseSheetToItems(rows) {
 
     // Prefer reajusted price if available
     let preco = 0;
+    let isTotal = false;
     if (colReaj >= 0 && parseNum(row[colReaj]) > 0) {
       preco = parseNum(row[colReaj]);
     } else if (colMap.preco >= 0) {
       preco = parseNum(row[colMap.preco]);
+    } else if (colMap.valorTotal >= 0) {
+      // Column is "Valor" / "Total" — divide by quantity to get unit price
+      preco = parseNum(row[colMap.valorTotal]);
+      isTotal = true;
+    }
+
+    // If price was from a total column, calculate unit price
+    if (isTotal && qtd > 0 && preco > 0) {
+      preco = Math.round((preco / qtd) * 100) / 100;
     }
 
     num++;
@@ -1658,12 +1680,13 @@ function updateListaFromSheets() {
 }
 
 function detectColumns(header) {
-  const map = { descricao: -1, unidade: -1, quantidade: -1, preco: -1 };
+  const map = { descricao: -1, unidade: -1, quantidade: -1, preco: -1, valorTotal: -1 };
   const patterns = {
     descricao: ["descricao", "produto", "nome", "material", "especificacao", "mercadoria"],
     unidade: ["unidade", "unid.", "unid", "medida", "und"],
     quantidade: ["quantidade", "qtd", "qtde", "quant.", "quant", "qty"],
-    preco: ["r$ unit", "preco unit", "preco", "valor unit", "unitario", "vl unit", "vl. unit"]
+    preco: ["r$ unit", "preco unit", "preco", "valor unit", "unitario", "vl unit", "vl. unit"],
+    valorTotal: ["valor total", "valor", "total", "vl total", "subtotal"]
   };
 
   for (const [field, keywords] of Object.entries(patterns)) {
@@ -1761,14 +1784,18 @@ function criarContratoLista() {
     dataCriacao: now.toISOString(),
     fornecedor: "Lariucci & Ribeiro Pereira",
     status: "ativo",
-    itens: parsedLista.map(item => ({
-      num: item.num,
-      descricao: item.descricao,
-      unidade: item.unidade,
-      qtdContratada: item.quantidade,
-      precoUnitario: item.preco,
-      qtdEntregue: 0
-    })),
+    itens: parsedLista.map(item => {
+      const ncmMatch = findNcmLocal(item.descricao);
+      return {
+        num: item.num,
+        descricao: item.descricao,
+        unidade: item.unidade,
+        qtdContratada: item.quantidade,
+        precoUnitario: item.preco,
+        qtdEntregue: 0,
+        ncm: ncmMatch ? ncmMatch.ncm : ""
+      };
+    }),
     fornecedoresMapa: []
   };
 
@@ -1962,7 +1989,8 @@ async function readCronoPDF(file) {
   }
 
   if (dateColumns.length === 0 || headerRowIdx < 0) {
-    // Fallback to text-based parsing
+    // Cronograma sem colunas de data detectadas = PDF provavelmente escaneado
+    // Tentar text parsing primeiro como fallback rapido
     let fullText = '';
     for (let i = 1; i <= pdf.numPages; i++) {
       const pg = await pdf.getPage(i);
@@ -1978,7 +2006,16 @@ async function readCronoPDF(file) {
       if (curLine.trim()) lines.push(curLine);
       fullText += lines.join('\n') + '\n';
     }
-    return parseCronoText(fullText, file.name);
+    const textResult = parseCronoText(fullText, file.name);
+
+    // Se text parsing encontrou resultado robusto (5+ itens), usar
+    if (textResult && textResult.contratos && textResult.contratos.some(c => c.itens.length >= 5)) {
+      return textResult;
+    }
+
+    // Caso contrario, usar OCR via IA (visão) — cronograma precisa de todos os itens
+    showToast("PDF sem tabela de datas detectada. Processando via OCR (IA)... Aguarde.", 15000);
+    return await readCronoPdfOCR(pdf, file.name);
   }
 
   const datas = dateColumns.map(d => d.date);
@@ -2105,6 +2142,139 @@ async function readCronoPDF(file) {
       total: Math.round(total * 100) / 100
     }]
   };
+}
+
+async function readCronoPdfOCR(pdf, filename) {
+  // Render all pages to images
+  const allImages = [];
+  for (let p = 1; p <= pdf.numPages; p++) {
+    const page = await pdf.getPage(p);
+    const scale = 1.8;
+    const viewport = page.getViewport({ scale });
+    const canvas = document.createElement("canvas");
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    const ctx = canvas.getContext("2d");
+    await page.render({ canvasContext: ctx, viewport }).promise;
+    allImages.push(canvas.toDataURL("image/jpeg", 0.7));
+  }
+
+  // Build vision request — send all pages to AI
+  const imageContent = allImages.map(img => ({
+    type: "image_url",
+    image_url: { url: img }
+  }));
+
+  const fnLower = filename.toLowerCase();
+  let recursoHint = '';
+  if (fnLower.includes('federal') || fnLower.includes('pnae')) recursoHint = 'PNAE (Federal)';
+  else if (fnLower.includes('estadual') || fnLower.includes('contrapartida')) recursoHint = 'Contrapartida (Estadual)';
+
+  const prompt = `Você é um especialista em extrair dados de CRONOGRAMAS DE ENTREGA de licitações de Caixas Escolares em Minas Gerais.
+
+Analise as imagens deste PDF e extraia TODOS os dados em JSON. O documento é um cronograma de entrega com:
+- Dados da escola (nome, CNPJ)
+- Nome do fornecedor
+- Número do processo (PAS)
+- Tabela com: produtos, unidades, preços unitários, e quantidades por data de entrega
+${recursoHint ? '- Recurso: ' + recursoHint : ''}
+
+Retorne APENAS JSON válido neste formato EXATO (sem markdown, sem texto extra):
+{
+  "escola": "nome da caixa escolar",
+  "cnpj": "XX.XXX.XXX/XXXX-XX",
+  "fornecedor": "nome do fornecedor",
+  "processo": "XXX/XXXX",
+  "recurso": "PNAE ou Contrapartida",
+  "datas": ["DD/MM", "DD/MM", ...],
+  "itens": [
+    {
+      "num": "número do item",
+      "descricao": "NOME DO PRODUTO",
+      "unidade": "Kg ou Pc(XXX) ou Lt(XXX) ou Fr(XXX) ou Un",
+      "precoUnitario": 0.00,
+      "qtdContratada": 0,
+      "cronograma": { "DD/MM": qty, "DD/MM": qty }
+    }
+  ],
+  "total": 0.00
+}
+
+IMPORTANTE:
+- Extraia TODOS os itens da tabela, não apenas alguns
+- Os preços unitários devem ser números decimais (ex: 19.40, não "R$ 19,40")
+- As quantidades no cronograma são números inteiros por data
+- qtdContratada é o TOTAL de todas as datas somadas
+- O total é a soma de (precoUnitario * qtdContratada) de todos os itens`;
+
+  const content = [
+    { type: "text", text: prompt },
+    ...imageContent
+  ];
+
+  try {
+    const resp = await fetch("/api/ai-parse-price", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        texto: "__OCR_IMAGE_MODE__",
+        formato: "cronograma_ocr",
+        _ocrMessages: [{ role: "user", content }]
+      })
+    });
+
+    if (!resp.ok) {
+      const errData = await resp.json().catch(() => ({}));
+      throw new Error(errData.error || "Erro na API OCR: " + resp.status);
+    }
+
+    const data = await resp.json();
+
+    // Parse AI response into cronograma format
+    const result = typeof data === 'string' ? JSON.parse(data) : data;
+
+    const recurso = result.recurso || recursoHint || 'Geral';
+    const processo = result.processo || '';
+    const datas = result.datas || [];
+    const itens = (result.itens || []).map(it => ({
+      num: String(it.num || ''),
+      descricao: it.descricao || '',
+      unidade: it.unidade || 'Un',
+      precoUnitario: Number(it.precoUnitario) || 0,
+      qtdContratada: Number(it.qtdContratada) || Object.values(it.cronograma || {}).reduce((s, v) => s + (Number(v) || 0), 0),
+      cronograma: it.cronograma || {}
+    }));
+
+    if (itens.length === 0) {
+      showToast("OCR: nenhum item extraido do PDF. Tente importar como JSON.", 5000);
+      return null;
+    }
+
+    const total = result.total || itens.reduce((s, it) => s + it.precoUnitario * it.qtdContratada, 0);
+
+    showToast(`OCR concluido: ${itens.length} itens extraidos!`, 4000);
+
+    return {
+      escola: result.escola || 'Escola nao identificada',
+      cnpj: result.cnpj || '',
+      endereco: '',
+      telefone: '',
+      fornecedor: result.fornecedor || '',
+      datas,
+      contratos: [{
+        processo,
+        recurso,
+        tipo: recurso.includes('PNAE') ? 'Federal' : (recurso.includes('Contrapartida') ? 'Estadual' : 'Geral'),
+        objeto: 'Aquisicao de generos alimenticios - ' + recurso,
+        obs: 'Recurso ' + recurso + ' - Processo ' + processo,
+        itens,
+        total: Math.round(total * 100) / 100
+      }]
+    };
+  } catch (err) {
+    showToast("Erro no OCR: " + err.message + ". Tente importar como JSON.", 6000);
+    return null;
+  }
 }
 
 async function readCronoExcel(file) {
@@ -2310,7 +2480,7 @@ function renderCronoPreview() {
       const itensData = ctr.itens.filter(it => it.cronograma && it.cronograma[d] > 0);
       const valorData = itensData.reduce((s, it) => s + it.precoUnitario * it.cronograma[d], 0);
       html += `<div style="background:var(--s1);border:1px solid var(--bdr);border-radius:6px;padding:.3rem .6rem;font-size:.72rem;text-align:center;min-width:80px">
-        <div style="font-weight:700">${d}/2025</div>
+        <div style="font-weight:700">${d}/${new Date().getFullYear()}</div>
         <div style="color:var(--mut)">${itensData.length} itens</div>
         <div style="color:var(--green);font-weight:600">${brl.format(valorData)}</div>
       </div>`;
@@ -2340,7 +2510,7 @@ function importarCronograma() {
       escola: parsedCrono.escola,
       edital: '',
       processo: ctr.processo || '',
-      vigencia: parsedCrono.datas[0] + '/2025 a ' + parsedCrono.datas[parsedCrono.datas.length - 1] + '/2025',
+      vigencia: parsedCrono.datas[0] + '/' + ano + ' a ' + parsedCrono.datas[parsedCrono.datas.length - 1] + '/' + ano,
       objeto: ctr.objeto || ctr.recurso || '',
       observacoes: ctr.obs || '',
       criterio: '',
@@ -2348,14 +2518,18 @@ function importarCronograma() {
       dataCriacao: now.toISOString(),
       fornecedor: parsedCrono.fornecedor || 'Lariucci & Ribeiro Pereira',
       status: 'ativo',
-      itens: ctr.itens.map(it => ({
-        num: it.num,
-        descricao: it.descricao,
-        unidade: it.unidade,
-        qtdContratada: it.qtdContratada,
-        precoUnitario: it.precoUnitario,
-        qtdEntregue: 0
-      })),
+      itens: ctr.itens.map(it => {
+        const ncmMatch = findNcmLocal(it.descricao);
+        return {
+          num: it.num,
+          descricao: it.descricao,
+          unidade: it.unidade,
+          qtdContratada: it.qtdContratada,
+          precoUnitario: it.precoUnitario,
+          qtdEntregue: 0,
+          ncm: (ncmMatch ? ncmMatch.ncm : '')
+        };
+      }),
       fornecedoresMapa: [],
       cronograma: true
     };
@@ -2389,10 +2563,10 @@ function importarCronograma() {
 
       if (itensNaData.length === 0) return;
 
-      // Parse date: "04/02" → "2025-02-04"
+      // Parse date: "04/02" → "YYYY-MM-DD"
       const [dd, mm] = dataStr.split('/');
-      const dataISO = `2025-${mm}-${dd}`;
-      const dataFmt = `${dd}/${mm}/2025`;
+      const dataISO = `${ano}-${mm}-${dd}`;
+      const dataFmt = `${dd}/${mm}/${ano}`;
 
       const pedId = `PED-${dataISO.replace(/-/g,'')}-${ctr.processo.replace(/\//g,'')}-${String(Math.floor(Math.random()*999)).padStart(3,"0")}`;
 
@@ -2406,6 +2580,7 @@ function importarCronograma() {
         valor: Math.round(valorPedido * 100) / 100,
         status: 'agendado',
         obs: obsStr,
+        marcador: 'Licit-IAX',
         saldoDeduzido: false,
         cronograma: true
       });
@@ -2416,10 +2591,14 @@ function importarCronograma() {
   savePedidos();
   renderAll();
 
+  // Capture counts before reset
+  const numContratos = parsedCrono.contratos.length;
+  const numPedidos = pedidos.filter(p => p.cronograma && p.status === 'agendado').length;
+
   // Reset
   cancelCronoImport();
   switchTab("contratos");
-  showToast(`Cronograma importado: ${parsedCrono.contratos.length} contratos + ${pedidos.filter(p => p.cronograma).length} pedidos agendados criados!`, 5000);
+  showToast(`Cronograma importado: ${numContratos} contratos + ${numPedidos} pedidos agendados criados!`, 5000);
 }
 
 // Drag & drop for crono upload
@@ -2445,6 +2624,9 @@ function renderContratos() {
     const matchStatus = !statusFiltro || c.status === statusFiltro;
     return matchBusca && matchStatus;
   });
+
+  // Atualizar contador da aba com quantidade filtrada
+  document.getElementById("tab-count-contratos").textContent = filtered.length;
 
   const grid = document.getElementById("contract-grid");
   const empty = document.getElementById("contratos-empty");
@@ -2630,15 +2812,17 @@ function salvarContratoManual() {
 function adicionarItemContrato(contratoId) {
   const c = contratos.find(x => x.id === contratoId);
   if (!c) return;
+  _contratoAbertoId = contratoId; // sub-screen: Fechar returns to detail
   const nextNum = c.itens.length + 1;
   document.getElementById("modal-contrato-titulo").textContent = "Adicionar Item — " + c.id;
   document.getElementById("modal-contrato-body").innerHTML = `
     <div style="display:grid;grid-template-columns:1fr;gap:1rem">
-      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Descrição do Produto</label><input type="text" id="ai-descricao" placeholder="Ex: Arroz tipo 1, 5kg" style="width:100%"></div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem">
+      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Descrição do Produto</label><input type="text" id="ai-descricao" placeholder="Ex: Arroz tipo 1, 5kg" style="width:100%" oninput="sugerirNcmAdd()"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:1rem">
         <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Unidade</label><input type="text" id="ai-unidade" value="Un" placeholder="Un/Kg/Cx/Pct" style="width:100%"></div>
         <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Qtd Contratada</label><input type="number" id="ai-qtd" value="1" min="1" style="width:100%"></div>
         <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Preço Unitário (R$)</label><input type="number" id="ai-preco" value="0" step="0.01" min="0" style="width:100%"></div>
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">NCM</label><input type="text" id="ai-ncm" placeholder="0000.00.00" style="width:100%;font-family:monospace"><div id="ai-ncm-hint" style="font-size:.65rem;color:var(--green);margin-top:.2rem"></div></div>
       </div>
     </div>
     <div style="margin-top:1.5rem;display:flex;gap:.8rem;justify-content:flex-end">
@@ -2654,13 +2838,15 @@ function salvarItemContrato(contratoId, continuar) {
   if (!c) return;
   const descricao = (document.getElementById("ai-descricao").value || "").trim();
   if (!descricao) { showToast("Descrição é obrigatória.", 3000); return; }
+  const ncmVal = (document.getElementById("ai-ncm").value || "").trim();
   const item = {
     num: c.itens.length + 1,
     descricao,
     unidade: (document.getElementById("ai-unidade").value || "Un").trim(),
     qtdContratada: parseInt(document.getElementById("ai-qtd").value) || 1,
     qtdEntregue: 0,
-    precoUnitario: parseFloat(document.getElementById("ai-preco").value) || 0
+    precoUnitario: parseFloat(document.getElementById("ai-preco").value) || 0,
+    ncm: ncmVal
   };
   c.itens.push(item);
   saveContratos();
@@ -2676,16 +2862,18 @@ function salvarItemContrato(contratoId, continuar) {
 function editarItemContrato(contratoId, idx) {
   const c = contratos.find(x => x.id === contratoId);
   if (!c || !c.itens[idx]) return;
+  _contratoAbertoId = contratoId; // sub-screen: Fechar returns to detail
   const item = c.itens[idx];
   document.getElementById("modal-contrato-titulo").textContent = "Editar Item #" + item.num + " — " + c.id;
   document.getElementById("modal-contrato-body").innerHTML = `
     <div style="display:grid;grid-template-columns:1fr;gap:1rem">
-      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Descrição do Produto</label><input type="text" id="ei-descricao" value="${esc(item.descricao)}" style="width:100%"></div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:1rem">
+      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Descrição do Produto</label><input type="text" id="ei-descricao" value="${esc(item.descricao)}" style="width:100%" oninput="sugerirNcmEdit()"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:1rem">
         <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Unidade</label><input type="text" id="ei-unidade" value="${esc(item.unidade)}" style="width:100%"></div>
         <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Qtd Contratada</label><input type="number" id="ei-qtd" value="${item.qtdContratada}" min="0" style="width:100%"></div>
         <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Qtd Entregue</label><input type="number" id="ei-entregue" value="${item.qtdEntregue}" min="0" style="width:100%"></div>
         <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Preço Unitário (R$)</label><input type="number" id="ei-preco" value="${item.precoUnitario}" step="0.01" min="0" style="width:100%"></div>
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">NCM</label><input type="text" id="ei-ncm" value="${esc(item.ncm || '')}" placeholder="0000.00.00" style="width:100%;font-family:monospace"><div id="ei-ncm-hint" style="font-size:.65rem;color:var(--green);margin-top:.2rem">${item.ncm ? '' : (() => { const s = findNcmLocal(item.descricao); return s ? 'Sugestão: ' + s.ncm : ''; })()}</div></div>
       </div>
     </div>
     <div style="margin-top:1.5rem;display:flex;gap:.8rem;justify-content:flex-end">
@@ -2706,6 +2894,7 @@ function salvarEdicaoItem(contratoId, idx) {
   c.itens[idx].qtdContratada = parseInt(document.getElementById("ei-qtd").value) || 0;
   c.itens[idx].qtdEntregue = parseInt(document.getElementById("ei-entregue").value) || 0;
   c.itens[idx].precoUnitario = parseFloat(document.getElementById("ei-preco").value) || 0;
+  c.itens[idx].ncm = (document.getElementById("ei-ncm").value || "").trim();
   saveContratos();
   showToast("Item atualizado!");
   abrirContrato(contratoId);
@@ -2728,6 +2917,7 @@ function abrirContrato(id) {
   const c = contratos.find(x => x.id === id);
   if (!c) return;
 
+  _contratoAbertoId = null; // detail view: Fechar closes modal
   document.getElementById("modal-contrato-titulo").textContent = `${c.id} — ${c.escola.length > 50 ? c.escola.slice(0, 48) + "..." : c.escola}`;
 
   const totalContratado = c.itens.reduce((s, i) => s + i.precoUnitario * i.qtdContratada, 0);
@@ -2756,35 +2946,48 @@ function abrirContrato(id) {
       </div>
       <div style="margin-top:.6rem;text-align:right"><button class="btn btn-sm btn-blue" onclick="salvarDadosContrato('${c.id}')">Salvar Dados</button></div>
     </div>
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.8rem">
-      <h3 style="font-size:.9rem;margin:0">Itens do Contrato</h3>
-      <button class="btn btn-sm btn-green" onclick="adicionarItemContrato('${c.id}')">+ Adicionar Item</button>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.8rem;flex-wrap:wrap;gap:.5rem">
+      <div style="display:flex;align-items:center;gap:.6rem">
+        <h3 style="font-size:.9rem;margin:0">Itens do Contrato (${c.itens.length})</h3>
+        <span id="itens-selecionados-${c.id}" style="font-size:.72rem;color:var(--cyan);font-weight:600"></span>
+      </div>
+      <div style="display:flex;gap:.4rem;flex-wrap:wrap;align-items:center">
+        <button class="btn btn-sm btn-blue hidden" id="btn-editar-massa-${c.id}" onclick="editarItensMassa('${c.id}')" title="Editar itens selecionados">Editar Selecionados</button>
+        <button class="btn btn-sm btn-purple" onclick="cadastrarTiny('${c.id}')" title="Enviar todos os produtos ao Tiny ERP">Enviar Todos ao Tiny</button>
+        <button class="btn btn-sm btn-green" onclick="adicionarItemContrato('${c.id}')">+ Item</button>
+      </div>
     </div>
-    <div class="table-wrap" style="max-height:50vh;overflow-y:auto">
-      <table style="font-size:.82rem">
-        <thead><tr><th>#</th><th>Item</th><th>Unid</th><th class="text-right">Contr.</th><th class="text-right">Entr.</th><th class="text-right">Saldo</th><th>%</th><th class="text-right">Preco</th><th class="text-center">Acoes</th></tr></thead>
+    <div class="table-wrap" style="overflow-y:auto;max-height:60vh">
+      <table style="font-size:.78rem">
+        <thead><tr><th style="width:30px"><input type="checkbox" onchange="toggleSelectAllItens('${c.id}',this.checked)" title="Selecionar todos"></th><th>#</th><th>Item</th><th style="min-width:120px">NCM</th><th>Unid</th><th class="text-right">Contr.</th><th class="text-right">Entr.</th><th class="text-right">Saldo</th><th>%</th><th class="text-right">Preco</th><th class="text-center">Acoes</th></tr></thead>
         <tbody>${c.itens.map((item, idx) => {
           const saldo = item.qtdContratada - item.qtdEntregue;
           const pct = item.qtdContratada > 0 ? (item.qtdEntregue / item.qtdContratada * 100) : 0;
           return `<tr>
+            <td class="text-center"><input type="checkbox" class="item-check-${c.id}" data-idx="${idx}" onchange="atualizarSelecaoItens('${c.id}')"></td>
             <td class="text-center">${item.num}</td>
-            <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(item.descricao)}">${esc(item.descricao)}</td>
+            <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(item.descricao)}">${esc(item.descricao)}</td>
+            <td style="min-width:120px">
+              <div style="display:flex;align-items:center;gap:.2rem">
+                <input type="text" value="${esc(item.ncm || '')}" id="ncm-${c.id}-${idx}" placeholder="00.00.00.00" style="width:90px;font-size:.72rem;font-family:monospace;padding:.15rem .3rem;background:var(--s1);border:1px solid var(--bdr);border-radius:4px;color:var(--cyan)" onchange="salvarNcmItem('${c.id}',${idx},this.value)">
+                <button style="background:none;border:none;cursor:pointer;font-size:.7rem;color:var(--blue);padding:0" onclick="buscarNcmItem('${c.id}',${idx})" title="Buscar NCM automaticamente">🔍</button>
+              </div>
+            </td>
             <td class="nowrap">${esc(item.unidade)}</td>
             <td class="text-right font-mono">${item.qtdContratada}</td>
             <td class="text-right font-mono">${item.qtdEntregue}</td>
             <td class="text-right font-mono" style="font-weight:700;color:${saldo > 0 ? 'var(--yellow)' : 'var(--green)'}">${saldo}</td>
-            <td style="min-width:60px"><div class="progress"><div class="progress-fill ${pct >= 80 ? 'green' : pct >= 40 ? 'yellow' : 'blue'}" style="width:${pct}%"></div></div><span style="font-size:.6rem;color:var(--dim)">${pct.toFixed(0)}%</span></td>
+            <td style="min-width:50px"><div class="progress"><div class="progress-fill ${pct >= 80 ? 'green' : pct >= 40 ? 'yellow' : 'blue'}" style="width:${pct}%"></div></div><span style="font-size:.6rem;color:var(--dim)">${pct.toFixed(0)}%</span></td>
             <td class="text-right font-mono">${brl.format(item.precoUnitario)}</td>
             <td class="text-center" style="white-space:nowrap">
-              <button class="btn btn-sm btn-outline" style="font-size:.6rem;padding:.15rem .35rem" onclick="editarItemContrato('${c.id}',${idx})" title="Editar item">✏️</button>
-              <button class="btn btn-sm btn-purple" style="font-size:.6rem;padding:.15rem .35rem" onclick="cadastrarTinyItem('${c.id}',${idx})" title="Cadastrar no Tiny">Tiny</button>
-              <button class="btn btn-sm btn-red" style="font-size:.6rem;padding:.15rem .35rem" onclick="excluirItemContrato('${c.id}',${idx})" title="Excluir item">✕</button>
+              <button class="btn btn-sm" style="font-size:.75rem;padding:.2rem .4rem;background:rgba(59,130,246,.15);color:var(--blue);border:none;cursor:pointer" onclick="editarItemContrato('${c.id}',${idx})" title="Editar item">✏️</button>
+              <button class="btn btn-sm" style="font-size:.6rem;padding:.15rem .3rem;background:rgba(239,68,68,.15);color:var(--red);border:none;cursor:pointer" onclick="excluirItemContrato('${c.id}',${idx})" title="Excluir item">✕</button>
             </td>
           </tr>`;
         }).join("")}</tbody>
       </table>
     </div>
-    <div style="margin-top:1rem;padding-top:.8rem;border-top:1px solid var(--bdr);display:flex;justify-content:flex-end">
+    <div style="margin-top:1rem;padding-top:.8rem;border-top:1px solid var(--bdr);display:flex;justify-content:flex-end;gap:.5rem">
       <button class="btn btn-outline btn-sm" onclick="fecharModalContrato()">Fechar</button>
     </div>
     <div id="tiny-result-${c.id}" class="hidden" style="margin-top:1rem;padding:1rem;border-radius:8px;background:var(--s1);border:1px solid var(--bdr);font-size:.85rem"></div>`;
@@ -2793,7 +2996,14 @@ function abrirContrato(id) {
   document.getElementById("modal-contrato").classList.remove("hidden");
 }
 
+// Track which contract is currently open so Fechar can return to it
+let _contratoAbertoId = null;
+
 function fecharModalContrato() {
+  if (_contratoAbertoId) {
+    abrirContrato(_contratoAbertoId);
+    return;
+  }
   document.getElementById("modal-contrato").classList.add("hidden");
 }
 
@@ -2882,6 +3092,9 @@ function renderItens() {
 
   const filtered = allItens.filter(i => !busca || i.descricao.toLowerCase().includes(busca) || i.escola.toLowerCase().includes(busca));
 
+  // Atualizar contador da aba com quantidade filtrada
+  document.getElementById("tab-count-itens").textContent = filtered.length;
+
   const tbody = document.getElementById("itens-tbody");
   const empty = document.getElementById("itens-empty");
 
@@ -2900,6 +3113,7 @@ function renderItens() {
     return `<tr>
       <td class="nowrap" title="${esc(i.escola)}">${esc(escolaShort)}</td>
       <td>${esc(i.descricao)}</td>
+      <td class="font-mono" style="font-size:.72rem;color:var(--cyan)">${esc(i.ncm || '-')}</td>
       <td class="nowrap">${esc(i.unidade)}</td>
       <td class="text-right font-mono">${i.qtdContratada}</td>
       <td class="text-right font-mono">${i.qtdEntregue}</td>
@@ -2940,6 +3154,9 @@ function renderPedidos() {
   const tbody = document.getElementById("pedidos-tbody");
   const empty = document.getElementById("pedidos-empty");
 
+  // Update tab count to reflect filtered results
+  document.getElementById("tab-count-pedidos").textContent = filtered.length;
+
   if (filtered.length === 0) {
     tbody.innerHTML = "";
     empty.classList.remove("hidden");
@@ -2970,15 +3187,15 @@ function renderPedidos() {
       <td class="text-right font-mono" style="color:var(--green);font-weight:700">${brl.format(p.valor)}</td>
       <td><span class="badge ${badgeMap[p.status] || 'badge-yellow'}">${p.status}</span></td>
       <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.8rem;color:var(--mut)" title="${esc(obsText)}">${esc(obsText)}</td>
-      <td class="nowrap" style="display:flex;gap:.3rem;align-items:center">${acoes}<button class="btn btn-sm" style="background:rgba(239,68,68,.15);color:var(--red);border:none;font-size:.7rem;padding:.3rem .5rem;font-weight:700;cursor:pointer" onclick="excluirPedido('${p.id}')" title="Excluir pedido">✕</button></td>
+      <td class="nowrap" style="display:flex;gap:.3rem;align-items:center"><button class="btn btn-sm" style="background:rgba(59,130,246,.15);color:var(--blue);border:none;font-size:.7rem;padding:.3rem .5rem;font-weight:700;cursor:pointer" onclick="verPedidoDetalhe('${p.id}')" title="Ver detalhes">Ver</button>${acoes}<button class="btn btn-sm" style="background:rgba(239,68,68,.15);color:var(--red);border:none;font-size:.7rem;padding:.3rem .5rem;font-weight:700;cursor:pointer" onclick="excluirPedido('${p.id}')" title="Excluir pedido">✕</button></td>
     </tr>`;
   }).join("");
 }
 
-function transmitirPedido(pedidoId) {
+async function transmitirPedido(pedidoId) {
   const p = pedidos.find(x => x.id === pedidoId);
   if (!p) return;
-  if (!confirm(`Transmitir pedido ${pedidoId}?\nData entrega: ${p.dataEntrega || p.data}\nValor: R$ ${p.valor.toFixed(2).replace('.',',')}\n\nIsso mudará o status para "recebido" e deduzirá do saldo do contrato.`)) return;
+  if (!confirm(`Transmitir pedido ${pedidoId}?\nData entrega: ${p.dataEntrega || p.data}\nValor: R$ ${p.valor.toFixed(2).replace('.',',')}\n\nIsso mudará o status para "recebido", deduzirá do saldo do contrato e enviará ao Olist.`)) return;
 
   // Deduzir saldo do contrato
   const c = contratos.find(x => x.id === p.contratoId);
@@ -2999,7 +3216,10 @@ function transmitirPedido(pedidoId) {
   if (!p.obs) p.obs = getObsContrato(p.contratoId);
   savePedidos();
   renderAll();
-  showToast(`Pedido ${pedidoId} transmitido! Status: recebido`);
+  showToast(`Pedido ${pedidoId} transmitido! Status: recebido. Enviando ao Olist...`);
+
+  // Enviar ao Olist automaticamente
+  await enviarPedidoOlist(pedidoId);
 }
 
 function avancarPedido(pedidoId, novoStatus) {
@@ -3148,6 +3368,40 @@ function salvarPedidoManual() {
   showToast(`Pedido ${id} registrado! Saldo do contrato atualizado.`);
 }
 
+function verPedidoDetalhe(pedidoId) {
+  const p = pedidos.find(x => x.id === pedidoId);
+  if (!p) return;
+  const c = contratos.find(x => x.id === p.contratoId);
+  const ctrLabel = c ? (c.processo ? 'Proc. ' + c.processo : c.id) : (p.contratoId || '-');
+  const badgeMap = { agendado: 'badge-blue', recebido: 'badge-yellow', concluido: 'badge-green' };
+  const marcadorHtml = p.marcador ? '<span style="background:rgba(139,92,246,.15);color:#8b5cf6;padding:.2rem .6rem;border-radius:999px;font-size:.75rem;font-weight:700;margin-left:.5rem">' + esc(p.marcador) + '</span>' : '';
+
+  let html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem">';
+  html += '<div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Protocolo</div><div style="font-weight:700;font-family:monospace">' + esc(p.id) + marcadorHtml + '</div></div>';
+  html += '<div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Escola</div><div style="font-weight:700">' + esc(p.escola) + '</div></div>';
+  html += '<div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Contrato</div><div style="font-weight:700">' + esc(ctrLabel) + '</div></div>';
+  html += '<div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Data</div><div style="font-weight:700">' + esc(p.dataEntrega || p.data) + '</div></div>';
+  html += '<div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Valor Total</div><div style="font-weight:700;color:var(--green);font-size:1.2rem">' + brl.format(p.valor) + '</div></div>';
+  html += '<div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Status</div><div><span class="badge ' + (badgeMap[p.status] || 'badge-yellow') + '">' + esc(p.status) + '</span></div></div>';
+  html += '</div>';
+
+  if (p.itens && p.itens.length > 0) {
+    html += '<div style="border:1px solid var(--bdr);border-radius:10px;overflow:hidden"><table style="width:100%;border-collapse:collapse">';
+    html += '<thead><tr style="background:var(--s2)"><th style="padding:.5rem .8rem;text-align:left;font-size:.72rem;text-transform:uppercase;color:var(--mut)">Produto</th><th style="padding:.5rem .8rem;text-align:center;font-size:.72rem;text-transform:uppercase;color:var(--mut)">Qtd</th><th style="padding:.5rem .8rem;text-align:right;font-size:.72rem;text-transform:uppercase;color:var(--mut)">Preco Unit.</th><th style="padding:.5rem .8rem;text-align:right;font-size:.72rem;text-transform:uppercase;color:var(--mut)">Subtotal</th></tr></thead><tbody>';
+    p.itens.forEach(item => {
+      const sub = (item.qtd || 0) * (item.precoUnitario || 0);
+      html += '<tr style="border-top:1px solid rgba(71,85,105,.3)"><td style="padding:.5rem .8rem;font-size:.85rem">' + esc(item.descricao || '') + '</td><td style="padding:.5rem .8rem;text-align:center">' + (item.qtd || 0) + '</td><td style="padding:.5rem .8rem;text-align:right">' + brl.format(item.precoUnitario || 0) + '</td><td style="padding:.5rem .8rem;text-align:right;color:var(--green);font-weight:700">' + brl.format(sub) + '</td></tr>';
+    });
+    html += '</tbody></table></div>';
+  }
+
+  html += '<div style="margin-top:1.2rem;display:flex;justify-content:flex-end"><button class="btn btn-outline" onclick="fecharModalPedido()">Fechar</button></div>';
+
+  document.querySelector("#modal-pedido h2").textContent = 'Pedido ' + p.id;
+  document.getElementById("modal-pedido-body").innerHTML = html;
+  document.getElementById("modal-pedido").classList.remove("hidden");
+}
+
 function fecharModalPedido() {
   document.getElementById("modal-pedido").classList.add("hidden");
 }
@@ -3196,6 +3450,8 @@ function renderKPIs() {
 
 // ===== RENDER ALL =====
 function renderAll() {
+  // Re-read from localStorage to capture updates from portal escola
+  loadData();
   renderKPIs();
   renderContratos();
   renderPedidos();
@@ -3306,6 +3562,9 @@ function renderUsuarios() {
   const filtered = usuarios.filter(u => {
     return !busca || (u.nome||'').toLowerCase().includes(busca) || (u.cnpj||'').includes(busca) || (u.email||'').toLowerCase().includes(busca) || (u.municipio||'').toLowerCase().includes(busca);
   });
+
+  // Update tab count to reflect filtered results
+  document.getElementById("tab-count-usuarios").textContent = filtered.length;
 
   const tbody = document.getElementById("usuarios-tbody");
   const empty = document.getElementById("usuarios-empty");
@@ -3458,14 +3717,19 @@ async function enviarPedidoOlist(pedidoId) {
   const p = pedidos.find(x => x.id === pedidoId);
   if (!p) return;
 
-  const items = p.itens.map(i => ({
-    sku: i.descricao,
-    description: i.descricao,
-    name: i.descricao,
-    qty: i.qtd,
-    unitPrice: i.precoUnitario,
-    itemNum: i.itemNum
-  }));
+  // Buscar SKU real do contrato para cada item
+  const ctr = contratos.find(x => x.id === p.contratoId);
+  const items = p.itens.map(i => {
+    const ctrItem = ctr ? ctr.itens.find(ci => ci.num === i.itemNum || ci.descricao === i.descricao) : null;
+    return {
+      sku: (ctrItem && ctrItem.sku) || i.sku || '',
+      description: i.descricao,
+      name: i.descricao,
+      qty: i.qtd,
+      unitPrice: i.precoUnitario,
+      itemNum: i.itemNum
+    };
+  });
 
   try {
     const resp = await fetch("/api/olist/order", {
@@ -3476,7 +3740,9 @@ async function enviarPedidoOlist(pedidoId) {
         school: p.escola,
         items: items,
         totalValue: p.valor,
-        arp: "ARP-LARIUCCI-2025"
+        arp: "ARP-LARIUCCI-2025",
+        marcador: p.marcador || "Licit-IAX",
+        obs: p.obs || ""
       })
     });
     const data = await resp.json();
@@ -3739,6 +4005,40 @@ const TINY_NCM_MAP = [
   { keywords: ["suco", "refresco", "nectar"], ncm: "2009.89.90" },
 ];
 
+let _ncmDebounceAdd, _ncmDebounceEdit;
+function sugerirNcmAdd() {
+  clearTimeout(_ncmDebounceAdd);
+  _ncmDebounceAdd = setTimeout(() => {
+    const desc = (document.getElementById("ai-descricao")?.value || "").trim();
+    const ncmField = document.getElementById("ai-ncm");
+    const hint = document.getElementById("ai-ncm-hint");
+    if (!desc || !ncmField) return;
+    const match = findNcmLocal(desc);
+    if (match && !ncmField.value) {
+      ncmField.value = match.ncm;
+      if (hint) hint.textContent = "Sugerido automaticamente";
+    } else if (!match && hint) {
+      hint.textContent = "";
+    }
+  }, 400);
+}
+function sugerirNcmEdit() {
+  clearTimeout(_ncmDebounceEdit);
+  _ncmDebounceEdit = setTimeout(() => {
+    const desc = (document.getElementById("ei-descricao")?.value || "").trim();
+    const ncmField = document.getElementById("ei-ncm");
+    const hint = document.getElementById("ei-ncm-hint");
+    if (!desc || !ncmField) return;
+    const match = findNcmLocal(desc);
+    if (match) {
+      if (!ncmField.value) ncmField.value = match.ncm;
+      if (hint) hint.textContent = "Sugestão: " + match.ncm;
+    } else if (hint) {
+      hint.textContent = "";
+    }
+  }, 400);
+}
+
 function findNcmLocal(description) {
   const lower = (description || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   let best = null, bestScore = 0;
@@ -3755,13 +4055,155 @@ function getBaseUrl() {
   return "/api"; // Works with both Vercel and local dev
 }
 
-async function cadastrarTinyItem(contratoId, itemIdx) {
+function salvarNcmItem(contratoId, itemIdx, value) {
+  const c = contratos.find(x => x.id === contratoId);
+  if (!c || !c.itens[itemIdx]) return;
+  c.itens[itemIdx].ncm = value.trim();
+  saveContratos();
+}
+
+function buscarNcmItem(contratoId, itemIdx) {
   const c = contratos.find(x => x.id === contratoId);
   if (!c || !c.itens[itemIdx]) return;
   const item = c.itens[itemIdx];
   const ncm = findNcmLocal(item.descricao);
-  const ncmCode = ncm ? ncm.ncm : "";
-  if (!confirm(`Cadastrar no Tiny ERP:\n\n${item.descricao}\nUnid: ${item.unidade} | Preço: ${brl.format(item.precoUnitario)}\nNCM: ${ncmCode || '(sem NCM)'}`)) return;
+  const inputEl = document.getElementById(`ncm-${contratoId}-${itemIdx}`);
+  if (ncm) {
+    item.ncm = ncm.ncm;
+    if (inputEl) inputEl.value = ncm.ncm;
+    saveContratos();
+    showToast(`NCM ${ncm.ncm} encontrado para "${item.descricao.slice(0,30)}"`);
+  } else {
+    showToast(`Nenhum NCM encontrado para "${item.descricao.slice(0,30)}"`, 3000);
+  }
+}
+
+function preencherNcmTodos(contratoId) {
+  const c = contratos.find(x => x.id === contratoId);
+  if (!c) return;
+  let filled = 0, notFound = 0;
+  c.itens.forEach((item, idx) => {
+    if (item.ncm && item.ncm.length > 3) return; // skip already filled
+    const ncm = findNcmLocal(item.descricao);
+    if (ncm) {
+      item.ncm = ncm.ncm;
+      const inputEl = document.getElementById(`ncm-${contratoId}-${idx}`);
+      if (inputEl) inputEl.value = ncm.ncm;
+      filled++;
+    } else {
+      notFound++;
+    }
+  });
+  saveContratos();
+  showToast(`NCM preenchido: ${filled} itens. ${notFound > 0 ? notFound + ' sem NCM encontrado.' : ''}`, 4000);
+}
+
+// ─── Seleção em Massa ───
+function toggleSelectAllItens(contratoId, checked) {
+  document.querySelectorAll(`.item-check-${contratoId}`).forEach(cb => { cb.checked = checked; });
+  atualizarSelecaoItens(contratoId);
+}
+
+function atualizarSelecaoItens(contratoId) {
+  const checks = document.querySelectorAll(`.item-check-${contratoId}:checked`);
+  const count = checks.length;
+  const span = document.getElementById(`itens-selecionados-${contratoId}`);
+  const btn = document.getElementById(`btn-editar-massa-${contratoId}`);
+  if (span) span.textContent = count > 0 ? `${count} selecionado(s)` : '';
+  if (btn) { if (count > 0) btn.classList.remove('hidden'); else btn.classList.add('hidden'); }
+}
+
+function editarItensMassa(contratoId) {
+  const c = contratos.find(x => x.id === contratoId);
+  if (!c) return;
+  _contratoAbertoId = contratoId; // sub-screen: Fechar returns to detail
+  const checks = document.querySelectorAll(`.item-check-${contratoId}:checked`);
+  const indices = Array.from(checks).map(cb => parseInt(cb.dataset.idx));
+  if (indices.length === 0) { showToast('Nenhum item selecionado'); return; }
+
+  const body = document.getElementById("modal-contrato-body");
+  const prevHtml = body.innerHTML;
+
+  const rowsHtml = indices.map(idx => {
+    const item = c.itens[idx];
+    if (!item) return '';
+    return `<tr data-edit-idx="${idx}">
+      <td class="text-center" style="font-size:.75rem;font-weight:700">${item.num}</td>
+      <td style="font-size:.75rem;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(item.descricao)}">${esc(item.descricao)}</td>
+      <td><input type="text" class="edit-ncm" value="${esc(item.ncm || '')}" placeholder="0000.00.00" style="width:100px;font-size:.72rem;font-family:monospace;padding:.2rem .3rem;background:var(--s1);border:1px solid var(--bdr);border-radius:4px;color:var(--cyan)"></td>
+      <td><input type="text" class="edit-unidade" value="${esc(item.unidade || 'UN')}" style="width:50px;font-size:.72rem;padding:.2rem .3rem;background:var(--s1);border:1px solid var(--bdr);border-radius:4px;color:var(--txt);text-transform:uppercase"></td>
+      <td><input type="number" class="edit-preco" value="${item.precoUnitario || 0}" step="0.01" style="width:80px;font-size:.72rem;font-family:monospace;padding:.2rem .3rem;background:var(--s1);border:1px solid var(--bdr);border-radius:4px;color:var(--green);text-align:right"></td>
+      <td><input type="text" class="edit-sku" value="${esc(item.sku || '')}" placeholder="auto" style="width:80px;font-size:.72rem;font-family:monospace;padding:.2rem .3rem;background:var(--s1);border:1px solid var(--bdr);border-radius:4px;color:var(--txt)"></td>
+    </tr>`;
+  }).join('');
+
+  body.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.8rem;flex-wrap:wrap;gap:.5rem">
+      <div>
+        <h3 style="margin:0 0 .2rem;font-size:1rem">Editando ${indices.length} itens</h3>
+        <p style="font-size:.78rem;color:var(--dim);margin:0">Altere os valores diretamente em cada linha</p>
+      </div>
+      <div style="display:flex;gap:.4rem;align-items:center">
+        <span style="font-size:.72rem;color:var(--dim)">Preencher todos:</span>
+        <input type="text" id="fill-all-ncm" placeholder="NCM" style="width:90px;font-size:.7rem;font-family:monospace;padding:.2rem .3rem;background:var(--s1);border:1px solid var(--bdr);border-radius:4px">
+        <button class="btn btn-sm" style="font-size:.65rem;padding:.2rem .4rem;background:rgba(59,130,246,.15);color:var(--blue);border:none;font-weight:700;cursor:pointer" id="btn-fill-all-ncm" title="Aplicar NCM em todos os itens da lista">Aplicar NCM</button>
+      </div>
+    </div>
+
+    <div style="max-height:55vh;overflow-y:auto;border:1px solid var(--bdr);border-radius:8px">
+      <table style="font-size:.78rem;width:100%" id="tabela-edicao-massa">
+        <thead><tr style="position:sticky;top:0;background:var(--s2);z-index:1">
+          <th>#</th><th>Descricao</th><th>NCM</th><th>Unid</th><th>Preco</th><th>SKU</th>
+        </tr></thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+    </div>
+
+    <div style="display:flex;justify-content:flex-end;gap:.5rem;margin-top:1rem">
+      <button class="btn btn-sm btn-outline" id="btn-cancelar-massa">Voltar</button>
+      <button class="btn btn-sm btn-green" id="btn-salvar-massa" style="font-weight:700">Salvar ${indices.length} itens</button>
+    </div>`;
+
+  document.getElementById('btn-cancelar-massa').onclick = () => { body.innerHTML = prevHtml; };
+  document.getElementById('btn-salvar-massa').onclick = () => { salvarEdicaoMassa(contratoId); };
+  document.getElementById('btn-fill-all-ncm').onclick = () => {
+    const val = document.getElementById('fill-all-ncm').value.trim();
+    if (!val) return;
+    document.querySelectorAll('#tabela-edicao-massa .edit-ncm').forEach(input => { input.value = val; });
+    showToast('NCM aplicado em todos os itens');
+  };
+}
+
+function salvarEdicaoMassa(contratoId) {
+  const c = contratos.find(x => x.id === contratoId);
+  if (!c) return;
+  const rows = document.querySelectorAll('#tabela-edicao-massa tbody tr[data-edit-idx]');
+  let updated = 0;
+  rows.forEach(row => {
+    const idx = parseInt(row.dataset.editIdx);
+    const item = c.itens[idx];
+    if (!item) return;
+    const ncm = row.querySelector('.edit-ncm').value.trim();
+    const unidade = row.querySelector('.edit-unidade').value.trim();
+    const preco = row.querySelector('.edit-preco').value.trim();
+    const sku = row.querySelector('.edit-sku').value.trim();
+    if (ncm !== (item.ncm || '')) item.ncm = ncm;
+    if (unidade) item.unidade = unidade.toUpperCase();
+    if (preco) item.precoUnitario = parseFloat(preco);
+    if (sku) item.sku = sku;
+    updated++;
+  });
+  saveContratos();
+  abrirContrato(contratoId);
+  showToast(`${updated} itens salvos`);
+}
+
+async function cadastrarTinyItem(contratoId, itemIdx) {
+  const c = contratos.find(x => x.id === contratoId);
+  if (!c || !c.itens[itemIdx]) return;
+  const item = c.itens[itemIdx];
+  const ncmCode = item.ncm || (findNcmLocal(item.descricao) || {}).ncm || "";
+  if (!confirm(`Cadastrar no Tiny ERP:\n\n${item.descricao}\nUnid: ${item.unidade} | Preço: ${brl.format(item.precoUnitario)}\nNCM: ${ncmCode || '(sem NCM)'}\nMarca: Licit-IAX`)) return;
   try {
     const resp = await fetch("/api/tiny-produtos", {
       method: "POST",
@@ -3801,8 +4243,11 @@ async function cadastrarTiny(contratoId) {
 
   // Show editable NCM table
   let tableHtml = `
-    <h4 style="margin-bottom:.8rem">Revisao NCM — ${c.itens.length} itens</h4>
-    <p style="color:var(--mut);font-size:.8rem;margin-bottom:.8rem">Verifique os codigos NCM antes de enviar. Itens sem NCM serao cadastrados sem classificacao fiscal.</p>
+    <div style="display:flex;align-items:center;gap:.8rem;margin-bottom:.8rem">
+      <h4 style="margin:0">Revisao NCM — ${c.itens.length} itens</h4>
+      <span style="background:rgba(139,92,246,.15);color:#8b5cf6;padding:.2rem .6rem;border-radius:999px;font-size:.7rem;font-weight:700">Licit-IAX</span>
+    </div>
+    <p style="color:var(--mut);font-size:.8rem;margin-bottom:.8rem">Verifique os codigos NCM antes de enviar. Os produtos serao marcados com a tag <strong>Licit-IAX</strong> no Tiny.</p>
     <div class="table-wrap" style="max-height:350px;overflow-y:auto">
       <table>
         <thead><tr><th>#</th><th>Item</th><th>Unid</th><th class="text-right">Preco</th><th>NCM</th><th>Status</th></tr></thead>
@@ -3868,7 +4313,10 @@ async function enviarTiny(contratoId) {
     // Show results
     const s = data.summary;
     let html = `
-      <h4 style="margin-bottom:.8rem">Resultado — Cadastro Tiny ERP</h4>
+      <div style="display:flex;align-items:center;gap:.8rem;margin-bottom:.8rem">
+        <h4 style="margin:0">Resultado — Cadastro Tiny ERP</h4>
+        <span style="background:rgba(139,92,246,.15);color:#8b5cf6;padding:.2rem .6rem;border-radius:999px;font-size:.7rem;font-weight:700">Licit-IAX</span>
+      </div>
       <div style="display:flex;gap:1rem;margin-bottom:1rem">
         <div class="kpi" style="margin:0;flex:1"><div class="kpi-label">Cadastrados</div><div class="kpi-value green" style="font-size:1.3rem">${s.cadastrados}</div></div>
         <div class="kpi" style="margin:0;flex:1"><div class="kpi-label">Ja Existiam</div><div class="kpi-value blue" style="font-size:1.3rem">${s.existentes}</div></div>
@@ -3930,6 +4378,14 @@ async function enviarTiny(contratoId) {
   renderAll();
   // Push local data to cloud (populates Supabase with existing data)
   try { await syncToCloud(); } catch(_) {}
+
+  // Auto-refresh when portal escola updates localStorage (cross-tab sync)
+  window.addEventListener('storage', (e) => {
+    if (e.key === CONTRACTS_KEY || e.key === ORDERS_KEY) {
+      loadData();
+      renderAll();
+    }
+  });
 })();
 </script>
 

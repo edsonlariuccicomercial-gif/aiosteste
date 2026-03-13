@@ -754,9 +754,8 @@ function showContractSelection() {
           <div class="school-folder-meta">${currentUser.municipio || ''} · ${currentUser.sre || ''} · CNPJ: ${currentUser.cnpj || ''}</div>
         </div>
       </div>
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+      <div style="margin-bottom:1rem;">
         <div style="font-size:0.85rem;color:var(--muted);">Selecione um contrato para fazer pedidos:</div>
-        <button class="btn-maximize" onclick="toggleContractFullscreen()" title="Maximizar">⛶ Expandir</button>
       </div>
       <div class="contract-grid" id="contract-grid-main">${cardsHtml}</div>
     </div>
