@@ -212,7 +212,10 @@
     }
     .school-folder-name { font-size:1.2rem; font-weight:800; }
     .school-folder-meta { font-size:0.8rem; color:var(--muted); margin-top:0.2rem; }
-    .contract-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(250px,1fr)); gap:1rem; }
+    .contract-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(250px,1fr)); gap:1rem; max-height:60vh; overflow-y:auto; padding-right:0.3rem; }
+    .contract-grid::-webkit-scrollbar { width:6px; }
+    .contract-grid::-webkit-scrollbar-track { background:transparent; }
+    .contract-grid::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
     .contract-card {
       background:var(--bg); border:1px solid var(--border); border-radius:12px;
       padding:1.2rem; cursor:pointer; transition:all 0.2s; position:relative;
@@ -228,6 +231,24 @@
     .badge-ativo { background:var(--success-light); color:var(--success); }
     .badge-arp { background:var(--accent-light); color:var(--accent); }
     .contract-card-value { font-size:1.1rem; font-weight:800; color:var(--success); margin-top:0.5rem; }
+    /* Fullscreen contract overlay */
+    .contract-fullscreen-overlay {
+      display:none; position:fixed; inset:0; z-index:9999; background:var(--bg);
+      overflow-y:auto; padding:1.5rem;
+    }
+    .contract-fullscreen-overlay.active { display:block; }
+    .contract-fullscreen-overlay .contract-grid { max-height:none; }
+    .contract-fullscreen-bar {
+      display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;
+      padding-bottom:0.8rem; border-bottom:1px solid var(--border);
+    }
+    .contract-fullscreen-bar h3 { font-size:1.1rem; font-weight:700; margin:0; }
+    .btn-maximize {
+      background:none; border:1px solid var(--border); border-radius:8px; padding:0.3rem 0.7rem;
+      color:var(--muted); cursor:pointer; font-size:0.78rem; display:flex; align-items:center; gap:0.3rem;
+      transition:all 0.2s;
+    }
+    .btn-maximize:hover { border-color:var(--accent); color:var(--accent); }
 
     /* ─── ORDER ACTION BUTTONS ─── */
     .order-actions { display:flex; gap:0.4rem; flex-wrap:wrap; }
@@ -277,7 +298,6 @@
     <div class="topbar-right">
       <span>ARP: <strong>Lariucci & Ribeiro Pereira</strong></span>
       <span class="saldo-badge saldo-ok" id="topbar-saldo"></span>
-      <a href="index.html" class="btn btn-outline btn-sm" style="color:#22c55e;text-decoration:none" onclick="localStorage.setItem('nexedu.activeModule','radar')">← Licit-IAX</a>
       <button class="btn btn-outline btn-sm" onclick="logout()">Sair</button>
     </div>
   </div>
@@ -299,7 +319,13 @@
     </div>
 
     <!-- CONTRACT INFO PANEL (shown when contract selected) -->
-    <div id="contract-info-panel" class="hidden" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1rem 1.5rem;margin-bottom:1rem;display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.8rem;font-size:.82rem">
+    <div id="contract-info-wrapper" class="hidden" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;margin-bottom:1rem;position:relative;transition:all .3s;">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:.6rem 1.2rem .2rem;border-bottom:1px solid rgba(71,85,105,.15);">
+        <span style="font-size:.72rem;color:var(--muted);text-transform:uppercase;font-weight:700;">Dados do Contrato</span>
+        <button class="btn-maximize" onclick="toggleInfoPanel()" id="btn-toggle-info" title="Expandir/Recolher">⛶ Expandir</button>
+      </div>
+      <div id="contract-info-panel" style="padding:.8rem 1.2rem;display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.8rem;font-size:.82rem;max-height:4.5rem;overflow:hidden;transition:max-height .3s ease;">
+      </div>
     </div>
 
     <div id="tab-catalogo-wrapper" class="hidden">
@@ -427,7 +453,7 @@
       <div id="meus-pedidos-resumo" style="display:none;margin-bottom:1rem;padding:1rem 1.5rem;background:var(--surface);border:1px solid var(--border);border-radius:10px;"></div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Protocolo</th><th>Contrato</th><th>Data</th><th>Itens</th><th>Valor Total</th><th>Obs</th><th>Status</th><th>Acoes</th></tr></thead>
+          <thead><tr><th>Protocolo</th><th>Contrato</th><th>Data</th><th>Itens</th><th>Valor Total</th><th>Status</th><th>Acoes</th></tr></thead>
           <tbody id="meus-pedidos-tbody"></tbody>
         </table>
       </div>
@@ -435,6 +461,15 @@
     </div>
 
   </div>
+</div>
+
+<!-- FULLSCREEN: Contratos -->
+<div id="contract-fullscreen-overlay" class="contract-fullscreen-overlay">
+  <div class="contract-fullscreen-bar">
+    <h3><span class="fs-school-name"></span> — Contratos</h3>
+    <button class="btn-maximize" onclick="toggleContractFullscreen()">✕ Fechar</button>
+  </div>
+  <div class="contract-grid"></div>
 </div>
 
 <!-- MODAL: Detalhes do Pedido -->
@@ -719,10 +754,20 @@ function showContractSelection() {
           <div class="school-folder-meta">${currentUser.municipio || ''} · ${currentUser.sre || ''} · CNPJ: ${currentUser.cnpj || ''}</div>
         </div>
       </div>
-      <div style="font-size:0.85rem;color:var(--muted);margin-bottom:1rem;">Selecione um contrato para fazer pedidos:</div>
-      <div class="contract-grid">${cardsHtml}</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+        <div style="font-size:0.85rem;color:var(--muted);">Selecione um contrato para fazer pedidos:</div>
+        <button class="btn-maximize" onclick="toggleContractFullscreen()" title="Maximizar">⛶ Expandir</button>
+      </div>
+      <div class="contract-grid" id="contract-grid-main">${cardsHtml}</div>
     </div>
   `;
+
+  // Also update fullscreen overlay content
+  const fsOverlay = document.getElementById('contract-fullscreen-overlay');
+  if (fsOverlay) {
+    fsOverlay.querySelector('.contract-grid').innerHTML = cardsHtml;
+    fsOverlay.querySelector('.fs-school-name').textContent = schoolName;
+  }
 
   // Show contract selection, hide tabs and catalog
   document.getElementById('contract-selection-screen').classList.remove('hidden');
@@ -734,6 +779,13 @@ function showContractSelection() {
 }
 
 function selectContract(type, idx) {
+  // Close fullscreen overlay if open
+  const fsOverlay = document.getElementById('contract-fullscreen-overlay');
+  if (fsOverlay && fsOverlay.classList.contains('active')) {
+    fsOverlay.classList.remove('active');
+    document.body.style.overflow = '';
+  }
+
   const contracts = getSchoolContracts();
 
   if (type === 'arp') {
@@ -791,6 +843,7 @@ function selectContract(type, idx) {
 
   // Show contract info panel
   const infoPanel = document.getElementById('contract-info-panel');
+  const infoWrapper = document.getElementById('contract-info-wrapper');
   if (selectedContract.contrato) {
     const cc = selectedContract.contrato;
     let infoHtml = '';
@@ -799,14 +852,19 @@ function selectContract(type, idx) {
     if (cc.objeto) infoHtml += `<div><span style="color:var(--dim);font-size:.72rem;text-transform:uppercase;display:block">Objeto</span><strong>${cc.objeto.length > 50 ? cc.objeto.slice(0,48) + '...' : cc.objeto}</strong></div>`;
     if (cc.vigencia) infoHtml += `<div><span style="color:var(--dim);font-size:.72rem;text-transform:uppercase;display:block">Vigencia</span><strong>${cc.vigencia}</strong></div>`;
     if (cc.observacoes) infoHtml += `<div style="grid-column:1/-1"><span style="color:var(--dim);font-size:.72rem;text-transform:uppercase;display:block">Observacoes</span><span style="color:var(--muted)">${cc.observacoes}</span></div>`;
+    if (cc.recurso) infoHtml += `<div><span style="color:var(--dim);font-size:.72rem;text-transform:uppercase;display:block">Recurso</span><strong>${cc.recurso}${cc.tipo ? ' (' + cc.tipo + ')' : ''}</strong></div>`;
+    if (cc.fornecedor) infoHtml += `<div><span style="color:var(--dim);font-size:.72rem;text-transform:uppercase;display:block">Fornecedor</span><strong>${cc.fornecedor}</strong></div>`;
     if (infoHtml) {
       infoPanel.innerHTML = infoHtml;
-      infoPanel.classList.remove('hidden');
+      infoWrapper.classList.remove('hidden');
+      // Reset to collapsed state
+      infoPanel.style.maxHeight = '4.5rem';
+      document.getElementById('btn-toggle-info').innerHTML = '⛶ Expandir';
     } else {
-      infoPanel.classList.add('hidden');
+      infoWrapper.classList.add('hidden');
     }
   } else {
-    infoPanel.classList.add('hidden');
+    infoWrapper.classList.add('hidden');
   }
 
   // Hide contract selection, show tabs and catalog
@@ -826,12 +884,34 @@ function selectContract(type, idx) {
   renderCatalog();
 }
 
+function toggleInfoPanel() {
+  const panel = document.getElementById('contract-info-panel');
+  const btn = document.getElementById('btn-toggle-info');
+  if (panel.style.maxHeight === 'none' || panel.style.maxHeight === '') {
+    panel.style.maxHeight = '4.5rem';
+    btn.innerHTML = '⛶ Expandir';
+  } else {
+    panel.style.maxHeight = 'none';
+    btn.innerHTML = '⊟ Recolher';
+  }
+}
+
+function toggleContractFullscreen() {
+  const overlay = document.getElementById('contract-fullscreen-overlay');
+  overlay.classList.toggle('active');
+  if (overlay.classList.contains('active')) {
+    document.body.style.overflow = 'hidden';
+  } else {
+    document.body.style.overflow = '';
+  }
+}
+
 function backToContracts() {
   cart = {};
   selectedContract = null;
   updateCartFloat();
-  const infoPanel = document.getElementById('contract-info-panel');
-  if (infoPanel) infoPanel.classList.add('hidden');
+  const infoWrapper = document.getElementById('contract-info-wrapper');
+  if (infoWrapper) infoWrapper.classList.add('hidden');
   showContractSelection();
 }
 
@@ -861,7 +941,14 @@ function goToPhase(n) {
   }
 
   if (n === 2) renderCart();
-  if (n === 3) renderReview();
+  if (n === 3) {
+    renderReview();
+    // Auto-fill obs with contract's observacoes field only
+    const obsEl = document.getElementById('order-obs');
+    if (obsEl && selectedContract && selectedContract.contrato) {
+      obsEl.value = selectedContract.contrato.observacoes || '';
+    }
+  }
 }
 
 // ─── CATALOG ───
@@ -1136,20 +1223,6 @@ function renderReview() {
     ${!canOrder ? '<div style="color:var(--danger);font-size:0.8rem;margin-top:0.5rem;font-weight:600;">⚠️ Saldo insuficiente! Reduza itens do pedido.</div>' : ''}
   `;
 
-  // Auto-preencher campo Observações com dados do contrato
-  const obsField = document.getElementById('order-obs');
-  if (obsField && !obsField.value) {
-    const _ctr = selectedContract ? selectedContract.contrato : null;
-    if (_ctr) {
-      const parts = [];
-      if (_ctr.processo) parts.push('Processo: ' + _ctr.processo);
-      if (_ctr.edital) parts.push('Edital: ' + _ctr.edital);
-      if (_ctr.objeto) parts.push('Objeto: ' + _ctr.objeto);
-      if (_ctr.vigencia) parts.push('Vigência: ' + _ctr.vigencia);
-      if (_ctr.observacoes) parts.push(_ctr.observacoes);
-      if (parts.length > 0) obsField.value = parts.join(' | ');
-    }
-  }
 }
 
 // ─── CONFIRM ORDER ───
@@ -1161,7 +1234,7 @@ async function confirmOrder() {
     const prod = schoolProducts.find(p => p.produto === name);
     if (prod) {
       total += prod.preco * qty;
-      orderItems.push({ sku: prod.sku || name, description: name, name, qty, unitPrice: prod.preco, itemNum: prod.item });
+      orderItems.push({ sku: prod.sku || '', description: name, name, qty, unitPrice: prod.preco, itemNum: prod.item });
     }
   });
 
@@ -1194,6 +1267,7 @@ async function confirmOrder() {
         items: orderItems,
         totalValue: total,
         obs: document.getElementById('order-obs').value || "",
+        marcador: 'Licit-IAX',
         // Dados para NF-e
         logradouro: currentUser.logradouro || "",
         numero: currentUser.numero || "",
@@ -1267,12 +1341,6 @@ async function confirmOrder() {
 
   const _ctrId = (selectedContract && selectedContract.contrato) ? selectedContract.contrato.id : (currentUser.arp_vinculada || "ARP-LARIUCCI-2025");
   const _ctr = selectedContract ? selectedContract.contrato : null;
-  const _obsParts = [];
-  if (_ctr && _ctr.processo) _obsParts.push("Processo: " + _ctr.processo);
-  if (_ctr && _ctr.edital) _obsParts.push("Edital: " + _ctr.edital);
-  if (_ctr && _ctr.objeto) _obsParts.push("Objeto: " + _ctr.objeto);
-  if (_ctr && _ctr.vigencia) _obsParts.push("Vigencia: " + _ctr.vigencia);
-  if (_ctr && _ctr.observacoes) _obsParts.push(_ctr.observacoes);
   escolaOrders.push({
     protocol: proto,
     school: currentUser.nome_completo,
@@ -1283,7 +1351,8 @@ async function confirmOrder() {
     olistStatus: olistStatus,
     items: orderItems,
     contratoId: _ctrId,
-    obsContrato: _obsParts.join(" | ")
+    marcador: 'Licit-IAX',
+    obs: document.getElementById('order-obs').value || ''
   });
   localStorage.setItem('gdp.escola.pedidos', JSON.stringify(escolaOrders));
   schedulCloudSync();
@@ -1297,7 +1366,7 @@ async function confirmOrder() {
     itens: orderItems.map(i => ({ itemNum: i.itemNum, descricao: i.name, qtd: i.qty, precoUnitario: i.unitPrice })),
     valor: total,
     status: 'recebido',
-    obs: _obsParts.join(" | "),
+    marcador: 'Licit-IAX',
     saldoDeduzido: true
   };
   fetch("/api/sync-pedidos", {
@@ -1316,10 +1385,10 @@ async function confirmOrder() {
     }
   } catch(_) {}
 
-  // Deduzir saldo do contrato imediatamente
+  // Deduzir saldo do contrato e atualizar schoolProducts em memória
   try {
     const contratosLocal = JSON.parse(localStorage.getItem('gdp.contratos.v1') || '[]');
-    const ctrLocal = contratosLocal.find(c => c.id === ctrId);
+    const ctrLocal = contratosLocal.find(c => c.id === _ctrId);
     if (ctrLocal) {
       orderItems.forEach(oi => {
         const normName = (oi.name || '').toUpperCase().trim();
@@ -1328,11 +1397,22 @@ async function confirmOrder() {
           const saldo = item.qtdContratada - item.qtdEntregue;
           item.qtdEntregue += Math.min(oi.qty, saldo);
         }
+        // Atualizar schoolProducts em memória para refletir na aba Saldo
+        const sp = schoolProducts.find(p => p.produto === oi.name || p.item === oi.itemNum);
+        if (sp) {
+          sp.qtdEntregue = (sp.qtdEntregue || 0) + oi.qty;
+          sp.qtdDisponivel = Math.max(0, (sp.qtdContratada || 0) - sp.qtdEntregue);
+        }
       });
       localStorage.setItem('gdp.contratos.v1', JSON.stringify(contratosLocal));
       schedulCloudSync();
     }
   } catch(_) {}
+
+  // Limpar carrinho após finalizar pedido
+  cart = {};
+  updateCartFloat();
+  document.getElementById('order-obs').value = '';
 }
 
 function newOrder() {
@@ -1383,6 +1463,29 @@ function renderSaldo() {
 function renderMeusPedidos() {
   if (!currentUser) return;
   let myOrders = escolaOrders.filter(o => o.school === currentUser.nome_completo || o.school === currentUser.nome);
+
+  // Also include cronograma/agendado orders from supplier system
+  let pedidosV1All = [];
+  try { pedidosV1All = JSON.parse(localStorage.getItem('gdp.pedidos.v1') || '[]'); } catch(_) {}
+  const cronoPedidos = pedidosV1All.filter(p => p.cronograma && p.status === 'agendado');
+  cronoPedidos.forEach(cp => {
+    // Avoid duplicates — don't add if already present by ID
+    if (myOrders.find(o => o.protocol === cp.id)) return;
+    myOrders.push({
+      protocol: cp.id,
+      contratoId: cp.contratoId,
+      school: cp.escola,
+      date: cp.dataEntrega || cp.data,
+      items: (cp.itens || []).map(i => ({ name: i.descricao, qty: i.qtd, unit: i.unidade, unitPrice: i.precoUnitario, itemNum: i.itemNum })),
+      itemCount: (cp.itens || []).length,
+      total: cp.valor || 0,
+      obs: cp.obs || '',
+      marcador: cp.marcador || '',
+      cronograma: true,
+      statusAgendado: true
+    });
+  });
+
   // Filter by selected contract if inside a contract view
   if (selectedContract && selectedContract.contrato) {
     const ctrId = selectedContract.contrato.id;
@@ -1446,35 +1549,45 @@ function renderMeusPedidos() {
   }
   empty.style.display = 'none';
 
-  // Load contracts for obs lookup
+  // Load contracts for label lookup
   let _allContratos = [];
   try { _allContratos = JSON.parse(localStorage.getItem('gdp.contratos.v1')) || []; } catch(_) {}
 
   tbody.innerHTML = myOrders.map((o, idx) => {
-    const statusBadge = o.olistId ?
-      '<span style="background:rgba(34,197,94,.12);color:var(--success);padding:.2rem .6rem;border-radius:999px;font-size:.7rem;font-weight:700;">Enviado</span>' :
-      '<span style="background:rgba(245,158,11,.12);color:var(--warning);padding:.2rem .6rem;border-radius:999px;font-size:.7rem;font-weight:700;">Pendente</span>';
-    const esc = o.protocol.replace(/'/g, "\\'");
-    // Build obs from contract data in real-time
-    const ctr = _allContratos.find(c => c.id === o.contratoId);
-    let obsText = o.obsContrato || '';
-    if (!obsText && ctr) {
-      const parts = [];
-      if (ctr.processo) parts.push('Processo: ' + ctr.processo);
-      if (ctr.edital) parts.push('Edital: ' + ctr.edital);
-      if (ctr.objeto) parts.push('Objeto: ' + ctr.objeto);
-      if (ctr.vigencia) parts.push('Vigência: ' + ctr.vigencia);
-      if (ctr.observacoes) parts.push(ctr.observacoes);
-      obsText = parts.join(' | ');
+    let statusBadge;
+    if (o.statusAgendado) {
+      statusBadge = '<span style="background:rgba(99,102,241,.12);color:#6366f1;padding:.2rem .6rem;border-radius:999px;font-size:.7rem;font-weight:700;">Agendado</span>';
+    } else if (o.olistId) {
+      statusBadge = '<span style="background:rgba(34,197,94,.12);color:var(--success);padding:.2rem .6rem;border-radius:999px;font-size:.7rem;font-weight:700;">Enviado</span>';
+    } else {
+      statusBadge = '<span style="background:rgba(245,158,11,.12);color:var(--warning);padding:.2rem .6rem;border-radius:999px;font-size:.7rem;font-weight:700;">Pendente</span>';
     }
+    const esc = o.protocol.replace(/'/g, "\\'");
+    const ctr = _allContratos.find(c => c.id === o.contratoId);
     const ctrLabel = ctr ? (ctr.processo ? 'Proc. ' + ctr.processo : ctr.id) : (o.contratoId || '-');
-    const obsShort = obsText.length > 40 ? obsText.slice(0, 38) + '...' : (obsText || '-');
-    return '<tr><td style="font-family:monospace;font-weight:700;">' + o.protocol + '</td><td style="font-size:.8rem">' + ctrLabel + '</td><td>' + (o.date || '') + '</td><td>' + (o.itemCount || 0) + '</td><td style="color:var(--success);font-weight:700;">R$ ' + fmt(o.total || 0) + '</td><td style="font-size:.75rem;color:var(--muted);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + obsText.replace(/"/g, '&quot;') + '">' + obsShort + '</td><td>' + statusBadge + '</td><td><div class="order-actions"><button class="btn btn-sm btn-outline" onclick="verPedido(\'' + esc + '\')" title="Ver detalhes">Ver</button><button class="btn btn-sm btn-outline" onclick="editarPedido(\'' + esc + '\')" title="Editar pedido" style="color:var(--warning);border-color:var(--warning);">Editar</button><button class="btn btn-sm btn-outline" onclick="downloadPedidoPDF(\'' + esc + '\')" title="Baixar PDF" style="color:var(--accent);border-color:var(--accent);">PDF</button></div></td></tr>';
+    const marcadorBadge = o.marcador ? '<span style="background:rgba(139,92,246,.12);color:var(--purple);padding:.15rem .5rem;border-radius:999px;font-size:.65rem;font-weight:700;margin-left:.3rem">' + o.marcador + '</span>' : '';
+    return '<tr><td style="font-family:monospace;font-weight:700;">' + o.protocol + marcadorBadge + '</td><td style="font-size:.8rem">' + ctrLabel + '</td><td>' + (o.date || '') + '</td><td>' + (o.itemCount || 0) + '</td><td style="color:var(--success);font-weight:700;">R$ ' + fmt(o.total || 0) + '</td><td>' + statusBadge + '</td><td><div class="order-actions"><button class="btn btn-sm btn-outline" onclick="verPedido(\'' + esc + '\')" title="Ver detalhes">Ver</button><button class="btn btn-sm btn-outline" onclick="downloadPedidoPDF(\'' + esc + '\')" title="Baixar PDF" style="color:var(--accent);border-color:var(--accent);">PDF</button></div></td></tr>';
   }).join('');
 }
 
 function verPedido(protocol) {
-  const order = escolaOrders.find(o => o.protocol === protocol);
+  let order = escolaOrders.find(o => o.protocol === protocol);
+  // Also search cronograma orders from pedidos.v1
+  if (!order) {
+    try {
+      const pv1 = JSON.parse(localStorage.getItem('gdp.pedidos.v1') || '[]');
+      const cp = pv1.find(p => p.id === protocol && p.cronograma);
+      if (cp) {
+        order = {
+          protocol: cp.id, contratoId: cp.contratoId, school: cp.escola,
+          date: cp.dataEntrega || cp.data, total: cp.valor || 0,
+          items: (cp.itens || []).map(i => ({ name: i.descricao, qty: i.qtd, unit: i.unidade, unitPrice: i.precoUnitario, itemNum: i.itemNum })),
+          itemCount: (cp.itens || []).length, obs: cp.obs || '', marcador: cp.marcador || '',
+          cronograma: true, statusAgendado: true
+        };
+      }
+    } catch(_) {}
+  }
   if (!order) return;
 
   const modal = document.getElementById('modal-pedido');
@@ -1483,7 +1596,7 @@ function verPedido(protocol) {
   // Lookup contract data for obs
   let _ctrModal = null;
   try { const _cs = JSON.parse(localStorage.getItem('gdp.contratos.v1') || '[]'); _ctrModal = _cs.find(c => c.id === order.contratoId); } catch(_) {}
-  let _obsModal = order.obsContrato || '';
+  let _obsModal = order.obsContrato || order.obs || '';
   if (!_obsModal && _ctrModal) {
     const pp = [];
     if (_ctrModal.processo) pp.push('Processo: ' + _ctrModal.processo);
@@ -1499,12 +1612,16 @@ function verPedido(protocol) {
   html += '<div><div style="font-size:.72rem;color:var(--muted);text-transform:uppercase;margin-bottom:.3rem">Data</div><div style="font-weight:700">' + (order.date || '') + '</div></div>';
   html += '<div><div style="font-size:.72rem;color:var(--muted);text-transform:uppercase;margin-bottom:.3rem">Valor Total</div><div style="font-weight:700;color:var(--success);font-size:1.2rem">R$ ' + fmt(order.total || 0) + '</div></div>';
   html += '<div><div style="font-size:.72rem;color:var(--muted);text-transform:uppercase;margin-bottom:.3rem">Status Olist</div><div style="font-weight:700">' + (order.olistId || 'Pendente') + '</div></div>';
+  if (order.marcador) {
+    html += '<div><div style="font-size:.72rem;color:var(--muted);text-transform:uppercase;margin-bottom:.3rem">Marcador</div><div><span style="background:rgba(139,92,246,.12);color:var(--purple);padding:.2rem .6rem;border-radius:999px;font-size:.75rem;font-weight:700;">' + order.marcador + '</span></div></div>';
+  }
   if (_ctrModal) {
     const ctrName = _ctrModal.processo ? 'Proc. ' + _ctrModal.processo : _ctrModal.id;
     html += '<div><div style="font-size:.72rem;color:var(--muted);text-transform:uppercase;margin-bottom:.3rem">Contrato</div><div style="font-weight:700">' + ctrName + '</div></div>';
   }
-  if (_obsModal) {
-    html += '<div style="grid-column:1/-1"><div style="font-size:.72rem;color:var(--muted);text-transform:uppercase;margin-bottom:.3rem">Dados do Contrato</div><div style="font-size:.85rem;color:var(--muted)">' + _obsModal + '</div></div>';
+  const _orderObs = order.obs || _obsModal || '';
+  if (_orderObs) {
+    html += '<div style="grid-column:1/-1"><div style="font-size:.72rem;color:var(--muted);text-transform:uppercase;margin-bottom:.3rem">Observações</div><div style="font-size:.85rem;color:var(--muted);white-space:pre-line">' + _orderObs + '</div></div>';
   }
   html += '</div>';
 
@@ -1522,9 +1639,6 @@ function verPedido(protocol) {
   const esc = protocol.replace(/'/g, "\\'");
   html += '<div style="margin-top:1.2rem;display:flex;gap:.6rem;justify-content:flex-end;flex-wrap:wrap">';
   html += '<button class="btn btn-sm btn-outline" onclick="downloadPedidoPDF(\'' + esc + '\')" style="color:var(--accent);border-color:var(--accent);">Baixar PDF</button>';
-  if (!order.olistId) {
-    html += '<button class="btn btn-sm btn-outline" onclick="fecharModalPedido();editarPedido(\'' + esc + '\')" style="color:var(--warning);border-color:var(--warning);">Editar</button>';
-  }
   html += '</div>';
 
   document.getElementById('modal-pedido-body').innerHTML = html;
@@ -1637,7 +1751,22 @@ function excluirPedido(protocol) {
 
 // ─── DOWNLOAD PDF ───
 function downloadPedidoPDF(protocol) {
-  const order = escolaOrders.find(o => o.protocol === protocol);
+  let order = escolaOrders.find(o => o.protocol === protocol);
+  if (!order) {
+    try {
+      const pv1 = JSON.parse(localStorage.getItem('gdp.pedidos.v1') || '[]');
+      const cp = pv1.find(p => p.id === protocol && p.cronograma);
+      if (cp) {
+        order = {
+          protocol: cp.id, contratoId: cp.contratoId, school: cp.escola,
+          date: cp.dataEntrega || cp.data, total: cp.valor || 0,
+          items: (cp.itens || []).map(i => ({ name: i.descricao, qty: i.qtd, unit: i.unidade, unitPrice: i.precoUnitario, itemNum: i.itemNum })),
+          itemCount: (cp.itens || []).length, obs: cp.obs || '', marcador: cp.marcador || '',
+          cronograma: true
+        };
+      }
+    } catch(_) {}
+  }
   if (!order) { alert('Pedido nao encontrado.'); return; }
 
   const items = order.items || [];
@@ -1649,7 +1778,7 @@ function downloadPedidoPDF(protocol) {
   // Lookup contract data
   let ctrData = null;
   try { const cs = JSON.parse(localStorage.getItem('gdp.contratos.v1') || '[]'); ctrData = cs.find(c => c.id === order.contratoId); } catch(_) {}
-  let obsText = order.obsContrato || '';
+  let obsText = order.obs || order.obsContrato || '';
   if (!obsText && ctrData) {
     const pp = [];
     if (ctrData.processo) pp.push('Processo: ' + ctrData.processo);

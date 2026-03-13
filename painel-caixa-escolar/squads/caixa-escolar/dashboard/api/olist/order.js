@@ -123,17 +123,12 @@ function shortenDescription(desc) {
   return s;
 }
 
-function generateSku(item, index) {
-  // Generate structured SKU: CE-{itemNum}-{shortCode}
+function generateSku(item, index, contractId) {
+  // Tiny ERP requires numeric-only codigo
   const num = String(item.itemNum || index + 1).padStart(3, "0");
-  const words = (item.description || item.name || "ITEM")
-    .toUpperCase()
-    .replace(/[^A-Z0-9\s]/g, "")
-    .split(/\s+/)
-    .filter(w => w.length > 2)
-    .slice(0, 2)
-    .join("-");
-  return `CE-${num}-${words || "PROD"}`;
+  const prefix = (contractId || "000000").replace(/[^0-9]/g, "").slice(-6).padStart(6, "0");
+  const rand = String(Math.floor(Math.random() * 99)).padStart(2, "0");
+  return `${prefix}${num}${rand}`;
 }
 
 function toBrDate(value) {
@@ -151,9 +146,12 @@ function toBrDate(value) {
 function buildTinyPayload(order) {
   const itens = (order.items || []).map((item, idx) => {
     const ncmMatch = findNcm(item.description);
+    // Sanitize: Tiny requires numeric-only codigo
+    let codigo = String(item.sku || "").replace(/[^0-9]/g, "");
+    if (!codigo) codigo = generateSku(item, idx, order.contractRef || order.id);
     return {
       item: {
-        codigo: item.sku,
+        codigo,
         descricao: normalizeDescription(item.description),
         ncm: ncmMatch ? ncmMatch.ncm : "",
         unidade: "UN",
@@ -181,8 +179,11 @@ function buildTinyPayload(order) {
         email: order.email || "",
       },
       itens,
-      obs: `LICITIA ${order.id} | ${order.city || ""} | ${order.sre || ""}`.trim(),
-      observacoes: String(order.contractRef || "").trim(),
+      marcadores: [
+        { marcador: { descricao: order.marcador || "Licit-IAX" } },
+      ],
+      obs: order.obs || "",
+      obs_internas: `LICITIA ${order.id} | ${order.city || ""} | ${order.sre || ""}`.trim(),
     },
   };
 }
@@ -205,7 +206,7 @@ export default async function handler(req, res) {
   const body = req.body;
   if (!body) return res.status(400).json({ success: false, error: "JSON invalido" });
 
-  const { orderId, school, cnpj, city, sre, responsible, arp, items, totalValue, obs,
+  const { orderId, school, cnpj, city, sre, responsible, arp, items, totalValue, obs, marcador,
           logradouro, numero, complemento, bairro, cep, uf, ie, telefone, email } = body;
 
   if (!orderId || !school || !items || !items.length) {
@@ -220,7 +221,7 @@ export default async function handler(req, res) {
     sre: sre || "",
     confirmedAt: new Date().toISOString(),
     items: items.map((i, idx) => ({
-      sku: i.sku || generateSku(i, idx),
+      sku: i.sku || generateSku(i, idx, arp || orderId),
       description: i.description || i.name || "",
       qty: i.qty || 0,
       unitPrice: i.unitPrice || 0,
@@ -228,6 +229,8 @@ export default async function handler(req, res) {
     })),
     totalValue: totalValue || 0,
     contractRef: arp || "",
+    marcador: marcador || "Licit-IAX",
+    obs: obs || "",
     // NF-e address fields
     logradouro: logradouro || "",
     numero: numero || "S/N",
@@ -245,9 +248,11 @@ export default async function handler(req, res) {
     const ncmMatch = findNcm(item.description);
     if (!ncmMatch) continue; // skip items without NCM mapping
 
+    // Sanitize: Tiny requires numeric-only codigo
+    const skuNumerico = String(item.sku || "").replace(/[^0-9]/g, "") || generateSku(item, 0, arp || orderId);
     const produto = {
       produto: {
-        codigo: item.sku,
+        codigo: skuNumerico,
         nome: normalizeDescription(item.description),
         ncm: ncmMatch.ncm,
         unidade: "UN",
