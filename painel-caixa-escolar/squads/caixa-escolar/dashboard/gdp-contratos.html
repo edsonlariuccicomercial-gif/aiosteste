@@ -132,7 +132,7 @@
 
   <!-- ===== SIDEBAR ===== -->
   <aside class="sidebar" id="sidebar">
-    <div class="sidebar-brand" style="cursor:pointer" onclick="window.location.href='dashboard-home.html'" title="Voltar ao Dashboard">Licit-IAX</div>
+    <div class="sidebar-brand" style="cursor:pointer" onclick="window.location.href='dashboard-home.html'" title="Voltar ao Dashboard">Licit-AIX</div>
     <nav class="sidebar-nav">
       <button class="sidebar-item" onclick="window.location.href='dashboard-home.html'" title="Dashboard Home">
         <span class="sidebar-icon">🏠</span>
@@ -144,7 +144,7 @@
       </button>
       <button class="sidebar-item" data-module="intel-precos" onclick="window.location.href='index.html';localStorage.setItem('nexedu.activeModule','intel-precos')" title="Inteligência de Preços">
         <span class="sidebar-icon">💰</span>
-        <span class="sidebar-label">INTELIGÊNCIA DE PREÇOS</span>
+        <span class="sidebar-label">INTEL PREÇOS</span>
       </button>
       <button class="sidebar-item active" data-module="gdp" title="Gestão de Pedidos Pós-Licitação">
         <span class="sidebar-icon">📦</span>
@@ -186,10 +186,10 @@
   <div class="tabs">
     <button class="tab active" data-tab="contratos" onclick="switchTab('contratos')">Contratos <span class="count" id="tab-count-contratos">0</span></button>
     <button class="tab" data-tab="itens" onclick="switchTab('itens')">Itens do Contrato <span class="count" id="tab-count-itens">0</span></button>
+    <button class="tab" data-tab="banco-produtos" onclick="switchTab('banco-produtos')">Banco de Produtos <span class="count" id="tab-count-banco-produtos">0</span></button>
     <button class="tab" data-tab="usuarios" onclick="switchTab('usuarios')">Usuarios <span class="count" id="tab-count-usuarios">0</span></button>
     <button class="tab" data-tab="pedidos" onclick="switchTab('pedidos')">Pedidos <span class="count" id="tab-count-pedidos">0</span></button>
     <button class="tab" data-tab="entregas" onclick="switchTab('entregas')">Entregas <span class="count" id="tab-count-entregas">0</span></button>
-    <button class="tab" data-tab="banco-produtos" onclick="switchTab('banco-produtos')">Banco de Produtos <span class="count" id="tab-count-banco-produtos">0</span></button>
   </div>
 
   <!-- Tab: Contratos -->
@@ -466,7 +466,7 @@
         </div>
         <div style="display:flex;gap:.5rem">
           <button class="btn btn-sm btn-outline" onclick="exportarListaCSV()">Exportar CSV</button>
-          <button class="btn btn-sm btn-purple" onclick="exportarListaPDF()">Exportar PDF</button>
+          <button class="btn btn-sm btn-purple" onclick="exportarListaPDF()">Imprimir</button>
           <button class="btn btn-sm btn-outline" onclick="fecharListaCompras()">Fechar</button>
         </div>
       </div>
@@ -2751,7 +2751,7 @@ function importarCronograma() {
         valor: Math.round(valorPedido * 100) / 100,
         status: 'agendado',
         obs: obsStr,
-        marcador: 'Licit-IAX',
+        marcador: 'Licit-AIX',
         saldoDeduzido: false,
         cronograma: true
       });
@@ -3914,7 +3914,7 @@ async function enviarPedidoOlist(pedidoId) {
         items: items,
         totalValue: p.valor,
         arp: "ARP-LARIUCCI-2025",
-        marcador: p.marcador || "Licit-IAX",
+        marcador: p.marcador || "Licit-AIX",
         obs: p.obs || ""
       })
     });
@@ -4376,7 +4376,7 @@ async function cadastrarTinyItem(contratoId, itemIdx) {
   if (!c || !c.itens[itemIdx]) return;
   const item = c.itens[itemIdx];
   const ncmCode = item.ncm || (findNcmLocal(item.descricao) || {}).ncm || "";
-  if (!confirm(`Cadastrar no Tiny ERP:\n\n${item.descricao}\nUnid: ${item.unidade} | Preço: ${brl.format(item.precoUnitario)}\nNCM: ${ncmCode || '(sem NCM)'}\nMarca: Licit-IAX`)) return;
+  if (!confirm(`Cadastrar no Tiny ERP:\n\n${item.descricao}\nUnid: ${item.unidade} | Preço: ${brl.format(item.precoUnitario)}\nNCM: ${ncmCode || '(sem NCM)'}\nMarca: Licit-AIX`)) return;
   try {
     const resp = await fetch("/api/tiny-produtos", {
       method: "POST",
@@ -4418,9 +4418,9 @@ async function cadastrarTiny(contratoId) {
   let tableHtml = `
     <div style="display:flex;align-items:center;gap:.8rem;margin-bottom:.8rem">
       <h4 style="margin:0">Revisao NCM — ${c.itens.length} itens</h4>
-      <span style="background:rgba(139,92,246,.15);color:#8b5cf6;padding:.2rem .6rem;border-radius:999px;font-size:.7rem;font-weight:700">Licit-IAX</span>
+      <span style="background:rgba(139,92,246,.15);color:#8b5cf6;padding:.2rem .6rem;border-radius:999px;font-size:.7rem;font-weight:700">Licit-AIX</span>
     </div>
-    <p style="color:var(--mut);font-size:.8rem;margin-bottom:.8rem">Verifique os codigos NCM antes de enviar. Os produtos serao marcados com a tag <strong>Licit-IAX</strong> no Tiny.</p>
+    <p style="color:var(--mut);font-size:.8rem;margin-bottom:.8rem">Verifique os codigos NCM antes de enviar. Os produtos serao marcados com a tag <strong>Licit-AIX</strong> no Tiny.</p>
     <div class="table-wrap" style="max-height:350px;overflow-y:auto">
       <table>
         <thead><tr><th>#</th><th>Item</th><th>Unid</th><th class="text-right">Preco</th><th>NCM</th><th>Status</th></tr></thead>
@@ -4488,7 +4488,7 @@ async function enviarTiny(contratoId) {
     let html = `
       <div style="display:flex;align-items:center;gap:.8rem;margin-bottom:.8rem">
         <h4 style="margin:0">Resultado — Cadastro Tiny ERP</h4>
-        <span style="background:rgba(139,92,246,.15);color:#8b5cf6;padding:.2rem .6rem;border-radius:999px;font-size:.7rem;font-weight:700">Licit-IAX</span>
+        <span style="background:rgba(139,92,246,.15);color:#8b5cf6;padding:.2rem .6rem;border-radius:999px;font-size:.7rem;font-weight:700">Licit-AIX</span>
       </div>
       <div style="display:flex;gap:1rem;margin-bottom:1rem">
         <div class="kpi" style="margin:0;flex:1"><div class="kpi-label">Cadastrados</div><div class="kpi-value green" style="font-size:1.3rem">${s.cadastrados}</div></div>

@@ -1266,7 +1266,7 @@ async function confirmOrder() {
         items: orderItems,
         totalValue: total,
         obs: document.getElementById('order-obs').value || "",
-        marcador: 'Licit-IAX',
+        marcador: 'Licit-AIX',
         // Dados para NF-e
         logradouro: currentUser.logradouro || "",
         numero: currentUser.numero || "",
@@ -1350,7 +1350,7 @@ async function confirmOrder() {
     olistStatus: olistStatus,
     items: orderItems,
     contratoId: _ctrId,
-    marcador: 'Licit-IAX',
+    marcador: 'Licit-AIX',
     obs: document.getElementById('order-obs').value || ''
   });
   localStorage.setItem('gdp.escola.pedidos', JSON.stringify(escolaOrders));
@@ -1365,7 +1365,7 @@ async function confirmOrder() {
     itens: orderItems.map(i => ({ itemNum: i.itemNum, descricao: i.name, qtd: i.qty, precoUnitario: i.unitPrice })),
     valor: total,
     status: 'recebido',
-    marcador: 'Licit-IAX',
+    marcador: 'Licit-AIX',
     saldoDeduzido: true
   };
   fetch("/api/sync-pedidos", {

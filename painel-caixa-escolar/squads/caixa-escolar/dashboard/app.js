@@ -1,5 +1,5 @@
 /* ===================================================================
-   Painel do Fornecedor — Licit-IAX
+   Painel do Fornecedor — Licit-AIX
    Vanilla JS | SRE Uberaba MVP — Fase 3
    =================================================================== */
 
@@ -501,7 +501,8 @@ async function boot() {
   if (btnVarrer) btnVarrer.style.display = "inline-block";
 
   // Restore active module from localStorage
-  switchModule("radar");
+  const savedModule = localStorage.getItem(MODULE_STORAGE_KEY) || "radar";
+  switchModule(savedModule);
 
   // Load empresa data into topbar if saved
   try {

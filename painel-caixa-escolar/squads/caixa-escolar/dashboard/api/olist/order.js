@@ -315,7 +315,7 @@ function buildTinyPayload(order) {
       },
       itens,
       marcadores: [
-        { marcador: { descricao: order.marcador || "Licit-IAX" } },
+        { marcador: { descricao: order.marcador || "Licit-AIX" } },
       ],
       obs: order.obs || "",
       obs_internas: `LICITIA ${order.id} | ${order.city || ""} | ${order.sre || ""}`.trim(),
@@ -364,7 +364,7 @@ export default async function handler(req, res) {
     })),
     totalValue: totalValue || 0,
     contractRef: arp || "",
-    marcador: marcador || "Licit-IAX",
+    marcador: marcador || "Licit-AIX",
     obs: obs || "",
     // NF-e address fields
     logradouro: logradouro || "",

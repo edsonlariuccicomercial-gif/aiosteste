@@ -1,5 +1,5 @@
 /* ===================================================================
-   Pricing Intelligence Module — Licit-IAX Caixa Escolar
+   Pricing Intelligence Module — Licit-AIX Caixa Escolar
    Fase 5: Dashboard, Multi-Fornecedor, Simulador, Rentabilidade, Alertas
    =================================================================== */
 

@@ -318,7 +318,7 @@ export default async function handler(req, res) {
         situacao: "A",
         classe_ipi: "",
         descricao_complementar: item.descricaoCompleta || "",
-        marca: "Licit-IAX",
+        marca: "Licit-AIX",
       },
     };
 

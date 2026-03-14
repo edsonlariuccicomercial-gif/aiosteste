@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Licit-IAX — Dashboard</title>
+  <title>Licit-AIX — Dashboard</title>
   <link rel="stylesheet" href="styles.css?v=7" />
   <style>
     /* KPI Cards */
@@ -76,7 +76,7 @@
 
   <!-- ===== SIDEBAR ===== -->
   <aside class="sidebar" id="sidebar">
-    <div class="sidebar-brand">Licit-IAX</div>
+    <div class="sidebar-brand" style="cursor:pointer" onclick="window.location.href='dashboard-home.html'" title="Voltar ao Dashboard">Licit-AIX</div>
     <nav class="sidebar-nav">
       <button class="sidebar-item active" onclick="void(0)" title="Dashboard Home">
         <span class="sidebar-icon">🏠</span>
@@ -88,7 +88,7 @@
       </button>
       <button class="sidebar-item" data-module="intel-precos" onclick="window.location.href='index.html';localStorage.setItem('nexedu.activeModule','intel-precos')" title="Inteligência de Preços">
         <span class="sidebar-icon">💰</span>
-        <span class="sidebar-label">INTELIGÊNCIA DE PREÇOS</span>
+        <span class="sidebar-label">INTEL PREÇOS</span>
       </button>
       <button class="sidebar-item" data-module="gdp" onclick="window.location.href='gdp-contratos.html'" title="Gestão de Pedidos Pós-Licitação">
         <span class="sidebar-icon">📦</span>
@@ -110,7 +110,7 @@
         <button class="sidebar-toggle" id="sidebar-toggle" title="Menu">☰</button>
         <div>
           <p class="eyebrow">Dashboard</p>
-          <h1>Licit-IAX</h1>
+          <h1>Licit-AIX</h1>
         </div>
       </div>
       <div class="topbar-right">
@@ -198,11 +198,11 @@ function carregarKPIs() {
   const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
   let cards = '';
 
-  // Radar
+  // Radar — mesma logica do modulo Radar: orcamentos com status "aberto"
   let oportunidades = 0;
   try {
-    const pre = JSON.parse(localStorage.getItem("caixaescolar.preorcamentos.v1") || "{}");
-    oportunidades = Object.keys(pre).length;
+    const orc = JSON.parse(localStorage.getItem("caixaescolar.orcamentos") || "[]");
+    if (Array.isArray(orc)) oportunidades = orc.filter(o => o.status === "aberto").length;
   } catch(_) {}
 
   if (acesso.radar) {

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Licit-IAX — Painel do Fornecedor</title>
+  <title>Licit-AIX — Painel do Fornecedor</title>
   <link rel="stylesheet" href="styles.css?v=7" />
   <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -14,7 +14,7 @@
 
   <!-- ===== SIDEBAR ===== -->
   <aside class="sidebar" id="sidebar">
-    <div class="sidebar-brand" style="cursor:pointer" onclick="window.location.href='dashboard-home.html'" title="Voltar ao Dashboard">Licit-IAX</div>
+    <div class="sidebar-brand" style="cursor:pointer" onclick="window.location.href='dashboard-home.html'" title="Voltar ao Dashboard">Licit-AIX</div>
     <nav class="sidebar-nav">
       <button class="sidebar-item" onclick="window.location.href='dashboard-home.html'" title="Dashboard Home" style="margin-bottom:8px;border-bottom:1px solid var(--line);padding-bottom:12px;">
         <span class="sidebar-icon">🏠</span>
@@ -26,7 +26,7 @@
       </button>
       <button class="sidebar-item" data-module="intel-precos" title="Inteligência de Preços">
         <span class="sidebar-icon">💰</span>
-        <span class="sidebar-label">INTELIGÊNCIA DE PREÇOS</span>
+        <span class="sidebar-label">INTEL PREÇOS</span>
       </button>
       <button class="sidebar-item" data-module="gdp" title="Gestão de Pedidos Pós-Licitação">
         <span class="sidebar-icon">📦</span>
@@ -48,7 +48,7 @@
         <button class="sidebar-toggle" id="sidebar-toggle" title="Menu">☰</button>
         <div>
           <p class="eyebrow">Painel do Fornecedor</p>
-          <h1>Licit-IAX</h1>
+          <h1>Licit-AIX</h1>
         </div>
       </div>
       <div class="topbar-right">
@@ -753,7 +753,7 @@
           <label style="display:flex;align-items:center;gap:12px;padding:12px;background:var(--bg);border:1px solid var(--line);border-radius:8px;cursor:pointer;">
             <input type="checkbox" id="mod-intel" checked onchange="salvarModulos()">
             <span>💰</span>
-            <div><strong>INTELIGÊNCIA DE PREÇOS</strong><br><span style="font-size:.8rem;color:var(--muted);">Banco de Preços, Pré-Orçamento, Rentabilidade</span></div>
+            <div><strong>INTEL PREÇOS</strong><br><span style="font-size:.8rem;color:var(--muted);">Banco de Preços, Pré-Orçamento, Rentabilidade</span></div>
           </label>
           <label style="display:flex;align-items:center;gap:12px;padding:12px;background:var(--bg);border:1px solid var(--line);border-radius:8px;cursor:pointer;">
             <input type="checkbox" id="mod-gdp" checked onchange="salvarModulos()">
