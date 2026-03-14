@@ -4952,51 +4952,103 @@ async function importarProdutosExcel(file) {
 }
 
 // ===== IMPORT PDF PRODUTOS =====
-function parseProdutosFromText(text) {
+function extractPdfLines(content) {
+  const items = content.items.filter(i => i.str && i.str.trim());
+  if (items.length === 0) return [];
+
+  // Sort by Y descending (top to bottom), then X ascending (left to right)
+  items.sort((a, b) => {
+    const dy = b.transform[5] - a.transform[5];
+    if (Math.abs(dy) > 2) return dy;
+    return a.transform[4] - b.transform[4];
+  });
+
+  // Group items into lines by Y-position (tolerance based on font height)
+  const lines = [];
+  let currentLine = [];
+  let currentY = items[0].transform[5];
+
+  for (const item of items) {
+    const y = item.transform[5];
+    const fontSize = Math.abs(item.transform[3] || item.transform[0] || 10);
+    const tolerance = Math.max(fontSize * 0.5, 4);
+
+    if (Math.abs(y - currentY) > tolerance) {
+      if (currentLine.length > 0) {
+        currentLine.sort((a, b) => a.transform[4] - b.transform[4]);
+        lines.push(currentLine.map(i => i.str).join(" "));
+      }
+      currentLine = [];
+      currentY = y;
+    }
+    currentLine.push(item);
+  }
+  if (currentLine.length > 0) {
+    currentLine.sort((a, b) => a.transform[4] - b.transform[4]);
+    lines.push(currentLine.map(i => i.str).join(" "));
+  }
+  return lines;
+}
+
+function parseProdutosFromLines(lines) {
   const produtos = [];
-  const lines = text.split(/\n/).map(l => l.trim()).filter(l => l.length > 3);
-
-  // Strategy 1: tabular — lines with number prefix (e.g. "1 ARROZ TIPO 1 5KG UN")
-  const reTabular = /^(\d{1,4})[\s.\-–)]+(.{5,})/;
-  const reUnidade = /\b(UN|UND|UNID|UNIDADE|KG|GR|G|LT|L|ML|PCT|PC|PÇ|CX|CJ|FD|DZ|RL|SC|BD|GL|TB|FR|PT|MT|M|PAR|RESMA)\b/i;
+  const reUnidade = /\b(UN|UND|UNID|UNIDADE|KG|GR|LT|L|ML|PCT|PC|PÇ|CX|CJ|FD|DZ|RL|SC|BD|GL|TB|FR|PT|MT|PAR|RESMA|LITRO|PACOTE|CAIXA|FARDO|ROLO|GALAO|FRASCO|POTE|SACO|BALDE|GARRAFA|LATA)\b/i;
+  const reHeader = /descri[cç][aã]o|^produto$|^item$|^unid|^quant|^pre[cç]o|^total|^valor|^marca|cnpj|razao.social|endere[cç]o|telefone|fone|email|p[aá]gina|^lote$|^#$/i;
+  const reNumPrefix = /^(\d{1,5})[\s.\-–)]+(.+)/;
   const reSku = /\b(\d{4,13})\b/;
+  const rePrice = /\b\d{1,3}[.,]\d{2}\b/g;
 
-  for (const line of lines) {
-    const m = reTabular.exec(line);
-    if (!m) continue;
-    let rest = m[2].trim();
-    // Skip header-like lines
-    if (/descri[cç][aã]o|produto|item|unid|quant|pre[cç]o|total|valor/i.test(rest)) continue;
-    // Skip lines that are just numbers or very short
-    if (rest.replace(/[\d\s.,]/g, '').length < 3) continue;
+  // Detect if text is tabular (many lines start with numbers)
+  const numLines = lines.filter(l => reNumPrefix.test(l.trim())).length;
+  const isTabular = numLines > 2 && numLines > lines.length * 0.2;
 
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (line.length < 4) continue;
+    if (reHeader.test(line)) continue;
+    // Skip lines that are purely numeric or price lines
+    if (/^\d[\d\s.,]*$/.test(line)) continue;
+    // Skip common non-product lines
+    if (/^(total|subtotal|obs|observa|pagamento|vencimento|data|emissao)/i.test(line)) continue;
+
+    let rest = line;
+    let num = '';
+
+    // For tabular: extract item number
+    if (isTabular) {
+      const m = reNumPrefix.exec(line);
+      if (!m) continue;
+      num = m[1];
+      rest = m[2].trim();
+    }
+
+    // Must have meaningful text (at least 3 alpha chars)
+    if (rest.replace(/[^a-zA-ZÀ-ú]/g, '').length < 3) continue;
+
+    // Extract unit
     let unidade = "UN";
     const mu = reUnidade.exec(rest);
-    if (mu) { unidade = mu[1].toUpperCase(); rest = rest.replace(mu[0], ' ').trim(); }
+    if (mu) { unidade = mu[1].toUpperCase(); }
+
+    // Extract SKU (4-13 digit number, not a price)
     let sku = "";
-    const ms = reSku.exec(rest);
-    if (ms) { sku = ms[1]; rest = rest.replace(ms[0], ' ').trim(); }
-    // Clean description: remove trailing numbers (qtd/price)
-    let descricao = rest.replace(/[\d.,]+\s*$/, '').replace(/\s{2,}/g, ' ').trim();
-    if (descricao.length < 3) continue;
-    produtos.push({ descricao, sku, unidade });
-  }
-
-  if (produtos.length > 0) return produtos;
-
-  // Strategy 2: non-tabular — each line with sufficient text is a product
-  for (const line of lines) {
-    if (/descri[cç][aã]o|produto|item|unid|quant|pre[cç]o|total|valor|cnpj|razao|social|endere|telefone|fone|email|pagina|p[aá]gina/i.test(line)) continue;
-    if (line.replace(/[\d\s.,;:\-–()/]/g, '').length < 4) continue;
-
-    let unidade = "UN";
-    const mu = reUnidade.exec(line);
-    if (mu) unidade = mu[1].toUpperCase();
-    let sku = "";
-    const ms = reSku.exec(line);
+    const cleanForSku = rest.replace(rePrice, '');
+    const ms = reSku.exec(cleanForSku);
     if (ms) sku = ms[1];
-    let descricao = line.replace(/[\d.,]+\s*$/g, '').replace(/\s{2,}/g, ' ').trim();
-    if (descricao.length < 4) continue;
+
+    // Clean description: remove prices, quantities at end, extra spaces
+    let descricao = rest
+      .replace(rePrice, ' ')         // remove prices
+      .replace(/R\$\s*/gi, '')       // remove R$
+      .replace(/\b\d{1,5}\s*$/g, '') // remove trailing quantity numbers
+      .replace(reUnidade, ' ')       // remove unit from description
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+
+    // Remove leading/trailing dashes, dots
+    descricao = descricao.replace(/^[\s.\-–]+|[\s.\-–]+$/g, '').trim();
+    if (descricao.length < 3) continue;
+
     produtos.push({ descricao, sku, unidade });
   }
   return produtos;
@@ -5010,28 +5062,18 @@ async function importarProdutosPDF(file) {
     const data = await file.arrayBuffer();
     const pdf = await pdfjsLib.getDocument({ data }).promise;
 
-    let allText = "";
+    // Extract lines from each page with proper Y-grouping
+    let allLines = [];
     for (let pg = 1; pg <= pdf.numPages; pg++) {
       const page = await pdf.getPage(pg);
       const content = await page.getTextContent();
-      // Reconstruct lines using Y-position grouping
-      const items = content.items.filter(i => i.str.trim());
-      if (items.length === 0) continue;
-      items.sort((a, b) => b.transform[5] - a.transform[5] || a.transform[4] - b.transform[4]);
-      let currentY = items[0].transform[5];
-      let currentLine = "";
-      for (const item of items) {
-        if (Math.abs(item.transform[5] - currentY) > 3) {
-          allText += currentLine.trim() + "\n";
-          currentLine = "";
-          currentY = item.transform[5];
-        }
-        currentLine += item.str + " ";
-      }
-      if (currentLine.trim()) allText += currentLine.trim() + "\n";
+      const pageLines = extractPdfLines(content);
+      allLines = allLines.concat(pageLines);
     }
 
-    if (!allText.trim()) { showToast("PDF sem texto reconhecivel. Tente converter para Excel.", 5000); return; }
+    if (allLines.length === 0) { showToast("PDF sem texto reconhecivel. Tente converter para Excel.", 5000); return; }
+
+    const allText = allLines.join("\n");
 
     // Try AI API first, fallback to local parser
     let produtos = [];
@@ -5055,9 +5097,9 @@ async function importarProdutosPDF(file) {
       }
     } catch(_) { /* API indisponivel, usar parser local */ }
 
-    // Fallback: local text parser
+    // Fallback: local line-by-line parser
     if (produtos.length === 0) {
-      produtos = parseProdutosFromText(allText);
+      produtos = parseProdutosFromLines(allLines);
     }
 
     if (produtos.length === 0) { showToast("Nenhum produto reconhecido no PDF. Tente importar via Excel.", 5000); return; }
@@ -5067,8 +5109,10 @@ async function importarProdutosPDF(file) {
       unidade: String(p.unidade || "UN").trim().toUpperCase()
     })).filter(p => p.descricao);
 
-    mostrarImportPreview("PDF: " + file.name, _importProdutosBuffer);
+    if (_importProdutosBuffer.length === 0) { showToast("Nenhum produto reconhecido no PDF. Tente importar via Excel.", 5000); return; }
+    mostrarImportPreview("PDF: " + file.name + " (" + allLines.length + " linhas)", _importProdutosBuffer);
   } catch (err) {
+    console.error("PDF import error:", err);
     showToast("Erro ao processar PDF: " + err.message, 5000);
   }
 }
@@ -5143,61 +5187,97 @@ function abrirModalSync(contratoId) {
   const c = contratos.find(x => x.id === contratoId);
   if (!c) return;
 
+  // Build options list for manual dropdown
+  const bancoOptions = bancoProdutos.itens.map((p, i) =>
+    `<option value="${i}">${esc((p.descricao || '').slice(0, 60))}${p.sku ? ' [' + esc(p.sku) + ']' : ''}</option>`
+  ).join("");
+
   const matches = c.itens.map((item, idx) => {
-    let match = null; let score = 0; let method = '';
+    let match = null; let matchIdx = -1; let score = 0; let method = '';
     // 1. Match by SKU
     if (item.sku) {
-      const skuMatch = bancoProdutos.itens.find(p => p.sku && p.sku.toUpperCase() === item.sku.toUpperCase());
-      if (skuMatch) { match = skuMatch; score = 1; method = 'SKU'; }
+      const skuIdx = bancoProdutos.itens.findIndex(p => p.sku && p.sku.toUpperCase() === item.sku.toUpperCase());
+      if (skuIdx >= 0) { match = bancoProdutos.itens[skuIdx]; matchIdx = skuIdx; score = 1; method = 'SKU'; }
     }
     // 2. Match by description similarity
     if (!match) {
-      let bestScore = 0; let bestProd = null;
-      for (const p of bancoProdutos.itens) {
-        const s = calcSimilaridade(item.descricao || '', p.descricao || '');
-        if (s > bestScore) { bestScore = s; bestProd = p; }
+      let bestScore = 0; let bestIdx = -1;
+      for (let i = 0; i < bancoProdutos.itens.length; i++) {
+        const s = calcSimilaridade(item.descricao || '', bancoProdutos.itens[i].descricao || '');
+        if (s > bestScore) { bestScore = s; bestIdx = i; }
       }
-      if (bestProd && bestScore >= 0.7) { match = bestProd; score = bestScore; method = 'Similaridade'; }
+      if (bestIdx >= 0 && bestScore >= 0.5) {
+        match = bancoProdutos.itens[bestIdx]; matchIdx = bestIdx; score = bestScore;
+        method = bestScore >= 0.7 ? 'Similaridade' : 'Aprox.';
+      }
     }
-    // 3. Already synced?
     const synced = item._syncedFromBanco ? true : false;
-    return { idx, item, match, score, method, synced, accept: !!match };
+    return { idx, item, match, matchIdx, score, method, synced, accept: match && score >= 0.7 };
   });
 
   // Build modal
   let html = `
     <div style="margin-bottom:1rem">
-      <p style="font-size:.85rem;color:var(--mut)">Sincronizar itens do contrato com o Banco de Produtos ERP. Apenas <strong>descrição, SKU e unidade</strong> serão atualizados. Preço e quantidade são preservados.</p>
+      <p style="font-size:.85rem;color:var(--mut)">Sincronizar itens do contrato com o Banco de Produtos ERP. Selecione os itens e ajuste os matches manualmente se necessario. Apenas <strong>descricao, SKU e unidade</strong> serao atualizados.</p>
     </div>
-    <div class="table-wrap" style="max-height:50vh;overflow-y:auto">
-      <table style="font-size:.78rem">
-        <thead><tr><th style="width:30px">✓</th><th>#</th><th>Item Contrato</th><th>→</th><th>Match Banco</th><th>Score</th><th>Método</th></tr></thead>
+    <div style="max-height:55vh;overflow-y:auto;border:1px solid var(--bdr);border-radius:10px">
+      <table style="font-size:.78rem;width:100%;border-collapse:collapse">
+        <thead><tr style="background:var(--s2)"><th style="width:30px;padding:.5rem;text-align:center">✓</th><th style="padding:.5rem">#</th><th style="padding:.5rem">Item Contrato</th><th style="padding:.5rem;min-width:220px">Match Banco</th><th style="padding:.5rem;width:70px;text-align:center">Score</th></tr></thead>
         <tbody>${matches.map(m => {
-          const statusColor = m.synced ? 'var(--green)' : m.match ? (m.score >= 0.9 ? 'var(--green)' : 'var(--yellow)') : 'var(--red)';
-          const statusLabel = m.synced ? 'Já sincronizado' : m.match ? (m.method + ' ' + (m.score * 100).toFixed(0) + '%') : 'Sem match';
-          return `<tr style="border-left:3px solid ${statusColor}">
-            <td class="text-center"><input type="checkbox" class="sync-check" data-idx="${m.idx}" ${m.accept ? 'checked' : ''} ${!m.match ? 'disabled' : ''}></td>
-            <td class="text-center">${m.item.num}</td>
-            <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(m.item.descricao)}">${esc(m.item.descricao)}<br><span style="font-size:.65rem;color:var(--dim)">SKU: ${esc(m.item.sku || '-')} | ${esc(m.item.unidade)}</span></td>
-            <td class="text-center" style="font-size:1.1rem">→</td>
-            <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${m.match ? esc(m.match.descricao) + '<br><span style="font-size:.65rem;color:var(--dim)">SKU: ' + esc(m.match.sku || '-') + ' | ' + esc(m.match.unidade) + '</span>' : '<span style="color:var(--red);font-size:.8rem">—</span>'}</td>
-            <td class="text-center" style="color:${statusColor};font-weight:700;font-size:.8rem">${m.match ? (m.score * 100).toFixed(0) + '%' : '—'}</td>
-            <td style="font-size:.72rem;color:var(--mut)">${statusLabel}</td>
+          const statusColor = m.synced ? 'var(--green)' : m.match ? (m.score >= 0.7 ? 'var(--green)' : m.score >= 0.5 ? 'var(--yellow)' : 'var(--red)') : 'var(--red)';
+          return `<tr style="border-left:3px solid ${statusColor};border-bottom:1px solid rgba(71,85,105,.3)">
+            <td style="text-align:center;padding:.4rem"><input type="checkbox" class="sync-check" data-idx="${m.idx}" ${m.accept ? 'checked' : ''}></td>
+            <td style="text-align:center;padding:.4rem">${m.item.num}</td>
+            <td style="padding:.4rem .5rem;max-width:200px"><span title="${esc(m.item.descricao)}" style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(m.item.descricao)}</span><span style="font-size:.65rem;color:var(--dim)">SKU: ${esc(m.item.sku || '-')} | ${esc(m.item.unidade)}</span></td>
+            <td style="padding:.4rem .5rem"><select class="sync-match-select" data-idx="${m.idx}" style="width:100%;padding:.3rem .4rem;background:var(--s1);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:.72rem" onchange="onSyncSelectChange(this)"><option value="-1">— Selecione —</option>${bancoOptions}</select>${m.synced ? '<span style="font-size:.6rem;color:var(--green);display:block;margin-top:2px">Ja sincronizado</span>' : ''}</td>
+            <td style="text-align:center;padding:.4rem;font-weight:700;font-size:.78rem;color:${statusColor}" class="sync-score-${m.idx}">${m.match ? (m.score * 100).toFixed(0) + '%' : '—'}</td>
           </tr>`;
         }).join("")}</tbody>
       </table>
     </div>
-    <div style="margin-top:1rem;display:flex;justify-content:flex-end;gap:.8rem">
-      <button class="btn btn-outline" onclick="abrirContrato('${contratoId}')">Cancelar</button>
-      <button class="btn btn-green" onclick="confirmarSync('${contratoId}')">Confirmar Sincronização</button>
+    <div style="margin-top:1rem;display:flex;justify-content:space-between;align-items:center">
+      <span style="font-size:.78rem;color:var(--mut)"><span id="sync-sel-count">${matches.filter(m=>m.accept).length}</span> de ${c.itens.length} selecionados</span>
+      <div style="display:flex;gap:.8rem">
+        <button class="btn btn-outline" onclick="abrirContrato('${contratoId}')">Cancelar</button>
+        <button class="btn btn-green" onclick="confirmarSync('${contratoId}')">Confirmar Sincronizacao</button>
+      </div>
     </div>`;
 
   _contratoAbertoId = contratoId;
   document.getElementById("modal-contrato-titulo").textContent = "🔄 Sincronizar com Banco de Produtos — " + c.id;
   document.getElementById("modal-contrato-body").innerHTML = html;
 
+  // Pre-select dropdowns for matched items
+  matches.forEach(m => {
+    if (m.matchIdx >= 0) {
+      const sel = document.querySelector(`.sync-match-select[data-idx="${m.idx}"]`);
+      if (sel) sel.value = m.matchIdx;
+    }
+  });
+
   // Store matches for confirmation
   window._syncMatches = matches;
+
+  // Bind checkbox change for counter
+  document.querySelectorAll('.sync-check').forEach(cb => {
+    cb.addEventListener('change', () => {
+      const count = document.querySelectorAll('.sync-check:checked').length;
+      document.getElementById('sync-sel-count').textContent = count;
+    });
+  });
+}
+
+function onSyncSelectChange(sel) {
+  const idx = sel.dataset.idx;
+  const val = parseInt(sel.value);
+  const cb = document.querySelector(`.sync-check[data-idx="${idx}"]`);
+  const scoreCell = document.querySelector(`.sync-score-${idx}`);
+  if (val >= 0 && cb) {
+    cb.checked = true;
+    if (scoreCell) { scoreCell.textContent = 'Manual'; scoreCell.style.color = 'var(--cyan)'; }
+  }
+  const count = document.querySelectorAll('.sync-check:checked').length;
+  document.getElementById('sync-sel-count').textContent = count;
 }
 
 function confirmarSync(contratoId) {
@@ -5209,11 +5289,14 @@ function confirmarSync(contratoId) {
   let synced = 0;
   checks.forEach(cb => {
     const idx = parseInt(cb.dataset.idx);
-    const m = window._syncMatches?.find(x => x.idx === idx);
-    if (!m || !m.match) return;
-    c.itens[idx].descricao = m.match.descricao;
-    c.itens[idx].sku = m.match.sku || c.itens[idx].sku;
-    c.itens[idx].unidade = m.match.unidade || c.itens[idx].unidade;
+    // Get match from dropdown selection (manual or auto)
+    const sel = document.querySelector(`.sync-match-select[data-idx="${idx}"]`);
+    const matchIdx = sel ? parseInt(sel.value) : -1;
+    if (matchIdx < 0 || !bancoProdutos.itens[matchIdx]) return;
+    const matched = bancoProdutos.itens[matchIdx];
+    c.itens[idx].descricao = matched.descricao;
+    c.itens[idx].sku = matched.sku || c.itens[idx].sku;
+    c.itens[idx].unidade = matched.unidade || c.itens[idx].unidade;
     c.itens[idx]._syncedFromBanco = true;
     synced++;
   });
