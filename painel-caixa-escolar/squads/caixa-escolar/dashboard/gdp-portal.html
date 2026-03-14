@@ -813,6 +813,7 @@ function selectContract(type, idx) {
         item: item.num,
         produto: item.descricao,
         sku: item.sku || '',
+        ncm: item.ncm || '',
         preco: item.precoUnitario,
         unidade: item.unidade || 'UN',
         qtdContratada: item.qtdContratada,
@@ -963,7 +964,7 @@ function renderCatalog(items) {
         ${inCart ? `<span class="in-cart-badge">${inCart} no carrinho</span>` : ''}
         <div class="product-name">${p.produto}</div>
         <div class="product-price">R$ ${p.preco.toFixed(2).replace('.',',')}</div>
-        <div class="product-meta">Item ${p.item} | ${p.unidade || 'UN'}</div>
+        <div class="product-meta">${p.ncm ? 'NCM ' + p.ncm + ' | ' : ''}${p.unidade || 'UN'}</div>
         <div style="font-size:.75rem;margin-top:.2rem;font-weight:600;color:${(p.qtdDisponivel||0) > 0 ? 'var(--success)' : 'var(--danger)'}">Disponivel: ${p.qtdDisponivel || 0} de ${p.qtdContratada || 0} ${p.unidade || 'UN'}</div>
         <div class="qty-controls">
           <button class="qty-btn" onclick="changeQty('${esc(p.produto)}', -1)">−</button>
