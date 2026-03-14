@@ -806,20 +806,42 @@ function selectContract(type, idx) {
       });
     });
 
+    // Load Banco de Produtos para enriquecer catalogo
+    let _bancoProdutos = { itens: [] };
+    try { _bancoProdutos = JSON.parse(localStorage.getItem('gdp.produtos.v1') || '{}'); } catch(_) {}
+    if (!_bancoProdutos.itens) _bancoProdutos.itens = [];
+
     schoolProducts = c.itens.map(item => {
       const pedida = qtdPedidaPorItem[item.descricao.toUpperCase()] || 0;
       const disponivel = Math.max(0, item.qtdContratada - (item.qtdEntregue || 0) - pedida);
+
+      // Enrich from Banco de Produtos (match by SKU or description)
+      let bpMatch = null;
+      const descNorm = (item.descricao || '').toUpperCase().trim();
+      if (item.sku) bpMatch = _bancoProdutos.itens.find(bp => bp.sku && bp.sku.toUpperCase() === item.sku.toUpperCase());
+      if (!bpMatch) bpMatch = _bancoProdutos.itens.find(bp => (bp.descricao || '').toUpperCase().trim() === descNorm);
+      if (!bpMatch) {
+        const words = descNorm.split(/\s+/).slice(0, 3).join(' ');
+        if (words.length > 5) bpMatch = _bancoProdutos.itens.find(bp => (bp.descricao || '').toUpperCase().trim().startsWith(words));
+      }
+
+      // Use synced data when available
+      const produto = bpMatch ? (bpMatch.descricao || item.descricao) : item.descricao;
+      const sku = bpMatch ? (bpMatch.sku || item.sku || '') : (item.sku || '');
+      const unidade = bpMatch ? (bpMatch.unidade || item.unidade || 'UN') : (item.unidade || 'UN');
+
       return {
         item: item.num,
-        produto: item.descricao,
-        sku: item.sku || '',
+        produto,
+        sku,
         ncm: item.ncm || '',
         preco: item.precoUnitario,
-        unidade: item.unidade || 'UN',
+        unidade,
         qtdContratada: item.qtdContratada,
         qtdEntregue: (item.qtdEntregue || 0) + pedida,
         qtdDisponivel: disponivel,
-        estoque: 0
+        estoque: 0,
+        _syncedBanco: !!bpMatch || !!item._syncedFromBanco
       };
     });
     const ctrLabel = [c.processo ? 'Proc. ' + c.processo : '', c.objeto || c.edital || c.id].filter(Boolean).join(' — ');
@@ -962,7 +984,9 @@ function renderCatalog(items) {
     return `
       <div class="product-card ${inCart ? 'in-cart' : ''}">
         ${inCart ? `<span class="in-cart-badge">${inCart} no carrinho</span>` : ''}
+        ${p._syncedBanco ? '<span style="position:absolute;top:.5rem;right:.5rem;background:rgba(6,182,212,.15);color:#06b6d4;font-size:.6rem;padding:.15rem .4rem;border-radius:999px;font-weight:700">BANCO</span>' : ''}
         <div class="product-name">${p.produto}</div>
+        ${p.sku ? `<div style="font-size:.7rem;color:var(--muted);margin-top:.1rem;font-family:monospace">SKU: ${p.sku}</div>` : ''}
         <div class="product-price">R$ ${p.preco.toFixed(2).replace('.',',')}</div>
         <div class="product-meta">${p.ncm ? 'NCM ' + p.ncm + ' | ' : ''}${p.unidade || 'UN'}</div>
         <div style="font-size:.75rem;margin-top:.2rem;font-weight:600;color:${(p.qtdDisponivel||0) > 0 ? 'var(--success)' : 'var(--danger)'}">Disponivel: ${p.qtdDisponivel || 0} de ${p.qtdContratada || 0} ${p.unidade || 'UN'}</div>
