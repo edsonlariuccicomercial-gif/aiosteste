@@ -75,8 +75,19 @@ async function syncFromCloud() {
   for (const row of rows) {
     const local = localStorage.getItem(row.key);
     const localData = local ? JSON.parse(local) : null;
-    // Cloud wins if local is empty, or cloud is newer
-    if (!localData || (row.data && JSON.stringify(row.data) !== JSON.stringify(localData))) {
+
+    // Cloud wins ONLY if local is empty OR cloud updated_at is newer than local updatedAt
+    if (!localData) {
+      if (row.data) { localStorage.setItem(row.key, JSON.stringify(row.data)); synced++; }
+      continue;
+    }
+
+    // Compare timestamps: local updatedAt vs cloud updated_at
+    const cloudTime = row.updated_at ? new Date(row.updated_at).getTime() : 0;
+    const localTime = localData.updatedAt ? new Date(localData.updatedAt).getTime()
+                    : localData.updated_at ? new Date(localData.updated_at).getTime() : 0;
+
+    if (cloudTime > localTime && row.data) {
       localStorage.setItem(row.key, JSON.stringify(row.data));
       synced++;
     }
@@ -102,6 +113,14 @@ function schedulCloudSync() {
   if (_syncTimeout) clearTimeout(_syncTimeout);
   _syncTimeout = setTimeout(() => syncToCloud(), 2000);
 }
+
+// Sync on tab hide/close to minimize data loss window
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') {
+    if (_syncTimeout) { clearTimeout(_syncTimeout); _syncTimeout = null; }
+    syncToCloud().catch(() => {});
+  }
+});
 
 // ===== SGD STATE =====
 let sgdAvailable = false;
