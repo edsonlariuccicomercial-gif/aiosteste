@@ -25,22 +25,6 @@
     /* Globe Section */
     .globe-section{text-align:center;margin-bottom:2rem}
     .globe-section h2{font-size:1rem;color:var(--muted);margin-bottom:1.5rem;text-transform:uppercase;letter-spacing:.08em}
-    .globe-container{width:400px;height:400px;margin:0 auto;perspective:1000px;position:relative}
-    .globe{width:100%;height:100%;border-radius:50%;position:relative;transform-style:preserve-3d;animation:globeRotate 20s linear infinite;background:radial-gradient(circle at 30% 30%, rgba(59,130,246,.15), rgba(139,92,246,.08) 50%, transparent 70%);border:1px solid rgba(59,130,246,.2);box-shadow:inset 0 0 60px rgba(59,130,246,.08),0 0 40px rgba(59,130,246,.05)}
-    @keyframes globeRotate{from{transform:rotateY(0deg)}to{transform:rotateY(360deg)}}
-    .globe::before,.globe::after{content:'';position:absolute;border-radius:50%;border:1px solid rgba(59,130,246,.1)}
-    .globe::before{width:100%;height:100%;top:0;left:0}
-    .globe::after{width:70%;height:100%;top:0;left:15%}
-    .globe-ring{position:absolute;border-radius:50%;border:1px solid rgba(59,130,246,.08);pointer-events:none}
-
-    /* SRE Points */
-    .sre-point{position:absolute;width:16px;height:16px;border-radius:50%;cursor:pointer;z-index:10;transition:all .3s;display:flex;align-items:center;justify-content:center;animation:pointPulse 2s ease-in-out infinite}
-    .sre-point:hover{transform:scale(1.5);z-index:20}
-    .sre-point::after{content:'';position:absolute;width:24px;height:24px;border-radius:50%;border:2px solid currentColor;opacity:.3;animation:pointRing 2s ease-out infinite}
-    .sre-label{position:absolute;top:-24px;left:50%;transform:translateX(-50%);font-size:.65rem;color:var(--text);white-space:nowrap;background:rgba(0,0,0,.7);padding:.15rem .4rem;border-radius:4px;opacity:0;transition:opacity .2s;pointer-events:none}
-    .sre-point:hover .sre-label{opacity:1}
-    @keyframes pointPulse{0%,100%{box-shadow:0 0 8px currentColor}50%{box-shadow:0 0 16px currentColor}}
-    @keyframes pointRing{0%{transform:scale(.8);opacity:.5}100%{transform:scale(1.5);opacity:0}}
 
     /* SRE Detail Panel */
     .sre-panel{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--card);border:1px solid var(--line);border-radius:16px;padding:2rem;width:400px;max-width:90vw;z-index:100;box-shadow:0 20px 60px rgba(0,0,0,.5);display:none}
@@ -64,11 +48,11 @@
     /* Responsive */
     @media(max-width:768px){
       .kpi-grid-home{grid-template-columns:1fr}
-      .globe-container{width:280px;height:280px}
+      #globe-wrapper,#globe-canvas{width:280px!important;height:280px!important}
     }
     @media(min-width:769px) and (max-width:1024px){
       .kpi-grid-home{grid-template-columns:repeat(2,1fr)}
-      .globe-container{width:340px;height:340px}
+      #globe-wrapper,#globe-canvas{width:340px!important;height:340px!important}
     }
   </style>
 </head>
@@ -125,15 +109,11 @@
       <!-- KPI Cards -->
       <div class="kpi-grid-home" id="kpi-grid"></div>
 
-      <!-- Globe Section -->
+      <!-- Globe Section — Interactive Canvas -->
       <div class="globe-section">
         <h2>Áreas de Atuação — SREs</h2>
-        <div class="globe-container" id="globe-container">
-          <div class="globe" id="globe">
-            <div class="globe-ring" style="width:80%;height:80%;top:10%;left:10%"></div>
-            <div class="globe-ring" style="width:60%;height:60%;top:20%;left:20%"></div>
-            <div class="globe-ring" style="width:40%;height:100%;top:0;left:30%"></div>
-          </div>
+        <div style="position:relative;width:420px;height:420px;margin:0 auto" id="globe-wrapper">
+          <canvas id="globe-canvas" style="width:420px;height:420px;cursor:grab"></canvas>
         </div>
       </div>
 
@@ -263,18 +243,172 @@ function carregarKPIs() {
   } catch(_) {}
 }
 
-// ===== GLOBE =====
-function renderGlobePoints() {
-  const globe = document.getElementById("globe");
-  globe.querySelectorAll(".sre-point").forEach(el => el.remove());
-  SRE_CONFIG.forEach(sre => {
-    const point = document.createElement("div");
-    point.className = "sre-point";
-    point.style.cssText = `left:${sre.x}%;top:${sre.y}%;background:${sre.cor};color:${sre.cor};transform:translate(-50%,-50%)`;
-    point.innerHTML = `<span class="sre-label">${sre.nome}</span>`;
-    point.onclick = (e) => { e.stopPropagation(); abrirSrePanel(sre); };
-    globe.appendChild(point);
+// ===== INTERACTIVE GLOBE (Canvas) =====
+const globeState = {
+  rotY: 0.4, rotX: 0.15, drag: { active: false, sx: 0, sy: 0, ry: 0, rx: 0, moved: false },
+  mouse: { x: -9999, y: -9999, over: false }, hovered: null, time: 0, dots: [], markers: []
+};
+
+// Fibonacci sphere dots
+(function initDots() {
+  const n = 1200, gr = (1 + Math.sqrt(5)) / 2;
+  for (let i = 0; i < n; i++) {
+    const theta = (2 * Math.PI * i) / gr;
+    const phi = Math.acos(1 - (2 * (i + 0.5)) / n);
+    globeState.dots.push([Math.cos(theta) * Math.sin(phi), Math.cos(phi), Math.sin(theta) * Math.sin(phi)]);
+  }
+})();
+
+function latLngToXYZ(lat, lng, r) {
+  const phi = ((90 - lat) * Math.PI) / 180;
+  const theta = ((lng + 180) * Math.PI) / 180;
+  return [-(r * Math.sin(phi) * Math.cos(theta)), r * Math.cos(phi), r * Math.sin(phi) * Math.sin(theta)];
+}
+function gRotY(x, y, z, a) { return [x * Math.cos(a) + z * Math.sin(a), y, -x * Math.sin(a) + z * Math.cos(a)]; }
+function gRotX(x, y, z, a) { return [x, y * Math.cos(a) - z * Math.sin(a), y * Math.sin(a) + z * Math.cos(a)]; }
+function gProject(x, y, z, cx, cy) { const s = 700 / (700 + z); return [x * s + cx, y * s + cy]; }
+
+// Map SRE_CONFIG to globe sections
+const GLOBE_SECTIONS = SRE_CONFIG.map((sre, i) => ({
+  num: String(i + 1).padStart(2, '0'), label: sre.nome, color: sre.cor,
+  lat: -19.75, lng: -47.93, sre // Uberaba coords
+}));
+
+function drawGlobe() {
+  const canvas = document.getElementById("globe-canvas");
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  const dpr = window.devicePixelRatio || 1;
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  canvas.width = w * dpr; canvas.height = h * dpr;
+  ctx.scale(dpr, dpr);
+
+  const cx = w / 2, cy = h / 2, radius = Math.min(w, h) * 0.42;
+  const gs = globeState;
+
+  if (!gs.drag.active) gs.rotY += 0.0016;
+  gs.time += 0.015;
+
+  ctx.clearRect(0, 0, w, h);
+
+  // Background glow
+  const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius * 1.2);
+  grad.addColorStop(0, 'rgba(153,51,255,0.06)');
+  grad.addColorStop(0.5, 'rgba(0,229,255,0.03)');
+  grad.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = grad; ctx.fillRect(0, 0, w, h);
+
+  // Outer ring
+  ctx.beginPath(); ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.strokeStyle = 'rgba(0,229,255,0.05)'; ctx.lineWidth = 1; ctx.stroke();
+
+  const ry = gs.rotY, rx = gs.rotX;
+
+  // Background dots with repel effect
+  for (const [bx, by, bz] of gs.dots) {
+    let [x, y, z] = [bx * radius, by * radius, bz * radius];
+    [x, y, z] = gRotX(x, y, z, rx);
+    [x, y, z] = gRotY(x, y, z, ry);
+    if (z > 0) continue;
+
+    let [sx, sy] = gProject(x, y, z, cx, cy);
+    if (gs.mouse.over) {
+      const dx = sx - gs.mouse.x, dy = sy - gs.mouse.y;
+      const d = Math.sqrt(dx * dx + dy * dy);
+      if (d < 85 && d > 0) { const f = ((85 - d) / 85) ** 1.6; sx += (dx / d) * f * 26; sy += (dy / d) * f * 26; }
+    }
+
+    const depth = Math.max(0.08, 1 - (z + radius) / (2 * radius));
+    const dotR = 0.85 + depth * 0.85;
+    const r2 = Math.round((1 - depth) * 80), g2 = Math.round(229 * depth), b2 = Math.round(255 * depth + (1 - depth) * 180);
+    ctx.beginPath(); ctx.arc(sx, sy, dotR, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(${r2},${g2},${b2},${(depth * 0.8 + 0.1).toFixed(2)})`; ctx.fill();
+  }
+
+  // SRE markers
+  gs.markers = [];
+  for (const sec of GLOBE_SECTIONS) {
+    let [x, y, z] = latLngToXYZ(sec.lat, sec.lng, radius);
+    [x, y, z] = gRotX(x, y, z, rx);
+    [x, y, z] = gRotY(x, y, z, ry);
+    if (z > -radius * 0.18) continue;
+
+    const [sx, sy] = gProject(x, y, z, cx, cy);
+    gs.markers.push({ sx, sy, sec });
+
+    const isHov = gs.hovered === sec.num;
+    const pulse = Math.sin(gs.time * 2.2 + sec.lat * 0.3) * 0.5 + 0.5;
+
+    // Pulsing rings
+    ctx.beginPath(); ctx.arc(sx, sy, 18 + pulse * 10, 0, Math.PI * 2);
+    ctx.strokeStyle = sec.color + (isHov ? '55' : '22'); ctx.lineWidth = isHov ? 1.5 : 1; ctx.stroke();
+    ctx.beginPath(); ctx.arc(sx, sy, 26 + pulse * 6, 0, Math.PI * 2);
+    ctx.strokeStyle = sec.color + (isHov ? '28' : '0c'); ctx.lineWidth = 1; ctx.stroke();
+
+    // Dot + number
+    const dotR = isHov ? 8 : 6;
+    ctx.beginPath(); ctx.arc(sx, sy, dotR, 0, Math.PI * 2);
+    ctx.fillStyle = sec.color; ctx.shadowColor = sec.color; ctx.shadowBlur = isHov ? 16 : 8; ctx.fill(); ctx.shadowBlur = 0;
+
+    ctx.font = `bold ${isHov ? '11' : '9'}px monospace`;
+    ctx.fillStyle = isHov ? '#fff' : sec.color + 'dd'; ctx.textAlign = 'center';
+    ctx.fillText(sec.label.replace('SRE ', ''), sx, sy - 14);
+  }
+
+  requestAnimationFrame(drawGlobe);
+}
+
+// Globe interaction events
+function initGlobeEvents() {
+  const canvas = document.getElementById("globe-canvas");
+  if (!canvas) return;
+  const gs = globeState;
+
+  canvas.addEventListener("pointerdown", (e) => {
+    gs.drag = { active: true, sx: e.clientX, sy: e.clientY, ry: gs.rotY, rx: gs.rotX, moved: false };
+    canvas.setPointerCapture(e.pointerId);
+    canvas.style.cursor = 'grabbing';
   });
+
+  canvas.addEventListener("pointermove", (e) => {
+    const rect = canvas.getBoundingClientRect();
+    gs.mouse = { x: e.clientX - rect.left, y: e.clientY - rect.top, over: true };
+
+    // Hit test markers
+    let found = null;
+    for (const mp of gs.markers) {
+      const dx = mp.sx - gs.mouse.x, dy = mp.sy - gs.mouse.y;
+      if (Math.sqrt(dx * dx + dy * dy) < 30) { found = mp.sec.num; break; }
+    }
+    gs.hovered = found;
+    if (!gs.drag.active) canvas.style.cursor = found ? 'pointer' : 'grab';
+
+    if (!gs.drag.active) return;
+    const ddx = e.clientX - gs.drag.sx, ddy = e.clientY - gs.drag.sy;
+    if (Math.sqrt(ddx * ddx + ddy * ddy) > 3) gs.drag.moved = true;
+    gs.rotY = gs.drag.ry + ddx * 0.005;
+    gs.rotX = Math.max(-1, Math.min(1, gs.drag.rx + ddy * 0.005));
+  });
+
+  canvas.addEventListener("pointerup", (e) => {
+    canvas.style.cursor = 'grab';
+    if (!gs.drag.moved) {
+      const rect = canvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+      for (const mp of gs.markers) {
+        const dx = mp.sx - mx, dy = mp.sy - my;
+        if (Math.sqrt(dx * dx + dy * dy) < 34) { abrirSrePanel(mp.sec.sre); break; }
+      }
+    }
+    gs.drag.active = false;
+  });
+
+  canvas.addEventListener("pointerleave", () => { gs.mouse.over = false; gs.hovered = null; });
+}
+
+function renderGlobePoints() {
+  initGlobeEvents();
+  requestAnimationFrame(drawGlobe);
 }
 
 function abrirSrePanel(sre) {

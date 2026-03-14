@@ -743,7 +743,18 @@ async function syncFromCloud() {
   for (const row of rows) {
     const local = localStorage.getItem(row.key);
     const localData = local ? JSON.parse(local) : null;
-    if (!localData || (row.data && JSON.stringify(row.data) !== JSON.stringify(localData))) {
+
+    // Cloud wins ONLY if local is empty OR cloud is newer
+    if (!localData) {
+      if (row.data) { localStorage.setItem(row.key, JSON.stringify(row.data)); synced++; }
+      continue;
+    }
+
+    const cloudTime = row.updated_at ? new Date(row.updated_at).getTime() : 0;
+    const localTime = localData.updatedAt ? new Date(localData.updatedAt).getTime()
+                    : localData.updated_at ? new Date(localData.updated_at).getTime() : 0;
+
+    if (cloudTime > localTime && row.data) {
       localStorage.setItem(row.key, JSON.stringify(row.data));
       synced++;
     }
@@ -766,6 +777,14 @@ function schedulCloudSync() {
   if (_syncTimeout) clearTimeout(_syncTimeout);
   _syncTimeout = setTimeout(() => syncToCloud(), 2000);
 }
+
+// Sync on tab hide/close to prevent data loss
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') {
+    if (_syncTimeout) { clearTimeout(_syncTimeout); _syncTimeout = null; }
+    syncToCloud().catch(() => {});
+  }
+});
 
 // ===== STATE =====
 let contratos = [];
