@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Login — Caixa Escolar MG</title>
+  <title>Login — Licit-IAX</title>
   <link rel="stylesheet" href="styles.css" />
   <style>
     body {
@@ -65,7 +65,8 @@
   <div class="login-container">
     <div class="login-card">
       <p class="eyebrow">Painel do Fornecedor</p>
-      <h1>Caixa Escolar MG</h1>
+      <h1>Licit-IAX</h1>
+      <p style="color:#94a3b8;font-size:0.85rem;margin-top:0.3rem;line-height:1.4;font-style:italic;">Inteligência comercial para fornecedores da educação pública</p>
       <form id="login-form" style="margin-top:24px;">
         <input type="text" class="login-input" id="login-user" placeholder="Usuário" autocomplete="username" required />
         <input type="password" class="login-input" id="login-pass" placeholder="Senha" autocomplete="current-password" required />
@@ -84,7 +85,7 @@
 
     // Already logged in? Go to dashboard
     if (sessionStorage.getItem(AUTH_CONFIG.sessionKey) === AUTH_CONFIG.passHash) {
-      window.location.href = "index.html";
+      window.location.href = "dashboard-home.html";
     }
 
     async function sha256(text) {
@@ -101,7 +102,7 @@
 
       if (user === AUTH_CONFIG.user && hash === AUTH_CONFIG.passHash) {
         sessionStorage.setItem(AUTH_CONFIG.sessionKey, AUTH_CONFIG.passHash);
-        window.location.href = "index.html";
+        window.location.href = "dashboard-home.html";
       } else {
         document.getElementById("login-error").style.display = "block";
       }

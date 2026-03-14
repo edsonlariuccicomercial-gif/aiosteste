@@ -14,8 +14,12 @@
 
   <!-- ===== SIDEBAR ===== -->
   <aside class="sidebar" id="sidebar">
-    <div class="sidebar-brand">Licit-IAX</div>
+    <div class="sidebar-brand" style="cursor:pointer" onclick="window.location.href='dashboard-home.html'" title="Voltar ao Dashboard">Licit-IAX</div>
     <nav class="sidebar-nav">
+      <button class="sidebar-item" onclick="window.location.href='dashboard-home.html'" title="Dashboard Home" style="margin-bottom:8px;border-bottom:1px solid var(--line);padding-bottom:12px;">
+        <span class="sidebar-icon">🏠</span>
+        <span class="sidebar-label">HOME</span>
+      </button>
       <button class="sidebar-item active" data-module="radar" title="Radar de Oportunidades">
         <span class="sidebar-icon">📡</span>
         <span class="sidebar-label">RADAR</span>
@@ -635,7 +639,7 @@
       <nav class="config-tabs">
         <button class="config-tab active" data-config-tab="empresa">Dados da Empresa</button>
         <button class="config-tab" data-config-tab="usuarios">Cadastro de Usuários</button>
-        <button class="config-tab" data-config-tab="sincronizar">Sincronizar Dados</button>
+        <button class="config-tab" data-config-tab="modulos">Módulos</button>
       </nav>
       <!-- Dados da Empresa -->
       <div id="config-empresa" class="config-content active">
@@ -737,15 +741,26 @@
           <button id="btn-add-usuario" class="btn btn-accent">+ Adicionar Usuário</button>
         </div>
       </div>
-      <!-- Sincronizar Dados -->
-      <div id="config-sincronizar" class="config-content">
-        <p style="color:var(--muted);margin-bottom:16px;">Use Exportar/Importar para transferir seus dados (contratos, banco de precos, configuracoes) entre maquinas diferentes.</p>
-        <div style="display:flex;gap:12px;flex-wrap:wrap;">
-          <button class="btn btn-accent" onclick="exportarTodosDados()">📤 Exportar Todos os Dados</button>
-          <button class="btn btn-secondary" onclick="document.getElementById('sync-import-file').click()">📥 Importar Dados de Arquivo</button>
-          <input type="file" id="sync-import-file" accept=".json" style="display:none" onchange="importarTodosDados(this.files[0])" />
+      <!-- Módulos (Controle de Acesso) -->
+      <div id="config-modulos" class="config-content">
+        <p style="color:var(--muted);margin-bottom:16px;">Ative ou desative o acesso aos módulos do sistema. Módulos desativados ficam ocultos na sidebar e no dashboard home.</p>
+        <div style="display:flex;flex-direction:column;gap:12px;" id="modulos-toggles">
+          <label style="display:flex;align-items:center;gap:12px;padding:12px;background:var(--bg);border:1px solid var(--line);border-radius:8px;cursor:pointer;">
+            <input type="checkbox" id="mod-radar" checked onchange="salvarModulos()">
+            <span>📡</span>
+            <div><strong>RADAR</strong><br><span style="font-size:.8rem;color:var(--muted);">Radar de Oportunidades — SGD</span></div>
+          </label>
+          <label style="display:flex;align-items:center;gap:12px;padding:12px;background:var(--bg);border:1px solid var(--line);border-radius:8px;cursor:pointer;">
+            <input type="checkbox" id="mod-intel" checked onchange="salvarModulos()">
+            <span>💰</span>
+            <div><strong>INTELIGÊNCIA DE PREÇOS</strong><br><span style="font-size:.8rem;color:var(--muted);">Banco de Preços, Pré-Orçamento, Rentabilidade</span></div>
+          </label>
+          <label style="display:flex;align-items:center;gap:12px;padding:12px;background:var(--bg);border:1px solid var(--line);border-radius:8px;cursor:pointer;">
+            <input type="checkbox" id="mod-gdp" checked onchange="salvarModulos()">
+            <span>📦</span>
+            <div><strong>GDP</strong><br><span style="font-size:.8rem;color:var(--muted);">Gestão de Pedidos Pós-Licitação</span></div>
+          </label>
         </div>
-        <div id="sync-status" style="margin-top:16px;font-size:.85rem;color:var(--muted);"></div>
       </div>
     </div>
   </section>

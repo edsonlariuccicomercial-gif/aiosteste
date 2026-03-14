@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Licit-IAX — Dashboard</title>
+  <link rel="stylesheet" href="styles.css?v=7" />
+  <style>
+    /* KPI Cards */
+    .kpi-grid-home{display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;margin-bottom:3rem}
+    .kpi-card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:1.8rem;cursor:pointer;transition:all .3s;position:relative;overflow:hidden}
+    .kpi-card:hover{transform:translateY(-4px);box-shadow:0 12px 40px rgba(0,0,0,.3)}
+    .kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+    .kpi-card.radar::before{background:linear-gradient(90deg,#06b6d4,#3b82f6)}
+    .kpi-card.intel::before{background:linear-gradient(90deg,#f59e0b,#22c55e)}
+    .kpi-card.gdp::before{background:linear-gradient(90deg,#8b5cf6,#3b82f6)}
+    .kpi-icon{font-size:2rem;margin-bottom:.8rem}
+    .kpi-label-home{font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.4rem}
+    .kpi-value-home{font-size:2rem;font-weight:800;margin-bottom:.3rem}
+    .kpi-sub-home{font-size:.8rem;color:var(--muted)}
+    .kpi-card.radar .kpi-value-home{color:#06b6d4}
+    .kpi-card.intel .kpi-value-home{color:#22c55e}
+    .kpi-card.gdp .kpi-value-home{color:#8b5cf6}
+
+    /* Globe Section */
+    .globe-section{text-align:center;margin-bottom:2rem}
+    .globe-section h2{font-size:1rem;color:var(--muted);margin-bottom:1.5rem;text-transform:uppercase;letter-spacing:.08em}
+    .globe-container{width:400px;height:400px;margin:0 auto;perspective:1000px;position:relative}
+    .globe{width:100%;height:100%;border-radius:50%;position:relative;transform-style:preserve-3d;animation:globeRotate 20s linear infinite;background:radial-gradient(circle at 30% 30%, rgba(59,130,246,.15), rgba(139,92,246,.08) 50%, transparent 70%);border:1px solid rgba(59,130,246,.2);box-shadow:inset 0 0 60px rgba(59,130,246,.08),0 0 40px rgba(59,130,246,.05)}
+    @keyframes globeRotate{from{transform:rotateY(0deg)}to{transform:rotateY(360deg)}}
+    .globe::before,.globe::after{content:'';position:absolute;border-radius:50%;border:1px solid rgba(59,130,246,.1)}
+    .globe::before{width:100%;height:100%;top:0;left:0}
+    .globe::after{width:70%;height:100%;top:0;left:15%}
+    .globe-ring{position:absolute;border-radius:50%;border:1px solid rgba(59,130,246,.08);pointer-events:none}
+
+    /* SRE Points */
+    .sre-point{position:absolute;width:16px;height:16px;border-radius:50%;cursor:pointer;z-index:10;transition:all .3s;display:flex;align-items:center;justify-content:center;animation:pointPulse 2s ease-in-out infinite}
+    .sre-point:hover{transform:scale(1.5);z-index:20}
+    .sre-point::after{content:'';position:absolute;width:24px;height:24px;border-radius:50%;border:2px solid currentColor;opacity:.3;animation:pointRing 2s ease-out infinite}
+    .sre-label{position:absolute;top:-24px;left:50%;transform:translateX(-50%);font-size:.65rem;color:var(--text);white-space:nowrap;background:rgba(0,0,0,.7);padding:.15rem .4rem;border-radius:4px;opacity:0;transition:opacity .2s;pointer-events:none}
+    .sre-point:hover .sre-label{opacity:1}
+    @keyframes pointPulse{0%,100%{box-shadow:0 0 8px currentColor}50%{box-shadow:0 0 16px currentColor}}
+    @keyframes pointRing{0%{transform:scale(.8);opacity:.5}100%{transform:scale(1.5);opacity:0}}
+
+    /* SRE Detail Panel */
+    .sre-panel{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--card);border:1px solid var(--line);border-radius:16px;padding:2rem;width:400px;max-width:90vw;z-index:100;box-shadow:0 20px 60px rgba(0,0,0,.5);display:none}
+    .sre-panel.active{display:block}
+    .sre-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99;display:none}
+    .sre-overlay.active{display:block}
+    .sre-panel h3{font-size:1.1rem;margin-bottom:1rem;display:flex;align-items:center;gap:.5rem}
+    .sre-stat{display:flex;justify-content:space-between;padding:.6rem 0;border-bottom:1px solid var(--line);font-size:.85rem}
+    .sre-stat:last-child{border:none}
+    .sre-stat .val{font-weight:700;color:var(--accent)}
+    .sre-panel .btn-go{margin-top:1rem;width:100%;padding:.7rem;border:none;background:var(--accent);color:#0d1412;border-radius:8px;font-size:.85rem;font-weight:700;cursor:pointer}
+    .sre-panel .btn-go:hover{opacity:.85}
+    .sre-panel .btn-close{position:absolute;top:.8rem;right:.8rem;background:none;border:none;color:var(--muted);font-size:1.2rem;cursor:pointer}
+
+    /* Animations */
+    .fade-in{opacity:0;transform:translateY(20px);animation:fadeUp .6s ease forwards}
+    .fade-in:nth-child(2){animation-delay:.15s}
+    .fade-in:nth-child(3){animation-delay:.3s}
+    @keyframes fadeUp{to{opacity:1;transform:translateY(0)}}
+
+    /* Responsive */
+    @media(max-width:768px){
+      .kpi-grid-home{grid-template-columns:1fr}
+      .globe-container{width:280px;height:280px}
+    }
+    @media(min-width:769px) and (max-width:1024px){
+      .kpi-grid-home{grid-template-columns:repeat(2,1fr)}
+      .globe-container{width:340px;height:340px}
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ===== SIDEBAR ===== -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">Licit-IAX</div>
+    <nav class="sidebar-nav">
+      <button class="sidebar-item active" onclick="void(0)" title="Dashboard Home">
+        <span class="sidebar-icon">🏠</span>
+        <span class="sidebar-label">HOME</span>
+      </button>
+      <button class="sidebar-item" data-module="radar" onclick="window.location.href='index.html';localStorage.setItem('nexedu.activeModule','radar')" title="Radar de Oportunidades">
+        <span class="sidebar-icon">📡</span>
+        <span class="sidebar-label">RADAR</span>
+      </button>
+      <button class="sidebar-item" data-module="intel-precos" onclick="window.location.href='index.html';localStorage.setItem('nexedu.activeModule','intel-precos')" title="Inteligência de Preços">
+        <span class="sidebar-icon">💰</span>
+        <span class="sidebar-label">INTELIGÊNCIA DE PREÇOS</span>
+      </button>
+      <button class="sidebar-item" data-module="gdp" onclick="window.location.href='gdp-contratos.html'" title="Gestão de Pedidos Pós-Licitação">
+        <span class="sidebar-icon">📦</span>
+        <span class="sidebar-label">GDP</span>
+      </button>
+    </nav>
+    <button class="sidebar-item sidebar-config" onclick="window.location.href='index.html';localStorage.setItem('nexedu.activeModule','config')" title="Configurações">
+      <span class="sidebar-icon">⚙️</span>
+      <span class="sidebar-label">Configurações</span>
+    </button>
+  </aside>
+
+  <!-- ===== MAIN AREA ===== -->
+  <div class="main-area" id="main-area">
+
+    <!-- ===== TOPBAR ===== -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="sidebar-toggle" id="sidebar-toggle" title="Menu">☰</button>
+        <div>
+          <p class="eyebrow">Dashboard</p>
+          <h1>Licit-IAX</h1>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <span id="user-name" style="color:var(--muted);font-size:.85rem"></span>
+        <button class="btn btn-sm" onclick="logout()" title="Sair">Sair</button>
+      </div>
+    </header>
+
+    <!-- ===== CONTENT ===== -->
+    <div style="padding:1.5rem 2rem;">
+
+      <!-- KPI Cards -->
+      <div class="kpi-grid-home" id="kpi-grid"></div>
+
+      <!-- Globe Section -->
+      <div class="globe-section">
+        <h2>Áreas de Atuação — SREs</h2>
+        <div class="globe-container" id="globe-container">
+          <div class="globe" id="globe">
+            <div class="globe-ring" style="width:80%;height:80%;top:10%;left:10%"></div>
+            <div class="globe-ring" style="width:60%;height:60%;top:20%;left:20%"></div>
+            <div class="globe-ring" style="width:40%;height:100%;top:0;left:30%"></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- SRE Detail Panel -->
+  <div class="sre-overlay" id="sre-overlay" onclick="fecharSrePanel()"></div>
+  <div class="sre-panel" id="sre-panel">
+    <button class="btn-close" onclick="fecharSrePanel()">✕</button>
+    <h3 id="sre-panel-title"></h3>
+    <div id="sre-panel-stats"></div>
+    <button class="btn-go" id="sre-panel-go">Ir para Radar desta SRE →</button>
+  </div>
+
+  <!-- Sidebar overlay (mobile) -->
+  <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+  <script src="auth.js"></script>
+  <script>
+// ===== CONFIG =====
+const MODULOS_KEY = "nexedu.modulos.acesso";
+const SRE_CONFIG = [
+  { id: "uberaba", nome: "SRE Uberaba", cor: "#3b82f6", x: 55, y: 45, escolas: 0, oportunidades: 0 },
+];
+
+// ===== SIDEBAR TOGGLE =====
+const sidebar = document.getElementById("sidebar");
+const sidebarOverlay = document.getElementById("sidebar-overlay");
+document.getElementById("sidebar-toggle").addEventListener("click", () => {
+  sidebar.classList.toggle("open");
+  sidebarOverlay.classList.toggle("active");
+});
+sidebarOverlay.addEventListener("click", () => {
+  sidebar.classList.remove("open");
+  sidebarOverlay.classList.remove("active");
+});
+
+// ===== ACCESS CONTROL =====
+function getAcessoModulos() {
+  try {
+    const raw = localStorage.getItem(MODULOS_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch(_) {}
+  return { radar: true, intelPrecos: true, gdp: true };
+}
+
+function aplicarAcessoSidebar() {
+  const acesso = getAcessoModulos();
+  document.querySelectorAll(".sidebar-item[data-module]").forEach(btn => {
+    const mod = btn.dataset.module;
+    if (mod === "radar") btn.style.display = acesso.radar ? "" : "none";
+    if (mod === "intel-precos") btn.style.display = acesso.intelPrecos ? "" : "none";
+    if (mod === "gdp") btn.style.display = acesso.gdp ? "" : "none";
+  });
+}
+
+// ===== KPIs =====
+function carregarKPIs() {
+  const acesso = getAcessoModulos();
+  const grid = document.getElementById("kpi-grid");
+  const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+  let cards = '';
+
+  // Radar
+  let oportunidades = 0;
+  try {
+    const pre = JSON.parse(localStorage.getItem("caixaescolar.preorcamentos.v1") || "{}");
+    oportunidades = Object.keys(pre).length;
+  } catch(_) {}
+
+  if (acesso.radar) {
+    cards += `<div class="kpi-card radar fade-in" onclick="window.location.href='index.html';localStorage.setItem('nexedu.activeModule','radar')">
+      <div class="kpi-icon">📡</div>
+      <div class="kpi-label-home">Radar de Oportunidades</div>
+      <div class="kpi-value-home">${oportunidades}</div>
+      <div class="kpi-sub-home">oportunidades ativas</div>
+    </div>`;
+  }
+
+  // Intel Preços
+  let faturamento = 0;
+  try {
+    const contratos = JSON.parse(localStorage.getItem("caixaescolar.contratos.v1") || "[]");
+    if (Array.isArray(contratos)) faturamento = contratos.reduce((s, c) => s + (c.valorTotal || c.valor || 0), 0);
+  } catch(_) {}
+
+  if (acesso.intelPrecos) {
+    cards += `<div class="kpi-card intel fade-in" onclick="window.location.href='index.html';localStorage.setItem('nexedu.activeModule','intel-precos')">
+      <div class="kpi-icon">💰</div>
+      <div class="kpi-label-home">Inteligência de Preços</div>
+      <div class="kpi-value-home">${brl.format(faturamento)}</div>
+      <div class="kpi-sub-home">faturamento aprovado</div>
+    </div>`;
+  }
+
+  // GDP
+  let gdpContratos = 0, gdpValor = 0;
+  try {
+    const gdp = JSON.parse(localStorage.getItem("gdp.contratos.v1") || "[]");
+    if (Array.isArray(gdp)) {
+      const ativos = gdp.filter(c => c.status === 'ativo');
+      gdpContratos = ativos.length;
+      gdpValor = ativos.reduce((s, c) => {
+        return s + (c.itens || []).reduce((t, i) => t + (i.precoUnitario || 0) * (i.qtdContratada || 0), 0);
+      }, 0);
+    }
+  } catch(_) {}
+
+  if (acesso.gdp) {
+    cards += `<div class="kpi-card gdp fade-in" onclick="window.location.href='gdp-contratos.html'">
+      <div class="kpi-icon">📦</div>
+      <div class="kpi-label-home">GDP Contratos</div>
+      <div class="kpi-value-home">${gdpContratos} <span style="font-size:.9rem;color:var(--muted)">/ ${brl.format(gdpValor)}</span></div>
+      <div class="kpi-sub-home">contratos ativos / valor total</div>
+    </div>`;
+  }
+
+  grid.innerHTML = cards || '<p style="text-align:center;color:var(--muted);grid-column:1/-1">Nenhum módulo liberado. Configure o acesso em Configurações.</p>';
+
+  // Update SRE data
+  SRE_CONFIG[0].oportunidades = oportunidades;
+  try {
+    const pre = JSON.parse(localStorage.getItem("caixaescolar.preorcamentos.v1") || "{}");
+    const escolas = new Set(Object.values(pre).map(p => p.escola).filter(Boolean));
+    if (escolas.size > 0) SRE_CONFIG[0].escolas = escolas.size;
+  } catch(_) {}
+}
+
+// ===== GLOBE =====
+function renderGlobePoints() {
+  const globe = document.getElementById("globe");
+  globe.querySelectorAll(".sre-point").forEach(el => el.remove());
+  SRE_CONFIG.forEach(sre => {
+    const point = document.createElement("div");
+    point.className = "sre-point";
+    point.style.cssText = `left:${sre.x}%;top:${sre.y}%;background:${sre.cor};color:${sre.cor};transform:translate(-50%,-50%)`;
+    point.innerHTML = `<span class="sre-label">${sre.nome}</span>`;
+    point.onclick = (e) => { e.stopPropagation(); abrirSrePanel(sre); };
+    globe.appendChild(point);
+  });
+}
+
+function abrirSrePanel(sre) {
+  document.getElementById("sre-panel-title").innerHTML = `<span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${sre.cor}"></span> ${sre.nome}`;
+  document.getElementById("sre-panel-stats").innerHTML = `
+    <div class="sre-stat"><span>Escolas cadastradas</span><span class="val">${sre.escolas}</span></div>
+    <div class="sre-stat"><span>Oportunidades ativas</span><span class="val">${sre.oportunidades}</span></div>
+  `;
+  document.getElementById("sre-panel-go").onclick = () => {
+    localStorage.setItem("nexedu.activeModule", "radar");
+    window.location.href = "index.html";
+  };
+  document.getElementById("sre-overlay").classList.add("active");
+  document.getElementById("sre-panel").classList.add("active");
+}
+
+function fecharSrePanel() {
+  document.getElementById("sre-overlay").classList.remove("active");
+  document.getElementById("sre-panel").classList.remove("active");
+}
+
+// ===== LOGOUT =====
+function logout() {
+  sessionStorage.removeItem("ce.auth");
+  window.location.href = "login.html";
+}
+
+// ===== INIT =====
+try {
+  const emp = JSON.parse(localStorage.getItem("nexedu.empresa") || "{}");
+  document.getElementById("user-name").textContent = emp.nome || "Fornecedor";
+} catch(_) {
+  document.getElementById("user-name").textContent = "Fornecedor";
+}
+
+aplicarAcessoSidebar();
+carregarKPIs();
+renderGlobePoints();
+  </script>
+</body>
+</html>

@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>GDP Contratos — Gestao Pos-Licitacao</title>
+  <link rel="stylesheet" href="styles.css?v=7" />
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
   <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -129,21 +130,47 @@
 </head>
 <body>
 
-<div class="topbar">
-  <div style="display:flex;align-items:center;gap:1rem">
-    <h1><span>GDP</span> Contratos</h1>
-    <span class="badge badge-blue">Gestao Pos-Licitacao</span>
-  </div>
-  <div class="topbar-right">
-    <span>Fornecedor: <strong style="color:var(--txt)">Lariucci & Ribeiro Pereira</strong></span>
-    <span>|</span>
-    <a href="gdp-portal.html">Portal Escolar</a>
-    <a href="gdp-entregador.html">Entregador</a>
-    <span>|</span>
+  <!-- ===== SIDEBAR ===== -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand" style="cursor:pointer" onclick="window.location.href='dashboard-home.html'" title="Voltar ao Dashboard">Licit-IAX</div>
+    <nav class="sidebar-nav">
+      <button class="sidebar-item" onclick="window.location.href='dashboard-home.html'" title="Dashboard Home">
+        <span class="sidebar-icon">🏠</span>
+        <span class="sidebar-label">HOME</span>
+      </button>
+      <button class="sidebar-item" data-module="radar" onclick="window.location.href='index.html';localStorage.setItem('nexedu.activeModule','radar')" title="Radar de Oportunidades">
+        <span class="sidebar-icon">📡</span>
+        <span class="sidebar-label">RADAR</span>
+      </button>
+      <button class="sidebar-item" data-module="intel-precos" onclick="window.location.href='index.html';localStorage.setItem('nexedu.activeModule','intel-precos')" title="Inteligência de Preços">
+        <span class="sidebar-icon">💰</span>
+        <span class="sidebar-label">INTELIGÊNCIA DE PREÇOS</span>
+      </button>
+      <button class="sidebar-item active" data-module="gdp" title="Gestão de Pedidos Pós-Licitação">
+        <span class="sidebar-icon">📦</span>
+        <span class="sidebar-label">GDP</span>
+      </button>
+    </nav>
+    <button class="sidebar-item sidebar-config" onclick="window.location.href='index.html';localStorage.setItem('nexedu.activeModule','config')" title="Configurações">
+      <span class="sidebar-icon">⚙️</span>
+      <span class="sidebar-label">Configurações</span>
+    </button>
+  </aside>
 
-    <a href="index.html" class="green" onclick="localStorage.setItem('nexedu.activeModule','radar')">← Licit-IAX</a>
+  <!-- ===== MAIN AREA ===== -->
+  <div class="main-area" id="main-area">
+
+  <div class="topbar" style="border-bottom:1px solid var(--bdr)">
+    <div style="display:flex;align-items:center;gap:1rem">
+      <button class="sidebar-toggle" id="sidebar-toggle" title="Menu" style="background:none;border:none;color:var(--txt);font-size:1.3rem;cursor:pointer;padding:.2rem .5rem">☰</button>
+      <h1><span>GDP</span> Contratos</h1>
+      <span class="badge badge-blue">Gestao Pos-Licitacao</span>
+    </div>
+    <div class="topbar-right">
+      <a href="gdp-portal.html">Portal Escolar</a>
+      <a href="gdp-entregador.html">Entregador</a>
+    </div>
   </div>
-</div>
 
 <div class="main">
 
@@ -162,6 +189,7 @@
     <button class="tab" data-tab="usuarios" onclick="switchTab('usuarios')">Usuarios <span class="count" id="tab-count-usuarios">0</span></button>
     <button class="tab" data-tab="pedidos" onclick="switchTab('pedidos')">Pedidos <span class="count" id="tab-count-pedidos">0</span></button>
     <button class="tab" data-tab="entregas" onclick="switchTab('entregas')">Entregas <span class="count" id="tab-count-entregas">0</span></button>
+    <button class="tab" data-tab="banco-produtos" onclick="switchTab('banco-produtos')">Banco de Produtos <span class="count" id="tab-count-banco-produtos">0</span></button>
   </div>
 
   <!-- Tab: Contratos -->
@@ -379,11 +407,16 @@
         </select>
         <input type="date" id="filtro-data-pedido" onchange="renderPedidos()">
       </div>
+      <div style="display:flex;gap:.5rem;align-items:center">
+        <span id="pedidos-sel-count" style="font-size:.8rem;color:var(--cyan);font-weight:600;display:none"></span>
+        <button class="btn btn-green" id="btn-gerar-lista" onclick="gerarListaCompras()" disabled title="Selecione ao menos 1 protocolo" style="opacity:.5">Gerar Lista de Compras</button>
+      </div>
     </div>
     <div class="table-wrap" style="max-height:600px;overflow-y:auto">
       <table>
         <thead>
           <tr>
+            <th style="width:30px"><input type="checkbox" id="pedidos-select-all" onchange="toggleSelectAllPedidos()" title="Selecionar todos"></th>
             <th>Protocolo</th>
             <th>Contrato</th>
             <th>Escola</th>
@@ -420,6 +453,38 @@
         <button class="btn btn-outline btn-sm" onclick="fecharModalPedido()">Fechar</button>
       </div>
       <div style="padding:1.5rem" id="modal-pedido-body"></div>
+    </div>
+  </div>
+
+  <!-- Modal: Lista de Compras -->
+  <div id="modal-lista-compras" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1001;display:flex;align-items:flex-start;justify-content:center;padding:1rem;overflow-y:auto">
+    <div style="background:var(--bg);border:1px solid var(--bdr);border-radius:14px;width:900px;max-width:98vw;max-height:95vh;display:flex;flex-direction:column;margin-top:1rem">
+      <div style="padding:1rem 1.5rem;border-bottom:1px solid var(--bdr);display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
+        <div>
+          <h2 style="font-size:1.1rem;margin:0">Lista de Compras Consolidada</h2>
+          <p style="font-size:.8rem;color:var(--mut);margin-top:.3rem" id="lista-compras-info"></p>
+        </div>
+        <div style="display:flex;gap:.5rem">
+          <button class="btn btn-sm btn-outline" onclick="exportarListaCSV()">Exportar CSV</button>
+          <button class="btn btn-sm btn-purple" onclick="exportarListaPDF()">Exportar PDF</button>
+          <button class="btn btn-sm btn-outline" onclick="fecharListaCompras()">Fechar</button>
+        </div>
+      </div>
+      <div style="padding:1rem 1.5rem;flex-shrink:0">
+        <input type="text" id="busca-lista-compras" placeholder="Buscar na lista..." oninput="filtrarListaCompras()" style="width:100%">
+      </div>
+      <div style="padding:0 1.5rem 1rem;overflow-y:auto;flex:1">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>#</th><th>Descricao</th><th>SKU</th><th>Unidade</th><th class="text-right">Qtd Total</th><th>Protocolos de Origem</th></tr></thead>
+            <tbody id="lista-compras-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div style="padding:.8rem 1.5rem;border-top:1px solid var(--bdr);display:flex;justify-content:space-between;font-size:.85rem;font-weight:600;flex-shrink:0">
+        <span id="lista-compras-total-itens"></span>
+        <span id="lista-compras-total-qtd"></span>
+      </div>
     </div>
   </div>
 
@@ -487,6 +552,96 @@
     <div class="empty hidden" id="entregas-empty"><h3>Nenhuma entrega registrada</h3><p>As entregas aparecerao aqui assim que o entregador confirmar pelo app.</p></div>
   </div>
 
+  <!-- Tab: Banco de Produtos ERP -->
+  <div id="tab-banco-produtos" class="hidden">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:.5rem">
+      <div style="display:flex;gap:.8rem;align-items:center">
+        <input type="text" id="busca-produto" placeholder="Buscar produto..." oninput="renderBancoProdutos()" style="min-width:200px">
+      </div>
+      <div style="display:flex;gap:.5rem">
+        <button class="btn btn-blue" onclick="document.getElementById('import-produto-excel').click()">Importar Excel</button>
+        <button class="btn btn-purple" onclick="document.getElementById('import-produto-pdf').click()">Importar PDF</button>
+        <button class="btn btn-green" onclick="novoProdutoManual()">+ Novo Produto</button>
+        <button class="btn btn-outline" onclick="exportarProdutosCSV()">Exportar CSV</button>
+        <input type="file" id="import-produto-excel" accept=".xlsx,.xls,.csv" style="display:none" onchange="importarProdutosExcel(this.files[0]);this.value=''">
+        <input type="file" id="import-produto-pdf" accept=".pdf" style="display:none" onchange="importarProdutosPDF(this.files[0]);this.value=''">
+      </div>
+    </div>
+    <div class="table-wrap" style="max-height:600px;overflow-y:auto">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Descricao</th>
+            <th>Codigo (SKU)</th>
+            <th>Unidade</th>
+            <th>Acoes</th>
+          </tr>
+        </thead>
+        <tbody id="banco-produtos-tbody"></tbody>
+      </table>
+    </div>
+    <div class="empty hidden" id="banco-produtos-empty"><h3>Nenhum produto cadastrado</h3><p>Adicione produtos manualmente ou importe via Excel/PDF.</p></div>
+  </div>
+
+  <!-- Modal: Produto -->
+  <div id="modal-produto" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1001;display:flex;align-items:center;justify-content:center;padding:2rem">
+    <div style="background:var(--bg);border:1px solid var(--bdr);border-radius:14px;width:500px;max-width:95vw;padding:1.5rem">
+      <h2 style="font-size:1.1rem;margin-bottom:1rem" id="modal-produto-titulo">Novo Produto</h2>
+      <div style="display:grid;gap:1rem">
+        <div>
+          <label style="font-size:.8rem;color:var(--mut);display:block;margin-bottom:.3rem">Descricao *</label>
+          <input type="text" id="prod-descricao" placeholder="Ex: Arroz tipo 1 5kg" style="width:100%">
+        </div>
+        <div>
+          <label style="font-size:.8rem;color:var(--mut);display:block;margin-bottom:.3rem">Codigo (SKU)</label>
+          <input type="text" id="prod-sku" placeholder="Ex: ARR-001" style="width:100%">
+        </div>
+        <div>
+          <label style="font-size:.8rem;color:var(--mut);display:block;margin-bottom:.3rem">Unidade *</label>
+          <select id="prod-unidade" style="width:100%">
+            <option value="">Selecione...</option>
+            <option value="UN">UN</option><option value="CX">CX</option><option value="PCT">PCT</option>
+            <option value="KG">KG</option><option value="LT">LT</option><option value="FD">FD</option>
+            <option value="GL">GL</option><option value="SC">SC</option><option value="RL">RL</option>
+            <option value="BD">BD</option><option value="MÇ">MÇ</option><option value="DZ">DZ</option>
+            <option value="PR">PR</option><option value="CT">CT</option><option value="TB">TB</option>
+            <option value="FR">FR</option><option value="GR">GR</option><option value="ML">ML</option>
+            <option value="M">M</option><option value="M2">M2</option><option value="M3">M3</option>
+            <option value="RESMA">RESMA</option><option value="BLOCO">BLOCO</option><option value="JOGO">JOGO</option>
+            <option value="KIT">KIT</option>
+          </select>
+        </div>
+      </div>
+      <div style="margin-top:1.5rem;display:flex;justify-content:flex-end;gap:.8rem">
+        <button class="btn btn-outline" onclick="fecharModalProduto()">Cancelar</button>
+        <button class="btn btn-green" onclick="salvarProduto()">Salvar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Import Preview Produtos -->
+  <div id="modal-import-produtos" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1001;display:flex;align-items:center;justify-content:center;padding:1rem">
+    <div style="background:var(--bg);border:1px solid var(--bdr);border-radius:14px;width:800px;max-width:98vw;max-height:90vh;display:flex;flex-direction:column">
+      <div style="padding:1rem 1.5rem;border-bottom:1px solid var(--bdr)">
+        <h2 style="font-size:1.1rem" id="import-produtos-titulo">Preview de Importacao</h2>
+        <p style="font-size:.8rem;color:var(--mut)" id="import-produtos-info"></p>
+      </div>
+      <div style="padding:1rem 1.5rem;overflow-y:auto;flex:1">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>#</th><th>Descricao</th><th>SKU</th><th>Unidade</th></tr></thead>
+            <tbody id="import-produtos-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div style="padding:1rem 1.5rem;border-top:1px solid var(--bdr);display:flex;justify-content:flex-end;gap:.8rem">
+        <button class="btn btn-outline" onclick="fecharImportPreview()">Cancelar</button>
+        <button class="btn btn-green" onclick="confirmarImportProdutos()">Importar</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Modal: Comprovante Entrega -->
   <div id="modal-comprovante" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:1000;display:flex;align-items:flex-start;justify-content:center;padding:1rem;overflow-y:auto">
     <div style="background:var(--bg);border:1px solid var(--bdr);border-radius:14px;width:700px;max-width:95vw;max-height:90vh;overflow-y:auto">
@@ -511,10 +666,25 @@
 
 </div>
 
+  </div><!-- /main-area -->
+
+  <!-- Sidebar overlay (mobile) -->
+  <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
 <!-- Toast -->
 <div id="toast-container" style="position:fixed;top:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px"></div>
 
 <script>
+// ===== SIDEBAR TOGGLE =====
+document.getElementById("sidebar-toggle").addEventListener("click", () => {
+  document.getElementById("sidebar").classList.toggle("open");
+  document.getElementById("sidebar-overlay").classList.toggle("active");
+});
+document.getElementById("sidebar-overlay").addEventListener("click", () => {
+  document.getElementById("sidebar").classList.remove("open");
+  document.getElementById("sidebar-overlay").classList.remove("active");
+});
+
 // ===== CONSTANTS =====
 const CONTRACTS_KEY = "gdp.contratos.v1";
 const ORDERS_KEY = "gdp.pedidos.v1";
@@ -613,13 +783,14 @@ function switchTab(tab) {
   document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
   const tabBtn = document.querySelector(`[data-tab="${tab}"]`);
   if (tabBtn) tabBtn.classList.add("active");
-  ["importar","contratos","itens","usuarios","pedidos","entregas"].forEach(t => {
+  ["importar","contratos","itens","usuarios","pedidos","entregas","banco-produtos"].forEach(t => {
     document.getElementById(`tab-${t}`).classList.toggle("hidden", t !== tab);
   });
   if (tab === "contratos") renderContratos();
   if (tab === "itens") renderItens();
   if (tab === "pedidos") renderPedidos();
   if (tab === "usuarios") renderUsuarios();
+  if (tab === "banco-produtos") renderBancoProdutos();
 }
 
 // ===== DOCX PARSER =====
@@ -2953,6 +3124,7 @@ function abrirContrato(id) {
       </div>
       <div style="display:flex;gap:.4rem;flex-wrap:wrap;align-items:center">
         <button class="btn btn-sm btn-blue hidden" id="btn-editar-massa-${c.id}" onclick="editarItensMassa('${c.id}')" title="Editar itens selecionados">Editar Selecionados</button>
+        <button class="btn btn-sm" style="background:rgba(6,182,212,.15);color:var(--cyan);border:none;font-weight:700" onclick="abrirModalSync('${c.id}')" title="Sincronizar itens com Banco de Produtos ERP">🔄 Sync Banco</button>
         <button class="btn btn-sm btn-purple" onclick="cadastrarTiny('${c.id}')" title="Enviar todos os produtos ao Tiny ERP">Enviar Todos ao Tiny</button>
         <button class="btn btn-sm btn-green" onclick="adicionarItemContrato('${c.id}')">+ Item</button>
       </div>
@@ -3179,6 +3351,7 @@ function renderPedidos() {
     const ctrLabel = c ? `${c.id}` : (p.contratoId || "-");
     const ctrDetail = c ? [c.processo ? 'Proc. ' + c.processo : '', c.edital ? 'Ed. ' + c.edital : ''].filter(Boolean).join(' | ') : '';
     return `<tr>
+      <td class="text-center"><input type="checkbox" class="pedido-check" value="${p.id}" onchange="atualizarSelecaoPedidos()"${_selectedPedidoIds.has(p.id) ? ' checked' : ''}></td>
       <td class="font-mono">${esc(p.id)}</td>
       <td style="font-size:.8rem"><strong class="font-mono">${esc(ctrLabel)}</strong>${ctrDetail ? '<br><span style="color:var(--mut);font-size:.72rem">' + esc(ctrDetail) + '</span>' : ''}</td>
       <td>${esc(p.escola.length > 30 ? p.escola.slice(0, 28) + "..." : p.escola)}</td>
@@ -4375,6 +4548,7 @@ async function enviarTiny(contratoId) {
   } catch (e) { console.warn("[GDP] Cloud sync pull failed:", e); }
   loadData();
   loadUsuarios();
+  loadBancoProdutos();
   renderAll();
   // Push local data to cloud (populates Supabase with existing data)
   try { await syncToCloud(); } catch(_) {}
@@ -4387,6 +4561,542 @@ async function enviarTiny(contratoId) {
     }
   });
 })();
+
+// ===== LISTA DE COMPRAS =====
+let _selectedPedidoIds = new Set();
+let _listaComprasData = [];
+
+function toggleSelectAllPedidos() {
+  const checked = document.getElementById("pedidos-select-all").checked;
+  document.querySelectorAll(".pedido-check").forEach(cb => { cb.checked = checked; });
+  atualizarSelecaoPedidos();
+}
+
+function atualizarSelecaoPedidos() {
+  _selectedPedidoIds.clear();
+  document.querySelectorAll(".pedido-check:checked").forEach(cb => { _selectedPedidoIds.add(cb.value); });
+  const count = _selectedPedidoIds.size;
+  const badge = document.getElementById("pedidos-sel-count");
+  const btn = document.getElementById("btn-gerar-lista");
+  if (count > 0) {
+    badge.textContent = count + " protocolo" + (count > 1 ? "s" : "") + " selecionado" + (count > 1 ? "s" : "");
+    badge.style.display = "";
+    btn.disabled = false;
+    btn.style.opacity = "1";
+    btn.title = "Gerar lista de compras dos protocolos selecionados";
+  } else {
+    badge.style.display = "none";
+    btn.disabled = true;
+    btn.style.opacity = ".5";
+    btn.title = "Selecione ao menos 1 protocolo";
+  }
+  // Sync header checkbox
+  const allChecks = document.querySelectorAll(".pedido-check");
+  const allChecked = allChecks.length > 0 && [...allChecks].every(cb => cb.checked);
+  const headerCb = document.getElementById("pedidos-select-all");
+  if (headerCb) headerCb.checked = allChecked;
+}
+
+function gerarListaCompras() {
+  if (_selectedPedidoIds.size === 0) { showToast("Selecione ao menos 1 protocolo.", 3000); return; }
+
+  const selectedPedidos = pedidos.filter(p => _selectedPedidoIds.has(p.id));
+  const consolidado = new Map();
+
+  for (const p of selectedPedidos) {
+    for (const item of (p.itens || [])) {
+      const desc = (item.descricao || "").trim();
+      const sku = (item.sku || item.codigo || "").trim();
+      const key = sku ? sku.toUpperCase() : desc.toLowerCase();
+      if (!key) continue;
+
+      if (consolidado.has(key)) {
+        const existing = consolidado.get(key);
+        existing.qtd += (item.qtd || item.quantidade || 0);
+        if (!existing.protocolos.includes(p.id)) existing.protocolos.push(p.id);
+      } else {
+        consolidado.set(key, {
+          descricao: desc,
+          sku: sku,
+          unidade: item.unidade || item.un || "UN",
+          qtd: item.qtd || item.quantidade || 0,
+          protocolos: [p.id]
+        });
+      }
+    }
+  }
+
+  _listaComprasData = [...consolidado.values()].sort((a, b) => a.descricao.localeCompare(b.descricao, 'pt-BR'));
+  renderListaCompras(_listaComprasData);
+}
+
+function renderListaCompras(itens) {
+  const tbody = document.getElementById("lista-compras-tbody");
+  tbody.innerHTML = itens.map((item, i) => `<tr>
+    <td class="text-center">${i + 1}</td>
+    <td>${esc(item.descricao)}</td>
+    <td class="font-mono">${esc(item.sku || '-')}</td>
+    <td class="text-center">${esc(item.unidade)}</td>
+    <td class="text-right font-mono" style="font-weight:700">${item.qtd}</td>
+    <td style="font-size:.75rem;color:var(--mut)">${item.protocolos.map(id => esc(id)).join(', ')}</td>
+  </tr>`).join("");
+
+  const totalItens = itens.length;
+  const totalQtd = itens.reduce((s, i) => s + i.qtd, 0);
+  document.getElementById("lista-compras-total-itens").textContent = totalItens + " item" + (totalItens !== 1 ? " únicos" : " único");
+  document.getElementById("lista-compras-total-qtd").textContent = "Quantidade total: " + totalQtd;
+  document.getElementById("lista-compras-info").textContent = _selectedPedidoIds.size + " protocolo(s) selecionado(s) — " + new Date().toLocaleDateString('pt-BR');
+
+  document.getElementById("modal-lista-compras").classList.remove("hidden");
+}
+
+function filtrarListaCompras() {
+  const busca = (document.getElementById("busca-lista-compras")?.value || "").toLowerCase();
+  const filtered = busca ? _listaComprasData.filter(i => i.descricao.toLowerCase().includes(busca) || (i.sku || "").toLowerCase().includes(busca)) : _listaComprasData;
+  renderListaCompras(filtered);
+}
+
+function fecharListaCompras() {
+  document.getElementById("modal-lista-compras").classList.add("hidden");
+}
+
+function exportarListaCSV() {
+  if (_listaComprasData.length === 0) return;
+  const header = "Descricao;SKU;Unidade;Quantidade;Protocolos";
+  const rows = _listaComprasData.map(i => `"${(i.descricao||'').replace(/"/g,'""')}";"${i.sku||''}";"${i.unidade}";"${i.qtd}";"${i.protocolos.join(', ')}"`);
+  const csv = [header, ...rows].join("\n");
+  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `lista-compras-${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast("Lista exportada em CSV!");
+}
+
+function exportarListaPDF() {
+  if (_listaComprasData.length === 0) return;
+
+  // Build printable HTML
+  const empresa = JSON.parse(localStorage.getItem("nexedu.empresa") || "{}");
+  const nomeEmpresa = empresa.nome || empresa.razaoSocial || "Empresa";
+  const dataGeracao = new Date().toLocaleDateString('pt-BR');
+
+  let tableRows = _listaComprasData.map((item, i) =>
+    `<tr><td style="text-align:center">${i+1}</td><td>${item.descricao}</td><td style="font-family:monospace">${item.sku||'-'}</td><td style="text-align:center">${item.unidade}</td><td style="text-align:right;font-weight:700">${item.qtd}</td><td style="font-size:11px;color:#666">${item.protocolos.join(', ')}</td></tr>`
+  ).join("");
+
+  const totalQtd = _listaComprasData.reduce((s, i) => s + i.qtd, 0);
+
+  const printWindow = window.open('', '_blank');
+  printWindow.document.write(`<!DOCTYPE html><html><head><title>Lista de Compras</title>
+    <style>
+      body{font-family:Arial,sans-serif;margin:2rem;color:#333}
+      h1{font-size:18px;margin-bottom:4px}
+      .meta{font-size:12px;color:#666;margin-bottom:20px}
+      table{width:100%;border-collapse:collapse;font-size:13px}
+      th{background:#f0f0f0;padding:8px;text-align:left;border:1px solid #ddd;font-size:11px;text-transform:uppercase}
+      td{padding:6px 8px;border:1px solid #ddd}
+      tr:nth-child(even){background:#f9f9f9}
+      .footer{margin-top:16px;font-size:12px;font-weight:700;text-align:right}
+      @media print{body{margin:1cm}}
+    </style>
+  </head><body>
+    <h1>Lista de Compras — ${nomeEmpresa}</h1>
+    <div class="meta">Data: ${dataGeracao} | Protocolos: ${[..._selectedPedidoIds].join(', ')} | Itens: ${_listaComprasData.length}</div>
+    <table>
+      <thead><tr><th>#</th><th>Descricao</th><th>SKU</th><th>Unidade</th><th style="text-align:right">Qtd</th><th>Protocolos</th></tr></thead>
+      <tbody>${tableRows}</tbody>
+    </table>
+    <div class="footer">Total: ${_listaComprasData.length} itens | Quantidade total: ${totalQtd}</div>
+    <scr' + 'ipt>setTimeout(()=>{window.print();},500);<\/scr' + 'ipt>
+  </body></html>`);
+  printWindow.document.close();
+  showToast("PDF aberto para impressao!");
+}
+
+// ===== BANCO DE PRODUTOS ERP =====
+const PRODUTOS_KEY = "gdp.produtos.v1";
+let bancoProdutos = { updatedAt: "", itens: [] };
+let _editProdutoId = null;
+let _importProdutosBuffer = [];
+
+function loadBancoProdutos() {
+  try { bancoProdutos = JSON.parse(localStorage.getItem(PRODUTOS_KEY)) || { updatedAt: "", itens: [] }; } catch(_) { bancoProdutos = { updatedAt: "", itens: [] }; }
+  if (!bancoProdutos.itens) bancoProdutos.itens = [];
+}
+
+function saveBancoProdutos() {
+  bancoProdutos.updatedAt = new Date().toISOString();
+  localStorage.setItem(PRODUTOS_KEY, JSON.stringify(bancoProdutos));
+  if (typeof schedulCloudSync === 'function') schedulCloudSync();
+}
+
+function renderBancoProdutos() {
+  loadBancoProdutos();
+  const busca = (document.getElementById("busca-produto")?.value || "").toLowerCase();
+  let itens = bancoProdutos.itens;
+  if (busca) itens = itens.filter(p => (p.descricao || "").toLowerCase().includes(busca) || (p.sku || "").toLowerCase().includes(busca));
+
+  const tbody = document.getElementById("banco-produtos-tbody");
+  const empty = document.getElementById("banco-produtos-empty");
+  document.getElementById("tab-count-banco-produtos").textContent = bancoProdutos.itens.length;
+
+  if (itens.length === 0) {
+    tbody.innerHTML = "";
+    empty.classList.remove("hidden");
+    return;
+  }
+  empty.classList.add("hidden");
+
+  tbody.innerHTML = itens.map((p, idx) => `<tr>
+    <td class="text-center">${idx + 1}</td>
+    <td>${esc(p.descricao)}</td>
+    <td class="font-mono">${esc(p.sku || '-')}</td>
+    <td class="text-center">${esc(p.unidade)}</td>
+    <td class="text-center nowrap">
+      <button class="btn btn-sm" style="font-size:.75rem;padding:.2rem .4rem;background:rgba(59,130,246,.15);color:var(--blue);border:none;cursor:pointer" onclick="editarProduto('${p.id}')" title="Editar">✏️</button>
+      <button class="btn btn-sm" style="font-size:.6rem;padding:.15rem .3rem;background:rgba(239,68,68,.15);color:var(--red);border:none;cursor:pointer" onclick="excluirProduto('${p.id}')" title="Excluir">✕</button>
+    </td>
+  </tr>`).join("");
+}
+
+function novoProdutoManual() {
+  _editProdutoId = null;
+  document.getElementById("modal-produto-titulo").textContent = "Novo Produto";
+  document.getElementById("prod-descricao").value = "";
+  document.getElementById("prod-sku").value = "";
+  document.getElementById("prod-unidade").value = "";
+  document.getElementById("modal-produto").classList.remove("hidden");
+}
+
+function editarProduto(id) {
+  loadBancoProdutos();
+  const p = bancoProdutos.itens.find(x => x.id === id);
+  if (!p) return;
+  _editProdutoId = id;
+  document.getElementById("modal-produto-titulo").textContent = "Editar Produto";
+  document.getElementById("prod-descricao").value = p.descricao || "";
+  document.getElementById("prod-sku").value = p.sku || "";
+  document.getElementById("prod-unidade").value = p.unidade || "";
+  document.getElementById("modal-produto").classList.remove("hidden");
+}
+
+function salvarProduto() {
+  const descricao = (document.getElementById("prod-descricao").value || "").trim();
+  const sku = (document.getElementById("prod-sku").value || "").trim();
+  const unidade = document.getElementById("prod-unidade").value;
+
+  if (!descricao) { showToast("Descricao e obrigatoria.", 3000); return; }
+  if (!unidade) { showToast("Unidade e obrigatoria.", 3000); return; }
+
+  loadBancoProdutos();
+
+  if (sku) {
+    const existing = bancoProdutos.itens.find(x => x.sku === sku && x.id !== _editProdutoId);
+    if (existing) {
+      if (!confirm(`Ja existe um produto com SKU "${sku}" (${existing.descricao}). Deseja atualizar?`)) return;
+      existing.descricao = descricao;
+      existing.unidade = unidade;
+      saveBancoProdutos();
+      fecharModalProduto();
+      renderBancoProdutos();
+      showToast("Produto atualizado!");
+      return;
+    }
+  }
+
+  if (_editProdutoId) {
+    const p = bancoProdutos.itens.find(x => x.id === _editProdutoId);
+    if (p) { p.descricao = descricao; p.sku = sku; p.unidade = unidade; }
+  } else {
+    bancoProdutos.itens.push({
+      id: 'PROD-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
+      descricao, sku, unidade,
+      criadoEm: new Date().toISOString()
+    });
+  }
+
+  saveBancoProdutos();
+  fecharModalProduto();
+  renderBancoProdutos();
+  showToast(_editProdutoId ? "Produto atualizado!" : "Produto adicionado!");
+}
+
+function excluirProduto(id) {
+  loadBancoProdutos();
+  const p = bancoProdutos.itens.find(x => x.id === id);
+  if (!p) return;
+  if (!confirm(`Excluir produto "${p.descricao}"?`)) return;
+  bancoProdutos.itens = bancoProdutos.itens.filter(x => x.id !== id);
+  saveBancoProdutos();
+  renderBancoProdutos();
+  showToast("Produto excluido.");
+}
+
+function fecharModalProduto() {
+  document.getElementById("modal-produto").classList.add("hidden");
+  _editProdutoId = null;
+}
+
+function exportarProdutosCSV() {
+  loadBancoProdutos();
+  if (bancoProdutos.itens.length === 0) { showToast("Nenhum produto para exportar.", 3000); return; }
+  const header = "Descricao;SKU;Unidade";
+  const rows = bancoProdutos.itens.map(p => `"${(p.descricao||'').replace(/"/g,'""')}";"${p.sku||''}";"${p.unidade||''}"`);
+  const csv = [header, ...rows].join("\n");
+  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `banco-produtos-${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast(`${bancoProdutos.itens.length} produtos exportados!`);
+}
+
+// ===== IMPORT EXCEL PRODUTOS =====
+async function importarProdutosExcel(file) {
+  if (!file) return;
+  try {
+    const data = await file.arrayBuffer();
+    const wb = XLSX.read(data, { type: "array" });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
+
+    if (rows.length < 2) { showToast("Planilha vazia ou sem dados.", 3000); return; }
+
+    // Auto-detect columns
+    const headers = rows[0].map(h => String(h).toLowerCase().trim());
+    const descIdx = headers.findIndex(h => /descri|produto|item|nome/.test(h));
+    const skuIdx = headers.findIndex(h => /c[oó]digo|sku|cod|ref/.test(h));
+    const undIdx = headers.findIndex(h => /unid|un$|und|medida/.test(h));
+
+    if (descIdx === -1) { showToast("Coluna de descricao nao encontrada. Verifique os headers.", 5000); return; }
+
+    _importProdutosBuffer = [];
+    for (let i = 1; i < rows.length; i++) {
+      const desc = String(rows[i][descIdx] || "").trim();
+      if (!desc) continue;
+      _importProdutosBuffer.push({
+        descricao: desc,
+        sku: skuIdx >= 0 ? String(rows[i][skuIdx] || "").trim() : "",
+        unidade: undIdx >= 0 ? String(rows[i][undIdx] || "").trim().toUpperCase() : "UN"
+      });
+    }
+
+    if (_importProdutosBuffer.length === 0) { showToast("Nenhum produto encontrado na planilha.", 3000); return; }
+    mostrarImportPreview("Excel: " + file.name, _importProdutosBuffer);
+  } catch (err) {
+    showToast("Erro ao parsear Excel: " + err.message, 5000);
+  }
+}
+
+// ===== IMPORT PDF PRODUTOS =====
+async function importarProdutosPDF(file) {
+  if (!file) return;
+  try {
+    showToast("Processando PDF... Aguarde.", 5000);
+    if (!window.pdfjsLib) { showToast("Biblioteca PDF nao carregada.", 3000); return; }
+    const data = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data }).promise;
+
+    let allText = "";
+    for (let p = 1; p <= pdf.numPages; p++) {
+      const page = await pdf.getPage(p);
+      const content = await page.getTextContent();
+      allText += content.items.map(i => i.str).join(" ") + "\n";
+    }
+
+    if (!allText.trim()) { showToast("PDF sem texto reconhecivel. Tente converter para Excel.", 5000); return; }
+
+    // Send to AI parse API
+    const baseUrl = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" ? "" : window.location.origin;
+    const resp = await fetch(baseUrl + "/api/ai-parse-price", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        texto: allText.slice(0, 15000),
+        formato: "banco_produtos",
+        fornecedor: "",
+        contexto: "Extrair lista de produtos com campos: descricao, codigo/SKU, unidade. Retorne JSON: {\"produtos\": [{\"descricao\": \"...\", \"sku\": \"...\", \"unidade\": \"...\"}]}"
+      })
+    });
+
+    if (!resp.ok) throw new Error("Erro na API: " + resp.status);
+    const result = await resp.json();
+
+    let produtos = [];
+    if (result.produtos && Array.isArray(result.produtos)) {
+      produtos = result.produtos;
+    } else if (result.itens && Array.isArray(result.itens)) {
+      produtos = result.itens.map(i => ({ descricao: i.descricao || i.item || i.nome || "", sku: i.sku || i.codigo || "", unidade: i.unidade || i.un || "UN" }));
+    }
+
+    if (produtos.length === 0) { showToast("Nenhum produto reconhecido no PDF.", 5000); return; }
+    _importProdutosBuffer = produtos.map(p => ({
+      descricao: String(p.descricao || "").trim(),
+      sku: String(p.sku || p.codigo || "").trim(),
+      unidade: String(p.unidade || "UN").trim().toUpperCase()
+    })).filter(p => p.descricao);
+
+    mostrarImportPreview("PDF: " + file.name, _importProdutosBuffer);
+  } catch (err) {
+    showToast("Erro ao processar PDF: " + err.message, 5000);
+  }
+}
+
+function mostrarImportPreview(titulo, itens) {
+  document.getElementById("import-produtos-titulo").textContent = "Preview — " + titulo;
+  document.getElementById("import-produtos-info").textContent = itens.length + " produtos encontrados";
+  document.getElementById("import-produtos-tbody").innerHTML = itens.map((p, i) =>
+    `<tr><td class="text-center">${i+1}</td><td>${esc(p.descricao)}</td><td class="font-mono">${esc(p.sku || '-')}</td><td class="text-center">${esc(p.unidade)}</td></tr>`
+  ).join("");
+  document.getElementById("modal-import-produtos").classList.remove("hidden");
+}
+
+function fecharImportPreview() {
+  document.getElementById("modal-import-produtos").classList.add("hidden");
+  _importProdutosBuffer = [];
+}
+
+function confirmarImportProdutos() {
+  if (_importProdutosBuffer.length === 0) return;
+  loadBancoProdutos();
+  let added = 0, updated = 0;
+  for (const p of _importProdutosBuffer) {
+    if (p.sku) {
+      const existing = bancoProdutos.itens.find(x => x.sku === p.sku);
+      if (existing) { existing.descricao = p.descricao; existing.unidade = p.unidade; updated++; continue; }
+    }
+    bancoProdutos.itens.push({
+      id: 'PROD-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6) + '-' + added,
+      descricao: p.descricao, sku: p.sku, unidade: p.unidade,
+      criadoEm: new Date().toISOString()
+    });
+    added++;
+  }
+  saveBancoProdutos();
+  fecharImportPreview();
+  renderBancoProdutos();
+  showToast(`Importacao concluida: ${added} novos, ${updated} atualizados.`);
+}
+
+// ===== SYNC ITENS CONTRATO ↔ BANCO DE PRODUTOS =====
+function calcSimilaridade(s1, s2) {
+  s1 = s1.toLowerCase().trim(); s2 = s2.toLowerCase().trim();
+  if (s1 === s2) return 1;
+  const longer = s1.length > s2.length ? s1 : s2;
+  const shorter = s1.length > s2.length ? s2 : s1;
+  if (longer.length === 0) return 1;
+  // Levenshtein
+  const costs = [];
+  for (let i = 0; i <= longer.length; i++) {
+    let lastVal = i;
+    for (let j = 0; j <= shorter.length; j++) {
+      if (i === 0) { costs[j] = j; }
+      else if (j > 0) {
+        let newVal = costs[j - 1];
+        if (longer[i - 1] !== shorter[j - 1]) newVal = Math.min(newVal, lastVal, costs[j]) + 1;
+        costs[j - 1] = lastVal;
+        lastVal = newVal;
+      }
+    }
+    if (i > 0) costs[shorter.length] = lastVal;
+  }
+  return (longer.length - costs[shorter.length]) / longer.length;
+}
+
+function abrirModalSync(contratoId) {
+  loadBancoProdutos();
+  if (bancoProdutos.itens.length === 0) {
+    showToast("Banco de Produtos vazio. Adicione produtos primeiro na aba Banco de Produtos.", 4000);
+    return;
+  }
+  const c = contratos.find(x => x.id === contratoId);
+  if (!c) return;
+
+  const matches = c.itens.map((item, idx) => {
+    let match = null; let score = 0; let method = '';
+    // 1. Match by SKU
+    if (item.sku) {
+      const skuMatch = bancoProdutos.itens.find(p => p.sku && p.sku.toUpperCase() === item.sku.toUpperCase());
+      if (skuMatch) { match = skuMatch; score = 1; method = 'SKU'; }
+    }
+    // 2. Match by description similarity
+    if (!match) {
+      let bestScore = 0; let bestProd = null;
+      for (const p of bancoProdutos.itens) {
+        const s = calcSimilaridade(item.descricao || '', p.descricao || '');
+        if (s > bestScore) { bestScore = s; bestProd = p; }
+      }
+      if (bestProd && bestScore >= 0.7) { match = bestProd; score = bestScore; method = 'Similaridade'; }
+    }
+    // 3. Already synced?
+    const synced = item._syncedFromBanco ? true : false;
+    return { idx, item, match, score, method, synced, accept: !!match };
+  });
+
+  // Build modal
+  let html = `
+    <div style="margin-bottom:1rem">
+      <p style="font-size:.85rem;color:var(--mut)">Sincronizar itens do contrato com o Banco de Produtos ERP. Apenas <strong>descrição, SKU e unidade</strong> serão atualizados. Preço e quantidade são preservados.</p>
+    </div>
+    <div class="table-wrap" style="max-height:50vh;overflow-y:auto">
+      <table style="font-size:.78rem">
+        <thead><tr><th style="width:30px">✓</th><th>#</th><th>Item Contrato</th><th>→</th><th>Match Banco</th><th>Score</th><th>Método</th></tr></thead>
+        <tbody>${matches.map(m => {
+          const statusColor = m.synced ? 'var(--green)' : m.match ? (m.score >= 0.9 ? 'var(--green)' : 'var(--yellow)') : 'var(--red)';
+          const statusLabel = m.synced ? 'Já sincronizado' : m.match ? (m.method + ' ' + (m.score * 100).toFixed(0) + '%') : 'Sem match';
+          return `<tr style="border-left:3px solid ${statusColor}">
+            <td class="text-center"><input type="checkbox" class="sync-check" data-idx="${m.idx}" ${m.accept ? 'checked' : ''} ${!m.match ? 'disabled' : ''}></td>
+            <td class="text-center">${m.item.num}</td>
+            <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(m.item.descricao)}">${esc(m.item.descricao)}<br><span style="font-size:.65rem;color:var(--dim)">SKU: ${esc(m.item.sku || '-')} | ${esc(m.item.unidade)}</span></td>
+            <td class="text-center" style="font-size:1.1rem">→</td>
+            <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${m.match ? esc(m.match.descricao) + '<br><span style="font-size:.65rem;color:var(--dim)">SKU: ' + esc(m.match.sku || '-') + ' | ' + esc(m.match.unidade) + '</span>' : '<span style="color:var(--red);font-size:.8rem">—</span>'}</td>
+            <td class="text-center" style="color:${statusColor};font-weight:700;font-size:.8rem">${m.match ? (m.score * 100).toFixed(0) + '%' : '—'}</td>
+            <td style="font-size:.72rem;color:var(--mut)">${statusLabel}</td>
+          </tr>`;
+        }).join("")}</tbody>
+      </table>
+    </div>
+    <div style="margin-top:1rem;display:flex;justify-content:flex-end;gap:.8rem">
+      <button class="btn btn-outline" onclick="abrirContrato('${contratoId}')">Cancelar</button>
+      <button class="btn btn-green" onclick="confirmarSync('${contratoId}')">Confirmar Sincronização</button>
+    </div>`;
+
+  _contratoAbertoId = contratoId;
+  document.getElementById("modal-contrato-titulo").textContent = "🔄 Sincronizar com Banco de Produtos — " + c.id;
+  document.getElementById("modal-contrato-body").innerHTML = html;
+
+  // Store matches for confirmation
+  window._syncMatches = matches;
+}
+
+function confirmarSync(contratoId) {
+  const c = contratos.find(x => x.id === contratoId);
+  if (!c) return;
+  const checks = document.querySelectorAll(".sync-check:checked");
+  if (checks.length === 0) { showToast("Nenhum item selecionado para sincronizar.", 3000); return; }
+
+  let synced = 0;
+  checks.forEach(cb => {
+    const idx = parseInt(cb.dataset.idx);
+    const m = window._syncMatches?.find(x => x.idx === idx);
+    if (!m || !m.match) return;
+    c.itens[idx].descricao = m.match.descricao;
+    c.itens[idx].sku = m.match.sku || c.itens[idx].sku;
+    c.itens[idx].unidade = m.match.unidade || c.itens[idx].unidade;
+    c.itens[idx]._syncedFromBanco = true;
+    synced++;
+  });
+
+  saveContratos();
+  showToast(`${synced} de ${c.itens.length} itens sincronizados!`);
+  abrirContrato(contratoId);
+  renderAll();
+}
 </script>
 
 </body>

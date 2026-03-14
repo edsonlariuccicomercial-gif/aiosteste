@@ -24,6 +24,7 @@ export default async function handler(req, res) {
 
   // OCR mode: images sent via _ocrMessages
   const isOCR = _ocrMessages && Array.isArray(_ocrMessages) && _ocrMessages.length > 0;
+  const isCronoOCR = isOCR && formato === "cronograma_ocr";
 
   if (!isOCR && (!texto || texto.trim().length < 10)) {
     return res.status(400).json({ error: "Texto insuficiente para análise" });
@@ -38,12 +39,16 @@ export default async function handler(req, res) {
 
     if (isOCR) {
       // OCR mode: forward image content to vision-capable model
-      model = "gpt-4o-mini";
+      // Use gpt-4o for cronograma (complex tables with dates/quantities), gpt-4o-mini for simpler OCR
+      model = isCronoOCR ? "gpt-4o" : "gpt-4o-mini";
       messages = [
-        { role: "system", content: "Você é um OCR especialista em extrair dados de tabelas de licitações públicas de Caixas Escolares em Minas Gerais. Analise as imagens e extraia TODOS os dados incluindo PREÇOS UNITÁRIOS de cada fornecedor. Retorne APENAS JSON válido, sem markdown." },
+        { role: "system", content: isCronoOCR
+          ? "Você é um especialista em extrair dados de cronogramas de entrega de licitações de Caixas Escolares em Minas Gerais. Extraia TODOS os itens com preços e quantidades por data. Retorne APENAS JSON válido, sem markdown."
+          : "Você é um OCR especialista em extrair dados de tabelas de licitações públicas de Caixas Escolares em Minas Gerais. Analise as imagens e extraia TODOS os dados incluindo PREÇOS UNITÁRIOS de cada fornecedor. Retorne APENAS JSON válido, sem markdown."
+        },
         ..._ocrMessages
       ];
-      maxTokens = 8000;
+      maxTokens = isCronoOCR ? 16000 : 8000;
     } else {
       // Text mode: original behavior
       model = "gpt-4o-mini";
@@ -107,7 +112,10 @@ ${contexto ? "CONTEXTO ADICIONAL: " + contexto : ""}`;
       return res.status(500).json({ error: "Erro na API OpenAI", detail: data.error?.message });
     }
 
-    const parsed = JSON.parse(data.choices[0].message.content);
+    let rawContent = data.choices[0].message.content;
+    // Strip markdown code fences if present
+    rawContent = rawContent.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
+    const parsed = JSON.parse(rawContent);
 
     if (isOCR) {
       // OCR mode: return the full structured response (escola, fornecedores, itens, etc.)

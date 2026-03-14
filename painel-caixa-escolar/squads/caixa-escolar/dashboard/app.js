@@ -1,5 +1,5 @@
 /* ===================================================================
-   Painel do Fornecedor — Caixa Escolar MG
+   Painel do Fornecedor — Licit-IAX
    Vanilla JS | SRE Uberaba MVP — Fase 3
    =================================================================== */
 
@@ -28,7 +28,8 @@ const PNCP_CACHE_KEY = "caixaescolar.pncp.cache";
 const SYNC_KEYS = [
   "nexedu.empresa", "caixaescolar.banco.v1", "caixaescolar.preorcamentos.v1",
   "caixaescolar.resultados.v1", "caixaescolar.contratos.v1",
-  "gdp.contratos.v1", "gdp.pedidos.v1", "gdp.entregas.provas.v1", "gdp.usuarios.v1"
+  "gdp.contratos.v1", "gdp.pedidos.v1", "gdp.entregas.provas.v1", "gdp.usuarios.v1",
+  "gdp.produtos.v1", "nexedu.modulos.acesso"
 ];
 
 function getSyncUserId() {
@@ -347,6 +348,45 @@ function isGrupoExcluido(grupo) {
   return perfil.config.gruposExcluidos.some((g) => normalizedText(g) === normalizedText(grupo));
 }
 
+// ===== CONTROLE DE ACESSO POR MÓDULO =====
+const MODULOS_KEY = "nexedu.modulos.acesso";
+
+function getAcessoModulos() {
+  try {
+    const raw = localStorage.getItem(MODULOS_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch(_) {}
+  return { radar: true, intelPrecos: true, gdp: true };
+}
+
+function salvarModulos() {
+  const acesso = {
+    radar: document.getElementById("mod-radar")?.checked ?? true,
+    intelPrecos: document.getElementById("mod-intel")?.checked ?? true,
+    gdp: document.getElementById("mod-gdp")?.checked ?? true
+  };
+  localStorage.setItem(MODULOS_KEY, JSON.stringify(acesso));
+  aplicarAcessoSidebar();
+  schedulCloudSync();
+}
+
+function carregarModulosConfig() {
+  const acesso = getAcessoModulos();
+  const r = document.getElementById("mod-radar"); if (r) r.checked = acesso.radar;
+  const i = document.getElementById("mod-intel"); if (i) i.checked = acesso.intelPrecos;
+  const g = document.getElementById("mod-gdp"); if (g) g.checked = acesso.gdp;
+}
+
+function aplicarAcessoSidebar() {
+  const acesso = getAcessoModulos();
+  document.querySelectorAll(".sidebar-item[data-module]").forEach(btn => {
+    const mod = btn.dataset.module;
+    if (mod === "radar") btn.style.display = acesso.radar ? "" : "none";
+    if (mod === "intel-precos") btn.style.display = acesso.intelPrecos ? "" : "none";
+    if (mod === "gdp") btn.style.display = acesso.gdp ? "" : "none";
+  });
+}
+
 // ===== DATA LOADING =====
 async function fetchJson(path) {
   try {
@@ -396,58 +436,6 @@ function saveBancoLocal() {
   } catch (_) { /* no-op */ }
 }
 
-// ===== EXPORTAR / IMPORTAR DADOS (SYNC ENTRE MAQUINAS) =====
-function exportarTodosDados() {
-  const allKeys = [
-    EMPRESA_STORAGE_KEY, BANCO_STORAGE_KEY, "nexedu.auth",
-    "gdp.contratos.v1", "gdp.pedidos.v1", "gdp.entregas.provas.v1", "gdp.usuarios.v1"
-  ];
-  const dados = {};
-  allKeys.forEach(k => {
-    const v = localStorage.getItem(k);
-    if (v) { try { dados[k] = JSON.parse(v); } catch(_) { dados[k] = v; } }
-  });
-  dados._exportDate = new Date().toISOString();
-  dados._source = location.hostname;
-
-  const blob = new Blob([JSON.stringify(dados, null, 2)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `nexedu-dados-${new Date().toISOString().slice(0, 10)}.json`;
-  a.click();
-  URL.revokeObjectURL(url);
-  const st = document.getElementById("sync-status");
-  if (st) st.textContent = "Dados exportados em " + new Date().toLocaleTimeString();
-}
-
-function importarTodosDados(file) {
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    try {
-      const dados = JSON.parse(e.target.result);
-      const importDate = dados._exportDate || "desconhecida";
-      delete dados._exportDate;
-      delete dados._source;
-
-      const keys = Object.keys(dados);
-      if (keys.length === 0) { alert("Arquivo vazio ou invalido."); return; }
-
-      if (!confirm(`Importar dados de ${importDate}?\n\n${keys.length} conjuntos:\n${keys.join("\n")}\n\nDados existentes serao sobrescritos!`)) return;
-
-      keys.forEach(k => localStorage.setItem(k, typeof dados[k] === "string" ? dados[k] : JSON.stringify(dados[k])));
-
-      const st = document.getElementById("sync-status");
-      if (st) st.textContent = `${keys.length} conjuntos importados! Recarregando...`;
-      setTimeout(() => location.reload(), 1000);
-    } catch (err) {
-      alert("Erro ao importar: " + err.message);
-    }
-  };
-  reader.readAsText(file);
-}
-
 // ===== BOOT =====
 async function boot() {
   // Cloud sync: pull latest data, then push local data (ensures first machine populates cloud)
@@ -460,6 +448,8 @@ async function boot() {
   catch (e) { console.warn("[Boot] Cloud push failed:", e); }
 
   loadPreOrcamentos();
+  carregarModulosConfig();
+  aplicarAcessoSidebar();
 
   const [orcData, bancoData, perfilData, sreInfo] = await Promise.all([
     fetchJson("data/orcamentos.json"),
