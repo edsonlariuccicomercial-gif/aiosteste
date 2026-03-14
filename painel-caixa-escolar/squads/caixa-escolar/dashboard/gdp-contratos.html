@@ -3568,11 +3568,65 @@ function verPedidoDetalhe(pedidoId) {
     html += '</tbody></table></div>';
   }
 
-  html += '<div style="margin-top:1.2rem;display:flex;justify-content:flex-end"><button class="btn btn-outline" onclick="fecharModalPedido()">Fechar</button></div>';
+  html += '<div style="margin-top:1.2rem;display:flex;justify-content:flex-end;gap:.5rem"><button class="btn btn-purple" onclick="imprimirPedido(\'' + p.id + '\')">Imprimir</button><button class="btn btn-outline" onclick="fecharModalPedido()">Fechar</button></div>';
 
   document.querySelector("#modal-pedido h2").textContent = 'Pedido ' + p.id;
   document.getElementById("modal-pedido-body").innerHTML = html;
   document.getElementById("modal-pedido").classList.remove("hidden");
+}
+
+function imprimirPedido(pedidoId) {
+  const p = pedidos.find(x => x.id === pedidoId);
+  if (!p) return;
+  const empresa = JSON.parse(localStorage.getItem("nexedu.empresa") || "{}");
+  const nomeEmpresa = empresa.nome || empresa.razaoSocial || "Empresa";
+  const c = contratos.find(x => x.id === p.contratoId);
+  const ctrLabel = c ? (c.processo ? 'Proc. ' + c.processo : c.id) : (p.contratoId || '-');
+
+  let tableRows = (p.itens || []).map((item, i) => {
+    const sub = (item.qtd || 0) * (item.precoUnitario || 0);
+    return `<tr><td style="text-align:center">${i+1}</td><td>${item.descricao || ''}</td><td style="text-align:center">${item.qtd || 0}</td><td style="text-align:right">${brl.format(item.precoUnitario || 0)}</td><td style="text-align:right;font-weight:700">${brl.format(sub)}</td></tr>`;
+  }).join("");
+
+  const iframe = document.createElement('iframe');
+  iframe.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:0;height:0';
+  document.body.appendChild(iframe);
+  const doc = iframe.contentDocument || iframe.contentWindow.document;
+  doc.open();
+  doc.write(`<!DOCTYPE html><html><head><title>Pedido ${p.id}</title>
+    <style>
+      body{font-family:Arial,sans-serif;margin:2rem;color:#333}
+      h1{font-size:18px;margin-bottom:4px}
+      .meta{font-size:12px;color:#666;margin-bottom:20px}
+      .info-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:20px;font-size:13px}
+      .info-grid .label{color:#666;font-size:11px;text-transform:uppercase}
+      .info-grid .value{font-weight:700}
+      table{width:100%;border-collapse:collapse;font-size:13px}
+      th{background:#f0f0f0;padding:8px;text-align:left;border:1px solid #ddd;font-size:11px;text-transform:uppercase}
+      td{padding:6px 8px;border:1px solid #ddd}
+      tr:nth-child(even){background:#f9f9f9}
+      .footer{margin-top:16px;font-size:13px;font-weight:700;text-align:right}
+      @media print{body{margin:1cm}}
+    </style>
+  </head><body>
+    <h1>Pedido — ${nomeEmpresa}</h1>
+    <div class="meta">Protocolo: ${p.id} | Data: ${p.dataEntrega || p.data} | Contrato: ${ctrLabel}</div>
+    <div class="info-grid">
+      <div><div class="label">Escola</div><div class="value">${p.escola}</div></div>
+      <div><div class="label">Status</div><div class="value">${p.status}</div></div>
+      <div><div class="label">Valor Total</div><div class="value">${brl.format(p.valor)}</div></div>
+      <div><div class="label">Itens</div><div class="value">${(p.itens||[]).length}</div></div>
+    </div>
+    <table>
+      <thead><tr><th>#</th><th>Produto</th><th style="text-align:center">Qtd</th><th style="text-align:right">Preco Unit.</th><th style="text-align:right">Subtotal</th></tr></thead>
+      <tbody>${tableRows}</tbody>
+    </table>
+    <div class="footer">Total: ${brl.format(p.valor)}</div>
+  </body></html>`);
+  doc.close();
+  iframe.contentWindow.focus();
+  iframe.contentWindow.print();
+  setTimeout(() => document.body.removeChild(iframe), 3000);
 }
 
 function fecharModalPedido() {
@@ -4678,7 +4732,6 @@ function exportarListaCSV() {
 function exportarListaPDF() {
   if (_listaComprasData.length === 0) return;
 
-  // Build printable HTML
   const empresa = JSON.parse(localStorage.getItem("nexedu.empresa") || "{}");
   const nomeEmpresa = empresa.nome || empresa.razaoSocial || "Empresa";
   const dataGeracao = new Date().toLocaleDateString('pt-BR');
@@ -4689,8 +4742,12 @@ function exportarListaPDF() {
 
   const totalQtd = _listaComprasData.reduce((s, i) => s + i.qtd, 0);
 
-  const printWindow = window.open('', '_blank');
-  printWindow.document.write(`<!DOCTYPE html><html><head><title>Lista de Compras</title>
+  const iframe = document.createElement('iframe');
+  iframe.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:0;height:0';
+  document.body.appendChild(iframe);
+  const doc = iframe.contentDocument || iframe.contentWindow.document;
+  doc.open();
+  doc.write(`<!DOCTYPE html><html><head><title>Lista de Compras</title>
     <style>
       body{font-family:Arial,sans-serif;margin:2rem;color:#333}
       h1{font-size:18px;margin-bottom:4px}
@@ -4710,10 +4767,11 @@ function exportarListaPDF() {
       <tbody>${tableRows}</tbody>
     </table>
     <div class="footer">Total: ${_listaComprasData.length} itens | Quantidade total: ${totalQtd}</div>
-    <scr' + 'ipt>setTimeout(()=>{window.print();},500);<\/scr' + 'ipt>
   </body></html>`);
-  printWindow.document.close();
-  showToast("PDF aberto para impressao!");
+  doc.close();
+  iframe.contentWindow.focus();
+  iframe.contentWindow.print();
+  setTimeout(() => document.body.removeChild(iframe), 3000);
 }
 
 // ===== BANCO DE PRODUTOS ERP =====
@@ -4894,47 +4952,115 @@ async function importarProdutosExcel(file) {
 }
 
 // ===== IMPORT PDF PRODUTOS =====
+function parseProdutosFromText(text) {
+  const produtos = [];
+  const lines = text.split(/\n/).map(l => l.trim()).filter(l => l.length > 3);
+
+  // Strategy 1: tabular — lines with number prefix (e.g. "1 ARROZ TIPO 1 5KG UN")
+  const reTabular = /^(\d{1,4})[\s.\-–)]+(.{5,})/;
+  const reUnidade = /\b(UN|UND|UNID|UNIDADE|KG|GR|G|LT|L|ML|PCT|PC|PÇ|CX|CJ|FD|DZ|RL|SC|BD|GL|TB|FR|PT|MT|M|PAR|RESMA)\b/i;
+  const reSku = /\b(\d{4,13})\b/;
+
+  for (const line of lines) {
+    const m = reTabular.exec(line);
+    if (!m) continue;
+    let rest = m[2].trim();
+    // Skip header-like lines
+    if (/descri[cç][aã]o|produto|item|unid|quant|pre[cç]o|total|valor/i.test(rest)) continue;
+    // Skip lines that are just numbers or very short
+    if (rest.replace(/[\d\s.,]/g, '').length < 3) continue;
+
+    let unidade = "UN";
+    const mu = reUnidade.exec(rest);
+    if (mu) { unidade = mu[1].toUpperCase(); rest = rest.replace(mu[0], ' ').trim(); }
+    let sku = "";
+    const ms = reSku.exec(rest);
+    if (ms) { sku = ms[1]; rest = rest.replace(ms[0], ' ').trim(); }
+    // Clean description: remove trailing numbers (qtd/price)
+    let descricao = rest.replace(/[\d.,]+\s*$/, '').replace(/\s{2,}/g, ' ').trim();
+    if (descricao.length < 3) continue;
+    produtos.push({ descricao, sku, unidade });
+  }
+
+  if (produtos.length > 0) return produtos;
+
+  // Strategy 2: non-tabular — each line with sufficient text is a product
+  for (const line of lines) {
+    if (/descri[cç][aã]o|produto|item|unid|quant|pre[cç]o|total|valor|cnpj|razao|social|endere|telefone|fone|email|pagina|p[aá]gina/i.test(line)) continue;
+    if (line.replace(/[\d\s.,;:\-–()/]/g, '').length < 4) continue;
+
+    let unidade = "UN";
+    const mu = reUnidade.exec(line);
+    if (mu) unidade = mu[1].toUpperCase();
+    let sku = "";
+    const ms = reSku.exec(line);
+    if (ms) sku = ms[1];
+    let descricao = line.replace(/[\d.,]+\s*$/g, '').replace(/\s{2,}/g, ' ').trim();
+    if (descricao.length < 4) continue;
+    produtos.push({ descricao, sku, unidade });
+  }
+  return produtos;
+}
+
 async function importarProdutosPDF(file) {
   if (!file) return;
   try {
     showToast("Processando PDF... Aguarde.", 5000);
-    if (!window.pdfjsLib) { showToast("Biblioteca PDF nao carregada.", 3000); return; }
+    if (!window.pdfjsLib) { showToast("Biblioteca PDF nao carregada. Recarregue a pagina.", 3000); return; }
     const data = await file.arrayBuffer();
     const pdf = await pdfjsLib.getDocument({ data }).promise;
 
     let allText = "";
-    for (let p = 1; p <= pdf.numPages; p++) {
-      const page = await pdf.getPage(p);
+    for (let pg = 1; pg <= pdf.numPages; pg++) {
+      const page = await pdf.getPage(pg);
       const content = await page.getTextContent();
-      allText += content.items.map(i => i.str).join(" ") + "\n";
+      // Reconstruct lines using Y-position grouping
+      const items = content.items.filter(i => i.str.trim());
+      if (items.length === 0) continue;
+      items.sort((a, b) => b.transform[5] - a.transform[5] || a.transform[4] - b.transform[4]);
+      let currentY = items[0].transform[5];
+      let currentLine = "";
+      for (const item of items) {
+        if (Math.abs(item.transform[5] - currentY) > 3) {
+          allText += currentLine.trim() + "\n";
+          currentLine = "";
+          currentY = item.transform[5];
+        }
+        currentLine += item.str + " ";
+      }
+      if (currentLine.trim()) allText += currentLine.trim() + "\n";
     }
 
     if (!allText.trim()) { showToast("PDF sem texto reconhecivel. Tente converter para Excel.", 5000); return; }
 
-    // Send to AI parse API
-    const baseUrl = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" ? "" : window.location.origin;
-    const resp = await fetch(baseUrl + "/api/ai-parse-price", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        texto: allText.slice(0, 15000),
-        formato: "banco_produtos",
-        fornecedor: "",
-        contexto: "Extrair lista de produtos com campos: descricao, codigo/SKU, unidade. Retorne JSON: {\"produtos\": [{\"descricao\": \"...\", \"sku\": \"...\", \"unidade\": \"...\"}]}"
-      })
-    });
-
-    if (!resp.ok) throw new Error("Erro na API: " + resp.status);
-    const result = await resp.json();
-
+    // Try AI API first, fallback to local parser
     let produtos = [];
-    if (result.produtos && Array.isArray(result.produtos)) {
-      produtos = result.produtos;
-    } else if (result.itens && Array.isArray(result.itens)) {
-      produtos = result.itens.map(i => ({ descricao: i.descricao || i.item || i.nome || "", sku: i.sku || i.codigo || "", unidade: i.unidade || i.un || "UN" }));
+    try {
+      const baseUrl = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" ? "" : window.location.origin;
+      const resp = await fetch(baseUrl + "/api/ai-parse-price", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          texto: allText.slice(0, 15000),
+          formato: "banco_produtos",
+          fornecedor: "",
+          contexto: "Extrair lista de produtos com campos: descricao, codigo/SKU, unidade. Retorne JSON: {\"produtos\": [{\"descricao\": \"...\", \"sku\": \"...\", \"unidade\": \"...\"}]}"
+        }),
+        signal: AbortSignal.timeout(15000)
+      });
+      if (resp.ok) {
+        const result = await resp.json();
+        if (result.produtos && Array.isArray(result.produtos)) produtos = result.produtos;
+        else if (result.itens && Array.isArray(result.itens)) produtos = result.itens.map(i => ({ descricao: i.descricao || i.item || i.nome || "", sku: i.sku || i.codigo || "", unidade: i.unidade || i.un || "UN" }));
+      }
+    } catch(_) { /* API indisponivel, usar parser local */ }
+
+    // Fallback: local text parser
+    if (produtos.length === 0) {
+      produtos = parseProdutosFromText(allText);
     }
 
-    if (produtos.length === 0) { showToast("Nenhum produto reconhecido no PDF.", 5000); return; }
+    if (produtos.length === 0) { showToast("Nenhum produto reconhecido no PDF. Tente importar via Excel.", 5000); return; }
     _importProdutosBuffer = produtos.map(p => ({
       descricao: String(p.descricao || "").trim(),
       sku: String(p.sku || p.codigo || "").trim(),
