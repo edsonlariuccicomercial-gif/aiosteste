@@ -574,6 +574,7 @@
             <th>#</th>
             <th>Descricao</th>
             <th>Codigo (SKU)</th>
+            <th>NCM</th>
             <th>Unidade</th>
             <th>Acoes</th>
           </tr>
@@ -596,6 +597,10 @@
         <div>
           <label style="font-size:.8rem;color:var(--mut);display:block;margin-bottom:.3rem">Codigo (SKU)</label>
           <input type="text" id="prod-sku" placeholder="Ex: ARR-001" style="width:100%">
+        </div>
+        <div>
+          <label style="font-size:.8rem;color:var(--mut);display:block;margin-bottom:.3rem">NCM</label>
+          <input type="text" id="prod-ncm" placeholder="Ex: 1006.30.21" style="width:100%">
         </div>
         <div>
           <label style="font-size:.8rem;color:var(--mut);display:block;margin-bottom:.3rem">Unidade *</label>
@@ -630,7 +635,7 @@
       <div style="padding:1rem 1.5rem;overflow-y:auto;flex:1">
         <div class="table-wrap">
           <table>
-            <thead><tr><th>#</th><th>Descricao</th><th>SKU</th><th>Unidade</th></tr></thead>
+            <thead><tr><th>#</th><th>Descricao</th><th>SKU</th><th>NCM</th><th>Unidade</th></tr></thead>
             <tbody id="import-produtos-tbody"></tbody>
           </table>
         </div>
@@ -4812,6 +4817,7 @@ function renderBancoProdutos() {
     <td class="text-center">${idx + 1}</td>
     <td>${esc(p.descricao)}</td>
     <td class="font-mono">${esc(p.sku || '-')}</td>
+    <td class="font-mono" style="font-size:.78rem">${esc(p.ncm || '-')}</td>
     <td class="text-center">${esc(p.unidade)}</td>
     <td class="text-center nowrap">
       <button class="btn btn-sm" style="font-size:.75rem;padding:.2rem .4rem;background:rgba(59,130,246,.15);color:var(--blue);border:none;cursor:pointer" onclick="editarProduto('${p.id}')" title="Editar">✏️</button>
@@ -4825,6 +4831,7 @@ function novoProdutoManual() {
   document.getElementById("modal-produto-titulo").textContent = "Novo Produto";
   document.getElementById("prod-descricao").value = "";
   document.getElementById("prod-sku").value = "";
+  document.getElementById("prod-ncm").value = "";
   document.getElementById("prod-unidade").value = "";
   document.getElementById("modal-produto").classList.remove("hidden");
 }
@@ -4837,6 +4844,7 @@ function editarProduto(id) {
   document.getElementById("modal-produto-titulo").textContent = "Editar Produto";
   document.getElementById("prod-descricao").value = p.descricao || "";
   document.getElementById("prod-sku").value = p.sku || "";
+  document.getElementById("prod-ncm").value = p.ncm || "";
   document.getElementById("prod-unidade").value = p.unidade || "";
   document.getElementById("modal-produto").classList.remove("hidden");
 }
@@ -4844,6 +4852,7 @@ function editarProduto(id) {
 function salvarProduto() {
   const descricao = (document.getElementById("prod-descricao").value || "").trim();
   const sku = (document.getElementById("prod-sku").value || "").trim();
+  const ncm = (document.getElementById("prod-ncm").value || "").trim();
   const unidade = document.getElementById("prod-unidade").value;
 
   if (!descricao) { showToast("Descricao e obrigatoria.", 3000); return; }
@@ -4856,6 +4865,7 @@ function salvarProduto() {
     if (existing) {
       if (!confirm(`Ja existe um produto com SKU "${sku}" (${existing.descricao}). Deseja atualizar?`)) return;
       existing.descricao = descricao;
+      existing.ncm = ncm;
       existing.unidade = unidade;
       saveBancoProdutos();
       fecharModalProduto();
@@ -4867,11 +4877,11 @@ function salvarProduto() {
 
   if (_editProdutoId) {
     const p = bancoProdutos.itens.find(x => x.id === _editProdutoId);
-    if (p) { p.descricao = descricao; p.sku = sku; p.unidade = unidade; }
+    if (p) { p.descricao = descricao; p.sku = sku; p.ncm = ncm; p.unidade = unidade; }
   } else {
     bancoProdutos.itens.push({
       id: 'PROD-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
-      descricao, sku, unidade,
+      descricao, sku, ncm, unidade,
       criadoEm: new Date().toISOString()
     });
   }
@@ -4929,6 +4939,7 @@ async function importarProdutosExcel(file) {
     const headers = rows[0].map(h => String(h).toLowerCase().trim());
     const descIdx = headers.findIndex(h => /descri|produto|item|nome/.test(h));
     const skuIdx = headers.findIndex(h => /c[oó]digo|sku|cod|ref/.test(h));
+    const ncmIdx = headers.findIndex(h => /ncm|classifica|fiscal/.test(h));
     const undIdx = headers.findIndex(h => /unid|un$|und|medida/.test(h));
 
     if (descIdx === -1) { showToast("Coluna de descricao nao encontrada. Verifique os headers.", 5000); return; }
@@ -4940,6 +4951,7 @@ async function importarProdutosExcel(file) {
       _importProdutosBuffer.push({
         descricao: desc,
         sku: skuIdx >= 0 ? String(rows[i][skuIdx] || "").trim() : "",
+        ncm: ncmIdx >= 0 ? String(rows[i][ncmIdx] || "").trim() : "",
         unidade: undIdx >= 0 ? String(rows[i][undIdx] || "").trim().toUpperCase() : "UN"
       });
     }
@@ -4996,6 +5008,7 @@ function parseProdutosFromLines(lines) {
   const reHeader = /descri[cç][aã]o|^produto$|^item$|^unid|^quant|^pre[cç]o|^total|^valor|^marca|cnpj|razao.social|endere[cç]o|telefone|fone|email|p[aá]gina|^lote$|^#$/i;
   const reNumPrefix = /^(\d{1,5})[\s.\-–)]+(.+)/;
   const reSku = /\b(\d{4,13})\b/;
+  const reNcm = /\b(\d{4}[.\s]?\d{2}[.\s]?\d{2})\b/;
   const rePrice = /\b\d{1,3}[.,]\d{2}\b/g;
 
   // Detect if text is tabular (many lines start with numbers)
@@ -5030,11 +5043,16 @@ function parseProdutosFromLines(lines) {
     const mu = reUnidade.exec(rest);
     if (mu) { unidade = mu[1].toUpperCase(); }
 
-    // Extract SKU (4-13 digit number, not a price)
+    // Extract NCM (pattern: XXXX.XX.XX or XXXXXXXX)
+    let ncm = "";
+    const mn = reNcm.exec(rest);
+    if (mn) { ncm = mn[1].replace(/\s/g, ''); rest = rest.replace(mn[0], ' '); }
+
+    // Extract SKU (4-13 digit number, not a price, not NCM)
     let sku = "";
     const cleanForSku = rest.replace(rePrice, '');
     const ms = reSku.exec(cleanForSku);
-    if (ms) sku = ms[1];
+    if (ms && ms[1] !== ncm.replace(/\./g, '')) sku = ms[1];
 
     // Clean description: remove prices, quantities at end, extra spaces
     let descricao = rest
@@ -5049,7 +5067,7 @@ function parseProdutosFromLines(lines) {
     descricao = descricao.replace(/^[\s.\-–]+|[\s.\-–]+$/g, '').trim();
     if (descricao.length < 3) continue;
 
-    produtos.push({ descricao, sku, unidade });
+    produtos.push({ descricao, sku, ncm, unidade });
   }
   return produtos;
 }
@@ -5106,6 +5124,7 @@ async function importarProdutosPDF(file) {
     _importProdutosBuffer = produtos.map(p => ({
       descricao: String(p.descricao || "").trim(),
       sku: String(p.sku || p.codigo || "").trim(),
+      ncm: String(p.ncm || "").trim(),
       unidade: String(p.unidade || "UN").trim().toUpperCase()
     })).filter(p => p.descricao);
 
@@ -5121,7 +5140,7 @@ function mostrarImportPreview(titulo, itens) {
   document.getElementById("import-produtos-titulo").textContent = "Preview — " + titulo;
   document.getElementById("import-produtos-info").textContent = itens.length + " produtos encontrados";
   document.getElementById("import-produtos-tbody").innerHTML = itens.map((p, i) =>
-    `<tr><td class="text-center">${i+1}</td><td>${esc(p.descricao)}</td><td class="font-mono">${esc(p.sku || '-')}</td><td class="text-center">${esc(p.unidade)}</td></tr>`
+    `<tr><td class="text-center">${i+1}</td><td>${esc(p.descricao)}</td><td class="font-mono">${esc(p.sku || '-')}</td><td class="font-mono" style="font-size:.78rem">${esc(p.ncm || '-')}</td><td class="text-center">${esc(p.unidade)}</td></tr>`
   ).join("");
   document.getElementById("modal-import-produtos").classList.remove("hidden");
 }
@@ -5138,11 +5157,11 @@ function confirmarImportProdutos() {
   for (const p of _importProdutosBuffer) {
     if (p.sku) {
       const existing = bancoProdutos.itens.find(x => x.sku === p.sku);
-      if (existing) { existing.descricao = p.descricao; existing.unidade = p.unidade; updated++; continue; }
+      if (existing) { existing.descricao = p.descricao; existing.ncm = p.ncm || existing.ncm || ''; existing.unidade = p.unidade; updated++; continue; }
     }
     bancoProdutos.itens.push({
       id: 'PROD-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6) + '-' + added,
-      descricao: p.descricao, sku: p.sku, unidade: p.unidade,
+      descricao: p.descricao, sku: p.sku, ncm: p.ncm || '', unidade: p.unidade,
       criadoEm: new Date().toISOString()
     });
     added++;
@@ -5296,6 +5315,7 @@ function confirmarSync(contratoId) {
     const matched = bancoProdutos.itens[matchIdx];
     c.itens[idx].descricao = matched.descricao;
     c.itens[idx].sku = matched.sku || c.itens[idx].sku;
+    c.itens[idx].ncm = matched.ncm || c.itens[idx].ncm || '';
     c.itens[idx].unidade = matched.unidade || c.itens[idx].unidade;
     c.itens[idx]._syncedFromBanco = true;
     synced++;
