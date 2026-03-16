@@ -3277,6 +3277,7 @@ function abrirContrato(id) {
         <div><label style="font-size:.72rem;color:var(--dim);display:block;margin-bottom:.2rem">Vigencia</label><input type="text" id="ctr-vigencia-${c.id}" value="${esc(c.vigencia || '')}" placeholder="Ex: 01/01/2026 a 31/12/2026" style="width:100%"></div>
         <div style="grid-column:1/-1"><label style="font-size:.72rem;color:var(--dim);display:block;margin-bottom:.2rem">Objeto</label><input type="text" id="ctr-objeto-${c.id}" value="${esc(c.objeto || '')}" placeholder="Descricao do objeto" style="width:100%"></div>
         <div style="grid-column:1/-1"><label style="font-size:.72rem;color:var(--dim);display:block;margin-bottom:.2rem">Observacoes (replicadas automaticamente nos pedidos)</label><textarea id="ctr-obs-${c.id}" placeholder="Informacoes adicionais..." style="width:100%;min-height:50px;padding:.5rem .8rem;background:var(--s1);border:1px solid var(--bdr);border-radius:8px;color:var(--txt);font-size:.85rem;resize:vertical">${esc(c.observacoes || '')}</textarea></div>
+        <div style="grid-column:1/-1;margin-top:.4rem"><label style="display:flex;align-items:center;gap:.5rem;font-size:.82rem;cursor:pointer;padding:.4rem .6rem;background:var(--s1);border:1px solid var(--bdr);border-radius:8px"><input type="checkbox" id="ctr-saldo-visivel-${c.id}" ${c.saldoVisivelEscola ? 'checked' : ''}> Permitir que a escola acompanhe o saldo do contrato no Portal Escolar</label></div>
       </div>
       <div style="margin-top:.6rem;text-align:right"><button class="btn btn-sm btn-blue" onclick="salvarDadosContrato('${c.id}')">Salvar Dados</button></div>
     </div>
@@ -3386,6 +3387,7 @@ function salvarDadosContrato(id) {
   c.vigencia = (document.getElementById(`ctr-vigencia-${id}`)?.value || "").trim();
   c.objeto = (document.getElementById(`ctr-objeto-${id}`)?.value || "").trim();
   c.observacoes = (document.getElementById(`ctr-obs-${id}`)?.value || "").trim();
+  c.saldoVisivelEscola = document.getElementById(`ctr-saldo-visivel-${id}`)?.checked || false;
   saveContratos();
   showToast("Dados do contrato salvos!");
 }
