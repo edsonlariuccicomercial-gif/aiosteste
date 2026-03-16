@@ -3049,7 +3049,7 @@ function atualizarTotalCatalogo(contratoId) {
   if (countEl) countEl.textContent = count + ' iten' + (count !== 1 ? 's' : '') + ' selecionado' + (count !== 1 ? 's' : '');
 }
 
-function criarPedidoCatalogo(contratoId) {
+async function criarPedidoCatalogo(contratoId) {
   const c = contratos.find(x => x.id === contratoId);
   if (!c) return;
   const itensP = [];
@@ -3059,7 +3059,14 @@ function criarPedidoCatalogo(contratoId) {
     const idx = parseInt(input.dataset.idx);
     const item = c.itens[idx];
     if (!item) return;
-    itensP.push({ descricao: item.descricao, unidade: item.unidade || 'un', qtd: qtd, preco: item.precoUnitario });
+    itensP.push({
+      descricao: item.descricao,
+      unidade: item.unidade || 'un',
+      qtd: qtd,
+      preco: item.precoUnitario,
+      precoUnitario: item.precoUnitario,
+      itemNum: item.num
+    });
   });
   if (itensP.length === 0) { showToast("Selecione ao menos um item.", 3000); return; }
   const valor = itensP.reduce((s, i) => s + i.qtd * i.preco, 0);
@@ -3068,23 +3075,48 @@ function criarPedidoCatalogo(contratoId) {
   const linked = usuarios.filter(u => (u.contratos_vinculados || []).includes(contratoId));
   const escolaNome = linked.length > 0 ? linked[0].nome : c.escola;
 
+  const hoje = new Date().toISOString().slice(0,10);
   const pedido = {
     id: 'PED-' + Date.now().toString(36).toUpperCase(),
     contratoId: contratoId,
     escola: escolaNome,
     itens: itensP,
     valor: valor,
-    status: 'pendente',
-    data: new Date().toISOString().slice(0,10),
+    status: 'agendado',
+    data: hoje,
+    dataEntrega: hoje,
     origem: 'catalogo-fornecedor',
-    observacoes: c.observacoes || ''
+    obs: c.observacoes || ''
   };
 
   pedidos.push(pedido);
   savePedidos();
+
+  // Auto-transmit: deduct saldo from contract items
+  itensP.forEach(pi => {
+    const normDesc = (pi.descricao || '').toUpperCase().trim();
+    const item = c.itens.find(ci => ci.num === pi.itemNum || (ci.descricao || '').toUpperCase().trim() === normDesc);
+    if (item) {
+      const saldo = item.qtdContratada - item.qtdEntregue;
+      item.qtdEntregue += Math.min(pi.qtd, saldo);
+    }
+  });
+  saveContratos();
+
+  pedido.status = 'recebido';
+  pedido.saldoDeduzido = true;
+  savePedidos();
+
   document.getElementById("modal-contrato").classList.add("hidden");
   renderAll();
-  showToast(`Pedido ${pedido.id} criado — ${itensP.length} iten(s), ${brl.format(valor)}`, 4000);
+  showToast(`Pedido ${pedido.id} criado e transmitido — ${itensP.length} iten(s), ${brl.format(valor)}`, 4000);
+
+  // Send to Olist in background
+  try {
+    await enviarPedidoOlist(pedido.id);
+  } catch(e) {
+    showToast("Pedido criado, mas erro ao enviar ao Olist: " + e.message, 5000);
+  }
 }
 
 function excluirContrato(id) {
