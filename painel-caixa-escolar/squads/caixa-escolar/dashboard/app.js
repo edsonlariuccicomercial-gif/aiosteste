@@ -141,9 +141,17 @@ const BrowserSgdClient = {
   },
 
   promptCredentials() {
-    const cnpj = prompt("CNPJ do fornecedor (somente numeros):");
-    if (!cnpj) return null;
-    const pass = prompt("Senha SGD:");
+    // Try to get CNPJ from empresa config first
+    let cnpj = '';
+    try {
+      const empresa = JSON.parse(localStorage.getItem("nexedu.empresa") || "{}");
+      cnpj = (empresa.cnpj || '').replace(/\D/g, '');
+    } catch(_) {}
+    if (!cnpj) {
+      cnpj = prompt("CNPJ do fornecedor (somente numeros):");
+      if (!cnpj) return null;
+    }
+    const pass = prompt("Senha SGD (fornecedor " + cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5') + "):");
     if (!pass) return null;
     const cred = { cnpj: cnpj.replace(/\D/g, ""), pass };
     localStorage.setItem(SGD_CRED_KEY, JSON.stringify(cred));
@@ -457,32 +465,15 @@ function saveBancoLocal() {
 
 // ===== BOOT =====
 async function boot() {
-  // Cloud sync: pull latest data, then push local data (ensures first machine populates cloud)
-  try {
-    const synced = await syncFromCloud();
-    if (synced) console.log("[Boot] Cloud data synced to localStorage");
-  } catch (e) { console.warn("[Boot] Cloud sync pull failed:", e); }
-  // Push local data to cloud (fills Supabase on first run / existing data)
-  try { await syncToCloud(); console.log("[Boot] Local data pushed to cloud"); }
-  catch (e) { console.warn("[Boot] Cloud push failed:", e); }
-
+  // 1. Load local data FIRST (instant — no network)
   loadPreOrcamentos();
   carregarModulosConfig();
   aplicarAcessoSidebar();
 
-  const [orcData, bancoData, perfilData, sreInfo] = await Promise.all([
-    fetchJson("data/orcamentos.json"),
-    fetchJson("data/banco-precos.json"),
-    fetchJson("data/perfil.json"),
-    fetchJson("data/sre-uberaba.json"),
-  ]);
-
-  // Data version check: v4 = SRE Uberaba filtered scan with idBudgetItem + idNetwork
-  // Any older data is junk (unfiltered 3000+ entries without details) — wipe it
+  // Data version check
   const DATA_VERSION = "v5";
   const storedVersion = localStorage.getItem("caixaescolar.data-version");
   if (storedVersion !== DATA_VERSION) {
-    // Old data format — wipe orcamentos, keep pre-orcamentos
     localStorage.removeItem("caixaescolar.orcamentos");
     localStorage.setItem("caixaescolar.data-version", DATA_VERSION);
     console.log("[Boot] Wiped old orcamentos data (version upgrade to " + DATA_VERSION + "). Run Varrer SGD to reload.");
@@ -497,29 +488,16 @@ async function boot() {
       }
     } catch (_) { /* ignore */ }
   }
-  perfil = perfilData || {};
-  sreData = sreInfo || {};
 
-  // Banco: usa localStorage se existir (edições do usuário), senão carrega do JSON
-  if (!loadBancoLocal() && bancoData && Array.isArray(bancoData.itens)) {
-    bancoPrecos = bancoData;
-    saveBancoLocal();
-  }
+  // Load banco from localStorage if available
+  loadBancoLocal();
 
-  // Detect SGD API availability BEFORE rendering (so buttons render correctly)
-  sgdAvailable = await isSgdApiAvailable();
-  updateModeIndicator(sgdAvailable);
-
+  // 2. Bind events + render with local data immediately
   populateFilters();
   bindEvents();
   renderAll();
 
-  // Mostrar botões SGD em qualquer modo (local ou Netlify com credenciais)
-  if (el.btnCollectSgd) el.btnCollectSgd.style.display = "inline-block";
-  const btnVarrer = document.getElementById("btn-varrer-sgd");
-  if (btnVarrer) btnVarrer.style.display = "inline-block";
-
-  // Restore active module from localStorage
+  // 3. Restore active module IMMEDIATELY (no flash of wrong module)
   const savedModule = localStorage.getItem(MODULE_STORAGE_KEY) || "radar";
   switchModule(savedModule);
 
@@ -531,6 +509,48 @@ async function boot() {
     if (empresaData.sre && pillSre) pillSre.textContent = empresaData.sre;
     if (empresaData.nome && pillFornecedor) pillFornecedor.textContent = empresaData.nome;
   } catch (_) { /* ignore */ }
+
+  // Mostrar botões SGD em qualquer modo
+  if (el.btnCollectSgd) el.btnCollectSgd.style.display = "inline-block";
+  const btnVarrer = document.getElementById("btn-varrer-sgd");
+  if (btnVarrer) btnVarrer.style.display = "inline-block";
+
+  // 4. Background: load JSON data + cloud sync (non-blocking)
+  const [orcData, bancoData, perfilData, sreInfo] = await Promise.all([
+    fetchJson("data/orcamentos.json"),
+    fetchJson("data/banco-precos.json"),
+    fetchJson("data/perfil.json"),
+    fetchJson("data/sre-uberaba.json"),
+  ]);
+
+  perfil = perfilData || {};
+  sreData = sreInfo || {};
+
+  // Banco: se não tinha no localStorage, carrega do JSON
+  if (bancoPrecos.itens.length === 0 && bancoData && Array.isArray(bancoData.itens)) {
+    bancoPrecos = bancoData;
+    saveBancoLocal();
+    renderAll();
+  }
+
+  // 5. SGD API check in background (avoid 2s timeout blocking render)
+  isSgdApiAvailable().then(available => {
+    sgdAvailable = available;
+    updateModeIndicator(sgdAvailable);
+  }).catch(() => {});
+
+  // 6. Cloud sync in background (non-blocking)
+  syncFromCloud().then(synced => {
+    if (synced) {
+      console.log("[Boot] Cloud data synced to localStorage");
+      loadPreOrcamentos();
+      loadBancoLocal();
+      renderAll();
+    }
+  }).catch(e => console.warn("[Boot] Cloud sync pull failed:", e));
+
+  syncToCloud().then(() => console.log("[Boot] Local data pushed to cloud"))
+    .catch(e => console.warn("[Boot] Cloud push failed:", e));
 }
 
 // ===== FILTERS =====

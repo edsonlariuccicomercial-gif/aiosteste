@@ -494,9 +494,11 @@
       <div style="display:flex;gap:.8rem;align-items:center">
         <input type="text" id="busca-usuario" placeholder="Buscar escola, CNPJ..." oninput="renderUsuarios()">
       </div>
-      <div style="display:flex;gap:.5rem">
+      <div style="display:flex;gap:.5rem;flex-wrap:wrap">
         <button class="btn btn-outline" onclick="document.getElementById('import-clientes-input').click()" style="font-weight:600">📥 Importar Clientes</button>
         <button class="btn btn-blue" onclick="novoUsuario()">+ Cadastrar Escola</button>
+        <button class="btn btn-outline" onclick="editarClienteSelecionado()" title="Editar cliente selecionado">✏️ Editar</button>
+        <button class="btn btn-red" onclick="excluirClientesSelecionados()" title="Excluir clientes selecionados">🗑️ Excluir</button>
       </div>
       <input type="file" id="import-clientes-input" accept=".xlsx,.xls,.csv,.pdf" style="display:none" onchange="handleImportClientes(this)" />
     </div>
@@ -513,7 +515,6 @@
             <th>Email</th>
             <th>Telefone</th>
             <th>Login</th>
-            <th>Acoes</th>
           </tr>
         </thead>
         <tbody id="usuarios-tbody"></tbody>
@@ -584,13 +585,13 @@
       <div style="display:flex;gap:.8rem;align-items:center">
         <input type="text" id="busca-produto" placeholder="Buscar produto..." oninput="renderBancoProdutos()" style="min-width:200px">
       </div>
-      <div style="display:flex;gap:.5rem">
-        <button class="btn btn-blue" onclick="document.getElementById('import-produto-excel').click()">Importar Excel</button>
-        <button class="btn btn-purple" onclick="document.getElementById('import-produto-pdf').click()">Importar PDF</button>
+      <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+        <button class="btn btn-blue" onclick="document.getElementById('import-produto-unificado').click()">📥 Importar</button>
         <button class="btn btn-green" onclick="novoProdutoManual()">+ Novo Produto</button>
         <button class="btn btn-outline" onclick="exportarProdutosCSV()">Exportar CSV</button>
-        <input type="file" id="import-produto-excel" accept=".xlsx,.xls,.csv" style="display:none" onchange="importarProdutosExcel(this.files[0]);this.value=''">
-        <input type="file" id="import-produto-pdf" accept=".pdf" style="display:none" onchange="importarProdutosPDF(this.files[0]);this.value=''">
+        <button class="btn btn-outline" onclick="editarProdutoSelecionado()" title="Editar produto selecionado">✏️ Editar</button>
+        <button class="btn btn-red" onclick="excluirProdutosSelecionados()" title="Excluir produtos selecionados">🗑️ Excluir</button>
+        <input type="file" id="import-produto-unificado" accept=".xlsx,.xls,.csv,.pdf" style="display:none" onchange="importarProdutoUnificado(this.files[0]);this.value=''">
       </div>
     </div>
     <div class="table-wrap" style="max-height:600px;overflow-y:auto">
@@ -603,7 +604,6 @@
             <th>Codigo (SKU)</th>
             <th>NCM</th>
             <th>Unidade</th>
-            <th>Acoes</th>
           </tr>
         </thead>
         <tbody id="banco-produtos-tbody"></tbody>
@@ -3971,15 +3971,28 @@ function renderUsuarios() {
     <td style="font-size:.8rem">${esc(u.email)}</td>
     <td style="font-size:.8rem">${esc(u.telefone)}</td>
     <td class="font-mono">${esc(u.login)}</td>
-    <td class="nowrap">
-      <button class="btn btn-sm btn-outline" onclick="editarUsuario('${u.id}')">Editar</button>
-      <button class="btn btn-sm btn-red" onclick="excluirUsuario('${u.id}')">Excluir</button>
-    </td>
   </tr>`).join("");
 }
 
 function toggleSelectAllClientes(checked) {
   document.querySelectorAll('.cliente-chk').forEach(cb => cb.checked = checked);
+}
+
+function editarClienteSelecionado() {
+  const sel = [...document.querySelectorAll('.cliente-chk:checked')].map(cb => cb.value);
+  if (sel.length === 0) { showToast("Selecione um cliente para editar.", 3000); return; }
+  if (sel.length > 1) { showToast("Selecione apenas um cliente para editar.", 3000); return; }
+  editarUsuario(sel[0]);
+}
+
+function excluirClientesSelecionados() {
+  const sel = [...document.querySelectorAll('.cliente-chk:checked')].map(cb => cb.value);
+  if (sel.length === 0) { showToast("Selecione clientes para excluir.", 3000); return; }
+  if (!confirm(`Excluir ${sel.length} cliente(s) selecionado(s)?`)) return;
+  usuarios = usuarios.filter(u => !sel.includes(u.id));
+  saveUsuarios();
+  renderUsuarios();
+  showToast(`${sel.length} cliente(s) excluído(s).`);
 }
 
 function novoUsuario() {
@@ -5201,15 +5214,41 @@ function renderBancoProdutos() {
     <td class="font-mono">${esc(p.sku || '-')}</td>
     <td class="font-mono" style="font-size:.78rem">${esc(p.ncm || '-')}</td>
     <td class="text-center">${esc(p.unidade)}</td>
-    <td class="text-center nowrap">
-      <button class="btn btn-sm" style="font-size:.75rem;padding:.2rem .4rem;background:rgba(59,130,246,.15);color:var(--blue);border:none;cursor:pointer" onclick="editarProduto('${p.id}')" title="Editar">✏️</button>
-      <button class="btn btn-sm" style="font-size:.6rem;padding:.15rem .3rem;background:rgba(239,68,68,.15);color:var(--red);border:none;cursor:pointer" onclick="excluirProduto('${p.id}')" title="Excluir">✕</button>
-    </td>
   </tr>`).join("");
 }
 
 function toggleSelectAllBancoProd(checked) {
   document.querySelectorAll('.banco-prod-chk').forEach(cb => cb.checked = checked);
+}
+
+function editarProdutoSelecionado() {
+  const sel = [...document.querySelectorAll('.banco-prod-chk:checked')].map(cb => cb.value);
+  if (sel.length === 0) { showToast("Selecione um produto para editar.", 3000); return; }
+  if (sel.length > 1) { showToast("Selecione apenas um produto para editar.", 3000); return; }
+  editarProduto(sel[0]);
+}
+
+function excluirProdutosSelecionados() {
+  const sel = [...document.querySelectorAll('.banco-prod-chk:checked')].map(cb => cb.value);
+  if (sel.length === 0) { showToast("Selecione produtos para excluir.", 3000); return; }
+  if (!confirm(`Excluir ${sel.length} produto(s) selecionado(s)?`)) return;
+  loadBancoProdutos();
+  bancoProdutos.itens = bancoProdutos.itens.filter(p => !sel.includes(p.id));
+  saveBancoProdutos();
+  renderBancoProdutos();
+  showToast(`${sel.length} produto(s) excluído(s).`);
+}
+
+function importarProdutoUnificado(file) {
+  if (!file) return;
+  const ext = file.name.split('.').pop().toLowerCase();
+  if (ext === 'pdf') {
+    importarProdutosPDF(file);
+  } else if (['xlsx', 'xls', 'csv'].includes(ext)) {
+    importarProdutosExcel(file);
+  } else {
+    showToast("Formato não suportado. Use .xlsx, .xls, .csv ou .pdf", 3000);
+  }
 }
 
 function novoProdutoManual() {
