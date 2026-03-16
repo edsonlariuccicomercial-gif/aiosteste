@@ -205,7 +205,7 @@
       </div>
       <div style="display:flex;gap:.5rem">
         <button class="btn btn-blue" onclick="switchTab('importar')">+ Importar Mapa</button>
-        <button class="btn btn-outline" onclick="novoContratoManual()">+ Contrato Manual</button>
+        <button class="btn btn-green" onclick="novoContratoManual()">+ Contrato Manual</button>
       </div>
     </div>
     <div class="contract-grid" id="contract-grid"></div>
@@ -396,7 +396,7 @@
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:.5rem">
       <div style="display:flex;gap:.8rem;align-items:center;flex-wrap:wrap">
         <input type="text" id="busca-pedido" placeholder="Buscar escola..." oninput="renderPedidos()" style="min-width:200px">
-        <select id="filtro-contrato-pedido" onchange="renderPedidos()">
+        <select id="filtro-contrato-pedido" onchange="renderPedidos()" style="display:none">
           <option value="">Todos os contratos</option>
         </select>
         <select id="filtro-status-pedido" onchange="renderPedidos()">
