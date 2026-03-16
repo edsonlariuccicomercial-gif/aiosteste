@@ -894,6 +894,14 @@ function selectContract(type, idx) {
   document.getElementById('escola-tabs-bar').classList.remove('hidden');
   document.getElementById('tab-catalogo-wrapper').classList.remove('hidden');
 
+  // Check if supplier allowed school to see contract saldo
+  const saldoTabBtn = document.querySelector('.escola-tab[data-tab="saldo"]');
+  if (saldoTabBtn) {
+    const ctrData = selectedContract.contrato || null;
+    const saldoPermitido = ctrData ? (ctrData.saldoVisivelEscola === true) : true; // ARP always shows
+    saldoTabBtn.style.display = saldoPermitido ? '' : 'none';
+  }
+
   // Reset tabs to catalogo
   document.querySelectorAll('.escola-tab').forEach(t => t.classList.remove('active'));
   document.querySelector('.escola-tab[data-tab="catalogo"]').classList.add('active');
