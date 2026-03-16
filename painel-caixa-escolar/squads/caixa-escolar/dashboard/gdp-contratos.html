@@ -410,6 +410,7 @@
       <div style="display:flex;gap:.5rem;align-items:center">
         <span id="pedidos-sel-count" style="font-size:.8rem;color:var(--cyan);font-weight:600;display:none"></span>
         <button class="btn btn-green" id="btn-gerar-lista" onclick="gerarListaCompras()" disabled title="Selecione ao menos 1 protocolo" style="opacity:.5">Gerar Lista de Compras</button>
+        <button class="btn btn-red" onclick="excluirPedidosSelecionados()" title="Excluir pedidos selecionados">🗑️ Excluir</button>
       </div>
     </div>
     <div class="table-wrap" style="max-height:600px;overflow-y:auto">
@@ -425,7 +426,7 @@
             <th class="text-right">Valor</th>
             <th>Status</th>
             <th>Observacao</th>
-            <th>Acoes</th>
+            <th>Acao</th>
           </tr>
         </thead>
         <tbody id="pedidos-tbody"></tbody>
@@ -495,9 +496,9 @@
         <input type="text" id="busca-usuario" placeholder="Buscar escola, CNPJ..." oninput="renderUsuarios()">
       </div>
       <div style="display:flex;gap:.5rem;flex-wrap:wrap">
-        <button class="btn btn-outline" onclick="document.getElementById('import-clientes-input').click()" style="font-weight:600">📥 Importar Clientes</button>
-        <button class="btn btn-blue" onclick="novoUsuario()">+ Cadastrar Escola</button>
-        <button class="btn btn-outline" onclick="editarClienteSelecionado()" title="Editar cliente selecionado">✏️ Editar</button>
+        <button class="btn btn-blue" onclick="document.getElementById('import-clientes-input').click()" style="font-weight:600">📥 Importar Clientes</button>
+        <button class="btn btn-green" onclick="novoUsuario()">+ Cadastrar Escola</button>
+        <button class="btn btn-outline" onclick="editarClienteSelecionado()" title="Ver/Editar cliente selecionado">👁️ Ver/Editar</button>
         <button class="btn btn-red" onclick="excluirClientesSelecionados()" title="Excluir clientes selecionados">🗑️ Excluir</button>
       </div>
       <input type="file" id="import-clientes-input" accept=".xlsx,.xls,.csv,.pdf" style="display:none" onchange="handleImportClientes(this)" />
@@ -3522,7 +3523,7 @@ function renderPedidos() {
       <td class="text-right font-mono" style="color:var(--green);font-weight:700">${brl.format(p.valor)}</td>
       <td><span class="badge ${badgeMap[p.status] || 'badge-yellow'}">${p.status}</span></td>
       <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.8rem;color:var(--mut)" title="${esc(obsText)}">${esc(obsText)}</td>
-      <td class="nowrap" style="display:flex;gap:.3rem;align-items:center"><button class="btn btn-sm" style="background:rgba(59,130,246,.15);color:var(--blue);border:none;font-size:.7rem;padding:.3rem .5rem;font-weight:700;cursor:pointer" onclick="verPedidoDetalhe('${p.id}')" title="Ver detalhes">Ver</button>${acoes}<button class="btn btn-sm" style="background:rgba(239,68,68,.15);color:var(--red);border:none;font-size:.7rem;padding:.3rem .5rem;font-weight:700;cursor:pointer" onclick="excluirPedido('${p.id}')" title="Excluir pedido">✕</button></td>
+      <td class="nowrap" style="display:flex;gap:.3rem;align-items:center"><button class="btn btn-sm" style="background:rgba(59,130,246,.15);color:var(--blue);border:none;font-size:.7rem;padding:.3rem .5rem;font-weight:700;cursor:pointer" onclick="verPedidoDetalhe('${p.id}')" title="Ver detalhes">Ver</button>${acoes}</td>
     </tr>`;
   }).join("");
 }
@@ -3593,6 +3594,17 @@ function excluirPedido(pedidoId) {
   savePedidos();
   renderAll();
   showToast(`Pedido ${pedidoId} excluído.`);
+}
+
+function excluirPedidosSelecionados() {
+  const sel = [...document.querySelectorAll('.pedido-check:checked')].map(cb => cb.value);
+  if (sel.length === 0) { showToast("Selecione pedidos para excluir.", 3000); return; }
+  if (!confirm(`Excluir ${sel.length} pedido(s) selecionado(s)?\n\nEsta ação não pode ser desfeita.`)) return;
+  pedidos = pedidos.filter(p => !sel.includes(p.id));
+  _selectedPedidoIds.clear();
+  savePedidos();
+  renderAll();
+  showToast(`${sel.length} pedido(s) excluído(s).`);
 }
 
 // ===== NOVO PEDIDO MANUAL =====
@@ -3852,7 +3864,7 @@ function esc(s) { return (s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").
 function showToast(msg, duration = 3000) {
   const container = document.getElementById("toast-container");
   const toast = document.createElement("div");
-  toast.style.cssText = "background:var(--s1);border:1px solid var(--bdr);color:var(--txt);padding:.6rem 1.2rem;border-radius:8px;font-size:.85rem;box-shadow:0 4px 12px rgba(0,0,0,.3);transition:opacity .3s";
+  toast.style.cssText = "background:#f59e0b;color:#000;font-weight:600;padding:.7rem 1.4rem;border-radius:8px;font-size:.85rem;box-shadow:0 4px 16px rgba(245,158,11,.4);transition:opacity .3s;border:2px solid #d97706";
   toast.textContent = msg;
   container.appendChild(toast);
   setTimeout(() => { toast.style.opacity = "0"; setTimeout(() => toast.remove(), 300); }, duration);
