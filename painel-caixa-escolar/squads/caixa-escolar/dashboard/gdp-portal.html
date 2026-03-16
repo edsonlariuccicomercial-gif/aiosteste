@@ -322,9 +322,8 @@
     <div id="contract-info-wrapper" class="hidden" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;margin-bottom:1rem;position:relative;transition:all .3s;">
       <div style="display:flex;justify-content:space-between;align-items:center;padding:.6rem 1.2rem .2rem;border-bottom:1px solid rgba(71,85,105,.15);">
         <span style="font-size:.72rem;color:var(--muted);text-transform:uppercase;font-weight:700;">Dados do Contrato</span>
-        <button class="btn-maximize" onclick="toggleInfoPanel()" id="btn-toggle-info" title="Expandir/Recolher">⛶ Expandir</button>
       </div>
-      <div id="contract-info-panel" style="padding:.8rem 1.2rem;display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.8rem;font-size:.82rem;max-height:4.5rem;overflow:hidden;transition:max-height .3s ease;">
+      <div id="contract-info-panel" style="padding:.8rem 1.2rem;display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.8rem;font-size:.82rem;overflow:hidden;">
       </div>
     </div>
 
@@ -879,9 +878,6 @@ function selectContract(type, idx) {
     if (infoHtml) {
       infoPanel.innerHTML = infoHtml;
       infoWrapper.classList.remove('hidden');
-      // Reset to collapsed state
-      infoPanel.style.maxHeight = '4.5rem';
-      document.getElementById('btn-toggle-info').innerHTML = '⛶ Expandir';
     } else {
       infoWrapper.classList.add('hidden');
     }
@@ -1524,9 +1520,9 @@ function renderMeusPedidos() {
     myOrders = myOrders.filter(o => o.contratoId === ctrId);
   }
 
-  // Render contract balance summary
+  // Render contract balance summary (only if supplier allowed)
   const resumoEl = document.getElementById('meus-pedidos-resumo');
-  if (selectedContract && selectedContract.contrato) {
+  if (selectedContract && selectedContract.contrato && selectedContract.contrato.saldoVisivelEscola === true) {
     const cc = selectedContract.contrato;
     const valorContrato = cc.itens.reduce((s, it) => s + (it.precoUnitario * it.qtdContratada), 0);
     const totalPedidos = myOrders.reduce((s, o) => s + (o.total || 0), 0);
