@@ -2992,13 +2992,31 @@ function abrirCatalogoEscolar(contratoId) {
   const totalEntregue = c.itens.reduce((s, i) => s + i.precoUnitario * i.qtdEntregue, 0);
   const saldoContrato = totalContratado - totalEntregue;
 
-  // Build catalog table
+  // Load Banco de Produtos for enrichment
+  loadBancoProdutos();
+  const _bp = bancoProdutos.itens || [];
+
+  // Build catalog table (enriched with Banco de Produtos)
   const itensHtml = c.itens.map((item, idx) => {
     const saldo = item.qtdContratada - (item.qtdEntregue || 0);
     if (saldo <= 0) return '';
+
+    // Enrich: match by SKU or description
+    const descNorm = (item.descricao || '').toUpperCase().trim();
+    let bp = null;
+    if (item.sku) bp = _bp.find(p => p.sku && p.sku.toUpperCase() === item.sku.toUpperCase());
+    if (!bp) bp = _bp.find(p => (p.descricao || '').toUpperCase().trim() === descNorm);
+    if (!bp) {
+      const words = descNorm.split(/\s+/).slice(0, 3).join(' ');
+      if (words.length > 5) bp = _bp.find(p => (p.descricao || '').toUpperCase().trim().startsWith(words));
+    }
+    const descFinal = bp ? (bp.descricao || item.descricao) : item.descricao;
+    const unidFinal = bp ? (bp.unidade || item.unidade || 'un') : (item.unidade || 'un');
+    const skuInfo = bp && bp.sku ? ' <span style="color:var(--dim);font-size:.68rem;font-family:monospace">[' + esc(bp.sku) + ']</span>' : '';
+
     return `<tr>
-      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(item.descricao)}">${esc(item.descricao)}</td>
-      <td class="text-center">${esc(item.unidade || 'un')}</td>
+      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(descFinal)}">${esc(descFinal)}${skuInfo}</td>
+      <td class="text-center">${esc(unidFinal)}</td>
       <td class="text-center">${saldo}</td>
       <td class="text-right">${brl.format(item.precoUnitario)}</td>
       <td class="text-center"><input type="number" min="0" max="${saldo}" value="0" class="catalogo-qtd" data-idx="${idx}" data-preco="${item.precoUnitario}" data-max="${saldo}" style="width:60px;text-align:center;padding:.2rem;background:var(--s1);border:1px solid var(--bdr);border-radius:4px;color:var(--txt);font-size:.8rem" onchange="atualizarTotalCatalogo('${contratoId}')"></td>
