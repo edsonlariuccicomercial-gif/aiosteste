@@ -1537,18 +1537,20 @@ function renderMeusPedidos() {
   }
 
   // Render contract balance summary (only if supplier allowed)
+  // Re-read contract from localStorage to get updated qtdEntregue
   const resumoEl = document.getElementById('meus-pedidos-resumo');
-  if (selectedContract && selectedContract.contrato && selectedContract.contrato.saldoVisivelEscola === true) {
-    const cc = selectedContract.contrato;
+  let _freshContrato = selectedContract ? selectedContract.contrato : null;
+  if (_freshContrato) {
+    try {
+      const _freshAll = JSON.parse(localStorage.getItem('gdp.contratos.v1') || '[]');
+      _freshContrato = _freshAll.find(c => c.id === _freshContrato.id) || _freshContrato;
+    } catch(_) {}
+  }
+  if (_freshContrato && _freshContrato.saldoVisivelEscola === true) {
+    const cc = _freshContrato;
     const valorContrato = cc.itens.reduce((s, it) => s + (it.precoUnitario * it.qtdContratada), 0);
-    const totalPedidos = myOrders.reduce((s, o) => s + (o.total || 0), 0);
-    const saldoRest = Math.max(0, Math.round((valorContrato - totalPedidos) * 100) / 100);
-    // Also get from pedidos.v1 for more accuracy
-    let pedidosV1 = [];
-    try { pedidosV1 = JSON.parse(localStorage.getItem('gdp.pedidos.v1') || '[]').filter(p => p.contratoId === cc.id); } catch(_) {}
-    const totalPedidosV1 = pedidosV1.reduce((s, p) => s + (p.valor || 0), 0);
-    const totalUsado = Math.max(totalPedidos, totalPedidosV1);
-    const saldoFinal = Math.max(0, Math.round((valorContrato - totalUsado) * 100) / 100);
+    const totalEntregue = cc.itens.reduce((s, it) => s + (it.precoUnitario * (it.qtdEntregue || 0)), 0);
+    const saldoFinal = Math.max(0, Math.round((valorContrato - totalEntregue) * 100) / 100);
     const pct = valorContrato > 0 ? ((saldoFinal / valorContrato) * 100).toFixed(0) : 0;
     const ctrName = cc.processo ? 'Proc. ' + cc.processo : cc.id;
 
@@ -1564,8 +1566,8 @@ function renderMeusPedidos() {
           <div style="font-weight:700;font-size:1.1rem;">R$ ${fmt(valorContrato)}</div>
         </div>
         <div style="text-align:center;">
-          <div style="font-size:.72rem;color:var(--muted);text-transform:uppercase;">Total Pedido</div>
-          <div style="font-weight:700;font-size:1.1rem;color:var(--warning);">R$ ${fmt(totalUsado)}</div>
+          <div style="font-size:.72rem;color:var(--muted);text-transform:uppercase;">Entregue/Pedido</div>
+          <div style="font-weight:700;font-size:1.1rem;color:var(--warning);">R$ ${fmt(totalEntregue)}</div>
           <div style="font-size:.75rem;color:var(--muted);">${myOrders.length} pedido(s)</div>
         </div>
         <div style="text-align:center;">
@@ -1610,8 +1612,25 @@ function renderMeusPedidos() {
     const ctr = _allContratos.find(c => c.id === o.contratoId);
     const ctrLabel = ctr ? (ctr.processo ? 'Proc. ' + ctr.processo : ctr.id) : (o.contratoId || '-');
     const marcadorBadge = o.marcador ? '<span style="background:rgba(139,92,246,.12);color:var(--purple);padding:.15rem .5rem;border-radius:999px;font-size:.65rem;font-weight:700;margin-left:.3rem">' + o.marcador + '</span>' : '';
-    return '<tr><td style="font-family:monospace;font-weight:700;">' + o.protocol + marcadorBadge + '</td><td style="font-size:.8rem">' + ctrLabel + '</td><td>' + (o.date || '') + '</td><td>' + (o.itemCount || 0) + '</td><td style="color:var(--success);font-weight:700;">R$ ' + fmt(o.total || 0) + '</td><td>' + statusBadge + '</td><td><div class="order-actions"><button class="btn btn-sm btn-outline" onclick="verPedido(\'' + esc + '\')" title="Ver detalhes">Ver</button><button class="btn btn-sm btn-outline" onclick="downloadPedidoPDF(\'' + esc + '\')" title="Baixar PDF" style="color:var(--accent);border-color:var(--accent);">PDF</button></div></td></tr>';
+    return '<tr><td style="font-family:monospace;font-weight:700;">' + o.protocol + marcadorBadge + '</td><td style="font-size:.8rem">' + ctrLabel + '</td><td>' + (o.date || '') + '</td><td>' + (o.itemCount || 0) + '</td><td style="color:var(--success);font-weight:700;">R$ ' + fmt(o.total || 0) + '</td><td>' + statusBadge + '</td><td><div class="order-actions"><button class="btn btn-sm btn-outline" onclick="verPedido(\'' + esc + '\')" title="Ver detalhes">Ver</button><button class="btn btn-sm btn-outline" onclick="downloadPedidoPDF(\'' + esc + '\')" title="Baixar PDF" style="color:var(--accent);border-color:var(--accent);">PDF</button><button class="btn btn-sm" onclick="excluirPedidoPortal(\'' + esc + '\')" title="Excluir pedido" style="background:rgba(239,68,68,.12);color:var(--danger);border:none;font-weight:700;font-size:.7rem;">✕</button></div></td></tr>';
   }).join('');
+}
+
+function excluirPedidoPortal(protocol) {
+  if (!confirm('Excluir pedido ' + protocol + '?\n\nEsta ação não pode ser desfeita.')) return;
+
+  // Remove from escola orders (portal-originated)
+  escolaOrders = escolaOrders.filter(o => o.protocol !== protocol);
+  localStorage.setItem('gdp.escola.pedidos', JSON.stringify(escolaOrders));
+
+  // Also remove from gdp.pedidos.v1 (supplier-originated)
+  try {
+    let pv1 = JSON.parse(localStorage.getItem('gdp.pedidos.v1') || '[]');
+    pv1 = pv1.filter(p => p.id !== protocol);
+    localStorage.setItem('gdp.pedidos.v1', JSON.stringify(pv1));
+  } catch(_) {}
+
+  renderMeusPedidos();
 }
 
 function verPedido(protocol) {
