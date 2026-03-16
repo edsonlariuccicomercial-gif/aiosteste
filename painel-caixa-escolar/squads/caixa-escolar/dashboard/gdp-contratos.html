@@ -3311,7 +3311,10 @@ function abrirContrato(id) {
         <div style="grid-column:1/-1"><label style="font-size:.72rem;color:var(--dim);display:block;margin-bottom:.2rem">Observacoes (replicadas automaticamente nos pedidos)</label><textarea id="ctr-obs-${c.id}" placeholder="Informacoes adicionais..." style="width:100%;min-height:50px;padding:.5rem .8rem;background:var(--s1);border:1px solid var(--bdr);border-radius:8px;color:var(--txt);font-size:.85rem;resize:vertical">${esc(c.observacoes || '')}</textarea></div>
         <div style="grid-column:1/-1;margin-top:.4rem"><label style="display:flex;align-items:center;gap:.5rem;font-size:.82rem;cursor:pointer;padding:.4rem .6rem;background:var(--s1);border:1px solid var(--bdr);border-radius:8px"><input type="checkbox" id="ctr-saldo-visivel-${c.id}" ${c.saldoVisivelEscola ? 'checked' : ''}> Permitir que a escola acompanhe o saldo do contrato no Portal Escolar</label></div>
       </div>
-      <div style="margin-top:.6rem;text-align:right"><button class="btn btn-sm btn-blue" onclick="salvarDadosContrato('${c.id}')">Salvar Dados</button></div>
+      <div style="margin-top:.6rem;display:flex;justify-content:space-between;align-items:center">
+        <button class="btn btn-sm btn-outline" onclick="recalcularSaldoContrato('${c.id}')" title="Recalcular saldo com base nos pedidos reais">🔄 Recalcular Saldo</button>
+        <button class="btn btn-sm btn-blue" onclick="salvarDadosContrato('${c.id}')">Salvar Dados</button>
+      </div>
     </div>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.8rem;flex-wrap:wrap;gap:.5rem">
       <div style="display:flex;align-items:center;gap:.6rem">
@@ -3410,6 +3413,41 @@ function excluirContrato(id) {
   fecharModalContrato();
   renderAll();
   showToast("Contrato excluido.");
+}
+
+function recalcularSaldoContrato(contratoId) {
+  const c = contratos.find(x => x.id === contratoId);
+  if (!c) return;
+
+  // Get all pedidos for this contract that had saldo deducted (status recebido or concluido)
+  const pedidosCtr = pedidos.filter(p => p.contratoId === contratoId && (p.status === 'recebido' || p.status === 'concluido' || p.saldoDeduzido));
+
+  // Reset all qtdEntregue to 0
+  c.itens.forEach(item => { item.qtdEntregue = 0; });
+
+  // Recalculate from pedidos
+  pedidosCtr.forEach(p => {
+    (p.itens || []).forEach(pi => {
+      const normDesc = (pi.descricao || '').toUpperCase().trim();
+      const item = c.itens.find(ci => ci.num === pi.itemNum || (ci.descricao || '').toUpperCase().trim() === normDesc);
+      if (item) {
+        item.qtdEntregue += (pi.qtd || 0);
+      }
+    });
+  });
+
+  // Cap qtdEntregue to qtdContratada
+  c.itens.forEach(item => {
+    if (item.qtdEntregue > item.qtdContratada) item.qtdEntregue = item.qtdContratada;
+  });
+
+  saveContratos();
+  renderAll();
+  abrirContrato(contratoId);
+
+  const totalContratado = c.itens.reduce((s, i) => s + i.precoUnitario * i.qtdContratada, 0);
+  const totalEntregue = c.itens.reduce((s, i) => s + i.precoUnitario * i.qtdEntregue, 0);
+  showToast(`Saldo recalculado! Contratado: ${brl.format(totalContratado)} | Entregue: ${brl.format(totalEntregue)} | Saldo: ${brl.format(totalContratado - totalEntregue)}`, 5000);
 }
 
 function salvarDadosContrato(id) {
