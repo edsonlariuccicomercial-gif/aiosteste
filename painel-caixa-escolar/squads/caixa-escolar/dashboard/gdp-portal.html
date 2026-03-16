@@ -795,8 +795,9 @@ function selectContract(type, idx) {
     // Use contract items as products
     const c = contracts[idx];
     // Compute pending order quantities per item for this contract
+    // ONLY count pedidos that have NOT yet been deducted from qtdEntregue
     const pedidosLocal = (() => { try { return JSON.parse(localStorage.getItem('gdp.pedidos.v1') || '[]'); } catch(_) { return []; } })();
-    const pedidosPend = pedidosLocal.filter(p => p.contratoId === c.id && p.status !== 'entregue');
+    const pedidosPend = pedidosLocal.filter(p => p.contratoId === c.id && p.status !== 'entregue' && !p.saldoDeduzido);
     const qtdPedidaPorItem = {};
     pedidosPend.forEach(p => {
       (p.itens || []).forEach(pi => {
@@ -1492,25 +1493,40 @@ function renderMeusPedidos() {
   if (!currentUser) return;
   let myOrders = escolaOrders.filter(o => o.school === currentUser.nome_completo || o.school === currentUser.nome);
 
-  // Also include cronograma/agendado orders from supplier system
+  // Also include orders from supplier system (gdp.pedidos.v1)
   let pedidosV1All = [];
   try { pedidosV1All = JSON.parse(localStorage.getItem('gdp.pedidos.v1') || '[]'); } catch(_) {}
-  const cronoPedidos = pedidosV1All.filter(p => p.cronograma && p.status === 'agendado');
-  cronoPedidos.forEach(cp => {
+
+  // Get linked contract IDs for this school
+  const meusCtrIds = (currentUser.contratos_vinculados || []);
+
+  // Include ALL pedidos that belong to this school's contracts
+  const pedidosSupplier = pedidosV1All.filter(p => {
+    if (!p.contratoId) return false;
+    // Match by contract link or escola name
+    return meusCtrIds.includes(p.contratoId) ||
+      (p.escola || '').toUpperCase() === (currentUser.nome || '').toUpperCase() ||
+      (p.escola || '').toUpperCase() === (currentUser.nome_completo || '').toUpperCase();
+  });
+
+  pedidosSupplier.forEach(cp => {
     // Avoid duplicates — don't add if already present by ID
     if (myOrders.find(o => o.protocol === cp.id)) return;
+    const statusMap = { agendado: true, recebido: false, concluido: false, pendente: true };
     myOrders.push({
       protocol: cp.id,
       contratoId: cp.contratoId,
       school: cp.escola,
       date: cp.dataEntrega || cp.data,
-      items: (cp.itens || []).map(i => ({ name: i.descricao, qty: i.qtd, unit: i.unidade, unitPrice: i.precoUnitario, itemNum: i.itemNum })),
+      items: (cp.itens || []).map(i => ({ name: i.descricao, qty: i.qtd, unit: i.unidade || 'un', unitPrice: i.precoUnitario || i.preco, itemNum: i.itemNum })),
       itemCount: (cp.itens || []).length,
       total: cp.valor || 0,
       obs: cp.obs || '',
       marcador: cp.marcador || '',
-      cronograma: true,
-      statusAgendado: true
+      origem: cp.origem || '',
+      status: cp.status,
+      cronograma: !!cp.cronograma,
+      statusAgendado: cp.status === 'agendado'
     });
   });
 
