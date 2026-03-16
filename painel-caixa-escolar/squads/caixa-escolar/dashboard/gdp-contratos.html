@@ -4157,31 +4157,47 @@ function parseExcelClientes(file) {
       const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
 
       _importClientesData = rows.map(r => {
-        // Flexible column mapping — try exact key, then case variations, then iterate all keys
+        // Normalize column keys: strip BOM, trim, lowercase for matching
+        const norm = {};
+        for (const k of Object.keys(r)) {
+          const clean = k.replace(/^\uFEFF/, '').replace(/^["']|["']$/g, '').trim();
+          norm[clean] = r[k];
+        }
+        // Smart get: try exact, then normalize both sides
         const get = (...keys) => {
           for (const k of keys) {
-            if (r[k] !== undefined && r[k] !== '') return String(r[k]).trim();
+            if (norm[k] !== undefined && norm[k] !== '') return String(norm[k]).trim();
           }
-          // Fallback: search all column headers case-insensitively
-          const lowerKeys = keys.map(k => k.toLowerCase());
-          for (const col of Object.keys(r)) {
-            if (lowerKeys.includes(col.toLowerCase()) && r[col] !== '') return String(r[col]).trim();
+          // Fallback: fuzzy match (lowercase, strip accents/special chars)
+          const simplify = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/gi, '').toLowerCase();
+          const simpleKeys = keys.map(simplify);
+          for (const col of Object.keys(norm)) {
+            if (simpleKeys.includes(simplify(col)) && norm[col] !== '') return String(norm[col]).trim();
+          }
+          // Partial match (column contains key or key contains column)
+          for (const col of Object.keys(norm)) {
+            const sc = simplify(col);
+            for (const sk of simpleKeys) {
+              if ((sc.includes(sk) || sk.includes(sc)) && sc.length > 2 && norm[col] !== '') return String(norm[col]).trim();
+            }
           }
           return '';
         };
         return {
-          nome: get('nome', 'escola', 'Nome', 'Escola', 'NOME', 'ESCOLA', 'nome_escola', 'Razão Social', 'Razao Social', 'razao_social', 'RAZAO SOCIAL'),
-          cnpj: get('cnpj', 'CNPJ', 'Cnpj', 'cpf_cnpj', 'CPF_CNPJ', 'CPF/CNPJ'),
-          municipio: get('municipio', 'Municipio', 'MUNICIPIO', 'cidade', 'Cidade', 'CIDADE', 'município'),
+          nome: get('Nome', 'nome', 'escola', 'Escola', 'NOME', 'ESCOLA', 'nome_escola', 'Razão Social', 'Razao Social', 'razao_social'),
+          cnpj: get('CNPJ / CPF', 'CNPJ/CPF', 'cnpj', 'CNPJ', 'Cnpj', 'cpf_cnpj', 'CPF/CNPJ', 'CPF_CNPJ'),
+          municipio: get('Cidade', 'cidade', 'municipio', 'Municipio', 'MUNICIPIO', 'CIDADE', 'município'),
           sre: get('sre', 'SRE', 'Sre', 'regional', 'Regional', 'REGIONAL'),
-          responsavel: get('responsavel', 'Responsavel', 'RESPONSAVEL', 'contato', 'Contato', 'CONTATO', 'responsável', 'Responsável'),
-          email: get('email', 'Email', 'EMAIL', 'e-mail', 'E-mail', 'E-MAIL'),
-          telefone: get('telefone', 'Telefone', 'TELEFONE', 'fone', 'Fone', 'cel', 'celular', 'Celular', 'CELULAR'),
-          logradouro: get('logradouro', 'Logradouro', 'LOGRADOURO', 'endereco', 'Endereco', 'ENDERECO', 'endereço', 'Endereço', 'rua', 'Rua'),
-          numero: get('numero', 'Numero', 'NUMERO', 'número', 'Número', 'nro', 'Nro', 'num'),
-          bairro: get('bairro', 'Bairro', 'BAIRRO'),
-          cep: get('cep', 'CEP', 'Cep', 'codigo_postal'),
-          uf: get('uf', 'UF', 'Uf', 'estado', 'Estado', 'ESTADO')
+          responsavel: get('Observações do contato', 'responsavel', 'Responsavel', 'RESPONSAVEL', 'contato', 'Contato', 'responsável', 'Responsável'),
+          email: get('E-mail', 'e-mail', 'email', 'Email', 'EMAIL', 'E-MAIL', 'E-mail para envio de notas fiscais'),
+          telefone: get('Fone', 'fone', 'telefone', 'Telefone', 'TELEFONE', 'Celular', 'celular', 'cel'),
+          logradouro: get('Endereço', 'endereco', 'Endereco', 'ENDERECO', 'endereço', 'logradouro', 'Logradouro', 'LOGRADOURO', 'rua', 'Rua'),
+          numero: get('Número', 'numero', 'Numero', 'NUMERO', 'número', 'nro', 'Nro', 'num'),
+          complemento: get('Complemento', 'complemento', 'COMPLEMENTO'),
+          bairro: get('Bairro', 'bairro', 'BAIRRO'),
+          cep: get('CEP', 'cep', 'Cep', 'codigo_postal'),
+          uf: get('Estado', 'estado', 'uf', 'UF', 'Uf', 'ESTADO'),
+          ie: get('IE / RG', 'IE/RG', 'ie', 'IE', 'Ie', 'IE isento')
         };
       }).filter(r => r.nome || r.cnpj); // at least one field
 
@@ -4314,10 +4330,11 @@ function confirmarImportClientes() {
       telefone: r.telefone,
       logradouro: r.logradouro || '',
       numero: r.numero || '',
+      complemento: r.complemento || '',
       bairro: r.bairro || '',
       cep: r.cep || '',
       uf: r.uf || 'MG',
-      ie: 'ISENTO',
+      ie: r.ie || 'ISENTO',
       login: login,
       senha: 'escola2025',
       cargo: 'Presidente da Caixa Escolar',
