@@ -184,10 +184,10 @@
 
   <!-- Tabs -->
   <div class="tabs">
+    <button class="tab" data-tab="usuarios" onclick="switchTab('usuarios')">Clientes <span class="count" id="tab-count-usuarios">0</span></button>
+    <button class="tab" data-tab="banco-produtos" onclick="switchTab('banco-produtos')">Banco de Produtos ERP <span class="count" id="tab-count-banco-produtos">0</span></button>
     <button class="tab active" data-tab="contratos" onclick="switchTab('contratos')">Contratos <span class="count" id="tab-count-contratos">0</span></button>
     <button class="tab" data-tab="itens" onclick="switchTab('itens')">Itens do Contrato <span class="count" id="tab-count-itens">0</span></button>
-    <button class="tab" data-tab="banco-produtos" onclick="switchTab('banco-produtos')">Banco de Produtos <span class="count" id="tab-count-banco-produtos">0</span></button>
-    <button class="tab" data-tab="usuarios" onclick="switchTab('usuarios')">Usuarios <span class="count" id="tab-count-usuarios">0</span></button>
     <button class="tab" data-tab="pedidos" onclick="switchTab('pedidos')">Pedidos <span class="count" id="tab-count-pedidos">0</span></button>
     <button class="tab" data-tab="entregas" onclick="switchTab('entregas')">Entregas <span class="count" id="tab-count-entregas">0</span></button>
   </div>
@@ -488,13 +488,17 @@
     </div>
   </div>
 
-  <!-- Tab: Usuarios (Escolas) -->
+  <!-- Tab: Clientes (Escolas) -->
   <div id="tab-usuarios" class="hidden">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
       <div style="display:flex;gap:.8rem;align-items:center">
         <input type="text" id="busca-usuario" placeholder="Buscar escola, CNPJ..." oninput="renderUsuarios()">
       </div>
-      <button class="btn btn-blue" onclick="novoUsuario()">+ Cadastrar Escola</button>
+      <div style="display:flex;gap:.5rem">
+        <button class="btn btn-outline" onclick="document.getElementById('import-clientes-input').click()" style="font-weight:600">📥 Importar Clientes</button>
+        <button class="btn btn-blue" onclick="novoUsuario()">+ Cadastrar Escola</button>
+      </div>
+      <input type="file" id="import-clientes-input" accept=".xlsx,.xls,.csv,.pdf" style="display:none" onchange="handleImportClientes(this)" />
     </div>
     <div class="table-wrap" style="max-height:600px;overflow-y:auto">
       <table>
@@ -515,6 +519,27 @@
       </table>
     </div>
     <div class="empty hidden" id="usuarios-empty"><h3>Nenhuma escola cadastrada</h3><p>Cadastre escolas para que elas possam acessar o Portal.</p></div>
+  </div>
+
+  <!-- Modal: Import Clientes -->
+  <div id="modal-import-clientes" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1000;display:flex;align-items:center;justify-content:center">
+    <div style="background:var(--s2,#1e293b);border:1px solid var(--bdr,#334155);border-radius:12px;padding:1.5rem;width:90%;max-width:800px;max-height:85vh;overflow-y:auto">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+        <h2 style="font-size:1rem;margin:0">📥 Importar Clientes</h2>
+        <span id="import-clientes-filename" style="font-size:.75rem;color:var(--mut)"></span>
+      </div>
+      <div id="import-clientes-preview" style="margin-bottom:1rem"></div>
+      <div id="import-clientes-stats" style="font-size:.8rem;margin-bottom:1rem;color:var(--mut)"></div>
+      <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1rem">
+        <label style="font-size:.8rem;display:flex;align-items:center;gap:.4rem;cursor:pointer">
+          <input type="checkbox" id="chk-import-sem-cnpj"> Importar linhas sem CNPJ
+        </label>
+      </div>
+      <div style="display:flex;gap:.5rem;justify-content:flex-end">
+        <button class="btn btn-outline" onclick="fecharImportClientes()">Cancelar</button>
+        <button class="btn btn-green" id="btn-confirmar-import-clientes" onclick="confirmarImportClientes()">Importar</button>
+      </div>
+    </div>
   </div>
 
   <!-- Tab: Entregas -->
@@ -699,7 +724,7 @@ const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" 
 // ===== SUPABASE CLOUD SYNC =====
 const SUPABASE_URL = "https://ohxoxencxktpzskltbsk.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9oeG94ZW5jeGt0cHpza2x0YnNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMyMTUwNDQsImV4cCI6MjA4ODc5MTA0NH0.-w8f1xjW1cW2-OZpg1Sql8PqwFDzDqyWw4pHEx6jGSk";
-const GDP_SYNC_KEYS = [CONTRACTS_KEY, ORDERS_KEY, PROOFS_KEY, "gdp.usuarios.v1", "caixaescolar.banco.v1"];
+const GDP_SYNC_KEYS = [CONTRACTS_KEY, ORDERS_KEY, PROOFS_KEY, "gdp.usuarios.v1", "caixaescolar.banco.v1", "gdp.produtos.v1"];
 
 function getSyncUserId() {
   const emp = JSON.parse(localStorage.getItem("nexedu.empresa") || "{}");
@@ -2890,7 +2915,7 @@ function toggleStatusContrato(id) {
 
 function vincularEscolaContrato(contratoId) {
   if (usuarios.length === 0) {
-    showToast("Cadastre escolas na aba Usuarios primeiro.", 3000);
+    showToast("Cadastre escolas na aba Clientes primeiro.", 3000);
     return;
   }
 
@@ -2946,6 +2971,43 @@ function salvarVinculoEscolas(contratoId) {
   document.getElementById("modal-contrato").classList.add("hidden");
   renderContratos();
   showToast("Escolas vinculadas ao contrato com sucesso!");
+}
+
+function abrirCatalogoEscolar(contratoId) {
+  const linked = usuarios.filter(u => (u.contratos_vinculados || []).includes(contratoId));
+  if (linked.length === 0) {
+    showToast("Vincule uma escola ao contrato primeiro (aba Clientes).", 3000);
+    return;
+  }
+
+  function abrirPortalCatalogo(escola) {
+    sessionStorage.setItem("gdp-portal-autoLogin", JSON.stringify({
+      id: escola.id, nome: escola.nome, login: escola.login, senha: escola.senha
+    }));
+    window.open("gdp-portal.html?mode=catalogo", "_blank");
+  }
+
+  if (linked.length === 1) {
+    abrirPortalCatalogo(linked[0]);
+    return;
+  }
+
+  // Multiple schools — show selection modal
+  const opts = linked.map(u =>
+    `<button class="btn btn-outline" style="width:100%;text-align:left;margin-bottom:.4rem;padding:.6rem 1rem" onclick="(function(){
+      sessionStorage.setItem('gdp-portal-autoLogin', JSON.stringify({id:'${esc(u.id)}',nome:'${esc(u.nome)}',login:'${esc(u.login||'')}',senha:'${esc(u.senha||'')}'}));
+      window.open('gdp-portal.html?mode=catalogo','_blank');
+      document.getElementById('modal-contrato').classList.add('hidden');
+    })()">
+      ${esc(u.nome)}${u.municipio ? ' <span style="color:var(--dim);font-size:.75rem">(' + esc(u.municipio) + ')</span>' : ''}
+    </button>`
+  ).join("");
+  document.getElementById("modal-contrato-titulo").textContent = "📋 Selecione a Escola — Catálogo";
+  document.getElementById("modal-contrato-body").innerHTML = `
+    <p style="font-size:.85rem;color:var(--mut);margin-bottom:1rem">Este contrato tem ${linked.length} escolas vinculadas. Selecione qual catálogo abrir:</p>
+    ${opts}
+  `;
+  document.getElementById("modal-contrato").classList.remove("hidden");
 }
 
 function excluirContrato(id) {
@@ -3149,7 +3211,7 @@ function abrirContrato(id) {
       <div style="display:flex;gap:.4rem;flex-wrap:wrap;align-items:center">
         <button class="btn btn-sm btn-blue hidden" id="btn-editar-massa-${c.id}" onclick="editarItensMassa('${c.id}')" title="Editar itens selecionados">Editar Selecionados</button>
         <button class="btn btn-sm" style="background:rgba(6,182,212,.15);color:var(--cyan);border:none;font-weight:700" onclick="abrirModalSync('${c.id}')" title="Sincronizar itens com Banco de Produtos ERP">🔄 Sync Banco</button>
-        <button class="btn btn-sm btn-purple" onclick="cadastrarTiny('${c.id}')" title="Enviar todos os produtos ao Tiny ERP">Enviar Todos ao Tiny</button>
+        <button class="btn btn-sm" style="background:rgba(139,92,246,.15);color:var(--purple);border:none;font-weight:700" onclick="abrirCatalogoEscolar('${c.id}')" title="Abrir catalogo da escola vinculada para pedidos internos">📋 Catalogo Escolar</button>
         <button class="btn btn-sm btn-green" onclick="adicionarItemContrato('${c.id}')">+ Item</button>
       </div>
     </div>
@@ -3962,6 +4024,203 @@ function excluirUsuario(id) {
 }
 
 function fecharModalUsuario() { document.getElementById("modal-usuario").classList.add("hidden"); }
+
+// ===== IMPORTAR CLIENTES =====
+let _importClientesData = [];
+
+function handleImportClientes(input) {
+  const file = input.files[0];
+  input.value = '';
+  if (!file) return;
+
+  // Validate extension
+  const ext = file.name.split('.').pop().toLowerCase();
+  if (!['xlsx', 'xls', 'csv', 'pdf'].includes(ext)) {
+    showToast("Formato inválido. Use .xlsx, .xls, .csv ou .pdf", 3000);
+    return;
+  }
+  // Validate size (10MB)
+  if (file.size > 10 * 1024 * 1024) {
+    showToast("Arquivo muito grande (máx. 10MB).", 3000);
+    return;
+  }
+
+  document.getElementById("import-clientes-filename").textContent = file.name;
+
+  if (ext === 'pdf') {
+    parsePdfClientes(file);
+  } else {
+    parseExcelClientes(file);
+  }
+}
+
+function parseExcelClientes(file) {
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const wb = XLSX.read(e.target.result, { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+
+      _importClientesData = rows.map(r => {
+        // Flexible column mapping
+        const get = (...keys) => { for (const k of keys) { const v = r[k] || r[k.toLowerCase()] || r[k.toUpperCase()]; if (v) return String(v).trim(); } return ''; };
+        return {
+          nome: get('nome', 'escola', 'Nome', 'Escola', 'NOME', 'ESCOLA', 'nome_escola', 'Razão Social', 'razao_social'),
+          cnpj: get('cnpj', 'CNPJ', 'Cnpj', 'cpf_cnpj'),
+          municipio: get('municipio', 'Municipio', 'MUNICIPIO', 'cidade', 'Cidade'),
+          sre: get('sre', 'SRE', 'Sre', 'regional'),
+          responsavel: get('responsavel', 'Responsavel', 'RESPONSAVEL', 'contato', 'Contato'),
+          email: get('email', 'Email', 'EMAIL', 'e-mail', 'E-mail'),
+          telefone: get('telefone', 'Telefone', 'TELEFONE', 'fone', 'Fone', 'cel', 'celular')
+        };
+      }).filter(r => r.nome || r.cnpj); // at least one field
+
+      mostrarPreviewClientes();
+    } catch(err) {
+      showToast("Erro ao ler arquivo: " + err.message, 3000);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+async function parsePdfClientes(file) {
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    let text = '';
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      text += content.items.map(item => item.str).join(' ') + '\n';
+    }
+
+    // Try to parse tabular data from text
+    const lines = text.split('\n').filter(l => l.trim());
+    _importClientesData = [];
+
+    for (const line of lines) {
+      // Match CNPJ pattern
+      const cnpjMatch = line.match(/(\d{2}[.\s]?\d{3}[.\s]?\d{3}[/\s]?\d{4}[-\s]?\d{2})/);
+      if (cnpjMatch) {
+        const cnpj = cnpjMatch[1].replace(/[^\d]/g, '').replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5');
+        // Text before CNPJ is likely the name
+        const beforeCnpj = line.substring(0, line.indexOf(cnpjMatch[0])).trim();
+        const afterCnpj = line.substring(line.indexOf(cnpjMatch[0]) + cnpjMatch[0].length).trim();
+        // Try to find email
+        const emailMatch = afterCnpj.match(/[\w.+-]+@[\w.-]+\.\w+/);
+        // Try to find phone
+        const phoneMatch = afterCnpj.match(/\(?\d{2}\)?\s?\d{4,5}[-\s]?\d{4}/);
+
+        _importClientesData.push({
+          nome: beforeCnpj || '',
+          cnpj: cnpj,
+          municipio: '',
+          sre: '',
+          responsavel: '',
+          email: emailMatch ? emailMatch[0] : '',
+          telefone: phoneMatch ? phoneMatch[0] : ''
+        });
+      }
+    }
+
+    if (_importClientesData.length === 0) {
+      showToast("Nenhum dado de cliente detectado no PDF. Tente um arquivo Excel.", 4000);
+      return;
+    }
+
+    mostrarPreviewClientes();
+  } catch(err) {
+    showToast("Erro ao processar PDF: " + err.message, 3000);
+  }
+}
+
+function mostrarPreviewClientes() {
+  const existingCnpjs = new Set(usuarios.map(u => (u.cnpj || '').replace(/[^\d]/g, '')));
+
+  let html = '<div class="table-wrap" style="max-height:350px;overflow-y:auto"><table style="font-size:.78rem"><thead><tr><th>Nome</th><th>CNPJ</th><th>Município</th><th>SRE</th><th>Responsável</th><th>Email</th><th>Telefone</th><th>Status</th></tr></thead><tbody>';
+
+  let countNew = 0, countDup = 0, countIncomplete = 0;
+
+  _importClientesData.forEach((r, i) => {
+    const cnpjClean = (r.cnpj || '').replace(/[^\d]/g, '');
+    const isDup = cnpjClean && existingCnpjs.has(cnpjClean);
+    const isIncomplete = !r.nome || !r.cnpj;
+    const rowStyle = isDup ? 'opacity:.5;text-decoration:line-through' : isIncomplete ? 'background:rgba(245,158,11,.1)' : '';
+
+    if (isDup) countDup++;
+    else if (isIncomplete) countIncomplete++;
+    else countNew++;
+
+    const badge = isDup ? '<span style="color:var(--dim);font-size:.65rem">duplicado</span>' :
+                  isIncomplete ? '<span style="color:#f59e0b;font-size:.65rem">incompleto</span>' :
+                  '<span style="color:var(--green);font-size:.65rem">novo</span>';
+
+    html += `<tr style="${rowStyle}"><td>${esc(r.nome)}</td><td>${esc(r.cnpj)}</td><td>${esc(r.municipio)}</td><td>${esc(r.sre)}</td><td>${esc(r.responsavel)}</td><td>${esc(r.email)}</td><td>${esc(r.telefone)}</td><td>${badge}</td></tr>`;
+  });
+
+  html += '</tbody></table></div>';
+  document.getElementById("import-clientes-preview").innerHTML = html;
+  document.getElementById("import-clientes-stats").innerHTML =
+    `<strong>${_importClientesData.length}</strong> linhas detectadas: <span style="color:var(--green)">${countNew} novos</span>, <span style="color:#f59e0b">${countIncomplete} incompletos</span>, <span style="color:var(--dim)">${countDup} duplicados (ignorados)</span>`;
+
+  // Show modal
+  const modal = document.getElementById("modal-import-clientes");
+  modal.classList.remove("hidden");
+  modal.style.display = "flex";
+}
+
+function fecharImportClientes() {
+  const modal = document.getElementById("modal-import-clientes");
+  modal.classList.add("hidden");
+  modal.style.display = "none";
+  _importClientesData = [];
+}
+
+function confirmarImportClientes() {
+  const allowSemCnpj = document.getElementById("chk-import-sem-cnpj").checked;
+  const existingCnpjs = new Set(usuarios.map(u => (u.cnpj || '').replace(/[^\d]/g, '')));
+
+  let imported = 0;
+  for (const r of _importClientesData) {
+    const cnpjClean = (r.cnpj || '').replace(/[^\d]/g, '');
+
+    // Skip duplicates
+    if (cnpjClean && existingCnpjs.has(cnpjClean)) continue;
+
+    // Skip incomplete unless allowed
+    if (!r.cnpj && !allowSemCnpj) continue;
+    if (!r.nome) continue;
+
+    const login = (r.cnpj || r.nome).replace(/[^\w]/g, '').toLowerCase().slice(0, 20);
+    usuarios.push({
+      id: 'imp-' + Date.now().toString(36) + '-' + imported,
+      nome: r.nome,
+      cnpj: r.cnpj,
+      municipio: r.municipio,
+      sre: r.sre,
+      responsavel: r.responsavel,
+      email: r.email,
+      telefone: r.telefone,
+      login: login,
+      senha: 'escola2025',
+      cargo: 'Presidente da Caixa Escolar',
+      categoria_catalogo: '',
+      arp_vinculada: 'ARP-LARIUCCI-2025',
+      saldo_total: 0,
+      saldo_disponivel: 0,
+      contratos_vinculados: []
+    });
+
+    if (cnpjClean) existingCnpjs.add(cnpjClean);
+    imported++;
+  }
+
+  saveUsuarios();
+  renderUsuarios();
+  fecharImportClientes();
+  showToast(`${imported} cliente(s) importado(s) com sucesso!`, 3000);
+}
 
 // ===== ENVIAR PEDIDO AO OLIST =====
 async function enviarPedidoOlist(pedidoId) {
@@ -5219,7 +5478,7 @@ function calcSimilaridade(s1, s2) {
 function abrirModalSync(contratoId) {
   loadBancoProdutos();
   if (bancoProdutos.itens.length === 0) {
-    showToast("Banco de Produtos vazio. Adicione produtos primeiro na aba Banco de Produtos.", 4000);
+    showToast("Banco de Produtos ERP vazio. Adicione produtos primeiro na aba Banco de Produtos ERP.", 4000);
     return;
   }
   const c = contratos.find(x => x.id === contratoId);
@@ -5282,7 +5541,7 @@ function abrirModalSync(contratoId) {
     </div>`;
 
   _contratoAbertoId = contratoId;
-  document.getElementById("modal-contrato-titulo").textContent = "🔄 Sincronizar com Banco de Produtos — " + c.id;
+  document.getElementById("modal-contrato-titulo").textContent = "🔄 Sincronizar com Banco de Produtos ERP — " + c.id;
   document.getElementById("modal-contrato-body").innerHTML = html;
 
   // Pre-select dropdowns for matched items
