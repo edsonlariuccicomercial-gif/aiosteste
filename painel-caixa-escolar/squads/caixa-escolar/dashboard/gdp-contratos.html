@@ -504,6 +504,7 @@
       <table>
         <thead>
           <tr>
+            <th style="width:30px"><input type="checkbox" id="clientes-select-all" onchange="toggleSelectAllClientes(this.checked)" title="Selecionar todos"></th>
             <th>Escola</th>
             <th>CNPJ</th>
             <th>Municipio</th>
@@ -596,6 +597,7 @@
       <table>
         <thead>
           <tr>
+            <th style="width:30px"><input type="checkbox" id="banco-prod-select-all" onchange="toggleSelectAllBancoProd(this.checked)" title="Selecionar todos"></th>
             <th>#</th>
             <th>Descricao</th>
             <th>Codigo (SKU)</th>
@@ -2974,40 +2976,114 @@ function salvarVinculoEscolas(contratoId) {
 }
 
 function abrirCatalogoEscolar(contratoId) {
-  const linked = usuarios.filter(u => (u.contratos_vinculados || []).includes(contratoId));
-  if (linked.length === 0) {
-    showToast("Vincule uma escola ao contrato primeiro (aba Clientes).", 3000);
+  const c = contratos.find(x => x.id === contratoId);
+  if (!c || !c.itens || c.itens.length === 0) {
+    showToast("Contrato sem itens.", 3000);
     return;
   }
 
-  function abrirPortalCatalogo(escola) {
-    sessionStorage.setItem("gdp-portal-autoLogin", JSON.stringify({
-      id: escola.id, nome: escola.nome, login: escola.login, senha: escola.senha
-    }));
-    window.open("gdp-portal.html?mode=catalogo", "_blank");
-  }
+  // Load pending orders to calculate real saldo
+  let _pedidosAll = [];
+  try { _pedidosAll = JSON.parse(localStorage.getItem('gdp.pedidos.v1') || '[]'); } catch(_) {}
+  const pedidosCtr = _pedidosAll.filter(p => p.contratoId === contratoId && p.status !== 'entregue');
 
-  if (linked.length === 1) {
-    abrirPortalCatalogo(linked[0]);
-    return;
-  }
+  const totalContratado = c.itens.reduce((s, i) => s + i.precoUnitario * i.qtdContratada, 0);
+  const totalEntregue = c.itens.reduce((s, i) => s + i.precoUnitario * i.qtdEntregue, 0);
+  const saldoContrato = totalContratado - totalEntregue;
 
-  // Multiple schools — show selection modal
-  const opts = linked.map(u =>
-    `<button class="btn btn-outline" style="width:100%;text-align:left;margin-bottom:.4rem;padding:.6rem 1rem" onclick="(function(){
-      sessionStorage.setItem('gdp-portal-autoLogin', JSON.stringify({id:'${esc(u.id)}',nome:'${esc(u.nome)}',login:'${esc(u.login||'')}',senha:'${esc(u.senha||'')}'}));
-      window.open('gdp-portal.html?mode=catalogo','_blank');
-      document.getElementById('modal-contrato').classList.add('hidden');
-    })()">
-      ${esc(u.nome)}${u.municipio ? ' <span style="color:var(--dim);font-size:.75rem">(' + esc(u.municipio) + ')</span>' : ''}
-    </button>`
-  ).join("");
-  document.getElementById("modal-contrato-titulo").textContent = "📋 Selecione a Escola — Catálogo";
+  // Build catalog table
+  const itensHtml = c.itens.map((item, idx) => {
+    const saldo = item.qtdContratada - (item.qtdEntregue || 0);
+    if (saldo <= 0) return '';
+    return `<tr>
+      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(item.descricao)}">${esc(item.descricao)}</td>
+      <td class="text-center">${esc(item.unidade || 'un')}</td>
+      <td class="text-center">${saldo}</td>
+      <td class="text-right">${brl.format(item.precoUnitario)}</td>
+      <td class="text-center"><input type="number" min="0" max="${saldo}" value="0" class="catalogo-qtd" data-idx="${idx}" data-preco="${item.precoUnitario}" data-max="${saldo}" style="width:60px;text-align:center;padding:.2rem;background:var(--s1);border:1px solid var(--bdr);border-radius:4px;color:var(--txt);font-size:.8rem" onchange="atualizarTotalCatalogo('${contratoId}')"></td>
+      <td class="text-right catalogo-subtotal" id="cat-sub-${idx}">R$ 0,00</td>
+    </tr>`;
+  }).filter(Boolean).join("");
+
+  document.getElementById("modal-contrato-titulo").textContent = "📋 Catálogo — " + (c.escola.length > 40 ? c.escola.slice(0,38)+'...' : c.escola);
   document.getElementById("modal-contrato-body").innerHTML = `
-    <p style="font-size:.85rem;color:var(--mut);margin-bottom:1rem">Este contrato tem ${linked.length} escolas vinculadas. Selecione qual catálogo abrir:</p>
-    ${opts}
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+      <div style="font-size:.85rem"><strong>Contrato:</strong> ${esc(c.id)} | <strong>Saldo disponível:</strong> <span style="color:var(--green);font-weight:700">${brl.format(saldoContrato)}</span></div>
+    </div>
+    <div class="table-wrap" style="max-height:50vh;overflow-y:auto">
+      <table style="font-size:.8rem">
+        <thead><tr><th>Item</th><th>Unid</th><th>Disponível</th><th>Preço</th><th>Qtd</th><th>Subtotal</th></tr></thead>
+        <tbody>${itensHtml}</tbody>
+        <tfoot><tr style="font-weight:700"><td colspan="4"></td><td class="text-center">TOTAL</td><td class="text-right" id="catalogo-total-valor">R$ 0,00</td></tr></tfoot>
+      </table>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:1rem">
+      <span id="catalogo-itens-count" style="font-size:.8rem;color:var(--mut)">0 itens selecionados</span>
+      <div style="display:flex;gap:.5rem">
+        <button class="btn btn-outline" onclick="document.getElementById('modal-contrato').classList.add('hidden')">Cancelar</button>
+        <button class="btn btn-green" id="btn-catalogo-pedir" onclick="criarPedidoCatalogo('${contratoId}')">Criar Pedido</button>
+      </div>
+    </div>
   `;
   document.getElementById("modal-contrato").classList.remove("hidden");
+}
+
+function atualizarTotalCatalogo(contratoId) {
+  let total = 0, count = 0;
+  document.querySelectorAll('.catalogo-qtd').forEach(input => {
+    const qtd = parseInt(input.value) || 0;
+    const preco = parseFloat(input.dataset.preco) || 0;
+    const max = parseInt(input.dataset.max) || 0;
+    const idx = input.dataset.idx;
+    if (qtd > max) input.value = max;
+    const subtotal = Math.min(qtd, max) * preco;
+    const subEl = document.getElementById('cat-sub-' + idx);
+    if (subEl) subEl.textContent = brl.format(subtotal);
+    total += subtotal;
+    if (qtd > 0) count++;
+  });
+  const totalEl = document.getElementById('catalogo-total-valor');
+  if (totalEl) totalEl.textContent = brl.format(total);
+  const countEl = document.getElementById('catalogo-itens-count');
+  if (countEl) countEl.textContent = count + ' iten' + (count !== 1 ? 's' : '') + ' selecionado' + (count !== 1 ? 's' : '');
+}
+
+function criarPedidoCatalogo(contratoId) {
+  const c = contratos.find(x => x.id === contratoId);
+  if (!c) return;
+  const itensP = [];
+  document.querySelectorAll('.catalogo-qtd').forEach(input => {
+    const qtd = parseInt(input.value) || 0;
+    if (qtd <= 0) return;
+    const idx = parseInt(input.dataset.idx);
+    const item = c.itens[idx];
+    if (!item) return;
+    itensP.push({ descricao: item.descricao, unidade: item.unidade || 'un', qtd: qtd, preco: item.precoUnitario });
+  });
+  if (itensP.length === 0) { showToast("Selecione ao menos um item.", 3000); return; }
+  const valor = itensP.reduce((s, i) => s + i.qtd * i.preco, 0);
+
+  // Get linked school name
+  const linked = usuarios.filter(u => (u.contratos_vinculados || []).includes(contratoId));
+  const escolaNome = linked.length > 0 ? linked[0].nome : c.escola;
+
+  const pedido = {
+    id: 'PED-' + Date.now().toString(36).toUpperCase(),
+    contratoId: contratoId,
+    escola: escolaNome,
+    itens: itensP,
+    valor: valor,
+    status: 'pendente',
+    data: new Date().toISOString().slice(0,10),
+    origem: 'catalogo-fornecedor',
+    observacoes: c.observacoes || ''
+  };
+
+  pedidos.push(pedido);
+  savePedidos();
+  document.getElementById("modal-contrato").classList.add("hidden");
+  renderAll();
+  showToast(`Pedido ${pedido.id} criado — ${itensP.length} iten(s), ${brl.format(valor)}`, 4000);
 }
 
 function excluirContrato(id) {
@@ -3886,6 +3962,7 @@ function renderUsuarios() {
   empty.classList.add("hidden");
 
   tbody.innerHTML = filtered.map(u => `<tr>
+    <td class="text-center"><input type="checkbox" class="cliente-chk" value="${u.id}"></td>
     <td style="font-weight:600">${esc(u.nome)}</td>
     <td class="font-mono" style="font-size:.8rem">${esc(u.cnpj)}</td>
     <td>${esc(u.municipio)}</td>
@@ -3899,6 +3976,10 @@ function renderUsuarios() {
       <button class="btn btn-sm btn-red" onclick="excluirUsuario('${u.id}')">Excluir</button>
     </td>
   </tr>`).join("");
+}
+
+function toggleSelectAllClientes(checked) {
+  document.querySelectorAll('.cliente-chk').forEach(cb => cb.checked = checked);
 }
 
 function novoUsuario() {
@@ -4063,16 +4144,31 @@ function parseExcelClientes(file) {
       const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
 
       _importClientesData = rows.map(r => {
-        // Flexible column mapping
-        const get = (...keys) => { for (const k of keys) { const v = r[k] || r[k.toLowerCase()] || r[k.toUpperCase()]; if (v) return String(v).trim(); } return ''; };
+        // Flexible column mapping — try exact key, then case variations, then iterate all keys
+        const get = (...keys) => {
+          for (const k of keys) {
+            if (r[k] !== undefined && r[k] !== '') return String(r[k]).trim();
+          }
+          // Fallback: search all column headers case-insensitively
+          const lowerKeys = keys.map(k => k.toLowerCase());
+          for (const col of Object.keys(r)) {
+            if (lowerKeys.includes(col.toLowerCase()) && r[col] !== '') return String(r[col]).trim();
+          }
+          return '';
+        };
         return {
-          nome: get('nome', 'escola', 'Nome', 'Escola', 'NOME', 'ESCOLA', 'nome_escola', 'Razão Social', 'razao_social'),
-          cnpj: get('cnpj', 'CNPJ', 'Cnpj', 'cpf_cnpj'),
-          municipio: get('municipio', 'Municipio', 'MUNICIPIO', 'cidade', 'Cidade'),
-          sre: get('sre', 'SRE', 'Sre', 'regional'),
-          responsavel: get('responsavel', 'Responsavel', 'RESPONSAVEL', 'contato', 'Contato'),
-          email: get('email', 'Email', 'EMAIL', 'e-mail', 'E-mail'),
-          telefone: get('telefone', 'Telefone', 'TELEFONE', 'fone', 'Fone', 'cel', 'celular')
+          nome: get('nome', 'escola', 'Nome', 'Escola', 'NOME', 'ESCOLA', 'nome_escola', 'Razão Social', 'Razao Social', 'razao_social', 'RAZAO SOCIAL'),
+          cnpj: get('cnpj', 'CNPJ', 'Cnpj', 'cpf_cnpj', 'CPF_CNPJ', 'CPF/CNPJ'),
+          municipio: get('municipio', 'Municipio', 'MUNICIPIO', 'cidade', 'Cidade', 'CIDADE', 'município'),
+          sre: get('sre', 'SRE', 'Sre', 'regional', 'Regional', 'REGIONAL'),
+          responsavel: get('responsavel', 'Responsavel', 'RESPONSAVEL', 'contato', 'Contato', 'CONTATO', 'responsável', 'Responsável'),
+          email: get('email', 'Email', 'EMAIL', 'e-mail', 'E-mail', 'E-MAIL'),
+          telefone: get('telefone', 'Telefone', 'TELEFONE', 'fone', 'Fone', 'cel', 'celular', 'Celular', 'CELULAR'),
+          logradouro: get('logradouro', 'Logradouro', 'LOGRADOURO', 'endereco', 'Endereco', 'ENDERECO', 'endereço', 'Endereço', 'rua', 'Rua'),
+          numero: get('numero', 'Numero', 'NUMERO', 'número', 'Número', 'nro', 'Nro', 'num'),
+          bairro: get('bairro', 'Bairro', 'BAIRRO'),
+          cep: get('cep', 'CEP', 'Cep', 'codigo_postal'),
+          uf: get('uf', 'UF', 'Uf', 'estado', 'Estado', 'ESTADO')
         };
       }).filter(r => r.nome || r.cnpj); // at least one field
 
@@ -4138,7 +4234,7 @@ async function parsePdfClientes(file) {
 function mostrarPreviewClientes() {
   const existingCnpjs = new Set(usuarios.map(u => (u.cnpj || '').replace(/[^\d]/g, '')));
 
-  let html = '<div class="table-wrap" style="max-height:350px;overflow-y:auto"><table style="font-size:.78rem"><thead><tr><th>Nome</th><th>CNPJ</th><th>Município</th><th>SRE</th><th>Responsável</th><th>Email</th><th>Telefone</th><th>Status</th></tr></thead><tbody>';
+  let html = '<div class="table-wrap" style="max-height:350px;overflow-y:auto"><table style="font-size:.78rem"><thead><tr><th>Nome</th><th>CNPJ</th><th>Município</th><th>SRE</th><th>Endereço</th><th>Email</th><th>Telefone</th><th>Status</th></tr></thead><tbody>';
 
   let countNew = 0, countDup = 0, countIncomplete = 0;
 
@@ -4156,7 +4252,8 @@ function mostrarPreviewClientes() {
                   isIncomplete ? '<span style="color:#f59e0b;font-size:.65rem">incompleto</span>' :
                   '<span style="color:var(--green);font-size:.65rem">novo</span>';
 
-    html += `<tr style="${rowStyle}"><td>${esc(r.nome)}</td><td>${esc(r.cnpj)}</td><td>${esc(r.municipio)}</td><td>${esc(r.sre)}</td><td>${esc(r.responsavel)}</td><td>${esc(r.email)}</td><td>${esc(r.telefone)}</td><td>${badge}</td></tr>`;
+    const endereco = [r.logradouro, r.numero, r.bairro, r.cep].filter(Boolean).join(', ') || '-';
+    html += `<tr style="${rowStyle}"><td>${esc(r.nome)}</td><td>${esc(r.cnpj)}</td><td>${esc(r.municipio)}</td><td>${esc(r.sre)}</td><td style="font-size:.72rem">${esc(endereco)}</td><td>${esc(r.email)}</td><td>${esc(r.telefone)}</td><td>${badge}</td></tr>`;
   });
 
   html += '</tbody></table></div>';
@@ -4202,6 +4299,12 @@ function confirmarImportClientes() {
       responsavel: r.responsavel,
       email: r.email,
       telefone: r.telefone,
+      logradouro: r.logradouro || '',
+      numero: r.numero || '',
+      bairro: r.bairro || '',
+      cep: r.cep || '',
+      uf: r.uf || 'MG',
+      ie: 'ISENTO',
       login: login,
       senha: 'escola2025',
       cargo: 'Presidente da Caixa Escolar',
@@ -5092,6 +5195,7 @@ function renderBancoProdutos() {
   empty.classList.add("hidden");
 
   tbody.innerHTML = itens.map((p, idx) => `<tr>
+    <td class="text-center"><input type="checkbox" class="banco-prod-chk" value="${p.id}"></td>
     <td class="text-center">${idx + 1}</td>
     <td>${esc(p.descricao)}</td>
     <td class="font-mono">${esc(p.sku || '-')}</td>
@@ -5102,6 +5206,10 @@ function renderBancoProdutos() {
       <button class="btn btn-sm" style="font-size:.6rem;padding:.15rem .3rem;background:rgba(239,68,68,.15);color:var(--red);border:none;cursor:pointer" onclick="excluirProduto('${p.id}')" title="Excluir">✕</button>
     </td>
   </tr>`).join("");
+}
+
+function toggleSelectAllBancoProd(checked) {
+  document.querySelectorAll('.banco-prod-chk').forEach(cb => cb.checked = checked);
 }
 
 function novoProdutoManual() {

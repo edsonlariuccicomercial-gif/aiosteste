@@ -573,26 +573,6 @@ async function init() {
   // Enter key on login
   document.getElementById('login-pass').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
   document.getElementById('login-user').addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('login-pass').focus(); });
-
-  // Auto-login from GDP Contratos (sessionStorage)
-  const autoLoginData = sessionStorage.getItem('gdp-portal-autoLogin');
-  if (autoLoginData) {
-    sessionStorage.removeItem('gdp-portal-autoLogin');
-    try {
-      const escola = JSON.parse(autoLoginData);
-      if (escola.login && escola.senha) {
-        document.getElementById('login-user').value = escola.login;
-        document.getElementById('login-pass').value = escola.senha;
-        doLogin();
-        // After login, auto-select ARP catalog and go to catalogo tab
-        setTimeout(() => {
-          if (currentUser) {
-            selectContract('arp');
-          }
-        }, 100);
-      }
-    } catch(_) {}
-  }
 }
 
 // ─── LOGIN ───
@@ -1469,12 +1449,7 @@ function newOrder() {
 function printOrder() { window.print(); }
 
 // ─── TAB SWITCHING ───
-const isCatalogoMode = new URLSearchParams(window.location.search).get('mode') === 'catalogo';
-
 function switchEscolaTab(tab) {
-  // In catalog-only mode, force catalogo tab
-  if (isCatalogoMode && tab !== 'catalogo') return;
-
   document.querySelectorAll('.escola-tab[data-tab]').forEach(t => t.classList.remove('active'));
   const activeTab = document.querySelector(`.escola-tab[data-tab="${tab}"]`);
   if (activeTab) activeTab.classList.add('active');
@@ -1490,13 +1465,6 @@ function switchEscolaTab(tab) {
 
   if (tab === 'saldo') renderSaldo();
   if (tab === 'meus-pedidos') renderMeusPedidos();
-
-  // In catalog-only mode, hide non-catalogo tabs
-  if (isCatalogoMode) {
-    document.querySelectorAll('.escola-tab[data-tab="saldo"], .escola-tab[data-tab="meus-pedidos"]').forEach(t => t.style.display = 'none');
-    const backBtn = document.querySelector('.escola-tab[onclick*="backToContracts"]');
-    if (backBtn) backBtn.style.display = 'none';
-  }
 }
 
 function renderSaldo() {
