@@ -187,7 +187,6 @@
     <button class="tab" data-tab="usuarios" onclick="switchTab('usuarios')">Clientes <span class="count" id="tab-count-usuarios">0</span></button>
     <button class="tab" data-tab="banco-produtos" onclick="switchTab('banco-produtos')">Banco de Produtos ERP <span class="count" id="tab-count-banco-produtos">0</span></button>
     <button class="tab active" data-tab="contratos" onclick="switchTab('contratos')">Contratos <span class="count" id="tab-count-contratos">0</span></button>
-    <button class="tab" data-tab="itens" onclick="switchTab('itens')">Itens do Contrato <span class="count" id="tab-count-itens">0</span></button>
     <button class="tab" data-tab="pedidos" onclick="switchTab('pedidos')">Pedidos <span class="count" id="tab-count-pedidos">0</span></button>
     <button class="tab" data-tab="entregas" onclick="switchTab('entregas')">Entregas <span class="count" id="tab-count-entregas">0</span></button>
   </div>
@@ -3280,11 +3279,12 @@ function adicionarItemContrato(contratoId) {
   document.getElementById("modal-contrato-body").innerHTML = `
     <div style="display:grid;grid-template-columns:1fr;gap:1rem">
       <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Descrição do Produto</label><input type="text" id="ai-descricao" placeholder="Ex: Arroz tipo 1, 5kg" style="width:100%" oninput="sugerirNcmAdd()"></div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:1rem">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:1rem">
         <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Unidade</label><input type="text" id="ai-unidade" value="Un" placeholder="Un/Kg/Cx/Pct" style="width:100%"></div>
         <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Qtd Contratada</label><input type="number" id="ai-qtd" value="1" min="1" style="width:100%"></div>
         <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Preço Unitário (R$)</label><input type="number" id="ai-preco" value="0" step="0.01" min="0" style="width:100%"></div>
         <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">NCM</label><input type="text" id="ai-ncm" placeholder="0000.00.00" style="width:100%;font-family:monospace"><div id="ai-ncm-hint" style="font-size:.65rem;color:var(--green);margin-top:.2rem"></div></div>
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">SKU</label><input type="text" id="ai-sku" placeholder="auto ou manual" style="width:100%;font-family:monospace"></div>
       </div>
     </div>
     <div style="margin-top:1.5rem;display:flex;gap:.8rem;justify-content:flex-end">
@@ -3302,6 +3302,7 @@ function salvarItemContrato(contratoId, continuar) {
   const descricao = (document.getElementById("ai-descricao").value || "").trim();
   if (!descricao) { showToast("Descrição é obrigatória.", 3000); return; }
   const ncmVal = (document.getElementById("ai-ncm").value || "").trim();
+  const skuVal = (document.getElementById("ai-sku")?.value || "").trim();
   const item = {
     num: c.itens.length + 1,
     descricao,
@@ -3309,7 +3310,8 @@ function salvarItemContrato(contratoId, continuar) {
     qtdContratada: parseInt(document.getElementById("ai-qtd").value) || 1,
     qtdEntregue: 0,
     precoUnitario: parseFloat(document.getElementById("ai-preco").value) || 0,
-    ncm: ncmVal
+    ncm: ncmVal,
+    sku: skuVal
   };
   c.itens.push(item);
   saveContratos();
@@ -3456,7 +3458,10 @@ function abrirContrato(id) {
         <div style="grid-column:1/-1;margin-top:.4rem"><label style="display:flex;align-items:center;gap:.5rem;font-size:.82rem;cursor:pointer;padding:.4rem .6rem;background:var(--s1);border:1px solid var(--bdr);border-radius:8px"><input type="checkbox" id="ctr-saldo-visivel-${c.id}" ${c.saldoVisivelEscola ? 'checked' : ''}> Permitir que a escola acompanhe o saldo do contrato no Portal Escolar</label></div>
       </div>
       <div style="margin-top:.6rem;display:flex;justify-content:space-between;align-items:center">
-        <button class="btn btn-sm btn-outline" onclick="recalcularSaldoContrato('${c.id}')" title="Recalcular saldo com base nos pedidos reais">🔄 Recalcular Saldo</button>
+        <div style="display:flex;gap:.4rem">
+          <button class="btn btn-sm btn-outline" onclick="recalcularSaldoContrato('${c.id}')" title="Recalcular saldo com base nos pedidos reais">🔄 Recalcular Saldo</button>
+          <button class="btn btn-sm" style="background:rgba(107,114,128,.15);color:var(--mut);border:none;font-weight:700" onclick="imprimirContrato('${c.id}')" title="Imprimir contrato completo">🖨️ Imprimir</button>
+        </div>
         <button class="btn btn-sm btn-blue" onclick="salvarDadosContrato('${c.id}')">Salvar Dados</button>
       </div>
     </div>
@@ -3479,7 +3484,7 @@ function abrirContrato(id) {
     </div>
     <div class="table-wrap" style="overflow-y:auto;max-height:60vh">
       <table style="font-size:.78rem">
-        <thead><tr><th style="width:30px"><input type="checkbox" onchange="toggleSelectAllItens('${c.id}',this.checked)" title="Selecionar todos"></th><th>#</th><th>Item</th><th style="min-width:120px">NCM</th><th>Unid</th><th class="text-right">Contr.</th><th class="text-right">Entr.</th><th class="text-right">Saldo</th><th>%</th><th class="text-right">Preco</th><th class="text-center">Acoes</th></tr></thead>
+        <thead><tr><th style="width:30px"><input type="checkbox" onchange="toggleSelectAllItens('${c.id}',this.checked)" title="Selecionar todos"></th><th>#</th><th>Item</th><th style="min-width:100px">NCM</th><th style="min-width:80px">SKU</th><th>Unid</th><th class="text-right">Contr.</th><th class="text-right">Entr.</th><th class="text-right">Saldo</th><th>%</th><th class="text-right">Preco</th><th class="text-center">Acoes</th></tr></thead>
         <tbody>${c.itens.map((item, idx) => {
           const saldo = item.qtdContratada - item.qtdEntregue;
           const pct = item.qtdContratada > 0 ? (item.qtdEntregue / item.qtdContratada * 100) : 0;
@@ -3493,6 +3498,7 @@ function abrirContrato(id) {
                 <button style="background:none;border:none;cursor:pointer;font-size:.7rem;color:var(--blue);padding:0" onclick="buscarNcmItem('${c.id}',${idx})" title="Buscar NCM automaticamente">🔍</button>
               </div>
             </td>
+            <td style="font-size:.72rem;font-family:monospace;color:var(--dim)">${esc(item.sku || '-')}</td>
             <td class="nowrap">${esc(item.unidade)}</td>
             <td class="text-right font-mono">${item.qtdContratada}</td>
             <td class="text-right font-mono">${item.qtdEntregue}</td>
@@ -3597,6 +3603,90 @@ function recalcularSaldoContrato(contratoId) {
   const totalContratado = c.itens.reduce((s, i) => s + i.precoUnitario * i.qtdContratada, 0);
   const totalEntregue = c.itens.reduce((s, i) => s + i.precoUnitario * i.qtdEntregue, 0);
   showToast(`Saldo recalculado! Contratado: ${brl.format(totalContratado)} | Entregue: ${brl.format(totalEntregue)} | Saldo: ${brl.format(totalContratado - totalEntregue)}`, 5000);
+}
+
+function imprimirContrato(id) {
+  const c = contratos.find(x => x.id === id);
+  if (!c) return;
+
+  const totalContratado = c.itens.reduce((s, i) => s + i.precoUnitario * i.qtdContratada, 0);
+  const totalEntregue = c.itens.reduce((s, i) => s + i.precoUnitario * i.qtdEntregue, 0);
+
+  const linked = usuarios.filter(u => (u.contratos_vinculados || []).includes(id));
+  const escolasHtml = linked.length > 0
+    ? linked.map(u => `<tr><td>${u.nome}</td><td>${u.cnpj || '-'}</td><td>${u.municipio || '-'}</td><td>${u.telefone || '-'}</td><td>${u.email || '-'}</td></tr>`).join('')
+    : '<tr><td colspan="5" style="text-align:center;color:#999">Nenhuma escola vinculada</td></tr>';
+
+  const itensHtml = c.itens.map(item => {
+    const saldo = item.qtdContratada - item.qtdEntregue;
+    return `<tr>
+      <td style="text-align:center">${item.num}</td>
+      <td>${item.descricao}</td>
+      <td style="text-align:center">${item.ncm || '-'}</td>
+      <td style="text-align:center;font-family:monospace;font-size:.8em">${item.sku || '-'}</td>
+      <td style="text-align:center">${item.unidade}</td>
+      <td style="text-align:right">${item.qtdContratada}</td>
+      <td style="text-align:right">${item.qtdEntregue}</td>
+      <td style="text-align:right;font-weight:bold">${saldo}</td>
+      <td style="text-align:right">${brl.format(item.precoUnitario)}</td>
+      <td style="text-align:right">${brl.format(item.precoUnitario * item.qtdContratada)}</td>
+    </tr>`;
+  }).join('');
+
+  const printWindow = window.open('', '_blank');
+  printWindow.document.write(`<!DOCTYPE html><html><head><title>Contrato ${c.id}</title>
+    <style>
+      body { font-family: Arial, sans-serif; font-size: 12px; color: #333; margin: 20px; }
+      h1 { font-size: 18px; margin-bottom: 5px; }
+      h2 { font-size: 14px; margin: 15px 0 8px; border-bottom: 1px solid #ccc; padding-bottom: 4px; }
+      table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
+      th, td { border: 1px solid #ddd; padding: 4px 8px; font-size: 11px; }
+      th { background: #f5f5f5; font-weight: bold; text-align: left; }
+      .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 20px; margin-bottom: 15px; }
+      .info-grid div { font-size: 12px; }
+      .info-grid strong { color: #666; }
+      .totals { display: flex; gap: 30px; margin: 10px 0; font-size: 13px; }
+      .totals div { padding: 8px 12px; background: #f8f8f8; border-radius: 4px; }
+      @media print { body { margin: 10px; } }
+    </style>
+  </head><body>
+    <h1>Contrato ${c.id}</h1>
+    <p style="color:#666;margin-top:0">${c.escola}</p>
+
+    <div class="info-grid">
+      <div><strong>Edital:</strong> ${c.edital || '-'}</div>
+      <div><strong>Fornecedor:</strong> ${c.fornecedor || '-'}</div>
+      <div><strong>Processo:</strong> ${c.processo || '-'}</div>
+      <div><strong>Status:</strong> ${c.status || '-'}</div>
+      <div><strong>Vigencia:</strong> ${c.vigencia || '-'}</div>
+      <div><strong>Data Apuracao:</strong> ${c.dataApuracao || '-'}</div>
+      ${c.objeto ? '<div style="grid-column:1/-1"><strong>Objeto:</strong> ' + c.objeto + '</div>' : ''}
+      ${c.observacoes ? '<div style="grid-column:1/-1"><strong>Obs:</strong> ' + c.observacoes + '</div>' : ''}
+    </div>
+
+    <div class="totals">
+      <div><strong>Contratado:</strong> ${brl.format(totalContratado)}</div>
+      <div><strong>Entregue:</strong> ${brl.format(totalEntregue)}</div>
+      <div><strong>Saldo:</strong> ${brl.format(totalContratado - totalEntregue)}</div>
+    </div>
+
+    <h2>Escolas Vinculadas (${linked.length})</h2>
+    <table>
+      <thead><tr><th>Nome</th><th>CNPJ</th><th>Municipio</th><th>Telefone</th><th>Email</th></tr></thead>
+      <tbody>${escolasHtml}</tbody>
+    </table>
+
+    <h2>Itens do Contrato (${c.itens.length})</h2>
+    <table>
+      <thead><tr><th>#</th><th>Descricao</th><th>NCM</th><th>SKU</th><th>Unid</th><th>Contr.</th><th>Entr.</th><th>Saldo</th><th>Preco Unit.</th><th>Subtotal</th></tr></thead>
+      <tbody>${itensHtml}</tbody>
+      <tfoot><tr><td colspan="9" style="text-align:right;font-weight:bold">Total Contratado:</td><td style="text-align:right;font-weight:bold">${brl.format(totalContratado)}</td></tr></tfoot>
+    </table>
+
+    <p style="font-size:10px;color:#999;margin-top:20px">Impresso em ${new Date().toLocaleString('pt-BR')} | GDP - Gestao de Pedidos</p>
+    <script>window.print();</script>
+  </body></html>`);
+  printWindow.document.close();
 }
 
 function salvarDadosContrato(id) {
