@@ -201,6 +201,21 @@ function shortenDescription(desc) {
   return s;
 }
 
+function normalizeUnit(unidade) {
+  const u = (unidade || "UN").toUpperCase().trim();
+  const map = {
+    "UNIDADE": "UN", "UNID": "UN", "UND": "UN", "UN": "UN",
+    "CAIXA": "CX", "CX": "CX", "PACOTE": "PCT", "PCTE": "PCT", "PCT": "PCT",
+    "METRO": "M", "MT": "M", "M": "M", "LITRO": "LT", "LT": "LT", "L": "LT",
+    "KG": "KG", "QUILO": "KG", "QUILOGRAMA": "KG", "ROLO": "RL", "RL": "RL",
+    "RESMA": "RS", "RS": "RS", "GALAO": "GL", "GL": "GL",
+    "FRASCO": "FR", "FR": "FR", "TUBO": "TB", "TB": "TB",
+    "POTE": "PT", "PT": "PT", "SACO": "SC", "SC": "SC",
+    "DUZIA": "DZ", "DZ": "DZ", "BANDEJA": "BD", "BD": "BD",
+  };
+  return map[u] || u.slice(0, 3);
+}
+
 function generateSku(item, index, contractId) {
   // Tiny ERP requires numeric-only codigo
   const num = String(item.itemNum || index + 1).padStart(3, "0");
@@ -289,7 +304,7 @@ function buildTinyPayload(order) {
         codigo,
         descricao: shortenDescription(item.description),
         ncm,
-        unidade: "UN",
+        unidade: normalizeUnit(item.unidade),
         quantidade: Number(item.qty || 0),
         valor_unitario: Number(item.unitPrice || 0),
       },
@@ -363,6 +378,8 @@ export default async function handler(req, res) {
       qty: i.qty || 0,
       unitPrice: i.unitPrice || 0,
       itemNum: i.itemNum || idx + 1,
+      unidade: i.unidade || "UN",
+      ncm: i.ncm || "",
     })),
     totalValue: totalValue || 0,
     contractRef: arp || "",
@@ -408,7 +425,7 @@ export default async function handler(req, res) {
           codigo: item.sku,
           nome: normalizeDescription(item.description),
           ncm: ncmCode,
-          unidade: "UN",
+          unidade: normalizeUnit(item.unidade),
           preco: Number(item.unitPrice || 0),
           origem: "0",
           tipo: "P",

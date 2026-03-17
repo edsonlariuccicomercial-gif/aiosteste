@@ -4000,7 +4000,7 @@ function salvarPedidoManual() {
       const desc = input.dataset.desc;
       const item = c.itens.find(i => i.num === itemNum);
       if (item) {
-        itens.push({ itemNum, descricao: desc, qtd: qty, precoUnitario: item.precoUnitario, sku: item.sku || '' });
+        itens.push({ itemNum, descricao: desc, qtd: qty, precoUnitario: item.precoUnitario, sku: item.sku || '', unidade: item.unidade || 'UN', ncm: item.ncm || '' });
         valor += qty * item.precoUnitario;
       }
     }
@@ -4831,7 +4831,9 @@ async function enviarPedidoOlist(pedidoId) {
       name: i.descricao,
       qty: i.qtd,
       unitPrice: i.precoUnitario,
-      itemNum: i.itemNum
+      itemNum: i.itemNum,
+      unidade: (ctrItem && ctrItem.unidade) || i.unidade || 'UN',
+      ncm: (ctrItem && ctrItem.ncm) || i.ncm || ''
     };
   });
 
