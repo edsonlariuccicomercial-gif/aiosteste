@@ -3128,7 +3128,7 @@ function atualizarTotalCatalogo(contratoId) {
 
 function adicionarTodosCatalogo(contratoId) {
   document.querySelectorAll('.catalogo-qtd').forEach(input => {
-    const max = parseInt(input.dataset.max) || 0;
+    const max = parseFloat(input.dataset.max) || 0;
     if (max > 0) input.value = max;
   });
   atualizarTotalCatalogo(contratoId);
