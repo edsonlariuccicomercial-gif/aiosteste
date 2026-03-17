@@ -297,8 +297,8 @@ function buildTinyPayload(order) {
     // Use SKU as-is (already resolved in Step 1)
     let codigo = String(item.sku || "").trim();
     if (!codigo) codigo = generateSku(item, idx, order.contractRef || order.id);
-    // NCM priority: local map > inherited from Tiny > empty
-    const ncm = (ncmMatch ? ncmMatch.ncm : "") || item._tinyNcm || "";
+    // NCM priority: frontend value > local map > inherited from Tiny > empty
+    const ncm = item.ncm || (ncmMatch ? ncmMatch.ncm : "") || item._tinyNcm || "";
     return {
       item: {
         codigo,
@@ -487,13 +487,14 @@ export default async function handler(req, res) {
     }
 
     const olistOrderId =
+      tinyRet.registros?.registro?.id ||
       tinyRet.registros?.[0]?.registro?.id ||
       tinyRet.pedidos?.[0]?.pedido?.id ||
       parsed.order_id ||
       parsed.id ||
       `TINY-${Date.now()}`;
 
-    const result = { success: true, olistOrderId: String(olistOrderId), provider: "tiny_api", _tinyResponse: tinyRet };
+    const result = { success: true, olistOrderId: String(olistOrderId), provider: "tiny_api" };
     if (ncmAlerts.length > 0) {
       result.ncmAlerts = ncmAlerts;
       result.ncmWarning = `${ncmAlerts.length} item(ns) sem NCM — corrigir no Tiny antes de emitir NF-e`;
