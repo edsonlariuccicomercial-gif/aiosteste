@@ -492,6 +492,7 @@
 const SUPABASE_URL = "https://ohxoxencxktpzskltbsk.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9oeG94ZW5jeGt0cHpza2x0YnNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMyMTUwNDQsImV4cCI6MjA4ODc5MTA0NH0.-w8f1xjW1cW2-OZpg1Sql8PqwFDzDqyWw4pHEx6jGSk";
 const PORTAL_SYNC_KEYS = ["gdp.contratos.v1", "gdp.pedidos.v1", "gdp.escola.pedidos", "gdp.usuarios.v1"];
+function unwrapData(raw) { return Array.isArray(raw) ? raw : (raw && raw.items ? raw.items : []); }
 
 function getSyncUserId() {
   const emp = JSON.parse(localStorage.getItem("nexedu.empresa") || "{}");
@@ -525,7 +526,18 @@ async function syncFromCloud() {
     for (const row of rows) {
       const local = localStorage.getItem(row.key);
       const localData = local ? JSON.parse(local) : null;
-      if (!localData || (row.data && JSON.stringify(row.data) !== JSON.stringify(localData))) {
+      if (!localData) {
+        if (row.data) { localStorage.setItem(row.key, JSON.stringify(row.data)); synced++; }
+        continue;
+      }
+      // Compare timestamps: prefer data's internal updatedAt, fallback to Supabase row.updated_at
+      const cloudDataTime = row.data?.updatedAt ? new Date(row.data.updatedAt).getTime()
+                          : row.data?.updated_at ? new Date(row.data.updated_at).getTime() : 0;
+      const cloudTime = cloudDataTime || (row.updated_at ? new Date(row.updated_at).getTime() : 0);
+      const localTime = localData?.updatedAt ? new Date(localData.updatedAt).getTime()
+                      : localData?.updated_at ? new Date(localData.updated_at).getTime() : 0;
+      // Cloud wins if: cloud is newer OR (both timestamps are zero and cloud has data)
+      if (((cloudTime > localTime) || (cloudTime === 0 && localTime === 0)) && row.data) {
         localStorage.setItem(row.key, JSON.stringify(row.data));
         synced++;
       }
@@ -656,7 +668,7 @@ function logout() {
 function getSchoolContracts() {
   // Load contracts from Contratos module (gdp.contratos.v1)
   let contratos = [];
-  try { contratos = JSON.parse(localStorage.getItem('gdp.contratos.v1')) || []; } catch(_) {}
+  try { contratos = unwrapData(JSON.parse(localStorage.getItem('gdp.contratos.v1'))); } catch(_) {}
 
   // Primary: match by contratos_vinculados (explicit link set in Usuarios tab)
   const vinculados = currentUser.contratos_vinculados || [];
@@ -705,7 +717,7 @@ function showContractSelection() {
 
   // Load pedidos for accurate saldo calculation
   let _pedidosAll = [];
-  try { _pedidosAll = JSON.parse(localStorage.getItem('gdp.pedidos.v1') || '[]'); } catch(_) {}
+  try { _pedidosAll = unwrapData(JSON.parse(localStorage.getItem('gdp.pedidos.v1') || '{}')); } catch(_) {}
 
   // Contract cards from Contratos module
   contracts.forEach((c, i) => {
@@ -796,7 +808,7 @@ function selectContract(type, idx) {
     const c = contracts[idx];
     // Compute pending order quantities per item for this contract
     // ONLY count pedidos that have NOT yet been deducted from qtdEntregue
-    const pedidosLocal = (() => { try { return JSON.parse(localStorage.getItem('gdp.pedidos.v1') || '[]'); } catch(_) { return []; } })();
+    const pedidosLocal = (() => { try { return unwrapData(JSON.parse(localStorage.getItem('gdp.pedidos.v1') || '{}')); } catch(_) { return []; } })();
     const pedidosPend = pedidosLocal.filter(p => p.contratoId === c.id && p.status !== 'entregue' && !p.saldoDeduzido);
     const qtdPedidaPorItem = {};
     pedidosPend.forEach(p => {
@@ -1406,7 +1418,7 @@ async function confirmOrder() {
 
   // Tambem salvar no localStorage de pedidos (formato entregador)
   try {
-    const pedidosLocal = JSON.parse(localStorage.getItem('gdp.pedidos.v1') || '[]');
+    const pedidosLocal = unwrapData(JSON.parse(localStorage.getItem('gdp.pedidos.v1') || '{}'));
     if (!pedidosLocal.find(p => p.id === proto)) {
       pedidosLocal.push(pedidoSync);
       localStorage.setItem('gdp.pedidos.v1', JSON.stringify(pedidosLocal));
@@ -1416,7 +1428,7 @@ async function confirmOrder() {
 
   // Deduzir saldo do contrato e atualizar schoolProducts em memória
   try {
-    const contratosLocal = JSON.parse(localStorage.getItem('gdp.contratos.v1') || '[]');
+    const contratosLocal = unwrapData(JSON.parse(localStorage.getItem('gdp.contratos.v1') || '{}'));
     const ctrLocal = contratosLocal.find(c => c.id === _ctrId);
     if (ctrLocal) {
       orderItems.forEach(oi => {
@@ -1495,7 +1507,7 @@ function renderMeusPedidos() {
 
   // Also include orders from supplier system (gdp.pedidos.v1)
   let pedidosV1All = [];
-  try { pedidosV1All = JSON.parse(localStorage.getItem('gdp.pedidos.v1') || '[]'); } catch(_) {}
+  try { pedidosV1All = unwrapData(JSON.parse(localStorage.getItem('gdp.pedidos.v1') || '{}')); } catch(_) {}
 
   // Get linked contract IDs for this school
   const meusCtrIds = (currentUser.contratos_vinculados || []);
@@ -1542,7 +1554,7 @@ function renderMeusPedidos() {
   let _freshContrato = selectedContract ? selectedContract.contrato : null;
   if (_freshContrato) {
     try {
-      const _freshAll = JSON.parse(localStorage.getItem('gdp.contratos.v1') || '[]');
+      const _freshAll = unwrapData(JSON.parse(localStorage.getItem('gdp.contratos.v1') || '{}'));
       _freshContrato = _freshAll.find(c => c.id === _freshContrato.id) || _freshContrato;
     } catch(_) {}
   }
@@ -1597,7 +1609,7 @@ function renderMeusPedidos() {
 
   // Load contracts for label lookup
   let _allContratos = [];
-  try { _allContratos = JSON.parse(localStorage.getItem('gdp.contratos.v1')) || []; } catch(_) {}
+  try { _allContratos = unwrapData(JSON.parse(localStorage.getItem('gdp.contratos.v1'))); } catch(_) {}
 
   tbody.innerHTML = myOrders.map((o, idx) => {
     let statusBadge;
@@ -1625,7 +1637,7 @@ function excluirPedidoPortal(protocol) {
 
   // Also remove from gdp.pedidos.v1 (supplier-originated)
   try {
-    let pv1 = JSON.parse(localStorage.getItem('gdp.pedidos.v1') || '[]');
+    let pv1 = unwrapData(JSON.parse(localStorage.getItem('gdp.pedidos.v1') || '{}'));
     pv1 = pv1.filter(p => p.id !== protocol);
     localStorage.setItem('gdp.pedidos.v1', JSON.stringify(pv1));
   } catch(_) {}
@@ -1638,7 +1650,7 @@ function verPedido(protocol) {
   // Also search cronograma orders from pedidos.v1
   if (!order) {
     try {
-      const pv1 = JSON.parse(localStorage.getItem('gdp.pedidos.v1') || '[]');
+      const pv1 = unwrapData(JSON.parse(localStorage.getItem('gdp.pedidos.v1') || '{}'));
       const cp = pv1.find(p => p.id === protocol && p.cronograma);
       if (cp) {
         order = {
@@ -1658,7 +1670,7 @@ function verPedido(protocol) {
 
   // Lookup contract data for obs
   let _ctrModal = null;
-  try { const _cs = JSON.parse(localStorage.getItem('gdp.contratos.v1') || '[]'); _ctrModal = _cs.find(c => c.id === order.contratoId); } catch(_) {}
+  try { const _cs = unwrapData(JSON.parse(localStorage.getItem('gdp.contratos.v1') || '{}')); _ctrModal = _cs.find(c => c.id === order.contratoId); } catch(_) {}
   let _obsModal = order.obsContrato || order.obs || '';
   if (!_obsModal && _ctrModal) {
     const pp = [];
@@ -1767,7 +1779,7 @@ function salvarEdicaoPedido(protocol) {
 
   // Update pedidos.v1 too
   try {
-    const pedidosLocal = JSON.parse(localStorage.getItem('gdp.pedidos.v1') || '[]');
+    const pedidosLocal = unwrapData(JSON.parse(localStorage.getItem('gdp.pedidos.v1') || '{}'));
     const pedSync = pedidosLocal.find(p => p.id === protocol);
     if (pedSync) {
       pedSync.itens = newItems.map(i => ({ itemNum: i.itemNum, descricao: i.name, qtd: i.qty, precoUnitario: i.unitPrice }));
@@ -1795,7 +1807,7 @@ function excluirPedido(protocol) {
 
   // Remove from pedidos.v1 too
   try {
-    const pedidosLocal = JSON.parse(localStorage.getItem('gdp.pedidos.v1') || '[]');
+    const pedidosLocal = unwrapData(JSON.parse(localStorage.getItem('gdp.pedidos.v1') || '{}'));
     const filtered = pedidosLocal.filter(p => p.id !== protocol);
     localStorage.setItem('gdp.pedidos.v1', JSON.stringify(filtered));
   } catch(_) {}
@@ -1817,7 +1829,7 @@ function downloadPedidoPDF(protocol) {
   let order = escolaOrders.find(o => o.protocol === protocol);
   if (!order) {
     try {
-      const pv1 = JSON.parse(localStorage.getItem('gdp.pedidos.v1') || '[]');
+      const pv1 = unwrapData(JSON.parse(localStorage.getItem('gdp.pedidos.v1') || '{}'));
       const cp = pv1.find(p => p.id === protocol && p.cronograma);
       if (cp) {
         order = {
@@ -1840,7 +1852,7 @@ function downloadPedidoPDF(protocol) {
 
   // Lookup contract data
   let ctrData = null;
-  try { const cs = JSON.parse(localStorage.getItem('gdp.contratos.v1') || '[]'); ctrData = cs.find(c => c.id === order.contratoId); } catch(_) {}
+  try { const cs = unwrapData(JSON.parse(localStorage.getItem('gdp.contratos.v1') || '{}')); ctrData = cs.find(c => c.id === order.contratoId); } catch(_) {}
   let obsText = order.obs || order.obsContrato || '';
   if (!obsText && ctrData) {
     const pp = [];

@@ -27,7 +27,7 @@ const CONTRATOS_STORAGE_KEY = "caixaescolar.contratos.v1";
 const PNCP_CACHE_KEY = "caixaescolar.pncp.cache";
 const SYNC_KEYS = [
   "nexedu.empresa", "caixaescolar.banco.v1", "caixaescolar.preorcamentos.v1",
-  "caixaescolar.resultados.v1", "caixaescolar.contratos.v1",
+  "caixaescolar.resultados.v1", "caixaescolar.contratos.v1", "caixaescolar.orcamentos",
   "gdp.contratos.v1", "gdp.pedidos.v1", "gdp.entregas.provas.v1", "gdp.usuarios.v1",
   "gdp.produtos.v1", "nexedu.modulos.acesso"
 ];
@@ -82,12 +82,15 @@ async function syncFromCloud() {
       continue;
     }
 
-    // Compare timestamps: local updatedAt vs cloud updated_at
-    const cloudTime = row.updated_at ? new Date(row.updated_at).getTime() : 0;
-    const localTime = localData.updatedAt ? new Date(localData.updatedAt).getTime()
-                    : localData.updated_at ? new Date(localData.updated_at).getTime() : 0;
+    // Compare timestamps: prefer data's internal updatedAt, fallback to Supabase row.updated_at
+    const cloudDataTime = row.data?.updatedAt ? new Date(row.data.updatedAt).getTime()
+                        : row.data?.updated_at ? new Date(row.data.updated_at).getTime() : 0;
+    const cloudTime = cloudDataTime || (row.updated_at ? new Date(row.updated_at).getTime() : 0);
+    const localTime = localData?.updatedAt ? new Date(localData.updatedAt).getTime()
+                    : localData?.updated_at ? new Date(localData.updated_at).getTime() : 0;
 
-    if (cloudTime > localTime && row.data) {
+    // Cloud wins if: cloud is newer OR (both timestamps are zero and cloud has data)
+    if (((cloudTime > localTime) || (cloudTime === 0 && localTime === 0)) && row.data) {
       localStorage.setItem(row.key, JSON.stringify(row.data));
       synced++;
     }
@@ -545,6 +548,9 @@ async function boot() {
       console.log("[Boot] Cloud data synced to localStorage");
       loadPreOrcamentos();
       loadBancoLocal();
+      // Reload orcamentos from freshly-synced localStorage
+      const freshOrc = localStorage.getItem("caixaescolar.orcamentos");
+      if (freshOrc) { try { orcamentos = JSON.parse(freshOrc); } catch(_) {} }
       renderAll();
     }
   }).catch(e => console.warn("[Boot] Cloud sync pull failed:", e));

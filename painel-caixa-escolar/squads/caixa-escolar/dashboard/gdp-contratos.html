@@ -772,17 +772,21 @@ async function syncFromCloud() {
     const local = localStorage.getItem(row.key);
     const localData = local ? JSON.parse(local) : null;
 
-    // Cloud wins ONLY if local is empty OR cloud is newer
+    // Cloud wins ONLY if local is empty OR cloud data is newer
     if (!localData) {
       if (row.data) { localStorage.setItem(row.key, JSON.stringify(row.data)); synced++; }
       continue;
     }
 
-    const cloudTime = row.updated_at ? new Date(row.updated_at).getTime() : 0;
-    const localTime = localData.updatedAt ? new Date(localData.updatedAt).getTime()
-                    : localData.updated_at ? new Date(localData.updated_at).getTime() : 0;
+    // Compare timestamps: prefer data's internal updatedAt, fallback to Supabase row.updated_at
+    const cloudDataTime = row.data?.updatedAt ? new Date(row.data.updatedAt).getTime()
+                        : row.data?.updated_at ? new Date(row.data.updated_at).getTime() : 0;
+    const cloudTime = cloudDataTime || (row.updated_at ? new Date(row.updated_at).getTime() : 0);
+    const localTime = localData?.updatedAt ? new Date(localData.updatedAt).getTime()
+                    : localData?.updated_at ? new Date(localData.updated_at).getTime() : 0;
 
-    if (cloudTime > localTime && row.data) {
+    // Cloud wins if: cloud is newer OR (both timestamps are zero and cloud has data)
+    if (((cloudTime > localTime) || (cloudTime === 0 && localTime === 0)) && row.data) {
       localStorage.setItem(row.key, JSON.stringify(row.data));
       synced++;
     }
@@ -822,13 +826,22 @@ let parsedMapa = null;
 let selectedSupplierIdx = null;
 
 // ===== STORAGE =====
+function unwrapData(raw) { return Array.isArray(raw) ? raw : (raw && raw.items ? raw.items : []); }
 function loadData() {
-  try { contratos = JSON.parse(localStorage.getItem(CONTRACTS_KEY)) || []; } catch(_) { contratos = []; }
-  try { pedidos = JSON.parse(localStorage.getItem(ORDERS_KEY)) || []; } catch(_) { pedidos = []; }
+  try { contratos = unwrapData(JSON.parse(localStorage.getItem(CONTRACTS_KEY))); } catch(_) { contratos = []; }
+  try { pedidos = unwrapData(JSON.parse(localStorage.getItem(ORDERS_KEY))); } catch(_) { pedidos = []; }
   try { provasEntrega = JSON.parse(localStorage.getItem(PROOFS_KEY)) || []; } catch(_) { provasEntrega = []; }
 }
-function saveContratos() { localStorage.setItem(CONTRACTS_KEY, JSON.stringify(contratos)); schedulCloudSync(); }
-function savePedidos() { localStorage.setItem(ORDERS_KEY, JSON.stringify(pedidos)); schedulCloudSync(); }
+function saveContratos() {
+  const wrapped = { _v: 1, updatedAt: new Date().toISOString(), items: contratos };
+  localStorage.setItem(CONTRACTS_KEY, JSON.stringify(wrapped));
+  schedulCloudSync();
+}
+function savePedidos() {
+  const wrapped = { _v: 1, updatedAt: new Date().toISOString(), items: pedidos };
+  localStorage.setItem(ORDERS_KEY, JSON.stringify(wrapped));
+  schedulCloudSync();
+}
 
 // ===== TABS =====
 function switchTab(tab) {
@@ -2985,7 +2998,7 @@ function abrirCatalogoEscolar(contratoId) {
 
   // Load pending orders to calculate real saldo
   let _pedidosAll = [];
-  try { _pedidosAll = JSON.parse(localStorage.getItem('gdp.pedidos.v1') || '[]'); } catch(_) {}
+  try { _pedidosAll = unwrapData(JSON.parse(localStorage.getItem('gdp.pedidos.v1'))); } catch(_) {}
   const pedidosCtr = _pedidosAll.filter(p => p.contratoId === contratoId && p.status !== 'entregue');
 
   const totalContratado = c.itens.reduce((s, i) => s + i.precoUnitario * i.qtdContratada, 0);
@@ -3028,6 +3041,7 @@ function abrirCatalogoEscolar(contratoId) {
   document.getElementById("modal-contrato-body").innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
       <div style="font-size:.85rem"><strong>Contrato:</strong> ${esc(c.id)} | <strong>Saldo disponível:</strong> <span style="color:var(--green);font-weight:700">${brl.format(saldoContrato)}</span></div>
+      <button class="btn btn-sm" style="background:rgba(16,185,129,.15);color:var(--green);border:none;font-weight:700" onclick="adicionarTodosCatalogo('${contratoId}')">🛒 Adicionar Todos</button>
     </div>
     <div class="table-wrap" style="max-height:50vh;overflow-y:auto">
       <table style="font-size:.8rem">
@@ -3065,6 +3079,15 @@ function atualizarTotalCatalogo(contratoId) {
   if (totalEl) totalEl.textContent = brl.format(total);
   const countEl = document.getElementById('catalogo-itens-count');
   if (countEl) countEl.textContent = count + ' iten' + (count !== 1 ? 's' : '') + ' selecionado' + (count !== 1 ? 's' : '');
+}
+
+function adicionarTodosCatalogo(contratoId) {
+  document.querySelectorAll('.catalogo-qtd').forEach(input => {
+    const max = parseInt(input.dataset.max) || 0;
+    if (max > 0) input.value = max;
+  });
+  atualizarTotalCatalogo(contratoId);
+  showToast("Todos os itens disponíveis adicionados ao pedido");
 }
 
 async function criarPedidoCatalogo(contratoId) {
@@ -3213,6 +3236,7 @@ function adicionarItemContrato(contratoId) {
       <button class="btn btn-outline" onclick="abrirContrato('${contratoId}')">Cancelar</button>
       <button class="btn btn-green" onclick="salvarItemContrato('${contratoId}')">Adicionar</button>
       <button class="btn btn-blue" onclick="salvarItemContrato('${contratoId}',true)">Adicionar + Novo</button>
+      <button class="btn btn-purple" onclick="salvarEEnviarERP('${contratoId}')" id="btn-enviar-erp-add">📤 Enviar ao ERP</button>
     </div>
   `;
 }
@@ -3234,12 +3258,58 @@ function salvarItemContrato(contratoId, continuar) {
   };
   c.itens.push(item);
   saveContratos();
+  adicionarAoBancoProdutos(item);
   showToast("Item " + item.num + " adicionado: " + descricao.slice(0, 40));
   if (continuar) {
     adicionarItemContrato(contratoId);
   } else {
     abrirContrato(contratoId);
     renderAll();
+  }
+}
+
+function adicionarAoBancoProdutos(item) {
+  loadBancoProdutos();
+  const normDesc = (item.descricao || '').toUpperCase().trim();
+  const existing = bancoProdutos.itens.findIndex(p =>
+    (p.descricao || '').toUpperCase().trim() === normDesc
+  );
+  const produto = {
+    descricao: item.descricao,
+    unidade: item.unidade || 'Un',
+    precoUnitario: item.precoUnitario || 0,
+    ncm: item.ncm || '',
+    sku: item.sku || '',
+    addedAt: new Date().toISOString()
+  };
+  if (existing >= 0) {
+    bancoProdutos.itens[existing] = { ...bancoProdutos.itens[existing], ...produto };
+  } else {
+    bancoProdutos.itens.push(produto);
+  }
+  saveBancoProdutos();
+  if (!document.getElementById("tab-banco-produtos").classList.contains("hidden")) {
+    renderBancoProdutos();
+  }
+}
+
+async function salvarEEnviarERP(contratoId) {
+  const c = contratos.find(x => x.id === contratoId);
+  if (!c) return;
+  const descricao = (document.getElementById("ai-descricao").value || "").trim();
+  if (!descricao) { showToast("Descrição é obrigatória.", 3000); return; }
+  const preco = parseFloat(document.getElementById("ai-preco").value) || 0;
+  if (preco <= 0) { showToast("Preço unitário é obrigatório.", 3000); return; }
+  // 1. Save item to contract
+  salvarItemContrato(contratoId);
+  // 2. Get index of newly added item (last)
+  const itemIdx = c.itens.length - 1;
+  // 3. Send to ERP
+  try {
+    await cadastrarTinyItem(contratoId, itemIdx);
+    showToast("Item salvo no contrato + enviado ao ERP + salvo no Banco de Produtos!", 4000);
+  } catch(err) {
+    showToast("Item salvo no contrato e Banco, mas erro ao enviar ao ERP: " + err.message, 5000);
   }
 }
 
@@ -3943,10 +4013,14 @@ function renderKPIs() {
 function renderAll() {
   // Re-read from localStorage to capture updates from portal escola
   loadData();
+  loadBancoProdutos();
   renderKPIs();
   renderContratos();
   renderPedidos();
   renderEntregas();
+  // Update banco tab count even when not on banco tab
+  const bpCount = document.getElementById("tab-count-banco-produtos");
+  if (bpCount) bpCount.textContent = bancoProdutos.itens.length;
 }
 
 // ===== UTILITIES =====
@@ -5125,11 +5199,15 @@ async function enviarTiny(contratoId) {
   // Push local data to cloud (populates Supabase with existing data)
   try { await syncToCloud(); } catch(_) {}
 
-  // Auto-refresh when portal escola updates localStorage (cross-tab sync)
+  // Auto-refresh when portal escola or banco de produtos updates localStorage (cross-tab sync)
   window.addEventListener('storage', (e) => {
     if (e.key === CONTRACTS_KEY || e.key === ORDERS_KEY) {
       loadData();
       renderAll();
+    }
+    if (e.key === PRODUTOS_KEY) {
+      loadBancoProdutos();
+      renderBancoProdutos();
     }
   });
 })();
@@ -5305,7 +5383,13 @@ function loadBancoProdutos() {
 
 function saveBancoProdutos() {
   bancoProdutos.updatedAt = new Date().toISOString();
-  localStorage.setItem(PRODUTOS_KEY, JSON.stringify(bancoProdutos));
+  try {
+    localStorage.setItem(PRODUTOS_KEY, JSON.stringify(bancoProdutos));
+  } catch (e) {
+    console.error("[GDP] Falha ao salvar Banco de Produtos:", e);
+    showToast("Erro ao salvar produto — localStorage cheio?", 4000);
+    return;
+  }
   if (typeof schedulCloudSync === 'function') schedulCloudSync();
 }
 
@@ -5717,13 +5801,29 @@ function confirmarImportProdutos() {
 }
 
 // ===== SYNC ITENS CONTRATO ↔ BANCO DE PRODUTOS =====
-function calcSimilaridade(s1, s2) {
-  s1 = s1.toLowerCase().trim(); s2 = s2.toLowerCase().trim();
+function normalizarTexto(s) {
+  return (s || '').toLowerCase().trim()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // remove acentos
+    .replace(/[:\-\/\\.,;!?()[\]{}'"]+/g, ' ')       // pontuacao → espaco
+    .replace(/\s+/g, ' ').trim();                     // colapsar espacos
+}
+
+function calcJaccard(s1, s2) {
+  const w1 = new Set(normalizarTexto(s1).split(' ').filter(Boolean));
+  const w2 = new Set(normalizarTexto(s2).split(' ').filter(Boolean));
+  if (w1.size === 0 && w2.size === 0) return 1;
+  if (w1.size === 0 || w2.size === 0) return 0;
+  let inter = 0;
+  for (const w of w1) if (w2.has(w)) inter++;
+  return inter / (w1.size + w2.size - inter);
+}
+
+function calcLevenshtein(s1, s2) {
+  s1 = normalizarTexto(s1); s2 = normalizarTexto(s2);
   if (s1 === s2) return 1;
   const longer = s1.length > s2.length ? s1 : s2;
   const shorter = s1.length > s2.length ? s2 : s1;
   if (longer.length === 0) return 1;
-  // Levenshtein
   const costs = [];
   for (let i = 0; i <= longer.length; i++) {
     let lastVal = i;
@@ -5739,6 +5839,12 @@ function calcSimilaridade(s1, s2) {
     if (i > 0) costs[shorter.length] = lastVal;
   }
   return (longer.length - costs[shorter.length]) / longer.length;
+}
+
+function calcSimilaridade(s1, s2) {
+  const jaccard = calcJaccard(s1, s2);
+  const levenshtein = calcLevenshtein(s1, s2);
+  return jaccard * 0.6 + levenshtein * 0.4;
 }
 
 function abrirModalSync(contratoId) {
@@ -5769,19 +5875,19 @@ function abrirModalSync(contratoId) {
         const s = calcSimilaridade(item.descricao || '', bancoProdutos.itens[i].descricao || '');
         if (s > bestScore) { bestScore = s; bestIdx = i; }
       }
-      if (bestIdx >= 0 && bestScore >= 0.5) {
+      if (bestIdx >= 0 && bestScore >= 0.6) {
         match = bancoProdutos.itens[bestIdx]; matchIdx = bestIdx; score = bestScore;
-        method = bestScore >= 0.7 ? 'Similaridade' : 'Aprox.';
+        method = bestScore >= 0.85 ? 'Similaridade' : 'Aprox.';
       }
     }
     const synced = item._syncedFromBanco ? true : false;
-    return { idx, item, match, matchIdx, score, method, synced, accept: match && score >= 0.7 };
+    return { idx, item, match, matchIdx, score, method, synced, accept: match && score >= 0.85 };
   });
 
   // Build modal
   let html = `
     <div style="margin-bottom:1rem">
-      <p style="font-size:.85rem;color:var(--mut)">Sincronizar itens do contrato com o Banco de Produtos ERP. Selecione os itens e ajuste os matches manualmente se necessario. Apenas <strong>descricao, SKU e unidade</strong> serao atualizados.</p>
+      <p style="font-size:.85rem;color:var(--mut)">Sincronizar itens do contrato com o Banco de Produtos ERP (<strong>${bancoProdutos.itens.length}</strong> produtos no banco). Selecione os itens e ajuste os matches manualmente se necessario. Apenas <strong>descricao, SKU e unidade</strong> serao atualizados.</p>
     </div>
     <div style="max-height:55vh;overflow-y:auto;border:1px solid var(--bdr);border-radius:10px">
       <table style="font-size:.78rem;width:100%;border-collapse:collapse">
