@@ -494,7 +494,7 @@ export default async function handler(req, res) {
       parsed.id ||
       `TINY-${Date.now()}`;
 
-    const result = { success: true, olistOrderId: String(olistOrderId), provider: "tiny_api", _tinyPayloadSent: tinyPayload, _tinyRawResponse: parsed };
+    const result = { success: true, olistOrderId: String(olistOrderId), provider: "tiny_api" };
     if (ncmAlerts.length > 0) {
       result.ncmAlerts = ncmAlerts;
       result.ncmWarning = `${ncmAlerts.length} item(ns) sem NCM — corrigir no Tiny antes de emitir NF-e`;
