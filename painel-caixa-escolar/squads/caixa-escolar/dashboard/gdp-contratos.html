@@ -1539,6 +1539,9 @@ function criarContrato() {
   contratos.push(contrato);
   saveContratos();
 
+  // Auto-cadastrar itens no ERP (background, non-blocking)
+  autoCadastrarTiny(contrato.id);
+
   // Alimentar banco de precos com dados de concorrentes
   alimentarBancoConcorrentes(m, supplier.nome);
 
@@ -2037,6 +2040,9 @@ function criarContratoLista() {
 
   contratos.push(contrato);
   saveContratos();
+
+  // Auto-cadastrar itens no ERP (background, non-blocking)
+  autoCadastrarTiny(contrato.id);
 
   // Reset
   cancelListaImport();
@@ -2827,6 +2833,12 @@ function importarCronograma() {
   savePedidos();
   renderAll();
 
+  // Auto-cadastrar itens no ERP para cada contrato criado (background)
+  parsedCrono.contratos.forEach(ctr => {
+    const created = contratos.find(x => x.processo === ctr.processo);
+    if (created) autoCadastrarTiny(created.id);
+  });
+
   // Capture counts before reset
   const numContratos = parsedCrono.contratos.length;
   const numPedidos = pedidos.filter(p => p.cronograma && p.status === 'agendado').length;
@@ -2984,6 +2996,14 @@ function salvarVinculoEscolas(contratoId) {
   }
 
   saveUsuarios();
+
+  // Auto-cadastrar clientes recém-vinculados no Olist (background)
+  for (const u of usuarios) {
+    if (checkedIds.includes(u.id) && !u.olistClienteId) {
+      autoCadastrarClienteOlist(u);
+    }
+  }
+
   document.getElementById("modal-contrato").classList.add("hidden");
   renderContratos();
   showToast("Escolas vinculadas ao contrato com sucesso!");
@@ -3440,9 +3460,14 @@ function abrirContrato(id) {
         <button class="btn btn-sm btn-blue" onclick="salvarDadosContrato('${c.id}')">Salvar Dados</button>
       </div>
     </div>
+    ${c.pendingTinySync ? `<div style="background:rgba(234,179,8,.15);border:1px solid rgba(234,179,8,.3);border-radius:8px;padding:.6rem 1rem;margin-bottom:1rem;display:flex;align-items:center;justify-content:space-between">
+      <span style="color:var(--yellow);font-size:.85rem">⚠️ Itens pendentes de cadastro no ERP</span>
+      <button class="btn btn-sm" style="background:rgba(234,179,8,.25);color:var(--yellow);border:none;font-weight:700" onclick="autoCadastrarTiny('${c.id}')">Cadastrar Agora</button>
+    </div>` : ''}
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.8rem;flex-wrap:wrap;gap:.5rem">
       <div style="display:flex;align-items:center;gap:.6rem">
         <h3 style="font-size:.9rem;margin:0">Itens do Contrato (${c.itens.length})</h3>
+        <span style="font-size:.72rem;color:var(--dim)">${c.itens.filter(i => i.sku).length}/${c.itens.length} com SKU</span>
         <span id="itens-selecionados-${c.id}" style="font-size:.72rem;color:var(--cyan);font-weight:600"></span>
       </div>
       <div style="display:flex;gap:.4rem;flex-wrap:wrap;align-items:center">
@@ -3461,7 +3486,7 @@ function abrirContrato(id) {
           return `<tr>
             <td class="text-center"><input type="checkbox" class="item-check-${c.id}" data-idx="${idx}" onchange="atualizarSelecaoItens('${c.id}')"></td>
             <td class="text-center">${item.num}</td>
-            <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(item.descricao)}">${esc(item.descricao)}</td>
+            <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(item.descricao)}"><span title="${item.sku ? 'SKU: ' + esc(item.sku) : 'Sem SKU — pendente ERP'}" style="font-size:.6rem;margin-right:.3rem">${item.sku ? '🟢' : '🟡'}</span>${esc(item.descricao)}</td>
             <td style="min-width:120px">
               <div style="display:flex;align-items:center;gap:.2rem">
                 <input type="text" value="${esc(item.ncm || '')}" id="ncm-${c.id}-${idx}" placeholder="00.00.00.00" style="width:90px;font-size:.72rem;font-family:monospace;padding:.15rem .3rem;background:var(--s1);border:1px solid var(--bdr);border-radius:4px;color:var(--cyan)" onchange="salvarNcmItem('${c.id}',${idx},this.value)">
@@ -4586,6 +4611,95 @@ function confirmarImportClientes() {
   showToast(`${imported} cliente(s) importado(s) com sucesso!`, 3000);
 }
 
+// ===== AUTO-CADASTRO ERP =====
+async function autoCadastrarTiny(contratoId) {
+  const c = contratos.find(x => x.id === contratoId);
+  if (!c || !c.itens || c.itens.length === 0) return;
+
+  showToast(`Cadastrando ${c.itens.length} itens no ERP...`, 3000);
+
+  const itens = c.itens.map(item => ({
+    num: item.num,
+    descricao: item.descricao,
+    descricaoCompleta: item.descricao,
+    unidade: item.unidade,
+    precoUnitario: item.precoUnitario,
+    ncm: item.ncm || (findNcmLocal(item.descricao) || {}).ncm || '',
+    sku: item.sku || ''
+  }));
+
+  try {
+    const resp = await fetch("/api/tiny-produtos", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ itens, contractId: contratoId, action: "cadastrar" })
+    });
+    const data = await resp.json();
+
+    if (data.success && data.results) {
+      let skuCount = 0;
+      data.results.forEach(r => {
+        if (r.sku) {
+          const item = c.itens.find(it => it.num === r.num);
+          if (item) {
+            item.sku = r.sku;
+            skuCount++;
+            adicionarAoBancoProdutos(item);
+          }
+        }
+      });
+      delete c.pendingTinySync;
+      saveContratos();
+      console.log(`[ERP Auto-Sync] Contrato ${contratoId}: ${skuCount} SKUs obtidos`);
+      showToast(`${skuCount}/${c.itens.length} itens cadastrados no ERP com SKU`, 4000);
+    } else {
+      c.pendingTinySync = true;
+      saveContratos();
+      showToast("Erro ao cadastrar no ERP. Retry disponivel nos detalhes do contrato.", 5000);
+    }
+  } catch(err) {
+    c.pendingTinySync = true;
+    saveContratos();
+    console.warn("[ERP Auto-Sync] Falha:", err.message);
+    showToast("ERP offline. Itens serao cadastrados quando disponivel.", 4000);
+  }
+}
+
+async function autoCadastrarClienteOlist(usuario) {
+  if (usuario.olistClienteId) return;
+  try {
+    const resp = await fetch("/api/olist/order", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "cadastrar-cliente",
+        cliente: {
+          nome: usuario.nome,
+          cnpj: usuario.cnpj || '',
+          indicador_contribuinte: '9',
+          ie: usuario.ie || 'ISENTO',
+          cep: usuario.cep || '',
+          cidade: usuario.municipio || '',
+          uf: usuario.uf || 'MG',
+          logradouro: usuario.logradouro || '',
+          bairro: usuario.bairro || '',
+          numero: usuario.numero || '',
+          telefone: usuario.telefone || '',
+          email: usuario.email || ''
+        }
+      })
+    });
+    const data = await resp.json();
+    if (data.success && data.clienteId) {
+      usuario.olistClienteId = data.clienteId;
+      saveUsuarios();
+      showToast(`Cliente "${usuario.nome.slice(0,30)}" cadastrado no Olist`);
+    }
+  } catch(err) {
+    console.warn("[Olist] Falha ao cadastrar cliente:", err.message);
+  }
+}
+
 // ===== ENVIAR PEDIDO AO OLIST =====
 async function enviarPedidoOlist(pedidoId) {
   const p = pedidos.find(x => x.id === pedidoId);
@@ -4621,6 +4735,7 @@ async function enviarPedidoOlist(pedidoId) {
         orderId: p.id,
         school: p.escola,
         cliente: p.cliente || { nome: p.escola },
+        olistClienteId: p.cliente?.olistClienteId || '',
         items: items,
         totalValue: p.valor,
         arp: "ARP-LARIUCCI-2025",
