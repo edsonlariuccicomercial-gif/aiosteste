@@ -4890,6 +4890,16 @@ async function enviarPedidoOlist(pedidoId) {
     };
   });
 
+  // Detectar inconsistências de unidade antes do envio
+  const unitWarnings = items.filter(i => {
+    if (i.unidade !== 'UN') return false;
+    const desc = (i.description || '').toLowerCase();
+    return /\b(kg|quilo|litro|lts?|pacote|pct|caixa|cx|fardo|rolo)\b/.test(desc);
+  });
+  if (unitWarnings.length > 0) {
+    showToast(`${unitWarnings.length} item(ns) com unidade "UN" mas descrição sugere outra. Verifique antes de emitir NF-e.`, 5000);
+  }
+
   try {
     const resp = await fetch("/api/olist/order", {
       method: "POST",

@@ -215,13 +215,22 @@ function normalizeUnit(unidade) {
     "CAIXA": "CX", "CX": "CX", "PACOTE": "PCT", "PCTE": "PCT", "PCT": "PCT",
     "METRO": "M", "MT": "M", "M": "M", "LITRO": "LT", "LT": "LT", "L": "LT",
     "KG": "KG", "QUILO": "KG", "QUILOS": "KG", "QUILOGRAMA": "KG", "KILOGRAMA": "KG", "KILO": "KG",
-    "LITROS": "LT", "LITRO": "LT", "LTS": "LT",
+    "LITROS": "LT", "LTS": "LT",
+    "GRAMAS": "G", "GRAMA": "G", "GR": "G", "G": "G",
+    "GARRAFA": "GF", "GF": "GF",
+    "FARDO": "FD", "FD": "FD",
+    "SACHE": "SC", "LATA": "LA", "LA": "LA",
     "ROLO": "RL", "RL": "RL",
     "RESMA": "RS", "RS": "RS", "GALAO": "GL", "GL": "GL",
     "FRASCO": "FR", "FR": "FR", "TUBO": "TB", "TB": "TB",
     "POTE": "PT", "PT": "PT", "SACO": "SC", "SC": "SC",
+    "DUZIA": "DZ", "DZ": "DZ", "BANDEJA": "BD", "BD": "BD",
   };
-  return map[u] || u.slice(0, 3);
+  const result = map[u];
+  if (!result) {
+    console.warn(`[normalizeUnit] Unidade desconhecida: "${unidade}" → truncando para "${u.slice(0, 3)}"`);
+  }
+  return result || u.slice(0, 3);
 }
 
 function shortenDescription(desc) {

@@ -208,14 +208,22 @@ function normalizeUnit(unidade) {
     "CAIXA": "CX", "CX": "CX", "PACOTE": "PCT", "PCTE": "PCT", "PCT": "PCT",
     "METRO": "M", "MT": "M", "M": "M", "LITRO": "LT", "LT": "LT", "L": "LT",
     "KG": "KG", "QUILO": "KG", "QUILOS": "KG", "QUILOGRAMA": "KG", "KILOGRAMA": "KG", "KILO": "KG",
-    "LITROS": "LT", "LITRO": "LT", "LTS": "LT",
+    "LITROS": "LT", "LTS": "LT",
+    "GRAMAS": "G", "GRAMA": "G", "GR": "G", "G": "G",
+    "GARRAFA": "GF", "GF": "GF",
+    "FARDO": "FD", "FD": "FD",
+    "SACHE": "SC", "LATA": "LA", "LA": "LA",
     "ROLO": "RL", "RL": "RL",
     "RESMA": "RS", "RS": "RS", "GALAO": "GL", "GL": "GL",
     "FRASCO": "FR", "FR": "FR", "TUBO": "TB", "TB": "TB",
     "POTE": "PT", "PT": "PT", "SACO": "SC", "SC": "SC",
     "DUZIA": "DZ", "DZ": "DZ", "BANDEJA": "BD", "BD": "BD",
   };
-  return map[u] || u.slice(0, 3);
+  const result = map[u];
+  if (!result) {
+    console.warn(`[normalizeUnit] Unidade desconhecida: "${unidade}" → truncando para "${u.slice(0, 3)}"`);
+  }
+  return result || u.slice(0, 3);
 }
 
 function generateSku(item, index, contractId) {
@@ -268,11 +276,32 @@ async function searchTinyProduct(token, description) {
 
     // Require at least 1 word match to consider it a valid match
     if (bestScore >= 1 && bestProduct) {
+      // If unidade not in search results, fetch full product details
+      if (!bestProduct.unidade && bestProduct.id) {
+        try {
+          const detForm = new URLSearchParams();
+          detForm.set("token", token);
+          detForm.set("formato", "json");
+          detForm.set("id", bestProduct.id);
+          const detResp = await fetch("https://api.tiny.com.br/api2/produto.obter.php", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: detForm.toString(),
+          });
+          const detParsed = JSON.parse(await detResp.text());
+          const fullProd = detParsed.retorno?.produto;
+          if (fullProd) {
+            bestProduct.unidade = fullProd.unidade || "";
+            if (!bestProduct.ncm && fullProd.ncm) bestProduct.ncm = fullProd.ncm;
+          }
+        } catch (_e) { /* best-effort */ }
+      }
       return {
         codigo: bestProduct.codigo || "",
         ncm: bestProduct.ncm || "",
         nome: bestProduct.nome || "",
         id: bestProduct.id || "",
+        unidade: bestProduct.unidade || "",
       };
     }
     return null;
