@@ -167,6 +167,40 @@ function findNcm(description) {
   return best;
 }
 
+async function searchTinyProduct(token, description) {
+  const lower = (description || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const words = lower.replace(/[^a-z0-9\s]/g, "").split(/\s+/).filter(w => w.length > 3);
+  const searchTerm = words.slice(0, 2).join(" ");
+  if (!searchTerm) return null;
+  try {
+    const form = new URLSearchParams();
+    form.set("token", token);
+    form.set("formato", "json");
+    form.set("pesquisa", searchTerm);
+    form.set("pagina", "1");
+    const resp = await fetch("https://api.tiny.com.br/api2/produtos.pesquisa.php", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: form.toString(),
+    });
+    const text = await resp.text();
+    const parsed = JSON.parse(text);
+    const produtos = parsed.retorno?.produtos || [];
+    if (!produtos.length) return null;
+    let bestProduct = null, bestScore = 0;
+    for (const p of produtos) {
+      const nome = (p.produto?.nome || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      let score = 0;
+      for (const w of words) { if (nome.includes(w)) score++; }
+      if (score > bestScore) { bestScore = score; bestProduct = p.produto; }
+    }
+    if (bestScore >= 1 && bestProduct) {
+      return { codigo: bestProduct.codigo || "", ncm: bestProduct.ncm || "", nome: bestProduct.nome || "", unidade: bestProduct.unidade || "" };
+    }
+    return null;
+  } catch (_) { return null; }
+}
+
 function generateSku(item, contractId) {
   const num = String(item.num || 1).padStart(3, "0");
   const prefix = (contractId || "000").replace(/[^0-9]/g, "").slice(-6).padStart(6, "0");
@@ -295,14 +329,25 @@ export default async function handler(req, res) {
   for (let i = 0; i < itens.length; i++) {
     const item = itens[i];
     const ncmMatch = findNcm(item.descricao);
-    const sku = item.codigo || item.sku || generateSku(item, contractId);
     const descricao = shortenDescription(item.descricao);
-    const unidade = normalizeUnit(item.unidade);
     const ncm = item.ncm || (ncmMatch ? ncmMatch.ncm : "");
+
+    // If item has no SKU, search Tiny for existing product by name first
+    if (!item.codigo && !item.sku) {
+      const existing = await searchTinyProduct(token, item.descricao);
+      if (existing && existing.codigo) {
+        results.push({ num: item.num, sku: existing.codigo, descricao, ncm: existing.ncm || ncm, unidade: existing.unidade || normalizeUnit(item.unidade), status: "existente", error: "Produto encontrado no Tiny por nome" });
+        if (i < itens.length - 1) await new Promise(r => setTimeout(r, 1500));
+        continue;
+      }
+    }
+
+    const sku = item.codigo || item.sku || generateSku(item, contractId);
+    const unidade = normalizeUnit(item.unidade);
 
     // Skip if already exists in Tiny (saves an API call)
     if (existingCodes.has(sku.toUpperCase())) {
-      results.push({ num: item.num, sku, descricao, ncm, status: "existente", error: "Ja cadastrado (detectado pre-check)" });
+      results.push({ num: item.num, sku, descricao, ncm, unidade, status: "existente", error: "Ja cadastrado (detectado pre-check)" });
       continue;
     }
 
@@ -342,7 +387,7 @@ export default async function handler(req, res) {
 
       if (status === "ok") {
         const tinyId = ret.registros?.[0]?.registro?.id || ret.id || null;
-        results.push({ num: item.num, sku, descricao, ncm, status: "ok", tinyId });
+        results.push({ num: item.num, sku, descricao, ncm, unidade, status: "ok", tinyId });
       } else {
         const errMsg = ret.erros?.[0]?.erro || ret.erros?.[0] || ret.mensagem || "Erro desconhecido";
         const errStr = typeof errMsg === "string" ? errMsg : JSON.stringify(errMsg);

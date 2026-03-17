@@ -3491,6 +3491,7 @@ function abrirContrato(id) {
       </div>
       <div style="display:flex;gap:.4rem;flex-wrap:wrap;align-items:center">
         <button class="btn btn-sm btn-blue hidden" id="btn-editar-massa-${c.id}" onclick="editarItensMassa('${c.id}')" title="Editar itens selecionados">Editar Selecionados</button>
+        <button class="btn btn-sm" style="background:rgba(6,182,212,.15);color:var(--cyan);border:none;font-weight:700" onclick="sincronizarContratoTiny('${c.id}')" title="Buscar SKUs e unidades reais dos produtos no Tiny">🔄 Sync Tiny</button>
         <button class="btn btn-sm" style="background:rgba(139,92,246,.15);color:var(--purple);border:none;font-weight:700" onclick="abrirCatalogoEscolar('${c.id}')" title="Abrir catalogo da escola vinculada para pedidos internos">📋 Catalogo Escolar</button>
         <button class="btn btn-sm" style="background:rgba(16,185,129,.15);color:var(--green);border:none;font-weight:700" onclick="autoPreencherNcm('${c.id}');abrirContrato('${c.id}')" title="Preencher NCM automaticamente (mapa local + banco)">NCM Auto</button>
         <button class="btn btn-sm" style="background:rgba(168,85,247,.15);color:#a855f7;border:none;font-weight:700" onclick="classificarNcmIA('${c.id}')" title="Classificar NCM dos itens sem codigo usando IA (GPT)">🤖 NCM IA</button>
@@ -4719,6 +4720,46 @@ function confirmarImportClientes() {
 }
 
 // ===== AUTO-CADASTRO ERP =====
+async function sincronizarContratoTiny(contratoId) {
+  const c = contratos.find(x => x.id === contratoId);
+  if (!c) return;
+  showToast(`Sincronizando ${c.itens.length} itens com Tiny...`, 3000);
+  try {
+    const resp = await fetch("/api/tiny-produtos", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        itens: c.itens.map(item => ({
+          num: item.num, descricao: item.descricao, unidade: item.unidade,
+          precoUnitario: item.precoUnitario, ncm: item.ncm || '',
+          sku: '', codigo: ''
+        })),
+        contractId: contratoId, action: "cadastrar"
+      })
+    });
+    const data = await resp.json();
+    if (data.success && data.results) {
+      let synced = 0;
+      data.results.forEach(r => {
+        if (r.sku) {
+          const item = c.itens.find(it => it.num === r.num);
+          if (item) {
+            item.sku = r.sku;
+            if (r.unidade) item.unidade = r.unidade;
+            synced++;
+            adicionarAoBancoProdutos(item);
+          }
+        }
+      });
+      saveContratos();
+      abrirContrato(contratoId);
+      showToast(`${synced}/${c.itens.length} itens sincronizados com Tiny!`, 4000);
+    }
+  } catch(err) {
+    showToast("Erro: " + err.message, 4000);
+  }
+}
+
 async function autoCadastrarTiny(contratoId) {
   const c = contratos.find(x => x.id === contratoId);
   if (!c || !c.itens || c.itens.length === 0) return;
@@ -4751,6 +4792,7 @@ async function autoCadastrarTiny(contratoId) {
           const item = c.itens.find(it => it.num === r.num);
           if (item) {
             item.sku = r.sku;
+            if (r.unidade) item.unidade = r.unidade;
             skuCount++;
             adicionarAoBancoProdutos(item);
           }
@@ -5617,6 +5659,7 @@ async function enviarTiny(contratoId) {
         const item = c.itens.find(it => it.num === r.num);
         if (item && item.sku !== r.sku) {
           item.sku = r.sku;
+          if (r.unidade) item.unidade = r.unidade;
           changed = true;
           // Propagate Tiny SKU to Banco de Produtos (Tiny is source of truth)
           adicionarAoBancoProdutos(item);
