@@ -279,6 +279,8 @@ async function searchTinyProduct(token, description) {
       // If unidade not in search results, fetch full product details
       if (!bestProduct.unidade && bestProduct.id) {
         try {
+          // Rate limit: wait before secondary call to avoid Tiny throttling
+          await new Promise(r => setTimeout(r, 1500));
           const detForm = new URLSearchParams();
           detForm.set("token", token);
           detForm.set("formato", "json");

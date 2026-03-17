@@ -7,6 +7,9 @@
   "functions": {
     "api/ai-parse-price.js": {
       "maxDuration": 60
+    },
+    "api/olist/order.js": {
+      "maxDuration": 60
     }
   }
 }
