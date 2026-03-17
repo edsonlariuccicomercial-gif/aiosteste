@@ -279,8 +279,8 @@ function toBrDate(value) {
 function buildTinyPayload(order) {
   const itens = (order.items || []).map((item, idx) => {
     const ncmMatch = findNcm(item.description);
-    // Use SKU as-is (already resolved in Step 1: existing Tiny product or generated)
-    let codigo = String(item.sku || "").replace(/[^0-9]/g, "");
+    // Use SKU as-is (already resolved in Step 1)
+    let codigo = String(item.sku || "").trim();
     if (!codigo) codigo = generateSku(item, idx, order.contractRef || order.id);
     // NCM priority: local map > inherited from Tiny > empty
     const ncm = (ncmMatch ? ncmMatch.ncm : "") || item._tinyNcm || "";
@@ -341,8 +341,10 @@ export default async function handler(req, res) {
   const body = req.body;
   if (!body) return res.status(400).json({ success: false, error: "JSON invalido" });
 
-  const { orderId, school, cnpj, city, sre, responsible, arp, items, totalValue, obs, marcador,
+  const { orderId, school, cliente, cnpj, city, sre, responsible, arp, items, totalValue, obs, marcador,
           logradouro, numero, complemento, bairro, cep, uf, ie, telefone, email } = body;
+  // Prefer cliente object (sent by gdp-contratos) over flat fields (sent by portal)
+  const cl = cliente || {};
 
   if (!orderId || !school || !items || !items.length) {
     return res.status(400).json({ success: false, error: "Payload incompleto: orderId, school, items[] obrigatorios" });
@@ -351,8 +353,8 @@ export default async function handler(req, res) {
   const order = {
     id: orderId,
     school,
-    cnpj: cnpj || "",
-    city: city || "",
+    cnpj: cl.cnpj || cnpj || "",
+    city: cl.cidade || city || "",
     sre: sre || "",
     confirmedAt: new Date().toISOString(),
     items: items.map((i, idx) => ({
@@ -366,16 +368,16 @@ export default async function handler(req, res) {
     contractRef: arp || "",
     marcador: marcador || "Licit-AIX",
     obs: obs || "",
-    // NF-e address fields
-    logradouro: logradouro || "",
-    numero: numero || "S/N",
-    complemento: complemento || "",
-    bairro: bairro || "",
-    cep: cep || "",
-    uf: uf || "MG",
-    ie: ie || "ISENTO",
-    telefone: telefone || "",
-    email: email || "",
+    // NF-e address fields (prefer cliente object over flat fields)
+    logradouro: cl.logradouro || logradouro || "",
+    numero: cl.numero || numero || "S/N",
+    complemento: cl.complemento || complemento || "",
+    bairro: cl.bairro || bairro || "",
+    cep: cl.cep || cep || "",
+    uf: cl.uf || uf || "MG",
+    ie: cl.ie || ie || "ISENTO",
+    telefone: cl.telefone || telefone || "",
+    email: cl.email || email || "",
   };
 
   // ─── Step 1: Match existing products in Tiny OR create new ones ───
@@ -384,20 +386,25 @@ export default async function handler(req, res) {
     const item = order.items[i];
     const ncmMatch = findNcm(item.description);
 
-    // Search Tiny for existing product with similar name
-    const existing = await searchTinyProduct(token, item.description);
-
-    if (existing && existing.codigo) {
-      // Reuse existing product: inherit SKU and NCM from Tiny
-      item.sku = existing.codigo;
-      if (!ncmMatch && existing.ncm) {
-        // Inherit NCM from existing Tiny product when our map doesn't cover it
-        item._tinyNcm = existing.ncm;
+    // If item already has a valid SKU from contract/banco, use it directly (no Tiny search)
+    if (item.sku && String(item.sku).trim()) {
+      // SKU already resolved — skip Tiny search to avoid overwriting with wrong match
+      const ncmCode = ncmMatch ? ncmMatch.ncm : "";
+      if (!ncmCode) {
+        ncmAlerts.push({ item: item.itemNum || i + 1, description: item.description });
       }
     } else {
-      // No match in Tiny — ensure product exists with NCM
-      const skuNumerico = String(item.sku || "").replace(/[^0-9]/g, "") || generateSku(item, i, arp || orderId);
-      item.sku = skuNumerico;
+      // No SKU — search Tiny for existing product with similar name
+      const existing = await searchTinyProduct(token, item.description);
+
+      if (existing && existing.codigo) {
+        item.sku = existing.codigo;
+        if (!ncmMatch && existing.ncm) {
+          item._tinyNcm = existing.ncm;
+        }
+      } else {
+        // No match in Tiny — generate SKU and create product
+        item.sku = generateSku(item, i, arp || orderId);
 
       const ncmCode = ncmMatch ? ncmMatch.ncm : "";
       if (!ncmCode) {
