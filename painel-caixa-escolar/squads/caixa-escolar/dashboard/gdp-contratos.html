@@ -1538,8 +1538,10 @@ function criarContrato() {
   contratos.push(contrato);
   saveContratos();
 
-  // Auto-cadastrar itens no ERP (background, non-blocking)
+  // Auto-preencher NCM + cadastrar itens no ERP (background, non-blocking)
+  const ncmResult = autoPreencherNcm(contrato.id);
   autoCadastrarTiny(contrato.id);
+  if (ncmResult.pending > 0) classificarNcmIA(contrato.id);
 
   // Alimentar banco de precos com dados de concorrentes
   alimentarBancoConcorrentes(m, supplier.nome);
@@ -2040,8 +2042,10 @@ function criarContratoLista() {
   contratos.push(contrato);
   saveContratos();
 
-  // Auto-cadastrar itens no ERP (background, non-blocking)
+  // Auto-preencher NCM + cadastrar itens no ERP (background, non-blocking)
+  const ncmResult2 = autoPreencherNcm(contrato.id);
   autoCadastrarTiny(contrato.id);
+  if (ncmResult2.pending > 0) classificarNcmIA(contrato.id);
 
   // Reset
   cancelListaImport();
@@ -2835,7 +2839,11 @@ function importarCronograma() {
   // Auto-cadastrar itens no ERP para cada contrato criado (background)
   parsedCrono.contratos.forEach(ctr => {
     const created = contratos.find(x => x.processo === ctr.processo);
-    if (created) autoCadastrarTiny(created.id);
+    if (created) {
+      const ncmR = autoPreencherNcm(created.id);
+      autoCadastrarTiny(created.id);
+      if (ncmR.pending > 0) classificarNcmIA(created.id);
+    }
   });
 
   // Capture counts before reset
@@ -3484,6 +3492,8 @@ function abrirContrato(id) {
       <div style="display:flex;gap:.4rem;flex-wrap:wrap;align-items:center">
         <button class="btn btn-sm btn-blue hidden" id="btn-editar-massa-${c.id}" onclick="editarItensMassa('${c.id}')" title="Editar itens selecionados">Editar Selecionados</button>
         <button class="btn btn-sm" style="background:rgba(139,92,246,.15);color:var(--purple);border:none;font-weight:700" onclick="abrirCatalogoEscolar('${c.id}')" title="Abrir catalogo da escola vinculada para pedidos internos">📋 Catalogo Escolar</button>
+        <button class="btn btn-sm" style="background:rgba(16,185,129,.15);color:var(--green);border:none;font-weight:700" onclick="autoPreencherNcm('${c.id}');abrirContrato('${c.id}')" title="Preencher NCM automaticamente (mapa local + banco)">NCM Auto</button>
+        <button class="btn btn-sm" style="background:rgba(168,85,247,.15);color:#a855f7;border:none;font-weight:700" onclick="classificarNcmIA('${c.id}')" title="Classificar NCM dos itens sem codigo usando IA (GPT)">🤖 NCM IA</button>
         <button class="btn btn-sm btn-green" onclick="adicionarItemContrato('${c.id}')">+ Item</button>
       </div>
     </div>
@@ -5099,6 +5109,78 @@ const TINY_NCM_MAP = [
   { keywords: ["fuba", "milho", "quirera"], ncm: "1102.20.00" },
   { keywords: ["sardinha", "atum", "conserva"], ncm: "1604.13.10" },
   { keywords: ["suco", "refresco", "nectar"], ncm: "2009.89.90" },
+  // ─── Hortifruti ───
+  { keywords: ["alface"], ncm: "0705.11.00" },
+  { keywords: ["tomate"], ncm: "0702.00.00" },
+  { keywords: ["cebola"], ncm: "0703.10.19" },
+  { keywords: ["cebolinha"], ncm: "0703.90.00" },
+  { keywords: ["couve"], ncm: "0704.90.00" },
+  { keywords: ["repolho"], ncm: "0704.90.00" },
+  { keywords: ["batata"], ncm: "0701.90.00" },
+  { keywords: ["cenoura"], ncm: "0706.10.00" },
+  { keywords: ["beterraba"], ncm: "0706.90.00" },
+  { keywords: ["chuchu"], ncm: "0709.99.00" },
+  { keywords: ["abobora", "abobrinha", "moranga"], ncm: "0709.93.00" },
+  { keywords: ["pimentao"], ncm: "0709.60.00" },
+  { keywords: ["quiabo"], ncm: "0709.99.00" },
+  { keywords: ["jilo"], ncm: "0709.99.00" },
+  { keywords: ["mandioca", "aipim"], ncm: "0714.10.00" },
+  { keywords: ["inhame", "cara"], ncm: "0714.40.00" },
+  { keywords: ["banana"], ncm: "0803.10.00" },
+  { keywords: ["laranja"], ncm: "0805.10.00" },
+  { keywords: ["limao"], ncm: "0805.50.00" },
+  { keywords: ["maca", "maça"], ncm: "0808.10.00" },
+  { keywords: ["mamao"], ncm: "0807.20.00" },
+  { keywords: ["melancia"], ncm: "0807.11.00" },
+  { keywords: ["abacaxi"], ncm: "0804.30.00" },
+  { keywords: ["manga"], ncm: "0804.50.20" },
+  { keywords: ["alho"], ncm: "0703.20.10" },
+  { keywords: ["cheiro", "verde", "salsa", "coentro"], ncm: "0709.99.00" },
+  { keywords: ["milho", "espiga"], ncm: "0710.40.00" },
+  // ─── Carnes e Proteínas ───
+  { keywords: ["frango", "coxa", "sobrecoxa", "peito", "asa"], ncm: "0207.14.00" },
+  { keywords: ["carne", "bovina", "acem", "patinho", "musculo"], ncm: "0201.30.00" },
+  { keywords: ["carne", "suina", "porco", "lombo", "costela"], ncm: "0203.29.00" },
+  { keywords: ["linguica", "calabresa"], ncm: "1601.00.00" },
+  { keywords: ["salsicha"], ncm: "1601.00.00" },
+  { keywords: ["ovo", "ovos", "galinha"], ncm: "0407.21.00" },
+  { keywords: ["peixe", "tilapia", "merluza", "pescada"], ncm: "0304.89.00" },
+  // ─── Laticínios ───
+  { keywords: ["queijo", "mussarela", "prato"], ncm: "0406.10.10" },
+  { keywords: ["requeijao"], ncm: "0406.10.90" },
+  { keywords: ["iogurte"], ncm: "0403.10.00" },
+  { keywords: ["creme", "leite"], ncm: "0401.40.10" },
+  { keywords: ["leite", "condensado"], ncm: "0402.99.00" },
+  { keywords: ["leite", "po"], ncm: "0402.21.10" },
+  // ─── Temperos e Condimentos ───
+  { keywords: ["colorau", "colorific", "urucum"], ncm: "0910.91.00" },
+  { keywords: ["pimenta", "reino"], ncm: "0904.12.00" },
+  { keywords: ["oregano"], ncm: "1211.90.90" },
+  { keywords: ["louro"], ncm: "0910.99.00" },
+  { keywords: ["cominho"], ncm: "0909.31.00" },
+  { keywords: ["caldo", "galinha", "tempero"], ncm: "2104.10.11" },
+  { keywords: ["mostarda"], ncm: "2103.30.21" },
+  { keywords: ["maionese"], ncm: "2103.90.11" },
+  { keywords: ["catchup", "ketchup"], ncm: "2103.20.10" },
+  // ─── Grãos e Cereais ───
+  { keywords: ["aveia"], ncm: "1104.12.00" },
+  { keywords: ["granola"], ncm: "1904.20.00" },
+  { keywords: ["ervilha"], ncm: "2005.40.00" },
+  { keywords: ["milho", "conserva", "lata"], ncm: "2005.80.00" },
+  { keywords: ["lentilha"], ncm: "0713.40.10" },
+  { keywords: ["soja", "proteina"], ncm: "2106.10.00" },
+  // ─── Descartáveis ───
+  { keywords: ["prato", "descartavel"], ncm: "3924.10.00" },
+  { keywords: ["talher", "garfo", "faca", "colher", "descartavel"], ncm: "3924.10.00" },
+  { keywords: ["marmitex", "marmita", "quentinha"], ncm: "7612.90.19" },
+  { keywords: ["filme", "pvc", "plastico"], ncm: "3920.43.00" },
+  { keywords: ["papel", "aluminio"], ncm: "7607.11.90" },
+  // ─── Higiene Pessoal ───
+  { keywords: ["shampoo", "xampu"], ncm: "3305.10.00" },
+  { keywords: ["creme", "dental", "dentifricio"], ncm: "3306.10.00" },
+  { keywords: ["escova", "dental", "dente"], ncm: "9603.21.00" },
+  { keywords: ["fralda", "descartavel"], ncm: "9619.00.00" },
+  { keywords: ["absorvente"], ncm: "9619.00.00" },
 ];
 
 let _ncmDebounceAdd, _ncmDebounceEdit;
@@ -5192,6 +5274,68 @@ function preencherNcmTodos(contratoId) {
   });
   saveContratos();
   showToast(`NCM preenchido: ${filled} itens. ${notFound > 0 ? notFound + ' sem NCM encontrado.' : ''}`, 4000);
+}
+
+function autoPreencherNcm(contratoId) {
+  const c = contratos.find(x => x.id === contratoId);
+  if (!c) return { filled: 0, pending: 0 };
+  loadBancoProdutos();
+  const bp = bancoProdutos.itens || [];
+  let filled = 0, pending = 0;
+  c.itens.forEach(item => {
+    if (item.ncm && item.ncm.length >= 8) return;
+    // Camada 1: mapa local expandido
+    const local = findNcmLocal(item.descricao);
+    if (local) { item.ncm = local.ncm; filled++; return; }
+    // Camada 2: Banco de Produtos (cache)
+    const descNorm = (item.descricao || '').toUpperCase().trim();
+    const bpMatch = bp.find(p => (p.descricao || '').toUpperCase().trim() === descNorm && p.ncm && p.ncm.length >= 8);
+    if (!bpMatch) {
+      const words = descNorm.split(/\s+/).slice(0, 3).join(' ');
+      if (words.length > 5) {
+        const fuzzy = bp.find(p => (p.descricao || '').toUpperCase().trim().startsWith(words) && p.ncm && p.ncm.length >= 8);
+        if (fuzzy) { item.ncm = fuzzy.ncm; filled++; return; }
+      }
+    }
+    if (bpMatch) { item.ncm = bpMatch.ncm; filled++; return; }
+    pending++;
+  });
+  if (filled > 0) saveContratos();
+  return { filled, pending };
+}
+
+async function classificarNcmIA(contratoId) {
+  const c = contratos.find(x => x.id === contratoId);
+  if (!c) return;
+  const semNcm = c.itens.filter(i => !i.ncm || i.ncm.length < 8);
+  if (semNcm.length === 0) { showToast("Todos os itens ja tem NCM!"); return; }
+  showToast(`Classificando ${semNcm.length} itens com IA...`, 3000);
+
+  for (let start = 0; start < semNcm.length; start += 20) {
+    const batch = semNcm.slice(start, start + 20);
+    try {
+      const resp = await fetch("/api/ai-ncm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items: batch.map(i => ({ descricao: i.descricao })) })
+      });
+      const data = await resp.json();
+      if (data.success && data.results) {
+        data.results.forEach((r, idx) => {
+          if (r.ncm && batch[idx]) {
+            batch[idx].ncm = r.ncm;
+            adicionarAoBancoProdutos({ ...batch[idx], ncm: r.ncm });
+          }
+        });
+      }
+    } catch(err) {
+      showToast("Erro na classificacao IA: " + err.message, 4000);
+    }
+  }
+  saveContratos();
+  abrirContrato(contratoId);
+  const classified = semNcm.filter(i => i.ncm && i.ncm.length >= 8).length;
+  showToast(`IA classificou ${classified}/${semNcm.length} itens!`, 4000);
 }
 
 // ─── Seleção em Massa ───
