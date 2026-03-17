@@ -3739,7 +3739,8 @@ function renderItens() {
   const filtered = allItens.filter(i => !busca || i.descricao.toLowerCase().includes(busca) || i.escola.toLowerCase().includes(busca));
 
   // Atualizar contador da aba com quantidade filtrada
-  document.getElementById("tab-count-itens").textContent = filtered.length;
+  const itensTabCount = document.getElementById("tab-count-itens");
+  if (itensTabCount) itensTabCount.textContent = filtered.length;
 
   const tbody = document.getElementById("itens-tbody");
   const empty = document.getElementById("itens-empty");
@@ -4174,7 +4175,8 @@ function renderKPIs() {
   document.getElementById("kpi-valor").textContent = brl.format(totalValor);
   document.getElementById("kpi-pendentes").textContent = pendentes;
   document.getElementById("tab-count-contratos").textContent = contratos.length;
-  document.getElementById("tab-count-itens").textContent = contratos.reduce((s, c) => s + (c.itens ? c.itens.length : 0), 0);
+  const itensCountEl = document.getElementById("tab-count-itens");
+  if (itensCountEl) itensCountEl.textContent = contratos.reduce((s, c) => s + (c.itens ? c.itens.length : 0), 0);
   document.getElementById("tab-count-pedidos").textContent = pedidos.length;
   document.getElementById("tab-count-usuarios").textContent = usuarios.length;
 }
