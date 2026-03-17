@@ -3291,7 +3291,6 @@ function adicionarItemContrato(contratoId) {
       <button class="btn btn-outline" onclick="abrirContrato('${contratoId}')">Cancelar</button>
       <button class="btn btn-green" onclick="salvarItemContrato('${contratoId}')">Adicionar</button>
       <button class="btn btn-blue" onclick="salvarItemContrato('${contratoId}',true)">Adicionar + Novo</button>
-      <button class="btn btn-purple" onclick="salvarEEnviarERP('${contratoId}')" id="btn-enviar-erp-add">📤 Enviar ao ERP</button>
     </div>
   `;
 }
@@ -3317,6 +3316,13 @@ function salvarItemContrato(contratoId, continuar) {
   saveContratos();
   adicionarAoBancoProdutos(item);
   showToast("Item " + item.num + " adicionado: " + descricao.slice(0, 40));
+
+  // Auto-cadastrar no ERP (silent, background, non-blocking)
+  const itemIdx = c.itens.length - 1;
+  cadastrarTinyItem(contratoId, itemIdx, true).then(() => {
+    if (!continuar) abrirContrato(contratoId);
+  }).catch(() => {});
+
   if (continuar) {
     adicionarItemContrato(contratoId);
   } else {
@@ -3477,7 +3483,6 @@ function abrirContrato(id) {
       </div>
       <div style="display:flex;gap:.4rem;flex-wrap:wrap;align-items:center">
         <button class="btn btn-sm btn-blue hidden" id="btn-editar-massa-${c.id}" onclick="editarItensMassa('${c.id}')" title="Editar itens selecionados">Editar Selecionados</button>
-        <button class="btn btn-sm" style="background:rgba(6,182,212,.15);color:var(--cyan);border:none;font-weight:700" onclick="abrirModalSync('${c.id}')" title="Sincronizar itens com Banco de Produtos ERP">🔄 Sync Banco</button>
         <button class="btn btn-sm" style="background:rgba(139,92,246,.15);color:var(--purple);border:none;font-weight:700" onclick="abrirCatalogoEscolar('${c.id}')" title="Abrir catalogo da escola vinculada para pedidos internos">📋 Catalogo Escolar</button>
         <button class="btn btn-sm btn-green" onclick="adicionarItemContrato('${c.id}')">+ Item</button>
       </div>
@@ -5288,12 +5293,12 @@ function salvarEdicaoMassa(contratoId) {
   showToast(`${updated} itens salvos`);
 }
 
-async function cadastrarTinyItem(contratoId, itemIdx) {
+async function cadastrarTinyItem(contratoId, itemIdx, silent) {
   const c = contratos.find(x => x.id === contratoId);
   if (!c || !c.itens[itemIdx]) return;
   const item = c.itens[itemIdx];
   const ncmCode = item.ncm || (findNcmLocal(item.descricao) || {}).ncm || "";
-  if (!confirm(`Cadastrar no Tiny ERP:\n\n${item.descricao}\nUnid: ${item.unidade} | Preço: ${brl.format(item.precoUnitario)}\nNCM: ${ncmCode || '(sem NCM)'}\nMarca: Licit-AIX`)) return;
+  if (!silent && !confirm(`Cadastrar no Tiny ERP:\n\n${item.descricao}\nUnid: ${item.unidade} | Preço: ${brl.format(item.precoUnitario)}\nNCM: ${ncmCode || '(sem NCM)'}\nMarca: Licit-AIX`)) return;
   try {
     const resp = await fetch("/api/tiny-produtos", {
       method: "POST",
@@ -5302,12 +5307,22 @@ async function cadastrarTinyItem(contratoId, itemIdx) {
     });
     const data = await resp.json();
     if (data.success) {
-      showToast(`Item "${item.descricao.slice(0,40)}" cadastrado no Tiny!`);
+      // Propagate SKU from Tiny response
+      if (data.results) {
+        data.results.forEach(r => {
+          if (r.sku && item.num === r.num) {
+            item.sku = r.sku;
+            adicionarAoBancoProdutos(item);
+            saveContratos();
+          }
+        });
+      }
+      if (!silent) showToast(`Item "${item.descricao.slice(0,40)}" cadastrado no Tiny!`);
     } else {
-      showToast("Erro: " + (data.error || "Falha"), 4000);
+      if (!silent) showToast("Erro: " + (data.error || "Falha"), 4000);
     }
   } catch(err) {
-    showToast("Erro: " + err.message, 4000);
+    if (!silent) showToast("Erro: " + err.message, 4000);
   }
 }
 
