@@ -3032,7 +3032,7 @@ function abrirCatalogoEscolar(contratoId) {
       <td class="text-center">${esc(unidFinal)}</td>
       <td class="text-center">${saldo}</td>
       <td class="text-right">${brl.format(item.precoUnitario)}</td>
-      <td class="text-center"><input type="number" min="0" max="${saldo}" value="0" class="catalogo-qtd" data-idx="${idx}" data-preco="${item.precoUnitario}" data-max="${saldo}" style="width:60px;text-align:center;padding:.2rem;background:var(--s1);border:1px solid var(--bdr);border-radius:4px;color:var(--txt);font-size:.8rem" onchange="atualizarTotalCatalogo('${contratoId}')"></td>
+      <td class="text-center"><input type="number" min="0" max="${saldo}" value="0" step="any" class="catalogo-qtd" data-idx="${idx}" data-preco="${item.precoUnitario}" data-max="${saldo}" style="width:60px;text-align:center;padding:.2rem;background:var(--s1);border:1px solid var(--bdr);border-radius:4px;color:var(--txt);font-size:.8rem" onchange="atualizarTotalCatalogo('${contratoId}')"></td>
       <td class="text-right catalogo-subtotal" id="cat-sub-${idx}">R$ 0,00</td>
     </tr>`;
   }).filter(Boolean).join("");
@@ -3064,9 +3064,9 @@ function abrirCatalogoEscolar(contratoId) {
 function atualizarTotalCatalogo(contratoId) {
   let total = 0, count = 0;
   document.querySelectorAll('.catalogo-qtd').forEach(input => {
-    const qtd = parseInt(input.value) || 0;
+    const qtd = parseFloat(input.value) || 0;
     const preco = parseFloat(input.dataset.preco) || 0;
-    const max = parseInt(input.dataset.max) || 0;
+    const max = parseFloat(input.dataset.max) || 0;
     const idx = input.dataset.idx;
     if (qtd > max) input.value = max;
     const subtotal = Math.min(qtd, max) * preco;
@@ -3095,7 +3095,7 @@ async function criarPedidoCatalogo(contratoId) {
   if (!c) return;
   const itensP = [];
   document.querySelectorAll('.catalogo-qtd').forEach(input => {
-    const qtd = parseInt(input.value) || 0;
+    const qtd = parseFloat(input.value) || 0;
     if (qtd <= 0) return;
     const idx = parseInt(input.dataset.idx);
     const item = c.itens[idx];
@@ -3112,15 +3112,31 @@ async function criarPedidoCatalogo(contratoId) {
   if (itensP.length === 0) { showToast("Selecione ao menos um item.", 3000); return; }
   const valor = itensP.reduce((s, i) => s + i.qtd * i.preco, 0);
 
-  // Get linked school name
+  // Get linked school data (full client info)
   const linked = usuarios.filter(u => (u.contratos_vinculados || []).includes(contratoId));
-  const escolaNome = linked.length > 0 ? linked[0].nome : c.escola;
+  const escola = linked.length > 0 ? linked[0] : null;
+  const escolaNome = escola ? escola.nome : c.escola;
 
   const hoje = new Date().toISOString().slice(0,10);
   const pedido = {
     id: 'PED-' + Date.now().toString(36).toUpperCase(),
     contratoId: contratoId,
     escola: escolaNome,
+    cliente: {
+      nome: escolaNome,
+      cnpj: escola?.cnpj || '',
+      indicador_contribuinte: '9',
+      ie: escola?.ie || 'ISENTO',
+      cep: escola?.cep || '',
+      cidade: escola?.municipio || '',
+      uf: escola?.uf || 'MG',
+      logradouro: escola?.logradouro || '',
+      bairro: escola?.bairro || '',
+      numero: escola?.numero || '',
+      complemento: escola?.complemento || '',
+      telefone: escola?.telefone || '',
+      email: escola?.email || ''
+    },
     itens: itensP,
     valor: valor,
     status: 'agendado',
@@ -3812,7 +3828,7 @@ function renderPedidoItens() {
             <td class="nowrap">${esc(item.unidade)}</td>
             <td class="text-right font-mono">${saldo}</td>
             <td class="text-right font-mono">${brl.format(item.precoUnitario)}</td>
-            <td class="text-center"><input type="number" min="0" max="${saldo}" value="0" style="width:70px;text-align:center" id="ped-qty-${idx}" data-item-num="${item.num}" data-desc="${esc(item.descricao)}"></td>
+            <td class="text-center"><input type="number" min="0" max="${saldo}" value="0" step="any" style="width:70px;text-align:center" id="ped-qty-${idx}" data-item-num="${item.num}" data-desc="${esc(item.descricao)}"></td>
           </tr>`;
         }).join("")}</tbody>
       </table>
@@ -3827,7 +3843,7 @@ function salvarPedidoManual() {
   const itens = [];
   let valor = 0;
   document.querySelectorAll("[id^='ped-qty-']").forEach(input => {
-    const qty = parseInt(input.value) || 0;
+    const qty = parseFloat(input.value) || 0;
     if (qty > 0) {
       const itemNum = parseInt(input.dataset.itemNum);
       const desc = input.dataset.desc;
@@ -3847,10 +3863,29 @@ function salvarPedidoManual() {
   const now = new Date();
   const id = `PED-${now.getFullYear()}${String(now.getMonth()+1).padStart(2,"0")}${String(now.getDate()).padStart(2,"0")}-${String(Math.floor(Math.random()*9999)).padStart(4,"0")}`;
 
+  // Get linked school full data
+  const linkedEscola = usuarios.find(u => (u.contratos_vinculados || []).includes(contratoId));
+  const escolaNomeManual = linkedEscola ? linkedEscola.nome : c.escola;
+
   pedidos.push({
     id,
     contratoId,
-    escola: c.escola,
+    escola: escolaNomeManual,
+    cliente: {
+      nome: escolaNomeManual,
+      cnpj: linkedEscola?.cnpj || '',
+      indicador_contribuinte: '9',
+      ie: linkedEscola?.ie || 'ISENTO',
+      cep: linkedEscola?.cep || '',
+      cidade: linkedEscola?.municipio || '',
+      uf: linkedEscola?.uf || 'MG',
+      logradouro: linkedEscola?.logradouro || '',
+      bairro: linkedEscola?.bairro || '',
+      numero: linkedEscola?.numero || '',
+      complemento: linkedEscola?.complemento || '',
+      telefone: linkedEscola?.telefone || '',
+      email: linkedEscola?.email || ''
+    },
     data: now.toISOString().slice(0, 10),
     itens,
     valor,
@@ -4557,6 +4592,7 @@ async function enviarPedidoOlist(pedidoId) {
       body: JSON.stringify({
         orderId: p.id,
         school: p.escola,
+        cliente: p.cliente || { nome: p.escola },
         items: items,
         totalValue: p.valor,
         arp: "ARP-LARIUCCI-2025",
