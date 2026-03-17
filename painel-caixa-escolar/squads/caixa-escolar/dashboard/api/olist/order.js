@@ -456,9 +456,6 @@ export default async function handler(req, res) {
   const endpoint = "https://api.tiny.com.br/api2/pedido.incluir.php";
   const tinyPayload = buildTinyPayload(order);
 
-  // DEBUG: log payload for troubleshooting
-  const _debugPayload = tinyPayload.pedido?.itens?.map(i => ({ codigo: i.item?.codigo, desc: i.item?.descricao, unidade: i.item?.unidade, ncm: i.item?.ncm, qty: i.item?.quantidade }));
-
   const form = new URLSearchParams();
   form.set("token", token);
   form.set("formato", "json");
@@ -496,7 +493,7 @@ export default async function handler(req, res) {
       parsed.id ||
       `TINY-${Date.now()}`;
 
-    const result = { success: true, olistOrderId: String(olistOrderId), provider: "tiny_api", _debug: _debugPayload };
+    const result = { success: true, olistOrderId: String(olistOrderId), provider: "tiny_api" };
     if (ncmAlerts.length > 0) {
       result.ncmAlerts = ncmAlerts;
       result.ncmWarning = `${ncmAlerts.length} item(ns) sem NCM — corrigir no Tiny antes de emitir NF-e`;

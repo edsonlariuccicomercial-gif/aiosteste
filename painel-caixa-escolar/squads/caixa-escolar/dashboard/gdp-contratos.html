@@ -4825,6 +4825,17 @@ async function enviarPedidoOlist(pedidoId) {
       if (bpMatch && bpMatch.sku) sku = bpMatch.sku;
     }
     if (!sku) console.warn("[Olist] SKU vazio para item:", i.descricao);
+    // Resolve unidade: contrato > pedido > banco de produtos > fallback UN
+    let unidade = (ctrItem && ctrItem.unidade) || i.unidade || '';
+    let ncm = (ctrItem && ctrItem.ncm) || i.ncm || '';
+    if (!unidade || !ncm) {
+      const descNorm = (i.descricao || '').toUpperCase().trim();
+      const bpMatch = bpItens.find(bp => (bp.descricao || '').toUpperCase().trim() === descNorm);
+      if (bpMatch) {
+        if (!unidade) unidade = bpMatch.unidade || '';
+        if (!ncm) ncm = bpMatch.ncm || '';
+      }
+    }
     return {
       sku,
       description: i.descricao,
@@ -4832,8 +4843,8 @@ async function enviarPedidoOlist(pedidoId) {
       qty: i.qtd,
       unitPrice: i.precoUnitario,
       itemNum: i.itemNum,
-      unidade: (ctrItem && ctrItem.unidade) || i.unidade || 'UN',
-      ncm: (ctrItem && ctrItem.ncm) || i.ncm || ''
+      unidade: unidade || 'UN',
+      ncm: ncm
     };
   });
 
