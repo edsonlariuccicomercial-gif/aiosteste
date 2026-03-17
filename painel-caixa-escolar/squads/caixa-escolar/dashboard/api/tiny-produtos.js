@@ -295,7 +295,7 @@ export default async function handler(req, res) {
   for (let i = 0; i < itens.length; i++) {
     const item = itens[i];
     const ncmMatch = findNcm(item.descricao);
-    const sku = item.codigo || generateSku(item, contractId);
+    const sku = item.codigo || item.sku || generateSku(item, contractId);
     const descricao = shortenDescription(item.descricao);
     const unidade = normalizeUnit(item.unidade);
     const ncm = item.ncm || (ncmMatch ? ncmMatch.ncm : "");

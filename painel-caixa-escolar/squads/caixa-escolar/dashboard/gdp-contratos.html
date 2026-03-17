@@ -4722,7 +4722,8 @@ async function autoCadastrarTiny(contratoId) {
     unidade: item.unidade,
     precoUnitario: item.precoUnitario,
     ncm: item.ncm || (findNcmLocal(item.descricao) || {}).ncm || '',
-    sku: item.sku || ''
+    sku: item.sku || '',
+    codigo: item.sku || ''
   }));
 
   try {
@@ -5303,7 +5304,7 @@ async function cadastrarTinyItem(contratoId, itemIdx, silent) {
     const resp = await fetch("/api/tiny-produtos", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ itens: [{ num: item.num, descricao: item.descricao, descricaoCompleta: item.descricao, unidade: item.unidade, precoUnitario: item.precoUnitario, ncm: ncmCode, sku: item.sku || '' }], contractId: contratoId, action: "cadastrar" })
+      body: JSON.stringify({ itens: [{ num: item.num, descricao: item.descricao, descricaoCompleta: item.descricao, unidade: item.unidade, precoUnitario: item.precoUnitario, ncm: ncmCode, sku: item.sku || '', codigo: item.sku || '' }], contractId: contratoId, action: "cadastrar" })
     });
     const data = await resp.json();
     if (data.success) {
@@ -5397,7 +5398,8 @@ async function enviarTiny(contratoId) {
       unidade: item.unidade,
       precoUnitario: item.precoUnitario,
       ncm: ncmInput ? ncmInput.value.trim() : "",
-      sku: item.sku || ''
+      sku: item.sku || '',
+      codigo: item.sku || ''
     };
   });
 
