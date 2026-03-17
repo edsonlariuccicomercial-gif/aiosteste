@@ -287,7 +287,7 @@ function buildTinyPayload(order) {
     return {
       item: {
         codigo,
-        descricao: normalizeDescription(item.description),
+        descricao: shortenDescription(item.description),
         ncm,
         unidade: "UN",
         quantidade: Number(item.qty || 0),
@@ -380,40 +380,32 @@ export default async function handler(req, res) {
     email: cl.email || email || "",
   };
 
-  // ─── Step 1: Match existing products in Tiny OR create new ones ───
-  const ncmAlerts = []; // items that ended up without NCM
+  // ─── Step 1: Ensure all items have a valid SKU ───
+  const ncmAlerts = [];
   for (let i = 0; i < order.items.length; i++) {
     const item = order.items[i];
     const ncmMatch = findNcm(item.description);
+    const ncmCode = ncmMatch ? ncmMatch.ncm : "";
+    if (!ncmCode) {
+      ncmAlerts.push({ item: item.itemNum || i + 1, description: item.description });
+    }
 
-    // If item already has a valid SKU from contract/banco, use it directly (no Tiny search)
+    // If item already has SKU, skip Tiny product search/creation
     if (item.sku && String(item.sku).trim()) {
-      // SKU already resolved — skip Tiny search to avoid overwriting with wrong match
-      const ncmCode = ncmMatch ? ncmMatch.ncm : "";
-      if (!ncmCode) {
-        ncmAlerts.push({ item: item.itemNum || i + 1, description: item.description });
-      }
+      continue;
+    }
+
+    // No SKU — search Tiny for existing product
+    const existing = await searchTinyProduct(token, item.description);
+    if (existing && existing.codigo) {
+      item.sku = existing.codigo;
+      if (!ncmMatch && existing.ncm) item._tinyNcm = existing.ncm;
     } else {
-      // No SKU — search Tiny for existing product with similar name
-      const existing = await searchTinyProduct(token, item.description);
-
-      if (existing && existing.codigo) {
-        item.sku = existing.codigo;
-        if (!ncmMatch && existing.ncm) {
-          item._tinyNcm = existing.ncm;
-        }
-      } else {
-        // No match in Tiny — generate SKU and create product
-        item.sku = generateSku(item, i, arp || orderId);
-
-      const ncmCode = ncmMatch ? ncmMatch.ncm : "";
-      if (!ncmCode) {
-        ncmAlerts.push({ item: item.itemNum || i + 1, description: item.description });
-      }
-
+      // Not found — generate SKU and create product in Tiny
+      item.sku = generateSku(item, i, arp || orderId);
       const produto = {
         produto: {
-          codigo: skuNumerico,
+          codigo: item.sku,
           nome: normalizeDescription(item.description),
           ncm: ncmCode,
           unidade: "UN",
@@ -423,24 +415,20 @@ export default async function handler(req, res) {
           situacao: "A",
         },
       };
-
       const prodForm = new URLSearchParams();
       prodForm.set("token", token);
       prodForm.set("formato", "json");
       prodForm.set("produto", JSON.stringify(produto));
-
       try {
         await fetch("https://api.tiny.com.br/api2/produto.incluir.php", {
           method: "POST",
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
           body: prodForm.toString(),
         });
-      } catch (_e) {
-        // Product sync is best-effort, don't block order
-      }
+      } catch (_e) { /* best-effort */ }
     }
 
-    // Tiny rate limit: wait between API calls
+    // Tiny rate limit
     if (i < order.items.length - 1) {
       await new Promise(r => setTimeout(r, 1500));
     }
