@@ -430,9 +430,9 @@ export default async function handler(req, res) {
     email: cl.email || email || "",
   };
 
-  // ─── Step 1: Resolve REAL Tiny product codigo for each item ───
-  // ALWAYS search Tiny by name to get the real product codigo + unidade.
-  // Our internal SKUs may not match actual Tiny product codes.
+  // ─── Step 1: Ensure all items have a valid SKU ───
+  // If item already has SKU (synced from Story 4.13), respect it.
+  // Only search Tiny when item has no SKU.
   const ncmAlerts = [];
   for (let i = 0; i < order.items.length; i++) {
     const item = order.items[i];
@@ -441,26 +441,30 @@ export default async function handler(req, res) {
     if (!ncmCode) {
       ncmAlerts.push({ item: item.itemNum || i + 1, description: item.description });
     }
-    const unit = normalizeUnit(item.unidade);
 
-    // ALWAYS search Tiny for real product (our SKU may be random/non-existent in Tiny)
+    // If item already has SKU, skip Tiny product search/creation
+    if (item.sku && String(item.sku).trim()) {
+      continue;
+    }
+
+    // No SKU — search Tiny for existing product
     const existing = await searchTinyProduct(token, item.description);
     if (existing && existing.codigo) {
-      // Use Tiny's real product codigo (overrides our internal SKU)
       item.sku = existing.codigo;
-      item.unidade = existing.unidade || item.unidade;
       if (!ncmMatch && existing.ncm) item._tinyNcm = existing.ncm;
     } else {
-      // Product truly doesn't exist in Tiny — create it
-      item.sku = item.sku || generateSku(item, i, arp || orderId);
+      // Not found — generate SKU and create product in Tiny
+      item.sku = generateSku(item, i, arp || orderId);
       const produto = {
         produto: {
           codigo: String(item.sku),
           nome: normalizeDescription(item.description),
           ncm: ncmCode,
-          unidade: unit,
+          unidade: normalizeUnit(item.unidade),
           preco: Number(item.unitPrice || 0),
-          origem: "0", tipo: "P", situacao: "A",
+          origem: "0",
+          tipo: "P",
+          situacao: "A",
         },
       };
       const prodForm = new URLSearchParams();
