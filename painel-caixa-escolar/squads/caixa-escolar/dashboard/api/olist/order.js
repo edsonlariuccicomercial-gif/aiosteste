@@ -399,50 +399,63 @@ export default async function handler(req, res) {
     email: cl.email || email || "",
   };
 
-  // ─── Step 1: Ensure all items have a valid SKU ───
+  // ─── Step 1: Ensure all items have valid SKU + update product unit in Tiny ───
   const ncmAlerts = [];
   for (let i = 0; i < order.items.length; i++) {
     const item = order.items[i];
     const ncmMatch = findNcm(item.description);
-    const ncmCode = ncmMatch ? ncmMatch.ncm : "";
+    const ncmCode = item.ncm || (ncmMatch ? ncmMatch.ncm : "");
     if (!ncmCode) {
       ncmAlerts.push({ item: item.itemNum || i + 1, description: item.description });
     }
+    const unit = normalizeUnit(item.unidade);
 
-    // If item already has SKU, skip Tiny product search/creation
-    if (item.sku && String(item.sku).trim()) {
-      continue;
+    if (!item.sku || !String(item.sku).trim()) {
+      // No SKU — search Tiny for existing product
+      const existing = await searchTinyProduct(token, item.description);
+      if (existing && existing.codigo) {
+        item.sku = existing.codigo;
+        if (!ncmMatch && existing.ncm) item._tinyNcm = existing.ncm;
+      } else {
+        // Not found — generate SKU and create product in Tiny
+        item.sku = generateSku(item, i, arp || orderId);
+        const produto = {
+          produto: {
+            codigo: item.sku,
+            nome: normalizeDescription(item.description),
+            ncm: ncmCode,
+            unidade: unit,
+            preco: Number(item.unitPrice || 0),
+            origem: "0", tipo: "P", situacao: "A",
+          },
+        };
+        const prodForm = new URLSearchParams();
+        prodForm.set("token", token);
+        prodForm.set("formato", "json");
+        prodForm.set("produto", JSON.stringify(produto));
+        try {
+          await fetch("https://api.tiny.com.br/api2/produto.incluir.php", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: prodForm.toString(),
+          });
+        } catch (_e) { /* best-effort */ }
+      }
     }
 
-    // No SKU — search Tiny for existing product
-    const existing = await searchTinyProduct(token, item.description);
-    if (existing && existing.codigo) {
-      item.sku = existing.codigo;
-      if (!ncmMatch && existing.ncm) item._tinyNcm = existing.ncm;
-    } else {
-      // Not found — generate SKU and create product in Tiny
-      item.sku = generateSku(item, i, arp || orderId);
-      const produto = {
-        produto: {
-          codigo: item.sku,
-          nome: normalizeDescription(item.description),
-          ncm: ncmCode,
-          unidade: normalizeUnit(item.unidade),
-          preco: Number(item.unitPrice || 0),
-          origem: "0",
-          tipo: "P",
-          situacao: "A",
-        },
-      };
-      const prodForm = new URLSearchParams();
-      prodForm.set("token", token);
-      prodForm.set("formato", "json");
-      prodForm.set("produto", JSON.stringify(produto));
+    // ALWAYS update the product's unit in Tiny (fix products registered with wrong unit)
+    if (item.sku && unit && unit !== "UN") {
+      const updateProd = { produto: { codigo: String(item.sku), unidade: unit } };
+      if (ncmCode) updateProd.produto.ncm = ncmCode;
+      const updForm = new URLSearchParams();
+      updForm.set("token", token);
+      updForm.set("formato", "json");
+      updForm.set("produto", JSON.stringify(updateProd));
       try {
-        await fetch("https://api.tiny.com.br/api2/produto.incluir.php", {
+        await fetch("https://api.tiny.com.br/api2/produto.alterar.php", {
           method: "POST",
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: prodForm.toString(),
+          body: updForm.toString(),
         });
       } catch (_e) { /* best-effort */ }
     }
