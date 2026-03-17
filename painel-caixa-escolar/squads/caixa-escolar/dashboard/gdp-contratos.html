@@ -3009,12 +3009,30 @@ function abrirCatalogoEscolar(contratoId) {
   loadBancoProdutos();
   const _bp = bancoProdutos.itens || [];
 
+  // Enrich SKU from Banco de Produtos and persist back to contract items
+  let skuUpdated = false;
+  c.itens.forEach(item => {
+    const descNorm = (item.descricao || '').toUpperCase().trim();
+    let bp = null;
+    if (item.sku) bp = _bp.find(p => p.sku && p.sku.toUpperCase() === item.sku.toUpperCase());
+    if (!bp) bp = _bp.find(p => (p.descricao || '').toUpperCase().trim() === descNorm);
+    if (!bp) {
+      const words = descNorm.split(/\s+/).slice(0, 3).join(' ');
+      if (words.length > 5) bp = _bp.find(p => (p.descricao || '').toUpperCase().trim().startsWith(words));
+    }
+    if (bp && bp.sku && !item.sku) {
+      item.sku = bp.sku;
+      skuUpdated = true;
+    }
+  });
+  if (skuUpdated) saveContratos();
+
   // Build catalog table (enriched with Banco de Produtos)
   const itensHtml = c.itens.map((item, idx) => {
     const saldo = item.qtdContratada - (item.qtdEntregue || 0);
     if (saldo <= 0) return '';
 
-    // Enrich: match by SKU or description
+    // Enrich display: match by SKU or description
     const descNorm = (item.descricao || '').toUpperCase().trim();
     let bp = null;
     if (item.sku) bp = _bp.find(p => p.sku && p.sku.toUpperCase() === item.sku.toUpperCase());
@@ -3025,7 +3043,7 @@ function abrirCatalogoEscolar(contratoId) {
     }
     const descFinal = bp ? (bp.descricao || item.descricao) : item.descricao;
     const unidFinal = bp ? (bp.unidade || item.unidade || 'un') : (item.unidade || 'un');
-    const skuInfo = bp && bp.sku ? ' <span style="color:var(--dim);font-size:.68rem;font-family:monospace">[' + esc(bp.sku) + ']</span>' : '';
+    const skuInfo = item.sku ? ' <span style="color:var(--dim);font-size:.68rem;font-family:monospace">[' + esc(item.sku) + ']</span>' : '';
 
     return `<tr>
       <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(descFinal)}">${esc(descFinal)}${skuInfo}</td>
@@ -3106,7 +3124,8 @@ async function criarPedidoCatalogo(contratoId) {
       qtd: qtd,
       preco: item.precoUnitario,
       precoUnitario: item.precoUnitario,
-      itemNum: item.num
+      itemNum: item.num,
+      sku: item.sku || ''
     });
   });
   if (itensP.length === 0) { showToast("Selecione ao menos um item.", 3000); return; }
@@ -3290,12 +3309,13 @@ function adicionarAoBancoProdutos(item) {
   const existing = bancoProdutos.itens.findIndex(p =>
     (p.descricao || '').toUpperCase().trim() === normDesc
   );
+  const existingSku = existing >= 0 ? (bancoProdutos.itens[existing].sku || '') : '';
   const produto = {
     descricao: item.descricao,
     unidade: item.unidade || 'Un',
     precoUnitario: item.precoUnitario || 0,
     ncm: item.ncm || '',
-    sku: item.sku || '',
+    sku: item.sku || existingSku || '',
     addedAt: new Date().toISOString()
   };
   if (existing >= 0) {
@@ -3849,7 +3869,7 @@ function salvarPedidoManual() {
       const desc = input.dataset.desc;
       const item = c.itens.find(i => i.num === itemNum);
       if (item) {
-        itens.push({ itemNum, descricao: desc, qtd: qty, precoUnitario: item.precoUnitario });
+        itens.push({ itemNum, descricao: desc, qtd: qty, precoUnitario: item.precoUnitario, sku: item.sku || '' });
         valor += qty * item.precoUnitario;
       }
     }
@@ -4571,12 +4591,20 @@ async function enviarPedidoOlist(pedidoId) {
   const p = pedidos.find(x => x.id === pedidoId);
   if (!p) return;
 
-  // Buscar SKU real do contrato para cada item
+  // Buscar SKU com fallback em cadeia: Contrato (enriquecido) > Pedido > Banco de Produtos
   const ctr = contratos.find(x => x.id === p.contratoId);
+  const bpItens = (() => { try { return (JSON.parse(localStorage.getItem('gdp.produtos.v1')) || {}).itens || []; } catch(_) { return []; } })();
   const items = p.itens.map(i => {
     const ctrItem = ctr ? ctr.itens.find(ci => ci.num === i.itemNum || ci.descricao === i.descricao) : null;
+    let sku = (ctrItem && ctrItem.sku) || i.sku || '';
+    if (!sku) {
+      const descNorm = (i.descricao || '').toUpperCase().trim();
+      const bpMatch = bpItens.find(bp => (bp.descricao || '').toUpperCase().trim() === descNorm);
+      if (bpMatch && bpMatch.sku) sku = bpMatch.sku;
+    }
+    if (!sku) console.warn("[Olist] SKU vazio para item:", i.descricao);
     return {
-      sku: (ctrItem && ctrItem.sku) || i.sku || '',
+      sku,
       description: i.descricao,
       name: i.descricao,
       qty: i.qtd,
@@ -5063,7 +5091,7 @@ async function cadastrarTinyItem(contratoId, itemIdx) {
     const resp = await fetch("/api/tiny-produtos", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ itens: [{ num: item.num, descricao: item.descricao, descricaoCompleta: item.descricao, unidade: item.unidade, precoUnitario: item.precoUnitario, ncm: ncmCode }], contractId: contratoId, action: "cadastrar" })
+      body: JSON.stringify({ itens: [{ num: item.num, descricao: item.descricao, descricaoCompleta: item.descricao, unidade: item.unidade, precoUnitario: item.precoUnitario, ncm: ncmCode, sku: item.sku || '' }], contractId: contratoId, action: "cadastrar" })
     });
     const data = await resp.json();
     if (data.success) {
@@ -5146,7 +5174,8 @@ async function enviarTiny(contratoId) {
       descricaoCompleta: item.descricao,
       unidade: item.unidade,
       precoUnitario: item.precoUnitario,
-      ncm: ncmInput ? ncmInput.value.trim() : ""
+      ncm: ncmInput ? ncmInput.value.trim() : "",
+      sku: item.sku || ''
     };
   });
 
@@ -5200,16 +5229,21 @@ async function enviarTiny(contratoId) {
 
     resultDiv.innerHTML = html;
 
-    // Save SKUs back to contract items so Portal orders use the same SKUs
+    // Save SKUs back to contract items + propagate to Banco de Produtos
     let changed = false;
     data.results.forEach(r => {
       if (r.sku && (r.status === "ok" || r.status === "existente")) {
         const item = c.itens.find(it => it.num === r.num);
-        if (item && item.sku !== r.sku) { item.sku = r.sku; changed = true; }
+        if (item && item.sku !== r.sku) {
+          item.sku = r.sku;
+          changed = true;
+          // Propagate Tiny SKU to Banco de Produtos (Tiny is source of truth)
+          adicionarAoBancoProdutos(item);
+        }
       }
     });
     if (changed) {
-      localStorage.setItem("gdp.contratos.v1", JSON.stringify(contratos));
+      saveContratos();
     }
 
     showToast(`Tiny: ${s.cadastrados} cadastrados, ${s.existentes} existentes, ${s.erros} erros`);
