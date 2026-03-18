@@ -6309,22 +6309,20 @@ let _syncBancoContratoId = null;
 let _syncBancoMatches = [];
 
 function calcularSimilaridade(a, b) {
-  const normalize = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim();
-  const keywords = s => normalize(s).split(/\s+/).filter(w => w.length >= 2);
+  const normalize = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/[^A-Z0-9\s]/g, '').trim();
+  // FIX: palavras >= 3 chars para evitar match em "IN", "DE", "DO", "COM"
+  const keywords = s => normalize(s).split(/\s+/).filter(w => w.length >= 3);
   const nA = normalize(a), nB = normalize(b);
   if (nA === nB) return { score: 100, tipo: 'exato' };
-  // Check if one contains the other
-  if (nA.includes(nB) || nB.includes(nA)) return { score: 90, tipo: 'exato' };
+  // Substring match só se a string menor tiver >= 5 chars (evita falsos com nomes curtos)
+  if (nA.length >= 5 && nB.length >= 5 && (nA.includes(nB) || nB.includes(nA))) return { score: 90, tipo: 'exato' };
   const kwA = keywords(a), kwB = keywords(b);
   if (kwA.length === 0 || kwB.length === 0) return { score: 0, tipo: 'sem-match' };
-  // Fuzzy keyword matching: "FRUTA" matches "FRUTAS" (startsWith)
-  let common = 0;
-  for (const wA of kwA) {
-    if (kwB.some(wB => wB === wA || wB.startsWith(wA) || wA.startsWith(wB))) common++;
-  }
-  const total = Math.max(kwA.length, kwB.length);
-  const score = Math.round(common / total * 100);
-  return { score, tipo: score >= 75 ? 'exato' : score >= 40 ? 'parcial' : 'sem-match' };
+  // FIX: Jaccard — intersecção / união (bidirecional, sem startsWith fuzzy)
+  const intersection = kwA.filter(w => kwB.includes(w)).length;
+  const union = new Set([...kwA, ...kwB]).size;
+  const score = union > 0 ? Math.round(intersection / union * 100) : 0;
+  return { score, tipo: score >= 80 ? 'exato' : score >= 60 ? 'parcial' : 'sem-match' };
 }
 
 function abrirSyncBanco(contratoId) {
@@ -6349,7 +6347,7 @@ function abrirSyncBanco(contratoId) {
     const alternativas = matches.slice(1, 10);
     _syncBancoMatches.push({
       idx, item, best, alternativas,
-      aceito: best && best.score >= 50,
+      aceito: best && best.score >= 80,
       escolhido: best || null
     });
   });
@@ -6451,7 +6449,7 @@ function trocarMatchSyncBanco(idx, altIdx) {
 }
 
 function syncBancoSelecionarTodos(checked) {
-  _syncBancoMatches.forEach(m => { if (m.best && m.best.score >= 30) m.aceito = checked; });
+  _syncBancoMatches.forEach(m => { if (m.best && m.best.score >= 60) m.aceito = checked; });
   renderSyncBanco();
 }
 
