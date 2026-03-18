@@ -586,12 +586,13 @@
         <input type="text" id="busca-produto" placeholder="Buscar produto..." oninput="renderBancoProdutos()" style="min-width:200px">
       </div>
       <div style="display:flex;gap:.5rem;flex-wrap:wrap">
-        <button class="btn btn-blue" onclick="document.getElementById('import-produto-unificado').click()">📥 Importar</button>
         <button class="btn btn-green" onclick="novoProdutoManual()">+ Novo Produto</button>
-        <button class="btn btn-outline" onclick="exportarProdutosCSV()">Exportar CSV</button>
         <button class="btn btn-outline" onclick="editarProdutoSelecionado()" title="Editar produto selecionado">✏️ Editar</button>
         <button class="btn btn-red" onclick="excluirProdutosSelecionados()" title="Excluir produtos selecionados">🗑️ Excluir</button>
-        <input type="file" id="import-produto-unificado" accept=".xlsx,.xls,.csv,.pdf" style="display:none" onchange="importarProdutoUnificado(this.files[0]);this.value=''">
+        <button class="btn btn-red" onclick="limparTodoBancoProdutos()" title="Excluir TODOS os produtos" style="margin-left:.5rem">🧹 Limpar Tudo</button>
+        <button class="btn btn-blue" onclick="importarProdutosTiny(false)" title="Importar TODOS os produtos do Tiny ERP">📥 Importar do Tiny</button>
+        <button class="btn btn-blue" onclick="importarProdutosTiny(true)" title="Importar somente produtos NOVOS do Tiny (ignora os ja importados)">📥 Importar Novos</button>
+        <button class="btn" style="background:rgba(168,85,247,.15);color:#a855f7;border:none;font-weight:700" onclick="classificarNcmBancoProdutos()" title="Preencher NCM dos produtos sem codigo usando IA">🤖 NCM IA</button>
       </div>
     </div>
     <div class="table-wrap" style="max-height:600px;overflow-y:auto">
@@ -648,6 +649,92 @@
       <div style="margin-top:1.5rem;display:flex;justify-content:flex-end;gap:.8rem">
         <button class="btn btn-outline" onclick="fecharModalProduto()">Cancelar</button>
         <button class="btn btn-green" onclick="salvarProduto()">Salvar</button>
+        <button class="btn btn-blue" id="btn-enviar-erp" onclick="enviarProdutoERP()">📤 Enviar ao ERP</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Sync Banco — Comparacao Contrato vs Banco de Produtos -->
+  <div id="modal-sync-banco" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:1002;display:flex;align-items:center;justify-content:center;padding:1rem">
+    <div style="background:var(--bg);border:1px solid var(--bdr);border-radius:14px;width:95vw;max-width:1100px;max-height:92vh;display:flex;flex-direction:column">
+      <div style="padding:1rem 1.5rem;border-bottom:1px solid var(--bdr);display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <h2 style="font-size:1.1rem;margin:0">Sync Banco — Comparar Itens do Contrato</h2>
+          <p style="font-size:.78rem;color:var(--mut);margin:.3rem 0 0" id="sync-banco-info"></p>
+        </div>
+        <div style="display:flex;gap:.5rem">
+          <button class="btn btn-sm" style="background:var(--accent-dim);color:var(--accent);border:none;font-weight:700" onclick="syncBancoSelecionarTodos(true)">Aceitar Todos</button>
+          <button class="btn btn-sm btn-outline" onclick="syncBancoSelecionarTodos(false)">Desmarcar Todos</button>
+        </div>
+      </div>
+      <div style="padding:1rem 1.5rem;overflow-y:auto;flex:1" id="sync-banco-body"></div>
+      <div style="padding:1rem 1.5rem;border-top:1px solid var(--bdr);display:flex;justify-content:flex-end;gap:.8rem">
+        <button class="btn btn-outline" onclick="fecharSyncBanco()">Cancelar</button>
+        <button class="btn btn-green" onclick="aplicarSyncBanco()">Aplicar Sincronizacao</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Sincronizacao de Itens — Story 4.16 -->
+  <div id="modal-sync-itens" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1003;display:flex;align-items:flex-start;justify-content:center;padding:1rem;overflow-y:auto">
+    <div style="background:var(--bg);border:1px solid var(--bdr);border-radius:14px;width:960px;max-width:98vw;max-height:92vh;display:flex;flex-direction:column;margin-top:2rem">
+      <div style="padding:1rem 1.5rem;border-bottom:1px solid var(--bdr)">
+        <h2 style="font-size:1.1rem;display:flex;align-items:center;gap:.5rem">
+          🔗 Sincronização de Itens — Contrato vs Banco de Produtos
+        </h2>
+        <p style="font-size:.8rem;color:var(--mut);margin-top:.4rem" id="sync-itens-info">Comparando itens do contrato com produtos do banco...</p>
+      </div>
+      <div style="padding:.5rem 1.5rem;display:flex;gap:1rem;align-items:center;font-size:.75rem;color:var(--mut);border-bottom:1px solid rgba(71,85,105,.2)">
+        <span style="display:inline-flex;align-items:center;gap:.3rem"><span style="width:10px;height:10px;border-radius:50%;background:var(--green)"></span> Match exato (≥80%)</span>
+        <span style="display:inline-flex;align-items:center;gap:.3rem"><span style="width:10px;height:10px;border-radius:50%;background:var(--yellow)"></span> Match parcial (60-79%)</span>
+        <span style="display:inline-flex;align-items:center;gap:.3rem"><span style="width:10px;height:10px;border-radius:50%;background:var(--red)"></span> Sem match (&lt;60%)</span>
+      </div>
+      <div style="padding:1rem 1.5rem;overflow-y:auto;flex:1">
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th style="width:30px">#</th>
+              <th>Item do Contrato</th>
+              <th style="width:80px">Unid.</th>
+              <th>Match no Banco</th>
+              <th style="width:70px">Score</th>
+              <th style="width:180px">Ação</th>
+            </tr></thead>
+            <tbody id="sync-itens-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div style="padding:1rem 1.5rem;border-top:1px solid var(--bdr);display:flex;justify-content:space-between;align-items:center">
+        <div style="font-size:.8rem;color:var(--mut)" id="sync-itens-resumo">0 itens vinculados</div>
+        <div style="display:flex;gap:.8rem">
+          <button class="btn btn-outline" onclick="pularSincronizacao()">Pular</button>
+          <button class="btn btn-green" onclick="aplicarSincronizacao()" id="btn-aplicar-sync">Sincronizar Selecionados</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Importar do Tiny ERP (Story 4.15) -->
+  <div id="modal-import-tiny" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1002;display:flex;align-items:center;justify-content:center;padding:1rem">
+    <div style="background:var(--bg);border:1px solid var(--bdr);border-radius:14px;width:850px;max-width:98vw;max-height:90vh;display:flex;flex-direction:column">
+      <div style="padding:1rem 1.5rem;border-bottom:1px solid var(--bdr)">
+        <h2 style="font-size:1.1rem">Importar Produtos do Tiny ERP</h2>
+        <p style="font-size:.8rem;color:var(--mut)" id="import-tiny-info">Buscando produtos...</p>
+      </div>
+      <div style="padding:1rem 1.5rem;overflow-y:auto;flex:1">
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th style="width:30px"><input type="checkbox" checked onchange="toggleSelectAllImportTiny(this.checked)" title="Selecionar todos"></th>
+              <th>Descricao</th><th>Codigo (SKU)</th><th>NCM</th><th>Unidade</th>
+            </tr></thead>
+            <tbody id="import-tiny-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div id="import-tiny-actions" class="hidden" style="padding:1rem 1.5rem;border-top:1px solid var(--bdr);display:flex;justify-content:flex-end;gap:.8rem">
+        <button class="btn btn-outline" onclick="fecharImportTiny()">Cancelar</button>
+        <button class="btn btn-green" onclick="confirmarImportacaoTiny()">Importar Selecionados</button>
       </div>
     </div>
   </div>
@@ -1554,7 +1641,9 @@ function criarContrato() {
 
   showToast(`Contrato ${id} criado com ${wonItems.length} itens!`);
   renderAll();
-  switchTab("contratos");
+
+  // Story 4.16: Abrir tela de sincronizacao antes de ir ao detalhe
+  abrirSincronizacaoItens(contrato.id);
 }
 
 // Alimentar banco de precos (Caixa Escolar) com precos dos concorrentes do mapa
@@ -2917,7 +3006,6 @@ function renderContratos() {
         <span style="font-size:.7rem;color:var(--dim)">${pctExec.toFixed(0)}% executado</span>
         <div style="display:flex;gap:.4rem">
           <button class="btn btn-sm btn-blue" onclick="event.stopPropagation();vincularEscolaContrato('${c.id}')" style="font-size:.7rem;padding:.2rem .6rem" title="Vincular escola a este contrato"><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${temEscolaVinculada(c.id) ? 'var(--green)' : 'var(--red)'};margin-right:4px"></span>Vincular Escola</button>
-          <button class="btn btn-sm btn-red" onclick="event.stopPropagation();excluirContrato('${c.id}')" style="font-size:.7rem;padding:.2rem .6rem">Excluir</button>
         </div>
       </div>
       ${getEscolasVinculadasBadges(c.id)}
@@ -3456,15 +3544,14 @@ function abrirContrato(id) {
       <div class="kpi" style="margin:0"><div class="kpi-label">Entregue</div><div class="kpi-value blue" style="font-size:1.3rem">${brl.format(totalEntregue)}</div></div>
       <div class="kpi" style="margin:0"><div class="kpi-label">Saldo</div><div class="kpi-value yellow" style="font-size:1.3rem">${brl.format(totalSaldo)}</div></div>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.8rem;margin-bottom:1rem;font-size:.85rem">
-      <div><strong style="color:var(--mut)">Edital:</strong> ${esc(c.edital || '-')}</div>
-      <div><strong style="color:var(--mut)">Fornecedor:</strong> ${esc(c.fornecedor || '-')}</div>
-      <div><strong style="color:var(--mut)">Data Apuracao:</strong> ${esc(c.dataApuracao || '-')}</div>
-      <div><strong style="color:var(--mut)">Status:</strong> <span class="badge ${c.status === 'ativo' ? 'badge-green' : 'badge-red'}">${c.status}</span></div>
-    </div>
     <div style="background:var(--bg);border-radius:10px;padding:1rem;margin-bottom:1.5rem">
       <h3 style="font-size:.8rem;text-transform:uppercase;color:var(--mut);letter-spacing:.04em;margin-bottom:.8rem">Dados do Contrato</h3>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:.8rem">
+        <div style="grid-column:1/-1"><label style="font-size:.72rem;color:var(--dim);display:block;margin-bottom:.2rem">Caixa Escolar / Escola</label><input type="text" id="ctr-escola-${c.id}" value="${esc(c.escola || '')}" placeholder="Nome da escola" style="width:100%"></div>
+        <div><label style="font-size:.72rem;color:var(--dim);display:block;margin-bottom:.2rem">Edital</label><input type="text" id="ctr-edital-${c.id}" value="${esc(c.edital || '')}" placeholder="Ex: PE 001/2026" style="width:100%"></div>
+        <div><label style="font-size:.72rem;color:var(--dim);display:block;margin-bottom:.2rem">Fornecedor</label><input type="text" id="ctr-fornecedor-${c.id}" value="${esc(c.fornecedor || '')}" placeholder="Nome do fornecedor" style="width:100%"></div>
+        <div><label style="font-size:.72rem;color:var(--dim);display:block;margin-bottom:.2rem">Data Apuracao</label><input type="date" id="ctr-data-${c.id}" value="${esc(c.dataApuracao || '')}" style="width:100%"></div>
+        <div><label style="font-size:.72rem;color:var(--dim);display:block;margin-bottom:.2rem">Status</label><select id="ctr-status-${c.id}" style="width:100%"><option value="ativo" ${c.status === 'ativo' ? 'selected' : ''}>Ativo</option><option value="encerrado" ${c.status === 'encerrado' ? 'selected' : ''}>Encerrado</option></select></div>
         <div><label style="font-size:.72rem;color:var(--dim);display:block;margin-bottom:.2rem">Numero do Processo</label><input type="text" id="ctr-processo-${c.id}" value="${esc(c.processo || '')}" placeholder="Ex: 001/2026" style="width:100%"></div>
         <div><label style="font-size:.72rem;color:var(--dim);display:block;margin-bottom:.2rem">Vigencia</label><input type="text" id="ctr-vigencia-${c.id}" value="${esc(c.vigencia || '')}" placeholder="Ex: 01/01/2026 a 31/12/2026" style="width:100%"></div>
         <div style="grid-column:1/-1"><label style="font-size:.72rem;color:var(--dim);display:block;margin-bottom:.2rem">Objeto</label><input type="text" id="ctr-objeto-${c.id}" value="${esc(c.objeto || '')}" placeholder="Descricao do objeto" style="width:100%"></div>
@@ -3476,7 +3563,10 @@ function abrirContrato(id) {
           <button class="btn btn-sm btn-outline" onclick="recalcularSaldoContrato('${c.id}')" title="Recalcular saldo com base nos pedidos reais">🔄 Recalcular Saldo</button>
           <button class="btn btn-sm" style="background:rgba(107,114,128,.15);color:var(--mut);border:none;font-weight:700" onclick="imprimirContrato('${c.id}')" title="Imprimir contrato completo">🖨️ Imprimir</button>
         </div>
-        <button class="btn btn-sm btn-blue" onclick="salvarDadosContrato('${c.id}')">Salvar Dados</button>
+        <div style="display:flex;gap:.4rem">
+          <button class="btn btn-sm btn-red" onclick="excluirContrato('${c.id}')">Excluir Contrato</button>
+          <button class="btn btn-sm btn-blue" onclick="salvarDadosContrato('${c.id}')">Salvar</button>
+        </div>
       </div>
     </div>
     ${c.pendingTinySync ? `<div style="background:rgba(234,179,8,.15);border:1px solid rgba(234,179,8,.3);border-radius:8px;padding:.6rem 1rem;margin-bottom:1rem;display:flex;align-items:center;justify-content:space-between">
@@ -3491,7 +3581,7 @@ function abrirContrato(id) {
       </div>
       <div style="display:flex;gap:.4rem;flex-wrap:wrap;align-items:center">
         <button class="btn btn-sm btn-blue hidden" id="btn-editar-massa-${c.id}" onclick="editarItensMassa('${c.id}')" title="Editar itens selecionados">Editar Selecionados</button>
-        <button class="btn btn-sm" style="background:rgba(6,182,212,.15);color:var(--cyan);border:none;font-weight:700" onclick="sincronizarContratoTiny('${c.id}')" title="Buscar SKUs e unidades reais dos produtos no Tiny">🔄 Sync Tiny</button>
+        <button class="btn btn-sm" style="background:rgba(6,182,212,.15);color:var(--cyan);border:none;font-weight:700" onclick="abrirSyncBanco('${c.id}')" title="Comparar itens do contrato com o Banco de Produtos e sincronizar SKU/NCM/Unidade">🔄 Sync Banco</button>
         <button class="btn btn-sm" style="background:rgba(139,92,246,.15);color:var(--purple);border:none;font-weight:700" onclick="abrirCatalogoEscolar('${c.id}')" title="Abrir catalogo da escola vinculada para pedidos internos">📋 Catalogo Escolar</button>
         <button class="btn btn-sm" style="background:rgba(16,185,129,.15);color:var(--green);border:none;font-weight:700" onclick="autoPreencherNcm('${c.id}');abrirContrato('${c.id}')" title="Preencher NCM automaticamente (mapa local + banco)">NCM Auto</button>
         <button class="btn btn-sm" style="background:rgba(168,85,247,.15);color:#a855f7;border:none;font-weight:700" onclick="classificarNcmIA('${c.id}')" title="Classificar NCM dos itens sem codigo usando IA (GPT)">🤖 NCM IA</button>
@@ -3705,15 +3795,25 @@ function imprimirContrato(id) {
   printWindow.document.close();
 }
 
-function salvarDadosContrato(id) {
+async function salvarDadosContrato(id) {
   const c = contratos.find(x => x.id === id);
   if (!c) return;
+  c.escola = (document.getElementById(`ctr-escola-${id}`)?.value || "").trim();
+  c.edital = (document.getElementById(`ctr-edital-${id}`)?.value || "").trim();
+  c.fornecedor = (document.getElementById(`ctr-fornecedor-${id}`)?.value || "").trim();
+  c.dataApuracao = (document.getElementById(`ctr-data-${id}`)?.value || "").trim();
+  c.status = document.getElementById(`ctr-status-${id}`)?.value || "ativo";
   c.processo = (document.getElementById(`ctr-processo-${id}`)?.value || "").trim();
   c.vigencia = (document.getElementById(`ctr-vigencia-${id}`)?.value || "").trim();
   c.objeto = (document.getElementById(`ctr-objeto-${id}`)?.value || "").trim();
   c.observacoes = (document.getElementById(`ctr-obs-${id}`)?.value || "").trim();
   c.saldoVisivelEscola = document.getElementById(`ctr-saldo-visivel-${id}`)?.checked || false;
   saveContratos();
+  // Force immediate cloud push
+  if (_syncTimeout) { clearTimeout(_syncTimeout); _syncTimeout = null; }
+  try { await syncToCloud(); } catch(_) {}
+  // Update title in real-time
+  document.getElementById("modal-contrato-titulo").textContent = `${c.id} — ${c.escola.length > 50 ? c.escola.slice(0, 48) + "..." : c.escola}`;
   showToast("Dados do contrato salvos!");
 }
 
@@ -6022,6 +6122,15 @@ function salvarProduto() {
   fecharModalProduto();
   renderBancoProdutos();
   showToast(_editProdutoId ? "Produto atualizado!" : "Produto adicionado!");
+
+  // Story 4.16: Auto-link produto recem-criado ao sync modal
+  if (typeof window._syncCriarIdx === 'number' && _syncContratoId) {
+    const newProd = bancoProdutos.itens[bancoProdutos.itens.length - 1];
+    if (newProd && !_editProdutoId) {
+      selecionarBuscaSync(window._syncCriarIdx, newProd.id);
+    }
+    window._syncCriarIdx = undefined;
+  }
 }
 
 function excluirProduto(id) {
@@ -6038,6 +6147,477 @@ function excluirProduto(id) {
 function fecharModalProduto() {
   document.getElementById("modal-produto").classList.add("hidden");
   _editProdutoId = null;
+}
+
+// ===== Story 4.15: Limpar Todo Banco de Produtos (AC-1) =====
+function limparTodoBancoProdutos() {
+  loadBancoProdutos();
+  const total = bancoProdutos.itens.length;
+  if (total === 0) { showToast('Banco ja esta vazio.'); return; }
+  if (!confirm(`Tem certeza que deseja excluir TODOS os ${total} produtos do banco?`)) return;
+  if (!confirm('CONFIRMACAO FINAL: Esta acao nao pode ser desfeita. Continuar?')) return;
+  bancoProdutos = { updatedAt: new Date().toISOString(), itens: [] };
+  saveBancoProdutos();
+  renderBancoProdutos();
+  showToast('Banco de produtos limpo com sucesso!');
+}
+
+// ===== Story 4.15: Importar Produtos do Tiny (AC-2) =====
+let _importTinyBuffer = [];
+
+async function importarProdutosTiny(apenasNovos) {
+  const modal = document.getElementById("modal-import-tiny");
+  if (!modal) { showToast("Modal de importacao nao encontrado.", 3000); return; }
+  const tbody = document.getElementById("import-tiny-tbody");
+  const info = document.getElementById("import-tiny-info");
+  const actions = document.getElementById("import-tiny-actions");
+  tbody.innerHTML = "";
+  info.textContent = "Buscando produtos do Tiny ERP...";
+  actions.classList.add("hidden");
+  modal.classList.remove("hidden");
+  _importTinyBuffer = [];
+
+  // Load banco to check existing SKUs
+  loadBancoProdutos();
+  const skusExistentes = new Set(bancoProdutos.itens.map(p => (p.sku || "").toUpperCase()).filter(Boolean));
+
+  try {
+    let pagina = 1;
+    let totalPaginas = 1;
+    while (pagina <= totalPaginas) {
+      info.textContent = `Carregando pagina ${pagina}... ${_importTinyBuffer.length} produtos encontrados`;
+      const resp = await fetch("/api/tiny-produtos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "listar", pesquisa: "", pagina })
+      });
+      const json = await resp.json();
+      if (!json.success) { showToast("Erro ao buscar produtos: " + (json.error || "desconhecido"), 4000); break; }
+      const ret = json.data?.retorno || {};
+      totalPaginas = parseInt(ret.numero_paginas || "1");
+      const produtos = ret.produtos || [];
+      if (produtos.length === 0) break;
+      for (const p of produtos) {
+        const prod = p.produto || p;
+        const codigo = (prod.codigo || "").toUpperCase();
+        // Se "apenas novos", pular produtos que ja estao no banco
+        if (apenasNovos && skusExistentes.has(codigo)) continue;
+        _importTinyBuffer.push({
+          nome: prod.nome || "",
+          codigo: prod.codigo || "",
+          ncm: prod.ncm || "",
+          unidade: prod.unidade || "",
+          id_tiny: prod.id || ""
+        });
+      }
+      pagina++;
+      if (pagina <= totalPaginas) await new Promise(r => setTimeout(r, 1500));
+    }
+  } catch (err) {
+    showToast("Erro de conexao ao buscar produtos: " + err.message, 4000);
+  }
+
+  if (_importTinyBuffer.length === 0) {
+    info.textContent = apenasNovos ? "Nenhum produto novo encontrado no Tiny." : "Nenhum produto encontrado no Tiny.";
+    return;
+  }
+
+  // Buscar NCM via produto.obter.php para produtos sem NCM
+  const semNcm = _importTinyBuffer.filter(p => !p.ncm && p.id_tiny);
+  if (semNcm.length > 0) {
+    info.textContent = `Buscando NCM de ${semNcm.length} produtos...`;
+    let fetched = 0;
+    for (const p of semNcm) {
+      try {
+        fetched++;
+        info.textContent = `Buscando NCM... ${fetched}/${semNcm.length}`;
+        const resp = await fetch("/api/tiny-produtos", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "obter", id: p.id_tiny })
+        });
+        const json = await resp.json();
+        if (json.success) {
+          const fullProd = json.data?.retorno?.produto || {};
+          if (fullProd.ncm) p.ncm = fullProd.ncm;
+          if (fullProd.unidade && !p.unidade) p.unidade = fullProd.unidade;
+        }
+      } catch (_) { /* best-effort */ }
+      if (fetched < semNcm.length) await new Promise(r => setTimeout(r, 1500));
+    }
+  }
+
+  info.textContent = `${_importTinyBuffer.length} produtos${apenasNovos ? ' novos' : ''} encontrados. Selecione os que deseja importar:`;
+  tbody.innerHTML = _importTinyBuffer.map((p, i) => `<tr>
+    <td class="text-center"><input type="checkbox" class="import-tiny-chk" data-idx="${i}" checked></td>
+    <td>${esc(p.nome)}</td>
+    <td class="font-mono">${esc(p.codigo || '-')}</td>
+    <td class="font-mono" style="font-size:.78rem">${esc(p.ncm || '-')}</td>
+    <td class="text-center">${esc(p.unidade || '-')}</td>
+  </tr>`).join("");
+  actions.classList.remove("hidden");
+}
+
+function confirmarImportacaoTiny() {
+  const checks = document.querySelectorAll('.import-tiny-chk:checked');
+  const indices = Array.from(checks).map(cb => parseInt(cb.dataset.idx));
+  if (indices.length === 0) { showToast("Selecione ao menos um produto.", 3000); return; }
+
+  loadBancoProdutos();
+  let atualizados = 0, novos = 0;
+
+  for (const idx of indices) {
+    const p = _importTinyBuffer[idx];
+    if (!p) continue;
+    const existente = bancoProdutos.itens.find(x => x.sku && x.sku === p.codigo);
+    if (existente) {
+      existente.descricao = p.nome;
+      existente.ncm = p.ncm;
+      existente.unidade = p.unidade;
+      atualizados++;
+    } else {
+      bancoProdutos.itens.push({
+        id: 'PROD-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
+        descricao: p.nome,
+        sku: p.codigo,
+        ncm: p.ncm,
+        unidade: p.unidade,
+        criadoEm: new Date().toISOString()
+      });
+      novos++;
+    }
+  }
+
+  saveBancoProdutos();
+  renderBancoProdutos();
+  document.getElementById("modal-import-tiny").classList.add("hidden");
+  _importTinyBuffer = [];
+  showToast(`Importacao concluida! ${novos} novos, ${atualizados} atualizados.`);
+}
+
+function fecharImportTiny() {
+  document.getElementById("modal-import-tiny").classList.add("hidden");
+  _importTinyBuffer = [];
+}
+
+function toggleSelectAllImportTiny(checked) {
+  document.querySelectorAll('.import-tiny-chk').forEach(cb => cb.checked = checked);
+}
+
+// ===== Story 4.15/4.16: Sync Banco — Comparacao Contrato vs Banco =====
+let _syncBancoContratoId = null;
+let _syncBancoMatches = [];
+
+function calcularSimilaridade(a, b) {
+  const normalize = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim();
+  const keywords = s => normalize(s).split(/\s+/).filter(w => w.length >= 2);
+  const nA = normalize(a), nB = normalize(b);
+  if (nA === nB) return { score: 100, tipo: 'exato' };
+  // Check if one contains the other
+  if (nA.includes(nB) || nB.includes(nA)) return { score: 90, tipo: 'exato' };
+  const kwA = keywords(a), kwB = keywords(b);
+  if (kwA.length === 0 || kwB.length === 0) return { score: 0, tipo: 'sem-match' };
+  // Fuzzy keyword matching: "FRUTA" matches "FRUTAS" (startsWith)
+  let common = 0;
+  for (const wA of kwA) {
+    if (kwB.some(wB => wB === wA || wB.startsWith(wA) || wA.startsWith(wB))) common++;
+  }
+  const total = Math.max(kwA.length, kwB.length);
+  const score = Math.round(common / total * 100);
+  return { score, tipo: score >= 75 ? 'exato' : score >= 40 ? 'parcial' : 'sem-match' };
+}
+
+function abrirSyncBanco(contratoId) {
+  const c = contratos.find(x => x.id === contratoId);
+  if (!c) return;
+  loadBancoProdutos();
+  const bp = bancoProdutos.itens || [];
+  if (bp.length === 0) { showToast("Banco de Produtos vazio. Importe produtos do Tiny primeiro.", 4000); return; }
+
+  _syncBancoContratoId = contratoId;
+  _syncBancoMatches = [];
+
+  // Para cada item do contrato, buscar melhor match + alternativas no banco
+  c.itens.forEach((item, idx) => {
+    const matches = [];
+    bp.forEach(prod => {
+      const sim = calcularSimilaridade(item.descricao, prod.descricao);
+      if (sim.score >= 15) matches.push({ ...prod, score: sim.score, tipo: sim.tipo });
+    });
+    matches.sort((a, b) => b.score - a.score);
+    const best = matches[0] || null;
+    const alternativas = matches.slice(1, 10);
+    _syncBancoMatches.push({
+      idx, item, best, alternativas,
+      aceito: best && best.score >= 50,
+      escolhido: best || null
+    });
+  });
+
+  renderSyncBanco();
+  document.getElementById("modal-sync-banco").classList.remove("hidden");
+}
+
+function renderSyncBanco() {
+  const body = document.getElementById("sync-banco-body");
+  const exatos = _syncBancoMatches.filter(m => m.best && m.best.tipo === 'exato').length;
+  const parciais = _syncBancoMatches.filter(m => m.best && m.best.tipo === 'parcial').length;
+  const semMatch = _syncBancoMatches.filter(m => !m.best || m.best.tipo === 'sem-match').length;
+  const aceitos = _syncBancoMatches.filter(m => m.aceito).length;
+
+  document.getElementById("sync-banco-info").textContent =
+    `${_syncBancoMatches.length} itens | ${exatos} exatos | ${parciais} parciais | ${semMatch} sem match | ${aceitos} aceitos`;
+
+  body.innerHTML = _syncBancoMatches.map((m, i) => {
+    const cor = m.best ? (m.best.tipo === 'exato' ? 'var(--accent)' : m.best.tipo === 'parcial' ? 'var(--warning)' : 'var(--danger)') : 'var(--danger)';
+    const bgCor = m.best ? (m.best.tipo === 'exato' ? 'rgba(78,201,138,.08)' : m.best.tipo === 'parcial' ? 'rgba(244,185,66,.08)' : 'rgba(255,111,111,.06)') : 'rgba(255,111,111,.06)';
+    const scoreLabel = m.best ? `${m.best.score}%` : '0%';
+
+    // Alternativas dropdown
+    const altOptions = (m.alternativas || []).map((alt, ai) =>
+      `<option value="${ai}">${esc(alt.descricao)} (${alt.score}%) — SKU: ${esc(alt.sku || '-')}</option>`
+    ).join('');
+
+    // Detect if fields will change
+    const skuMuda = m.best && m.best.sku && m.best.sku !== (m.item.sku || '');
+    const ncmMuda = m.best && m.best.ncm && m.best.ncm !== (m.item.ncm || '');
+    const unidMuda = m.best && m.best.unidade && m.best.unidade !== (m.item.unidade || '');
+    const mudaAlgo = skuMuda || ncmMuda || unidMuda;
+
+    return `<div style="border:1px solid ${cor};border-radius:10px;padding:.8rem;margin-bottom:.6rem;background:${bgCor}">
+      <div style="display:flex;align-items:center;gap:.8rem;margin-bottom:.5rem">
+        <input type="checkbox" class="sync-banco-chk" data-idx="${i}" ${m.aceito ? 'checked' : ''} onchange="_syncBancoMatches[${i}].aceito=this.checked" style="width:18px;height:18px">
+        <span style="font-size:.7rem;color:${cor};font-weight:700;background:${bgCor};padding:2px 8px;border-radius:99px;border:1px solid ${cor}">${scoreLabel} ${m.best ? m.best.tipo.toUpperCase() : 'SEM MATCH'}</span>
+        <span style="font-size:.72rem;color:var(--mut)">#${m.item.num}</span>
+        ${mudaAlgo ? '<span style="font-size:.65rem;color:var(--warning);font-weight:700">VAI ATUALIZAR</span>' : '<span style="font-size:.65rem;color:var(--dim)">sem alteracao</span>'}
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.8rem">
+        <div style="padding:.6rem;background:rgba(0,0,0,.2);border-radius:8px">
+          <div style="font-size:.65rem;color:var(--mut);margin-bottom:.4rem;font-weight:700;text-transform:uppercase">Item do Contrato (atual)</div>
+          <div style="font-size:.82rem;font-weight:600;margin-bottom:.3rem">${esc(m.item.descricao)}</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.3rem;font-size:.72rem;color:var(--mut)">
+            <span>Unid: <b style="color:${unidMuda ? 'var(--danger)' : 'var(--text)'}">${esc(m.item.unidade || '-')}</b></span>
+            <span>NCM: <b style="color:${ncmMuda ? 'var(--danger)' : 'var(--text)'}">${esc(m.item.ncm || '-')}</b></span>
+            <span>SKU: <b style="color:${skuMuda ? 'var(--danger)' : 'var(--text)'}">${esc(m.item.sku || '-')}</b></span>
+          </div>
+        </div>
+        <div style="padding:.6rem;background:rgba(0,0,0,.2);border-radius:8px">
+          <div style="font-size:.65rem;color:var(--mut);margin-bottom:.4rem;font-weight:700;text-transform:uppercase">Match no Banco de Produtos</div>
+          ${m.best ? `
+            <div style="font-size:.82rem;font-weight:600;margin-bottom:.3rem">${esc(m.best.descricao)}</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.3rem;font-size:.72rem;color:var(--mut)">
+              <span>Unid: <b style="color:${unidMuda ? 'var(--accent)' : 'var(--text)'}">${esc(m.best.unidade || '-')}</b>${unidMuda ? ' ←' : ''}</span>
+              <span>NCM: <b style="color:${ncmMuda ? 'var(--accent)' : 'var(--text)'}">${esc(m.best.ncm || '-')}</b>${ncmMuda ? ' ←' : ''}</span>
+              <span>SKU: <b style="color:${skuMuda ? 'var(--accent)' : 'var(--text)'}">${esc(m.best.sku || '-')}</b>${skuMuda ? ' ←' : ''}</span>
+            </div>
+          ` : `<div style="font-size:.82rem;color:var(--danger)">Nenhum produto semelhante encontrado</div>`}
+          ${m.alternativas && m.alternativas.length > 0 ? `
+            <div style="margin-top:.4rem">
+              <select style="width:100%;font-size:.72rem;padding:3px 6px;background:var(--bg);color:var(--text);border:1px solid var(--bdr);border-radius:6px" onchange="trocarMatchSyncBanco(${i}, this.value)">
+                <option value="-1">Trocar match...</option>
+                ${altOptions}
+              </select>
+            </div>
+          ` : ''}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function trocarMatchSyncBanco(idx, altIdx) {
+  const m = _syncBancoMatches[idx];
+  if (!m) return;
+  const ai = parseInt(altIdx);
+  if (ai < 0) return; // "Manter match acima" selected, no change
+
+  // Get the selected alternative BEFORE modifying the array
+  const selected = m.alternativas[ai];
+  if (!selected) return;
+
+  // Build new alternativas: remove selected, add old best
+  const newAlts = m.alternativas.filter((_, i) => i !== ai);
+  if (m.best) newAlts.unshift(m.best);
+
+  // Apply swap
+  m.best = { ...selected }; // Deep copy to avoid reference issues
+  m.alternativas = newAlts;
+  m.escolhido = m.best;
+  m.aceito = true;
+
+  console.log(`[SyncBanco] Troca #${m.item.num}: "${m.item.descricao}" → novo match: "${m.best.descricao}" SKU:${m.best.sku} NCM:${m.best.ncm} Unid:${m.best.unidade}`);
+
+  renderSyncBanco();
+}
+
+function syncBancoSelecionarTodos(checked) {
+  _syncBancoMatches.forEach(m => { if (m.best && m.best.score >= 30) m.aceito = checked; });
+  renderSyncBanco();
+}
+
+async function aplicarSyncBanco() {
+  const c = contratos.find(x => x.id === _syncBancoContratoId);
+  if (!c) { console.error("[SyncBanco] Contrato nao encontrado:", _syncBancoContratoId); return; }
+  const contratoId = _syncBancoContratoId; // Save before closing
+
+  let synced = 0;
+  _syncBancoMatches.forEach((m, i) => {
+    if (!m.aceito || !m.best) return;
+    const item = c.itens[m.idx];
+    if (!item) { console.warn("[SyncBanco] Item nao encontrado no indice", m.idx); return; }
+
+    const antes = { sku: item.sku, ncm: item.ncm, unidade: item.unidade };
+
+    // Copy all non-empty fields from banco product
+    if (m.best.sku) item.sku = m.best.sku;
+    if (m.best.ncm) item.ncm = m.best.ncm;
+    if (m.best.unidade) item.unidade = m.best.unidade;
+    synced++;
+
+    console.log(`[SyncBanco] #${item.num} "${item.descricao}" ← banco "${m.best.descricao}" | SKU: ${antes.sku}→${item.sku} | NCM: ${antes.ncm}→${item.ncm} | Unid: ${antes.unidade}→${item.unidade}`);
+  });
+
+  if (synced > 0) {
+    saveContratos();
+    // Force IMMEDIATE cloud push (don't rely on 2s debounce)
+    if (_syncTimeout) { clearTimeout(_syncTimeout); _syncTimeout = null; }
+    try { await syncToCloud(); } catch(_) {}
+    console.log(`[SyncBanco] saveContratos() + syncToCloud() chamados. ${synced} itens atualizados.`);
+  }
+
+  // Close modal THEN reopen contract (order matters!)
+  document.getElementById("modal-sync-banco").classList.add("hidden");
+  _syncBancoMatches = [];
+  _syncBancoContratoId = null;
+
+  // Force reload from localStorage to guarantee fresh data
+  loadData();
+  abrirContrato(contratoId);
+  showToast(`${synced} item(ns) sincronizados com o Banco de Produtos!`, 4000);
+}
+
+function fecharSyncBanco() {
+  document.getElementById("modal-sync-banco").classList.add("hidden");
+  _syncBancoContratoId = null;
+  _syncBancoMatches = [];
+}
+
+// ===== Story 4.15: Classificar NCM IA no Banco de Produtos =====
+async function classificarNcmBancoProdutos() {
+  loadBancoProdutos();
+  const semNcm = bancoProdutos.itens.filter(p => !p.ncm || p.ncm.length < 8);
+  if (semNcm.length === 0) { showToast("Todos os produtos ja tem NCM!"); return; }
+
+  // Camada 1: mapa local (findNcmLocal)
+  let preenchidosLocal = 0;
+  semNcm.forEach(p => {
+    if (p.ncm && p.ncm.length >= 8) return;
+    const local = findNcmLocal(p.descricao);
+    if (local) { p.ncm = local.ncm; preenchidosLocal++; }
+  });
+  if (preenchidosLocal > 0) saveBancoProdutos();
+
+  // Camada 2: IA para os que sobraram
+  const aindaSemNcm = bancoProdutos.itens.filter(p => !p.ncm || p.ncm.length < 8);
+  if (aindaSemNcm.length === 0) {
+    renderBancoProdutos();
+    showToast(`NCM preenchido para ${preenchidosLocal} produtos (mapa local)!`);
+    return;
+  }
+
+  showToast(`${preenchidosLocal} via mapa local. Classificando ${aindaSemNcm.length} com IA...`, 3000);
+
+  for (let start = 0; start < aindaSemNcm.length; start += 20) {
+    const batch = aindaSemNcm.slice(start, start + 20);
+    try {
+      const resp = await fetch("/api/ai-ncm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items: batch.map(p => ({ descricao: p.descricao })) })
+      });
+      const data = await resp.json();
+      if (data.success && data.results) {
+        data.results.forEach((r, idx) => {
+          if (r.ncm && batch[idx]) batch[idx].ncm = r.ncm;
+        });
+      }
+    } catch (err) {
+      showToast("Erro na classificacao IA: " + err.message, 4000);
+    }
+  }
+
+  saveBancoProdutos();
+  renderBancoProdutos();
+  const classified = aindaSemNcm.filter(p => p.ncm && p.ncm.length >= 8).length;
+  showToast(`NCM: ${preenchidosLocal} mapa local + ${classified} IA = ${preenchidosLocal + classified} preenchidos!`, 5000);
+}
+
+// ===== Story 4.15: Enviar Produto ao ERP (AC-3) =====
+async function enviarProdutoERP() {
+  const descricao = (document.getElementById("prod-descricao").value || "").trim();
+  const sku = (document.getElementById("prod-sku").value || "").trim();
+  const ncm = (document.getElementById("prod-ncm").value || "").trim();
+  const unidade = document.getElementById("prod-unidade").value;
+
+  if (!descricao) { showToast("Descricao e obrigatoria.", 3000); return; }
+  if (!unidade) { showToast("Unidade e obrigatoria.", 3000); return; }
+
+  const btn = document.getElementById("btn-enviar-erp");
+  const btnText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "⏳ Enviando...";
+
+  try {
+    // 1. Save locally first
+    salvarProduto();
+
+    // 2. Send to Tiny ERP
+    const resp = await fetch("/api/tiny-produtos", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "cadastrar",
+        itens: [{
+          num: 1,
+          descricao: descricao,
+          unidade: unidade,
+          ncm: ncm,
+          codigo: sku || "",
+          precoUnitario: 0
+        }]
+      })
+    });
+    const json = await resp.json();
+
+    if (json.success && json.results && json.results.length > 0) {
+      const result = json.results[0];
+      if (result.status === "ok" || result.status === "existente") {
+        // Update SKU in banco if Tiny returned one
+        if (result.sku) {
+          loadBancoProdutos();
+          const prod = bancoProdutos.itens.find(p => p.descricao === descricao);
+          if (prod && !prod.sku) {
+            prod.sku = result.sku;
+            saveBancoProdutos();
+            renderBancoProdutos();
+          }
+        }
+        const msg = result.status === "existente"
+          ? `Produto ja existe no Tiny (SKU: ${result.sku}). Banco local atualizado.`
+          : `Produto cadastrado no Tiny! SKU: ${result.sku}`;
+        showToast(msg, 5000);
+      } else {
+        showToast(`Erro ao cadastrar no Tiny: ${result.error || "desconhecido"}`, 5000);
+      }
+    } else {
+      showToast("Erro ao enviar ao Tiny: " + (json.error || "resposta inesperada"), 5000);
+    }
+  } catch (err) {
+    showToast("Erro de conexao ao enviar ao Tiny: " + err.message, 5000);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = btnText;
+  }
 }
 
 function exportarProdutosCSV() {
@@ -6479,6 +7059,252 @@ function confirmarSync(contratoId) {
   showToast(`${synced} de ${c.itens.length} itens sincronizados!`);
   abrirContrato(contratoId);
   renderAll();
+}
+
+// ===== Story 4.16: Sincronizacao de Itens na Criacao de Contrato =====
+let _syncContratoId = null;
+let _syncMatches = []; // Array of { itemIdx, matchProduto, score, matchType, accepted }
+
+// Usa calcularSimilaridade() da linha 6311 (Story 4.15) — evita duplicação.
+// Wrapper para adaptar retorno { tipo } → { matchType }
+function calcularSimilaridadeSync(a, b) {
+  const result = calcularSimilaridade(a, b);
+  const score = result.score;
+  let matchType;
+  if (score >= 80) matchType = 'exato';
+  else if (score >= 60) matchType = 'parcial';
+  else matchType = 'sem-match';
+  return { score, matchType };
+}
+
+function buscarMelhorMatch(descricaoItem, bancoProdutos) {
+  let bestMatch = null;
+  let bestScore = 0;
+  let alternativas = [];
+  for (const prod of bancoProdutos) {
+    const result = calcularSimilaridadeSync(descricaoItem, prod.descricao);
+    if (result.score > bestScore) {
+      if (bestMatch) alternativas.push({ prod: bestMatch.prod, score: bestScore });
+      bestScore = result.score;
+      bestMatch = { prod, score: result.score, matchType: result.matchType };
+    } else if (result.score >= 40) {
+      alternativas.push({ prod, score: result.score });
+    }
+  }
+  alternativas.sort((a, b) => b.score - a.score);
+  return { best: bestMatch, alternativas: alternativas.slice(0, 3) };
+}
+
+function abrirSincronizacaoItens(contratoId) {
+  _syncContratoId = contratoId;
+  const c = contratos.find(x => x.id === contratoId);
+  if (!c || !c.itens || c.itens.length === 0) {
+    switchTab("contratos");
+    return;
+  }
+
+  loadBancoProdutos();
+  const banco = bancoProdutos.itens || [];
+
+  if (banco.length === 0) {
+    showToast("Banco de Produtos vazio — pule a sincronizacao ou importe do Tiny primeiro.", 4000);
+  }
+
+  _syncMatches = [];
+  const tbody = document.getElementById("sync-itens-tbody");
+  let html = "";
+  let verdes = 0, amarelos = 0, vermelhos = 0;
+
+  for (let i = 0; i < c.itens.length; i++) {
+    const item = c.itens[i];
+    const { best, alternativas } = buscarMelhorMatch(item.descricao, banco);
+
+    const matchType = best ? best.matchType : 'sem-match';
+    const score = best ? best.score : 0;
+    const cssClass = matchType === 'exato' ? 'sync-match-exato' : matchType === 'parcial' ? 'sync-match-parcial' : 'sync-sem-match';
+    const scoreClass = matchType === 'exato' ? 'high' : matchType === 'parcial' ? 'mid' : 'low';
+
+    if (matchType === 'exato') verdes++;
+    else if (matchType === 'parcial') amarelos++;
+    else vermelhos++;
+
+    _syncMatches.push({
+      itemIdx: i,
+      matchProduto: best ? best.prod : null,
+      score,
+      matchType,
+      accepted: matchType === 'exato',
+    });
+
+    const matchInfo = best && best.prod
+      ? `<div style="font-size:.85rem;font-weight:600">${esc(best.prod.descricao)}</div>
+         <div class="sync-match-info">SKU: <span class="sku">${esc(best.prod.sku || '-')}</span> | NCM: ${esc(best.prod.ncm || '-')} | ${esc(best.prod.unidade || '-')}</div>`
+      : `<div style="font-size:.85rem;color:var(--red,#ef4444)">Nenhum produto similar encontrado</div>`;
+
+    const actions = matchType === 'exato'
+      ? `<button class="btn btn-sm btn-green" onclick="toggleSyncAccept(${i})" id="sync-btn-${i}">✓ Vinculado</button>`
+      : matchType === 'parcial'
+        ? `<button class="btn btn-sm btn-outline" onclick="toggleSyncAccept(${i})" id="sync-btn-${i}" style="border-color:var(--yellow)">Vincular?</button>`
+        : `<button class="btn btn-sm btn-outline" onclick="abrirBuscaSync(${i})" id="sync-btn-${i}">Buscar</button>
+           <button class="btn btn-sm btn-outline" onclick="criarProdutoSync(${i})" style="margin-left:4px">+ Criar</button>`;
+
+    html += `<tr class="${cssClass}" id="sync-row-${i}">
+      <td class="text-center">${i + 1}</td>
+      <td style="max-width:250px"><div style="font-size:.85rem;font-weight:600">${esc(item.descricao)}</div></td>
+      <td class="text-center" style="font-size:.8rem">${esc(item.unidade || '-')}</td>
+      <td style="max-width:280px" id="sync-match-cell-${i}">${matchInfo}</td>
+      <td class="text-center"><span class="sync-score ${scoreClass}">${score}%</span></td>
+      <td class="text-center" id="sync-action-cell-${i}">${actions}</td>
+    </tr>
+    <tr id="sync-busca-row-${i}" class="hidden"><td colspan="6" style="padding:8px 16px" id="sync-busca-container-${i}"></td></tr>`;
+  }
+
+  tbody.innerHTML = html;
+  document.getElementById("sync-itens-info").textContent =
+    `${c.itens.length} itens | ${verdes} match exato | ${amarelos} parcial | ${vermelhos} sem match`;
+  atualizarResumoSync();
+  document.getElementById("modal-sync-itens").classList.remove("hidden");
+}
+
+function toggleSyncAccept(idx) {
+  const match = _syncMatches[idx];
+  if (!match || !match.matchProduto) return;
+  match.accepted = !match.accepted;
+  const btn = document.getElementById(`sync-btn-${idx}`);
+  if (match.accepted) {
+    btn.className = "btn btn-sm btn-green";
+    btn.textContent = "✓ Vinculado";
+  } else {
+    btn.className = "btn btn-sm btn-outline";
+    btn.textContent = "Vincular?";
+  }
+  atualizarResumoSync();
+}
+
+function abrirBuscaSync(idx) {
+  const container = document.getElementById(`sync-busca-container-${idx}`);
+  const row = document.getElementById(`sync-busca-row-${idx}`);
+  row.classList.remove("hidden");
+
+  loadBancoProdutos();
+  container.innerHTML = `
+    <input type="text" class="sync-busca-input" placeholder="Buscar produto no banco..." oninput="filtrarBuscaSync(${idx}, this.value)" autofocus>
+    <div class="sync-busca-results" id="sync-busca-results-${idx}"></div>
+  `;
+  filtrarBuscaSync(idx, "");
+}
+
+function filtrarBuscaSync(idx, query) {
+  loadBancoProdutos();
+  const banco = bancoProdutos.itens || [];
+  const q = (query || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  let filtered = banco;
+  if (q.length > 0) {
+    filtered = banco.filter(p => (p.descricao || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes(q)
+      || (p.sku || "").toLowerCase().includes(q));
+  }
+  const results = document.getElementById(`sync-busca-results-${idx}`);
+  if (filtered.length === 0) {
+    results.innerHTML = `<div style="color:var(--mut);padding:8px">Nenhum produto encontrado</div>`;
+    return;
+  }
+  results.innerHTML = filtered.slice(0, 10).map(p =>
+    `<div onclick="selecionarBuscaSync(${idx}, '${(p.id || '').replace(/'/g, "\\'")}')">
+      <strong>${esc(p.descricao)}</strong> <span style="font-family:monospace;color:var(--accent)">${esc(p.sku || '')}</span> ${esc(p.unidade || '')}
+    </div>`
+  ).join("");
+}
+
+function selecionarBuscaSync(idx, prodId) {
+  loadBancoProdutos();
+  const prod = bancoProdutos.itens.find(p => p.id === prodId);
+  if (!prod) return;
+
+  const c = contratos.find(x => x.id === _syncContratoId);
+  const item = c ? c.itens[idx] : null;
+  const sim = item ? calcularSimilaridadeSync(item.descricao, prod.descricao) : { score: 0, matchType: 'sem-match' };
+
+  _syncMatches[idx].matchProduto = prod;
+  _syncMatches[idx].score = sim.score;
+  _syncMatches[idx].matchType = sim.score >= 80 ? 'exato' : sim.score >= 60 ? 'parcial' : 'sem-match';
+  _syncMatches[idx].accepted = true;
+
+  // Update UI
+  const matchCell = document.getElementById(`sync-match-cell-${idx}`);
+  matchCell.innerHTML = `<div style="font-size:.85rem;font-weight:600">${esc(prod.descricao)}</div>
+    <div class="sync-match-info">SKU: <span class="sku">${esc(prod.sku || '-')}</span> | NCM: ${esc(prod.ncm || '-')} | ${esc(prod.unidade || '-')}</div>`;
+
+  const scoreClass = sim.score >= 80 ? 'high' : sim.score >= 60 ? 'mid' : 'low';
+  const row = document.getElementById(`sync-row-${idx}`);
+  row.className = sim.score >= 80 ? 'sync-match-exato' : sim.score >= 60 ? 'sync-match-parcial' : 'sync-sem-match';
+
+  const scoreCell = row.children[4];
+  scoreCell.innerHTML = `<span class="sync-score ${scoreClass}">${sim.score}%</span>`;
+
+  const actionCell = document.getElementById(`sync-action-cell-${idx}`);
+  actionCell.innerHTML = `<button class="btn btn-sm btn-green" onclick="toggleSyncAccept(${idx})" id="sync-btn-${idx}">✓ Vinculado</button>`;
+
+  // Hide search row
+  document.getElementById(`sync-busca-row-${idx}`).classList.add("hidden");
+  atualizarResumoSync();
+}
+
+function criarProdutoSync(idx) {
+  _editProdutoId = null;
+  const c = contratos.find(x => x.id === _syncContratoId);
+  const item = c ? c.itens[idx] : null;
+  document.getElementById("modal-produto-titulo").textContent = "Novo Produto (Sync)";
+  document.getElementById("prod-descricao").value = item ? item.descricao : "";
+  document.getElementById("prod-sku").value = "";
+  document.getElementById("prod-ncm").value = item ? (item.ncm || "") : "";
+  document.getElementById("prod-unidade").value = item ? (item.unidade || "") : "";
+  document.getElementById("modal-produto").classList.remove("hidden");
+
+  // Store sync idx for auto-link after save
+  window._syncCriarIdx = idx;
+}
+
+// Patch salvarProduto to auto-link when coming from sync
+const _originalSalvarProduto = typeof salvarProduto === 'function' ? salvarProduto : null;
+
+function atualizarResumoSync() {
+  const accepted = _syncMatches.filter(m => m.accepted && m.matchProduto).length;
+  const total = _syncMatches.length;
+  document.getElementById("sync-itens-resumo").textContent = `${accepted} de ${total} itens vinculados`;
+}
+
+function aplicarSincronizacao() {
+  const c = contratos.find(x => x.id === _syncContratoId);
+  if (!c) return;
+
+  let synced = 0;
+  for (const match of _syncMatches) {
+    if (match.accepted && match.matchProduto) {
+      const item = c.itens[match.itemIdx];
+      if (item) {
+        if (match.matchProduto.sku) item.sku = match.matchProduto.sku;
+        if (match.matchProduto.ncm) item.ncm = match.matchProduto.ncm;
+        if (match.matchProduto.unidade) item.unidade = match.matchProduto.unidade;
+        synced++;
+      }
+    }
+  }
+
+  saveContratos();
+  document.getElementById("modal-sync-itens").classList.add("hidden");
+  showToast(`${synced} itens sincronizados com SKU/NCM/unidade do banco!`, 4000);
+  _syncContratoId = null;
+  _syncMatches = [];
+  renderAll();
+  switchTab("contratos");
+}
+
+function pularSincronizacao() {
+  document.getElementById("modal-sync-itens").classList.add("hidden");
+  showToast("Sincronizacao pulada — itens mantidos como importados.", 3000);
+  _syncContratoId = null;
+  _syncMatches = [];
+  switchTab("contratos");
 }
 </script>
 
