@@ -6340,11 +6340,12 @@ function abrirSyncBanco(contratoId) {
     const matches = [];
     bp.forEach(prod => {
       const sim = calcularSimilaridade(item.descricao, prod.descricao);
-      if (sim.score >= 15) matches.push({ ...prod, score: sim.score, tipo: sim.tipo });
+      if (sim.score >= 10) matches.push({ ...prod, score: sim.score, tipo: sim.tipo });
     });
     matches.sort((a, b) => b.score - a.score);
     const best = matches[0] || null;
-    const alternativas = matches.slice(1, 10);
+    // FIX: mostrar até 30 alternativas (antes era 10) para não esconder produto correto
+    const alternativas = matches.slice(1, 30);
     _syncBancoMatches.push({
       idx, item, best, alternativas,
       aceito: best && best.score >= 80,
@@ -6409,14 +6410,16 @@ function renderSyncBanco() {
               <span>SKU: <b style="color:${skuMuda ? 'var(--accent)' : 'var(--text)'}">${esc(m.best.sku || '-')}</b>${skuMuda ? ' ←' : ''}</span>
             </div>
           ` : `<div style="font-size:.82rem;color:var(--danger)">Nenhum produto semelhante encontrado</div>`}
-          ${m.alternativas && m.alternativas.length > 0 ? `
-            <div style="margin-top:.4rem">
-              <select style="width:100%;font-size:.72rem;padding:3px 6px;background:var(--bg);color:var(--text);border:1px solid var(--bdr);border-radius:6px" onchange="trocarMatchSyncBanco(${i}, this.value)">
+          <div style="margin-top:.4rem">
+            ${m.alternativas && m.alternativas.length > 0 ? `
+              <select style="width:100%;font-size:.72rem;padding:3px 6px;background:var(--bg);color:var(--text);border:1px solid var(--bdr);border-radius:6px;margin-bottom:4px" onchange="trocarMatchSyncBanco(${i}, this.value)">
                 <option value="-1">Trocar match...</option>
                 ${altOptions}
               </select>
-            </div>
-          ` : ''}
+            ` : ''}
+            <input type="text" placeholder="Buscar produto no banco..." style="width:100%;font-size:.72rem;padding:4px 8px;background:var(--bg);color:var(--text);border:1px solid var(--bdr);border-radius:6px" oninput="buscarProdutoSyncBanco(${i}, this.value)" id="sync-banco-busca-${i}">
+            <div id="sync-banco-busca-results-${i}" style="max-height:120px;overflow-y:auto"></div>
+          </div>
         </div>
       </div>
     </div>`;
@@ -6448,21 +6451,73 @@ function trocarMatchSyncBanco(idx, altIdx) {
   renderSyncBanco();
 }
 
+function buscarProdutoSyncBanco(idx, query) {
+  loadBancoProdutos();
+  const bp = bancoProdutos.itens || [];
+  const q = (query || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const results = document.getElementById(`sync-banco-busca-results-${idx}`);
+  if (q.length < 2) { results.innerHTML = ""; return; }
+  const filtered = bp.filter(p =>
+    (p.descricao || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes(q) ||
+    (p.sku || "").toLowerCase().includes(q)
+  ).slice(0, 15);
+  if (filtered.length === 0) {
+    results.innerHTML = `<div style="font-size:.72rem;color:var(--mut);padding:4px 8px">Nenhum produto encontrado</div>`;
+    return;
+  }
+  results.innerHTML = filtered.map(p =>
+    `<div style="font-size:.72rem;padding:4px 8px;cursor:pointer;border-radius:4px;margin:1px 0;border:1px solid transparent" onmouseover="this.style.background='rgba(78,201,138,.15)';this.style.borderColor='var(--accent)'" onmouseout="this.style.background='';this.style.borderColor='transparent'" onclick="selecionarBuscaSyncBanco(${idx}, '${(p.id || '').replace(/'/g, "\\'")}')">
+      <strong>${esc(p.descricao)}</strong> <span style="font-family:monospace;color:var(--accent)">${esc(p.sku || '')}</span> | ${esc(p.unidade || '')} | NCM: ${esc(p.ncm || '-')}
+    </div>`
+  ).join("");
+}
+
+function selecionarBuscaSyncBanco(idx, prodId) {
+  loadBancoProdutos();
+  const prod = bancoProdutos.itens.find(p => p.id === prodId);
+  if (!prod) return;
+  const m = _syncBancoMatches[idx];
+  if (!m) return;
+
+  // Colocar best antigo nas alternativas
+  const newAlts = m.alternativas ? [...m.alternativas] : [];
+  if (m.best) newAlts.unshift(m.best);
+
+  m.best = { ...prod, score: 100, tipo: 'exato' };
+  m.alternativas = newAlts;
+  m.escolhido = m.best;
+  m.aceito = true;
+
+  // Limpar busca
+  const input = document.getElementById(`sync-banco-busca-${idx}`);
+  if (input) input.value = "";
+  const results = document.getElementById(`sync-banco-busca-results-${idx}`);
+  if (results) results.innerHTML = "";
+
+  renderSyncBanco();
+}
+
 function syncBancoSelecionarTodos(checked) {
   _syncBancoMatches.forEach(m => { if (m.best && m.best.score >= 60) m.aceito = checked; });
   renderSyncBanco();
 }
 
 async function aplicarSyncBanco() {
-  const c = contratos.find(x => x.id === _syncBancoContratoId);
-  if (!c) { console.error("[SyncBanco] Contrato nao encontrado:", _syncBancoContratoId); return; }
-  const contratoId = _syncBancoContratoId; // Save before closing
+  const contratoId = _syncBancoContratoId;
+  if (!contratoId) { console.error("[SyncBanco] Sem contrato ativo"); return; }
+
+  // FIX: Recarregar contratos do localStorage ANTES de aplicar (evita dados stale)
+  loadData();
+  const c = contratos.find(x => x.id === contratoId);
+  if (!c) { console.error("[SyncBanco] Contrato nao encontrado:", contratoId); return; }
 
   let synced = 0;
+  const changes = [];
   _syncBancoMatches.forEach((m, i) => {
     if (!m.aceito || !m.best) return;
-    const item = c.itens[m.idx];
-    if (!item) { console.warn("[SyncBanco] Item nao encontrado no indice", m.idx); return; }
+    // FIX: Buscar item por num (não por índice, que pode mudar)
+    const item = c.itens.find(it => it.num === m.item.num) || c.itens[m.idx];
+    if (!item) { console.warn("[SyncBanco] Item nao encontrado:", m.item.num); return; }
 
     const antes = { sku: item.sku, ncm: item.ncm, unidade: item.unidade };
 
@@ -6472,26 +6527,32 @@ async function aplicarSyncBanco() {
     if (m.best.unidade) item.unidade = m.best.unidade;
     synced++;
 
+    changes.push(`#${item.num} SKU:${antes.sku}→${item.sku} NCM:${antes.ncm}→${item.ncm} Unid:${antes.unidade}→${item.unidade}`);
     console.log(`[SyncBanco] #${item.num} "${item.descricao}" ← banco "${m.best.descricao}" | SKU: ${antes.sku}→${item.sku} | NCM: ${antes.ncm}→${item.ncm} | Unid: ${antes.unidade}→${item.unidade}`);
   });
 
   if (synced > 0) {
-    saveContratos();
-    // Force IMMEDIATE cloud push (don't rely on 2s debounce)
+    // FIX: Salvar diretamente no localStorage SEM cloud sync debounce
+    const wrapped = { _v: 1, updatedAt: new Date().toISOString(), items: contratos };
+    localStorage.setItem(CONTRACTS_KEY, JSON.stringify(wrapped));
+    console.log(`[SyncBanco] Gravado direto no localStorage. ${synced} itens.`);
+
+    // Cloud sync separado (não bloqueia)
     if (_syncTimeout) { clearTimeout(_syncTimeout); _syncTimeout = null; }
-    try { await syncToCloud(); } catch(_) {}
-    console.log(`[SyncBanco] saveContratos() + syncToCloud() chamados. ${synced} itens atualizados.`);
+    try { await syncToCloud(); } catch(e) { console.warn("[SyncBanco] Cloud sync falhou:", e.message); }
   }
 
-  // Close modal THEN reopen contract (order matters!)
+  // Close modal
   document.getElementById("modal-sync-banco").classList.add("hidden");
   _syncBancoMatches = [];
   _syncBancoContratoId = null;
 
-  // Force reload from localStorage to guarantee fresh data
+  // FIX: Recarregar do localStorage (que JÁ tem dados corretos) e renderizar
   loadData();
+  renderAll();
   abrirContrato(contratoId);
   showToast(`${synced} item(ns) sincronizados com o Banco de Produtos!`, 4000);
+  if (changes.length > 0) console.log("[SyncBanco] Resumo:\n" + changes.join("\n"));
 }
 
 function fecharSyncBanco() {
