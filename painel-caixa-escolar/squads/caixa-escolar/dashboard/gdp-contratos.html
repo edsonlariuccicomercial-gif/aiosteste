@@ -823,8 +823,8 @@ function getSyncUserId() {
 async function cloudSave(key, data) {
   const userId = getSyncUserId();
   try {
-    // FIX Story 4.17: UPSERT ao invés de DELETE+POST (evita 409 duplicate key)
-    const resp = await fetch(`${SUPABASE_URL}/rest/v1/sync_data`, {
+    // FIX Story 4.17: UPSERT via Supabase on_conflict
+    const resp = await fetch(`${SUPABASE_URL}/rest/v1/sync_data?on_conflict=user_id,key`, {
       method: "POST",
       headers: {
         "apikey": SUPABASE_KEY, "Authorization": "Bearer " + SUPABASE_KEY,
