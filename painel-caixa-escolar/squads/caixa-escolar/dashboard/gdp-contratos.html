@@ -5994,9 +5994,11 @@ function exportarListaPDF() {
 
 // ===== BANCO DE PRODUTOS ERP =====
 const PRODUTOS_KEY = "gdp.produtos.v1";
-let bancoProdutos = { updatedAt: "", itens: [] };
-let _editProdutoId = null;
-let _importProdutosBuffer = [];
+// FIX: usar var para evitar temporal dead zone — initGDP e renderAll
+// chamam loadBancoProdutos() antes desta linha no fluxo de execução
+var bancoProdutos = { updatedAt: "", itens: [] };
+var _editProdutoId = null;
+var _importProdutosBuffer = [];
 
 function loadBancoProdutos() {
   try { bancoProdutos = JSON.parse(localStorage.getItem(PRODUTOS_KEY)) || { updatedAt: "", itens: [] }; } catch(_) { bancoProdutos = { updatedAt: "", itens: [] }; }
