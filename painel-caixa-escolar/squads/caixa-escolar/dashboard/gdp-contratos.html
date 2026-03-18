@@ -5809,11 +5809,29 @@ async function enviarTiny(contratoId) {
   // Re-render garantido
   renderAll();
 
-  // FIX Story 4.17: Cloud sync APENAS push (local → cloud), NUNCA pull na inicialização.
-  // O localStorage é a fonte de verdade. O cloud é backup.
-  // syncFromCloud() estava destruindo dados locais ao sobrescrever com dados antigos do Supabase.
+  // FIX Story 4.17: Cloud sync inteligente
+  // Se localStorage está vazio (browser novo ou dados perdidos) → restaurar do cloud
+  // Se localStorage tem dados → apenas push para backup
+  const localContratos = contratos.length;
+  const localUsuarios = (JSON.parse(localStorage.getItem("gdp.usuarios.v1") || "[]")).length || 0;
+
+  if (localContratos === 0 && localUsuarios === 0) {
+    console.log("[GDP] localStorage vazio — restaurando do cloud...");
+    try {
+      const restored = await syncFromCloud();
+      if (restored) {
+        loadData();
+        loadUsuarios();
+        renderAll();
+        console.log("[GDP] Dados restaurados do cloud com sucesso!");
+      }
+    } catch(e) { console.warn("[GDP] Restauração do cloud falhou:", e); }
+  } else {
+    console.log(`[GDP] localStorage OK (${localContratos} contratos, ${localUsuarios} usuarios). Push-only.`);
+  }
+
+  // Push local → cloud (backup)
   try { await syncToCloud(); } catch(_) {}
-  console.log("[GDP] Init completo. Cloud sync: push-only (local é master).");
 
   // Auto-refresh when portal escola or banco de produtos updates localStorage (cross-tab sync)
   window.addEventListener('storage', (e) => {
