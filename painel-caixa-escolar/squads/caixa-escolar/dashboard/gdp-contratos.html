@@ -5799,15 +5799,25 @@ async function enviarTiny(contratoId) {
 
 // ===== INIT =====
 (async function initGDP() {
-  try {
-    const synced = await syncFromCloud();
-    if (synced) console.log("[GDP] Cloud data synced to localStorage");
-  } catch (e) { console.warn("[GDP] Cloud sync pull failed:", e); }
+  // FIX: Carregar dados locais PRIMEIRO para render imediato
   loadData();
   loadUsuarios();
   loadBancoProdutos();
   renderAll();
-  // Push local data to cloud (populates Supabase with existing data)
+
+  // Cloud sync em background — se houver dados mais recentes, recarregar
+  try {
+    const synced = await syncFromCloud();
+    if (synced) {
+      console.log("[GDP] Cloud data synced to localStorage — reloading");
+      loadData();
+      loadUsuarios();
+      loadBancoProdutos();
+      renderAll();
+    }
+  } catch (e) { console.warn("[GDP] Cloud sync pull failed:", e); }
+
+  // Push local data to cloud
   try { await syncToCloud(); } catch(_) {}
 
   // Auto-refresh when portal escola or banco de produtos updates localStorage (cross-tab sync)
