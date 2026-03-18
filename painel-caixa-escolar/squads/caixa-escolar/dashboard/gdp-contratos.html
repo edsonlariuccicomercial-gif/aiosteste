@@ -5799,23 +5799,24 @@ async function enviarTiny(contratoId) {
 
 // ===== INIT =====
 (async function initGDP() {
-  // FIX: Carregar dados locais PRIMEIRO para render imediato
+  // Carregar dados locais primeiro (render imediato sem esperar cloud)
   loadData();
   loadUsuarios();
-  loadBancoProdutos();
+  // bancoProdutos é declarado mais abaixo — só pode chamar loadBancoProdutos depois
   renderAll();
 
-  // Cloud sync em background — se houver dados mais recentes, recarregar
+  // Cloud sync — se traz dados mais recentes, recarrega e re-renderiza
   try {
     const synced = await syncFromCloud();
     if (synced) {
       console.log("[GDP] Cloud data synced to localStorage — reloading");
       loadData();
       loadUsuarios();
-      loadBancoProdutos();
-      renderAll();
     }
   } catch (e) { console.warn("[GDP] Cloud sync pull failed:", e); }
+
+  // Re-render garantido (com ou sem cloud sync)
+  renderAll();
 
   // Push local data to cloud
   try { await syncToCloud(); } catch(_) {}
