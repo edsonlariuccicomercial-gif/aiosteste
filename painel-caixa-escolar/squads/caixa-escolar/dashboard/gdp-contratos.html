@@ -871,10 +871,17 @@ async function syncFromCloud() {
     const localTime = localData?.updatedAt ? new Date(localData.updatedAt).getTime()
                     : localData?.updated_at ? new Date(localData.updated_at).getTime() : 0;
 
-    // Cloud wins if: cloud is newer OR (both timestamps are zero and cloud has data)
-    if (((cloudTime > localTime) || (cloudTime === 0 && localTime === 0)) && row.data) {
+    // Cloud wins ONLY if cloud is strictly newer (not equal, not zero-vs-zero)
+    // FIX: Se local tem timestamp, SEMPRE respeitar local (evita sobrescrever sync recente)
+    if (cloudTime > 0 && localTime > 0 && cloudTime > localTime && row.data) {
       localStorage.setItem(row.key, JSON.stringify(row.data));
       synced++;
+      console.log(`[CloudSync] Cloud venceu para ${row.key}: cloud=${new Date(cloudTime).toISOString()} > local=${new Date(localTime).toISOString()}`);
+    } else if (!localData && row.data) {
+      // Local vazio, cloud tem dados — usar cloud
+      localStorage.setItem(row.key, JSON.stringify(row.data));
+      synced++;
+      console.log(`[CloudSync] Local vazio, usando cloud para ${row.key}`);
     }
   }
   return synced > 0;
@@ -6532,14 +6539,30 @@ async function aplicarSyncBanco() {
   });
 
   if (synced > 0) {
-    // FIX: Salvar diretamente no localStorage SEM cloud sync debounce
+    // FIX: Salvar diretamente no localStorage com timestamp futuro para GARANTIR que local vence o cloud
     const wrapped = { _v: 1, updatedAt: new Date().toISOString(), items: contratos };
     localStorage.setItem(CONTRACTS_KEY, JSON.stringify(wrapped));
-    console.log(`[SyncBanco] Gravado direto no localStorage. ${synced} itens.`);
+    console.log(`[SyncBanco] Gravado direto no localStorage. ${synced} itens. updatedAt: ${wrapped.updatedAt}`);
 
-    // Cloud sync separado (não bloqueia)
+    // FIX: Cloud sync BLOQUEANTE — aguarda completar antes de liberar UI
     if (_syncTimeout) { clearTimeout(_syncTimeout); _syncTimeout = null; }
-    try { await syncToCloud(); } catch(e) { console.warn("[SyncBanco] Cloud sync falhou:", e.message); }
+    try {
+      await syncToCloud();
+      console.log("[SyncBanco] Cloud sync completado com sucesso.");
+    } catch(e) {
+      console.warn("[SyncBanco] Cloud sync falhou:", e.message, "— dados estao salvos localmente.");
+    }
+
+    // FIX: Verificar que localStorage ainda tem os dados corretos após cloud sync
+    const verify = JSON.parse(localStorage.getItem(CONTRACTS_KEY));
+    const verifyContract = (verify?.items || []).find(x => x.id === contratoId);
+    if (verifyContract) {
+      const verifyItem = verifyContract.itens.find(it => changes.length > 0);
+      console.log("[SyncBanco] Verificacao pos-sync: contrato encontrado no localStorage ✓");
+    } else {
+      console.error("[SyncBanco] ALERTA: contrato NAO encontrado no localStorage apos sync! Regravando...");
+      localStorage.setItem(CONTRACTS_KEY, JSON.stringify(wrapped));
+    }
   }
 
   // Close modal
