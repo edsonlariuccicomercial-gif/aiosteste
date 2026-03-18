@@ -5806,21 +5806,14 @@ async function enviarTiny(contratoId) {
   // bancoProdutos é declarado mais abaixo — só pode chamar loadBancoProdutos depois
   renderAll();
 
-  // Cloud sync — se traz dados mais recentes, recarrega e re-renderiza
-  try {
-    const synced = await syncFromCloud();
-    if (synced) {
-      console.log("[GDP] Cloud data synced to localStorage — reloading");
-      loadData();
-      loadUsuarios();
-    }
-  } catch (e) { console.warn("[GDP] Cloud sync pull failed:", e); }
-
-  // Re-render garantido (com ou sem cloud sync)
+  // Re-render garantido
   renderAll();
 
-  // Push local data to cloud
+  // FIX Story 4.17: Cloud sync APENAS push (local → cloud), NUNCA pull na inicialização.
+  // O localStorage é a fonte de verdade. O cloud é backup.
+  // syncFromCloud() estava destruindo dados locais ao sobrescrever com dados antigos do Supabase.
   try { await syncToCloud(); } catch(_) {}
+  console.log("[GDP] Init completo. Cloud sync: push-only (local é master).");
 
   // Auto-refresh when portal escola or banco de produtos updates localStorage (cross-tab sync)
   window.addEventListener('storage', (e) => {
