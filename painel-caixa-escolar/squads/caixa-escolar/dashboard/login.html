@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Login — Licit-AIX</title>
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .login-container { width: 100%; max-width: 380px; }
+    .login-card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 32px 28px;
+      backdrop-filter: blur(12px);
+      text-align: center;
+    }
+    .login-card h1 {
+      font-size: 1.3rem;
+      margin-bottom: 4px;
+    }
+    .login-card .eyebrow { margin-bottom: 24px; }
+    .login-input {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      color: var(--text);
+      padding: 10px 12px;
+      font-size: 0.9rem;
+      outline: none;
+      margin-bottom: 12px;
+      transition: border-color 0.2s;
+    }
+    .login-input:focus { border-color: var(--accent); }
+    .login-btn {
+      width: 100%;
+      padding: 10px;
+      border: none;
+      border-radius: 6px;
+      background: var(--accent);
+      color: #0d1412;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    .login-btn:hover { opacity: 0.85; }
+    .login-error {
+      color: var(--danger);
+      font-size: 0.8rem;
+      margin-top: 12px;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="login-container">
+    <div class="login-card">
+      <p class="eyebrow">Painel do Fornecedor</p>
+      <h1>Licit-AIX</h1>
+      <p style="color:#94a3b8;font-size:0.85rem;margin-top:0.3rem;line-height:1.4;font-style:italic;">Inteligência comercial para fornecedores da educação pública</p>
+      <form id="login-form" style="margin-top:24px;">
+        <input type="text" class="login-input" id="login-user" placeholder="Usuário" autocomplete="username" required />
+        <input type="password" class="login-input" id="login-pass" placeholder="Senha" autocomplete="current-password" required />
+        <button type="submit" class="login-btn">Entrar</button>
+        <p class="login-error" id="login-error">Usuário ou senha inválidos.</p>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const AUTH_CONFIG = {
+      user: "lariucci",
+      passHash: "b01b3ce6c2432fe67e535235bd985a787557c9584b56c70e855abad11d0bd871",
+      sessionKey: "ce.auth",
+    };
+
+    // Already logged in? Go to dashboard
+    if (sessionStorage.getItem(AUTH_CONFIG.sessionKey) === AUTH_CONFIG.passHash) {
+      window.location.href = "dashboard-home.html";
+    }
+
+    async function sha256(text) {
+      const data = new TextEncoder().encode(text);
+      const buf = await crypto.subtle.digest("SHA-256", data);
+      return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
+    }
+
+    document.getElementById("login-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const user = document.getElementById("login-user").value.trim();
+      const pass = document.getElementById("login-pass").value;
+      const hash = await sha256(pass);
+
+      if (user === AUTH_CONFIG.user && hash === AUTH_CONFIG.passHash) {
+        sessionStorage.setItem(AUTH_CONFIG.sessionKey, AUTH_CONFIG.passHash);
+        window.location.href = "dashboard-home.html";
+      } else {
+        document.getElementById("login-error").style.display = "block";
+      }
+    });
+  </script>
+</body>
+</html>

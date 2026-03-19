@@ -1,0 +1,17 @@
+{
+  "generatedAt": "2026-03-03T23:40:46.780Z",
+  "proposals": [
+    {
+      "budgetId": "2026007531",
+      "items": [
+        {
+          "name": "Oleo Vegetal Soja Litro",
+          "quantity": 95,
+          "unitPrice": 11.05,
+          "totalPrice": 1049.75
+        }
+      ],
+      "total": 1049.75
+    }
+  ]
+}

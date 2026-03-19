@@ -1,0 +1,110 @@
+{
+  "updatedAt": "2026-03-02",
+  "defaults": {
+    "fretePct": 2.5,
+    "opexPct": 6,
+    "impostosPct": 8.5,
+    "margemAlvoPct": 18
+  },
+  "serviceCostBands": [
+    {
+      "name": "Rodizio e buffet",
+      "skuPrefix": "SERV-EVENTO",
+      "keywords": ["rodizio", "pizza", "buffet", "confraternizacao"],
+      "custoBase": 62
+    },
+    {
+      "name": "Excursao e transporte",
+      "skuPrefix": "SERV-EVENTO",
+      "keywords": ["excursao", "transporte", "viagem"],
+      "custoBase": 88
+    },
+    {
+      "name": "Formatura e cerimonial",
+      "skuPrefix": "SERV-EVENTO",
+      "keywords": ["formatura", "cerimonial", "colacao"],
+      "custoBase": 74
+    }
+  ],
+  "items": [
+    {
+      "sku": "ALIM-ARROZ-5KG",
+      "descricao": "Arroz tipo 1 5kg",
+      "custoBase": 24.8
+    },
+    {
+      "sku": "ALIM-FEIJAO-1KG",
+      "descricao": "Feijao carioca 1kg",
+      "custoBase": 7.9
+    },
+    {
+      "sku": "LIMP-AGUA-SANITARIA-1L",
+      "descricao": "Agua sanitaria 1 litro",
+      "custoBase": 3.4
+    },
+    {
+      "sku": "ESCR-CADERNO-10M",
+      "descricao": "Caderno brochura 10 materias",
+      "custoBase": 13.7
+    },
+    {
+      "sku": "SERV-EVENTO-ESCOLAR",
+      "descricao": "Servico de evento e confraternizacao escolar",
+      "custoBase": 49.5
+    },
+    {
+      "sku": "MANUT-REFORMA-GERAL",
+      "descricao": "Servico de manutencao e reforma predial escolar",
+      "custoBase": 85.0
+    },
+    {
+      "sku": "CAPAC-FORMACAO-EDU",
+      "descricao": "Capacitacao e formacao de profissionais da educacao",
+      "custoBase": 55.0
+    },
+    {
+      "sku": "SERV-OPERACIONAL-CONT",
+      "descricao": "Servico operacional continuo escolar",
+      "custoBase": 42.0
+    },
+    {
+      "sku": "GAS-RECARGA-13KG",
+      "descricao": "Recarga de gas de cozinha 13kg",
+      "custoBase": 95.0
+    },
+    {
+      "sku": "EQUIP-COZINHA-GERAL",
+      "descricao": "Equipamento de cozinha escolar",
+      "custoBase": 120.0
+    },
+    {
+      "sku": "MATPED-SEGURANCA",
+      "descricao": "Material pedagogico de seguranca",
+      "custoBase": 38.0
+    },
+    {
+      "sku": "EQUIP-TECNOLOGIA",
+      "descricao": "Equipamento tecnologico escolar",
+      "custoBase": 250.0
+    },
+    {
+      "sku": "EQUIP-SEGURANCA",
+      "descricao": "Equipamento de seguranca escolar",
+      "custoBase": 65.0
+    },
+    {
+      "sku": "MOBIL-ADMINISTRATIVO",
+      "descricao": "Mobiliario administrativo escolar",
+      "custoBase": 180.0
+    }
+  ],
+  "regionFactorBySre": {
+    "SRE Curvelo": 1.03,
+    "SRE Metropolitana B": 1.0,
+    "SRE Metropolitana C": 1.01,
+    "SRE Nao mapeada": 1.04,
+    "SRE Uberlandia": 1.02,
+    "SRE Uberaba": 1.02,
+    "SRE Varginha": 1.03
+  }
+}

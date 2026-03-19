@@ -1,0 +1,79 @@
+{
+  "version": "1.0.0",
+  "lastUpdated": "2026-03-02T20:46:26.150Z",
+  "retentionDays": 30,
+  "layers": {
+    "layer1": {
+      "totalRuns": 1,
+      "passRate": 1,
+      "avgTimeMs": 1200,
+      "lastRun": "2026-03-02T20:46:26.149Z"
+    },
+    "layer2": {
+      "totalRuns": 0,
+      "passRate": 0,
+      "avgTimeMs": 0,
+      "lastRun": null,
+      "autoCatchRate": 0,
+      "coderabbit": {
+        "active": false,
+        "findingsCount": 0,
+        "severityBreakdown": {
+          "critical": 0,
+          "high": 0,
+          "medium": 0,
+          "low": 0
+        }
+      },
+      "quinn": {
+        "findingsCount": 0,
+        "topCategories": []
+      }
+    },
+    "layer3": {
+      "totalRuns": 0,
+      "passRate": 0,
+      "avgTimeMs": 0,
+      "lastRun": null
+    }
+  },
+  "trends": {
+    "passRates": [
+      {
+        "layer": 1,
+        "passRate": 1,
+        "totalRuns": 1
+      },
+      {
+        "layer": 2,
+        "passRate": 0,
+        "totalRuns": 0
+      },
+      {
+        "layer": 3,
+        "passRate": 0,
+        "totalRuns": 0
+      }
+    ],
+    "autoCatchRate": [
+      {
+        "layer": 2,
+        "value": 0
+      }
+    ]
+  },
+  "history": [
+    {
+      "timestamp": "2026-03-02T20:46:26.149Z",
+      "layer": 1,
+      "passed": true,
+      "durationMs": 1200,
+      "findingsCount": 0,
+      "metadata": {
+        "triggeredBy": "cli"
+      },
+      "coderabbit": null,
+      "quinn": null
+    }
+  ]
+}

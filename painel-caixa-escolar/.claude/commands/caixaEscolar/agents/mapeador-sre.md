@@ -1,0 +1,1 @@
+Read the file at squads/caixa-escolar/agents/mapeador-sre.md and follow the instructions. This is the SRE mapping specialist - maps schools to municipalities and regional education offices (SREs) in MG.

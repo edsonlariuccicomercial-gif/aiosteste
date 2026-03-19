@@ -1,0 +1,42 @@
+{
+  "startedAt": "2026-03-03T01:31:11.917Z",
+  "date": "2026-03-03",
+  "customer": "Fornecedor MG",
+  "cnpj": "nao informado",
+  "owner": "operacao",
+  "durationMin": 30,
+  "steps": [
+    {
+      "block": "0-10 min",
+      "name": "Acesso e credenciais",
+      "checklist": [
+        "Validar credenciais SGD (SGD_DOC/SGD_CNPJ e SGD_PASS).",
+        "Confirmar acesso local ao projeto.",
+        "Definir SREs foco e volume alvo do dia."
+      ]
+    },
+    {
+      "block": "10-20 min",
+      "name": "Primeira rodada operacional",
+      "checklist": [
+        "Executar npm.cmd run ops:daily:collect.",
+        "Validar dashboard/data/ops-daily-run-report.json.",
+        "Validar docs/ops/ops-daily-last-run.md."
+      ]
+    },
+    {
+      "block": "20-30 min",
+      "name": "Leitura e acao",
+      "checklist": [
+        "Executar npm.cmd run dashboard:serve.",
+        "Filtrar cotacoes por SRE/municipio prioritario.",
+        "Exportar urgentes e iniciar tratativa de itens <= 48h."
+      ]
+    }
+  ],
+  "successCriteria": [
+    "Pipeline ops:daily:collect sem erro.",
+    "Cobertura SKU >= 95%.",
+    "Operador gera lista de urgentes sem suporte."
+  ]
+}

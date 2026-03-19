@@ -1,0 +1,71 @@
+{
+  "fornecedor": {
+    "razaoSocial": "Edson de Sousa Gonçalves",
+    "nomeFantasia": "LARIUCCI",
+    "cnpj": "36.802.147/0001-42",
+    "municipio": "Conquista",
+    "uf": "MG"
+  },
+  "config": {
+    "margemPadrao": 0.30,
+    "fretePadraoKm": 1.20,
+    "srePrincipal": "Uberaba",
+    "gruposAtendidos": [
+      "Gêneros Alimentícios",
+      "Material de Consumo Geral",
+      "Material Pedagógico",
+      "Equipamentos Tecnológicos",
+      "Mobiliários Administrativos",
+      "Climatização",
+      "Equipamentos de Cozinha",
+      "Utensílios de Cozinha",
+      "Mobiliários de Cozinha",
+      "Equipamentos Pedagógicos",
+      "Equipamentos de Segurança",
+      "Prêmio SAEB",
+      "Projetos Pedagógicos e Atividades Educacionais",
+      "Material Pedagógico de Segurança",
+      "Material Pedagógico Musical",
+      "Capacitação e Formação para Profissionais da Educação"
+    ],
+    "gruposExcluidos": [
+      "Obras",
+      "Manutenção e Reformas",
+      "Serviço de Transporte Contínuo",
+      "Serviços Operacionais Contínuos",
+      "Conservação e pequenos reparos",
+      "Gás recarga"
+    ]
+  },
+  "distancias": {
+    "origem": "Conquista-MG",
+    "estimativas": {
+      "Agua Comprida": 85,
+      "Araxa": 180,
+      "Campo Florido": 60,
+      "Campos Altos": 220,
+      "Carneirinho": 280,
+      "Comendador Gomes": 40,
+      "Conceicao das Alagoas": 90,
+      "Conquista": 0,
+      "Delta": 75,
+      "Fronteira": 250,
+      "Frutal": 200,
+      "Ibia": 210,
+      "Itapagipe": 170,
+      "Iturama": 260,
+      "Limeira do Oeste": 310,
+      "Pedrinopolis": 140,
+      "Pirajuba": 55,
+      "Planura": 100,
+      "Pratinha": 200,
+      "Sacramento": 110,
+      "Santa Juliana": 150,
+      "Sao Francisco de Sales": 290,
+      "Tapira": 170,
+      "Uberaba": 30,
+      "Uniao de Minas": 270,
+      "Verissimo": 25
+    }
+  }
+}

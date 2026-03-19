@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192">
+  <rect width="192" height="192" rx="40" fill="#1e293b"/>
+  <rect x="8" y="8" width="176" height="176" rx="36" fill="#0f172a" stroke="#3b82f6" stroke-width="3"/>
+  <text x="96" y="105" text-anchor="middle" font-size="80" dominant-baseline="central">🚚</text>
+  <text x="96" y="158" text-anchor="middle" font-size="18" fill="#3b82f6" font-weight="bold" font-family="sans-serif">GDP</text>
+</svg>

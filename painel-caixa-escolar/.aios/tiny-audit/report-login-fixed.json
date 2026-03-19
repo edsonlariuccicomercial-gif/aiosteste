@@ -1,0 +1,107 @@
+{
+  "startedAt": "2026-03-02T15:08:48.589Z",
+  "steps": [
+    {
+      "name": "post_login_state",
+      "url": "https://erp.tiny.com.br/",
+      "title": "ERP da Olist - Home",
+      "logged": true,
+      "hasUserField": false,
+      "hasPasswordField": false,
+      "inputs": [
+        {
+          "id": "",
+          "name": "opcTemaSistema",
+          "type": "radio",
+          "placeholder": ""
+        },
+        {
+          "id": "",
+          "name": "opcTemaSistema",
+          "type": "radio",
+          "placeholder": ""
+        },
+        {
+          "id": "",
+          "name": "opcTemaSistema",
+          "type": "radio",
+          "placeholder": ""
+        },
+        {
+          "id": "mainMenuToggleFixed",
+          "name": "",
+          "type": "checkbox",
+          "placeholder": ""
+        },
+        {
+          "id": "",
+          "name": "opcTemaSistemaMobile",
+          "type": "radio",
+          "placeholder": ""
+        },
+        {
+          "id": "",
+          "name": "opcTemaSistemaMobile",
+          "type": "radio",
+          "placeholder": ""
+        },
+        {
+          "id": "",
+          "name": "opcTemaSistemaMobile",
+          "type": "radio",
+          "placeholder": ""
+        },
+        {
+          "id": "jsParams_Index",
+          "name": "",
+          "type": "hidden",
+          "placeholder": ""
+        },
+        {
+          "id": "jsParams_featureFlags",
+          "name": "",
+          "type": "hidden",
+          "placeholder": ""
+        },
+        {
+          "id": "jsParams_dadosConta",
+          "name": "",
+          "type": "hidden",
+          "placeholder": ""
+        },
+        {
+          "id": "jsParams_onboarding",
+          "name": "",
+          "type": "hidden",
+          "placeholder": ""
+        },
+        {
+          "id": "jsParams___sessionParameters",
+          "name": "",
+          "type": "hidden",
+          "placeholder": ""
+        },
+        {
+          "id": "jsParams_xajax",
+          "name": "",
+          "type": "hidden",
+          "placeholder": ""
+        },
+        {
+          "id": "jsParams_menuLisChat",
+          "name": "",
+          "type": "hidden",
+          "placeholder": ""
+        }
+      ],
+      "buttons": [
+        "×",
+        "Ações",
+        "Ações"
+      ],
+      "bodySample": "?\n5\nL\nÍndice\nDashboard\nAgenda\nMinha conta\nIntegrações\nUpgrade de plano\nSobre a versão\nAjuda do ERP\nFerramentas\nLoja de extensões\nShopping de Serviços\nInício\n×\n\nNovo recurso de crédito: Parabéns! Você está fazendo parte do primeiro grupo de clientes a ter acesso ao nosso recurso de crédito. Para este primeiro grupo, estamos oferecendo taxas reduzidas. Confira em \"Menu > Finanças > Crédito da Olist\"\n\nBoa tarde, Lariucci\nDescubra o que mudou no ERP na última semana\nMinhas integrações\nadicionar integração\nMercado Livre\nações\npedidos\n0\n5m \nver pedidos\nShopee\nações\nprocessado\n0\n5m \nver pedidos"
+    }
+  ],
+  "errors": [],
+  "finishedAt": "2026-03-02T15:08:57.555Z"
+}

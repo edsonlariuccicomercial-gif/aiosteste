@@ -1,0 +1,2 @@
+[     159ms] [WARNING] <meta name="apple-mobile-web-app-capable" content="yes"> is deprecated. Please include <meta name="mobile-web-app-capable" content="yes"> @ https://painel-caixa-escolar.netlify.app/gdp-entregador.html:0
+[   36272ms] [WARNING] Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently @ https://painel-caixa-escolar.netlify.app/gdp-entregador.html:428

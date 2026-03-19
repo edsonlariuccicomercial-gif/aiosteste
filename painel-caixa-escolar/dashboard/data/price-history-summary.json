@@ -1,0 +1,297 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-03-03T17:46:39.711Z",
+  "sourceEntries": 68,
+  "skuSummary": [
+    {
+      "sku": "ALIM-ARROZ-5KG",
+      "count": 3,
+      "min": 5048.36,
+      "median": 5160.6,
+      "avg": 10622.54,
+      "max": 21658.66,
+      "lastCollectedAt": "2026-03-03"
+    },
+    {
+      "sku": "CAPAC-FORMACAO-EDU",
+      "count": 8,
+      "min": 10624.98,
+      "median": 12035.3,
+      "avg": 14728.91,
+      "max": 22778.62,
+      "lastCollectedAt": "2026-03-03"
+    },
+    {
+      "sku": "EQUIP-COZINHA-GERAL",
+      "count": 1,
+      "min": 15498.88,
+      "median": 15498.88,
+      "avg": 15498.88,
+      "max": 15498.88,
+      "lastCollectedAt": "2026-03-03"
+    },
+    {
+      "sku": "EQUIP-SEGURANCA",
+      "count": 1,
+      "min": 16141.82,
+      "median": 16141.82,
+      "avg": 16141.82,
+      "max": 16141.82,
+      "lastCollectedAt": "2026-03-03"
+    },
+    {
+      "sku": "EQUIP-TECNOLOGIA",
+      "count": 1,
+      "min": 24541.52,
+      "median": 24541.52,
+      "avg": 24541.52,
+      "max": 24541.52,
+      "lastCollectedAt": "2026-03-03"
+    },
+    {
+      "sku": "ESCR-CADERNO-10M",
+      "count": 2,
+      "min": 6186.62,
+      "median": 13124.15,
+      "avg": 13124.15,
+      "max": 20061.68,
+      "lastCollectedAt": "2026-03-03"
+    },
+    {
+      "sku": "GAS-RECARGA-13KG",
+      "count": 2,
+      "min": 12450.1,
+      "median": 17863.24,
+      "avg": 17863.24,
+      "max": 23276.38,
+      "lastCollectedAt": "2026-03-03"
+    },
+    {
+      "sku": "MANUT-REFORMA-GERAL",
+      "count": 30,
+      "min": 5875.52,
+      "median": 18350.63,
+      "avg": 17212.7,
+      "max": 20538.7,
+      "lastCollectedAt": "2026-03-03"
+    },
+    {
+      "sku": "MATPED-SEGURANCA",
+      "count": 1,
+      "min": 10562.76,
+      "median": 10562.76,
+      "avg": 10562.76,
+      "max": 10562.76,
+      "lastCollectedAt": "2026-03-03"
+    },
+    {
+      "sku": "MOBIL-ADMINISTRATIVO",
+      "count": 1,
+      "min": 5875.52,
+      "median": 5875.52,
+      "avg": 5875.52,
+      "max": 5875.52,
+      "lastCollectedAt": "2026-03-03"
+    },
+    {
+      "sku": "SERV-EVENTO-ESCOLAR",
+      "count": 15,
+      "min": 4908.06,
+      "median": 5132.54,
+      "avg": 9720.55,
+      "max": 22301.6,
+      "lastCollectedAt": "2026-03-03"
+    },
+    {
+      "sku": "SERV-OPERACIONAL-CONT",
+      "count": 3,
+      "min": 18361,
+      "median": 19211.34,
+      "avg": 19370.35,
+      "max": 20538.7,
+      "lastCollectedAt": "2026-03-03"
+    }
+  ],
+  "skuRegionSummary": [
+    {
+      "sku": "ALIM-ARROZ-5KG",
+      "sre": "SRE Curvelo",
+      "count": 1,
+      "min": 5048.36,
+      "median": 5048.36,
+      "avg": 5048.36,
+      "max": 5048.36,
+      "lastCollectedAt": "2026-03-03"
+    },
+    {
+      "sku": "ALIM-ARROZ-5KG",
+      "sre": "SRE Metropolitana B",
+      "count": 1,
+      "min": 5160.6,
+      "median": 5160.6,
+      "avg": 5160.6,
+      "max": 5160.6,
+      "lastCollectedAt": "2026-03-03"
+    },
+    {
+      "sku": "ALIM-ARROZ-5KG",
+      "sre": "SRE Uberaba",
+      "count": 1,
+      "min": 21658.66,
+      "median": 21658.66,
+      "avg": 21658.66,
+      "max": 21658.66,
+      "lastCollectedAt": "2026-03-03"
+    },
+    {
+      "sku": "CAPAC-FORMACAO-EDU",
+      "sre": "SRE Uberaba",
+      "count": 8,
+      "min": 10624.98,
+      "median": 12035.3,
+      "avg": 14728.91,
+      "max": 22778.62,
+      "lastCollectedAt": "2026-03-03"
+    },
+    {
+      "sku": "EQUIP-COZINHA-GERAL",
+      "sre": "SRE Uberaba",
+      "count": 1,
+      "min": 15498.88,
+      "median": 15498.88,
+      "avg": 15498.88,
+      "max": 15498.88,
+      "lastCollectedAt": "2026-03-03"
+    },
+    {
+      "sku": "EQUIP-SEGURANCA",
+      "sre": "SRE Uberaba",
+      "count": 1,
+      "min": 16141.82,
+      "median": 16141.82,
+      "avg": 16141.82,
+      "max": 16141.82,
+      "lastCollectedAt": "2026-03-03"
+    },
+    {
+      "sku": "EQUIP-TECNOLOGIA",
+      "sre": "SRE Uberaba",
+      "count": 1,
+      "min": 24541.52,
+      "median": 24541.52,
+      "avg": 24541.52,
+      "max": 24541.52,
+      "lastCollectedAt": "2026-03-03"
+    },
+    {
+      "sku": "ESCR-CADERNO-10M",
+      "sre": "SRE Uberaba",
+      "count": 2,
+      "min": 6186.62,
+      "median": 13124.15,
+      "avg": 13124.15,
+      "max": 20061.68,
+      "lastCollectedAt": "2026-03-03"
+    },
+    {
+      "sku": "GAS-RECARGA-13KG",
+      "sre": "SRE Uberaba",
+      "count": 2,
+      "min": 12450.1,
+      "median": 17863.24,
+      "avg": 17863.24,
+      "max": 23276.38,
+      "lastCollectedAt": "2026-03-03"
+    },
+    {
+      "sku": "MANUT-REFORMA-GERAL",
+      "sre": "SRE Uberaba",
+      "count": 30,
+      "min": 5875.52,
+      "median": 18350.63,
+      "avg": 17212.7,
+      "max": 20538.7,
+      "lastCollectedAt": "2026-03-03"
+    },
+    {
+      "sku": "MATPED-SEGURANCA",
+      "sre": "SRE Uberaba",
+      "count": 1,
+      "min": 10562.76,
+      "median": 10562.76,
+      "avg": 10562.76,
+      "max": 10562.76,
+      "lastCollectedAt": "2026-03-03"
+    },
+    {
+      "sku": "MOBIL-ADMINISTRATIVO",
+      "sre": "SRE Uberaba",
+      "count": 1,
+      "min": 5875.52,
+      "median": 5875.52,
+      "avg": 5875.52,
+      "max": 5875.52,
+      "lastCollectedAt": "2026-03-03"
+    },
+    {
+      "sku": "SERV-EVENTO-ESCOLAR",
+      "sre": "SRE Metropolitana B",
+      "count": 5,
+      "min": 4908.06,
+      "median": 5104.48,
+      "avg": 5065.2,
+      "max": 5132.54,
+      "lastCollectedAt": "2026-03-03"
+    },
+    {
+      "sku": "SERV-EVENTO-ESCOLAR",
+      "sre": "SRE Metropolitana C",
+      "count": 1,
+      "min": 4992.24,
+      "median": 4992.24,
+      "avg": 4992.24,
+      "max": 4992.24,
+      "lastCollectedAt": "2026-03-03"
+    },
+    {
+      "sku": "SERV-EVENTO-ESCOLAR",
+      "sre": "SRE Uberaba",
+      "count": 7,
+      "min": 8426.54,
+      "median": 15851.46,
+      "avg": 15072.23,
+      "max": 22301.6,
+      "lastCollectedAt": "2026-03-03"
+    },
+    {
+      "sku": "SERV-EVENTO-ESCOLAR",
+      "sre": "SRE Uberlandia",
+      "count": 1,
+      "min": 4964.18,
+      "median": 4964.18,
+      "avg": 4964.18,
+      "max": 4964.18,
+      "lastCollectedAt": "2026-03-03"
+    },
+    {
+      "sku": "SERV-EVENTO-ESCOLAR",
+      "sre": "SRE Varginha",
+      "count": 1,
+      "min": 5020.3,
+      "median": 5020.3,
+      "avg": 5020.3,
+      "max": 5020.3,
+      "lastCollectedAt": "2026-03-03"
+    },
+    {
+      "sku": "SERV-OPERACIONAL-CONT",
+      "sre": "SRE Uberaba",
+      "count": 3,
+      "min": 18361,
+      "median": 19211.34,
+      "avg": 19370.35,
+      "max": 20538.7,
+      "lastCollectedAt": "2026-03-03"
+    }
+  ]
+}

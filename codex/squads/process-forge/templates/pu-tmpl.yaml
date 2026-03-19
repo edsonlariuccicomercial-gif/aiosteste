@@ -1,0 +1,71 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# TEMPLATE: Process Unit (PU)
+# ═══════════════════════════════════════════════════════════════════════════════
+# Usar este template para registrar cada unidade atomica extraida.
+# Substituir {placeholders} pelos valores reais.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# --- CAMPOS UNIVERSAIS (obrigatorios em todo PU) ---
+pu_id: "PU-{process_slug}-{sequence:3d}"
+type: "{STEP|DECISION|EXCEPTION|QUALITY_GATE|DEPENDENCY|INPUT|OUTPUT|TACIT}"
+content: "{Descricao atomica do que este PU captura}"
+source_lens: "{L1|L2|L3|L4|L5|L6|L7|L8}"
+source_round: "{R1|R2|R3|RN}"
+confidence: 0.0  # 0.0-1.0 (1.0 = usuario confirmou explicitamente)
+inferred: false  # true se nao veio diretamente do usuario
+
+# --- CAMPOS OPCIONAIS UNIVERSAIS ---
+depends_on: []       # PU-IDs que este PU depende
+related_to: []       # PU-IDs relacionados (cross-reference)
+user_confirmed: false  # true apos playback validation
+notes: ""            # Observacoes do archaeologist
+
+# --- CAMPOS ESPECIFICOS POR TIPO ---
+
+# Se type: STEP
+# executor_hint: "{human|agent|hybrid|worker}"
+# estimated_time: "{Xmin|Xh}"
+# tools_used: []
+# templates_used: []
+
+# Se type: DECISION
+# condition: "IF {condicao explicita}"
+# branches:
+#   - "THEN: {acao quando condicao e verdadeira}"
+#   - "ELSE: {acao quando condicao e falsa}"
+# criteria: "{O que determina a escolha — vem do usuario}"
+# quantification: "{numeros/metricas se aplicavel}"
+
+# Se type: EXCEPTION
+# trigger: "{O que causa esta excecao}"
+# response: "{O que o usuario faz quando acontece}"
+# severity: "{blocker|degraded|cosmetic}"
+# frequency: "{raro|ocasional|recorrente}"
+# recovery_time: "{tempo estimado pra resolver}"
+
+# Se type: QUALITY_GATE
+# criteria: "{Como saber se ta certo — verificavel}"
+# applies_to: []  # PU-IDs dos passos que valida
+# antipatterns: []  # O que NUNCA pode acontecer
+# blocking: true  # true se para o processo, false se e warning
+
+# Se type: DEPENDENCY
+# from_pu: "PU-xxx"  # PU que precisa estar completo
+# to_pu: "PU-xxx"    # PU que depende
+# type_dep: "{blocking|soft|external}"
+# reason: "{Por que essa dependencia existe}"
+
+# Se type: INPUT
+# consumed_by: "PU-xxx"  # Passo que usa este input
+# source: "{De onde vem}"
+# format: "{tipo do input}"
+
+# Se type: OUTPUT
+# produced_by: "PU-xxx"  # Passo que gera este output
+# consumed_by: []  # Passos que usam este output
+# format: "{tipo do output}"
+
+# Se type: TACIT
+# manifestation: "{Como se manifesta na pratica}"
+# related_steps: []  # Passos onde aparece
+# heuristic: "{Regra de bolso, se possivel extrair}"

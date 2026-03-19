@@ -1,0 +1,135 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# EXECUTOR MAPPING GUIDE
+# ═══════════════════════════════════════════════════════════════════════════════
+# Guia para o @forge-smith classificar cada passo do processo em um tipo
+# de executor. Determina se o passo pode ser automatizado por agente,
+# precisa do humano, ou e hibrido.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+version: "1.0.0"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TIPOS DE EXECUTOR
+# ─────────────────────────────────────────────────────────────────────────────
+executors:
+  agent:
+    description: "Agente IA executa sozinho, sem supervisao humana"
+    symbol: "🤖"
+    criteria:
+      - "Passo e repetivel e previsivel"
+      - "Regras claras e documentadas"
+      - "Nao requer julgamento subjetivo do dono"
+      - "Output pode ser validado por criterios objetivos"
+      - "Ferramentas usadas sao acessiveis por IA"
+    examples:
+      - "Gerar primeira versao de copy baseado em template"
+      - "Formatar documento seguindo padrao"
+      - "Pesquisar informacoes em fontes definidas"
+      - "Aplicar checklist de validacao"
+      - "Montar estrutura de documento a partir de brief"
+
+  human:
+    description: "Somente o dono pode fazer — requer julgamento, relacao ou criatividade unica"
+    symbol: "👤"
+    criteria:
+      - "Requer julgamento subjetivo que define a qualidade"
+      - "Envolve relacao direta com cliente/parceiro"
+      - "Depende de intuicao ou experiencia unica do dono"
+      - "Decisao estrategica de alto impacto"
+      - "Aprovacao final antes de publicar/entregar"
+    examples:
+      - "Decisao de precificacao"
+      - "Revisao final de conteudo (tom de voz pessoal)"
+      - "Call de vendas com cliente"
+      - "Definicao da promessa core da oferta"
+      - "Feedback personalizado para aluno/mentorado"
+
+  hybrid:
+    description: "Agente prepara, humano revisa/decide/ajusta"
+    symbol: "🤝"
+    criteria:
+      - "Passo tem parte mecanica (agente) e parte criativa (humano)"
+      - "Agente pode fazer 80%, humano refina 20%"
+      - "Requer aprovacao humana mas nao execucao completa"
+      - "Rascunho por IA, polish por humano"
+    examples:
+      - "Agente escreve rascunho de email, dono ajusta tom"
+      - "Agente analisa dados, dono decide estrategia"
+      - "Agente monta briefing, dono valida e complementa"
+      - "Agente pesquisa opcoes, dono escolhe"
+
+  worker:
+    description: "Execucao deterministica, sem IA — script, automacao, regra fixa"
+    symbol: "⚙️"
+    criteria:
+      - "Passo e 100% deterministico (sem decisao)"
+      - "Pode ser um script, webhook, automacao"
+      - "Input definido -> Output definido, sempre igual"
+      - "Zero julgamento necessario"
+    examples:
+      - "Enviar email automatico quando pagamento confirmado"
+      - "Mover arquivo para pasta especifica"
+      - "Atualizar status no CRM"
+      - "Gerar relatorio com dados fixos"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ARVORE DE DECISAO PARA CLASSIFICACAO
+# ─────────────────────────────────────────────────────────────────────────────
+decision_tree:
+  step_1:
+    question: "Esse passo requer julgamento subjetivo do DONO especificamente?"
+    yes: "Provavelmente HUMAN ou HYBRID"
+    no: "Prosseguir para step_2"
+
+  step_2:
+    question: "O passo tem regras claras e output previsivel?"
+    yes: "Prosseguir para step_3"
+    no: "HYBRID (agente tenta, humano valida)"
+
+  step_3:
+    question: "Precisa de capacidade generativa (escrita, analise, criatividade)?"
+    yes: "AGENT"
+    no: "WORKER (script/automacao)"
+
+  step_4:
+    question: "O dono PRECISA revisar o resultado antes de seguir?"
+    yes: "HYBRID"
+    no: "Manter classificacao anterior"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SINAIS PARA RECLASSIFICACAO
+# ─────────────────────────────────────────────────────────────────────────────
+reclassification_signals:
+  agent_to_hybrid:
+    - "Usuario mencionou 'eu sempre reviso isso antes de enviar'"
+    - "Passo envolve tom de voz pessoal"
+    - "Resultado impacta cliente diretamente"
+  human_to_hybrid:
+    - "Passo tem parte preparatoria que agente pode fazer"
+    - "Usuario gasta >30min em algo que 80% e mecanico"
+    - "Pesquisa e coleta de dados antes de decisao"
+  hybrid_to_agent:
+    - "Usuario diz 'isso eu nem preciso revisar, sempre ta bom'"
+    - "Criterios de qualidade sao 100% objetivos"
+    - "Passo e de baixo risco"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# MAPPING PARA TASK ANATOMY AIOS
+# ─────────────────────────────────────────────────────────────────────────────
+task_anatomy_mapping:
+  agent:
+    responsavel_type: "agent"
+    execution_type: "semantic"
+    supervision: "async (checklist pos-execucao)"
+  human:
+    responsavel_type: "human"
+    execution_type: "interactive"
+    supervision: "nenhuma (dono e o executor)"
+  hybrid:
+    responsavel_type: "hybrid"
+    execution_type: "interactive"
+    supervision: "sync (dono revisa antes de prosseguir)"
+  worker:
+    responsavel_type: "worker"
+    execution_type: "deterministic"
+    supervision: "nenhuma (deterministico)"

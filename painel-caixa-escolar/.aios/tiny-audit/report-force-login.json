@@ -1,0 +1,604 @@
+{
+  "startedAt": "2026-03-02T15:10:45.800Z",
+  "steps": [
+    {
+      "name": "after_force_login",
+      "url": "https://erp.tiny.com.br/",
+      "title": "ERP da Olist - Home",
+      "bodySample": "?\n5\nL\nÍndice\nDashboard\nAgenda\nMinha conta\nIntegrações\nUpgrade de plano\nSobre a versão\nAjuda do ERP\nFerramentas\nLoja de extensões\nShopping de Serviços\nInício\n×\n\nNovo recurso de crédito: Parabéns! Você está fazendo parte do primeiro grupo de clientes a ter acesso ao nosso recurso de crédito. Para este primeiro grupo, estamos oferecendo taxas reduzidas. Confira em \"Menu > Finanças > Crédito da Olist\"\n\nBoa tarde, Lariucci\nDescubra o que mudou no ERP na última semana\nMinhas integrações\nadicionar integração\nMercado Livre\nações\npedidos\n0\n7m \nver pedidos\nShopee\nações\nprocessado\n0\n7m \nver pedidos"
+    },
+    {
+      "name": "home_links",
+      "links": [
+        {
+          "text": "5",
+          "href": "javascript:void(0)"
+        },
+        {
+          "text": "L",
+          "href": "javascript:void(0)"
+        },
+        {
+          "text": "Início",
+          "href": "index"
+        },
+        {
+          "text": "Índice",
+          "href": "https://erp.tiny.com.br/index"
+        },
+        {
+          "text": "Dashboard",
+          "href": "https://erp.tiny.com.br/dashboard"
+        },
+        {
+          "text": "Agenda",
+          "href": "https://erp.tiny.com.br/home_agenda"
+        },
+        {
+          "text": "Minha conta",
+          "href": "https://erp.tiny.com.br/dados_conta"
+        },
+        {
+          "text": "Integrações",
+          "href": "https://erp.tiny.com.br/integracoes"
+        },
+        {
+          "text": "Upgrade de plano",
+          "href": "https://erp.tiny.com.br/contratacao_servico"
+        },
+        {
+          "text": "Sobre a versão",
+          "href": "https://erp.tiny.com.br/detalhes_versao"
+        },
+        {
+          "text": "Ajuda do ERP",
+          "href": "https://erp.tiny.com.br/ajuda/"
+        },
+        {
+          "text": "Ferramentas",
+          "href": "https://erp.tiny.com.br/ferramentas_geral"
+        },
+        {
+          "text": "Loja de extensões",
+          "href": "https://erp.tiny.com.br/loja_aplicativos"
+        },
+        {
+          "text": "Shopping de Serviços",
+          "href": "https://olist.com/parceiros"
+        },
+        {
+          "text": "Cadastros",
+          "href": "contatos"
+        },
+        {
+          "text": "Clientes e Fornecedores",
+          "href": "https://erp.tiny.com.br/contatos"
+        },
+        {
+          "text": "Produtos",
+          "href": "https://erp.tiny.com.br/produtos#list"
+        },
+        {
+          "text": "Anúncios",
+          "href": "https://erp.tiny.com.br/anuncios"
+        },
+        {
+          "text": "Categorias dos Produtos",
+          "href": "https://erp.tiny.com.br/produto_categorias"
+        },
+        {
+          "text": "Vendedores",
+          "href": "https://erp.tiny.com.br/vendedores#list"
+        },
+        {
+          "text": "Embalagens",
+          "href": "https://erp.tiny.com.br/embalagens"
+        },
+        {
+          "text": "Relatórios",
+          "href": "https://erp.tiny.com.br/relatorios_sistema?id=1"
+        },
+        {
+          "text": "Suprimentos",
+          "href": "estoques"
+        },
+        {
+          "text": "Controle de Estoques",
+          "href": "https://erp.tiny.com.br/estoques"
+        },
+        {
+          "text": "Ordens de Compra",
+          "href": "https://erp.tiny.com.br/pedidos_compra#list"
+        },
+        {
+          "text": "Notas de Entrada",
+          "href": "https://erp.tiny.com.br/notas_entrada#list"
+        },
+        {
+          "text": "Relatórios",
+          "href": "https://erp.tiny.com.br/relatorios_sistema?id=2"
+        },
+        {
+          "text": "Ordens de Produção",
+          "href": "javascript:void(0)"
+        },
+        {
+          "text": "Vendas",
+          "href": "crm"
+        },
+        {
+          "text": "Crédito da OlistNovo",
+          "href": "https://erp.tiny.com.br/credito_da_olist?utm=menu"
+        },
+        {
+          "text": "CRM",
+          "href": "https://erp.tiny.com.br/crm"
+        },
+        {
+          "text": "Painel de Automações",
+          "href": "https://erp.tiny.com.br/automacoes"
+        },
+        {
+          "text": "PDV",
+          "href": "https://erp.tiny.com.br/pdv"
+        },
+        {
+          "text": "Propostas Comerciais",
+          "href": "https://erp.tiny.com.br/orcamentos#list"
+        },
+        {
+          "text": "Pedidos de Venda",
+          "href": "https://erp.tiny.com.br/vendas#list"
+        },
+        {
+          "text": "Notas Fiscais",
+          "href": "https://erp.tiny.com.br/notas_fiscais#list"
+        },
+        {
+          "text": "Comissões",
+          "href": "https://erp.tiny.com.br/comissoes#list"
+        },
+        {
+          "text": "Notas Fiscais Consumidor",
+          "href": "https://erp.tiny.com.br/notas_fiscais_consumidor#list"
+        },
+        {
+          "text": "Google Shopping",
+          "href": "https://erp.tiny.com.br/google_shopping"
+        },
+        {
+          "text": "Expedição",
+          "href": "https://erp.tiny.com.br/expedicao"
+        },
+        {
+          "text": "Devoluções de venda",
+          "href": "https://erp.tiny.com.br/devolucoes_vendas"
+        },
+        {
+          "text": "Pedidos no e-commerce",
+          "href": "https://erp.tiny.com.br/lista_pedidos_ecommerce"
+        },
+        {
+          "text": "Perguntas do e-commerce",
+          "href": "https://erp.tiny.com.br/perguntas_ecommerce"
+        },
+        {
+          "text": "Pós-venda Mercado Livre",
+          "href": "https://erp.tiny.com.br/ecommerce_pos_venda"
+        },
+        {
+          "text": "Relatórios",
+          "href": "https://erp.tiny.com.br/relatorios_sistema?id=3"
+        },
+        {
+          "text": "Finanças",
+          "href": "caixa"
+        },
+        {
+          "text": "Caixa",
+          "href": "https://erp.tiny.com.br/caixa"
+        },
+        {
+          "text": "Crédito da OlistNovo",
+          "href": "https://erp.tiny.com.br/credito_da_olist?utm=menu"
+        },
+        {
+          "text": "Contas a Pagar",
+          "href": "https://erp.tiny.com.br/contas_pagar"
+        },
+        {
+          "text": "Contas a Receber",
+          "href": "https://erp.tiny.com.br/contas_receber"
+        },
+        {
+          "text": "Cobranças Bancárias",
+          "href": "https://erp.tiny.com.br/cobrancas_registradas"
+        },
+        {
+          "text": "Extratos Bancários",
+          "href": "https://erp.tiny.com.br/extratos_bancarios"
+        },
+        {
+          "text": "Relatórios",
+          "href": "https://erp.tiny.com.br/relatorios_sistema?id=5"
+        },
+        {
+          "text": "",
+          "href": "javascript:void(0)"
+        },
+        {
+          "text": "",
+          "href": "javascript:void(0)"
+        },
+        {
+          "text": "Automática",
+          "href": "javascript:void(0)"
+        },
+        {
+          "text": "Modo claro",
+          "href": "javascript:void(0)"
+        },
+        {
+          "text": "Modo escuro",
+          "href": "javascript:void(0)"
+        },
+        {
+          "text": "?",
+          "href": "https://suporte.olist.com"
+        },
+        {
+          "text": "5",
+          "href": "javascript:void(0)"
+        },
+        {
+          "text": "L",
+          "href": "javascript:void(0)"
+        },
+        {
+          "text": "Expandir menu",
+          "href": "javascript:void(0)"
+        },
+        {
+          "text": "Aparência do ERP da Olist",
+          "href": "javascript:void(0)"
+        },
+        {
+          "text": "",
+          "href": "javascript:void(0)"
+        },
+        {
+          "text": "",
+          "href": "javascript:void(0)"
+        },
+        {
+          "text": "",
+          "href": "javascript:void(0)"
+        },
+        {
+          "text": "Configurações",
+          "href": "https://erp.tiny.com.br/preferencias_geral"
+        },
+        {
+          "text": "Canal de ideias",
+          "href": "https://erp.tiny.com.br/ideias"
+        },
+        {
+          "text": "Suporte",
+          "href": "https://erp.tiny.com.br/suporte_tickets"
+        },
+        {
+          "text": "Envios Olist",
+          "href": "https://erp.tiny.com.br/olist_envios"
+        },
+        {
+          "text": "Agentes de IA\n\t\t\t\t\t\t\t\t\t\tnovo",
+          "href": "https://agents.olist.com/chats/new/"
+        },
+        {
+          "text": "Ajuda",
+          "href": "https://suporte.olist.com"
+        },
+        {
+          "text": "Índice",
+          "href": "https://erp.tiny.com.br/index"
+        },
+        {
+          "text": "Dashboard",
+          "href": "https://erp.tiny.com.br/dashboard"
+        },
+        {
+          "text": "Agenda",
+          "href": "https://erp.tiny.com.br/home_agenda"
+        },
+        {
+          "text": "Minha conta",
+          "href": "https://erp.tiny.com.br/dados_conta"
+        },
+        {
+          "text": "Integrações",
+          "href": "https://erp.tiny.com.br/integracoes"
+        },
+        {
+          "text": "Upgrade de plano",
+          "href": "https://erp.tiny.com.br/contratacao_servico"
+        },
+        {
+          "text": "Sobre a versão",
+          "href": "https://erp.tiny.com.br/detalhes_versao"
+        },
+        {
+          "text": "Ajuda do ERP",
+          "href": "https://erp.tiny.com.br/ajuda/"
+        },
+        {
+          "text": "Ferramentas",
+          "href": "https://erp.tiny.com.br/ferramentas_geral"
+        },
+        {
+          "text": "Loja de extensões",
+          "href": "https://erp.tiny.com.br/loja_aplicativos"
+        },
+        {
+          "text": "Shopping de Serviços",
+          "href": "https://olist.com/parceiros"
+        },
+        {
+          "text": "Clientes e Fornecedores",
+          "href": "https://erp.tiny.com.br/contatos"
+        },
+        {
+          "text": "Produtos",
+          "href": "https://erp.tiny.com.br/produtos#list"
+        },
+        {
+          "text": "Anúncios",
+          "href": "https://erp.tiny.com.br/anuncios"
+        },
+        {
+          "text": "Categorias dos Produtos",
+          "href": "https://erp.tiny.com.br/produto_categorias"
+        },
+        {
+          "text": "Vendedores",
+          "href": "https://erp.tiny.com.br/vendedores#list"
+        },
+        {
+          "text": "Embalagens",
+          "href": "https://erp.tiny.com.br/embalagens"
+        },
+        {
+          "text": "Relatórios",
+          "href": "https://erp.tiny.com.br/relatorios_sistema?id=1"
+        },
+        {
+          "text": "Controle de Estoques",
+          "href": "https://erp.tiny.com.br/estoques"
+        },
+        {
+          "text": "Ordens de Compra",
+          "href": "https://erp.tiny.com.br/pedidos_compra#list"
+        },
+        {
+          "text": "Notas de Entrada",
+          "href": "https://erp.tiny.com.br/notas_entrada#list"
+        },
+        {
+          "text": "Relatórios",
+          "href": "https://erp.tiny.com.br/relatorios_sistema?id=2"
+        },
+        {
+          "text": "Ordens de Produção",
+          "href": "javascript:void(0)"
+        },
+        {
+          "text": "Crédito da OlistNovo",
+          "href": "https://erp.tiny.com.br/credito_da_olist?utm=menu"
+        },
+        {
+          "text": "CRM",
+          "href": "https://erp.tiny.com.br/crm"
+        },
+        {
+          "text": "Painel de Automações",
+          "href": "https://erp.tiny.com.br/automacoes"
+        },
+        {
+          "text": "PDV",
+          "href": "https://erp.tiny.com.br/pdv"
+        },
+        {
+          "text": "Propostas Comerciais",
+          "href": "https://erp.tiny.com.br/orcamentos#list"
+        },
+        {
+          "text": "Pedidos de Venda",
+          "href": "https://erp.tiny.com.br/vendas#list"
+        },
+        {
+          "text": "Notas Fiscais",
+          "href": "https://erp.tiny.com.br/notas_fiscais#list"
+        },
+        {
+          "text": "Comissões",
+          "href": "https://erp.tiny.com.br/comissoes#list"
+        },
+        {
+          "text": "Notas Fiscais Consumidor",
+          "href": "https://erp.tiny.com.br/notas_fiscais_consumidor#list"
+        },
+        {
+          "text": "Google Shopping",
+          "href": "https://erp.tiny.com.br/google_shopping"
+        },
+        {
+          "text": "Expedição",
+          "href": "https://erp.tiny.com.br/expedicao"
+        },
+        {
+          "text": "Devoluções de venda",
+          "href": "https://erp.tiny.com.br/devolucoes_vendas"
+        },
+        {
+          "text": "Pedidos no e-commerce",
+          "href": "https://erp.tiny.com.br/lista_pedidos_ecommerce"
+        },
+        {
+          "text": "Perguntas do e-commerce",
+          "href": "https://erp.tiny.com.br/perguntas_ecommerce"
+        },
+        {
+          "text": "Pós-venda Mercado Livre",
+          "href": "https://erp.tiny.com.br/ecommerce_pos_venda"
+        },
+        {
+          "text": "Relatórios",
+          "href": "https://erp.tiny.com.br/relatorios_sistema?id=3"
+        },
+        {
+          "text": "Caixa",
+          "href": "https://erp.tiny.com.br/caixa"
+        },
+        {
+          "text": "Crédito da OlistNovo",
+          "href": "https://erp.tiny.com.br/credito_da_olist?utm=menu"
+        },
+        {
+          "text": "Contas a Pagar",
+          "href": "https://erp.tiny.com.br/contas_pagar"
+        },
+        {
+          "text": "Contas a Receber",
+          "href": "https://erp.tiny.com.br/contas_receber"
+        },
+        {
+          "text": "Cobranças Bancárias",
+          "href": "https://erp.tiny.com.br/cobrancas_registradas"
+        },
+        {
+          "text": "Extratos Bancários",
+          "href": "https://erp.tiny.com.br/extratos_bancarios"
+        },
+        {
+          "text": "Relatórios",
+          "href": "https://erp.tiny.com.br/relatorios_sistema?id=5"
+        },
+        {
+          "text": "36802147000142",
+          "href": "javascript:void(0)"
+        },
+        {
+          "text": "Carregando...",
+          "href": "javascript:void(0)"
+        },
+        {
+          "text": "Dados do usuário",
+          "href": "https://erp.tiny.com.br/dados_usuario"
+        },
+        {
+          "text": "Usuário de suporte",
+          "href": "javascript:void(0)"
+        },
+        {
+          "text": "Extensões",
+          "href": "https://erp.tiny.com.br/loja_aplicativos"
+        },
+        {
+          "text": "Blog",
+          "href": "https://blog.tiny.com.br"
+        },
+        {
+          "text": "Indique e ganhe",
+          "href": "https://cloud.comunicacao.olist.com/indique-e-ganhe"
+        },
+        {
+          "text": "Sair",
+          "href": "https://erp.tiny.com.br/logout"
+        },
+        {
+          "text": "Início",
+          "href": "https://erp.tiny.com.br/"
+        },
+        {
+          "text": "",
+          "href": "https://erp.tiny.com.br/empresa"
+        },
+        {
+          "text": "Descubra o que mudou no ERP na última semana",
+          "href": "https://erp.tiny.com.br/detalhes_versao"
+        },
+        {
+          "text": "adicionar integração",
+          "href": "https://erp.tiny.com.br/integracoes#/new?onboarding=1"
+        },
+        {
+          "text": "Atualizar",
+          "href": "javascript:void(0)"
+        },
+        {
+          "text": "Desabilitar este widget",
+          "href": "javascript:void(0)"
+        },
+        {
+          "text": "ver pedidos",
+          "href": "https://erp.tiny.com.br/lista_pedidos_ecommerce#list/ecommerce/10856"
+        },
+        {
+          "text": "Atualizar",
+          "href": "javascript:void(0)"
+        },
+        {
+          "text": "Desabilitar este widget",
+          "href": "javascript:void(0)"
+        },
+        {
+          "text": "ver pedidos",
+          "href": "https://erp.tiny.com.br/lista_pedidos_ecommerce#list/ecommerce/11249"
+        }
+      ]
+    },
+    {
+      "name": "path_/configuracoes",
+      "url": "https://erp.tiny.com.br/configuracoes",
+      "title": "ERP da Olist - Página não encontrada",
+      "sample": "?\n5\nL\nÍndice\nDashboard\nAgenda\nMinha conta\nIntegrações\nUpgrade de plano\nSobre a versão\nAjuda do ERP\nFerramentas\nLoja de extensões\nShopping de Serviços\nInício\n×\n\nNovo recurso de crédito: Parabéns! Você está fazendo parte do primeiro grupo de clientes a ter acesso ao nosso recurso de crédito. Para este primeiro grupo, estamos oferecendo taxas reduzidas. Confira em \"Menu > Finanças > Crédito da Olist\"\n\nD'oh! não encontramos essa página\n\nErro 404. Página não encontrada.\n\nir para o início"
+    },
+    {
+      "name": "path_/integracoes",
+      "url": "https://erp.tiny.com.br/integracoes",
+      "title": "ERP da Olist - Integrações",
+      "sample": "?\n5\nL\nÍndice\nDashboard\nAgenda\nMinha conta\nIntegrações\nUpgrade de plano\nSobre a versão\nAjuda do ERP\nFerramentas\nLoja de extensões\nShopping de Serviços\nInício\n×\n\nNovo recurso de crédito: Parabéns! Você está fazendo parte do primeiro grupo de clientes a ter acesso ao nosso recurso de crédito. Para este primeiro grupo, estamos oferecendo taxas reduzidas. Confira em \"Menu > Finanças > Crédito da Olist\"\n\n início\nintegrações\nadicionar integração\nMinhas Integrações\nMercado Livre\n\nMarketplace\n\ngerenciar\nCatálogo Mobile\n\nOutra Integração\n\ngerenciar\nShopee\n\nMarketplace\n\ngerenciar"
+    },
+    {
+      "name": "path_/vendas",
+      "url": "https://erp.tiny.com.br/vendas",
+      "title": "ERP da Olist - Vendas",
+      "sample": "?\n5\nL\nCrédito da Olist\nNovo\nCRM\nPainel de Automações\nPDV\nPropostas Comerciais\nPedidos de Venda\nNotas Fiscais\nComissões\nNotas Fiscais Consumidor\nGoogle Shopping\nExpedição\nDevoluções de venda\nPedidos no e-commerce\nPerguntas do e-commerce\nPós-venda Mercado Livre\nRelatórios\nInício\n×\n\nNovo recurso de crédito: Parabéns! Você está fazendo parte do primeiro grupo de clientes a ter acesso ao nosso recurso de crédito. Para este primeiro grupo, estamos oferecendo taxas reduzidas. Confira em \"Menu > Finanças > Crédito da Olist\"\n\ninício\n vendas\npedidos de venda\n imprimir\n receber do e-commerce\nincluir pedido\nmais ações \nPedidos de venda\nÚltimos 30 dias\n filtros\n limpar filtros\ntodos\n82\nem aberto\n01\naprovado\n04\npreparando envio\n02\nfaturado\n54\npronto para envio\n04\nmais \n\t\tNº\tData\tPrevisto\tData limite de despacho\tCliente\tCNPJ / CPF\tTotal\tNº pedido\tRastreamento\tMarcadores\tIntegrações\t\t\n\n\t\t926\t19/02/2026\t19/02/2026\t\tCaixa Escolar Joao Antonio Amancio da Escola Est Rotary\t26.041.806/0001-11\t18.541,08\t\t\tp"
+    },
+    {
+      "name": "path_/pedidos",
+      "url": "https://erp.tiny.com.br/pedidos",
+      "title": "ERP da Olist - Página não encontrada",
+      "sample": "?\n5\nL\nÍndice\nDashboard\nAgenda\nMinha conta\nIntegrações\nUpgrade de plano\nSobre a versão\nAjuda do ERP\nFerramentas\nLoja de extensões\nShopping de Serviços\nInício\n×\n\nNovo recurso de crédito: Parabéns! Você está fazendo parte do primeiro grupo de clientes a ter acesso ao nosso recurso de crédito. Para este primeiro grupo, estamos oferecendo taxas reduzidas. Confira em \"Menu > Finanças > Crédito da Olist\"\n\nD'oh! não encontramos essa página\n\nErro 404. Página não encontrada.\n\nir para o início"
+    },
+    {
+      "name": "path_/vendas/pedidos",
+      "url": "https://erp.tiny.com.br/vendas/pedidos",
+      "title": "500 Internal Server Error",
+      "sample": "Internal Server Error\n\nThe server encountered an internal error or misconfiguration and was unable to complete your request.\n\nPlease contact the server administrator at erp@olist.com to inform them of the time this error occurred, and the actions you performed just before this error.\n\nMore information about this error may be available in the server error log."
+    },
+    {
+      "name": "path_/api2",
+      "url": "https://erp.tiny.com.br/api2/",
+      "title": "403 Forbidden",
+      "sample": "Forbidden\n\nYou don't have permission to access this resource."
+    },
+    {
+      "name": "path_/inicio",
+      "url": "https://erp.tiny.com.br/inicio",
+      "title": "ERP da Olist - Página não encontrada",
+      "sample": "?\n5\nL\nÍndice\nDashboard\nAgenda\nMinha conta\nIntegrações\nUpgrade de plano\nSobre a versão\nAjuda do ERP\nFerramentas\nLoja de extensões\nShopping de Serviços\nInício\n×\n\nNovo recurso de crédito: Parabéns! Você está fazendo parte do primeiro grupo de clientes a ter acesso ao nosso recurso de crédito. Para este primeiro grupo, estamos oferecendo taxas reduzidas. Confira em \"Menu > Finanças > Crédito da Olist\"\n\nD'oh! não encontramos essa página\n\nErro 404. Página não encontrada.\n\nir para o início"
+    }
+  ],
+  "errors": [],
+  "finishedAt": "2026-03-02T15:11:11.685Z"
+}

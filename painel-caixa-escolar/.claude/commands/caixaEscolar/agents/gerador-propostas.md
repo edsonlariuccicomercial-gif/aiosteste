@@ -1,0 +1,1 @@
+Read the file at squads/caixa-escolar/agents/gerador-propostas.md and follow the instructions. This is the proposal generator - creates formatted quotes for submission on the SGD portal.

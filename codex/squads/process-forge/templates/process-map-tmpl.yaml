@@ -1,0 +1,109 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# TEMPLATE: Process Map (Mapa de Processo Validado)
+# ═══════════════════════════════════════════════════════════════════════════════
+# Gerado apos Fase 2 (Playback Validation). Representa o processo
+# completo do usuario validado e confirmado.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# --- METADATA ---
+process:
+  name: "{nome do processo}"
+  slug: "{slug-kebab-case}"
+  owner: "{nome do dono}"
+  description: "{Descricao em 1-2 frases}"
+  trigger: "{O que inicia o processo}"
+  endpoint: "{Como saber que terminou com sucesso}"
+  frequency: "{diario|semanal|por_demanda|mensal}"
+  estimated_duration: "{tempo do inicio ao fim}"
+  complexity: "{simple|standard|complex}"
+
+# --- METRICAS DE EXTRACAO ---
+extraction:
+  total_rounds: 0
+  total_pus: 0
+  pus_by_type:
+    STEP: 0
+    DECISION: 0
+    EXCEPTION: 0
+    QUALITY_GATE: 0
+    DEPENDENCY: 0
+    INPUT: 0
+    OUTPUT: 0
+    TACIT: 0
+  lens_coverage:
+    L1: false
+    L2: false
+    L3: false
+    L4: false
+    L5: false
+    L6: false
+    L7: false
+    L8: false
+  average_confidence: 0.0
+  inferred_ratio: 0.0  # % de PUs marcados como inferred
+  user_validated: false  # true apos playback
+
+# --- SEQUENCIA DE PASSOS (ordem de execucao) ---
+steps:
+  - step_number: 1
+    pu_id: "PU-{slug}-001"
+    name: "{Nome do passo}"
+    description: "{Descricao completa}"
+    executor: "{human|agent|hybrid|worker}"
+    estimated_time: "{Xmin}"
+    inputs: []      # PU-IDs de tipo INPUT
+    outputs: []     # PU-IDs de tipo OUTPUT
+    decisions: []   # PU-IDs de tipo DECISION neste passo
+    exceptions: []  # PU-IDs de tipo EXCEPTION neste passo
+    quality_gates: []  # PU-IDs de tipo QUALITY_GATE neste passo
+    depends_on: []  # step_numbers que precisam estar completos
+    tools: []       # Ferramentas usadas
+
+# --- ARVORE DE DECISOES ---
+decision_tree:
+  - decision_pu: "PU-xxx"
+    at_step: 0
+    condition: "IF {condicao}"
+    branches:
+      - label: "{descricao do branch}"
+        next_step: 0
+      - label: "{descricao do branch}"
+        next_step: 0
+
+# --- CATALOGO DE EXCECOES ---
+exceptions:
+  - exception_pu: "PU-xxx"
+    at_step: 0
+    trigger: "{O que causa}"
+    response: "{O que fazer}"
+    severity: "{blocker|degraded|cosmetic}"
+    frequency: "{raro|ocasional|recorrente}"
+
+# --- QUALITY GATES ---
+quality_gates:
+  - gate_pu: "PU-xxx"
+    after_step: 0
+    criteria: "{Como validar}"
+    blocking: true
+
+# --- GRAFO DE DEPENDENCIAS ---
+dependencies:
+  sequential: []   # Pares [from_step, to_step] obrigatoriamente sequenciais
+  parallel: []     # Grupos de steps que podem rodar em paralelo
+  external: []     # Steps que dependem de pessoa/sistema externo
+  bottleneck: 0    # Step que e o gargalo (Goldratt constraint)
+
+# --- CONHECIMENTO TACITO ---
+tacit_knowledge:
+  - pu_id: "PU-xxx"
+    content: "{Descricao}"
+    heuristic: "{Regra de bolso, se extraida}"
+    applies_to_steps: []
+
+# --- VALIDACAO ---
+validation:
+  playback_date: ""
+  user_confirmed: false
+  corrections_made: 0
+  open_gaps: []
+  completeness_score: 0.0  # 0.0-1.0

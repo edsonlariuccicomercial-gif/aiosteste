@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Licit-AIX — Painel do Fornecedor</title>
+  <link rel="stylesheet" href="styles.css?v=7" />
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+</head>
+<body>
+
+  <!-- ===== SIDEBAR ===== -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand" style="cursor:pointer" onclick="window.location.href='dashboard-home.html'" title="Voltar ao Dashboard">Licit-AIX</div>
+    <nav class="sidebar-nav">
+      <button class="sidebar-item" onclick="window.location.href='dashboard-home.html'" title="Dashboard Home" style="margin-bottom:8px;border-bottom:1px solid var(--line);padding-bottom:12px;">
+        <span class="sidebar-icon">🏠</span>
+        <span class="sidebar-label">HOME</span>
+      </button>
+      <button class="sidebar-item active" data-module="radar" title="Radar de Oportunidades">
+        <span class="sidebar-icon">📡</span>
+        <span class="sidebar-label">RADAR</span>
+      </button>
+      <button class="sidebar-item" data-module="intel-precos" title="Inteligência de Preços">
+        <span class="sidebar-icon">💰</span>
+        <span class="sidebar-label">INTEL PREÇOS</span>
+      </button>
+      <button class="sidebar-item" data-module="gdp" title="Gestão de Pedidos Pós-Licitação">
+        <span class="sidebar-icon">📦</span>
+        <span class="sidebar-label">GDP</span>
+      </button>
+    </nav>
+    <button class="sidebar-item sidebar-config" data-module="config" title="Configurações">
+      <span class="sidebar-icon">⚙️</span>
+      <span class="sidebar-label">Configurações</span>
+    </button>
+  </aside>
+
+  <!-- ===== MAIN AREA ===== -->
+  <div class="main-area" id="main-area">
+
+    <!-- ===== TOPBAR ===== -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="sidebar-toggle" id="sidebar-toggle" title="Menu">☰</button>
+        <div>
+          <p class="eyebrow">Painel do Fornecedor</p>
+          <h1>Licit-AIX</h1>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <span class="mode-indicator" id="mode-indicator"></span>
+        <div class="pill" id="pill-sre">SRE Uberaba</div>
+
+        <button id="btn-varrer-sgd" class="btn btn-sm btn-sgd" style="display:none;" title="Varrer novos orçamentos no SGD">Varrer SGD</button>
+        <button class="btn btn-sm" onclick="logout()" title="Sair">Sair</button>
+      </div>
+    </header>
+
+  <!-- ===== RADAR DASHBOARD ===== -->
+  <section class="intel-panel" id="radar-dashboard">
+    <div class="card">
+      <div class="intel-header" id="intel-toggle">
+        <h2>Radar — Visão Geral</h2>
+        <span class="intel-chevron" id="intel-chevron">▼</span>
+      </div>
+      <div class="intel-body" id="intel-body">
+        <div class="intel-grid">
+          <div class="intel-card">
+            <p class="intel-label">Valor total disponível</p>
+            <strong class="intel-value" id="intel-valor-total">R$ 0</strong>
+          </div>
+          <div class="intel-card">
+            <p class="intel-label">Oportunidades</p>
+            <strong class="intel-value" id="kpi-abertos">0</strong>
+          </div>
+          <div class="intel-card">
+            <p class="intel-label">Prazo urgente / Prazo médio</p>
+            <strong class="intel-value"><span id="kpi-urgentes">0</span> / <span id="intel-prazo-medio">0 dias</span></strong>
+          </div>
+        </div>
+        <div class="intel-charts">
+          <div class="intel-chart-box">
+            <h3>Top 5 Categorias</h3>
+            <div id="intel-top-categorias"></div>
+          </div>
+          <div class="intel-chart-box">
+            <h3>Orçamentos por Município</h3>
+            <div id="intel-por-municipio"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== INTEL PREÇOS: KPIs + DASHBOARD (acima das tabs) ===== -->
+  <section id="intel-precos-dashboard" style="display:none;">
+    <span id="kpi-margem" style="display:none">0%</span>
+
+    <div class="card">
+      <div class="table-head">
+        <h2>Dashboard de Inteligência de Preços</h2>
+      </div>
+      <div id="pricing-alerts" class="pricing-alerts"></div>
+      <div class="pricing-kpis">
+        <article class="pricing-kpi-card">
+          <p>Pré-orçamentos / Faturamento</p>
+          <strong><span id="kpi-pendentes">0</span> / <span id="kpi-faturamento">R$ 0</span></strong>
+        </article>
+        <article class="pricing-kpi-card">
+          <p>Itens no Banco</p>
+          <strong id="pk-total-itens">0</strong>
+        </article>
+        <article class="pricing-kpi-card">
+          <p>Custo Médio</p>
+          <strong id="pk-custo-medio">R$ 0</strong>
+        </article>
+        <article class="pricing-kpi-card">
+          <p>Margem Média</p>
+          <strong id="pk-margem-media">0%</strong>
+        </article>
+        <article class="pricing-kpi-card">
+          <p>Competitivos</p>
+          <strong id="pk-competitivos" class="text-accent">0%</strong>
+        </article>
+        <article class="pricing-kpi-card">
+          <p>Cotações Vencidas (&gt;90d)</p>
+          <strong id="pk-vencidos" class="text-danger">0</strong>
+        </article>
+        <article class="pricing-kpi-card">
+          <p>Faturamento Aprovado</p>
+          <strong id="pk-faturamento">R$ 0</strong>
+        </article>
+      </div>
+      <div class="pricing-charts">
+        <div class="pricing-chart-box">
+          <h3>Top 10 Itens Mais Cotados</h3>
+          <div id="chart-top-cotados"></div>
+        </div>
+        <div class="pricing-chart-box">
+          <h3>Margem por Grupo</h3>
+          <div id="chart-margem-grupo"></div>
+        </div>
+      </div>
+      <div class="pricing-charts">
+        <div class="pricing-chart-box">
+          <h3>Evolução de Custos (Últimas Cotações)</h3>
+          <div id="chart-evolucao-custos"></div>
+        </div>
+        <div class="pricing-chart-box">
+          <h3>Competitividade por Grupo</h3>
+          <div id="chart-competitividade"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== NAVEGAÇÃO TABS (Intel. Preços) ===== -->
+  <nav class="tabs" id="tabs-intel-precos" style="display:none;">
+    <button class="tab active" data-tab="pre-orcamento">Pré-Orçamento</button>
+    <button class="tab" data-tab="aprovados">Aprovados</button>
+    <button class="tab" data-tab="envio-sgd">Envio SGD</button>
+    <button class="tab" data-tab="historico">Histórico</button>
+    <button class="tab" data-tab="banco-precos">Banco de Preços</button>
+
+    <button class="tab" data-tab="rentabilidade">Rentabilidade</button>
+  </nav>
+
+  <!-- ===== TAB: ORÇAMENTOS ===== -->
+  <section id="tab-orcamentos" class="tab-content active">
+    <div class="card">
+      <div class="table-head">
+        <h2>Oportunidades — SRE Uberaba</h2>
+        <div class="table-head-actions">
+          <span id="ultima-atualizacao" class="badge badge-muted" style="display:none;"></span>
+          <button id="btn-collect-sgd" class="btn btn-sm btn-sgd" style="display:none;">Atualizar Orçamentos</button>
+          <button id="btn-export-csv" class="btn btn-sm">Exportar CSV</button>
+        </div>
+      </div>
+
+      <!-- Filtros -->
+      <div class="filters filters-5col">
+        <select id="filtro-escola">
+          <option value="all">Todas as escolas</option>
+        </select>
+        <select id="filtro-municipio">
+          <option value="all">Todos os municípios</option>
+        </select>
+        <select id="filtro-grupo">
+          <option value="all">Todos os grupos</option>
+        </select>
+        <select id="filtro-status">
+          <option value="all">Todos os status</option>
+          <option value="aberto">Aberto</option>
+          <option value="vencido">Vencido</option>
+        </select>
+        <input type="text" id="filtro-texto" placeholder="Buscar escola, objeto, item..." autocomplete="off" />
+      </div>
+
+      <!-- Barra de ações em lote -->
+      <div id="batch-bar" class="batch-bar" style="display:none;">
+        <span id="batch-count">0 selecionados</span>
+        <button id="btn-batch-preorcar" class="btn btn-sm btn-accent">Pré-Orçar Selecionados</button>
+        <button id="btn-batch-export" class="btn btn-sm">Exportar Selecionados</button>
+      </div>
+
+      <!-- Tabela -->
+      <div class="table-wrap">
+        <table id="tabela-orcamentos">
+          <thead>
+            <tr>
+              <th><input type="checkbox" id="select-all" title="Selecionar todos" /></th>
+              <th>ID</th>
+              <th>Escola</th>
+              <th>Município</th>
+              <th>Objeto</th>
+              <th>Grupo</th>
+              <th>Prazo</th>
+              <th>Entrega</th>
+              <th>Status</th>
+              <th>Ação</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-orcamentos"></tbody>
+        </table>
+      </div>
+      <p id="orcamentos-empty" class="empty-msg" style="display:none;">Nenhum orçamento encontrado.</p>
+    </div>
+  </section>
+
+  <!-- ===== TAB: PRÉ-ORÇAMENTO ===== -->
+  <section id="tab-pre-orcamento" class="tab-content">
+    <div class="card">
+      <div class="table-head">
+        <h2 id="preorcamento-titulo">Selecione um orçamento</h2>
+        <div class="table-head-actions">
+          <button id="btn-preorcamento-voltar" class="btn btn-sm" style="display:none;">Voltar</button>
+        </div>
+      </div>
+
+      <!-- Seletor vazio -->
+      <div id="preorcamento-vazio">
+        <p class="empty-msg">Clique em "Pré-Orçar" na aba Orçamentos para gerar um pré-orçamento.</p>
+      </div>
+
+      <!-- Formulário de pré-orçamento -->
+      <div id="preorcamento-form" style="display:none;">
+        <div class="preorcamento-info">
+          <div class="info-row">
+            <span class="info-label">Escola:</span>
+            <span id="preorcamento-escola"></span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Município:</span>
+            <span id="preorcamento-municipio"></span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Prazo:</span>
+            <span id="preorcamento-prazo"></span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Frete estimado:</span>
+            <span id="preorcamento-frete"></span>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table id="tabela-preorcamento">
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th>Marca</th>
+                <th>Qtd</th>
+                <th>Custo Unit.</th>
+                <th>Margem %</th>
+                <th>Preço Unit.</th>
+                <th>Total</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-preorcamento"></tbody>
+            <tfoot>
+              <tr class="total-row">
+                <td colspan="5"></td>
+                <td><strong>TOTAL</strong></td>
+                <td><strong id="preorcamento-total">R$ 0,00</strong></td>
+              </tr>
+              <tr class="total-row">
+                <td colspan="4"></td>
+                <td>Margem média</td>
+                <td id="preorcamento-margem-media">0%</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        <!-- Simulador de Margem -->
+        <div id="margin-simulator" class="margin-simulator" style="display:none;">
+          <div class="sim-header">
+            <h3>Simulador de Cenários</h3>
+            <button class="btn btn-sm" onclick="toggleSimulator()">Fechar</button>
+          </div>
+          <div class="sim-scenarios">
+            <div class="sim-card sim-conservador" onclick="applyScenario(0.35)">
+              <div class="sim-label">Conservador</div>
+              <div class="sim-value">35%</div>
+              <div class="sim-detail" id="sim-conservador-total">R$ 0</div>
+            </div>
+            <div class="sim-card sim-moderado" onclick="applyScenario(0.25)">
+              <div class="sim-label">Moderado</div>
+              <div class="sim-value">25%</div>
+              <div class="sim-detail" id="sim-moderado-total">R$ 0</div>
+            </div>
+            <div class="sim-card sim-agressivo" onclick="applyScenario(0.15)">
+              <div class="sim-label">Agressivo</div>
+              <div class="sim-value">15%</div>
+              <div class="sim-detail" id="sim-agressivo-total">R$ 0</div>
+            </div>
+            <div class="sim-card sim-otimo" onclick="applyScenario('otimo')">
+              <div class="sim-label">Ótimo</div>
+              <div class="sim-value" id="sim-otimo-pct">?%</div>
+              <div class="sim-detail" id="sim-otimo-total">Melhor competitividade</div>
+            </div>
+          </div>
+          <div class="sim-slider">
+            <label>Margem Global: <strong id="sim-slider-val">25%</strong></label>
+            <input type="range" id="sim-slider" min="5" max="50" value="25" step="1" oninput="previewScenario(this.value)">
+            <div class="sim-preview">
+              <span>Total: <strong id="sim-preview-total">R$ 0</strong></span>
+              <span>Competitivos: <strong id="sim-preview-comp">0/0</strong></span>
+              <button class="btn btn-sm btn-accent" onclick="applyScenario(document.getElementById('sim-slider').value / 100)">Aplicar</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- SGD Extra Fields (Fase 4) — datas, observações, garantia -->
+        <div id="sgd-extra-fields" class="sgd-extra-fields"></div>
+
+        <div class="preorcamento-actions">
+          <button id="btn-simular" class="btn btn-sm" onclick="toggleSimulator()" style="margin-right:auto;">Simular Cenários</button>
+          <button id="btn-aprovar" class="btn btn-accent">Aprovar</button>
+          <button id="btn-recusar" class="btn btn-danger">Recusar</button>
+          <button id="btn-editar-orcamento" class="btn btn-warning" style="display:none;">Editar</button>
+          <button id="btn-enviar-sgd" class="btn btn-sgd" style="display:none;">Enviar ao SGD</button>
+          <button id="btn-ir-sgd" class="btn btn-sm" style="display:none;" onclick="switchTab('envio-sgd')">Ver fila SGD</button>
+        </div>
+      </div>
+
+      <!-- Lista de pré-orçamentos existentes -->
+      <div id="preorcamentos-lista" style="display:none;">
+        <h3>Pré-orçamentos salvos</h3>
+        <div class="table-wrap">
+          <table id="tabela-preorcamentos-lista">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Escola</th>
+                <th>Status</th>
+                <th>Total</th>
+                <th>Data</th>
+                <th>Ação</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-preorcamentos-lista"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== TAB: BANCO DE PREÇOS ===== -->
+  <section id="tab-banco-precos" class="tab-content">
+    <div class="card">
+      <div class="table-head">
+        <h2>Banco de Preços</h2>
+        <div class="table-head-actions">
+          <button id="btn-import-excel" class="btn btn-sm">Importar Cotacao</button>
+          <button id="btn-import-ai" class="btn btn-sm btn-sgd">Importar com IA</button>
+          <button id="btn-pncp-batch" class="btn btn-sm" title="Consultar preços de referência no PNCP para todos os itens">Consultar PNCP</button>
+          <button id="btn-add-preco" class="btn btn-sm btn-accent">+ Novo Item</button>
+          <button id="btn-export-banco" class="btn btn-sm">Exportar CSV</button>
+          <button id="btn-excluir-selecionados-banco" class="btn btn-sm btn-danger" style="display:none;">Excluir Selecionados (<span id="banco-sel-count">0</span>)</button>
+          <button id="btn-limpar-banco" class="btn btn-sm btn-danger">Limpar Banco</button>
+        </div>
+      </div>
+
+      <div class="filters">
+        <select id="filtro-banco-grupo">
+          <option value="all">Todos os grupos</option>
+        </select>
+        <input type="text" id="filtro-banco-texto" placeholder="Buscar item..." autocomplete="off" />
+      </div>
+
+      <!-- PNCP Progress -->
+      <div id="pncp-progress" style="display:none;margin:8px 0;padding:8px 12px;background:var(--bg);border-radius:6px;border:1px solid var(--line);">
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:0.8rem;">
+          <span class="label">Consultando PNCP...</span>
+          <span class="pct">0%</span>
+        </div>
+        <progress class="bar" value="0" max="100" style="width:100%;height:6px;margin-top:4px;"></progress>
+      </div>
+
+      <div class="table-wrap">
+        <table id="tabela-banco">
+          <thead>
+            <tr>
+              <th style="width:30px"><input type="checkbox" id="banco-select-all" title="Selecionar todos" /></th>
+              <th>Item</th>
+              <th>Marca</th>
+              <th>Grupo</th>
+              <th>Meu Custo</th>
+              <th>Minha Proposta</th>
+              <th>Menor Concorrente</th>
+              <th>Ref. PNCP</th>
+              <th>Margem Real</th>
+              <th>Competitividade</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-banco"></tbody>
+        </table>
+      </div>
+      <p id="banco-empty" class="empty-msg" style="display:none;">Nenhum item no banco de preços.</p>
+    </div>
+  </section>
+
+
+  <!-- ===== TAB: RENTABILIDADE ===== -->
+  <section id="tab-rentabilidade" class="tab-content">
+    <div class="card">
+      <div class="table-head">
+        <h2>Relatório de Rentabilidade</h2>
+        <div class="table-head-actions">
+          <button id="btn-export-rentabilidade" class="btn btn-sm">Exportar CSV</button>
+        </div>
+      </div>
+
+      <!-- KPIs Rentabilidade -->
+      <div class="pricing-kpis">
+        <article class="pricing-kpi-card">
+          <p>Faturamento Total</p>
+          <strong id="rk-faturamento">R$ 0</strong>
+        </article>
+        <article class="pricing-kpi-card">
+          <p>Custo Total</p>
+          <strong id="rk-custo">R$ 0</strong>
+        </article>
+        <article class="pricing-kpi-card">
+          <p>Lucro Bruto</p>
+          <strong id="rk-lucro" class="text-accent">R$ 0</strong>
+        </article>
+        <article class="pricing-kpi-card">
+          <p>Margem Bruta</p>
+          <strong id="rk-margem">0%</strong>
+        </article>
+        <article class="pricing-kpi-card">
+          <p>Escolas Atendidas</p>
+          <strong id="rk-escolas">0</strong>
+        </article>
+        <article class="pricing-kpi-card">
+          <p>Propostas Enviadas</p>
+          <strong id="rk-propostas">0</strong>
+        </article>
+      </div>
+
+      <!-- Sub-tabs -->
+      <div class="rent-tabs">
+        <button class="rent-tab active" onclick="switchRentTab('escola')">Por Escola</button>
+        <button class="rent-tab" onclick="switchRentTab('produto')">Por Produto</button>
+        <button class="rent-tab" onclick="switchRentTab('grupo')">Por Grupo</button>
+      </div>
+
+      <!-- Por Escola -->
+      <div id="rent-escola" class="rent-content active">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Escola</th>
+                <th>Município</th>
+                <th>Propostas</th>
+                <th>Faturamento</th>
+                <th>Custo</th>
+                <th>Lucro</th>
+                <th>Margem</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-rent-escola"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Por Produto -->
+      <div id="rent-produto" class="rent-content" style="display:none;">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Produto</th>
+                <th>Grupo</th>
+                <th>Vezes Cotado</th>
+                <th>Preço Médio</th>
+                <th>Custo Médio</th>
+                <th>Margem Média</th>
+                <th>Volume Total</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-rent-produto"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Por Grupo -->
+      <div id="rent-grupo" class="rent-content" style="display:none;">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Grupo</th>
+                <th>Itens</th>
+                <th>Faturamento</th>
+                <th>Custo</th>
+                <th>Lucro</th>
+                <th>Margem Média</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-rent-grupo"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== TAB: APROVADOS / CONTRATOS ===== -->
+  <section id="tab-aprovados" class="tab-content">
+    <div class="card">
+      <div class="table-head">
+        <h2>Orçamentos Aprovados & Contratos</h2>
+        <div class="table-head-actions">
+          <button id="btn-export-contratos" class="btn btn-sm">Exportar CSV</button>
+        </div>
+      </div>
+      <div class="pricing-kpis" id="kpi-aprovados">
+        <article class="pricing-kpi-card"><p>Contratos Ativos</p><strong id="ak-ativos">0</strong></article>
+        <article class="pricing-kpi-card"><p>Em Entrega</p><strong id="ak-entrega">0</strong></article>
+        <article class="pricing-kpi-card"><p>Concluídos</p><strong id="ak-concluidos">0</strong></article>
+        <article class="pricing-kpi-card"><p>Valor em Contratos</p><strong id="ak-valor" class="text-accent">R$ 0</strong></article>
+      </div>
+      <div id="lista-aprovados"></div>
+      <p id="aprovados-empty" class="empty-msg" style="display:none;">Nenhum contrato registrado. Registre resultados na aba "Envio SGD".</p>
+    </div>
+  </section>
+
+  <!-- ===== TAB: ENVIO SGD ===== -->
+  <section id="tab-envio-sgd" class="tab-content">
+    <div class="card">
+      <div class="table-head">
+        <h2>Envio ao SGD</h2>
+        <div class="table-head-actions">
+          <span id="sgd-mode-badge" class="badge badge-muted"></span>
+          <button id="btn-sgd-enviar-todos" class="btn btn-sm btn-sgd" style="display:none;">Enviar Todos</button>
+          <button id="btn-sgd-baixar-todos" class="btn btn-sm">Baixar Payloads</button>
+        </div>
+      </div>
+
+      <!-- KPIs do SGD -->
+      <div class="sgd-kpis">
+        <div class="sgd-kpi-card">
+          <p>Prontos p/ envio</p>
+          <strong id="sgd-kpi-prontos">0</strong>
+        </div>
+        <div class="sgd-kpi-card">
+          <p>Enviados</p>
+          <strong id="sgd-kpi-enviados" class="text-accent">0</strong>
+        </div>
+        <div class="sgd-kpi-card">
+          <p>Ganhos</p>
+          <strong id="sgd-kpi-ganhos" class="text-accent">0</strong>
+        </div>
+        <div class="sgd-kpi-card">
+          <p>Valor total</p>
+          <strong id="sgd-kpi-valor">R$ 0</strong>
+        </div>
+      </div>
+
+      <!-- Tabela SGD -->
+      <div class="table-wrap">
+        <table id="tabela-sgd">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Escola</th>
+              <th>Município</th>
+              <th>Total</th>
+              <th>Status</th>
+              <th>Ação</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-sgd"></tbody>
+        </table>
+      </div>
+      <p id="sgd-empty" class="empty-msg" style="display:none;">Nenhum pré-orçamento aprovado. Aprove na aba Pré-Orçamento para enviar ao SGD.</p>
+    </div>
+  </section>
+
+  <!-- ===== TAB: HISTÓRICO GANHOS/PERDIDOS ===== -->
+  <section id="tab-historico" class="tab-content">
+    <div class="card">
+      <div class="table-head">
+        <h2>Histórico de Propostas — Referência de Preços</h2>
+      </div>
+      <div class="pricing-kpis" id="kpi-historico">
+        <article class="pricing-kpi-card"><p>Total Propostas</p><strong id="hk-total">0</strong></article>
+        <article class="pricing-kpi-card"><p>Ganhas</p><strong id="hk-ganhos" class="text-accent">0</strong></article>
+        <article class="pricing-kpi-card"><p>Perdidas</p><strong id="hk-perdidos" class="text-danger">0</strong></article>
+        <article class="pricing-kpi-card"><p>Taxa de Conversão</p><strong id="hk-taxa">0%</strong></article>
+        <article class="pricing-kpi-card"><p>Faturamento Ganho</p><strong id="hk-faturamento" class="text-accent">R$ 0</strong></article>
+        <article class="pricing-kpi-card"><p>Delta Médio (perdas)</p><strong id="hk-delta" class="text-danger">—</strong></article>
+      </div>
+      <div class="rent-tabs" id="sub-tabs-historico">
+        <button class="rent-tab active" onclick="switchHistoricoTab('ganhos')">Ganhos</button>
+        <button class="rent-tab" onclick="switchHistoricoTab('perdidos')">Perdidos</button>
+        <button class="rent-tab" onclick="switchHistoricoTab('analise')">Análise Comparativa</button>
+      </div>
+      <div id="hist-ganhos" class="rent-content active"></div>
+      <div id="hist-perdidos" class="rent-content" style="display:none;"></div>
+      <div id="hist-analise" class="rent-content" style="display:none;"></div>
+    </div>
+  </section>
+
+  <!-- ===== PAINEL DE CONFIGURAÇÕES ===== -->
+  <section id="config-panel" class="tab-content">
+    <div class="card">
+      <div class="table-head">
+        <h2>Configurações</h2>
+      </div>
+      <nav class="config-tabs">
+        <button class="config-tab active" data-config-tab="empresa">Dados da Empresa</button>
+        <button class="config-tab" data-config-tab="usuarios">Cadastro de Usuários</button>
+        <button class="config-tab" data-config-tab="modulos">Módulos</button>
+      </nav>
+      <!-- Dados da Empresa -->
+      <div id="config-empresa" class="config-content active">
+        <div class="form-grid">
+          <label>
+            Nome Fantasia
+            <input type="text" id="cfg-nome" placeholder="Ex: Lariucci" />
+          </label>
+          <label>
+            Razao Social
+            <input type="text" id="cfg-razao-social" placeholder="Ex: Edson de Sousa Goncalves" />
+          </label>
+          <label>
+            CNPJ
+            <input type="text" id="cfg-cnpj" placeholder="00.000.000/0001-00" />
+          </label>
+          <label>
+            Logradouro
+            <input type="text" id="cfg-logradouro" placeholder="Ex: Rua das Flores" />
+          </label>
+          <label>
+            Número
+            <input type="text" id="cfg-numero" placeholder="Ex: 123" />
+          </label>
+          <label>
+            Bairro
+            <input type="text" id="cfg-bairro" placeholder="Ex: Centro" />
+          </label>
+          <label>
+            Cidade
+            <input type="text" id="cfg-cidade" placeholder="Ex: Uberaba" />
+          </label>
+          <label>
+            UF
+            <input type="text" id="cfg-uf" placeholder="Ex: MG" maxlength="2" />
+          </label>
+          <label>
+            CEP
+            <input type="text" id="cfg-cep" placeholder="00000-000" />
+          </label>
+          <label>
+            Telefone
+            <input type="text" id="cfg-telefone" placeholder="(34) 99999-0000" />
+          </label>
+          <label>
+            Email
+            <input type="email" id="cfg-email" placeholder="contato@empresa.com" />
+          </label>
+        </div>
+        <div class="modal-actions" style="margin-top:16px;">
+          <button id="btn-cfg-salvar" class="btn btn-accent">Salvar Dados</button>
+        </div>
+      </div>
+      <!-- Cadastro de Usuários -->
+      <div id="config-usuarios" class="config-content">
+        <div class="table-wrap">
+          <table id="tabela-usuarios">
+            <thead>
+              <tr>
+                <th>Nome</th>
+                <th>Email</th>
+                <th>Usuário</th>
+                <th>Perfil</th>
+                <th>Status</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-usuarios"></tbody>
+          </table>
+        </div>
+        <p id="usuarios-empty" class="empty-msg">Nenhum usuário cadastrado.</p>
+        <!-- Formulário de cadastro de usuário -->
+        <div id="form-usuario" class="form-grid" style="margin-top:16px; padding:16px; border:1px solid var(--line); border-radius:8px;">
+          <label>
+            Nome
+            <input type="text" id="usr-nome" placeholder="Nome completo" />
+          </label>
+          <label>
+            Email
+            <input type="email" id="usr-email" placeholder="email@exemplo.com" />
+          </label>
+          <label>
+            Usuário
+            <input type="text" id="usr-usuario" placeholder="Nome de usuário" />
+          </label>
+          <label>
+            Senha
+            <input type="password" id="usr-senha" placeholder="Senha de acesso" />
+          </label>
+          <label>
+            Perfil
+            <select id="usr-perfil">
+              <option value="Operador">Operador</option>
+              <option value="Admin">Admin</option>
+            </select>
+          </label>
+        </div>
+        <div class="modal-actions" style="margin-top:16px;">
+          <button id="btn-add-usuario" class="btn btn-accent">+ Adicionar Usuário</button>
+        </div>
+      </div>
+      <!-- Módulos (Controle de Acesso) -->
+      <div id="config-modulos" class="config-content">
+        <p style="color:var(--muted);margin-bottom:16px;">Ative ou desative o acesso aos módulos do sistema. Módulos desativados ficam ocultos na sidebar e no dashboard home.</p>
+        <div style="display:flex;flex-direction:column;gap:12px;" id="modulos-toggles">
+          <label style="display:flex;align-items:center;gap:12px;padding:12px;background:var(--bg);border:1px solid var(--line);border-radius:8px;cursor:pointer;">
+            <input type="checkbox" id="mod-radar" checked onchange="salvarModulos()">
+            <span>📡</span>
+            <div><strong>RADAR</strong><br><span style="font-size:.8rem;color:var(--muted);">Radar de Oportunidades — SGD</span></div>
+          </label>
+          <label style="display:flex;align-items:center;gap:12px;padding:12px;background:var(--bg);border:1px solid var(--line);border-radius:8px;cursor:pointer;">
+            <input type="checkbox" id="mod-intel" checked onchange="salvarModulos()">
+            <span>💰</span>
+            <div><strong>INTEL PREÇOS</strong><br><span style="font-size:.8rem;color:var(--muted);">Banco de Preços, Pré-Orçamento, Rentabilidade</span></div>
+          </label>
+          <label style="display:flex;align-items:center;gap:12px;padding:12px;background:var(--bg);border:1px solid var(--line);border-radius:8px;cursor:pointer;">
+            <input type="checkbox" id="mod-gdp" checked onchange="salvarModulos()">
+            <span>📦</span>
+            <div><strong>GDP</strong><br><span style="font-size:.8rem;color:var(--muted);">Gestão de Pedidos Pós-Licitação</span></div>
+          </label>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  </div><!-- /main-area -->
+
+  <!-- Hidden file input for Excel import -->
+  <input type="file" id="import-file-input" accept=".xlsx,.xls,.csv,.pdf,.jpg,.jpeg,.png,.docx,.doc" style="display:none;" />
+
+  <!-- ===== MODAL: Import Multi-Formato ===== -->
+  <div id="modal-import" class="modal-overlay" style="display:none;">
+    <div class="modal card" style="max-width:800px;">
+      <h2>Importar Mapa de Precos</h2>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+        <p class="text-muted" style="font-size:0.8rem;margin:0;" id="import-filename"></p>
+        <span id="import-format-badge" class="badge" style="display:none;"></span>
+      </div>
+
+      <!-- OCR progress -->
+      <div id="ocr-progress" style="display:none;margin:16px 0;">
+        <p style="font-size:0.85rem;margin-bottom:8px;">Processando OCR (reconhecimento de texto)... <strong id="ocr-pct">0%</strong></p>
+        <progress id="ocr-bar" value="0" max="100" style="width:100%;height:8px;"></progress>
+      </div>
+
+      <!-- Mapa de Apuracao panel -->
+      <div id="mapa-apuracao-panel" style="display:none;margin:12px 0;padding:12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);">
+        <h3 style="font-size:0.85rem;margin-bottom:8px;">Mapa de Apuracao Detectado</h3>
+        <p style="font-size:0.8rem;margin-bottom:8px;">
+          Sua empresa: <strong id="mapa-empresa-detectada" style="color:var(--accent);">—</strong>
+          <button class="btn btn-sm" id="btn-mapa-alterar-empresa" style="margin-left:8px;">Alterar</button>
+        </p>
+        <div id="mapa-classificacao" style="font-size:0.8rem;"></div>
+      </div>
+
+      <!-- Column mapping -->
+      <div class="import-mapping" id="import-mapping"></div>
+
+      <!-- Total/Unit toggle -->
+      <div id="import-total-toggle" style="margin:8px 0;display:none;">
+        <label style="font-size:0.8rem;display:flex;align-items:center;gap:6px;cursor:pointer;">
+          <input type="checkbox" id="chk-valores-totais" />
+          Valores sao totais (dividir por Qtde para obter unitario)
+        </label>
+      </div>
+
+      <!-- Preview table -->
+      <div class="table-wrap" style="max-height:300px;overflow-y:auto;margin:12px 0;">
+        <table id="tabela-import-preview">
+          <thead id="thead-import-preview"></thead>
+          <tbody id="tbody-import-preview"></tbody>
+        </table>
+      </div>
+
+      <!-- Stats -->
+      <div id="import-stats" class="import-stats" style="display:none;"></div>
+
+      <div class="modal-actions">
+        <button id="btn-import-confirmar" class="btn btn-accent">Importar</button>
+        <button id="btn-import-cancelar" class="btn">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== MODAL: Editar item do banco de preços ===== -->
+  <div id="modal-banco" class="modal-overlay" style="display:none;">
+    <div class="modal card">
+      <h2 id="modal-banco-titulo">Novo Item</h2>
+      <div class="form-grid">
+        <label>
+          Item
+          <input type="text" id="modal-item" placeholder="Ex: Ventilador de parede 60cm" />
+        </label>
+        <label>
+          Grupo
+          <select id="modal-grupo"></select>
+        </label>
+        <label>
+          Unidade
+          <input type="text" id="modal-unidade" placeholder="Ex: Unidade, Resma, Kit" />
+        </label>
+        <label>
+          Custo Base (R$)
+          <input type="number" id="modal-custo" step="0.01" min="0" />
+        </label>
+        <label>
+          Margem (%)
+          <input type="number" id="modal-margem" step="1" min="0" max="100" />
+        </label>
+        <label>
+          Marca
+          <input type="text" id="modal-marca" placeholder="Ex: Ypê, Neve, BIC" />
+        </label>
+        <label>
+          Fonte / Fornecedor
+          <input type="text" id="modal-fonte" placeholder="Ex: Distribuidora X" />
+        </label>
+        <label>
+          Preço Fornecedor (R$) <span class="text-muted" style="font-size:0.7rem;">(opcional — atualiza custo base)</span>
+          <input type="number" id="modal-preco-fornecedor" step="0.01" min="0" placeholder="Último preço do fornecedor" />
+        </label>
+      </div>
+
+      <!-- Multi-Fornecedor -->
+      <div id="modal-multi-fornecedor" style="display:none; margin-top:12px; padding:12px; border:1px solid var(--line); border-radius:8px;">
+        <h3 style="font-size:0.85rem; margin-bottom:8px;">Histórico de Fornecedores</h3>
+        <div class="table-wrap" style="max-height:200px; overflow-y:auto;">
+          <table>
+            <thead><tr><th>Fornecedor</th><th>Preço</th><th>Data</th><th></th></tr></thead>
+            <tbody id="tbody-modal-fornecedores"></tbody>
+          </table>
+        </div>
+        <div style="display:flex; gap:8px; margin-top:8px;">
+          <input type="text" id="modal-new-forn-nome" placeholder="Fornecedor" style="flex:1;" />
+          <input type="number" id="modal-new-forn-preco" placeholder="Preço" step="0.01" style="width:100px;" />
+          <button class="btn btn-sm btn-accent" onclick="addModalFornecedor()">+ Adicionar</button>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button id="btn-modal-salvar" class="btn btn-accent">Salvar</button>
+        <button id="btn-modal-cancelar" class="btn">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== MODAL: Registrar Resultado SGD ===== -->
+  <div id="modal-resultado" class="modal-overlay" style="display:none;">
+    <div class="modal card" style="max-width:600px;">
+      <h2>Registrar Resultado</h2>
+      <p class="text-muted" style="font-size:0.82rem;" id="res-escola-info"></p>
+
+      <div style="display:flex;gap:12px;margin:16px 0;">
+        <button class="btn btn-accent" id="btn-res-ganho" onclick="selectResultado('ganho')" style="flex:1;padding:16px;font-size:1rem;">GANHEI</button>
+        <button class="btn btn-danger" id="btn-res-perdido" onclick="selectResultado('perdido')" style="flex:1;padding:16px;font-size:1rem;">PERDI</button>
+      </div>
+
+      <div id="campos-perda" style="display:none;">
+        <label>Valor do vencedor (total) <input type="number" id="res-valor-vencedor" step="0.01" placeholder="R$" /></label>
+        <label>Fornecedor vencedor <input type="text" id="res-fornecedor-vencedor" placeholder="Nome do fornecedor" /></label>
+        <label>Motivo principal
+          <select id="res-motivo">
+            <option value="preco">Preço mais alto</option>
+            <option value="tecnico">Critério técnico</option>
+            <option value="desclassificado">Desclassificado</option>
+            <option value="outro">Outro</option>
+          </select>
+        </label>
+      </div>
+
+      <div id="campos-ganho" style="display:none;">
+        <label style="display:flex;align-items:center;gap:8px;">
+          <input type="checkbox" id="res-gerar-contrato" checked />
+          Gerar contrato automaticamente
+        </label>
+      </div>
+
+      <label>Observações <textarea id="res-observacoes" rows="2" placeholder="Notas sobre o resultado..."></textarea></label>
+      <label>Data do resultado <input type="date" id="res-data" /></label>
+
+      <div class="modal-actions">
+        <button class="btn btn-accent" id="btn-salvar-resultado" onclick="salvarResultado()" style="display:none;">Salvar Resultado</button>
+        <button class="btn" onclick="fecharModalResultado()">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== MODAL: Detalhes do Contrato ===== -->
+  <div id="modal-contrato" class="modal-overlay" style="display:none;">
+    <div class="modal card" style="max-width:700px;">
+      <h2 id="modal-contrato-titulo">Contrato</h2>
+      <div id="modal-contrato-body"></div>
+      <div class="modal-actions">
+        <button class="btn" onclick="document.getElementById('modal-contrato').style.display='none'">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== MODAL: Fontes de Preço B2B ===== -->
+  <div id="modal-fontes" class="modal-overlay" style="display:none;">
+    <div class="modal card" style="max-width:700px;">
+      <h2 id="modal-fontes-titulo">Fontes de Preço</h2>
+      <div id="modal-fontes-body"></div>
+      <div class="modal-actions">
+        <button class="btn" onclick="document.getElementById('modal-fontes').style.display='none'">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sidebar overlay (mobile) -->
+  <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+  <script src="auth.js"></script>
+  <script src="app.js?v=7"></script>
+  <script src="pricing-intel.js?v=1"></script>
+</body>
+</html>

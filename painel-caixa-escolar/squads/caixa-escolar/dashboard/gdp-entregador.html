@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#3b82f6">
+  <link rel="manifest" href="manifest-entregador.json">
+  <link rel="apple-touch-icon" sizes="192x192" href="icon-entregador-192.png">
+  <title>GDP Entregador</title>
+  <style>
+    :root {
+      --bg:#0f172a;--surface:#1e293b;--surface2:#334155;--border:#475569;
+      --text:#f1f5f9;--muted:#94a3b8;--dim:#64748b;
+      --accent:#3b82f6;--accent-hover:#2563eb;--accent-light:rgba(59,130,246,.12);
+      --success:#22c55e;--success-light:rgba(34,197,94,.12);
+      --warning:#f59e0b;--warning-light:rgba(245,158,11,.12);
+      --danger:#ef4444;
+    }
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;-webkit-user-select:none;user-select:none}
+
+    /* Login */
+    .login-wrapper{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1rem}
+    .login-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:2rem;width:360px;max-width:100%}
+    .login-card h1{font-size:1.4rem;text-align:center;margin-bottom:.3rem}
+    .login-card h1 span{color:var(--accent)}
+    .login-card p{text-align:center;color:var(--muted);font-size:.85rem;margin-bottom:1.5rem}
+    .form-group{margin-bottom:1rem}
+    .form-group label{display:block;font-size:.75rem;color:var(--muted);margin-bottom:.4rem;text-transform:uppercase}
+    .form-group input{width:100%;padding:.8rem 1rem;background:var(--bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:1rem;outline:none}
+    .form-group input:focus{border-color:var(--accent)}
+    .btn{width:100%;padding:.9rem;border:none;border-radius:10px;font-size:1rem;font-weight:700;cursor:pointer;transition:all .2s}
+    .btn-primary{background:var(--accent);color:#fff}
+    .btn-primary:hover{background:var(--accent-hover)}
+    .btn-success{background:var(--success);color:#000}
+    .btn-outline{background:transparent;border:1px solid var(--border);color:var(--text)}
+    .btn-danger{background:var(--danger);color:#fff}
+    .btn-sm{padding:.6rem 1rem;font-size:.85rem;width:auto}
+    .login-error{color:var(--danger);font-size:.85rem;text-align:center;margin-top:.5rem;display:none}
+
+    /* App */
+    .app{display:none}
+    .topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:.8rem 1rem;display:flex;align-items:center;justify-content:space-between}
+    .topbar h1{font-size:1rem}
+    .topbar h1 span{color:var(--accent)}
+
+    /* Delivery list */
+    .delivery-list{padding:1rem}
+    .delivery-list h2{font-size:1rem;margin-bottom:1rem;color:var(--muted)}
+    .delivery-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1rem;margin-bottom:.8rem;cursor:pointer;transition:all .2s}
+    .delivery-card:active{transform:scale(.98);border-color:var(--accent)}
+    .delivery-card h3{font-size:.95rem;margin-bottom:.3rem}
+    .delivery-card .meta{font-size:.8rem;color:var(--muted)}
+    .delivery-card .meta strong{color:var(--success)}
+    .badge{padding:.2rem .6rem;border-radius:999px;font-size:.7rem;font-weight:700}
+    .badge-yellow{background:var(--warning-light);color:var(--warning)}
+    .badge-green{background:var(--success-light);color:var(--success)}
+    .badge-blue{background:var(--accent-light);color:var(--accent)}
+    .empty-msg{text-align:center;color:var(--dim);padding:3rem 1rem;font-size:.9rem}
+
+    /* Detail view */
+    .detail-view{display:none;padding:1rem}
+    .detail-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem}
+    .detail-header h2{font-size:1rem}
+    .detail-info{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1rem;margin-bottom:1rem;font-size:.85rem}
+    .detail-info dt{color:var(--muted);font-size:.72rem;text-transform:uppercase;margin-top:.6rem}
+    .detail-info dd{font-weight:600}
+    .items-list{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:1rem}
+    .items-list table{width:100%;border-collapse:collapse}
+    .items-list th{background:var(--surface2);padding:.5rem .8rem;text-align:left;font-size:.7rem;text-transform:uppercase;color:var(--muted)}
+    .items-list td{padding:.5rem .8rem;font-size:.85rem;border-top:1px solid rgba(71,85,105,.3)}
+
+    /* Photo */
+    .photo-section{margin-bottom:1rem}
+    .photo-section h3{font-size:.85rem;color:var(--muted);margin-bottom:.5rem}
+    .photo-btn{width:100%;padding:1.2rem;background:var(--surface);border:2px dashed var(--border);border-radius:12px;color:var(--muted);font-size:.9rem;cursor:pointer;text-align:center;transition:all .2s}
+    .photo-btn:active{border-color:var(--accent);color:var(--accent)}
+    .photo-preview{width:100%;max-height:200px;object-fit:cover;border-radius:8px;margin-top:.5rem;display:none}
+    input[type="file"]{display:none}
+
+    /* Signature */
+    .signature-section{margin-bottom:1rem}
+    .signature-section h3{font-size:.85rem;color:var(--muted);margin-bottom:.5rem}
+    .signature-pad-wrap{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;position:relative}
+    .signature-pad{width:100%;height:180px;touch-action:none;cursor:crosshair}
+    .signature-actions{display:flex;gap:.5rem;padding:.5rem}
+    .signature-label{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:var(--dim);font-size:.85rem;pointer-events:none}
+
+    /* Notes */
+    .notes-section{margin-bottom:1rem}
+    .notes-section h3{font-size:.85rem;color:var(--muted);margin-bottom:.5rem}
+    .notes-section textarea{width:100%;padding:.8rem;background:var(--surface);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:.9rem;min-height:60px;resize:vertical;font-family:inherit;outline:none}
+    .notes-section textarea:focus{border-color:var(--accent)}
+
+    .confirm-delivery{padding:1rem;position:sticky;bottom:0;background:var(--bg);border-top:1px solid var(--border)}
+  </style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div class="login-wrapper" id="login-screen">
+  <div class="login-card">
+    <h1>🚚 <span>GDP</span> Entregador</h1>
+    <p>Comprovante de Entrega Digital</p>
+    <div class="form-group">
+      <label>Codigo de Acesso</label>
+      <input type="password" id="login-code" placeholder="••••••••" autofocus>
+    </div>
+    <button class="btn btn-primary" onclick="doLogin()">Entrar</button>
+    <div class="login-error" id="login-error">Codigo invalido</div>
+  </div>
+</div>
+
+<!-- APP -->
+<div class="app" id="app">
+  <div class="topbar">
+    <h1>🚚 <span>GDP</span> Entregador</h1>
+    <div style="display:flex;gap:8px;align-items:center">
+      <a href="dashboard-home.html" style="color:#22c55e;text-decoration:none;font-weight:600;font-size:0.85rem">← Licit-AIX</a>
+      <button class="btn-sm btn-outline" onclick="doLogout()" style="border:1px solid var(--border);background:transparent;color:var(--text);border-radius:8px;cursor:pointer">Sair</button>
+    </div>
+  </div>
+
+  <!-- DELIVERY LIST -->
+  <div class="delivery-list" id="delivery-list">
+    <h2>Entregas Pendentes</h2>
+    <div id="deliveries-container"></div>
+  </div>
+
+  <!-- DETAIL VIEW -->
+  <div class="detail-view" id="detail-view">
+    <div class="detail-header">
+      <h2 id="detail-title">Detalhes do Pedido</h2>
+      <button class="btn-sm btn-outline" onclick="voltarLista()" style="border:1px solid var(--border);background:transparent;color:var(--text);border-radius:8px;cursor:pointer;padding:.5rem .8rem;font-size:.8rem">Voltar</button>
+    </div>
+
+    <div class="detail-info" id="detail-info"></div>
+    <div class="items-list" id="detail-items"></div>
+
+    <div class="photo-section">
+      <h3>Foto da Entrega</h3>
+      <div class="photo-btn" onclick="document.getElementById('photo-input').click()">
+        📷 Tirar Foto / Selecionar Imagem
+      </div>
+      <input type="file" id="photo-input" accept="image/*" capture="environment" onchange="handlePhoto(this)">
+      <img id="photo-preview" class="photo-preview">
+    </div>
+
+    <div class="signature-section">
+      <h3>Assinatura do Recebedor</h3>
+      <div class="signature-pad-wrap">
+        <canvas id="signature-pad" class="signature-pad"></canvas>
+        <span class="signature-label" id="sig-label">Assine aqui</span>
+      </div>
+      <div class="signature-actions">
+        <button class="btn-sm btn-outline" onclick="clearSignature()" style="border:1px solid var(--border);background:transparent;color:var(--text);border-radius:8px;cursor:pointer;padding:.4rem .8rem;font-size:.75rem">Limpar</button>
+        <input type="text" id="recebedor-nome" placeholder="Nome de quem recebeu" style="flex:1;padding:.4rem .8rem;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:.85rem;outline:none">
+      </div>
+    </div>
+
+    <div class="notes-section">
+      <h3>Observacoes</h3>
+      <textarea id="delivery-notes" placeholder="Ex: Entregue na secretaria, caixa 2 com avaria..."></textarea>
+    </div>
+
+    <div class="confirm-delivery">
+      <button class="btn btn-success" onclick="confirmarEntrega()" id="btn-confirmar">Confirmar Entrega</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const ACCESS_CODE = "entregador2025";
+const ORDERS_KEY = "gdp.pedidos.v1";
+const PROOFS_KEY = "gdp.entregas.provas.v1";
+
+// ===== SUPABASE CLOUD SYNC =====
+const SUPABASE_URL = "https://ohxoxencxktpzskltbsk.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9oeG94ZW5jeGt0cHpza2x0YnNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMyMTUwNDQsImV4cCI6MjA4ODc5MTA0NH0.-w8f1xjW1cW2-OZpg1Sql8PqwFDzDqyWw4pHEx6jGSk";
+
+function getSyncUserId() {
+  const emp = JSON.parse(localStorage.getItem("nexedu.empresa") || "{}");
+  return emp.nome || emp.cnpj || "default";
+}
+
+async function cloudSave(key, data) {
+  const userId = getSyncUserId();
+  try {
+    await fetch(`${SUPABASE_URL}/rest/v1/sync_data?user_id=eq.${encodeURIComponent(userId)}&key=eq.${encodeURIComponent(key)}`, {
+      method: "DELETE", headers: { "apikey": SUPABASE_KEY, "Authorization": "Bearer " + SUPABASE_KEY }
+    });
+    await fetch(`${SUPABASE_URL}/rest/v1/sync_data`, {
+      method: "POST",
+      headers: { "apikey": SUPABASE_KEY, "Authorization": "Bearer " + SUPABASE_KEY, "Content-Type": "application/json", "Prefer": "return=minimal" },
+      body: JSON.stringify({ user_id: userId, key, data, updated_at: new Date().toISOString() })
+    });
+  } catch (e) { console.warn("Cloud save failed:", key, e); }
+}
+
+async function syncFromCloud() {
+  const userId = getSyncUserId();
+  try {
+    const resp = await fetch(
+      `${SUPABASE_URL}/rest/v1/sync_data?user_id=eq.${encodeURIComponent(userId)}&select=key,data,updated_at`,
+      { headers: { "apikey": SUPABASE_KEY, "Authorization": "Bearer " + SUPABASE_KEY } }
+    );
+    if (!resp.ok) return false;
+    const rows = await resp.json();
+    let synced = 0;
+    for (const row of rows) {
+      const local = localStorage.getItem(row.key);
+      const localData = local ? JSON.parse(local) : null;
+      if (!localData || (row.data && JSON.stringify(row.data) !== JSON.stringify(localData))) {
+        localStorage.setItem(row.key, JSON.stringify(row.data));
+        synced++;
+      }
+    }
+    return synced > 0;
+  } catch (e) { console.warn("Cloud sync failed:", e); return false; }
+}
+
+async function syncToCloud() {
+  const promises = [ORDERS_KEY, PROOFS_KEY].map(key => {
+    const raw = localStorage.getItem(key);
+    if (!raw) return Promise.resolve();
+    try { return cloudSave(key, JSON.parse(raw)); } catch(_) { return Promise.resolve(); }
+  });
+  await Promise.all(promises);
+}
+
+let _syncTimeout = null;
+function schedulCloudSync() {
+  if (_syncTimeout) clearTimeout(_syncTimeout);
+  _syncTimeout = setTimeout(() => syncToCloud(), 2000);
+}
+
+let pedidos = [];
+let provas = [];
+let currentPedido = null;
+let photoData = null;
+let signatureData = null;
+
+// Signature pad
+let canvas, ctx, isDrawing = false, lastX = 0, lastY = 0, hasSignature = false;
+
+function doLogin() {
+  const code = document.getElementById('login-code').value.trim();
+  if (code === ACCESS_CODE) {
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    loadDeliveries();
+  } else {
+    const err = document.getElementById('login-error');
+    err.style.display = 'block';
+    setTimeout(() => err.style.display = 'none', 2000);
+  }
+}
+
+function doLogout() {
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('login-code').value = '';
+}
+
+document.getElementById('login-code').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
+
+async function loadDeliveries() {
+  // Cloud sync first
+  try { await syncFromCloud(); } catch(_) {}
+
+  try { pedidos = JSON.parse(localStorage.getItem(ORDERS_KEY)) || []; } catch(_) { pedidos = []; }
+  try { provas = JSON.parse(localStorage.getItem(PROOFS_KEY)) || []; } catch(_) { provas = []; }
+
+  // Buscar pedidos do servidor (sincronizados de outros dispositivos)
+  try {
+    const resp = await fetch("/api/sync-pedidos");
+    const data = await resp.json();
+    if (data.ok && data.pedidos && data.pedidos.length > 0) {
+      // Merge: servidor tem prioridade para pedidos novos
+      for (const sp of data.pedidos) {
+        const idx = pedidos.findIndex(p => p.id === sp.id);
+        if (idx >= 0) {
+          // Manter status local se ja foi entregue localmente
+          if (pedidos[idx].status === 'entregue' && sp.status !== 'entregue') continue;
+          pedidos[idx] = sp;
+        } else {
+          pedidos.push(sp);
+        }
+      }
+      localStorage.setItem(ORDERS_KEY, JSON.stringify(pedidos));
+    }
+  } catch (_) {
+    // Offline — usa dados locais
+  }
+
+  // Seed demo data if empty
+  if (pedidos.length === 0) {
+    pedidos = [
+      { id: 'PED-20260306-0001', contratoId: 'CTR-DEMO', escola: 'Escola Estadual Maestro Villa Lobos', data: '2026-03-06', itens: [
+        { itemNum: 1, descricao: 'Arroz Casa Grande 5kg', qtd: 10, precoUnitario: 19.70 },
+        { itemNum: 2, descricao: 'Feijao Carioca 1kg', qtd: 15, precoUnitario: 8.50 },
+        { itemNum: 3, descricao: 'Oleo de Soja 900ml', qtd: 8, precoUnitario: 8.37 }
+      ], valor: 391.46, status: 'separando' },
+      { id: 'PED-20260306-0002', contratoId: 'CTR-DEMO', escola: 'Escola Estadual Alceu Novaes', data: '2026-03-06', itens: [
+        { itemNum: 1, descricao: 'Acafrao 500gr Pacha', qtd: 5, precoUnitario: 10.36 },
+        { itemNum: 2, descricao: 'Queijo Mussarela kg', qtd: 3, precoUnitario: 50.14 },
+        { itemNum: 3, descricao: 'Polpa de Morango kg', qtd: 6, precoUnitario: 23.86 }
+      ], valor: 345.38, status: 'separando' },
+      { id: 'PED-20260305-0003', contratoId: 'CTR-DEMO', escola: 'E.E. Bernardo Vasconcelos', data: '2026-03-05', itens: [
+        { itemNum: 1, descricao: 'Manteiga de Leite 500gr', qtd: 4, precoUnitario: 30.67 },
+        { itemNum: 2, descricao: 'Farinha de Trigo Sol 1kg', qtd: 20, precoUnitario: 4.62 }
+      ], valor: 215.08, status: 'recebido' }
+    ];
+    localStorage.setItem(ORDERS_KEY, JSON.stringify(pedidos));
+  }
+
+  renderDeliveries();
+  // Push local data to cloud (populates Supabase with existing data)
+  try { await syncToCloud(); } catch(_) {}
+}
+
+function renderDeliveries() {
+  const pending = pedidos.filter(p => p.status === 'separando' || p.status === 'recebido');
+  const delivered = pedidos.filter(p => p.status === 'entregue').slice(-5);
+  const container = document.getElementById('deliveries-container');
+
+  if (pending.length === 0 && delivered.length === 0) {
+    container.innerHTML = '<p class="empty-msg">Nenhuma entrega pendente no momento.</p>';
+    return;
+  }
+
+  let html = '';
+  if (pending.length > 0) {
+    html += pending.map(p => `
+      <div class="delivery-card" onclick="abrirEntrega('${p.id}')">
+        <div style="display:flex;justify-content:space-between;align-items:start">
+          <h3>${p.escola.length > 35 ? p.escola.slice(0,33)+'...' : p.escola}</h3>
+          <span class="badge ${p.status==='separando'?'badge-blue':'badge-yellow'}">${p.status}</span>
+        </div>
+        <div class="meta">${p.id} | ${p.data} | ${p.itens.length} itens | <strong>R$ ${p.valor.toLocaleString('pt-BR',{minimumFractionDigits:2})}</strong></div>
+      </div>
+    `).join('');
+  }
+
+  if (delivered.length > 0) {
+    html += '<h2 style="font-size:.85rem;color:var(--dim);margin:1.5rem 0 .8rem">Ultimas Entregas</h2>';
+    html += delivered.map(p => {
+      const prova = provas.find(pr => pr.pedidoId === p.id);
+      return `
+        <div class="delivery-card" style="opacity:.7;cursor:default">
+          <div style="display:flex;justify-content:space-between;align-items:start">
+            <h3>${p.escola.length > 35 ? p.escola.slice(0,33)+'...' : p.escola}</h3>
+            <span class="badge badge-green">entregue</span>
+          </div>
+          <div class="meta">${p.id} | ${p.data} ${prova ? '| ✅ Comprovante registrado' : ''}</div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  container.innerHTML = html;
+}
+
+function abrirEntrega(id) {
+  currentPedido = pedidos.find(p => p.id === id);
+  if (!currentPedido) return;
+
+  photoData = null;
+  signatureData = null;
+  hasSignature = false;
+
+  document.getElementById('delivery-list').style.display = 'none';
+  document.getElementById('detail-view').style.display = 'block';
+
+  document.getElementById('detail-title').textContent = currentPedido.id;
+  document.getElementById('detail-info').innerHTML = `
+    <dt>Escola</dt><dd>${currentPedido.escola}</dd>
+    <dt>Data do Pedido</dt><dd>${currentPedido.data}</dd>
+    <dt>Status</dt><dd><span class="badge badge-blue">${currentPedido.status}</span></dd>
+    <dt>Valor Total</dt><dd style="color:var(--success);font-size:1.1rem;font-weight:800">R$ ${currentPedido.valor.toLocaleString('pt-BR',{minimumFractionDigits:2})}</dd>
+  `;
+
+  document.getElementById('detail-items').innerHTML = `<table>
+    <thead><tr><th>Item</th><th>Qtd</th><th>Preco</th></tr></thead>
+    <tbody>${currentPedido.itens.map(i => `<tr><td>${i.descricao}</td><td style="text-align:center">${i.qtd}</td><td style="color:var(--success)">R$ ${i.precoUnitario.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td></tr>`).join('')}</tbody>
+  </table>`;
+
+  // Reset UI
+  document.getElementById('photo-preview').style.display = 'none';
+  document.getElementById('recebedor-nome').value = '';
+  document.getElementById('delivery-notes').value = '';
+  document.getElementById('sig-label').style.display = 'block';
+
+  initSignaturePad();
+}
+
+function voltarLista() {
+  document.getElementById('detail-view').style.display = 'none';
+  document.getElementById('delivery-list').style.display = 'block';
+  currentPedido = null;
+  loadDeliveries();
+}
+
+// PHOTO
+function handlePhoto(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    photoData = e.target.result;
+    const preview = document.getElementById('photo-preview');
+    preview.src = photoData;
+    preview.style.display = 'block';
+  };
+  reader.readAsDataURL(file);
+}
+
+// SIGNATURE PAD
+function initSignaturePad() {
+  canvas = document.getElementById('signature-pad');
+  ctx = canvas.getContext('2d');
+
+  const rect = canvas.parentElement.getBoundingClientRect();
+  canvas.width = rect.width;
+  canvas.height = 180;
+
+  ctx.strokeStyle = '#f1f5f9';
+  ctx.lineWidth = 2;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  // Clear
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  hasSignature = false;
+
+  // Helper: get coordinates from event (mouse or touch)
+  function getPos(e) {
+    const r = canvas.getBoundingClientRect();
+    if (e.touches && e.touches.length > 0) {
+      return { x: e.touches[0].clientX - r.left, y: e.touches[0].clientY - r.top };
+    }
+    return { x: e.clientX - r.left, y: e.clientY - r.top };
+  }
+
+  function startDraw(e) {
+    e.preventDefault();
+    isDrawing = true;
+    const pos = getPos(e);
+    lastX = pos.x;
+    lastY = pos.y;
+    document.getElementById('sig-label').style.display = 'none';
+    hasSignature = true;
+  }
+
+  function moveDraw(e) {
+    if (!isDrawing) return;
+    e.preventDefault();
+    const pos = getPos(e);
+    ctx.beginPath();
+    ctx.moveTo(lastX, lastY);
+    ctx.lineTo(pos.x, pos.y);
+    ctx.stroke();
+    lastX = pos.x;
+    lastY = pos.y;
+  }
+
+  function endDraw() { isDrawing = false; }
+
+  // Pointer events (desktop + modern mobile)
+  canvas.onpointerdown = startDraw;
+  canvas.onpointermove = moveDraw;
+  canvas.onpointerup = endDraw;
+  canvas.onpointerleave = endDraw;
+
+  // Touch events (fallback for older mobile browsers)
+  canvas.addEventListener('touchstart', startDraw, { passive: false });
+  canvas.addEventListener('touchmove', moveDraw, { passive: false });
+  canvas.addEventListener('touchend', endDraw);
+  canvas.addEventListener('touchcancel', endDraw);
+}
+
+function clearSignature() {
+  if (!ctx) return;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  hasSignature = false;
+  document.getElementById('sig-label').style.display = 'block';
+}
+
+// CONFIRM
+function confirmarEntrega() {
+  if (!currentPedido) return;
+
+  // Verificar assinatura: flag OU verificar pixels no canvas
+  if (!hasSignature && canvas) {
+    const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+    let found = false;
+    for (let i = 3; i < pixels.length; i += 4) {
+      if (pixels[i] > 0) { found = true; break; }
+    }
+    if (found) hasSignature = true;
+  }
+  if (!hasSignature) {
+    alert('Por favor, colete a assinatura do recebedor.');
+    return;
+  }
+
+  const recebedor = document.getElementById('recebedor-nome').value.trim();
+  if (!recebedor) {
+    alert('Informe o nome de quem recebeu.');
+    return;
+  }
+
+  signatureData = canvas.toDataURL('image/png');
+
+  // Save proof
+  const prova = {
+    pedidoId: currentPedido.id,
+    escola: currentPedido.escola,
+    dataEntrega: new Date().toISOString(),
+    recebedor: recebedor,
+    foto: photoData || null,
+    assinatura: signatureData,
+    obs: document.getElementById('delivery-notes').value.trim()
+  };
+
+  provas.push(prova);
+  localStorage.setItem(PROOFS_KEY, JSON.stringify(provas));
+
+  // Update order status
+  currentPedido.status = 'entregue';
+  localStorage.setItem(ORDERS_KEY, JSON.stringify(pedidos));
+  schedulCloudSync();
+
+  // Sincronizar com servidor (para o fornecedor ver no PC)
+  sincronizarProva(prova);
+
+  alert('Entrega confirmada com sucesso!\nProtocolo: ' + currentPedido.id);
+  voltarLista();
+}
+
+// Sincronizar comprovante com servidor
+async function sincronizarProva(prova) {
+  try {
+    const resp = await fetch("/api/sync-entregas", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prova })
+    });
+    const data = await resp.json();
+    if (data.ok) console.log("Comprovante sincronizado:", data.total);
+  } catch (err) {
+    console.warn("Falha ao sincronizar (sera enviado depois):", err.message);
+  }
+}
+
+// Sincronizar pedido com servidor (para entregador ver em outros dispositivos)
+async function sincronizarPedido(pedido) {
+  try {
+    await fetch("/api/sync-pedidos", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pedido })
+    });
+  } catch (_) {}
+}
+
+// PWA Service Worker
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw-entregador.js').catch(() => {});
+}
+</script>
+</body>
+</html>

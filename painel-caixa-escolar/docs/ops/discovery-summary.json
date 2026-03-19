@@ -1,0 +1,19 @@
+{
+  "generatedAt": "2026-03-03T01:23:23.888Z",
+  "source": "docs\\ops\\discovery-interviews.json",
+  "metrics": {
+    "interviewsCompleted": 0,
+    "interviewsTarget": 10,
+    "validatedPainCount": 0,
+    "validatedPainPct": 0,
+    "wouldPayCount": 0,
+    "wouldPayPct": 0
+  },
+  "topPains": [],
+  "suggestedDecision": "NO-GO",
+  "ruleChecks": {
+    "minInterviews10": false,
+    "validatedPainPctMin60": false,
+    "wouldPayPctMin50": false
+  }
+}

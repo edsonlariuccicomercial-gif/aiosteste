@@ -1,0 +1,17 @@
+{
+  "generatedAt": "2026-03-03T21:07:18.718Z",
+  "payloadPath": "squads\\caixa-escolar\\dashboard\\data\\sgd-prequote-payload.json",
+  "submit": true,
+  "total": 1,
+  "success": 0,
+  "failed": 1,
+  "results": [
+    {
+      "budgetId": "2026004063",
+      "ok": false,
+      "message": "Orcamento nao encontrado na listagem atual.",
+      "itemCount": 3,
+      "mode": "submit"
+    }
+  ]
+}

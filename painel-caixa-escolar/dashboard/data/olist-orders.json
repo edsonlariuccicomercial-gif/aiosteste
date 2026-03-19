@@ -1,0 +1,146 @@
+[
+  {
+    "olistOrderId": "OL-1772463390447-367",
+    "idempotencyKey": "sgd-order:2026000112",
+    "syncedAt": "2026-03-02T14:56:30.447Z",
+    "payload": {
+      "external_order_id": "2026000112",
+      "order_date": "2026-03-02T13:10:00Z",
+      "customer": {
+        "school_name": "EE Coronel Paiva",
+        "city": "Curvelo",
+        "region": "SRE Curvelo"
+      },
+      "items": [
+        {
+          "sku": "ARROZ-5KG",
+          "description": "Arroz 5kg",
+          "qty": 220,
+          "unitPrice": 28.9
+        },
+        {
+          "sku": "FEIJAO-1KG",
+          "description": "Feijao 1kg",
+          "qty": 300,
+          "unitPrice": 8.7
+        }
+      ],
+      "totals": {
+        "total_value": 23740,
+        "currency": "BRL"
+      },
+      "metadata": {
+        "source": "SGD",
+        "contract_ref": "ARP-2026-0008"
+      }
+    }
+  },
+  {
+    "olistOrderId": "OL-1772463390448-341",
+    "idempotencyKey": "sgd-order:2026000141",
+    "syncedAt": "2026-03-02T14:56:30.448Z",
+    "payload": {
+      "external_order_id": "2026000141",
+      "order_date": "2026-03-02T13:40:00Z",
+      "customer": {
+        "school_name": "EE Maria Antonieta Romano Salgado",
+        "city": "Belo Horizonte",
+        "region": "SRE Metropolitana B"
+      },
+      "items": [
+        {
+          "sku": "DET-500",
+          "description": "Detergente 500ml",
+          "qty": 380,
+          "unitPrice": 2.95
+        },
+        {
+          "sku": "ALC-70",
+          "description": "Alcool 70%",
+          "qty": 120,
+          "unitPrice": 6.2
+        }
+      ],
+      "totals": {
+        "total_value": 10590,
+        "currency": "BRL"
+      },
+      "metadata": {
+        "source": "SGD",
+        "contract_ref": "ARP-2026-0011"
+      }
+    }
+  },
+  {
+    "olistOrderId": "OL-1772463692839-934",
+    "idempotencyKey": "internal-order:2026000112",
+    "syncedAt": "2026-03-02T15:01:32.839Z",
+    "payload": {
+      "external_order_id": "2026000112",
+      "order_date": "2026-03-02T13:10:00Z",
+      "customer": {
+        "school_name": "EE Coronel Paiva",
+        "city": "Curvelo",
+        "region": "SRE Curvelo"
+      },
+      "items": [
+        {
+          "sku": "ARROZ-5KG",
+          "description": "Arroz 5kg",
+          "qty": 220,
+          "unitPrice": 28.9
+        },
+        {
+          "sku": "FEIJAO-1KG",
+          "description": "Feijao 1kg",
+          "qty": 300,
+          "unitPrice": 8.7
+        }
+      ],
+      "totals": {
+        "total_value": 23740,
+        "currency": "BRL"
+      },
+      "metadata": {
+        "source": "LICITIA_POS_LICITACAO",
+        "contract_ref": "ARP-2026-0008"
+      }
+    }
+  },
+  {
+    "olistOrderId": "OL-1772463692840-679",
+    "idempotencyKey": "internal-order:2026000141",
+    "syncedAt": "2026-03-02T15:01:32.841Z",
+    "payload": {
+      "external_order_id": "2026000141",
+      "order_date": "2026-03-02T13:40:00Z",
+      "customer": {
+        "school_name": "EE Maria Antonieta Romano Salgado",
+        "city": "Belo Horizonte",
+        "region": "SRE Metropolitana B"
+      },
+      "items": [
+        {
+          "sku": "DET-500",
+          "description": "Detergente 500ml",
+          "qty": 380,
+          "unitPrice": 2.95
+        },
+        {
+          "sku": "ALC-70",
+          "description": "Alcool 70%",
+          "qty": 120,
+          "unitPrice": 6.2
+        }
+      ],
+      "totals": {
+        "total_value": 10590,
+        "currency": "BRL"
+      },
+      "metadata": {
+        "source": "LICITIA_POS_LICITACAO",
+        "contract_ref": "ARP-2026-0011"
+      }
+    }
+  }
+]

@@ -1,0 +1,1 @@
+Read the file at squads/caixa-escolar/agents/ce-chief.md and follow the instructions. This is the Caixa Escolar squad orchestrator - coordinates quote management for MG school supply purchases.

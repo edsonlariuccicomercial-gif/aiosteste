@@ -1,0 +1,176 @@
+{
+  "lastRun": "2026-03-02T20:49:24.985Z",
+  "duration": 1523,
+  "layer1": {
+    "layer": "Layer 1: Pre-commit",
+    "enabled": true,
+    "pass": true,
+    "duration": 1474,
+    "checks": {
+      "total": 3,
+      "passed": 3,
+      "failed": 0,
+      "warnings": 0
+    },
+    "results": [
+      {
+        "check": "lint",
+        "pass": true,
+        "exitCode": 0,
+        "errors": 0,
+        "warnings": 0,
+        "duration": 466,
+        "output": "\n> codex@1.0.0 lint\n> node -e \"console.log('lint: sem regras configuradas ainda')\"\n\nlint: sem regras configuradas ainda\n",
+        "message": "Lint passed (0 errors, 0 warnings)",
+        "timestamp": 1772484563929
+      },
+      {
+        "check": "test",
+        "pass": true,
+        "exitCode": 0,
+        "tests": {
+          "passed": 0,
+          "failed": 0,
+          "skipped": 0,
+          "total": 0
+        },
+        "coverage": null,
+        "duration": 537,
+        "message": "Tests passed (0 passed, 0 failed)",
+        "timestamp": 1772484564466
+      },
+      {
+        "check": "typecheck",
+        "pass": true,
+        "exitCode": 0,
+        "errors": 0,
+        "duration": 471,
+        "message": "Type check passed",
+        "timestamp": 1772484564937
+      }
+    ]
+  },
+  "layer2": {
+    "layer": "Layer 2: PR Automation",
+    "enabled": true,
+    "pass": true,
+    "duration": 44,
+    "checks": {
+      "total": 2,
+      "passed": 2,
+      "failed": 0,
+      "warnings": 0
+    },
+    "results": [
+      {
+        "check": "coderabbit",
+        "pass": true,
+        "issues": {
+          "critical": 0,
+          "high": 0,
+          "medium": 0,
+          "low": 0,
+          "total": 0
+        },
+        "details": [],
+        "duration": 43,
+        "message": "CodeRabbit passed (0 CRITICAL, 0 HIGH)",
+        "timestamp": 1772484564981
+      },
+      {
+        "check": "quinn",
+        "pass": true,
+        "suggestions": 0,
+        "blocking": 0,
+        "details": [],
+        "message": "Quinn review: 0 suggestions",
+        "timestamp": 1772484564982
+      }
+    ]
+  },
+  "layer3": {
+    "layer": "Layer 3: Human Review",
+    "enabled": true,
+    "pass": false,
+    "duration": 2,
+    "checks": {
+      "total": 3,
+      "passed": 2,
+      "failed": 1,
+      "warnings": 0
+    },
+    "results": [
+      {
+        "check": "checklist",
+        "pass": true,
+        "items": 5,
+        "checklist": {
+          "template": "strategic-review-checklist",
+          "storyId": null,
+          "generatedAt": "2026-03-02T20:49:24.982Z",
+          "items": [
+            {
+              "id": "architecture-alignment",
+              "text": "Changes align with documented architecture decisions",
+              "category": "architecture",
+              "priority": "high",
+              "checked": false,
+              "order": 1
+            },
+            {
+              "id": "security-review",
+              "text": "No security vulnerabilities introduced (OWASP Top 10)",
+              "category": "security",
+              "priority": "critical",
+              "checked": false,
+              "order": 2
+            },
+            {
+              "id": "performance-impact",
+              "text": "Performance impact assessed and acceptable",
+              "category": "performance",
+              "priority": "medium",
+              "checked": false,
+              "order": 3
+            },
+            {
+              "id": "documentation-updated",
+              "text": "Relevant documentation updated or created",
+              "category": "documentation",
+              "priority": "medium",
+              "checked": false,
+              "order": 4
+            },
+            {
+              "id": "backward-compatibility",
+              "text": "Backward compatibility maintained (or breaking changes documented)",
+              "category": "compatibility",
+              "priority": "high",
+              "checked": false,
+              "order": 5
+            }
+          ]
+        },
+        "message": "Checklist generated (5 items)",
+        "timestamp": 1772484564983
+      },
+      {
+        "check": "assignment",
+        "pass": true,
+        "reviewer": "@architect",
+        "strategy": "auto",
+        "message": "Assigned to @architect",
+        "timestamp": 1772484564984
+      },
+      {
+        "check": "signoff",
+        "pass": false,
+        "signedOff": false,
+        "required": true,
+        "message": "Awaiting sign-off",
+        "timestamp": 1772484564984
+      }
+    ]
+  },
+  "signoffs": {}
+}

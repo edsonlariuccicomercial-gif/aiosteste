@@ -1,0 +1,226 @@
+{
+  "sre": "Uberaba",
+  "fonte": "https://sreuberaba.educacao.mg.gov.br/sre-uberaba/lista-de-escolas-sre-uberaba/",
+  "atualizadoEm": "2026-03-05",
+  "totalMunicipios": 25,
+  "totalEscolas": 92,
+  "municipios": [
+    {
+      "nome": "Agua Comprida",
+      "escolas": [
+        "EE JOSE ACACIO DA SILVA"
+      ]
+    },
+    {
+      "nome": "Araxa",
+      "escolas": [
+        "EE ARMANDO SANTOS",
+        "EE CORONEL JOSE ADOLFO DE AGUIAR",
+        "EE DOM JOSE GASPAR",
+        "EE LOREN RIOS FERES",
+        "EE LUIZA DE OLIVEIRA FARIA",
+        "EE MARIA DE MAGALHAES",
+        "EE PADRE ANACLETO GIRALDI",
+        "EE PROFESSOR LUIS ANTONIO CORREA DE OLIVEIRA",
+        "EE ROTARY",
+        "EE VASCO SANTOS"
+      ]
+    },
+    {
+      "nome": "Campo Florido",
+      "escolas": [
+        "EE PADRE HENRIQUE PEETERS"
+      ]
+    },
+    {
+      "nome": "Campos Altos",
+      "escolas": [
+        "EE DOUTOR JOSE CORDEIRO DE CAMPOS",
+        "EE PADRE CLEMENTE DE MALETO"
+      ]
+    },
+    {
+      "nome": "Carneirinho",
+      "escolas": [
+        "EE BOM SUCESSO",
+        "EE PROFESSOR ANTONIO DA SILVA",
+        "EE MARECHAL HERMES"
+      ]
+    },
+    {
+      "nome": "Comendador Gomes",
+      "escolas": [
+        "EE COMENDADOR GOMES"
+      ]
+    },
+    {
+      "nome": "Conceicao das Alagoas",
+      "escolas": [
+        "EE HERCULERGIO ANTONIO BORGES",
+        "EE JOSE ALEXANDRE MIZIARA"
+      ]
+    },
+    {
+      "nome": "Conquista",
+      "escolas": [
+        "EE DR LINDOLFO BERNARDES"
+      ]
+    },
+    {
+      "nome": "Delta",
+      "escolas": [
+        "EE IVAN MATTAR SOUKEF"
+      ]
+    },
+    {
+      "nome": "Fronteira",
+      "escolas": [
+        "EE JOAO KOPKE",
+        "EE PROFESSORA MARIA DO CARMO PIRES ROSA"
+      ]
+    },
+    {
+      "nome": "Frutal",
+      "escolas": [
+        "EE LAURISTON SOUZA",
+        "EE MAESTRO JOSINO DE OLIVEIRA",
+        "EE PROFESSOR BANDEIRA",
+        "EE VICENTE DE MACEDO",
+        "EE PRESIDENTE TANCREDO NEVES"
+      ]
+    },
+    {
+      "nome": "Itapagipe",
+      "escolas": [
+        "EE ALONSO DE MORAIS ANDRADE",
+        "EE SANTO ANTONIO",
+        "EE SERRA DA MOEDA"
+      ]
+    },
+    {
+      "nome": "Iturama",
+      "escolas": [
+        "EE ANTONIO FERREIRA BARBOSA",
+        "EE JOAQUIM TIAGO DE QUEIROZ",
+        "EE NOSSA SENHORA DE LOURDES",
+        "EE TIRADENTES",
+        "EE DOM ALEXANDRE"
+      ]
+    },
+    {
+      "nome": "Limeira do Oeste",
+      "escolas": [
+        "EE IZOLDINO SOARES DE FREITAS"
+      ]
+    },
+    {
+      "nome": "Pedrinopolis",
+      "escolas": [
+        "EE PROFESSOR LEAO COELHO DE ALMEIDA"
+      ]
+    },
+    {
+      "nome": "Pirajuba",
+      "escolas": [
+        "EE CORONEL OSCAR DE CASTRO"
+      ]
+    },
+    {
+      "nome": "Planura",
+      "escolas": [
+        "EE ALYSSON ROBERTO BRUNO"
+      ]
+    },
+    {
+      "nome": "Pratinha",
+      "escolas": [
+        "EE MARLENE MARTINS REIS"
+      ]
+    },
+    {
+      "nome": "Sacramento",
+      "escolas": [
+        "EE BARAO DA RIFAINA",
+        "EE CORONEL JOSE AFONSO DE ALMEIDA",
+        "EE ESCRITORA CAROLINA MARIA DE JESUS",
+        "EE SINHANA BORGES"
+      ]
+    },
+    {
+      "nome": "Santa Juliana",
+      "escolas": [
+        "EE SANTA JULIANA"
+      ]
+    },
+    {
+      "nome": "Sao Francisco de Sales",
+      "escolas": [
+        "EE SAO FRANCISCO DE SALES"
+      ]
+    },
+    {
+      "nome": "Tapira",
+      "escolas": [
+        "EE PROFESSORA CECILIA MARIA DE RESENDE NEVES"
+      ]
+    },
+    {
+      "nome": "Uberaba",
+      "escolas": [
+        "EE LEANDRO ANTONIO DE VITTO",
+        "EE ALOIZIO CASTANHEIRA",
+        "EE AMERICA",
+        "EE AURELIO LUIZ DA COSTA",
+        "EE BERNARDO VASCONCELOS",
+        "EE BOULANGER PUCCI",
+        "EE BRASIL",
+        "EE CARMELITA CARVALHO GARCIA",
+        "EE CENTRO INTERESCOLAR ESTADUAL DE LINGUAS",
+        "EE CEOPEE",
+        "EE CESEC PROFESSORA MARIA EMILIA DA ROCHA",
+        "EE COLEGIO TIRADENTES DA POLICIA MILITAR DE MINAS GERAIS",
+        "EE CONSERVATORIO ESTADUAL DE MUSICA RENATO FRATESCHI",
+        "EE DOM EDUARDO",
+        "EE DR JOSE MENDONCA",
+        "EE FELICIO DE PAIVA",
+        "EE FIDELIS REIS",
+        "EE FRANCISCO CANDIDO XAVIER",
+        "EE FREI LEOPOLDO DE CASTELNUOVO",
+        "EE GABRIEL TOTI",
+        "EE GERALDINO RODRIGUES CUNHA",
+        "EE HENRIQUE KRUGER",
+        "EE HORIZONTA LEMOS",
+        "EE IRMAO AFONSO",
+        "EE LAURO FONTOURA",
+        "EE MARECHAL HUMBERTO DE ALENCAR CASTELO BRANCO",
+        "EE MIGUEL LATERZA",
+        "EE MINAS GERAIS",
+        "EE NOSSA SENHORA DA ABADIA",
+        "EE PAULO JOSE DERENUSSON",
+        "EE PRESIDENTE JOAO PINHEIRO",
+        "EE PROFESSOR MINERVINO CESARINO",
+        "EE PROFESSOR ALCEU NOVAES",
+        "EE PROFESSOR CHAVES",
+        "EE PROFESSOR HILDEBRANDO PONTES",
+        "EE PROFESSORA CORINA DE OLIVEIRA",
+        "EE PROFESSORA NEIDE OLIVEIRA GOMES",
+        "EE QUINTILIANO JARDIM",
+        "EE ROTARY",
+        "EE SANTA TEREZINHA",
+        "EE SAO BENEDITO"
+      ]
+    },
+    {
+      "nome": "Uniao de Minas",
+      "escolas": [
+        "EE DOM PEDRO II"
+      ]
+    },
+    {
+      "nome": "Verissimo",
+      "escolas": [
+        "EE GERALDINO RODRIGUES DA CUNHA"
+      ]
+    }
+  ]
+}
