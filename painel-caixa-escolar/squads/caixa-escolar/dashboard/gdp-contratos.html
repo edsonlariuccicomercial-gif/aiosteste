@@ -4204,6 +4204,16 @@ function normalizeFormaPagamento(value) {
   return valid.includes(value) ? value : "incluir";
 }
 
+function isContaEmAtraso(conta) {
+  if (!conta?.vencimento || conta.status === "recebida") return false;
+  const hoje = new Date();
+  const baseHoje = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
+  const [ano, mes, dia] = String(conta.vencimento).split("-").map(Number);
+  if (!ano || !mes || !dia) return false;
+  const vencimento = new Date(ano, mes - 1, dia);
+  return vencimento < baseHoje;
+}
+
 function ensurePedidoFiscalData(pedido) {
   if (!pedido.cliente) pedido.cliente = {};
   const c = pedido.cliente;
@@ -4317,7 +4327,7 @@ function buildReceivableFromInvoice(invoice) {
     vencimento: dueDate.toISOString().slice(0, 10),
     status: "pendente",
     automacao: {
-      whatsapp: true,
+      whatsapp: false,
       email: true,
       ultimoDisparo: ""
     },
@@ -4327,7 +4337,8 @@ function buildReceivableFromInvoice(invoice) {
         lastAction: "criar_titulo"
       },
       comunicacao: {
-        status: "nao_disparada"
+        status: "nao_disparada",
+        policy: "whatsapp_somente_em_atraso"
       }
     },
     cobranca: {
@@ -4664,6 +4675,7 @@ function verNotaFiscal(notaId) {
     html += '<div style="margin-top:.35rem;font-size:.82rem;color:var(--mut)">Ultima acao financeira: ' + esc(formatAuditStamp(conta.audit, conta.recebidaEm, conta.audit?.updatedBy)) + '</div>';
     html += '<div style="margin-top:.35rem;font-size:.82rem;color:var(--mut)">Integracao titulo: ' + esc(getIntegrationStatusLabel(conta.integracoes?.bancaria)) + '</div>';
     html += '<div style="margin-top:.35rem;font-size:.82rem;color:var(--mut)">Integracao comunicacao: ' + esc(getIntegrationStatusLabel(conta.integracoes?.comunicacao)) + '</div>';
+    html += '<div style="margin-top:.35rem;font-size:.82rem;color:var(--mut)">Politica de cobranca: e-mail sempre ativo; WhatsApp apenas para titulos em atraso.</div>';
   }
   html += '</div>';
 
@@ -4684,7 +4696,8 @@ function dispararCobrancaAutomatica(contaId) {
   const conta = contasReceber.find((item) => item.id === contaId);
   if (!conta) return;
   conta.automacao = conta.automacao || {};
-  conta.automacao.whatsapp = true;
+  const usarWhatsapp = isContaEmAtraso(conta);
+  conta.automacao.whatsapp = usarWhatsapp;
   conta.automacao.email = true;
   conta.automacao.ultimoDisparo = new Date().toISOString();
   conta.status = conta.status === "recebida" ? "recebida" : "cobranca_automatica_disparada";
@@ -4702,7 +4715,7 @@ function dispararCobrancaAutomatica(contaId) {
     onError: (err) => updateContaReceberIntegration(conta.id, "comunicacao", { status: "falha_envio", error: err.message, lastAction: "disparar_cobranca" })
   });
   renderContasReceber();
-  showToast(`Cobranca automatica preparada via WhatsApp e e-mail para ${conta.cliente || "cliente"}.`, 4000);
+  showToast(`Cobranca automatica preparada via e-mail${usarWhatsapp ? " e WhatsApp (titulo em atraso)" : ""} para ${conta.cliente || "cliente"}.`, 4000);
 }
 
 function registrarContaPagar() {
@@ -4755,7 +4768,7 @@ function registrarContaReceber() {
     valor,
     vencimento,
     status: "pendente",
-    automacao: { whatsapp: true, email: true, ultimoDisparo: "" },
+    automacao: { whatsapp: false, email: true, ultimoDisparo: "" },
     cobranca: { status: forma === "boleto" ? "boleto_gerado" : "manual", linhaDigitavel: "", pixCopiaECola: "" },
     audit: { createdAt: new Date().toISOString(), createdBy: getAuditActor(), updatedAt: new Date().toISOString(), updatedBy: getAuditActor() }
   });

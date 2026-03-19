@@ -130,7 +130,7 @@ Resumo em uma frase:
 - Criar aba `Contas a Pagar` com cadastro manual e categorizacao de despesas.
 - Criar aba `Contas a Receber` com registros originados de notas fiscais e tambem inclusao manual.
 - Suportar formas de pagamento e recebimento: `boleto`, `pix`, `ted` e `incluir`.
-- Habilitar cobranca automatica em contas a receber via WhatsApp e e-mail.
+- Habilitar cobranca automatica em contas a receber via e-mail e restringir o uso de WhatsApp a cobrancas de titulos vencidos/em atraso.
 - Preparar conciliacao bancaria via API bancaria, conciliando cobrancas emitidas, recebimentos e baixas.
 - Permitir classificacao financeira por categoria, origem, status e vencimento.
 
@@ -150,6 +150,14 @@ Resumo em uma frase:
 - GDP passa a incorporar fiscal, cobranca, financeiro e estoque como camada nativa do produto.
 - Integracoes com SEFAZ e banco tornam-se parte do escopo do modulo operacional, nao apenas integracoes futuras.
 - Integracao com Tiny/Olist deixa de ser prioridade de produto e passa a ser legado/opcional, se houver caso de uso especifico.
+
+### 6.11.1 Provedores-Alvo da Fase Operacional (19/03/2026)
+
+- Emissao e autorizacao de NF-e: `Focus NFe` como integrador entre GDP e SEFAZ.
+- Cobranca, Pix, boleto, TED e conciliacao: `Banco Inter` via APIs oficiais da conta PJ.
+- E-mail transacional para pedidos, notas e cobrancas: `Resend`.
+- WhatsApp: uso restrito a cobrancas de recebimentos em atraso, via API Business com opt-in do destinatario.
+- Politica operacional: e-mail permanece como canal padrao de cobranca; WhatsApp so entra em inadimplencia.
 
 ### 6.12 Decisao de Prioridade (03/03/2026)
 
