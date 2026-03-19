@@ -188,6 +188,10 @@
     <button class="tab" data-tab="banco-produtos" onclick="switchTab('banco-produtos')">Banco de Produtos ERP <span class="count" id="tab-count-banco-produtos">0</span></button>
     <button class="tab active" data-tab="contratos" onclick="switchTab('contratos')">Contratos <span class="count" id="tab-count-contratos">0</span></button>
     <button class="tab" data-tab="pedidos" onclick="switchTab('pedidos')">Pedidos <span class="count" id="tab-count-pedidos">0</span></button>
+    <button class="tab" data-tab="notas-fiscais" onclick="switchTab('notas-fiscais')">Notas Fiscais <span class="count" id="tab-count-notas-fiscais">0</span></button>
+    <button class="tab" data-tab="contas-pagar" onclick="switchTab('contas-pagar')">Contas a Pagar <span class="count" id="tab-count-contas-pagar">0</span></button>
+    <button class="tab" data-tab="contas-receber" onclick="switchTab('contas-receber')">Contas a Receber <span class="count" id="tab-count-contas-receber">0</span></button>
+    <button class="tab" data-tab="estoque" onclick="switchTab('estoque')">Estoque <span class="count" id="tab-count-estoque">0</span></button>
     <button class="tab" data-tab="entregas" onclick="switchTab('entregas')">Entregas <span class="count" id="tab-count-entregas">0</span></button>
   </div>
 
@@ -432,6 +436,203 @@
       </table>
     </div>
     <div class="empty hidden" id="pedidos-empty"><h3>Nenhum pedido registrado</h3><p>Os pedidos das escolas aparecerao aqui quando forem recebidos.</p></div>
+  </div>
+
+  <!-- Tab: Notas Fiscais -->
+  <div id="tab-notas-fiscais" class="hidden">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:.8rem">
+      <div style="display:flex;gap:.8rem;align-items:center;flex-wrap:wrap">
+        <input type="text" id="busca-nota-fiscal" placeholder="Buscar NF, pedido ou cliente..." oninput="renderNotasFiscais()" style="min-width:240px">
+        <select id="filtro-status-nota-fiscal" onchange="renderNotasFiscais()">
+          <option value="">Todos os status</option>
+          <option value="rascunho">Rascunho</option>
+          <option value="pendente_autorizacao">Pendente autorizacao</option>
+          <option value="autorizada">Autorizada</option>
+          <option value="rejeitada">Rejeitada</option>
+          <option value="cancelada">Cancelada</option>
+        </select>
+      </div>
+      <div style="font-size:.82rem;color:var(--mut)">Geradas a partir do pedido e aguardando fluxo interno/SEFAZ.</div>
+    </div>
+    <div class="table-wrap" style="max-height:600px;overflow-y:auto">
+      <table>
+        <thead>
+          <tr>
+            <th>NF</th>
+            <th>Pedido</th>
+            <th>Cliente</th>
+            <th>Emissao</th>
+            <th class="text-right">Valor</th>
+            <th>Status</th>
+            <th>Cobranca</th>
+            <th>Acao</th>
+          </tr>
+        </thead>
+        <tbody id="notas-fiscais-tbody"></tbody>
+      </table>
+    </div>
+    <div class="empty hidden" id="notas-fiscais-empty"><h3>Nenhuma nota fiscal gerada</h3><p>Gere a nota fiscal diretamente a partir do pedido.</p></div>
+  </div>
+
+  <div id="modal-nota-fiscal" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1001;display:flex;align-items:flex-start;justify-content:center;padding:1rem;overflow-y:auto">
+    <div style="background:var(--bg);border:1px solid var(--bdr);border-radius:14px;width:920px;max-width:98vw;max-height:95vh;display:flex;flex-direction:column;margin-top:1rem">
+      <div style="padding:1rem 1.5rem;border-bottom:1px solid var(--bdr);display:flex;justify-content:space-between;align-items:center">
+        <h2 id="modal-nota-fiscal-titulo" style="font-size:1.05rem;margin:0">Nota Fiscal</h2>
+        <button class="btn btn-outline btn-sm" onclick="fecharModalNotaFiscal()">Fechar</button>
+      </div>
+      <div id="modal-nota-fiscal-body" style="padding:1rem 1.5rem;overflow-y:auto"></div>
+    </div>
+  </div>
+
+  <!-- Tab: Contas a Pagar -->
+  <div id="tab-contas-pagar" class="hidden">
+    <div class="card">
+      <h2>Nova Conta a Pagar</h2>
+      <div style="display:grid;grid-template-columns:repeat(6,minmax(120px,1fr));gap:.8rem;align-items:end">
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Descricao</label><input type="text" id="cp-descricao" placeholder="Ex: Frete fornecedor"></div>
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Categoria</label><select id="cp-categoria"><option value="fornecedor">Fornecedor</option><option value="frete">Frete</option><option value="tributo">Tributo</option><option value="comissao">Comissao</option><option value="servico">Servico</option><option value="operacional">Operacional</option><option value="incluir">Incluir</option></select></div>
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Forma</label><select id="cp-forma"><option value="boleto">Boleto</option><option value="pix">Pix</option><option value="ted">TED</option><option value="incluir">Incluir</option></select></div>
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Valor</label><input type="number" id="cp-valor" min="0" step="0.01" placeholder="0,00"></div>
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Vencimento</label><input type="date" id="cp-vencimento"></div>
+        <div><button class="btn btn-green" onclick="registrarContaPagar()" style="width:100%">Registrar</button></div>
+      </div>
+    </div>
+    <div class="kpi-grid" style="margin-bottom:1rem">
+      <div class="kpi"><div class="kpi-label">Em Aberto</div><div class="kpi-value yellow" id="cp-kpi-aberto">R$ 0</div><div class="kpi-sub">Contas pendentes</div></div>
+      <div class="kpi"><div class="kpi-label">Pagas</div><div class="kpi-value green" id="cp-kpi-pago">R$ 0</div><div class="kpi-sub">Baixadas manualmente</div></div>
+      <div class="kpi"><div class="kpi-label">Categorias</div><div class="kpi-value blue" id="cp-kpi-categorias">0</div><div class="kpi-sub">Uso financeiro</div></div>
+    </div>
+    <div style="display:flex;gap:.8rem;align-items:center;margin-bottom:1rem;flex-wrap:wrap">
+      <input type="text" id="cp-busca" placeholder="Buscar descricao..." oninput="renderContasPagar()" style="min-width:220px">
+      <select id="cp-filtro-status" onchange="renderContasPagar()"><option value="">Todos os status</option><option value="pendente">Pendente</option><option value="paga">Paga</option></select>
+      <select id="cp-filtro-categoria" onchange="renderContasPagar()"><option value="">Todas as categorias</option><option value="fornecedor">Fornecedor</option><option value="frete">Frete</option><option value="tributo">Tributo</option><option value="comissao">Comissao</option><option value="servico">Servico</option><option value="operacional">Operacional</option><option value="incluir">Incluir</option></select>
+    </div>
+    <div class="table-wrap" style="max-height:600px;overflow-y:auto">
+      <table>
+        <thead>
+          <tr>
+            <th>Descricao</th>
+            <th>Categoria</th>
+            <th>Forma</th>
+            <th>Vencimento</th>
+            <th class="text-right">Valor</th>
+            <th>Status</th>
+            <th>Acao</th>
+          </tr>
+        </thead>
+        <tbody id="contas-pagar-tbody"></tbody>
+      </table>
+    </div>
+    <div class="empty hidden" id="contas-pagar-empty"><h3>Nenhuma conta a pagar</h3><p>Cadastre despesas operacionais e obrigaes financeiras do GDP.</p></div>
+  </div>
+
+  <!-- Tab: Contas a Receber -->
+  <div id="tab-contas-receber" class="hidden">
+    <div class="card">
+      <h2>Nova Conta a Receber</h2>
+      <div style="display:grid;grid-template-columns:repeat(7,minmax(110px,1fr));gap:.8rem;align-items:end">
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Descricao</label><input type="text" id="cr-descricao" placeholder="Ex: cobranca avulsa"></div>
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Categoria</label><select id="cr-categoria"><option value="faturamento">Faturamento</option><option value="mensalidade">Mensalidade</option><option value="servico">Servico</option><option value="reembolso">Reembolso</option><option value="ajuste">Ajuste</option><option value="incluir">Incluir</option></select></div>
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Cliente</label><input type="text" id="cr-cliente" placeholder="Nome cliente"></div>
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Forma</label><select id="cr-forma"><option value="boleto">Boleto</option><option value="pix">Pix</option><option value="ted">TED</option><option value="incluir">Incluir</option></select></div>
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Valor</label><input type="number" id="cr-valor" min="0" step="0.01" placeholder="0,00"></div>
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Vencimento</label><input type="date" id="cr-vencimento"></div>
+        <div><button class="btn btn-green" onclick="registrarContaReceber()" style="width:100%">Registrar</button></div>
+      </div>
+    </div>
+    <div class="kpi-grid" style="margin-bottom:1rem">
+      <div class="kpi"><div class="kpi-label">A Receber</div><div class="kpi-value yellow" id="cr-kpi-aberto">R$ 0</div><div class="kpi-sub">Titulos pendentes</div></div>
+      <div class="kpi"><div class="kpi-label">Recebido</div><div class="kpi-value green" id="cr-kpi-recebido">R$ 0</div><div class="kpi-sub">Baixas registradas</div></div>
+      <div class="kpi"><div class="kpi-label">Conciliacao</div><div class="kpi-value blue" id="cr-kpi-conciliacao">0</div><div class="kpi-sub">Pendentes de API bancaria</div></div>
+    </div>
+    <div style="display:flex;gap:.8rem;align-items:center;margin-bottom:1rem;flex-wrap:wrap">
+      <input type="text" id="cr-busca" placeholder="Buscar descricao ou cliente..." oninput="renderContasReceber()" style="min-width:240px">
+      <select id="cr-filtro-status" onchange="renderContasReceber()"><option value="">Todos os status</option><option value="pendente">Pendente</option><option value="cobranca_emitida">Cobranca emitida</option><option value="cobranca_automatica_disparada">Cobranca automatica disparada</option><option value="recebida">Recebida</option></select>
+      <select id="cr-filtro-categoria" onchange="renderContasReceber()"><option value="">Todas as categorias</option><option value="faturamento">Faturamento</option><option value="mensalidade">Mensalidade</option><option value="servico">Servico</option><option value="reembolso">Reembolso</option><option value="ajuste">Ajuste</option><option value="incluir">Incluir</option></select>
+    </div>
+    <div class="table-wrap" style="max-height:600px;overflow-y:auto">
+      <table>
+        <thead>
+          <tr>
+            <th>Descricao</th>
+            <th>Categoria</th>
+            <th>Cliente</th>
+            <th>Forma</th>
+            <th>Automacao</th>
+            <th>Vencimento</th>
+            <th class="text-right">Valor</th>
+            <th>Status</th>
+            <th>Acao</th>
+          </tr>
+        </thead>
+        <tbody id="contas-receber-tbody"></tbody>
+      </table>
+    </div>
+    <div class="empty hidden" id="contas-receber-empty"><h3>Nenhuma conta a receber</h3><p>As cobrancas geradas a partir das notas fiscais aparecerao aqui.</p></div>
+  </div>
+
+  <!-- Tab: Estoque -->
+  <div id="tab-estoque" class="hidden">
+    <div class="card">
+      <h2>Movimentacao de Estoque</h2>
+      <div style="display:grid;grid-template-columns:repeat(8,minmax(100px,1fr));gap:.8rem;align-items:end">
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Tipo</label><select id="est-tipo"><option value="entrada">Entrada</option><option value="saida">Saida</option></select></div>
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Modo</label><select id="est-modo"><option value="nota_fiscal">Nota fiscal</option><option value="bipagem">Bipagem</option></select></div>
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">SKU/Codigo</label><input type="text" id="est-sku" placeholder="SKU ou barras"></div>
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Descricao</label><input type="text" id="est-descricao" placeholder="Produto"></div>
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Categoria</label><input type="text" id="est-categoria" placeholder="Categoria"></div>
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Qtd</label><input type="number" id="est-quantidade" min="0" step="0.01" placeholder="0"></div>
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Referencia</label><input type="text" id="est-referencia" placeholder="NF, pedido, lote"></div>
+        <div><button class="btn btn-green" onclick="registrarMovimentoEstoque()" style="width:100%">Registrar</button></div>
+      </div>
+      <p style="font-size:.78rem;color:var(--mut);margin-top:.8rem">Modo 1: entrada por NF de fornecedor e saida por NF da empresa. Modo 2: entrada/saida por bipagem para operacao sem estoque ou estoque parcial.</p>
+    </div>
+    <div class="kpi-grid" style="margin-bottom:1rem">
+      <div class="kpi"><div class="kpi-label">Itens Monitorados</div><div class="kpi-value blue" id="est-kpi-itens">0</div><div class="kpi-sub">SKUs/codigos com saldo</div></div>
+      <div class="kpi"><div class="kpi-label">Mov. NF</div><div class="kpi-value green" id="est-kpi-fiscal">0</div><div class="kpi-sub">Entradas/saidas fiscais</div></div>
+      <div class="kpi"><div class="kpi-label">Mov. Bipagem</div><div class="kpi-value yellow" id="est-kpi-bipagem">0</div><div class="kpi-sub">Operacao parcial/sem estoque</div></div>
+      <div class="kpi"><div class="kpi-label">Saldo Negativo</div><div class="kpi-value red" id="est-kpi-negativo">0</div><div class="kpi-sub">Itens com divergencia</div></div>
+    </div>
+    <div style="display:flex;gap:.8rem;align-items:center;margin-bottom:1rem;flex-wrap:wrap">
+      <input type="text" id="est-busca" placeholder="Buscar SKU, descricao ou referencia..." oninput="renderEstoque()" style="min-width:260px">
+      <select id="est-filtro-modo" onchange="renderEstoque()"><option value="">Todos os modos</option><option value="nota_fiscal">Nota fiscal</option><option value="bipagem">Bipagem</option></select>
+      <select id="est-filtro-tipo" onchange="renderEstoque()"><option value="">Todos os tipos</option><option value="entrada">Entrada</option><option value="saida">Saida</option></select>
+    </div>
+    <div class="table-wrap" style="max-height:600px;overflow-y:auto">
+      <table>
+        <thead>
+          <tr>
+            <th>SKU/Codigo</th>
+            <th>Descricao</th>
+            <th>Categoria</th>
+            <th>Modo</th>
+            <th class="text-right">Saldo</th>
+            <th>Ultima Mov.</th>
+          </tr>
+        </thead>
+        <tbody id="estoque-tbody"></tbody>
+      </table>
+    </div>
+    <div class="card" style="margin-top:1rem">
+      <h2>Ultimas Movimentacoes</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Data</th>
+              <th>Tipo</th>
+              <th>Modo</th>
+              <th>SKU/Codigo</th>
+              <th>Descricao</th>
+              <th>Referencia</th>
+              <th class="text-right">Qtd</th>
+            </tr>
+          </thead>
+          <tbody id="estoque-movimentos-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="empty hidden" id="estoque-empty"><h3>Nenhum movimento de estoque</h3><p>Registre entradas e saidas fiscais ou por bipagem.</p></div>
   </div>
 
   <!-- Modal: Contract Detail -->
@@ -808,12 +1009,16 @@ document.getElementById("sidebar-overlay").addEventListener("click", () => {
 const CONTRACTS_KEY = "gdp.contratos.v1";
 const ORDERS_KEY = "gdp.pedidos.v1";
 const PROOFS_KEY = "gdp.entregas.provas.v1";
+const INVOICES_KEY = "gdp.notas-fiscais.v1";
+const PAYABLES_KEY = "gdp.contas-pagar.v1";
+const RECEIVABLES_KEY = "gdp.contas-receber.v1";
+const STOCK_KEY = "gdp.estoque.movimentos.v1";
 const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 
 // ===== SUPABASE CLOUD SYNC =====
 const SUPABASE_URL = "https://ohxoxencxktpzskltbsk.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9oeG94ZW5jeGt0cHpza2x0YnNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMyMTUwNDQsImV4cCI6MjA4ODc5MTA0NH0.-w8f1xjW1cW2-OZpg1Sql8PqwFDzDqyWw4pHEx6jGSk";
-const GDP_SYNC_KEYS = [CONTRACTS_KEY, ORDERS_KEY, PROOFS_KEY, "gdp.usuarios.v1", "caixaescolar.banco.v1", "gdp.produtos.v1"];
+const GDP_SYNC_KEYS = [CONTRACTS_KEY, ORDERS_KEY, PROOFS_KEY, INVOICES_KEY, PAYABLES_KEY, RECEIVABLES_KEY, STOCK_KEY, "gdp.usuarios.v1", "caixaescolar.banco.v1", "gdp.produtos.v1"];
 
 function getSyncUserId() {
   const emp = JSON.parse(localStorage.getItem("nexedu.empresa") || "{}");
@@ -916,38 +1121,55 @@ document.addEventListener('visibilitychange', () => {
 let contratos = [];
 let pedidos = [];
 let provasEntrega = [];
+let notasFiscais = [];
+let contasPagar = [];
+let contasReceber = [];
+let estoqueMovimentos = [];
 let parsedMapa = null;
 let selectedSupplierIdx = null;
 
 // ===== STORAGE =====
 function unwrapData(raw) { return Array.isArray(raw) ? raw : (raw && raw.items ? raw.items : []); }
+function saveWrappedArray(key, items) {
+  const wrapped = { _v: 1, updatedAt: new Date().toISOString(), items };
+  localStorage.setItem(key, JSON.stringify(wrapped));
+  schedulCloudSync();
+}
 function loadData() {
   try { contratos = unwrapData(JSON.parse(localStorage.getItem(CONTRACTS_KEY))); } catch(_) { contratos = []; }
   try { pedidos = unwrapData(JSON.parse(localStorage.getItem(ORDERS_KEY))); } catch(_) { pedidos = []; }
   try { provasEntrega = JSON.parse(localStorage.getItem(PROOFS_KEY)) || []; } catch(_) { provasEntrega = []; }
+  try { notasFiscais = unwrapData(JSON.parse(localStorage.getItem(INVOICES_KEY))); } catch(_) { notasFiscais = []; }
+  try { contasPagar = unwrapData(JSON.parse(localStorage.getItem(PAYABLES_KEY))); } catch(_) { contasPagar = []; }
+  try { contasReceber = unwrapData(JSON.parse(localStorage.getItem(RECEIVABLES_KEY))); } catch(_) { contasReceber = []; }
+  try { estoqueMovimentos = unwrapData(JSON.parse(localStorage.getItem(STOCK_KEY))); } catch(_) { estoqueMovimentos = []; }
 }
 function saveContratos() {
-  const wrapped = { _v: 1, updatedAt: new Date().toISOString(), items: contratos };
-  localStorage.setItem(CONTRACTS_KEY, JSON.stringify(wrapped));
-  schedulCloudSync();
+  saveWrappedArray(CONTRACTS_KEY, contratos);
 }
 function savePedidos() {
-  const wrapped = { _v: 1, updatedAt: new Date().toISOString(), items: pedidos };
-  localStorage.setItem(ORDERS_KEY, JSON.stringify(wrapped));
-  schedulCloudSync();
+  saveWrappedArray(ORDERS_KEY, pedidos);
 }
+function saveNotasFiscais() { saveWrappedArray(INVOICES_KEY, notasFiscais); }
+function saveContasPagar() { saveWrappedArray(PAYABLES_KEY, contasPagar); }
+function saveContasReceber() { saveWrappedArray(RECEIVABLES_KEY, contasReceber); }
+function saveEstoqueMovimentos() { saveWrappedArray(STOCK_KEY, estoqueMovimentos); }
 
 // ===== TABS =====
 function switchTab(tab) {
   document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
   const tabBtn = document.querySelector(`[data-tab="${tab}"]`);
   if (tabBtn) tabBtn.classList.add("active");
-  ["importar","contratos","itens","usuarios","pedidos","entregas","banco-produtos"].forEach(t => {
+  ["importar","contratos","itens","usuarios","pedidos","notas-fiscais","contas-pagar","contas-receber","estoque","entregas","banco-produtos"].forEach(t => {
     document.getElementById(`tab-${t}`).classList.toggle("hidden", t !== tab);
   });
   if (tab === "contratos") renderContratos();
   if (tab === "itens") renderItens();
   if (tab === "pedidos") renderPedidos();
+  if (tab === "notas-fiscais") renderNotasFiscais();
+  if (tab === "contas-pagar") renderContasPagar();
+  if (tab === "contas-receber") renderContasReceber();
+  if (tab === "estoque") renderEstoque();
   if (tab === "usuarios") renderUsuarios();
   if (tab === "banco-produtos") renderBancoProdutos();
 }
@@ -3896,6 +4118,532 @@ function renderItens() {
   }).join("");
 }
 
+function genId(prefix) {
+  const now = new Date();
+  return `${prefix}-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}-${String(Math.floor(Math.random() * 99999)).padStart(5, "0")}`;
+}
+
+function formatDateTimeLocal(date = new Date()) {
+  return new Date(date).toLocaleString("pt-BR");
+}
+
+function getAuditActor() {
+  try {
+    const empresa = JSON.parse(localStorage.getItem("nexedu.empresa") || "{}");
+    return empresa.nome || empresa.razaoSocial || empresa.usuario || "operador-gdp";
+  } catch (_) {
+    return "operador-gdp";
+  }
+}
+
+function getNotaFiscalByPedido(pedidoId) {
+  return notasFiscais.find((nf) => nf.pedidoId === pedidoId) || null;
+}
+
+function getContaReceberByNota(notaId) {
+  return contasReceber.find((item) => item.origemTipo === "nota_fiscal" && item.origemId === notaId) || null;
+}
+
+function normalizeFormaPagamento(value) {
+  const valid = ["boleto", "pix", "ted", "incluir"];
+  return valid.includes(value) ? value : "incluir";
+}
+
+function ensurePedidoFiscalData(pedido) {
+  if (!pedido.cliente) pedido.cliente = {};
+  const c = pedido.cliente;
+  c.nome = c.nome || pedido.escola || "";
+  c.cnpj = c.cnpj || "";
+  c.ie = c.ie || "ISENTO";
+  c.email = c.email || "";
+  c.telefone = c.telefone || "";
+  c.logradouro = c.logradouro || "";
+  c.numero = c.numero || "";
+  c.bairro = c.bairro || "";
+  c.cep = c.cep || "";
+  c.cidade = c.cidade || "";
+  c.uf = c.uf || "MG";
+  c.indicador_contribuinte = c.indicador_contribuinte || "9";
+  pedido.itens = (pedido.itens || []).map((item, idx) => ({
+    ...item,
+    itemNum: item.itemNum || idx + 1,
+    descricao: item.descricao || `Item ${idx + 1}`,
+    qtd: Number(item.qtd || 0),
+    precoUnitario: Number(item.precoUnitario || 0),
+    unidade: item.unidade || "UN",
+    ncm: item.ncm || "",
+    sku: item.sku || item.codigoBarras || ""
+  }));
+  return pedido;
+}
+
+function validatePedidoForInvoice(pedido) {
+  const data = ensurePedidoFiscalData(pedido);
+  const missing = [];
+  if (!data.cliente.nome) missing.push("nome do cliente");
+  if (!data.cliente.cnpj) missing.push("CNPJ do cliente");
+  if (!data.cliente.logradouro) missing.push("logradouro");
+  if (!data.cliente.numero) missing.push("numero");
+  if (!data.cliente.bairro) missing.push("bairro");
+  if (!data.cliente.cep) missing.push("CEP");
+  if (!data.cliente.cidade) missing.push("cidade");
+  if (!data.cliente.uf) missing.push("UF");
+  if (!data.itens.length) missing.push("itens do pedido");
+  data.itens.forEach((item, idx) => {
+    if (!item.ncm) missing.push(`NCM do item ${idx + 1}`);
+    if (!item.unidade) missing.push(`unidade do item ${idx + 1}`);
+  });
+  return [...new Set(missing)];
+}
+
+function buildInvoiceFromOrder(pedido) {
+  const now = new Date();
+  const nfId = genId("NF");
+  const actor = getAuditActor();
+  const fiscalData = ensurePedidoFiscalData({ ...pedido, cliente: { ...(pedido.cliente || {}) }, itens: (pedido.itens || []).map(i => ({ ...i })) });
+  return {
+    id: nfId,
+    numero: String(Math.floor(100000 + Math.random() * 900000)),
+    serie: "1",
+    pedidoId: pedido.id,
+    contratoId: pedido.contratoId || "",
+    cliente: fiscalData.cliente,
+    emitidaEm: now.toISOString(),
+    valor: Number(pedido.valor || 0),
+    status: "pendente_autorizacao",
+    origem: "gdp",
+    itens: fiscalData.itens,
+    sefaz: {
+      status: "aguardando_envio",
+      lote: genId("LOTE"),
+      protocolo: "",
+      chaveAcesso: ""
+    },
+    cobranca: {
+      status: "gerada",
+      forma: "boleto",
+      referencia: genId("COB"),
+      geradaEm: now.toISOString()
+    },
+    audit: {
+      createdAt: now.toISOString(),
+      createdBy: actor,
+      updatedAt: now.toISOString(),
+      updatedBy: actor
+    }
+  };
+}
+
+function buildReceivableFromInvoice(invoice) {
+  const issueDate = new Date(invoice.emitidaEm || Date.now());
+  const dueDate = new Date(issueDate);
+  dueDate.setDate(dueDate.getDate() + 28);
+  return {
+    id: genId("CR"),
+    origemTipo: "nota_fiscal",
+    origemId: invoice.id,
+    notaFiscalId: invoice.id,
+    pedidoId: invoice.pedidoId,
+    descricao: `Recebimento NF ${invoice.numero}`,
+    categoria: "faturamento",
+    cliente: invoice.cliente?.nome || "",
+    forma: invoice.cobranca?.forma || "boleto",
+    valor: Number(invoice.valor || 0),
+    vencimento: dueDate.toISOString().slice(0, 10),
+    status: "pendente",
+    automacao: {
+      whatsapp: true,
+      email: true,
+      ultimoDisparo: ""
+    },
+    cobranca: {
+      status: "boleto_gerado",
+      linhaDigitavel: `34191.${Math.floor(Math.random() * 99999)} ${Math.floor(Math.random() * 99999)} ${Math.floor(Math.random() * 99999)} 1 ${Math.floor(1000000000 + Math.random() * 9000000000)}`,
+      pixCopiaECola: `00020126480014BR.GOV.BCB.PIX0126${genId("PIX")}520400005303986540${Number(invoice.valor || 0).toFixed(2)}5802BR5925${(invoice.cliente?.nome || "CLIENTE").slice(0, 25)}6009SAOPAULO62070503***6304ABCD`
+    }
+  };
+}
+
+function registerStockExitFromInvoice(invoice) {
+  const movementDate = invoice.emitidaEm || new Date().toISOString();
+  const actor = getAuditActor();
+  (invoice.itens || []).forEach((item) => {
+    estoqueMovimentos.push({
+      id: genId("EST"),
+      tipo: "saida",
+      modo: "nota_fiscal",
+      sku: item.sku || item.codigoBarras || item.itemNum || "",
+      descricao: item.descricao || "",
+      categoria: "faturamento",
+      quantidade: Number(item.qtd || 0),
+      referencia: invoice.id,
+      data: movementDate,
+      operador: actor
+    });
+  });
+  saveEstoqueMovimentos();
+}
+
+function getProjectedNegativeStock(pedido) {
+  const saldoAtual = new Map();
+  estoqueMovimentos.forEach((mov) => {
+    const key = mov.sku || mov.descricao;
+    const atual = saldoAtual.get(key) || 0;
+    saldoAtual.set(key, atual + ((mov.tipo === "entrada" ? 1 : -1) * Number(mov.quantidade || 0)));
+  });
+  const negativos = [];
+  (pedido.itens || []).forEach((item) => {
+    const key = item.sku || item.descricao;
+    if (!saldoAtual.has(key)) return;
+    const projetado = (saldoAtual.get(key) || 0) - Number(item.qtd || 0);
+    if (projetado < 0) negativos.push({ item: item.descricao || key, saldoProjetado: projetado });
+  });
+  return negativos;
+}
+
+function gerarNotaFiscalPedido(pedidoId) {
+  const pedido = pedidos.find((x) => x.id === pedidoId);
+  if (!pedido) return;
+  if (getNotaFiscalByPedido(pedidoId)) {
+    showToast(`Pedido ${pedidoId} ja possui nota fiscal gerada.`, 3500);
+    return;
+  }
+
+  const missing = validatePedidoForInvoice(pedido);
+  if (missing.length) {
+    showToast(`Pedido sem base fiscal completa: ${missing.slice(0, 3).join(", ")}${missing.length > 3 ? "..." : ""}`, 5000);
+    return;
+  }
+
+  const negativos = getProjectedNegativeStock(pedido);
+  if (negativos.length && !confirm(`Atencao: a emissao desta NF projeta saldo negativo para ${negativos.length} item(ns).\n\nPrimeiro item: ${negativos[0].item}\nSaldo projetado: ${negativos[0].saldoProjetado}\n\nDeseja continuar mesmo assim?`)) {
+    return;
+  }
+
+  const invoice = buildInvoiceFromOrder(pedido);
+  notasFiscais.push(invoice);
+  saveNotasFiscais();
+
+  const receivable = buildReceivableFromInvoice(invoice);
+  contasReceber.push(receivable);
+  saveContasReceber();
+
+  registerStockExitFromInvoice(invoice);
+
+  pedido.fiscal = {
+    notaFiscalId: invoice.id,
+    status: invoice.status,
+    cobrancaId: receivable.id,
+    updatedAt: new Date().toISOString(),
+    updatedBy: getAuditActor()
+  };
+  savePedidos();
+  renderAll();
+  showToast(`NF ${invoice.numero} gerada com boleto e conta a receber vinculados.`, 4500);
+}
+
+function savePedidoFiscalData(pedidoId) {
+  const pedido = pedidos.find((item) => item.id === pedidoId);
+  if (!pedido) return;
+  ensurePedidoFiscalData(pedido);
+  const map = {
+    nome: `fiscal-nome-${pedidoId}`,
+    cnpj: `fiscal-cnpj-${pedidoId}`,
+    ie: `fiscal-ie-${pedidoId}`,
+    email: `fiscal-email-${pedidoId}`,
+    telefone: `fiscal-telefone-${pedidoId}`,
+    logradouro: `fiscal-logradouro-${pedidoId}`,
+    numero: `fiscal-numero-${pedidoId}`,
+    complemento: `fiscal-complemento-${pedidoId}`,
+    bairro: `fiscal-bairro-${pedidoId}`,
+    cep: `fiscal-cep-${pedidoId}`,
+    cidade: `fiscal-cidade-${pedidoId}`,
+    uf: `fiscal-uf-${pedidoId}`,
+    indicador_contribuinte: `fiscal-indicador-${pedidoId}`
+  };
+  Object.entries(map).forEach(([field, elementId]) => {
+    const el = document.getElementById(elementId);
+    if (el) pedido.cliente[field] = (el.value || "").trim();
+  });
+
+  (pedido.itens || []).forEach((item, idx) => {
+    const ncmEl = document.getElementById(`fiscal-item-ncm-${pedidoId}-${idx}`);
+    const unEl = document.getElementById(`fiscal-item-un-${pedidoId}-${idx}`);
+    const skuEl = document.getElementById(`fiscal-item-sku-${pedidoId}-${idx}`);
+    if (ncmEl) item.ncm = (ncmEl.value || "").trim();
+    if (unEl) item.unidade = (unEl.value || "").trim() || "UN";
+    if (skuEl) item.sku = (skuEl.value || "").trim();
+  });
+
+  pedido.audit = {
+    ...(pedido.audit || {}),
+    fiscalUpdatedAt: new Date().toISOString(),
+    fiscalUpdatedBy: getAuditActor()
+  };
+  savePedidos();
+  renderPedidos();
+  showToast(`Dados fiscais do pedido ${pedidoId} salvos.`, 3000);
+}
+
+function autorizarNotaFiscal(notaId) {
+  const nf = notasFiscais.find((item) => item.id === notaId);
+  if (!nf) return;
+  const actor = getAuditActor();
+  nf.status = "autorizada";
+  nf.sefaz.status = "autorizada";
+  nf.sefaz.protocolo = genId("SEFAZ");
+  nf.sefaz.chaveAcesso = `${Math.floor(10000000000000000000000000000000000000000000 + Math.random() * 89999999999999999999999999999999999999999999)}`;
+  nf.audit = {
+    ...(nf.audit || {}),
+    updatedAt: new Date().toISOString(),
+    updatedBy: actor,
+    authorizedAt: new Date().toISOString(),
+    authorizedBy: actor
+  };
+  saveNotasFiscais();
+
+  const pedido = pedidos.find((item) => item.id === nf.pedidoId);
+  if (pedido) {
+    pedido.fiscal = { ...(pedido.fiscal || {}), notaFiscalId: nf.id, status: "autorizada", updatedAt: new Date().toISOString(), updatedBy: actor };
+    savePedidos();
+  }
+
+  const conta = getContaReceberByNota(nf.id);
+  if (conta) {
+    conta.status = "cobranca_emitida";
+    conta.cobranca.status = "emitida_api_bancaria";
+    saveContasReceber();
+  }
+
+  renderAll();
+  showToast(`NF ${nf.numero} marcada como autorizada para envio/retorno SEFAZ.`, 4000);
+}
+
+function atualizarFormaCobrancaNota(notaId, forma) {
+  const nf = notasFiscais.find((item) => item.id === notaId);
+  if (!nf) return;
+  nf.cobranca = nf.cobranca || {};
+  nf.cobranca.forma = normalizeFormaPagamento(forma);
+  nf.cobranca.status = nf.cobranca.forma === "boleto" ? "boleto_gerado" : nf.cobranca.forma === "pix" ? "pix_pronto" : nf.cobranca.forma === "ted" ? "ted_pendente" : "manual";
+  nf.cobranca.metadata = nf.cobranca.forma === "pix"
+    ? { pixKeyHint: "configurar_chave_pix", tipo: "pix" }
+    : nf.cobranca.forma === "ted"
+      ? { banco: "", agencia: "", conta: "", tipo: "ted" }
+      : nf.cobranca.forma === "boleto"
+        ? { carteira: "simples", tipo: "boleto" }
+        : { observacao: "definir instrumento manualmente", tipo: "manual" };
+  nf.audit = { ...(nf.audit || {}), updatedAt: new Date().toISOString(), updatedBy: getAuditActor() };
+  saveNotasFiscais();
+
+  const conta = getContaReceberByNota(notaId);
+  if (conta) {
+    conta.forma = nf.cobranca.forma;
+    conta.cobranca = conta.cobranca || {};
+    conta.cobranca.status = nf.cobranca.status;
+    saveContasReceber();
+  }
+  renderAll();
+}
+
+function registrarBaixaRecebimento(contaId) {
+  const conta = contasReceber.find((item) => item.id === contaId);
+  if (!conta) return;
+  conta.status = "recebida";
+  conta.recebidaEm = new Date().toISOString();
+  conta.conciliacao = {
+    status: "pendente_api_bancaria",
+    referencia: genId("CNCL"),
+    updatedAt: new Date().toISOString(),
+    updatedBy: getAuditActor()
+  };
+  conta.audit = { ...(conta.audit || {}), updatedAt: new Date().toISOString(), updatedBy: getAuditActor(), baixaManualAt: new Date().toISOString() };
+  saveContasReceber();
+  renderContasReceber();
+  showToast(`Recebimento registrado para ${conta.descricao}.`, 3000);
+}
+
+function atualizarStatusConciliacao(contaId, status) {
+  const conta = contasReceber.find((item) => item.id === contaId);
+  if (!conta) return;
+  conta.conciliacao = conta.conciliacao || { referencia: genId("CNCL") };
+  conta.conciliacao.status = status;
+  conta.conciliacao.updatedAt = new Date().toISOString();
+  conta.conciliacao.updatedBy = getAuditActor();
+  saveContasReceber();
+  renderContasReceber();
+  showToast(`Conciliação atualizada para ${status}.`, 3000);
+}
+
+function verNotaFiscal(notaId) {
+  const nf = notasFiscais.find((item) => item.id === notaId);
+  if (!nf) return;
+  const conta = getContaReceberByNota(notaId);
+  let html = '';
+  html += '<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.8rem;margin-bottom:1rem">';
+  html += '<div class="info-box"><label>NF</label><div class="val">NF ' + esc(nf.numero) + ' / Serie ' + esc(nf.serie || '1') + '</div></div>';
+  html += '<div class="info-box"><label>Pedido</label><div class="val font-mono">' + esc(nf.pedidoId || '-') + '</div></div>';
+  html += '<div class="info-box"><label>Status SEFAZ</label><div class="val">' + esc(nf.status) + '</div></div>';
+  html += '<div class="info-box"><label>Valor</label><div class="val" style="color:var(--green)">' + brl.format(nf.valor || 0) + '</div></div>';
+  html += '</div>';
+
+  html += '<div class="card" style="padding:1rem;margin-bottom:1rem">';
+  html += '<h3 style="margin-bottom:1rem">Cliente e Autorizacao</h3>';
+  html += '<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.8rem">';
+  html += '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Cliente</label><div style="font-weight:700">' + esc(nf.cliente?.nome || '-') + '</div></div>';
+  html += '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">CNPJ</label><div style="font-weight:700">' + esc(nf.cliente?.cnpj || '-') + '</div></div>';
+  html += '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Emissao</label><div style="font-weight:700">' + formatDateTimeLocal(nf.emitidaEm) + '</div></div>';
+  html += '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Lote SEFAZ</label><div style="font-weight:700">' + esc(nf.sefaz?.lote || '-') + '</div></div>';
+  html += '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Protocolo</label><div style="font-weight:700">' + esc(nf.sefaz?.protocolo || '-') + '</div></div>';
+  html += '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Chave Acesso</label><div style="font-weight:700;font-size:.78rem;word-break:break-all">' + esc(nf.sefaz?.chaveAcesso || '-') + '</div></div>';
+  html += '</div></div>';
+
+  html += '<div class="card" style="padding:1rem;margin-bottom:1rem">';
+  html += '<h3 style="margin-bottom:1rem">Cobranca Vinculada</h3>';
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr auto auto;gap:.8rem;align-items:end">';
+  html += '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Forma</label><select id="nf-forma-cobranca"><option value="boleto"' + ((nf.cobranca?.forma || 'boleto') === 'boleto' ? ' selected' : '') + '>Boleto</option><option value="pix"' + (nf.cobranca?.forma === 'pix' ? ' selected' : '') + '>Pix</option><option value="ted"' + (nf.cobranca?.forma === 'ted' ? ' selected' : '') + '>TED</option><option value="incluir"' + (nf.cobranca?.forma === 'incluir' ? ' selected' : '') + '>Incluir</option></select></div>';
+  html += '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Status</label><div style="padding:.55rem .75rem;border:1px solid var(--bdr);border-radius:8px;background:var(--s1)">' + esc(nf.cobranca?.status || '-') + '</div></div>';
+  html += '<button class="btn btn-outline" onclick="atualizarFormaCobrancaNota(\'' + nf.id + '\', document.getElementById(\'nf-forma-cobranca\').value)">Atualizar Cobranca</button>';
+  html += (conta ? '<button class="btn btn-green" onclick="dispararCobrancaAutomatica(\'' + conta.id + '\')">Cobrar Agora</button>' : '<span></span>');
+  html += '</div>';
+  if (conta) {
+    html += '<div style="margin-top:1rem;font-size:.82rem;color:var(--mut)">Conta vinculada: <strong style="color:var(--txt)">' + esc(conta.descricao) + '</strong> | Status: <strong style="color:var(--txt)">' + esc(conta.status) + '</strong></div>';
+    html += '<div style="margin-top:.45rem;font-size:.82rem;color:var(--mut)">Linha digitavel: ' + esc(conta.cobranca?.linhaDigitavel || '-') + '</div>';
+    html += '<div style="margin-top:.35rem;font-size:.82rem;color:var(--mut)">Pix copia e cola: ' + esc(conta.cobranca?.pixCopiaECola || '-') + '</div>';
+  }
+  html += '</div>';
+
+  html += '<div class="table-wrap"><table><thead><tr><th>Produto</th><th class="text-center">Qtd</th><th class="text-center">Un.</th><th class="text-center">NCM</th><th class="text-right">Unit.</th><th class="text-right">Subtotal</th></tr></thead><tbody>';
+  html += (nf.itens || []).map((item) => '<tr><td>' + esc(item.descricao || '') + '</td><td class="text-center">' + (item.qtd || 0) + '</td><td class="text-center">' + esc(item.unidade || '-') + '</td><td class="text-center">' + esc(item.ncm || '-') + '</td><td class="text-right">' + brl.format(item.precoUnitario || 0) + '</td><td class="text-right">' + brl.format((item.qtd || 0) * (item.precoUnitario || 0)) + '</td></tr>').join('');
+  html += '</tbody></table></div>';
+
+  document.getElementById("modal-nota-fiscal-titulo").textContent = `NF ${nf.numero} — ${nf.cliente?.nome || ''}`;
+  document.getElementById("modal-nota-fiscal-body").innerHTML = html;
+  document.getElementById("modal-nota-fiscal").classList.remove("hidden");
+}
+
+function fecharModalNotaFiscal() {
+  document.getElementById("modal-nota-fiscal").classList.add("hidden");
+}
+
+function dispararCobrancaAutomatica(contaId) {
+  const conta = contasReceber.find((item) => item.id === contaId);
+  if (!conta) return;
+  conta.automacao = conta.automacao || {};
+  conta.automacao.whatsapp = true;
+  conta.automacao.email = true;
+  conta.automacao.ultimoDisparo = new Date().toISOString();
+  conta.status = conta.status === "recebida" ? "recebida" : "cobranca_automatica_disparada";
+  conta.audit = { ...(conta.audit || {}), updatedAt: new Date().toISOString(), updatedBy: getAuditActor(), cobrancaDisparadaAt: new Date().toISOString() };
+  saveContasReceber();
+  renderContasReceber();
+  showToast(`Cobranca automatica preparada via WhatsApp e e-mail para ${conta.cliente || "cliente"}.`, 4000);
+}
+
+function registrarContaPagar() {
+  const descricao = document.getElementById("cp-descricao").value.trim();
+  const categoria = document.getElementById("cp-categoria").value.trim();
+  const forma = normalizeFormaPagamento(document.getElementById("cp-forma").value);
+  const valor = Number(document.getElementById("cp-valor").value || 0);
+  const vencimento = document.getElementById("cp-vencimento").value;
+  if (!descricao || !categoria || !valor || !vencimento) {
+    showToast("Preencha descricao, categoria, valor e vencimento.", 3500);
+    return;
+  }
+  contasPagar.push({
+    id: genId("CP"),
+    descricao,
+    categoria,
+    forma,
+    valor,
+    vencimento,
+    status: "pendente",
+    audit: { createdAt: new Date().toISOString(), createdBy: getAuditActor(), updatedAt: new Date().toISOString(), updatedBy: getAuditActor() }
+  });
+  saveContasPagar();
+  ["cp-descricao", "cp-valor", "cp-vencimento"].forEach((id) => document.getElementById(id).value = "");
+  document.getElementById("cp-categoria").value = "fornecedor";
+  document.getElementById("cp-forma").value = "boleto";
+  renderContasPagar();
+  showToast("Conta a pagar registrada.", 3000);
+}
+
+function registrarContaReceber() {
+  const descricao = document.getElementById("cr-descricao").value.trim();
+  const categoria = document.getElementById("cr-categoria").value.trim();
+  const cliente = document.getElementById("cr-cliente").value.trim();
+  const forma = normalizeFormaPagamento(document.getElementById("cr-forma").value);
+  const valor = Number(document.getElementById("cr-valor").value || 0);
+  const vencimento = document.getElementById("cr-vencimento").value;
+  if (!descricao || !categoria || !cliente || !valor || !vencimento) {
+    showToast("Preencha descricao, categoria, cliente, valor e vencimento.", 3500);
+    return;
+  }
+  contasReceber.push({
+    id: genId("CR"),
+    origemTipo: "manual",
+    origemId: "",
+    descricao,
+    categoria,
+    cliente,
+    forma,
+    valor,
+    vencimento,
+    status: "pendente",
+    automacao: { whatsapp: true, email: true, ultimoDisparo: "" },
+    cobranca: { status: forma === "boleto" ? "boleto_gerado" : "manual", linhaDigitavel: "", pixCopiaECola: "" },
+    audit: { createdAt: new Date().toISOString(), createdBy: getAuditActor(), updatedAt: new Date().toISOString(), updatedBy: getAuditActor() }
+  });
+  saveContasReceber();
+  ["cr-descricao", "cr-cliente", "cr-valor", "cr-vencimento"].forEach((id) => document.getElementById(id).value = "");
+  document.getElementById("cr-categoria").value = "faturamento";
+  document.getElementById("cr-forma").value = "boleto";
+  renderContasReceber();
+  showToast("Conta a receber registrada.", 3000);
+}
+
+function registrarBaixaContaPagar(contaId) {
+  const conta = contasPagar.find((item) => item.id === contaId);
+  if (!conta) return;
+  conta.status = "paga";
+  conta.pagaEm = new Date().toISOString();
+  conta.audit = { ...(conta.audit || {}), updatedAt: new Date().toISOString(), updatedBy: getAuditActor(), baixaManualAt: new Date().toISOString() };
+  saveContasPagar();
+  renderContasPagar();
+  showToast(`Conta a pagar "${conta.descricao}" baixada.`, 3000);
+}
+
+function registrarMovimentoEstoque() {
+  const tipo = document.getElementById("est-tipo").value;
+  const modo = document.getElementById("est-modo").value;
+  const sku = document.getElementById("est-sku").value.trim();
+  const descricao = document.getElementById("est-descricao").value.trim();
+  const categoria = document.getElementById("est-categoria").value.trim();
+  const quantidade = Number(document.getElementById("est-quantidade").value || 0);
+  const referencia = document.getElementById("est-referencia").value.trim();
+  if (!sku || !descricao || !quantidade) {
+    showToast("Preencha SKU/codigo, descricao e quantidade.", 3500);
+    return;
+  }
+  estoqueMovimentos.push({
+    id: genId("EST"),
+    tipo,
+    modo,
+    sku,
+    descricao,
+    categoria,
+    quantidade,
+    referencia,
+    data: new Date().toISOString(),
+    operador: getAuditActor()
+  });
+  saveEstoqueMovimentos();
+  ["est-sku", "est-descricao", "est-categoria", "est-quantidade", "est-referencia"].forEach((id) => document.getElementById(id).value = "");
+  document.getElementById("est-tipo").value = "entrada";
+  document.getElementById("est-modo").value = "nota_fiscal";
+  renderEstoque();
+  showToast("Movimento de estoque registrado.", 3000);
+}
+
 // ===== RENDER PEDIDOS =====
 function renderPedidos() {
   // Populate contract filter
@@ -3937,14 +4685,18 @@ function renderPedidos() {
 
   tbody.innerHTML = filtered.map(p => {
     const badgeMap = { agendado: "badge-blue", recebido: "badge-yellow", concluido: "badge-green" };
+    const nf = getNotaFiscalByPedido(p.id);
     let acoes = '';
     if (p.status === "agendado") {
-      acoes = `<button class="btn btn-sm" style="background:var(--blue);color:#fff" onclick="transmitirPedido('${p.id}')">Transmitir</button>`;
+      acoes = `<button class="btn btn-sm" style="background:var(--blue);color:#fff" onclick="transmitirPedido('${p.id}')">Liberar</button>`;
     } else if (p.status === "recebido") {
       acoes = `<button class="btn btn-sm btn-green" onclick="avancarPedido('${p.id}','concluido')">Concluir</button>`;
     } else {
       acoes = '<span style="color:var(--green);font-size:.8rem;font-weight:600">Concluido</span>';
     }
+    const nfAction = nf
+      ? `<button class="btn btn-sm btn-outline" onclick="switchTab('notas-fiscais')" title="Ir para notas fiscais">NF ${esc(nf.numero)}</button>`
+      : `<button class="btn btn-sm" style="background:rgba(245,158,11,.18);color:var(--yellow);border:none;font-size:.7rem;padding:.3rem .5rem;font-weight:700;cursor:pointer" onclick="gerarNotaFiscalPedido('${p.id}')" title="Gerar nota fiscal e cobranca">Gerar NF</button>`;
     const obsText = p.obs || getObsContrato(p.contratoId) || "-";
     const c = contratos.find(x => x.id === p.contratoId);
     const ctrLabel = c ? `${c.id}` : (p.contratoId || "-");
@@ -3959,7 +4711,7 @@ function renderPedidos() {
       <td class="text-right font-mono" style="color:var(--green);font-weight:700">${brl.format(p.valor)}</td>
       <td><span class="badge ${badgeMap[p.status] || 'badge-yellow'}">${p.status}</span></td>
       <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.8rem;color:var(--mut)" title="${esc(obsText)}">${esc(obsText)}</td>
-      <td class="nowrap" style="display:flex;gap:.3rem;align-items:center"><button class="btn btn-sm" style="background:rgba(59,130,246,.15);color:var(--blue);border:none;font-size:.7rem;padding:.3rem .5rem;font-weight:700;cursor:pointer" onclick="verPedidoDetalhe('${p.id}')" title="Ver detalhes">Ver</button>${acoes}</td>
+      <td class="nowrap" style="display:flex;gap:.3rem;align-items:center;flex-wrap:wrap"><button class="btn btn-sm" style="background:rgba(59,130,246,.15);color:var(--blue);border:none;font-size:.7rem;padding:.3rem .5rem;font-weight:700;cursor:pointer" onclick="verPedidoDetalhe('${p.id}')" title="Ver detalhes">Ver</button>${nfAction}${acoes}</td>
     </tr>`;
   }).join("");
 }
@@ -3967,7 +4719,7 @@ function renderPedidos() {
 async function transmitirPedido(pedidoId) {
   const p = pedidos.find(x => x.id === pedidoId);
   if (!p) return;
-  if (!confirm(`Transmitir pedido ${pedidoId}?\nData entrega: ${p.dataEntrega || p.data}\nValor: R$ ${p.valor.toFixed(2).replace('.',',')}\n\nIsso mudará o status para "recebido", deduzirá do saldo do contrato e enviará ao Olist.`)) return;
+  if (!confirm(`Liberar pedido ${pedidoId}?\nData entrega: ${p.dataEntrega || p.data}\nValor: R$ ${p.valor.toFixed(2).replace('.',',')}\n\nIsso mudará o status para "recebido" e manterá o fluxo interno de faturamento no GDP.`)) return;
 
   // Deduzir saldo do contrato
   const c = contratos.find(x => x.id === p.contratoId);
@@ -3988,10 +4740,7 @@ async function transmitirPedido(pedidoId) {
   if (!p.obs) p.obs = getObsContrato(p.contratoId);
   savePedidos();
   renderAll();
-  showToast(`Pedido ${pedidoId} transmitido! Status: recebido. Enviando ao Olist...`);
-
-  // Enviar ao Olist automaticamente
-  await enviarPedidoOlist(pedidoId);
+  showToast(`Pedido ${pedidoId} liberado para faturamento interno no GDP.`);
 }
 
 function avancarPedido(pedidoId, novoStatus) {
@@ -4151,7 +4900,12 @@ function salvarPedidoManual() {
     valor,
     status: "recebido",
     obs: getObsContrato(contratoId),
-    saldoDeduzido: true
+    saldoDeduzido: true,
+    fiscal: {
+      notaFiscalId: "",
+      status: "nao_emitida",
+      cobrancaId: ""
+    }
   });
 
   // Deduzir saldo do contrato imediatamente ao criar pedido
@@ -4173,10 +4927,12 @@ function salvarPedidoManual() {
 function verPedidoDetalhe(pedidoId) {
   const p = pedidos.find(x => x.id === pedidoId);
   if (!p) return;
+  ensurePedidoFiscalData(p);
   const c = contratos.find(x => x.id === p.contratoId);
   const ctrLabel = c ? (c.processo ? 'Proc. ' + c.processo : c.id) : (p.contratoId || '-');
   const badgeMap = { agendado: 'badge-blue', recebido: 'badge-yellow', concluido: 'badge-green' };
   const marcadorHtml = p.marcador ? '<span style="background:rgba(139,92,246,.15);color:#8b5cf6;padding:.2rem .6rem;border-radius:999px;font-size:.75rem;font-weight:700;margin-left:.5rem">' + esc(p.marcador) + '</span>' : '';
+  const fiscalMissing = validatePedidoForInvoice(p);
 
   let html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem">';
   html += '<div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Protocolo</div><div style="font-weight:700;font-family:monospace">' + esc(p.id) + marcadorHtml + '</div></div>';
@@ -4186,13 +4942,41 @@ function verPedidoDetalhe(pedidoId) {
   html += '<div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Valor Total</div><div style="font-weight:700;color:var(--green);font-size:1.2rem">' + brl.format(p.valor) + '</div></div>';
   html += '<div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Status</div><div><span class="badge ' + (badgeMap[p.status] || 'badge-yellow') + '">' + esc(p.status) + '</span></div></div>';
   html += '</div>';
+  const nf = getNotaFiscalByPedido(p.id);
+  html += '<div style="margin-bottom:1rem;padding:1rem;border:1px solid var(--bdr);border-radius:10px;background:var(--s1)">';
+  html += '<div style="display:flex;justify-content:space-between;gap:1rem;align-items:flex-start;flex-wrap:wrap">';
+  html += '<div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Fiscal e Cobranca</div><div style="font-weight:700">' + (nf ? 'NF ' + esc(nf.numero) + ' pronta para SEFAZ' : 'Pedido sem nota fiscal emitida') + '</div><div style="font-size:.8rem;color:var(--mut);margin-top:.3rem">O pedido precisa conter todos os campos fiscais obrigatorios antes da emissao.</div>' + (fiscalMissing.length ? '<div style="margin-top:.55rem;color:var(--yellow);font-size:.78rem"><strong>Pendencias:</strong> ' + esc(fiscalMissing.join(', ')) + '</div>' : '<div style="margin-top:.55rem;color:var(--green);font-size:.78rem"><strong>Base fiscal completa.</strong></div>') + '</div>';
+  html += (nf
+    ? '<button class="btn btn-outline" onclick="switchTab(\'notas-fiscais\')">Ver NF</button>'
+    : '<button class="btn btn-purple" onclick="gerarNotaFiscalPedido(\'' + p.id + '\')">Gerar Nota Fiscal</button>');
+  html += '</div></div>';
+
+  html += '<div style="margin-bottom:1rem;padding:1rem;border:1px solid var(--bdr);border-radius:10px;background:var(--s1)">';
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;margin-bottom:.9rem">';
+  html += '<div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.25rem">Cadastro Fiscal do Pedido</div><div style="font-size:.82rem;color:var(--mut)">Revise os campos legais antes de emitir a NF.</div></div>';
+  html += '<button class="btn btn-outline btn-sm" onclick="savePedidoFiscalData(\'' + p.id + '\')">Salvar Dados Fiscais</button>';
+  html += '</div>';
+  html += '<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.75rem">';
+  html += '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Razao/Nome</label><input id="fiscal-nome-' + p.id + '" type="text" value="' + esc(p.cliente?.nome || '') + '" style="width:100%"></div>';
+  html += '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">CNPJ/CPF</label><input id="fiscal-cnpj-' + p.id + '" type="text" value="' + esc(p.cliente?.cnpj || '') + '" style="width:100%"></div>';
+  html += '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">IE</label><input id="fiscal-ie-' + p.id + '" type="text" value="' + esc(p.cliente?.ie || 'ISENTO') + '" style="width:100%"></div>';
+  html += '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Email</label><input id="fiscal-email-' + p.id + '" type="text" value="' + esc(p.cliente?.email || '') + '" style="width:100%"></div>';
+  html += '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Telefone</label><input id="fiscal-telefone-' + p.id + '" type="text" value="' + esc(p.cliente?.telefone || '') + '" style="width:100%"></div>';
+  html += '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Indicador Contribuinte</label><input id="fiscal-indicador-' + p.id + '" type="text" value="' + esc(p.cliente?.indicador_contribuinte || '9') + '" style="width:100%"></div>';
+  html += '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Logradouro</label><input id="fiscal-logradouro-' + p.id + '" type="text" value="' + esc(p.cliente?.logradouro || '') + '" style="width:100%"></div>';
+  html += '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Numero</label><input id="fiscal-numero-' + p.id + '" type="text" value="' + esc(p.cliente?.numero || '') + '" style="width:100%"></div>';
+  html += '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Complemento</label><input id="fiscal-complemento-' + p.id + '" type="text" value="' + esc(p.cliente?.complemento || '') + '" style="width:100%"></div>';
+  html += '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Bairro</label><input id="fiscal-bairro-' + p.id + '" type="text" value="' + esc(p.cliente?.bairro || '') + '" style="width:100%"></div>';
+  html += '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">CEP</label><input id="fiscal-cep-' + p.id + '" type="text" value="' + esc(p.cliente?.cep || '') + '" style="width:100%"></div>';
+  html += '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Cidade/UF</label><div style="display:grid;grid-template-columns:2fr 1fr;gap:.45rem"><input id="fiscal-cidade-' + p.id + '" type="text" value="' + esc(p.cliente?.cidade || '') + '" style="width:100%"><input id="fiscal-uf-' + p.id + '" type="text" value="' + esc(p.cliente?.uf || 'MG') + '" style="width:100%"></div></div>';
+  html += '</div></div>';
 
   if (p.itens && p.itens.length > 0) {
     html += '<div style="border:1px solid var(--bdr);border-radius:10px;overflow:hidden"><table style="width:100%;border-collapse:collapse">';
-    html += '<thead><tr style="background:var(--s2)"><th style="padding:.5rem .8rem;text-align:left;font-size:.72rem;text-transform:uppercase;color:var(--mut)">Produto</th><th style="padding:.5rem .8rem;text-align:center;font-size:.72rem;text-transform:uppercase;color:var(--mut)">Qtd</th><th style="padding:.5rem .8rem;text-align:right;font-size:.72rem;text-transform:uppercase;color:var(--mut)">Preco Unit.</th><th style="padding:.5rem .8rem;text-align:right;font-size:.72rem;text-transform:uppercase;color:var(--mut)">Subtotal</th></tr></thead><tbody>';
-    p.itens.forEach(item => {
+    html += '<thead><tr style="background:var(--s2)"><th style="padding:.5rem .8rem;text-align:left;font-size:.72rem;text-transform:uppercase;color:var(--mut)">Produto</th><th style="padding:.5rem .8rem;text-align:center;font-size:.72rem;text-transform:uppercase;color:var(--mut)">Qtd</th><th style="padding:.5rem .8rem;text-align:center;font-size:.72rem;text-transform:uppercase;color:var(--mut)">Un.</th><th style="padding:.5rem .8rem;text-align:center;font-size:.72rem;text-transform:uppercase;color:var(--mut)">NCM</th><th style="padding:.5rem .8rem;text-align:center;font-size:.72rem;text-transform:uppercase;color:var(--mut)">SKU</th><th style="padding:.5rem .8rem;text-align:right;font-size:.72rem;text-transform:uppercase;color:var(--mut)">Preco Unit.</th><th style="padding:.5rem .8rem;text-align:right;font-size:.72rem;text-transform:uppercase;color:var(--mut)">Subtotal</th></tr></thead><tbody>';
+    p.itens.forEach((item, idx) => {
       const sub = (item.qtd || 0) * (item.precoUnitario || 0);
-      html += '<tr style="border-top:1px solid rgba(71,85,105,.3)"><td style="padding:.5rem .8rem;font-size:.85rem">' + esc(item.descricao || '') + '</td><td style="padding:.5rem .8rem;text-align:center">' + (item.qtd || 0) + '</td><td style="padding:.5rem .8rem;text-align:right">' + brl.format(item.precoUnitario || 0) + '</td><td style="padding:.5rem .8rem;text-align:right;color:var(--green);font-weight:700">' + brl.format(sub) + '</td></tr>';
+      html += '<tr style="border-top:1px solid rgba(71,85,105,.3)"><td style="padding:.5rem .8rem;font-size:.85rem">' + esc(item.descricao || '') + '</td><td style="padding:.5rem .8rem;text-align:center">' + (item.qtd || 0) + '</td><td style="padding:.5rem .4rem"><input id="fiscal-item-un-' + p.id + '-' + idx + '" type="text" value="' + esc(item.unidade || 'UN') + '" style="width:62px;text-align:center"></td><td style="padding:.5rem .4rem"><input id="fiscal-item-ncm-' + p.id + '-' + idx + '" type="text" value="' + esc(item.ncm || '') + '" style="width:110px;text-align:center"></td><td style="padding:.5rem .4rem"><input id="fiscal-item-sku-' + p.id + '-' + idx + '" type="text" value="' + esc(item.sku || '') + '" style="width:90px;text-align:center"></td><td style="padding:.5rem .8rem;text-align:right">' + brl.format(item.precoUnitario || 0) + '</td><td style="padding:.5rem .8rem;text-align:right;color:var(--green);font-weight:700">' + brl.format(sub) + '</td></tr>';
     });
     html += '</tbody></table></div>';
   }
@@ -4262,6 +5046,202 @@ function fecharModalPedido() {
   document.getElementById("modal-pedido").classList.add("hidden");
 }
 
+function renderNotasFiscais() {
+  const busca = (document.getElementById("busca-nota-fiscal")?.value || "").toLowerCase();
+  const filtroStatus = document.getElementById("filtro-status-nota-fiscal")?.value || "";
+  let filtered = notasFiscais;
+  if (busca) {
+    filtered = filtered.filter((nf) =>
+      (nf.numero || "").toLowerCase().includes(busca) ||
+      (nf.pedidoId || "").toLowerCase().includes(busca) ||
+      (nf.cliente?.nome || "").toLowerCase().includes(busca)
+    );
+  }
+  if (filtroStatus) filtered = filtered.filter((nf) => nf.status === filtroStatus);
+
+  const tbody = document.getElementById("notas-fiscais-tbody");
+  const empty = document.getElementById("notas-fiscais-empty");
+  document.getElementById("tab-count-notas-fiscais").textContent = filtered.length;
+
+  if (!filtered.length) {
+    tbody.innerHTML = "";
+    empty.classList.remove("hidden");
+    return;
+  }
+  empty.classList.add("hidden");
+
+  tbody.innerHTML = filtered.map((nf) => `
+    <tr>
+      <td><strong>${esc(nf.numero)}</strong><br><span style="font-size:.72rem;color:var(--mut)">${esc(nf.serie || "1")}</span></td>
+      <td class="font-mono">${esc(nf.pedidoId || "")}</td>
+      <td>${esc(nf.cliente?.nome || "-")}</td>
+      <td>${formatDateTimeLocal(nf.emitidaEm)}</td>
+      <td class="text-right font-mono">${brl.format(nf.valor || 0)}</td>
+      <td><span class="badge ${nf.status === "autorizada" ? "badge-green" : nf.status === "rejeitada" ? "badge-red" : "badge-yellow"}">${esc(nf.status)}</span></td>
+      <td style="font-size:.8rem">${esc(nf.cobranca?.forma || "boleto")}<br><span style="color:var(--mut)">${esc(nf.cobranca?.status || "")}</span></td>
+      <td class="nowrap" style="display:flex;gap:.4rem;align-items:center;flex-wrap:wrap">
+        <button class="btn btn-sm btn-outline" onclick="verNotaFiscal('${nf.id}')">Abrir</button>
+        <button class="btn btn-sm btn-outline" onclick="verPedidoDetalhe('${esc(nf.pedidoId)}')">Pedido</button>
+        ${nf.status === "autorizada"
+          ? `<span style="color:var(--green);font-size:.78rem;font-weight:700">Autorizada</span>`
+          : `<button class="btn btn-sm btn-green" onclick="autorizarNotaFiscal('${nf.id}')">Autorizar SEFAZ</button>`}
+      </td>
+    </tr>
+  `).join("");
+}
+
+function renderContasPagar() {
+  const tbody = document.getElementById("contas-pagar-tbody");
+  const empty = document.getElementById("contas-pagar-empty");
+  const busca = (document.getElementById("cp-busca")?.value || "").toLowerCase();
+  const filtroStatus = document.getElementById("cp-filtro-status")?.value || "";
+  const filtroCategoria = document.getElementById("cp-filtro-categoria")?.value || "";
+  let filtered = contasPagar;
+  if (busca) filtered = filtered.filter((item) => (item.descricao || "").toLowerCase().includes(busca));
+  if (filtroStatus) filtered = filtered.filter((item) => item.status === filtroStatus);
+  if (filtroCategoria) filtered = filtered.filter((item) => item.categoria === filtroCategoria);
+  document.getElementById("tab-count-contas-pagar").textContent = filtered.length;
+
+  const totalAberto = contasPagar.filter((item) => item.status !== "paga").reduce((sum, item) => sum + Number(item.valor || 0), 0);
+  const totalPago = contasPagar.filter((item) => item.status === "paga").reduce((sum, item) => sum + Number(item.valor || 0), 0);
+  const categorias = new Set(contasPagar.map((item) => item.categoria).filter(Boolean));
+  const abertoEl = document.getElementById("cp-kpi-aberto");
+  const pagoEl = document.getElementById("cp-kpi-pago");
+  const catEl = document.getElementById("cp-kpi-categorias");
+  if (abertoEl) abertoEl.textContent = brl.format(totalAberto);
+  if (pagoEl) pagoEl.textContent = brl.format(totalPago);
+  if (catEl) catEl.textContent = categorias.size;
+
+  if (!filtered.length) {
+    tbody.innerHTML = "";
+    empty.classList.remove("hidden");
+    return;
+  }
+  empty.classList.add("hidden");
+  tbody.innerHTML = filtered.map((item) => `
+    <tr>
+      <td>${esc(item.descricao)}</td>
+      <td>${esc(item.categoria)}</td>
+      <td>${esc(item.forma)}</td>
+      <td>${esc(item.vencimento)}</td>
+      <td class="text-right font-mono">${brl.format(item.valor || 0)}</td>
+      <td><span class="badge ${item.status === "paga" ? "badge-green" : "badge-yellow"}">${esc(item.status)}</span></td>
+      <td>${item.status === "paga" ? '<span style="color:var(--green);font-size:.78rem;font-weight:700">Baixada</span>' : `<button class="btn btn-sm btn-green" onclick="registrarBaixaContaPagar('${item.id}')">Baixar</button>`}</td>
+    </tr>
+  `).join("");
+}
+
+function renderContasReceber() {
+  const tbody = document.getElementById("contas-receber-tbody");
+  const empty = document.getElementById("contas-receber-empty");
+  const busca = (document.getElementById("cr-busca")?.value || "").toLowerCase();
+  const filtroStatus = document.getElementById("cr-filtro-status")?.value || "";
+  const filtroCategoria = document.getElementById("cr-filtro-categoria")?.value || "";
+  let filtered = contasReceber;
+  if (busca) filtered = filtered.filter((item) => ((item.descricao || "") + " " + (item.cliente || "")).toLowerCase().includes(busca));
+  if (filtroStatus) filtered = filtered.filter((item) => item.status === filtroStatus);
+  if (filtroCategoria) filtered = filtered.filter((item) => item.categoria === filtroCategoria);
+  document.getElementById("tab-count-contas-receber").textContent = filtered.length;
+
+  const totalAberto = contasReceber.filter((item) => item.status !== "recebida").reduce((sum, item) => sum + Number(item.valor || 0), 0);
+  const totalRecebido = contasReceber.filter((item) => item.status === "recebida").reduce((sum, item) => sum + Number(item.valor || 0), 0);
+  const pendentesConc = contasReceber.filter((item) => item.conciliacao?.status === "pendente_api_bancaria").length;
+  const abertoEl = document.getElementById("cr-kpi-aberto");
+  const recebidoEl = document.getElementById("cr-kpi-recebido");
+  const concEl = document.getElementById("cr-kpi-conciliacao");
+  if (abertoEl) abertoEl.textContent = brl.format(totalAberto);
+  if (recebidoEl) recebidoEl.textContent = brl.format(totalRecebido);
+  if (concEl) concEl.textContent = pendentesConc;
+
+  if (!filtered.length) {
+    tbody.innerHTML = "";
+    empty.classList.remove("hidden");
+    return;
+  }
+  empty.classList.add("hidden");
+  tbody.innerHTML = filtered.map((item) => `
+    <tr>
+      <td>${esc(item.descricao)}</td>
+      <td>${esc(item.categoria)}</td>
+      <td>${esc(item.cliente || "-")}</td>
+      <td>${esc(item.forma)}</td>
+      <td style="font-size:.78rem">${item.automacao?.whatsapp ? "WhatsApp" : "-"} / ${item.automacao?.email ? "E-mail" : "-"}</td>
+      <td>${esc(item.vencimento || "")}</td>
+      <td class="text-right font-mono">${brl.format(item.valor || 0)}</td>
+      <td><span class="badge ${item.status === "recebida" ? "badge-green" : item.status.includes("cobranca") ? "badge-blue" : "badge-yellow"}">${esc(item.status)}</span><div style="font-size:.72rem;color:var(--mut);margin-top:.2rem">${esc(item.conciliacao?.status || "sem conciliacao")}</div></td>
+      <td style="display:flex;gap:.35rem;flex-wrap:wrap"><button class="btn btn-sm btn-outline" onclick="dispararCobrancaAutomatica('${item.id}')">Cobrar</button><button class="btn btn-sm btn-green" onclick="registrarBaixaRecebimento('${item.id}')">Baixar</button><button class="btn btn-sm btn-outline" onclick="atualizarStatusConciliacao('${item.id}','conciliado_api_bancaria')">Conciliar</button><button class="btn btn-sm btn-outline" onclick="atualizarStatusConciliacao('${item.id}','divergencia_api_bancaria')">Diverg.</button></td>
+    </tr>
+  `).join("");
+}
+
+function renderEstoque() {
+  const tbody = document.getElementById("estoque-tbody");
+  const movimentosBody = document.getElementById("estoque-movimentos-tbody");
+  const empty = document.getElementById("estoque-empty");
+  const busca = (document.getElementById("est-busca")?.value || "").toLowerCase();
+  const filtroModo = document.getElementById("est-filtro-modo")?.value || "";
+  const filtroTipo = document.getElementById("est-filtro-tipo")?.value || "";
+  let movimentosFiltrados = estoqueMovimentos;
+  if (busca) movimentosFiltrados = movimentosFiltrados.filter((mov) => `${mov.sku || ""} ${mov.descricao || ""} ${mov.referencia || ""}`.toLowerCase().includes(busca));
+  if (filtroModo) movimentosFiltrados = movimentosFiltrados.filter((mov) => mov.modo === filtroModo);
+  if (filtroTipo) movimentosFiltrados = movimentosFiltrados.filter((mov) => mov.tipo === filtroTipo);
+  const mapa = new Map();
+  movimentosFiltrados.forEach((mov) => {
+    const key = mov.sku || mov.descricao;
+    const prev = mapa.get(key) || {
+      sku: mov.sku || "",
+      descricao: mov.descricao || "",
+      categoria: mov.categoria || "",
+      saldo: 0,
+      ultimaData: ""
+    };
+    prev.saldo += (mov.tipo === "entrada" ? 1 : -1) * Number(mov.quantidade || 0);
+    prev.ultimaData = mov.data || prev.ultimaData;
+    if (!prev.categoria && mov.categoria) prev.categoria = mov.categoria;
+    mapa.set(key, prev);
+  });
+  const items = [...mapa.values()].sort((a, b) => (a.descricao || "").localeCompare(b.descricao || ""));
+  document.getElementById("tab-count-estoque").textContent = items.length;
+  const itensEl = document.getElementById("est-kpi-itens");
+  const fiscalEl = document.getElementById("est-kpi-fiscal");
+  const bipagemEl = document.getElementById("est-kpi-bipagem");
+  const negativoEl = document.getElementById("est-kpi-negativo");
+  if (itensEl) itensEl.textContent = items.length;
+  if (fiscalEl) fiscalEl.textContent = movimentosFiltrados.filter((mov) => mov.modo === "nota_fiscal").length;
+  if (bipagemEl) bipagemEl.textContent = movimentosFiltrados.filter((mov) => mov.modo === "bipagem").length;
+  if (negativoEl) negativoEl.textContent = items.filter((item) => item.saldo < 0).length;
+  if (!items.length) {
+    tbody.innerHTML = "";
+    if (movimentosBody) movimentosBody.innerHTML = "";
+    empty.classList.remove("hidden");
+    return;
+  }
+  empty.classList.add("hidden");
+  tbody.innerHTML = items.map((item) => `
+    <tr>
+      <td class="font-mono">${esc(item.sku || "-")}</td>
+      <td>${esc(item.descricao)}</td>
+      <td>${esc(item.categoria || "-")}</td>
+      <td style="font-size:.8rem;color:var(--mut)">${esc(estoqueMovimentos.filter((mov) => (mov.sku || mov.descricao) === (item.sku || item.descricao)).slice(-1)[0]?.modo || "-")}</td>
+      <td class="text-right font-mono" style="color:${item.saldo >= 0 ? 'var(--green)' : 'var(--red)'};font-weight:700">${item.saldo}</td>
+      <td>${item.ultimaData ? formatDateTimeLocal(item.ultimaData) : "-"}</td>
+    </tr>
+  `).join("");
+  if (movimentosBody) {
+    movimentosBody.innerHTML = movimentosFiltrados.slice().sort((a, b) => new Date(b.data || 0) - new Date(a.data || 0)).slice(0, 12).map((mov) => `
+      <tr>
+        <td>${mov.data ? formatDateTimeLocal(mov.data) : "-"}</td>
+        <td><span class="badge ${mov.tipo === "entrada" ? "badge-green" : "badge-yellow"}">${esc(mov.tipo)}</span></td>
+        <td>${esc(mov.modo)}</td>
+        <td class="font-mono">${esc(mov.sku || "-")}</td>
+        <td>${esc(mov.descricao || "-")}</td>
+        <td>${esc(mov.referencia || "-")}</td>
+        <td class="text-right font-mono">${mov.quantidade || 0}</td>
+      </tr>
+    `).join("");
+  }
+}
+
 // ===== EXPORT CSV =====
 function exportItensCSV() {
   const rows = [["Escola","Item","Unidade","Contratado","Entregue","Saldo","Preco","Valor Saldo"]];
@@ -4302,6 +5282,14 @@ function renderKPIs() {
   const itensCountEl = document.getElementById("tab-count-itens");
   if (itensCountEl) itensCountEl.textContent = contratos.reduce((s, c) => s + (c.itens ? c.itens.length : 0), 0);
   document.getElementById("tab-count-pedidos").textContent = pedidos.length;
+  const nfCountEl = document.getElementById("tab-count-notas-fiscais");
+  if (nfCountEl) nfCountEl.textContent = notasFiscais.length;
+  const cpCountEl = document.getElementById("tab-count-contas-pagar");
+  if (cpCountEl) cpCountEl.textContent = contasPagar.length;
+  const crCountEl = document.getElementById("tab-count-contas-receber");
+  if (crCountEl) crCountEl.textContent = contasReceber.length;
+  const estoqueCountEl = document.getElementById("tab-count-estoque");
+  if (estoqueCountEl) estoqueCountEl.textContent = [...new Set(estoqueMovimentos.map((mov) => mov.sku || mov.descricao))].filter(Boolean).length;
   document.getElementById("tab-count-usuarios").textContent = usuarios.length;
 }
 
@@ -4313,6 +5301,10 @@ function renderAll() {
   renderKPIs();
   renderContratos();
   renderPedidos();
+  renderNotasFiscais();
+  renderContasPagar();
+  renderContasReceber();
+  renderEstoque();
   renderEntregas();
   // Update banco tab count even when not on banco tab
   const bpCount = document.getElementById("tab-count-banco-produtos");
@@ -4333,7 +5325,7 @@ function showToast(msg, duration = 3000) {
 // ===== EXPORTAR / IMPORTAR DADOS =====
 function exportarDados() {
   const keys = [
-    CONTRACTS_KEY, ORDERS_KEY, PROOFS_KEY, "gdp.usuarios.v1",
+    CONTRACTS_KEY, ORDERS_KEY, PROOFS_KEY, INVOICES_KEY, PAYABLES_KEY, RECEIVABLES_KEY, STOCK_KEY, "gdp.usuarios.v1",
     "caixaescolar.banco.v1", "nexedu.empresa", "nexedu.auth"
   ];
   const dados = {};
