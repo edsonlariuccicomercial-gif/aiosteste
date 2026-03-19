@@ -38,6 +38,13 @@ Preparar o `GDP` para emissao direta de `NF-e` sem provedor intermediario, usand
 - `NFE_CERT_BASE64`
 - `NFE_CERT_PASSWORD`
 
+## Variaveis opcionais para pre-assinatura
+
+- `NFE_CERT_PEM`
+- `NFE_KEY_PEM`
+
+Essas variaveis permitem validar o caminho criptografico e gerar uma `pre-assinatura` local. Isso ainda nao substitui a assinatura `XMLDSig` exigida pela NF-e.
+
 ## Pontos criticos
 
 - armazenamento seguro do certificado A1
@@ -52,13 +59,16 @@ Nesta etapa, o endpoint ainda nao transmite para a SEFAZ. Ele existe para:
 
 - validar configuracao
 - padronizar o payload da NF-e
+- gerar XML base
+- validar certificado A1 e PEM
+- gerar pre-assinatura local para diagnostico
 - separar a responsabilidade fiscal do restante do dashboard
 - permitir evolucao incremental sem misturar regra fiscal com UI
 
 ## Proxima implementacao
 
-1. gerador de XML NF-e
-2. assinador digital com certificado A1
+1. XMLDSig valida da NF-e
+2. assinatura digital final com certificado A1
 3. cliente de autorizacao SEFAZ
 4. parser de retorno da SEFAZ
 5. persistencia de XML e protocolo

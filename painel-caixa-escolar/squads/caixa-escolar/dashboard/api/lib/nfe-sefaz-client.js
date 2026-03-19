@@ -1,4 +1,5 @@
 const DEFAULT_AMBIENTE = process.env.NFE_SEFAZ_AMBIENTE || "homologacao";
+const crypto = require("crypto");
 const UF_CODE = {
   AC: "12", AL: "27", AP: "16", AM: "13", BA: "29", CE: "23", DF: "53", ES: "32",
   GO: "52", MA: "21", MT: "51", MS: "50", MG: "31", PA: "15", PB: "25", PR: "41",
@@ -17,6 +18,8 @@ function getSefazConfig() {
     crt: process.env.NFE_EMITENTE_CRT || "3",
     certificadoBase64: process.env.NFE_CERT_BASE64 || "",
     certificadoSenha: process.env.NFE_CERT_PASSWORD || "",
+    certificadoPem: process.env.NFE_CERT_PEM || "",
+    chavePrivadaPem: process.env.NFE_KEY_PEM || "",
     seriePadrao: process.env.NFE_SERIE_PADRAO || "1"
   };
 }
@@ -106,6 +109,32 @@ function summarizeCertificateInput(base64Value) {
   } catch (err) {
     return { status: "invalido", bytes: 0, message: err.message };
   }
+}
+
+function summarizePemInput(certPem, keyPem) {
+  const result = {
+    certStatus: certPem ? "configurado" : "nao_configurado",
+    keyStatus: keyPem ? "configurado" : "nao_configurado",
+    subject: "",
+    validFrom: "",
+    validTo: "",
+    message: ""
+  };
+  if (!certPem || !keyPem) {
+    result.message = "PEM de certificado/chave ainda nao configurados.";
+    return result;
+  }
+  try {
+    const cert = new crypto.X509Certificate(certPem);
+    result.subject = cert.subject;
+    result.validFrom = cert.validFrom;
+    result.validTo = cert.validTo;
+    result.message = "PEM carregado para pre-assinatura local.";
+  } catch (err) {
+    result.certStatus = "invalido";
+    result.message = err.message;
+  }
+  return result;
 }
 
 function buildNfePayloadFromPedido(pedido, overrides = {}) {
@@ -292,18 +321,56 @@ function buildNfeXml(payload) {
   return { xml, accessKey: access.chave, numero: access.numero, serie: access.serie };
 }
 
+function buildSignaturePreview(xml, config) {
+  const pem = summarizePemInput(config.certificadoPem, config.chavePrivadaPem);
+  const digest = crypto.createHash("sha256").update(xml, "utf8").digest("base64");
+  if (!config.certificadoPem || !config.chavePrivadaPem) {
+    return {
+      ok: false,
+      mode: "pem_missing",
+      digestSha256Base64: digest,
+      pem,
+      message: "PEM nao configurado. Pre-assinatura indisponivel."
+    };
+  }
+  try {
+    const signer = crypto.createSign("RSA-SHA256");
+    signer.update(xml, "utf8");
+    signer.end();
+    const signature = signer.sign(config.chavePrivadaPem, "base64");
+    return {
+      ok: true,
+      mode: "preview_signature",
+      digestSha256Base64: digest,
+      signatureBase64: signature,
+      pem,
+      message: "Pre-assinatura gerada. Ainda nao e XMLDSig valida para SEFAZ."
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      mode: "preview_signature_error",
+      digestSha256Base64: digest,
+      pem,
+      message: err.message
+    };
+  }
+}
+
 async function emitirNfeDireta(payload) {
   const cfg = getSefazConfig();
   const missing = validateSefazConfig(cfg);
   const certificate = summarizeCertificateInput(cfg.certificadoBase64);
   const xmlPreview = buildNfeXml(payload);
+  const signaturePreview = buildSignaturePreview(xmlPreview.xml, cfg);
   if (missing.length) {
     return {
       ok: false,
       mode: "config_missing",
       error: `Configuracao NF-e incompleta: ${missing.join(", ")}`,
       certificate,
-      xmlPreview
+      xmlPreview,
+      signaturePreview
     };
   }
 
@@ -313,13 +380,14 @@ async function emitirNfeDireta(payload) {
     ambiente: cfg.ambiente,
     message: "Transmissao direta para a SEFAZ ainda nao implementada neste endpoint.",
     nextSteps: [
-      "Assinar XML NF-e com certificado A1",
+      "Transformar pre-assinatura em XMLDSig valida da NF-e",
       "Transmitir via webservice NF-e autorizacao",
       "Persistir recibo, protocolo e XML autorizado"
     ],
     preview: payload,
     certificate,
-    xmlPreview
+    xmlPreview,
+    signaturePreview
   };
 }
 
@@ -329,5 +397,7 @@ module.exports = {
   buildNfePayloadFromPedido,
   buildNfeXml,
   summarizeCertificateInput,
+  summarizePemInput,
+  buildSignaturePreview,
   emitirNfeDireta
 };

@@ -4,7 +4,7 @@ const SUPABASE_URL = process.env.SUPABASE_URL || "https://ohxoxencxktpzskltbsk.s
 const SUPABASE_KEY = process.env.SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9oeG94ZW5jeGt0cHpza2x0YnNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDE3MjA2NDQsImV4cCI6MjA1NzI5NjY0NH0.kfPOFatyV8GwBdFe-MQf-tCpez1Slnq66roOBuvdzRw";
 const STORE_KEY = "gdp.integracoes.eventos.v1";
 const MODE = process.env.GDP_INTEGRATIONS_MODE || "queue";
-const { getSefazConfig, validateSefazConfig, buildNfePayloadFromPedido, emitirNfeDireta, summarizeCertificateInput } = nfeClient;
+const { getSefazConfig, validateSefazConfig, buildNfePayloadFromPedido, emitirNfeDireta, summarizeCertificateInput, summarizePemInput } = nfeClient;
 
 function corsHeaders(res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -95,6 +95,7 @@ export default async function handler(req, res) {
         const config = getSefazConfig();
         const missing = validateSefazConfig(config);
         const certificate = summarizeCertificateInput(config.certificadoBase64);
+        const pem = summarizePemInput(config.certificadoPem, config.chavePrivadaPem);
         return res.status(200).json({
           ok: true,
           ambiente: config.ambiente,
@@ -107,6 +108,7 @@ export default async function handler(req, res) {
           certificado: certificate.status,
           certificadoBytes: certificate.bytes,
           certificadoMensagem: certificate.message,
+          pem,
           missing
         });
       }
