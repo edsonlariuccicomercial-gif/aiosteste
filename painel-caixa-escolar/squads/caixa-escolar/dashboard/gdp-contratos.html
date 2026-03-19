@@ -1186,6 +1186,7 @@ let estoqueMovimentos = [];
 let integracoesGdp = [];
 let integracoesRemotas = [];
 let integracoesUltimaLeitura = "";
+let sefazConfigSnapshot = null;
 let parsedMapa = null;
 let selectedSupplierIdx = null;
 
@@ -1232,7 +1233,7 @@ function switchTab(tab) {
   if (tab === "notas-fiscais") renderNotasFiscais();
   if (tab === "contas-pagar") renderContasPagar();
   if (tab === "contas-receber") renderContasReceber();
-  if (tab === "integracoes") { renderIntegracoes(); atualizarIntegracoesRemotas(); }
+  if (tab === "integracoes") { renderIntegracoes(); carregarConfigSefaz(); atualizarIntegracoesRemotas(); }
   if (tab === "estoque") renderEstoque();
   if (tab === "usuarios") renderUsuarios();
   if (tab === "banco-produtos") renderBancoProdutos();
@@ -4386,7 +4387,7 @@ function getProjectedNegativeStock(pedido) {
   return negativos;
 }
 
-function gerarNotaFiscalPedido(pedidoId) {
+async function gerarNotaFiscalPedido(pedidoId) {
   const pedido = pedidos.find((x) => x.id === pedidoId);
   if (!pedido) return;
   if (getNotaFiscalByPedido(pedidoId)) {
@@ -4412,6 +4413,30 @@ function gerarNotaFiscalPedido(pedidoId) {
   const receivable = buildReceivableFromInvoice(invoice);
   contasReceber.push(receivable);
   saveContasReceber();
+
+  try {
+    const resp = await fetch("/api/gdp-integrations", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "nfe-sefaz-preview", pedido })
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok || !data.ok) throw new Error(data.error || `HTTP ${resp.status}`);
+    invoice.sefaz.preview = data.payload;
+    setIntegrationState(invoice, "sefaz", {
+      status: "payload_preparado",
+      lastAction: "nfe_sefaz_preview",
+      ambiente: data.payload?.ambiente || ""
+    });
+    saveNotasFiscais();
+  } catch (err) {
+    setIntegrationState(invoice, "sefaz", {
+      status: "preview_falhou",
+      lastAction: "nfe_sefaz_preview",
+      error: err.message
+    });
+    saveNotasFiscais();
+  }
 
   queueGdpIntegration("nota_fiscal", "emitir_rascunho", invoice.id, {
     notaFiscalId: invoice.id,
@@ -5376,6 +5401,19 @@ async function atualizarIntegracoesRemotas() {
   }
 }
 
+async function carregarConfigSefaz() {
+  try {
+    const resp = await fetch("/api/gdp-integrations?action=nfe-sefaz-config");
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok || !data.ok) throw new Error(data.error || `HTTP ${resp.status}`);
+    sefazConfigSnapshot = data;
+  } catch (err) {
+    sefazConfigSnapshot = { ok: false, error: err.message, missing: ["falha_consulta"] };
+  }
+  renderIntegracoes();
+  return sefazConfigSnapshot;
+}
+
 function renderIntegracoes() {
   const tbody = document.getElementById("integracoes-tbody");
   const empty = document.getElementById("integracoes-empty");
@@ -5398,7 +5436,7 @@ function renderIntegracoes() {
   document.getElementById("int-kpi-pendente").textContent = pendentes;
   document.getElementById("int-kpi-ok").textContent = ok;
   document.getElementById("int-kpi-falha").textContent = falhas;
-  document.getElementById("int-kpi-sync").textContent = integracoesUltimaLeitura ? formatDateTimeLocal(integracoesUltimaLeitura) : "-";
+  document.getElementById("int-kpi-sync").textContent = sefazConfigSnapshot?.ambiente || (integracoesUltimaLeitura ? formatDateTimeLocal(integracoesUltimaLeitura) : "-");
 
   if (!items.length) {
     tbody.innerHTML = "";
@@ -5406,7 +5444,19 @@ function renderIntegracoes() {
     return;
   }
   empty.classList.add("hidden");
-  tbody.innerHTML = items.map((item) => `
+  tbody.innerHTML = [
+    sefazConfigSnapshot ? `
+      <tr>
+        <td>${integracoesUltimaLeitura ? formatDateTimeLocal(integracoesUltimaLeitura) : "-"}</td>
+        <td>sefaz</td>
+        <td><strong>configuracao</strong><br><span class="font-mono" style="font-size:.72rem;color:var(--mut)">${esc(sefazConfigSnapshot.uf || "-")}</span></td>
+        <td>snapshot_config</td>
+        <td><span class="badge ${((sefazConfigSnapshot.missing || []).length === 0 && sefazConfigSnapshot.certificado === "configurado") ? "badge-green" : "badge-yellow"}">${((sefazConfigSnapshot.missing || []).length === 0 && sefazConfigSnapshot.certificado === "configurado") ? "config_ok" : "config_pendente"}</span></td>
+        <td><span class="badge badge-blue">${esc(sefazConfigSnapshot.certificado || "-")}</span></td>
+        <td class="font-mono" style="font-size:.72rem">${esc(sefazConfigSnapshot.emitente?.razaoSocial || "-")}</td>
+        <td style="font-size:.75rem;color:var(--mut)">${esc((sefazConfigSnapshot.missing || []).length ? sefazConfigSnapshot.missing.join(", ") : "nenhuma pendencia")}</td>
+      </tr>` : "",
+    ...items.map((item) => `
     <tr>
       <td>${item.createdAt ? formatDateTimeLocal(item.createdAt) : "-"}</td>
       <td>${esc(item.channel || "-")}</td>
@@ -5417,7 +5467,8 @@ function renderIntegracoes() {
       <td class="font-mono" style="font-size:.72rem">${esc(item.backend?.protocol || item.protocol || "-")}</td>
       <td style="font-size:.75rem;color:var(--mut)">${esc(item.error || item.backend?.error || item.remoteStatus || "-")}</td>
     </tr>
-  `).join("");
+  `)
+  ].join("");
 }
 
 function renderEstoque() {
