@@ -114,19 +114,47 @@ Resumo em uma frase:
 - Controle de ARP, pedidos, saldo, entrega, ateste e pendencias.
 - Visao unica: da cotacao ao recebimento final.
 
-### 6.8 Modulo H - Integracao Olist (V2 Prioritario)
+### 6.8 Modulo H - Faturamento e Cobranca Nativos do GDP (V2 Prioritario)
 
-- Replicar automaticamente no Olist todo pedido aprovado no modulo de pos-licitacao do LicitIA.
-- Criar pedido no Olist com itens, quantidades, dados da escola e referencia do processo.
-- Registrar chave de rastreabilidade cruzada (`internal_order_id` <-> `olist_order_id`).
-- Suportar reenvio seguro (idempotencia) para evitar pedido duplicado.
-- Exibir status de sincronizacao no painel: `pendente`, `sincronizado`, `falhou`.
-- Preparar base para emissao de NF posterior no fluxo operacional do Olist.
+- Descontinuar o fluxo principal de sincronizacao de pedidos para Tiny/Olist para emissao fiscal e cobranca.
+- Emitir nota fiscal a partir do proprio pedido dentro do GDP.
+- Exigir que cada pedido contenha os dados fiscais e cadastrais obrigatorios para emissao legal da NF.
+- Incluir acao explicita no pedido para `Gerar Nota Fiscal`.
+- Ao gerar a NF, registrar automaticamente o documento na aba `Notas Fiscais` com status inicial `pendente_autorizacao`.
+- Preparar payload e trilha para autorizacao na SEFAZ, com status como `rascunho`, `pendente_autorizacao`, `autorizada`, `rejeitada`, `cancelada`.
+- Ao gerar a NF, emitir tambem a cobranca via API bancaria, priorizando boleto.
+- Manter rastreabilidade cruzada entre `pedido_id`, `nota_fiscal_id` e `cobranca_id`.
 
-### 6.9 Decisao de Prioridade (03/03/2026)
+### 6.9 Modulo I - Financeiro Operacional (V2 Prioritario)
+
+- Criar aba `Contas a Pagar` com cadastro manual e categorizacao de despesas.
+- Criar aba `Contas a Receber` com registros originados de notas fiscais e tambem inclusao manual.
+- Suportar formas de pagamento e recebimento: `boleto`, `pix`, `ted` e `incluir`.
+- Habilitar cobranca automatica em contas a receber via WhatsApp e e-mail.
+- Preparar conciliacao bancaria via API bancaria, conciliando cobrancas emitidas, recebimentos e baixas.
+- Permitir classificacao financeira por categoria, origem, status e vencimento.
+
+### 6.10 Modulo J - Estoque Hibrido (V2 Prioritario)
+
+- Criar controle de estoque nativo no GDP.
+- Suportar duas operacoes:
+- Modo 1: entrada por nota fiscal de fornecedor e saida por nota fiscal emitida pela empresa.
+- Modo 2: entrada por bipagem de codigo de barras e saida por bipagem de codigo de barras.
+- O modo 2 deve atender operacoes sem estoque proprio ou com estoque parcial, nas quais a empresa compra e entrega em seguida.
+- Associar movimentacoes de estoque a pedido, nota fiscal, fornecedor ou referencia operacional.
+- Garantir saldo, historico de movimentacoes e rastreabilidade por SKU/codigo de barras.
+
+### 6.11 Decisao de Prioridade (19/03/2026)
+
+- Pos-licitacao deixa de depender de ERP externo para faturamento.
+- GDP passa a incorporar fiscal, cobranca, financeiro e estoque como camada nativa do produto.
+- Integracoes com SEFAZ e banco tornam-se parte do escopo do modulo operacional, nao apenas integracoes futuras.
+- Integracao com Tiny/Olist deixa de ser prioridade de produto e passa a ser legado/opcional, se houver caso de uso especifico.
+
+### 6.12 Decisao de Prioridade (03/03/2026)
 
 - Prioridade absoluta: Modulos A, B, C, D e E (editais/cotacoes/preco).
-- Pos-licitacao (Modulos G e H) entra em Fase 2 apos Modulo 1 ficar 100% estavel.
+- Pos-licitacao (Modulos G, H, I e J) entra em Fase 2 apos Modulo 1 ficar 100% estavel.
 - Regra de foco: nao abrir novas features de pos-licitacao ate fechar criterios de aceite do modulo de editais.
 
 ## 7. Requisitos Nao Funcionais
@@ -136,9 +164,11 @@ Resumo em uma frase:
 3. Performance: abertura de painel em <3s e busca em <1s no dataset local.
 4. Confiabilidade: execucao agendada de coleta com retentativas.
 5. Auditabilidade: trilha de "preco sugerido -> preco enviado -> resultado".
-6. Integridade de integracao: garantia de entrega para Olist com fila de retentativa.
-7. Idempotencia: mesma ordem nao pode gerar mais de um pedido no Olist.
-8. Observabilidade: logs de integracao com codigo de erro, payload e timestamp.
+6. Integridade fiscal: mesma operacao nao pode gerar NF duplicada para o mesmo pedido.
+7. Integridade financeira: mesma cobranca nao pode ser emitida duas vezes para a mesma NF sem versao/reemissao rastreada.
+8. Observabilidade: logs de integracao com codigo de erro, payload e timestamp para SEFAZ e APIs bancarias.
+9. Conciliacao: eventos bancarios devem permitir reconciliacao por identificador unico da cobranca.
+10. Estoque: toda entrada e saida deve deixar trilha de origem, operador, data e referencia fiscal/operacional.
 
 ## 8. Regras de Compliance
 
@@ -146,6 +176,9 @@ Resumo em uma frase:
 2. Nunca enviar automaticamente sem confirmacao explicita.
 3. Manter evidencias da formacao de preco (fonte, data, fornecedor, documento).
 4. Alinhar operacao a Lei 14.133/2021 e normas especificas das caixas escolares de MG.
+5. Nao permitir emissao fiscal sem os campos obrigatorios exigidos em lei para NF-e/NFS-e aplicavel.
+6. Manter trilha completa entre pedido, nota fiscal, cobranca, recebimento e conciliacao.
+7. Separar claramente status interno, status SEFAZ e status bancario para evitar baixa indevida.
 
 ## 9. KPIs (Sucesso)
 
@@ -154,8 +187,11 @@ Resumo em uma frase:
 3. Taxa de vitoria (meta: aumentar 20-30% no piloto).
 4. Margem media por contrato ganho (meta: manter/elevar).
 5. Receita mensal recorrente (MRR) apos abertura SaaS.
-6. Taxa de sincronizacao Pos-Licitacao LicitIA -> Olist >= 99%.
-7. Tempo de disponibilidade do pedido no Olist apos aprovacao interna <= 2 min.
+6. Taxa de emissao fiscal sem retrabalho manual >= 95%.
+7. Taxa de cobrancas emitidas automaticamente apos geracao da NF >= 95%.
+8. Taxa de conciliacao bancaria automatica >= 90% no piloto.
+9. Tempo medio entre pedido liberado e NF pronta para autorizacao <= 2 min.
+10. Divergencia de estoque por item critico <= 2% no fechamento mensal.
 
 ## 10. Roadmap de Entrega (90 dias)
 
@@ -216,11 +252,14 @@ Resumo em uma frase:
 4. Escopo grande demais.
 - Mitigacao: MVP enxuto focado em "tempo + acerto de preco".
 
-5. Falhas de integracao com ERP (Olist).
+5. Falhas de integracao com SEFAZ ou API bancaria.
 - Mitigacao: fila de eventos + retentativa + dead-letter + monitoramento.
 
-6. Duplicidade de pedidos no ERP.
-- Mitigacao: chave idempotente por pedido interno e validacao antes de criar no Olist.
+6. Duplicidade de NF ou cobranca.
+- Mitigacao: chave idempotente por pedido/NF e validacao antes de emitir novamente.
+
+7. Divergencia de estoque entre fiscal e operacao.
+- Mitigacao: dupla trilha de origem (nota fiscal e bipagem), auditoria de saldo e relatorio de diferencas.
 
 ## 13. Reuso dos Squads Ja Criados
 
@@ -233,6 +272,7 @@ Resumo em uma frase:
 
 - Base para pos-licitacao: ARP, pedidos, logistica e analytics.
 - Aproveitar fluxo de estados de pedidos e regras de validacao.
+- Expandir para fiscal, financeiro, cobranca e estoque nativos.
 
 ## 14. Backlog Inicial (Epicos)
 
@@ -242,12 +282,14 @@ Resumo em uma frase:
 4. Epico E4: Copiloto de cotacao com aprovacao humana.
 5. Epico E5: Pos-licitacao integrado.
 6. Epico E6: Produto SaaS e onboarding de novos fornecedores.
-7. Epico E7: Integracao transacional Pos-Licitacao LicitIA -> Olist (pedidos e status).
+7. Epico E7: Emissao fiscal e cobranca bancaria nativas no GDP.
+8. Epico E8: Contas a pagar, contas a receber e conciliacao bancaria.
+9. Epico E9: Controle de estoque hibrido (NF + bipagem).
 
 ## 14.1 Ordem de Execucao Atual
 
 1. E1 -> E2 -> E3 -> E4 (foco total imediato)
-2. E5 -> E7 (somente apos Modulo 1 pronto)
+2. E5 -> E7 -> E8 -> E9 (somente apos Modulo 1 pronto)
 3. E6 em paralelo leve (material comercial e onboarding)
 
 ## 15. Definicao de MVP Comercial
