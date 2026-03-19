@@ -62,12 +62,13 @@ Nesta etapa, o endpoint ainda nao transmite para a SEFAZ. Ele existe para:
 - gerar XML base
 - validar certificado A1 e PEM
 - gerar pre-assinatura local para diagnostico
+- gerar `XMLDSig preview` com `RSA-SHA1`/`SHA-1` para aproximar o formato exigido pela NF-e
 - separar a responsabilidade fiscal do restante do dashboard
 - permitir evolucao incremental sem misturar regra fiscal com UI
 
 ## Proxima implementacao
 
-1. XMLDSig valida da NF-e
+1. canonicalizacao/ajuste final da XMLDSig conforme validacao SEFAZ
 2. assinatura digital final com certificado A1
 3. cliente de autorizacao SEFAZ
 4. parser de retorno da SEFAZ

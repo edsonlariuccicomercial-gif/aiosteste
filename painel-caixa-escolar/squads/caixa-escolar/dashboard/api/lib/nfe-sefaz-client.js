@@ -137,6 +137,13 @@ function summarizePemInput(certPem, keyPem) {
   return result;
 }
 
+function pemBody(certPem) {
+  return String(certPem || "")
+    .replace(/-----BEGIN CERTIFICATE-----/g, "")
+    .replace(/-----END CERTIFICATE-----/g, "")
+    .replace(/\s+/g, "");
+}
+
 function buildNfePayloadFromPedido(pedido, overrides = {}) {
   const cfg = getSefazConfig();
   const cliente = pedido?.cliente || {};
@@ -357,12 +364,80 @@ function buildSignaturePreview(xml, config) {
   }
 }
 
+function extractInfNfeNode(xml) {
+  const match = String(xml || "").match(/<infNFe\b[^>]*Id="([^"]+)"[^>]*>([\s\S]*?)<\/infNFe>/);
+  if (!match) return null;
+  return {
+    id: match[1],
+    xml: match[0]
+  };
+}
+
+function buildSignedInfoXml(referenceId, digestValue) {
+  return `<SignedInfo xmlns="http://www.w3.org/2000/09/xmldsig#"><CanonicalizationMethod Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315"/><SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha1"/><Reference URI="#${referenceId}"><Transforms><Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature"/><Transform Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315"/></Transforms><DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1"/><DigestValue>${digestValue}</DigestValue></Reference></SignedInfo>`;
+}
+
+function buildXmlDsigPreview(xml, config) {
+  const pem = summarizePemInput(config.certificadoPem, config.chavePrivadaPem);
+  const inf = extractInfNfeNode(xml);
+  if (!inf) {
+    return {
+      ok: false,
+      mode: "infnfe_missing",
+      message: "Nao foi possivel localizar o bloco infNFe para assinar."
+    };
+  }
+
+  const digestValue = crypto.createHash("sha1").update(inf.xml, "utf8").digest("base64");
+  const signedInfoXml = buildSignedInfoXml(inf.id, digestValue);
+  if (!config.certificadoPem || !config.chavePrivadaPem) {
+    return {
+      ok: false,
+      mode: "pem_missing",
+      digestSha1Base64: digestValue,
+      signedInfoXml,
+      pem,
+      message: "PEM nao configurado. XMLDSig preview indisponivel."
+    };
+  }
+
+  try {
+    const signer = crypto.createSign("RSA-SHA1");
+    signer.update(signedInfoXml, "utf8");
+    signer.end();
+    const signatureValue = signer.sign(config.chavePrivadaPem, "base64");
+    const signatureXml = `<Signature xmlns="http://www.w3.org/2000/09/xmldsig#">${signedInfoXml}<SignatureValue>${signatureValue}</SignatureValue><KeyInfo><X509Data><X509Certificate>${pemBody(config.certificadoPem)}</X509Certificate></X509Data></KeyInfo></Signature>`;
+    const signedXml = String(xml).replace("</NFe>", `${signatureXml}</NFe>`);
+    return {
+      ok: true,
+      mode: "xmldsig_preview",
+      digestSha1Base64: digestValue,
+      signedInfoXml,
+      signatureValue,
+      signatureXml,
+      signedXml,
+      pem,
+      message: "XMLDSig preview gerada com RSA-SHA1/SHA-1. Validacao final depende de canonicalizacao e homologacao SEFAZ."
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      mode: "xmldsig_preview_error",
+      digestSha1Base64: digestValue,
+      signedInfoXml,
+      pem,
+      message: err.message
+    };
+  }
+}
+
 async function emitirNfeDireta(payload) {
   const cfg = getSefazConfig();
   const missing = validateSefazConfig(cfg);
   const certificate = summarizeCertificateInput(cfg.certificadoBase64);
   const xmlPreview = buildNfeXml(payload);
   const signaturePreview = buildSignaturePreview(xmlPreview.xml, cfg);
+  const xmlDsigPreview = buildXmlDsigPreview(xmlPreview.xml, cfg);
   if (missing.length) {
     return {
       ok: false,
@@ -370,7 +445,8 @@ async function emitirNfeDireta(payload) {
       error: `Configuracao NF-e incompleta: ${missing.join(", ")}`,
       certificate,
       xmlPreview,
-      signaturePreview
+      signaturePreview,
+      xmlDsigPreview
     };
   }
 
@@ -387,7 +463,8 @@ async function emitirNfeDireta(payload) {
     preview: payload,
     certificate,
     xmlPreview,
-    signaturePreview
+    signaturePreview,
+    xmlDsigPreview
   };
 }
 
@@ -399,5 +476,6 @@ module.exports = {
   summarizeCertificateInput,
   summarizePemInput,
   buildSignaturePreview,
+  buildXmlDsigPreview,
   emitirNfeDireta
 };
