@@ -191,6 +191,7 @@
     <button class="tab" data-tab="notas-fiscais" onclick="switchTab('notas-fiscais')">Notas Fiscais <span class="count" id="tab-count-notas-fiscais">0</span></button>
     <button class="tab" data-tab="contas-pagar" onclick="switchTab('contas-pagar')">Contas a Pagar <span class="count" id="tab-count-contas-pagar">0</span></button>
     <button class="tab" data-tab="contas-receber" onclick="switchTab('contas-receber')">Contas a Receber <span class="count" id="tab-count-contas-receber">0</span></button>
+    <button class="tab" data-tab="integracoes" onclick="switchTab('integracoes')">Integracoes <span class="count" id="tab-count-integracoes">0</span></button>
     <button class="tab" data-tab="estoque" onclick="switchTab('estoque')">Estoque <span class="count" id="tab-count-estoque">0</span></button>
     <button class="tab" data-tab="entregas" onclick="switchTab('entregas')">Entregas <span class="count" id="tab-count-entregas">0</span></button>
   </div>
@@ -570,7 +571,59 @@
         <tbody id="contas-receber-tbody"></tbody>
       </table>
     </div>
-    <div class="empty hidden" id="contas-receber-empty"><h3>Nenhuma conta a receber</h3><p>As cobrancas geradas a partir das notas fiscais aparecerao aqui.</p></div>
+  <div class="empty hidden" id="contas-receber-empty"><h3>Nenhuma conta a receber</h3><p>As cobrancas geradas a partir das notas fiscais aparecerao aqui.</p></div>
+  </div>
+
+  <!-- Tab: Integracoes -->
+  <div id="tab-integracoes" class="hidden">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:.8rem">
+      <div style="display:flex;gap:.8rem;align-items:center;flex-wrap:wrap">
+        <input type="text" id="int-busca" placeholder="Buscar entidade, canal ou protocolo..." oninput="renderIntegracoes()" style="min-width:260px">
+        <select id="int-filtro-status" onchange="renderIntegracoes()">
+          <option value="">Todos os status</option>
+          <option value="pendente_envio">Pendente envio</option>
+          <option value="sincronizado">Sincronizado</option>
+          <option value="falha_envio">Falha envio</option>
+        </select>
+        <select id="int-filtro-canal" onchange="renderIntegracoes()">
+          <option value="">Todos os canais</option>
+          <option value="sefaz">SEFAZ</option>
+          <option value="bancaria">Bancaria</option>
+          <option value="comunicacao">Comunicacao</option>
+          <option value="operacional">Operacional</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:.5rem">
+        <button class="btn btn-outline btn-sm" onclick="atualizarIntegracoesRemotas()">Atualizar Backend</button>
+      </div>
+    </div>
+    <div class="kpi-grid" style="margin-bottom:1rem">
+      <div class="kpi"><div class="kpi-label">Pendentes</div><div class="kpi-value yellow" id="int-kpi-pendente">0</div><div class="kpi-sub">Fila local aguardando retorno</div></div>
+      <div class="kpi"><div class="kpi-label">Sincronizadas</div><div class="kpi-value green" id="int-kpi-ok">0</div><div class="kpi-sub">Com protocolo backend</div></div>
+      <div class="kpi"><div class="kpi-label">Falhas</div><div class="kpi-value red" id="int-kpi-falha">0</div><div class="kpi-sub">Exigem reprocesso</div></div>
+      <div class="kpi"><div class="kpi-label">Ultima Leitura</div><div class="kpi-value blue" id="int-kpi-sync">-</div><div class="kpi-sub">Consulta no endpoint GDP</div></div>
+    </div>
+    <div class="card" style="margin-bottom:1rem;padding:1rem">
+      <div style="font-size:.82rem;color:var(--mut)">Aba operacional para monitorar eventos de SEFAZ, cobranca bancaria, comunicacao e conciliacao. O backend pode operar em modo fila local ou encaminhar para webhooks reais por canal.</div>
+    </div>
+    <div class="table-wrap" style="max-height:620px;overflow-y:auto">
+      <table>
+        <thead>
+          <tr>
+            <th>Data</th>
+            <th>Canal</th>
+            <th>Entidade</th>
+            <th>Acao</th>
+            <th>Status Local</th>
+            <th>Status Backend</th>
+            <th>Protocolo</th>
+            <th>Detalhe</th>
+          </tr>
+        </thead>
+        <tbody id="integracoes-tbody"></tbody>
+      </table>
+    </div>
+    <div class="empty hidden" id="integracoes-empty"><h3>Nenhuma integracao registrada</h3><p>Os eventos fiscais, bancarios e de comunicacao aparecerao aqui.</p></div>
   </div>
 
   <!-- Tab: Estoque -->
@@ -997,6 +1050,7 @@
 <!-- Toast -->
 <div id="toast-container" style="position:fixed;top:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px"></div>
 
+<script src="./js/gdp-integrations-client.js"></script>
 <script>
 // ===== SIDEBAR TOGGLE =====
 document.getElementById("sidebar-toggle").addEventListener("click", () => {
@@ -1130,6 +1184,8 @@ let contasPagar = [];
 let contasReceber = [];
 let estoqueMovimentos = [];
 let integracoesGdp = [];
+let integracoesRemotas = [];
+let integracoesUltimaLeitura = "";
 let parsedMapa = null;
 let selectedSupplierIdx = null;
 
@@ -1167,7 +1223,7 @@ function switchTab(tab) {
   document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
   const tabBtn = document.querySelector(`[data-tab="${tab}"]`);
   if (tabBtn) tabBtn.classList.add("active");
-  ["importar","contratos","itens","usuarios","pedidos","notas-fiscais","contas-pagar","contas-receber","estoque","entregas","banco-produtos"].forEach(t => {
+  ["importar","contratos","itens","usuarios","pedidos","notas-fiscais","contas-pagar","contas-receber","integracoes","estoque","entregas","banco-produtos"].forEach(t => {
     document.getElementById(`tab-${t}`).classList.toggle("hidden", t !== tab);
   });
   if (tab === "contratos") renderContratos();
@@ -1176,6 +1232,7 @@ function switchTab(tab) {
   if (tab === "notas-fiscais") renderNotasFiscais();
   if (tab === "contas-pagar") renderContasPagar();
   if (tab === "contas-receber") renderContasReceber();
+  if (tab === "integracoes") { renderIntegracoes(); atualizarIntegracoesRemotas(); }
   if (tab === "estoque") renderEstoque();
   if (tab === "usuarios") renderUsuarios();
   if (tab === "banco-produtos") renderBancoProdutos();
@@ -4134,102 +4191,6 @@ function formatDateTimeLocal(date = new Date()) {
   return new Date(date).toLocaleString("pt-BR");
 }
 
-function formatAuditStamp(audit, fallbackAt = "", fallbackBy = "") {
-  const at = audit?.updatedAt || audit?.createdAt || fallbackAt;
-  const by = audit?.updatedBy || audit?.createdBy || fallbackBy;
-  if (!at && !by) return "-";
-  const parts = [];
-  if (by) parts.push(by);
-  if (at) parts.push(formatDateTimeLocal(at));
-  return parts.join(" | ");
-}
-
-function getAuditActor() {
-  try {
-    const empresa = JSON.parse(localStorage.getItem("nexedu.empresa") || "{}");
-    return empresa.nome || empresa.razaoSocial || empresa.usuario || "operador-gdp";
-  } catch (_) {
-    return "operador-gdp";
-  }
-}
-
-function setIntegrationState(target, channel, patch = {}) {
-  if (!target) return;
-  target.integracoes = target.integracoes || {};
-  target.integracoes[channel] = {
-    ...(target.integracoes[channel] || {}),
-    ...patch,
-    updatedAt: new Date().toISOString(),
-    updatedBy: getAuditActor()
-  };
-}
-
-function updateNotaFiscalIntegration(notaId, channel, patch = {}) {
-  const nf = notasFiscais.find((item) => item.id === notaId);
-  if (!nf) return;
-  setIntegrationState(nf, channel, patch);
-  saveNotasFiscais();
-}
-
-function updateContaReceberIntegration(contaId, channel, patch = {}) {
-  const conta = contasReceber.find((item) => item.id === contaId);
-  if (!conta) return;
-  setIntegrationState(conta, channel, patch);
-  saveContasReceber();
-}
-
-function getIntegrationStatusLabel(integration) {
-  if (!integration?.status) return "-";
-  const base = integration.status;
-  return integration.protocol ? `${base} | ${integration.protocol}` : base;
-}
-
-function queueGdpIntegration(entityType, action, entityId, payload, options = {}) {
-  const event = {
-    id: genId("INT"),
-    entityType,
-    action,
-    entityId,
-    channel: options.channel || "operacional",
-    status: "pendente_envio",
-    createdAt: new Date().toISOString(),
-    createdBy: getAuditActor(),
-    payload
-  };
-  integracoesGdp.unshift(event);
-  if (integracoesGdp.length > 400) integracoesGdp = integracoesGdp.slice(0, 400);
-  saveIntegracoesGdp();
-
-  fetch("/api/gdp-integrations", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ event })
-  }).then(async (resp) => {
-    const data = await resp.json().catch(() => ({}));
-    if (!resp.ok || !data.ok) throw new Error(data.error || `HTTP ${resp.status}`);
-    const current = integracoesGdp.find((item) => item.id === event.id);
-    if (current) {
-      current.status = "sincronizado";
-      current.syncedAt = new Date().toISOString();
-      current.protocol = data.protocol || "";
-      current.remoteStatus = data.status || "registrado";
-      saveIntegracoesGdp();
-    }
-    options.onSuccess?.(data, event);
-  }).catch((err) => {
-    const current = integracoesGdp.find((item) => item.id === event.id);
-    if (current) {
-      current.status = "falha_envio";
-      current.error = err.message;
-      current.failedAt = new Date().toISOString();
-      saveIntegracoesGdp();
-    }
-    options.onError?.(err, event);
-  });
-
-  return event;
-}
-
 function getNotaFiscalByPedido(pedidoId) {
   return notasFiscais.find((nf) => nf.pedidoId === pedidoId) || null;
 }
@@ -5381,6 +5342,71 @@ function renderContasReceber() {
   `).join("");
 }
 
+function getIntegracoesConsolidadas() {
+  const remoteMap = new Map((integracoesRemotas || []).map((item) => [item.id, item]));
+  return (integracoesGdp || []).map((local) => ({
+    ...local,
+    backend: remoteMap.get(local.id) || null
+  }));
+}
+
+async function atualizarIntegracoesRemotas() {
+  try {
+    const resp = await fetch("/api/gdp-integrations");
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok || !data.ok) throw new Error(data.error || `HTTP ${resp.status}`);
+    integracoesRemotas = Array.isArray(data.items) ? data.items : [];
+    integracoesUltimaLeitura = new Date().toISOString();
+    renderIntegracoes();
+  } catch (err) {
+    showToast(`Falha ao consultar integracoes: ${err.message}`, 4000);
+  }
+}
+
+function renderIntegracoes() {
+  const tbody = document.getElementById("integracoes-tbody");
+  const empty = document.getElementById("integracoes-empty");
+  if (!tbody || !empty) return;
+  const busca = (document.getElementById("int-busca")?.value || "").toLowerCase();
+  const filtroStatus = document.getElementById("int-filtro-status")?.value || "";
+  const filtroCanal = document.getElementById("int-filtro-canal")?.value || "";
+
+  let items = getIntegracoesConsolidadas();
+  if (busca) {
+    items = items.filter((item) => `${item.entityType || ""} ${item.entityId || ""} ${item.channel || ""} ${item.action || ""} ${item.protocol || ""} ${item.backend?.protocol || ""}`.toLowerCase().includes(busca));
+  }
+  if (filtroStatus) items = items.filter((item) => item.status === filtroStatus);
+  if (filtroCanal) items = items.filter((item) => item.channel === filtroCanal);
+
+  document.getElementById("tab-count-integracoes").textContent = items.length;
+  const pendentes = integracoesGdp.filter((item) => item.status === "pendente_envio").length;
+  const ok = integracoesGdp.filter((item) => item.status === "sincronizado").length;
+  const falhas = integracoesGdp.filter((item) => item.status === "falha_envio").length;
+  document.getElementById("int-kpi-pendente").textContent = pendentes;
+  document.getElementById("int-kpi-ok").textContent = ok;
+  document.getElementById("int-kpi-falha").textContent = falhas;
+  document.getElementById("int-kpi-sync").textContent = integracoesUltimaLeitura ? formatDateTimeLocal(integracoesUltimaLeitura) : "-";
+
+  if (!items.length) {
+    tbody.innerHTML = "";
+    empty.classList.remove("hidden");
+    return;
+  }
+  empty.classList.add("hidden");
+  tbody.innerHTML = items.map((item) => `
+    <tr>
+      <td>${item.createdAt ? formatDateTimeLocal(item.createdAt) : "-"}</td>
+      <td>${esc(item.channel || "-")}</td>
+      <td><strong>${esc(item.entityType || "-")}</strong><br><span class="font-mono" style="font-size:.72rem;color:var(--mut)">${esc(item.entityId || "-")}</span></td>
+      <td>${esc(item.action || "-")}</td>
+      <td><span class="badge ${item.status === "sincronizado" ? "badge-green" : item.status === "falha_envio" ? "badge-red" : "badge-yellow"}">${esc(item.status || "-")}</span></td>
+      <td><span class="badge ${item.backend?.status === "registrado_backend" ? "badge-blue" : "badge-yellow"}">${esc(item.backend?.status || "-")}</span></td>
+      <td class="font-mono" style="font-size:.72rem">${esc(item.backend?.protocol || item.protocol || "-")}</td>
+      <td style="font-size:.75rem;color:var(--mut)">${esc(item.error || item.backend?.error || item.remoteStatus || "-")}</td>
+    </tr>
+  `).join("");
+}
+
 function renderEstoque() {
   const tbody = document.getElementById("estoque-tbody");
   const movimentosBody = document.getElementById("estoque-movimentos-tbody");
@@ -5496,6 +5522,8 @@ function renderKPIs() {
   if (cpCountEl) cpCountEl.textContent = contasPagar.length;
   const crCountEl = document.getElementById("tab-count-contas-receber");
   if (crCountEl) crCountEl.textContent = contasReceber.length;
+  const intCountEl = document.getElementById("tab-count-integracoes");
+  if (intCountEl) intCountEl.textContent = integracoesGdp.length;
   const estoqueCountEl = document.getElementById("tab-count-estoque");
   if (estoqueCountEl) estoqueCountEl.textContent = [...new Set(estoqueMovimentos.map((mov) => mov.sku || mov.descricao))].filter(Boolean).length;
   document.getElementById("tab-count-usuarios").textContent = usuarios.length;
@@ -5512,6 +5540,7 @@ function renderAll() {
   renderNotasFiscais();
   renderContasPagar();
   renderContasReceber();
+  renderIntegracoes();
   renderEstoque();
   renderEntregas();
   // Update banco tab count even when not on banco tab
