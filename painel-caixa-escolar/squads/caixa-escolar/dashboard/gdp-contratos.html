@@ -1016,12 +1016,13 @@ const INVOICES_KEY = "gdp.notas-fiscais.v1";
 const PAYABLES_KEY = "gdp.contas-pagar.v1";
 const RECEIVABLES_KEY = "gdp.contas-receber.v1";
 const STOCK_KEY = "gdp.estoque.movimentos.v1";
+const INTEGRATIONS_KEY = "gdp.integracoes.v1";
 const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 
 // ===== SUPABASE CLOUD SYNC =====
 const SUPABASE_URL = "https://ohxoxencxktpzskltbsk.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9oeG94ZW5jeGt0cHpza2x0YnNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMyMTUwNDQsImV4cCI6MjA4ODc5MTA0NH0.-w8f1xjW1cW2-OZpg1Sql8PqwFDzDqyWw4pHEx6jGSk";
-const GDP_SYNC_KEYS = [CONTRACTS_KEY, ORDERS_KEY, PROOFS_KEY, INVOICES_KEY, PAYABLES_KEY, RECEIVABLES_KEY, STOCK_KEY, "gdp.usuarios.v1", "caixaescolar.banco.v1", "gdp.produtos.v1"];
+const GDP_SYNC_KEYS = [CONTRACTS_KEY, ORDERS_KEY, PROOFS_KEY, INVOICES_KEY, PAYABLES_KEY, RECEIVABLES_KEY, STOCK_KEY, INTEGRATIONS_KEY, "gdp.usuarios.v1", "caixaescolar.banco.v1", "gdp.produtos.v1"];
 
 function getSyncUserId() {
   const emp = JSON.parse(localStorage.getItem("nexedu.empresa") || "{}");
@@ -1128,6 +1129,7 @@ let notasFiscais = [];
 let contasPagar = [];
 let contasReceber = [];
 let estoqueMovimentos = [];
+let integracoesGdp = [];
 let parsedMapa = null;
 let selectedSupplierIdx = null;
 
@@ -1146,6 +1148,7 @@ function loadData() {
   try { contasPagar = unwrapData(JSON.parse(localStorage.getItem(PAYABLES_KEY))); } catch(_) { contasPagar = []; }
   try { contasReceber = unwrapData(JSON.parse(localStorage.getItem(RECEIVABLES_KEY))); } catch(_) { contasReceber = []; }
   try { estoqueMovimentos = unwrapData(JSON.parse(localStorage.getItem(STOCK_KEY))); } catch(_) { estoqueMovimentos = []; }
+  try { integracoesGdp = unwrapData(JSON.parse(localStorage.getItem(INTEGRATIONS_KEY))); } catch(_) { integracoesGdp = []; }
 }
 function saveContratos() {
   saveWrappedArray(CONTRACTS_KEY, contratos);
@@ -1157,6 +1160,7 @@ function saveNotasFiscais() { saveWrappedArray(INVOICES_KEY, notasFiscais); }
 function saveContasPagar() { saveWrappedArray(PAYABLES_KEY, contasPagar); }
 function saveContasReceber() { saveWrappedArray(RECEIVABLES_KEY, contasReceber); }
 function saveEstoqueMovimentos() { saveWrappedArray(STOCK_KEY, estoqueMovimentos); }
+function saveIntegracoesGdp() { saveWrappedArray(INTEGRATIONS_KEY, integracoesGdp); }
 
 // ===== TABS =====
 function switchTab(tab) {
@@ -4149,6 +4153,83 @@ function getAuditActor() {
   }
 }
 
+function setIntegrationState(target, channel, patch = {}) {
+  if (!target) return;
+  target.integracoes = target.integracoes || {};
+  target.integracoes[channel] = {
+    ...(target.integracoes[channel] || {}),
+    ...patch,
+    updatedAt: new Date().toISOString(),
+    updatedBy: getAuditActor()
+  };
+}
+
+function updateNotaFiscalIntegration(notaId, channel, patch = {}) {
+  const nf = notasFiscais.find((item) => item.id === notaId);
+  if (!nf) return;
+  setIntegrationState(nf, channel, patch);
+  saveNotasFiscais();
+}
+
+function updateContaReceberIntegration(contaId, channel, patch = {}) {
+  const conta = contasReceber.find((item) => item.id === contaId);
+  if (!conta) return;
+  setIntegrationState(conta, channel, patch);
+  saveContasReceber();
+}
+
+function getIntegrationStatusLabel(integration) {
+  if (!integration?.status) return "-";
+  const base = integration.status;
+  return integration.protocol ? `${base} | ${integration.protocol}` : base;
+}
+
+function queueGdpIntegration(entityType, action, entityId, payload, options = {}) {
+  const event = {
+    id: genId("INT"),
+    entityType,
+    action,
+    entityId,
+    channel: options.channel || "operacional",
+    status: "pendente_envio",
+    createdAt: new Date().toISOString(),
+    createdBy: getAuditActor(),
+    payload
+  };
+  integracoesGdp.unshift(event);
+  if (integracoesGdp.length > 400) integracoesGdp = integracoesGdp.slice(0, 400);
+  saveIntegracoesGdp();
+
+  fetch("/api/gdp-integrations", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ event })
+  }).then(async (resp) => {
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok || !data.ok) throw new Error(data.error || `HTTP ${resp.status}`);
+    const current = integracoesGdp.find((item) => item.id === event.id);
+    if (current) {
+      current.status = "sincronizado";
+      current.syncedAt = new Date().toISOString();
+      current.protocol = data.protocol || "";
+      current.remoteStatus = data.status || "registrado";
+      saveIntegracoesGdp();
+    }
+    options.onSuccess?.(data, event);
+  }).catch((err) => {
+    const current = integracoesGdp.find((item) => item.id === event.id);
+    if (current) {
+      current.status = "falha_envio";
+      current.error = err.message;
+      current.failedAt = new Date().toISOString();
+      saveIntegracoesGdp();
+    }
+    options.onError?.(err, event);
+  });
+
+  return event;
+}
+
 function getNotaFiscalByPedido(pedidoId) {
   return notasFiscais.find((nf) => nf.pedidoId === pedidoId) || null;
 }
@@ -4238,6 +4319,16 @@ function buildInvoiceFromOrder(pedido) {
       referencia: genId("COB"),
       geradaEm: now.toISOString()
     },
+    integracoes: {
+      sefaz: {
+        status: "fila_local",
+        lastAction: "emitir_nf"
+      },
+      bancaria: {
+        status: "fila_local",
+        lastAction: "gerar_cobranca"
+      }
+    },
     audit: {
       createdAt: now.toISOString(),
       createdBy: actor,
@@ -4268,6 +4359,15 @@ function buildReceivableFromInvoice(invoice) {
       whatsapp: true,
       email: true,
       ultimoDisparo: ""
+    },
+    integracoes: {
+      bancaria: {
+        status: "fila_local",
+        lastAction: "criar_titulo"
+      },
+      comunicacao: {
+        status: "nao_disparada"
+      }
     },
     cobranca: {
       status: "boleto_gerado",
@@ -4340,6 +4440,37 @@ function gerarNotaFiscalPedido(pedidoId) {
   const receivable = buildReceivableFromInvoice(invoice);
   contasReceber.push(receivable);
   saveContasReceber();
+
+  queueGdpIntegration("nota_fiscal", "emitir_rascunho", invoice.id, {
+    notaFiscalId: invoice.id,
+    pedidoId: pedido.id,
+    cliente: invoice.cliente,
+    valor: invoice.valor,
+    itens: invoice.itens
+  }, {
+    channel: "sefaz",
+    onSuccess: (data) => updateNotaFiscalIntegration(invoice.id, "sefaz", { status: "rascunho_registrado", protocol: data.protocol || "", lastAction: "emitir_rascunho" }),
+    onError: (err) => updateNotaFiscalIntegration(invoice.id, "sefaz", { status: "falha_envio", error: err.message, lastAction: "emitir_rascunho" })
+  });
+
+  queueGdpIntegration("conta_receber", "criar_titulo", receivable.id, {
+    contaReceberId: receivable.id,
+    notaFiscalId: invoice.id,
+    forma: receivable.forma,
+    valor: receivable.valor,
+    vencimento: receivable.vencimento,
+    cliente: receivable.cliente
+  }, {
+    channel: "bancaria",
+    onSuccess: (data) => {
+      updateContaReceberIntegration(receivable.id, "bancaria", { status: "titulo_registrado", protocol: data.protocol || "", lastAction: "criar_titulo" });
+      updateNotaFiscalIntegration(invoice.id, "bancaria", { status: "titulo_registrado", protocol: data.protocol || "", lastAction: "criar_titulo" });
+    },
+    onError: (err) => {
+      updateContaReceberIntegration(receivable.id, "bancaria", { status: "falha_envio", error: err.message, lastAction: "criar_titulo" });
+      updateNotaFiscalIntegration(invoice.id, "bancaria", { status: "falha_envio", error: err.message, lastAction: "criar_titulo" });
+    }
+  });
 
   registerStockExitFromInvoice(invoice);
 
@@ -4425,8 +4556,21 @@ function autorizarNotaFiscal(notaId) {
   if (conta) {
     conta.status = "cobranca_emitida";
     conta.cobranca.status = "emitida_api_bancaria";
+    setIntegrationState(conta, "bancaria", { status: "titulo_emitido", lastAction: "emitir_cobranca" });
     saveContasReceber();
   }
+
+  queueGdpIntegration("nota_fiscal", "autorizar_sefaz", nf.id, {
+    notaFiscalId: nf.id,
+    numero: nf.numero,
+    chaveAcesso: nf.sefaz.chaveAcesso,
+    protocolo: nf.sefaz.protocolo,
+    valor: nf.valor
+  }, {
+    channel: "sefaz",
+    onSuccess: (data) => updateNotaFiscalIntegration(nf.id, "sefaz", { status: "autorizada_backend", protocol: data.protocol || "", lastAction: "autorizar_sefaz" }),
+    onError: (err) => updateNotaFiscalIntegration(nf.id, "sefaz", { status: "falha_envio", error: err.message, lastAction: "autorizar_sefaz" })
+  });
 
   renderAll();
   showToast(`NF ${nf.numero} marcada como autorizada para envio/retorno SEFAZ.`, 4000);
@@ -4445,6 +4589,7 @@ function atualizarFormaCobrancaNota(notaId, forma) {
       : nf.cobranca.forma === "boleto"
         ? { carteira: "simples", tipo: "boleto" }
         : { observacao: "definir instrumento manualmente", tipo: "manual" };
+  setIntegrationState(nf, "bancaria", { status: "forma_atualizada", lastAction: "atualizar_forma_cobranca", forma: nf.cobranca.forma });
   nf.audit = { ...(nf.audit || {}), updatedAt: new Date().toISOString(), updatedBy: getAuditActor() };
   saveNotasFiscais();
 
@@ -4453,6 +4598,7 @@ function atualizarFormaCobrancaNota(notaId, forma) {
     conta.forma = nf.cobranca.forma;
     conta.cobranca = conta.cobranca || {};
     conta.cobranca.status = nf.cobranca.status;
+    setIntegrationState(conta, "bancaria", { status: "forma_atualizada", lastAction: "atualizar_forma_cobranca", forma: nf.cobranca.forma });
     saveContasReceber();
   }
   renderAll();
@@ -4471,6 +4617,17 @@ function registrarBaixaRecebimento(contaId) {
   };
   conta.audit = { ...(conta.audit || {}), updatedAt: new Date().toISOString(), updatedBy: getAuditActor(), baixaManualAt: new Date().toISOString() };
   saveContasReceber();
+  queueGdpIntegration("conta_receber", "registrar_recebimento", conta.id, {
+    contaReceberId: conta.id,
+    valor: conta.valor,
+    forma: conta.forma,
+    recebidaEm: conta.recebidaEm,
+    conciliacao: conta.conciliacao
+  }, {
+    channel: "bancaria",
+    onSuccess: (data) => updateContaReceberIntegration(conta.id, "bancaria", { status: "recebimento_registrado", protocol: data.protocol || "", lastAction: "registrar_recebimento" }),
+    onError: (err) => updateContaReceberIntegration(conta.id, "bancaria", { status: "falha_envio", error: err.message, lastAction: "registrar_recebimento" })
+  });
   renderContasReceber();
   showToast(`Recebimento registrado para ${conta.descricao}.`, 3000);
 }
@@ -4483,6 +4640,16 @@ function atualizarStatusConciliacao(contaId, status) {
   conta.conciliacao.updatedAt = new Date().toISOString();
   conta.conciliacao.updatedBy = getAuditActor();
   saveContasReceber();
+  queueGdpIntegration("conta_receber", "atualizar_conciliacao", conta.id, {
+    contaReceberId: conta.id,
+    statusConciliacao: status,
+    referencia: conta.conciliacao.referencia,
+    valor: conta.valor
+  }, {
+    channel: "bancaria",
+    onSuccess: (data) => updateContaReceberIntegration(conta.id, "bancaria", { status: "conciliacao_registrada", protocol: data.protocol || "", lastAction: "atualizar_conciliacao", conciliacaoStatus: status }),
+    onError: (err) => updateContaReceberIntegration(conta.id, "bancaria", { status: "falha_envio", error: err.message, lastAction: "atualizar_conciliacao", conciliacaoStatus: status })
+  });
   renderContasReceber();
   showToast(`Conciliação atualizada para ${status}.`, 3000);
 }
@@ -4517,6 +4684,8 @@ function verNotaFiscal(notaId) {
   html += '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Ultima atualizacao</label><div style="font-weight:700">' + esc(formatAuditStamp(nf.audit)) + '</div></div>';
   html += '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Autorizacao</label><div style="font-weight:700">' + esc(formatAuditStamp({ updatedAt: nf.audit?.authorizedAt, updatedBy: nf.audit?.authorizedBy })) + '</div></div>';
   html += '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Pedido vinculado</label><div style="font-weight:700">' + esc(nf.pedidoId || '-') + '</div></div>';
+  html += '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Integracao SEFAZ</label><div style="font-weight:700">' + esc(getIntegrationStatusLabel(nf.integracoes?.sefaz)) + '</div></div>';
+  html += '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Integracao Bancaria</label><div style="font-weight:700">' + esc(getIntegrationStatusLabel(nf.integracoes?.bancaria)) + '</div></div>';
   html += '</div></div>';
 
   html += '<div class="card" style="padding:1rem;margin-bottom:1rem">';
@@ -4532,6 +4701,8 @@ function verNotaFiscal(notaId) {
     html += '<div style="margin-top:.45rem;font-size:.82rem;color:var(--mut)">Linha digitavel: ' + esc(conta.cobranca?.linhaDigitavel || '-') + '</div>';
     html += '<div style="margin-top:.35rem;font-size:.82rem;color:var(--mut)">Pix copia e cola: ' + esc(conta.cobranca?.pixCopiaECola || '-') + '</div>';
     html += '<div style="margin-top:.35rem;font-size:.82rem;color:var(--mut)">Ultima acao financeira: ' + esc(formatAuditStamp(conta.audit, conta.recebidaEm, conta.audit?.updatedBy)) + '</div>';
+    html += '<div style="margin-top:.35rem;font-size:.82rem;color:var(--mut)">Integracao titulo: ' + esc(getIntegrationStatusLabel(conta.integracoes?.bancaria)) + '</div>';
+    html += '<div style="margin-top:.35rem;font-size:.82rem;color:var(--mut)">Integracao comunicacao: ' + esc(getIntegrationStatusLabel(conta.integracoes?.comunicacao)) + '</div>';
   }
   html += '</div>';
 
@@ -4558,6 +4729,17 @@ function dispararCobrancaAutomatica(contaId) {
   conta.status = conta.status === "recebida" ? "recebida" : "cobranca_automatica_disparada";
   conta.audit = { ...(conta.audit || {}), updatedAt: new Date().toISOString(), updatedBy: getAuditActor(), cobrancaDisparadaAt: new Date().toISOString() };
   saveContasReceber();
+  queueGdpIntegration("conta_receber", "disparar_cobranca", conta.id, {
+    contaReceberId: conta.id,
+    cliente: conta.cliente,
+    valor: conta.valor,
+    forma: conta.forma,
+    canais: { whatsapp: !!conta.automacao.whatsapp, email: !!conta.automacao.email }
+  }, {
+    channel: "comunicacao",
+    onSuccess: (data) => updateContaReceberIntegration(conta.id, "comunicacao", { status: "cobranca_disparada", protocol: data.protocol || "", lastAction: "disparar_cobranca" }),
+    onError: (err) => updateContaReceberIntegration(conta.id, "comunicacao", { status: "falha_envio", error: err.message, lastAction: "disparar_cobranca" })
+  });
   renderContasReceber();
   showToast(`Cobranca automatica preparada via WhatsApp e e-mail para ${conta.cliente || "cliente"}.`, 4000);
 }
