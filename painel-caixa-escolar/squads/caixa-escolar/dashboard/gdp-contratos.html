@@ -5452,7 +5452,7 @@ function renderIntegracoes() {
         <td><strong>configuracao</strong><br><span class="font-mono" style="font-size:.72rem;color:var(--mut)">${esc(sefazConfigSnapshot.uf || "-")}</span></td>
         <td>snapshot_config</td>
         <td><span class="badge ${((sefazConfigSnapshot.missing || []).length === 0 && sefazConfigSnapshot.certificado === "configurado") ? "badge-green" : "badge-yellow"}">${((sefazConfigSnapshot.missing || []).length === 0 && sefazConfigSnapshot.certificado === "configurado") ? "config_ok" : "config_pendente"}</span></td>
-        <td><span class="badge badge-blue">${esc(sefazConfigSnapshot.certificado || "-")}</span></td>
+        <td><span class="badge badge-blue">${esc(sefazConfigSnapshot.certificado || "-")}</span><div style="font-size:.72rem;color:var(--mut);margin-top:.2rem">${esc(sefazConfigSnapshot.certificadoBytes ? `${sefazConfigSnapshot.certificadoBytes} bytes` : sefazConfigSnapshot.certificadoMensagem || "-")}</div></td>
         <td class="font-mono" style="font-size:.72rem">${esc(sefazConfigSnapshot.emitente?.razaoSocial || "-")}</td>
         <td style="font-size:.75rem;color:var(--mut)">${esc((sefazConfigSnapshot.missing || []).length ? sefazConfigSnapshot.missing.join(", ") : "nenhuma pendencia")}</td>
       </tr>` : "",
