@@ -517,6 +517,7 @@
             <th>Vencimento</th>
             <th class="text-right">Valor</th>
             <th>Status</th>
+            <th>Auditoria</th>
             <th>Acao</th>
           </tr>
         </thead>
@@ -562,6 +563,7 @@
             <th>Vencimento</th>
             <th class="text-right">Valor</th>
             <th>Status</th>
+            <th>Auditoria</th>
             <th>Acao</th>
           </tr>
         </thead>
@@ -626,6 +628,7 @@
               <th>Descricao</th>
               <th>Referencia</th>
               <th class="text-right">Qtd</th>
+              <th>Operador</th>
             </tr>
           </thead>
           <tbody id="estoque-movimentos-tbody"></tbody>
@@ -4127,6 +4130,16 @@ function formatDateTimeLocal(date = new Date()) {
   return new Date(date).toLocaleString("pt-BR");
 }
 
+function formatAuditStamp(audit, fallbackAt = "", fallbackBy = "") {
+  const at = audit?.updatedAt || audit?.createdAt || fallbackAt;
+  const by = audit?.updatedBy || audit?.createdBy || fallbackBy;
+  if (!at && !by) return "-";
+  const parts = [];
+  if (by) parts.push(by);
+  if (at) parts.push(formatDateTimeLocal(at));
+  return parts.join(" | ");
+}
+
 function getAuditActor() {
   try {
     const empresa = JSON.parse(localStorage.getItem("nexedu.empresa") || "{}");
@@ -4498,6 +4511,15 @@ function verNotaFiscal(notaId) {
   html += '</div></div>';
 
   html += '<div class="card" style="padding:1rem;margin-bottom:1rem">';
+  html += '<h3 style="margin-bottom:1rem">Auditoria Operacional</h3>';
+  html += '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.8rem">';
+  html += '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Criacao</label><div style="font-weight:700">' + esc(formatAuditStamp({ createdAt: nf.audit?.createdAt, createdBy: nf.audit?.createdBy })) + '</div></div>';
+  html += '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Ultima atualizacao</label><div style="font-weight:700">' + esc(formatAuditStamp(nf.audit)) + '</div></div>';
+  html += '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Autorizacao</label><div style="font-weight:700">' + esc(formatAuditStamp({ updatedAt: nf.audit?.authorizedAt, updatedBy: nf.audit?.authorizedBy })) + '</div></div>';
+  html += '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Pedido vinculado</label><div style="font-weight:700">' + esc(nf.pedidoId || '-') + '</div></div>';
+  html += '</div></div>';
+
+  html += '<div class="card" style="padding:1rem;margin-bottom:1rem">';
   html += '<h3 style="margin-bottom:1rem">Cobranca Vinculada</h3>';
   html += '<div style="display:grid;grid-template-columns:1fr 1fr auto auto;gap:.8rem;align-items:end">';
   html += '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Forma</label><select id="nf-forma-cobranca"><option value="boleto"' + ((nf.cobranca?.forma || 'boleto') === 'boleto' ? ' selected' : '') + '>Boleto</option><option value="pix"' + (nf.cobranca?.forma === 'pix' ? ' selected' : '') + '>Pix</option><option value="ted"' + (nf.cobranca?.forma === 'ted' ? ' selected' : '') + '>TED</option><option value="incluir"' + (nf.cobranca?.forma === 'incluir' ? ' selected' : '') + '>Incluir</option></select></div>';
@@ -4509,6 +4531,7 @@ function verNotaFiscal(notaId) {
     html += '<div style="margin-top:1rem;font-size:.82rem;color:var(--mut)">Conta vinculada: <strong style="color:var(--txt)">' + esc(conta.descricao) + '</strong> | Status: <strong style="color:var(--txt)">' + esc(conta.status) + '</strong></div>';
     html += '<div style="margin-top:.45rem;font-size:.82rem;color:var(--mut)">Linha digitavel: ' + esc(conta.cobranca?.linhaDigitavel || '-') + '</div>';
     html += '<div style="margin-top:.35rem;font-size:.82rem;color:var(--mut)">Pix copia e cola: ' + esc(conta.cobranca?.pixCopiaECola || '-') + '</div>';
+    html += '<div style="margin-top:.35rem;font-size:.82rem;color:var(--mut)">Ultima acao financeira: ' + esc(formatAuditStamp(conta.audit, conta.recebidaEm, conta.audit?.updatedBy)) + '</div>';
   }
   html += '</div>';
 
@@ -5126,6 +5149,7 @@ function renderContasPagar() {
       <td>${esc(item.vencimento)}</td>
       <td class="text-right font-mono">${brl.format(item.valor || 0)}</td>
       <td><span class="badge ${item.status === "paga" ? "badge-green" : "badge-yellow"}">${esc(item.status)}</span></td>
+      <td style="font-size:.76rem;color:var(--mut)">${esc(formatAuditStamp(item.audit, item.pagaEm, item.audit?.updatedBy))}</td>
       <td>${item.status === "paga" ? '<span style="color:var(--green);font-size:.78rem;font-weight:700">Baixada</span>' : `<button class="btn btn-sm btn-green" onclick="registrarBaixaContaPagar('${item.id}')">Baixar</button>`}</td>
     </tr>
   `).join("");
@@ -5169,6 +5193,7 @@ function renderContasReceber() {
       <td>${esc(item.vencimento || "")}</td>
       <td class="text-right font-mono">${brl.format(item.valor || 0)}</td>
       <td><span class="badge ${item.status === "recebida" ? "badge-green" : item.status.includes("cobranca") ? "badge-blue" : "badge-yellow"}">${esc(item.status)}</span><div style="font-size:.72rem;color:var(--mut);margin-top:.2rem">${esc(item.conciliacao?.status || "sem conciliacao")}</div></td>
+      <td style="font-size:.76rem;color:var(--mut)">${esc(formatAuditStamp(item.audit, item.recebidaEm, item.audit?.updatedBy))}</td>
       <td style="display:flex;gap:.35rem;flex-wrap:wrap"><button class="btn btn-sm btn-outline" onclick="dispararCobrancaAutomatica('${item.id}')">Cobrar</button><button class="btn btn-sm btn-green" onclick="registrarBaixaRecebimento('${item.id}')">Baixar</button><button class="btn btn-sm btn-outline" onclick="atualizarStatusConciliacao('${item.id}','conciliado_api_bancaria')">Conciliar</button><button class="btn btn-sm btn-outline" onclick="atualizarStatusConciliacao('${item.id}','divergencia_api_bancaria')">Diverg.</button></td>
     </tr>
   `).join("");
@@ -5237,6 +5262,7 @@ function renderEstoque() {
         <td>${esc(mov.descricao || "-")}</td>
         <td>${esc(mov.referencia || "-")}</td>
         <td class="text-right font-mono">${mov.quantidade || 0}</td>
+        <td style="font-size:.76rem;color:var(--mut)">${esc(mov.operador || "-")}</td>
       </tr>
     `).join("");
   }
