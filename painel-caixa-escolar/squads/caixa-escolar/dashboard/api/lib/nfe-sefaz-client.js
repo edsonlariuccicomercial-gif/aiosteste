@@ -6,6 +6,12 @@ const UF_CODE = {
   PE: "26", PI: "22", RJ: "33", RN: "24", RS: "43", RO: "11", RR: "14", SC: "42",
   SP: "35", SE: "28", TO: "17"
 };
+const SEFAZ_AUTORIZACAO = {
+  MG: {
+    homologacao: "https://hnfe.fazenda.mg.gov.br/nfe2/services/NFeAutorizacao4",
+    producao: "https://nfe.fazenda.mg.gov.br/nfe2/services/NFeAutorizacao4"
+  }
+};
 
 function getSefazConfig() {
   return {
@@ -443,6 +449,36 @@ function buildLoteXml(xmlAssinadoOuPreview, loteId = randomNumeric(15)) {
   };
 }
 
+function getSefazAutorizacaoUrl(uf, ambiente) {
+  const byUf = SEFAZ_AUTORIZACAO[String(uf || "MG").toUpperCase()];
+  if (!byUf) return "";
+  return byUf[ambiente === "producao" ? "producao" : "homologacao"] || "";
+}
+
+function buildAutorizacaoSoapEnvelope(loteXml) {
+  const loteCompact = String(loteXml || "").replace(/\r?\n/g, "").trim();
+  return `<?xml version="1.0" encoding="utf-8"?>
+<soap12:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap12="http://www.w3.org/2003/05/soap-envelope">
+  <soap12:Body>
+    <nfeDadosMsg xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeAutorizacao4">${xmlEscape(loteCompact)}</nfeDadosMsg>
+  </soap12:Body>
+</soap12:Envelope>`;
+}
+
+function buildAutorizacaoRequestPreview(payload, lotePreview) {
+  const url = getSefazAutorizacaoUrl(payload.emitente?.uf || "MG", payload.ambiente);
+  const soapEnvelope = buildAutorizacaoSoapEnvelope(lotePreview.xml);
+  return {
+    url,
+    soapAction: "http://www.portalfiscal.inf.br/nfe/wsdl/NFeAutorizacao4/nfeAutorizacaoLote",
+    headers: {
+      "Content-Type": "application/soap+xml; charset=utf-8",
+      SOAPAction: "http://www.portalfiscal.inf.br/nfe/wsdl/NFeAutorizacao4/nfeAutorizacaoLote"
+    },
+    soapEnvelope
+  };
+}
+
 async function emitirNfeDireta(payload) {
   const cfg = getSefazConfig();
   const missing = validateSefazConfig(cfg);
@@ -451,6 +487,7 @@ async function emitirNfeDireta(payload) {
   const signaturePreview = buildSignaturePreview(xmlPreview.xml, cfg);
   const xmlDsigPreview = buildXmlDsigPreview(xmlPreview.xml, cfg);
   const lotePreview = buildLoteXml(xmlDsigPreview.signedXml || xmlPreview.xml);
+  const autorizacaoPreview = buildAutorizacaoRequestPreview(payload, lotePreview);
   if (missing.length) {
     return {
       ok: false,
@@ -460,7 +497,8 @@ async function emitirNfeDireta(payload) {
       xmlPreview,
       signaturePreview,
       xmlDsigPreview,
-      lotePreview
+      lotePreview,
+      autorizacaoPreview
     };
   }
 
@@ -480,7 +518,8 @@ async function emitirNfeDireta(payload) {
     xmlPreview,
     signaturePreview,
     xmlDsigPreview,
-    lotePreview
+    lotePreview,
+    autorizacaoPreview
   };
 }
 
@@ -494,5 +533,8 @@ module.exports = {
   buildSignaturePreview,
   buildXmlDsigPreview,
   buildLoteXml,
+  getSefazAutorizacaoUrl,
+  buildAutorizacaoSoapEnvelope,
+  buildAutorizacaoRequestPreview,
   emitirNfeDireta
 };

@@ -64,6 +64,7 @@ Nesta etapa, o endpoint ainda nao transmite para a SEFAZ. Ele existe para:
 - gerar pre-assinatura local para diagnostico
 - gerar `XMLDSig preview` com `RSA-SHA1`/`SHA-1` para aproximar o formato exigido pela NF-e
 - gerar `lote enviNFe preview`
+- gerar `request SOAP preview` de autorizacao por ambiente/UF
 - separar a responsabilidade fiscal do restante do dashboard
 - permitir evolucao incremental sem misturar regra fiscal com UI
 
