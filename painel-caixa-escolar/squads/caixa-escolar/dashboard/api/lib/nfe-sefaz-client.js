@@ -431,6 +431,18 @@ function buildXmlDsigPreview(xml, config) {
   }
 }
 
+function buildLoteXml(xmlAssinadoOuPreview, loteId = randomNumeric(15)) {
+  return {
+    loteId,
+    xml: `<?xml version="1.0" encoding="UTF-8"?>
+<enviNFe xmlns="http://www.portalfiscal.inf.br/nfe" versao="4.00">
+  <idLote>${loteId}</idLote>
+  <indSinc>1</indSinc>
+  ${xmlAssinadoOuPreview}
+</enviNFe>`
+  };
+}
+
 async function emitirNfeDireta(payload) {
   const cfg = getSefazConfig();
   const missing = validateSefazConfig(cfg);
@@ -438,6 +450,7 @@ async function emitirNfeDireta(payload) {
   const xmlPreview = buildNfeXml(payload);
   const signaturePreview = buildSignaturePreview(xmlPreview.xml, cfg);
   const xmlDsigPreview = buildXmlDsigPreview(xmlPreview.xml, cfg);
+  const lotePreview = buildLoteXml(xmlDsigPreview.signedXml || xmlPreview.xml);
   if (missing.length) {
     return {
       ok: false,
@@ -446,7 +459,8 @@ async function emitirNfeDireta(payload) {
       certificate,
       xmlPreview,
       signaturePreview,
-      xmlDsigPreview
+      xmlDsigPreview,
+      lotePreview
     };
   }
 
@@ -457,6 +471,7 @@ async function emitirNfeDireta(payload) {
     message: "Transmissao direta para a SEFAZ ainda nao implementada neste endpoint.",
     nextSteps: [
       "Transformar pre-assinatura em XMLDSig valida da NF-e",
+      "Montar lote enviNFe definitivo",
       "Transmitir via webservice NF-e autorizacao",
       "Persistir recibo, protocolo e XML autorizado"
     ],
@@ -464,7 +479,8 @@ async function emitirNfeDireta(payload) {
     certificate,
     xmlPreview,
     signaturePreview,
-    xmlDsigPreview
+    xmlDsigPreview,
+    lotePreview
   };
 }
 
@@ -477,5 +493,6 @@ module.exports = {
   summarizePemInput,
   buildSignaturePreview,
   buildXmlDsigPreview,
+  buildLoteXml,
   emitirNfeDireta
 };

@@ -4425,12 +4425,14 @@ async function gerarNotaFiscalPedido(pedidoId) {
     invoice.sefaz.preview = data.payload;
     invoice.sefaz.xmlPreview = data.xmlPreview || null;
     invoice.sefaz.xmlDsigPreview = data.xmlDsigPreview || null;
+    invoice.sefaz.lotePreview = data.lotePreview || null;
     setIntegrationState(invoice, "sefaz", {
       status: data.xmlDsigPreview?.ok ? "xmldsig_preview_pronta" : "payload_preparado",
       lastAction: "nfe_sefaz_preview",
       ambiente: data.payload?.ambiente || "",
       assinaturaMode: data.xmlDsigPreview?.mode || "",
-      accessKey: data.xmlPreview?.accessKey || ""
+      accessKey: data.xmlPreview?.accessKey || "",
+      loteId: data.lotePreview?.loteId || ""
     });
     saveNotasFiscais();
   } catch (err) {
@@ -4678,6 +4680,7 @@ function verNotaFiscal(notaId) {
   html += '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Chave Acesso</label><div style="font-weight:700;font-size:.78rem;word-break:break-all">' + esc(nf.sefaz?.chaveAcesso || '-') + '</div></div>';
   html += '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Chave Preview</label><div style="font-weight:700;font-size:.78rem;word-break:break-all">' + esc(nf.sefaz?.xmlPreview?.accessKey || nf.integracoes?.sefaz?.accessKey || '-') + '</div></div>';
   html += '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Assinatura Preview</label><div style="font-weight:700">' + esc(nf.sefaz?.xmlDsigPreview?.mode || nf.integracoes?.sefaz?.assinaturaMode || '-') + '</div></div>';
+  html += '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Lote Preview</label><div style="font-weight:700">' + esc(nf.sefaz?.lotePreview?.loteId || nf.integracoes?.sefaz?.loteId || '-') + '</div></div>';
   html += '</div></div>';
 
   html += '<div class="card" style="padding:1rem;margin-bottom:1rem">';
