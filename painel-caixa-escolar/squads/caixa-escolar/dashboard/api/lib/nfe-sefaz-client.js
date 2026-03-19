@@ -479,6 +479,64 @@ function buildAutorizacaoRequestPreview(payload, lotePreview) {
   };
 }
 
+function parseSefazAutorizacaoResponse(xmlText) {
+  const xml = String(xmlText || "");
+  const findTag = (tag) => {
+    const match = xml.match(new RegExp(`<${tag}>([\\s\\S]*?)<\\/${tag}>`));
+    return match ? match[1].trim() : "";
+  };
+  return {
+    cStat: findTag("cStat"),
+    xMotivo: findTag("xMotivo"),
+    cUF: findTag("cUF"),
+    dhRecbto: findTag("dhRecbto"),
+    nRec: findTag("nRec"),
+    prot: findTag("nProt"),
+    rawXml: xml
+  };
+}
+
+async function transmitirAutorizacaoPreview(payload, options = {}) {
+  const cfg = getSefazConfig();
+  const xmlPreview = buildNfeXml(payload);
+  const xmlDsigPreview = buildXmlDsigPreview(xmlPreview.xml, cfg);
+  const lotePreview = buildLoteXml(xmlDsigPreview.signedXml || xmlPreview.xml);
+  const autorizacaoPreview = buildAutorizacaoRequestPreview(payload, lotePreview);
+  const allowTransmit = process.env.NFE_ENABLE_TRANSMIT === "true" || options.force === true;
+
+  if (!allowTransmit) {
+    return {
+      ok: false,
+      mode: "transmit_disabled",
+      message: "Transmissao real desabilitada. Defina NFE_ENABLE_TRANSMIT=true para habilitar.",
+      autorizacaoPreview
+    };
+  }
+  if (!autorizacaoPreview.url) {
+    return {
+      ok: false,
+      mode: "endpoint_missing",
+      message: "Endpoint de autorizacao nao mapeado para a UF/ambiente.",
+      autorizacaoPreview
+    };
+  }
+
+  const resp = await fetch(autorizacaoPreview.url, {
+    method: "POST",
+    headers: autorizacaoPreview.headers,
+    body: autorizacaoPreview.soapEnvelope
+  });
+  const rawText = await resp.text();
+  const parsed = parseSefazAutorizacaoResponse(rawText);
+  return {
+    ok: resp.ok,
+    mode: "sefaz_http_response",
+    httpStatus: resp.status,
+    parsed,
+    autorizacaoPreview
+  };
+}
+
 async function emitirNfeDireta(payload) {
   const cfg = getSefazConfig();
   const missing = validateSefazConfig(cfg);
@@ -536,5 +594,7 @@ module.exports = {
   getSefazAutorizacaoUrl,
   buildAutorizacaoSoapEnvelope,
   buildAutorizacaoRequestPreview,
+  parseSefazAutorizacaoResponse,
+  transmitirAutorizacaoPreview,
   emitirNfeDireta
 };

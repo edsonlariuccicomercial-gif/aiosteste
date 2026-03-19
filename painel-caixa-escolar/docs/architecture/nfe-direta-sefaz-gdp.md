@@ -42,8 +42,10 @@ Preparar o `GDP` para emissao direta de `NF-e` sem provedor intermediario, usand
 
 - `NFE_CERT_PEM`
 - `NFE_KEY_PEM`
+- `NFE_ENABLE_TRANSMIT`
 
 Essas variaveis permitem validar o caminho criptografico e gerar uma `pre-assinatura` local. Isso ainda nao substitui a assinatura `XMLDSig` exigida pela NF-e.
+`NFE_ENABLE_TRANSMIT=true` habilita a tentativa de envio HTTP real para a SEFAZ no endpoint de transmissao.
 
 ## Pontos criticos
 
@@ -65,6 +67,7 @@ Nesta etapa, o endpoint ainda nao transmite para a SEFAZ. Ele existe para:
 - gerar `XMLDSig preview` com `RSA-SHA1`/`SHA-1` para aproximar o formato exigido pela NF-e
 - gerar `lote enviNFe preview`
 - gerar `request SOAP preview` de autorizacao por ambiente/UF
+- permitir transmissao HTTP controlada por flag de ambiente
 - separar a responsabilidade fiscal do restante do dashboard
 - permitir evolucao incremental sem misturar regra fiscal com UI
 

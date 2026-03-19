@@ -4,7 +4,7 @@ const SUPABASE_URL = process.env.SUPABASE_URL || "https://ohxoxencxktpzskltbsk.s
 const SUPABASE_KEY = process.env.SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9oeG94ZW5jeGt0cHpza2x0YnNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDE3MjA2NDQsImV4cCI6MjA1NzI5NjY0NH0.kfPOFatyV8GwBdFe-MQf-tCpez1Slnq66roOBuvdzRw";
 const STORE_KEY = "gdp.integracoes.eventos.v1";
 const MODE = process.env.GDP_INTEGRATIONS_MODE || "queue";
-const { getSefazConfig, validateSefazConfig, buildNfePayloadFromPedido, emitirNfeDireta, summarizeCertificateInput, summarizePemInput, buildNfeXml, buildXmlDsigPreview, buildLoteXml, buildAutorizacaoRequestPreview } = nfeClient;
+const { getSefazConfig, validateSefazConfig, buildNfePayloadFromPedido, emitirNfeDireta, summarizeCertificateInput, summarizePemInput, buildNfeXml, buildXmlDsigPreview, buildLoteXml, buildAutorizacaoRequestPreview, transmitirAutorizacaoPreview } = nfeClient;
 
 function corsHeaders(res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -139,6 +139,14 @@ export default async function handler(req, res) {
       const payload = buildNfePayloadFromPedido(pedido, body.overrides || {});
       const result = await emitirNfeDireta(payload);
       return res.status(result.ok ? 200 : 501).json({ ok: result.ok, action: body.action, result });
+    }
+
+    if (body.action === "nfe-sefaz-transmitir") {
+      const pedido = body.pedido || null;
+      if (!pedido?.id) return res.status(400).json({ ok: false, error: "pedido.id obrigatorio" });
+      const payload = buildNfePayloadFromPedido(pedido, body.overrides || {});
+      const result = await transmitirAutorizacaoPreview(payload, { force: body.force === true });
+      return res.status(result.ok ? 200 : 502).json({ ok: result.ok, action: body.action, result });
     }
 
     const event = body.event || null;
