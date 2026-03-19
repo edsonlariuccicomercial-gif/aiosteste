@@ -1,7 +1,10 @@
+import nfeClient from "./lib/nfe-sefaz-client.js";
+
 const SUPABASE_URL = process.env.SUPABASE_URL || "https://ohxoxencxktpzskltbsk.supabase.co";
 const SUPABASE_KEY = process.env.SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9oeG94ZW5jeGt0cHpza2x0YnNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDE3MjA2NDQsImV4cCI6MjA1NzI5NjY0NH0.kfPOFatyV8GwBdFe-MQf-tCpez1Slnq66roOBuvdzRw";
 const STORE_KEY = "gdp.integracoes.eventos.v1";
 const MODE = process.env.GDP_INTEGRATIONS_MODE || "queue";
+const { getSefazConfig, validateSefazConfig, buildNfePayloadFromPedido, emitirNfeDireta } = nfeClient;
 
 function corsHeaders(res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -87,6 +90,23 @@ export default async function handler(req, res) {
 
   try {
     if (req.method === "GET") {
+      const action = req.query?.action || "";
+      if (action === "nfe-sefaz-config") {
+        const config = getSefazConfig();
+        const missing = validateSefazConfig(config);
+        return res.status(200).json({
+          ok: true,
+          ambiente: config.ambiente,
+          uf: config.uf,
+          emitente: {
+            cnpj: config.cnpjEmitente ? "***configurado***" : "",
+            razaoSocial: config.razaoSocial || "",
+            ie: config.ie ? "***configurado***" : ""
+          },
+          certificado: config.certificadoBase64 ? "configurado" : "nao_configurado",
+          missing
+        });
+      }
       const items = await supaGet(STORE_KEY);
       return res.status(200).json({ ok: true, items });
     }
@@ -96,6 +116,21 @@ export default async function handler(req, res) {
     }
 
     const body = req.body || {};
+    if (body.action === "nfe-sefaz-preview") {
+      const pedido = body.pedido || null;
+      if (!pedido?.id) return res.status(400).json({ ok: false, error: "pedido.id obrigatorio" });
+      const payload = buildNfePayloadFromPedido(pedido, body.overrides || {});
+      return res.status(200).json({ ok: true, action: body.action, payload });
+    }
+
+    if (body.action === "nfe-sefaz-emitir") {
+      const pedido = body.pedido || null;
+      if (!pedido?.id) return res.status(400).json({ ok: false, error: "pedido.id obrigatorio" });
+      const payload = buildNfePayloadFromPedido(pedido, body.overrides || {});
+      const result = await emitirNfeDireta(payload);
+      return res.status(result.ok ? 200 : 501).json({ ok: result.ok, action: body.action, result });
+    }
+
     const event = body.event || null;
     if (!event?.id || !event?.entityType || !event?.action) {
       return res.status(400).json({ ok: false, error: "Payload incompleto: event.id, event.entityType, event.action" });

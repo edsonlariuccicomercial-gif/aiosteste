@@ -6,7 +6,7 @@ Preparar o `GDP` para emissao direta de `NF-e` sem provedor intermediario, usand
 
 ## Escopo desta base
 
-- endpoint `api/nfe-sefaz.js`
+- acoes fiscais incorporadas ao endpoint `api/gdp-integrations.js`
 - cliente compartilhado `api/lib/nfe-sefaz-client.js`
 - template de ambiente `.env.nfe-sefaz.example`
 - contrato inicial do payload fiscal derivado do pedido do GDP
@@ -15,7 +15,7 @@ Preparar o `GDP` para emissao direta de `NF-e` sem provedor intermediario, usand
 
 1. Pedido no GDP recebe dados fiscais obrigatorios.
 2. O GDP monta o payload fiscal via `buildNfePayloadFromPedido`.
-3. O endpoint `api/nfe-sefaz.js` opera em dois modos:
+3. O endpoint `api/gdp-integrations.js` opera em dois modos fiscais:
 - `preview`: monta e retorna o payload da NF-e
 - `emitir`: reserva o ponto de emissao direta
 4. A camada de emissao direta devera:
