@@ -47,6 +47,27 @@ function getIntegrationStatusLabel(integration) {
   return integration.protocol ? `${integration.status} | ${integration.protocol}` : integration.status;
 }
 
+function normalizeLegacyManualIntegrations() {
+  let changed = false;
+  integracoesGdp = (integracoesGdp || []).map((event) => {
+    const isLegacyManualFlow = (event.entityType === "nota_fiscal" && event.action === "emitir_rascunho")
+      || (event.entityType === "conta_receber" && event.action === "criar_titulo");
+    if (!isLegacyManualFlow) return event;
+    if (event.status === "pendente_envio" || event.status === "falha_envio") {
+      changed = true;
+      return {
+        ...event,
+        status: "sincronizado",
+        remoteStatus: "controle_manual_local",
+        protocol: event.protocol || "manual",
+        error: ""
+      };
+    }
+    return event;
+  });
+  if (changed) saveIntegracoesGdp();
+}
+
 function queueGdpIntegration(entityType, action, entityId, payload, options = {}) {
   const event = {
     id: genId("INT"),

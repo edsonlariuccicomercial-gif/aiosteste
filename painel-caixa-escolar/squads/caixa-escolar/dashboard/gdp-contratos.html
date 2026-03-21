@@ -37,12 +37,30 @@
     /* Main */
     .main{padding:1.5rem 2rem;max-width:1400px;margin:0 auto}
 
-    /* Tabs */
-    .tabs{display:flex;gap:.5rem;margin-bottom:1.5rem;border-bottom:1px solid var(--bdr)}
-    .tab{padding:.7rem 1.2rem;background:none;border:none;color:var(--mut);font-size:.9rem;font-weight:600;cursor:pointer;border-bottom:2px solid transparent;transition:all .2s}
-    .tab.active{color:var(--blue);border-bottom-color:var(--blue)}
-    .tab:hover{color:var(--txt)}
-    .tab .count{background:var(--s2);padding:.1rem .4rem;border-radius:999px;font-size:.7rem;margin-left:.3rem}
+    .gdp-section-intro{display:flex;align-items:center;justify-content:space-between;gap:1rem;margin-bottom:1.5rem;padding:1rem 1.2rem;background:var(--s1);border:1px solid var(--bdr);border-radius:12px}
+    .gdp-section-intro p{font-size:.82rem;color:var(--mut);max-width:720px}
+    .sidebar-group{display:flex;flex-direction:column}
+    .sidebar-subnav{display:flex;flex-direction:column;gap:.3rem;margin:.45rem 0 .8rem 2.3rem;padding:.35rem 0 .15rem .75rem;border-left:1px solid rgba(148,163,184,.18)}
+    .sidebar-subnav.hidden{display:none}
+    .sidebar-subnav-label{font-size:.68rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);padding:.05rem .7rem .3rem}
+    .sidebar-subitem{position:relative;display:flex;align-items:center;justify-content:space-between;gap:.6rem;width:100%;padding:.58rem .8rem .58rem 1rem;border:none;border-radius:10px;background:transparent;color:var(--mut);font-size:.83rem;font-weight:700;cursor:pointer;text-align:left;transition:all .2s}
+    .sidebar-subitem::before{content:"";position:absolute;left:.25rem;top:.5rem;bottom:.5rem;width:3px;border-radius:999px;background:transparent;transition:all .2s}
+    .sidebar-subitem-label{display:flex;align-items:center;gap:.45rem;min-width:0}
+    .sidebar-subitem:hover{background:rgba(59,130,246,.08);color:var(--txt);transform:translateX(2px)}
+    .sidebar-subitem.active{background:var(--blue-l);color:var(--blue);box-shadow:inset 0 0 0 1px rgba(59,130,246,.12)}
+    .sidebar-subitem.active::before{background:var(--blue)}
+    .sidebar-subitem .count{background:var(--s2);color:var(--dim);padding:.12rem .46rem;border-radius:999px;font-size:.68rem;line-height:1.1;min-width:1.6rem;text-align:center}
+    .sidebar-subitem.active .count{background:rgba(59,130,246,.14);color:var(--blue)}
+    .sync-indicator{display:flex;flex-direction:column;gap:.12rem;min-width:260px;padding:.45rem .8rem;border:1px solid var(--bdr);border-radius:10px;background:var(--s1)}
+    .sync-indicator strong{font-size:.76rem;color:var(--txt)}
+    .sync-indicator span{font-size:.7rem;color:var(--mut)}
+    .sync-indicator[data-state="cloud"]{border-color:rgba(34,197,94,.35);background:rgba(34,197,94,.08)}
+    .sync-indicator[data-state="syncing"]{border-color:rgba(59,130,246,.35);background:rgba(59,130,246,.08)}
+    .sync-indicator[data-state="pending"]{border-color:rgba(245,158,11,.35);background:rgba(245,158,11,.08)}
+    .sync-indicator[data-state="offline"]{border-color:rgba(239,68,68,.35);background:rgba(239,68,68,.08)}
+    .nf-type-chip{display:inline-flex;align-items:center;gap:.3rem;padding:.15rem .45rem;border-radius:999px;font-size:.66rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase}
+    .nf-type-chip.real{background:rgba(34,197,94,.12);color:var(--green)}
+    .nf-type-chip.manual{background:rgba(245,158,11,.12);color:var(--yellow)}
 
     /* KPI Cards */
     .kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;margin-bottom:2rem}
@@ -146,10 +164,25 @@
         <span class="sidebar-icon">💰</span>
         <span class="sidebar-label">INTEL PREÇOS</span>
       </button>
-      <button class="sidebar-item active" data-module="gdp" title="Gestão de Pedidos Pós-Licitação">
-        <span class="sidebar-icon">📦</span>
-        <span class="sidebar-label">GDP</span>
-      </button>
+      <div class="sidebar-group">
+        <button class="sidebar-item active" data-module="gdp" id="gdp-module-toggle" onclick="toggleGdpSidebarMenu()" title="Gestao GDP">
+          <span class="sidebar-icon">📦</span>
+          <span class="sidebar-label">GDP</span>
+        </button>
+        <div class="sidebar-subnav" id="gdp-sidebar-menu">
+          <div class="sidebar-subnav-label">Menu GDP</div>
+          <button class="sidebar-subitem" data-gdp-tab="usuarios" onclick="switchTab('usuarios')"><span class="sidebar-subitem-label">Clientes</span><span class="count" id="tab-count-usuarios">0</span></button>
+          <button class="sidebar-subitem" data-gdp-tab="notas-entrada" onclick="switchTab('notas-entrada')"><span class="sidebar-subitem-label">Notas de Entrada</span><span class="count" id="tab-count-notas-entrada">0</span></button>
+          <button class="sidebar-subitem" data-gdp-tab="estoque" onclick="switchTab('estoque')"><span class="sidebar-subitem-label">Estoque</span><span class="count" id="tab-count-estoque">0</span></button>
+          <button class="sidebar-subitem active" data-gdp-tab="contratos" onclick="switchTab('contratos')"><span class="sidebar-subitem-label">Contratos</span><span class="count" id="tab-count-contratos">0</span></button>
+          <button class="sidebar-subitem" data-gdp-tab="pedidos" onclick="switchTab('pedidos')"><span class="sidebar-subitem-label">Pedidos</span><span class="count" id="tab-count-pedidos">0</span></button>
+          <button class="sidebar-subitem" data-gdp-tab="entregas" onclick="switchTab('entregas')"><span class="sidebar-subitem-label">Entregas</span><span class="count" id="tab-count-entregas">0</span></button>
+          <button class="sidebar-subitem" data-gdp-tab="notas-fiscais" onclick="switchTab('notas-fiscais')"><span class="sidebar-subitem-label">Notas Fiscais</span><span class="count" id="tab-count-notas-fiscais">0</span></button>
+          <button class="sidebar-subitem" data-gdp-tab="contas-pagar" onclick="switchTab('contas-pagar')"><span class="sidebar-subitem-label">Contas a Pagar</span><span class="count" id="tab-count-contas-pagar">0</span></button>
+          <button class="sidebar-subitem" data-gdp-tab="contas-receber" onclick="switchTab('contas-receber')"><span class="sidebar-subitem-label">Contas a Receber</span><span class="count" id="tab-count-contas-receber">0</span></button>
+          <button class="sidebar-subitem" data-gdp-tab="integracoes" onclick="switchTab('integracoes')"><span class="sidebar-subitem-label">Integracoes</span><span class="count" id="tab-count-integracoes">0</span></button>
+        </div>
+      </div>
     </nav>
     <button class="sidebar-item sidebar-config" onclick="window.location.href='index.html';localStorage.setItem('nexedu.activeModule','config')" title="Configurações">
       <span class="sidebar-icon">⚙️</span>
@@ -163,10 +196,14 @@
   <div class="topbar" style="border-bottom:1px solid var(--bdr)">
     <div style="display:flex;align-items:center;gap:1rem">
       <button class="sidebar-toggle" id="sidebar-toggle" title="Menu" style="background:none;border:none;color:var(--txt);font-size:1.3rem;cursor:pointer;padding:.2rem .5rem">☰</button>
-      <h1><span>GDP</span> Contratos</h1>
+      <h1><span>GDP</span> <span id="gdp-section-title">Contratos</span></h1>
       <span class="badge badge-blue">Gestao Pos-Licitacao</span>
     </div>
     <div class="topbar-right">
+      <div class="sync-indicator" id="gdp-sync-indicator" data-state="syncing">
+        <strong id="gdp-sync-state">Sincronizando GDP</strong>
+        <span id="gdp-sync-meta">Aguardando cloud</span>
+      </div>
       <a href="gdp-portal.html">Portal Escolar</a>
       <a href="gdp-entregador.html">Entregador</a>
     </div>
@@ -180,20 +217,6 @@
     <div class="kpi"><div class="kpi-label">Itens Contratados</div><div class="kpi-value purple" id="kpi-itens">0</div><div class="kpi-sub">Total de itens ganhos</div></div>
     <div class="kpi"><div class="kpi-label">Valor Total Contratado</div><div class="kpi-value green" id="kpi-valor">R$ 0</div><div class="kpi-sub">Soma de todos os contratos</div></div>
     <div class="kpi"><div class="kpi-label">Entregas Pendentes</div><div class="kpi-value yellow" id="kpi-pendentes">0</div><div class="kpi-sub">Itens com saldo a entregar</div></div>
-  </div>
-
-  <!-- Tabs -->
-  <div class="tabs">
-    <button class="tab" data-tab="usuarios" onclick="switchTab('usuarios')">Clientes <span class="count" id="tab-count-usuarios">0</span></button>
-    <button class="tab" data-tab="banco-produtos" onclick="switchTab('banco-produtos')">Banco de Produtos ERP <span class="count" id="tab-count-banco-produtos">0</span></button>
-    <button class="tab active" data-tab="contratos" onclick="switchTab('contratos')">Contratos <span class="count" id="tab-count-contratos">0</span></button>
-    <button class="tab" data-tab="pedidos" onclick="switchTab('pedidos')">Pedidos <span class="count" id="tab-count-pedidos">0</span></button>
-    <button class="tab" data-tab="notas-fiscais" onclick="switchTab('notas-fiscais')">Notas Fiscais <span class="count" id="tab-count-notas-fiscais">0</span></button>
-    <button class="tab" data-tab="contas-pagar" onclick="switchTab('contas-pagar')">Contas a Pagar <span class="count" id="tab-count-contas-pagar">0</span></button>
-    <button class="tab" data-tab="contas-receber" onclick="switchTab('contas-receber')">Contas a Receber <span class="count" id="tab-count-contas-receber">0</span></button>
-    <button class="tab" data-tab="integracoes" onclick="switchTab('integracoes')">Integracoes <span class="count" id="tab-count-integracoes">0</span></button>
-    <button class="tab" data-tab="estoque" onclick="switchTab('estoque')">Estoque <span class="count" id="tab-count-estoque">0</span></button>
-    <button class="tab" data-tab="entregas" onclick="switchTab('entregas')">Entregas <span class="count" id="tab-count-entregas">0</span></button>
   </div>
 
   <!-- Tab: Contratos -->
@@ -530,6 +553,9 @@
 
   <!-- Tab: Contas a Receber -->
   <div id="tab-contas-receber" class="hidden">
+    <div class="card" style="padding:1rem">
+      <div style="font-size:.82rem;color:var(--mut)">Cobrança automática e conciliação bancária ficam nesta aba. Use <strong>Cobrar</strong> para disparo, <strong>Baixar</strong> para registrar recebimento e <strong>Conciliar/Diverg.</strong> para refletir o retorno da API bancária.</div>
+    </div>
     <div class="card">
       <h2>Nova Conta a Receber</h2>
       <div style="display:grid;grid-template-columns:repeat(7,minmax(110px,1fr));gap:.8rem;align-items:end">
@@ -626,6 +652,47 @@
     <div class="empty hidden" id="integracoes-empty"><h3>Nenhuma integracao registrada</h3><p>Os eventos fiscais, bancarios e de comunicacao aparecerao aqui.</p></div>
   </div>
 
+  <!-- Tab: Notas de Entrada -->
+  <div id="tab-notas-entrada" class="hidden">
+    <div class="card">
+      <h2>Notas de Entrada</h2>
+      <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr auto;gap:.8rem;align-items:end;margin-bottom:1rem">
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Fornecedor</label><input type="text" id="ne-fornecedor" placeholder="Razao social do fornecedor"></div>
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Numero</label><input type="text" id="ne-numero" placeholder="NF"></div>
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Chave</label><input type="text" id="ne-chave" placeholder="44 digitos"></div>
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Valor</label><input type="number" id="ne-valor" min="0" step="0.01" placeholder="0,00"></div>
+        <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+          <button class="btn btn-green" onclick="registrarNotaEntradaManual()">Registrar</button>
+          <button class="btn btn-outline" onclick="document.getElementById('import-nota-entrada-xml').click()">Importar XML</button>
+          <button class="btn btn-outline" onclick="consultarNotasEntradaApi()">Consultar API</button>
+        </div>
+      </div>
+      <input type="file" id="import-nota-entrada-xml" accept=".xml,text/xml" style="display:none" onchange="importarNotaEntradaXml(this)">
+      <div class="kpi-grid" style="margin-bottom:1rem">
+        <div class="kpi"><div class="kpi-label">Notas Capturadas</div><div class="kpi-value blue" id="ne-kpi-total">0</div><div class="kpi-sub">Entradas registradas para o CNPJ</div></div>
+        <div class="kpi"><div class="kpi-label">Pendentes API</div><div class="kpi-value yellow" id="ne-kpi-pendentes">0</div><div class="kpi-sub">Consultas aguardando retorno backend</div></div>
+        <div class="kpi"><div class="kpi-label">Valor Total</div><div class="kpi-value green" id="ne-kpi-valor">R$ 0</div><div class="kpi-sub">Soma das notas de entrada</div></div>
+      </div>
+      <div class="table-wrap" style="max-height:480px;overflow-y:auto">
+        <table>
+          <thead>
+            <tr>
+              <th>Emissao</th>
+              <th>Fornecedor</th>
+              <th>Numero</th>
+              <th>Chave</th>
+              <th class="text-right">Valor</th>
+              <th>Status</th>
+              <th>Origem</th>
+            </tr>
+          </thead>
+          <tbody id="notas-entrada-tbody"></tbody>
+        </table>
+      </div>
+      <div class="empty hidden" id="notas-entrada-empty"><h3>Nenhuma nota de entrada registrada</h3><p>Use XML, cadastro manual ou consulta API para acompanhar documentos emitidos contra seu CNPJ.</p></div>
+    </div>
+  </div>
+
   <!-- Tab: Estoque -->
   <div id="tab-estoque" class="hidden">
     <div class="card">
@@ -652,6 +719,7 @@
       <input type="text" id="est-busca" placeholder="Buscar SKU, descricao ou referencia..." oninput="renderEstoque()" style="min-width:260px">
       <select id="est-filtro-modo" onchange="renderEstoque()"><option value="">Todos os modos</option><option value="nota_fiscal">Nota fiscal</option><option value="bipagem">Bipagem</option></select>
       <select id="est-filtro-tipo" onchange="renderEstoque()"><option value="">Todos os tipos</option><option value="entrada">Entrada</option><option value="saida">Saida</option></select>
+      <button class="btn btn-outline btn-sm" onclick="limparMovimentosEstoqueInconsistentes()">Limpar Testes/Inconsistencias</button>
     </div>
     <div class="table-wrap" style="max-height:600px;overflow-y:auto">
       <table>
@@ -1062,11 +1130,23 @@ document.getElementById("sidebar-overlay").addEventListener("click", () => {
   document.getElementById("sidebar-overlay").classList.remove("active");
 });
 
+function toggleGdpSidebarMenu(forceOpen) {
+  const menu = document.getElementById("gdp-sidebar-menu");
+  if (!menu) return;
+  if (typeof forceOpen === "boolean") {
+    menu.classList.toggle("hidden", !forceOpen);
+    return;
+  }
+  menu.classList.toggle("hidden");
+}
+
 // ===== CONSTANTS =====
 const CONTRACTS_KEY = "gdp.contratos.v1";
+const CONTRACTS_DELETED_KEY = "gdp.contratos.deleted.v1";
 const ORDERS_KEY = "gdp.pedidos.v1";
 const PROOFS_KEY = "gdp.entregas.provas.v1";
 const INVOICES_KEY = "gdp.notas-fiscais.v1";
+const ENTRY_INVOICES_KEY = "gdp.notas-entrada.v1";
 const PAYABLES_KEY = "gdp.contas-pagar.v1";
 const RECEIVABLES_KEY = "gdp.contas-receber.v1";
 const STOCK_KEY = "gdp.estoque.movimentos.v1";
@@ -1076,11 +1156,89 @@ const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" 
 // ===== SUPABASE CLOUD SYNC =====
 const SUPABASE_URL = "https://ohxoxencxktpzskltbsk.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9oeG94ZW5jeGt0cHpza2x0YnNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMyMTUwNDQsImV4cCI6MjA4ODc5MTA0NH0.-w8f1xjW1cW2-OZpg1Sql8PqwFDzDqyWw4pHEx6jGSk";
-const GDP_SYNC_KEYS = [CONTRACTS_KEY, ORDERS_KEY, PROOFS_KEY, INVOICES_KEY, PAYABLES_KEY, RECEIVABLES_KEY, STOCK_KEY, INTEGRATIONS_KEY, "gdp.usuarios.v1", "caixaescolar.banco.v1", "gdp.produtos.v1"];
+const GDP_SYNC_KEYS = [CONTRACTS_KEY, CONTRACTS_DELETED_KEY, ORDERS_KEY, PROOFS_KEY, INVOICES_KEY, ENTRY_INVOICES_KEY, PAYABLES_KEY, RECEIVABLES_KEY, STOCK_KEY, INTEGRATIONS_KEY, "gdp.usuarios.v1", "caixaescolar.banco.v1"];
+const GDP_SHARED_SYNC_KEYS = new Set(GDP_SYNC_KEYS);
+const GDP_SYNC_USER_KEY = "gdp.sync.user_id.v1";
+const GDP_SYNC_FALLBACK_USER = "LARIUCCI";
+let gdpSyncState = {
+  userId: "default",
+  status: "syncing",
+  detail: "Aguardando cloud",
+  lastSyncAt: "",
+  source: "cloud"
+};
 
 function getSyncUserId() {
+  const forced = String(localStorage.getItem(GDP_SYNC_USER_KEY) || "").trim();
+  if (forced && forced.toLowerCase() !== "default") return forced;
   const emp = JSON.parse(localStorage.getItem("nexedu.empresa") || "{}");
-  return emp.nome || emp.cnpj || "default";
+  const preferred = [
+    emp.syncUserId,
+    emp.nomeFantasia,
+    emp.nome
+  ].map((value) => String(value || "").trim()).find((value) => value && value.toLowerCase() !== "default");
+  const resolved = preferred || GDP_SYNC_FALLBACK_USER;
+  localStorage.setItem(GDP_SYNC_USER_KEY, resolved);
+  return resolved;
+}
+
+function getGdpSyncUserCandidates() {
+  const emp = JSON.parse(localStorage.getItem("nexedu.empresa") || "{}");
+  const cnpjDigits = String(emp.cnpj || "").replace(/\D+/g, "");
+  return [...new Set([
+    localStorage.getItem(GDP_SYNC_USER_KEY),
+    emp.syncUserId,
+    emp.nomeFantasia,
+    emp.nome,
+    emp.razaoSocial,
+    cnpjDigits,
+    emp.cnpj,
+    GDP_SYNC_FALLBACK_USER,
+    "default"
+  ].map((value) => String(value || "").trim()).filter(Boolean))];
+}
+
+function persistResolvedGdpSyncUser(userId) {
+  const resolved = String(userId || "").trim();
+  if (!resolved || resolved.toLowerCase() === "default") return;
+  localStorage.setItem(GDP_SYNC_USER_KEY, resolved);
+  try {
+    const emp = JSON.parse(localStorage.getItem("nexedu.empresa") || "{}");
+    localStorage.setItem("nexedu.empresa", JSON.stringify({ ...emp, syncUserId: resolved }));
+  } catch (_) {}
+}
+
+function setGdpSyncState(patch = {}) {
+  gdpSyncState = {
+    ...gdpSyncState,
+    ...patch,
+    userId: patch.userId || gdpSyncState.userId || getSyncUserId()
+  };
+  renderGdpSyncIndicator();
+}
+
+function renderGdpSyncIndicator() {
+  const container = document.getElementById("gdp-sync-indicator");
+  const stateEl = document.getElementById("gdp-sync-state");
+  const metaEl = document.getElementById("gdp-sync-meta");
+  if (!container || !stateEl || !metaEl) return;
+  const status = gdpSyncState.status || "syncing";
+  const stateMap = {
+    cloud: { label: "Fonte remota ativa", state: "cloud" },
+    syncing: { label: "Sincronizando GDP", state: "syncing" },
+    pending: { label: "Mudancas locais pendentes", state: "pending" },
+    offline: { label: "Cloud indisponivel", state: "offline" },
+    local: { label: "Cache local em uso", state: "pending" }
+  };
+  const current = stateMap[status] || stateMap.syncing;
+  container.dataset.state = current.state;
+  stateEl.textContent = current.label;
+  const details = [];
+  details.push(`Sessao: ${gdpSyncState.userId || getSyncUserId()}`);
+  if (gdpSyncState.source) details.push(`Fonte: ${gdpSyncState.source}`);
+  if (gdpSyncState.detail) details.push(gdpSyncState.detail);
+  if (gdpSyncState.lastSyncAt) details.push(`Atualizado ${formatDateTimeLocal(gdpSyncState.lastSyncAt)}`);
+  metaEl.textContent = details.join(" | ");
 }
 
 async function cloudSave(key, data) {
@@ -1103,24 +1261,46 @@ async function cloudSave(key, data) {
 }
 
 async function cloudLoadAll() {
-  const userId = getSyncUserId();
-  try {
-    const resp = await fetch(
-      `${SUPABASE_URL}/rest/v1/sync_data?user_id=eq.${encodeURIComponent(userId)}&select=key,data,updated_at`,
-      { headers: { "apikey": SUPABASE_KEY, "Authorization": "Bearer " + SUPABASE_KEY } }
-    );
-    if (!resp.ok) return null;
-    return await resp.json();
-  } catch (e) { console.warn("Cloud load failed:", e); return null; }
+  const headers = { "apikey": SUPABASE_KEY, "Authorization": "Bearer " + SUPABASE_KEY };
+  for (const userId of getGdpSyncUserCandidates()) {
+    try {
+      const resp = await fetch(
+        `${SUPABASE_URL}/rest/v1/sync_data?user_id=eq.${encodeURIComponent(userId)}&select=key,data,updated_at`,
+        { headers }
+      );
+      if (!resp.ok) continue;
+      const rows = await resp.json();
+      if (Array.isArray(rows) && rows.length > 0) {
+        persistResolvedGdpSyncUser(userId);
+        return rows;
+      }
+    } catch (e) {
+      console.warn("Cloud load failed:", userId, e);
+    }
+  }
+  return null;
+}
+
+function getDataTimestamp(data, fallback = "") {
+  const source = data?.updatedAt || data?.updated_at || fallback || "";
+  const time = source ? new Date(source).getTime() : 0;
+  return Number.isFinite(time) ? time : 0;
 }
 
 async function syncFromCloud() {
   const rows = await cloudLoadAll();
-  if (!rows || rows.length === 0) return false;
+  if (!rows || rows.length === 0) return { restored: false, rowCount: 0, source: "local_cache", lastSyncAt: "" };
   let synced = 0;
+  let newest = "";
   for (const row of rows) {
     const local = localStorage.getItem(row.key);
-    const localData = local ? JSON.parse(local) : null;
+    let localData = null;
+    try {
+      localData = local ? JSON.parse(local) : null;
+    } catch (_) {
+      localData = null;
+    }
+    if (row.updated_at && (!newest || new Date(row.updated_at) > new Date(newest))) newest = row.updated_at;
 
     // Cloud wins ONLY if local is empty OR cloud data is newer
     if (!localData) {
@@ -1129,29 +1309,23 @@ async function syncFromCloud() {
     }
 
     // Compare timestamps: prefer data's internal updatedAt, fallback to Supabase row.updated_at
-    const cloudDataTime = row.data?.updatedAt ? new Date(row.data.updatedAt).getTime()
-                        : row.data?.updated_at ? new Date(row.data.updated_at).getTime() : 0;
-    const cloudTime = cloudDataTime || (row.updated_at ? new Date(row.updated_at).getTime() : 0);
-    const localTime = localData?.updatedAt ? new Date(localData.updatedAt).getTime()
-                    : localData?.updated_at ? new Date(localData.updated_at).getTime() : 0;
+    const cloudTime = getDataTimestamp(row.data, row.updated_at);
+    const localTime = getDataTimestamp(localData);
+    const isSharedKey = GDP_SHARED_SYNC_KEYS.has(row.key);
 
     // Cloud wins ONLY if cloud is strictly newer (not equal, not zero-vs-zero)
     // FIX: Se local tem timestamp, SEMPRE respeitar local (evita sobrescrever sync recente)
-    if (cloudTime > 0 && localTime > 0 && cloudTime > localTime && row.data) {
-      localStorage.setItem(row.key, JSON.stringify(row.data));
-      synced++;
-      console.log(`[CloudSync] Cloud venceu para ${row.key}: cloud=${new Date(cloudTime).toISOString()} > local=${new Date(localTime).toISOString()}`);
-    } else if (!localData && row.data) {
+    if ((isSharedKey && row.data) || (cloudTime > localTime && row.data) || (!localTime && cloudTime === 0 && row.data)) {
       // Local vazio, cloud tem dados — usar cloud
       localStorage.setItem(row.key, JSON.stringify(row.data));
       synced++;
-      console.log(`[CloudSync] Local vazio, usando cloud para ${row.key}`);
     }
   }
-  return synced > 0;
+  return { restored: synced > 0, rowCount: rows.length, source: "cloud", lastSyncAt: newest };
 }
 
 async function syncToCloud() {
+  setGdpSyncState({ status: "syncing", source: "cloud", detail: "Publicando alteracoes locais" });
   const promises = GDP_SYNC_KEYS.map(key => {
     const raw = localStorage.getItem(key);
     if (!raw) return Promise.resolve();
@@ -1159,11 +1333,18 @@ async function syncToCloud() {
     catch(_) { return Promise.resolve(); }
   });
   await Promise.all(promises);
+  setGdpSyncState({
+    status: "cloud",
+    source: "cloud",
+    detail: "Cloud atualizado com dados do GDP",
+    lastSyncAt: new Date().toISOString()
+  });
 }
 
 let _syncTimeout = null;
 function schedulCloudSync() {
   if (_syncTimeout) clearTimeout(_syncTimeout);
+  setGdpSyncState({ status: "pending", source: "cloud", detail: "Aguardando envio automatico" });
   _syncTimeout = setTimeout(() => syncToCloud(), 2000);
 }
 
@@ -1177,9 +1358,11 @@ document.addEventListener('visibilitychange', () => {
 
 // ===== STATE =====
 let contratos = [];
+let contratosExcluidos = [];
 let pedidos = [];
 let provasEntrega = [];
 let notasFiscais = [];
+let notasEntrada = [];
 let contasPagar = [];
 let contasReceber = [];
 let estoqueMovimentos = [];
@@ -1189,42 +1372,346 @@ let integracoesUltimaLeitura = "";
 let sefazConfigSnapshot = null;
 let parsedMapa = null;
 let selectedSupplierIdx = null;
+let pendingContratoDraft = null;
 
 // ===== STORAGE =====
 function unwrapData(raw) { return Array.isArray(raw) ? raw : (raw && raw.items ? raw.items : []); }
+function stripLegacyErpFields(item = {}) {
+  const cleaned = { ...item };
+  delete cleaned.tinyId;
+  delete cleaned.id_tiny;
+  delete cleaned._tinyNcm;
+  delete cleaned.tinySku;
+  delete cleaned.erpStatus;
+  delete cleaned.erpSyncAt;
+  delete cleaned.pendingTinySync;
+  delete cleaned.pendingErpSync;
+  delete cleaned.olistId;
+  return cleaned;
+}
+function sanitizeContratoLegacyData(contrato) {
+  if (!contrato) return contrato;
+  const sanitized = { ...contrato };
+  delete sanitized.pendingTinySync;
+  delete sanitized.pendingErpSync;
+  delete sanitized.tinySyncAt;
+  delete sanitized.olistId;
+  sanitized.itens = (sanitized.itens || []).map((item, idx) => {
+    const cleaned = stripLegacyErpFields(item);
+    cleaned.sku = normalizeInternalSku(sanitized.id || "GDP", cleaned, idx);
+    return enrichContratoItemMetadata(sanitized, cleaned, idx);
+  });
+  return sanitized;
+}
+function sanitizePedidoLegacyData(pedido) {
+  if (!pedido) return pedido;
+  const sanitized = { ...pedido };
+  delete sanitized.olistId;
+  delete sanitized.olistStatus;
+  delete sanitized.erpOrderId;
+  sanitized.itens = (sanitized.itens || []).map((item, idx) => stripLegacyErpFields({
+    ...item,
+    sku: normalizeInternalSku(sanitized.contratoId || "GDP", item, idx)
+  }));
+  return ensurePedidoFiscalData(sanitized);
+}
+function notifyErpSyncDisabled(context = "Operacao") {
+  showToast(`${context}: sincronizacao com Tiny/ERP desativada neste sistema.`, 4500);
+}
+function getDeletedContractIds() {
+  return new Set(unwrapData(JSON.parse(localStorage.getItem(CONTRACTS_DELETED_KEY) || '{"items":[]}')).map((item) => String(item?.id || "")).filter(Boolean));
+}
+function applyDeletedContractsFilter(items = []) {
+  const deletedIds = getDeletedContractIds();
+  if (!deletedIds.size) return items;
+  return items.filter((item) => !deletedIds.has(String(item?.id || "")));
+}
 function saveWrappedArray(key, items) {
   const wrapped = { _v: 1, updatedAt: new Date().toISOString(), items };
   localStorage.setItem(key, JSON.stringify(wrapped));
   schedulCloudSync();
 }
 function loadData() {
-  try { contratos = unwrapData(JSON.parse(localStorage.getItem(CONTRACTS_KEY))); } catch(_) { contratos = []; }
-  try { pedidos = unwrapData(JSON.parse(localStorage.getItem(ORDERS_KEY))); } catch(_) { pedidos = []; }
+  let contratosDirty = false;
+  let pedidosDirty = false;
+  try { contratosExcluidos = unwrapData(JSON.parse(localStorage.getItem(CONTRACTS_DELETED_KEY))); } catch(_) { contratosExcluidos = []; }
+  try {
+    const rawContratos = applyDeletedContractsFilter(unwrapData(JSON.parse(localStorage.getItem(CONTRACTS_KEY))));
+    contratos = rawContratos.map((item, idx) => {
+      const before = JSON.stringify(item);
+      const after = sanitizeContratoLegacyData(item);
+      if (!contratosDirty && JSON.stringify(after) !== before) contratosDirty = true;
+      return after;
+    });
+  } catch(_) { contratos = []; }
+  try {
+    const rawPedidos = unwrapData(JSON.parse(localStorage.getItem(ORDERS_KEY)));
+    pedidos = rawPedidos.map((item) => {
+      const before = JSON.stringify(item);
+      const after = sanitizePedidoLegacyData(item);
+      if (!pedidosDirty && JSON.stringify(after) !== before) pedidosDirty = true;
+      return after;
+    });
+  } catch(_) { pedidos = []; }
   try { provasEntrega = JSON.parse(localStorage.getItem(PROOFS_KEY)) || []; } catch(_) { provasEntrega = []; }
   try { notasFiscais = unwrapData(JSON.parse(localStorage.getItem(INVOICES_KEY))); } catch(_) { notasFiscais = []; }
+  try { notasEntrada = unwrapData(JSON.parse(localStorage.getItem(ENTRY_INVOICES_KEY))); } catch(_) { notasEntrada = []; }
   try { contasPagar = unwrapData(JSON.parse(localStorage.getItem(PAYABLES_KEY))); } catch(_) { contasPagar = []; }
   try { contasReceber = unwrapData(JSON.parse(localStorage.getItem(RECEIVABLES_KEY))); } catch(_) { contasReceber = []; }
   try { estoqueMovimentos = unwrapData(JSON.parse(localStorage.getItem(STOCK_KEY))); } catch(_) { estoqueMovimentos = []; }
   try { integracoesGdp = unwrapData(JSON.parse(localStorage.getItem(INTEGRATIONS_KEY))); } catch(_) { integracoesGdp = []; }
+  if (contratosDirty) saveWrappedArray(CONTRACTS_KEY, contratos);
+  if (pedidosDirty) saveWrappedArray(ORDERS_KEY, pedidos);
 }
 function saveContratos() {
+  contratos = applyDeletedContractsFilter(contratos).map(sanitizeContratoLegacyData);
   saveWrappedArray(CONTRACTS_KEY, contratos);
 }
+function saveContratosExcluidos() { saveWrappedArray(CONTRACTS_DELETED_KEY, contratosExcluidos); }
+function registrarContratoExcluido(contrato) {
+  if (!contrato?.id) return;
+  const exists = contratosExcluidos.find((item) => String(item?.id || "") === String(contrato.id));
+  if (exists) return;
+  contratosExcluidos.push({
+    id: contrato.id,
+    escola: contrato.escola || "",
+    deletedAt: new Date().toISOString(),
+    deletedBy: getAuditActor()
+  });
+  saveContratosExcluidos();
+}
 function savePedidos() {
+  pedidos = pedidos.map(sanitizePedidoLegacyData);
   saveWrappedArray(ORDERS_KEY, pedidos);
 }
 function saveNotasFiscais() { saveWrappedArray(INVOICES_KEY, notasFiscais); }
+function saveNotasEntrada() { saveWrappedArray(ENTRY_INVOICES_KEY, notasEntrada); }
 function saveContasPagar() { saveWrappedArray(PAYABLES_KEY, contasPagar); }
 function saveContasReceber() { saveWrappedArray(RECEIVABLES_KEY, contasReceber); }
 function saveEstoqueMovimentos() { saveWrappedArray(STOCK_KEY, estoqueMovimentos); }
 function saveIntegracoesGdp() { saveWrappedArray(INTEGRATIONS_KEY, integracoesGdp); }
 
+function normalizeSchoolName(value) {
+  return String(value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\b(caixa|escolar|escola|municipal|estadual|de|do|da|dos|das|e|orgao)\b/g, " ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function buildSuggestedLogin(nome) {
+  const base = String(nome || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 36);
+  return base || `cliente-${Date.now().toString(36)}`;
+}
+
+function findClienteBySchoolName(nomeEscola) {
+  const alvo = normalizeSchoolName(nomeEscola);
+  if (!alvo) return null;
+  let best = null;
+  let bestScore = 0;
+  let secondScore = 0;
+  for (const usuario of usuarios) {
+    const candidato = normalizeSchoolName(usuario.nome);
+    if (!candidato) continue;
+    let score = 0;
+    if (candidato === alvo) score = 100;
+    else if (candidato.startsWith(alvo) || alvo.startsWith(candidato)) score = 92;
+    else if (candidato.includes(alvo) || alvo.includes(candidato)) score = 84;
+    else {
+      const alvoTokens = alvo.split(" ").filter(Boolean);
+      const candTokens = new Set(candidato.split(" ").filter(Boolean));
+      const common = alvoTokens.filter((token) => candTokens.has(token)).length;
+      if (common >= Math.max(2, Math.ceil(alvoTokens.length * 0.6))) score = 70 + common;
+    }
+    if (score > bestScore) {
+      secondScore = bestScore;
+      bestScore = score;
+      best = usuario;
+    } else if (score > secondScore) {
+      secondScore = score;
+    }
+  }
+  if (bestScore < 84) return null;
+  if (bestScore - secondScore < 6 && bestScore < 100) return null;
+  return best;
+}
+
+function buildAutoSku(contratoId, item, idx) {
+  const prefix = String(contratoId || "GDP").replace(/[^a-z0-9]/gi, "").toUpperCase().slice(-4) || "GDP";
+  const base = normalizeSchoolName(item?.descricao || "")
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 3)
+    .map((token) => token.slice(0, 4).toUpperCase())
+    .filter(Boolean);
+  return [prefix, String(item?.num || idx + 1).padStart(3, "0"), ...(base.length ? base : ["ITEM"])].join("-");
+}
+
+function isLegacyExternalSku(value) {
+  const sku = String(value || "").trim().toUpperCase();
+  if (!sku) return false;
+  return /^\d{8,}$/.test(sku) || sku.startsWith("TINY") || sku.startsWith("ERP");
+}
+
+function normalizeInternalSku(scopeId, item, idx) {
+  return buildAutoSku(scopeId, item, idx);
+}
+
+function enrichContratoItemMetadata(contrato, item, idx) {
+  if (!contrato || !item) return item;
+  loadBancoProdutos();
+  const bp = bancoProdutos.itens || [];
+  const descNorm = (item.descricao || "").toUpperCase().trim();
+  let match = null;
+  if (item.sku && !isLegacyExternalSku(item.sku)) match = bp.find((prod) => prod.sku && prod.sku.toUpperCase() === item.sku.toUpperCase());
+  if (!match) match = bp.find((prod) => (prod.descricao || "").toUpperCase().trim() === descNorm);
+  if (!item.ncm) {
+    const local = findNcmLocal(item.descricao);
+    if (local?.ncm) item.ncm = local.ncm;
+    else if (match?.ncm) item.ncm = match.ncm;
+  }
+  if (!item.unidade && match?.unidade) item.unidade = match.unidade;
+  item.sku = normalizeInternalSku(contrato.id, item, idx);
+  return item;
+}
+
+function syncContratoItemToPedidos(contratoId, itemAtualizado) {
+  if (!contratoId || !itemAtualizado) return;
+  let touched = false;
+  pedidos.forEach((pedido) => {
+    if (pedido.contratoId !== contratoId) return;
+    (pedido.itens || []).forEach((itemPedido) => {
+      const sameItem = String(itemPedido.itemNum || "") === String(itemAtualizado.num || "")
+        || ((itemPedido.descricao || "").toUpperCase().trim() === (itemAtualizado.descricao || "").toUpperCase().trim());
+      if (!sameItem) return;
+      itemPedido.ncm = itemAtualizado.ncm || itemPedido.ncm || "";
+      itemPedido.sku = itemAtualizado.sku || itemPedido.sku || "";
+      itemPedido.unidade = itemAtualizado.unidade || itemPedido.unidade || "UN";
+      if (!itemPedido.precoUnitario) itemPedido.precoUnitario = Number(itemAtualizado.precoUnitario || 0);
+      touched = true;
+    });
+  });
+  if (touched) savePedidos();
+}
+
+function ensureContratoItensMetadata(contrato) {
+  if (!contrato?.itens) return;
+  let touched = false;
+  contrato.itens.forEach((item, idx) => {
+    const before = `${item.ncm || ""}|${item.sku || ""}|${item.unidade || ""}`;
+    enrichContratoItemMetadata(contrato, item, idx);
+    const after = `${item.ncm || ""}|${item.sku || ""}|${item.unidade || ""}`;
+    if (before !== after) {
+      touched = true;
+      syncContratoItemToPedidos(contrato.id, item);
+    }
+  });
+  if (touched) saveContratos();
+}
+
+function getContratoItemForPedidoItem(contratoId, itemPedido) {
+  const contrato = contratos.find((item) => item.id === contratoId);
+  if (!contrato || !itemPedido) return null;
+  ensureContratoItensMetadata(contrato);
+  return contrato.itens.find((item) =>
+    String(item.num || "") === String(itemPedido.itemNum || "")
+    || ((item.descricao || "").toUpperCase().trim() === (itemPedido.descricao || "").toUpperCase().trim())
+  ) || null;
+}
+
+function getClientesVinculadosAoContrato(contratoId) {
+  const contrato = contratos.find((item) => item.id === contratoId);
+  const clientes = new Map();
+  if (contrato?.escolaClienteId) {
+    const principal = usuarios.find((user) => user.id === contrato.escolaClienteId);
+    if (principal) clientes.set(principal.id, principal);
+  }
+  usuarios.forEach((user) => {
+    if ((user.contratos_vinculados || []).includes(contratoId)) clientes.set(user.id, user);
+  });
+  return [...clientes.values()];
+}
+
+function getClientePrincipalDoContrato(contratoId) {
+  return getClientesVinculadosAoContrato(contratoId)[0] || null;
+}
+
+function vincularClienteAoContrato(contrato, cliente) {
+  if (!contrato || !cliente) return null;
+  contrato.escolaClienteId = cliente.id;
+  contrato.escola = cliente.nome || contrato.escola;
+  if (!Array.isArray(cliente.contratos_vinculados)) cliente.contratos_vinculados = [];
+  if (!cliente.contratos_vinculados.includes(contrato.id)) cliente.contratos_vinculados.push(contrato.id);
+  return cliente;
+}
+
+function sugerirClienteContrato(nomeEscola) {
+  const cliente = findClienteBySchoolName(nomeEscola);
+  const info = document.getElementById("mc-cliente-info");
+  if (!info) return cliente;
+  const nome = String(nomeEscola || "").trim();
+  if (!nome) {
+    info.innerHTML = "Selecione um cliente ja cadastrado ou digite um nome para localizar.";
+    info.style.color = "var(--mut)";
+    return null;
+  }
+  if (!cliente) {
+    info.innerHTML = "Cliente nao localizado. O cadastro sera exigido antes de criar o contrato.";
+    info.style.color = "var(--yellow)";
+    return null;
+  }
+  const resumo = [cliente.cnpj || "", cliente.municipio || "", cliente.uf || ""].filter(Boolean).join(" | ");
+  info.innerHTML = `Cliente vinculado automaticamente: <strong>${esc(cliente.nome)}</strong>${resumo ? ` <span style="color:var(--dim)">(${esc(resumo)})</span>` : ""}`;
+  info.style.color = "var(--green)";
+  return cliente;
+}
+
+function abrirCadastroClienteParaContrato(draft) {
+  pendingContratoDraft = { ...(draft || {}) };
+  switchTab("usuarios");
+  renderFormUsuario(null, {
+    nome: draft?.escola || "",
+    login: buildSuggestedLogin(draft?.escola || ""),
+    uf: "MG",
+    ie: "ISENTO"
+  });
+  document.getElementById("modal-usuario").classList.remove("hidden");
+  showToast("Cadastre o cliente antes de criar o contrato.", 4000);
+}
+
 // ===== TABS =====
 function switchTab(tab) {
-  document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
-  const tabBtn = document.querySelector(`[data-tab="${tab}"]`);
+  toggleGdpSidebarMenu(true);
+  document.querySelectorAll(".sidebar-subitem[data-gdp-tab]").forEach((item) => item.classList.remove("active"));
+  const tabBtn = document.querySelector(`.sidebar-subitem[data-gdp-tab="${tab}"]`);
   if (tabBtn) tabBtn.classList.add("active");
-  ["importar","contratos","itens","usuarios","pedidos","notas-fiscais","contas-pagar","contas-receber","integracoes","estoque","entregas","banco-produtos"].forEach(t => {
+  const contractsKpis = document.getElementById("kpi-grid");
+  if (contractsKpis) contractsKpis.classList.toggle("hidden", tab !== "contratos");
+  const title = document.getElementById("gdp-section-title");
+  const labels = {
+    usuarios: "Clientes",
+    "notas-entrada": "Notas de Entrada",
+    estoque: "Estoque",
+    contratos: "Contratos",
+    pedidos: "Pedidos",
+    entregas: "Entregas",
+    "notas-fiscais": "Notas Fiscais",
+    "contas-pagar": "Contas a Pagar",
+    "contas-receber": "Contas a Receber",
+    integracoes: "Integracoes",
+    importar: "Importar Contrato"
+  };
+  if (title) title.textContent = labels[tab] || "Contratos";
+  ["importar","contratos","itens","usuarios","pedidos","notas-fiscais","contas-pagar","contas-receber","integracoes","notas-entrada","estoque","entregas"].forEach(t => {
     document.getElementById(`tab-${t}`).classList.toggle("hidden", t !== tab);
   });
   if (tab === "contratos") renderContratos();
@@ -1234,9 +1721,9 @@ function switchTab(tab) {
   if (tab === "contas-pagar") renderContasPagar();
   if (tab === "contas-receber") renderContasReceber();
   if (tab === "integracoes") { renderIntegracoes(); carregarConfigSefaz(); atualizarIntegracoesRemotas(); }
+  if (tab === "notas-entrada") renderNotasEntrada();
   if (tab === "estoque") renderEstoque();
   if (tab === "usuarios") renderUsuarios();
-  if (tab === "banco-produtos") renderBancoProdutos();
 }
 
 // ===== DOCX PARSER =====
@@ -1917,12 +2404,14 @@ function criarContrato() {
     }))
   };
 
+  const clienteVinculado = findClienteBySchoolName(contrato.escola);
+  if (clienteVinculado) vincularClienteAoContrato(contrato, clienteVinculado);
   contratos.push(contrato);
   saveContratos();
+  if (clienteVinculado) saveUsuarios();
 
   // Auto-preencher NCM + cadastrar itens no ERP (background, non-blocking)
   const ncmResult = autoPreencherNcm(contrato.id);
-  autoCadastrarTiny(contrato.id);
   if (ncmResult.pending > 0) classificarNcmIA(contrato.id);
 
   // Alimentar banco de precos com dados de concorrentes
@@ -2423,12 +2912,14 @@ function criarContratoLista() {
     fornecedoresMapa: []
   };
 
+  const clienteVinculado = findClienteBySchoolName(contrato.escola);
+  if (clienteVinculado) vincularClienteAoContrato(contrato, clienteVinculado);
   contratos.push(contrato);
   saveContratos();
+  if (clienteVinculado) saveUsuarios();
 
   // Auto-preencher NCM + cadastrar itens no ERP (background, non-blocking)
   const ncmResult2 = autoPreencherNcm(contrato.id);
-  autoCadastrarTiny(contrato.id);
   if (ncmResult2.pending > 0) classificarNcmIA(contrato.id);
 
   // Reset
@@ -3162,7 +3653,10 @@ function importarCronograma() {
       fornecedoresMapa: [],
       cronograma: true
     };
+    const clienteVinculado = findClienteBySchoolName(contrato.escola);
+    if (clienteVinculado) vincularClienteAoContrato(contrato, clienteVinculado);
     contratos.push(contrato);
+    if (clienteVinculado) saveUsuarios();
 
     // Build obs for pedidos
     const obsParts = [];
@@ -3225,7 +3719,6 @@ function importarCronograma() {
     const created = contratos.find(x => x.processo === ctr.processo);
     if (created) {
       const ncmR = autoPreencherNcm(created.id);
-      autoCadastrarTiny(created.id);
       if (ncmR.pending > 0) classificarNcmIA(created.id);
     }
   });
@@ -3287,7 +3780,7 @@ function renderContratos() {
     return `<div class="contract-card" onclick="abrirContrato('${c.id}')">
       <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:.5rem">
         <span class="font-mono" style="font-size:.75rem;color:var(--dim)">${c.id}</span>
-        <span class="badge ${badgeClass}" onclick="event.stopPropagation();toggleStatusContrato('${c.id}')" style="cursor:pointer" title="Clique para alternar status">${c.status}</span>
+        <span class="badge ${badgeClass}" onclick="toggleStatusContrato('${c.id}')" style="cursor:pointer" title="Clique para alternar status">${c.status}</span>
       </div>
       <h3>${esc(c.escola.length > 60 ? c.escola.slice(0, 58) + "..." : c.escola)}</h3>
       <div class="meta">${c.processo ? 'Proc. ' + esc(c.processo) + ' | ' : ''}${c.edital ? 'Edital ' + esc(c.edital) + ' | ' : ''}${c.itens.length} itens | ${esc(c.fornecedor)}</div>
@@ -3300,7 +3793,7 @@ function renderContratos() {
       <div style="display:flex;justify-content:space-between;align-items:center;margin-top:.3rem">
         <span style="font-size:.7rem;color:var(--dim)">${pctExec.toFixed(0)}% executado</span>
         <div style="display:flex;gap:.4rem">
-          <button class="btn btn-sm btn-blue" onclick="event.stopPropagation();vincularEscolaContrato('${c.id}')" style="font-size:.7rem;padding:.2rem .6rem" title="Vincular escola a este contrato"><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${temEscolaVinculada(c.id) ? 'var(--green)' : 'var(--red)'};margin-right:4px"></span>Vincular Escola</button>
+          <button class="btn btn-sm btn-blue" onclick="vincularEscolaContrato('${c.id}')" style="font-size:.7rem;padding:.2rem .6rem" title="Vincular escola a este contrato"><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${temEscolaVinculada(c.id) ? 'var(--green)' : 'var(--red)'};margin-right:4px"></span>Vincular Escola</button>
         </div>
       </div>
       ${getEscolasVinculadasBadges(c.id)}
@@ -3309,7 +3802,7 @@ function renderContratos() {
 }
 
 function getEscolasVinculadasBadges(contratoId) {
-  const linked = usuarios.filter(u => (u.contratos_vinculados || []).includes(contratoId));
+  const linked = getClientesVinculadosAoContrato(contratoId);
   if (linked.length === 0) return '<div style="font-size:.7rem;color:var(--dim);margin-top:.3rem;font-style:italic">Nenhuma escola vinculada</div>';
   return '<div style="display:flex;flex-wrap:wrap;gap:.3rem;margin-top:.3rem">' +
     linked.map(u => '<span style="background:var(--blue);color:#fff;font-size:.65rem;padding:.15rem .5rem;border-radius:10px">' + esc(u.nome.length > 25 ? u.nome.slice(0,23)+'...' : u.nome) + '</span>').join('') +
@@ -3317,7 +3810,7 @@ function getEscolasVinculadasBadges(contratoId) {
 }
 
 function temEscolaVinculada(contratoId) {
-  return usuarios.some(u => (u.contratos_vinculados || []).includes(contratoId));
+  return !!getClientePrincipalDoContrato(contratoId);
 }
 
 function toggleStatusContrato(id) {
@@ -3374,6 +3867,7 @@ function filtrarEscolasVinculo() {
 function salvarVinculoEscolas(contratoId) {
   const checkedIds = [...document.querySelectorAll(".vincular-escola-chk:checked")].map(cb => cb.value);
   const uncheckedIds = [...document.querySelectorAll(".vincular-escola-chk:not(:checked)")].map(cb => cb.value);
+  const contrato = contratos.find((item) => item.id === contratoId);
 
   for (const u of usuarios) {
     if (!u.contratos_vinculados) u.contratos_vinculados = [];
@@ -3384,15 +3878,14 @@ function salvarVinculoEscolas(contratoId) {
       u.contratos_vinculados = u.contratos_vinculados.filter(id => id !== contratoId);
     }
   }
+  if (contrato) {
+    contrato.escolaClienteId = checkedIds[0] || "";
+    const clientePrincipal = checkedIds.length ? usuarios.find((user) => user.id === checkedIds[0]) : null;
+    if (clientePrincipal?.nome) contrato.escola = clientePrincipal.nome;
+    saveContratos();
+  }
 
   saveUsuarios();
-
-  // Auto-cadastrar clientes recém-vinculados no Olist (background)
-  for (const u of usuarios) {
-    if (checkedIds.includes(u.id) && !u.olistClienteId) {
-      autoCadastrarClienteOlist(u);
-    }
-  }
 
   document.getElementById("modal-contrato").classList.add("hidden");
   renderContratos();
@@ -3521,6 +4014,7 @@ function adicionarTodosCatalogo(contratoId) {
 async function criarPedidoCatalogo(contratoId) {
   const c = contratos.find(x => x.id === contratoId);
   if (!c) return;
+  ensureContratoItensMetadata(c);
   const itensP = [];
   document.querySelectorAll('.catalogo-qtd').forEach(input => {
     const qtd = parseFloat(input.value) || 0;
@@ -3535,15 +4029,15 @@ async function criarPedidoCatalogo(contratoId) {
       preco: item.precoUnitario,
       precoUnitario: item.precoUnitario,
       itemNum: item.num,
-      sku: item.sku || ''
+      sku: item.sku || '',
+      ncm: item.ncm || ''
     });
   });
   if (itensP.length === 0) { showToast("Selecione ao menos um item.", 3000); return; }
   const valor = itensP.reduce((s, i) => s + i.qtd * i.preco, 0);
 
   // Get linked school data (full client info)
-  const linked = usuarios.filter(u => (u.contratos_vinculados || []).includes(contratoId));
-  const escola = linked.length > 0 ? linked[0] : null;
+  const escola = getClientePrincipalDoContrato(contratoId);
   const escolaNome = escola ? escola.nome : c.escola;
 
   const hoje = new Date().toISOString().slice(0,10);
@@ -3595,20 +4089,14 @@ async function criarPedidoCatalogo(contratoId) {
 
   document.getElementById("modal-contrato").classList.add("hidden");
   renderAll();
-  showToast(`Pedido ${pedido.id} criado e transmitido — ${itensP.length} iten(s), ${brl.format(valor)}`, 4000);
-
-  // Send to Olist in background
-  try {
-    await enviarPedidoOlist(pedido.id);
-  } catch(e) {
-    showToast("Pedido criado, mas erro ao enviar ao Olist: " + e.message, 5000);
-  }
+  showToast(`Pedido ${pedido.id} criado para operacao interna do GDP — ${itensP.length} iten(s), ${brl.format(valor)}`, 4000);
 }
 
 function excluirContrato(id) {
   const c = contratos.find(x => x.id === id);
   if (!c) return;
   if (!confirm(`Excluir contrato ${c.id} — ${c.escola}?\n\nEsta ação não pode ser desfeita.`)) return;
+  registrarContratoExcluido(c);
   contratos = contratos.filter(x => x.id !== id);
   saveContratos();
   renderAll();
@@ -3617,17 +4105,19 @@ function excluirContrato(id) {
 
 // ===== CONTRACT DETAIL MODAL =====
 function novoContratoManual() {
+  const draft = pendingContratoDraft || {};
   document.getElementById("modal-contrato-titulo").textContent = "Novo Contrato Manual";
   document.getElementById("modal-contrato-body").innerHTML = `
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
-      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Escola / Órgão</label><input type="text" id="mc-escola" placeholder="Nome da escola" style="width:100%"></div>
-      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Número do Edital</label><input type="text" id="mc-edital" placeholder="Ex: PE 001/2026" style="width:100%"></div>
-      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Número do Processo</label><input type="text" id="mc-processo" placeholder="Ex: 001/2026" style="width:100%"></div>
-      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Vigência</label><input type="text" id="mc-vigencia" placeholder="Ex: 01/01/2026 a 31/12/2026" style="width:100%"></div>
-      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Fornecedor</label><input type="text" id="mc-fornecedor" value="Lariucci & Ribeiro Pereira" style="width:100%"></div>
-      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Status</label><select id="mc-status" style="width:100%"><option value="ativo">Ativo</option><option value="encerrado">Encerrado</option></select></div>
-      <div style="grid-column:1/-1"><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Objeto</label><input type="text" id="mc-objeto" placeholder="Descrição do objeto" style="width:100%"></div>
-      <div style="grid-column:1/-1"><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Observações</label><textarea id="mc-obs" placeholder="Informações adicionais..." style="width:100%;min-height:50px;padding:.5rem .8rem;background:var(--s1);border:1px solid var(--bdr);border-radius:8px;color:var(--txt);font-size:.85rem;resize:vertical"></textarea></div>
+      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Escola / Órgão</label><input type="text" id="mc-escola" list="mc-clientes-list" value="${esc(draft.escola || '')}" placeholder="Nome da escola" oninput="sugerirClienteContrato(this.value)" style="width:100%"><datalist id="mc-clientes-list">${usuarios.map((u) => `<option value="${esc(u.nome)}"></option>`).join("")}</datalist></div>
+      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Número do Edital</label><input type="text" id="mc-edital" value="${esc(draft.edital || '')}" placeholder="Ex: PE 001/2026" style="width:100%"></div>
+      <div style="grid-column:1/-1;font-size:.78rem;padding:.65rem .8rem;background:var(--s1);border:1px solid var(--bdr);border-radius:8px;color:var(--mut)" id="mc-cliente-info">Selecione um cliente já cadastrado ou digite um nome para localizar.</div>
+      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Número do Processo</label><input type="text" id="mc-processo" value="${esc(draft.processo || '')}" placeholder="Ex: 001/2026" style="width:100%"></div>
+      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Vigência</label><input type="text" id="mc-vigencia" value="${esc(draft.vigencia || '')}" placeholder="Ex: 01/01/2026 a 31/12/2026" style="width:100%"></div>
+      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Fornecedor</label><input type="text" id="mc-fornecedor" value="${esc(draft.fornecedor || 'Lariucci & Ribeiro Pereira')}" style="width:100%"></div>
+      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Status</label><select id="mc-status" style="width:100%"><option value="ativo"${(draft.status || 'ativo') === 'ativo' ? ' selected' : ''}>Ativo</option><option value="encerrado"${draft.status === 'encerrado' ? ' selected' : ''}>Encerrado</option></select></div>
+      <div style="grid-column:1/-1"><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Objeto</label><input type="text" id="mc-objeto" value="${esc(draft.objeto || '')}" placeholder="Descrição do objeto" style="width:100%"></div>
+      <div style="grid-column:1/-1"><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Observações</label><textarea id="mc-obs" placeholder="Informações adicionais..." style="width:100%;min-height:50px;padding:.5rem .8rem;background:var(--s1);border:1px solid var(--bdr);border-radius:8px;color:var(--txt);font-size:.85rem;resize:vertical">${esc(draft.observacoes || '')}</textarea></div>
     </div>
     <div style="margin-top:1.5rem;display:flex;gap:.8rem;justify-content:flex-end">
       <button class="btn btn-outline" onclick="fecharModalContrato()">Cancelar</button>
@@ -3635,14 +4125,13 @@ function novoContratoManual() {
     </div>
   `;
   document.getElementById("modal-contrato").classList.remove("hidden");
+  sugerirClienteContrato(draft.escola || "");
 }
 
 function salvarContratoManual() {
   const escola = (document.getElementById("mc-escola").value || "").trim();
   if (!escola) { showToast("Nome da escola é obrigatório.", 3000); return; }
-  const id = "CTR-" + Date.now().toString(36).toUpperCase();
-  const c = {
-    id,
+  const draft = {
     escola,
     edital: (document.getElementById("mc-edital").value || "").trim(),
     processo: (document.getElementById("mc-processo").value || "").trim(),
@@ -3650,15 +4139,35 @@ function salvarContratoManual() {
     fornecedor: (document.getElementById("mc-fornecedor").value || "").trim(),
     status: document.getElementById("mc-status").value || "ativo",
     objeto: (document.getElementById("mc-objeto").value || "").trim(),
-    observacoes: (document.getElementById("mc-obs").value || "").trim(),
+    observacoes: (document.getElementById("mc-obs").value || "").trim()
+  };
+  const cliente = findClienteBySchoolName(escola);
+  if (!cliente) {
+    abrirCadastroClienteParaContrato(draft);
+    return;
+  }
+  const id = "CTR-" + Date.now().toString(36).toUpperCase();
+  const c = {
+    id,
+    escola: cliente.nome,
+    edital: draft.edital,
+    processo: draft.processo,
+    vigencia: draft.vigencia,
+    fornecedor: draft.fornecedor,
+    status: draft.status,
+    objeto: draft.objeto,
+    observacoes: draft.observacoes,
     dataApuracao: new Date().toISOString().split("T")[0],
     itens: []
   };
+  vincularClienteAoContrato(c, cliente);
   contratos.push(c);
   saveContratos();
+  saveUsuarios();
+  pendingContratoDraft = null;
   fecharModalContrato();
-  renderAll();
-  showToast("Contrato " + id + " criado! Adicione itens clicando no contrato.");
+  // renderAll();
+  showToast("Contrato " + id + " criado com cliente vinculado. Adicione itens clicando no contrato.");
 }
 
 function adicionarItemContrato(contratoId) {
@@ -3703,6 +4212,7 @@ function salvarItemContrato(contratoId, continuar) {
     ncm: ncmVal,
     sku: skuVal
   };
+  enrichContratoItemMetadata(c, item, c.itens.length);
   c.itens.push(item);
   saveContratos();
   adicionarAoBancoProdutos(item);
@@ -3804,7 +4314,9 @@ function salvarEdicaoItem(contratoId, idx) {
   c.itens[idx].qtdEntregue = parseInt(document.getElementById("ei-entregue").value) || 0;
   c.itens[idx].precoUnitario = parseFloat(document.getElementById("ei-preco").value) || 0;
   c.itens[idx].ncm = (document.getElementById("ei-ncm").value || "").trim();
+  enrichContratoItemMetadata(c, c.itens[idx], idx);
   saveContratos();
+  syncContratoItemToPedidos(contratoId, c.itens[idx]);
   showToast("Item atualizado!");
   abrirContrato(contratoId);
   renderAll();
@@ -3825,6 +4337,7 @@ function excluirItemContrato(contratoId, idx) {
 function abrirContrato(id) {
   const c = contratos.find(x => x.id === id);
   if (!c) return;
+  ensureContratoItensMetadata(c);
 
   _contratoAbertoId = null; // detail view: Fechar closes modal
   document.getElementById("modal-contrato-titulo").textContent = `${c.id} — ${c.escola.length > 50 ? c.escola.slice(0, 48) + "..." : c.escola}`;
@@ -3864,10 +4377,6 @@ function abrirContrato(id) {
         </div>
       </div>
     </div>
-    ${c.pendingTinySync ? `<div style="background:rgba(234,179,8,.15);border:1px solid rgba(234,179,8,.3);border-radius:8px;padding:.6rem 1rem;margin-bottom:1rem;display:flex;align-items:center;justify-content:space-between">
-      <span style="color:var(--yellow);font-size:.85rem">⚠️ Itens pendentes de cadastro no ERP</span>
-      <button class="btn btn-sm" style="background:rgba(234,179,8,.25);color:var(--yellow);border:none;font-weight:700" onclick="autoCadastrarTiny('${c.id}')">Cadastrar Agora</button>
-    </div>` : ''}
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.8rem;flex-wrap:wrap;gap:.5rem">
       <div style="display:flex;align-items:center;gap:.6rem">
         <h3 style="font-size:.9rem;margin:0">Itens do Contrato (${c.itens.length})</h3>
@@ -3876,7 +4385,6 @@ function abrirContrato(id) {
       </div>
       <div style="display:flex;gap:.4rem;flex-wrap:wrap;align-items:center">
         <button class="btn btn-sm btn-blue hidden" id="btn-editar-massa-${c.id}" onclick="editarItensMassa('${c.id}')" title="Editar itens selecionados">Editar Selecionados</button>
-        <button class="btn btn-sm" style="background:rgba(6,182,212,.15);color:var(--cyan);border:none;font-weight:700" onclick="abrirSyncBanco('${c.id}')" title="Comparar itens do contrato com o Banco de Produtos e sincronizar SKU/NCM/Unidade">🔄 Sync Banco</button>
         <button class="btn btn-sm" style="background:rgba(139,92,246,.15);color:var(--purple);border:none;font-weight:700" onclick="abrirCatalogoEscolar('${c.id}')" title="Abrir catalogo da escola vinculada para pedidos internos">📋 Catalogo Escolar</button>
         <button class="btn btn-sm" style="background:rgba(16,185,129,.15);color:var(--green);border:none;font-weight:700" onclick="autoPreencherNcm('${c.id}');abrirContrato('${c.id}')" title="Preencher NCM automaticamente (mapa local + banco)">NCM Auto</button>
         <button class="btn btn-sm" style="background:rgba(168,85,247,.15);color:#a855f7;border:none;font-weight:700" onclick="classificarNcmIA('${c.id}')" title="Classificar NCM dos itens sem codigo usando IA (GPT)">🤖 NCM IA</button>
@@ -3892,7 +4400,7 @@ function abrirContrato(id) {
           return `<tr>
             <td class="text-center"><input type="checkbox" class="item-check-${c.id}" data-idx="${idx}" onchange="atualizarSelecaoItens('${c.id}')"></td>
             <td class="text-center">${item.num}</td>
-            <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(item.descricao)}"><span title="${item.sku ? 'SKU: ' + esc(item.sku) : 'Sem SKU — pendente ERP'}" style="font-size:.6rem;margin-right:.3rem">${item.sku ? '🟢' : '🟡'}</span>${esc(item.descricao)}</td>
+            <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(item.descricao)}"><span title="${item.sku ? 'SKU disponível para pedido/NF' : 'SKU pendente de geração interna'}" style="font-size:.6rem;margin-right:.3rem">${item.sku ? '🟢' : '🟡'}</span>${esc(item.descricao)}</td>
             <td style="min-width:120px">
               <div style="display:flex;align-items:center;gap:.2rem">
                 <input type="text" value="${esc(item.ncm || '')}" id="ncm-${c.id}-${idx}" placeholder="00.00.00.00" style="width:90px;font-size:.72rem;font-family:monospace;padding:.15rem .3rem;background:var(--s1);border:1px solid var(--bdr);border-radius:4px;color:var(--cyan)" onchange="salvarNcmItem('${c.id}',${idx},this.value)">
@@ -3963,12 +4471,15 @@ function registrarEntregas(contratoId) {
 }
 
 function excluirContrato(id) {
-  if (!confirm("Tem certeza que deseja excluir este contrato?")) return;
+  const c = contratos.find(x => x.id === id);
+  if (!c) return;
+  if (!confirm(`Excluir contrato ${c.id} — ${c.escola}?\n\nEsta ação não pode ser desfeita.`)) return;
+  registrarContratoExcluido(c);
   contratos = contratos.filter(c => c.id !== id);
   saveContratos();
   fecharModalContrato();
   renderAll();
-  showToast("Contrato excluido.");
+  showToast(`Contrato ${id} excluído.`);
 }
 
 function recalcularSaldoContrato(contratoId) {
@@ -4013,7 +4524,7 @@ function imprimirContrato(id) {
   const totalContratado = c.itens.reduce((s, i) => s + i.precoUnitario * i.qtdContratada, 0);
   const totalEntregue = c.itens.reduce((s, i) => s + i.precoUnitario * i.qtdEntregue, 0);
 
-  const linked = usuarios.filter(u => (u.contratos_vinculados || []).includes(id));
+  const linked = getClientesVinculadosAoContrato(id);
   const escolasHtml = linked.length > 0
     ? linked.map(u => `<tr><td>${u.nome}</td><td>${u.cnpj || '-'}</td><td>${u.municipio || '-'}</td><td>${u.telefone || '-'}</td><td>${u.email || '-'}</td></tr>`).join('')
     : '<tr><td colspan="5" style="text-align:center;color:#999">Nenhuma escola vinculada</td></tr>';
@@ -4217,73 +4728,142 @@ function isContaEmAtraso(conta) {
 
 function ensurePedidoFiscalData(pedido) {
   if (!pedido.cliente) pedido.cliente = {};
+  const clienteContrato = pedido.contratoId ? getClientePrincipalDoContrato(pedido.contratoId) : null;
   const c = pedido.cliente;
-  c.nome = c.nome || pedido.escola || "";
-  c.cnpj = c.cnpj || "";
-  c.ie = c.ie || "ISENTO";
-  c.email = c.email || "";
-  c.telefone = c.telefone || "";
-  c.logradouro = c.logradouro || "";
-  c.numero = c.numero || "";
-  c.bairro = c.bairro || "";
-  c.cep = c.cep || "";
-  c.cidade = c.cidade || "";
-  c.uf = c.uf || "MG";
+  c.id = clienteContrato?.id || c.id || "";
+  c.nome = clienteContrato?.nome || c.nome || pedido.escola || "";
+  c.cnpj = clienteContrato?.cnpj || c.cnpj || "";
+  c.ie = clienteContrato?.ie || c.ie || "ISENTO";
+  c.email = clienteContrato?.email || c.email || "";
+  c.telefone = clienteContrato?.telefone || c.telefone || "";
+  c.logradouro = clienteContrato?.logradouro || c.logradouro || "";
+  c.numero = clienteContrato?.numero || c.numero || "";
+  c.complemento = clienteContrato?.complemento || c.complemento || "";
+  c.bairro = clienteContrato?.bairro || c.bairro || "";
+  c.cep = clienteContrato?.cep || c.cep || "";
+  c.cidade = clienteContrato?.municipio || c.cidade || "";
+  c.uf = clienteContrato?.uf || c.uf || "MG";
   c.indicador_contribuinte = c.indicador_contribuinte || "9";
-  pedido.itens = (pedido.itens || []).map((item, idx) => ({
-    ...item,
-    itemNum: item.itemNum || idx + 1,
-    descricao: item.descricao || `Item ${idx + 1}`,
-    qtd: Number(item.qtd || 0),
-    precoUnitario: Number(item.precoUnitario || 0),
-    unidade: item.unidade || "UN",
-    ncm: item.ncm || "",
-    sku: item.sku || item.codigoBarras || ""
-  }));
+  pedido.itens = (pedido.itens || []).map((item, idx) => {
+    const baseItem = {
+      ...item,
+      itemNum: item.itemNum || idx + 1,
+      descricao: item.descricao || `Item ${idx + 1}`,
+      qtd: Number(item.qtd || 0),
+      precoUnitario: Number(item.precoUnitario || 0),
+      unidade: item.unidade || "UN",
+      ncm: item.ncm || "",
+      sku: item.sku || item.codigoBarras || ""
+    };
+    const contratoItem = pedido.contratoId ? getContratoItemForPedidoItem(pedido.contratoId, baseItem) : null;
+    return {
+      ...baseItem,
+      descricao: baseItem.descricao || contratoItem?.descricao || `Item ${idx + 1}`,
+      precoUnitario: Number(baseItem.precoUnitario || contratoItem?.precoUnitario || 0),
+      unidade: baseItem.unidade || contratoItem?.unidade || "UN",
+      ncm: baseItem.ncm || contratoItem?.ncm || "",
+      sku: baseItem.sku || contratoItem?.sku || buildAutoSku(pedido.contratoId || "GDP", contratoItem || baseItem, idx)
+    };
+  });
   return pedido;
 }
 
-function validatePedidoForInvoice(pedido) {
+function askInvoiceMode() {
+  const raw = (window.prompt('Tipo de nota para este pedido:\n\nDigite REAL para NF-e real\nDigite MANUAL para nota emitida fora do GDP', 'REAL') || "").trim().toUpperCase();
+  if (!raw) return null;
+  if (raw === "MANUAL") return "manual_externa";
+  return "nfe_real";
+}
+
+function isNotaFiscalReal(nf) {
+  return (nf?.tipoNota || "manual_externa") === "nfe_real";
+}
+
+function getNotaFiscalTipoLabel(nf) {
+  return isNotaFiscalReal(nf) ? "NF-e Real" : "Manual Externa";
+}
+
+function getNotaFiscalTipoClass(nf) {
+  return isNotaFiscalReal(nf) ? "real" : "manual";
+}
+
+function getNotaFiscalResumoOperacional(nf) {
+  if (!nf) return "Pedido sem nota fiscal emitida";
+  if (isNotaFiscalReal(nf)) return `NF-e real ${nf.numero || nf.id} em fluxo SEFAZ`;
+  return `Nota manual externa ${nf.numero || nf.id}`;
+}
+
+function canDeleteNotaFiscal(nf) {
+  if (!nf) return false;
+  return !(isNotaFiscalReal(nf) && ["autorizada", "cancelada", "cancelamento_solicitado"].includes(String(nf.status || "")));
+}
+
+function canRequestCancelNotaFiscal(nf) {
+  return !!nf && isNotaFiscalReal(nf) && nf.status === "autorizada";
+}
+
+function canTransmitNotaFiscal(nf) {
+  if (!nf || !isNotaFiscalReal(nf)) return false;
+  return !["autorizada", "cancelada", "cancelamento_solicitado"].includes(String(nf.status || ""));
+}
+
+function validatePedidoForInvoice(pedido, tipoNota = "nfe_real") {
   const data = ensurePedidoFiscalData(pedido);
   const missing = [];
+  const clienteVinculado = pedido.contratoId ? getClientePrincipalDoContrato(pedido.contratoId) : null;
+  if (tipoNota === "nfe_real" && !clienteVinculado) missing.push("cliente vinculado ao contrato");
   if (!data.cliente.nome) missing.push("nome do cliente");
-  if (!data.cliente.cnpj) missing.push("CNPJ do cliente");
-  if (!data.cliente.logradouro) missing.push("logradouro");
-  if (!data.cliente.numero) missing.push("numero");
-  if (!data.cliente.bairro) missing.push("bairro");
-  if (!data.cliente.cep) missing.push("CEP");
-  if (!data.cliente.cidade) missing.push("cidade");
-  if (!data.cliente.uf) missing.push("UF");
+  if (tipoNota === "nfe_real" && !data.cliente.cnpj) missing.push("documento fiscal do cliente");
+  if (tipoNota === "nfe_real" && !data.cliente.logradouro) missing.push("logradouro");
+  if (tipoNota === "nfe_real" && !data.cliente.numero) missing.push("numero");
+  if (tipoNota === "nfe_real" && !data.cliente.bairro) missing.push("bairro");
+  if (tipoNota === "nfe_real" && !data.cliente.cep) missing.push("CEP");
+  if (tipoNota === "nfe_real" && !data.cliente.cidade) missing.push("cidade");
+  if (tipoNota === "nfe_real" && !data.cliente.uf) missing.push("UF");
   if (!data.itens.length) missing.push("itens do pedido");
   data.itens.forEach((item, idx) => {
-    if (!item.ncm) missing.push(`NCM do item ${idx + 1}`);
-    if (!item.unidade) missing.push(`unidade do item ${idx + 1}`);
+    if (tipoNota === "nfe_real" && !item.ncm) missing.push(`NCM do item ${idx + 1}`);
+    if (tipoNota === "nfe_real" && !item.unidade) missing.push(`unidade do item ${idx + 1}`);
+    if (tipoNota === "nfe_real" && !item.sku) missing.push(`SKU do item ${idx + 1}`);
   });
   return [...new Set(missing)];
 }
 
-function buildInvoiceFromOrder(pedido) {
+function buildInvoiceFromOrder(pedido, tipoNota) {
   const now = new Date();
   const nfId = genId("NF");
   const actor = getAuditActor();
   const fiscalData = ensurePedidoFiscalData({ ...pedido, cliente: { ...(pedido.cliente || {}) }, itens: (pedido.itens || []).map(i => ({ ...i })) });
+  let numeroInformado = "";
+  let serieInformada = "1";
+  let chaveInformada = "";
+  if (tipoNota === "manual_externa") {
+    numeroInformado = (window.prompt("Informe o numero da nota fiscal emitida no outro sistema.", "") || "").trim();
+    if (!numeroInformado) {
+      showToast("Numero da nota externa obrigatorio para registro manual.", 4000);
+      return null;
+    }
+    serieInformada = (window.prompt("Informe a serie da nota fiscal.", "1") || "1").trim() || "1";
+    chaveInformada = (window.prompt("Informe a chave de acesso, se ja possuir.", "") || "").trim();
+  }
   return {
     id: nfId,
-    numero: String(Math.floor(100000 + Math.random() * 900000)),
-    serie: "1",
+    tipoNota,
+    numero: tipoNota === "manual_externa" ? numeroInformado : "",
+    serie: serieInformada || "1",
     pedidoId: pedido.id,
     contratoId: pedido.contratoId || "",
     cliente: fiscalData.cliente,
     emitidaEm: now.toISOString(),
     valor: Number(pedido.valor || 0),
-    status: "pendente_autorizacao",
+    status: tipoNota === "nfe_real" ? "rascunho_nf_real" : "registrada_externamente",
     origem: "gdp",
     itens: fiscalData.itens,
     sefaz: {
-      status: "aguardando_envio",
+      status: tipoNota === "nfe_real" ? "validacao_pendente" : "emitida_fora_do_gdp",
       lote: genId("LOTE"),
       protocolo: "",
-      chaveAcesso: ""
+      chaveAcesso: chaveInformada
     },
     cobranca: {
       status: "gerada",
@@ -4291,10 +4871,16 @@ function buildInvoiceFromOrder(pedido) {
       referencia: genId("COB"),
       geradaEm: now.toISOString()
     },
+    documentos: {
+      numeroManual: tipoNota === "manual_externa",
+      danfeUrl: "",
+      xmlUrl: "",
+      observacao: tipoNota === "manual_externa" ? "numero_informado_manual" : "emissao_real_pendente"
+    },
     integracoes: {
       sefaz: {
-        status: "fila_local",
-        lastAction: "emitir_nf"
+        status: tipoNota === "manual_externa" ? "controle_manual" : "validacao_pendente",
+        lastAction: tipoNota === "manual_externa" ? "numero_externo_informado" : "preparar_nf_real"
       },
       bancaria: {
         status: "fila_local",
@@ -4320,7 +4906,7 @@ function buildReceivableFromInvoice(invoice) {
     origemId: invoice.id,
     notaFiscalId: invoice.id,
     pedidoId: invoice.pedidoId,
-    descricao: `Recebimento NF ${invoice.numero}`,
+    descricao: `Recebimento NF ${invoice.numero || invoice.id}`,
     categoria: "faturamento",
     cliente: invoice.cliente?.nome || "",
     forma: invoice.cobranca?.forma || "boleto",
@@ -4395,9 +4981,15 @@ async function gerarNotaFiscalPedido(pedidoId) {
     return;
   }
 
-  const missing = validatePedidoForInvoice(pedido);
+  const tipoNota = askInvoiceMode();
+  if (!tipoNota) {
+    showToast("Operacao cancelada.", 2500);
+    return;
+  }
+
+  const missing = validatePedidoForInvoice(pedido, tipoNota);
   if (missing.length) {
-    showToast(`Pedido sem base fiscal completa: ${missing.slice(0, 3).join(", ")}${missing.length > 3 ? "..." : ""}`, 5000);
+    showToast(`Pedido sem base fiscal completa para ${tipoNota === "nfe_real" ? "NF-e real" : "nota manual"}: ${missing.slice(0, 3).join(", ")}${missing.length > 3 ? "..." : ""}`, 5500);
     return;
   }
 
@@ -4406,7 +4998,8 @@ async function gerarNotaFiscalPedido(pedidoId) {
     return;
   }
 
-  const invoice = buildInvoiceFromOrder(pedido);
+  const invoice = buildInvoiceFromOrder(pedido, tipoNota);
+  if (!invoice) return;
   notasFiscais.push(invoice);
   saveNotasFiscais();
 
@@ -4414,67 +5007,52 @@ async function gerarNotaFiscalPedido(pedidoId) {
   contasReceber.push(receivable);
   saveContasReceber();
 
-  try {
-    const resp = await fetch("/api/gdp-integrations", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "nfe-sefaz-preview", pedido })
-    });
-    const data = await resp.json().catch(() => ({}));
-    if (!resp.ok || !data.ok) throw new Error(data.error || `HTTP ${resp.status}`);
-    invoice.sefaz.preview = data.payload;
-    invoice.sefaz.xmlPreview = data.xmlPreview || null;
-    invoice.sefaz.xmlDsigPreview = data.xmlDsigPreview || null;
-    invoice.sefaz.lotePreview = data.lotePreview || null;
-    invoice.sefaz.autorizacaoPreview = data.autorizacaoPreview || null;
-    setIntegrationState(invoice, "sefaz", {
-      status: data.autorizacaoPreview?.url ? "autorizacao_preview_pronta" : (data.xmlDsigPreview?.ok ? "xmldsig_preview_pronta" : "payload_preparado"),
-      lastAction: "nfe_sefaz_preview",
-      ambiente: data.payload?.ambiente || "",
-      assinaturaMode: data.xmlDsigPreview?.mode || "",
-      accessKey: data.xmlPreview?.accessKey || "",
-      loteId: data.lotePreview?.loteId || "",
-      endpoint: data.autorizacaoPreview?.url || ""
-    });
-    saveNotasFiscais();
-  } catch (err) {
-    setIntegrationState(invoice, "sefaz", {
-      status: "preview_falhou",
-      lastAction: "nfe_sefaz_preview",
-      error: err.message
-    });
-    saveNotasFiscais();
+  if (tipoNota === "nfe_real") {
+    try {
+      const resp = await fetch("/api/gdp-integrations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "nfe-sefaz-preview", pedido })
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok || !data.ok) throw new Error(data.error || `HTTP ${resp.status}`);
+      invoice.sefaz.preview = data.payload;
+      invoice.sefaz.xmlPreview = data.xmlPreview || null;
+      invoice.sefaz.xmlDsigPreview = data.xmlDsigPreview || null;
+      invoice.sefaz.lotePreview = data.lotePreview || null;
+      invoice.sefaz.autorizacaoPreview = data.autorizacaoPreview || null;
+      setIntegrationState(invoice, "sefaz", {
+        status: data.autorizacaoPreview?.url ? "autorizacao_preview_pronta" : (data.xmlDsigPreview?.ok ? "xmldsig_preview_pronta" : "payload_preparado"),
+        lastAction: "nfe_sefaz_preview",
+        ambiente: data.payload?.ambiente || "",
+        assinaturaMode: data.xmlDsigPreview?.mode || "",
+        accessKey: data.xmlPreview?.accessKey || "",
+        loteId: data.lotePreview?.loteId || "",
+        endpoint: data.autorizacaoPreview?.url || ""
+      });
+      saveNotasFiscais();
+    } catch (err) {
+      setIntegrationState(invoice, "sefaz", {
+        status: "preview_falhou",
+        lastAction: "nfe_sefaz_preview",
+        error: err.message
+      });
+      saveNotasFiscais();
+    }
   }
 
-  queueGdpIntegration("nota_fiscal", "emitir_rascunho", invoice.id, {
-    notaFiscalId: invoice.id,
-    pedidoId: pedido.id,
-    cliente: invoice.cliente,
-    valor: invoice.valor,
-    itens: invoice.itens
-  }, {
-    channel: "sefaz",
-    onSuccess: (data) => updateNotaFiscalIntegration(invoice.id, "sefaz", { status: "rascunho_registrado", protocol: data.protocol || "", lastAction: "emitir_rascunho" }),
-    onError: (err) => updateNotaFiscalIntegration(invoice.id, "sefaz", { status: "falha_envio", error: err.message, lastAction: "emitir_rascunho" })
+  updateNotaFiscalIntegration(invoice.id, "sefaz", {
+    status: tipoNota === "manual_externa" ? "controle_manual" : "validacao_pendente",
+    lastAction: tipoNota === "manual_externa" ? "numero_externo_informado" : "preparar_nf_real",
+    accessKey: invoice.sefaz?.chaveAcesso || ""
   });
-
-  queueGdpIntegration("conta_receber", "criar_titulo", receivable.id, {
-    contaReceberId: receivable.id,
-    notaFiscalId: invoice.id,
-    forma: receivable.forma,
-    valor: receivable.valor,
-    vencimento: receivable.vencimento,
-    cliente: receivable.cliente
-  }, {
-    channel: "bancaria",
-    onSuccess: (data) => {
-      updateContaReceberIntegration(receivable.id, "bancaria", { status: "titulo_registrado", protocol: data.protocol || "", lastAction: "criar_titulo" });
-      updateNotaFiscalIntegration(invoice.id, "bancaria", { status: "titulo_registrado", protocol: data.protocol || "", lastAction: "criar_titulo" });
-    },
-    onError: (err) => {
-      updateContaReceberIntegration(receivable.id, "bancaria", { status: "falha_envio", error: err.message, lastAction: "criar_titulo" });
-      updateNotaFiscalIntegration(invoice.id, "bancaria", { status: "falha_envio", error: err.message, lastAction: "criar_titulo" });
-    }
+  updateContaReceberIntegration(receivable.id, "bancaria", {
+    status: "titulo_local",
+    lastAction: "criar_titulo_local"
+  });
+  updateNotaFiscalIntegration(invoice.id, "bancaria", {
+    status: "titulo_local",
+    lastAction: "criar_titulo_local"
   });
 
   registerStockExitFromInvoice(invoice);
@@ -4482,13 +5060,13 @@ async function gerarNotaFiscalPedido(pedidoId) {
   pedido.fiscal = {
     notaFiscalId: invoice.id,
     status: invoice.status,
+    tipoNota: invoice.tipoNota,
     cobrancaId: receivable.id,
     updatedAt: new Date().toISOString(),
     updatedBy: getAuditActor()
   };
   savePedidos();
-  renderAll();
-  showToast(`NF ${invoice.numero} gerada com boleto e conta a receber vinculados.`, 4500);
+  showToast(`${getNotaFiscalTipoLabel(invoice)} ${invoice.numero || invoice.id} registrada com conta a receber vinculada.`, 4500);
 }
 
 function savePedidoFiscalData(pedidoId) {
@@ -4537,6 +5115,10 @@ function savePedidoFiscalData(pedidoId) {
 function autorizarNotaFiscal(notaId) {
   const nf = notasFiscais.find((item) => item.id === notaId);
   if (!nf) return;
+  if (!isNotaFiscalReal(nf)) {
+    showToast("Nota manual externa nao pode ser autorizada pela SEFAZ dentro do GDP.", 4000);
+    return;
+  }
   const actor = getAuditActor();
   nf.status = "autorizada";
   nf.sefaz.status = "autorizada";
@@ -4584,6 +5166,14 @@ function autorizarNotaFiscal(notaId) {
 async function transmitirHomologacaoNota(notaId) {
   const nf = notasFiscais.find((item) => item.id === notaId);
   if (!nf) return;
+  if (!isNotaFiscalReal(nf)) {
+    showToast("Transmissao SEFAZ disponivel apenas para NF-e real.", 3500);
+    return;
+  }
+  if (!canTransmitNotaFiscal(nf)) {
+    showToast("Esta NF-e real ja possui estado fiscal final e nao pode ser retransmitida.", 4000);
+    return;
+  }
   const pedido = pedidos.find((item) => item.id === nf.pedidoId);
   if (!pedido) {
     showToast("Pedido vinculado nao encontrado para transmissao.", 3500);
@@ -4598,25 +5188,68 @@ async function transmitirHomologacaoNota(notaId) {
     const resp = await fetch("/api/gdp-integrations", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "nfe-sefaz-transmitir", pedido })
+      body: JSON.stringify({ action: "nfe-sefaz-emitir", pedido })
     });
     const data = await resp.json().catch(() => ({}));
     const result = data.result || {};
     if (!resp.ok || !data.ok) throw new Error(result.message || data.error || `HTTP ${resp.status}`);
 
     nf.sefaz.transmissao = result;
+    nf.sefaz.status = result.parsed?.autorizado ? "autorizada" : (result.parsed?.cStat ? "rejeitada" : "transmitida");
+    nf.sefaz.protocolo = result.parsed?.prot || nf.sefaz?.protocolo || "";
+    nf.sefaz.chaveAcesso = result.parsed?.chNFe || nf.sefaz?.chaveAcesso || "";
+    nf.numero = nf.numero || result.preview?.identificacao?.numero || nf.numero;
+    nf.serie = nf.serie || result.preview?.identificacao?.serie || nf.serie || "1";
+    nf.status = result.parsed?.autorizado ? "autorizada" : (result.parsed?.cStat ? "rejeitada" : "transmitida");
+    nf.audit = {
+      ...(nf.audit || {}),
+      updatedAt: new Date().toISOString(),
+      updatedBy: getAuditActor(),
+      authorizedAt: result.parsed?.autorizado ? (result.parsed?.dhRecbto || new Date().toISOString()) : (nf.audit?.authorizedAt || ""),
+      authorizedBy: result.parsed?.autorizado ? getAuditActor() : (nf.audit?.authorizedBy || "")
+    };
     setIntegrationState(nf, "sefaz", {
-      status: "transmissao_realizada",
-      lastAction: "nfe_sefaz_transmitir",
+      status: result.parsed?.autorizado ? "autorizada" : (result.parsed?.cStat ? "rejeitada" : "transmissao_realizada"),
+      lastAction: "nfe_sefaz_emitir_real",
       httpStatus: result.httpStatus || "",
       cStat: result.parsed?.cStat || "",
-      xMotivo: result.parsed?.xMotivo || ""
+      xMotivo: result.parsed?.xMotivo || "",
+      protocol: result.parsed?.prot || "",
+      accessKey: result.parsed?.chNFe || ""
     });
+
+    pedido.fiscal = {
+      ...(pedido.fiscal || {}),
+      notaFiscalId: nf.id,
+      tipoNota: "nfe_real",
+      status: nf.status,
+      updatedAt: new Date().toISOString(),
+      updatedBy: getAuditActor()
+    };
+    savePedidos();
+
+    const conta = getContaReceberByNota(nf.id);
+    if (conta && result.parsed?.autorizado) {
+      conta.status = "cobranca_emitida";
+      conta.audit = {
+        ...(conta.audit || {}),
+        updatedAt: new Date().toISOString(),
+        updatedBy: getAuditActor()
+      };
+      setIntegrationState(conta, "bancaria", {
+        status: "titulo_emitido",
+        lastAction: "emitir_cobranca_nf_autorizada"
+      });
+      saveContasReceber();
+    }
+
     saveNotasFiscais();
     renderAll();
-    showToast(`Transmissao SEFAZ retornou HTTP ${result.httpStatus || "-"}.`, 4000);
+    showToast(`SEFAZ: ${result.parsed?.cStat || "-"} ${result.parsed?.xMotivo || ""}`.trim(), 5000);
   } catch (err) {
-    setIntegrationState(nf, "sefaz", { status: "transmissao_falhou", lastAction: "nfe_sefaz_transmitir", error: err.message });
+    nf.status = "rejeitada";
+    nf.audit = { ...(nf.audit || {}), updatedAt: new Date().toISOString(), updatedBy: getAuditActor() };
+    setIntegrationState(nf, "sefaz", { status: "transmissao_falhou", lastAction: "nfe_sefaz_emitir_real", error: err.message });
     saveNotasFiscais();
     renderAll();
     showToast(`Falha na transmissao SEFAZ: ${err.message}`, 4500);
@@ -4705,12 +5338,14 @@ function verNotaFiscal(notaId) {
   const nf = notasFiscais.find((item) => item.id === notaId);
   if (!nf) return;
   const conta = getContaReceberByNota(notaId);
+  const isReal = isNotaFiscalReal(nf);
+  const canDelete = canDeleteNotaFiscal(nf);
   let html = '';
   html += '<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.8rem;margin-bottom:1rem">';
-  html += '<div class="info-box"><label>NF</label><div class="val">NF ' + esc(nf.numero) + ' / Serie ' + esc(nf.serie || '1') + '</div></div>';
+  html += '<div class="info-box"><label>NF</label><div class="val">NF ' + esc(nf.numero || 'PENDENTE') + ' / Serie ' + esc(nf.serie || '1') + '</div></div>';
   html += '<div class="info-box"><label>Pedido</label><div class="val font-mono">' + esc(nf.pedidoId || '-') + '</div></div>';
   html += '<div class="info-box"><label>Status SEFAZ</label><div class="val">' + esc(nf.status) + '</div></div>';
-  html += '<div class="info-box"><label>Valor</label><div class="val" style="color:var(--green)">' + brl.format(nf.valor || 0) + '</div></div>';
+  html += '<div class="info-box"><label>Tipo</label><div class="val"><span class="nf-type-chip ' + getNotaFiscalTipoClass(nf) + '">' + esc(getNotaFiscalTipoLabel(nf)) + '</span></div></div>';
   html += '</div>';
 
   html += '<div class="card" style="padding:1rem;margin-bottom:1rem">';
@@ -4728,6 +5363,35 @@ function verNotaFiscal(notaId) {
   html += '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Endpoint Autorizacao</label><div style="font-weight:700;font-size:.78rem;word-break:break-all">' + esc(nf.sefaz?.autorizacaoPreview?.url || nf.integracoes?.sefaz?.endpoint || '-') + '</div></div>';
   html += '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">HTTP Transmissao</label><div style="font-weight:700">' + esc(nf.sefaz?.transmissao?.httpStatus || nf.integracoes?.sefaz?.httpStatus || '-') + '</div></div>';
   html += '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">cStat/xMotivo</label><div style="font-weight:700;font-size:.78rem">' + esc((nf.sefaz?.transmissao?.parsed?.cStat || nf.integracoes?.sefaz?.cStat || '-') + " | " + (nf.sefaz?.transmissao?.parsed?.xMotivo || nf.integracoes?.sefaz?.xMotivo || '-')) + '</div></div>';
+  html += '</div></div>';
+
+  html += '<div class="card" style="padding:1rem;margin-bottom:1rem">';
+  html += '<h3 style="margin-bottom:1rem">Documentos Fiscais</h3>';
+  html += '<div style="font-size:.76rem;color:var(--mut);margin-bottom:.8rem">' + (isReal ? 'NF-e real: numero, chave e protocolo devem refletir o retorno fiscal do fluxo SEFAZ.' : 'Manual externa: use este bloco para registrar numero, chave e DANFE emitidos fora do GDP.') + '</div>';
+  if (isReal && nf.status === "autorizada") {
+    html += '<div style="margin-bottom:.8rem;padding:.8rem 1rem;border:1px solid rgba(34,197,94,.35);border-radius:10px;background:rgba(34,197,94,.08);font-size:.8rem;color:var(--txt)">NF-e real autorizada. Este registro nao pode ser excluido no GDP. Para desfazer, use cancelamento fiscal proprio e preserve a rastreabilidade.</div>';
+  }
+  if (isReal && nf.status === "cancelada") {
+    html += '<div style="margin-bottom:.8rem;padding:.8rem 1rem;border:1px solid rgba(239,68,68,.35);border-radius:10px;background:rgba(239,68,68,.08);font-size:.8rem;color:var(--txt)">NF-e cancelada na SEFAZ. Este registro permanece no GDP por rastreabilidade fiscal e nao pode ser excluido.</div>';
+  }
+  if (nf.cancelamento?.status) {
+    html += '<div style="margin-bottom:.8rem;padding:.8rem 1rem;border:1px solid rgba(245,158,11,.35);border-radius:10px;background:rgba(245,158,11,.08);font-size:.8rem;color:var(--txt)">Cancelamento: <strong>' + esc(nf.cancelamento.status) + '</strong> | Motivo: ' + esc(nf.cancelamento.motivo || '-') + ' | Solicitado em: ' + esc(formatDateTimeLocal(nf.cancelamento.solicitadoEm || "")) + '</div>';
+  }
+  html += '<div style="display:grid;grid-template-columns:1.1fr .7fr 1.3fr;gap:.8rem">';
+  html += '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Numero da NF</label><input id="nf-numero-manual" type="text" value="' + esc(nf.numero || '') + '" style="width:100%"></div>';
+  html += '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Serie</label><input id="nf-serie-manual" type="text" value="' + esc(nf.serie || '1') + '" style="width:100%"></div>';
+  html += '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Chave de Acesso</label><input id="nf-chave-manual" type="text" value="' + esc(nf.sefaz?.chaveAcesso || '') + '" style="width:100%"></div>';
+  html += '<div style="grid-column:1/-1"><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Link do DANFE/PDF</label><input id="nf-danfe-url" type="text" value="' + esc(nf.documentos?.danfeUrl || '') + '" placeholder="Cole aqui o link do DANFE ou PDF" style="width:100%"></div>';
+  html += '</div>';
+  html += '<div style="display:flex;gap:.6rem;flex-wrap:wrap;margin-top:1rem">';
+  html += '<button class="btn btn-outline" onclick="salvarDadosNotaFiscal(\'' + nf.id + '\')">' + (isReal ? 'Salvar Metadados da NF' : 'Salvar Dados da NF') + '</button>';
+  html += '<button class="btn btn-outline" onclick="abrirDanfeNotaFiscal(\'' + nf.id + '\')">Visualizar DANFE</button>';
+  if (canRequestCancelNotaFiscal(nf)) {
+    html += '<button class="btn btn-outline" onclick="solicitarCancelamentoNotaFiscal(\'' + nf.id + '\')">Solicitar Cancelamento</button>';
+  }
+  html += canDelete
+    ? '<button class="btn btn-red" onclick="excluirNotaFiscal(\'' + nf.id + '\')">Excluir Nota</button>'
+    : '<button class="btn btn-red" disabled title="NF-e autorizada nao pode ser excluida">Excluir Bloqueado</button>';
   html += '</div></div>';
 
   html += '<div class="card" style="padding:1rem;margin-bottom:1rem">';
@@ -4750,9 +5414,13 @@ function verNotaFiscal(notaId) {
   html += (conta ? '<button class="btn btn-green" onclick="dispararCobrancaAutomatica(\'' + conta.id + '\')">Cobrar Agora</button>' : '<span></span>');
   html += '</div>';
 
-  html += '<div style="display:flex;gap:.6rem;flex-wrap:wrap;margin-bottom:1rem">';
-  html += '<button class="btn btn-outline" onclick="transmitirHomologacaoNota(\'' + nf.id + '\')">Transmitir Homologacao</button>';
-  html += '</div>';
+  if (isReal) {
+    html += '<div style="display:flex;gap:.6rem;flex-wrap:wrap;margin-bottom:1rem">';
+    html += canTransmitNotaFiscal(nf)
+      ? '<button class="btn btn-outline" onclick="transmitirHomologacaoNota(\'' + nf.id + '\')">Transmitir SEFAZ</button>'
+      : '<button class="btn btn-outline" disabled title="NF com estado fiscal final">Transmitir SEFAZ</button>';
+    html += '</div>';
+  }
   if (conta) {
     html += '<div style="margin-top:1rem;font-size:.82rem;color:var(--mut)">Conta vinculada: <strong style="color:var(--txt)">' + esc(conta.descricao) + '</strong> | Status: <strong style="color:var(--txt)">' + esc(conta.status) + '</strong></div>';
     html += '<div style="margin-top:.45rem;font-size:.82rem;color:var(--mut)">Linha digitavel: ' + esc(conta.cobranca?.linhaDigitavel || '-') + '</div>';
@@ -4768,9 +5436,257 @@ function verNotaFiscal(notaId) {
   html += (nf.itens || []).map((item) => '<tr><td>' + esc(item.descricao || '') + '</td><td class="text-center">' + (item.qtd || 0) + '</td><td class="text-center">' + esc(item.unidade || '-') + '</td><td class="text-center">' + esc(item.ncm || '-') + '</td><td class="text-right">' + brl.format(item.precoUnitario || 0) + '</td><td class="text-right">' + brl.format((item.qtd || 0) * (item.precoUnitario || 0)) + '</td></tr>').join('');
   html += '</tbody></table></div>';
 
-  document.getElementById("modal-nota-fiscal-titulo").textContent = `NF ${nf.numero} — ${nf.cliente?.nome || ''}`;
+  document.getElementById("modal-nota-fiscal-titulo").textContent = `${getNotaFiscalTipoLabel(nf)} ${nf.numero || nf.id} — ${nf.cliente?.nome || ''}`;
   document.getElementById("modal-nota-fiscal-body").innerHTML = html;
   document.getElementById("modal-nota-fiscal").classList.remove("hidden");
+}
+
+function salvarDadosNotaFiscal(notaId) {
+  const nf = notasFiscais.find((item) => item.id === notaId);
+  if (!nf) return;
+  const isReal = isNotaFiscalReal(nf);
+  nf.numero = (document.getElementById("nf-numero-manual")?.value || "").trim() || nf.numero;
+  nf.serie = (document.getElementById("nf-serie-manual")?.value || "").trim() || nf.serie || "1";
+  nf.sefaz = nf.sefaz || {};
+  nf.sefaz.chaveAcesso = (document.getElementById("nf-chave-manual")?.value || "").trim();
+  nf.documentos = {
+    ...(nf.documentos || {}),
+    numeroManual: !isReal,
+    danfeUrl: (document.getElementById("nf-danfe-url")?.value || "").trim()
+  };
+  nf.audit = { ...(nf.audit || {}), updatedAt: new Date().toISOString(), updatedBy: getAuditActor() };
+  setIntegrationState(nf, "sefaz", {
+    status: isReal ? (nf.integracoes?.sefaz?.status || "validacao_pendente") : "controle_manual",
+    lastAction: isReal ? "metadados_nf_real_atualizados" : "dados_nf_atualizados",
+    accessKey: nf.sefaz.chaveAcesso || ""
+  });
+  saveNotasFiscais();
+  renderNotasFiscais();
+  verNotaFiscal(notaId);
+  showToast(`Dados da NF ${nf.numero} atualizados.`, 3000);
+}
+
+function abrirDanfeNotaFiscal(notaId) {
+  const nf = notasFiscais.find((item) => item.id === notaId);
+  if (!nf) return;
+  if (nf.documentos?.danfeUrl) {
+    window.open(nf.documentos.danfeUrl, "_blank");
+    return;
+  }
+  const win = window.open("", "_blank");
+  if (!win) {
+    showToast("Nao foi possivel abrir a visualizacao do DANFE.", 3500);
+    return;
+  }
+  const rows = (nf.itens || []).map((item, idx) => `
+    <tr>
+      <td>${idx + 1}</td>
+      <td>${esc(item.descricao || "")}</td>
+      <td>${esc(item.ncm || "-")}</td>
+      <td>${esc(item.unidade || "-")}</td>
+      <td style="text-align:right">${item.qtd || 0}</td>
+      <td style="text-align:right">${brl.format(item.precoUnitario || 0)}</td>
+      <td style="text-align:right">${brl.format((item.qtd || 0) * (item.precoUnitario || 0))}</td>
+    </tr>`).join("");
+  const emitentePreview = nf.sefaz?.preview?.emitente || {};
+  const emitEndereco = emitentePreview.endereco || {};
+  const destPreview = nf.sefaz?.preview?.destinatario || {};
+  const destEndereco = destPreview.endereco || {};
+  const cancelamentoStamp = nf.cancelamento?.retornoEvento?.dhRegEvento || nf.cancelamento?.atualizadoEm || "";
+  win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>DANFE ${esc(nf.numero || "")}</title><style>body{font-family:Arial,sans-serif;padding:24px;color:#111}h1,h2{margin:0 0 8px}table{width:100%;border-collapse:collapse;margin-top:16px}th,td{border:1px solid #ccc;padding:8px;font-size:12px}th{background:#f3f4f6}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:16px 0}.box{border:1px solid #ccc;padding:10px}.muted{color:#555;font-size:12px}.alert{border:1px solid #dc2626;background:#fef2f2;color:#7f1d1d;padding:12px;margin:16px 0;font-weight:700}</style></head><body><h1>DANFE</h1><div class="muted">Visualizacao operacional da ${esc(getNotaFiscalTipoLabel(nf))} registrada no GDP</div>${nf.status === "cancelada" ? `<div class="alert">NF-e cancelada na SEFAZ em ${esc(cancelamentoStamp || "-")}</div>` : ""}<div class="grid"><div class="box"><strong>NF</strong><br>${esc(nf.numero || "-")} / Serie ${esc(nf.serie || "1")}</div><div class="box"><strong>Tipo</strong><br>${esc(getNotaFiscalTipoLabel(nf))}</div><div class="box"><strong>Valor</strong><br>${brl.format(nf.valor || 0)}</div><div class="box"><strong>Chave</strong><br>${esc(nf.sefaz?.chaveAcesso || "-")}</div><div class="box"><strong>Protocolo</strong><br>${esc(nf.sefaz?.protocolo || "-")}</div><div class="box"><strong>Status Fiscal</strong><br>${esc(nf.status || "-")} | ${esc(nf.sefaz?.transmissao?.parsed?.cStat || nf.cancelamento?.retornoEvento?.cStat || "-")}</div><div class="box"><strong>Pedido</strong><br>${esc(nf.pedidoId || "-")}</div><div class="box"><strong>Emissao</strong><br>${formatDateTimeLocal(nf.emitidaEm)}</div><div class="box"><strong>Autorizacao</strong><br>${esc(nf.sefaz?.transmissao?.parsed?.dhRecbto || nf.audit?.authorizedAt || "-")}</div></div><div class="grid"><div class="box"><strong>Emitente</strong><br>${esc(emitentePreview.razaoSocial || "-")}<br>${esc(emitEndereco.logradouro || "-")}, ${esc(emitEndereco.numero || "-")}<br>${esc(emitEndereco.bairro || "-")} - ${esc(emitEndereco.cidade || "-")}/${esc(emitEndereco.uf || "-")}<br>CEP ${esc(emitEndereco.cep || "-")}</div><div class="box"><strong>Destinatario</strong><br>${esc(destPreview.nome || nf.cliente?.nome || "-")}<br>${esc(destEndereco.logradouro || "-")}, ${esc(destEndereco.numero || "-")}<br>${esc(destEndereco.bairro || "-")} - ${esc(destEndereco.cidade || "-")}/${esc(destEndereco.uf || "-")}<br>CEP ${esc(destEndereco.cep || "-")}</div><div class="box"><strong>Cancelamento</strong><br>${esc(nf.cancelamento?.status || "-")}<br>${esc(nf.cancelamento?.retornoEvento?.xMotivo || nf.cancelamento?.motivo || "-")}<br>Prot. ${esc(nf.cancelamento?.retornoEvento?.prot || "-")}</div></div><h2>Itens</h2><table><thead><tr><th>#</th><th>Descricao</th><th>NCM</th><th>Un.</th><th>Qtd</th><th>Unit.</th><th>Total</th></tr></thead><tbody>${rows}</tbody></table></body></html>`);
+  win.document.close();
+}
+
+function solicitarCancelamentoNotaFiscal(notaId) {
+  const nf = notasFiscais.find((item) => item.id === notaId);
+  if (!nf) return;
+  if (!canRequestCancelNotaFiscal(nf)) {
+    showToast("Somente NF-e real autorizada pode entrar em fluxo de cancelamento.", 4000);
+    return;
+  }
+  const justificativa = (window.prompt("Informe o motivo do cancelamento fiscal.", "") || "").trim();
+  if (!justificativa) {
+    showToast("Motivo do cancelamento obrigatorio.", 3500);
+    return;
+  }
+  if (!confirm(`Solicitar cancelamento da NF ${nf.numero || nf.id}?\n\nMotivo: ${justificativa}\n\nIsso nao exclui a nota e nao marca como cancelada sem retorno fiscal real.`)) return;
+
+  nf.cancelamento = {
+    status: "preparando_envio",
+    motivo: justificativa,
+    solicitadoEm: new Date().toISOString(),
+    solicitadoPor: getAuditActor()
+  };
+  nf.audit = {
+    ...(nf.audit || {}),
+    updatedAt: new Date().toISOString(),
+    updatedBy: getAuditActor()
+  };
+  setIntegrationState(nf, "sefaz", {
+    status: "cancelamento_pendente",
+    lastAction: "solicitar_cancelamento_nf",
+    reason: justificativa,
+    accessKey: nf.sefaz?.chaveAcesso || "",
+    protocol: nf.sefaz?.protocolo || ""
+  });
+  saveNotasFiscais();
+  renderNotasFiscais();
+  verNotaFiscal(notaId);
+
+  fetch("/api/gdp-integrations", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "nfe-sefaz-cancelar", nota: nf, motivo: justificativa })
+  }).then(async (resp) => {
+    const data = await resp.json().catch(() => ({}));
+    const result = data.result || {};
+    if (!resp.ok || !data.ok) throw new Error(result.error || data.error || `HTTP ${resp.status}`);
+    const eventoRegistrado = !!result.parsed?.eventoRegistrado;
+    nf.cancelamento = {
+      ...(nf.cancelamento || {}),
+      status: eventoRegistrado ? "evento_registrado" : "solicitado_backend",
+      protocoloBackend: result.parsed?.prot || result.protocol || "",
+      provider: result.provider || result.mode || "",
+      retornoEvento: result.parsed || null,
+      atualizadoEm: new Date().toISOString()
+    };
+    setIntegrationState(nf, "sefaz", {
+      status: eventoRegistrado ? "cancelamento_evento_registrado" : "cancelamento_em_fila",
+      protocol: result.parsed?.prot || result.protocol || "",
+      cStat: result.parsed?.cStat || "",
+      xMotivo: result.parsed?.xMotivo || "",
+      lastAction: "solicitar_cancelamento_nf"
+    });
+    if (eventoRegistrado) {
+      nf.status = "cancelada";
+      nf.audit = {
+        ...(nf.audit || {}),
+        updatedAt: new Date().toISOString(),
+        updatedBy: getAuditActor()
+      };
+      const pedido = pedidos.find((item) => item.id === nf.pedidoId);
+      if (pedido) {
+        pedido.fiscal = {
+          ...(pedido.fiscal || {}),
+          notaFiscalId: nf.id,
+          tipoNota: "nfe_real",
+          status: "cancelada",
+          updatedAt: new Date().toISOString(),
+          updatedBy: getAuditActor()
+        };
+        savePedidos();
+      }
+      const conta = getContaReceberByNota(nf.id);
+      if (conta) {
+        conta.status = "cancelada";
+        conta.cobranca = {
+          ...(conta.cobranca || {}),
+          status: "cancelada"
+        };
+        conta.audit = {
+          ...(conta.audit || {}),
+          updatedAt: new Date().toISOString(),
+          updatedBy: getAuditActor()
+        };
+        setIntegrationState(conta, "bancaria", {
+          status: "cancelamento_fiscal_confirmado",
+          lastAction: "vincular_cancelamento_nf"
+        });
+        saveContasReceber();
+      }
+    }
+    saveNotasFiscais();
+    renderNotasFiscais();
+    verNotaFiscal(notaId);
+    showToast(`Cancelamento: ${result.parsed?.cStat || "-"} ${result.parsed?.xMotivo || "enviado ao backend fiscal"}`.trim(), 5000);
+  }).catch((err) => {
+    nf.cancelamento = {
+      ...(nf.cancelamento || {}),
+      status: "falha_backend",
+      erro: err.message,
+      atualizadoEm: new Date().toISOString()
+    };
+    setIntegrationState(nf, "sefaz", {
+      status: "cancelamento_falhou",
+      error: err.message,
+      lastAction: "solicitar_cancelamento_nf"
+    });
+    saveNotasFiscais();
+    renderNotasFiscais();
+    verNotaFiscal(notaId);
+    showToast(`Falha ao enviar cancelamento: ${err.message}`, 5000);
+  });
+}
+
+function excluirNotaFiscal(notaId) {
+  const nf = notasFiscais.find((item) => item.id === notaId);
+  if (!nf) return;
+  if (!canDeleteNotaFiscal(nf)) {
+    showToast("NF-e real autorizada nao pode ser excluida no GDP. Use cancelamento fiscal proprio.", 4500);
+    return;
+  }
+  if (!confirm(`Excluir a nota ${nf.numero || nf.id}?\n\nEsta acao remove a nota fiscal do GDP.`)) return;
+
+  notasFiscais = notasFiscais.filter((item) => item.id !== notaId);
+  saveNotasFiscais();
+
+  const conta = getContaReceberByNota(notaId);
+  if (conta) {
+    contasReceber = contasReceber.filter((item) => item.id !== conta.id);
+    saveContasReceber();
+  }
+
+  const pedido = pedidos.find((item) => item.id === nf.pedidoId);
+  if (pedido?.fiscal?.notaFiscalId === notaId) {
+    pedido.fiscal = {
+      ...(pedido.fiscal || {}),
+      notaFiscalId: "",
+      status: "nao_emitida",
+      updatedAt: new Date().toISOString(),
+      updatedBy: getAuditActor()
+    };
+    savePedidos();
+  }
+
+  integracoesGdp = (integracoesGdp || []).filter((item) => !(item.entityType === "nota_fiscal" && item.entityId === notaId));
+  saveIntegracoesGdp();
+  fecharModalNotaFiscal();
+  renderAll();
+  showToast(`Nota ${nf.numero || nf.id} excluida.`, 3000);
+}
+
+function excluirContaReceber(contaId) {
+  const conta = contasReceber.find((item) => item.id === contaId);
+  if (!conta) return;
+  if (!confirm(`Excluir a conta a receber "${conta.descricao}"?`)) return;
+
+  const notaId = conta.notaFiscalId || conta.origemId || "";
+  contasReceber = contasReceber.filter((item) => item.id !== contaId);
+  saveContasReceber();
+
+  if (notaId) {
+    const nf = notasFiscais.find((item) => item.id === notaId);
+    if (nf?.cobranca) {
+      nf.cobranca.status = "removida";
+      nf.audit = { ...(nf.audit || {}), updatedAt: new Date().toISOString(), updatedBy: getAuditActor() };
+      saveNotasFiscais();
+    }
+  }
+
+  integracoesGdp = (integracoesGdp || []).filter((item) => !(item.entityType === "conta_receber" && item.entityId === contaId));
+  saveIntegracoesGdp();
+  renderContasReceber();
+  showToast(`Conta a receber "${conta.descricao}" excluida.`, 3000);
+}
+
+function excluirContaPagar(contaId) {
+  const conta = contasPagar.find((item) => item.id === contaId);
+  if (!conta) return;
+  if (!confirm(`Excluir a conta a pagar "${conta.descricao}"?`)) return;
+  contasPagar = contasPagar.filter((item) => item.id !== contaId);
+  saveContasPagar();
+  renderContasPagar();
+  showToast(`Conta a pagar "${conta.descricao}" excluida.`, 3000);
 }
 
 function fecharModalNotaFiscal() {
@@ -4906,6 +5822,30 @@ function registrarMovimentoEstoque() {
   document.getElementById("est-modo").value = "nota_fiscal";
   renderEstoque();
   showToast("Movimento de estoque registrado.", 3000);
+}
+
+function isMovimentoEstoqueInconsistente(mov) {
+  if (!mov) return false;
+  const ref = String(mov.referencia || "").trim();
+  if (!ref || mov.modo !== "nota_fiscal") return false;
+  const nf = notasFiscais.find((item) => item.id === ref);
+  if (nf && ["cancelada", "cancelamento_solicitado"].includes(String(nf.status || ""))) return true;
+  if (ref.startsWith("NF-") && !nf) return true;
+  if (String(mov.operador || "").toLowerCase() === "codex") return true;
+  return false;
+}
+
+function limparMovimentosEstoqueInconsistentes() {
+  const inconsistentes = estoqueMovimentos.filter((mov) => isMovimentoEstoqueInconsistente(mov));
+  if (!inconsistentes.length) {
+    showToast("Nenhum movimento de teste/inconsistente encontrado no estoque.", 3000);
+    return;
+  }
+  if (!confirm(`Limpar ${inconsistentes.length} movimento(s) de estoque vinculados a testes, notas ausentes ou canceladas?`)) return;
+  estoqueMovimentos = estoqueMovimentos.filter((mov) => !isMovimentoEstoqueInconsistente(mov));
+  saveEstoqueMovimentos();
+  renderEstoque();
+  showToast(`${inconsistentes.length} movimento(s) removidos do estoque.`, 3500);
 }
 
 // ===== RENDER PEDIDOS =====
@@ -5085,6 +6025,7 @@ function renderPedidoItens() {
   const contratoId = document.getElementById("pedido-contrato").value;
   const c = contratos.find(x => x.id === contratoId);
   if (!c) return;
+  ensureContratoItensMetadata(c);
 
   const container = document.getElementById("pedido-itens-container");
   const itensComSaldo = c.itens.filter(i => i.qtdContratada - i.qtdEntregue > 0);
@@ -5112,6 +6053,7 @@ function salvarPedidoManual() {
   const contratoId = document.getElementById("pedido-contrato").value;
   const c = contratos.find(x => x.id === contratoId);
   if (!c) return;
+  ensureContratoItensMetadata(c);
 
   const itens = [];
   let valor = 0;
@@ -5137,7 +6079,7 @@ function salvarPedidoManual() {
   const id = `PED-${now.getFullYear()}${String(now.getMonth()+1).padStart(2,"0")}${String(now.getDate()).padStart(2,"0")}-${String(Math.floor(Math.random()*9999)).padStart(4,"0")}`;
 
   // Get linked school full data
-  const linkedEscola = usuarios.find(u => (u.contratos_vinculados || []).includes(contratoId));
+  const linkedEscola = getClientePrincipalDoContrato(contratoId);
   const escolaNomeManual = linkedEscola ? linkedEscola.nome : c.escola;
 
   pedidos.push({
@@ -5209,7 +6151,7 @@ function verPedidoDetalhe(pedidoId) {
   const nf = getNotaFiscalByPedido(p.id);
   html += '<div style="margin-bottom:1rem;padding:1rem;border:1px solid var(--bdr);border-radius:10px;background:var(--s1)">';
   html += '<div style="display:flex;justify-content:space-between;gap:1rem;align-items:flex-start;flex-wrap:wrap">';
-  html += '<div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Fiscal e Cobranca</div><div style="font-weight:700">' + (nf ? 'NF ' + esc(nf.numero) + ' pronta para SEFAZ' : 'Pedido sem nota fiscal emitida') + '</div><div style="font-size:.8rem;color:var(--mut);margin-top:.3rem">O pedido precisa conter todos os campos fiscais obrigatorios antes da emissao.</div>' + (fiscalMissing.length ? '<div style="margin-top:.55rem;color:var(--yellow);font-size:.78rem"><strong>Pendencias:</strong> ' + esc(fiscalMissing.join(', ')) + '</div>' : '<div style="margin-top:.55rem;color:var(--green);font-size:.78rem"><strong>Base fiscal completa.</strong></div>') + '</div>';
+  html += '<div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Fiscal e Cobranca</div><div style="font-weight:700">' + esc(getNotaFiscalResumoOperacional(nf)) + '</div><div style="font-size:.8rem;color:var(--mut);margin-top:.3rem">O pedido precisa conter todos os campos fiscais obrigatorios antes da emissao.</div>' + (fiscalMissing.length ? '<div style="margin-top:.55rem;color:var(--yellow);font-size:.78rem"><strong>Pendencias:</strong> ' + esc(fiscalMissing.join(', ')) + '</div>' : '<div style="margin-top:.55rem;color:var(--green);font-size:.78rem"><strong>Base fiscal completa.</strong></div>') + '</div>';
   html += (nf
     ? '<button class="btn btn-outline" onclick="switchTab(\'notas-fiscais\')">Ver NF</button>'
     : '<button class="btn btn-purple" onclick="gerarNotaFiscalPedido(\'' + p.id + '\')">Gerar Nota Fiscal</button>');
@@ -5336,19 +6278,31 @@ function renderNotasFiscais() {
 
   tbody.innerHTML = filtered.map((nf) => `
     <tr>
-      <td><strong>${esc(nf.numero)}</strong><br><span style="font-size:.72rem;color:var(--mut)">${esc(nf.serie || "1")}</span></td>
+      <td><strong>${esc(nf.numero || "PENDENTE")}</strong><br><span style="font-size:.72rem;color:var(--mut)">${esc(nf.serie || "1")}</span><br><span class="nf-type-chip ${getNotaFiscalTipoClass(nf)}">${esc(getNotaFiscalTipoLabel(nf))}</span></td>
       <td class="font-mono">${esc(nf.pedidoId || "")}</td>
       <td>${esc(nf.cliente?.nome || "-")}</td>
       <td>${formatDateTimeLocal(nf.emitidaEm)}</td>
       <td class="text-right font-mono">${brl.format(nf.valor || 0)}</td>
-      <td><span class="badge ${nf.status === "autorizada" ? "badge-green" : nf.status === "rejeitada" ? "badge-red" : "badge-yellow"}">${esc(nf.status)}</span></td>
+      <td><span class="badge ${nf.status === "autorizada" ? "badge-green" : nf.status === "cancelada" ? "badge-red" : nf.status === "rejeitada" ? "badge-red" : "badge-yellow"}">${esc(nf.status)}</span></td>
       <td style="font-size:.8rem">${esc(nf.cobranca?.forma || "boleto")}<br><span style="color:var(--mut)">${esc(nf.cobranca?.status || "")}</span></td>
       <td class="nowrap" style="display:flex;gap:.4rem;align-items:center;flex-wrap:wrap">
         <button class="btn btn-sm btn-outline" onclick="verNotaFiscal('${nf.id}')">Abrir</button>
         <button class="btn btn-sm btn-outline" onclick="verPedidoDetalhe('${esc(nf.pedidoId)}')">Pedido</button>
-        ${nf.status === "autorizada"
+        ${canRequestCancelNotaFiscal(nf)
+          ? `<button class="btn btn-sm btn-outline" onclick="solicitarCancelamentoNotaFiscal('${nf.id}')">Cancelar</button>`
+          : ``}
+        ${canDeleteNotaFiscal(nf)
+          ? `<button class="btn btn-sm btn-red" onclick="excluirNotaFiscal('${nf.id}')">Excluir</button>`
+          : `<button class="btn btn-sm btn-red" disabled title="NF-e autorizada nao pode ser excluida">Excluir</button>`}
+        ${!isNotaFiscalReal(nf)
+          ? `<span style="color:var(--yellow);font-size:.78rem;font-weight:700">Manual externa</span>`
+          : nf.status === "autorizada"
           ? `<span style="color:var(--green);font-size:.78rem;font-weight:700">Autorizada</span>`
-          : `<button class="btn btn-sm btn-green" onclick="autorizarNotaFiscal('${nf.id}')">Autorizar SEFAZ</button>`}
+          : nf.status === "cancelada"
+          ? `<span style="color:#dc2626;font-size:.78rem;font-weight:700">Cancelada</span>`
+          : canTransmitNotaFiscal(nf)
+          ? `<button class="btn btn-sm btn-green" onclick="transmitirHomologacaoNota('${nf.id}')">Transmitir SEFAZ</button>`
+          : `<span style="color:var(--mut);font-size:.78rem;font-weight:700">Fluxo encerrado</span>`}
       </td>
     </tr>
   `).join("");
@@ -5391,7 +6345,7 @@ function renderContasPagar() {
       <td class="text-right font-mono">${brl.format(item.valor || 0)}</td>
       <td><span class="badge ${item.status === "paga" ? "badge-green" : "badge-yellow"}">${esc(item.status)}</span></td>
       <td style="font-size:.76rem;color:var(--mut)">${esc(formatAuditStamp(item.audit, item.pagaEm, item.audit?.updatedBy))}</td>
-      <td>${item.status === "paga" ? '<span style="color:var(--green);font-size:.78rem;font-weight:700">Baixada</span>' : `<button class="btn btn-sm btn-green" onclick="registrarBaixaContaPagar('${item.id}')">Baixar</button>`}</td>
+      <td style="display:flex;gap:.35rem;flex-wrap:wrap">${item.status === "paga" ? '<span style="color:var(--green);font-size:.78rem;font-weight:700">Baixada</span>' : `<button class="btn btn-sm btn-green" onclick="registrarBaixaContaPagar('${item.id}')">Baixar</button>`}<button class="btn btn-sm btn-red" onclick="excluirContaPagar('${item.id}')">Excluir</button></td>
     </tr>
   `).join("");
 }
@@ -5435,7 +6389,7 @@ function renderContasReceber() {
       <td class="text-right font-mono">${brl.format(item.valor || 0)}</td>
       <td><span class="badge ${item.status === "recebida" ? "badge-green" : item.status.includes("cobranca") ? "badge-blue" : "badge-yellow"}">${esc(item.status)}</span><div style="font-size:.72rem;color:var(--mut);margin-top:.2rem">${esc(item.conciliacao?.status || "sem conciliacao")}</div></td>
       <td style="font-size:.76rem;color:var(--mut)">${esc(formatAuditStamp(item.audit, item.recebidaEm, item.audit?.updatedBy))}</td>
-      <td style="display:flex;gap:.35rem;flex-wrap:wrap"><button class="btn btn-sm btn-outline" onclick="dispararCobrancaAutomatica('${item.id}')">Cobrar</button><button class="btn btn-sm btn-green" onclick="registrarBaixaRecebimento('${item.id}')">Baixar</button><button class="btn btn-sm btn-outline" onclick="atualizarStatusConciliacao('${item.id}','conciliado_api_bancaria')">Conciliar</button><button class="btn btn-sm btn-outline" onclick="atualizarStatusConciliacao('${item.id}','divergencia_api_bancaria')">Diverg.</button></td>
+      <td style="display:flex;gap:.35rem;flex-wrap:wrap"><button class="btn btn-sm btn-outline" onclick="dispararCobrancaAutomatica('${item.id}')">Cobrar</button><button class="btn btn-sm btn-green" onclick="registrarBaixaRecebimento('${item.id}')">Baixar</button><button class="btn btn-sm btn-outline" onclick="atualizarStatusConciliacao('${item.id}','conciliado_api_bancaria')">Conciliar</button><button class="btn btn-sm btn-outline" onclick="atualizarStatusConciliacao('${item.id}','divergencia_api_bancaria')">Diverg.</button><button class="btn btn-sm btn-red" onclick="excluirContaReceber('${item.id}')">Excluir</button></td>
     </tr>
   `).join("");
 }
@@ -5478,6 +6432,7 @@ function renderIntegracoes() {
   const tbody = document.getElementById("integracoes-tbody");
   const empty = document.getElementById("integracoes-empty");
   if (!tbody || !empty) return;
+  normalizeLegacyManualIntegrations();
   const busca = (document.getElementById("int-busca")?.value || "").toLowerCase();
   const filtroStatus = document.getElementById("int-filtro-status")?.value || "";
   const filtroCanal = document.getElementById("int-filtro-canal")?.value || "";
@@ -5529,6 +6484,146 @@ function renderIntegracoes() {
     </tr>
   `)
   ].join("");
+}
+
+function renderNotasEntrada() {
+  const tbody = document.getElementById("notas-entrada-tbody");
+  const empty = document.getElementById("notas-entrada-empty");
+  if (!tbody || !empty) return;
+
+  const items = [...notasEntrada].sort((a, b) => new Date(b.emitidaEm || b.createdAt || 0) - new Date(a.emitidaEm || a.createdAt || 0));
+  const total = items.reduce((sum, item) => sum + Number(item.valor || 0), 0);
+  const pendentes = items.filter((item) => item.status === "consulta_pendente").length;
+
+  const totalEl = document.getElementById("ne-kpi-total");
+  const pendentesEl = document.getElementById("ne-kpi-pendentes");
+  const valorEl = document.getElementById("ne-kpi-valor");
+  if (totalEl) totalEl.textContent = items.length;
+  if (pendentesEl) pendentesEl.textContent = pendentes;
+  if (valorEl) valorEl.textContent = brl.format(total);
+
+  if (!items.length) {
+    tbody.innerHTML = "";
+    empty.classList.remove("hidden");
+    return;
+  }
+
+  empty.classList.add("hidden");
+  tbody.innerHTML = items.map((item) => `
+    <tr>
+      <td>${esc(item.emitidaEm ? formatDateTimeLocal(item.emitidaEm) : "-")}</td>
+      <td>${esc(item.fornecedor || "-")}</td>
+      <td>${esc(item.numero || "-")}</td>
+      <td style="font-size:.72rem" class="font-mono">${esc(item.chave || "-")}</td>
+      <td class="text-right font-mono">${brl.format(Number(item.valor || 0))}</td>
+      <td><span class="badge ${item.status === "registrada" ? "badge-green" : item.status === "consulta_pendente" ? "badge-yellow" : "badge-blue"}">${esc(item.status || "-")}</span></td>
+      <td style="font-size:.76rem;color:var(--mut)">${esc(item.origem || "-")}</td>
+    </tr>
+  `).join("");
+}
+
+function registrarNotaEntradaManual() {
+  const fornecedor = (document.getElementById("ne-fornecedor")?.value || "").trim();
+  const numero = (document.getElementById("ne-numero")?.value || "").trim();
+  const chave = (document.getElementById("ne-chave")?.value || "").replace(/\D/g, "");
+  const valor = Number(document.getElementById("ne-valor")?.value || 0);
+  if (!fornecedor || !numero || !valor) {
+    showToast("Informe fornecedor, numero e valor da nota de entrada.", 3500);
+    return;
+  }
+  notasEntrada.unshift({
+    id: genId("NE"),
+    fornecedor,
+    numero,
+    chave,
+    valor,
+    status: "registrada",
+    origem: "manual",
+    emitidaEm: new Date().toISOString(),
+    createdAt: new Date().toISOString(),
+    audit: { createdAt: new Date().toISOString(), createdBy: getAuditActor(), updatedAt: new Date().toISOString(), updatedBy: getAuditActor() }
+  });
+  saveNotasEntrada();
+  ["ne-fornecedor", "ne-numero", "ne-chave", "ne-valor"].forEach((id) => { const el = document.getElementById(id); if (el) el.value = ""; });
+  renderNotasEntrada();
+  showToast("Nota de entrada registrada.", 3000);
+}
+
+function importarNotaEntradaXml(input) {
+  const file = input.files?.[0];
+  input.value = "";
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const xml = String(reader.result || "");
+      const doc = new DOMParser().parseFromString(xml, "text/xml");
+      const text = (tag) => doc.getElementsByTagName(tag)?.[0]?.textContent?.trim() || "";
+      const emit = text("emit") || text("xNome");
+      const nNF = text("nNF");
+      const chave = text("chNFe");
+      const vNF = Number(text("vNF") || 0);
+      const dhEmi = text("dhEmi") || text("dEmi") || new Date().toISOString();
+      if (!emit || !nNF) throw new Error("XML sem emitente ou numero da NF");
+      notasEntrada.unshift({
+        id: genId("NE"),
+        fornecedor: emit,
+        numero: nNF,
+        chave,
+        valor: vNF,
+        status: "registrada",
+        origem: "xml",
+        emitidaEm: dhEmi,
+        createdAt: new Date().toISOString(),
+        audit: { createdAt: new Date().toISOString(), createdBy: getAuditActor(), updatedAt: new Date().toISOString(), updatedBy: getAuditActor() }
+      });
+      saveNotasEntrada();
+      renderNotasEntrada();
+      showToast("XML de nota de entrada importado.", 3000);
+    } catch (err) {
+      showToast("Falha ao importar XML: " + err.message, 4500);
+    }
+  };
+  reader.readAsText(file);
+}
+
+function consultarNotasEntradaApi() {
+  const empresa = JSON.parse(localStorage.getItem("nexedu.empresa") || "{}");
+  const cnpj = String(empresa.cnpj || "").replace(/\D/g, "");
+  const item = {
+    id: genId("NE"),
+    fornecedor: "Consulta API",
+    numero: "-",
+    chave: "",
+    valor: 0,
+    status: "consulta_pendente",
+    origem: "api_sefaz",
+    emitidaEm: new Date().toISOString(),
+    createdAt: new Date().toISOString()
+  };
+  notasEntrada.unshift(item);
+  saveNotasEntrada();
+  renderNotasEntrada();
+  queueGdpIntegration("nota_entrada", "consultar_documentos_destinados", item.id, {
+    notaEntradaId: item.id,
+    cnpjDestinatario: cnpj,
+    requestedAt: new Date().toISOString()
+  }, {
+    channel: "sefaz",
+    onSuccess: (data) => {
+      item.status = "consulta_backend";
+      item.remote = data.protocol || "";
+      saveNotasEntrada();
+      renderNotasEntrada();
+    },
+    onError: (err) => {
+      item.status = "consulta_falhou";
+      item.error = err.message;
+      saveNotasEntrada();
+      renderNotasEntrada();
+    }
+  });
+  showToast("Consulta de notas de entrada enviada para o backend.", 3500);
 }
 
 function renderEstoque() {
@@ -5648,6 +6743,8 @@ function renderKPIs() {
   if (crCountEl) crCountEl.textContent = contasReceber.length;
   const intCountEl = document.getElementById("tab-count-integracoes");
   if (intCountEl) intCountEl.textContent = integracoesGdp.length;
+  const neCountEl = document.getElementById("tab-count-notas-entrada");
+  if (neCountEl) neCountEl.textContent = notasEntrada.length;
   const estoqueCountEl = document.getElementById("tab-count-estoque");
   if (estoqueCountEl) estoqueCountEl.textContent = [...new Set(estoqueMovimentos.map((mov) => mov.sku || mov.descricao))].filter(Boolean).length;
   document.getElementById("tab-count-usuarios").textContent = usuarios.length;
@@ -5656,8 +6753,9 @@ function renderKPIs() {
 // ===== RENDER ALL =====
 function renderAll() {
   // Re-read from localStorage to capture updates from portal escola
-  loadData();
+  // loadData();
   loadBancoProdutos();
+  renderGdpSyncIndicator();
   renderKPIs();
   renderContratos();
   renderPedidos();
@@ -5742,34 +6840,11 @@ let usuarios = [];
 
 function loadUsuarios() {
   try { usuarios = JSON.parse(localStorage.getItem(USUARIOS_KEY)) || []; } catch(_) { usuarios = []; }
-  // Also load from credentials file
-  if (usuarios.length === 0) {
-    fetch('./data/escolas-credentials.json').then(r => r.json()).then(data => {
-      if (data.escolas && data.escolas.length > 0 && usuarios.length === 0) {
-        usuarios = data.escolas.map(e => ({
-          id: e.id,
-          nome: e.nome_completo || e.nome,
-          cnpj: e.cnpj || '',
-          municipio: e.municipio || '',
-          sre: e.sre || '',
-          responsavel: e.responsavel || '',
-          cargo: e.cargo || '',
-          email: e.email || '',
-          telefone: e.telefone || '',
-          login: e.login || '',
-          senha: e.senha || 'escola2025',
-          categoria_catalogo: e.categoria_catalogo || '',
-          arp_vinculada: e.arp_vinculada || '',
-          saldo_disponivel: e.saldo_disponivel || 0,
-          saldo_total: e.saldo_total || 0
-        }));
-        saveUsuarios();
-        renderUsuarios();
-      }
-    }).catch(() => {});
-  }
 }
-function saveUsuarios() { localStorage.setItem(USUARIOS_KEY, JSON.stringify(usuarios)); schedulCloudSync(); }
+function saveUsuarios() {
+  localStorage.setItem(USUARIOS_KEY, JSON.stringify(usuarios));
+  schedulCloudSync();
+}
 
 function renderUsuarios() {
   const busca = (document.getElementById("busca-usuario").value || "").toLowerCase();
@@ -5832,12 +6907,13 @@ function editarUsuario(id) {
   document.getElementById("modal-usuario").classList.remove("hidden");
 }
 
-function renderFormUsuario(u) {
+function renderFormUsuario(u, draft = {}) {
+  const dataBase = { ...(draft || {}), ...(u || {}) };
   const isEdit = !!u;
   document.getElementById("modal-usuario-titulo").textContent = isEdit ? "Editar Escola" : "Cadastrar Escola";
 
   // Build contract checkboxes
-  const vinculados = u?.contratos_vinculados || [];
+  const vinculados = dataBase?.contratos_vinculados || [];
   const contratosOpts = contratos.map(c => {
     const checked = vinculados.includes(c.id) ? 'checked' : '';
     const label = c.id + ' — ' + esc(c.escola.length > 45 ? c.escola.slice(0,43)+'...' : c.escola);
@@ -5849,40 +6925,40 @@ function renderFormUsuario(u) {
 
   document.getElementById("modal-usuario-body").innerHTML = `
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
-      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Nome da Escola</label><input type="text" id="usr-nome" value="${esc(u?.nome||'')}" style="width:100%"></div>
-      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">CNPJ</label><input type="text" id="usr-cnpj" value="${esc(u?.cnpj||'')}" style="width:100%"></div>
-      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">SRE</label><input type="text" id="usr-sre" value="${esc(u?.sre||'')}" style="width:100%"></div>
-      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Email</label><input type="text" id="usr-email" value="${esc(u?.email||'')}" style="width:100%"></div>
-      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Responsavel</label><input type="text" id="usr-responsavel" value="${esc(u?.responsavel||'')}" style="width:100%"></div>
-      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Telefone</label><input type="text" id="usr-telefone" value="${esc(u?.telefone||'')}" style="width:100%"></div>
+      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Nome da Escola</label><input type="text" id="usr-nome" value="${esc(dataBase?.nome||'')}" style="width:100%"></div>
+      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">CNPJ</label><input type="text" id="usr-cnpj" value="${esc(dataBase?.cnpj||'')}" style="width:100%"></div>
+      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">SRE</label><input type="text" id="usr-sre" value="${esc(dataBase?.sre||'')}" style="width:100%"></div>
+      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Email</label><input type="text" id="usr-email" value="${esc(dataBase?.email||'')}" style="width:100%"></div>
+      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Responsavel</label><input type="text" id="usr-responsavel" value="${esc(dataBase?.responsavel||'')}" style="width:100%"></div>
+      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Telefone</label><input type="text" id="usr-telefone" value="${esc(dataBase?.telefone||'')}" style="width:100%"></div>
     </div>
     <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--brd,#475569)">
       <div style="font-size:.8rem;font-weight:700;margin-bottom:.8rem;color:var(--acc,#3b82f6)">Endereco (para NF-e)</div>
       <div style="display:grid;grid-template-columns:2fr 1fr;gap:1rem">
-        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Logradouro</label><input type="text" id="usr-logradouro" value="${esc(u?.logradouro||'')}" placeholder="Rua, Av, Pca..." style="width:100%"></div>
-        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Numero</label><input type="text" id="usr-numero" value="${esc(u?.numero||'')}" placeholder="S/N" style="width:100%"></div>
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Logradouro</label><input type="text" id="usr-logradouro" value="${esc(dataBase?.logradouro||'')}" placeholder="Rua, Av, Pca..." style="width:100%"></div>
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Numero</label><input type="text" id="usr-numero" value="${esc(dataBase?.numero||'')}" placeholder="S/N" style="width:100%"></div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-top:.5rem">
-        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Complemento</label><input type="text" id="usr-complemento" value="${esc(u?.complemento||'')}" style="width:100%"></div>
-        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Bairro</label><input type="text" id="usr-bairro" value="${esc(u?.bairro||'')}" style="width:100%"></div>
-        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">CEP</label><input type="text" id="usr-cep" value="${esc(u?.cep||'')}" placeholder="00000-000" style="width:100%"></div>
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Complemento</label><input type="text" id="usr-complemento" value="${esc(dataBase?.complemento||'')}" style="width:100%"></div>
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Bairro</label><input type="text" id="usr-bairro" value="${esc(dataBase?.bairro||'')}" style="width:100%"></div>
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">CEP</label><input type="text" id="usr-cep" value="${esc(dataBase?.cep||'')}" placeholder="00000-000" style="width:100%"></div>
       </div>
       <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:1rem;margin-top:.5rem">
-        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Municipio</label><input type="text" id="usr-municipio" value="${esc(u?.municipio||'')}" style="width:100%"></div>
-        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">UF</label><input type="text" id="usr-uf" value="${esc(u?.uf||'MG')}" maxlength="2" style="width:100%"></div>
-        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Inscricao Estadual</label><input type="text" id="usr-ie" value="${esc(u?.ie||'ISENTO')}" style="width:100%"></div>
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Municipio</label><input type="text" id="usr-municipio" value="${esc(dataBase?.municipio||'')}" style="width:100%"></div>
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">UF</label><input type="text" id="usr-uf" value="${esc(dataBase?.uf||'MG')}" maxlength="2" style="width:100%"></div>
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Inscricao Estadual</label><input type="text" id="usr-ie" value="${esc(dataBase?.ie||'ISENTO')}" style="width:100%"></div>
       </div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:1rem">
-      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Login</label><input type="text" id="usr-login" value="${esc(u?.login||'')}" style="width:100%"></div>
-      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Senha</label><input type="text" id="usr-senha" value="${esc(u?.senha||'escola2025')}" style="width:100%"></div>
-      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">ARP Vinculada</label><input type="text" id="usr-arp" value="${esc(u?.arp_vinculada||'ARP-LARIUCCI-2025')}" style="width:100%"></div>
+      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Login</label><input type="text" id="usr-login" value="${esc(dataBase?.login||'')}" style="width:100%"></div>
+      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Senha</label><input type="text" id="usr-senha" value="${esc(dataBase?.senha||'escola2025')}" style="width:100%"></div>
+      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">ARP Vinculada</label><input type="text" id="usr-arp" value="${esc(dataBase?.arp_vinculada||'ARP-LARIUCCI-2025')}" style="width:100%"></div>
       <div></div>
     </div>
-    <input type="hidden" id="usr-cargo" value="${esc(u?.cargo||'')}">
-    <input type="hidden" id="usr-catalogo" value="${esc(u?.categoria_catalogo||'')}">
-    <input type="hidden" id="usr-saldo-total" value="${u?.saldo_total||0}">
-    <input type="hidden" id="usr-saldo-disp" value="${u?.saldo_disponivel||0}">
+    <input type="hidden" id="usr-cargo" value="${esc(dataBase?.cargo||'')}">
+    <input type="hidden" id="usr-catalogo" value="${esc(dataBase?.categoria_catalogo||'')}">
+    <input type="hidden" id="usr-saldo-total" value="${dataBase?.saldo_total||0}">
+    <input type="hidden" id="usr-saldo-disp" value="${dataBase?.saldo_disponivel||0}">
     <div style="margin-top:1.5rem;display:flex;gap:.8rem;justify-content:flex-end">
       <button class="btn btn-outline" onclick="fecharModalUsuario()">Cancelar</button>
       <button class="btn btn-green" onclick="salvarUsuario('${isEdit ? u.id : ''}')">${isEdit ? 'Salvar' : 'Cadastrar'}</button>
@@ -5931,6 +7007,13 @@ function salvarUsuario(editId) {
   saveUsuarios();
   fecharModalUsuario();
   renderUsuarios();
+  if (pendingContratoDraft) {
+    pendingContratoDraft = { ...pendingContratoDraft, escola: data.nome };
+    switchTab("contratos");
+    novoContratoManual();
+    showToast("Cliente cadastrado. Revise e confirme o contrato.", 3500);
+    return;
+  }
   showToast(editId ? "Escola atualizada!" : "Escola cadastrada!");
 }
 
@@ -6182,6 +7265,8 @@ function confirmarImportClientes() {
 
 // ===== AUTO-CADASTRO ERP =====
 async function sincronizarContratoTiny(contratoId) {
+  notifyErpSyncDisabled("Contrato");
+  return;
   const c = contratos.find(x => x.id === contratoId);
   if (!c) return;
   showToast(`Sincronizando ${c.itens.length} itens com Tiny...`, 3000);
@@ -6222,6 +7307,7 @@ async function sincronizarContratoTiny(contratoId) {
 }
 
 async function autoCadastrarTiny(contratoId) {
+  return;
   const c = contratos.find(x => x.id === contratoId);
   if (!c || !c.itens || c.itens.length === 0) return;
 
@@ -6277,42 +7363,13 @@ async function autoCadastrarTiny(contratoId) {
 }
 
 async function autoCadastrarClienteOlist(usuario) {
-  if (usuario.olistClienteId) return;
-  try {
-    const resp = await fetch("/api/olist/order", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action: "cadastrar-cliente",
-        cliente: {
-          nome: usuario.nome,
-          cnpj: usuario.cnpj || '',
-          indicador_contribuinte: '9',
-          ie: usuario.ie || 'ISENTO',
-          cep: usuario.cep || '',
-          cidade: usuario.municipio || '',
-          uf: usuario.uf || 'MG',
-          logradouro: usuario.logradouro || '',
-          bairro: usuario.bairro || '',
-          numero: usuario.numero || '',
-          telefone: usuario.telefone || '',
-          email: usuario.email || ''
-        }
-      })
-    });
-    const data = await resp.json();
-    if (data.success && data.clienteId) {
-      usuario.olistClienteId = data.clienteId;
-      saveUsuarios();
-      showToast(`Cliente "${usuario.nome.slice(0,30)}" cadastrado no Olist`);
-    }
-  } catch(err) {
-    console.warn("[Olist] Falha ao cadastrar cliente:", err.message);
-  }
+  return;
 }
 
 // ===== ENVIAR PEDIDO AO OLIST =====
 async function enviarPedidoOlist(pedidoId) {
+  notifyErpSyncDisabled("Pedido");
+  return;
   const p = pedidos.find(x => x.id === pedidoId);
   if (!p) return;
 
@@ -6763,7 +7820,9 @@ function salvarNcmItem(contratoId, itemIdx, value) {
   const c = contratos.find(x => x.id === contratoId);
   if (!c || !c.itens[itemIdx]) return;
   c.itens[itemIdx].ncm = value.trim();
+  enrichContratoItemMetadata(c, c.itens[itemIdx], itemIdx);
   saveContratos();
+  syncContratoItemToPedidos(contratoId, c.itens[itemIdx]);
 }
 
 function buscarNcmItem(contratoId, itemIdx) {
@@ -6774,8 +7833,10 @@ function buscarNcmItem(contratoId, itemIdx) {
   const inputEl = document.getElementById(`ncm-${contratoId}-${itemIdx}`);
   if (ncm) {
     item.ncm = ncm.ncm;
+    enrichContratoItemMetadata(c, item, itemIdx);
     if (inputEl) inputEl.value = ncm.ncm;
     saveContratos();
+    syncContratoItemToPedidos(contratoId, item);
     showToast(`NCM ${ncm.ncm} encontrado para "${item.descricao.slice(0,30)}"`);
   } else {
     showToast(`Nenhum NCM encontrado para "${item.descricao.slice(0,30)}"`, 3000);
@@ -6791,8 +7852,10 @@ function preencherNcmTodos(contratoId) {
     const ncm = findNcmLocal(item.descricao);
     if (ncm) {
       item.ncm = ncm.ncm;
+      enrichContratoItemMetadata(c, item, idx);
       const inputEl = document.getElementById(`ncm-${contratoId}-${idx}`);
       if (inputEl) inputEl.value = ncm.ncm;
+      syncContratoItemToPedidos(contratoId, item);
       filled++;
     } else {
       notFound++;
@@ -6808,11 +7871,11 @@ function autoPreencherNcm(contratoId) {
   loadBancoProdutos();
   const bp = bancoProdutos.itens || [];
   let filled = 0, pending = 0;
-  c.itens.forEach(item => {
+  c.itens.forEach((item, idx) => {
     if (item.ncm && item.ncm.length >= 8) return;
     // Camada 1: mapa local expandido
     const local = findNcmLocal(item.descricao);
-    if (local) { item.ncm = local.ncm; filled++; return; }
+    if (local) { item.ncm = local.ncm; enrichContratoItemMetadata(c, item, idx); syncContratoItemToPedidos(contratoId, item); filled++; return; }
     // Camada 2: Banco de Produtos (cache)
     const descNorm = (item.descricao || '').toUpperCase().trim();
     const bpMatch = bp.find(p => (p.descricao || '').toUpperCase().trim() === descNorm && p.ncm && p.ncm.length >= 8);
@@ -6820,10 +7883,10 @@ function autoPreencherNcm(contratoId) {
       const words = descNorm.split(/\s+/).slice(0, 3).join(' ');
       if (words.length > 5) {
         const fuzzy = bp.find(p => (p.descricao || '').toUpperCase().trim().startsWith(words) && p.ncm && p.ncm.length >= 8);
-        if (fuzzy) { item.ncm = fuzzy.ncm; filled++; return; }
+        if (fuzzy) { item.ncm = fuzzy.ncm; enrichContratoItemMetadata(c, item, idx); syncContratoItemToPedidos(contratoId, item); filled++; return; }
       }
     }
-    if (bpMatch) { item.ncm = bpMatch.ncm; filled++; return; }
+    if (bpMatch) { item.ncm = bpMatch.ncm; enrichContratoItemMetadata(c, item, idx); syncContratoItemToPedidos(contratoId, item); filled++; return; }
     pending++;
   });
   if (filled > 0) saveContratos();
@@ -6850,6 +7913,9 @@ async function classificarNcmIA(contratoId) {
         data.results.forEach((r, idx) => {
           if (r.ncm && batch[idx]) {
             batch[idx].ncm = r.ncm;
+            const realIdx = c.itens.findIndex((item) => item === batch[idx]);
+            enrichContratoItemMetadata(c, batch[idx], realIdx >= 0 ? realIdx : idx);
+            syncContratoItemToPedidos(contratoId, batch[idx]);
             adicionarAoBancoProdutos({ ...batch[idx], ncm: r.ncm });
           }
         });
@@ -6965,6 +8031,8 @@ function salvarEdicaoMassa(contratoId) {
 }
 
 async function cadastrarTinyItem(contratoId, itemIdx, silent) {
+  if (!silent) notifyErpSyncDisabled("Item");
+  return;
   const c = contratos.find(x => x.id === contratoId);
   if (!c || !c.itens[itemIdx]) return;
   const item = c.itens[itemIdx];
@@ -6998,6 +8066,8 @@ async function cadastrarTinyItem(contratoId, itemIdx, silent) {
 }
 
 async function cadastrarTiny(contratoId) {
+  notifyErpSyncDisabled("Contrato");
+  return;
   const c = contratos.find(x => x.id === contratoId);
   if (!c) return;
 
@@ -7050,6 +8120,8 @@ async function cadastrarTiny(contratoId) {
 }
 
 async function enviarTiny(contratoId) {
+  notifyErpSyncDisabled("Contrato");
+  return;
   const c = contratos.find(x => x.id === contratoId);
   if (!c) return;
 
@@ -7151,36 +8223,87 @@ async function enviarTiny(contratoId) {
   }
 }
 
+async function syncFromCloud() {
+  const rows = await cloudLoadAll();
+  if (!rows || rows.length === 0) return { restored: false, rowCount: 0, source: "local_cache", lastSyncAt: "" };
+  let synced = 0;
+  let newest = "";
+
+  for (const row of rows) {
+    const local = localStorage.getItem(row.key);
+    let localData = null;
+    try {
+      localData = local ? JSON.parse(local) : null;
+    } catch (_) {
+      localData = null;
+    }
+
+    if (row.updated_at && (!newest || new Date(row.updated_at) > new Date(newest))) newest = row.updated_at;
+    if (!row.data) continue;
+    const incomingData = row.key === CONTRACTS_KEY
+      ? { ...(row.data || {}), items: applyDeletedContractsFilter(unwrapData(row.data)) }
+      : row.data;
+
+    if (!localData) {
+      localStorage.setItem(row.key, JSON.stringify(incomingData));
+      synced++;
+      continue;
+    }
+
+    const cloudTime = getDataTimestamp(incomingData, row.updated_at);
+    const localTime = getDataTimestamp(localData);
+    const isSharedKey = GDP_SHARED_SYNC_KEYS.has(row.key);
+
+    if (isSharedKey || cloudTime > localTime || (!localTime && cloudTime === 0)) {
+      localStorage.setItem(row.key, JSON.stringify(incomingData));
+      synced++;
+    }
+  }
+
+  return { restored: synced > 0, rowCount: rows.length, source: "cloud", lastSyncAt: newest };
+}
+
 // ===== INIT =====
 (async function initGDP() {
+  setGdpSyncState({ status: "syncing", source: "cloud", detail: "Carregando dados compartilhados", userId: getSyncUserId() });
   // Carregar dados locais primeiro (render imediato sem esperar cloud)
-  loadData();
-  loadUsuarios();
+  // loadData();
+  // loadUsuarios();
   // bancoProdutos é declarado mais abaixo — só pode chamar loadBancoProdutos depois
-  renderAll();
-
-  // Re-render garantido
-  renderAll();
-
-  // FIX Story 4.17: Cloud sync inteligente
-  // Se localStorage está vazio (browser novo ou dados perdidos) → restaurar do cloud
-  // Se localStorage tem dados → apenas push para backup
-  const localContratos = contratos.length;
-  const localUsuarios = (JSON.parse(localStorage.getItem("gdp.usuarios.v1") || "[]")).length || 0;
-
-  if (localContratos === 0 && localUsuarios === 0) {
-    console.log("[GDP] localStorage vazio — restaurando do cloud...");
-    try {
-      const restored = await syncFromCloud();
-      if (restored) {
-        loadData();
-        loadUsuarios();
-        renderAll();
-        console.log("[GDP] Dados restaurados do cloud com sucesso!");
-      }
-    } catch(e) { console.warn("[GDP] Restauração do cloud falhou:", e); }
-  } else {
-    console.log(`[GDP] localStorage OK (${localContratos} contratos, ${localUsuarios} usuarios). Push-only.`);
+  // renderAll();
+  try {
+    const restored = await syncFromCloud();
+    loadData();
+    loadUsuarios();
+    renderAll();
+    if (restored?.restored) {
+      setGdpSyncState({
+        status: "cloud",
+        source: restored.source || "cloud",
+        detail: `${restored.rowCount || 0} chave(s) remotas verificadas`,
+        lastSyncAt: restored.lastSyncAt || new Date().toISOString(),
+        userId: getSyncUserId()
+      });
+      console.log("[GDP] Dados compartilhados atualizados do cloud.");
+    } else {
+      setGdpSyncState({
+        status: "local",
+        source: "local_cache",
+        detail: "Sem snapshot remoto encontrado; usando cache local",
+        userId: getSyncUserId()
+      });
+    }
+  } catch (e) {
+    console.warn("[GDP] Restauracao do cloud falhou:", e);
+    loadData();
+    loadUsuarios();
+    renderAll();
+    setGdpSyncState({
+      status: "offline",
+      source: "local_cache",
+      detail: `Falha no cloud: ${e.message}`,
+      userId: getSyncUserId()
+    });
   }
 
   // Push local → cloud (backup)
@@ -7188,9 +8311,17 @@ async function enviarTiny(contratoId) {
 
   // Auto-refresh when portal escola or banco de produtos updates localStorage (cross-tab sync)
   window.addEventListener('storage', (e) => {
-    if (e.key === CONTRACTS_KEY || e.key === ORDERS_KEY) {
+    if (GDP_SHARED_SYNC_KEYS.has(e.key) || e.key === USUARIOS_KEY) {
       loadData();
+      loadUsuarios();
       renderAll();
+      setGdpSyncState({
+        status: "cloud",
+        source: "cross_tab",
+        detail: `Atualizacao detectada em ${e.key}`,
+        lastSyncAt: new Date().toISOString(),
+        userId: getSyncUserId()
+      });
     }
     if (e.key === PRODUTOS_KEY) {
       loadBancoProdutos();
@@ -7366,12 +8497,32 @@ var bancoProdutos = { updatedAt: "", itens: [] };
 var _editProdutoId = null;
 var _importProdutosBuffer = [];
 
+function sanitizeBancoProduto(item, idx) {
+  const cleaned = stripLegacyErpFields(item || {});
+  cleaned.descricao = cleaned.descricao || cleaned.nome || `Produto ${idx + 1}`;
+  cleaned.unidade = cleaned.unidade || "UN";
+  cleaned.sku = normalizeInternalSku("BANK", cleaned, idx);
+  return cleaned;
+}
+
 function loadBancoProdutos() {
+  let dirty = false;
   try { bancoProdutos = JSON.parse(localStorage.getItem(PRODUTOS_KEY)) || { updatedAt: "", itens: [] }; } catch(_) { bancoProdutos = { updatedAt: "", itens: [] }; }
   if (!bancoProdutos.itens) bancoProdutos.itens = [];
+  bancoProdutos.itens = bancoProdutos.itens.map((item, idx) => {
+    const before = JSON.stringify(item);
+    const after = sanitizeBancoProduto(item, idx);
+    if (!dirty && JSON.stringify(after) !== before) dirty = true;
+    return after;
+  });
+  if (dirty) {
+    bancoProdutos.updatedAt = new Date().toISOString();
+    try { localStorage.setItem(PRODUTOS_KEY, JSON.stringify(bancoProdutos)); } catch (_) {}
+  }
 }
 
 function saveBancoProdutos() {
+  bancoProdutos.itens = (bancoProdutos.itens || []).map(sanitizeBancoProduto);
   bancoProdutos.updatedAt = new Date().toISOString();
   try {
     localStorage.setItem(PRODUTOS_KEY, JSON.stringify(bancoProdutos));
@@ -7391,7 +8542,8 @@ function renderBancoProdutos() {
 
   const tbody = document.getElementById("banco-produtos-tbody");
   const empty = document.getElementById("banco-produtos-empty");
-  document.getElementById("tab-count-banco-produtos").textContent = bancoProdutos.itens.length;
+  const tabCount = document.getElementById("tab-count-banco-produtos");
+  if (tabCount) tabCount.textContent = bancoProdutos.itens.length;
 
   if (itens.length === 0) {
     tbody.innerHTML = "";
@@ -7552,6 +8704,8 @@ function limparTodoBancoProdutos() {
 let _importTinyBuffer = [];
 
 async function importarProdutosTiny(apenasNovos) {
+  notifyErpSyncDisabled("Banco de produtos");
+  return;
   const modal = document.getElementById("modal-import-tiny");
   if (!modal) { showToast("Modal de importacao nao encontrado.", 3000); return; }
   const tbody = document.getElementById("import-tiny-tbody");
@@ -8015,6 +9169,8 @@ async function classificarNcmBancoProdutos() {
 
 // ===== Story 4.15: Enviar Produto ao ERP (AC-3) =====
 async function enviarProdutoERP() {
+  notifyErpSyncDisabled("Produto");
+  return;
   const descricao = (document.getElementById("prod-descricao").value || "").trim();
   const sku = (document.getElementById("prod-sku").value || "").trim();
   const ncm = (document.getElementById("prod-ncm").value || "").trim();

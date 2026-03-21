@@ -5,6 +5,8 @@ import {
   shortenDescription, normalizeDescription, toBrDate,
 } from "../lib/product-utils.js";
 
+const ERP_ORDER_SYNC_ENABLED = process.env.GDP_ENABLE_ERP_ORDER_SYNC === "true";
+
 function buildTinyPayload(order) {
   const itens = (order.items || []).map((item, idx) => {
     const ncmMatch = findNcm(item.description);
@@ -61,6 +63,7 @@ export default async function handler(req, res) {
 
   if (req.method === "OPTIONS") return res.status(204).end();
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
+  if (!ERP_ORDER_SYNC_ENABLED) return res.status(410).json({ success: false, error: "Sincronizacao de pedidos com ERP desativada" });
 
   const token = process.env.TINY_API_TOKEN;
   if (!token) return res.status(500).json({ success: false, error: "TINY_API_TOKEN nao configurado" });

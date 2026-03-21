@@ -22,33 +22,86 @@ let selectedOrcIds = new Set();
 // ===== SUPABASE CLOUD SYNC =====
 const SUPABASE_URL = "https://ohxoxencxktpzskltbsk.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9oeG94ZW5jeGt0cHpza2x0YnNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMyMTUwNDQsImV4cCI6MjA4ODc5MTA0NH0.-w8f1xjW1cW2-OZpg1Sql8PqwFDzDqyWw4pHEx6jGSk";
+const SHARED_SYNC_KEYS = new Set([
+  "caixaescolar.banco.v1", "caixaescolar.preorcamentos.v1", "caixaescolar.resultados.v1",
+  "caixaescolar.contratos.v1", "caixaescolar.orcamentos", "gdp.contratos.v1",
+  "gdp.pedidos.v1", "gdp.entregas.provas.v1", "gdp.usuarios.v1", "gdp.notas-entrada.v1",
+  "gdp.notas-fiscais.v1", "gdp.contas-pagar.v1", "gdp.contas-receber.v1",
+  "gdp.integracoes.v1", "gdp.estoque.movimentos.v1"
+]);
 const RESULTADOS_STORAGE_KEY = "caixaescolar.resultados.v1";
 const CONTRATOS_STORAGE_KEY = "caixaescolar.contratos.v1";
 const PNCP_CACHE_KEY = "caixaescolar.pncp.cache";
+const DEFAULT_EMPRESA = {
+  nome: "LARIUCCI",
+  nomeFantasia: "LARIUCCI",
+  razaoSocial: "Edson de Sousa Goncalves",
+  cnpj: "36.802.147/0001-42",
+  cidade: "Conquista",
+  uf: "MG",
+  sre: "Conquista-MG",
+  syncUserId: "LARIUCCI"
+};
 const SYNC_KEYS = [
   "nexedu.empresa", "caixaescolar.banco.v1", "caixaescolar.preorcamentos.v1",
   "caixaescolar.resultados.v1", "caixaescolar.contratos.v1", "caixaescolar.orcamentos",
-  "gdp.contratos.v1", "gdp.pedidos.v1", "gdp.entregas.provas.v1", "gdp.usuarios.v1",
-  "gdp.produtos.v1", "nexedu.modulos.acesso"
+  "gdp.contratos.v1", "gdp.pedidos.v1", "gdp.entregas.provas.v1", "gdp.usuarios.v1", "gdp.notas-entrada.v1",
+  "gdp.notas-fiscais.v1", "gdp.contas-pagar.v1", "gdp.contas-receber.v1",
+  "gdp.integracoes.v1", "gdp.estoque.movimentos.v1"
 ];
 
+function ensureEmpresaContext() {
+  let empresa = {};
+  try {
+    empresa = JSON.parse(localStorage.getItem("nexedu.empresa") || "{}");
+  } catch (_) {
+    empresa = {};
+  }
+  const hasIdentity = [empresa.syncUserId, empresa.nomeFantasia, empresa.nome, empresa.cnpj]
+    .map((value) => String(value || "").trim())
+    .some(Boolean);
+  if (hasIdentity) return empresa;
+  const seeded = { ...DEFAULT_EMPRESA };
+  localStorage.setItem("nexedu.empresa", JSON.stringify(seeded));
+  return seeded;
+}
+
+function getSyncUserCandidates() {
+  const emp = ensureEmpresaContext();
+  const cnpjDigits = String(emp.cnpj || "").replace(/\D+/g, "");
+  return [...new Set([
+    emp.syncUserId,
+    emp.nomeFantasia,
+    emp.nome,
+    emp.razaoSocial,
+    cnpjDigits,
+    emp.cnpj,
+    "LARIUCCI",
+    "default"
+  ].map((value) => String(value || "").trim()).filter(Boolean))];
+}
+
+function persistResolvedSyncUser(userId) {
+  const resolved = String(userId || "").trim();
+  if (!resolved || resolved.toLowerCase() === "default") return;
+  const emp = ensureEmpresaContext();
+  if (emp.syncUserId === resolved) return;
+  localStorage.setItem("nexedu.empresa", JSON.stringify({ ...emp, syncUserId: resolved }));
+}
+
 function getSyncUserId() {
-  const emp = JSON.parse(localStorage.getItem("nexedu.empresa") || "{}");
-  return emp.nome || emp.cnpj || "default";
+  const emp = ensureEmpresaContext();
+  return emp.syncUserId || emp.nomeFantasia || emp.nome || emp.cnpj || "default";
 }
 
 async function cloudSave(key, data) {
   const userId = getSyncUserId();
   try {
-    await fetch(`${SUPABASE_URL}/rest/v1/sync_data?user_id=eq.${encodeURIComponent(userId)}&key=eq.${encodeURIComponent(key)}`, {
-      method: "DELETE",
-      headers: { "apikey": SUPABASE_KEY, "Authorization": "Bearer " + SUPABASE_KEY }
-    });
-    await fetch(`${SUPABASE_URL}/rest/v1/sync_data`, {
+    await fetch(`${SUPABASE_URL}/rest/v1/sync_data?on_conflict=user_id,key`, {
       method: "POST",
       headers: {
         "apikey": SUPABASE_KEY, "Authorization": "Bearer " + SUPABASE_KEY,
-        "Content-Type": "application/json", "Prefer": "return=minimal"
+        "Content-Type": "application/json", "Prefer": "return=minimal,resolution=merge-duplicates"
       },
       body: JSON.stringify({ user_id: userId, key, data, updated_at: new Date().toISOString() })
     });
@@ -56,45 +109,63 @@ async function cloudSave(key, data) {
 }
 
 async function cloudLoadAll() {
-  const userId = getSyncUserId();
-  try {
-    const resp = await fetch(
-      `${SUPABASE_URL}/rest/v1/sync_data?user_id=eq.${encodeURIComponent(userId)}&select=key,data,updated_at`,
-      { headers: { "apikey": SUPABASE_KEY, "Authorization": "Bearer " + SUPABASE_KEY } }
-    );
-    if (!resp.ok) return null;
-    const rows = await resp.json();
-    return rows;
-  } catch (e) { console.warn("Cloud load failed:", e); return null; }
+  const headers = { "apikey": SUPABASE_KEY, "Authorization": "Bearer " + SUPABASE_KEY };
+  for (const userId of getSyncUserCandidates()) {
+    try {
+      const resp = await fetch(
+        `${SUPABASE_URL}/rest/v1/sync_data?user_id=eq.${encodeURIComponent(userId)}&select=key,data,updated_at`,
+        { headers }
+      );
+      if (!resp.ok) continue;
+      const rows = await resp.json();
+      if (Array.isArray(rows) && rows.length > 0) {
+        persistResolvedSyncUser(userId);
+        return rows;
+      }
+    } catch (e) {
+      console.warn("Cloud load failed:", userId, e);
+    }
+  }
+  return null;
+}
+
+function getDataTimestamp(data, fallback = "") {
+  const source = data?.updatedAt || data?.updated_at || fallback || "";
+  const time = source ? new Date(source).getTime() : 0;
+  return Number.isFinite(time) ? time : 0;
 }
 
 async function syncFromCloud() {
   const rows = await cloudLoadAll();
   if (!rows || rows.length === 0) return false;
   let synced = 0;
+
   for (const row of rows) {
     const local = localStorage.getItem(row.key);
-    const localData = local ? JSON.parse(local) : null;
+    let localData = null;
+    try {
+      localData = local ? JSON.parse(local) : null;
+    } catch (_) {
+      localData = null;
+    }
 
-    // Cloud wins ONLY if local is empty OR cloud updated_at is newer than local updatedAt
+    if (!row.data) continue;
     if (!localData) {
-      if (row.data) { localStorage.setItem(row.key, JSON.stringify(row.data)); synced++; }
+      localStorage.setItem(row.key, JSON.stringify(row.data));
+      synced++;
       continue;
     }
 
-    // Compare timestamps: prefer data's internal updatedAt, fallback to Supabase row.updated_at
-    const cloudDataTime = row.data?.updatedAt ? new Date(row.data.updatedAt).getTime()
-                        : row.data?.updated_at ? new Date(row.data.updated_at).getTime() : 0;
-    const cloudTime = cloudDataTime || (row.updated_at ? new Date(row.updated_at).getTime() : 0);
-    const localTime = localData?.updatedAt ? new Date(localData.updatedAt).getTime()
-                    : localData?.updated_at ? new Date(localData.updated_at).getTime() : 0;
+    const cloudTime = getDataTimestamp(row.data, row.updated_at);
+    const localTime = getDataTimestamp(localData);
+    const isSharedKey = SHARED_SYNC_KEYS.has(row.key);
 
-    // Cloud wins if: cloud is newer OR (both timestamps are zero and cloud has data)
-    if (((cloudTime > localTime) || (cloudTime === 0 && localTime === 0)) && row.data) {
+    if (isSharedKey || cloudTime > localTime || (!localTime && cloudTime === 0)) {
       localStorage.setItem(row.key, JSON.stringify(row.data));
       synced++;
     }
   }
+
   return synced > 0;
 }
 
@@ -384,7 +455,10 @@ const MODULOS_KEY = "nexedu.modulos.acesso";
 function getAcessoModulos() {
   try {
     const raw = localStorage.getItem(MODULOS_KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return { radar: parsed.radar !== false, intelPrecos: parsed.intelPrecos !== false, gdp: true };
+    }
   } catch(_) {}
   return { radar: true, intelPrecos: true, gdp: true };
 }
@@ -393,7 +467,7 @@ function salvarModulos() {
   const acesso = {
     radar: document.getElementById("mod-radar")?.checked ?? true,
     intelPrecos: document.getElementById("mod-intel")?.checked ?? true,
-    gdp: document.getElementById("mod-gdp")?.checked ?? true
+    gdp: true
   };
   localStorage.setItem(MODULOS_KEY, JSON.stringify(acesso));
   aplicarAcessoSidebar();
@@ -404,7 +478,7 @@ function carregarModulosConfig() {
   const acesso = getAcessoModulos();
   const r = document.getElementById("mod-radar"); if (r) r.checked = acesso.radar;
   const i = document.getElementById("mod-intel"); if (i) i.checked = acesso.intelPrecos;
-  const g = document.getElementById("mod-gdp"); if (g) g.checked = acesso.gdp;
+  const g = document.getElementById("mod-gdp"); if (g) { g.checked = true; g.disabled = true; }
 }
 
 function aplicarAcessoSidebar() {
@@ -468,6 +542,7 @@ function saveBancoLocal() {
 
 // ===== BOOT =====
 async function boot() {
+  ensureEmpresaContext();
   // 1. Load local data FIRST (instant — no network)
   loadPreOrcamentos();
   carregarModulosConfig();

@@ -492,6 +492,7 @@
 const SUPABASE_URL = "https://ohxoxencxktpzskltbsk.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9oeG94ZW5jeGt0cHpza2x0YnNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMyMTUwNDQsImV4cCI6MjA4ODc5MTA0NH0.-w8f1xjW1cW2-OZpg1Sql8PqwFDzDqyWw4pHEx6jGSk";
 const PORTAL_SYNC_KEYS = ["gdp.contratos.v1", "gdp.pedidos.v1", "gdp.escola.pedidos", "gdp.usuarios.v1"];
+const PORTAL_SHARED_SYNC_KEYS = new Set(PORTAL_SYNC_KEYS);
 function unwrapData(raw) { return Array.isArray(raw) ? raw : (raw && raw.items ? raw.items : []); }
 
 function getSyncUserId() {
@@ -502,15 +503,23 @@ function getSyncUserId() {
 async function cloudSave(key, data) {
   const userId = getSyncUserId();
   try {
-    await fetch(`${SUPABASE_URL}/rest/v1/sync_data?user_id=eq.${encodeURIComponent(userId)}&key=eq.${encodeURIComponent(key)}`, {
-      method: "DELETE", headers: { "apikey": SUPABASE_KEY, "Authorization": "Bearer " + SUPABASE_KEY }
-    });
-    await fetch(`${SUPABASE_URL}/rest/v1/sync_data`, {
+    await fetch(`${SUPABASE_URL}/rest/v1/sync_data?on_conflict=user_id,key`, {
       method: "POST",
-      headers: { "apikey": SUPABASE_KEY, "Authorization": "Bearer " + SUPABASE_KEY, "Content-Type": "application/json", "Prefer": "return=minimal" },
+      headers: {
+        "apikey": SUPABASE_KEY,
+        "Authorization": "Bearer " + SUPABASE_KEY,
+        "Content-Type": "application/json",
+        "Prefer": "return=minimal,resolution=merge-duplicates"
+      },
       body: JSON.stringify({ user_id: userId, key, data, updated_at: new Date().toISOString() })
     });
   } catch (e) { console.warn("Cloud save failed:", key, e); }
+}
+
+function getDataTimestamp(data, fallback = "") {
+  const source = data?.updatedAt || data?.updated_at || fallback || "";
+  const time = source ? new Date(source).getTime() : 0;
+  return Number.isFinite(time) ? time : 0;
 }
 
 async function syncFromCloud() {
@@ -530,14 +539,10 @@ async function syncFromCloud() {
         if (row.data) { localStorage.setItem(row.key, JSON.stringify(row.data)); synced++; }
         continue;
       }
-      // Compare timestamps: prefer data's internal updatedAt, fallback to Supabase row.updated_at
-      const cloudDataTime = row.data?.updatedAt ? new Date(row.data.updatedAt).getTime()
-                          : row.data?.updated_at ? new Date(row.data.updated_at).getTime() : 0;
-      const cloudTime = cloudDataTime || (row.updated_at ? new Date(row.updated_at).getTime() : 0);
-      const localTime = localData?.updatedAt ? new Date(localData.updatedAt).getTime()
-                      : localData?.updated_at ? new Date(localData.updated_at).getTime() : 0;
-      // Cloud wins if: cloud is newer OR (both timestamps are zero and cloud has data)
-      if (((cloudTime > localTime) || (cloudTime === 0 && localTime === 0)) && row.data) {
+      const cloudTime = getDataTimestamp(row.data, row.updated_at);
+      const localTime = getDataTimestamp(localData);
+      const isSharedKey = PORTAL_SHARED_SYNC_KEYS.has(row.key);
+      if ((isSharedKey || cloudTime > localTime || (cloudTime === 0 && localTime === 0)) && row.data) {
         localStorage.setItem(row.key, JSON.stringify(row.data));
         synced++;
       }
@@ -1290,47 +1295,9 @@ async function confirmOrder() {
   const now = new Date();
   const proto = `PED-${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}-${String(Math.floor(Math.random()*9999)).padStart(4,'0')}`;
 
-  // Send to Olist via server
-  let olistStatus = "Pedido enviado ao Olist";
+  // ERP/Tiny sync disabled: keep order internal to GDP only
+  let olistStatus = "Pedido registrado apenas no GDP";
   let olistId = "";
-  try {
-    const resp = await fetch("/api/olist/order", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        orderId: proto,
-        school: currentUser.nome_completo,
-        cnpj: currentUser.cnpj,
-        city: currentUser.municipio,
-        sre: currentUser.sre,
-        responsible: currentUser.responsavel,
-        arp: currentUser.arp_vinculada || "ARP-LARIUCCI-2025",
-        items: orderItems,
-        totalValue: total,
-        obs: document.getElementById('order-obs').value || "",
-        marcador: 'Licit-AIX',
-        // Dados para NF-e
-        logradouro: currentUser.logradouro || "",
-        numero: currentUser.numero || "",
-        complemento: currentUser.complemento || "",
-        bairro: currentUser.bairro || "",
-        cep: currentUser.cep || "",
-        uf: currentUser.uf || "MG",
-        ie: currentUser.ie || "ISENTO",
-        telefone: currentUser.telefone || "",
-        email: currentUser.email || "",
-      }),
-    });
-    const data = await resp.json();
-    if (data.success) {
-      olistId = data.olistOrderId;
-      olistStatus = `Enviado ao Olist (${olistId})`;
-    } else {
-      olistStatus = `Erro ao enviar: ${data.error}`;
-    }
-  } catch (err) {
-    olistStatus = `Erro de conexão: ${err.message}`;
-  }
 
   // Update saldo
   currentUser.saldo_disponivel -= total;
