@@ -3,7 +3,7 @@
 // POST /api/tiny-produtos
 import {
   findNcm, normalizeUnit, generateSku, searchTinyProduct, shortenDescription,
-} from "./lib/product-utils.js";
+} from "../server-lib/product-utils.js";
 
 function corsHeaders(res) {
   res.setHeader("Access-Control-Allow-Origin", "*");

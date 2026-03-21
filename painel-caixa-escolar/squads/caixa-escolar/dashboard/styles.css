@@ -1158,6 +1158,203 @@ tfoot td {
 .config-content { display: none; }
 .config-content.active { display: block; }
 
+.config-section-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
+  gap: 16px;
+}
+
+.config-panel-card {
+  background: var(--bg-soft);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.config-panel-span {
+  grid-column: 1 / -1;
+}
+
+.config-panel-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.config-panel-head h3 {
+  margin: 0 0 4px;
+  font-size: 0.98rem;
+}
+
+.config-panel-head p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.config-block-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 16px;
+  font-size: 0.82rem;
+  color: var(--text);
+}
+
+.config-block-field textarea {
+  width: 100%;
+  min-height: 96px;
+  resize: vertical;
+}
+
+.config-inline-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.config-inline-toggles label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.config-flow-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.config-flow-step {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.config-flow-step strong {
+  font-size: 0.86rem;
+}
+
+.config-flow-step span {
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.config-account-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.config-account-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.config-account-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.config-account-main strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.config-account-main p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.config-account-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.config-account-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 12px;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.config-account-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.config-status-box {
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg);
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.config-status-box.is-success {
+  border-color: rgba(16, 185, 129, 0.35);
+  background: rgba(16, 185, 129, 0.08);
+  color: var(--text);
+}
+
+.config-status-box.is-warning {
+  border-color: rgba(245, 158, 11, 0.35);
+  background: rgba(245, 158, 11, 0.08);
+  color: var(--text);
+}
+
+.config-status-box.is-error {
+  border-color: rgba(239, 68, 68, 0.35);
+  background: rgba(239, 68, 68, 0.08);
+  color: var(--text);
+}
+
+.config-status-box.is-info {
+  border-color: rgba(59, 130, 246, 0.35);
+  background: rgba(59, 130, 246, 0.08);
+  color: var(--text);
+}
+
+.config-secret-note {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px dashed rgba(143, 197, 157, 0.3);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
 /* ===== SIDEBAR RESPONSIVE ===== */
 @media (max-width: 768px) {
   .sidebar {
@@ -1175,6 +1372,14 @@ tfoot td {
   .main-area {
     margin-left: 0;
     padding: 12px;
+  }
+
+  .config-section-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .config-account-meta {
+    grid-template-columns: 1fr;
   }
 
   /* Overlay when sidebar is open */

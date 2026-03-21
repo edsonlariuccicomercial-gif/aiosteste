@@ -3,7 +3,7 @@
 import {
   findNcm, normalizeUnit, generateSku, searchTinyProduct,
   shortenDescription, normalizeDescription, toBrDate,
-} from "../lib/product-utils.js";
+} from "../../server-lib/product-utils.js";
 
 const ERP_ORDER_SYNC_ENABLED = process.env.GDP_ENABLE_ERP_ORDER_SYNC === "true";
 

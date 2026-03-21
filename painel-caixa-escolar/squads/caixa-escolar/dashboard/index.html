@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Licit-AIX — Painel do Fornecedor</title>
-  <link rel="stylesheet" href="styles.css?v=7" />
+  <link rel="stylesheet" href="styles.css?v=8" />
   <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
@@ -639,6 +639,8 @@
       <nav class="config-tabs">
         <button class="config-tab active" data-config-tab="empresa">Dados da Empresa</button>
         <button class="config-tab" data-config-tab="usuarios">Cadastro de Usuários</button>
+        <button class="config-tab" data-config-tab="notas-fiscais">Notas Fiscais</button>
+        <button class="config-tab" data-config-tab="contas-bancarias">Contas Bancarias</button>
         <button class="config-tab" data-config-tab="modulos">Módulos</button>
       </nav>
       <!-- Dados da Empresa -->
@@ -739,6 +741,124 @@
         </div>
         <div class="modal-actions" style="margin-top:16px;">
           <button id="btn-add-usuario" class="btn btn-accent">+ Adicionar Usuário</button>
+        </div>
+      </div>
+      <!-- Notas Fiscais -->
+      <div id="config-notas-fiscais" class="config-content">
+        <div class="config-section-grid">
+          <article class="config-panel-card">
+            <div class="config-panel-head">
+              <div>
+                <h3>Parametros de emissao</h3>
+                <p>Regras padrao usadas para sair do pedido e chegar na nota fiscal e na cobranca.</p>
+              </div>
+              <span class="badge badge-processando">Fiscal</span>
+            </div>
+            <div class="form-grid">
+              <label>Ambiente<select id="nf-ambiente"><option value="homologacao">Homologacao</option><option value="producao">Producao</option></select></label>
+              <label>Serie padrao<input type="text" id="nf-serie" placeholder="Ex: 1" /></label>
+              <label>Proximo numero<input type="number" id="nf-proximo-numero" min="1" step="1" placeholder="Ex: 1" /></label>
+              <label>Natureza da operacao<input type="text" id="nf-natureza-operacao" placeholder="Ex: Venda de mercadoria" /></label>
+              <label>CFOP padrao<input type="text" id="nf-cfop" placeholder="Ex: 5.102" /></label>
+              <label>Regime tributario<select id="nf-regime"><option value="simples">Simples Nacional</option><option value="presumido">Lucro Presumido</option><option value="real">Lucro Real</option></select></label>
+              <label>Prazo maximo de emissao (horas)<input type="number" id="nf-prazo-emissao" min="1" step="1" placeholder="Ex: 24" /></label>
+              <label>Conta bancaria padrao<select id="nf-conta-bancaria-padrao"><option value="">Selecione...</option></select></label>
+            </div>
+            <label class="config-block-field">Observacoes padrao no documento fiscal<textarea id="nf-observacoes" rows="4" placeholder="Dados adicionais para DANFE, entrega ou cobranca"></textarea></label>
+            <div class="config-inline-toggles">
+              <label><input type="checkbox" id="nf-destacar-pix" /> Destacar chave PIX</label>
+              <label><input type="checkbox" id="nf-gerar-conta-receber" /> Gerar conta a receber automaticamente</label>
+              <label><input type="checkbox" id="nf-bloquear-sem-estoque" /> Bloquear emissao sem estoque</label>
+            </div>
+            <div class="modal-actions" style="margin-top:16px;"><button id="btn-salvar-notas-fiscais" class="btn btn-accent">Salvar Configuracoes Fiscais</button></div>
+          </article>
+          <article class="config-panel-card">
+            <div class="config-panel-head">
+              <div>
+                <h3>Encadeamento operacional</h3>
+                <p>Estrutura pensada para espelhar o fluxo pedido &gt; nota fiscal &gt; contas a receber.</p>
+              </div>
+              <span class="badge badge-aprovado">Fluxo</span>
+            </div>
+            <div class="config-flow-list">
+              <div class="config-flow-step"><strong>Pedido</strong><span>Origina cliente, itens, total e prazo de faturamento.</span></div>
+              <div class="config-flow-step"><strong>Nota fiscal</strong><span>Usa serie, natureza, CFOP e ambiente definidos nesta aba.</span></div>
+              <div class="config-flow-step"><strong>Contas a receber</strong><span>Recebe a conta bancaria padrao e a regra de cobranca logo apos a emissao.</span></div>
+            </div>
+          </article>
+        </div>
+      </div>
+      <div id="config-contas-bancarias" class="config-content">
+        <div class="config-section-grid">
+          <article class="config-panel-card">
+            <div class="config-panel-head">
+              <div>
+                <h3>Cadastro de contas bancarias</h3>
+                <p>Base para cobranca, recebimento e conciliacao financeira.</p>
+              </div>
+              <span class="badge badge-processando">Financeiro</span>
+            </div>
+            <div class="form-grid">
+              <label>Apelido da conta<input type="text" id="bank-apelido" placeholder="Ex: Conta principal" /></label>
+              <label>Banco<input type="text" id="bank-banco" placeholder="Ex: Banco do Brasil" /></label>
+              <label>Codigo do banco<input type="text" id="bank-codigo" placeholder="Ex: 001" /></label>
+              <label>Agencia<input type="text" id="bank-agencia" placeholder="Ex: 1234-5" /></label>
+              <label>Conta<input type="text" id="bank-conta" placeholder="Ex: 98765-4" /></label>
+              <label>Tipo<select id="bank-tipo"><option value="corrente">Conta corrente</option><option value="poupanca">Poupanca</option><option value="pagamento">Conta de pagamento</option></select></label>
+              <label>Titular<input type="text" id="bank-titular" placeholder="Razao social" /></label>
+              <label>Documento<input type="text" id="bank-documento" placeholder="CNPJ ou CPF" /></label>
+              <label>Chave PIX<input type="text" id="bank-pix" placeholder="email, telefone, CNPJ ou chave" /></label>
+              <label>Uso principal<select id="bank-uso"><option value="cobranca">Cobranca</option><option value="recebimento">Recebimento</option><option value="conciliacao">Conciliacao</option><option value="reserva">Reserva</option></select></label>
+            </div>
+            <div class="config-inline-toggles">
+              <label><input type="checkbox" id="bank-padrao" /> Definir como conta padrao</label>
+              <label><input type="checkbox" id="bank-ativa" checked /> Conta ativa</label>
+            </div>
+            <div class="modal-actions" style="margin-top:16px;"><button id="btn-salvar-conta-bancaria" class="btn btn-accent">Salvar Conta Bancaria</button><button id="btn-limpar-conta-bancaria" class="btn">Limpar Formulario</button></div>
+          </article>
+          <article class="config-panel-card">
+            <div class="config-panel-head">
+              <div>
+                <h3>Contas cadastradas</h3>
+                <p>Defina uma conta padrao para a emissao fiscal e mantenha contas auxiliares quando precisar.</p>
+              </div>
+              <span class="badge badge-aprovado" id="bank-count-badge">0 contas</span>
+            </div>
+            <div id="bank-accounts-list" class="config-account-list"></div>
+            <p id="bank-accounts-empty" class="empty-msg">Nenhuma conta bancaria cadastrada.</p>
+          </article>
+          <article class="config-panel-card config-panel-span">
+            <div class="config-panel-head">
+              <div>
+                <h3>Integracao direta com o banco</h3>
+                <p>Campos para conexao via API bancaria, emissao de cobranca e conciliacao automatica.</p>
+              </div>
+              <span class="badge badge-processando">API bancaria</span>
+            </div>
+            <div class="form-grid">
+              <label>Banco/Provider<select id="bank-api-provider"><option value="">Selecione...</option><option value="bb">Banco do Brasil</option><option value="itau">Itau</option><option value="santander">Santander</option><option value="bradesco">Bradesco</option><option value="sicredi">Sicredi</option><option value="sicoob">Sicoob</option><option value="asaas">Asaas</option><option value="efi">Efi/Gerencianet</option><option value="inter">Banco Inter</option><option value="custom">Customizado</option></select></label>
+              <label>Ambiente<select id="bank-api-ambiente"><option value="sandbox">Sandbox</option><option value="producao">Producao</option></select></label>
+              <label>Base URL da API<input type="text" id="bank-api-base-url" placeholder="https://api.banco.com.br" /></label>
+              <label>Client ID<input type="text" id="bank-api-client-id" placeholder="Identificador do aplicativo" /></label>
+              <label>Client Secret<input type="password" id="bank-api-client-secret" placeholder="Segredo da aplicacao" /></label>
+              <label>API Key / Token<input type="password" id="bank-api-key" placeholder="Token de autenticacao" /></label>
+              <label>Webhook URL<input type="text" id="bank-api-webhook-url" placeholder="https://seusistema.com/webhooks/banco" /></label>
+              <label>Webhook Secret<input type="password" id="bank-api-webhook-secret" placeholder="Chave de validacao do webhook" /></label>
+              <label>Carteira / Convenio<input type="text" id="bank-api-carteira" placeholder="Ex: 17 / convenio de cobranca" /></label>
+              <label>Conta vinculada<select id="bank-api-conta-id"><option value="">Selecione...</option></select></label>
+            </div>
+            <p class="config-secret-note">
+              Segredos reais do provider devem ficar no servidor. Este painel salva apenas os dados nao sensiveis e marcadores de presenca para indicar o que foi provisionado fora do navegador.
+            </p>
+            <div class="config-inline-toggles">
+              <label><input type="checkbox" id="bank-api-ativo" /> Ativar integracao bancaria</label>
+              <label><input type="checkbox" id="bank-api-boleto" /> Habilitar emissao de boleto</label>
+              <label><input type="checkbox" id="bank-api-pix" /> Habilitar Pix cobranca</label>
+              <label><input type="checkbox" id="bank-api-conciliacao" /> Habilitar conciliacao automatica</label>
+            </div>
+            <div class="modal-actions" style="margin-top:16px;"><button id="btn-salvar-bank-api" class="btn btn-accent">Salvar API Bancaria</button><button id="btn-testar-bank-api" class="btn">Testar Conexao</button><button id="btn-provisionar-bank-webhook" class="btn">Provisionar Webhook</button></div>
+            <div id="bank-api-status" class="config-status-box" style="margin-top:16px;" aria-live="polite">Preencha os dados nao sensiveis e use "Testar Conexao" para validar a integracao. Os segredos do provider sao mantidos no servidor e nao ficam salvos no navegador.</div>
+          </article>
         </div>
       </div>
       <!-- Módulos (Controle de Acesso) -->
@@ -953,7 +1073,7 @@
   <div class="sidebar-overlay" id="sidebar-overlay"></div>
 
   <script src="auth.js"></script>
-  <script src="app.js?v=14"></script>
+  <script src="app.js?v=15"></script>
   <script src="pricing-intel.js?v=1"></script>
 </body>
 </html>

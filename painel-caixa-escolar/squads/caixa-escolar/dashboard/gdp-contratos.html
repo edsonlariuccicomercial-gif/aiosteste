@@ -180,7 +180,6 @@
           <button class="sidebar-subitem" data-gdp-tab="notas-fiscais" onclick="switchTab('notas-fiscais')"><span class="sidebar-subitem-label">Notas Fiscais</span><span class="count" id="tab-count-notas-fiscais">0</span></button>
           <button class="sidebar-subitem" data-gdp-tab="contas-pagar" onclick="switchTab('contas-pagar')"><span class="sidebar-subitem-label">Contas a Pagar</span><span class="count" id="tab-count-contas-pagar">0</span></button>
           <button class="sidebar-subitem" data-gdp-tab="contas-receber" onclick="switchTab('contas-receber')"><span class="sidebar-subitem-label">Contas a Receber</span><span class="count" id="tab-count-contas-receber">0</span></button>
-          <button class="sidebar-subitem" data-gdp-tab="integracoes" onclick="switchTab('integracoes')"><span class="sidebar-subitem-label">Integracoes</span><span class="count" id="tab-count-integracoes">0</span></button>
         </div>
       </div>
     </nav>
@@ -430,7 +429,7 @@
           <option value="">Todos os status</option>
           <option value="agendado">Agendado</option>
           <option value="recebido">Recebido</option>
-          <option value="concluido">Concluído</option>
+          <option value="faturado">Faturado</option>
         </select>
         <input type="date" id="filtro-data-pedido" onchange="renderPedidos()">
       </div>
@@ -446,13 +445,10 @@
           <tr>
             <th style="width:30px"><input type="checkbox" id="pedidos-select-all" onchange="toggleSelectAllPedidos()" title="Selecionar todos"></th>
             <th>Protocolo</th>
-            <th>Contrato</th>
             <th>Escola</th>
             <th>Data</th>
-            <th class="text-right">Itens</th>
             <th class="text-right">Valor</th>
             <th>Status</th>
-            <th>Observacao</th>
             <th>Acao</th>
           </tr>
         </thead>
@@ -476,7 +472,12 @@
           <option value="cancelada">Cancelada</option>
         </select>
       </div>
-      <div style="font-size:.82rem;color:var(--mut)">Geradas a partir do pedido e aguardando fluxo interno/SEFAZ.</div>
+      <div style="font-size:.82rem;color:var(--mut)">Geradas a partir do pedido e acompanhadas aqui com situacao fiscal e cobranca.</div>
+    </div>
+    <div class="kpi-grid" style="margin-bottom:1rem">
+      <div class="kpi"><div class="kpi-label">Autorizadas</div><div class="kpi-value green" id="nf-kpi-autorizadas">0</div><div class="kpi-sub">Notas liberadas fiscalmente</div></div>
+      <div class="kpi"><div class="kpi-label">Pendencia Bancaria</div><div class="kpi-value yellow" id="nf-kpi-bancaria">0</div><div class="kpi-sub">Notas aguardando cobranca validada</div></div>
+      <div class="kpi"><div class="kpi-label">Falhas</div><div class="kpi-value red" id="nf-kpi-falhas">0</div><div class="kpi-sub">Fiscal ou banco pedindo acao</div></div>
     </div>
     <div class="table-wrap" style="max-height:600px;overflow-y:auto">
       <table>
@@ -571,7 +572,8 @@
     <div class="kpi-grid" style="margin-bottom:1rem">
       <div class="kpi"><div class="kpi-label">A Receber</div><div class="kpi-value yellow" id="cr-kpi-aberto">R$ 0</div><div class="kpi-sub">Titulos pendentes</div></div>
       <div class="kpi"><div class="kpi-label">Recebido</div><div class="kpi-value green" id="cr-kpi-recebido">R$ 0</div><div class="kpi-sub">Baixas registradas</div></div>
-      <div class="kpi"><div class="kpi-label">Conciliacao</div><div class="kpi-value blue" id="cr-kpi-conciliacao">0</div><div class="kpi-sub">Pendentes de API bancaria</div></div>
+      <div class="kpi"><div class="kpi-label">Conciliacao</div><div class="kpi-value blue" id="cr-kpi-conciliacao">0</div><div class="kpi-sub">Titulos aguardando retorno do banco</div></div>
+      <div class="kpi"><div class="kpi-label">Falha Provider</div><div class="kpi-value red" id="cr-kpi-provider-falha">0</div><div class="kpi-sub">Cobrancas com erro bancario</div></div>
     </div>
     <div style="display:flex;gap:.8rem;align-items:center;margin-bottom:1rem;flex-wrap:wrap">
       <input type="text" id="cr-busca" placeholder="Buscar descricao ou cliente..." oninput="renderContasReceber()" style="min-width:240px">
@@ -1370,6 +1372,7 @@ let integracoesGdp = [];
 let integracoesRemotas = [];
 let integracoesUltimaLeitura = "";
 let sefazConfigSnapshot = null;
+let pedidoCloneDraft = null;
 let parsedMapa = null;
 let selectedSupplierIdx = null;
 let pendingContratoDraft = null;
@@ -1409,11 +1412,22 @@ function sanitizePedidoLegacyData(pedido) {
   delete sanitized.olistId;
   delete sanitized.olistStatus;
   delete sanitized.erpOrderId;
+  if (sanitized.status === "concluido") sanitized.status = "faturado";
   sanitized.itens = (sanitized.itens || []).map((item, idx) => stripLegacyErpFields({
     ...item,
     sku: normalizeInternalSku(sanitized.contratoId || "GDP", item, idx)
   }));
   return ensurePedidoFiscalData(sanitized);
+}
+
+function promptDataBaixa(message, fallbackIso = new Date().toISOString().slice(0, 10)) {
+  const informado = (window.prompt(message, fallbackIso) || "").trim();
+  if (!informado) return null;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(informado)) {
+    showToast("Informe a data no formato AAAA-MM-DD.", 3500);
+    return null;
+  }
+  return informado;
 }
 function notifyErpSyncDisabled(context = "Operacao") {
   showToast(`${context}: sincronizacao com Tiny/ERP desativada neste sistema.`, 4500);
@@ -1707,11 +1721,10 @@ function switchTab(tab) {
     "notas-fiscais": "Notas Fiscais",
     "contas-pagar": "Contas a Pagar",
     "contas-receber": "Contas a Receber",
-    integracoes: "Integracoes",
     importar: "Importar Contrato"
   };
   if (title) title.textContent = labels[tab] || "Contratos";
-  ["importar","contratos","itens","usuarios","pedidos","notas-fiscais","contas-pagar","contas-receber","integracoes","notas-entrada","estoque","entregas"].forEach(t => {
+  ["importar","contratos","itens","usuarios","pedidos","notas-fiscais","contas-pagar","contas-receber","notas-entrada","estoque","entregas"].forEach(t => {
     document.getElementById(`tab-${t}`).classList.toggle("hidden", t !== tab);
   });
   if (tab === "contratos") renderContratos();
@@ -1720,7 +1733,6 @@ function switchTab(tab) {
   if (tab === "notas-fiscais") renderNotasFiscais();
   if (tab === "contas-pagar") renderContasPagar();
   if (tab === "contas-receber") renderContasReceber();
-  if (tab === "integracoes") { renderIntegracoes(); carregarConfigSefaz(); atualizarIntegracoesRemotas(); }
   if (tab === "notas-entrada") renderNotasEntrada();
   if (tab === "estoque") renderEstoque();
   if (tab === "usuarios") renderUsuarios();
@@ -4486,8 +4498,8 @@ function recalcularSaldoContrato(contratoId) {
   const c = contratos.find(x => x.id === contratoId);
   if (!c) return;
 
-  // Get all pedidos for this contract that had saldo deducted (status recebido or concluido)
-  const pedidosCtr = pedidos.filter(p => p.contratoId === contratoId && (p.status === 'recebido' || p.status === 'concluido' || p.saldoDeduzido));
+  // Get all pedidos for this contract that had saldo deducted (status recebido or faturado)
+  const pedidosCtr = pedidos.filter(p => p.contratoId === contratoId && (p.status === 'recebido' || p.status === 'faturado' || p.status === 'concluido' || p.saldoDeduzido));
 
   // Reset all qtdEntregue to 0
   c.itens.forEach(item => { item.qtdEntregue = 0; });
@@ -4829,13 +4841,273 @@ function validatePedidoForInvoice(pedido, tipoNota = "nfe_real") {
   return [...new Set(missing)];
 }
 
+function getFiscalConfig() {
+  try {
+    return JSON.parse(localStorage.getItem("nexedu.config.notas-fiscais") || "{}");
+  } catch (_) {
+    return {};
+  }
+}
+
+function getConfiguredBankAccounts() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem("nexedu.config.contas-bancarias") || "[]");
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (_) {
+    return [];
+  }
+}
+
+function getBankApiConfig() {
+  try {
+    return JSON.parse(localStorage.getItem("nexedu.config.bank-api") || "{}");
+  } catch (_) {
+    return {};
+  }
+}
+
+function getConfiguredDefaultBankAccount() {
+  const fiscalConfig = getFiscalConfig();
+  const accounts = getConfiguredBankAccounts();
+  return accounts.find((item) => item.id === fiscalConfig.contaBancariaPadraoId)
+    || accounts.find((item) => item.padrao)
+    || null;
+}
+
+function getEffectiveBankProvider(conta = null, nota = null) {
+  const config = getBankApiConfig();
+  return conta?.integracoes?.bancaria?.provider
+    || nota?.integracoes?.bancaria?.provider
+    || config.provider
+    || "asaas";
+}
+
+function getEffectiveBankAmbiente(conta = null, nota = null) {
+  const config = getBankApiConfig();
+  return conta?.integracoes?.bancaria?.ambiente
+    || nota?.integracoes?.bancaria?.ambiente
+    || config.ambiente
+    || "sandbox";
+}
+
+function applyRealBankChargeResult(conta, nf, normalized = {}, protocol = "") {
+  const actor = getAuditActor();
+  const forma = String((normalized.billingType || conta?.forma || nf?.cobranca?.forma || "")).toLowerCase() === "pix" ? "pix" : "boleto";
+  const providerStatus = normalized.status || "pendente";
+  const integrationStatus = providerStatus === "recebida"
+    ? "recebida_provider"
+    : providerStatus === "confirmada"
+      ? "confirmada_provider"
+      : "aceita_provider";
+
+  if (conta) {
+    conta.forma = forma;
+    conta.status = providerStatus === "recebida" ? "recebida" : "cobranca_emitida";
+    conta.cobranca = {
+      ...(conta.cobranca || {}),
+      status: providerStatus === "recebida" ? "recebida_provider" : "emitida_provider_real",
+      provider: normalized.provider || "",
+      providerChargeId: normalized.providerChargeId || "",
+      invoiceUrl: normalized.invoiceUrl || "",
+      bankSlipUrl: normalized.bankSlipUrl || "",
+      linhaDigitavel: normalized.linhaDigitavel || conta.cobranca?.linhaDigitavel || "",
+      pixCopiaECola: normalized.pix?.payload || conta.cobranca?.pixCopiaECola || "",
+      qrCode: normalized.pix?.encodedImage || conta.cobranca?.qrCode || "",
+      nossoNumero: normalized.nossoNumero || "",
+      paidAt: normalized.paidAt || conta.cobranca?.paidAt || ""
+    };
+    conta.conciliacao = {
+      ...(conta.conciliacao || { referencia: genId("CNCL") }),
+      status: providerStatus === "recebida" ? "conciliado_api_bancaria" : (conta.conciliacao?.status || "aguardando_webhook"),
+      updatedAt: new Date().toISOString(),
+      updatedBy: actor
+    };
+    conta.audit = {
+      ...(conta.audit || {}),
+      updatedAt: new Date().toISOString(),
+      updatedBy: actor
+    };
+    setIntegrationState(conta, "bancaria", {
+      status: integrationStatus,
+      protocol,
+      provider: normalized.provider || "",
+      providerChargeId: normalized.providerChargeId || "",
+      lastAction: "cobranca_real_provider",
+      rawStatus: normalized.rawStatus || "",
+      paidAt: normalized.paidAt || "",
+      invoiceUrl: normalized.invoiceUrl || ""
+    });
+  }
+
+  if (nf) {
+    nf.cobranca = {
+      ...(nf.cobranca || {}),
+      forma,
+      status: providerStatus === "recebida" ? "recebida_provider" : "emitida_provider_real",
+      referencia: normalized.providerChargeId || nf.cobranca?.referencia || "",
+      invoiceUrl: normalized.invoiceUrl || nf.cobranca?.invoiceUrl || "",
+      bankSlipUrl: normalized.bankSlipUrl || nf.cobranca?.bankSlipUrl || "",
+      linhaDigitavel: normalized.linhaDigitavel || nf.cobranca?.linhaDigitavel || "",
+      pixCopiaECola: normalized.pix?.payload || nf.cobranca?.pixCopiaECola || "",
+      qrCode: normalized.pix?.encodedImage || nf.cobranca?.qrCode || "",
+      metadata: {
+        ...(nf.cobranca?.metadata || {}),
+        providerChargeId: normalized.providerChargeId || "",
+        nossoNumero: normalized.nossoNumero || "",
+        paidAt: normalized.paidAt || ""
+      }
+    };
+    nf.audit = {
+      ...(nf.audit || {}),
+      updatedAt: new Date().toISOString(),
+      updatedBy: actor
+    };
+    setIntegrationState(nf, "bancaria", {
+      status: integrationStatus,
+      protocol,
+      provider: normalized.provider || "",
+      providerChargeId: normalized.providerChargeId || "",
+      lastAction: "cobranca_real_provider",
+      rawStatus: normalized.rawStatus || "",
+      paidAt: normalized.paidAt || ""
+    });
+  }
+}
+
+async function emitirOuSincronizarCobrancaReal(contaId, options = {}) {
+  const conta = contasReceber.find((item) => item.id === contaId);
+  if (!conta) return false;
+  const nota = conta.notaFiscalId ? notasFiscais.find((item) => item.id === conta.notaFiscalId) || null : null;
+  const provider = getEffectiveBankProvider(conta, nota);
+  const ambiente = getEffectiveBankAmbiente(conta, nota);
+  const action = conta.cobranca?.providerChargeId ? "bank-charge-sync" : "bank-charge-create";
+  const actor = getAuditActor();
+
+  setIntegrationState(conta, "bancaria", {
+    status: "solicitada_provider",
+    lastAction: action === "bank-charge-create" ? "solicitar_cobranca_real" : "sincronizar_cobranca_real",
+    provider,
+    ambiente
+  });
+  if (nota) {
+    setIntegrationState(nota, "bancaria", {
+      status: "solicitada_provider",
+      lastAction: action === "bank-charge-create" ? "solicitar_cobranca_real" : "sincronizar_cobranca_real",
+      provider,
+      ambiente
+    });
+  }
+  conta.audit = { ...(conta.audit || {}), updatedAt: new Date().toISOString(), updatedBy: actor };
+  if (nota) nota.audit = { ...(nota.audit || {}), updatedAt: new Date().toISOString(), updatedBy: actor };
+  saveContasReceber();
+  if (nota) saveNotasFiscais();
+  if (!options.silent) renderAll();
+
+  try {
+    const resp = await fetch("/api/gdp-integrations", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action,
+        provider,
+        ambiente,
+        conta,
+        nota,
+        providerChargeId: conta.cobranca?.providerChargeId || conta.integracoes?.bancaria?.providerChargeId || ""
+      })
+    });
+    const data = await resp.json().catch(() => ({}));
+    const result = data.result || {};
+    if (!resp.ok || !data.ok || !result.ok) throw new Error(result.message || data.error || `HTTP ${resp.status}`);
+
+    applyRealBankChargeResult(conta, nota, result.normalized || {}, "");
+    saveContasReceber();
+    if (nota) saveNotasFiscais();
+
+    queueGdpIntegration("conta_receber", action === "bank-charge-create" ? "criar_titulo_provider" : "sincronizar_titulo_provider", conta.id, {
+      contaReceberId: conta.id,
+      notaFiscalId: nota?.id || "",
+      provider,
+      ambiente,
+      providerChargeId: result.normalized?.providerChargeId || "",
+      status: result.normalized?.status || "",
+      rawStatus: result.normalized?.rawStatus || "",
+      invoiceUrl: result.normalized?.invoiceUrl || "",
+      pixPayload: result.normalized?.pix?.payload || ""
+    }, {
+      channel: "bancaria",
+      onSuccess: (queueData) => {
+        applyRealBankChargeResult(conta, nota, result.normalized || {}, queueData.protocol || "");
+        saveContasReceber();
+        if (nota) saveNotasFiscais();
+      },
+      onError: (err) => {
+        updateContaReceberIntegration(conta.id, "bancaria", {
+          status: "falha_auditoria_provider",
+          error: err.message,
+          lastAction: action === "bank-charge-create" ? "criar_titulo_provider" : "sincronizar_titulo_provider",
+          provider
+        });
+        if (nota) updateNotaFiscalIntegration(nota.id, "bancaria", {
+          status: "falha_auditoria_provider",
+          error: err.message,
+          lastAction: action === "bank-charge-create" ? "criar_titulo_provider" : "sincronizar_titulo_provider",
+          provider
+        });
+      }
+    });
+
+    if (!options.silent) {
+      showToast(`Cobranca ${action === "bank-charge-create" ? "emitida" : "sincronizada"} no ${String(provider || "").toUpperCase()}.`, 4000);
+      renderAll();
+    }
+    return true;
+  } catch (err) {
+    updateContaReceberIntegration(conta.id, "bancaria", {
+      status: "falha_provider",
+      error: err.message,
+      lastAction: action === "bank-charge-create" ? "criar_titulo_provider" : "sincronizar_titulo_provider",
+      provider,
+      ambiente
+    });
+    if (nota) updateNotaFiscalIntegration(nota.id, "bancaria", {
+      status: "falha_provider",
+      error: err.message,
+      lastAction: action === "bank-charge-create" ? "criar_titulo_provider" : "sincronizar_titulo_provider",
+      provider,
+      ambiente
+    });
+    conta.audit = { ...(conta.audit || {}), updatedAt: new Date().toISOString(), updatedBy: actor };
+    saveContasReceber();
+    if (nota) saveNotasFiscais();
+    if (!options.silent) {
+      renderAll();
+      showToast(`Falha ao integrar cobranca com ${String(provider || "").toUpperCase()}: ${err.message}`, 5000);
+    }
+    return false;
+  }
+}
+
+async function sincronizarCobrancaProvider(contaId) {
+  const conta = contasReceber.find((item) => item.id === contaId);
+  if (!conta) return;
+  if (!(conta.cobranca?.providerChargeId || conta.integracoes?.bancaria?.providerChargeId)) {
+    showToast("Esta conta ainda nao possui identificador externo para sincronizacao.", 4000);
+    return;
+  }
+  await emitirOuSincronizarCobrancaReal(contaId, { silent: false });
+}
+
 function buildInvoiceFromOrder(pedido, tipoNota) {
   const now = new Date();
   const nfId = genId("NF");
   const actor = getAuditActor();
   const fiscalData = ensurePedidoFiscalData({ ...pedido, cliente: { ...(pedido.cliente || {}) }, itens: (pedido.itens || []).map(i => ({ ...i })) });
+  const fiscalConfig = getFiscalConfig();
+  const contaPadrao = getConfiguredDefaultBankAccount();
+  const bankApiConfig = getBankApiConfig();
   let numeroInformado = "";
-  let serieInformada = "1";
+  let serieInformada = fiscalConfig.serie || "1";
   let chaveInformada = "";
   if (tipoNota === "manual_externa") {
     numeroInformado = (window.prompt("Informe o numero da nota fiscal emitida no outro sistema.", "") || "").trim();
@@ -4866,16 +5138,35 @@ function buildInvoiceFromOrder(pedido, tipoNota) {
       chaveAcesso: chaveInformada
     },
     cobranca: {
-      status: "gerada",
-      forma: "boleto",
+      status: contaPadrao?.pix && fiscalConfig.destacarPix ? "pix_pronto" : "gerada",
+      forma: contaPadrao?.pix && fiscalConfig.destacarPix ? "pix" : "boleto",
       referencia: genId("COB"),
-      geradaEm: now.toISOString()
+      geradaEm: now.toISOString(),
+      contaBancariaId: contaPadrao?.id || "",
+      metadata: {
+        contaApelido: contaPadrao?.apelido || "",
+        banco: contaPadrao?.banco || "",
+        agencia: contaPadrao?.agencia || "",
+        conta: contaPadrao?.conta || "",
+        pix: contaPadrao?.pix || "",
+        carteira: bankApiConfig.carteira || "",
+        provider: bankApiConfig.provider || "",
+        destacarPix: Boolean(fiscalConfig.destacarPix),
+        observacoes: fiscalConfig.observacoes || ""
+      }
     },
     documentos: {
       numeroManual: tipoNota === "manual_externa",
       danfeUrl: "",
       xmlUrl: "",
-      observacao: tipoNota === "manual_externa" ? "numero_informado_manual" : "emissao_real_pendente"
+      observacao: fiscalConfig.observacoes || (tipoNota === "manual_externa" ? "numero_informado_manual" : "emissao_real_pendente")
+    },
+    parametros: {
+      ambiente: fiscalConfig.ambiente || "homologacao",
+      naturezaOperacao: fiscalConfig.naturezaOperacao || "",
+      cfopPadrao: fiscalConfig.cfop || "",
+      regimeTributario: fiscalConfig.regime || "simples",
+      prazoEmissaoHoras: Number(fiscalConfig.prazoEmissaoHoras || 0)
     },
     integracoes: {
       sefaz: {
@@ -4883,8 +5174,14 @@ function buildInvoiceFromOrder(pedido, tipoNota) {
         lastAction: tipoNota === "manual_externa" ? "numero_externo_informado" : "preparar_nf_real"
       },
       bancaria: {
-        status: "fila_local",
-        lastAction: "gerar_cobranca"
+        status: bankApiConfig.ativo ? "api_configurada" : "fila_local",
+        lastAction: bankApiConfig.ativo ? "preparar_envio_api_bancaria" : "gerar_cobranca",
+        provider: bankApiConfig.provider || "",
+        ambiente: bankApiConfig.ambiente || "sandbox",
+        boleto: Boolean(bankApiConfig.boleto),
+        pix: Boolean(bankApiConfig.pix),
+        conciliacao: Boolean(bankApiConfig.conciliacao),
+        contaId: bankApiConfig.contaId || contaPadrao?.id || ""
       }
     },
     audit: {
@@ -4900,6 +5197,8 @@ function buildReceivableFromInvoice(invoice) {
   const issueDate = new Date(invoice.emitidaEm || Date.now());
   const dueDate = new Date(issueDate);
   dueDate.setDate(dueDate.getDate() + 28);
+  const contaPadrao = getConfiguredDefaultBankAccount();
+  const bankApiConfig = getBankApiConfig();
   return {
     id: genId("CR"),
     origemTipo: "nota_fiscal",
@@ -4920,8 +5219,14 @@ function buildReceivableFromInvoice(invoice) {
     },
     integracoes: {
       bancaria: {
-        status: "fila_local",
-        lastAction: "criar_titulo"
+        status: bankApiConfig.ativo ? "api_configurada" : "fila_local",
+        lastAction: bankApiConfig.ativo ? "preparar_registro_no_banco" : "criar_titulo",
+        provider: bankApiConfig.provider || "",
+        ambiente: bankApiConfig.ambiente || "sandbox",
+        boleto: Boolean(bankApiConfig.boleto),
+        pix: Boolean(bankApiConfig.pix),
+        conciliacao: Boolean(bankApiConfig.conciliacao),
+        contaId: bankApiConfig.contaId || contaPadrao?.id || ""
       },
       comunicacao: {
         status: "nao_disparada",
@@ -4929,10 +5234,25 @@ function buildReceivableFromInvoice(invoice) {
       }
     },
     cobranca: {
-      status: "boleto_gerado",
+      status: invoice.cobranca?.forma === "pix" ? "pix_pronto" : "boleto_gerado",
       linhaDigitavel: `34191.${Math.floor(Math.random() * 99999)} ${Math.floor(Math.random() * 99999)} ${Math.floor(Math.random() * 99999)} 1 ${Math.floor(1000000000 + Math.random() * 9000000000)}`,
-      pixCopiaECola: `00020126480014BR.GOV.BCB.PIX0126${genId("PIX")}520400005303986540${Number(invoice.valor || 0).toFixed(2)}5802BR5925${(invoice.cliente?.nome || "CLIENTE").slice(0, 25)}6009SAOPAULO62070503***6304ABCD`
-    }
+      pixCopiaECola: contaPadrao?.pix ? `PIX ${contaPadrao.pix} | ${Number(invoice.valor || 0).toFixed(2)}` : `00020126480014BR.GOV.BCB.PIX0126${genId("PIX")}520400005303986540${Number(invoice.valor || 0).toFixed(2)}5802BR5925${(invoice.cliente?.nome || "CLIENTE").slice(0, 25)}6009SAOPAULO62070503***6304ABCD`,
+      contaBancariaId: contaPadrao?.id || "",
+      banco: contaPadrao?.banco || "",
+      agencia: contaPadrao?.agencia || "",
+      conta: contaPadrao?.conta || "",
+      pix: contaPadrao?.pix || "",
+      carteira: bankApiConfig.carteira || "",
+      bankApiProvider: bankApiConfig.provider || ""
+    },
+    contaBancaria: contaPadrao ? {
+      id: contaPadrao.id,
+      apelido: contaPadrao.apelido || "",
+      banco: contaPadrao.banco || "",
+      agencia: contaPadrao.agencia || "",
+      conta: contaPadrao.conta || "",
+      pix: contaPadrao.pix || ""
+    } : null
   };
 }
 
@@ -5065,7 +5385,9 @@ async function gerarNotaFiscalPedido(pedidoId) {
     updatedAt: new Date().toISOString(),
     updatedBy: getAuditActor()
   };
+  pedido.status = "faturado";
   savePedidos();
+  renderAll();
   showToast(`${getNotaFiscalTipoLabel(invoice)} ${invoice.numero || invoice.id} registrada com conta a receber vinculada.`, 4500);
 }
 
@@ -5112,7 +5434,7 @@ function savePedidoFiscalData(pedidoId) {
   showToast(`Dados fiscais do pedido ${pedidoId} salvos.`, 3000);
 }
 
-function autorizarNotaFiscal(notaId) {
+async function autorizarNotaFiscal(notaId) {
   const nf = notasFiscais.find((item) => item.id === notaId);
   if (!nf) return;
   if (!isNotaFiscalReal(nf)) {
@@ -5141,9 +5463,7 @@ function autorizarNotaFiscal(notaId) {
 
   const conta = getContaReceberByNota(nf.id);
   if (conta) {
-    conta.status = "cobranca_emitida";
-    conta.cobranca.status = "emitida_api_bancaria";
-    setIntegrationState(conta, "bancaria", { status: "titulo_emitido", lastAction: "emitir_cobranca" });
+    setIntegrationState(conta, "bancaria", { status: "autorizada_pronta_para_cobranca", lastAction: "autorizar_nota_fiscal" });
     saveContasReceber();
   }
 
@@ -5159,8 +5479,12 @@ function autorizarNotaFiscal(notaId) {
     onError: (err) => updateNotaFiscalIntegration(nf.id, "sefaz", { status: "falha_envio", error: err.message, lastAction: "autorizar_sefaz" })
   });
 
+  if (conta) {
+    await emitirOuSincronizarCobrancaReal(conta.id, { silent: true });
+  }
+
   renderAll();
-  showToast(`NF ${nf.numero} marcada como autorizada para envio/retorno SEFAZ.`, 4000);
+  showToast(`NF ${nf.numero} autorizada. ${conta ? "Cobranca real enviada ao provider." : "Sem conta a receber vinculada."}`, 4000);
 }
 
 async function transmitirHomologacaoNota(notaId) {
@@ -5230,17 +5554,17 @@ async function transmitirHomologacaoNota(notaId) {
 
     const conta = getContaReceberByNota(nf.id);
     if (conta && result.parsed?.autorizado) {
-      conta.status = "cobranca_emitida";
       conta.audit = {
         ...(conta.audit || {}),
         updatedAt: new Date().toISOString(),
         updatedBy: getAuditActor()
       };
       setIntegrationState(conta, "bancaria", {
-        status: "titulo_emitido",
+        status: "autorizada_pronta_para_cobranca",
         lastAction: "emitir_cobranca_nf_autorizada"
       });
       saveContasReceber();
+      await emitirOuSincronizarCobrancaReal(conta.id, { silent: true });
     }
 
     saveNotasFiscais();
@@ -5310,6 +5634,18 @@ function registrarBaixaRecebimento(contaId) {
   });
   renderContasReceber();
   showToast(`Recebimento registrado para ${conta.descricao}.`, 3000);
+}
+
+function clonarContaReceber(contaId) {
+  const conta = contasReceber.find((item) => item.id === contaId);
+  if (!conta) return;
+  document.getElementById("cr-descricao").value = conta.descricao || "";
+  document.getElementById("cr-categoria").value = conta.categoria || "faturamento";
+  document.getElementById("cr-cliente").value = conta.cliente || "";
+  document.getElementById("cr-forma").value = conta.forma || "boleto";
+  document.getElementById("cr-valor").value = conta.valor || "";
+  document.getElementById("cr-vencimento").value = "";
+  showToast(`Conta a receber ${conta.id} clonada. Ajuste vencimento e demais dados antes de registrar.`, 3500);
 }
 
 function atualizarStatusConciliacao(contaId, status) {
@@ -5423,12 +5759,20 @@ function verNotaFiscal(notaId) {
   }
   if (conta) {
     html += '<div style="margin-top:1rem;font-size:.82rem;color:var(--mut)">Conta vinculada: <strong style="color:var(--txt)">' + esc(conta.descricao) + '</strong> | Status: <strong style="color:var(--txt)">' + esc(conta.status) + '</strong></div>';
+    html += '<div style="margin-top:.35rem;font-size:.82rem;color:var(--mut)">Provider: <strong style="color:var(--txt)">' + esc(conta.integracoes?.bancaria?.provider || nf.integracoes?.bancaria?.provider || '-') + '</strong> | Charge ID: <strong style="color:var(--txt)">' + esc(conta.cobranca?.providerChargeId || conta.integracoes?.bancaria?.providerChargeId || '-') + '</strong></div>';
     html += '<div style="margin-top:.45rem;font-size:.82rem;color:var(--mut)">Linha digitavel: ' + esc(conta.cobranca?.linhaDigitavel || '-') + '</div>';
     html += '<div style="margin-top:.35rem;font-size:.82rem;color:var(--mut)">Pix copia e cola: ' + esc(conta.cobranca?.pixCopiaECola || '-') + '</div>';
+    html += '<div style="margin-top:.35rem;font-size:.82rem;color:var(--mut)">Link de cobranca: ' + (conta.cobranca?.invoiceUrl ? '<a href="' + esc(conta.cobranca.invoiceUrl) + '" target="_blank" rel="noreferrer">abrir</a>' : '-') + '</div>';
+    html += '<div style="margin-top:.35rem;font-size:.82rem;color:var(--mut)">Boleto PDF: ' + (conta.cobranca?.bankSlipUrl ? '<a href="' + esc(conta.cobranca.bankSlipUrl) + '" target="_blank" rel="noreferrer">abrir</a>' : '-') + '</div>';
+    html += '<div style="margin-top:.35rem;font-size:.82rem;color:var(--mut)">Nosso numero: ' + esc(conta.cobranca?.nossoNumero || '-') + '</div>';
+    html += '<div style="margin-top:.35rem;font-size:.82rem;color:var(--mut)">Pagamento confirmado em: ' + esc(conta.cobranca?.paidAt ? formatDateTimeLocal(conta.cobranca.paidAt) : '-') + '</div>';
     html += '<div style="margin-top:.35rem;font-size:.82rem;color:var(--mut)">Ultima acao financeira: ' + esc(formatAuditStamp(conta.audit, conta.recebidaEm, conta.audit?.updatedBy)) + '</div>';
     html += '<div style="margin-top:.35rem;font-size:.82rem;color:var(--mut)">Integracao titulo: ' + esc(getIntegrationStatusLabel(conta.integracoes?.bancaria)) + '</div>';
     html += '<div style="margin-top:.35rem;font-size:.82rem;color:var(--mut)">Integracao comunicacao: ' + esc(getIntegrationStatusLabel(conta.integracoes?.comunicacao)) + '</div>';
     html += '<div style="margin-top:.35rem;font-size:.82rem;color:var(--mut)">Politica de cobranca: e-mail sempre ativo; WhatsApp apenas para titulos em atraso.</div>';
+    html += '<div style="display:flex;gap:.6rem;flex-wrap:wrap;margin-top:1rem">';
+    html += '<button class="btn btn-outline" onclick="sincronizarCobrancaProvider(\'' + conta.id + '\')">Sincronizar Provider</button>';
+    html += '</div>';
   }
   html += '</div>';
 
@@ -5693,9 +6037,11 @@ function fecharModalNotaFiscal() {
   document.getElementById("modal-nota-fiscal").classList.add("hidden");
 }
 
-function dispararCobrancaAutomatica(contaId) {
+async function dispararCobrancaAutomatica(contaId) {
   const conta = contasReceber.find((item) => item.id === contaId);
   if (!conta) return;
+  const providerOk = await emitirOuSincronizarCobrancaReal(contaId, { silent: true });
+  if (!providerOk) return;
   conta.automacao = conta.automacao || {};
   const usarWhatsapp = isContaEmAtraso(conta);
   conta.automacao.whatsapp = usarWhatsapp;
@@ -5716,7 +6062,7 @@ function dispararCobrancaAutomatica(contaId) {
     onError: (err) => updateContaReceberIntegration(conta.id, "comunicacao", { status: "falha_envio", error: err.message, lastAction: "disparar_cobranca" })
   });
   renderContasReceber();
-  showToast(`Cobranca automatica preparada via e-mail${usarWhatsapp ? " e WhatsApp (titulo em atraso)" : ""} para ${conta.cliente || "cliente"}.`, 4000);
+  showToast(`Cobranca real sincronizada e disparo preparado via e-mail${usarWhatsapp ? " e WhatsApp (titulo em atraso)" : ""} para ${conta.cliente || "cliente"}.`, 4500);
 }
 
 function registrarContaPagar() {
@@ -5784,12 +6130,25 @@ function registrarContaReceber() {
 function registrarBaixaContaPagar(contaId) {
   const conta = contasPagar.find((item) => item.id === contaId);
   if (!conta) return;
+  const dataBaixa = promptDataBaixa("Informe a data da baixa (AAAA-MM-DD):", new Date().toISOString().slice(0, 10));
+  if (!dataBaixa) return;
   conta.status = "paga";
-  conta.pagaEm = new Date().toISOString();
-  conta.audit = { ...(conta.audit || {}), updatedAt: new Date().toISOString(), updatedBy: getAuditActor(), baixaManualAt: new Date().toISOString() };
+  conta.pagaEm = `${dataBaixa}T12:00:00`;
+  conta.audit = { ...(conta.audit || {}), updatedAt: new Date().toISOString(), updatedBy: getAuditActor(), baixaManualAt: conta.pagaEm };
   saveContasPagar();
   renderContasPagar();
   showToast(`Conta a pagar "${conta.descricao}" baixada.`, 3000);
+}
+
+function clonarContaPagar(contaId) {
+  const conta = contasPagar.find((item) => item.id === contaId);
+  if (!conta) return;
+  document.getElementById("cp-descricao").value = conta.descricao || "";
+  document.getElementById("cp-categoria").value = conta.categoria || "fornecedor";
+  document.getElementById("cp-forma").value = conta.forma || "boleto";
+  document.getElementById("cp-valor").value = conta.valor || "";
+  document.getElementById("cp-vencimento").value = "";
+  showToast(`Conta a pagar ${conta.id} clonada. Ajuste vencimento e demais dados antes de registrar.`, 3500);
 }
 
 function registrarMovimentoEstoque() {
@@ -5871,7 +6230,7 @@ function renderPedidos() {
   let filtered = pedidos;
   if (busca) filtered = filtered.filter(p => (p.escola || "").toLowerCase().includes(busca) || (p.contratoId || "").toLowerCase().includes(busca));
   if (filtroData) filtered = filtered.filter(p => (p.data || "").includes(filtroData));
-  if (filtroStatus) filtered = filtered.filter(p => p.status === filtroStatus);
+  if (filtroStatus) filtered = filtered.filter(p => (p.status === "concluido" ? "faturado" : p.status) === filtroStatus);
   if (filtroContrato) filtered = filtered.filter(p => p.contratoId === filtroContrato);
 
   const tbody = document.getElementById("pedidos-tbody");
@@ -5888,34 +6247,26 @@ function renderPedidos() {
   empty.classList.add("hidden");
 
   tbody.innerHTML = filtered.map(p => {
-    const badgeMap = { agendado: "badge-blue", recebido: "badge-yellow", concluido: "badge-green" };
+    const statusAtual = p.status === "concluido" ? "faturado" : p.status;
+    const badgeMap = { agendado: "badge-blue", recebido: "badge-yellow", faturado: "badge-green" };
     const nf = getNotaFiscalByPedido(p.id);
     let acoes = '';
     if (p.status === "agendado") {
       acoes = `<button class="btn btn-sm" style="background:var(--blue);color:#fff" onclick="transmitirPedido('${p.id}')">Liberar</button>`;
-    } else if (p.status === "recebido") {
-      acoes = `<button class="btn btn-sm btn-green" onclick="avancarPedido('${p.id}','concluido')">Concluir</button>`;
     } else {
-      acoes = '<span style="color:var(--green);font-size:.8rem;font-weight:600">Concluido</span>';
+      acoes = `<span style="color:${statusAtual === "faturado" ? "var(--green)" : "var(--mut)"};font-size:.8rem;font-weight:600">${esc(statusAtual)}</span>`;
     }
     const nfAction = nf
       ? `<button class="btn btn-sm btn-outline" onclick="switchTab('notas-fiscais')" title="Ir para notas fiscais">NF ${esc(nf.numero)}</button>`
       : `<button class="btn btn-sm" style="background:rgba(245,158,11,.18);color:var(--yellow);border:none;font-size:.7rem;padding:.3rem .5rem;font-weight:700;cursor:pointer" onclick="gerarNotaFiscalPedido('${p.id}')" title="Gerar nota fiscal e cobranca">Gerar NF</button>`;
-    const obsText = p.obs || getObsContrato(p.contratoId) || "-";
-    const c = contratos.find(x => x.id === p.contratoId);
-    const ctrLabel = c ? `${c.id}` : (p.contratoId || "-");
-    const ctrDetail = c ? [c.processo ? 'Proc. ' + c.processo : '', c.edital ? 'Ed. ' + c.edital : ''].filter(Boolean).join(' | ') : '';
     return `<tr>
       <td class="text-center"><input type="checkbox" class="pedido-check" value="${p.id}" onchange="atualizarSelecaoPedidos()"${_selectedPedidoIds.has(p.id) ? ' checked' : ''}></td>
       <td class="font-mono">${esc(p.id)}</td>
-      <td style="font-size:.8rem"><strong class="font-mono">${esc(ctrLabel)}</strong>${ctrDetail ? '<br><span style="color:var(--mut);font-size:.72rem">' + esc(ctrDetail) + '</span>' : ''}</td>
       <td>${esc(p.escola.length > 30 ? p.escola.slice(0, 28) + "..." : p.escola)}</td>
       <td class="nowrap">${esc(p.dataEntrega || p.data)}</td>
-      <td class="text-right">${p.itens.length}</td>
       <td class="text-right font-mono" style="color:var(--green);font-weight:700">${brl.format(p.valor)}</td>
-      <td><span class="badge ${badgeMap[p.status] || 'badge-yellow'}">${p.status}</span></td>
-      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.8rem;color:var(--mut)" title="${esc(obsText)}">${esc(obsText)}</td>
-      <td class="nowrap" style="display:flex;gap:.3rem;align-items:center;flex-wrap:wrap"><button class="btn btn-sm" style="background:rgba(59,130,246,.15);color:var(--blue);border:none;font-size:.7rem;padding:.3rem .5rem;font-weight:700;cursor:pointer" onclick="verPedidoDetalhe('${p.id}')" title="Ver detalhes">Ver</button>${nfAction}${acoes}</td>
+      <td><span class="badge ${badgeMap[statusAtual] || 'badge-yellow'}">${statusAtual}</span></td>
+      <td class="nowrap" style="display:flex;gap:.3rem;align-items:center;flex-wrap:wrap"><button class="btn btn-sm" style="background:rgba(59,130,246,.15);color:var(--blue);border:none;font-size:.7rem;padding:.3rem .5rem;font-weight:700;cursor:pointer" onclick="verPedidoDetalhe('${p.id}')" title="Ver detalhes">Ver</button><button class="btn btn-sm btn-outline" onclick="clonarPedido('${p.id}')" title="Clonar pedido">Clonar</button>${nfAction}${acoes}</td>
     </tr>`;
   }).join("");
 }
@@ -5952,7 +6303,7 @@ function avancarPedido(pedidoId, novoStatus) {
   if (!p) return;
 
   // Se o pedido ainda nao teve saldo deduzido (pedidos antigos), deduzir agora
-  if (novoStatus === "concluido" && !p.saldoDeduzido) {
+  if (novoStatus === "faturado" && !p.saldoDeduzido) {
     const c = contratos.find(x => x.id === p.contratoId);
     if (c) {
       p.itens.forEach(pi => {
@@ -5973,6 +6324,17 @@ function avancarPedido(pedidoId, novoStatus) {
   savePedidos();
   renderAll();
   showToast(`Pedido ${pedidoId} → ${novoStatus}`);
+}
+
+function clonarPedido(pedidoId) {
+  const pedido = pedidos.find((item) => item.id === pedidoId);
+  if (!pedido) return;
+  pedidoCloneDraft = {
+    contratoId: pedido.contratoId,
+    itens: (pedido.itens || []).map((item) => ({ itemNum: Number(item.itemNum), qtd: Number(item.qtd || 0) }))
+  };
+  novoPedidoManual();
+  showToast(`Pedido ${pedido.id} clonado. Ajuste os dados e registre o novo protocolo.`, 3500);
 }
 
 function excluirPedido(pedidoId) {
@@ -6018,6 +6380,9 @@ function novoPedidoManual() {
 
   document.getElementById("modal-pedido-body").innerHTML = html;
   document.getElementById("modal-pedido").classList.remove("hidden");
+  if (pedidoCloneDraft?.contratoId) {
+    document.getElementById("pedido-contrato").value = pedidoCloneDraft.contratoId;
+  }
   renderPedidoItens();
 }
 
@@ -6042,7 +6407,7 @@ function renderPedidoItens() {
             <td class="nowrap">${esc(item.unidade)}</td>
             <td class="text-right font-mono">${saldo}</td>
             <td class="text-right font-mono">${brl.format(item.precoUnitario)}</td>
-            <td class="text-center"><input type="number" min="0" max="${saldo}" value="0" step="any" style="width:70px;text-align:center" id="ped-qty-${idx}" data-item-num="${item.num}" data-desc="${esc(item.descricao)}"></td>
+            <td class="text-center"><input type="number" min="0" max="${saldo}" value="${pedidoCloneDraft?.itens?.find((draft) => Number(draft.itemNum) === Number(item.num))?.qtd || 0}" step="any" style="width:70px;text-align:center" id="ped-qty-${idx}" data-item-num="${item.num}" data-desc="${esc(item.descricao)}"></td>
           </tr>`;
         }).join("")}</tbody>
       </table>
@@ -6126,6 +6491,7 @@ function salvarPedidoManual() {
 
   savePedidos();
   fecharModalPedido();
+  pedidoCloneDraft = null;
   renderAll();
   showToast(`Pedido ${id} registrado! Saldo do contrato atualizado.`);
 }
@@ -6136,7 +6502,8 @@ function verPedidoDetalhe(pedidoId) {
   ensurePedidoFiscalData(p);
   const c = contratos.find(x => x.id === p.contratoId);
   const ctrLabel = c ? (c.processo ? 'Proc. ' + c.processo : c.id) : (p.contratoId || '-');
-  const badgeMap = { agendado: 'badge-blue', recebido: 'badge-yellow', concluido: 'badge-green' };
+  const badgeMap = { agendado: 'badge-blue', recebido: 'badge-yellow', faturado: 'badge-green' };
+  const statusAtual = p.status === "concluido" ? "faturado" : p.status;
   const marcadorHtml = p.marcador ? '<span style="background:rgba(139,92,246,.15);color:#8b5cf6;padding:.2rem .6rem;border-radius:999px;font-size:.75rem;font-weight:700;margin-left:.5rem">' + esc(p.marcador) + '</span>' : '';
   const fiscalMissing = validatePedidoForInvoice(p);
 
@@ -6146,7 +6513,7 @@ function verPedidoDetalhe(pedidoId) {
   html += '<div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Contrato</div><div style="font-weight:700">' + esc(ctrLabel) + '</div></div>';
   html += '<div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Data</div><div style="font-weight:700">' + esc(p.dataEntrega || p.data) + '</div></div>';
   html += '<div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Valor Total</div><div style="font-weight:700;color:var(--green);font-size:1.2rem">' + brl.format(p.valor) + '</div></div>';
-  html += '<div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Status</div><div><span class="badge ' + (badgeMap[p.status] || 'badge-yellow') + '">' + esc(p.status) + '</span></div></div>';
+  html += '<div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Status</div><div><span class="badge ' + (badgeMap[statusAtual] || 'badge-yellow') + '">' + esc(statusAtual) + '</span></div></div>';
   html += '</div>';
   const nf = getNotaFiscalByPedido(p.id);
   html += '<div style="margin-bottom:1rem;padding:1rem;border:1px solid var(--bdr);border-radius:10px;background:var(--s1)">';
@@ -6249,7 +6616,67 @@ function imprimirPedido(pedidoId) {
 }
 
 function fecharModalPedido() {
+  pedidoCloneDraft = null;
   document.getElementById("modal-pedido").classList.add("hidden");
+}
+
+function getNotaFiscalOperationalFiscal(nf) {
+  const sefazStatus = String(nf.integracoes?.sefaz?.status || nf.status || "");
+  if (!isNotaFiscalReal(nf)) {
+    return { label: "Controle manual", detail: "Nota externa acompanhada no GDP", badgeClass: "badge-blue" };
+  }
+  if (nf.status === "cancelada") {
+    return { label: "Cancelada", detail: "Fluxo fiscal encerrado", badgeClass: "badge-red" };
+  }
+  if (nf.status === "rejeitada" || sefazStatus.includes("falha") || sefazStatus.includes("reje")) {
+    return { label: "Falha fiscal", detail: "Revise a transmissao da nota", badgeClass: "badge-red" };
+  }
+  if (nf.status === "autorizada" || sefazStatus.includes("autoriz")) {
+    return { label: "Fiscal ok", detail: "Nota liberada pela SEFAZ", badgeClass: "badge-green" };
+  }
+  return { label: "Pendente fiscal", detail: "Aguardando transmissao ou autorizacao", badgeClass: "badge-yellow" };
+}
+
+function getNotaFiscalOperationalBank(nf) {
+  const bancariaStatus = String(nf.integracoes?.bancaria?.status || nf.cobranca?.status || "");
+  if (bancariaStatus.includes("falha")) {
+    return { label: "Falha banco", detail: "Cobranca precisa de ajuste", badgeClass: "badge-red" };
+  }
+  if (bancariaStatus.includes("recebida") || bancariaStatus.includes("confirmada")) {
+    return { label: "Pagamento ok", detail: "Banco confirmou o recebimento", badgeClass: "badge-green" };
+  }
+  if (bancariaStatus.includes("aceita") || nf.cobranca?.providerChargeId || nf.integracoes?.bancaria?.providerChargeId) {
+    return { label: "Cobranca emitida", detail: "Titulo registrado no provider", badgeClass: "badge-blue" };
+  }
+  if (nf.status === "autorizada") {
+    return { label: "Aguardando banco", detail: "Nota pronta para cobranca", badgeClass: "badge-yellow" };
+  }
+  return { label: "Sem cobranca", detail: "Cobranca ainda nao iniciada", badgeClass: "badge-yellow" };
+}
+
+function getContaReceberOperationalBank(item) {
+  const bancariaStatus = String(item.integracoes?.bancaria?.status || item.cobranca?.status || "");
+  if (item.status === "recebida" || bancariaStatus.includes("recebida") || bancariaStatus.includes("confirmada")) {
+    return {
+      label: "Recebido",
+      detail: item.conciliacao?.status === "conciliado_api_bancaria" ? "Baixa conciliada com o banco" : "Recebimento registrado",
+      badgeClass: "badge-green"
+    };
+  }
+  if (bancariaStatus.includes("falha")) {
+    return { label: "Falha banco", detail: "Revise dados ou tente nova emissao", badgeClass: "badge-red" };
+  }
+  if (item.cobranca?.providerChargeId || item.integracoes?.bancaria?.providerChargeId) {
+    return {
+      label: item.conciliacao?.status === "divergencia_api_bancaria" ? "Divergencia" : "Cobranca pronta",
+      detail: item.conciliacao?.status === "divergencia_api_bancaria" ? "Banco retornou divergencia" : "Titulo enviado ao banco",
+      badgeClass: item.conciliacao?.status === "divergencia_api_bancaria" ? "badge-red" : "badge-blue"
+    };
+  }
+  if (item.status.includes("cobranca") || item.conciliacao?.status === "pendente_api_bancaria") {
+    return { label: "Aguardando retorno", detail: "Banco ainda nao confirmou o titulo", badgeClass: "badge-yellow" };
+  }
+  return { label: "Nao enviada", detail: "Conta ainda sem cobranca externa", badgeClass: "badge-yellow" };
 }
 
 function renderNotasFiscais() {
@@ -6267,7 +6694,24 @@ function renderNotasFiscais() {
 
   const tbody = document.getElementById("notas-fiscais-tbody");
   const empty = document.getElementById("notas-fiscais-empty");
+  const autorizadasEl = document.getElementById("nf-kpi-autorizadas");
+  const bancariaEl = document.getElementById("nf-kpi-bancaria");
+  const falhasEl = document.getElementById("nf-kpi-falhas");
   document.getElementById("tab-count-notas-fiscais").textContent = filtered.length;
+
+  const autorizadas = notasFiscais.filter((nf) => nf.status === "autorizada").length;
+  const pendenciaBancaria = notasFiscais.filter((nf) => {
+    const status = nf.integracoes?.bancaria?.status || "";
+    return nf.status === "autorizada" && !["aceita_provider", "confirmada_provider", "recebida_provider"].includes(status);
+  }).length;
+  const falhas = notasFiscais.filter((nf) => {
+    const sefazStatus = String(nf.integracoes?.sefaz?.status || nf.status || "");
+    const bancariaStatus = String(nf.integracoes?.bancaria?.status || "");
+    return sefazStatus.includes("falha") || sefazStatus === "rejeitada" || bancariaStatus.includes("falha");
+  }).length;
+  if (autorizadasEl) autorizadasEl.textContent = autorizadas;
+  if (bancariaEl) bancariaEl.textContent = pendenciaBancaria;
+  if (falhasEl) falhasEl.textContent = falhas;
 
   if (!filtered.length) {
     tbody.innerHTML = "";
@@ -6283,8 +6727,14 @@ function renderNotasFiscais() {
       <td>${esc(nf.cliente?.nome || "-")}</td>
       <td>${formatDateTimeLocal(nf.emitidaEm)}</td>
       <td class="text-right font-mono">${brl.format(nf.valor || 0)}</td>
-      <td><span class="badge ${nf.status === "autorizada" ? "badge-green" : nf.status === "cancelada" ? "badge-red" : nf.status === "rejeitada" ? "badge-red" : "badge-yellow"}">${esc(nf.status)}</span></td>
-      <td style="font-size:.8rem">${esc(nf.cobranca?.forma || "boleto")}<br><span style="color:var(--mut)">${esc(nf.cobranca?.status || "")}</span></td>
+      <td>${(() => {
+        const fiscal = getNotaFiscalOperationalFiscal(nf);
+        return `<span class="badge ${fiscal.badgeClass}">${esc(fiscal.label)}</span><div style="font-size:.72rem;color:var(--mut);margin-top:.2rem">${esc(fiscal.detail)}</div>`;
+      })()}</td>
+      <td style="font-size:.8rem">${esc(nf.cobranca?.forma || "boleto")}<br>${(() => {
+        const bancaria = getNotaFiscalOperationalBank(nf);
+        return `<span class="badge ${bancaria.badgeClass}" style="margin-top:.28rem">${esc(bancaria.label)}</span><div style="font-size:.72rem;color:var(--mut);margin-top:.2rem">${esc(bancaria.detail)}</div>`;
+      })()}</td>
       <td class="nowrap" style="display:flex;gap:.4rem;align-items:center;flex-wrap:wrap">
         <button class="btn btn-sm btn-outline" onclick="verNotaFiscal('${nf.id}')">Abrir</button>
         <button class="btn btn-sm btn-outline" onclick="verPedidoDetalhe('${esc(nf.pedidoId)}')">Pedido</button>
@@ -6345,7 +6795,7 @@ function renderContasPagar() {
       <td class="text-right font-mono">${brl.format(item.valor || 0)}</td>
       <td><span class="badge ${item.status === "paga" ? "badge-green" : "badge-yellow"}">${esc(item.status)}</span></td>
       <td style="font-size:.76rem;color:var(--mut)">${esc(formatAuditStamp(item.audit, item.pagaEm, item.audit?.updatedBy))}</td>
-      <td style="display:flex;gap:.35rem;flex-wrap:wrap">${item.status === "paga" ? '<span style="color:var(--green);font-size:.78rem;font-weight:700">Baixada</span>' : `<button class="btn btn-sm btn-green" onclick="registrarBaixaContaPagar('${item.id}')">Baixar</button>`}<button class="btn btn-sm btn-red" onclick="excluirContaPagar('${item.id}')">Excluir</button></td>
+      <td style="display:flex;gap:.35rem;flex-wrap:wrap">${item.status === "paga" ? '<span style="color:var(--green);font-size:.78rem;font-weight:700">Baixada</span>' : `<button class="btn btn-sm btn-green" onclick="registrarBaixaContaPagar('${item.id}')">Baixar</button>`}<button class="btn btn-sm btn-outline" onclick="clonarContaPagar('${item.id}')">Clonar</button><button class="btn btn-sm btn-red" onclick="excluirContaPagar('${item.id}')">Excluir</button></td>
     </tr>
   `).join("");
 }
@@ -6368,9 +6818,11 @@ function renderContasReceber() {
   const abertoEl = document.getElementById("cr-kpi-aberto");
   const recebidoEl = document.getElementById("cr-kpi-recebido");
   const concEl = document.getElementById("cr-kpi-conciliacao");
+  const providerFalhaEl = document.getElementById("cr-kpi-provider-falha");
   if (abertoEl) abertoEl.textContent = brl.format(totalAberto);
   if (recebidoEl) recebidoEl.textContent = brl.format(totalRecebido);
   if (concEl) concEl.textContent = pendentesConc;
+  if (providerFalhaEl) providerFalhaEl.textContent = contasReceber.filter((item) => String(item.integracoes?.bancaria?.status || "").includes("falha")).length;
 
   if (!filtered.length) {
     tbody.innerHTML = "";
@@ -6383,13 +6835,17 @@ function renderContasReceber() {
       <td>${esc(item.descricao)}</td>
       <td>${esc(item.categoria)}</td>
       <td>${esc(item.cliente || "-")}</td>
-      <td>${esc(item.forma)}</td>
+      <td>${esc(item.forma)}<div style="font-size:.72rem;color:var(--mut);margin-top:.2rem">${esc(item.integracoes?.bancaria?.provider || item.cobranca?.provider || "-")}</div></td>
       <td style="font-size:.78rem">${item.automacao?.whatsapp ? "WhatsApp" : "-"} / ${item.automacao?.email ? "E-mail" : "-"}</td>
       <td>${esc(item.vencimento || "")}</td>
       <td class="text-right font-mono">${brl.format(item.valor || 0)}</td>
-      <td><span class="badge ${item.status === "recebida" ? "badge-green" : item.status.includes("cobranca") ? "badge-blue" : "badge-yellow"}">${esc(item.status)}</span><div style="font-size:.72rem;color:var(--mut);margin-top:.2rem">${esc(item.conciliacao?.status || "sem conciliacao")}</div></td>
+      <td>${(() => {
+        const bancaria = getContaReceberOperationalBank(item);
+        const providerChargeId = item.cobranca?.providerChargeId || item.integracoes?.bancaria?.providerChargeId || "-";
+        return `<span class="badge ${bancaria.badgeClass}">${esc(bancaria.label)}</span><div style="font-size:.72rem;color:var(--mut);margin-top:.2rem">${esc(bancaria.detail)}</div><div style="font-size:.72rem;color:var(--mut);margin-top:.2rem">ID: ${esc(providerChargeId)}</div>`;
+      })()}</td>
       <td style="font-size:.76rem;color:var(--mut)">${esc(formatAuditStamp(item.audit, item.recebidaEm, item.audit?.updatedBy))}</td>
-      <td style="display:flex;gap:.35rem;flex-wrap:wrap"><button class="btn btn-sm btn-outline" onclick="dispararCobrancaAutomatica('${item.id}')">Cobrar</button><button class="btn btn-sm btn-green" onclick="registrarBaixaRecebimento('${item.id}')">Baixar</button><button class="btn btn-sm btn-outline" onclick="atualizarStatusConciliacao('${item.id}','conciliado_api_bancaria')">Conciliar</button><button class="btn btn-sm btn-outline" onclick="atualizarStatusConciliacao('${item.id}','divergencia_api_bancaria')">Diverg.</button><button class="btn btn-sm btn-red" onclick="excluirContaReceber('${item.id}')">Excluir</button></td>
+      <td style="display:flex;gap:.35rem;flex-wrap:wrap"><button class="btn btn-sm btn-outline" onclick="dispararCobrancaAutomatica('${item.id}')">Cobrar</button><button class="btn btn-sm btn-outline" onclick="sincronizarCobrancaProvider('${item.id}')">Sync</button><button class="btn btn-sm btn-green" onclick="registrarBaixaRecebimento('${item.id}')">Baixar</button><button class="btn btn-sm btn-outline" onclick="clonarContaReceber('${item.id}')">Clonar</button><button class="btn btn-sm btn-outline" onclick="atualizarStatusConciliacao('${item.id}','conciliado_api_bancaria')">Conciliar</button><button class="btn btn-sm btn-outline" onclick="atualizarStatusConciliacao('${item.id}','divergencia_api_bancaria')">Diverg.</button><button class="btn btn-sm btn-red" onclick="excluirContaReceber('${item.id}')">Excluir</button></td>
     </tr>
   `).join("");
 }
@@ -6444,7 +6900,8 @@ function renderIntegracoes() {
   if (filtroStatus) items = items.filter((item) => item.status === filtroStatus);
   if (filtroCanal) items = items.filter((item) => item.channel === filtroCanal);
 
-  document.getElementById("tab-count-integracoes").textContent = items.length;
+  const intCountEl = document.getElementById("tab-count-integracoes");
+  if (intCountEl) intCountEl.textContent = items.length;
   const pendentes = integracoesGdp.filter((item) => item.status === "pendente_envio").length;
   const ok = integracoesGdp.filter((item) => item.status === "sincronizado").length;
   const falhas = integracoesGdp.filter((item) => item.status === "falha_envio").length;
@@ -6741,8 +7198,6 @@ function renderKPIs() {
   if (cpCountEl) cpCountEl.textContent = contasPagar.length;
   const crCountEl = document.getElementById("tab-count-contas-receber");
   if (crCountEl) crCountEl.textContent = contasReceber.length;
-  const intCountEl = document.getElementById("tab-count-integracoes");
-  if (intCountEl) intCountEl.textContent = integracoesGdp.length;
   const neCountEl = document.getElementById("tab-count-notas-entrada");
   if (neCountEl) neCountEl.textContent = notasEntrada.length;
   const estoqueCountEl = document.getElementById("tab-count-estoque");
@@ -6762,7 +7217,6 @@ function renderAll() {
   renderNotasFiscais();
   renderContasPagar();
   renderContasReceber();
-  renderIntegracoes();
   renderEstoque();
   renderEntregas();
   // Update banco tab count even when not on banco tab
