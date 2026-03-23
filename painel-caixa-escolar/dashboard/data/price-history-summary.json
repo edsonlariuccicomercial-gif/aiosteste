@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-03-03T17:46:39.711Z",
+  "generatedAt": "2026-03-20T12:18:48.666Z",
   "sourceEntries": 68,
   "skuSummary": [
     {
@@ -10,7 +10,7 @@
       "median": 5160.6,
       "avg": 10622.54,
       "max": 21658.66,
-      "lastCollectedAt": "2026-03-03"
+      "lastCollectedAt": "2026-03-20"
     },
     {
       "sku": "CAPAC-FORMACAO-EDU",
@@ -19,7 +19,7 @@
       "median": 12035.3,
       "avg": 14728.91,
       "max": 22778.62,
-      "lastCollectedAt": "2026-03-03"
+      "lastCollectedAt": "2026-03-20"
     },
     {
       "sku": "EQUIP-COZINHA-GERAL",
@@ -28,7 +28,7 @@
       "median": 15498.88,
       "avg": 15498.88,
       "max": 15498.88,
-      "lastCollectedAt": "2026-03-03"
+      "lastCollectedAt": "2026-03-20"
     },
     {
       "sku": "EQUIP-SEGURANCA",
@@ -37,7 +37,7 @@
       "median": 16141.82,
       "avg": 16141.82,
       "max": 16141.82,
-      "lastCollectedAt": "2026-03-03"
+      "lastCollectedAt": "2026-03-20"
     },
     {
       "sku": "EQUIP-TECNOLOGIA",
@@ -46,7 +46,7 @@
       "median": 24541.52,
       "avg": 24541.52,
       "max": 24541.52,
-      "lastCollectedAt": "2026-03-03"
+      "lastCollectedAt": "2026-03-20"
     },
     {
       "sku": "ESCR-CADERNO-10M",
@@ -55,7 +55,7 @@
       "median": 13124.15,
       "avg": 13124.15,
       "max": 20061.68,
-      "lastCollectedAt": "2026-03-03"
+      "lastCollectedAt": "2026-03-20"
     },
     {
       "sku": "GAS-RECARGA-13KG",
@@ -64,7 +64,7 @@
       "median": 17863.24,
       "avg": 17863.24,
       "max": 23276.38,
-      "lastCollectedAt": "2026-03-03"
+      "lastCollectedAt": "2026-03-20"
     },
     {
       "sku": "MANUT-REFORMA-GERAL",
@@ -73,7 +73,7 @@
       "median": 18350.63,
       "avg": 17212.7,
       "max": 20538.7,
-      "lastCollectedAt": "2026-03-03"
+      "lastCollectedAt": "2026-03-20"
     },
     {
       "sku": "MATPED-SEGURANCA",
@@ -82,7 +82,7 @@
       "median": 10562.76,
       "avg": 10562.76,
       "max": 10562.76,
-      "lastCollectedAt": "2026-03-03"
+      "lastCollectedAt": "2026-03-20"
     },
     {
       "sku": "MOBIL-ADMINISTRATIVO",
@@ -91,7 +91,7 @@
       "median": 5875.52,
       "avg": 5875.52,
       "max": 5875.52,
-      "lastCollectedAt": "2026-03-03"
+      "lastCollectedAt": "2026-03-20"
     },
     {
       "sku": "SERV-EVENTO-ESCOLAR",
@@ -100,7 +100,7 @@
       "median": 5132.54,
       "avg": 9720.55,
       "max": 22301.6,
-      "lastCollectedAt": "2026-03-03"
+      "lastCollectedAt": "2026-03-20"
     },
     {
       "sku": "SERV-OPERACIONAL-CONT",
@@ -109,7 +109,7 @@
       "median": 19211.34,
       "avg": 19370.35,
       "max": 20538.7,
-      "lastCollectedAt": "2026-03-03"
+      "lastCollectedAt": "2026-03-20"
     }
   ],
   "skuRegionSummary": [
@@ -141,7 +141,7 @@
       "median": 21658.66,
       "avg": 21658.66,
       "max": 21658.66,
-      "lastCollectedAt": "2026-03-03"
+      "lastCollectedAt": "2026-03-20"
     },
     {
       "sku": "CAPAC-FORMACAO-EDU",
@@ -151,7 +151,7 @@
       "median": 12035.3,
       "avg": 14728.91,
       "max": 22778.62,
-      "lastCollectedAt": "2026-03-03"
+      "lastCollectedAt": "2026-03-20"
     },
     {
       "sku": "EQUIP-COZINHA-GERAL",
@@ -161,7 +161,7 @@
       "median": 15498.88,
       "avg": 15498.88,
       "max": 15498.88,
-      "lastCollectedAt": "2026-03-03"
+      "lastCollectedAt": "2026-03-20"
     },
     {
       "sku": "EQUIP-SEGURANCA",
@@ -171,7 +171,7 @@
       "median": 16141.82,
       "avg": 16141.82,
       "max": 16141.82,
-      "lastCollectedAt": "2026-03-03"
+      "lastCollectedAt": "2026-03-20"
     },
     {
       "sku": "EQUIP-TECNOLOGIA",
@@ -181,7 +181,7 @@
       "median": 24541.52,
       "avg": 24541.52,
       "max": 24541.52,
-      "lastCollectedAt": "2026-03-03"
+      "lastCollectedAt": "2026-03-20"
     },
     {
       "sku": "ESCR-CADERNO-10M",
@@ -191,7 +191,7 @@
       "median": 13124.15,
       "avg": 13124.15,
       "max": 20061.68,
-      "lastCollectedAt": "2026-03-03"
+      "lastCollectedAt": "2026-03-20"
     },
     {
       "sku": "GAS-RECARGA-13KG",
@@ -201,7 +201,7 @@
       "median": 17863.24,
       "avg": 17863.24,
       "max": 23276.38,
-      "lastCollectedAt": "2026-03-03"
+      "lastCollectedAt": "2026-03-20"
     },
     {
       "sku": "MANUT-REFORMA-GERAL",
@@ -211,7 +211,7 @@
       "median": 18350.63,
       "avg": 17212.7,
       "max": 20538.7,
-      "lastCollectedAt": "2026-03-03"
+      "lastCollectedAt": "2026-03-20"
     },
     {
       "sku": "MATPED-SEGURANCA",
@@ -221,7 +221,7 @@
       "median": 10562.76,
       "avg": 10562.76,
       "max": 10562.76,
-      "lastCollectedAt": "2026-03-03"
+      "lastCollectedAt": "2026-03-20"
     },
     {
       "sku": "MOBIL-ADMINISTRATIVO",
@@ -231,7 +231,7 @@
       "median": 5875.52,
       "avg": 5875.52,
       "max": 5875.52,
-      "lastCollectedAt": "2026-03-03"
+      "lastCollectedAt": "2026-03-20"
     },
     {
       "sku": "SERV-EVENTO-ESCOLAR",
@@ -261,7 +261,7 @@
       "median": 15851.46,
       "avg": 15072.23,
       "max": 22301.6,
-      "lastCollectedAt": "2026-03-03"
+      "lastCollectedAt": "2026-03-20"
     },
     {
       "sku": "SERV-EVENTO-ESCOLAR",
@@ -291,7 +291,7 @@
       "median": 19211.34,
       "avg": 19370.35,
       "max": 20538.7,
-      "lastCollectedAt": "2026-03-03"
+      "lastCollectedAt": "2026-03-20"
     }
   ]
 }

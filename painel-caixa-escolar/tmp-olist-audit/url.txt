@@ -1,0 +1,1 @@
+https://accounts.olist.com/realms/store/protocol/openid-connect/auth?client_id=8a5f360d85ba19de186435e621294b16&scope=openid&response_type=code&redirect_uri=https://app.olist.com/signin-redirect/&code_challenge_method=S256&code_challenge=2MO2BL7_42Qx8RSVESOU7JkEt9EfRKr-dB2Sy80ruts&state=KyH83MT3OsU

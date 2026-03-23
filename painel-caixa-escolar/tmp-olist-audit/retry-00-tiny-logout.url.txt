@@ -1,0 +1,1 @@
+https://accounts.tiny.com.br/realms/tiny/protocol/openid-connect/auth?client_id=tiny-webapp&redirect_uri=https://erp.olist.com/login&scope=openid&response_type=code

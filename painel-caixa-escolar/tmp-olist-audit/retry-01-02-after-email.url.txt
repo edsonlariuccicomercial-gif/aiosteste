@@ -1,0 +1,1 @@
+https://accounts.tiny.com.br/realms/tiny/protocol/openid-connect/auth?client_id=8a5f360d85ba19de186435e621294b16&scope=openid&response_type=code&redirect_uri=https://app.olist.com/signin-redirect/&code_challenge_method=S256&code_challenge=AL_Y_rBIH2oAmhNBkfKZHgaN2_1uxeoVEhQC4Vm1_8w&state=ZZzCD9NRWfs&email=edsonlariucci.comercial@gmail.com

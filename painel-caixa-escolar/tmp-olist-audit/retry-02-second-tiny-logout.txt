@@ -1,0 +1,7 @@
+carregando sistema
+Ajuda do Sistema ERP
+Este usuário já está logado em outro dispositivo
+Ao efetuar o login, as demais sessões deste usuário serão fechadas e os dados não salvos serão perdidos.
+
+Para acessar o Sistema ERP da Olist em mais dispositivos, contrate mais usuários.
+logincontratar mais usuárioscancelar

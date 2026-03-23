@@ -1,6 +1,6 @@
 # Relatorio de Cobertura Territorial
 
-- Gerado em: 2026-03-03T17:46:36.893Z
+- Gerado em: 2026-03-20T12:18:43.681Z
 - Escolas no dataset: 10
 - Escolas mapeadas: 0
 - Escolas nao mapeadas: 10

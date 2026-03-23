@@ -1,6 +1,6 @@
 # Relatorio de Cobertura SKU
 
-- Gerado em: 2026-03-03T17:46:37.343Z
+- Gerado em: 2026-03-20T12:18:44.495Z
 - Cotacoes no dataset: 58
 - Cotacoes classificadas: 58
 - Cotacoes nao classificadas: 0

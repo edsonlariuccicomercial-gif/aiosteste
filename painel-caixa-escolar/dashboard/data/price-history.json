@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-03-03T17:46:39.216Z",
+  "generatedAt": "2026-03-20T12:18:47.815Z",
   "sourceQuotesCount": 58,
   "entriesCount": 68,
-  "insertedEntries": 58,
+  "insertedEntries": 0,
   "entries": [
     {
       "quoteId": "2025000001",
@@ -178,7 +178,7 @@
       "custoEstimado": 12993,
       "precoSugerido": 15851.46,
       "margemPct": 18.03,
-      "collectedAt": "2026-03-03",
+      "collectedAt": "2026-03-20",
       "source": "quotes.json"
     },
     {
@@ -194,7 +194,7 @@
       "custoEstimado": 17005,
       "precoSugerido": 20746.1,
       "margemPct": 18.03,
-      "collectedAt": "2026-03-03",
+      "collectedAt": "2026-03-20",
       "source": "quotes.json"
     },
     {
@@ -210,7 +210,7 @@
       "custoEstimado": 12704,
       "precoSugerido": 15498.88,
       "margemPct": 18.03,
-      "collectedAt": "2026-03-03",
+      "collectedAt": "2026-03-20",
       "source": "quotes.json"
     },
     {
@@ -226,7 +226,7 @@
       "custoEstimado": 18280,
       "precoSugerido": 22301.6,
       "margemPct": 18.03,
-      "collectedAt": "2026-03-03",
+      "collectedAt": "2026-03-20",
       "source": "quotes.json"
     },
     {
@@ -242,7 +242,7 @@
       "custoEstimado": 19079,
       "precoSugerido": 23276.38,
       "margemPct": 18.03,
-      "collectedAt": "2026-03-03",
+      "collectedAt": "2026-03-20",
       "source": "quotes.json"
     },
     {
@@ -258,7 +258,7 @@
       "custoEstimado": 8658,
       "precoSugerido": 10562.76,
       "margemPct": 18.03,
-      "collectedAt": "2026-03-03",
+      "collectedAt": "2026-03-20",
       "source": "quotes.json"
     },
     {
@@ -274,7 +274,7 @@
       "custoEstimado": 10205,
       "precoSugerido": 12450.1,
       "margemPct": 18.03,
-      "collectedAt": "2026-03-03",
+      "collectedAt": "2026-03-20",
       "source": "quotes.json"
     },
     {
@@ -290,7 +290,7 @@
       "custoEstimado": 14115,
       "precoSugerido": 17220.3,
       "margemPct": 18.03,
-      "collectedAt": "2026-03-03",
+      "collectedAt": "2026-03-20",
       "source": "quotes.json"
     },
     {
@@ -306,7 +306,7 @@
       "custoEstimado": 8709,
       "precoSugerido": 10624.98,
       "margemPct": 18.03,
-      "collectedAt": "2026-03-03",
+      "collectedAt": "2026-03-20",
       "source": "quotes.json"
     },
     {
@@ -322,7 +322,7 @@
       "custoEstimado": 8811,
       "precoSugerido": 10749.42,
       "margemPct": 18.03,
-      "collectedAt": "2026-03-03",
+      "collectedAt": "2026-03-20",
       "source": "quotes.json"
     },
     {
@@ -338,7 +338,7 @@
       "custoEstimado": 9015,
       "precoSugerido": 10998.3,
       "margemPct": 18.03,
-      "collectedAt": "2026-03-03",
+      "collectedAt": "2026-03-20",
       "source": "quotes.json"
     },
     {
@@ -354,7 +354,7 @@
       "custoEstimado": 9100,
       "precoSugerido": 11102,
       "margemPct": 18.03,
-      "collectedAt": "2026-03-03",
+      "collectedAt": "2026-03-20",
       "source": "quotes.json"
     },
     {
@@ -370,7 +370,7 @@
       "custoEstimado": 15050,
       "precoSugerido": 18361,
       "margemPct": 18.03,
-      "collectedAt": "2026-03-03",
+      "collectedAt": "2026-03-20",
       "source": "quotes.json"
     },
     {
@@ -386,7 +386,7 @@
       "custoEstimado": 15747,
       "precoSugerido": 19211.34,
       "margemPct": 18.03,
-      "collectedAt": "2026-03-03",
+      "collectedAt": "2026-03-20",
       "source": "quotes.json"
     },
     {
@@ -402,7 +402,7 @@
       "custoEstimado": 16444,
       "precoSugerido": 20061.68,
       "margemPct": 18.03,
-      "collectedAt": "2026-03-03",
+      "collectedAt": "2026-03-20",
       "source": "quotes.json"
     },
     {
@@ -418,7 +418,7 @@
       "custoEstimado": 16835,
       "precoSugerido": 20538.7,
       "margemPct": 18.03,
-      "collectedAt": "2026-03-03",
+      "collectedAt": "2026-03-20",
       "source": "quotes.json"
     },
     {
@@ -434,7 +434,7 @@
       "custoEstimado": 17532,
       "precoSugerido": 21389.04,
       "margemPct": 18.03,
-      "collectedAt": "2026-03-03",
+      "collectedAt": "2026-03-20",
       "source": "quotes.json"
     },
     {
@@ -450,7 +450,7 @@
       "custoEstimado": 17753,
       "precoSugerido": 21658.66,
       "margemPct": 18.03,
-      "collectedAt": "2026-03-03",
+      "collectedAt": "2026-03-20",
       "source": "quotes.json"
     },
     {
@@ -466,7 +466,7 @@
       "custoEstimado": 18671,
       "precoSugerido": 22778.62,
       "margemPct": 18.03,
-      "collectedAt": "2026-03-03",
+      "collectedAt": "2026-03-20",
       "source": "quotes.json"
     },
     {
@@ -482,7 +482,7 @@
       "custoEstimado": 20116,
       "precoSugerido": 24541.52,
       "margemPct": 18.03,
-      "collectedAt": "2026-03-03",
+      "collectedAt": "2026-03-20",
       "source": "quotes.json"
     },
     {
@@ -498,7 +498,7 @@
       "custoEstimado": 5071,
       "precoSugerido": 6186.62,
       "margemPct": 18.03,
-      "collectedAt": "2026-03-03",
+      "collectedAt": "2026-03-20",
       "source": "quotes.json"
     },
     {
@@ -514,7 +514,7 @@
       "custoEstimado": 10630,
       "precoSugerido": 12968.6,
       "margemPct": 18.03,
-      "collectedAt": "2026-03-03",
+      "collectedAt": "2026-03-20",
       "source": "quotes.json"
     },
     {
@@ -530,7 +530,7 @@
       "custoEstimado": 13231,
       "precoSugerido": 16141.82,
       "margemPct": 18.03,
-      "collectedAt": "2026-03-03",
+      "collectedAt": "2026-03-20",
       "source": "quotes.json"
     },
     {
@@ -546,7 +546,7 @@
       "custoEstimado": 14642,
       "precoSugerido": 17863.24,
       "margemPct": 18.03,
-      "collectedAt": "2026-03-03",
+      "collectedAt": "2026-03-20",
       "source": "quotes.json"
     },
     {
@@ -562,7 +562,7 @@
       "custoEstimado": 4816,
       "precoSugerido": 5875.52,
       "margemPct": 18.03,
-      "collectedAt": "2026-03-03",
+      "collectedAt": "2026-03-20",
       "source": "quotes.json"
     },
     {
@@ -578,7 +578,7 @@
       "custoEstimado": 13231,
       "precoSugerido": 16141.82,
       "margemPct": 18.03,
-      "collectedAt": "2026-03-03",
+      "collectedAt": "2026-03-20",
       "source": "quotes.json"
     },
     {
@@ -594,7 +594,7 @@
       "custoEstimado": 4816,
       "precoSugerido": 5875.52,
       "margemPct": 18.03,
-      "collectedAt": "2026-03-03",
+      "collectedAt": "2026-03-20",
       "source": "quotes.json"
     },
     {
@@ -610,7 +610,7 @@
       "custoEstimado": 6907,
       "precoSugerido": 8426.54,
       "margemPct": 18.03,
-      "collectedAt": "2026-03-03",
+      "collectedAt": "2026-03-20",
       "source": "quotes.json"
     },
     {
@@ -626,7 +626,7 @@
       "custoEstimado": 7009,
       "precoSugerido": 8550.98,
       "margemPct": 18.03,
-      "collectedAt": "2026-03-03",
+      "collectedAt": "2026-03-20",
       "source": "quotes.json"
     },
     {
@@ -642,7 +642,7 @@
       "custoEstimado": 11055,
       "precoSugerido": 13487.1,
       "margemPct": 18.03,
-      "collectedAt": "2026-03-03",
+      "collectedAt": "2026-03-20",
       "source": "quotes.json"
     },
     {
@@ -658,7 +658,7 @@
       "custoEstimado": 11344,
       "precoSugerido": 13839.68,
       "margemPct": 18.03,
-      "collectedAt": "2026-03-03",
+      "collectedAt": "2026-03-20",
       "source": "quotes.json"
     },
     {
@@ -674,7 +674,7 @@
       "custoEstimado": 14319,
       "precoSugerido": 17469.18,
       "margemPct": 18.03,
-      "collectedAt": "2026-03-03",
+      "collectedAt": "2026-03-20",
       "source": "quotes.json"
     },
     {
@@ -690,7 +690,7 @@
       "custoEstimado": 11463,
       "precoSugerido": 13984.86,
       "margemPct": 18.03,
-      "collectedAt": "2026-03-03",
+      "collectedAt": "2026-03-20",
       "source": "quotes.json"
     },
     {
@@ -706,7 +706,7 @@
       "custoEstimado": 11548,
       "precoSugerido": 14088.56,
       "margemPct": 18.03,
-      "collectedAt": "2026-03-03",
+      "collectedAt": "2026-03-20",
       "source": "quotes.json"
     },
     {
@@ -722,7 +722,7 @@
       "custoEstimado": 11616,
       "precoSugerido": 14171.52,
       "margemPct": 18.03,
-      "collectedAt": "2026-03-03",
+      "collectedAt": "2026-03-20",
       "source": "quotes.json"
     },
     {
@@ -738,7 +738,7 @@
       "custoEstimado": 11684,
       "precoSugerido": 14254.48,
       "margemPct": 18.03,
-      "collectedAt": "2026-03-03",
+      "collectedAt": "2026-03-20",
       "source": "quotes.json"
     },
     {
@@ -754,7 +754,7 @@
       "custoEstimado": 11735,
       "precoSugerido": 14316.7,
       "margemPct": 18.03,
-      "collectedAt": "2026-03-03",
+      "collectedAt": "2026-03-20",
       "source": "quotes.json"
     },
     {
@@ -770,7 +770,7 @@
       "custoEstimado": 11786,
       "precoSugerido": 14378.92,
       "margemPct": 18.03,
-      "collectedAt": "2026-03-03",
+      "collectedAt": "2026-03-20",
       "source": "quotes.json"
     },
     {
@@ -786,7 +786,7 @@
       "custoEstimado": 11939,
       "precoSugerido": 14565.58,
       "margemPct": 18.03,
-      "collectedAt": "2026-03-03",
+      "collectedAt": "2026-03-20",
       "source": "quotes.json"
     },
     {
@@ -802,7 +802,7 @@
       "custoEstimado": 12092,
       "precoSugerido": 14752.24,
       "margemPct": 18.03,
-      "collectedAt": "2026-03-03",
+      "collectedAt": "2026-03-20",
       "source": "quotes.json"
     },
     {
@@ -818,7 +818,7 @@
       "custoEstimado": 14880,
       "precoSugerido": 18153.6,
       "margemPct": 18.03,
-      "collectedAt": "2026-03-03",
+      "collectedAt": "2026-03-20",
       "source": "quotes.json"
     },
     {
@@ -834,7 +834,7 @@
       "custoEstimado": 14931,
       "precoSugerido": 18215.82,
       "margemPct": 18.03,
-      "collectedAt": "2026-03-03",
+      "collectedAt": "2026-03-20",
       "source": "quotes.json"
     },
     {
@@ -850,7 +850,7 @@
       "custoEstimado": 15016,
       "precoSugerido": 18319.52,
       "margemPct": 18.03,
-      "collectedAt": "2026-03-03",
+      "collectedAt": "2026-03-20",
       "source": "quotes.json"
     },
     {
@@ -866,7 +866,7 @@
       "custoEstimado": 15067,
       "precoSugerido": 18381.74,
       "margemPct": 18.03,
-      "collectedAt": "2026-03-03",
+      "collectedAt": "2026-03-20",
       "source": "quotes.json"
     },
     {
@@ -882,7 +882,7 @@
       "custoEstimado": 15169,
       "precoSugerido": 18506.18,
       "margemPct": 18.03,
-      "collectedAt": "2026-03-03",
+      "collectedAt": "2026-03-20",
       "source": "quotes.json"
     },
     {
@@ -898,7 +898,7 @@
       "custoEstimado": 15322,
       "precoSugerido": 18692.84,
       "margemPct": 18.03,
-      "collectedAt": "2026-03-03",
+      "collectedAt": "2026-03-20",
       "source": "quotes.json"
     },
     {
@@ -914,7 +914,7 @@
       "custoEstimado": 15356,
       "precoSugerido": 18734.32,
       "margemPct": 18.03,
-      "collectedAt": "2026-03-03",
+      "collectedAt": "2026-03-20",
       "source": "quotes.json"
     },
     {
@@ -930,7 +930,7 @@
       "custoEstimado": 15390,
       "precoSugerido": 18775.8,
       "margemPct": 18.03,
-      "collectedAt": "2026-03-03",
+      "collectedAt": "2026-03-20",
       "source": "quotes.json"
     },
     {
@@ -946,7 +946,7 @@
       "custoEstimado": 15458,
       "precoSugerido": 18858.76,
       "margemPct": 18.03,
-      "collectedAt": "2026-03-03",
+      "collectedAt": "2026-03-20",
       "source": "quotes.json"
     },
     {
@@ -962,7 +962,7 @@
       "custoEstimado": 15611,
       "precoSugerido": 19045.42,
       "margemPct": 18.03,
-      "collectedAt": "2026-03-03",
+      "collectedAt": "2026-03-20",
       "source": "quotes.json"
     },
     {
@@ -978,7 +978,7 @@
       "custoEstimado": 15645,
       "precoSugerido": 19086.9,
       "margemPct": 18.03,
-      "collectedAt": "2026-03-03",
+      "collectedAt": "2026-03-20",
       "source": "quotes.json"
     },
     {
@@ -994,7 +994,7 @@
       "custoEstimado": 16410,
       "precoSugerido": 20020.2,
       "margemPct": 18.03,
-      "collectedAt": "2026-03-03",
+      "collectedAt": "2026-03-20",
       "source": "quotes.json"
     },
     {
@@ -1010,7 +1010,7 @@
       "custoEstimado": 16512,
       "precoSugerido": 20144.64,
       "margemPct": 18.03,
-      "collectedAt": "2026-03-03",
+      "collectedAt": "2026-03-20",
       "source": "quotes.json"
     },
     {
@@ -1026,7 +1026,7 @@
       "custoEstimado": 16546,
       "precoSugerido": 20186.12,
       "margemPct": 18.03,
-      "collectedAt": "2026-03-03",
+      "collectedAt": "2026-03-20",
       "source": "quotes.json"
     },
     {
@@ -1042,7 +1042,7 @@
       "custoEstimado": 16631,
       "precoSugerido": 20289.82,
       "margemPct": 18.03,
-      "collectedAt": "2026-03-03",
+      "collectedAt": "2026-03-20",
       "source": "quotes.json"
     },
     {
@@ -1058,7 +1058,7 @@
       "custoEstimado": 16716,
       "precoSugerido": 20393.52,
       "margemPct": 18.03,
-      "collectedAt": "2026-03-03",
+      "collectedAt": "2026-03-20",
       "source": "quotes.json"
     },
     {
@@ -1074,7 +1074,7 @@
       "custoEstimado": 16784,
       "precoSugerido": 20476.48,
       "margemPct": 18.03,
-      "collectedAt": "2026-03-03",
+      "collectedAt": "2026-03-20",
       "source": "quotes.json"
     },
     {
@@ -1090,7 +1090,7 @@
       "custoEstimado": 16835,
       "precoSugerido": 20538.7,
       "margemPct": 18.03,
-      "collectedAt": "2026-03-03",
+      "collectedAt": "2026-03-20",
       "source": "quotes.json"
     }
   ]

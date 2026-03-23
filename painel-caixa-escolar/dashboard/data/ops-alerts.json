@@ -1,15 +1,21 @@
 {
-  "generatedAt": "2026-03-03T00:07:57.192Z",
-  "status": "GO",
+  "generatedAt": "2026-03-20T12:18:50.529Z",
+  "status": "GO_WITH_WARNINGS",
   "thresholds": {
     "minSkuCoverage": 95,
     "maxUrgent48h": 0,
     "maxDataAgeMin": 180
   },
   "freshness": {
-    "opsGeneratedAt": "2026-03-03T00:07:56.692Z",
+    "opsGeneratedAt": "2026-03-20T12:18:49.607Z",
     "ageMin": 0,
     "isStale": false
   },
-  "alerts": []
+  "alerts": [
+    {
+      "severity": "warning",
+      "code": "URGENT_BACKLOG",
+      "message": "Existem 33 oportunidades urgentes (limite 0)."
+    }
+  ]
 }
