@@ -180,6 +180,15 @@ function carregarKPIs() {
   const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
   let cards = '';
 
+  function readWrappedArray(key) {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(key) || "null");
+      if (Array.isArray(parsed)) return parsed;
+      if (parsed && Array.isArray(parsed.data)) return parsed.data;
+    } catch(_) {}
+    return [];
+  }
+
   // Radar — mesma logica do modulo Radar: orcamentos com status "aberto"
   let oportunidades = 0;
   try {
@@ -199,7 +208,7 @@ function carregarKPIs() {
   // Intel Preços
   let faturamento = 0;
   try {
-    const contratos = JSON.parse(localStorage.getItem("caixaescolar.contratos.v1") || "[]");
+    const contratos = readWrappedArray("caixaescolar.contratos.v1");
     if (Array.isArray(contratos)) faturamento = contratos.reduce((s, c) => s + (c.valorTotal || c.valor || 0), 0);
   } catch(_) {}
 
@@ -215,7 +224,7 @@ function carregarKPIs() {
   // GDP
   let gdpContratos = 0, gdpValor = 0;
   try {
-    const gdp = JSON.parse(localStorage.getItem("gdp.contratos.v1") || "[]");
+    const gdp = readWrappedArray("gdp.contratos.v1");
     if (Array.isArray(gdp)) {
       const ativos = gdp.filter(c => c.status === 'ativo');
       gdpContratos = ativos.length;

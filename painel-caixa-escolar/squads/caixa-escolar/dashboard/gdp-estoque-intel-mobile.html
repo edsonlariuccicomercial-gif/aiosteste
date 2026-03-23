@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#0f766e">
+  <link rel="manifest" href="manifest-estoque-intel.json">
+  <link rel="apple-touch-icon" sizes="192x192" href="icon-entregador-192.png">
+  <title>Estoque Intel Mobile</title>
+  <style>
+    :root{
+      --bg:#071018;--surface:#0f172a;--surface-2:#162235;--border:#274156;--text:#eff6ff;--muted:#94a3b8;
+      --green:#22c55e;--teal:#14b8a6;--yellow:#f59e0b;--red:#ef4444;--blue:#38bdf8;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:"Segoe UI",system-ui,sans-serif;background:linear-gradient(180deg,#071018 0%,#0b1220 100%);color:var(--text);min-height:100vh}
+    .hidden{display:none!important}
+    .login,.app{min-height:100vh}
+    .login{display:flex;align-items:center;justify-content:center;padding:1rem}
+    .card{background:rgba(15,23,42,.96);border:1px solid var(--border);border-radius:18px;padding:1.1rem;box-shadow:0 18px 60px rgba(0,0,0,.28)}
+    .login-card{width:min(380px,100%)}
+    .brand{font-size:1.35rem;font-weight:800;margin-bottom:.3rem}
+    .brand span{color:var(--teal)}
+    .muted{color:var(--muted);font-size:.84rem}
+    .field{margin-top:1rem}
+    .field label{display:block;font-size:.74rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:.35rem}
+    .field input,.field select{width:100%;padding:.9rem 1rem;border-radius:12px;border:1px solid var(--border);background:#08111d;color:var(--text);outline:none}
+    .btn{border:none;border-radius:12px;padding:.95rem 1rem;font-weight:800;cursor:pointer}
+    .btn-primary{background:linear-gradient(135deg,#14b8a6,#0f766e);color:#fff}
+    .btn-outline{background:transparent;border:1px solid var(--border);color:var(--text)}
+    .btn-danger{background:#7f1d1d;color:#fff}
+    .btn-row{display:flex;gap:.6rem;flex-wrap:wrap}
+    .btn-row .btn{flex:1}
+    .topbar{position:sticky;top:0;z-index:5;background:rgba(7,16,24,.94);backdrop-filter:blur(8px);border-bottom:1px solid rgba(39,65,86,.85);padding:1rem;display:flex;justify-content:space-between;align-items:center}
+    .topbar h1{font-size:1rem;margin:0}
+    .topbar h1 span{color:var(--teal)}
+    .shell{padding:1rem;display:grid;gap:1rem}
+    .home-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.75rem}
+    .home-card{padding:1rem;border-radius:16px;background:linear-gradient(180deg,rgba(15,23,42,.98),rgba(8,17,29,.98));border:1px solid var(--border);cursor:pointer}
+    .home-card strong{display:block;font-size:1rem}
+    .home-card span{display:block;margin-top:.35rem;font-size:.8rem;color:var(--muted)}
+    .status{font-size:.82rem;color:var(--muted)}
+    .pill{display:inline-flex;align-items:center;gap:.35rem;border-radius:999px;padding:.25rem .55rem;font-size:.72rem;font-weight:800}
+    .pill.green{background:rgba(34,197,94,.12);color:var(--green)}
+    .pill.yellow{background:rgba(245,158,11,.12);color:var(--yellow)}
+    .pill.blue{background:rgba(56,189,248,.12);color:var(--blue)}
+    .kpi-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.75rem}
+    .kpi{padding:.9rem;border-radius:14px;background:rgba(15,23,42,.98);border:1px solid var(--border)}
+    .kpi .label{font-size:.72rem;text-transform:uppercase;color:var(--muted)}
+    .kpi .value{font-size:1.25rem;font-weight:800;margin-top:.35rem}
+    .video-wrap{position:relative;border-radius:16px;overflow:hidden;border:1px solid var(--border);background:#020617;min-height:220px}
+    video{width:100%;height:280px;object-fit:cover;background:#020617}
+    canvas{display:none}
+    .scan-overlay{position:absolute;inset:auto 16% 18% 16%;height:72px;border:2px dashed rgba(20,184,166,.75);border-radius:14px}
+    .list{display:grid;gap:.65rem}
+    .row-card{padding:.9rem;border:1px solid var(--border);border-radius:14px;background:rgba(15,23,42,.98)}
+    .row-card strong{display:block}
+    .row-card small{display:block;margin-top:.25rem;color:var(--muted)}
+    .table{width:100%;border-collapse:collapse}
+    .table th,.table td{padding:.65rem .4rem;border-bottom:1px solid rgba(39,65,86,.6);text-align:left;font-size:.82rem}
+    .table th{font-size:.7rem;text-transform:uppercase;color:var(--muted)}
+    .footer-actions{position:sticky;bottom:0;background:rgba(7,16,24,.96);border-top:1px solid rgba(39,65,86,.9);padding:1rem}
+    @media(max-width:720px){.home-grid,.kpi-grid{grid-template-columns:1fr}.btn-row{flex-direction:column}}
+  </style>
+</head>
+<body>
+  <div class="login" id="login-screen">
+    <div class="card login-card">
+      <div class="brand">Estoque <span>Intel</span> Mobile</div>
+      <div class="muted">Entrada, saida e consulta de estoque com bipagem por camera e conversao automatica para g/ml.</div>
+      <div class="field">
+        <label>Codigo de Acesso</label>
+        <input type="password" id="login-code" placeholder="Digite o codigo">
+      </div>
+      <div class="field">
+        <button class="btn btn-primary" style="width:100%" onclick="doLogin()">Entrar</button>
+      </div>
+      <div id="login-error" class="muted hidden" style="color:var(--red)">Codigo invalido.</div>
+    </div>
+  </div>
+
+  <div class="app hidden" id="app-shell">
+    <div class="topbar">
+      <h1>Estoque <span>Intel</span> Mobile</h1>
+      <div class="btn-row" style="gap:.4rem">
+        <button class="btn btn-outline" style="padding:.55rem .8rem" onclick="showView('home')">Home</button>
+        <button class="btn btn-outline" style="padding:.55rem .8rem" onclick="logout()">Sair</button>
+      </div>
+    </div>
+
+    <div class="shell" id="view-home">
+      <div class="card">
+        <div class="status">Operacao mobile do `Estoque Intel` conectada ao mesmo armazenamento local do GDP.</div>
+        <div class="home-grid" style="margin-top:1rem">
+          <button class="home-card" onclick="openScanMode('entrada')">
+            <strong>Entrada</strong>
+            <span>Gera estoque fisico (+)</span>
+          </button>
+          <button class="home-card" onclick="openScanMode('saida')">
+            <strong>Saida</strong>
+            <span>Gera fisico (-) e comprometido (-)</span>
+          </button>
+          <button class="home-card" onclick="showView('estoque')">
+            <strong>Estoque</strong>
+            <span>Consulta rapido de fisico, comprometido e disponivel</span>
+          </button>
+        </div>
+      </div>
+      <div class="kpi-grid">
+        <div class="kpi"><div class="label">Produtos</div><div class="value" id="m-kpi-produtos">0</div></div>
+        <div class="kpi"><div class="label">Embalagens</div><div class="value" id="m-kpi-embalagens">0</div></div>
+        <div class="kpi"><div class="label">Movimentacoes</div><div class="value" id="m-kpi-mov">0</div></div>
+      </div>
+      <div class="card">
+        <div class="status">Ultimo produto lido</div>
+        <div id="last-scan-card" style="margin-top:.8rem" class="row-card">
+          <strong>Nenhuma leitura ainda</strong>
+          <small>Use Entrada ou Saida para iniciar a bipagem.</small>
+        </div>
+      </div>
+    </div>
+
+    <div class="shell hidden" id="view-scan">
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:.75rem;flex-wrap:wrap">
+          <div>
+            <div id="scan-title" class="brand" style="font-size:1.05rem;margin:0">Modo Entrada</div>
+            <div class="muted" id="scan-subtitle">Bipe um codigo ou use fallback manual.</div>
+          </div>
+          <span class="pill green" id="scan-mode-pill">Entrada</span>
+        </div>
+        <div class="video-wrap" style="margin-top:1rem">
+          <video id="scanner-video" playsinline muted></video>
+          <canvas id="scanner-canvas"></canvas>
+          <div class="scan-overlay"></div>
+        </div>
+        <div class="btn-row" style="margin-top:1rem">
+          <button class="btn btn-primary" onclick="startScanner()">Abrir Camera</button>
+          <button class="btn btn-outline" onclick="stopScanner()">Parar Camera</button>
+        </div>
+        <div class="field">
+          <label>Codigo manual</label>
+          <input type="text" id="manual-barcode" placeholder="Digite ou cole o codigo de barras">
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-outline" onclick="processManualBarcode()">Identificar embalagem</button>
+          <button class="btn btn-outline" onclick="showView('home')">Voltar</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="status">Resultado da leitura</div>
+        <div id="scan-result" class="row-card" style="margin-top:.8rem">
+          <strong>Aguardando leitura</strong>
+          <small>O sistema vai identificar a embalagem e converter automaticamente para g/ml.</small>
+        </div>
+        <div class="field">
+          <label>Quantidade de volumes</label>
+          <input type="number" id="scan-volume-count" min="1" step="1" value="1">
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="confirmMovement()">Confirmar movimentacao</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="shell hidden" id="view-estoque">
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:.75rem;flex-wrap:wrap">
+          <div class="brand" style="font-size:1.05rem;margin:0">Estoque Mobile</div>
+          <button class="btn btn-outline" style="padding:.55rem .8rem" onclick="renderMobileStock()">Atualizar</button>
+        </div>
+        <div class="field">
+          <label>Buscar produto</label>
+          <input type="text" id="mobile-stock-search" placeholder="Buscar por nome" oninput="renderMobileStock()">
+        </div>
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr><th>Produto</th><th>Fisico</th><th>Comp.</th><th>Disp.</th></tr>
+            </thead>
+            <tbody id="mobile-stock-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer-actions">
+      <div class="muted" id="mobile-footer-status">Pronto para operar offline com cache local.</div>
+    </div>
+  </div>
+
+  <script>
+    const MOBILE_AUTH_KEY = "gdp.estoque-intel.mobile.auth.v1";
+    const MOBILE_LAST_SCAN_KEY = "gdp.estoque-intel.mobile.lastscan.v1";
+    const ESTOQUE_INTEL_PRODUCTS_KEY = "gdp.estoque-intel.produtos.v1";
+    const ESTOQUE_INTEL_PACKAGES_KEY = "gdp.estoque-intel.embalagens.v1";
+    const ESTOQUE_INTEL_MOVES_KEY = "gdp.estoque-intel.movimentacoes.v1";
+    const ACCESS_CODE = "estoqueintel2026";
+    let scanMode = "entrada";
+    let scannerStream = null;
+    let detector = null;
+    let detectorTimer = null;
+    let currentPackage = null;
+    let lastScan = null;
+
+    function unwrapData(value) {
+      if (Array.isArray(value)) return value;
+      if (value && Array.isArray(value.data)) return value.data;
+      if (value && Array.isArray(value.items)) return value.items;
+      return [];
+    }
+
+    function getSeedData() {
+      return {
+        produtos: [
+          { id: "PROD-ARROZ", nome: "Arroz", unidade_base: "g" },
+          { id: "PROD-BOLACHA", nome: "Bolacha agua e sal", unidade_base: "g" },
+          { id: "PROD-SUCO", nome: "Suco integral", unidade_base: "ml" }
+        ],
+        embalagens: [
+          { id: "EMB-ARROZ-300", produto_id: "PROD-ARROZ", descricao: "Pacote 300g", codigo_barras: "789000000001", quantidade_base: 300 },
+          { id: "EMB-ARROZ-350", produto_id: "PROD-ARROZ", descricao: "Pacote 350g", codigo_barras: "789000000002", quantidade_base: 350 },
+          { id: "EMB-ARROZ-360", produto_id: "PROD-ARROZ", descricao: "Pacote 360g", codigo_barras: "789000000003", quantidade_base: 360 },
+          { id: "EMB-SUCO-1000", produto_id: "PROD-SUCO", descricao: "Garrafa 1000ml", codigo_barras: "789000000005", quantidade_base: 1000 }
+        ],
+        movimentacoes: []
+      };
+    }
+
+    function getArray(key, fallback = []) {
+      try {
+        const raw = localStorage.getItem(key);
+        if (!raw) return fallback;
+        const parsed = JSON.parse(raw);
+        const data = unwrapData(parsed);
+        return Array.isArray(data) ? data : fallback;
+      } catch (_) {
+        return fallback;
+      }
+    }
+
+    function saveWrappedArray(key, value) {
+      localStorage.setItem(key, JSON.stringify({ data: value, updatedAt: new Date().toISOString() }));
+    }
+
+    function getProdutos() {
+      const seed = getSeedData();
+      const items = getArray(ESTOQUE_INTEL_PRODUCTS_KEY, seed.produtos);
+      if (!localStorage.getItem(ESTOQUE_INTEL_PRODUCTS_KEY)) saveWrappedArray(ESTOQUE_INTEL_PRODUCTS_KEY, items);
+      return items;
+    }
+
+    function getEmbalagens() {
+      const seed = getSeedData();
+      const items = getArray(ESTOQUE_INTEL_PACKAGES_KEY, seed.embalagens);
+      if (!localStorage.getItem(ESTOQUE_INTEL_PACKAGES_KEY)) saveWrappedArray(ESTOQUE_INTEL_PACKAGES_KEY, items);
+      return items;
+    }
+
+    function getMovimentacoes() {
+      const seed = getSeedData();
+      const items = getArray(ESTOQUE_INTEL_MOVES_KEY, seed.movimentacoes);
+      if (!localStorage.getItem(ESTOQUE_INTEL_MOVES_KEY)) saveWrappedArray(ESTOQUE_INTEL_MOVES_KEY, items);
+      return items;
+    }
+
+    function saveMovimentacoes(items) {
+      saveWrappedArray(ESTOQUE_INTEL_MOVES_KEY, items);
+    }
+
+    function findProduto(produtoId) {
+      return getProdutos().find((item) => item.id === produtoId) || null;
+    }
+
+    function computeResumo() {
+      const produtos = getProdutos();
+      const movimentacoes = getMovimentacoes();
+      return produtos.map((produto) => {
+        const produtoMovs = movimentacoes.filter((mov) => mov.produto_id === produto.id);
+        const fisico = produtoMovs.filter((mov) => mov.tipo === "fisico").reduce((sum, mov) => sum + (mov.operacao === "+" ? Number(mov.quantidade || 0) : -Number(mov.quantidade || 0)), 0);
+        const comprometido = produtoMovs.filter((mov) => mov.tipo === "comprometido").reduce((sum, mov) => sum + (mov.operacao === "+" ? Number(mov.quantidade || 0) : -Number(mov.quantidade || 0)), 0);
+        return { produto, fisico, comprometido, disponivel: fisico - comprometido };
+      });
+    }
+
+    function setFooterStatus(text) {
+      const el = document.getElementById("mobile-footer-status");
+      if (el) el.textContent = text;
+    }
+
+    function doLogin() {
+      const code = (document.getElementById("login-code").value || "").trim();
+      if (code !== ACCESS_CODE) {
+        document.getElementById("login-error").classList.remove("hidden");
+        return;
+      }
+      localStorage.setItem(MOBILE_AUTH_KEY, "1");
+      bootApp();
+    }
+
+    function logout() {
+      stopScanner();
+      localStorage.removeItem(MOBILE_AUTH_KEY);
+      document.getElementById("app-shell").classList.add("hidden");
+      document.getElementById("login-screen").classList.remove("hidden");
+    }
+
+    function bootApp() {
+      document.getElementById("login-screen").classList.add("hidden");
+      document.getElementById("app-shell").classList.remove("hidden");
+      showView("home");
+      renderHome();
+      renderMobileStock();
+      try {
+        lastScan = JSON.parse(localStorage.getItem(MOBILE_LAST_SCAN_KEY) || "null");
+      } catch (_) {
+        lastScan = null;
+      }
+      renderLastScan();
+    }
+
+    function showView(view) {
+      ["home", "scan", "estoque"].forEach((name) => {
+        document.getElementById(`view-${name}`).classList.toggle("hidden", name !== view);
+      });
+      if (view !== "scan") stopScanner();
+      if (view === "home") renderHome();
+      if (view === "estoque") renderMobileStock();
+    }
+
+    function renderHome() {
+      document.getElementById("m-kpi-produtos").textContent = getProdutos().length;
+      document.getElementById("m-kpi-embalagens").textContent = getEmbalagens().length;
+      document.getElementById("m-kpi-mov").textContent = getMovimentacoes().length;
+    }
+
+    function renderLastScan() {
+      const el = document.getElementById("last-scan-card");
+      if (!el) return;
+      if (!lastScan) {
+        el.innerHTML = "<strong>Nenhuma leitura ainda</strong><small>Use Entrada ou Saida para iniciar a bipagem.</small>";
+        return;
+      }
+      el.innerHTML = `
+        <strong>${lastScan.produtoNome}</strong>
+        <small>${lastScan.embalagemDescricao} | ${lastScan.quantidadeConvertida} ${lastScan.unidadeBase} | ${lastScan.modoLabel}</small>
+      `;
+    }
+
+    function openScanMode(mode) {
+      scanMode = mode;
+      currentPackage = null;
+      document.getElementById("scan-title").textContent = mode === "entrada" ? "Modo Entrada" : "Modo Saida";
+      document.getElementById("scan-subtitle").textContent = mode === "entrada"
+        ? "Leitura gera fisico (+)."
+        : "Leitura gera fisico (-) e comprometido (-).";
+      const pill = document.getElementById("scan-mode-pill");
+      pill.textContent = mode === "entrada" ? "Entrada" : "Saida";
+      pill.className = `pill ${mode === "entrada" ? "green" : "yellow"}`;
+      document.getElementById("scan-result").innerHTML = "<strong>Aguardando leitura</strong><small>O sistema vai identificar a embalagem e converter automaticamente para g/ml.</small>";
+      document.getElementById("scan-volume-count").value = 1;
+      document.getElementById("manual-barcode").value = "";
+      showView("scan");
+    }
+
+    async function startScanner() {
+      stopScanner();
+      const video = document.getElementById("scanner-video");
+      try {
+        scannerStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" } }, audio: false });
+        video.srcObject = scannerStream;
+        await video.play();
+        if ("BarcodeDetector" in window) {
+          detector = new BarcodeDetector({ formats: ["ean_13", "ean_8", "code_128", "upc_a", "upc_e"] });
+          scheduleDetection();
+          setFooterStatus("Camera ativa. Aponte para o codigo de barras.");
+        } else {
+          setFooterStatus("Camera ativa, mas o aparelho nao suporta BarcodeDetector. Use o codigo manual.");
+        }
+      } catch (err) {
+        setFooterStatus(`Falha ao abrir camera: ${err.message}`);
+      }
+    }
+
+    function stopScanner() {
+      if (detectorTimer) {
+        clearTimeout(detectorTimer);
+        detectorTimer = null;
+      }
+      const video = document.getElementById("scanner-video");
+      if (video) {
+        video.pause();
+        video.srcObject = null;
+      }
+      if (scannerStream) {
+        scannerStream.getTracks().forEach((track) => track.stop());
+        scannerStream = null;
+      }
+    }
+
+    function scheduleDetection() {
+      detectorTimer = setTimeout(scanFrame, 650);
+    }
+
+    async function scanFrame() {
+      if (!detector || !scannerStream) return;
+      const video = document.getElementById("scanner-video");
+      try {
+        const barcodes = await detector.detect(video);
+        if (barcodes.length) {
+          const code = String(barcodes[0].rawValue || "").trim();
+          if (code) {
+            handleDetectedBarcode(code);
+            return;
+          }
+        }
+      } catch (_) {}
+      scheduleDetection();
+    }
+
+    function processManualBarcode() {
+      const code = (document.getElementById("manual-barcode").value || "").trim();
+      if (!code) {
+        setFooterStatus("Informe um codigo manual para identificar a embalagem.");
+        return;
+      }
+      handleDetectedBarcode(code);
+    }
+
+    function handleDetectedBarcode(code) {
+      stopScanner();
+      const embalagem = getEmbalagens().find((item) => String(item.codigo_barras || "").trim() === code);
+      if (!embalagem) {
+        currentPackage = null;
+        document.getElementById("scan-result").innerHTML = `<strong>Codigo nao encontrado</strong><small>${code} nao esta vinculado a nenhuma embalagem cadastrada.</small>`;
+        setFooterStatus("Codigo nao encontrado. Cadastre a embalagem na tela web ou digite outro codigo.");
+        return;
+      }
+      currentPackage = embalagem;
+      const produto = findProduto(embalagem.produto_id);
+      const quantidadeBase = Number(embalagem.quantidade_base || 0);
+      document.getElementById("scan-result").innerHTML = `
+        <strong>${produto?.nome || embalagem.produto_id}</strong>
+        <small>${embalagem.descricao} | Codigo ${code}</small>
+        <small>Conversao automatica: ${quantidadeBase} ${produto?.unidade_base || ""} por volume</small>
+      `;
+      setFooterStatus("Embalagem identificada. Informe volumes e confirme a movimentacao.");
+    }
+
+    function confirmMovement() {
+      if (!currentPackage) {
+        setFooterStatus("Nenhuma embalagem identificada para registrar.");
+        return;
+      }
+      const volumes = Math.max(1, Number(document.getElementById("scan-volume-count").value || 1));
+      const produto = findProduto(currentPackage.produto_id);
+      const quantidadeConvertida = Number(currentPackage.quantidade_base || 0) * volumes;
+      const now = new Date().toISOString();
+      const movimentacoes = getMovimentacoes();
+      if (scanMode === "entrada") {
+        movimentacoes.push({ id: `MOV-${Date.now()}`, produto_id: currentPackage.produto_id, tipo: "fisico", operacao: "+", quantidade: quantidadeConvertida, origem: "bipagem_mobile", data: now });
+      } else {
+        movimentacoes.push({ id: `MOV-${Date.now()}-1`, produto_id: currentPackage.produto_id, tipo: "fisico", operacao: "-", quantidade: quantidadeConvertida, origem: "bipagem_mobile", data: now });
+        movimentacoes.push({ id: `MOV-${Date.now()}-2`, produto_id: currentPackage.produto_id, tipo: "comprometido", operacao: "-", quantidade: quantidadeConvertida, origem: "pedido_mobile", data: now });
+      }
+      saveMovimentacoes(movimentacoes);
+      lastScan = {
+        codigo: currentPackage.codigo_barras || "",
+        produtoNome: produto?.nome || currentPackage.produto_id,
+        embalagemDescricao: currentPackage.descricao,
+        quantidadeConvertida,
+        unidadeBase: produto?.unidade_base || "",
+        modo: scanMode,
+        modoLabel: scanMode === "entrada" ? "Entrada registrada" : "Saida registrada",
+        data: now
+      };
+      localStorage.setItem(MOBILE_LAST_SCAN_KEY, JSON.stringify(lastScan));
+      renderLastScan();
+      renderHome();
+      renderMobileStock();
+      document.getElementById("scan-result").innerHTML = `
+        <strong>Movimentacao registrada</strong>
+        <small>${lastScan.produtoNome} | ${quantidadeConvertida} ${lastScan.unidadeBase} | ${lastScan.modoLabel}</small>
+      `;
+      setFooterStatus(`Movimentacao salva com sucesso em ${new Date(now).toLocaleTimeString('pt-BR')}.`);
+    }
+
+    function renderMobileStock() {
+      const tbody = document.getElementById("mobile-stock-tbody");
+      if (!tbody) return;
+      const busca = (document.getElementById("mobile-stock-search")?.value || "").trim().toLowerCase();
+      const rows = computeResumo().filter((item) => !busca || item.produto.nome.toLowerCase().includes(busca));
+      tbody.innerHTML = rows.length ? rows.map((item) => `
+        <tr>
+          <td>${item.produto.nome}<br><span class="muted">${item.produto.unidade_base}</span></td>
+          <td>${item.fisico}</td>
+          <td>${item.comprometido}</td>
+          <td style="color:${item.disponivel >= 0 ? 'var(--green)' : 'var(--red)'};font-weight:800">${item.disponivel}</td>
+        </tr>
+      `).join("") : `<tr><td colspan="4" class="muted">Nenhum produto encontrado.</td></tr>`;
+    }
+
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("sw-estoque-intel.js").catch(() => {});
+    }
+
+    window.addEventListener("load", () => {
+      if (localStorage.getItem(MOBILE_AUTH_KEY) === "1") bootApp();
+    });
+  </script>
+</body>
+</html>

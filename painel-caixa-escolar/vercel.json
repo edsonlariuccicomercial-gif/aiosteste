@@ -1,0 +1,19 @@
+{
+  "redirects": [
+    {
+      "source": "/",
+      "destination": "/squads/caixa-escolar/dashboard/gdp-contratos.html",
+      "permanent": false
+    },
+    {
+      "source": "/gdp-contratos.html",
+      "destination": "/squads/caixa-escolar/dashboard/gdp-contratos.html",
+      "permanent": false
+    },
+    {
+      "source": "/gdp-estoque-intel-mobile.html",
+      "destination": "/squads/caixa-escolar/dashboard/gdp-estoque-intel-mobile.html",
+      "permanent": false
+    }
+  ]
+}
