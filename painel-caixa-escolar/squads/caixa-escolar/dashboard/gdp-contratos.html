@@ -141,6 +141,24 @@
     .empty h3{margin-bottom:.5rem}
 
     .estoque-intel-nav{display:flex;gap:.6rem;flex-wrap:wrap;margin-bottom:1rem}
+    #estoque-intel-print-root{display:none}
+    body.estoque-intel-print-mode #estoque-intel-print-root{
+      display:block;position:fixed;inset:0;background:#fff;color:#0f172a;z-index:99999;padding:24px;overflow:auto
+    }
+    body.estoque-intel-print-mode #estoque-intel-print-root h1{margin:0 0 8px;font-size:22px}
+    body.estoque-intel-print-mode #estoque-intel-print-root p{margin:0 0 18px;color:#475569}
+    body.estoque-intel-print-mode #estoque-intel-print-root table{width:100%;border-collapse:collapse}
+    body.estoque-intel-print-mode #estoque-intel-print-root th,
+    body.estoque-intel-print-mode #estoque-intel-print-root td{
+      border:1px solid #cbd5e1;padding:8px 10px;text-align:left;font-size:12px;color:#0f172a
+    }
+    body.estoque-intel-print-mode #estoque-intel-print-root th{background:#e2e8f0}
+    @media print{
+      body.estoque-intel-print-mode > *{visibility:hidden!important}
+      body.estoque-intel-print-mode #estoque-intel-print-root,
+      body.estoque-intel-print-mode #estoque-intel-print-root *{visibility:visible!important}
+      body.estoque-intel-print-mode #estoque-intel-print-root{position:absolute;inset:0;padding:0}
+    }
     .hidden{display:none!important}
     @media(max-width:768px){.main{padding:1rem}.kpi-grid{grid-template-columns:repeat(2,1fr)}.topbar{flex-wrap:wrap;gap:.5rem}}
   </style>
@@ -837,30 +855,32 @@
         </div>
       </div>
       <div class="estoque-intel-nav" style="margin-top:1rem">
-        <button class="btn btn-green btn-sm" id="ei-view-btn-geral" onclick="setEstoqueIntelView('geral')">Visao Geral</button>
-        <button class="btn btn-outline btn-sm" id="ei-view-btn-produtos" onclick="setEstoqueIntelView('produtos')">Produtos</button>
-        <button class="btn btn-outline btn-sm" id="ei-view-btn-embalagens" onclick="setEstoqueIntelView('embalagens')">Embalagens</button>
-        <button class="btn btn-outline btn-sm" id="ei-view-btn-pedidos" onclick="setEstoqueIntelView('pedidos')">Pedidos</button>
-        <button class="btn btn-outline btn-sm" id="ei-view-btn-estoque" onclick="setEstoqueIntelView('estoque')">Estoque</button>
+        <button class="btn btn-green btn-sm" id="ei-view-btn-produtos" onclick="setEstoqueIntelView('produtos')">Produtos</button>
+        <button class="btn btn-outline btn-sm" id="ei-view-btn-fornecedores" onclick="setEstoqueIntelView('fornecedores')">Fornecedores</button>
+        <button class="btn btn-outline btn-sm" id="ei-view-btn-pedidos" onclick="setEstoqueIntelView('pedidos')">Demandas</button>
         <button class="btn btn-outline btn-sm" id="ei-view-btn-compra" onclick="setEstoqueIntelView('compra')">Compra Inteligente</button>
+        <button class="btn btn-outline btn-sm" id="ei-view-btn-estoque" onclick="setEstoqueIntelView('estoque')">Estoque</button>
       </div>
       <div id="ei-api-status" style="margin-top:.75rem;font-size:.8rem;color:var(--mut)">API pronta para consulta em <span class="font-mono">/api/produtos</span>, <span class="font-mono">/api/embalagens</span> e <span class="font-mono">/api/estoque</span>.</div>
     </div>
     <div class="kpi-grid" style="margin-bottom:1rem">
       <div class="kpi"><div class="kpi-label">Produtos</div><div class="kpi-value blue" id="est-intel-kpi-produtos">0</div><div class="kpi-sub">Catalogo base</div></div>
       <div class="kpi"><div class="kpi-label">Embalagens</div><div class="kpi-value yellow" id="est-intel-kpi-embalagens">0</div><div class="kpi-sub">Variacoes por gramatura/ml</div></div>
-      <div class="kpi"><div class="kpi-label">Pedidos</div><div class="kpi-value green" id="est-intel-kpi-pedidos">0</div><div class="kpi-sub">Demanda convertida</div></div>
+      <div class="kpi"><div class="kpi-label">Demandas</div><div class="kpi-value green" id="est-intel-kpi-pedidos">0</div><div class="kpi-sub">Reservas e necessidades</div></div>
       <div class="kpi"><div class="kpi-label">Movimentacoes</div><div class="kpi-value red" id="est-intel-kpi-mov">0</div><div class="kpi-sub">Fisico e comprometido</div></div>
     </div>
     <div id="ei-grid-principal" style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;align-items:start">
       <div class="card" id="ei-card-produtos" data-ei-section="produtos">
-        <h3 style="margin-bottom:.75rem">Cadastro de Produtos</h3>
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap;margin-bottom:.75rem">
+          <h3 style="margin:0">Cadastro de Produtos</h3>
+          <button class="btn btn-outline btn-sm" onclick="imprimirListaProdutosEstoqueIntel()">Imprimir Lista</button>
+        </div>
         <div data-ei-form style="display:grid;grid-template-columns:1.2fr .7fr auto;gap:.75rem;align-items:end;margin-bottom:1rem">
           <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Nome</label><input type="text" id="ei-produto-nome" placeholder="Ex: Arroz"></div>
           <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Unidade Base</label><select id="ei-produto-unidade"><option value="g">g</option><option value="ml">ml</option></select></div>
           <div><button class="btn btn-green" onclick="registrarProdutoEstoqueIntel()">Salvar</button></div>
         </div>
-        <div class="table-wrap" data-ei-table style="max-height:220px;overflow-y:auto"><table><thead><tr><th>ID</th><th>Produto</th><th>Base</th></tr></thead><tbody id="ei-produtos-tbody"></tbody></table></div>
+        <div class="table-wrap" data-ei-table style="max-height:220px;overflow-y:auto"><table><thead><tr><th>ID</th><th>Produto</th><th>Base</th><th class="text-right">Acoes</th></tr></thead><tbody id="ei-produtos-tbody"></tbody></table></div>
       </div>
       <div class="card" id="ei-card-embalagens" data-ei-section="embalagens">
         <h3 style="margin-bottom:.75rem">Cadastro de Embalagens</h3>
@@ -869,19 +889,80 @@
           <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Descricao</label><input type="text" id="ei-emb-descricao" placeholder="Ex: Pacote 350g"></div>
           <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Codigo de Barras</label><input type="text" id="ei-emb-barcode" placeholder="789..."></div>
           <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Quantidade Base</label><input type="number" id="ei-emb-quantidade" min="1" step="1" placeholder="350"></div>
+          <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Preco de Referencia da Embalagem</label><input type="number" id="ei-emb-preco-ref" min="0" step="0.01" placeholder="8.90"></div>
         </div>
         <div data-ei-form style="display:flex;justify-content:flex-end;margin-bottom:1rem"><button class="btn btn-green" onclick="registrarEmbalagemEstoqueIntel()">Salvar Embalagem</button></div>
-        <div class="table-wrap" data-ei-table style="max-height:220px;overflow-y:auto"><table><thead><tr><th>Produto</th><th>Descricao</th><th>Barras</th><th class="text-right">Qtd Base</th></tr></thead><tbody id="ei-embalagens-tbody"></tbody></table></div>
+        <div class="table-wrap" data-ei-table style="max-height:220px;overflow-y:auto"><table><thead><tr><th>Produto</th><th>Descricao</th><th>Barras</th><th class="text-right">Qtd Base</th><th class="text-right">Preco Padrao</th><th class="text-right">Acoes</th></tr></thead><tbody id="ei-embalagens-tbody"></tbody></table></div>
       </div>
       <div class="card" id="ei-card-pedidos" data-ei-section="pedidos">
-        <h3 style="margin-bottom:.75rem">Pedidos e Demanda</h3>
-        <div data-ei-form style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:.75rem;align-items:end;margin-bottom:1rem">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap;margin-bottom:.75rem">
+          <div>
+            <h3 style="margin-bottom:.35rem">Demandas do Estoque</h3>
+            <div style="font-size:.8rem;color:var(--mut)">Aqui entram demandas manuais e demandas sincronizadas dos pedidos reais do Portal Escolar e de Contratos.</div>
+          </div>
+          <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center">
+            <span class="badge badge-yellow">Reserva</span>
+            <button class="btn btn-outline btn-sm" onclick="limparVisualizacaoDemandasEstoqueIntel()">Voltar</button>
+          </div>
+        </div>
+        <div data-ei-form style="display:grid;grid-template-columns:1fr 1fr 1fr 1.2fr;gap:.75rem;align-items:end;margin-bottom:1rem">
           <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Produto</label><select id="ei-pedido-produto"></select></div>
           <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Quantidade Necessaria</label><input type="number" id="ei-pedido-quantidade" min="1" step="1" placeholder="1700"></div>
           <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Status</label><input type="text" id="ei-pedido-status" value="emitido"></div>
-          <div><button class="btn btn-green" onclick="registrarPedidoEstoqueIntel()">Gerar Pedido</button></div>
+          <div style="display:grid;gap:.55rem">
+            <div style="display:flex;justify-content:flex-end">
+              <button class="btn btn-green" onclick="registrarPedidoEstoqueIntel()">Adicionar Demanda Manual</button>
+            </div>
+            <div style="display:flex;justify-content:flex-end;gap:.5rem;flex-wrap:wrap;padding:.65rem .75rem;border:1px dashed rgba(148,163,184,.28);border-radius:12px;background:rgba(148,163,184,.06)">
+              <span style="font-size:.72rem;color:var(--mut);align-self:center;margin-right:auto">Utilitarios de teste</span>
+              <button class="btn btn-outline btn-sm" onclick="gerarExemploDemandaVisualEstoqueIntel()">Exemplo</button>
+              <button class="btn btn-outline btn-sm" onclick="limparReservasTesteEstoqueIntel()">Limpar</button>
+            </div>
+          </div>
         </div>
-        <div class="table-wrap" data-ei-table style="max-height:220px;overflow-y:auto"><table><thead><tr><th>Pedido</th><th>Produto</th><th class="text-right">Qtd Base</th><th>Status</th><th>Data</th></tr></thead><tbody id="ei-pedidos-tbody"></tbody></table></div>
+        <div style="border:1px solid rgba(59,130,246,.18);border-radius:14px;padding:1rem;background:linear-gradient(180deg,rgba(59,130,246,.06),rgba(59,130,246,.02));margin-bottom:1rem">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:.75rem;margin-bottom:.75rem;flex-wrap:wrap">
+            <div>
+              <div style="font-size:.82rem;font-weight:700">Demandas Geradas</div>
+              <div style="font-size:.76rem;color:var(--mut)">Abra uma demanda para visualizar a reserva, os itens vinculados e enviar para compra.</div>
+            </div>
+            <div style="display:flex;gap:.75rem;align-items:center;flex-wrap:wrap">
+              <div>
+                <label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.2rem">Filtrar reserva</label>
+                <select id="ei-pedidos-reserva-filtro" onchange="estoqueIntelFiltroReservaStatus=this.value;renderEstoque()" style="min-width:180px">
+                  <option value="">Todas</option>
+                  <option value="reservada">Aguardando entrega</option>
+                  <option value="baixada">Entrega baixada</option>
+                  <option value="encerrada_manual">Reserva cancelada</option>
+                </select>
+              </div>
+              <span class="badge badge-blue" id="ei-demandas-geradas-count">0</span>
+            </div>
+          </div>
+          <div class="table-wrap" data-ei-table style="max-height:360px;overflow-y:auto"><table><thead><tr><th>Demanda</th><th>Origem</th><th>Produto</th><th class="text-right">Qtd Base</th><th>Status</th><th>Data</th><th class="text-right">Acoes</th></tr></thead><tbody id="ei-pedidos-tbody"></tbody></table></div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem;margin-top:1rem;align-items:start">
+          <div style="border:1px solid rgba(34,197,94,.18);border-radius:14px;padding:1rem;min-height:100%;background:linear-gradient(180deg,rgba(34,197,94,.06),rgba(34,197,94,.02))">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:.75rem;margin-bottom:.75rem">
+              <div>
+                <div style="font-size:.82rem;font-weight:700">Pedidos Reais com Demanda</div>
+                <div style="font-size:.76rem;color:var(--mut)">Pedidos do GDP que ja conseguiram virar demanda no estoque.</div>
+              </div>
+              <span class="badge badge-green" id="ei-pedidos-sync-ok-count">0</span>
+            </div>
+            <div class="table-wrap" data-ei-table style="max-height:280px;overflow-y:auto"><table><thead><tr><th>Pedido</th><th>Itens</th><th>Status</th><th class="text-right">Acoes</th></tr></thead><tbody id="ei-pedidos-sync-ok-tbody"></tbody></table></div>
+          </div>
+          <div style="border:1px solid rgba(245,158,11,.28);border-radius:14px;padding:1rem;min-height:100%;background:linear-gradient(180deg,rgba(245,158,11,.10),rgba(245,158,11,.03))">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:.75rem;margin-bottom:.75rem">
+              <div>
+                <div style="font-size:.82rem;font-weight:700">Pedidos Reais sem Demanda</div>
+                <div style="font-size:.76rem;color:#fcd34d">Pedidos do GDP que ainda nao conseguiram gerar demanda automaticamente.</div>
+              </div>
+              <span class="badge badge-yellow" id="ei-pedidos-sync-pendente-count">0</span>
+            </div>
+            <div class="table-wrap" data-ei-table style="max-height:280px;overflow-y:auto"><table><thead><tr><th>Pedido</th><th>Pendencia</th><th>Status</th><th class="text-right">Acoes</th></tr></thead><tbody id="ei-pedidos-sync-pendente-tbody"></tbody></table></div>
+          </div>
+        </div>
       </div>
       <div class="card" id="ei-card-movimentacoes" data-ei-section="estoque">
         <h3 style="margin-bottom:.75rem">Movimentacoes</h3>
@@ -900,7 +981,13 @@
         <div class="table-wrap" data-ei-table style="max-height:320px;overflow-y:auto"><table><thead><tr><th>Produto</th><th class="text-right">Fisico</th><th class="text-right">Comprometido</th><th class="text-right">Disponivel</th><th>Base</th></tr></thead><tbody id="ei-estoque-tbody"></tbody></table></div>
       </div>
       <div class="card" id="ei-card-compra-sugestao" data-ei-section="compra">
-        <h3 style="margin-bottom:.75rem">Sugestao de Compra Inteligente</h3>
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap;margin-bottom:.75rem">
+          <div>
+            <h3 style="margin-bottom:.35rem">Calculo da Melhor Compra</h3>
+            <div style="font-size:.8rem;color:var(--mut)">Calcula a melhor embalagem para a necessidade informada e reduz sobra na compra.</div>
+          </div>
+          <div style="margin-left:auto;display:flex;align-items:flex-start"><span class="badge badge-green">Etapa 1</span></div>
+        </div>
         <div data-ei-form style="display:grid;grid-template-columns:1fr;gap:.75rem">
           <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Produto</label><select id="ei-sugestao-produto"></select></div>
           <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Necessidade em g/ml</label><input type="number" id="ei-sugestao-quantidade" min="1" step="1" placeholder="1700"></div>
@@ -908,19 +995,62 @@
         </div>
         <div id="ei-sugestao-resultado" style="margin-top:1rem;font-size:.84rem;color:var(--mut)">Informe a necessidade para gerar a melhor embalagem.</div>
       </div>
+      <div class="card" id="ei-card-precompra" data-ei-section="compra">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap;margin-bottom:.75rem">
+          <div>
+            <h3 style="margin-bottom:.35rem">Geracao do Pedido de Compra</h3>
+            <div style="font-size:.8rem;color:var(--mut)">Use o calculo acima para transformar a necessidade em pedido ao fornecedor.</div>
+          </div>
+          <div style="margin-left:auto;display:flex;align-items:flex-start"><span class="badge badge-blue">Etapa 2</span></div>
+        </div>
+        <div data-ei-form style="display:grid;grid-template-columns:1fr 1fr auto;gap:.75rem;align-items:end;margin-bottom:1rem">
+          <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Fornecedor</label><select id="ei-compra-fornecedor"></select></div>
+          <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Vencimento financeiro</label><input type="date" id="ei-compra-vencimento"></div>
+          <div><button class="btn btn-green" onclick="gerarPreCompraEstoqueIntel()">Gerar Pedido</button></div>
+        </div>
+        <div id="ei-erp-status" style="font-size:.8rem;color:var(--mut);margin-bottom:.75rem;padding:.75rem .9rem;border:1px solid rgba(56,189,248,.2);border-radius:12px;background:rgba(56,189,248,.08)">Pedido pronto para envio ao fornecedor, com embalagem escolhida e custo previsto.</div>
+      </div>
+      <div class="card" id="ei-card-compra-manual" data-ei-section="compra">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap;margin-bottom:.75rem">
+          <div>
+            <h3 style="margin-bottom:.35rem">Pedido Manual ao Fornecedor</h3>
+            <div style="font-size:.8rem;color:var(--mut)">Use este card quando a compra nao vier do calculo nem da lista automatica.</div>
+          </div>
+        </div>
+        <div data-ei-form style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;align-items:end">
+          <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Produto</label><select id="ei-compra-manual-produto" onchange="atualizarCompraManualEmbalagens()"></select></div>
+          <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Embalagem</label><select id="ei-compra-manual-embalagem"><option value="">Selecione</option></select></div>
+          <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Fornecedor</label><select id="ei-compra-manual-fornecedor"></select></div>
+          <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Pacotes</label><input type="number" id="ei-compra-manual-pacotes" min="1" step="1" placeholder="1"></div>
+          <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Vencimento financeiro</label><input type="date" id="ei-compra-manual-vencimento"></div>
+          <div style="display:flex;justify-content:flex-end"><button class="btn btn-outline" onclick="gerarPedidoCompraManualEstoqueIntel()">Gerar Pedido Manual</button></div>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="ei-card-compras-geradas" data-ei-section="compra" style="margin-top:1rem">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap;margin-bottom:.75rem">
+        <div>
+          <h3 style="margin-bottom:.35rem">Pedidos Gerados</h3>
+          <div style="font-size:.8rem;color:var(--mut)">Pedidos criados pelo calculo, pela lista automatica ou manualmente aparecem aqui.</div>
+        </div>
+      </div>
+      <div class="table-wrap" data-ei-table style="max-height:260px;overflow-y:auto"><table><thead><tr><th>ID</th><th>Fornecedor</th><th>Itens</th><th>Origem</th><th>Status</th><th class="text-right">Valor</th><th class="text-right">Acoes</th></tr></thead><tbody id="ei-compras-tbody"></tbody></table></div>
     </div>
     <div class="card" id="ei-card-lista-compras" data-ei-section="compra" style="margin-top:1rem">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap;margin-bottom:1rem">
         <div>
-          <h3 style="margin-bottom:.35rem">Lista de Compras Automatica</h3>
-          <div style="font-size:.8rem;color:var(--mut)">Baseada nos pedidos sincronizados com o estoque inteligente, com filtros por cliente, produto, fornecedor, status e data.</div>
+          <h3 style="margin-bottom:.35rem">Lista Automatica de Compras</h3>
+          <div style="font-size:.8rem;color:var(--mut)">Visao consolidada da necessidade por cliente, produto e fornecedor, sempre ao fim do fluxo de compra.</div>
         </div>
         <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+          <button class="btn btn-outline btn-sm" onclick="resetVisualizacaoCompraEstoqueIntel()">Voltar</button>
+          <button class="btn btn-outline btn-sm" onclick="gerarExemploDemandaAutomaticaEstoqueIntel()">Exemplo de Compra</button>
           <button class="btn btn-outline btn-sm" onclick="toggleListaComprasPeriodo('mes')" id="ei-periodo-mes-btn">Do mes</button>
           <button class="btn btn-outline btn-sm" onclick="toggleListaComprasPeriodo('intervalo')" id="ei-periodo-intervalo-btn">Intervalo</button>
         </div>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.9rem;align-items:end;margin-bottom:1rem">
+      <div id="ei-lista-demanda-contexto" class="hidden" style="margin-bottom:1rem;padding:.9rem 1rem;border:1px solid rgba(59,130,246,.28);border-radius:14px;background:linear-gradient(180deg,rgba(59,130,246,.10),rgba(59,130,246,.04));font-size:.82rem;color:#dbeafe"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.9rem;align-items:end;margin-bottom:1rem;padding:1rem;border:1px solid rgba(255,255,255,.06);border-radius:14px;background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,.015))">
         <div id="ei-periodo-mes-wrap">
           <label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Mes</label>
           <input type="month" id="ei-lista-mes" onchange="renderListaComprasEstoqueIntel()">
@@ -973,11 +1103,20 @@
         </div>
         <div style="display:flex;align-items:flex-end"><button class="btn btn-green" style="width:100%" onclick="renderListaComprasEstoqueIntel()">Gerar</button></div>
       </div>
-      <div id="ei-lista-compras-resumo" style="font-size:.8rem;color:var(--mut);margin-bottom:.75rem">Aguardando geracao da lista.</div>
+      <div id="ei-lista-compras-resumo" style="font-size:.8rem;color:var(--mut);margin-bottom:.75rem;padding:.75rem .9rem;border:1px solid rgba(34,197,94,.15);border-radius:12px;background:rgba(34,197,94,.06)">Aguardando geracao da lista.</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:.75rem;flex-wrap:wrap;margin-bottom:.75rem">
+        <div id="ei-lista-compras-lote-resumo" style="font-size:.78rem;color:var(--mut)">Nenhuma linha selecionada para lote.</div>
+        <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+          <button class="btn btn-outline btn-sm" onclick="toggleSelecionarTodasListaComprasEstoqueIntel(true)">Selecionar todas</button>
+          <button class="btn btn-outline btn-sm" onclick="toggleSelecionarTodasListaComprasEstoqueIntel(false)">Limpar selecao</button>
+          <button class="btn btn-green btn-sm" onclick="gerarPedidosCompraListaSelecionados()">Gerar Pedidos em Lote</button>
+        </div>
+      </div>
       <div class="table-wrap" data-ei-table style="max-height:320px;overflow-y:auto">
         <table>
           <thead>
             <tr>
+              <th class="text-center"><input type="checkbox" id="ei-lista-compras-select-all" onchange="toggleSelecionarTodasListaComprasEstoqueIntel(this.checked)"></th>
               <th>Grupo</th>
               <th>Fornecedor</th>
               <th>Produto</th>
@@ -987,38 +1126,43 @@
               <th class="text-right">Estoque</th>
               <th class="text-right">Comprar</th>
               <th>Sugestao</th>
+              <th class="text-right">Acoes</th>
             </tr>
           </thead>
           <tbody id="ei-lista-compras-tbody"></tbody>
         </table>
       </div>
     </div>
-    <div id="ei-grid-compra" style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;align-items:start;margin-top:1rem">
-      <div class="card" id="ei-card-fornecedores" data-ei-section="compra">
-        <h3 style="margin-bottom:.75rem">Fornecedores e Oferta</h3>
-        <div data-ei-form style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;align-items:end;margin-bottom:1rem">
-          <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Nome</label><input type="text" id="ei-forn-nome" placeholder="Fornecedor"></div>
-          <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Documento</label><input type="text" id="ei-forn-doc" placeholder="CNPJ"></div>
-          <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Contato</label><input type="text" id="ei-forn-contato" placeholder="E-mail ou telefone"></div>
-          <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Status</label><select id="ei-forn-status"><option value="ativo">Ativo</option><option value="homologacao">Homologacao</option><option value="inativo">Inativo</option></select></div>
+    <div id="ei-grid-compra" style="display:grid;grid-template-columns:1fr;gap:1rem;align-items:start;margin-top:1rem">
+      <div class="card" id="ei-card-fornecedores" data-ei-section="fornecedores">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap;margin-bottom:.75rem">
+          <div>
+            <h3 style="margin-bottom:.35rem">Fornecedores e Precos Negociados</h3>
+            <div style="font-size:.8rem;color:var(--mut)">Cadastro separado da compra inteligente, com lista completa de fornecedores e ofertas negociadas.</div>
+          </div>
+          <button class="btn btn-outline btn-sm" onclick="imprimirListaFornecedoresEstoqueIntel()">Imprimir Lista</button>
         </div>
-        <div data-ei-form style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:.75rem;align-items:end;margin-bottom:1rem">
-          <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Embalagem</label><select id="ei-forn-embalagem"></select></div>
-          <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Preco Unitario</label><input type="number" id="ei-forn-preco" min="0" step="0.01" placeholder="8.90"></div>
-          <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Fornecedor destino</label><select id="ei-forn-existing"></select></div>
-          <div><button class="btn btn-green" onclick="registrarFornecedorEstoqueIntel()">Salvar</button></div>
+        <div data-ei-form style="border:1px solid var(--bdr);border-radius:12px;padding:.9rem;margin-bottom:1rem">
+          <div style="font-size:.82rem;font-weight:700;margin-bottom:.75rem">Cadastro de Fornecedor</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;align-items:end">
+            <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Nome</label><input type="text" id="ei-forn-nome" placeholder="Fornecedor"></div>
+            <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Documento</label><input type="text" id="ei-forn-doc" placeholder="CNPJ"></div>
+            <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Telefone</label><input type="text" id="ei-forn-telefone" placeholder="(31) 99999-9999"></div>
+            <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">E-mail</label><input type="text" id="ei-forn-email" placeholder="compras@fornecedor.com"></div>
+            <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Status</label><select id="ei-forn-status"><option value="ativo">Ativo</option><option value="homologacao">Homologacao</option><option value="inativo">Inativo</option></select></div>
+          </div>
+          <div style="display:flex;justify-content:flex-end;margin-top:.75rem"><button class="btn btn-green" onclick="registrarFornecedorEstoqueIntel()">Salvar Fornecedor</button></div>
         </div>
-        <div class="table-wrap" data-ei-table style="max-height:260px;overflow-y:auto"><table><thead><tr><th>Fornecedor</th><th>Documento</th><th>Status</th><th>Oferta</th></tr></thead><tbody id="ei-fornecedores-tbody"></tbody></table></div>
-      </div>
-      <div class="card" id="ei-card-precompra" data-ei-section="compra">
-        <h3 style="margin-bottom:.75rem">Pre-Compra e Integracao ERP</h3>
-        <div data-ei-form style="display:grid;grid-template-columns:1fr 1fr auto;gap:.75rem;align-items:end;margin-bottom:1rem">
-          <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Fornecedor</label><select id="ei-compra-fornecedor"></select></div>
-          <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Vencimento financeiro</label><input type="date" id="ei-compra-vencimento"></div>
-          <div><button class="btn btn-green" onclick="gerarPreCompraEstoqueIntel()">Gerar Pre-Compra</button></div>
+        <div data-ei-form style="border:1px solid var(--bdr);border-radius:12px;padding:.9rem;margin-bottom:1rem">
+          <div style="font-size:.82rem;font-weight:700;margin-bottom:.75rem">Preco Negociado do Fornecedor</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:.75rem;align-items:end">
+            <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Fornecedor</label><select id="ei-forn-existing"></select></div>
+            <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Embalagem</label><select id="ei-forn-embalagem"><option value="">Selecione</option></select></div>
+            <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Preco Negociado</label><input type="number" id="ei-forn-preco" min="0" step="0.01" placeholder="8.90"></div>
+            <div><button class="btn btn-green" onclick="registrarFornecedorEstoqueIntel()">Salvar Oferta</button></div>
+          </div>
         </div>
-        <div id="ei-erp-status" style="font-size:.8rem;color:var(--mut);margin-bottom:.75rem">ERP: estrutura pronta para enviar fornecedor, embalagem escolhida, custo e previsao financeira.</div>
-        <div class="table-wrap" data-ei-table style="max-height:260px;overflow-y:auto"><table><thead><tr><th>ID</th><th>Fornecedor</th><th>Produto</th><th>Status</th><th class="text-right">Valor</th></tr></thead><tbody id="ei-compras-tbody"></tbody></table></div>
+        <div class="table-wrap" data-ei-table style="max-height:260px;overflow-y:auto"><table><thead><tr><th>Fornecedor</th><th>Documento</th><th>Status</th><th>Oferta</th><th class="text-right">Acoes</th></tr></thead><tbody id="ei-fornecedores-tbody"></tbody></table></div>
       </div>
     </div>
   </div>
@@ -1042,6 +1186,39 @@
         <button class="btn btn-outline btn-sm" onclick="fecharModalPedido()">Fechar</button>
       </div>
       <div style="padding:1.5rem" id="modal-pedido-body"></div>
+    </div>
+  </div>
+
+  <div id="modal-ei-demanda" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1001;display:flex;align-items:flex-start;justify-content:center;padding:1rem;overflow-y:auto">
+    <div style="background:var(--bg);border:1px solid var(--bdr);border-radius:14px;width:760px;max-width:96vw;max-height:94vh;display:flex;flex-direction:column;margin-top:1rem">
+      <div style="padding:1rem 1.25rem;border-bottom:1px solid var(--bdr);display:flex;justify-content:space-between;align-items:center">
+        <h2 style="font-size:1rem;margin:0">Detalhe da Demanda</h2>
+        <button class="btn btn-outline btn-sm" onclick="fecharModalDemandaEstoqueIntel()">Fechar</button>
+      </div>
+      <div id="modal-ei-demanda-body" style="padding:1rem 1.25rem;overflow:auto"></div>
+    </div>
+  </div>
+
+  <div id="modal-ei-compra" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1001;display:flex;align-items:flex-start;justify-content:center;padding:1rem;overflow-y:auto">
+    <div style="background:var(--bg);border:1px solid var(--bdr);border-radius:14px;width:860px;max-width:96vw;max-height:94vh;display:flex;flex-direction:column;margin-top:1rem">
+      <div style="padding:1rem 1.25rem;border-bottom:1px solid var(--bdr);display:flex;justify-content:space-between;align-items:center">
+        <h2 style="font-size:1rem;margin:0">Detalhe do Pedido de Compra</h2>
+        <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+          <button class="btn btn-outline btn-sm" onclick="imprimirPedidoCompraEstoqueIntelAtual()">Imprimir</button>
+          <button class="btn btn-outline btn-sm" onclick="fecharModalCompraEstoqueIntel()">Fechar</button>
+        </div>
+      </div>
+      <div id="modal-ei-compra-body" style="padding:1rem 1.25rem;overflow:auto"></div>
+    </div>
+  </div>
+
+  <div id="modal-ei-gerar-demanda" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1001;display:flex;align-items:flex-start;justify-content:center;padding:1rem;overflow-y:auto">
+    <div style="background:var(--bg);border:1px solid var(--bdr);border-radius:14px;width:860px;max-width:96vw;max-height:94vh;display:flex;flex-direction:column;margin-top:1rem">
+      <div style="padding:1rem 1.25rem;border-bottom:1px solid var(--bdr);display:flex;justify-content:space-between;align-items:center">
+        <h2 style="font-size:1rem;margin:0">Previa da Geracao de Demanda</h2>
+        <button class="btn btn-outline btn-sm" onclick="fecharModalGerarDemandaEstoqueIntel()">Fechar</button>
+      </div>
+      <div id="modal-ei-gerar-demanda-body" style="padding:1rem 1.25rem;overflow:auto"></div>
     </div>
   </div>
 
@@ -1142,12 +1319,14 @@
         <input type="date" id="filtro-data-entrega" onchange="renderEntregas()">
         <select id="filtro-status-entrega" onchange="renderEntregas()">
           <option value="">Todos os status</option>
+          <option value="pendente">Pendente</option>
           <option value="entregue">Entregue</option>
           <option value="concluido">Concluído</option>
         </select>
       </div>
       <span style="color:var(--mut);font-size:.8rem">Dados sincronizados automaticamente do app Entregador</span>
     </div>
+    <div id="entregas-operacionais-box" class="hidden" style="margin-bottom:1rem;padding:1rem;border:1px solid rgba(59,130,246,.22);border-radius:14px;background:linear-gradient(180deg,rgba(59,130,246,.08),rgba(59,130,246,.03))"></div>
     <div class="table-wrap" style="max-height:600px;overflow-y:auto">
       <table>
         <thead>
@@ -1158,8 +1337,9 @@
             <th>Recebedor</th>
             <th>Foto</th>
             <th>Assinatura</th>
-            <th>Status</th>
-            <th>Obs</th>
+            <th>Status Entrega</th>
+            <th>Reserva</th>
+            <th>Detalhe</th>
             <th>Acoes</th>
           </tr>
         </thead>
@@ -1732,9 +1912,14 @@ let estoqueIntelMovimentacoes = [];
 let estoqueIntelFornecedores = [];
 let estoqueIntelCompras = [];
 let estoqueIntelUltimaSugestao = null;
-let estoqueIntelCurrentView = "geral";
+let estoqueIntelCurrentView = "produtos";
 let estoqueIntelListaPeriodoModo = "mes";
 let estoqueIntelListaStatusFiltros = [];
+let estoqueIntelListaComprasSelecionadas = new Set();
+let estoqueIntelListaDemandaContextoId = "";
+let estoqueIntelFiltroReservaStatus = "";
+let estoqueIntelCompraDetalheAtualId = null;
+let entregasOperacionaisRender = [];
 let integracoesGdp = [];
 let integracoesRemotas = [];
 let integracoesUltimaLeitura = "";
@@ -1757,10 +1942,10 @@ function getDefaultEstoqueIntelSeed() {
       { id: "PROD-SUCO", nome: "Suco integral", unidade_base: "ml" }
     ],
     embalagens: [
-      { id: "EMB-ARROZ-300", produto_id: "PROD-ARROZ", descricao: "Pacote 300g", codigo_barras: "7890000003001", quantidade_base: 300 },
-      { id: "EMB-ARROZ-350", produto_id: "PROD-ARROZ", descricao: "Pacote 350g", codigo_barras: "7890000003506", quantidade_base: 350 },
-      { id: "EMB-ARROZ-360", produto_id: "PROD-ARROZ", descricao: "Pacote 360g", codigo_barras: "7890000003605", quantidade_base: 360 },
-      { id: "EMB-SUCO-1000", produto_id: "PROD-SUCO", descricao: "Garrafa 1000ml", codigo_barras: "7890000010009", quantidade_base: 1000 }
+      { id: "EMB-ARROZ-300", produto_id: "PROD-ARROZ", descricao: "Pacote 300g", codigo_barras: "7890000003001", quantidade_base: 300, preco_referencia: 7.8 },
+      { id: "EMB-ARROZ-350", produto_id: "PROD-ARROZ", descricao: "Pacote 350g", codigo_barras: "7890000003506", quantidade_base: 350, preco_referencia: 8.9 },
+      { id: "EMB-ARROZ-360", produto_id: "PROD-ARROZ", descricao: "Pacote 360g", codigo_barras: "7890000003605", quantidade_base: 360, preco_referencia: 9.1 },
+      { id: "EMB-SUCO-1000", produto_id: "PROD-SUCO", descricao: "Garrafa 1000ml", codigo_barras: "7890000010009", quantidade_base: 1000, preco_referencia: 6.2 }
     ],
     fornecedores: [
       { id: "FORN-001", nome: "Fornecedor Alfa", documento: "12345678000190", contato: "compras@alfa.com", status: "ativo", embalagens: [{ embalagem_id: "EMB-ARROZ-350", preco_unitario: 8.9 }, { embalagem_id: "EMB-ARROZ-360", preco_unitario: 9.1 }] },
@@ -2038,7 +2223,16 @@ function loadData() {
   contaReceberCategorias = [...new Set([...getDefaultContaReceberCategorias(), ...contaReceberCategorias.map(normalizeCategoriaValue).filter(Boolean)])];
   contaPagarFormas = [...new Set([...getDefaultContaFormas(), ...contaPagarFormas.map(normalizeCategoriaValue).filter(Boolean)])];
   contaReceberFormas = [...new Set([...getDefaultContaFormas(), ...contaReceberFormas.map(normalizeCategoriaValue).filter(Boolean)])];
-  if (!estoqueIntelProdutos.length && !estoqueIntelEmbalagens.length && !estoqueIntelMovimentacoes.length && !estoqueIntelFornecedores.length) {
+  const estoqueIntelHasPersistedData = [
+    ESTOQUE_INTEL_PRODUCTS_KEY,
+    ESTOQUE_INTEL_PACKAGES_KEY,
+    ESTOQUE_INTEL_ORDERS_KEY,
+    ESTOQUE_INTEL_ORDER_ITEMS_KEY,
+    ESTOQUE_INTEL_MOVES_KEY,
+    ESTOQUE_INTEL_SUPPLIERS_KEY,
+    ESTOQUE_INTEL_PURCHASES_KEY
+  ].some((key) => localStorage.getItem(key) !== null);
+  if (!estoqueIntelHasPersistedData && !estoqueIntelProdutos.length && !estoqueIntelEmbalagens.length && !estoqueIntelMovimentacoes.length && !estoqueIntelFornecedores.length) {
     const seed = getDefaultEstoqueIntelSeed();
     estoqueIntelProdutos = seed.produtos;
     estoqueIntelEmbalagens = seed.embalagens;
@@ -2096,6 +2290,107 @@ function saveEstoqueIntelPedidoItens() { saveWrappedArray(ESTOQUE_INTEL_ORDER_IT
 function saveEstoqueIntelMovimentacoes() { saveWrappedArray(ESTOQUE_INTEL_MOVES_KEY, estoqueIntelMovimentacoes); }
 function saveEstoqueIntelFornecedores() { saveWrappedArray(ESTOQUE_INTEL_SUPPLIERS_KEY, estoqueIntelFornecedores); }
 function saveEstoqueIntelCompras() { saveWrappedArray(ESTOQUE_INTEL_PURCHASES_KEY, estoqueIntelCompras); }
+
+function entregaEstoqueIntelJaBaixada(pedidoId) {
+  return estoqueIntelMovimentacoes.some((mov) => mov.origem === "entrega_concluida" && mov.referencia_id === pedidoId);
+}
+
+function reservaEstoqueIntelJaEncerradaManualmente(pedidoId) {
+  return estoqueIntelMovimentacoes.some((mov) => mov.origem === "reserva_encerrada_manual" && mov.referencia_id === pedidoId);
+}
+
+function aplicarBaixaEntregaAoEstoqueIntel(pedidoId) {
+  const pedido = pedidos.find((item) => item.id === pedidoId);
+  if (!pedidoId || !pedido) return { ok: false, motivo: "pedido_nao_encontrado" };
+  if (entregaEstoqueIntelJaBaixada(pedidoId)) return { ok: true, motivo: "ja_baixada" };
+  const demanda = estoqueIntelPedidos.find((item) => item.id === pedidoId && item.origem_sistema === "gdp_pedido");
+  if (!demanda) return { ok: false, motivo: "demanda_nao_encontrada" };
+  const itensDemanda = estoqueIntelPedidoItens.filter((item) => item.pedido_id === pedidoId);
+  if (!itensDemanda.length) return { ok: false, motivo: "itens_nao_encontrados" };
+  itensDemanda.forEach((item, idx) => {
+    const quantidade = Number(item.quantidade_base || 0);
+    if (!item.produto_id || !quantidade) return;
+    estoqueIntelMovimentacoes.push({
+      id: `ENT-MOV-FIS-${pedidoId}-${idx + 1}`,
+      produto_id: item.produto_id,
+      tipo: "fisico",
+      operacao: "-",
+      quantidade,
+      origem: "entrega_concluida",
+      origem_sistema: "gdp_entrega",
+      data: new Date().toISOString(),
+      referencia_id: pedidoId
+    });
+    estoqueIntelMovimentacoes.push({
+      id: `ENT-MOV-COM-${pedidoId}-${idx + 1}`,
+      produto_id: item.produto_id,
+      tipo: "comprometido",
+      operacao: "-",
+      quantidade,
+      origem: "entrega_concluida",
+      origem_sistema: "gdp_entrega",
+      data: new Date().toISOString(),
+      referencia_id: pedidoId
+    });
+  });
+  demanda.status = "entregue";
+  pedido.status = "entregue";
+  savePedidos();
+  saveEstoqueIntelPedidos();
+  saveEstoqueIntelMovimentacoes();
+  return { ok: true, motivo: "baixa_realizada" };
+}
+
+function getEstoqueIntelReservaStatus(pedidoId) {
+  const demanda = estoqueIntelPedidos.find((item) => item.id === pedidoId);
+  if (!demanda) {
+    return {
+      key: "sem_demanda",
+      label: "Sem demanda",
+      badgeClass: "badge-red",
+      detail: "Pedido ainda nao virou reserva no Estoque Intel."
+    };
+  }
+  if (entregaEstoqueIntelJaBaixada(pedidoId)) {
+    return {
+      key: "baixada",
+      label: "Entrega baixada",
+      badgeClass: "badge-green",
+      detail: "Entrega concluida com baixa da reserva e do estoque fisico."
+    };
+  }
+  if (reservaEstoqueIntelJaEncerradaManualmente(pedidoId) || demanda.status === "reserva_encerrada_manual") {
+    return {
+      key: "encerrada_manual",
+      label: "Reserva cancelada",
+      badgeClass: "badge-blue",
+      detail: "Necessidade encerrada manualmente, sem baixa do estoque fisico."
+    };
+  }
+  return {
+    key: "reservada",
+    label: "Aguardando entrega",
+    badgeClass: "badge-yellow",
+    detail: "Reserva ativa aguardando conclusao da entrega."
+  };
+}
+
+function getEntregaReservaResumo(pedidoId) {
+  const itens = estoqueIntelPedidoItens.filter((item) => item.pedido_id === pedidoId);
+  const totalBase = itens.reduce((sum, item) => sum + Number(item.quantidade_base || 0), 0);
+  const produtos = itens.map((item) => {
+    const produto = findEstoqueIntelProduto(item.produto_id);
+    return produto?.nome || item.produto_id;
+  }).filter(Boolean);
+  const baixaMovs = estoqueIntelMovimentacoes.filter((mov) => mov.referencia_id === pedidoId && mov.origem === "entrega_concluida");
+  const baixaManual = baixaMovs.length > 0;
+  return {
+    totalBase,
+    produtosResumo: produtos.slice(0, 2).join(", ") + (produtos.length > 2 ? ` +${produtos.length - 2}` : ""),
+    baixaManual,
+    itensCount: itens.length
+  };
+}
 function saveIntegracoesGdp() { saveWrappedArray(INTEGRATIONS_KEY, integracoesGdp); }
 
 function normalizeSchoolName(value) {
@@ -6942,8 +7237,61 @@ function findEstoqueIntelFornecedor(fornecedorId) {
   return estoqueIntelFornecedores.find((item) => item.id === fornecedorId) || null;
 }
 
+function getEstoqueIntelFornecedorEmail(fornecedor) {
+  const email = String(fornecedor?.email || "").trim();
+  if (email) return email;
+  const contatoLegacy = String(fornecedor?.contato || "").trim();
+  return contatoLegacy.includes("@") ? contatoLegacy : "";
+}
+
+function getEstoqueIntelFornecedorTelefone(fornecedor) {
+  const telefone = String(fornecedor?.telefone || "").trim();
+  if (telefone) return telefone;
+  const contatoLegacy = String(fornecedor?.contato || "").trim();
+  return contatoLegacy && !contatoLegacy.includes("@") ? contatoLegacy : "";
+}
+
+function getEstoqueIntelCompraItens(compra) {
+  if (Array.isArray(compra?.itens) && compra.itens.length) return compra.itens;
+  if (!compra) return [];
+  return [{
+    produto_id: compra.produto_id,
+    embalagem_id: compra.embalagem_id,
+    quantidade_pacotes: compra.quantidade_pacotes,
+    total_comprado: compra.total_comprado,
+    sobra_estimada: compra.sobra_estimada,
+    preco_unitario: compra.preco_unitario,
+    valor_total: compra.valor_total,
+    origem_preco: compra.origem_preco,
+    necessidade_base: compra.necessidade_base || 0
+  }];
+}
+
 function getFornecedorOferta(fornecedor, embalagemId) {
   return (fornecedor?.embalagens || []).find((item) => item.embalagem_id === embalagemId) || null;
+}
+
+function getEstoqueIntelPrecoEmbalagem(embalagemId) {
+  const embalagem = estoqueIntelEmbalagens.find((item) => item.id === embalagemId);
+  return Number(embalagem?.preco_referencia || 0);
+}
+
+function getEstoqueIntelPrecoFornecedorOuReferencia(fornecedor, embalagemId) {
+  const oferta = getFornecedorOferta(fornecedor, embalagemId);
+  if (oferta && Number(oferta.preco_unitario || 0) > 0) {
+    return {
+      preco_unitario: Number(oferta.preco_unitario || 0),
+      origem: "oferta_fornecedor"
+    };
+  }
+  const precoReferencia = getEstoqueIntelPrecoEmbalagem(embalagemId);
+  if (precoReferencia > 0) {
+    return {
+      preco_unitario: precoReferencia,
+      origem: "preco_referencia_embalagem"
+    };
+  }
+  return { preco_unitario: 0, origem: "sem_preco" };
 }
 
 function normalizeEstoqueIntelMatchText(value) {
@@ -7062,10 +7410,10 @@ function syncPedidosGDPToEstoqueIntel(silent = true) {
   saveEstoqueIntelPedidoItens();
   saveEstoqueIntelMovimentacoes();
   const statusEl = document.getElementById("ei-api-status");
-  if (statusEl) statusEl.innerHTML = `Pedidos GDP sincronizados no Estoque Intel: <strong>${sincronizados}</strong> pedido(s) com demanda convertida para g/ml.`;
+  if (statusEl) statusEl.innerHTML = `Demandas sincronizadas do GDP no Estoque Intel: <strong>${sincronizados}</strong> pedido(s) reais convertidos para reserva em g/ml.`;
   if (!silent) {
     renderEstoque();
-    showToast(`${sincronizados} pedido(s) do GDP sincronizados no Estoque Intel.`, 3500);
+    showToast(`${sincronizados} demanda(s) sincronizadas do GDP no Estoque Intel.`, 3500);
   }
   return sincronizados;
 }
@@ -7121,20 +7469,581 @@ function updateListaComprasStatusSummary() {
   btn.innerHTML = `${esc(label)} <span id="ei-status-filter-icon">${document.getElementById("ei-status-filter-panel")?.classList.contains("hidden") ? "+" : "-"}</span>`;
 }
 
+function garantirPedidoExemploDemandaAutomatica() {
+  const demoId = "PED-DEMO-ESTOQUE-001";
+  const existente = pedidos.find((pedido) => pedido.id === demoId);
+  if (existente) return existente;
+  const pedidoDemo = sanitizePedidoLegacyData({
+    id: demoId,
+    escola: "Escola Exemplo Estoque Intel",
+    cliente: {
+      nome: "Escola Exemplo Estoque Intel",
+      cnpj: "12345678000199"
+    },
+    data: new Date().toISOString().slice(0, 10),
+    dataEntrega: new Date().toISOString().slice(0, 10),
+    dataPrevista: new Date().toISOString().slice(0, 10),
+    status: "recebido",
+    valor: 0,
+    itens: [
+      { itemNum: 1, descricao: "Arroz Pacote 350g", sku: "7890000003506", qtd: 12, precoUnitario: 8.9 },
+      { itemNum: 2, descricao: "Suco integral Garrafa 1000ml", sku: "7890000010009", qtd: 8, precoUnitario: 6.2 }
+    ]
+  });
+  pedidoDemo.valor = pedidoDemo.itens.reduce((sum, item) => sum + Number(item.qtd || 0) * Number(item.precoUnitario || 0), 0);
+  pedidos.unshift(pedidoDemo);
+  savePedidos();
+  return pedidoDemo;
+}
+
+function gerarExemploDemandaVisualEstoqueIntel() {
+  if (!estoqueIntelProdutos.length) seedEstoqueIntelExemplo();
+  const demoId = "PEDINT-DEMO-VISUAL-001";
+  const existente = estoqueIntelPedidos.find((pedido) => pedido.id === demoId);
+  if (existente) {
+    estoqueIntelCurrentView = "pedidos";
+    renderEstoque();
+    visualizarDemandaEstoqueIntel(demoId);
+    showToast("Exemplo de demanda aberto para visualizacao.", 3500);
+    return;
+  }
+  const produto = estoqueIntelProdutos[0];
+  if (!produto) {
+    showToast("Cadastre ou gere produtos antes de criar o exemplo.", 3500);
+    return;
+  }
+  const quantidadeBase = 1700;
+  const pedido = {
+    id: demoId,
+    data: new Date().toISOString().slice(0, 10),
+    data_prevista: new Date().toISOString().slice(0, 10),
+    status: "emitido",
+    origem_sistema: "manual",
+    cliente: "Reserva interna de exemplo"
+  };
+  const pedidoItem = {
+    id: `PIT-${demoId}`,
+    pedido_id: demoId,
+    produto_id: produto.id,
+    quantidade_base: quantidadeBase,
+    origem_sistema: "manual"
+  };
+  estoqueIntelPedidos.unshift(pedido);
+  estoqueIntelPedidoItens.unshift(pedidoItem);
+  estoqueIntelMovimentacoes.unshift({
+    id: `MOV-${demoId}`,
+    produto_id: produto.id,
+    tipo: "comprometido",
+    operacao: "+",
+    quantidade: quantidadeBase,
+    origem: "pedido",
+    origem_sistema: "manual",
+    data: new Date().toISOString(),
+    referencia_id: demoId
+  });
+  saveEstoqueIntelPedidos();
+  saveEstoqueIntelPedidoItens();
+  saveEstoqueIntelMovimentacoes();
+  estoqueIntelCurrentView = "pedidos";
+  renderEstoque();
+  visualizarDemandaEstoqueIntel(demoId);
+  showToast("Exemplo de demanda criado e aberto para visualizacao.", 4000);
+}
+
+function limparReservasTesteEstoqueIntel() {
+  const idsTeste = new Set(
+    estoqueIntelPedidos
+      .filter((pedido) => pedido.origem_sistema === "manual" && /^PEDINT-DEMO-|^PED-DEMO-ESTOQUE-/.test(String(pedido.id || "")))
+      .map((pedido) => pedido.id)
+  );
+  if (!idsTeste.size) {
+    showToast("Nenhuma reserva de teste encontrada.", 3000);
+    return;
+  }
+  if (!confirm(`Remover ${idsTeste.size} reserva(s) de teste do Estoque Intel?\n\nEssa acao apaga demandas de exemplo, itens, movimentacoes e entregas operacionais ligadas a elas.`)) return;
+  estoqueIntelPedidos = estoqueIntelPedidos.filter((pedido) => !idsTeste.has(pedido.id));
+  estoqueIntelPedidoItens = estoqueIntelPedidoItens.filter((item) => !idsTeste.has(item.pedido_id));
+  estoqueIntelMovimentacoes = estoqueIntelMovimentacoes.filter((mov) => !idsTeste.has(mov.referencia_id));
+  provasEntrega = provasEntrega.filter((item) => !idsTeste.has(item.pedidoId));
+  pedidos = pedidos.filter((pedido) => !idsTeste.has(pedido.id));
+  saveEstoqueIntelPedidos();
+  saveEstoqueIntelPedidoItens();
+  saveEstoqueIntelMovimentacoes();
+  localStorage.setItem(PROOFS_KEY, JSON.stringify(provasEntrega));
+  savePedidos();
+  if (estoqueIntelListaDemandaContextoId && idsTeste.has(estoqueIntelListaDemandaContextoId)) {
+    estoqueIntelListaDemandaContextoId = "";
+  }
+  renderEstoque();
+  if (typeof renderEntregas === "function") renderEntregas();
+  showToast(`${idsTeste.size} reserva(s) de teste removida(s).`, 3500);
+}
+
+function gerarExemploDemandaAutomaticaEstoqueIntel() {
+  if (!estoqueIntelProdutos.length || !estoqueIntelEmbalagens.length || !estoqueIntelFornecedores.length) {
+    seedEstoqueIntelExemplo();
+  }
+  const sincronizadosAntes = syncPedidosGDPToEstoqueIntel(true);
+  if (!sincronizadosAntes) {
+    garantirPedidoExemploDemandaAutomatica();
+  }
+  const sincronizados = syncPedidosGDPToEstoqueIntel(false);
+  estoqueIntelCurrentView = "compra";
+  const agruparEl = document.getElementById("ei-lista-agrupar");
+  const compararEl = document.getElementById("ei-lista-comparar-estoque");
+  const mesEl = document.getElementById("ei-lista-mes");
+  const clienteEl = document.getElementById("ei-lista-cliente");
+  const produtoEl = document.getElementById("ei-lista-produto");
+  const fornecedorEl = document.getElementById("ei-lista-fornecedor");
+  const dataDeEl = document.getElementById("ei-lista-data-de");
+  const dataAteEl = document.getElementById("ei-lista-data-ate");
+  if (agruparEl) agruparEl.value = "produto";
+  if (compararEl) compararEl.value = "sim";
+  if (clienteEl) clienteEl.value = "";
+  if (produtoEl) produtoEl.value = "";
+  if (fornecedorEl) fornecedorEl.value = "";
+  if (dataDeEl) dataDeEl.value = "";
+  if (dataAteEl) dataAteEl.value = "";
+  if (mesEl) mesEl.value = new Date().toISOString().slice(0, 7);
+  estoqueIntelListaPeriodoModo = "mes";
+  estoqueIntelListaStatusFiltros = [];
+  updateListaComprasStatusSummary();
+  estoqueIntelListaComprasSelecionadas.clear();
+  renderEstoque();
+  renderListaComprasEstoqueIntel();
+  showToast(`${sincronizados} demanda(s) prontas na lista automatica para demonstracao.`, 4000);
+}
+
+function resetVisualizacaoCompraEstoqueIntel() {
+  const demoId = "PED-DEMO-ESTOQUE-001";
+  if (pedidos.some((pedido) => pedido.id === demoId)) {
+    pedidos = pedidos.filter((pedido) => pedido.id !== demoId);
+    savePedidos();
+  }
+  estoqueIntelListaComprasSelecionadas.clear();
+  estoqueIntelListaDemandaContextoId = "";
+  estoqueIntelListaStatusFiltros = [];
+  estoqueIntelListaPeriodoModo = "mes";
+  const clienteEl = document.getElementById("ei-lista-cliente");
+  const produtoEl = document.getElementById("ei-lista-produto");
+  const fornecedorEl = document.getElementById("ei-lista-fornecedor");
+  const mesEl = document.getElementById("ei-lista-mes");
+  const dataDeEl = document.getElementById("ei-lista-data-de");
+  const dataAteEl = document.getElementById("ei-lista-data-ate");
+  const agruparEl = document.getElementById("ei-lista-agrupar");
+  const compararEl = document.getElementById("ei-lista-comparar-estoque");
+  if (clienteEl) clienteEl.value = "";
+  if (produtoEl) produtoEl.value = "";
+  if (fornecedorEl) fornecedorEl.value = "";
+  if (mesEl) mesEl.value = new Date().toISOString().slice(0, 7);
+  if (dataDeEl) dataDeEl.value = "";
+  if (dataAteEl) dataAteEl.value = "";
+  if (agruparEl) agruparEl.value = "cliente_produto";
+  if (compararEl) compararEl.value = "sim";
+  renderEstoque();
+  renderListaComprasEstoqueIntel();
+  showToast("Visualizacao de compra limpa.", 3000);
+}
+
+function limparVisualizacaoDemandasEstoqueIntel() {
+  const buscaEl = document.getElementById("ei-busca");
+  const baseEl = document.getElementById("ei-filtro-base");
+  const reservaFiltroEl = document.getElementById("ei-pedidos-reserva-filtro");
+  if (buscaEl) buscaEl.value = "";
+  if (baseEl) baseEl.value = "";
+  estoqueIntelFiltroReservaStatus = "";
+  if (reservaFiltroEl) reservaFiltroEl.value = "";
+  renderEstoque();
+  showToast("Visualizacao de demandas limpa.", 3000);
+}
+
+function getPedidosReaisConciliacaoEstoqueIntel() {
+  return pedidos.map((pedido) => {
+    const itens = Array.isArray(pedido.itens) ? pedido.itens : [];
+    const itensComMatch = itens.filter((item) => {
+      const match = resolveEstoqueIntelMatchFromPedidoItem(item);
+      return !!(match?.produto && match?.quantidadeBaseUnit);
+    });
+    const itensSemMatch = itens.filter((item) => {
+      const match = resolveEstoqueIntelMatchFromPedidoItem(item);
+      return !(match?.produto && match?.quantidadeBaseUnit);
+    });
+    const demandaGerada = estoqueIntelPedidos.some((item) => item.id === pedido.id && item.origem_sistema === "gdp_pedido");
+    return {
+      pedido,
+      itens,
+      itensComMatch,
+      itensSemMatch,
+      demandaGerada,
+      pendenciaLabel: !itens.length
+        ? "Pedido sem itens"
+        : itensSemMatch.length
+          ? `${itensSemMatch.length} item(ns) sem match com produto/embalagem`
+          : "Aguardando sincronizacao da demanda"
+    };
+  });
+}
+
+function fecharModalGerarDemandaEstoqueIntel() {
+  document.getElementById("modal-ei-gerar-demanda")?.classList.add("hidden");
+}
+
+function confirmarGerarDemandaPedidoRealEstoqueIntel(pedidoId) {
+  const pedido = pedidos.find((item) => item.id === pedidoId);
+  if (!pedido) {
+    showToast("Pedido real nao encontrado.", 3000);
+    return;
+  }
+  const conciliacao = getPedidosReaisConciliacaoEstoqueIntel().find((item) => item.pedido.id === pedidoId);
+  if (!conciliacao) {
+    showToast("Nao foi possivel analisar o pedido real.", 3000);
+    return;
+  }
+  if (!conciliacao.itensComMatch.length) {
+    showToast("Esse pedido ainda nao possui itens compativeis com o cadastro do Estoque Intel.", 4500);
+    return;
+  }
+  syncPedidosGDPToEstoqueIntel(false);
+  const virouDemanda = estoqueIntelPedidos.some((item) => item.id === pedidoId && item.origem_sistema === "gdp_pedido");
+  if (!virouDemanda) {
+    showToast("A tentativa de gerar demanda nao encontrou itens suficientes para conversao automatica.", 4500);
+    return;
+  }
+  fecharModalGerarDemandaEstoqueIntel();
+  estoqueIntelCurrentView = "pedidos";
+  renderEstoque();
+  showToast("Demanda gerada a partir do pedido real.", 3500);
+}
+
+function gerarDemandaPedidoRealEstoqueIntel(pedidoId) {
+  const pedido = pedidos.find((item) => item.id === pedidoId);
+  const conciliacao = getPedidosReaisConciliacaoEstoqueIntel().find((item) => item.pedido.id === pedidoId);
+  const body = document.getElementById("modal-ei-gerar-demanda-body");
+  const modal = document.getElementById("modal-ei-gerar-demanda");
+  if (!pedido || !conciliacao || !body || !modal) {
+    showToast("Pedido real nao encontrado.", 3000);
+    return;
+  }
+  const itensConvertidos = conciliacao.itensComMatch.map((item) => {
+    const match = resolveEstoqueIntelMatchFromPedidoItem(item);
+    const quantidadeItens = Number(item.qtd || item.quantidade || 0);
+    const quantidadeBase = quantidadeItens * Number(match?.quantidadeBaseUnit || 0);
+    return {
+      descricao: item.descricao || item.descricaoCompleta || "-",
+      produto: match?.produto?.nome || "-",
+      quantidadeBase
+    };
+  });
+  const itensPendentes = conciliacao.itensSemMatch.map((item) => item.descricao || item.descricaoCompleta || "-");
+  const totalComprometido = itensConvertidos.reduce((sum, item) => sum + Number(item.quantidadeBase || 0), 0);
+  const convertidosHtml = itensConvertidos.length ? itensConvertidos.map((item) => `
+    <tr>
+      <td>${esc(item.descricao)}</td>
+      <td>${esc(item.produto)}</td>
+      <td class="text-right font-mono">${Number(item.quantidadeBase || 0)}</td>
+    </tr>
+  `).join("") : `<tr><td colspan="3">Nenhum item compativel encontrado.</td></tr>`;
+  const pendentesHtml = itensPendentes.length ? itensPendentes.map((item) => `<li>${esc(item)}</li>`).join("") : "<li>Nenhum item pendente.</li>";
+  body.innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.75rem;margin-bottom:1rem">
+      <div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase">Pedido</div><div class="font-mono" style="font-weight:700">${esc(pedido.id)}</div></div>
+      <div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase">Itens convertidos</div><div style="font-weight:700">${itensConvertidos.length}</div></div>
+      <div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase">Itens pendentes</div><div style="font-weight:700">${itensPendentes.length}</div></div>
+      <div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase">Comprometido</div><div class="font-mono" style="font-weight:700">${Number(totalComprometido || 0)}</div></div>
+    </div>
+    <div class="table-wrap" style="margin-bottom:1rem"><table><thead><tr><th>Item do Pedido</th><th>Produto no Estoque</th><th class="text-right">Qtd Base</th></tr></thead><tbody>${convertidosHtml}</tbody></table></div>
+    <div style="border:1px solid rgba(245,158,11,.28);border-radius:12px;padding:.85rem;margin-bottom:1rem;background:rgba(245,158,11,.08)">
+      <div style="font-size:.78rem;font-weight:700;margin-bottom:.4rem;color:#fbbf24">Itens que ainda nao vao virar demanda</div>
+      <ul style="margin:0;padding-left:1rem;color:var(--mut);font-size:.78rem">${pendentesHtml}</ul>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:.5rem;flex-wrap:wrap">
+      <button class="btn btn-outline btn-sm" onclick="fecharModalGerarDemandaEstoqueIntel()">Cancelar</button>
+      <button class="btn btn-green btn-sm" onclick="confirmarGerarDemandaPedidoRealEstoqueIntel('${esc(pedidoId)}')">Confirmar Geracao da Demanda</button>
+    </div>
+  `;
+  modal.classList.remove("hidden");
+}
+
+function abrirDemandaNaListaComprasEstoqueIntel(pedidoId) {
+  const pedido = estoqueIntelPedidos.find((item) => item.id === pedidoId);
+  if (!pedido) {
+    showToast("Demanda nao encontrada.", 3000);
+    return;
+  }
+  const itens = estoqueIntelPedidoItens.filter((item) => item.pedido_id === pedidoId);
+  const primeiroItem = itens[0];
+  estoqueIntelCurrentView = "compra";
+  estoqueIntelListaDemandaContextoId = pedidoId;
+  estoqueIntelListaComprasSelecionadas.clear();
+  estoqueIntelListaStatusFiltros = [];
+  const produtoEl = document.getElementById("ei-lista-produto");
+  const clienteEl = document.getElementById("ei-lista-cliente");
+  const fornecedorEl = document.getElementById("ei-lista-fornecedor");
+  const agruparEl = document.getElementById("ei-lista-agrupar");
+  const mesEl = document.getElementById("ei-lista-mes");
+  const dataDeEl = document.getElementById("ei-lista-data-de");
+  const dataAteEl = document.getElementById("ei-lista-data-ate");
+  if (agruparEl) agruparEl.value = "produto";
+  if (produtoEl) produtoEl.value = "";
+  if (clienteEl) clienteEl.value = "";
+  if (fornecedorEl) fornecedorEl.value = "";
+  if (mesEl) mesEl.value = String(pedido.data || pedido.data_prevista || new Date().toISOString()).slice(0, 7);
+  if (dataDeEl) dataDeEl.value = "";
+  if (dataAteEl) dataAteEl.value = "";
+  renderEstoque();
+  renderListaComprasEstoqueIntel();
+  showToast("Demanda carregada na Lista Automatica de Compras.", 3500);
+}
+
+function fecharModalDemandaEstoqueIntel() {
+  document.getElementById("modal-ei-demanda")?.classList.add("hidden");
+}
+
+function fecharModalCompraEstoqueIntel() {
+  estoqueIntelCompraDetalheAtualId = null;
+  document.getElementById("modal-ei-compra")?.classList.add("hidden");
+}
+
+function getPedidoCompraEstoqueIntelDetalheHtml(compra) {
+  const fornecedor = findEstoqueIntelFornecedor(compra.fornecedor_id);
+  const itensHtml = getEstoqueIntelCompraItens(compra).map((item) => {
+    const produto = findEstoqueIntelProduto(item.produto_id);
+    const embalagem = estoqueIntelEmbalagens.find((emb) => emb.id === item.embalagem_id);
+    return `
+      <tr>
+        <td>${esc(produto?.nome || item.produto_id)}</td>
+        <td>${esc(embalagem?.descricao || item.embalagem_id)}</td>
+        <td class="text-right font-mono">${Number(item.quantidade_pacotes || 0)}</td>
+        <td class="text-right font-mono">${brl.format(Number(item.preco_unitario || 0))}</td>
+        <td class="text-right font-mono">${brl.format(Number(item.valor_total || 0))}</td>
+      </tr>
+    `;
+  }).join("");
+  return `
+    <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.75rem;margin-bottom:1rem">
+      <div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase">Protocolo</div><div class="font-mono" style="font-weight:700">${esc(compra.id)}</div></div>
+      <div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase">Fornecedor</div><div style="font-weight:700">${esc(fornecedor?.nome || compra.fornecedor_id)}</div></div>
+      <div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase">Origem</div><div style="font-weight:700">${esc(compra.origem_pedido_compra || "-")}</div></div>
+      <div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase">Valor Total</div><div style="font-weight:700">${brl.format(Number(compra.valor_total || 0))}</div></div>
+    </div>
+    <div class="table-wrap"><table><thead><tr><th>Produto</th><th>Embalagem</th><th class="text-right">Pacotes</th><th class="text-right">Preco</th><th class="text-right">Valor</th></tr></thead><tbody>${itensHtml}</tbody></table></div>
+  `;
+}
+
+function visualizarPedidoCompraEstoqueIntel(compraId) {
+  const compra = estoqueIntelCompras.find((item) => item.id === compraId);
+  const body = document.getElementById("modal-ei-compra-body");
+  const modal = document.getElementById("modal-ei-compra");
+  if (!compra || !body || !modal) {
+    showToast("Pedido de compra nao encontrado.", 3000);
+    return;
+  }
+  estoqueIntelCompraDetalheAtualId = compraId;
+  body.innerHTML = getPedidoCompraEstoqueIntelDetalheHtml(compra);
+  modal.classList.remove("hidden");
+}
+
+function imprimirPedidoCompraEstoqueIntelAtual() {
+  const compra = estoqueIntelCompras.find((item) => item.id === estoqueIntelCompraDetalheAtualId);
+  if (!compra) {
+    showToast("Pedido de compra nao encontrado para impressao.", 3000);
+    return;
+  }
+  const itens = getEstoqueIntelCompraItens(compra).map((item) => {
+    const produto = findEstoqueIntelProduto(item.produto_id);
+    const embalagem = estoqueIntelEmbalagens.find((emb) => emb.id === item.embalagem_id);
+    return [
+      produto?.nome || item.produto_id,
+      embalagem?.descricao || item.embalagem_id,
+      String(Number(item.quantidade_pacotes || 0)),
+      brl.format(Number(item.preco_unitario || 0)),
+      brl.format(Number(item.valor_total || 0))
+    ];
+  });
+  imprimirTabelaEstoqueIntel(`Pedido de Compra ${compra.id}`, `Fornecedor: ${findEstoqueIntelFornecedor(compra.fornecedor_id)?.nome || compra.fornecedor_id} | Gerado em ${formatDateTimeLocal(compra.data || new Date().toISOString())}`, ["Produto", "Embalagem", "Pacotes", "Preco", "Valor"], itens);
+}
+
+function imprimirDemandaEstoqueIntel(pedidoId) {
+  const pedido = estoqueIntelPedidos.find((item) => item.id === pedidoId);
+  if (!pedido) {
+    showToast("Demanda nao encontrada para impressao.", 3000);
+    return;
+  }
+  const itens = estoqueIntelPedidoItens.filter((item) => item.pedido_id === pedidoId);
+  const reservaStatus = getEstoqueIntelReservaStatus(pedidoId);
+  const rows = itens.map((item) => {
+    const produto = findEstoqueIntelProduto(item.produto_id);
+    return [
+      produto?.nome || item.produto_id,
+      String(Number(item.quantidade_base || 0))
+    ];
+  });
+  imprimirTabelaEstoqueIntel(
+    `Demanda ${pedido.id}`,
+    `Origem: ${pedido.origem_sistema === "gdp_pedido" ? "Sincronizada do GDP" : "Manual"} | Reserva: ${reservaStatus.label} | Data: ${pedido.data_prevista || pedido.data || "-"}`,
+    ["Produto", "Qtd Base"],
+    rows
+  );
+}
+
+function fecharReservaDemandaEstoqueIntel(pedidoId) {
+  const pedido = estoqueIntelPedidos.find((item) => item.id === pedidoId);
+  if (!pedido) {
+    showToast("Demanda nao encontrada.", 3000);
+    return;
+  }
+  const reservaStatus = getEstoqueIntelReservaStatus(pedidoId);
+  if (reservaStatus.key === "baixada") {
+    showToast("Essa demanda ja foi entregue e baixada no estoque.", 3500);
+    return;
+  }
+  if (reservaStatus.key === "encerrada_manual") {
+    showToast("Essa reserva ja foi encerrada manualmente.", 3500);
+    return;
+  }
+  if (!confirm(`Encerrar manualmente a reserva da demanda ${pedidoId}?\n\nIsso vai retirar apenas o comprometido, sem baixar estoque fisico.`)) return;
+  const itens = estoqueIntelPedidoItens.filter((item) => item.pedido_id === pedidoId);
+  if (!itens.length) {
+    showToast("A demanda nao possui itens para encerrar a reserva.", 3500);
+    return;
+  }
+  itens.forEach((item, idx) => {
+    const quantidade = Number(item.quantidade_base || 0);
+    if (!item.produto_id || !quantidade) return;
+    estoqueIntelMovimentacoes.push({
+      id: `ENC-MOV-COM-${pedidoId}-${idx + 1}`,
+      produto_id: item.produto_id,
+      tipo: "comprometido",
+      operacao: "-",
+      quantidade,
+      origem: "reserva_encerrada_manual",
+      origem_sistema: "gdp_reserva",
+      data: new Date().toISOString(),
+      referencia_id: pedidoId
+    });
+  });
+  pedido.status = "reserva_encerrada_manual";
+  saveEstoqueIntelPedidos();
+  saveEstoqueIntelMovimentacoes();
+  renderEstoque();
+  visualizarDemandaEstoqueIntel(pedidoId);
+  showToast(`Reserva da demanda ${pedidoId} encerrada manualmente.`, 4000);
+}
+
+function visualizarDemandaEstoqueIntel(pedidoId) {
+  const pedido = estoqueIntelPedidos.find((item) => item.id === pedidoId);
+  const body = document.getElementById("modal-ei-demanda-body");
+  const modal = document.getElementById("modal-ei-demanda");
+  if (!pedido || !body || !modal) {
+    showToast("Demanda nao encontrada.", 3000);
+    return;
+  }
+  const itens = estoqueIntelPedidoItens.filter((item) => item.pedido_id === pedidoId);
+  const origemLabel = pedido.origem_sistema === "gdp_pedido" ? "Sincronizada do pedido real do GDP" : "Demanda manual";
+  const reservaStatus = getEstoqueIntelReservaStatus(pedidoId);
+  const totalBase = itens.reduce((sum, item) => sum + Number(item.quantidade_base || 0), 0);
+  const itensHtml = itens.map((item) => {
+    const produto = findEstoqueIntelProduto(item.produto_id);
+    return `<tr><td>${esc(produto?.nome || item.produto_id)}</td><td class="text-right font-mono">${Number(item.quantidade_base || 0)}</td></tr>`;
+  }).join("") || `<tr><td colspan="2">Sem itens vinculados.</td></tr>`;
+  body.innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.75rem;margin-bottom:1rem">
+      <div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase">Demanda</div><div class="font-mono" style="font-weight:700">${esc(pedido.id)}</div></div>
+      <div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase">Origem</div><div style="font-weight:700">${esc(origemLabel)}</div></div>
+      <div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase">Reserva</div><div style="font-weight:700"><span class="badge ${reservaStatus.badgeClass}">${esc(reservaStatus.label)}</span><br><span style="font-size:.72rem;color:var(--mut)">${esc(reservaStatus.detail)}</span></div></div>
+      <div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase">Data</div><div style="font-weight:700">${esc(pedido.data_prevista || pedido.data || "-")}</div></div>
+      <div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase">Cliente</div><div style="font-weight:700">${esc(pedido.cliente || "-")}</div></div>
+      <div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase">Qtd Base Total</div><div class="font-mono" style="font-weight:700">${Number(totalBase || 0)}</div></div>
+    </div>
+    <div class="table-wrap" style="margin-bottom:1rem"><table><thead><tr><th>Produto</th><th class="text-right">Qtd Base</th></tr></thead><tbody>${itensHtml}</tbody></table></div>
+    <div style="display:flex;justify-content:flex-end;gap:.5rem;flex-wrap:wrap">
+      <button class="btn btn-outline btn-sm" onclick="imprimirDemandaEstoqueIntel('${esc(pedidoId)}')">Imprimir</button>
+      ${reservaStatus.key === "reservada" ? `<button class="btn btn-outline btn-sm" onclick="fecharReservaDemandaEstoqueIntel('${esc(pedidoId)}')">Cancelar Reserva</button>` : ""}
+      <button class="btn btn-outline btn-sm" onclick="fecharModalDemandaEstoqueIntel()">Fechar</button>
+      <button class="btn btn-green btn-sm" onclick="fecharModalDemandaEstoqueIntel();abrirDemandaNaListaComprasEstoqueIntel('${esc(pedidoId)}')">Enviar para Lista Automatica</button>
+    </div>
+  `;
+  modal.classList.remove("hidden");
+}
+
+function atualizarResumoSelecaoListaComprasEstoqueIntel(rows = []) {
+  const resumoEl = document.getElementById("ei-lista-compras-lote-resumo");
+  const selectAll = document.getElementById("ei-lista-compras-select-all");
+  if (!resumoEl) return;
+  const elegiveis = rows.filter((item) => item.faltante > 0 && item.fornecedor?.id && item.sugestao?.embalagemId);
+  const selecionadas = elegiveis.filter((item) => estoqueIntelListaComprasSelecionadas.has(item.rowKey));
+  resumoEl.textContent = `${selecionadas.length} linha(s) selecionada(s) para lote | ${elegiveis.length} elegivel(is) para gerar pedido`;
+  if (selectAll) {
+    selectAll.checked = elegiveis.length > 0 && selecionadas.length === elegiveis.length;
+    selectAll.indeterminate = selecionadas.length > 0 && selecionadas.length < elegiveis.length;
+  }
+}
+
+function toggleLinhaListaComprasEstoqueIntel(rowKey, checked) {
+  if (checked) estoqueIntelListaComprasSelecionadas.add(rowKey);
+  else estoqueIntelListaComprasSelecionadas.delete(rowKey);
+  atualizarResumoSelecaoListaComprasEstoqueIntel(buildListaComprasEstoqueIntelRows());
+}
+
+function toggleSelecionarTodasListaComprasEstoqueIntel(checked) {
+  const rows = buildListaComprasEstoqueIntelRows();
+  const elegiveis = rows.filter((item) => item.faltante > 0 && item.fornecedor?.id && item.sugestao?.embalagemId);
+  if (checked) elegiveis.forEach((item) => estoqueIntelListaComprasSelecionadas.add(item.rowKey));
+  else estoqueIntelListaComprasSelecionadas.clear();
+  renderListaComprasEstoqueIntel();
+}
+
+function gerarPedidosCompraListaSelecionados() {
+  const rows = buildListaComprasEstoqueIntelRows();
+  const selecionadas = rows.filter((item) => estoqueIntelListaComprasSelecionadas.has(item.rowKey) && item.faltante > 0 && item.fornecedor?.id && item.sugestao?.embalagemId);
+  if (!selecionadas.length) {
+    showToast("Selecione ao menos uma linha elegivel da lista automatica.", 3500);
+    return;
+  }
+  const vencimento = document.getElementById("ei-compra-vencimento")?.value || new Date().toISOString().slice(0, 10);
+  const grupos = new Map();
+  selecionadas.forEach((item) => {
+    const key = item.fornecedor.id;
+    const grupo = grupos.get(key) || [];
+    grupo.push({
+      produtoId: item.produto.id,
+      embalagemId: item.sugestao.embalagemId,
+      quantidadePacotes: item.sugestao.quantidadePacotes,
+      necessidadeBase: item.faltante,
+      sobraEstimada: item.sugestao.sobra
+    });
+    grupos.set(key, grupo);
+  });
+  let gerados = 0;
+  grupos.forEach((itens, fornecedorId) => {
+    const compra = criarPedidoCompraEstoqueIntel({
+      fornecedorId,
+      itens,
+      vencimento,
+      origem: "lista_automatica_lote"
+    });
+    if (compra) gerados += 1;
+  });
+  estoqueIntelListaComprasSelecionadas.clear();
+  renderListaComprasEstoqueIntel();
+  showToast(`${gerados} pedido(s) de compra gerado(s) em lote, agrupados por fornecedor.`, 4000);
+}
+
 function resolveSuggestedSupplierForProduto(produtoId, quantidadeNecessaria) {
   const embalagens = estoqueIntelEmbalagens.filter((item) => item.produto_id === produtoId);
   const opcoes = calcularCompraInteligente(quantidadeNecessaria, embalagens);
   let melhor = null;
   estoqueIntelFornecedores.forEach((fornecedor) => {
-    (fornecedor.embalagens || []).forEach((oferta) => {
-      const opcao = opcoes.find((item) => item.embalagemId === oferta.embalagem_id);
-      if (!opcao) return;
-      const valorTotal = Number(oferta.preco_unitario || 0) * Number(opcao.quantidadePacotes || 0);
+    opcoes.forEach((opcao) => {
+      const pricing = getEstoqueIntelPrecoFornecedorOuReferencia(fornecedor, opcao.embalagemId);
+      if (!(pricing.preco_unitario > 0)) return;
+      const valorTotal = Number(pricing.preco_unitario || 0) * Number(opcao.quantidadePacotes || 0);
       if (!melhor || valorTotal < melhor.valorTotal) {
         melhor = {
           fornecedor,
           opcao,
-          valorTotal
+          valorTotal,
+          pricing
         };
       }
     });
@@ -7155,39 +8064,67 @@ function buildListaComprasEstoqueIntelRows() {
   const resumoEstoque = getEstoqueIntelResumo();
   const rows = [];
 
-  pedidos.forEach((pedido) => {
-    const status = normalizePedidoStatus(pedido.status);
-    if (estoqueIntelListaStatusFiltros.length && !estoqueIntelListaStatusFiltros.includes(status)) return;
-    const dataRef = getPedidoDataConsiderada(pedido, dataConsiderada);
-    const dataBase = String(dataRef || "").slice(0, 10);
-    if (estoqueIntelListaPeriodoModo === "mes" && mesFiltro && !dataBase.startsWith(mesFiltro)) return;
-    if (estoqueIntelListaPeriodoModo === "intervalo") {
-      if (dataDe && dataBase < dataDe) return;
-      if (dataAte && dataBase > dataAte) return;
-    }
-    (pedido.itens || []).forEach((item) => {
-      const match = resolveEstoqueIntelMatchFromPedidoItem(item);
-      if (!match?.produto || !match.quantidadeBaseUnit) return;
-      const cliente = pedido.cliente?.nome || pedido.escola || "-";
-      const quantidade = Number(item.qtd || item.quantidade || 0) * Number(match.quantidadeBaseUnit || 0);
+  if (estoqueIntelListaDemandaContextoId) {
+    const demanda = estoqueIntelPedidos.find((pedido) => pedido.id === estoqueIntelListaDemandaContextoId);
+    const itensDemanda = estoqueIntelPedidoItens.filter((item) => item.pedido_id === estoqueIntelListaDemandaContextoId);
+    if (!demanda || !itensDemanda.length) return [];
+    const dataBase = String(demanda.data_prevista || demanda.data || new Date().toISOString().slice(0, 10)).slice(0, 10);
+    itensDemanda.forEach((item) => {
+      const produto = findEstoqueIntelProduto(item.produto_id);
+      if (!produto) return;
+      if (produtoFiltro && produto.id !== produtoFiltro) return;
+      const quantidade = Number(item.quantidade_base || 0);
       if (!quantidade) return;
-      if (clienteFiltro && cliente !== clienteFiltro) return;
-      if (produtoFiltro && match.produto.id !== produtoFiltro) return;
-      const sugestaoFornecedor = resolveSuggestedSupplierForProduto(match.produto.id, quantidade);
+      const sugestaoFornecedor = resolveSuggestedSupplierForProduto(produto.id, quantidade);
       if (fornecedorFiltro && sugestaoFornecedor?.fornecedor?.id !== fornecedorFiltro) return;
       rows.push({
-        pedidoId: pedido.id,
-        cliente,
-        produto: match.produto,
-        status,
+        pedidoId: demanda.id,
+        cliente: demanda.cliente || "Demanda selecionada",
+        produto,
+        status: demanda.status || "emitido",
         data: dataBase,
         quantidade,
         fornecedor: sugestaoFornecedor?.fornecedor || null,
         sugestao: sugestaoFornecedor?.opcao || null,
-        estoqueDisponivel: resumoEstoque.find((resumo) => resumo.produto.id === match.produto.id)?.disponivel || 0
+        estoqueDisponivel: resumoEstoque.find((resumo) => resumo.produto.id === produto.id)?.disponivel || 0
       });
     });
-  });
+  } else {
+
+    pedidos.forEach((pedido) => {
+      const status = normalizePedidoStatus(pedido.status);
+      if (estoqueIntelListaStatusFiltros.length && !estoqueIntelListaStatusFiltros.includes(status)) return;
+      const dataRef = getPedidoDataConsiderada(pedido, dataConsiderada);
+      const dataBase = String(dataRef || "").slice(0, 10);
+      if (estoqueIntelListaPeriodoModo === "mes" && mesFiltro && !dataBase.startsWith(mesFiltro)) return;
+      if (estoqueIntelListaPeriodoModo === "intervalo") {
+        if (dataDe && dataBase < dataDe) return;
+        if (dataAte && dataBase > dataAte) return;
+      }
+      (pedido.itens || []).forEach((item) => {
+        const match = resolveEstoqueIntelMatchFromPedidoItem(item);
+        if (!match?.produto || !match.quantidadeBaseUnit) return;
+        const cliente = pedido.cliente?.nome || pedido.escola || "-";
+        const quantidade = Number(item.qtd || item.quantidade || 0) * Number(match.quantidadeBaseUnit || 0);
+        if (!quantidade) return;
+        if (clienteFiltro && cliente !== clienteFiltro) return;
+        if (produtoFiltro && match.produto.id !== produtoFiltro) return;
+        const sugestaoFornecedor = resolveSuggestedSupplierForProduto(match.produto.id, quantidade);
+        if (fornecedorFiltro && sugestaoFornecedor?.fornecedor?.id !== fornecedorFiltro) return;
+        rows.push({
+          pedidoId: pedido.id,
+          cliente,
+          produto: match.produto,
+          status,
+          data: dataBase,
+          quantidade,
+          fornecedor: sugestaoFornecedor?.fornecedor || null,
+          sugestao: sugestaoFornecedor?.opcao || null,
+          estoqueDisponivel: resumoEstoque.find((resumo) => resumo.produto.id === match.produto.id)?.disponivel || 0
+        });
+      });
+    });
+  }
 
   const grouped = new Map();
   rows.forEach((row) => {
@@ -7197,6 +8134,7 @@ function buildListaComprasEstoqueIntelRows() {
         ? `${row.produto.id}`
         : `${row.cliente}|${row.produto.id}`;
     const prev = grouped.get(key) || {
+      rowKey: key,
       grupo: agruparPor === "fornecedor_produto"
         ? (row.fornecedor?.nome || "Sem fornecedor")
         : agruparPor === "produto"
@@ -7236,14 +8174,26 @@ function buildListaComprasEstoqueIntelRows() {
 function renderListaComprasEstoqueIntel() {
   const tbody = document.getElementById("ei-lista-compras-tbody");
   const resumoEl = document.getElementById("ei-lista-compras-resumo");
+  const contextoEl = document.getElementById("ei-lista-demanda-contexto");
   if (!tbody || !resumoEl) return;
   const rows = buildListaComprasEstoqueIntelRows();
+  const demandaContexto = estoqueIntelListaDemandaContextoId ? estoqueIntelPedidos.find((pedido) => pedido.id === estoqueIntelListaDemandaContextoId) : null;
+  if (contextoEl) {
+    if (demandaContexto) {
+      contextoEl.classList.remove("hidden");
+      contextoEl.innerHTML = `<strong>Voce esta comprando a partir da demanda ${esc(demandaContexto.id)}</strong><br><span style="color:#bfdbfe">Cliente/Origem: ${esc(demandaContexto.cliente || "-")} | Use "Voltar" para sair desse modo e retornar a lista geral.</span>`;
+    } else {
+      contextoEl.classList.add("hidden");
+      contextoEl.innerHTML = "";
+    }
+  }
   const compararEstoque = (document.getElementById("ei-lista-comparar-estoque")?.value || "sim") === "sim";
   const totalNecessidade = rows.reduce((sum, item) => sum + Number(item.necessidade || 0), 0);
   const totalComprar = rows.reduce((sum, item) => sum + Number(item.faltante || 0), 0);
-  resumoEl.textContent = `${rows.length} agrupamento(s) gerado(s) | Necessidade total: ${totalNecessidade} | Compra sugerida: ${totalComprar}${compararEstoque ? " | comparando com estoque atual" : " | sem comparar com estoque"}`;
+  resumoEl.textContent = `${demandaContexto ? `Demanda selecionada: ${demandaContexto.id} | ` : ""}${rows.length} agrupamento(s) gerado(s) | Necessidade total: ${totalNecessidade} | Compra sugerida: ${totalComprar}${compararEstoque ? " | comparando com estoque atual" : " | sem comparar com estoque"}`;
   tbody.innerHTML = rows.length ? rows.map((item) => `
     <tr>
+      <td class="text-center">${item.faltante > 0 && item.fornecedor?.id && item.sugestao?.embalagemId ? `<input type="checkbox" onchange="toggleLinhaListaComprasEstoqueIntel(decodeURIComponent('${encodeURIComponent(item.rowKey)}'), this.checked)" ${estoqueIntelListaComprasSelecionadas.has(item.rowKey) ? "checked" : ""}>` : ""}</td>
       <td>${esc(item.grupo)}</td>
       <td>${esc(item.fornecedor?.nome || "-")}</td>
       <td>${esc(item.produto.nome)}</td>
@@ -7253,55 +8203,190 @@ function renderListaComprasEstoqueIntel() {
       <td class="text-right font-mono">${Number(item.estoqueDisponivel || 0)}</td>
       <td class="text-right font-mono" style="color:${Number(item.faltante || 0) > 0 ? "var(--yellow)" : "var(--green)"};font-weight:700">${Number(item.faltante || 0)}</td>
       <td style="font-size:.78rem;color:var(--mut)">${item.sugestao ? `${esc(item.sugestao.descricao)} | ${item.sugestao.quantidadePacotes} pacotes | sobra ${item.sugestao.sobra}` : "Sem compra sugerida"}</td>
+      <td class="text-right">${item.faltante > 0 && item.fornecedor?.id && item.sugestao?.embalagemId ? `<button class="btn btn-outline btn-sm" onclick="gerarPedidoCompraDaListaEstoqueIntel('${esc(item.produto.id)}','${esc(item.fornecedor.id)}','${esc(item.sugestao.embalagemId)}','${Number(item.sugestao.quantidadePacotes || 0)}','${Number(item.faltante || 0)}','${Number(item.sugestao.sobra || 0)}')">Gerar Pedido</button>` : `<span style="font-size:.72rem;color:var(--mut)">Sem acao</span>`}</td>
     </tr>
-  `).join("") : `<tr><td colspan="9" style="color:var(--mut)">Nenhuma necessidade encontrada para os filtros atuais.</td></tr>`;
+  `).join("") : `<tr><td colspan="11" style="color:var(--mut)">Nenhuma necessidade encontrada para os filtros atuais.</td></tr>`;
+  atualizarResumoSelecaoListaComprasEstoqueIntel(rows);
 }
 
 function registrarFornecedorEstoqueIntel() {
   const existingId = document.getElementById("ei-forn-existing")?.value || "";
   const nome = (document.getElementById("ei-forn-nome")?.value || "").trim();
   const documento = (document.getElementById("ei-forn-doc")?.value || "").trim();
-  const contato = (document.getElementById("ei-forn-contato")?.value || "").trim();
+  const telefone = (document.getElementById("ei-forn-telefone")?.value || "").trim();
+  const email = (document.getElementById("ei-forn-email")?.value || "").trim();
   const status = document.getElementById("ei-forn-status")?.value || "ativo";
   const embalagemId = document.getElementById("ei-forn-embalagem")?.value || "";
   const precoUnitario = Number(document.getElementById("ei-forn-preco")?.value || 0);
-  if (!existingId && !nome) {
-    showToast("Informe o nome do fornecedor ou selecione um existente.", 3500);
+  const isCadastroFornecedor = !!(nome || documento || telefone || email);
+  const isCadastroOferta = !!(existingId || embalagemId || precoUnitario);
+  if (!isCadastroFornecedor && !isCadastroOferta) {
+    showToast("Preencha os dados do fornecedor ou informe uma oferta.", 3500);
     return;
   }
-  if (!embalagemId || !precoUnitario) {
-    showToast("Selecione embalagem e preco unitario.", 3500);
+  if (isCadastroOferta && (!existingId || !embalagemId || !precoUnitario)) {
+    if (!isCadastroFornecedor) {
+      showToast("Para salvar oferta, selecione fornecedor, embalagem e preco unitario.", 3500);
+      return;
+    }
+  }
+  if ((embalagemId && !precoUnitario) || (!embalagemId && precoUnitario)) {
+    showToast("Para salvar oferta, informe embalagem e preco unitario juntos.", 3500);
     return;
   }
   let fornecedor = existingId ? findEstoqueIntelFornecedor(existingId) : null;
-  if (!fornecedor) {
+  if (!fornecedor && isCadastroFornecedor) {
     fornecedor = {
       id: genId("FORN"),
       nome,
       documento,
-      contato,
+      telefone,
+      email,
       status,
       embalagens: []
     };
     estoqueIntelFornecedores.push(fornecedor);
-  } else {
+  } else if (fornecedor && isCadastroFornecedor) {
     fornecedor.nome = nome || fornecedor.nome;
     fornecedor.documento = documento || fornecedor.documento;
-    fornecedor.contato = contato || fornecedor.contato;
+    fornecedor.telefone = telefone || fornecedor.telefone || "";
+    fornecedor.email = email || fornecedor.email || "";
     fornecedor.status = status || fornecedor.status;
   }
-  const ofertaAtual = getFornecedorOferta(fornecedor, embalagemId);
-  if (ofertaAtual) {
-    ofertaAtual.preco_unitario = precoUnitario;
-  } else {
-    fornecedor.embalagens.push({ embalagem_id: embalagemId, preco_unitario: precoUnitario });
+  if (!fornecedor && existingId) {
+    showToast("Fornecedor selecionado nao encontrado.", 3500);
+    return;
+  }
+  if (fornecedor && embalagemId && precoUnitario) {
+    const ofertaAtual = getFornecedorOferta(fornecedor, embalagemId);
+    if (ofertaAtual) {
+      ofertaAtual.preco_unitario = precoUnitario;
+    } else {
+      fornecedor.embalagens.push({ embalagem_id: embalagemId, preco_unitario: precoUnitario });
+    }
   }
   saveEstoqueIntelFornecedores();
-  ["ei-forn-nome", "ei-forn-doc", "ei-forn-contato", "ei-forn-preco"].forEach((id) => { const el = document.getElementById(id); if (el) el.value = ""; });
+  ["ei-forn-nome", "ei-forn-doc", "ei-forn-telefone", "ei-forn-email", "ei-forn-preco"].forEach((id) => { const el = document.getElementById(id); if (el) el.value = ""; });
+  const embalagemSelect = document.getElementById("ei-forn-embalagem");
+  if (embalagemSelect) embalagemSelect.value = "";
   const existingSelect = document.getElementById("ei-forn-existing");
   if (existingSelect) existingSelect.value = "";
   renderEstoque();
-  showToast("Fornecedor e oferta salvos no Estoque Intel.", 3000);
+  if (isCadastroFornecedor && embalagemId && precoUnitario) {
+    showToast("Fornecedor e oferta salvos no Estoque Intel.", 3000);
+  } else if (isCadastroFornecedor) {
+    showToast("Fornecedor salvo no Estoque Intel.", 3000);
+  } else {
+    showToast("Oferta salva no Estoque Intel.", 3000);
+  }
+}
+
+function getEstoqueIntelFornecedorDependencias(fornecedorId) {
+  const dependencias = [];
+  const totalCompras = estoqueIntelCompras.filter((item) => item.fornecedor_id === fornecedorId).length;
+  if (totalCompras) dependencias.push(`${totalCompras} compra(s)`);
+  return dependencias;
+}
+
+function excluirFornecedorEstoqueIntel(fornecedorId) {
+  const fornecedor = findEstoqueIntelFornecedor(fornecedorId);
+  if (!fornecedor) {
+    showToast("Fornecedor nao encontrado no Estoque Intel.", 3000);
+    return;
+  }
+  const dependencias = getEstoqueIntelFornecedorDependencias(fornecedorId);
+  if (dependencias.length) {
+    showToast(`Nao foi possivel excluir ${fornecedor.nome}: ha ${dependencias.join(", ")} vinculadas.`, 4500);
+    return;
+  }
+  if (!confirm(`Excluir o fornecedor "${fornecedor.nome}" e todas as ofertas sem compra vinculada?`)) return;
+  estoqueIntelFornecedores = estoqueIntelFornecedores.filter((item) => item.id !== fornecedorId);
+  saveEstoqueIntelFornecedores();
+  renderEstoque();
+  showToast("Fornecedor excluido do Estoque Intel.", 3000);
+}
+
+function getEstoqueIntelOfertaDependencias(fornecedorId, embalagemId) {
+  const dependencias = [];
+  const totalCompras = estoqueIntelCompras.filter((item) => item.fornecedor_id === fornecedorId && getEstoqueIntelCompraItens(item).some((compraItem) => compraItem.embalagem_id === embalagemId)).length;
+  if (totalCompras) dependencias.push(`${totalCompras} compra(s)`);
+  return dependencias;
+}
+
+function excluirOfertaFornecedorEstoqueIntel(fornecedorId, embalagemId) {
+  const fornecedor = findEstoqueIntelFornecedor(fornecedorId);
+  if (!fornecedor) {
+    showToast("Fornecedor nao encontrado no Estoque Intel.", 3000);
+    return;
+  }
+  const oferta = getFornecedorOferta(fornecedor, embalagemId);
+  if (!oferta) {
+    showToast("Oferta nao encontrada no Estoque Intel.", 3000);
+    return;
+  }
+  const dependencias = getEstoqueIntelOfertaDependencias(fornecedorId, embalagemId);
+  if (dependencias.length) {
+    showToast(`Nao foi possivel excluir a oferta: ha ${dependencias.join(", ")} vinculadas.`, 4500);
+    return;
+  }
+  const embalagem = estoqueIntelEmbalagens.find((item) => item.id === embalagemId);
+  if (!confirm(`Excluir a oferta de ${fornecedor.nome} para ${embalagem?.descricao || embalagemId}?`)) return;
+  fornecedor.embalagens = (fornecedor.embalagens || []).filter((item) => item.embalagem_id !== embalagemId);
+  saveEstoqueIntelFornecedores();
+  renderEstoque();
+  showToast("Oferta excluida do Estoque Intel.", 3000);
+}
+
+function criarPedidoCompraEstoqueIntel({ fornecedorId, itens = [], vencimento, origem = "manual" }) {
+  const fornecedor = findEstoqueIntelFornecedor(fornecedorId);
+  if (!fornecedor || !Array.isArray(itens) || !itens.length) {
+    showToast("Informe fornecedor e ao menos um item valido para gerar o pedido.", 4000);
+    return null;
+  }
+  const itensNormalizados = [];
+  for (const item of itens) {
+    const produto = findEstoqueIntelProduto(item.produtoId || item.produto_id);
+    const embalagem = estoqueIntelEmbalagens.find((emb) => emb.id === (item.embalagemId || item.embalagem_id));
+    const qtdPacotes = Number(item.quantidadePacotes || item.quantidade_pacotes || 0);
+    if (!produto || !embalagem || !(qtdPacotes > 0)) continue;
+    const pricing = getEstoqueIntelPrecoFornecedorOuReferencia(fornecedor, embalagem.id);
+    if (!(pricing.preco_unitario > 0)) continue;
+    itensNormalizados.push({
+      produto_id: produto.id,
+      embalagem_id: embalagem.id,
+      quantidade_pacotes: qtdPacotes,
+      total_comprado: Number(embalagem.quantidade_base || 0) * qtdPacotes,
+      sobra_estimada: Number(item.sobraEstimada || item.sobra_estimada || 0),
+      preco_unitario: Number(pricing.preco_unitario || 0),
+      valor_total: Number(pricing.preco_unitario || 0) * qtdPacotes,
+      origem_preco: pricing.origem,
+      necessidade_base: Number(item.necessidadeBase || item.necessidade_base || 0)
+    });
+  }
+  if (!itensNormalizados.length) {
+    showToast("Nenhum item valido foi encontrado para gerar o pedido.", 4000);
+    return null;
+  }
+  const compra = {
+    id: genId("COMP"),
+    fornecedor_id: fornecedor.id,
+    data: new Date().toISOString(),
+    status: "pedido_compra_emitido",
+    itens: itensNormalizados,
+    total_itens: itensNormalizados.length,
+    valor_total: itensNormalizados.reduce((sum, item) => sum + Number(item.valor_total || 0), 0),
+    origem_pedido_compra: origem,
+    vencimento_financeiro: vencimento || new Date().toISOString().slice(0, 10),
+    erp: {
+      status: "pedido_compra_pronto",
+      endpoint: "/api/estoque-intel-erp",
+      updatedAt: new Date().toISOString()
+    }
+  };
+  estoqueIntelCompras.unshift(compra);
+  saveEstoqueIntelCompras();
+  renderEstoque();
+  return compra;
 }
 
 function gerarPreCompraEstoqueIntel() {
@@ -7310,61 +8395,176 @@ function gerarPreCompraEstoqueIntel() {
   const fornecedor = findEstoqueIntelFornecedor(fornecedorId);
   const melhorOpcao = estoqueIntelUltimaSugestao?.opcoes?.find((item) => item.melhorOpcao) || estoqueIntelUltimaSugestao?.opcoes?.[0];
   if (!fornecedor || !estoqueIntelUltimaSugestao?.produto || !melhorOpcao) {
-    showToast("Calcule a sugestao e selecione o fornecedor antes de gerar a pre-compra.", 4000);
+    showToast("Calcule a sugestao e selecione o fornecedor antes de gerar o pedido de compra.", 4000);
     return;
   }
-  const oferta = getFornecedorOferta(fornecedor, melhorOpcao.embalagemId);
-  if (!oferta) {
-    showToast("Esse fornecedor nao possui oferta cadastrada para a melhor embalagem.", 4000);
-    return;
-  }
-  const compra = {
-    id: genId("COMP"),
-    fornecedor_id: fornecedor.id,
-    produto_id: estoqueIntelUltimaSugestao.produto.id,
-    embalagem_id: melhorOpcao.embalagemId,
-    data: new Date().toISOString(),
-    status: "pre_compra",
-    quantidade_pacotes: melhorOpcao.quantidadePacotes,
-    total_comprado: melhorOpcao.totalComprado,
-    sobra_estimada: melhorOpcao.sobra,
-    preco_unitario: Number(oferta.preco_unitario || 0),
-    valor_total: Number(oferta.preco_unitario || 0) * Number(melhorOpcao.quantidadePacotes || 0),
-    vencimento_financeiro: vencimento,
-    erp: {
-      status: "payload_pronto",
-      endpoint: "/api/estoque-intel-erp",
-      updatedAt: new Date().toISOString()
-    }
-  };
-  estoqueIntelCompras.unshift(compra);
-  saveEstoqueIntelCompras();
-  contasPagar.unshift({
-    id: genId("CP"),
-    descricao: `Pre-compra ${estoqueIntelUltimaSugestao.produto.nome} - ${fornecedor.nome}`,
-    categoria: "fornecedor",
-    forma: "boleto",
-    valor: compra.valor_total,
+  const compra = criarPedidoCompraEstoqueIntel({
+    fornecedorId: fornecedor.id,
+    itens: [{
+      produtoId: estoqueIntelUltimaSugestao.produto.id,
+      embalagemId: melhorOpcao.embalagemId,
+      quantidadePacotes: melhorOpcao.quantidadePacotes,
+      necessidadeBase: estoqueIntelUltimaSugestao.necessidade,
+      sobraEstimada: melhorOpcao.sobra
+    }],
     vencimento,
-    status: "emitida",
-    origemTipo: "estoque_intel",
-    origemId: compra.id,
-    audit: { createdAt: new Date().toISOString(), createdBy: getAuditActor(), updatedAt: new Date().toISOString(), updatedBy: getAuditActor() }
+    origem: "sugestao_inteligente"
   });
-  saveContasPagar();
-  renderContasPagar();
+  if (!compra) return;
+  showToast("Pedido de compra gerado para o fornecedor.", 4000);
+}
+
+function atualizarCompraManualEmbalagens() {
+  const produtoId = document.getElementById("ei-compra-manual-produto")?.value || "";
+  const select = document.getElementById("ei-compra-manual-embalagem");
+  if (!select) return;
+  const previous = select.value;
+  const options = estoqueIntelEmbalagens
+    .filter((item) => !produtoId || item.produto_id === produtoId)
+    .map((item) => `<option value="${esc(item.id)}">${esc(item.descricao)} (${Number(item.quantidade_base || 0)})</option>`)
+    .join("");
+  select.innerHTML = `<option value="">Selecione</option>${options}`;
+  if (previous && estoqueIntelEmbalagens.some((item) => item.id === previous && (!produtoId || item.produto_id === produtoId))) {
+    select.value = previous;
+  }
+}
+
+function gerarPedidoCompraManualEstoqueIntel() {
+  const produtoId = document.getElementById("ei-compra-manual-produto")?.value || "";
+  const embalagemId = document.getElementById("ei-compra-manual-embalagem")?.value || "";
+  const fornecedorId = document.getElementById("ei-compra-manual-fornecedor")?.value || "";
+  const quantidadePacotes = Number(document.getElementById("ei-compra-manual-pacotes")?.value || 0);
+  const vencimento = document.getElementById("ei-compra-manual-vencimento")?.value || new Date().toISOString().slice(0, 10);
+  const compra = criarPedidoCompraEstoqueIntel({
+    fornecedorId,
+    itens: [{
+      produtoId,
+      embalagemId,
+      quantidadePacotes
+    }],
+    vencimento,
+    origem: "manual"
+  });
+  if (!compra) return;
+  ["ei-compra-manual-pacotes"].forEach((id) => { const el = document.getElementById(id); if (el) el.value = ""; });
+  const embalagemSelect = document.getElementById("ei-compra-manual-embalagem");
+  if (embalagemSelect) embalagemSelect.value = "";
+  showToast("Pedido de compra manual gerado.", 4000);
+}
+
+function gerarPedidoCompraDaListaEstoqueIntel(produtoId, fornecedorId, embalagemId, quantidadePacotes, necessidadeBase, sobraEstimada) {
+  const vencimento = document.getElementById("ei-compra-vencimento")?.value || new Date().toISOString().slice(0, 10);
+  const compra = criarPedidoCompraEstoqueIntel({
+    fornecedorId,
+    itens: [{
+      produtoId,
+      embalagemId,
+      quantidadePacotes,
+      necessidadeBase,
+      sobraEstimada
+    }],
+    vencimento,
+    origem: "lista_automatica"
+  });
+  if (!compra) return;
+  showToast("Pedido de compra gerado a partir da lista automatica.", 4000);
+}
+
+async function enviarPedidoCompraFornecedor(compraId) {
+  const compra = estoqueIntelCompras.find((item) => item.id === compraId);
+  if (!compra) {
+    showToast("Pedido de compra nao encontrado.", 3000);
+    return;
+  }
+  const fornecedor = findEstoqueIntelFornecedor(compra.fornecedor_id);
+  const emailDestino = getEstoqueIntelFornecedorEmail(fornecedor);
+  if (!emailDestino || !emailDestino.includes("@")) {
+    showToast("O fornecedor nao possui e-mail valido para envio.", 4000);
+    return;
+  }
+  compra.status = "pedido_compra_enviado";
+  compra.envio = {
+    canal: "email",
+    destinatario: emailDestino,
+    enviado_em: new Date().toISOString()
+  };
+  compra.erp = {
+    ...(compra.erp || {}),
+    status: "pedido_compra_enviado",
+    updatedAt: new Date().toISOString()
+  };
+  saveEstoqueIntelCompras();
   renderEstoque();
-  showToast("Pre-compra criada e enviada para Contas a Pagar.", 4000);
+  showToast(`Pedido de compra enviado para ${fornecedor?.nome || "fornecedor"} (${emailDestino}).`, 4000);
+}
+
+function excluirPedidoCompraEstoqueIntel(compraId) {
+  const compra = estoqueIntelCompras.find((item) => item.id === compraId);
+  if (!compra) {
+    showToast("Pedido de compra nao encontrado.", 3000);
+    return;
+  }
+  const fornecedor = findEstoqueIntelFornecedor(compra.fornecedor_id);
+  const itensCompra = getEstoqueIntelCompraItens(compra);
+  const produto = itensCompra[0] ? findEstoqueIntelProduto(itensCompra[0].produto_id) : null;
+  const statusLabel = compra.status === "pedido_compra_enviado" ? " ja enviado ao fornecedor" : "";
+  if (!confirm(`Excluir o pedido de compra ${compra.id}${statusLabel}?${statusLabel ? " Essa acao remove o registro interno da lista." : ""}`)) return;
+  estoqueIntelCompras = estoqueIntelCompras.filter((item) => item.id !== compraId);
+  saveEstoqueIntelCompras();
+  renderEstoque();
+  showToast(`Pedido de compra de ${produto?.nome || "produto"} com ${fornecedor?.nome || "fornecedor"} excluido.`, 3500);
+}
+
+function getEstoqueIntelDemandaExclusaoBloqueios(pedidoId) {
+  const bloqueios = [];
+  const demanda = estoqueIntelPedidos.find((item) => item.id === pedidoId);
+  if (!demanda) return ["demanda nao encontrada"];
+  if (demanda.origem_sistema !== "manual") bloqueios.push("apenas demandas manuais podem ser excluidas");
+  const reservaStatus = getEstoqueIntelReservaStatus(pedidoId);
+  if (reservaStatus.key === "baixada") bloqueios.push("a demanda ja teve baixa de estoque");
+  if (reservaStatus.key === "encerrada_manual") bloqueios.push("a reserva ja foi encerrada manualmente");
+  if (provasEntrega.some((item) => item.pedidoId === pedidoId)) bloqueios.push("ja existe entrega/comprovante vinculada");
+  if (entregasOperacionaisRender.some((item) => item.pedidoId === pedidoId && item.__source === "demanda")) bloqueios.push("existe vinculo operacional com a sessao Entregas");
+  const comprasVinculadas = estoqueIntelCompras.filter((compra) => {
+    const origem = String(compra.origem_pedido_compra || "");
+    return origem.includes(pedidoId);
+  }).length;
+  if (comprasVinculadas) bloqueios.push(`${comprasVinculadas} pedido(s) de compra vinculado(s)`);
+  return bloqueios;
+}
+
+function excluirDemandaEstoqueIntel(pedidoId) {
+  const demanda = estoqueIntelPedidos.find((item) => item.id === pedidoId);
+  if (!demanda) {
+    showToast("Demanda nao encontrada.", 3000);
+    return;
+  }
+  const bloqueios = getEstoqueIntelDemandaExclusaoBloqueios(pedidoId);
+  if (bloqueios.length) {
+    showToast(`Nao foi possivel excluir: ${bloqueios.join("; ")}.`, 5000);
+    return;
+  }
+  const itens = estoqueIntelPedidoItens.filter((item) => item.pedido_id === pedidoId);
+  const totalQuantidade = itens.reduce((sum, item) => sum + Number(item.quantidade_base || 0), 0);
+  if (!confirm(`Excluir a demanda ${pedidoId}?\nQuantidade base total: ${totalQuantidade}\n\nEssa acao remove a demanda, os itens e a reserva comprometida.`)) return;
+  estoqueIntelPedidos = estoqueIntelPedidos.filter((item) => item.id !== pedidoId);
+  estoqueIntelPedidoItens = estoqueIntelPedidoItens.filter((item) => item.pedido_id !== pedidoId);
+  estoqueIntelMovimentacoes = estoqueIntelMovimentacoes.filter((mov) => !(mov.referencia_id === pedidoId && (mov.origem === "pedido" || mov.origem_sistema === "manual")));
+  saveEstoqueIntelPedidos();
+  saveEstoqueIntelPedidoItens();
+  saveEstoqueIntelMovimentacoes();
+  renderEstoque();
+  showToast(`Demanda ${pedidoId} excluida.`, 3500);
 }
 
 async function prepararIntegracaoErpEstoqueIntel() {
   const erpEl = document.getElementById("ei-erp-status");
-  if (erpEl) erpEl.textContent = "Montando snapshot ERP do Estoque Intel...";
+  if (erpEl) erpEl.textContent = "Atualizando resumo de integracao ERP...";
   try {
     const resp = await fetch("/api/estoque-intel-erp");
     const data = await resp.json().catch(() => ({}));
     if (!resp.ok || !data.ok) throw new Error(data.error || `HTTP ${resp.status}`);
-    if (erpEl) erpEl.textContent = `ERP pronto: fornecedores ${data.summary.fornecedores}, compras ${data.summary.compras}, payload financeiro ${data.summary.financeiro}`;
+    if (erpEl) erpEl.textContent = `ERP pronto: ${data.summary.fornecedores} fornecedor(es), ${data.summary.compras} pedido(s) de compra e ${data.summary.financeiro} payload(s) disponiveis para integracao.`;
   } catch (err) {
     if (erpEl) erpEl.textContent = `Falha ao consultar ERP: ${err.message}`;
   }
@@ -7384,20 +8584,84 @@ function registrarProdutoEstoqueIntel() {
   showToast("Produto salvo no Estoque Intel.", 3000);
 }
 
+function getEstoqueIntelProdutoDependencias(produtoId) {
+  const dependencias = [];
+  const totalEmbalagens = estoqueIntelEmbalagens.filter((item) => item.produto_id === produtoId).length;
+  const totalPedidoItens = estoqueIntelPedidoItens.filter((item) => item.produto_id === produtoId).length;
+  const totalMovimentacoes = estoqueIntelMovimentacoes.filter((item) => item.produto_id === produtoId).length;
+  const totalCompras = estoqueIntelCompras.filter((item) => getEstoqueIntelCompraItens(item).some((compraItem) => compraItem.produto_id === produtoId)).length;
+  if (totalEmbalagens) dependencias.push(`${totalEmbalagens} embalagem(ns)`);
+  if (totalPedidoItens) dependencias.push(`${totalPedidoItens} item(ns) de pedido`);
+  if (totalMovimentacoes) dependencias.push(`${totalMovimentacoes} movimentacao(oes)`);
+  if (totalCompras) dependencias.push(`${totalCompras} compra(s)`);
+  return dependencias;
+}
+
+function excluirProdutoEstoqueIntel(produtoId) {
+  const produto = findEstoqueIntelProduto(produtoId);
+  if (!produto) {
+    showToast("Produto nao encontrado no Estoque Intel.", 3000);
+    return;
+  }
+  const dependencias = getEstoqueIntelProdutoDependencias(produtoId);
+  if (dependencias.length) {
+    showToast(`Nao foi possivel excluir ${produto.nome}: ha ${dependencias.join(", ")} vinculadas.`, 4500);
+    return;
+  }
+  if (!confirm(`Excluir o produto "${produto.nome}" do Estoque Intel?`)) return;
+  estoqueIntelProdutos = estoqueIntelProdutos.filter((item) => item.id !== produtoId);
+  if (estoqueIntelUltimaSugestao?.produto?.id === produtoId) estoqueIntelUltimaSugestao = null;
+  saveEstoqueIntelProdutos();
+  renderEstoque();
+  showToast("Produto excluido do Estoque Intel.", 3000);
+}
+
 function registrarEmbalagemEstoqueIntel() {
   const produto_id = document.getElementById("ei-emb-produto")?.value || "";
   const descricao = (document.getElementById("ei-emb-descricao")?.value || "").trim();
   const codigo_barras = (document.getElementById("ei-emb-barcode")?.value || "").trim();
   const quantidade_base = Number(document.getElementById("ei-emb-quantidade")?.value || 0);
+  const preco_referencia = Number(document.getElementById("ei-emb-preco-ref")?.value || 0);
   if (!produto_id || !descricao || !quantidade_base) {
     showToast("Preencha produto, descricao e quantidade base.", 3000);
     return;
   }
-  estoqueIntelEmbalagens.push({ id: genId("EMB"), produto_id, descricao, codigo_barras, quantidade_base });
+  estoqueIntelEmbalagens.push({ id: genId("EMB"), produto_id, descricao, codigo_barras, quantidade_base, preco_referencia });
   saveEstoqueIntelEmbalagens();
-  ["ei-emb-descricao", "ei-emb-barcode", "ei-emb-quantidade"].forEach((id) => { const el = document.getElementById(id); if (el) el.value = ""; });
+  ["ei-emb-descricao", "ei-emb-barcode", "ei-emb-quantidade", "ei-emb-preco-ref"].forEach((id) => { const el = document.getElementById(id); if (el) el.value = ""; });
   renderEstoque();
   showToast("Embalagem vinculada ao produto.", 3000);
+}
+
+function getEstoqueIntelEmbalagemDependencias(embalagemId) {
+  const dependencias = [];
+  const totalOfertas = estoqueIntelFornecedores.reduce((sum, fornecedor) => {
+    return sum + (fornecedor.embalagens || []).filter((item) => item.embalagem_id === embalagemId).length;
+  }, 0);
+  const totalCompras = estoqueIntelCompras.filter((item) => getEstoqueIntelCompraItens(item).some((compraItem) => compraItem.embalagem_id === embalagemId)).length;
+  if (totalOfertas) dependencias.push(`${totalOfertas} oferta(s) de fornecedor`);
+  if (totalCompras) dependencias.push(`${totalCompras} compra(s)`);
+  return dependencias;
+}
+
+function excluirEmbalagemEstoqueIntel(embalagemId) {
+  const embalagem = estoqueIntelEmbalagens.find((item) => item.id === embalagemId);
+  if (!embalagem) {
+    showToast("Embalagem nao encontrada no Estoque Intel.", 3000);
+    return;
+  }
+  const produto = findEstoqueIntelProduto(embalagem.produto_id);
+  const dependencias = getEstoqueIntelEmbalagemDependencias(embalagemId);
+  if (dependencias.length) {
+    showToast(`Nao foi possivel excluir ${embalagem.descricao}: ha ${dependencias.join(", ")} vinculadas.`, 4500);
+    return;
+  }
+  if (!confirm(`Excluir a embalagem "${embalagem.descricao}" de ${produto?.nome || embalagem.produto_id}?`)) return;
+  estoqueIntelEmbalagens = estoqueIntelEmbalagens.filter((item) => item.id !== embalagemId);
+  if (estoqueIntelUltimaSugestao?.opcoes?.some((item) => item.embalagemId === embalagemId)) estoqueIntelUltimaSugestao = null;
+  saveEstoqueIntelEmbalagens();
+  renderEstoque();
+  showToast("Embalagem excluida do Estoque Intel.", 3000);
 }
 
 function registrarPedidoEstoqueIntel() {
@@ -7409,7 +8673,8 @@ function registrarPedidoEstoqueIntel() {
     return;
   }
   const pedido = { id: genId("PEDINT"), data: new Date().toISOString().slice(0, 10), status };
-  const pedidoItem = { id: genId("PIT"), pedido_id: pedido.id, produto_id, quantidade_base };
+  const pedidoItem = { id: genId("PIT"), pedido_id: pedido.id, produto_id, quantidade_base, origem_sistema: "manual" };
+  pedido.origem_sistema = "manual";
   estoqueIntelPedidos.push(pedido);
   estoqueIntelPedidoItens.push(pedidoItem);
   estoqueIntelMovimentacoes.push({
@@ -7427,7 +8692,7 @@ function registrarPedidoEstoqueIntel() {
   saveEstoqueIntelMovimentacoes();
   document.getElementById("ei-pedido-quantidade").value = "";
   renderEstoque();
-  showToast("Pedido criado e comprometido registrado.", 3000);
+  showToast("Demanda manual criada e reserva registrada no estoque.", 3000);
 }
 
 function registrarMovimentoEstoque() {
@@ -7502,7 +8767,7 @@ function seedEstoqueIntelExemplo() {
 }
 
 function limparEstoqueIntel() {
-  if (!confirm("Limpar a base local do Estoque Intel e voltar ao exemplo inicial?")) return;
+  if (!confirm("Limpar toda a base local do Estoque Intel?")) return;
   estoqueIntelProdutos = [];
   estoqueIntelEmbalagens = [];
   estoqueIntelFornecedores = [];
@@ -7510,7 +8775,16 @@ function limparEstoqueIntel() {
   estoqueIntelPedidoItens = [];
   estoqueIntelMovimentacoes = [];
   estoqueIntelCompras = [];
-  seedEstoqueIntelExemplo();
+  estoqueIntelUltimaSugestao = null;
+  saveEstoqueIntelProdutos();
+  saveEstoqueIntelEmbalagens();
+  saveEstoqueIntelFornecedores();
+  saveEstoqueIntelPedidos();
+  saveEstoqueIntelPedidoItens();
+  saveEstoqueIntelMovimentacoes();
+  saveEstoqueIntelCompras();
+  renderEstoque();
+  showToast("Base local do Estoque Intel limpa.", 3000);
 }
 
 function isMovimentoEstoqueInconsistente(mov) {
@@ -7524,6 +8798,51 @@ function limparMovimentosEstoqueInconsistentes() {
 function setEstoqueIntelView(view) {
   estoqueIntelCurrentView = view || "geral";
   renderEstoque();
+}
+
+function imprimirTabelaEstoqueIntel(titulo, subtitulo, headers, rows) {
+  let root = document.getElementById("estoque-intel-print-root");
+  if (!root) {
+    root = document.createElement("div");
+    root.id = "estoque-intel-print-root";
+    document.body.appendChild(root);
+  }
+  const headHtml = headers.map((item) => `<th>${esc(item)}</th>`).join("");
+  const bodyHtml = rows.length
+    ? rows.map((row) => `<tr>${row.map((col) => `<td>${esc(col)}</td>`).join("")}</tr>`).join("")
+    : `<tr><td colspan="${headers.length}" style="text-align:center;color:#64748b">Nenhum registro encontrado.</td></tr>`;
+  root.innerHTML = `<h1>${esc(titulo)}</h1><p>${esc(subtitulo)}</p><table><thead><tr>${headHtml}</tr></thead><tbody>${bodyHtml}</tbody></table>`;
+  const cleanup = () => {
+    document.body.classList.remove("estoque-intel-print-mode");
+    window.removeEventListener("afterprint", cleanup);
+  };
+  window.addEventListener("afterprint", cleanup, { once: true });
+  document.body.classList.add("estoque-intel-print-mode");
+  setTimeout(() => window.print(), 50);
+}
+
+function imprimirListaProdutosEstoqueIntel() {
+  const rows = estoqueIntelProdutos.map((produto) => {
+    const embalagens = estoqueIntelEmbalagens
+      .filter((emb) => emb.produto_id === produto.id)
+      .map((emb) => emb.descricao || `${Number(emb.quantidade_base || 0)} ${produto.unidade_base}`)
+      .join(" | ");
+    return [produto.id, produto.nome, produto.unidade_base, embalagens || "Sem embalagem cadastrada"];
+  });
+  imprimirTabelaEstoqueIntel("Lista de Produtos do Estoque Intel", `Gerado em ${formatDateTimeLocal(new Date().toISOString())}`, ["ID", "Produto", "Base", "Embalagens cadastradas"], rows);
+}
+
+function imprimirListaFornecedoresEstoqueIntel() {
+  const rows = estoqueIntelFornecedores.map((fornecedor) => [
+    fornecedor.id,
+    fornecedor.nome,
+    fornecedor.documento || "-",
+    getEstoqueIntelFornecedorTelefone(fornecedor) || "-",
+    getEstoqueIntelFornecedorEmail(fornecedor) || "-",
+    fornecedor.status || "-",
+    (fornecedor.embalagens || []).length ? `${(fornecedor.embalagens || []).length} oferta(s)` : "Sem oferta"
+  ]);
+  imprimirTabelaEstoqueIntel("Lista de Fornecedores do Estoque Intel", `Gerado em ${formatDateTimeLocal(new Date().toISOString())}`, ["ID", "Fornecedor", "Documento", "Telefone", "E-mail", "Status", "Ofertas"], rows);
 }
 
 async function syncEstoqueIntelApi() {
@@ -8914,50 +10233,48 @@ function renderEstoque() {
   const produtosTbody = document.getElementById("ei-produtos-tbody");
   const embalagensTbody = document.getElementById("ei-embalagens-tbody");
   const pedidosTbody = document.getElementById("ei-pedidos-tbody");
+  const pedidosSyncOkTbody = document.getElementById("ei-pedidos-sync-ok-tbody");
+  const pedidosSyncPendenteTbody = document.getElementById("ei-pedidos-sync-pendente-tbody");
   const estoqueTbody = document.getElementById("ei-estoque-tbody");
   const movTbody = document.getElementById("ei-movimentacoes-tbody");
   const sugestaoEl = document.getElementById("ei-sugestao-resultado");
   const fornecedoresTbody = document.getElementById("ei-fornecedores-tbody");
   const comprasTbody = document.getElementById("ei-compras-tbody");
-  if (!produtosTbody || !embalagensTbody || !pedidosTbody || !estoqueTbody || !movTbody || !fornecedoresTbody || !comprasTbody) return;
+  const pedidosReservaFiltroEl = document.getElementById("ei-pedidos-reserva-filtro");
+  if (!produtosTbody || !embalagensTbody || !pedidosTbody || !pedidosSyncOkTbody || !pedidosSyncPendenteTbody || !estoqueTbody || !movTbody || !fornecedoresTbody || !comprasTbody) return;
 
   const busca = (document.getElementById("ei-busca")?.value || "").trim().toLowerCase();
   const filtroBase = document.getElementById("ei-filtro-base")?.value || "";
-  const isOverview = estoqueIntelCurrentView === "geral";
-
-  const overviewVisibleCards = new Set(["ei-card-produtos", "ei-card-pedidos", "ei-card-estoque-resumo", "ei-card-compra-sugestao"]);
   document.querySelectorAll("[data-ei-section]").forEach((el) => {
-    if (isOverview) {
-      el.classList.toggle("hidden", !overviewVisibleCards.has(el.id));
-      return;
-    }
     const section = el.getAttribute("data-ei-section");
-    el.classList.toggle("hidden", estoqueIntelCurrentView !== section);
+    const shouldShowCadastro = estoqueIntelCurrentView === "produtos" && (section === "produtos" || section === "embalagens");
+    el.classList.toggle("hidden", !(shouldShowCadastro || estoqueIntelCurrentView === section));
   });
-  ["geral", "produtos", "embalagens", "pedidos", "estoque", "compra"].forEach((view) => {
+  ["produtos", "fornecedores", "pedidos", "compra", "estoque"].forEach((view) => {
     const btn = document.getElementById(`ei-view-btn-${view}`);
     if (!btn) return;
     btn.className = `btn ${estoqueIntelCurrentView === view ? "btn-green" : "btn-outline"} btn-sm`;
   });
   document.querySelectorAll("[data-ei-form]").forEach((el) => {
-    el.classList.toggle("hidden", isOverview);
+    el.classList.remove("hidden");
   });
   document.querySelectorAll("[data-ei-table]").forEach((el) => {
-    el.style.maxHeight = isOverview ? "160px" : (el.closest("#ei-card-estoque-resumo") ? "320px" : (el.closest("#ei-card-fornecedores") || el.closest("#ei-card-precompra") ? "260px" : "220px"));
+    el.style.maxHeight = el.closest("#ei-card-estoque-resumo") ? "320px" : (el.closest("#ei-card-fornecedores") || el.closest("#ei-card-precompra") ? "260px" : "220px");
   });
   const mainGrid = document.getElementById("ei-grid-principal");
   const secondaryGrid = document.getElementById("ei-grid-secundario");
   const compraGrid = document.getElementById("ei-grid-compra");
   const kpiGrid = document.getElementById("ei-kpi-grid");
-  if (mainGrid) mainGrid.style.gridTemplateColumns = isOverview ? "1fr 1fr" : "1fr 1fr";
-  if (secondaryGrid) secondaryGrid.style.gridTemplateColumns = isOverview ? "1fr 1fr" : "1.2fr .8fr";
-  if (compraGrid) compraGrid.classList.toggle("hidden", isOverview);
-  if (kpiGrid) kpiGrid.style.marginBottom = isOverview ? ".75rem" : "1rem";
+  if (mainGrid) mainGrid.style.gridTemplateColumns = estoqueIntelCurrentView === "pedidos" ? "1fr" : "1fr 1fr";
+  if (secondaryGrid) secondaryGrid.style.gridTemplateColumns = estoqueIntelCurrentView === "compra" ? "1fr 1fr" : "1.2fr .8fr";
+  if (secondaryGrid) secondaryGrid.classList.toggle("hidden", !["estoque", "compra"].includes(estoqueIntelCurrentView));
+  if (compraGrid) compraGrid.classList.toggle("hidden", estoqueIntelCurrentView !== "fornecedores");
+  if (kpiGrid) kpiGrid.style.marginBottom = "1rem";
 
   const produtoOptions = estoqueIntelProdutos.map((produto) => `
     <option value="${esc(produto.id)}">${esc(produto.nome)} (${esc(produto.unidade_base)})</option>
   `).join("");
-  ["ei-emb-produto", "ei-pedido-produto", "ei-mov-produto", "ei-sugestao-produto"].forEach((id) => {
+  ["ei-emb-produto", "ei-pedido-produto", "ei-mov-produto", "ei-sugestao-produto", "ei-compra-manual-produto"].forEach((id) => {
     const select = document.getElementById(id);
     if (!select) return;
     const previous = select.value;
@@ -8966,7 +10283,8 @@ function renderEstoque() {
   });
   const embalagemOptions = estoqueIntelEmbalagens.map((emb) => {
     const produto = findEstoqueIntelProduto(emb.produto_id);
-    return `<option value="${esc(emb.id)}">${esc(produto?.nome || emb.produto_id)} - ${esc(emb.descricao)}</option>`;
+    const precoRef = Number(emb.preco_referencia || 0);
+    return `<option value="${esc(emb.id)}">${esc(produto?.nome || emb.produto_id)} - ${esc(emb.descricao)}${precoRef > 0 ? ` | Padrao ${brl.format(precoRef)}` : ""}</option>`;
   }).join("");
   const fornecedorOptions = estoqueIntelFornecedores.map((fornecedor) => `<option value="${esc(fornecedor.id)}">${esc(fornecedor.nome)}</option>`).join("");
   const clienteOptions = [...new Set(pedidos.map((pedido) => pedido.cliente?.nome || pedido.escola || "").filter(Boolean))].map((cliente) => `<option value="${esc(cliente)}">${esc(cliente)}</option>`).join("");
@@ -8975,7 +10293,7 @@ function renderEstoque() {
     const select = document.getElementById(id);
     if (select) select.innerHTML = `<option value="">Selecione</option>${embalagemOptions}`;
   });
-  ["ei-forn-existing", "ei-compra-fornecedor"].forEach((id) => {
+  ["ei-forn-existing", "ei-compra-fornecedor", "ei-compra-manual-fornecedor"].forEach((id) => {
     const select = document.getElementById(id);
     if (select) {
       const previous = select.value;
@@ -8983,8 +10301,11 @@ function renderEstoque() {
       if (previous && estoqueIntelFornecedores.some((fornecedor) => fornecedor.id === previous)) select.value = previous;
     }
   });
+  atualizarCompraManualEmbalagens();
   const compraVenc = document.getElementById("ei-compra-vencimento");
   if (compraVenc && !compraVenc.value) compraVenc.value = new Date().toISOString().slice(0, 10);
+  const compraManualVenc = document.getElementById("ei-compra-manual-vencimento");
+  if (compraManualVenc && !compraManualVenc.value) compraManualVenc.value = new Date().toISOString().slice(0, 10);
   const clienteFiltroEl = document.getElementById("ei-lista-cliente");
   if (clienteFiltroEl) {
     const previous = clienteFiltroEl.value;
@@ -9018,16 +10339,19 @@ function renderEstoque() {
   if (intervaloWrap) intervaloWrap.classList.toggle("hidden", estoqueIntelListaPeriodoModo !== "intervalo");
   if (mesBtn) mesBtn.className = `btn ${estoqueIntelListaPeriodoModo === "mes" ? "btn-green" : "btn-outline"} btn-sm`;
   if (intervaloBtn) intervaloBtn.className = `btn ${estoqueIntelListaPeriodoModo === "intervalo" ? "btn-green" : "btn-outline"} btn-sm`;
+  if (pedidosReservaFiltroEl) pedidosReservaFiltroEl.value = estoqueIntelFiltroReservaStatus;
 
   const resumo = getEstoqueIntelResumo();
   const kpiProdutos = document.getElementById("est-intel-kpi-produtos");
   const kpiEmbalagens = document.getElementById("est-intel-kpi-embalagens");
   const kpiPedidos = document.getElementById("est-intel-kpi-pedidos");
   const kpiMov = document.getElementById("est-intel-kpi-mov");
+  const demandasGeradasCountEl = document.getElementById("ei-demandas-geradas-count");
   if (kpiProdutos) kpiProdutos.textContent = estoqueIntelProdutos.length;
   if (kpiEmbalagens) kpiEmbalagens.textContent = estoqueIntelEmbalagens.length;
   if (kpiPedidos) kpiPedidos.textContent = estoqueIntelPedidos.length;
   if (kpiMov) kpiMov.textContent = estoqueIntelMovimentacoes.length;
+  if (demandasGeradasCountEl) demandasGeradasCountEl.textContent = String(estoqueIntelPedidos.length);
   const estoqueCountEl = document.getElementById("tab-count-estoque");
   if (estoqueCountEl) estoqueCountEl.textContent = estoqueIntelProdutos.length;
 
@@ -9048,7 +10372,9 @@ function renderEstoque() {
     const produto = item ? findEstoqueIntelProduto(item.produto_id) : null;
     const matchBusca = !busca || `${pedido.id} ${pedido.status} ${produto?.nome || ""}`.toLowerCase().includes(busca);
     const matchBase = !filtroBase || produto?.unidade_base === filtroBase;
-    return matchBusca && matchBase;
+    const reservaStatus = getEstoqueIntelReservaStatus(pedido.id);
+    const matchReserva = !estoqueIntelFiltroReservaStatus || reservaStatus.key === estoqueIntelFiltroReservaStatus;
+    return matchBusca && matchBase && matchReserva;
   });
   const resumoFiltrado = resumo.filter((item) => {
     const matchBusca = !busca || `${item.produto.id} ${item.produto.nome}`.toLowerCase().includes(busca);
@@ -9062,20 +10388,24 @@ function renderEstoque() {
     return matchBusca && matchBase;
   });
 
-  const produtosVisiveis = isOverview ? produtosFiltrados.slice(0, 6) : produtosFiltrados;
-  const pedidosVisiveis = isOverview ? pedidosFiltrados.slice(0, 6) : pedidosFiltrados;
-  const resumoVisivel = isOverview ? resumoFiltrado.slice(0, 6) : resumoFiltrado;
-  const movVisiveis = isOverview ? movFiltrados.slice(0, 6) : movFiltrados;
-  const fornecedoresVisiveis = isOverview ? estoqueIntelFornecedores.slice(0, 5) : estoqueIntelFornecedores;
-  const comprasVisiveis = isOverview ? estoqueIntelCompras.slice(0, 5) : estoqueIntelCompras;
+  const produtosVisiveis = produtosFiltrados;
+  const pedidosVisiveis = pedidosFiltrados;
+  const resumoVisivel = resumoFiltrado;
+  const movVisiveis = movFiltrados;
+  const conciliacaoPedidos = getPedidosReaisConciliacaoEstoqueIntel();
+  const pedidosReaisComDemanda = conciliacaoPedidos.filter((item) => item.demandaGerada);
+  const pedidosReaisPendentes = conciliacaoPedidos.filter((item) => !item.demandaGerada);
+  const fornecedoresVisiveis = estoqueIntelFornecedores;
+  const comprasVisiveis = estoqueIntelCompras;
 
   produtosTbody.innerHTML = produtosVisiveis.length ? produtosVisiveis.map((produto) => `
     <tr>
       <td class="font-mono">${esc(produto.id)}</td>
       <td>${esc(produto.nome)}</td>
       <td><span class="badge badge-blue">${esc(produto.unidade_base)}</span></td>
+      <td class="text-right"><button class="btn btn-outline btn-sm" onclick="excluirProdutoEstoqueIntel('${esc(produto.id)}')">Excluir</button></td>
     </tr>
-  `).join("") : `<tr><td colspan="3" style="color:var(--mut)">Nenhum produto encontrado para o filtro atual.</td></tr>`;
+  `).join("") : `<tr><td colspan="4" style="color:var(--mut)">Nenhum produto encontrado para o filtro atual.</td></tr>`;
 
   embalagensTbody.innerHTML = embalagensFiltradas.length ? embalagensFiltradas.map((emb) => {
     const produto = findEstoqueIntelProduto(emb.produto_id);
@@ -9085,9 +10415,11 @@ function renderEstoque() {
         <td>${esc(emb.descricao)}</td>
         <td class="font-mono">${esc(emb.codigo_barras || "-")}</td>
         <td class="text-right font-mono">${Number(emb.quantidade_base || 0)}</td>
+        <td class="text-right font-mono">${Number(emb.preco_referencia || 0) > 0 ? brl.format(Number(emb.preco_referencia || 0)) : "-"}</td>
+        <td class="text-right"><button class="btn btn-outline btn-sm" onclick="excluirEmbalagemEstoqueIntel('${esc(emb.id)}')">Excluir</button></td>
       </tr>
     `;
-  }).join("") : `<tr><td colspan="4" style="color:var(--mut)">Nenhuma embalagem encontrada para o filtro atual.</td></tr>`;
+  }).join("") : `<tr><td colspan="6" style="color:var(--mut)">Nenhuma embalagem encontrada para o filtro atual.</td></tr>`;
 
   pedidosTbody.innerHTML = pedidosVisiveis.length ? pedidosVisiveis.map((pedido) => {
     const itensPedido = estoqueIntelPedidoItens.filter((pedidoItem) => pedidoItem.pedido_id === pedido.id);
@@ -9095,16 +10427,42 @@ function renderEstoque() {
     const produto = item ? findEstoqueIntelProduto(item.produto_id) : null;
     const totalQuantidade = itensPedido.reduce((sum, pedidoItem) => sum + Number(pedidoItem.quantidade_base || 0), 0);
     const extraItens = itensPedido.length > 1 ? ` +${itensPedido.length - 1}` : "";
+    const origemLabel = pedido.origem_sistema === "gdp_pedido" ? "Sincronizada do GDP" : "Manual";
+    const origemBadge = pedido.origem_sistema === "gdp_pedido" ? "badge-blue" : "badge-yellow";
+    const reservaStatus = getEstoqueIntelReservaStatus(pedido.id);
+    const podeExcluirDemanda = getEstoqueIntelDemandaExclusaoBloqueios(pedido.id).length === 0;
     return `
       <tr>
-        <td class="font-mono">${esc(pedido.id)}</td>
+        <td><button class="btn btn-outline btn-sm font-mono" style="padding:.3rem .65rem" onclick="visualizarDemandaEstoqueIntel('${esc(pedido.id)}')">${esc(pedido.id)}</button></td>
+        <td><span class="badge ${origemBadge}">${esc(origemLabel)}</span></td>
         <td>${esc(produto?.nome || "-")}${extraItens ? `<br><span style="font-size:.72rem;color:var(--mut)">${extraItens} item(ns)</span>` : ""}</td>
         <td class="text-right font-mono">${Number(totalQuantidade || 0)}</td>
-        <td><span class="badge badge-yellow">${esc(pedido.status || "-")}</span></td>
+        <td><span class="badge ${reservaStatus.badgeClass}">${esc(reservaStatus.label)}</span><br><span style="font-size:.72rem;color:var(--mut)">${esc(reservaStatus.detail)}</span></td>
         <td>${pedido.data_prevista || pedido.data ? formatDateTimeLocal(pedido.data_prevista || pedido.data) : "-"}</td>
+        <td class="text-right" style="display:flex;justify-content:flex-end;gap:.35rem;flex-wrap:wrap"><button class="btn btn-outline btn-sm" style="padding:.3rem .65rem" onclick="visualizarDemandaEstoqueIntel('${esc(pedido.id)}')">Ver</button><button class="btn btn-outline btn-sm" style="padding:.3rem .65rem" onclick="abrirDemandaNaListaComprasEstoqueIntel('${esc(pedido.id)}')">Comprar</button>${podeExcluirDemanda ? `<button class="btn btn-outline btn-sm" style="padding:.3rem .65rem" onclick="excluirDemandaEstoqueIntel('${esc(pedido.id)}')">Excluir</button>` : ""}</td>
       </tr>
     `;
-  }).join("") : `<tr><td colspan="5" style="color:var(--mut)">Nenhum pedido encontrado para o filtro atual.</td></tr>`;
+  }).join("") : `<tr><td colspan="7" style="color:var(--mut)">Nenhuma demanda encontrada para o filtro atual.</td></tr>`;
+  const pedidosSyncOkCount = document.getElementById("ei-pedidos-sync-ok-count");
+  const pedidosSyncPendenteCount = document.getElementById("ei-pedidos-sync-pendente-count");
+  if (pedidosSyncOkCount) pedidosSyncOkCount.textContent = String(pedidosReaisComDemanda.length);
+  if (pedidosSyncPendenteCount) pedidosSyncPendenteCount.textContent = String(pedidosReaisPendentes.length);
+  pedidosSyncOkTbody.innerHTML = pedidosReaisComDemanda.length ? pedidosReaisComDemanda.map((item) => `
+    <tr>
+      <td class="font-mono">${esc(item.pedido.id)}</td>
+      <td>${item.itensComMatch.length}/${item.itens.length}</td>
+      <td><span class="badge badge-green">${esc(getPedidoStatusMeta(item.pedido.status).label)}</span></td>
+      <td class="text-right"><button class="btn btn-outline btn-sm" style="padding:.3rem .65rem" onclick="visualizarDemandaEstoqueIntel('${esc(item.pedido.id)}')">Ver</button></td>
+    </tr>
+  `).join("") : `<tr><td colspan="4" style="color:var(--mut)">Nenhum pedido real convertido em demanda ainda.</td></tr>`;
+  pedidosSyncPendenteTbody.innerHTML = pedidosReaisPendentes.length ? pedidosReaisPendentes.map((item) => `
+    <tr>
+      <td class="font-mono">${esc(item.pedido.id)}</td>
+      <td style="font-size:.76rem;color:var(--mut)">${esc(item.pendenciaLabel)}</td>
+      <td><span class="badge badge-yellow">${esc(getPedidoStatusMeta(item.pedido.status).label)}</span></td>
+      <td class="text-right"><button class="btn btn-outline btn-sm" style="padding:.3rem .65rem;border-color:rgba(245,158,11,.45);color:#fbbf24" onclick="gerarDemandaPedidoRealEstoqueIntel('${esc(item.pedido.id)}')">Gerar Demanda</button></td>
+    </tr>
+  `).join("") : `<tr><td colspan="4" style="color:var(--mut)">Todos os pedidos reais elegiveis ja possuem demanda.</td></tr>`;
 
   estoqueTbody.innerHTML = resumoVisivel.length ? resumoVisivel.map((item) => `
     <tr>
@@ -9131,28 +10489,42 @@ function renderEstoque() {
   }).join("") : `<tr><td colspan="6" style="color:var(--mut)">Nenhuma movimentacao encontrada para o filtro atual.</td></tr>`;
   fornecedoresTbody.innerHTML = fornecedoresVisiveis.length ? fornecedoresVisiveis.map((fornecedor) => `
     <tr>
-      <td>${esc(fornecedor.nome)}<br><span style="font-size:.72rem;color:var(--mut)">${esc(fornecedor.contato || "-")}</span></td>
+      <td>${esc(fornecedor.nome)}<br><span style="font-size:.72rem;color:var(--mut)">Tel: ${esc(getEstoqueIntelFornecedorTelefone(fornecedor) || "-")} | E-mail: ${esc(getEstoqueIntelFornecedorEmail(fornecedor) || "-")}</span></td>
       <td class="font-mono">${esc(fornecedor.documento || "-")}</td>
       <td><span class="badge ${fornecedor.status === "ativo" ? "badge-green" : fornecedor.status === "homologacao" ? "badge-yellow" : "badge-red"}">${esc(fornecedor.status || "-")}</span></td>
       <td style="font-size:.78rem;color:var(--mut)">${(fornecedor.embalagens || []).map((oferta) => {
         const emb = estoqueIntelEmbalagens.find((item) => item.id === oferta.embalagem_id);
-        return `${esc(emb?.descricao || oferta.embalagem_id)}: ${brl.format(Number(oferta.preco_unitario || 0))}`;
-      }).join("<br>") || "-"}</td>
+        return `${esc(emb?.descricao || oferta.embalagem_id)}: ${brl.format(Number(oferta.preco_unitario || 0))} <button class="btn btn-outline btn-sm" style="padding:.15rem .45rem;margin-left:.35rem" onclick="excluirOfertaFornecedorEstoqueIntel('${esc(fornecedor.id)}','${esc(oferta.embalagem_id)}')">Excluir oferta</button>`;
+      }).join("<br>") || "Sem preco negociado especifico. Usa o preco padrao da embalagem."}</td>
+      <td class="text-right"><button class="btn btn-outline btn-sm" onclick="excluirFornecedorEstoqueIntel('${esc(fornecedor.id)}')">Excluir</button></td>
     </tr>
-  `).join("") : `<tr><td colspan="4" style="color:var(--mut)">Nenhum fornecedor cadastrado.</td></tr>`;
+  `).join("") : `<tr><td colspan="5" style="color:var(--mut)">Nenhum fornecedor cadastrado.</td></tr>`;
   comprasTbody.innerHTML = comprasVisiveis.length ? comprasVisiveis.map((compra) => {
     const fornecedor = findEstoqueIntelFornecedor(compra.fornecedor_id);
-    const produto = findEstoqueIntelProduto(compra.produto_id);
+    const itensCompra = getEstoqueIntelCompraItens(compra);
+    const produtosCompra = itensCompra.map((item) => findEstoqueIntelProduto(item.produto_id)?.nome || item.produto_id).filter(Boolean);
+    const origemPedidoLabel = compra.origem_pedido_compra === "lista_automatica_lote"
+      ? "Lista automatica em lote"
+      : compra.origem_pedido_compra === "lista_automatica"
+        ? "Lista automatica"
+        : compra.origem_pedido_compra === "sugestao_inteligente"
+          ? "Sugestao inteligente"
+          : "Manual";
+    const envioLabel = compra.envio?.enviado_em
+      ? `Enviado em ${formatDate(compra.envio.enviado_em)}`
+      : "Aguardando envio";
     return `
       <tr>
-        <td class="font-mono">${esc(compra.id)}</td>
+        <td><button onclick="visualizarPedidoCompraEstoqueIntel('${esc(compra.id)}')" style="background:none;border:none;padding:0;color:var(--blue);font-weight:700;cursor:pointer;font-family:monospace">${esc(compra.id)}</button></td>
         <td>${esc(fornecedor?.nome || compra.fornecedor_id)}</td>
-        <td>${esc(produto?.nome || compra.produto_id)}</td>
-        <td><span class="badge ${compra.status === "pre_compra" ? "badge-yellow" : "badge-blue"}">${esc(compra.status || "-")}</span><br><span style="font-size:.72rem;color:var(--mut)">${esc(compra.erp?.status || "-")}</span></td>
-        <td class="text-right font-mono">${brl.format(Number(compra.valor_total || 0))}</td>
+        <td>${esc(produtosCompra.slice(0, 3).join(", ") || "-")}${produtosCompra.length > 3 ? `<br><span style="font-size:.72rem;color:var(--mut)">+${produtosCompra.length - 3} item(ns)</span>` : ""}</td>
+        <td>${esc(origemPedidoLabel)}<br><span style="font-size:.72rem;color:var(--mut)">${itensCompra.length} item(ns)</span></td>
+        <td><span class="badge ${compra.status === "pedido_compra_emitido" ? "badge-yellow" : "badge-blue"}">${esc(compra.status || "-")}</span><br><span style="font-size:.72rem;color:var(--mut)">${esc(compra.erp?.status || "-")}</span><br><span style="font-size:.72rem;color:var(--mut)">${esc(envioLabel)}</span></td>
+        <td class="text-right font-mono"><strong>${brl.format(Number(compra.valor_total || 0))}</strong><br><span style="font-size:.72rem;color:var(--mut)">${itensCompra.length} item(ns) no pedido</span></td>
+        <td class="text-right" style="display:flex;justify-content:flex-end;gap:.35rem;flex-wrap:wrap">${compra.status === "pedido_compra_emitido" ? `<button class="btn btn-outline btn-sm" onclick="enviarPedidoCompraFornecedor('${esc(compra.id)}')">Enviar ao Fornecedor</button>` : `<span style="font-size:.72rem;color:var(--mut)">${esc(compra.envio?.destinatario || "Enviado")}</span>`}<button class="btn btn-outline btn-sm" onclick="excluirPedidoCompraEstoqueIntel('${esc(compra.id)}')">Excluir</button></td>
       </tr>
     `;
-  }).join("") : `<tr><td colspan="5" style="color:var(--mut)">Nenhuma pre-compra gerada.</td></tr>`;
+  }).join("") : `<tr><td colspan="7" style="color:var(--mut)">Nenhum pedido de compra gerado.</td></tr>`;
 
   if (!sugestaoEl) return;
   if (!estoqueIntelUltimaSugestao?.opcoes?.length) {
@@ -10106,18 +11478,106 @@ function renderEntregas() {
   _renderEntregasUI();
 }
 
-function _renderEntregasUI() {
+function buildEntregasOperacionais() {
+  const rows = provasEntrega.map((item, idx) => ({
+    ...item,
+    __source: "prova",
+    __idx: idx
+  }));
+  const provaIds = new Set(provasEntrega.map((item) => item.pedidoId));
+  estoqueIntelPedidos.forEach((pedido) => {
+    if (provaIds.has(pedido.id)) return;
+    const reservaStatus = getEstoqueIntelReservaStatus(pedido.id);
+    if (reservaStatus.key !== "reservada") return;
+    rows.push({
+      pedidoId: pedido.id,
+      escola: pedido.cliente || "Demanda do Estoque Intel",
+      dataEntrega: pedido.data_prevista || pedido.data || new Date().toISOString(),
+      recebedor: "-",
+      foto: "",
+      assinatura: "",
+      obs: "Entrega operacional criada a partir de demanda/reserva aberta.",
+      statusEntrega: "pendente",
+      __source: "demanda",
+      __idx: -1
+    });
+  });
+  return rows.sort((a, b) => String(b.dataEntrega || "").localeCompare(String(a.dataEntrega || "")));
+}
 
+function normalizeEntregaStatus(value) {
+  const status = String(value || "").trim().toLowerCase();
+  if (!status) return "pendente";
+  if (status === "concluido" || status === "concluído") return "concluido";
+  if (status === "entregue") return "entregue";
+  if (status === "pendente") return "pendente";
+  return status;
+}
+
+function garantirProvaEntregaOperacional(row, statusEntrega = "concluido") {
+  if (!row?.pedidoId) return null;
+  let idx = provasEntrega.findIndex((item) => item.pedidoId === row.pedidoId);
+  if (idx >= 0) {
+    provasEntrega[idx] = {
+      ...provasEntrega[idx],
+      escola: provasEntrega[idx].escola || row.escola || "",
+      dataEntrega: provasEntrega[idx].dataEntrega || row.dataEntrega || new Date().toISOString(),
+      recebedor: provasEntrega[idx].recebedor || row.recebedor || "-",
+      obs: provasEntrega[idx].obs || row.obs || "",
+      statusEntrega: normalizeEntregaStatus(statusEntrega)
+    };
+  } else {
+    provasEntrega.push({
+      pedidoId: row.pedidoId,
+      escola: row.escola || "",
+      dataEntrega: row.dataEntrega || new Date().toISOString(),
+      recebedor: row.recebedor || "-",
+      foto: row.foto || "",
+      assinatura: row.assinatura || "",
+      obs: row.obs || "Entrega operacional criada a partir da demanda do Estoque Intel.",
+      statusEntrega: normalizeEntregaStatus(statusEntrega)
+    });
+    idx = provasEntrega.length - 1;
+  }
+  localStorage.setItem(PROOFS_KEY, JSON.stringify(provasEntrega));
+  schedulCloudSync();
+  return idx;
+}
+
+function _renderEntregasUI() {
+  const entregasOperacionais = buildEntregasOperacionais();
+  const entregasPendentesDemanda = entregasOperacionais.filter((item) => item.__source === "demanda");
   const countEl = document.getElementById("tab-count-entregas");
-  if (countEl) countEl.textContent = provasEntrega.length;
+  if (countEl) countEl.textContent = entregasOperacionais.length;
 
   const tbody = document.getElementById("entregas-tbody");
   const empty = document.getElementById("entregas-empty");
+  const operacionaisBox = document.getElementById("entregas-operacionais-box");
   const busca = (document.getElementById("busca-entrega")?.value || "").toLowerCase();
   const filtroData = document.getElementById("filtro-data-entrega")?.value || "";
   const filtroStatus = document.getElementById("filtro-status-entrega")?.value || "";
+  if (operacionaisBox) {
+    if (entregasPendentesDemanda.length) {
+      operacionaisBox.classList.remove("hidden");
+      operacionaisBox.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap">
+          <div>
+            <div style="font-size:.85rem;font-weight:700">Demandas prontas para entrega</div>
+            <div style="font-size:.78rem;color:var(--mut)">Estas linhas vieram do Estoque Intel e ainda nao possuem comprovante do app.</div>
+          </div>
+          <span class="badge badge-blue">${entregasPendentesDemanda.length}</span>
+        </div>
+        <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.75rem">
+          ${entregasPendentesDemanda.slice(0, 6).map((item) => `<button class="btn btn-outline btn-sm" onclick="concluirEntregaPorPedidoId('${esc(item.pedidoId)}')">${esc(item.pedidoId)} | ${esc(item.escola || "-")}</button>`).join("")}
+        </div>
+      `;
+    } else {
+      operacionaisBox.classList.add("hidden");
+      operacionaisBox.innerHTML = "";
+    }
+  }
 
-  let filtered = provasEntrega;
+  let filtered = entregasOperacionais;
   if (busca) {
     filtered = filtered.filter(p =>
       (p.pedidoId || "").toLowerCase().includes(busca) ||
@@ -10133,8 +11593,9 @@ function _renderEntregasUI() {
     });
   }
   if (filtroStatus) {
-    filtered = filtered.filter(p => (p.statusEntrega || "entregue") === filtroStatus);
+    filtered = filtered.filter(p => normalizeEntregaStatus(p.statusEntrega) === filtroStatus);
   }
+  entregasOperacionaisRender = filtered;
 
   if (filtered.length === 0) {
     tbody.innerHTML = "";
@@ -10147,8 +11608,13 @@ function _renderEntregasUI() {
     const dataFmt = p.dataEntrega ? new Date(p.dataEntrega).toLocaleString("pt-BR") : "-";
     const temFoto = p.foto ? '<span style="color:var(--green);font-weight:700">Sim</span>' : '<span style="color:var(--dim)">Nao</span>';
     const temAssinatura = p.assinatura ? '<span style="color:var(--green);font-weight:700">Sim</span>' : '<span style="color:var(--dim)">Nao</span>';
-    const status = p.statusEntrega || "entregue";
+    const status = normalizeEntregaStatus(p.statusEntrega);
     const statusBadge = status === "concluido" ? "badge-green" : "badge-yellow";
+    const reservaStatus = getEstoqueIntelReservaStatus(p.pedidoId);
+    const reservaResumo = getEntregaReservaResumo(p.pedidoId);
+    const baixaIcone = reservaStatus.key === "baixada"
+      ? `<span title="Baixa do estoque concluida" style="display:inline-flex;align-items:center;justify-content:center;width:1.3rem;height:1.3rem;border-radius:999px;background:rgba(34,197,94,.16);color:#22c55e;font-weight:900;margin-left:.35rem">✓</span>`
+      : "";
     return `<tr>
       <td><strong>${esc(p.pedidoId || "")}</strong></td>
       <td>${esc(p.escola || "")}</td>
@@ -10157,10 +11623,12 @@ function _renderEntregasUI() {
       <td style="text-align:center">${temFoto}</td>
       <td style="text-align:center">${temAssinatura}</td>
       <td><span class="badge ${statusBadge}">${status}</span></td>
-      <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(p.obs || "-")}</td>
+      <td><span class="badge ${reservaStatus.badgeClass}">${esc(reservaStatus.label)}</span>${baixaIcone ? `<br>${baixaIcone}<span style="font-size:.72rem;color:#22c55e;margin-left:.3rem;font-weight:700">Baixa feita</span>` : ""}<br><span style="font-size:.72rem;color:var(--mut)">Qtd base: ${Number(reservaResumo.totalBase || 0)}</span></td>
+      <td style="max-width:240px"><div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(reservaResumo.produtosResumo || "-")}</div><div style="font-size:.72rem;color:var(--mut);margin-top:.2rem">${esc(p.obs || "-")}</div></td>
       <td class="nowrap">
         <button class="btn btn-outline btn-sm" onclick="verComprovante(${idx})" style="border:1px solid var(--bdr);background:transparent;color:var(--blue);border-radius:6px;cursor:pointer;padding:.3rem .6rem;font-size:.75rem">Ver</button>
-        ${status !== "concluido" ? `<button class="btn btn-sm btn-green" onclick="concluirEntrega(${idx})" style="padding:.3rem .6rem;font-size:.75rem;margin-left:.3rem">Concluir</button>` : '<span style="color:var(--green);font-size:.75rem;font-weight:600;margin-left:.3rem">OK</span>'}
+        ${status !== "concluido" ? `<button class="btn btn-sm btn-green" onclick="concluirEntrega(${idx})" style="padding:.3rem .6rem;font-size:.75rem;margin-left:.3rem">Concluir</button>` : '<span style="color:var(--mut);font-size:.75rem;font-weight:600;margin-left:.3rem">Concluida</span>'}
+        ${reservaStatus.key !== "baixada" ? `<button class="btn btn-outline btn-sm" onclick="baixarReservaEntregaManual(${idx})" style="padding:.3rem .6rem;font-size:.75rem;margin-left:.3rem">Baixar Estoque</button>` : ""}
         <button onclick="excluirEntrega(${idx})" title="Excluir entrega" style="background:rgba(239,68,68,.15);color:var(--red);border:none;border-radius:6px;padding:.3rem .55rem;font-size:.82rem;font-weight:700;cursor:pointer;margin-left:.3rem">🗑️</button>
       </td>
     </tr>`;
@@ -10168,11 +11636,13 @@ function _renderEntregasUI() {
 }
 
 function verComprovante(idx) {
-  const p = provasEntrega[idx];
+  const p = entregasOperacionaisRender[idx];
   if (!p) return;
 
   document.getElementById("modal-comprovante-titulo").textContent = "Comprovante — " + (p.pedidoId || "");
   const dataFmt = p.dataEntrega ? new Date(p.dataEntrega).toLocaleString("pt-BR") : "-";
+  const reservaStatus = getEstoqueIntelReservaStatus(p.pedidoId);
+  const reservaResumo = getEntregaReservaResumo(p.pedidoId);
 
   let html = `
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem">
@@ -10191,6 +11661,14 @@ function verComprovante(idx) {
       <div>
         <div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Observacoes</div>
         <div>${esc(p.obs || "Nenhuma")}</div>
+      </div>
+      <div>
+        <div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Status da Reserva</div>
+        <div><span class="badge ${reservaStatus.badgeClass}">${esc(reservaStatus.label)}</span></div>
+      </div>
+      <div>
+        <div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Detalhe da Reserva</div>
+        <div>${esc(reservaResumo.produtosResumo || "-")}<br><span style="font-size:.82rem;color:var(--mut)">Qtd base total: ${Number(reservaResumo.totalBase || 0)}</span></div>
       </div>
     </div>
   `;
@@ -10223,21 +11701,75 @@ function fecharComprovante() {
   document.getElementById("modal-comprovante").style.display = "none";
 }
 
+function concluirEntregaPorPedidoId(pedidoId) {
+  const idx = entregasOperacionaisRender.findIndex((item) => item.pedidoId === pedidoId);
+  if (idx < 0) {
+    showToast("Entrega operacional nao encontrada para esse pedido.", 3500);
+    return;
+  }
+  concluirEntrega(idx);
+}
+
 function concluirEntrega(idx) {
-  const p = provasEntrega[idx];
+  const p = entregasOperacionaisRender[idx];
   if (!p) return;
+  const baixaEstoque = aplicarBaixaEntregaAoEstoqueIntel(p.pedidoId);
+  garantirProvaEntregaOperacional(p, "concluido");
   p.statusEntrega = "concluido";
-  localStorage.setItem(PROOFS_KEY, JSON.stringify(provasEntrega));
-  schedulCloudSync();
   _renderEntregasUI();
-  showToast(`Entrega "${p.pedidoId || ""}" concluída`);
+  if (typeof renderEstoque === "function") renderEstoque();
+  if (baixaEstoque.ok && baixaEstoque.motivo === "baixa_realizada") {
+    showToast(`Entrega "${p.pedidoId || ""}" concluida e reserva baixada no Estoque Intel.`);
+    return;
+  }
+  if (baixaEstoque.ok && baixaEstoque.motivo === "ja_baixada") {
+    showToast(`Entrega "${p.pedidoId || ""}" ja estava concluida no Estoque Intel.`);
+    return;
+  }
+  showToast(`Entrega "${p.pedidoId || ""}" concluida.`);
+}
+
+function baixarReservaEntregaManual(idx) {
+  const p = entregasOperacionaisRender[idx];
+  if (!p?.pedidoId) return;
+  const reservaStatus = getEstoqueIntelReservaStatus(p.pedidoId);
+  if (reservaStatus.key === "baixada") {
+    showToast(`Pedido "${p.pedidoId}" ja teve a reserva baixada no Estoque Intel.`, 3500);
+    return;
+  }
+  if (!confirm(`Baixar manualmente a reserva do pedido ${p.pedidoId} no Estoque Intel?\n\nIsso vai retirar a reserva comprometida e dar baixa fisica dos itens vinculados.`)) return;
+  const baixaEstoque = aplicarBaixaEntregaAoEstoqueIntel(p.pedidoId);
+  if (typeof renderEstoque === "function") renderEstoque();
+  if (baixaEstoque.ok && baixaEstoque.motivo === "baixa_realizada") {
+    garantirProvaEntregaOperacional(p, "concluido");
+    _renderEntregasUI();
+    showToast(`Reserva do pedido "${p.pedidoId}" baixada manualmente no Estoque Intel.`, 4000);
+    return;
+  }
+  if (baixaEstoque.ok && baixaEstoque.motivo === "ja_baixada") {
+    garantirProvaEntregaOperacional(p, "concluido");
+    _renderEntregasUI();
+    showToast(`Pedido "${p.pedidoId}" ja estava baixado no Estoque Intel.`, 3500);
+    return;
+  }
+  const motivoLabel = baixaEstoque.motivo === "demanda_nao_encontrada"
+    ? "nao existe demanda/reserva vinculada para esse pedido"
+    : baixaEstoque.motivo === "itens_nao_encontrados"
+      ? "a demanda existe, mas esta sem itens vinculados"
+      : "o pedido nao foi encontrado";
+  showToast(`Nao foi possivel baixar a reserva: ${motivoLabel}.`, 4500);
 }
 
 function excluirEntrega(idx) {
-  const p = provasEntrega[idx];
+  const p = entregasOperacionaisRender[idx];
   if (!p) return;
   if (!confirm(`Excluir entrega "${p.pedidoId || ""}" — ${p.escola || ""}?`)) return;
-  provasEntrega.splice(idx, 1);
+  const provaIdx = provasEntrega.findIndex((item) => item.pedidoId === p.pedidoId);
+  if (provaIdx < 0) {
+    showToast("Essa linha veio de uma demanda aberta. Para ela sumir daqui, encerre ou baixe a reserva.", 4500);
+    return;
+  }
+  provasEntrega.splice(provaIdx, 1);
   localStorage.setItem(PROOFS_KEY, JSON.stringify(provasEntrega));
   schedulCloudSync();
   _renderEntregasUI();
