@@ -259,6 +259,16 @@ const BrowserSgdClient = {
     if (!this.cookie) await this.login();
   },
 
+  async getUser() {
+    await this.ensureAuth();
+    const user = await this.proxy({ action: "get-user", cookie: this.cookie });
+    if (user.idNetwork) this.networkId = user.idNetwork;
+    if (user.networks && user.networks.length > 0) {
+      this.networkId = user.networks[0].idNetwork || user.networks[0].id;
+    }
+    return user;
+  },
+
   async listBudgets(page = 1, limit = 50) {
     await this.ensureAuth();
     const data = await this.proxy({ action: "list-budgets", cookie: this.cookie, networkId: this.networkId, page, limit });
@@ -1300,6 +1310,7 @@ window.updatePreItem = function (idx, field, value) {
   const item = pre.itens[idx];
 
   if (field === "marca") {
+    const oldMarca = (item.marca || "").trim();
     item.marca = value.trim();
     // Sync marca to banco
     let bp = findBancoItem(item.nome);
@@ -1307,6 +1318,13 @@ window.updatePreItem = function (idx, field, value) {
       bp.marca = item.marca;
       saveBancoLocal();
     }
+    // Atualizar observação: remover marca antiga e inserir nova
+    let obs = (item.observacao || item.descricao || item.nome || "").trim();
+    if (oldMarca) obs = obs.replace(`[Marca: ${oldMarca}] `, "").replace(`[Marca: ${oldMarca}]`, "").trim();
+    item.observacao = item.marca ? `[Marca: ${item.marca}] ${obs}` : obs;
+    // Atualizar textarea se visível na aba Envio SGD
+    const obsEl = document.getElementById(`sgd-obs-${idx}`);
+    if (obsEl) obsEl.value = item.observacao;
     savePreOrcamentos();
     return;
   }
@@ -3603,9 +3621,11 @@ function updateModeIndicator(isLocal) {
 // F1: Monta observação SGD incluindo marca quando disponível
 function buildObservacaoSgd(item) {
   const marca = (item.marca || "").trim();
-  const obs = (item.observacao || item.descricao || item.nome || "Conforme especificado").trim();
+  // Usar observação existente, mas limpar marca antiga se presente
+  let obs = (item.observacao || item.descricao || item.nome || "Conforme especificado").trim();
+  // Remover qualquer [Marca: ...] existente para evitar duplicação
+  obs = obs.replace(/\[Marca:\s*[^\]]*\]\s*/g, "").trim();
   if (marca) {
-    if (obs.toLowerCase().includes(marca.toLowerCase())) return obs;
     return `[Marca: ${marca}] ${obs}`;
   }
   return obs;
@@ -4017,6 +4037,26 @@ async function varrerSgd() {
     } else {
       // Mode 2: Direct browser API calls (Netlify mode)
       await BrowserSgdClient.login();
+
+      // Resolve networkId via /auth/user (same strategy as server-side SgdClient)
+      if (!BrowserSgdClient.networkId) {
+        try {
+          await BrowserSgdClient.getUser();
+          console.log(`[Varrer] networkId via getUser: ${BrowserSgdClient.networkId}`);
+        } catch (e) {
+          console.warn(`[Varrer] getUser falhou: ${e.message}, tentando warm-up...`);
+        }
+      }
+
+      // Fallback: warm-up listBudgets to extract networkId from first budget
+      if (!BrowserSgdClient.networkId) {
+        const warmUp = await BrowserSgdClient.listBudgets(1, 1);
+        if (!BrowserSgdClient.networkId) {
+          console.warn("[Varrer] networkId ainda null após warm-up. Dados:", warmUp);
+        } else {
+          console.log(`[Varrer] networkId via warm-up: ${BrowserSgdClient.networkId}`);
+        }
+      }
       sgdAvailable = true;
       updateModeIndicator(false);
 
@@ -4024,18 +4064,21 @@ async function varrerSgd() {
       const sreNorm = (s) => (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").toUpperCase().trim();
       const sreSchoolsList = [];
       const schoolToMunicipio = {};
+      const schoolToMunicipios = {}; // array — para nomes duplicados entre cidades
       if (sreData && sreData.municipios) {
         sreData.municipios.forEach((m) => {
           (m.escolas || []).forEach((e) => {
             const n = sreNorm(e);
             sreSchoolsList.push(n);
             schoolToMunicipio[n] = m.nome;
+            if (!schoolToMunicipios[n]) schoolToMunicipios[n] = [];
+            if (!schoolToMunicipios[n].includes(m.nome)) schoolToMunicipios[n].push(m.nome);
           });
         });
       }
 
       // Confirmed SRE Uberaba municipality IDs (SGD API idCounty field)
-      // Discovered by cross-referencing unique school names from sre-uberaba.json
+      // ONLY confirmed county IDs — do NOT add auto-discovered ones (nomes duplicados entre cidades causam falsos positivos)
       const sreCountyMap = {
         2623: "Uberaba", 2857: "Uberaba",
         2568: "Araxa", 2494: "Sacramento", 2158: "Iturama",
@@ -4087,8 +4130,10 @@ async function varrerSgd() {
         btn.innerHTML = `<span class="sgd-spinner"></span>Listando... ${allBudgets.length}/${total}`;
       }
 
-      // Step 2: County-first filter — ACCEPT all budgets from known SRE Uberaba municipalities
-      // This guarantees we never miss a school just because the name format differs
+      // Step 2: Filter using confirmed idSchool whitelist + county/name fallback
+      // Whitelist persists in localStorage — once a school is confirmed, it never needs re-matching
+      const WHITELIST_KEY = "caixaescolar.schoolWhitelist";
+      const schoolWhitelist = JSON.parse(localStorage.getItem(WHITELIST_KEY) || "{}");
       const matched = [];
       const rejected = [];
       const filtered = [];
@@ -4096,33 +4141,59 @@ async function varrerSgd() {
       allBudgets.forEach((b) => {
         const escola = b.schoolName || b.txSchoolName || "";
         const county = b.idCounty;
+        const idSchool = b.idSchool;
 
+        // TIER 1: idSchool already confirmed in whitelist — instant match, zero ambiguity
+        if (idSchool && schoolWhitelist[idSchool]) {
+          b._sreMatch = schoolWhitelist[idSchool].sre || sreNorm(escola);
+          filtered.push(b);
+          matched.push({ sgd: escola, county, mun: schoolWhitelist[idSchool].municipio, via: "whitelist", idSchool });
+          return;
+        }
+
+        // TIER 2: County is confirmed SRE Uberaba
         if (sreCountyIds.has(county)) {
-          // PRIMARY: County is confirmed SRE Uberaba — ALWAYS accept regardless of name
           const nameMatch = findSreMatch(escola);
           b._sreMatch = nameMatch || sreNorm(escola);
           filtered.push(b);
-          matched.push({ sgd: escola, county, mun: nameMatch ? schoolToMunicipio[nameMatch] || "?" : "?", via: nameMatch ? "county+name" : "county-only" });
-        } else {
-          // FALLBACK: Unknown county — only accept via strict name match (for municipalities not yet in whitelist)
-          const nameMatch = findSreMatch(escola);
-          if (nameMatch) {
-            // Name matched but county not in whitelist — likely false positive, reject
-            rejected.push({ sgd: escola, sre: nameMatch, county, reason: "name match but county not SRE Uberaba" });
+          const mun = nameMatch ? schoolToMunicipio[nameMatch] || sreCountyMap[county] : sreCountyMap[county];
+          matched.push({ sgd: escola, county, mun, via: nameMatch ? "county+name" : "county-only", idSchool });
+          // Auto-confirm to whitelist
+          if (idSchool) schoolWhitelist[idSchool] = { escola, municipio: mun, sre: b._sreMatch, confirmedAt: new Date().toISOString().slice(0, 10) };
+          return;
+        }
+
+        // TIER 3: Name match — ONLY unique names (not ambiguous across municipalities)
+        const nameMatch = findSreMatch(escola);
+        if (nameMatch) {
+          const possibleMuns = schoolToMunicipios[nameMatch] || [];
+          if (possibleMuns.length > 1) {
+            rejected.push({ sgd: escola, sre: nameMatch, county, reason: `nome ambíguo: ${possibleMuns.join("/")}`, idSchool });
+          } else {
+            b._sreMatch = nameMatch;
+            filtered.push(b);
+            const mun = schoolToMunicipio[nameMatch] || "?";
+            matched.push({ sgd: escola, county, mun, via: "name-only", idSchool });
+            if (!sreCountyIds.has(county)) console.log(`[Varrer] Novo county descoberto: ${county} → ${mun}`);
+            // Auto-confirm to whitelist
+            if (idSchool) schoolWhitelist[idSchool] = { escola, municipio: mun, sre: nameMatch, confirmedAt: new Date().toISOString().slice(0, 10) };
           }
         }
       });
 
+      // Save updated whitelist
+      localStorage.setItem(WHITELIST_KEY, JSON.stringify(schoolWhitelist));
+      const whitelistSize = Object.keys(schoolWhitelist).length;
+
       // Debug logs
-      console.log(`[Varrer] ${matched.length} aceitos:`, matched);
-      if (rejected.length > 0) {
-        console.log(`[Varrer] ${rejected.length} rejeitados (nome bateu mas county errado):`, rejected);
-      }
-      // Log unique counties found in accepted budgets for verification
-      const acceptedCounties = {};
-      matched.forEach((m) => { acceptedCounties[m.county] = (acceptedCounties[m.county] || 0) + 1; });
-      console.log(`[Varrer] Counties aceitos:`, acceptedCounties);
-      console.log(`[Varrer] SRE Uberaba: ${filtered.length} aceitos de ${allBudgets.length} total`);
+      const whitelistHits = matched.filter((m) => m.via === "whitelist").length;
+      const countyHits = matched.filter((m) => m.via === "county+name" || m.via === "county-only").length;
+      const nameHits = matched.filter((m) => m.via === "name-only").length;
+      console.log(`[Varrer] ${whitelistHits} whitelist, ${countyHits} county, ${nameHits} name-only → ${filtered.length} aceitos de ${allBudgets.length} varridos`);
+      console.log(`[Varrer] Whitelist total: ${whitelistSize} escolas confirmadas`);
+      if (rejected.length > 0) console.log(`[Varrer] ${rejected.length} rejeitados:`, rejected);
+      const munsEncontrados = [...new Set(matched.map((m) => m.mun).filter(Boolean).filter(m => m !== "?"))].sort();
+      console.log(`[Varrer] Municípios (${munsEncontrados.length}/25):`, munsEncontrados);
       btn.innerHTML = `<span class="sgd-spinner"></span>SRE Uberaba: ${filtered.length} de ${allBudgets.length}. Buscando detalhes...`;
 
       // Step 3: Fetch detail + items for each SRE budget
@@ -4208,7 +4279,16 @@ async function varrerSgd() {
     el.ultimaAtualizacao.textContent = `Atualizado: ${dd}/${mm} ${hh}:${mi}`;
     el.ultimaAtualizacao.style.display = "inline-block";
   } catch (err) {
-    alert("Erro: " + err.message);
+    console.error("[Varrer] Erro na varredura:", err);
+    const msg = err.message || String(err);
+    if (msg.includes("422")) {
+      alert("Erro SGD (422): Header x-network-being-managed-id ausente ou inválido. Verifique as credenciais e tente novamente.");
+    } else if (msg.includes("401") || msg.includes("Login")) {
+      alert("Erro de autenticação SGD. Verifique CNPJ e senha.");
+      localStorage.removeItem(SGD_CRED_KEY);
+    } else {
+      alert("Erro na varredura: " + msg);
+    }
   } finally {
     btn.disabled = false;
     btn.textContent = "Varrer SGD";

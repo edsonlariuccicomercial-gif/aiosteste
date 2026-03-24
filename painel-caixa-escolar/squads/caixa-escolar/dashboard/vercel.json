@@ -5,6 +5,9 @@
     { "source": "/.netlify/functions/pncp-search", "destination": "/api/pncp-search" }
   ],
   "functions": {
+    "api/sgd-proxy.js": {
+      "maxDuration": 60
+    },
     "api/ai-parse-price.js": {
       "maxDuration": 60
     },

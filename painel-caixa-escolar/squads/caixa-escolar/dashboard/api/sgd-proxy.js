@@ -15,6 +15,7 @@ export default async function handler(req, res) {
     const { action, ...params } = req.body || {};
 
     if (action === "login") return await handleLogin(params, res);
+    if (action === "get-user") return await handleGetUser(params, res);
     if (action === "list-budgets") return await handleListBudgets(params, res);
     if (action === "budget-detail") return await handleBudgetDetail(params, res);
     if (action === "budget-items") return await handleBudgetItems(params, res);
@@ -34,7 +35,8 @@ async function handleLogin({ cnpj, password }, res) {
     redirect: "manual",
   });
 
-  if (r.status !== 200 && r.status !== 201) {
+  // Accept 200, 201, and 3xx (redirect after setting cookie)
+  if (r.status >= 400) {
     const text = await r.text().catch(() => "");
     return res.status(401).json({ error: `Login failed (${r.status}): ${text}` });
   }
@@ -44,6 +46,14 @@ async function handleLogin({ cnpj, password }, res) {
   if (!match) return res.status(401).json({ error: "No sessionToken in response" });
 
   return res.status(200).json({ cookie: `sessionToken=${match[1]}` });
+}
+
+async function handleGetUser({ cookie }, res) {
+  const r = await fetch(`${SGD_API}/auth/user`, {
+    headers: buildHeaders(cookie, null),
+  });
+  if (!r.ok) return res.status(r.status).json({ error: `getUser failed (${r.status})` });
+  return res.status(200).json(await r.json());
 }
 
 async function handleListBudgets({ cookie, networkId, page, limit }, res) {
