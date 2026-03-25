@@ -2234,6 +2234,241 @@ window.autoPreencherPreOrcamento = function() {
   showToast("Auto-preenchido: " + preenchidos + " itens ok, " + semMatch + " sem match no banco.");
 };
 
+// ===== IMPORTAÇÃO B2B (Story 4.30) =====
+const B2B_URLS_KEY = "caixaescolar.b2b-urls";
+let b2bParsedItems = [];
+
+function loadB2bUrls() {
+  try { return JSON.parse(localStorage.getItem(B2B_URLS_KEY) || "[]"); } catch(_) { return []; }
+}
+
+function saveB2bUrl(url, fornecedor) {
+  const urls = loadB2bUrls();
+  const exists = urls.find(u => u.url === url);
+  if (exists) {
+    exists.fornecedor = fornecedor;
+    exists.lastUsed = new Date().toISOString().slice(0, 10);
+  } else {
+    urls.unshift({ url, fornecedor, lastUsed: new Date().toISOString().slice(0, 10) });
+  }
+  localStorage.setItem(B2B_URLS_KEY, JSON.stringify(urls.slice(0, 10)));
+}
+
+function renderB2bUrlsRecentes() {
+  const urls = loadB2bUrls();
+  const container = document.getElementById("b2b-urls-recentes");
+  const lista = document.getElementById("b2b-urls-lista");
+  if (!container || !lista) return;
+  if (urls.length === 0) { container.style.display = "none"; return; }
+  container.style.display = "block";
+  lista.innerHTML = urls.slice(0, 5).map(u =>
+    `<a href="#" onclick="b2bUsarUrl('${escapeHtml(u.url)}','${escapeHtml(u.fornecedor)}');return false;" style="display:block;padding:2px 0;">${escapeHtml(u.fornecedor || u.url)} <span class="text-muted">(${u.lastUsed})</span></a>`
+  ).join("");
+}
+
+window.b2bUsarUrl = function(url, fornecedor) {
+  const urlInput = document.getElementById("b2b-url");
+  const fornInput = document.getElementById("b2b-fornecedor");
+  if (urlInput) urlInput.value = url;
+  if (fornInput) fornInput.value = fornecedor;
+};
+
+window.openB2bModal = function() {
+  const modal = document.getElementById("modal-b2b");
+  if (modal) {
+    modal.style.display = "flex";
+    renderB2bUrlsRecentes();
+    b2bParsedItems = [];
+    const preview = document.getElementById("b2b-preview");
+    const btnImportar = document.getElementById("btn-b2b-importar");
+    const status = document.getElementById("b2b-status");
+    if (preview) preview.style.display = "none";
+    if (btnImportar) btnImportar.style.display = "none";
+    if (status) status.textContent = "";
+  }
+};
+
+window.closeB2bModal = function() {
+  const modal = document.getElementById("modal-b2b");
+  if (modal) modal.style.display = "none";
+};
+
+window.b2bBuscar = async function() {
+  const url = (document.getElementById("b2b-url")?.value || "").trim();
+  const fornecedor = (document.getElementById("b2b-fornecedor")?.value || "").trim();
+  const status = document.getElementById("b2b-status");
+  const preview = document.getElementById("b2b-preview");
+  const btnImportar = document.getElementById("btn-b2b-importar");
+  const btnBuscar = document.getElementById("btn-b2b-buscar");
+
+  if (!url) { if (status) status.textContent = "Informe a URL."; return; }
+  if (!fornecedor) { if (status) status.textContent = "Informe o fornecedor."; return; }
+
+  if (btnBuscar) { btnBuscar.disabled = true; btnBuscar.textContent = "Buscando..."; }
+  if (status) status.textContent = "Acessando site...";
+  if (preview) preview.style.display = "none";
+  if (btnImportar) btnImportar.style.display = "none";
+
+  try {
+    const scrapeRes = await fetch("/api/b2b-scrape", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url }),
+    });
+    const scrapeData = await scrapeRes.json();
+    if (!scrapeRes.ok) throw new Error(scrapeData.error || "Falha ao acessar site");
+    if (!scrapeData.text || scrapeData.text.length < 50) throw new Error("Página sem conteúdo suficiente");
+
+    if (status) status.textContent = "Extraindo produtos com IA...";
+
+    const aiRes = await fetch("/.netlify/functions/ai-parse-price", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        texto: scrapeData.text.slice(0, 12000),
+        formato: "b2b-site",
+        fornecedor: fornecedor,
+        contexto: "Texto extraído de site de fornecedor B2B. Extraia todos os produtos com preços encontrados.",
+      }),
+    });
+    const aiData = await aiRes.json();
+    if (!aiRes.ok) throw new Error(aiData.error || "Falha na extração IA");
+
+    let items = [];
+    if (aiData.itens && Array.isArray(aiData.itens)) {
+      items = aiData.itens;
+    } else if (Array.isArray(aiData)) {
+      items = aiData;
+    } else if (aiData.result) {
+      try { items = JSON.parse(aiData.result); } catch(_) {}
+    }
+
+    if (!Array.isArray(items) || items.length === 0) {
+      throw new Error("Nenhum produto encontrado nesta página. Tente outra URL com lista de produtos e preços.");
+    }
+
+    b2bParsedItems = items.map((item, idx) => ({
+      nome: item.nome || "",
+      preco: typeof item.preco === "string" ? parseFloat(item.preco.replace(/[^\d,.-]/g, "").replace(",", ".")) : (item.preco || 0),
+      unidade: item.unidade || "UN",
+      marca: item.marca || "",
+      selected: true,
+      _idx: idx,
+    }));
+
+    renderB2bPreview();
+    saveB2bUrl(url, fornecedor);
+    if (status) status.textContent = `${b2bParsedItems.length} produto(s) encontrado(s).`;
+
+  } catch (err) {
+    if (status) status.textContent = "Erro: " + err.message;
+    console.error("[B2B]", err);
+  } finally {
+    if (btnBuscar) { btnBuscar.disabled = false; btnBuscar.textContent = "Buscar Produtos"; }
+  }
+};
+
+function renderB2bPreview() {
+  const preview = document.getElementById("b2b-preview");
+  const tbody = document.getElementById("tbody-b2b-preview");
+  const btnImportar = document.getElementById("btn-b2b-importar");
+  if (!preview || !tbody) return;
+
+  preview.style.display = "block";
+  if (btnImportar) btnImportar.style.display = "inline-block";
+
+  tbody.innerHTML = b2bParsedItems.map((item, idx) =>
+    `<tr>
+      <td><input type="checkbox" class="b2b-check" data-idx="${idx}" ${item.selected ? "checked" : ""} /></td>
+      <td>${escapeHtml(item.nome || "")}</td>
+      <td class="nowrap">${item.preco > 0 ? brl.format(item.preco) : "—"}</td>
+      <td>${escapeHtml(item.unidade || "UN")}</td>
+      <td>${escapeHtml(item.marca || "—")}</td>
+    </tr>`
+  ).join("");
+
+  tbody.querySelectorAll(".b2b-check").forEach(cb => {
+    cb.addEventListener("change", () => {
+      b2bParsedItems[parseInt(cb.dataset.idx)].selected = cb.checked;
+      updateB2bStats();
+    });
+  });
+
+  updateB2bStats();
+}
+
+function updateB2bStats() {
+  const stats = document.getElementById("b2b-preview-stats");
+  const selected = b2bParsedItems.filter(i => i.selected);
+  if (stats) stats.textContent = `${selected.length} de ${b2bParsedItems.length} selecionados`;
+}
+
+window.b2bImportar = function() {
+  const selected = b2bParsedItems.filter(i => i.selected && i.nome);
+  if (selected.length === 0) { showToast("Nenhum item selecionado."); return; }
+
+  const fornecedor = (document.getElementById("b2b-fornecedor")?.value || "").trim();
+  const url = (document.getElementById("b2b-url")?.value || "").trim();
+
+  const arquivo = registrarArquivo(url, fornecedor, "b2b-site", selected.length);
+
+  let novos = 0, atualizados = 0;
+
+  selected.forEach(item => {
+    const nomeNorm = normalizedText(item.nome);
+    const existing = bancoPrecos.itens.find(bi => normalizedText(bi.item) === nomeNorm);
+
+    if (existing) {
+      if (!existing.custosFornecedor) existing.custosFornecedor = [];
+      existing.custosFornecedor.push({
+        fornecedor, preco: item.preco, data: new Date().toISOString().slice(0, 10),
+        arquivoId: arquivo.id, descricaoOriginal: item.nome, confianca: 0.70,
+      });
+      if (item.preco > 0) existing.custoBase = item.preco;
+      existing.ultimaCotacao = new Date().toISOString().slice(0, 10);
+      existing.fonte = fornecedor;
+      atualizados++;
+    } else {
+      const newItem = {
+        id: "bp-" + String(Date.now()).slice(-6) + "-" + Math.random().toString(36).slice(2, 5),
+        item: item.nome,
+        marca: item.marca || "",
+        grupo: "B2B",
+        unidade: item.unidade || "Unidade",
+        custoBase: item.preco || 0,
+        margemPadrao: 0.30,
+        precoReferencia: item.preco ? item.preco * 1.30 : 0,
+        ultimaCotacao: new Date().toISOString().slice(0, 10),
+        fonte: fornecedor,
+        propostas: [],
+        concorrentes: [],
+        custosFornecedor: [{
+          fornecedor, preco: item.preco, data: new Date().toISOString().slice(0, 10),
+          arquivoId: arquivo.id, descricaoOriginal: item.nome, confianca: 0.70,
+        }],
+      };
+
+      const mestreMatch = findBestMestre(item.nome);
+      if (mestreMatch && mestreMatch.score >= 0.5) {
+        newItem.mesterId = mestreMatch.mestre.id;
+        linkItemToMestre(item.nome, mestreMatch.mestre.id);
+      } else {
+        const mestre = createMestreFromItem(newItem);
+        newItem.mesterId = mestre.id;
+      }
+
+      bancoPrecos.itens.push(newItem);
+      novos++;
+    }
+  });
+
+  saveMestres();
+  saveBancoLocal();
+  renderBanco();
+  closeB2bModal();
+  showToast(`B2B: ${novos} novo(s), ${atualizados} atualizado(s) de ${fornecedor}`);
+};
+
 function renderAnaliseCompetitiva(preOrcamento) {
   if (!preOrcamento || !preOrcamento.itens || preOrcamento.itens.length === 0) return "";
 
@@ -5997,6 +6232,23 @@ window.removerFontePreco = function (itemId, idx) {
   // PNCP batch button
   const btnPncp = document.getElementById("btn-pncp-batch");
   if (btnPncp) btnPncp.addEventListener("click", consultarPncpBatch);
+
+  // B2B Import (Story 4.30)
+  const btnImportB2b = document.getElementById("btn-import-b2b");
+  if (btnImportB2b) btnImportB2b.addEventListener("click", openB2bModal);
+  const btnB2bFechar = document.getElementById("btn-b2b-fechar");
+  if (btnB2bFechar) btnB2bFechar.addEventListener("click", closeB2bModal);
+  const btnB2bBuscar = document.getElementById("btn-b2b-buscar");
+  if (btnB2bBuscar) btnB2bBuscar.addEventListener("click", b2bBuscar);
+  const btnB2bImportar = document.getElementById("btn-b2b-importar");
+  if (btnB2bImportar) btnB2bImportar.addEventListener("click", b2bImportar);
+  const b2bSelectAll = document.getElementById("b2b-select-all");
+  if (b2bSelectAll) b2bSelectAll.addEventListener("change", () => {
+    b2bParsedItems.forEach(i => i.selected = b2bSelectAll.checked);
+    renderB2bPreview();
+  });
+  const modalB2b = document.getElementById("modal-b2b");
+  if (modalB2b) modalB2b.addEventListener("click", (e) => { if (e.target === modalB2b) closeB2bModal(); });
 
   // Export contratos
   const btnExpCtr = document.getElementById("btn-export-contratos");

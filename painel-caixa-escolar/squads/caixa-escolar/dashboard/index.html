@@ -412,6 +412,7 @@
           <button id="btn-itens-mestres" class="btn btn-sm">Itens Mestres</button>
           <button id="btn-import-excel" class="btn btn-sm">Importar Cotacao</button>
           <button id="btn-import-ai" class="btn btn-sm btn-sgd">Importar com IA</button>
+          <button id="btn-import-b2b" class="btn btn-sm btn-accent">Importar de Site</button>
           <button id="btn-pncp-batch" class="btn btn-sm" title="Consultar preços de referência no PNCP para todos os itens">Consultar PNCP</button>
           <button id="btn-add-preco" class="btn btn-sm btn-accent">+ Novo Item</button>
           <button id="btn-export-banco" class="btn btn-sm">Exportar CSV</button>
@@ -1145,6 +1146,42 @@
       </div>
       <div style="margin-top:1rem;text-align:right;">
         <button id="btn-timeline-fechar" class="btn btn-sm">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Importação B2B (Story 4.30) -->
+  <div id="modal-b2b" class="modal-overlay" style="display:none;">
+    <div class="modal card" style="max-width:700px;">
+      <h3>Importar Preços de Site</h3>
+      <div style="margin-bottom:1rem;">
+        <label style="font-weight:600;display:block;margin-bottom:0.3rem;">URL do site do fornecedor</label>
+        <input type="url" id="b2b-url" placeholder="https://www.fornecedor.com.br/produtos" style="width:100%;padding:0.5rem;" />
+      </div>
+      <div style="margin-bottom:1rem;">
+        <label style="font-weight:600;display:block;margin-bottom:0.3rem;">Nome do fornecedor</label>
+        <input type="text" id="b2b-fornecedor" placeholder="Ex: Atacadão, Makro, etc." style="width:100%;padding:0.5rem;" />
+      </div>
+      <div id="b2b-urls-recentes" style="margin-bottom:1rem;display:none;">
+        <label class="text-muted" style="font-size:0.8rem;">Recentes:</label>
+        <div id="b2b-urls-lista" style="font-size:0.8rem;"></div>
+      </div>
+      <div style="margin-bottom:1rem;">
+        <button id="btn-b2b-buscar" class="btn btn-accent">Buscar Produtos</button>
+        <span id="b2b-status" class="text-muted" style="margin-left:0.5rem;"></span>
+      </div>
+      <div id="b2b-preview" style="display:none;">
+        <div class="table-wrap" style="max-height:300px;overflow-y:auto;">
+          <table>
+            <thead><tr><th><input type="checkbox" id="b2b-select-all" checked /></th><th>Produto</th><th>Preço</th><th>Unidade</th><th>Marca</th></tr></thead>
+            <tbody id="tbody-b2b-preview"></tbody>
+          </table>
+        </div>
+        <div style="margin-top:0.5rem;" id="b2b-preview-stats"></div>
+      </div>
+      <div style="margin-top:1rem;text-align:right;">
+        <button id="btn-b2b-importar" class="btn btn-sm btn-accent" style="display:none;">Importar Selecionados</button>
+        <button id="btn-b2b-fechar" class="btn btn-sm">Fechar</button>
       </div>
     </div>
   </div>
