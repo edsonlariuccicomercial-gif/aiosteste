@@ -440,6 +440,18 @@ tfoot td {
   background: rgba(255, 111, 111, 0.25);
 }
 
+.btn-muted {
+  opacity: 0.5;
+  border-color: var(--muted);
+  color: var(--muted);
+}
+
+.btn-muted:hover {
+  opacity: 0.8;
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
 .btn-inline {
   padding: 3px 10px;
   font-size: 0.72rem;

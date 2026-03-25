@@ -196,6 +196,7 @@
           <option value="all">Todos os status</option>
           <option value="aberto">Aberto</option>
           <option value="vencido">Vencido</option>
+          <option value="descartados">Descartados</option>
         </select>
         <input type="text" id="filtro-texto" placeholder="Buscar escola, objeto, item..." autocomplete="off" />
       </div>
@@ -205,6 +206,7 @@
         <span id="batch-count">0 selecionados</span>
         <button id="btn-batch-preorcar" class="btn btn-sm btn-accent">Pré-Orçar Selecionados</button>
         <button id="btn-batch-export" class="btn btn-sm">Exportar Selecionados</button>
+        <button id="btn-batch-descartar" class="btn btn-sm btn-danger">Descartar Selecionados</button>
       </div>
 
       <!-- Tabela -->
@@ -237,6 +239,7 @@
       <div class="table-head">
         <h2 id="preorcamento-titulo">Selecione um orçamento</h2>
         <div class="table-head-actions">
+          <button id="btn-auto-preencher" class="btn btn-sm btn-accent" style="display:none;" title="Preencher preços com base no Banco Inteligente">Auto-Preencher</button>
           <button id="btn-preorcamento-voltar" class="btn btn-sm" style="display:none;">Voltar</button>
         </div>
       </div>
@@ -248,6 +251,7 @@
 
       <!-- Formulário de pré-orçamento -->
       <div id="preorcamento-form" style="display:none;">
+        <div id="analise-competitiva-container"></div>
         <div class="preorcamento-info">
           <div class="info-row">
             <span class="info-label">Escola:</span>
@@ -373,9 +377,39 @@
   <!-- ===== TAB: BANCO DE PREÇOS ===== -->
   <section id="tab-banco-precos" class="tab-content">
     <div class="card">
+      <!-- Inteligência de Preços (Story 4.28) -->
+      <div id="banco-intel-panel" class="intel-panel" style="margin-bottom:1rem;">
+        <div class="intel-header" id="banco-intel-toggle" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;padding:0.5rem 0;">
+          <h3 style="margin:0;">Inteligência de Preços</h3>
+          <span id="banco-intel-chevron">▼</span>
+        </div>
+        <div id="banco-intel-body" style="display:none;">
+          <div class="kpi-row" style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:1rem;">
+            <div class="kpi-card"><div class="kpi-value" id="intel-total-mestres">0</div><div class="kpi-label">Itens Mestres</div></div>
+            <div class="kpi-card"><div class="kpi-value" id="intel-fornecedores">0</div><div class="kpi-label">Fornecedores</div></div>
+            <div class="kpi-card"><div class="kpi-value" id="intel-preco-medio">R$ 0</div><div class="kpi-label">Preço Médio</div></div>
+            <div class="kpi-card"><div class="kpi-value" id="intel-pct-competitivo">0%</div><div class="kpi-label">% Competitivos</div></div>
+          </div>
+          <!-- Ranking Fornecedores -->
+          <details style="margin-bottom:1rem;">
+            <summary style="cursor:pointer;font-weight:600;">Ranking de Fornecedores</summary>
+            <div class="table-wrap" style="max-height:250px;overflow-y:auto;margin-top:0.5rem;">
+              <table><thead><tr><th>Fornecedor</th><th>Itens</th><th>% Menor Preço</th><th>Última Atualização</th></tr></thead>
+              <tbody id="tbody-ranking-fornecedores"></tbody></table>
+            </div>
+          </details>
+          <!-- Alertas -->
+          <details>
+            <summary style="cursor:pointer;font-weight:600;">Alertas e Oportunidades</summary>
+            <div id="intel-alertas" style="margin-top:0.5rem;max-height:200px;overflow-y:auto;"></div>
+          </details>
+        </div>
+      </div>
+
       <div class="table-head">
         <h2>Banco de Preços</h2>
         <div class="table-head-actions">
+          <button id="btn-itens-mestres" class="btn btn-sm">Itens Mestres</button>
           <button id="btn-import-excel" class="btn btn-sm">Importar Cotacao</button>
           <button id="btn-import-ai" class="btn btn-sm btn-sgd">Importar com IA</button>
           <button id="btn-pncp-batch" class="btn btn-sm" title="Consultar preços de referência no PNCP para todos os itens">Consultar PNCP</button>
@@ -411,10 +445,12 @@
               <th>Marca</th>
               <th>Grupo</th>
               <th>Meu Custo</th>
+              <th>P.U.</th>
               <th>Minha Proposta</th>
               <th>Menor Concorrente</th>
               <th>Ref. PNCP</th>
               <th>Margem Real</th>
+              <th>Tendência</th>
               <th>Competitividade</th>
               <th>Ações</th>
             </tr>
@@ -1069,11 +1105,55 @@
     </div>
   </div>
 
+  <!-- ===== MODAL: Itens Mestres (Story 4.26) ===== -->
+  <div id="modal-mestres" class="modal-overlay" style="display:none;">
+    <div class="modal card" style="max-width:800px;">
+      <h3 id="modal-mestres-titulo">Itens Mestres</h3>
+      <div style="margin-bottom:1rem;">
+        <input type="text" id="filtro-mestres" placeholder="Buscar item mestre..." style="width:100%;padding:0.5rem;" />
+      </div>
+      <div class="table-wrap" style="max-height:400px;overflow-y:auto;">
+        <table>
+          <thead>
+            <tr>
+              <th>Nome Canonico</th>
+              <th>Aliases</th>
+              <th>Categoria</th>
+              <th>Un. Base</th>
+              <th>Atributos</th>
+              <th>Acao</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-mestres"></tbody>
+        </table>
+      </div>
+      <div style="margin-top:1rem;text-align:right;">
+        <button id="btn-mestres-fechar" class="btn btn-sm">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Timeline Precos (Story 4.27) -->
+  <div id="modal-timeline" class="modal-overlay" style="display:none;">
+    <div class="modal card" style="max-width:700px;">
+      <h3 id="modal-timeline-titulo">Historico de Precos</h3>
+      <div class="table-wrap" style="max-height:400px;overflow-y:auto;">
+        <table>
+          <thead><tr><th>Data</th><th>Fornecedor</th><th>Preco</th><th>Fonte</th><th>Confianca</th></tr></thead>
+          <tbody id="tbody-timeline"></tbody>
+        </table>
+      </div>
+      <div style="margin-top:1rem;text-align:right;">
+        <button id="btn-timeline-fechar" class="btn btn-sm">Fechar</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Sidebar overlay (mobile) -->
   <div class="sidebar-overlay" id="sidebar-overlay"></div>
 
   <script src="auth.js"></script>
-  <script src="app.js?v=15"></script>
+  <script src="app.js?v=16"></script>
   <script src="pricing-intel.js?v=1"></script>
 </body>
 </html>

@@ -19,15 +19,291 @@ let sreData = {};
 let activePreOrcamentoId = null;
 let selectedOrcIds = new Set();
 
+// ===== DESCARTADOS (Story 4.25) =====
+const DESCARTADOS_KEY = "caixaescolar.descartados";
+let descartados = new Set();
+
+function loadDescartados() {
+  try {
+    const raw = localStorage.getItem(DESCARTADOS_KEY);
+    descartados = new Set(raw ? JSON.parse(raw) : []);
+  } catch (_) { descartados = new Set(); }
+}
+
+function saveDescartados() {
+  localStorage.setItem(DESCARTADOS_KEY, JSON.stringify([...descartados]));
+  schedulCloudSync();
+}
+
+function isDescartado(id) { return descartados.has(String(id)); }
+
+window.descartarOrc = function(id) {
+  if (!confirm("Descartar este processo? Você poderá restaurá-lo depois.")) return;
+  descartados.add(String(id));
+  selectedOrcIds.delete(id);
+  saveDescartados();
+  renderOrcamentos();
+  renderKPIs();
+  showToast("Processo descartado.");
+};
+
+window.restaurarOrc = function(id) {
+  descartados.delete(String(id));
+  saveDescartados();
+  renderOrcamentos();
+  renderKPIs();
+  showToast("Processo restaurado.");
+};
+
+function descartarSelecionados() {
+  if (selectedOrcIds.size === 0) return;
+  const count = selectedOrcIds.size;
+  if (!confirm(`Descartar ${count} processo(s)?`)) return;
+  for (const id of selectedOrcIds) {
+    descartados.add(String(id));
+  }
+  selectedOrcIds.clear();
+  saveDescartados();
+  renderOrcamentos();
+  renderKPIs();
+  showToast(`${count} processos descartados.`);
+}
+
+// ===== ITENS MESTRES (Story 4.26) =====
+const MESTRES_KEY = "caixaescolar.itens-mestres";
+let itensMestres = [];
+
+function loadMestres() {
+  try {
+    const raw = localStorage.getItem(MESTRES_KEY);
+    itensMestres = raw ? JSON.parse(raw) : [];
+  } catch (_) { itensMestres = []; }
+}
+
+function saveMestres() {
+  localStorage.setItem(MESTRES_KEY, JSON.stringify(itensMestres));
+  schedulCloudSync();
+}
+
+function generateMestreId() {
+  return "mestre-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 5);
+}
+
+// Token-based Jaccard similarity
+function calcSimilarity(a, b) {
+  const tokA = new Set(normalizedText(a).split(/\s+/).filter(t => t.length > 2));
+  const tokB = new Set(normalizedText(b).split(/\s+/).filter(t => t.length > 2));
+  if (tokA.size === 0 && tokB.size === 0) return 1;
+  if (tokA.size === 0 || tokB.size === 0) return 0;
+  const inter = [...tokA].filter(t => tokB.has(t)).length;
+  const union = new Set([...tokA, ...tokB]).size;
+  return union === 0 ? 0 : inter / union;
+}
+
+// Extract product attributes from description
+function extractAttributes(desc) {
+  const up = (desc || "").toUpperCase();
+  return {
+    marca: up.match(/\b(CHAMEX|REPORT|NEVE|DONA BENTA|SADIA|PERDIGAO|TILIBRA|FABER.CASTELL|PILOT|BIC|3M|SCOTCH.BRITE|BOMBRIL|YPE|VEJA|PINHO SOL|COALA|LIMPOL|BRILHANTE|OMO|COMFORT|DOWNY)\b/)?.[0] || "",
+    volume: up.match(/(\d+)\s*(ML|L|LITRO)/)?.[0] || "",
+    gramatura: up.match(/(\d+)\s*(G|GR|GRAMA)S?\b/)?.[0] || "",
+    folhas: up.match(/(\d+)\s*(FLS|FOLHAS?|FL)\b/)?.[0] || "",
+    peso: up.match(/(\d+[\.,]?\d*)\s*(KG)\b/)?.[0] || "",
+  };
+}
+
+// Find best matching mestre for a product name
+function findBestMestre(nome) {
+  if (!nome || itensMestres.length === 0) return null;
+  const norm = normalizedText(nome);
+
+  // 1. Exact alias match
+  for (const m of itensMestres) {
+    for (const alias of (m.aliases || [])) {
+      if (normalizedText(alias) === norm) return { mestre: m, score: 1.0 };
+    }
+  }
+
+  // 2. Similarity-based match
+  let best = null;
+  let bestScore = 0;
+  for (const m of itensMestres) {
+    // Compare against canonical name
+    let score = calcSimilarity(nome, m.nomeCanonico);
+    // Also compare against all aliases
+    for (const alias of (m.aliases || [])) {
+      const s = calcSimilarity(nome, alias);
+      if (s > score) score = s;
+    }
+    if (score > bestScore) {
+      bestScore = score;
+      best = m;
+    }
+  }
+
+  if (bestScore >= 0.5 && best) return { mestre: best, score: bestScore };
+  return null;
+}
+
+// Create a new Item Mestre from a banco item
+function createMestreFromItem(bancoItem) {
+  const attrs = extractAttributes(bancoItem.item);
+  const mestre = {
+    id: generateMestreId(),
+    nomeCanonico: bancoItem.item,
+    categoria: bancoItem.grupo || "",
+    unidadeBase: bancoItem.unidade || "Unidade",
+    atributos: attrs,
+    aliases: [bancoItem.item],
+    criadoEm: new Date().toISOString().slice(0, 10),
+    atualizadoEm: new Date().toISOString().slice(0, 10),
+  };
+  itensMestres.push(mestre);
+  return mestre;
+}
+
+// Link a banco item to an existing mestre (add alias if not present)
+function linkItemToMestre(itemName, mestreId) {
+  const m = itensMestres.find(x => x.id === mestreId);
+  if (!m) return;
+  const norm = normalizedText(itemName);
+  const exists = m.aliases.some(a => normalizedText(a) === norm);
+  if (!exists) {
+    m.aliases.push(itemName);
+    m.atualizadoEm = new Date().toISOString().slice(0, 10);
+  }
+}
+
+// Merge two mestres into one (keep first, absorb second)
+function mergeMestres(keepId, absorbId) {
+  const keep = itensMestres.find(m => m.id === keepId);
+  const absorb = itensMestres.find(m => m.id === absorbId);
+  if (!keep || !absorb || keepId === absorbId) return;
+  // Merge aliases
+  for (const alias of absorb.aliases) {
+    if (!keep.aliases.some(a => normalizedText(a) === normalizedText(alias))) {
+      keep.aliases.push(alias);
+    }
+  }
+  keep.atualizadoEm = new Date().toISOString().slice(0, 10);
+  // Update banco items that pointed to absorbed mestre
+  bancoPrecos.itens.forEach(item => {
+    if (item.mesterId === absorbId) item.mesterId = keepId;
+  });
+  // Remove absorbed
+  itensMestres = itensMestres.filter(m => m.id !== absorbId);
+  saveMestres();
+  saveBancoLocal();
+}
+
+// ===== ARQUIVOS IMPORTADOS (Story 4.27) =====
+const ARQUIVOS_KEY = "caixaescolar.arquivos-importados";
+let arquivosImportados = [];
+
+function loadArquivos() {
+  try {
+    const raw = localStorage.getItem(ARQUIVOS_KEY);
+    arquivosImportados = raw ? JSON.parse(raw) : [];
+  } catch (_) { arquivosImportados = []; }
+}
+
+function saveArquivos() {
+  localStorage.setItem(ARQUIVOS_KEY, JSON.stringify(arquivosImportados));
+  schedulCloudSync();
+}
+
+function registrarArquivo(nomeArquivo, fornecedor, tipoFonte, qtdItens) {
+  const confianca = tipoFonte === "manual" ? 1.0 : tipoFonte === "excel" ? 0.95 : tipoFonte === "pdf-texto" ? 0.75 : 0.50;
+  const arquivo = {
+    id: "arq-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 5),
+    nomeArquivo, fornecedor: fornecedor || "",
+    dataImportacao: new Date().toISOString().slice(0, 10),
+    tipoFonte, qtdItens, confianca
+  };
+  arquivosImportados.push(arquivo);
+  saveArquivos();
+  return arquivo;
+}
+
+// Calculate price trend from history
+function calcTendencia(custosFornecedor) {
+  if (!custosFornecedor || custosFornecedor.length < 2) return { tipo: "sem-dados", pct: 0 };
+  const sorted = [...custosFornecedor].sort((a, b) => (b.data || "").localeCompare(a.data || ""));
+  const ultimo = sorted[0].preco;
+  const penultimo = sorted[1].preco;
+  if (!ultimo || !penultimo || penultimo === 0) return { tipo: "sem-dados", pct: 0 };
+  const variacao = ((ultimo - penultimo) / penultimo) * 100;
+  if (Math.abs(variacao) < 5) return { tipo: "estavel", pct: variacao };
+  return { tipo: variacao > 0 ? "subindo" : "caindo", pct: variacao };
+}
+
+// Format trend as badge HTML
+function renderTendenciaBadge(custosFornecedor) {
+  const t = calcTendencia(custosFornecedor);
+  if (t.tipo === "sem-dados") return '<span class="text-muted">\u2014</span>';
+  const arrow = t.tipo === "subindo" ? "\u25B2" : t.tipo === "caindo" ? "\u25BC" : "\u25CF";
+  const color = t.tipo === "subindo" ? "#e74c3c" : t.tipo === "caindo" ? "#27ae60" : "#95a5a6";
+  const pctStr = (t.pct > 0 ? "+" : "") + t.pct.toFixed(1) + "%";
+  return `<span style="color:${color};font-weight:600;" title="${pctStr}">${arrow} ${pctStr}</span>`;
+}
+
+// Calculate stats for an item's price history
+function calcHistoricoStats(custosFornecedor) {
+  if (!custosFornecedor || custosFornecedor.length === 0) return null;
+  const precos = custosFornecedor.map(c => c.preco).filter(p => p > 0);
+  if (precos.length === 0) return null;
+  const sorted = [...precos].sort((a, b) => a - b);
+  const min = sorted[0];
+  const max = sorted[sorted.length - 1];
+  const media = precos.reduce((s, p) => s + p, 0) / precos.length;
+  const mediana = sorted.length % 2 === 0
+    ? (sorted[sorted.length / 2 - 1] + sorted[sorted.length / 2]) / 2
+    : sorted[Math.floor(sorted.length / 2)];
+  const byDate = [...custosFornecedor].filter(c => c.preco > 0).sort((a, b) => (b.data || "").localeCompare(a.data || ""));
+  const melhorFornecedor = byDate.length > 0
+    ? byDate.reduce((best, c) => c.preco < best.preco ? c : best, byDate[0]).fornecedor
+    : "";
+  return { min, max, media, mediana, melhorFornecedor, totalRegistros: precos.length };
+}
+
+// Calculate equivalent unit price
+function calcPrecoUnitario(preco, unidadeDesc, quantidade) {
+  if (!preco || preco <= 0) return preco;
+  const desc = (unidadeDesc || "").toLowerCase();
+
+  // Check UNIT_CONVERSIONS for embedded quantity
+  for (const [, conv] of Object.entries(UNIT_CONVERSIONS)) {
+    for (const alias of conv.aliases) {
+      if (desc.includes(alias)) {
+        // Try to extract quantity from description like "caixa c/ 12"
+        const qtyMatch = desc.match(/(\d+)/);
+        const qty = qtyMatch ? parseInt(qtyMatch[1]) : conv.defaultQty;
+        if (qty > 1) return preco / qty;
+      }
+    }
+  }
+
+  // If explicit quantity provided and > 1
+  if (quantidade && quantidade > 1) {
+    // Check if price looks like total (heuristic: if unit desc mentions pack/box)
+    if (/caixa|cx|pacote|pct|fardo|fd|kit/i.test(desc)) {
+      return preco / quantidade;
+    }
+  }
+
+  return preco;
+}
+
 // ===== SUPABASE CLOUD SYNC =====
 const SUPABASE_URL = "https://ohxoxencxktpzskltbsk.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9oeG94ZW5jeGt0cHpza2x0YnNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMyMTUwNDQsImV4cCI6MjA4ODc5MTA0NH0.-w8f1xjW1cW2-OZpg1Sql8PqwFDzDqyWw4pHEx6jGSk";
 const SHARED_SYNC_KEYS = new Set([
   "caixaescolar.banco.v1", "caixaescolar.preorcamentos.v1", "caixaescolar.resultados.v1",
-  "caixaescolar.contratos.v1", "caixaescolar.orcamentos", "gdp.contratos.v1",
-  "gdp.pedidos.v1", "gdp.entregas.provas.v1", "gdp.usuarios.v1", "gdp.notas-entrada.v1",
-  "gdp.notas-fiscais.v1", "gdp.contas-pagar.v1", "gdp.contas-receber.v1",
-  "gdp.integracoes.v1", "gdp.estoque.movimentos.v1"
+  "caixaescolar.contratos.v1", "caixaescolar.orcamentos", "caixaescolar.descartados",
+  "caixaescolar.itens-mestres", "caixaescolar.arquivos-importados",
+  "gdp.contratos.v1", "gdp.pedidos.v1", "gdp.entregas.provas.v1", "gdp.usuarios.v1",
+  "gdp.notas-entrada.v1", "gdp.notas-fiscais.v1", "gdp.contas-pagar.v1",
+  "gdp.contas-receber.v1", "gdp.integracoes.v1", "gdp.estoque.movimentos.v1"
 ]);
 const RESULTADOS_STORAGE_KEY = "caixaescolar.resultados.v1";
 const CONTRATOS_STORAGE_KEY = "caixaescolar.contratos.v1";
@@ -45,9 +321,10 @@ const DEFAULT_EMPRESA = {
 const SYNC_KEYS = [
   "nexedu.empresa", "caixaescolar.banco.v1", "caixaescolar.preorcamentos.v1",
   "caixaescolar.resultados.v1", "caixaescolar.contratos.v1", "caixaescolar.orcamentos",
-  "gdp.contratos.v1", "gdp.pedidos.v1", "gdp.entregas.provas.v1", "gdp.usuarios.v1", "gdp.notas-entrada.v1",
-  "gdp.notas-fiscais.v1", "gdp.contas-pagar.v1", "gdp.contas-receber.v1",
-  "gdp.integracoes.v1", "gdp.estoque.movimentos.v1"
+  "caixaescolar.descartados", "caixaescolar.itens-mestres", "caixaescolar.arquivos-importados",
+  "gdp.contratos.v1", "gdp.pedidos.v1", "gdp.entregas.provas.v1",
+  "gdp.usuarios.v1", "gdp.notas-entrada.v1", "gdp.notas-fiscais.v1", "gdp.contas-pagar.v1",
+  "gdp.contas-receber.v1", "gdp.integracoes.v1", "gdp.estoque.movimentos.v1"
 ];
 
 function ensureEmpresaContext() {
@@ -555,6 +832,9 @@ async function boot() {
   ensureEmpresaContext();
   // 1. Load local data FIRST (instant — no network)
   loadPreOrcamentos();
+  loadDescartados();
+  loadMestres();
+  loadArquivos();
   carregarModulosConfig();
   aplicarAcessoSidebar();
 
@@ -712,7 +992,11 @@ function filteredOrcamentos() {
     .filter((o) => mun === "all" || o.municipio === mun)
     .filter((o) => grupo === "all" || o.grupo === grupo)
     .filter((o) => {
-      if (status === "all") return true;
+      if (status === "descartados") return isDescartado(o.id);
+      return !isDescartado(o.id);
+    })
+    .filter((o) => {
+      if (status === "all" || status === "descartados") return true;
       if (status === "vencido") {
         // Considerar vencido se o status é "vencido" OU se o prazo ja passou
         return o.status === "vencido" || (o.status === "aberto" && o.prazo && daysTo(o.prazo) <= 0);
@@ -756,7 +1040,7 @@ function renderAll() {
 }
 
 function renderKPIs() {
-  const abertos = orcamentos.filter((o) => o.status === "aberto");
+  const abertos = orcamentos.filter((o) => o.status === "aberto" && !isDescartado(o.id));
   const urgentes = abertos.filter((o) => daysTo(o.prazo) <= 3);
 
   // Pré-orçamentos pendentes
@@ -853,6 +1137,8 @@ function renderOrcamentos() {
     if (!listIds.has(id)) selectedOrcIds.delete(id);
   }
 
+  const viewingDescartados = el.filtroStatus.value === "descartados";
+
   el.tbodyOrcamentos.innerHTML = list.map((o) => {
     const days = daysTo(o.prazo);
     let statusClass = "badge-aberto";
@@ -883,7 +1169,9 @@ function renderOrcamentos() {
     // Ações
     const preOrc = preOrcamentos[o.id];
     let actionBtn = "";
-    if (o.status === "aberto") {
+    if (viewingDescartados) {
+      actionBtn = `<button class="btn btn-inline" onclick="restaurarOrc('${o.id}')">Restaurar</button>`;
+    } else if (o.status === "aberto") {
       if (excluido) {
         actionBtn = '<span class="badge badge-fora-escopo">Fora do escopo</span>';
       } else if (preOrc) {
@@ -898,16 +1186,21 @@ function renderOrcamentos() {
       } else {
         actionBtn = `<button class="btn btn-inline btn-accent" onclick="gerarPreOrcamento('${o.id}')">Pré-Orçar</button>`;
       }
+      // Botão descartar para abertos sem pré-orçamento e não excluídos
+      if (!preOrc && !excluido) {
+        actionBtn += ` <button class="btn btn-inline btn-muted" onclick="descartarOrc('${o.id}')" title="Descartar processo">&#10005;</button>`;
+      }
     }
 
     // Checkbox (Passo 3) — só para abertos não excluídos sem pré-orçamento
-    const canSelect = o.status === "aberto" && !excluido && !preOrc;
+    const canSelect = o.status === "aberto" && !excluido && !preOrc && !viewingDescartados;
     const checked = selectedOrcIds.has(o.id) ? "checked" : "";
     const checkboxHtml = canSelect
       ? `<input type="checkbox" class="row-check" data-id="${o.id}" ${checked} />`
       : "";
 
-    return `<tr>
+    const trStyle = viewingDescartados ? ' style="opacity:0.6"' : '';
+    return `<tr${trStyle}>
       <td>${checkboxHtml}</td>
       <td class="font-mono text-muted">${escapeHtml(o.id)}</td>
       <td>${escapeHtml(o.escola)}</td>
@@ -1186,7 +1479,15 @@ window.abrirPreOrcamento = function (orcId) {
     el.preorcamentoFrete.textContent = "Sem frete (mesmo município)";
   }
 
+  // Competitive analysis (Story 4.29)
+  const analiseContainer = document.getElementById("analise-competitiva-container");
+  if (analiseContainer) analiseContainer.innerHTML = renderAnaliseCompetitiva(pre);
+
   renderPreOrcamentoItens();
+
+  // Auto-preencher button (Story 4.29) — show when pre-orcamento is active and editable
+  const btnAuto = document.getElementById("btn-auto-preencher");
+  if (btnAuto) btnAuto.style.display = (pre.status === "pendente" || pre.status === "aprovado") ? "inline-block" : "none";
 
   // Botões
   const isPendente = pre.status === "pendente";
@@ -1474,6 +1775,12 @@ function voltarPreOrcamento() {
   el.preorcamentoVazio.style.display = "none";
   el.preorcamentosLista.style.display = "block";
   el.preorcamentoTitulo.textContent = "Pré-Orçamentos Salvos";
+  // Hide auto-preencher button (Story 4.29)
+  const btnAuto = document.getElementById("btn-auto-preencher");
+  if (btnAuto) btnAuto.style.display = "none";
+  // Clear competitive analysis (Story 4.29)
+  const analiseContainer = document.getElementById("analise-competitiva-container");
+  if (analiseContainer) analiseContainer.innerHTML = "";
   renderPreOrcamentosLista();
 }
 
@@ -1577,18 +1884,26 @@ function renderBanco() {
       compBadge = `<span class="badge badge-danger">Acima</span>`;
     }
 
+    // P.U. (Story 4.26)
+    const pu = calcPrecoUnitario(item.custoBase, item.unidade, 1);
+    const puHtml = pu !== item.custoBase ? `<td class="text-right font-mono nowrap">${brl.format(pu)}</td>` : `<td class="text-muted text-right">—</td>`;
+
+    // Tendencia (Story 4.27)
+    const tendenciaHtml = renderTendenciaBadge(item.custosFornecedor);
+    const proposalBadge = propostas.length > 0 ? `<br><span class="text-muted" style="font-size:0.7rem">${propostas.length} proposta(s)</span>` : "";
+
     return `<tr>
       <td><input type="checkbox" class="banco-item-check" data-id="${item.id}" /></td>
-      <td><strong>${escapeHtml(item.item)}</strong>
-        ${propostas.length > 0 ? `<br><span class="text-muted" style="font-size:0.7rem">${propostas.length} proposta(s)</span>` : ""}
-      </td>
+      <td><a href="#" onclick="openTimeline('${item.id}');return false;" style="text-decoration:none;color:inherit;"><strong>${escapeHtml(item.item)}</strong></a>${proposalBadge}</td>
       <td>${escapeHtml(item.marca || "")}</td>
       <td>${escapeHtml(item.grupo)}</td>
       <td class="text-right font-mono">${brl.format(item.custoBase)}</td>
+      ${puHtml}
       <td class="text-right font-mono">${brl.format(minhaPropostaMedia)}</td>
       <td class="text-right font-mono">${menorConcorrente !== null ? brl.format(menorConcorrente) : "—"}</td>
       <td class="text-right font-mono">${brl.format(item.precoReferencia)}</td>
       <td class="text-right ${margemClass}">${margemRealStr}</td>
+      <td class="text-center">${tendenciaHtml}</td>
       <td class="text-center">${compBadge}</td>
       <td class="nowrap">
         <button class="btn btn-inline" onclick="editarBancoItem('${item.id}')">Editar</button>
@@ -1601,6 +1916,353 @@ function renderBanco() {
   const selectAll = document.getElementById("banco-select-all");
   if (selectAll) selectAll.checked = false;
   updateBancoSelectionUI();
+
+  // Update intelligence panel if open (Story 4.28)
+  const bancoIntelBody = document.getElementById("banco-intel-body");
+  if (bancoIntelBody && bancoIntelBody.style.display !== "none") {
+    renderBancoIntel();
+  }
+}
+
+// ===== ITENS MESTRES UI (Story 4.26) =====
+function renderMestresModal() {
+  const modal = document.getElementById("modal-mestres");
+  const tbody = document.getElementById("tbody-mestres");
+  const filtro = document.getElementById("filtro-mestres");
+  if (!modal || !tbody) return;
+
+  const query = normalizedText((filtro ? filtro.value : "").trim());
+  const filtered = itensMestres.filter(m => {
+    if (!query) return true;
+    const searchText = normalizedText([m.nomeCanonico, ...m.aliases, m.categoria].join(" "));
+    return searchText.includes(query);
+  });
+
+  tbody.innerHTML = filtered.map(m => {
+    const attrs = m.atributos || {};
+    const attrParts = [attrs.marca, attrs.volume, attrs.gramatura, attrs.peso, attrs.folhas].filter(Boolean);
+    const linkedCount = bancoPrecos.itens.filter(i => i.mesterId === m.id).length;
+    return `<tr>
+      <td><strong>${escapeHtml(m.nomeCanonico)}</strong> <span class="text-muted">(${linkedCount} itens)</span></td>
+      <td class="text-muted" style="font-size:0.75rem;max-width:200px;overflow:hidden;text-overflow:ellipsis;">${m.aliases.slice(0, 3).map(a => escapeHtml(a)).join(", ")}${m.aliases.length > 3 ? "..." : ""}</td>
+      <td>${escapeHtml(m.categoria)}</td>
+      <td>${escapeHtml(m.unidadeBase)}</td>
+      <td class="text-muted" style="font-size:0.75rem;">${attrParts.length ? attrParts.join(" | ") : "—"}</td>
+      <td><button class="btn btn-inline btn-muted" onclick="removeMestre('${m.id}')" title="Excluir">&#10005;</button></td>
+    </tr>`;
+  }).join("");
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" class="text-muted" style="text-align:center;">Nenhum item mestre encontrado.</td></tr>';
+  }
+}
+
+window.openMestresModal = function() {
+  const modal = document.getElementById("modal-mestres");
+  if (modal) { modal.style.display = "flex"; renderMestresModal(); }
+};
+
+window.closeMestresModal = function() {
+  const modal = document.getElementById("modal-mestres");
+  if (modal) modal.style.display = "none";
+};
+
+window.removeMestre = function(id) {
+  if (!confirm("Excluir este item mestre? Os itens do banco perderão o vínculo.")) return;
+  bancoPrecos.itens.forEach(item => { if (item.mesterId === id) delete item.mesterId; });
+  itensMestres = itensMestres.filter(m => m.id !== id);
+  saveMestres();
+  saveBancoLocal();
+  renderMestresModal();
+  showToast("Item mestre excluído.");
+};
+
+// ===== TIMELINE DE PRECOS (Story 4.27) =====
+window.openTimeline = function(bancoItemId) {
+  const item = bancoPrecos.itens.find(i => i.id === bancoItemId);
+  if (!item) return;
+  const modal = document.getElementById("modal-timeline");
+  const titulo = document.getElementById("modal-timeline-titulo");
+  const tbody = document.getElementById("tbody-timeline");
+  if (!modal || !tbody) return;
+
+  titulo.textContent = `Historico: ${item.item}`;
+  const historico = [...(item.custosFornecedor || [])].sort((a, b) => (b.data || "").localeCompare(a.data || ""));
+
+  if (historico.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" class="text-muted" style="text-align:center;">Sem historico.</td></tr>';
+  } else {
+    const minPreco = Math.min(...historico.map(h => h.preco).filter(p => p > 0));
+    tbody.innerHTML = historico.map(h => {
+      const isMin = h.preco === minPreco && h.preco > 0;
+      const conf = h.confianca != null ? (h.confianca * 100).toFixed(0) + "%" : "\u2014";
+      const arquivo = h.arquivoId ? arquivosImportados.find(a => a.id === h.arquivoId) : null;
+      const fonteLabel = arquivo ? arquivo.tipoFonte : (h.fonte || "manual");
+      return `<tr${isMin ? ' style="background:#e8f5e9;"' : ""}>
+        <td class="nowrap">${formatDate(h.data)}</td>
+        <td>${escapeHtml(h.fornecedor || "\u2014")}</td>
+        <td class="nowrap"><strong>${brl.format(h.preco)}</strong></td>
+        <td>${escapeHtml(fonteLabel)}</td>
+        <td>${conf}</td>
+      </tr>`;
+    }).join("");
+  }
+
+  const stats = calcHistoricoStats(item.custosFornecedor);
+  if (stats) {
+    tbody.innerHTML += `<tr style="background:#f5f5f5;font-weight:600;">
+      <td colspan="2">Resumo (${stats.totalRegistros} registros)</td>
+      <td>Min: ${brl.format(stats.min)}</td>
+      <td>Med: ${brl.format(stats.media)}</td>
+      <td>Max: ${brl.format(stats.max)}</td>
+    </tr>`;
+  }
+
+  modal.style.display = "flex";
+};
+
+window.closeTimeline = function() {
+  const modal = document.getElementById("modal-timeline");
+  if (modal) modal.style.display = "none";
+};
+
+// ===== INTELIGÊNCIA DE PREÇOS (Story 4.28) =====
+
+function calcRankingFornecedores() {
+  const fornMap = {}; // fornecedor -> { itens: Set, menorCount: 0, lastDate: "" }
+
+  bancoPrecos.itens.forEach(item => {
+    (item.custosFornecedor || []).forEach(c => {
+      if (!c.fornecedor) return;
+      if (!fornMap[c.fornecedor]) fornMap[c.fornecedor] = { itens: new Set(), menorCount: 0, lastDate: "" };
+      fornMap[c.fornecedor].itens.add(item.id);
+      if (c.data && c.data > fornMap[c.fornecedor].lastDate) fornMap[c.fornecedor].lastDate = c.data;
+    });
+    // Check who has lowest price for this item
+    const precos = (item.custosFornecedor || []).filter(c => c.preco > 0 && c.fornecedor);
+    if (precos.length > 0) {
+      const menor = precos.reduce((min, c) => c.preco < min.preco ? c : min, precos[0]);
+      if (fornMap[menor.fornecedor]) fornMap[menor.fornecedor].menorCount++;
+    }
+  });
+
+  return Object.entries(fornMap).map(([nome, data]) => ({
+    nome,
+    qtdItens: data.itens.size,
+    pctMenor: data.itens.size > 0 ? (data.menorCount / data.itens.size * 100) : 0,
+    lastDate: data.lastDate,
+  })).sort((a, b) => b.pctMenor - a.pctMenor);
+}
+
+function detectOportunidades() {
+  const alertas = [];
+  const hoje = new Date().toISOString().slice(0, 10);
+
+  bancoPrecos.itens.forEach(item => {
+    const stats = calcHistoricoStats(item.custosFornecedor);
+    if (!stats) return;
+
+    // High margin opportunity (my price > 30% above cost)
+    if (item.custoBase > 0 && item.precoReferencia > 0) {
+      const margem = (item.precoReferencia - item.custoBase) / item.custoBase;
+      if (margem > 0.30) {
+        alertas.push({ tipo: "margem-alta", item: item.item, msg: "Margem " + (margem*100).toFixed(0) + "% — pode reduzir para ser mais competitivo", id: item.id });
+      }
+    }
+
+    // Competitor risk (competitor price 20%+ below mine)
+    const menorConc = item.concorrentes && item.concorrentes.length > 0
+      ? Math.min(...item.concorrentes.map(c => c.preco).filter(p => p > 0))
+      : null;
+    if (menorConc && item.precoReferencia > 0 && menorConc < item.precoReferencia * 0.80) {
+      alertas.push({ tipo: "risco", item: item.item, msg: "Concorrente " + ((1 - menorConc/item.precoReferencia)*100).toFixed(0) + "% abaixo", id: item.id });
+    }
+
+    // Stale data (no update in 30+ days)
+    const lastUpdate = item.ultimaCotacao || "";
+    if (lastUpdate) {
+      const daysSince = Math.ceil((new Date(hoje) - new Date(lastUpdate)) / 86400000);
+      if (daysSince > 30) {
+        alertas.push({ tipo: "desatualizado", item: item.item, msg: daysSince + " dias sem atualização", id: item.id });
+      }
+    }
+  });
+
+  return alertas;
+}
+
+function renderBancoIntel() {
+  const totalMestres = itensMestres.length;
+  const fornecedores = new Set();
+  let somaPrecos = 0, countPrecos = 0, competitivos = 0, totalComConc = 0;
+
+  bancoPrecos.itens.forEach(item => {
+    (item.custosFornecedor || []).forEach(c => { if (c.fornecedor) fornecedores.add(c.fornecedor); });
+    if (item.custoBase > 0) { somaPrecos += item.custoBase; countPrecos++; }
+
+    const menorConc = item.concorrentes && item.concorrentes.length > 0
+      ? Math.min(...item.concorrentes.map(c => c.preco).filter(p => p > 0))
+      : null;
+    if (menorConc) {
+      totalComConc++;
+      if (item.precoReferencia <= menorConc * 1.05) competitivos++;
+    }
+  });
+
+  // KPIs
+  const elMestres = document.getElementById("intel-total-mestres");
+  const elForn = document.getElementById("intel-fornecedores");
+  const elPreco = document.getElementById("intel-preco-medio");
+  const elComp = document.getElementById("intel-pct-competitivo");
+  if (elMestres) elMestres.textContent = totalMestres;
+  if (elForn) elForn.textContent = fornecedores.size;
+  if (elPreco) elPreco.textContent = countPrecos > 0 ? brl.format(somaPrecos / countPrecos) : "\u2014";
+  if (elComp) elComp.textContent = totalComConc > 0 ? (competitivos/totalComConc*100).toFixed(0) + "%" : "\u2014";
+
+  // Ranking
+  const tbodyRanking = document.getElementById("tbody-ranking-fornecedores");
+  if (tbodyRanking) {
+    const ranking = calcRankingFornecedores();
+    tbodyRanking.innerHTML = ranking.slice(0, 15).map(f => '<tr>' +
+      '<td><strong>' + escapeHtml(f.nome) + '</strong></td>' +
+      '<td>' + f.qtdItens + '</td>' +
+      '<td>' + f.pctMenor.toFixed(0) + '%</td>' +
+      '<td>' + formatDate(f.lastDate) + '</td>' +
+    '</tr>').join("") || '<tr><td colspan="4" class="text-muted">Sem dados.</td></tr>';
+  }
+
+  // Alertas
+  const elAlertas = document.getElementById("intel-alertas");
+  if (elAlertas) {
+    const alertas = detectOportunidades();
+    if (alertas.length === 0) {
+      elAlertas.innerHTML = '<p class="text-muted">Nenhum alerta no momento.</p>';
+    } else {
+      const icons = { "margem-alta": "\uD83D\uDCB0", "risco": "\u26A0\uFE0F", "desatualizado": "\uD83D\uDD50" };
+      elAlertas.innerHTML = alertas.slice(0, 20).map(a =>
+        '<div style="padding:0.3rem 0;border-bottom:1px solid #eee;">' + (icons[a.tipo] || "\u2022") + ' <strong>' + escapeHtml(a.item) + '</strong>: ' + escapeHtml(a.msg) + '</div>'
+      ).join("");
+    }
+  }
+}
+
+// ===== COTAÇÃO INTELIGENTE (Story 4.29) =====
+
+function calcPrecoSugerido(itemNome) {
+  // Find matching mestre
+  const mestreMatch = findBestMestre(itemNome);
+  if (!mestreMatch) return null;
+
+  // Find all banco items linked to this mestre
+  const linked = bancoPrecos.itens.filter(i => i.mesterId === mestreMatch.mestre.id);
+  if (linked.length === 0) return null;
+
+  // Get latest cost from any linked item
+  let meuCusto = 0;
+  let latestDate = "";
+  linked.forEach(item => {
+    if (item.custoBase > 0 && (item.ultimaCotacao || "") >= latestDate) {
+      meuCusto = item.custoBase;
+      latestDate = item.ultimaCotacao || "";
+    }
+  });
+
+  // Get competitor prices
+  const concPrecos = [];
+  linked.forEach(item => {
+    (item.concorrentes || []).forEach(c => { if (c.preco > 0) concPrecos.push(c.preco); });
+  });
+  const menorConc = concPrecos.length > 0 ? Math.min(...concPrecos) : null;
+
+  // Get market average from all supplier prices
+  const allPrecos = [];
+  linked.forEach(item => {
+    (item.custosFornecedor || []).forEach(c => { if (c.preco > 0) allPrecos.push(c.preco); });
+  });
+  const mediaMercado = allPrecos.length > 0 ? allPrecos.reduce((s, p) => s + p, 0) / allPrecos.length : meuCusto;
+
+  // Calculate suggested price
+  const margemMinima = 0.08;
+  const precoMinimo = meuCusto > 0 ? meuCusto * (1 + margemMinima) : mediaMercado;
+  const precoCompetitivo = menorConc ? menorConc * 0.97 : mediaMercado;
+  const sugerido = Math.max(precoMinimo, Math.min(precoCompetitivo, mediaMercado * 1.1));
+
+  // Best marca from banco
+  const marca = linked.find(i => i.marca)?.marca || "";
+
+  // Confidence
+  const confianca = mestreMatch.score >= 0.8 ? "alta" : mestreMatch.score >= 0.5 ? "media" : "baixa";
+
+  return {
+    sugerido: sugerido > 0 ? sugerido : null,
+    meuCusto, menorConc, mediaMercado, marca, confianca,
+    mestreId: mestreMatch.mestre.id,
+    margemReal: meuCusto > 0 ? ((sugerido - meuCusto) / meuCusto) : 0
+  };
+}
+
+// Auto-fill pre-orcamento from Banco Inteligente (Story 4.29)
+window.autoPreencherPreOrcamento = function() {
+  if (!activePreOrcamentoId) return;
+  const pre = preOrcamentos[activePreOrcamentoId];
+  if (!pre || !pre.itens) return;
+
+  let preenchidos = 0, semMatch = 0;
+
+  pre.itens.forEach(function(item) {
+    const sugestao = calcPrecoSugerido(item.nome);
+    if (sugestao && sugestao.sugerido) {
+      if (!item.precoUnitario || item.precoUnitario === 0) {
+        item.precoUnitario = parseFloat(sugestao.sugerido.toFixed(2));
+      }
+      if (!item.marca && sugestao.marca) {
+        item.marca = sugestao.marca;
+      }
+      if (sugestao.meuCusto > 0) {
+        item.custoBase = sugestao.meuCusto;
+      }
+      item._autoConfianca = sugestao.confianca;
+      item._mestreId = sugestao.mestreId;
+      preenchidos++;
+    } else {
+      semMatch++;
+    }
+  });
+
+  savePreOrcamentos();
+  renderPreOrcamentoItens();
+  showToast("Auto-preenchido: " + preenchidos + " itens ok, " + semMatch + " sem match no banco.");
+};
+
+function renderAnaliseCompetitiva(preOrcamento) {
+  if (!preOrcamento || !preOrcamento.itens || preOrcamento.itens.length === 0) return "";
+
+  let valorTotal = 0, somaMargens = 0, countMargens = 0;
+  let riscos = 0;
+
+  preOrcamento.itens.forEach(function(item) {
+    const valor = (item.precoUnitario || 0) * (item.quantidade || 0);
+    valorTotal += valor;
+    if (item.custoUnitario > 0 && item.precoUnitario > 0) {
+      somaMargens += (item.precoUnitario - item.custoUnitario) / item.custoUnitario;
+      countMargens++;
+    }
+    // Check if competitor is cheaper
+    const sugestao = calcPrecoSugerido(item.nome);
+    if (sugestao && sugestao.menorConc && item.precoUnitario > sugestao.menorConc) riscos++;
+  });
+
+  const margemMedia = countMargens > 0 ? (somaMargens / countMargens * 100).toFixed(1) : "\u2014";
+  const margemClass = parseFloat(margemMedia) >= 15 ? "color:#27ae60" : parseFloat(margemMedia) >= 5 ? "color:#f39c12" : "color:#e74c3c";
+
+  return '<div style="background:#f8f9fa;padding:0.75rem;border-radius:8px;margin-bottom:1rem;font-size:0.85rem;">' +
+    '<strong>Análise Competitiva</strong>' +
+    '<div style="display:flex;gap:1.5rem;margin-top:0.5rem;">' +
+      '<span>Valor: <strong>' + brl.format(valorTotal) + '</strong></span>' +
+      '<span>Margem média: <strong style="' + margemClass + '">' + margemMedia + '%</strong></span>' +
+      '<span>Itens de risco: <strong style="color:' + (riscos > 0 ? '#e74c3c' : '#27ae60') + '">' + riscos + '</strong></span>' +
+    '</div>' +
+  '</div>';
 }
 
 function openBancoModal(item) {
@@ -2598,6 +3260,45 @@ function bindEvents() {
   el.btnModalCancelar.addEventListener("click", closeBancoModal);
   el.btnLimparBanco.addEventListener("click", limparBanco);
 
+  // Itens Mestres (Story 4.26)
+  const btnMestres = document.getElementById("btn-itens-mestres");
+  if (btnMestres) btnMestres.addEventListener("click", openMestresModal);
+  const btnMestresFechar = document.getElementById("btn-mestres-fechar");
+  if (btnMestresFechar) btnMestresFechar.addEventListener("click", closeMestresModal);
+  const filtroMestres = document.getElementById("filtro-mestres");
+  if (filtroMestres) filtroMestres.addEventListener("input", renderMestresModal);
+  const modalMestres = document.getElementById("modal-mestres");
+  if (modalMestres) modalMestres.addEventListener("click", (e) => {
+    if (e.target === modalMestres) closeMestresModal();
+  });
+
+  // Timeline modal (Story 4.27)
+  const btnTimelineFechar = document.getElementById("btn-timeline-fechar");
+  if (btnTimelineFechar) btnTimelineFechar.addEventListener("click", closeTimeline);
+  const modalTimeline = document.getElementById("modal-timeline");
+  if (modalTimeline) modalTimeline.addEventListener("click", (e) => {
+    if (e.target === modalTimeline) closeTimeline();
+  });
+
+  // Banco intelligence panel toggle (Story 4.28)
+  const bancoIntelToggle = document.getElementById("banco-intel-toggle");
+  if (bancoIntelToggle) {
+    bancoIntelToggle.addEventListener("click", () => {
+      const body = document.getElementById("banco-intel-body");
+      const chevron = document.getElementById("banco-intel-chevron");
+      if (body) {
+        const open = body.style.display !== "none";
+        body.style.display = open ? "none" : "block";
+        if (chevron) chevron.textContent = open ? "\u25BC" : "\u25B2";
+        if (!open) renderBancoIntel();
+      }
+    });
+  }
+
+  // Auto-preencher button (Story 4.29)
+  const btnAutoPreencher = document.getElementById("btn-auto-preencher");
+  if (btnAutoPreencher) btnAutoPreencher.addEventListener("click", autoPreencherPreOrcamento);
+
   // Modal overlay click to close
   el.modalBanco.addEventListener("click", (e) => {
     if (e.target === el.modalBanco) closeBancoModal();
@@ -2631,6 +3332,10 @@ function bindEvents() {
   el.btnBatchPreorcar.addEventListener("click", batchPreOrcar);
   el.btnBatchExport.addEventListener("click", batchExportCsv);
 
+  // Batch descartar (Story 4.25)
+  const btnBatchDescartar = document.getElementById("btn-batch-descartar");
+  if (btnBatchDescartar) btnBatchDescartar.addEventListener("click", descartarSelecionados);
+
   // Inteligência toggle (Passo 2)
   el.intelToggle.addEventListener("click", toggleIntel);
 
@@ -2646,7 +3351,9 @@ function bindEvents() {
   // Keyboard: Escape fecha modais
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
-      if (el.modalImport.style.display !== "none") closeImportModal();
+      const mestresModal = document.getElementById("modal-mestres");
+      if (mestresModal && mestresModal.style.display !== "none") closeMestresModal();
+      else if (el.modalImport.style.display !== "none") closeImportModal();
       else if (el.modalBanco.style.display !== "none") closeBancoModal();
     }
   });
@@ -2659,6 +3366,12 @@ const UNIT_CONVERSIONS = {
   "fardo": { aliases: ["fardo", "fd"], defaultQty: 6 },
   "duzia": { aliases: ["dz", "duzia", "dúzia"], defaultQty: 12 },
   "resma": { aliases: ["resma", "rm"], defaultQty: 500 },
+  "galao": { aliases: ["galao", "gl"], defaultQty: 5 },
+  "lata": { aliases: ["lata", "lt"], defaultQty: 1 },
+  "rolo": { aliases: ["rolo", "rl"], defaultQty: 1 },
+  "metro": { aliases: ["metro", "m", "mt"], defaultQty: 1 },
+  "litro": { aliases: ["litro", "l", "lt"], defaultQty: 1 },
+  "unidade": { aliases: ["unidade", "un", "und", "peca", "pc"], defaultQty: 1 },
 };
 
 function parseUnitConversion(unidadeStr, precoOriginal) {
@@ -3433,6 +4146,12 @@ function mergeImportIntoBanco() {
   const { rows, mapping } = importData;
   if (mapping.item < 0) { alert("Selecione a coluna de Item / Produto."); return; }
 
+  // Register import file (Story 4.27)
+  const importFilename = document.getElementById("import-filename")?.textContent || "import";
+  const currentArquivo = registrarArquivo(importFilename, "", "excel", 0);
+  const currentArquivoId = currentArquivo.id;
+  const sourceConfidence = currentArquivo.confianca;
+
   const valoresTotal = document.getElementById("chk-valores-totais")?.checked || false;
   let updated = 0, added = 0, converted = 0;
   const todayStr = new Date().toISOString().slice(0, 10);
@@ -3469,22 +4188,63 @@ function mergeImportIntoBanco() {
       existing.ultimaCotacao = todayStr;
       if (preco > 0 && fornecedor) {
         if (!existing.custosFornecedor) existing.custosFornecedor = [];
-        existing.custosFornecedor.push({ fornecedor, preco, data: todayStr });
+        existing.custosFornecedor.push({ fornecedor, preco, data: todayStr, arquivoId: currentArquivoId, descricaoOriginal: itemName, confianca: sourceConfidence });
+        // Detect variation > 20% (Story 4.27)
+        if (existing.custosFornecedor.length >= 2) {
+          const prev = existing.custosFornecedor[existing.custosFornecedor.length - 2].preco;
+          const curr = existing.custosFornecedor[existing.custosFornecedor.length - 1].preco;
+          if (prev > 0) {
+            const varPct = ((curr - prev) / prev) * 100;
+            if (Math.abs(varPct) > 20) {
+              console.warn(`[Banco] Variacao ${varPct.toFixed(1)}%: "${existing.item}" (${brl.format(prev)} -> ${brl.format(curr)})`);
+            }
+          }
+        }
+      }
+      // Link to Item Mestre (Story 4.26)
+      if (!existing.mesterId) {
+        const mestreMatch = findBestMestre(existing.item);
+        if (mestreMatch && mestreMatch.score >= 0.5) {
+          existing.mesterId = mestreMatch.mestre.id;
+          linkItemToMestre(existing.item, mestreMatch.mestre.id);
+        } else {
+          const mestre = createMestreFromItem(existing);
+          existing.mesterId = mestre.id;
+        }
       }
       updated++;
     } else {
       const margemPadrao = 0.30;
       const newId = "bp-" + String(Date.now()).slice(-6) + String(Math.random()).slice(2, 5);
-      bancoPrecos.itens.push({
+      const newItem = {
         id: newId, item: itemName, grupo: "Importado", unidade: unidade || "Unidade",
         custoBase: preco, margemPadrao, precoReferencia: Math.round(preco * (1 + margemPadrao) * 100) / 100,
         ultimaCotacao: todayStr, fonte: fornecedor, propostas: [], concorrentes: [],
-        custosFornecedor: fornecedor && preco > 0 ? [{ fornecedor, preco, data: todayStr }] : [],
-      });
+        custosFornecedor: fornecedor && preco > 0 ? [{ fornecedor, preco, data: todayStr, arquivoId: currentArquivoId, descricaoOriginal: itemName, confianca: sourceConfidence }] : [],
+      };
+      // Link to Item Mestre (Story 4.26)
+      const mestreMatch = findBestMestre(newItem.item);
+      if (mestreMatch && mestreMatch.score >= 0.8) {
+        newItem.mesterId = mestreMatch.mestre.id;
+        linkItemToMestre(newItem.item, mestreMatch.mestre.id);
+      } else if (mestreMatch && mestreMatch.score >= 0.5) {
+        newItem.mesterId = mestreMatch.mestre.id;
+        linkItemToMestre(newItem.item, mestreMatch.mestre.id);
+        console.log(`[Mestre] Match sugerido (${(mestreMatch.score*100).toFixed(0)}%): "${newItem.item}" → "${mestreMatch.mestre.nomeCanonico}"`);
+      } else {
+        const mestre = createMestreFromItem(newItem);
+        newItem.mesterId = mestre.id;
+      }
+      bancoPrecos.itens.push(newItem);
       added++;
     }
   });
 
+  // Update arquivo registry with count (Story 4.27)
+  currentArquivo.qtdItens = updated + added;
+  saveArquivos();
+
+  saveMestres();
   saveBancoLocal(); renderBanco();
   let msg = `${updated} atualizados, ${added} novos.`;
   if (converted > 0) msg += ` ${converted} convertidos (caixa/fardo → unidade).`;
@@ -3497,6 +4257,12 @@ function mergeMapaIntoBanco() {
   const { rows, licitantes, myCompanyIdx, wonItems, nameCol, itemCol, qtdCol, unCol } = importData;
   const valoresTotal = document.getElementById("chk-valores-totais")?.checked || importData.valoresTotal;
   const todayStr = new Date().toISOString().slice(0, 10);
+
+  // Register import file (Story 4.27)
+  const importFilename = document.getElementById("import-filename")?.textContent || "mapa-import";
+  const currentArquivo = registrarArquivo(importFilename, "", "excel", 0);
+  const currentArquivoId = currentArquivo.id;
+  const sourceConfidence = currentArquivo.confianca;
 
   let added = 0, updated = 0, concorrentesAdded = 0;
   const importAll = wonItems.size === 0; // If no classification, import all
@@ -3543,6 +4309,17 @@ function mergeMapaIntoBanco() {
           concorrentesAdded++;
         }
       });
+      // Link to Item Mestre (Story 4.26)
+      if (!existing.mesterId) {
+        const mestreMatch = findBestMestre(existing.item);
+        if (mestreMatch && mestreMatch.score >= 0.5) {
+          existing.mesterId = mestreMatch.mestre.id;
+          linkItemToMestre(existing.item, mestreMatch.mestre.id);
+        } else {
+          const mestre = createMestreFromItem(existing);
+          existing.mesterId = mestre.id;
+        }
+      }
       updated++;
     } else if (isWon || importAll) {
       // Create new item
@@ -3553,17 +4330,32 @@ function mergeMapaIntoBanco() {
         .map((p) => ({ nome: p.nome, preco: p.preco, data: todayStr, edital: "Mapa Import" }));
       concorrentesAdded += competitorPrices.length;
 
-      bancoPrecos.itens.push({
+      const newItem = {
         id: newId, item: itemName, grupo: "Mapa Apuracao", unidade: unidade || "Unidade",
         custoBase, margemPadrao, precoReferencia: Math.round(custoBase * (1 + margemPadrao) * 100) / 100,
         ultimaCotacao: todayStr, fonte: "Mapa de Apuracao",
         propostas: [], concorrentes: competitorPrices,
-        custosFornecedor: myPrice > 0 ? [{ fornecedor: "Meu preco (mapa)", preco: myPrice, data: todayStr }] : [],
-      });
+        custosFornecedor: myPrice > 0 ? [{ fornecedor: "Meu preco (mapa)", preco: myPrice, data: todayStr, arquivoId: currentArquivoId, descricaoOriginal: itemName, confianca: sourceConfidence }] : [],
+      };
+      // Link to Item Mestre (Story 4.26)
+      const mestreMatch = findBestMestre(newItem.item);
+      if (mestreMatch && mestreMatch.score >= 0.5) {
+        newItem.mesterId = mestreMatch.mestre.id;
+        linkItemToMestre(newItem.item, mestreMatch.mestre.id);
+      } else {
+        const mestre = createMestreFromItem(newItem);
+        newItem.mesterId = mestre.id;
+      }
+      bancoPrecos.itens.push(newItem);
       added++;
     }
   });
 
+  // Update arquivo registry with count (Story 4.27)
+  currentArquivo.qtdItens = updated + added;
+  saveArquivos();
+
+  saveMestres();
   saveBancoLocal(); renderBanco();
 
   const wonCount = wonItems.size || rows.length;
