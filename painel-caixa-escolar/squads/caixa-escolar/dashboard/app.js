@@ -1581,6 +1581,19 @@ function renderPreOrcamentoItens() {
       ? `<input type="text" class="preorcamento-input" value="${escapeHtml(marcaVal)}" placeholder="Marca" style="width:80px" onchange="updatePreItem(${idx}, 'marca', this.value)" />`
       : escapeHtml(marcaVal);
 
+    // Botão pesquisar preço (Story 4.30+)
+    const searchBtn = isEditable
+      ? `<div class="search-preco-wrap" style="margin-top:4px;">
+          <button class="btn btn-inline btn-sm" onclick="toggleSearchMenu(${idx})" title="Pesquisar preço" style="font-size:0.7rem;padding:2px 6px;">🔍 Pesquisar</button>
+          <div id="search-menu-${idx}" class="search-menu" style="display:none;position:absolute;background:#fff;border:1px solid #ddd;border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,0.15);z-index:100;padding:4px 0;min-width:180px;">
+            <a href="#" onclick="pesquisarPrecoPNCP(${idx});return false;" style="display:block;padding:6px 12px;text-decoration:none;color:#333;font-size:0.8rem;">📋 PNCP (Preço de Referência)</a>
+            <a href="#" onclick="pesquisarPrecoGoogle(${idx});return false;" style="display:block;padding:6px 12px;text-decoration:none;color:#333;font-size:0.8rem;">🔎 Google Shopping</a>
+            <a href="#" onclick="pesquisarPrecoBanco(${idx});return false;" style="display:block;padding:6px 12px;text-decoration:none;color:#333;font-size:0.8rem;">💰 Banco de Preços</a>
+            <a href="#" onclick="pesquisarPrecoMercadoLivre(${idx});return false;" style="display:block;padding:6px 12px;text-decoration:none;color:#333;font-size:0.8rem;">🛒 Mercado Livre</a>
+          </div>
+        </div>`
+      : "";
+
     return `<tr>
       <td>
         <strong>${escapeHtml(item.nome)}</strong>
@@ -1589,6 +1602,7 @@ function renderPreOrcamentoItens() {
         ${pncpHint}
         ${concHint}
         ${fornHint}
+        ${searchBtn}
       </td>
       <td>${marcaInput}</td>
       <td class="text-right">${item.quantidade}</td>
@@ -5993,6 +6007,105 @@ function confirmarAIImport() {
   window._aiImportData = null;
   showToast(`AI Import: ${updated} atualizados, ${added} novos adicionados`);
 }
+
+// ===== RECALC PRÉ-ORÇAMENTO =====
+function recalcPreOrcamento(pre) {
+  if (!pre || !pre.itens) return;
+  pre.totalGeral = Math.round(pre.itens.reduce((s, i) => s + (i.precoTotal || 0), 0) * 100) / 100;
+  const margens = pre.itens.filter(i => i.custoUnitario > 0).map(i => i.margem || 0);
+  pre.margemMedia = margens.length ? margens.reduce((a, b) => a + b, 0) / margens.length : 0.30;
+}
+
+// ===== PESQUISAR PREÇO POR ITEM (Pré-Orçamento) =====
+
+window.toggleSearchMenu = function(idx) {
+  // Close all other menus
+  document.querySelectorAll(".search-menu").forEach(m => m.style.display = "none");
+  const menu = document.getElementById("search-menu-" + idx);
+  if (menu) menu.style.display = menu.style.display === "none" ? "block" : "none";
+};
+
+// Close search menus on click outside
+document.addEventListener("click", (e) => {
+  if (!e.target.closest(".search-preco-wrap")) {
+    document.querySelectorAll(".search-menu").forEach(m => m.style.display = "none");
+  }
+});
+
+window.pesquisarPrecoPNCP = async function(idx) {
+  document.querySelectorAll(".search-menu").forEach(m => m.style.display = "none");
+  const pre = preOrcamentos[activePreOrcamentoId];
+  if (!pre || !pre.itens[idx]) return;
+  const item = pre.itens[idx];
+  showToast("Buscando no PNCP: " + item.nome + "...");
+
+  const resultado = await consultarPNCP(item.nome, item.idBudgetItem);
+  if (resultado && resultado.menorPreco > 0) {
+    const usar = confirm(`PNCP encontrou: ${brl.format(resultado.menorPreco)}\nÓrgão: ${resultado.orgao}\n\nUsar como preço de custo?`);
+    if (usar) {
+      item.custoUnitario = resultado.menorPreco;
+      item.precoUnitario = Math.round(item.custoUnitario * (1 + item.margem) * 100) / 100;
+      item.precoTotal = Math.round(item.precoUnitario * item.quantidade * 100) / 100;
+      recalcPreOrcamento(pre);
+      savePreOrcamentos();
+      renderPreOrcamentoItens();
+      showToast("Preço PNCP aplicado: " + brl.format(resultado.menorPreco));
+    }
+  } else {
+    showToast("PNCP: nenhum resultado para " + item.nome);
+  }
+};
+
+window.pesquisarPrecoGoogle = function(idx) {
+  document.querySelectorAll(".search-menu").forEach(m => m.style.display = "none");
+  const pre = preOrcamentos[activePreOrcamentoId];
+  if (!pre || !pre.itens[idx]) return;
+  const termo = encodeURIComponent(pre.itens[idx].nome + " preço atacado");
+  window.open("https://www.google.com/search?tbm=shop&q=" + termo, "_blank");
+};
+
+window.pesquisarPrecoMercadoLivre = function(idx) {
+  document.querySelectorAll(".search-menu").forEach(m => m.style.display = "none");
+  const pre = preOrcamentos[activePreOrcamentoId];
+  if (!pre || !pre.itens[idx]) return;
+  const termo = encodeURIComponent(pre.itens[idx].nome);
+  window.open("https://lista.mercadolivre.com.br/" + termo, "_blank");
+};
+
+window.pesquisarPrecoBanco = function(idx) {
+  document.querySelectorAll(".search-menu").forEach(m => m.style.display = "none");
+  const pre = preOrcamentos[activePreOrcamentoId];
+  if (!pre || !pre.itens[idx]) return;
+  const item = pre.itens[idx];
+
+  const bp = findBancoItem(item.nome);
+  if (bp) {
+    const stats = calcHistoricoStats(bp.custosFornecedor);
+    let msg = `Banco de Preços: ${item.nome}\n\n`;
+    msg += `Custo base: ${brl.format(bp.custoBase)}\n`;
+    msg += `Preço referência: ${brl.format(bp.precoReferencia)}\n`;
+    if (bp.marca) msg += `Marca: ${bp.marca}\n`;
+    if (stats) {
+      msg += `\nHistórico (${stats.totalRegistros} registros):\n`;
+      msg += `  Min: ${brl.format(stats.min)} | Méd: ${brl.format(stats.media)} | Max: ${brl.format(stats.max)}\n`;
+      if (stats.melhorFornecedor) msg += `  Melhor fornecedor: ${stats.melhorFornecedor}\n`;
+    }
+    msg += `\nUsar custo base (${brl.format(bp.custoBase)}) como preço de custo?`;
+
+    if (confirm(msg)) {
+      item.custoUnitario = bp.custoBase;
+      if (bp.marca && !item.marca) item.marca = bp.marca;
+      item.precoUnitario = Math.round(item.custoUnitario * (1 + item.margem) * 100) / 100;
+      item.precoTotal = Math.round(item.precoUnitario * item.quantidade * 100) / 100;
+      recalcPreOrcamento(pre);
+      savePreOrcamentos();
+      renderPreOrcamentoItens();
+      showToast("Preço do banco aplicado: " + brl.format(bp.custoBase));
+    }
+  } else {
+    showToast("Item não encontrado no Banco de Preços.");
+  }
+};
 
 // ===== F7: PNCP INTEGRATION =====
 async function consultarPNCP(itemNome, itemId) {
