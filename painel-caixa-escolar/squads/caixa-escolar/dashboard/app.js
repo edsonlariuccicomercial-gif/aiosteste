@@ -1148,8 +1148,6 @@ function filteredOrcamentos() {
     .filter((o) => {
       if (status === "com-preorcamento") return !!(preOrcamentos && preOrcamentos[o.id]);
       if (status === "descartados") return isDescartado(o.id);
-      // By default, hide items that already have pre-orcamento
-      if (preOrcamentos && preOrcamentos[o.id]) return false;
       return !isDescartado(o.id);
     })
     .filter((o) => {
@@ -1366,36 +1364,22 @@ function renderOrcamentos() {
       ? `<input type="checkbox" class="row-check" data-id="${o.id}" ${checked} />`
       : "";
 
-    let rowStyle = "";
-    if (viewingDescartados) {
-      rowStyle = ' style="opacity:0.6"';
-    } else if (days <= 0) {
-      rowStyle = ' style="border-left:3px solid #94a3b8;color:#64748b;"';
-    } else if (days <= 3) {
-      rowStyle = ' style="background:#fef2f2;border-left:3px solid #ef4444;"';
-    } else if (days <= 7) {
-      rowStyle = ' style="background:#fffbeb;border-left:3px solid #f59e0b;"';
-    }
-    return `<tr${rowStyle}>
+    const trStyle = viewingDescartados ? ' style="opacity:0.6"' : '';
+    const objetoDisplay = o.objetoCustom || (o.objeto || "").replace(/\n/g, " ");
+    const objetoOriginal = o.objeto || "";
+    const isCustom = o.objetoCustom && o.objetoCustom !== objetoOriginal;
+    const editIcon = `<span class="btn-inline btn-muted" onclick="event.stopPropagation();editarObjeto('${o.id}')" title="Editar objeto" style="cursor:pointer;font-size:0.7rem;margin-left:4px">&#9998;</span>`;
+    const resetIcon = isCustom ? `<span class="btn-inline btn-muted" onclick="event.stopPropagation();resetarObjeto('${o.id}')" title="Restaurar original" style="cursor:pointer;font-size:0.7rem;margin-left:2px">&#8617;</span>` : "";
+    const itensResumo = (o.itens && o.itens.length > 0) ? '<br><span style="font-size:0.7rem;color:#666;">' + o.itens.length + ' iten(s): ' + o.itens.slice(0,3).map(i => escapeHtml((i.nome||'').slice(0,20))).join(', ') + (o.itens.length > 3 ? '...' : '') + '</span>' : '';
+    const unidades = (() => { const u = (o.itens||[]).map(i=>(i.unidade||"").toUpperCase()).filter(Boolean); return [...new Set(u)].join(", ") || "—"; })();
+
+    return `<tr${trStyle}>
       <td>${checkboxHtml}</td>
       <td class="font-mono text-muted">${escapeHtml(o.id)}</td>
       <td>${escapeHtml(o.escola)}</td>
       <td>${escapeHtml(o.municipio)}</td>
-      <td class="obj-cell" title="${escapeHtml((o.objetoOriginal || o.objeto || '').replace(/\n/g, ' ').slice(0, 200))}">
-        ${(() => {
-          const itemsSummary = getItemsSummary(o);
-          const objetoTexto = (o.objetoCustom || o.objeto || "").replace(/\n/g, " ");
-          const editBtn = '<span class="btn-inline btn-muted" onclick="event.stopPropagation();editarObjeto(\'' + o.id + '\')" title="Ver/editar objeto" style="cursor:pointer;font-size:0.7rem;margin-left:4px">&#9998;</span>';
-          const resetBtn = o.objetoCustom ? ' <span class="badge badge-editado" style="font-size:0.6rem;opacity:0.7;vertical-align:middle" title="Original: ' + escapeHtml((o.objetoOriginal || o.objeto || '').substring(0,120)) + '">editado</span> <span class="btn-inline btn-muted" onclick="event.stopPropagation();resetarObjeto(\'' + o.id + '\')" title="Restaurar original" style="cursor:pointer;font-size:0.7rem">&#8617;</span>' : '';
-          if (itemsSummary) {
-            const _uds = (o.itens || []).length > 0 ? [...new Set(o.itens.map(i => (i.unidade || "UN").toUpperCase()))].join(", ") : "";
-            const _udBadge = _uds ? ' <span style="font-size:0.65rem;background:#e0e7ff;color:#3730a3;padding:1px 4px;border-radius:3px;margin-left:4px;">' + escapeHtml(_uds) + '</span>' : '';
-            return '<span style="font-size:0.8rem;">' + escapeHtml(itemsSummary) + _udBadge + '</span>' + resetBtn + editBtn;
-          }
-          return escapeHtml(objetoTexto) + resetBtn + editBtn;
-        })()}
-      </td>
-      <td class="nowrap" style="font-size:0.75rem;">${(() => { const u = (o.itens||[]).map(i=>(i.unidade||"").toUpperCase()).filter(Boolean); return [...new Set(u)].join(", ") || "—"; })()}</td>
+      <td class="obj-cell" title="${escapeHtml(objetoOriginal)}">${escapeHtml(objetoDisplay)}${isCustom ? ' <span class="badge badge-editado" style="font-size:0.6rem">editado</span>' : ''}${resetIcon}${editIcon}${itensResumo}</td>
+      <td class="nowrap" style="font-size:0.75rem;">${unidades}</td>
       <td>${grupoBadge}</td>
       <td class="nowrap">${formatDate(o.prazo)}</td>
       <td class="nowrap">${entregaBadge}</td>
