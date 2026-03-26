@@ -1395,6 +1395,7 @@ function renderOrcamentos() {
           return escapeHtml(objetoTexto) + resetBtn + editBtn;
         })()}
       </td>
+      <td class="nowrap" style="font-size:0.75rem;">${(() => { const u = (o.itens||[]).map(i=>(i.unidade||"").toUpperCase()).filter(Boolean); return [...new Set(u)].join(", ") || "—"; })()}</td>
       <td>${grupoBadge}</td>
       <td class="nowrap">${formatDate(o.prazo)}</td>
       <td class="nowrap">${entregaBadge}</td>
@@ -2070,6 +2071,7 @@ function renderPreOrcamentosLista() {
         <td class="font-mono text-muted">${escapeHtml(p.orcamentoId)}</td>
         <td>${escapeHtml(p.escola)}</td>
         <td title="${iTooltip}" style="font-size:0.8rem;max-width:200px;">${iSummary}</td>
+        <td class="nowrap" style="font-size:0.75rem;">${(() => { const u = (p.itens||[]).map(i=>(i.unidade||"").toUpperCase()).filter(Boolean); return [...new Set(u)].join(", ") || "—"; })()}</td>
         <td><span class="badge ${badgeClass}">${p.status}</span></td>
         <td class="text-right font-mono">${brl.format(p.totalGeral || 0)}</td>
         <td class="nowrap">${formatDate(p.criadoEm)}</td>
