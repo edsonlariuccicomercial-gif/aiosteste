@@ -1534,9 +1534,26 @@ window.abrirPreOrcamento = function (orcId) {
     el.preorcamentoFrete.textContent = "Sem frete (mesmo município)";
   }
 
-  // Competitive analysis (Story 4.29)
+  // Status banner for ganho/perdido
   const analiseContainer = document.getElementById("analise-competitiva-container");
-  if (analiseContainer) analiseContainer.innerHTML = renderAnaliseCompetitiva(pre);
+  if (analiseContainer) {
+    if (pre.status === "ganho") {
+      const contratoNum = pre.contratoNumero || "—";
+      analiseContainer.innerHTML = `<div style="background:#d1fae5;border:1px solid #10b981;padding:0.75rem;border-radius:8px;margin-bottom:1rem;">
+        <strong style="color:#065f46;">CONTRATO GANHO</strong>
+        <div style="margin-top:0.3rem;font-size:0.85rem;">
+          Contrato: <strong>${escapeHtml(contratoNum)}</strong> | Escola: <strong>${escapeHtml(pre.escola)}</strong> | Valor: <strong>${brl.format(pre.totalGeral)}</strong> | ${pre.itens ? pre.itens.length : 0} itens
+        </div>
+      </div>`;
+    } else if (pre.status === "perdido") {
+      analiseContainer.innerHTML = `<div style="background:#fee2e2;border:1px solid #ef4444;padding:0.75rem;border-radius:8px;margin-bottom:1rem;">
+        <strong style="color:#991b1b;">PROCESSO PERDIDO</strong>
+        <div style="margin-top:0.3rem;font-size:0.85rem;">Escola: ${escapeHtml(pre.escola)} | Valor: ${brl.format(pre.totalGeral)}</div>
+      </div>`;
+    } else {
+      analiseContainer.innerHTML = renderAnaliseCompetitiva(pre);
+    }
+  }
 
   renderPreOrcamentoItens();
 
