@@ -4940,11 +4940,18 @@ function renderSgd() {
         actions = `<button class="btn btn-inline" onclick="sgdBaixarPayload('${p.orcamentoId}')">Payload</button>`;
       }
 
+      // Resumo dos itens
+      const itens = p.itens || [];
+      const resumoItens = itens.length > 0
+        ? `<span title="${itens.map(i => i.nome).join('\n')}" style="font-size:0.75rem;color:#555;cursor:help;">${itens.length} iten(s): ${itens.slice(0, 3).map(i => escapeHtml((i.nome || "").slice(0, 25))).join(", ")}${itens.length > 3 ? "..." : ""}</span>`
+        : '<span class="text-muted" style="font-size:0.75rem;">—</span>';
+
       return `<tr>
         <td>${checkbox}</td>
         <td class="font-mono text-muted">${escapeHtml(p.orcamentoId)}</td>
         <td>${escapeHtml(p.escola)}</td>
         <td>${escapeHtml(p.municipio)}</td>
+        <td style="max-width:250px;">${resumoItens}</td>
         <td class="text-right font-mono">${brl.format(p.totalGeral || 0)}</td>
         <td><span class="badge ${badge.cls}">${badge.label}</span> <span class="text-muted" style="font-size:0.72rem">${dateInfo}</span></td>
         <td class="nowrap">${actions}</td>
