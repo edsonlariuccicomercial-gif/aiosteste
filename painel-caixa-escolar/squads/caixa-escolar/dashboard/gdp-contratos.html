@@ -189,16 +189,15 @@
         <div class="sidebar-subnav" id="gdp-sidebar-menu">
           <div class="sidebar-subnav-label">Menu GDP</div>
           <button class="sidebar-subitem" data-gdp-tab="usuarios" onclick="switchTab('usuarios')"><span class="sidebar-subitem-label">Clientes</span><span class="count" id="tab-count-usuarios">0</span></button>
-          <button class="sidebar-subitem" data-gdp-tab="notas-entrada" onclick="switchTab('notas-entrada')"><span class="sidebar-subitem-label">Notas de Entrada</span><span class="count" id="tab-count-notas-entrada">0</span></button>
-          <button class="sidebar-subitem" data-gdp-tab="estoque" onclick="switchTab('estoque')"><span class="sidebar-subitem-label">Estoque Intel</span><span class="count" id="tab-count-estoque">0</span></button>
           <button class="sidebar-subitem active" data-gdp-tab="contratos" onclick="switchTab('contratos')"><span class="sidebar-subitem-label">Contratos</span><span class="count" id="tab-count-contratos">0</span></button>
           <button class="sidebar-subitem" data-gdp-tab="pedidos" onclick="switchTab('pedidos')"><span class="sidebar-subitem-label">Pedidos</span><span class="count" id="tab-count-pedidos">0</span></button>
-          <button class="sidebar-subitem" data-gdp-tab="entregas" onclick="switchTab('entregas')"><span class="sidebar-subitem-label">Entregas</span><span class="count" id="tab-count-entregas">0</span></button>
           <button class="sidebar-subitem" data-gdp-tab="notas-fiscais" onclick="switchTab('notas-fiscais')"><span class="sidebar-subitem-label">Notas Fiscais</span><span class="count" id="tab-count-notas-fiscais">0</span></button>
+          <button class="sidebar-subitem" data-gdp-tab="estoque" onclick="switchTab('estoque')"><span class="sidebar-subitem-label">Inteligência</span><span class="count" id="tab-count-estoque">0</span></button>
+          <button class="sidebar-subitem" data-gdp-tab="entregas" onclick="switchTab('entregas')"><span class="sidebar-subitem-label">Entregas</span><span class="count" id="tab-count-entregas">0</span></button>
+          <button class="sidebar-subitem" data-gdp-tab="caixa" onclick="switchTab('caixa')"><span class="sidebar-subitem-label">Caixa</span><span class="count" id="tab-count-caixa">0</span></button>
           <button class="sidebar-subitem" data-gdp-tab="contas-pagar" onclick="switchTab('contas-pagar')"><span class="sidebar-subitem-label">Contas a Pagar</span><span class="count" id="tab-count-contas-pagar">0</span></button>
           <button class="sidebar-subitem" data-gdp-tab="contas-receber" onclick="switchTab('contas-receber')"><span class="sidebar-subitem-label">Contas a Receber</span><span class="count" id="tab-count-contas-receber">0</span></button>
-          <button class="sidebar-subitem" data-gdp-tab="caixa" onclick="switchTab('caixa')"><span class="sidebar-subitem-label">Caixa</span><span class="count" id="tab-count-caixa">0</span></button>
-          <button class="sidebar-subitem" data-gdp-tab="relatorios" onclick="switchTab('relatorios')"><span class="sidebar-subitem-label">Relatorios</span><span class="count" id="tab-count-relatorios">0</span></button>
+          <button class="sidebar-subitem" data-gdp-tab="relatorios" onclick="switchTab('relatorios')"><span class="sidebar-subitem-label">Relatórios</span><span class="count" id="tab-count-relatorios">0</span></button>
         </div>
       </div>
     </nav>
@@ -784,52 +783,15 @@
   </div>
 
   <!-- Tab: Notas de Entrada -->
-  <div id="tab-notas-entrada" class="hidden">
-    <div class="card">
-      <h2>Notas de Entrada</h2>
-      <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr auto;gap:.8rem;align-items:end;margin-bottom:1rem">
-        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Fornecedor</label><input type="text" id="ne-fornecedor" placeholder="Razao social do fornecedor"></div>
-        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Numero</label><input type="text" id="ne-numero" placeholder="NF"></div>
-        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Chave</label><input type="text" id="ne-chave" placeholder="44 digitos"></div>
-        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Valor</label><input type="number" id="ne-valor" min="0" step="0.01" placeholder="0,00"></div>
-        <div style="display:flex;gap:.5rem;flex-wrap:wrap">
-          <button class="btn btn-green" onclick="registrarNotaEntradaManual()">Registrar</button>
-          <button class="btn btn-outline" onclick="document.getElementById('import-nota-entrada-xml').click()">Importar XML</button>
-          <button class="btn btn-outline" onclick="consultarNotasEntradaApi()">Consultar API</button>
-        </div>
-      </div>
-      <input type="file" id="import-nota-entrada-xml" accept=".xml,text/xml" style="display:none" onchange="importarNotaEntradaXml(this)">
-      <div class="kpi-grid" style="margin-bottom:1rem">
-        <div class="kpi"><div class="kpi-label">Notas Capturadas</div><div class="kpi-value blue" id="ne-kpi-total">0</div><div class="kpi-sub">Entradas registradas para o CNPJ</div></div>
-        <div class="kpi"><div class="kpi-label">Pendentes API</div><div class="kpi-value yellow" id="ne-kpi-pendentes">0</div><div class="kpi-sub">Consultas aguardando retorno backend</div></div>
-        <div class="kpi"><div class="kpi-label">Valor Total</div><div class="kpi-value green" id="ne-kpi-valor">R$ 0</div><div class="kpi-sub">Soma das notas de entrada</div></div>
-      </div>
-      <div class="table-wrap" style="max-height:480px;overflow-y:auto">
-        <table>
-          <thead>
-            <tr>
-              <th>Emissao</th>
-              <th>Fornecedor</th>
-              <th>Numero</th>
-              <th>Chave</th>
-              <th class="text-right">Valor</th>
-              <th>Status</th>
-              <th>Origem</th>
-            </tr>
-          </thead>
-          <tbody id="notas-entrada-tbody"></tbody>
-        </table>
-      </div>
-      <div class="empty hidden" id="notas-entrada-empty"><h3>Nenhuma nota de entrada registrada</h3><p>Use XML, cadastro manual ou consulta API para acompanhar documentos emitidos contra seu CNPJ.</p></div>
-    </div>
-  </div>
+  <!-- Notas de Entrada movido para dentro de Inteligência -->
+  <div id="tab-notas-entrada" class="hidden" style="display:none !important;"></div>
 
   <!-- Tab: Estoque -->
   <div id="tab-estoque" class="hidden">
     <div class="card" style="margin-bottom:1rem">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap">
         <div>
-          <h2>Estoque Intel</h2>
+          <h2>Inteligência</h2>
           <div style="font-size:.82rem;color:var(--mut)">Fase 2 web ativa: operacao por produto, embalagem, demanda, estoque calculado e sugestao inteligente de compra.</div>
         </div>
         <div style="display:flex;gap:.5rem;flex-wrap:wrap">
@@ -859,6 +821,7 @@
         <button class="btn btn-outline btn-sm" id="ei-view-btn-fornecedores" onclick="setEstoqueIntelView('fornecedores')">Fornecedores</button>
         <button class="btn btn-outline btn-sm" id="ei-view-btn-pedidos" onclick="setEstoqueIntelView('pedidos')">Demandas</button>
         <button class="btn btn-outline btn-sm" id="ei-view-btn-compra" onclick="setEstoqueIntelView('compra')">Compra Inteligente</button>
+        <button class="btn btn-outline btn-sm" id="ei-view-btn-notas-entrada" onclick="setEstoqueIntelView('notas-entrada')">Notas de Entrada</button>
         <button class="btn btn-outline btn-sm" id="ei-view-btn-estoque" onclick="setEstoqueIntelView('estoque')">Estoque</button>
       </div>
       <div id="ei-api-status" style="margin-top:.75rem;font-size:.8rem;color:var(--mut)">API pronta para consulta em <span class="font-mono">/api/produtos</span>, <span class="font-mono">/api/embalagens</span> e <span class="font-mono">/api/estoque</span>.</div>
@@ -1132,6 +1095,34 @@
           <tbody id="ei-lista-compras-tbody"></tbody>
         </table>
       </div>
+    </div>
+    <!-- Notas de Entrada (dentro de Inteligência, entre Compra e Estoque) -->
+    <div class="card" id="ei-card-notas-entrada" data-ei-section="notas-entrada" style="margin-top:1rem">
+      <h3>Notas de Entrada</h3>
+      <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr auto;gap:.8rem;align-items:end;margin-bottom:1rem">
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Fornecedor</label><input type="text" id="ne-fornecedor" placeholder="Razao social do fornecedor"></div>
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Numero</label><input type="text" id="ne-numero" placeholder="NF"></div>
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Chave</label><input type="text" id="ne-chave" placeholder="44 digitos"></div>
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Valor</label><input type="number" id="ne-valor" min="0" step="0.01" placeholder="0,00"></div>
+        <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+          <button class="btn btn-green" onclick="registrarNotaEntradaManual()">Registrar</button>
+          <button class="btn btn-outline" onclick="document.getElementById('import-nota-entrada-xml').click()">Importar XML</button>
+          <button class="btn btn-outline" onclick="consultarNotasEntradaApi()">Consultar API</button>
+        </div>
+      </div>
+      <input type="file" id="import-nota-entrada-xml" accept=".xml,text/xml" style="display:none" onchange="importarNotaEntradaXml(this)">
+      <div class="kpi-grid" style="margin-bottom:1rem">
+        <div class="kpi"><div class="kpi-label">Notas Capturadas</div><div class="kpi-value blue" id="ne-kpi-total">0</div><div class="kpi-sub">Entradas registradas para o CNPJ</div></div>
+        <div class="kpi"><div class="kpi-label">Pendentes API</div><div class="kpi-value yellow" id="ne-kpi-pendentes">0</div><div class="kpi-sub">Consultas aguardando retorno backend</div></div>
+        <div class="kpi"><div class="kpi-label">Valor Total</div><div class="kpi-value green" id="ne-kpi-valor">R$ 0</div><div class="kpi-sub">Soma das notas de entrada</div></div>
+      </div>
+      <div class="table-wrap" style="max-height:480px;overflow-y:auto">
+        <table>
+          <thead><tr><th>Emissao</th><th>Fornecedor</th><th>Numero</th><th>Chave</th><th class="text-right">Valor</th><th>Status</th><th>Origem</th></tr></thead>
+          <tbody id="notas-entrada-tbody"></tbody>
+        </table>
+      </div>
+      <div class="empty hidden" id="notas-entrada-empty"><h3>Nenhuma nota de entrada registrada</h3><p>Use XML, cadastro manual ou consulta API para acompanhar documentos emitidos contra seu CNPJ.</p></div>
     </div>
     <div id="ei-grid-compra" style="display:grid;grid-template-columns:1fr;gap:1rem;align-items:start;margin-top:1rem">
       <div class="card" id="ei-card-fornecedores" data-ei-section="fornecedores">
@@ -10250,7 +10241,7 @@ function renderEstoque() {
     const shouldShowCadastro = estoqueIntelCurrentView === "produtos" && (section === "produtos" || section === "embalagens");
     el.classList.toggle("hidden", !(shouldShowCadastro || estoqueIntelCurrentView === section));
   });
-  ["produtos", "fornecedores", "pedidos", "compra", "estoque"].forEach((view) => {
+  ["produtos", "fornecedores", "pedidos", "compra", "notas-entrada", "estoque"].forEach((view) => {
     const btn = document.getElementById(`ei-view-btn-${view}`);
     if (!btn) return;
     btn.className = `btn ${estoqueIntelCurrentView === view ? "btn-green" : "btn-outline"} btn-sm`;
