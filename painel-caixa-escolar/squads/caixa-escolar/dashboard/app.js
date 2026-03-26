@@ -4894,6 +4894,34 @@ async function enviarParaSgd() {
 }
 
 // ===== SGD TAB =====
+window.imprimirSgd = function() {
+  const tabela = document.getElementById("tabela-sgd");
+  if (!tabela) return;
+  const win = window.open("", "_blank");
+  win.document.write(`<!DOCTYPE html><html><head><title>Envio SGD — Licit-AIX</title>
+    <style>
+      body { font-family: Arial, sans-serif; font-size: 11px; margin: 20px; }
+      h2 { font-size: 16px; margin-bottom: 10px; }
+      table { width: 100%; border-collapse: collapse; }
+      th, td { border: 1px solid #ccc; padding: 4px 6px; text-align: left; }
+      th { background: #f0f0f0; font-weight: bold; }
+      .badge { padding: 2px 6px; border-radius: 4px; font-size: 10px; }
+      .badge-aprovado { background: #dbeafe; color: #1e40af; }
+      .badge-enviado { background: #fef3c7; color: #92400e; }
+      .badge-ganho { background: #d1fae5; color: #065f46; }
+      .badge-perdido { background: #fee2e2; color: #991b1b; }
+      .text-muted { color: #999; }
+      .font-mono { font-family: monospace; }
+      @media print { body { margin: 10px; } }
+    </style>
+  </head><body>
+    <h2>Envio ao SGD — ${new Date().toLocaleDateString("pt-BR")}</h2>
+    ${tabela.outerHTML}
+  </body></html>`);
+  win.document.close();
+  setTimeout(() => { win.print(); }, 300);
+};
+
 function renderSgd() {
   const allPre = Object.values(preOrcamentos);
   const ready = allPre.filter((p) => p.status === "aprovado");
