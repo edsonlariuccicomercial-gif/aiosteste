@@ -626,6 +626,20 @@
         </div>
       </div>
 
+      <!-- Filtros SGD -->
+      <div class="filters" style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.75rem;">
+        <select id="filtro-sgd-escola"><option value="all">Todas as escolas</option></select>
+        <select id="filtro-sgd-municipio"><option value="all">Todos os municípios</option></select>
+        <select id="filtro-sgd-status">
+          <option value="all">Todos os status</option>
+          <option value="aprovado">Pronto</option>
+          <option value="enviado">Enviado</option>
+          <option value="ganho">Ganho</option>
+          <option value="perdido">Perdido</option>
+        </select>
+        <input type="text" id="filtro-sgd-texto" placeholder="Buscar..." autocomplete="off" style="padding:0.4rem;" />
+      </div>
+
       <!-- Tabela SGD -->
       <div class="table-wrap">
         <table id="tabela-sgd">

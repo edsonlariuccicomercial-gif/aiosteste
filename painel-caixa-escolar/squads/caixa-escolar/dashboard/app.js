@@ -3699,6 +3699,14 @@ function bindEvents() {
   el.btnSgdEnviarTodos.addEventListener("click", sgdEnviarTodos);
   el.btnSgdBaixarTodos.addEventListener("click", sgdBaixarTodos);
 
+  // Filtros SGD
+  ["filtro-sgd-escola", "filtro-sgd-municipio", "filtro-sgd-status"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener("change", renderSgd);
+  });
+  const fSgdTexto = document.getElementById("filtro-sgd-texto");
+  if (fSgdTexto) fSgdTexto.addEventListener("input", renderSgd);
+
   // Keyboard: Escape fecha modais
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
@@ -4889,7 +4897,37 @@ function renderSgd() {
   const sent = allPre.filter((p) => p.status === "enviado");
   const ganhos = allPre.filter((p) => p.status === "ganho");
   const perdidos = allPre.filter((p) => p.status === "perdido");
-  const sgdItems = [...ready, ...sent, ...ganhos, ...perdidos];
+  let sgdItems = [...ready, ...sent, ...ganhos, ...perdidos];
+
+  // Filtros SGD
+  const fEscola = document.getElementById("filtro-sgd-escola");
+  const fMun = document.getElementById("filtro-sgd-municipio");
+  const fStatus = document.getElementById("filtro-sgd-status");
+  const fTexto = document.getElementById("filtro-sgd-texto");
+
+  // Popular dropdowns
+  if (fEscola && fEscola.options.length <= 1) {
+    const escolas = [...new Set(sgdItems.map(p => p.escola).filter(Boolean))].sort();
+    escolas.forEach(e => { const o = document.createElement("option"); o.value = e; o.textContent = e; fEscola.appendChild(o); });
+  }
+  if (fMun && fMun.options.length <= 1) {
+    const muns = [...new Set(sgdItems.map(p => p.municipio).filter(Boolean))].sort();
+    muns.forEach(m => { const o = document.createElement("option"); o.value = m; o.textContent = m; fMun.appendChild(o); });
+  }
+
+  // Aplicar filtros
+  const escola = fEscola ? fEscola.value : "all";
+  const mun = fMun ? fMun.value : "all";
+  const status = fStatus ? fStatus.value : "all";
+  const texto = fTexto ? normalizedText(fTexto.value.trim()) : "";
+
+  sgdItems = sgdItems.filter(p => {
+    if (escola !== "all" && p.escola !== escola) return false;
+    if (mun !== "all" && p.municipio !== mun) return false;
+    if (status !== "all" && p.status !== status) return false;
+    if (texto && !normalizedText([p.escola, p.municipio, p.orcamentoId, ...(p.itens || []).map(i => i.nome)].join(" ")).includes(texto)) return false;
+    return true;
+  });
 
   // KPIs
   el.sgdKpiProntos.textContent = ready.length;
@@ -5827,24 +5865,26 @@ window.gerarContratoUnificado = function() {
   const numContrato = prompt(`Gerar contrato unificado com ${pres.length} processo(s) (${escolaLabel}).\n\nNúmero do contrato/ARP:`);
   if (numContrato === null) return;
 
-  // Consolidar todos os itens
+  // Consolidar todos os itens e calcular soma real
   const todosItens = [];
   let valorTotal = 0;
   pres.forEach(pre => {
     (pre.itens || []).forEach(item => {
+      const precoTotal = (item.precoUnitario || 0) * (item.quantidade || 0);
       todosItens.push({
         nome: item.nome || "",
         descricao: item.descricao || "",
         quantidade: item.quantidade || 0,
         unidade: item.unidade || "UN",
         precoUnitario: item.precoUnitario || 0,
-        precoTotal: item.precoTotal || 0,
+        precoTotal: Math.round(precoTotal * 100) / 100,
         marca: item.marca || "",
         orcamentoOrigem: pre.orcamentoId,
       });
+      valorTotal += precoTotal;
     });
-    valorTotal += pre.totalGeral || 0;
   });
+  valorTotal = Math.round(valorTotal * 100) / 100;
 
   // Criar contrato GDP unificado
   const CONTRATOS_GDP_KEY = "gdp.contratos.v1";
