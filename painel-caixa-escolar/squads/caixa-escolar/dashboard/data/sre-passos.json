@@ -1,0 +1,168 @@
+{
+  "sre": "Passos",
+  "fonte": "https://srepassos.educacao.mg.gov.br/",
+  "atualizadoEm": "2026-03-26",
+  "nota": "Lista compilada via Censo Escolar/INEP + portal SRE. Verificar atualizações no portal da SRE.",
+  "totalMunicipios": 24,
+  "totalEscolas": 38,
+  "municipios": [
+    {
+      "nome": "Passos",
+      "escolas": [
+        "EE DOUTOR JORGE VALENTE",
+        "EE DONA MARIA FLORA TEIXEIRA",
+        "EE GOVERNADOR BIAS FORTES",
+        "EE MONSENHOR GONZALEZ",
+        "EE PROFESSOR CLOVIS SALGADO",
+        "EE PROFESSOR WLADIMIR DE REZENDE PINTO",
+        "EE DONA JULIETA SANTOS COSTA"
+      ]
+    },
+    {
+      "nome": "Alpinopolis",
+      "escolas": [
+        "EE SAO JOSE",
+        "EE CORONEL JOSE BENTO"
+      ]
+    },
+    {
+      "nome": "Bom Jesus da Penha",
+      "escolas": [
+        "EE AUGUSTO SOARES"
+      ]
+    },
+    {
+      "nome": "Capitolio",
+      "escolas": [
+        "EE SAO SEBASTIAO"
+      ]
+    },
+    {
+      "nome": "Carmo do Rio Claro",
+      "escolas": [
+        "EE DOUTOR ANTONIO PINTO DE ALMEIDA",
+        "EE JOAO BELO DE OLIVEIRA"
+      ]
+    },
+    {
+      "nome": "Cassia",
+      "escolas": [
+        "EE PROFESSOR LEOPOLDO DE CASTRO",
+        "EE JOSE MARTINS DE PINHO"
+      ]
+    },
+    {
+      "nome": "Claraval",
+      "escolas": [
+        "EE ANTONIO PIRES"
+      ]
+    },
+    {
+      "nome": "Delfinopolis",
+      "escolas": [
+        "EE FRANCISCO ESCOBAR"
+      ]
+    },
+    {
+      "nome": "Doresopolis",
+      "escolas": [
+        "EE AUGUSTO PESTANA"
+      ]
+    },
+    {
+      "nome": "Fortaleza de Minas",
+      "escolas": [
+        "EE JOSE SERAFIM"
+      ]
+    },
+    {
+      "nome": "Ibiraci",
+      "escolas": [
+        "EE PREFEITO PEDRO SILVA",
+        "EE PADRE JOSE DE ANCHIETA"
+      ]
+    },
+    {
+      "nome": "Itamogi",
+      "escolas": [
+        "EE PROFESSOR JOAQUIM DE ALMEIDA"
+      ]
+    },
+    {
+      "nome": "Itau de Minas",
+      "escolas": [
+        "EE CORONEL FRANCISCO AZEVEDO"
+      ]
+    },
+    {
+      "nome": "Jacui",
+      "escolas": [
+        "EE JOSE SILVERIO DE OLIVEIRA"
+      ]
+    },
+    {
+      "nome": "Pimenta",
+      "escolas": [
+        "EE PEDRO TEODORO SILVA"
+      ]
+    },
+    {
+      "nome": "Piumhi",
+      "escolas": [
+        "EE PROFESSOR LEOPOLDO MIRANDA",
+        "EE ANTONIO OLIMPIO"
+      ]
+    },
+    {
+      "nome": "Sacramento",
+      "escolas": [
+        "EE MAESTRO JOSE GERALDO DE LIMA"
+      ]
+    },
+    {
+      "nome": "Santa Rosa da Serra",
+      "escolas": [
+        "EE JOAO GONZAGA"
+      ]
+    },
+    {
+      "nome": "Sao Jose da Barra",
+      "escolas": [
+        "EE TONICO RABELO"
+      ]
+    },
+    {
+      "nome": "Sao Roque de Minas",
+      "escolas": [
+        "EE PADRE JOSE DE ANCHIETA"
+      ]
+    },
+    {
+      "nome": "Sao Sebastiao do Paraiso",
+      "escolas": [
+        "EE ALICE FONTES",
+        "EE MARIA DE LOURDES SILVA",
+        "EE PROFESSOR ANTONIO INACIO MACIEL",
+        "EE PROFESSOR JOAQUIM AFONSO RODRIGUES"
+      ]
+    },
+    {
+      "nome": "Vargem Bonita",
+      "escolas": [
+        "EE SAO JOSE"
+      ]
+    },
+    {
+      "nome": "Pratapolis",
+      "escolas": [
+        "EE JOAO FERNANDES MACHADO"
+      ]
+    },
+    {
+      "nome": "Capetinga",
+      "escolas": [
+        "EE PADRE JOAQUIM ALVES"
+      ]
+    }
+  ]
+}

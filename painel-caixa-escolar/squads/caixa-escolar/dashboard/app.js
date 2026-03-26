@@ -1,6 +1,6 @@
 /* ===================================================================
    Painel do Fornecedor — Licit-AIX
-   Vanilla JS | SRE Uberaba MVP — Fase 3
+   Vanilla JS | Multi-SRE — Fase 3
    =================================================================== */
 
 // ===== CONSTANTS =====
@@ -9,6 +9,14 @@ const BANCO_STORAGE_KEY = "caixaescolar.banco.v1";
 const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 const pct = (v) => (v * 100).toFixed(0) + "%";
 const today = new Date(new Date().toISOString().slice(0, 10) + "T00:00:00");
+
+// ===== MULTI-SRE CONFIG (Story 4.33) =====
+const SRE_CONFIGS = [
+  { id: "uberaba", nome: "Uberaba", arquivo: "data/sre-uberaba.json" },
+  { id: "uberlandia", nome: "Uberlandia", arquivo: "data/sre-uberlandia.json" },
+  { id: "passos", nome: "Passos", arquivo: "data/sre-passos.json" },
+];
+let allSreData = []; // loaded SRE data objects
 
 // ===== STATE =====
 let orcamentos = [];
@@ -53,6 +61,30 @@ window.restaurarOrc = function(id) {
   renderOrcamentos();
   renderKPIs();
   showToast("Processo restaurado.");
+};
+
+// ===== EDIÇÃO INLINE DO CAMPO OBJETO [Story 4.32] =====
+window.editarObjeto = function(orcId) {
+  const orc = orcamentos.find(o => o.id === orcId);
+  if (!orc) return;
+  const current = orc.objetoCustom || orc.objeto || "";
+  const novo = prompt("Resumo do objeto (edite para facilitar visualização):", current);
+  if (novo === null) return; // cancelled
+  if (!orc.objetoOriginal) orc.objetoOriginal = orc.objeto; // preserve original on first edit
+  orc.objetoCustom = novo.trim();
+  localStorage.setItem("caixaescolar.orcamentos", JSON.stringify(orcamentos));
+  renderOrcamentos();
+  showToast("Objeto atualizado.");
+};
+
+window.resetarObjeto = function(orcId) {
+  const orc = orcamentos.find(o => o.id === orcId);
+  if (!orc) return;
+  delete orc.objetoCustom;
+  // Keep objetoOriginal for reference, but clear the custom override
+  localStorage.setItem("caixaescolar.orcamentos", JSON.stringify(orcamentos));
+  renderOrcamentos();
+  showToast("Objeto restaurado ao original.");
 };
 
 function descartarSelecionados() {
@@ -577,6 +609,7 @@ const el = {
   kpiFaturamento: document.getElementById("kpi-faturamento"),
   kpiMargem: document.getElementById("kpi-margem"),
   // Filtros
+  filtroSre: document.getElementById("filtro-sre"),
   filtroEscola: document.getElementById("filtro-escola"),
   filtroMunicipio: document.getElementById("filtro-municipio"),
   filtroGrupo: document.getElementById("filtro-grupo"),
@@ -884,15 +917,21 @@ async function boot() {
   if (btnVarrer) btnVarrer.style.display = "inline-block";
 
   // 4. Background: load JSON data + cloud sync (non-blocking)
-  const [orcData, bancoData, perfilData, sreInfo] = await Promise.all([
+  const [orcData, bancoData, perfilData, ...sreResults] = await Promise.all([
     fetchJson("data/orcamentos.json"),
     fetchJson("data/banco-precos.json"),
     fetchJson("data/perfil.json"),
-    fetchJson("data/sre-uberaba.json"),
+    ...SRE_CONFIGS.map(c => fetchJson(c.arquivo)),
   ]);
 
   perfil = perfilData || {};
-  sreData = sreInfo || {};
+  // Load all SRE data (Story 4.33)
+  allSreData = SRE_CONFIGS.map((c, i) => ({
+    ...c,
+    data: sreResults[i] || { municipios: [] }
+  }));
+  // Backward compatibility
+  sreData = allSreData[0]?.data || {};
 
   // Banco: se não tinha no localStorage, carrega do JSON
   if (bancoPrecos.itens.length === 0 && bancoData && Array.isArray(bancoData.itens)) {
@@ -927,14 +966,24 @@ async function boot() {
 // ===== FILTERS =====
 function populateFilters() {
   // Preserve current selections
+  const prevSre = el.filtroSre ? el.filtroSre.value : "all";
   const prevEscola = el.filtroEscola.value;
   const prevMun = el.filtroMunicipio.value;
   const prevGrupo = el.filtroGrupo.value;
 
   // Clear existing options (keep first "all" option)
-  [el.filtroEscola, el.filtroMunicipio, el.filtroGrupo].forEach((sel) => {
+  [el.filtroSre, el.filtroEscola, el.filtroMunicipio, el.filtroGrupo].filter(Boolean).forEach((sel) => {
     while (sel.options.length > 1) sel.remove(1);
   });
+
+  // SREs (Story 4.33) — populate dynamically from loaded data
+  if (el.filtroSre) {
+    const sres = [...new Set(orcamentos.map((o) => o.sre).filter(Boolean))].sort();
+    sres.forEach((s) => {
+      el.filtroSre.appendChild(new Option(s, s));
+    });
+    if (sres.includes(prevSre)) el.filtroSre.value = prevSre;
+  }
 
   // Escolas
   const escolas = [...new Set(orcamentos.map((o) => o.escola).filter(Boolean))].sort();
@@ -981,6 +1030,7 @@ function populateFilters() {
 }
 
 function filteredOrcamentos() {
+  const sre = el.filtroSre ? el.filtroSre.value : "all";
   const escola = el.filtroEscola.value;
   const mun = el.filtroMunicipio.value;
   const grupo = el.filtroGrupo.value;
@@ -988,6 +1038,7 @@ function filteredOrcamentos() {
   const query = normalizedText(el.filtroTexto.value.trim());
 
   return orcamentos
+    .filter((o) => sre === "all" || o.sre === sre)
     .filter((o) => escola === "all" || o.escola === escola)
     .filter((o) => mun === "all" || o.municipio === mun)
     .filter((o) => grupo === "all" || o.grupo === grupo)
@@ -1175,13 +1226,17 @@ function renderOrcamentos() {
       if (excluido) {
         actionBtn = '<span class="badge badge-fora-escopo">Fora do escopo</span>';
       } else if (preOrc) {
-        const pBadge = preOrc.status === "enviado"
-          ? '<span class="badge badge-enviado">Enviado</span>'
-          : preOrc.status === "aprovado"
-            ? '<span class="badge badge-aprovado">Aprovado</span>'
-            : preOrc.status === "recusado"
-              ? '<span class="badge badge-recusado">Recusado</span>'
-              : '<span class="badge badge-pendente">Pendente</span>';
+        const pBadge = preOrc.status === "ganho"
+          ? '<span class="badge badge-ganho">Ganho</span>'
+          : preOrc.status === "perdido"
+            ? '<span class="badge badge-perdido">Perdido</span>'
+            : preOrc.status === "enviado"
+              ? '<span class="badge badge-enviado">Enviado</span>'
+              : preOrc.status === "aprovado"
+                ? '<span class="badge badge-aprovado">Aprovado</span>'
+                : preOrc.status === "recusado"
+                  ? '<span class="badge badge-recusado">Recusado</span>'
+                  : '<span class="badge badge-pendente">Pendente</span>';
         actionBtn = `${pBadge} <button class="btn btn-inline" onclick="abrirPreOrcamento('${o.id}')">Ver</button>`;
       } else {
         actionBtn = `<button class="btn btn-inline btn-accent" onclick="gerarPreOrcamento('${o.id}')">Pré-Orçar</button>`;
@@ -1205,7 +1260,7 @@ function renderOrcamentos() {
       <td class="font-mono text-muted">${escapeHtml(o.id)}</td>
       <td>${escapeHtml(o.escola)}</td>
       <td>${escapeHtml(o.municipio)}</td>
-      <td class="obj-cell" title="${escapeHtml(o.objeto)}">${escapeHtml((o.objeto || "").replace(/\n/g, " "))}</td>
+      <td class="obj-cell" title="${escapeHtml(o.objetoOriginal || o.objeto || '')}">${escapeHtml((o.objetoCustom || o.objeto || "").replace(/\n/g, " "))}${o.objetoCustom ? ' <span class="badge badge-editado" style="font-size:0.6rem;opacity:0.7;vertical-align:middle" title="Original: ' + escapeHtml((o.objetoOriginal || o.objeto || '').substring(0,120)) + '">editado</span> <span class="btn-inline btn-muted" onclick="event.stopPropagation();resetarObjeto(\'' + o.id + '\')" title="Restaurar original" style="cursor:pointer;font-size:0.7rem">↩</span>' : ''}<span class="btn-inline btn-muted" onclick="event.stopPropagation();editarObjeto('${o.id}')" title="Editar objeto" style="cursor:pointer;font-size:0.7rem;margin-left:4px">✏️</span></td>
       <td>${grupoBadge}</td>
       <td class="nowrap">${formatDate(o.prazo)}</td>
       <td class="nowrap">${entregaBadge}</td>
@@ -1819,9 +1874,11 @@ function renderPreOrcamentosLista() {
   el.tbodyPreorcamentosLista.innerHTML = items
     .sort((a, b) => (b.criadoEm || "").localeCompare(a.criadoEm || ""))
     .map((p) => {
-      const badgeClass = p.status === "enviado" ? "badge-enviado"
-        : p.status === "aprovado" ? "badge-aprovado"
-          : p.status === "recusado" ? "badge-recusado" : "badge-pendente";
+      const badgeClass = p.status === "ganho" ? "badge-ganho"
+        : p.status === "perdido" ? "badge-perdido"
+          : p.status === "enviado" ? "badge-enviado"
+            : p.status === "aprovado" ? "badge-aprovado"
+              : p.status === "recusado" ? "badge-recusado" : "badge-pendente";
       return `<tr>
         <td class="font-mono text-muted">${escapeHtml(p.orcamentoId)}</td>
         <td>${escapeHtml(p.escola)}</td>
@@ -3488,6 +3545,7 @@ function bindEvents() {
   });
 
   // Filtros orçamentos
+  if (el.filtroSre) el.filtroSre.addEventListener("change", renderOrcamentos);
   el.filtroEscola.addEventListener("change", renderOrcamentos);
   el.filtroMunicipio.addEventListener("change", renderOrcamentos);
   el.filtroGrupo.addEventListener("change", renderOrcamentos);
@@ -5101,22 +5159,27 @@ async function varrerSgd() {
       sgdAvailable = true;
       updateModeIndicator(false);
 
-      // Build SRE Uberaba school name lookup for filtering
+      // Build school lookup from ALL configured SREs (Story 4.33)
       const sreNorm = (s) => (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").toUpperCase().trim();
       const sreSchoolsList = [];
       const schoolToMunicipio = {};
       const schoolToMunicipios = {}; // array — para nomes duplicados entre cidades
-      if (sreData && sreData.municipios) {
-        sreData.municipios.forEach((m) => {
-          (m.escolas || []).forEach((e) => {
-            const n = sreNorm(e);
-            sreSchoolsList.push(n);
-            schoolToMunicipio[n] = m.nome;
-            if (!schoolToMunicipios[n]) schoolToMunicipios[n] = [];
-            if (!schoolToMunicipios[n].includes(m.nome)) schoolToMunicipios[n].push(m.nome);
+      const schoolToSre = {}; // maps school → SRE name
+
+      allSreData.forEach(sre => {
+        if (sre.data && sre.data.municipios) {
+          sre.data.municipios.forEach((m) => {
+            (m.escolas || []).forEach((e) => {
+              const n = sreNorm(e);
+              sreSchoolsList.push(n);
+              schoolToMunicipio[n] = m.nome;
+              schoolToSre[n] = sre.nome; // track which SRE
+              if (!schoolToMunicipios[n]) schoolToMunicipios[n] = [];
+              if (!schoolToMunicipios[n].includes(m.nome)) schoolToMunicipios[n].push(m.nome);
+            });
           });
-        });
-      }
+        }
+      });
 
       // Confirmed SRE Uberaba municipality IDs (SGD API idCounty field)
       // ONLY confirmed county IDs — do NOT add auto-discovered ones (nomes duplicados entre cidades causam falsos positivos)
@@ -5234,8 +5297,16 @@ async function varrerSgd() {
       console.log(`[Varrer] Whitelist total: ${whitelistSize} escolas confirmadas`);
       if (rejected.length > 0) console.log(`[Varrer] ${rejected.length} rejeitados:`, rejected);
       const munsEncontrados = [...new Set(matched.map((m) => m.mun).filter(Boolean).filter(m => m !== "?"))].sort();
-      console.log(`[Varrer] Municípios (${munsEncontrados.length}/25):`, munsEncontrados);
-      btn.innerHTML = `<span class="sgd-spinner"></span>SRE Uberaba: ${filtered.length} de ${allBudgets.length}. Buscando detalhes...`;
+      const totalSreMunicipios = allSreData.reduce((sum, sre) => sum + (sre.data?.municipios?.length || 0), 0);
+      console.log(`[Varrer] Municípios (${munsEncontrados.length}/${totalSreMunicipios}):`, munsEncontrados);
+      // SRE breakdown log (Story 4.33)
+      const sreCounts = {};
+      filtered.forEach(b => {
+        const sre = schoolToSre[b._sreMatch] || "Uberaba";
+        sreCounts[sre] = (sreCounts[sre] || 0) + 1;
+      });
+      console.log(`[Varrer] SREs:`, sreCounts, `→ ${filtered.length} aceitos de ${allBudgets.length} varridos`);
+      btn.innerHTML = `<span class="sgd-spinner"></span>SREs: ${filtered.length} de ${allBudgets.length}. Buscando detalhes...`;
 
       // Step 3: Fetch detail + items for each SRE budget
       // Replace orcamentos entirely with fresh scan data (discard stale entries)
@@ -5274,7 +5345,7 @@ async function varrerSgd() {
         const orc = {
           id, idBudget: b.idBudget, ano: detail.year || b.year || new Date().getFullYear(),
           escola: escolaRaw, municipio,
-          sre: "Uberaba",
+          sre: schoolToSre[sreMatchKey] || (sreCountyMap[b.idCounty] ? "Uberaba" : "Desconhecida"),
           grupo: detail.expenseGroupDescription || "",
           subPrograma: detail.subprogramName || "",
           objeto: (detail.initiativeDescription || "").replace(/\n/g, " ").replace(/\s+/g, " ").trim(),
@@ -5307,7 +5378,8 @@ async function varrerSgd() {
       // Replace orcamentos with fresh scan data
       orcamentos = scanResults;
       localStorage.setItem("caixaescolar.orcamentos", JSON.stringify(orcamentos));
-      showToast(`SRE Uberaba: ${novos} orçamento(s) carregados de ${allBudgets.length} total SGD.`);
+      const sreBreakdown = Object.entries(sreCounts).map(([k,v]) => `${k}: ${v}`).join(", ");
+      showToast(`${novos} orçamento(s) carregados (${sreBreakdown}) de ${allBudgets.length} total SGD.`);
     }
 
     renderAll();
@@ -5466,6 +5538,11 @@ window.abrirModalResultado = function (orcId) {
   document.getElementById("btn-salvar-resultado").style.display = "none";
   document.getElementById("btn-res-ganho").classList.remove("active");
   document.getElementById("btn-res-perdido").classList.remove("active");
+  // Reset GDP fields (Story 4.34)
+  const gdpCheckbox = document.getElementById("res-gerar-contrato-gdp");
+  if (gdpCheckbox) gdpCheckbox.checked = true;
+  const numContratoInput = document.getElementById("res-numero-contrato");
+  if (numContratoInput) numContratoInput.value = "";
   document.getElementById("modal-resultado").style.display = "flex";
 };
 
@@ -5523,12 +5600,22 @@ window.salvarResultado = function () {
   pre.status = selectedResultado === "ganho" ? "ganho" : "perdido";
   savePreOrcamentos();
 
-  // Se ganhou e checkbox marcado → gerar contrato
+  // Se ganhou e checkbox marcado → gerar contrato local (CX Escolar)
+  let geradoLocal = false;
+  let geradoGdp = false;
   if (resultado.resultado === "ganho" && document.getElementById("res-gerar-contrato").checked) {
     const contrato = gerarContratoDeResultado(resultado, pre);
     resultado.contrato = { gerado: true, contratoId: contrato.contratoId };
     resultados[resultados.length - 1] = resultado;
     localStorage.setItem(RESULTADOS_STORAGE_KEY, JSON.stringify(resultados));
+    geradoLocal = true;
+  }
+
+  // Se ganhou e checkbox GDP marcado → criar contrato no GDP
+  if (resultado.resultado === "ganho" && document.getElementById("res-gerar-contrato-gdp").checked) {
+    const numContrato = (document.getElementById("res-numero-contrato").value || "").trim();
+    criarContratoGdp(currentResultadoOrcamentoId, pre, numContrato);
+    geradoGdp = true;
   }
 
   // Alimentar banco de preços
@@ -5537,8 +5624,20 @@ window.salvarResultado = function () {
   fecharModalResultado();
   renderSgd();
   renderKPIs();
+  renderOrcamentos();
   schedulCloudSync();
-  showToast(resultado.resultado === "ganho" ? "Resultado registrado — contrato gerado!" : "Resultado registrado — histórico atualizado");
+
+  if (resultado.resultado === "ganho") {
+    const partes = [];
+    if (geradoLocal) partes.push("contrato local");
+    if (geradoGdp) partes.push("contrato GDP");
+    const msg = partes.length > 0
+      ? `Resultado registrado — ${partes.join(" + ")} criado(s)!`
+      : "Resultado registrado como ganho!";
+    showToast(msg);
+  } else {
+    showToast("Resultado registrado — histórico atualizado");
+  }
 };
 
 // ===== F3: GERAR CONTRATO DE RESULTADO =====
@@ -5570,6 +5669,64 @@ function gerarContratoDeResultado(resultado, pre) {
   contratos.push(contrato);
   localStorage.setItem(CONTRATOS_STORAGE_KEY, JSON.stringify(contratos));
   schedulCloudSync();
+  return contrato;
+}
+
+// ===== F3b: CRIAR CONTRATO NO GDP (Gestao Pos-Licitacao) — Story 4.34 =====
+function criarContratoGdp(orcId, preOrcamento, numContrato) {
+  const GDP_CONTRATOS_KEY = "gdp.contratos.v1";
+
+  // Load GDP contracts (wrapped format: { _v, updatedAt, items })
+  let contratos = [];
+  try {
+    const raw = JSON.parse(localStorage.getItem(GDP_CONTRATOS_KEY));
+    contratos = Array.isArray(raw) ? raw : (raw && raw.items ? raw.items : []);
+  } catch (_) { contratos = []; }
+
+  // Find the original orcamento for extra data
+  const orc = orcamentos.find(o => o.id === orcId);
+
+  const now = new Date();
+  const id = `CTR-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}-${String(Math.floor(Math.random() * 9999)).padStart(4, "0")}`;
+
+  const contrato = {
+    id,
+    escola: preOrcamento.escola || (orc ? orc.escola : ""),
+    edital: orcId,
+    criterio: "menor_preco",
+    dataApuracao: now.toISOString().slice(0, 10),
+    dataCriacao: now.toISOString(),
+    fornecedor: "Lariucci & Ribeiro Pereira",
+    status: "ativo",
+    numero: numContrato || "",
+    municipio: preOrcamento.municipio || (orc ? orc.municipio : ""),
+    sre: orc ? (orc.sre || "Uberaba") : "Uberaba",
+    valorTotal: preOrcamento.totalGeral || 0,
+    orcamentoId: orcId,
+    origem: "pre-orcamento-sgd",
+    itens: (preOrcamento.itens || []).map((item, idx) => ({
+      num: idx + 1,
+      descricao: item.nome || item.descricao || "",
+      unidade: item.unidade || "UN",
+      qtdContratada: item.quantidade || 0,
+      precoUnitario: item.precoUnitario || 0,
+      qtdEntregue: 0,
+      ncm: "",
+      marca: item.marca || "",
+    })),
+    fornecedoresMapa: [],
+  };
+
+  contratos.push(contrato);
+
+  // Save in GDP wrapped format
+  const wrapped = { _v: 1, updatedAt: now.toISOString(), items: contratos };
+  localStorage.setItem(GDP_CONTRATOS_KEY, JSON.stringify(wrapped));
+
+  // Trigger cloud sync
+  if (typeof schedulCloudSync === "function") schedulCloudSync();
+
+  console.log(`[GDP] Contrato criado: ${contrato.id} — ${contrato.escola} — ${brl.format(contrato.valorTotal)}`);
   return contrato;
 }
 
@@ -6040,16 +6197,17 @@ window.pesquisarPrecoPNCP = async function(idx) {
   showToast("Buscando no PNCP: " + item.nome + "...");
 
   const resultado = await consultarPNCP(item.nome, item.idBudgetItem);
-  if (resultado && resultado.menorPreco > 0) {
-    const usar = confirm(`PNCP encontrou: ${brl.format(resultado.menorPreco)}\nÓrgão: ${resultado.orgao}\n\nUsar como preço de custo?`);
+  if (resultado && resultado.detalhes?.length > 0 && resultado.min > 0) {
+    const orgao = resultado.detalhes[0]?.orgao || "N/A";
+    const usar = confirm(`PNCP encontrou: ${brl.format(resultado.min)}\nÓrgão: ${orgao}\n\nUsar como preço de custo?`);
     if (usar) {
-      item.custoUnitario = resultado.menorPreco;
+      item.custoUnitario = resultado.min;
       item.precoUnitario = Math.round(item.custoUnitario * (1 + item.margem) * 100) / 100;
       item.precoTotal = Math.round(item.precoUnitario * item.quantidade * 100) / 100;
       recalcPreOrcamento(pre);
       savePreOrcamentos();
       renderPreOrcamentoItens();
-      showToast("Preço PNCP aplicado: " + brl.format(resultado.menorPreco));
+      showToast("Preço PNCP aplicado: " + brl.format(resultado.min));
     }
   } else {
     showToast("PNCP: nenhum resultado para " + item.nome);
@@ -6108,12 +6266,20 @@ window.pesquisarPrecoBanco = function(idx) {
 };
 
 // ===== F7: PNCP INTEGRATION =====
+function simplificarTermoPNCP(termo) {
+  const stopwords = new Set(["de","da","do","das","dos","para","com","em","no","na","nos","nas","por","um","uma","uns","umas","o","a","os","as","e","ou","ao","aos","se"]);
+  const words = termo.replace(/[^\w\sÀ-ú]/g, "").split(/\s+/).filter(w => w.length > 2 && !stopwords.has(w.toLowerCase()));
+  return words.slice(0, 3).join(" ");
+}
+
 async function consultarPNCP(itemNome, itemId) {
   try {
+    const termoSimplificado = simplificarTermoPNCP(itemNome);
+    console.log("[PNCP] Termo original:", itemNome, "→ Simplificado:", termoSimplificado);
     const resp = await fetch("/.netlify/functions/pncp-search", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "search", termo: itemNome, uf: "MG" }),
+      body: JSON.stringify({ action: "search", termo: termoSimplificado, uf: "MG" }),
     });
 
     const data = await resp.json();
@@ -6139,9 +6305,9 @@ async function consultarPNCP(itemNome, itemId) {
         const itemsData = await itemsResp.json();
         const itensArray = Array.isArray(itemsData) ? itemsData : (itemsData.data || []);
 
-        const keyword = itemNome.toLowerCase().split(" ")[0];
+        const keywords = simplificarTermoPNCP(itemNome).toLowerCase().split(" ");
         itensArray.forEach(i => {
-          if (i.descricao && i.descricao.toLowerCase().includes(keyword)) {
+          if (i.descricao && keywords.some(kw => i.descricao.toLowerCase().includes(kw))) {
             const preco = i.valorHomologado || i.valorUnitarioEstimado;
             if (preco > 0) {
               precos.push({

@@ -607,6 +607,13 @@ tfoot td {
   overflow: visible;
 }
 
+.badge-editado {
+  background: rgba(255, 193, 7, 0.15);
+  color: #ffc107;
+  border: 1px solid rgba(255, 193, 7, 0.3);
+  cursor: default;
+}
+
 /* ===== RESPONSIVE ===== */
 @media (max-width: 900px) {
   .kpis { grid-template-columns: repeat(3, 1fr); }
@@ -758,9 +765,12 @@ tfoot td {
 #ocr-progress progress::-webkit-progress-value { background: var(--accent); border-radius: 4px; }
 #import-format-badge { font-size: 0.7rem; padding: 2px 8px; border-radius: 10px; background: var(--accent-dim); color: var(--accent); }
 
-/* ===== FILTERS 5 COLUMNS ===== */
+/* ===== FILTERS 5/6 COLUMNS ===== */
 .filters-5col {
   grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+.filters-6col {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
 }
 
 /* ===== BADGE FORA DO ESCOPO ===== */
@@ -793,6 +803,21 @@ tfoot td {
 .badge-ok {
   background: var(--accent-dim);
   color: var(--accent);
+  font-size: 0.72rem;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+.badge-ganho {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+  font-size: 0.72rem;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 700;
+}
+.badge-perdido {
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
   font-size: 0.72rem;
   padding: 2px 8px;
   border-radius: 10px;
@@ -1134,10 +1159,12 @@ tfoot td {
   .intel-grid { grid-template-columns: 1fr; }
   .intel-charts { grid-template-columns: 1fr; }
   .filters-5col { grid-template-columns: repeat(3, 1fr); }
+  .filters-6col { grid-template-columns: repeat(3, 1fr); }
 }
 
 @media (max-width: 600px) {
   .filters-5col { grid-template-columns: 1fr; }
+  .filters-6col { grid-template-columns: 1fr; }
   .batch-bar { flex-wrap: wrap; }
 }
 

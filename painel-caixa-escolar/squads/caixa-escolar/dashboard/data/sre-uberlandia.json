@@ -1,0 +1,161 @@
+{
+  "sre": "Uberlandia",
+  "fonte": "https://sreuberlandia.educacao.mg.gov.br/a-regional/lista-de-escolas/",
+  "atualizadoEm": "2026-03-26",
+  "nota": "Lista compilada via Censo Escolar/INEP + portal SRE. Verificar atualizações no portal da SRE.",
+  "totalMunicipios": 18,
+  "totalEscolas": 61,
+  "municipios": [
+    {
+      "nome": "Uberlandia",
+      "escolas": [
+        "EE AMADOR NAVES",
+        "EE AMERICA RENE GIANETTI",
+        "EE ANIBAL OTAVIO DUARTE",
+        "EE AUGUSTO CESAR SANDINO",
+        "EE BUENO BRANDAO",
+        "EE CESARINO BORBA",
+        "EE CLARIMUNDO CARNEIRO",
+        "EE DOUTOR DUARTE PIMENTEL DE ULHOA",
+        "EE ENEAS DE OLIVEIRA GUIMARAES",
+        "EE FELISBERTO ALVES CARREJO",
+        "EE GOVERNADOR ISRAEL PINHEIRO",
+        "EE GUIOMAR DE FREITAS COSTA",
+        "EE IGNACIO PAES LEME",
+        "EE INACIO CASTILHO",
+        "EE JERONYMO ARANTES",
+        "EE JOAO REZENDE",
+        "EE JOSE IGNACIO DE SOUZA",
+        "EE LOURDES DE CARVALHO",
+        "EE MARIA DA CONCEICAO BARBOSA",
+        "EE MARIO PORTO",
+        "EE MARECHAL CASTELO BRANCO",
+        "EE MESSIAS PEDREIRO",
+        "EE MINAS GERAIS",
+        "EE NEUZA REZENDE",
+        "EE OLIMPIA TOMAS DE OLIVEIRA",
+        "EE OSWALDO VIEIRA GONCALVES",
+        "EE PARQUE SAO JORGE",
+        "EE PROFESSOR JOSE IGNACIO DE SOUSA",
+        "EE PRESIDENTE TANCREDO NEVES",
+        "EE PROFESSOR SERGIO DE OLIVEIRA MARQUES",
+        "EE PROFESSORA JUVENILIA FERREIRA DOS SANTOS",
+        "EE SEGISMUNDO PEREIRA",
+        "EE TEOTONIO VILELA",
+        "EE TUBAL VILELA DA SILVA",
+        "EE UDO DEBERT"
+      ]
+    },
+    {
+      "nome": "Araguari",
+      "escolas": [
+        "EE ANTONIO NUNES DE CARVALHO",
+        "EE BRASIL",
+        "EE CORONEL JOAO NOTINI",
+        "EE DOM LUSTOSA",
+        "EE MADRE MARIA BLANDINA",
+        "EE RAUL SOARES"
+      ]
+    },
+    {
+      "nome": "Arapora",
+      "escolas": [
+        "EE SEBASTIAO FRANCO DA ROCHA"
+      ]
+    },
+    {
+      "nome": "Canapolis",
+      "escolas": [
+        "EE ISABEL OSCAR DE MORAES"
+      ]
+    },
+    {
+      "nome": "Cascalho Rico",
+      "escolas": [
+        "EE PROFESSOR JOAO JUSTINO DE OLIVEIRA"
+      ]
+    },
+    {
+      "nome": "Centralina",
+      "escolas": [
+        "EE JOAO PINHEIRO"
+      ]
+    },
+    {
+      "nome": "Indianopolis",
+      "escolas": [
+        "EE JOSE FERREIRA DA COSTA"
+      ]
+    },
+    {
+      "nome": "Monte Alegre de Minas",
+      "escolas": [
+        "EE JOAO LEMOS",
+        "EE JOSE INACIO MACHADO"
+      ]
+    },
+    {
+      "nome": "Nova Ponte",
+      "escolas": [
+        "EE PROFESSOR VIRGILIO ROSA"
+      ]
+    },
+    {
+      "nome": "Prata",
+      "escolas": [
+        "EE DOUTOR JOSE MARIANO",
+        "EE TITO FULGENCIO"
+      ]
+    },
+    {
+      "nome": "Romaria",
+      "escolas": [
+        "EE NOSSA SENHORA DA ABADIA"
+      ]
+    },
+    {
+      "nome": "Estrela do Sul",
+      "escolas": [
+        "EE DOUTOR JOSE MARQUES DE OLIVEIRA"
+      ]
+    },
+    {
+      "nome": "Grupiara",
+      "escolas": [
+        "EE SAO SEBASTIAO"
+      ]
+    },
+    {
+      "nome": "Iraí de Minas",
+      "escolas": [
+        "EE PADRE CLAUDIO"
+      ]
+    },
+    {
+      "nome": "Tupaciguara",
+      "escolas": [
+        "EE ANTONIO THOMAZ FERREIRA DE REZENDE",
+        "EE PROFESSOR LEOPOLDO MIRANDA"
+      ]
+    },
+    {
+      "nome": "Campina Verde",
+      "escolas": [
+        "EE CORONEL VIRGILIO ROSA",
+        "EE PROF AGENOR PAES"
+      ]
+    },
+    {
+      "nome": "Monte Carmelo",
+      "escolas": [
+        "EE DONA MARICOTA PINTO"
+      ]
+    },
+    {
+      "nome": "Douradoquara",
+      "escolas": [
+        "EE JOSE FERREIRA DA COSTA"
+      ]
+    }
+  ]
+}

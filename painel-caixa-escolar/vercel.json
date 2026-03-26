@@ -1,4 +1,11 @@
 {
+  "rewrites": [
+    { "source": "/.netlify/functions/sgd-proxy", "destination": "/api/caixa-proxy" },
+    { "source": "/.netlify/functions/ai-parse-price", "destination": "/api/ai-parse-price" },
+    { "source": "/.netlify/functions/pncp-search", "destination": "/api/caixa-proxy" },
+    { "source": "/api/sgd-proxy", "destination": "/api/caixa-proxy" },
+    { "source": "/api/b2b-scrape", "destination": "/api/caixa-proxy" }
+  ],
   "redirects": [
     {
       "source": "/",
@@ -15,5 +22,9 @@
       "destination": "/squads/caixa-escolar/dashboard/gdp-estoque-intel-mobile.html",
       "permanent": false
     }
-  ]
+  ],
+  "functions": {
+    "api/caixa-proxy.js": { "maxDuration": 60 },
+    "api/ai-parse-price.js": { "maxDuration": 60 }
+  }
 }

@@ -53,7 +53,7 @@
       </div>
       <div class="topbar-right">
         <span class="mode-indicator" id="mode-indicator"></span>
-        <div class="pill" id="pill-sre">SRE Uberaba</div>
+        <div class="pill" id="pill-sre">Multi-SRE</div>
 
         <button id="btn-varrer-sgd" class="btn btn-sm btn-sgd" style="display:none;" title="Varrer novos orçamentos no SGD">Varrer SGD</button>
         <button class="btn btn-sm" onclick="logout()" title="Sair">Sair</button>
@@ -173,7 +173,7 @@
   <section id="tab-orcamentos" class="tab-content active">
     <div class="card">
       <div class="table-head">
-        <h2>Oportunidades — SRE Uberaba</h2>
+        <h2>Oportunidades — SRE</h2>
         <div class="table-head-actions">
           <span id="ultima-atualizacao" class="badge badge-muted" style="display:none;"></span>
           <button id="btn-collect-sgd" class="btn btn-sm btn-sgd" style="display:none;">Atualizar Orçamentos</button>
@@ -182,7 +182,10 @@
       </div>
 
       <!-- Filtros -->
-      <div class="filters filters-5col">
+      <div class="filters filters-6col">
+        <select id="filtro-sre">
+          <option value="all">Todas as SREs</option>
+        </select>
         <select id="filtro-escola">
           <option value="all">Todas as escolas</option>
         </select>
@@ -1071,6 +1074,13 @@
         <label style="display:flex;align-items:center;gap:8px;">
           <input type="checkbox" id="res-gerar-contrato" checked />
           Gerar contrato automaticamente
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;margin-top:8px;">
+          <input type="checkbox" id="res-gerar-contrato-gdp" checked />
+          Criar contrato no GDP (Gestao Pos-Licitacao)
+        </label>
+        <label style="margin-top:8px;">Numero do contrato/ARP (opcional)
+          <input type="text" id="res-numero-contrato" placeholder="Ex: ARP-2026-001" style="width:100%;" />
         </label>
       </div>
 
