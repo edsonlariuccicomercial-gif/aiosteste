@@ -4917,11 +4917,15 @@ function renderSgd() {
       const badgeMap = {
         aprovado: { cls: "badge-aprovado", label: "Pronto" },
         enviado: { cls: "badge-enviado", label: "Enviado" },
-        ganho: { cls: "badge-ok", label: "Ganho" },
-        perdido: { cls: "badge-vencido", label: "Perdido" },
+        ganho: { cls: "badge-ganho", label: "Ganho" },
+        perdido: { cls: "badge-perdido", label: "Perdido" },
       };
       const badge = badgeMap[p.status] || { cls: "badge-muted", label: p.status };
       const dateInfo = p.enviadoEm ? formatDate(p.enviadoEm) : formatDate(p.aprovadoEm);
+
+      // Checkbox para contrato unificado (enviados e aprovados)
+      const canSelect = p.status === "enviado" || p.status === "aprovado";
+      const checkbox = canSelect ? `<input type="checkbox" class="sgd-contrato-check" data-id="${p.orcamentoId}" />` : "";
 
       let actions = "";
       if (p.status === "aprovado") {
@@ -4930,11 +4934,14 @@ function renderSgd() {
       } else if (p.status === "enviado") {
         actions = `<button class="btn btn-inline btn-accent" onclick="abrirModalResultado('${p.orcamentoId}')">Resultado</button>
           <button class="btn btn-inline" onclick="sgdBaixarPayload('${p.orcamentoId}')">Payload</button>`;
+      } else if (p.status === "ganho") {
+        actions = `<button class="btn btn-inline" onclick="abrirPreOrcamento('${p.orcamentoId}')">Ver Itens</button>`;
       } else {
         actions = `<button class="btn btn-inline" onclick="sgdBaixarPayload('${p.orcamentoId}')">Payload</button>`;
       }
 
       return `<tr>
+        <td>${checkbox}</td>
         <td class="font-mono text-muted">${escapeHtml(p.orcamentoId)}</td>
         <td>${escapeHtml(p.escola)}</td>
         <td>${escapeHtml(p.municipio)}</td>
@@ -4943,6 +4950,28 @@ function renderSgd() {
         <td class="nowrap">${actions}</td>
       </tr>`;
     }).join("");
+
+  // Barra contrato unificado
+  let bar = document.getElementById("sgd-contrato-bar");
+  if (!bar) {
+    bar = document.createElement("div");
+    bar.id = "sgd-contrato-bar";
+    bar.style.cssText = "display:none;padding:0.5rem 1rem;background:#ecfdf5;border:1px solid #10b981;border-radius:8px;margin-bottom:0.75rem;align-items:center;gap:1rem;flex-wrap:wrap;";
+    bar.innerHTML = `<span id="sgd-contrato-count" style="font-weight:600;">0 selecionados</span>
+      <button class="btn btn-sm btn-accent" onclick="gerarContratoUnificado()">Gerar Contrato Unificado</button>`;
+    el.tbodySgd.parentElement.parentElement.insertBefore(bar, el.tbodySgd.parentElement);
+  }
+
+  // Bind checkboxes
+  el.tbodySgd.querySelectorAll(".sgd-contrato-check").forEach(cb => {
+    cb.addEventListener("change", () => {
+      const checked = el.tbodySgd.querySelectorAll(".sgd-contrato-check:checked");
+      const b = document.getElementById("sgd-contrato-bar");
+      const c = document.getElementById("sgd-contrato-count");
+      if (b) b.style.display = checked.length > 0 ? "flex" : "none";
+      if (c) c.textContent = `${checked.length} selecionado(s)`;
+    });
+  });
 }
 
 window.sgdBaixarPayload = function (orcId) {
@@ -5776,7 +5805,7 @@ function criarContratoGdp(orcId, preOrcamento, numContrato) {
 
 // Gerar contrato unificado a partir de múltiplos pré-orçamentos selecionados
 window.gerarContratoUnificado = function() {
-  const checked = document.querySelectorAll(".pre-contrato-check:checked");
+  const checked = document.querySelectorAll(".sgd-contrato-check:checked, .pre-contrato-check:checked");
   if (checked.length === 0) return;
 
   const ids = [...checked].map(cb => cb.dataset.id);
