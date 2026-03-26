@@ -1899,10 +1899,7 @@ function renderPreOrcamentosLista() {
           : p.status === "enviado" ? "badge-enviado"
             : p.status === "aprovado" ? "badge-aprovado"
               : p.status === "recusado" ? "badge-recusado" : "badge-pendente";
-      const canSelect = p.status === "enviado" || p.status === "aprovado";
-      const checkbox = canSelect
-        ? `<input type="checkbox" class="pre-contrato-check" data-id="${p.orcamentoId}" />`
-        : "";
+      const checkbox = `<input type="checkbox" class="pre-lote-check" data-id="${p.orcamentoId}" />`;
       return `<tr>
         <td>${checkbox}</td>
         <td class="font-mono text-muted">${escapeHtml(p.orcamentoId)}</td>
@@ -1917,26 +1914,28 @@ function renderPreOrcamentosLista() {
       </tr>`;
     }).join("");
 
-  // Barra de ação para contrato unificado
-  let barHtml = document.getElementById("pre-contrato-bar");
+  // Barra de ações em lote
+  let barHtml = document.getElementById("pre-lote-bar");
   if (!barHtml) {
     barHtml = document.createElement("div");
-    barHtml.id = "pre-contrato-bar";
-    barHtml.style.cssText = "display:none;padding:0.5rem 1rem;background:#ecfdf5;border:1px solid #10b981;border-radius:8px;margin-bottom:0.75rem;align-items:center;gap:1rem;";
-    barHtml.innerHTML = `<span id="pre-contrato-count">0 selecionados</span>
+    barHtml.id = "pre-lote-bar";
+    barHtml.style.cssText = "display:none;padding:0.5rem 1rem;background:#f8f9fa;border:1px solid #dee2e6;border-radius:8px;margin-bottom:0.75rem;align-items:center;gap:0.75rem;flex-wrap:wrap;";
+    barHtml.innerHTML = `<span id="pre-lote-count" style="font-weight:600;">0 selecionados</span>
+      <button class="btn btn-sm btn-danger" onclick="excluirPreLote()">Excluir Selecionados</button>
       <button class="btn btn-sm btn-accent" onclick="gerarContratoUnificado()">Gerar Contrato Unificado</button>`;
     el.tbodyPreorcamentosLista.parentElement.parentElement.insertBefore(barHtml, el.tbodyPreorcamentosLista.parentElement);
   }
 
   // Bind checkboxes
-  el.tbodyPreorcamentosLista.querySelectorAll(".pre-contrato-check").forEach(cb => {
-    cb.addEventListener("change", () => {
-      const checked = el.tbodyPreorcamentosLista.querySelectorAll(".pre-contrato-check:checked");
-      const bar = document.getElementById("pre-contrato-bar");
-      const count = document.getElementById("pre-contrato-count");
-      if (bar) bar.style.display = checked.length > 0 ? "flex" : "none";
-      if (count) count.textContent = `${checked.length} selecionado(s)`;
-    });
+  function updatePreLoteBar() {
+    const checked = el.tbodyPreorcamentosLista.querySelectorAll(".pre-lote-check:checked");
+    const bar = document.getElementById("pre-lote-bar");
+    const count = document.getElementById("pre-lote-count");
+    if (bar) bar.style.display = checked.length > 0 ? "flex" : "none";
+    if (count) count.textContent = `${checked.length} selecionado(s)`;
+  }
+  el.tbodyPreorcamentosLista.querySelectorAll(".pre-lote-check").forEach(cb => {
+    cb.addEventListener("change", updatePreLoteBar);
   });
 }
 
@@ -1946,6 +1945,17 @@ window.removerPreOrcamento = function (orcId) {
   savePreOrcamentos();
   renderAll();
   voltarPreOrcamento();
+};
+
+window.excluirPreLote = function() {
+  const checked = document.querySelectorAll(".pre-lote-check:checked");
+  if (checked.length === 0) return;
+  if (!confirm(`Excluir ${checked.length} pré-orçamento(s)?`)) return;
+  [...checked].forEach(cb => { delete preOrcamentos[cb.dataset.id]; });
+  savePreOrcamentos();
+  renderAll();
+  voltarPreOrcamento();
+  showToast(`${checked.length} pré-orçamento(s) excluído(s).`);
 };
 
 // ===== BANCO DE PREÇOS =====
@@ -5881,7 +5891,7 @@ function criarContratoGdp(orcId, preOrcamento, numContrato) {
 
 // Gerar contrato unificado a partir de múltiplos pré-orçamentos selecionados
 window.gerarContratoUnificado = function() {
-  const checked = document.querySelectorAll(".sgd-contrato-check:checked, .pre-contrato-check:checked");
+  const checked = document.querySelectorAll(".sgd-contrato-check:checked, .pre-lote-check:checked");
   if (checked.length === 0) return;
 
   const ids = [...checked].map(cb => cb.dataset.id);
