@@ -5220,17 +5220,17 @@ async function varrerSgd() {
         return null;
       }
 
-      // Step 1: Fetch all budget summaries (paginated, 200/page for speed)
+      // Step 1: Fetch all budget summaries (paginated, 100/page — API max is 100)
       const allBudgets = [];
       let page = 1;
-      const PAGE_SIZE = 200;
+      const PAGE_SIZE = 100;
       while (true) {
         const data = await BrowserSgdClient.listBudgets(page, PAGE_SIZE);
         const items = data.data || [];
         if (items.length === 0) break;
         allBudgets.push(...items);
         const total = data.meta ? data.meta.totalItems : 0;
-        if (allBudgets.length >= total || items.length < PAGE_SIZE) break;
+        if (allBudgets.length >= total) break;
         page++;
         btn.innerHTML = `<span class="sgd-spinner"></span>Listando... ${allBudgets.length}/${total}`;
       }
