@@ -660,6 +660,38 @@
         </table>
       </div>
       <p id="sgd-empty" class="empty-msg" style="display:none;">Nenhum pré-orçamento aprovado. Aprove na aba Pré-Orçamento para enviar ao SGD.</p>
+
+      <!-- Demandas (Story 4.36) -->
+      <div id="demandas-section" style="margin-top:1.5rem;">
+        <h3 style="margin-bottom:0.5rem;">Demandas Geradas</h3>
+        <div class="table-wrap">
+          <table><thead><tr><th>ID</th><th>Escola</th><th>Itens</th><th>Custo Est.</th><th>Status</th><th>Acao</th></tr></thead>
+          <tbody id="tbody-demandas"></tbody></table>
+        </div>
+        <p id="demandas-empty" class="empty-msg" style="display:none;">Nenhuma demanda gerada.</p>
+      </div>
+
+      <!-- Estoque (Story 4.37) -->
+      <div id="estoque-section" style="margin-top:1.5rem;">
+        <h3>Estoque</h3>
+        <div class="table-wrap"><table>
+          <thead><tr><th>SKU</th><th>Produto</th><th>Qtd</th><th>Comprometido</th><th>Disponivel</th><th>Acao</th></tr></thead>
+          <tbody id="tbody-estoque"></tbody>
+        </table></div>
+        <p id="estoque-empty" class="empty-msg" style="display:none;">Estoque vazio.</p>
+      </div>
+
+      <!-- Lista de Compras (Story 4.37) -->
+      <div id="compras-section" style="margin-top:1.5rem;">
+        <h3>Lista de Compras <button class="btn btn-sm" onclick="exportarListaCompras()" style="margin-left:0.5rem;">Exportar CSV</button> <button class="btn btn-sm" onclick="imprimirListaCompras()" style="margin-left:0.3rem;">Imprimir</button></h3>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Produto</th><th>Qtd</th><th>Fornecedor</th><th>Custo Unit.</th><th>Custo Total</th><th>Escola</th></tr></thead>
+          <tbody id="tbody-compras"></tbody>
+        </table></div>
+        <div id="compras-total" style="font-weight:600;margin-top:0.5rem;"></div>
+        <p id="compras-empty" class="empty-msg" style="display:none;">Lista de compras vazia.</p>
+      </div>
+
     </div>
   </section>
 
@@ -1210,6 +1242,73 @@
       <div style="margin-top:1rem;text-align:right;">
         <button id="btn-b2b-importar" class="btn btn-sm btn-accent" style="display:none;">Importar Selecionados</button>
         <button id="btn-b2b-fechar" class="btn btn-sm">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Vincular Produto (Story 4.35) -->
+  <div id="modal-vincular-produto" class="modal-overlay" style="display:none;">
+    <div class="modal card" style="max-width:700px;max-height:85vh;overflow-y:auto;">
+      <h3 style="margin-bottom:4px;">Vincular Produto</h3>
+      <p style="font-size:0.82rem;color:#6b7280;margin-bottom:12px;">Vinculando para: <strong id="vincular-titulo-desc" style="color:#1f2937;"></strong></p>
+
+      <!-- Auto-sugestao -->
+      <div id="vincular-sugestao"></div>
+
+      <!-- Busca -->
+      <div style="margin-bottom:12px;">
+        <input type="text" id="input-busca-produto" placeholder="Buscar por nome, SKU ou codigo..." style="width:100%;padding:0.5rem;border:1px solid #d1d5db;border-radius:6px;font-size:0.85rem;" />
+      </div>
+
+      <!-- Resultados -->
+      <div id="resultados-produto" style="max-height:280px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:8px;padding:8px;margin-bottom:12px;"></div>
+
+      <!-- Criar novo produto -->
+      <div style="border-top:1px solid #e5e7eb;padding-top:12px;">
+        <button class="btn btn-sm" onclick="toggleCriarProdutoForm()" style="font-size:0.82rem;color:#2563eb;">+ Criar Novo Produto</button>
+        <div id="vincular-criar-form" style="display:none;margin-top:10px;padding:12px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+            <div>
+              <label style="font-size:0.78rem;font-weight:600;display:block;margin-bottom:2px;">Nome Comercial *</label>
+              <input type="text" id="vincular-criar-nome" placeholder="Ex: Papel Toalha Mili cx c/ 1000fls" style="width:100%;padding:0.4rem;font-size:0.82rem;" />
+            </div>
+            <div>
+              <label style="font-size:0.78rem;font-weight:600;display:block;margin-bottom:2px;">SKU</label>
+              <input type="text" id="vincular-criar-sku" placeholder="Auto-gerado" style="width:100%;padding:0.4rem;font-size:0.82rem;" />
+            </div>
+            <div>
+              <label style="font-size:0.78rem;font-weight:600;display:block;margin-bottom:2px;">Unidade de Compra</label>
+              <select id="vincular-criar-unidade" style="width:100%;padding:0.4rem;font-size:0.82rem;">
+                <option value="UN">UN - Unidade</option>
+                <option value="CX">CX - Caixa</option>
+                <option value="PCT">PCT - Pacote</option>
+                <option value="KG">KG - Quilograma</option>
+                <option value="FD">FD - Fardo</option>
+                <option value="RL">RL - Rolo</option>
+                <option value="LT">LT - Litro</option>
+                <option value="M">M - Metro</option>
+                <option value="RESMA">RESMA</option>
+                <option value="OUTRO">Outro</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size:0.78rem;font-weight:600;display:block;margin-bottom:2px;">Custo (R$)</label>
+              <input type="number" id="vincular-criar-custo" step="0.01" min="0" placeholder="0.00" style="width:100%;padding:0.4rem;font-size:0.82rem;" />
+            </div>
+            <div style="grid-column:1/3;">
+              <label style="font-size:0.78rem;font-weight:600;display:block;margin-bottom:2px;">Fornecedor Padrao</label>
+              <input type="text" id="vincular-criar-fornecedor" placeholder="Ex: Distribuidora Central Ltda" style="width:100%;padding:0.4rem;font-size:0.82rem;" />
+            </div>
+          </div>
+          <div style="margin-top:10px;text-align:right;">
+            <button class="btn btn-sm btn-accent" onclick="criarEVincularProduto()" style="font-size:0.82rem;">Criar e Vincular</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Acoes -->
+      <div class="modal-actions" style="margin-top:16px;">
+        <button class="btn" onclick="fecharModalVincular()">Fechar</button>
       </div>
     </div>
   </div>

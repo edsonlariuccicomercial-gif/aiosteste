@@ -257,6 +257,57 @@ function registrarArquivo(nomeArquivo, fornecedor, tipoFonte, qtdItens) {
   return arquivo;
 }
 
+// ===== EQUIVALÊNCIAS PRODUTO (Story 4.35) =====
+const GDP_EQUIV_KEY = "gdp.equivalencias.v1";
+let equivalencias = {}; // { normalizedContractDesc: sku }
+
+function loadEquivalencias() {
+  try { equivalencias = JSON.parse(localStorage.getItem(GDP_EQUIV_KEY) || "{}"); } catch (_) { equivalencias = {}; }
+}
+
+function saveEquivalencias() {
+  localStorage.setItem(GDP_EQUIV_KEY, JSON.stringify(equivalencias));
+  schedulCloudSync();
+}
+
+function getEquivalencia(descricao) {
+  const key = normalizedText(descricao);
+  const sku = equivalencias[key] || null;
+  if (!sku) return null;
+  return sku;
+}
+
+function getProdutoBySku(sku) {
+  return bancoPrecos.itens.find(i => i.sku === sku) || null;
+}
+
+function setEquivalencia(descricao, sku) {
+  equivalencias[normalizedText(descricao)] = sku;
+  saveEquivalencias();
+}
+
+// ===== CONVERSOES E DEMANDAS (Story 4.36) =====
+const CONVERSOES_KEY = "gdp.conversoes.v1";
+const DEMANDAS_KEY = "gdp.demandas.v1";
+let conversoes = {}; // { normalizedDesc: { fator, unOrigem, unDestino } }
+let demandas = [];
+
+function loadConversoes() { try { conversoes = JSON.parse(localStorage.getItem(CONVERSOES_KEY) || "{}"); } catch (_) { conversoes = {}; } }
+function saveConversoes() { localStorage.setItem(CONVERSOES_KEY, JSON.stringify(conversoes)); schedulCloudSync(); }
+function loadDemandas() { try { demandas = JSON.parse(localStorage.getItem(DEMANDAS_KEY) || "[]"); } catch (_) { demandas = []; } }
+function saveDemandas() { localStorage.setItem(DEMANDAS_KEY, JSON.stringify(demandas)); schedulCloudSync(); }
+
+// ===== ESTOQUE E COMPRAS (Story 4.37) =====
+const ESTOQUE_KEY = "gdp.estoque.v1";
+const COMPRAS_KEY = "gdp.lista-compras.v1";
+let estoque = {}; // { sku: { qtd, qtdComprometida, minimo } }
+let listaCompras = []; // [{ sku, produto, qtd, fornecedor, custo, demandaId }]
+
+function loadEstoque() { try { estoque = JSON.parse(localStorage.getItem(ESTOQUE_KEY) || "{}"); } catch (_) { estoque = {}; } }
+function saveEstoque() { localStorage.setItem(ESTOQUE_KEY, JSON.stringify(estoque)); schedulCloudSync(); }
+function loadListaCompras() { try { listaCompras = JSON.parse(localStorage.getItem(COMPRAS_KEY) || "[]"); } catch (_) { listaCompras = []; } }
+function saveListaCompras() { localStorage.setItem(COMPRAS_KEY, JSON.stringify(listaCompras)); schedulCloudSync(); }
+
 // Calculate price trend from history
 function calcTendencia(custosFornecedor) {
   if (!custosFornecedor || custosFornecedor.length < 2) return { tipo: "sem-dados", pct: 0 };
@@ -335,7 +386,10 @@ const SHARED_SYNC_KEYS = new Set([
   "caixaescolar.itens-mestres", "caixaescolar.arquivos-importados",
   "gdp.contratos.v1", "gdp.pedidos.v1", "gdp.entregas.provas.v1", "gdp.usuarios.v1",
   "gdp.notas-entrada.v1", "gdp.notas-fiscais.v1", "gdp.contas-pagar.v1",
-  "gdp.contas-receber.v1", "gdp.integracoes.v1", "gdp.estoque.movimentos.v1"
+  "gdp.contas-receber.v1", "gdp.integracoes.v1", "gdp.estoque.movimentos.v1",
+  "gdp.equivalencias.v1",
+  "gdp.conversoes.v1", "gdp.demandas.v1",
+  "gdp.estoque.v1", "gdp.lista-compras.v1"
 ]);
 const RESULTADOS_STORAGE_KEY = "caixaescolar.resultados.v1";
 const CONTRATOS_STORAGE_KEY = "caixaescolar.contratos.v1";
@@ -356,7 +410,10 @@ const SYNC_KEYS = [
   "caixaescolar.descartados", "caixaescolar.itens-mestres", "caixaescolar.arquivos-importados",
   "gdp.contratos.v1", "gdp.pedidos.v1", "gdp.entregas.provas.v1",
   "gdp.usuarios.v1", "gdp.notas-entrada.v1", "gdp.notas-fiscais.v1", "gdp.contas-pagar.v1",
-  "gdp.contas-receber.v1", "gdp.integracoes.v1", "gdp.estoque.movimentos.v1"
+  "gdp.contas-receber.v1", "gdp.integracoes.v1", "gdp.estoque.movimentos.v1",
+  "gdp.equivalencias.v1",
+  "gdp.conversoes.v1", "gdp.demandas.v1",
+  "gdp.estoque.v1", "gdp.lista-compras.v1"
 ];
 
 function ensureEmpresaContext() {
@@ -868,6 +925,11 @@ async function boot() {
   loadDescartados();
   loadMestres();
   loadArquivos();
+  loadEquivalencias();
+  loadConversoes();
+  loadDemandas();
+  loadEstoque();
+  loadListaCompras();
   carregarModulosConfig();
   aplicarAcessoSidebar();
 
@@ -1669,6 +1731,18 @@ function renderPreOrcamentoItens() {
         </div>`
       : "";
 
+    // Equivalência de produto (Story 4.35)
+    const equivSku = getEquivalencia(item.nome);
+    const equivProd = equivSku ? getProdutoBySku(equivSku) : null;
+    let equivHint = "";
+    if (equivSku && equivProd) {
+      equivHint = `<br><span style="font-size:0.72rem;color:#059669;" title="SKU: ${escapeHtml(equivSku)}">&#10003; Produto: ${escapeHtml(equivProd.nomeComercial || equivProd.item)}</span> <button class="btn btn-inline" onclick="abrirModalVincular('${escapeHtml(activePreOrcamentoId)}', ${idx})" style="font-size:0.65rem;padding:1px 4px;color:#6b7280;" title="Alterar vínculo">&#9998;</button>`;
+    } else if (equivSku) {
+      equivHint = `<br><span style="font-size:0.72rem;color:#059669;">&#10003; Vinculado: ${escapeHtml(equivSku)}</span> <button class="btn btn-inline" onclick="abrirModalVincular('${escapeHtml(activePreOrcamentoId)}', ${idx})" style="font-size:0.65rem;padding:1px 4px;color:#6b7280;" title="Alterar vínculo">&#9998;</button>`;
+    } else if (pre.status === "ganho") {
+      equivHint = `<br><button class="btn btn-inline" onclick="abrirModalVincular('${escapeHtml(activePreOrcamentoId)}', ${idx})" style="font-size:0.7rem;padding:2px 8px;background:#fef3c7;color:#92400e;border:1px solid #fbbf24;border-radius:4px;">Vincular Produto</button>`;
+    }
+
     return `<tr>
       <td>
         <strong>${escapeHtml(item.nome)}</strong>
@@ -1677,6 +1751,7 @@ function renderPreOrcamentoItens() {
         ${pncpHint}
         ${concHint}
         ${fornHint}
+        ${equivHint}
         ${searchBtn}
       </td>
       <td>${marcaInput}</td>
@@ -3723,8 +3798,9 @@ function bindEvents() {
   // Keyboard: Escape fecha modais
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
-      const mestresModal = document.getElementById("modal-mestres");
-      if (mestresModal && mestresModal.style.display !== "none") closeMestresModal();
+      const vincularModal = document.getElementById("modal-vincular-produto");
+      if (vincularModal && vincularModal.style.display !== "none") fecharModalVincular();
+      else if (document.getElementById("modal-mestres")?.style.display !== "none") closeMestresModal();
       else if (el.modalImport.style.display !== "none") closeImportModal();
       else if (el.modalBanco.style.display !== "none") closeBancoModal();
     }
@@ -5014,7 +5090,8 @@ function renderSgd() {
         actions = `<button class="btn btn-inline btn-accent" onclick="abrirModalResultado('${p.orcamentoId}')">Resultado</button>
           <button class="btn btn-inline" onclick="sgdBaixarPayload('${p.orcamentoId}')">Payload</button>`;
       } else if (p.status === "ganho") {
-        actions = `<button class="btn btn-inline" onclick="abrirPreOrcamento('${p.orcamentoId}')">Ver Itens</button>`;
+        actions = `<button class="btn btn-inline" onclick="abrirPreOrcamento('${p.orcamentoId}')">Ver Itens</button>
+          <button class="btn btn-inline btn-accent" onclick="gerarDemanda('${p.orcamentoId}')">Gerar Demanda</button>`;
       } else {
         actions = `<button class="btn btn-inline" onclick="sgdBaixarPayload('${p.orcamentoId}')">Payload</button>`;
       }
@@ -5058,6 +5135,11 @@ function renderSgd() {
       if (c) c.textContent = `${checked.length} selecionado(s)`;
     });
   });
+
+  // Render sub-sections (Stories 4.36 / 4.37)
+  renderDemandas();
+  renderEstoque();
+  renderListaCompras();
 }
 
 window.sgdBaixarPayload = function (orcId) {
@@ -6769,6 +6851,11 @@ window.removerFontePreco = function (itemId, idx) {
   const modalB2b = document.getElementById("modal-b2b");
   if (modalB2b) modalB2b.addEventListener("click", (e) => { if (e.target === modalB2b) closeB2bModal(); });
 
+  // Vincular Produto modal (Story 4.35) — click outside to close + search debounce
+  const modalVincular = document.getElementById("modal-vincular-produto");
+  if (modalVincular) modalVincular.addEventListener("click", (e) => { if (e.target === modalVincular) fecharModalVincular(); });
+  initVincularBuscaHandler();
+
   // Export contratos
   const btnExpCtr = document.getElementById("btn-export-contratos");
   if (btnExpCtr) {
@@ -6783,6 +6870,471 @@ window.removerFontePreco = function (itemId, idx) {
     });
   }
 })();
+
+// ===== VINCULAR PRODUTO — Modal de Equivalências (Story 4.35) =====
+let _vincularDescricao = "";  // description being linked
+let _vincularOrcId = "";      // pre-orcamento id
+let _vincularItemIdx = -1;    // item index
+let _vincularDebounce = null;
+
+window.abrirModalVincular = function(orcId, itemIdx) {
+  const pre = preOrcamentos[orcId];
+  if (!pre || !pre.itens[itemIdx]) return;
+  const item = pre.itens[itemIdx];
+  _vincularOrcId = orcId;
+  _vincularItemIdx = itemIdx;
+  _vincularDescricao = item.nome;
+
+  // Set header
+  const tituloEl = document.getElementById("vincular-titulo-desc");
+  if (tituloEl) tituloEl.textContent = _vincularDescricao.slice(0, 80) + (_vincularDescricao.length > 80 ? "..." : "");
+
+  // Hide create form if open
+  const createForm = document.getElementById("vincular-criar-form");
+  if (createForm) createForm.style.display = "none";
+
+  // Auto-sugestão via findBestMestre
+  const sugestaoDiv = document.getElementById("vincular-sugestao");
+  if (sugestaoDiv) {
+    sugestaoDiv.innerHTML = "";
+    const result = findBestMestre(_vincularDescricao);
+    if (result && result.score >= 0.5) {
+      const mestre = result.mestre;
+      // Find a banco item matching this mestre
+      const mestreBp = bancoPrecos.itens.find(bp => normalizedText(bp.item) === normalizedText(mestre.nomeCanonico));
+      const confianca = result.score >= 0.8 ? '<span style="background:#d1fae5;color:#065f46;padding:1px 6px;border-radius:4px;font-size:0.7rem;margin-left:4px;">Alta confianca</span>' : '';
+      const skuInfo = mestreBp && mestreBp.sku ? ` | SKU: ${escapeHtml(mestreBp.sku)}` : "";
+      const custoInfo = mestreBp && mestreBp.custoBase > 0 ? ` | ${brl.format(mestreBp.custoBase)}` : "";
+      sugestaoDiv.innerHTML = `
+        <div style="background:#ecfdf5;border:1px solid #10b981;border-radius:8px;padding:10px;margin-bottom:12px;">
+          <div style="font-size:0.8rem;font-weight:600;color:#065f46;margin-bottom:4px;">Sugestao automatica ${confianca}</div>
+          <div style="font-size:0.85rem;">${escapeHtml(mestre.nomeCanonico)}${skuInfo}${custoInfo} <span style="color:#6b7280;font-size:0.75rem;">(${(result.score * 100).toFixed(0)}% match)</span></div>
+          <button class="btn btn-sm btn-accent" onclick="aceitarSugestaoVincular('${escapeHtml(mestreBp ? mestreBp.id : mestre.id)}')" style="margin-top:6px;font-size:0.8rem;">Aceitar sugestao</button>
+        </div>`;
+    }
+  }
+
+  // Clear search and show all products initially
+  const inputBusca = document.getElementById("input-busca-produto");
+  if (inputBusca) inputBusca.value = "";
+  renderResultadosProduto("");
+
+  // Open modal
+  const modal = document.getElementById("modal-vincular-produto");
+  if (modal) modal.style.display = "flex";
+};
+
+window.aceitarSugestaoVincular = function(bpId) {
+  const bp = bancoPrecos.itens.find(i => i.id === bpId);
+  if (bp) {
+    selecionarProdutoVincular(bp);
+  }
+};
+
+function renderResultadosProduto(termo) {
+  const container = document.getElementById("resultados-produto");
+  if (!container) return;
+
+  const norm = normalizedText(termo);
+  let itens = bancoPrecos.itens;
+  if (norm.length > 0) {
+    itens = itens.filter(bp => {
+      return normalizedText(bp.item).includes(norm) ||
+             normalizedText(bp.nomeComercial || "").includes(norm) ||
+             normalizedText(bp.sku || "").includes(norm);
+    });
+  }
+
+  // Sort: items with sku/nomeComercial first, then alphabetical
+  itens = [...itens].sort((a, b) => {
+    const aHas = (a.sku || a.nomeComercial) ? 0 : 1;
+    const bHas = (b.sku || b.nomeComercial) ? 0 : 1;
+    if (aHas !== bHas) return aHas - bHas;
+    return (a.item || "").localeCompare(b.item || "");
+  });
+
+  // Limit to 50 results
+  const limited = itens.slice(0, 50);
+
+  if (limited.length === 0) {
+    container.innerHTML = '<div style="color:#6b7280;font-size:0.85rem;padding:12px;text-align:center;">Nenhum produto encontrado. Crie um novo abaixo.</div>';
+    return;
+  }
+
+  container.innerHTML = '<table style="width:100%;font-size:0.82rem;"><thead><tr><th style="text-align:left;">Produto</th><th>SKU</th><th>Unid.</th><th>Custo</th><th></th></tr></thead><tbody>' +
+    limited.map(bp => {
+      const nome = escapeHtml(bp.nomeComercial || bp.item);
+      const sku = escapeHtml(bp.sku || "—");
+      const unid = escapeHtml(bp.unidade || bp.unidadeCompra || "—");
+      const custo = bp.custoBase > 0 ? brl.format(bp.custoBase) : "—";
+      return `<tr>
+        <td style="padding:4px 6px;">${nome}</td>
+        <td style="padding:4px 6px;color:#6b7280;">${sku}</td>
+        <td style="padding:4px 6px;">${unid}</td>
+        <td style="padding:4px 6px;">${custo}</td>
+        <td style="padding:4px 6px;"><button class="btn btn-sm btn-accent" onclick="selecionarProdutoById('${escapeHtml(bp.id)}')" style="font-size:0.75rem;padding:2px 8px;">Selecionar</button></td>
+      </tr>`;
+    }).join("") +
+    '</tbody></table>' +
+    (itens.length > 50 ? `<div style="color:#6b7280;font-size:0.75rem;text-align:center;margin-top:4px;">Mostrando 50 de ${itens.length} resultados. Refine a busca.</div>` : "");
+}
+
+window.selecionarProdutoById = function(bpId) {
+  const bp = bancoPrecos.itens.find(i => i.id === bpId);
+  if (bp) selecionarProdutoVincular(bp);
+};
+
+function selecionarProdutoVincular(bp) {
+  // Ensure the banco item has a sku
+  if (!bp.sku) {
+    bp.sku = gerarSkuSugerido(bp.nomeComercial || bp.item);
+    saveBancoLocal();
+  }
+
+  // Set equivalencia
+  setEquivalencia(_vincularDescricao, bp.sku);
+
+  // Add this description to the bp's equivalencias array
+  if (!bp.equivalencias) bp.equivalencias = [];
+  const normDesc = normalizedText(_vincularDescricao);
+  if (!bp.equivalencias.some(e => normalizedText(e) === normDesc)) {
+    bp.equivalencias.push(_vincularDescricao);
+    saveBancoLocal();
+  }
+
+  // Close modal and re-render
+  fecharModalVincular();
+  showToast(`Vinculado: "${_vincularDescricao.slice(0, 40)}..." -> "${bp.nomeComercial || bp.item}"`);
+  renderPreOrcamentoItens();
+}
+
+function fecharModalVincular() {
+  const modal = document.getElementById("modal-vincular-produto");
+  if (modal) modal.style.display = "none";
+  _vincularDescricao = "";
+  _vincularOrcId = "";
+  _vincularItemIdx = -1;
+}
+window.fecharModalVincular = fecharModalVincular;
+
+function gerarSkuSugerido(nome) {
+  return normalizedText(nome)
+    .replace(/[^a-z0-9\s]/g, "")
+    .split(/\s+/)
+    .filter(t => t.length > 1)
+    .slice(0, 3)
+    .map(t => t.slice(0, 4).toUpperCase())
+    .join("-") || ("SKU-" + Date.now().toString(36).slice(-4).toUpperCase());
+}
+
+// Toggle create form inside vincular modal
+window.toggleCriarProdutoForm = function() {
+  const form = document.getElementById("vincular-criar-form");
+  if (!form) return;
+  form.style.display = form.style.display === "none" ? "block" : "none";
+  if (form.style.display === "block") {
+    // Pre-fill with auto-generated SKU
+    const inputNome = document.getElementById("vincular-criar-nome");
+    const inputSku = document.getElementById("vincular-criar-sku");
+    if (inputNome && !inputNome.value) inputNome.value = _vincularDescricao.slice(0, 60);
+    if (inputSku && !inputSku.value) inputSku.value = gerarSkuSugerido(_vincularDescricao);
+  }
+};
+
+window.criarEVincularProduto = function() {
+  const nomeComercial = (document.getElementById("vincular-criar-nome")?.value || "").trim();
+  if (!nomeComercial) { showToast("Nome comercial e obrigatorio."); return; }
+
+  let sku = (document.getElementById("vincular-criar-sku")?.value || "").trim();
+  if (!sku) sku = gerarSkuSugerido(nomeComercial);
+
+  const unidadeCompra = document.getElementById("vincular-criar-unidade")?.value || "UN";
+  const fornecedorPadrao = (document.getElementById("vincular-criar-fornecedor")?.value || "").trim();
+  const custo = parseFloat(document.getElementById("vincular-criar-custo")?.value) || 0;
+
+  // Check if SKU already exists
+  if (bancoPrecos.itens.some(bp => bp.sku === sku)) {
+    showToast("SKU ja existe. Escolha outro ou use Selecionar.");
+    return;
+  }
+
+  // Create new banco item
+  const novoBp = {
+    id: "bp-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 5),
+    item: nomeComercial,
+    nomeComercial: nomeComercial,
+    sku: sku,
+    marca: "",
+    grupo: "Material de Consumo Geral",
+    unidade: unidadeCompra,
+    unidadeCompra: unidadeCompra,
+    custoBase: custo,
+    margemPadrao: 0.30,
+    precoReferencia: custo > 0 ? Math.round(custo * 1.30 * 100) / 100 : 0,
+    ultimaCotacao: new Date().toISOString().slice(0, 10),
+    fonte: fornecedorPadrao,
+    fornecedorPadrao: fornecedorPadrao,
+    custo: custo,
+    propostas: [],
+    concorrentes: [],
+    custosFornecedor: fornecedorPadrao && custo > 0 ? [{
+      fornecedor: fornecedorPadrao,
+      preco: custo,
+      data: new Date().toISOString().slice(0, 10)
+    }] : [],
+    equivalencias: [_vincularDescricao]
+  };
+  bancoPrecos.itens.push(novoBp);
+  saveBancoLocal();
+
+  // Set equivalencia
+  setEquivalencia(_vincularDescricao, sku);
+
+  // Close and re-render
+  fecharModalVincular();
+  showToast(`Produto "${nomeComercial}" criado e vinculado.`);
+  renderPreOrcamentoItens();
+};
+
+// Debounced search handler for vincular modal
+function initVincularBuscaHandler() {
+  const input = document.getElementById("input-busca-produto");
+  if (!input) return;
+  input.addEventListener("input", function() {
+    clearTimeout(_vincularDebounce);
+    _vincularDebounce = setTimeout(() => {
+      renderResultadosProduto(this.value);
+    }, 300);
+  });
+}
+
+// Initialize search handler after DOM load
+document.addEventListener("DOMContentLoaded", initVincularBuscaHandler);
+
+// ===== CONVERSAO E DEMANDA ENGINE (Story 4.36) =====
+
+function converterDemanda(pedidoItens) {
+  return pedidoItens.map(item => {
+    const equiv = getEquivalencia(item.nome);
+    if (!equiv) return { ...item, status: "sem_vinculo", produtoReal: null, qtdConvertida: 0, custoEstimado: 0 };
+
+    const produto = getProdutoBySku(equiv);
+    const fator = conversoes[normalizedText(item.nome)]?.fator || 1;
+    const qtdConvertida = Math.ceil((item.quantidade || 0) / fator);
+    const custo = produto ? (produto.custoBase || produto.custo || 0) * qtdConvertida : 0;
+
+    return {
+      ...item,
+      status: "convertido",
+      produtoReal: produto ? (produto.nomeComercial || produto.item) : equiv,
+      skuProduto: equiv,
+      qtdOriginal: item.quantidade,
+      unidadeOriginal: item.unidade || "UN",
+      qtdConvertida,
+      unidadeCompra: produto?.unidade || produto?.unidadeCompra || "UN",
+      fatorConversao: fator,
+      custoUnitario: produto?.custoBase || produto?.custo || 0,
+      custoEstimado: Math.round(custo * 100) / 100,
+    };
+  });
+}
+
+window.gerarDemanda = function(orcId) {
+  const pre = preOrcamentos[orcId];
+  if (!pre) return;
+
+  const itensConvertidos = converterDemanda(pre.itens || []);
+  const semVinculo = itensConvertidos.filter(i => i.status === "sem_vinculo").length;
+
+  const demanda = {
+    id: "dem-" + Date.now().toString(36),
+    orcamentoId: orcId,
+    escola: pre.escola,
+    municipio: pre.municipio,
+    status: "rascunho",
+    criadoEm: new Date().toISOString().slice(0, 10),
+    itens: itensConvertidos,
+    totalEstimado: itensConvertidos.reduce((s, i) => s + (i.custoEstimado || 0), 0),
+  };
+
+  demandas.push(demanda);
+  saveDemandas();
+
+  if (semVinculo > 0) {
+    showToast(`Demanda criada: ${itensConvertidos.length} itens (${semVinculo} sem vinculo — vincule na aba Pre-Orcamento)`);
+  } else {
+    showToast(`Demanda criada: ${itensConvertidos.length} itens convertidos — ${brl.format(demanda.totalEstimado)}`);
+  }
+  renderSgd();
+};
+
+function renderDemandas() {
+  const tbody = document.getElementById("tbody-demandas");
+  const empty = document.getElementById("demandas-empty");
+  if (!tbody) return;
+
+  if (demandas.length === 0) { if (empty) empty.style.display = "block"; tbody.innerHTML = ""; return; }
+  if (empty) empty.style.display = "none";
+
+  tbody.innerHTML = demandas.map(d => {
+    const convertidos = d.itens.filter(i => i.status === "convertido").length;
+    const semVinculo = d.itens.filter(i => i.status === "sem_vinculo").length;
+    const statusBadge = d.status === "confirmada"
+      ? '<span class="badge badge-ganho">Confirmada</span>'
+      : '<span class="badge badge-pendente">Rascunho</span>';
+    return `<tr>
+      <td class="font-mono text-muted">${escapeHtml(d.id)}</td>
+      <td>${escapeHtml(d.escola)}</td>
+      <td>${convertidos} ok${semVinculo > 0 ? `, <span style="color:#e74c3c">${semVinculo} sem vinculo</span>` : ""}</td>
+      <td class="font-mono">${brl.format(d.totalEstimado)}</td>
+      <td>${statusBadge}</td>
+      <td>
+        <button class="btn btn-inline" onclick="verDemanda('${d.id}')">Ver</button>
+        ${d.status === "rascunho" ? `<button class="btn btn-inline btn-accent" onclick="confirmarDemanda('${d.id}')">Confirmar</button>` : ""}
+      </td>
+    </tr>`;
+  }).join("");
+}
+
+window.verDemanda = function(demandaId) {
+  const d = demandas.find(x => x.id === demandaId);
+  if (!d) return;
+  let msg = `Demanda ${d.id} — ${d.escola}\n\n`;
+  d.itens.forEach((item, i) => {
+    if (item.status === "convertido") {
+      msg += `${i + 1}. ${item.nome} -> ${item.produtoReal}\n   ${item.qtdOriginal} ${item.unidadeOriginal} -> ${item.qtdConvertida} ${item.unidadeCompra} (fator: ${item.fatorConversao})\n   Custo: ${brl.format(item.custoEstimado)}\n\n`;
+    } else {
+      msg += `${i + 1}. [SEM VINCULO] ${item.nome}\n\n`;
+    }
+  });
+  msg += `Total estimado: ${brl.format(d.totalEstimado)}`;
+  alert(msg);
+};
+
+// ===== ESTOQUE E LISTA DE COMPRAS ENGINE (Story 4.37) =====
+
+window.confirmarDemanda = function(demandaId) {
+  const d = demandas.find(x => x.id === demandaId);
+  if (!d || d.status !== "rascunho") return;
+  if (!confirm(`Confirmar demanda ${d.id}? Vai debitar estoque e gerar lista de compras.`)) return;
+
+  d.itens.forEach(item => {
+    if (item.status !== "convertido" || !item.skuProduto) return;
+    const sku = item.skuProduto;
+
+    // Init stock if needed
+    if (!estoque[sku]) estoque[sku] = { qtd: 0, qtdComprometida: 0, minimo: 0 };
+
+    const disponivel = estoque[sku].qtd - estoque[sku].qtdComprometida;
+    if (disponivel >= item.qtdConvertida) {
+      // Enough stock — deduct
+      estoque[sku].qtd -= item.qtdConvertida;
+    } else {
+      // Not enough — deduct what's available, add rest to purchase list
+      const falta = item.qtdConvertida - Math.max(disponivel, 0);
+      estoque[sku].qtd = Math.max(estoque[sku].qtd - item.qtdConvertida, 0);
+
+      const produto = getProdutoBySku(sku);
+      listaCompras.push({
+        sku,
+        produto: item.produtoReal || (produto ? (produto.item || sku) : sku),
+        qtd: falta,
+        fornecedor: produto?.fonte || produto?.fornecedorPadrao || "",
+        custoUnitario: produto?.custoBase || produto?.custo || 0,
+        custoTotal: Math.round(falta * (produto?.custoBase || produto?.custo || 0) * 100) / 100,
+        demandaId: d.id,
+        escola: d.escola,
+        criadoEm: new Date().toISOString().slice(0, 10),
+      });
+    }
+  });
+
+  d.status = "confirmada";
+  saveDemandas();
+  saveEstoque();
+  saveListaCompras();
+  renderDemandas();
+  renderEstoque();
+  renderListaCompras();
+  showToast(`Demanda confirmada. Estoque atualizado, ${listaCompras.length} item(ns) na lista de compras.`);
+};
+
+function renderEstoque() {
+  const tbody = document.getElementById("tbody-estoque");
+  const empty = document.getElementById("estoque-empty");
+  if (!tbody) return;
+  const entries = Object.entries(estoque);
+  if (entries.length === 0) { if (empty) empty.style.display = "block"; tbody.innerHTML = ""; return; }
+  if (empty) empty.style.display = "none";
+
+  tbody.innerHTML = entries.map(([sku, s]) => {
+    const produto = getProdutoBySku(sku);
+    const disp = s.qtd - s.qtdComprometida;
+    const corDisp = disp <= 0 ? "color:#e74c3c" : disp <= (s.minimo || 5) ? "color:#f59e0b" : "color:#059669";
+    return `<tr>
+      <td class="font-mono">${escapeHtml(sku)}</td>
+      <td>${escapeHtml(produto ? (produto.item || produto.nomeComercial || sku) : sku)}</td>
+      <td class="text-right">${s.qtd}</td>
+      <td class="text-right">${s.qtdComprometida}</td>
+      <td class="text-right" style="${corDisp};font-weight:600;">${disp}</td>
+      <td><button class="btn btn-inline" onclick="lancamentoEstoque('${escapeHtml(sku)}')">Entrada</button></td>
+    </tr>`;
+  }).join("");
+}
+
+function renderListaCompras() {
+  const tbody = document.getElementById("tbody-compras");
+  const empty = document.getElementById("compras-empty");
+  const totalEl = document.getElementById("compras-total");
+  if (!tbody) return;
+  if (listaCompras.length === 0) { if (empty) empty.style.display = "block"; tbody.innerHTML = ""; if (totalEl) totalEl.textContent = ""; return; }
+  if (empty) empty.style.display = "none";
+
+  tbody.innerHTML = listaCompras.map(c => `<tr>
+    <td>${escapeHtml(c.produto)}</td>
+    <td class="text-right">${c.qtd}</td>
+    <td>${escapeHtml(c.fornecedor)}</td>
+    <td class="text-right font-mono">${brl.format(c.custoUnitario)}</td>
+    <td class="text-right font-mono">${brl.format(c.custoTotal)}</td>
+    <td>${escapeHtml(c.escola)}</td>
+  </tr>`).join("");
+
+  const total = listaCompras.reduce((s, c) => s + c.custoTotal, 0);
+  if (totalEl) totalEl.textContent = `Total: ${brl.format(total)}`;
+}
+
+window.lancamentoEstoque = function(sku) {
+  const qtd = parseInt(prompt("Quantidade de entrada:"));
+  if (isNaN(qtd) || qtd <= 0) return;
+  if (!estoque[sku]) estoque[sku] = { qtd: 0, qtdComprometida: 0, minimo: 0 };
+  estoque[sku].qtd += qtd;
+  saveEstoque();
+  renderEstoque();
+  showToast(`Estoque atualizado: +${qtd} para ${sku}`);
+};
+
+window.exportarListaCompras = function() {
+  if (listaCompras.length === 0) return showToast("Lista vazia.");
+  const header = "Produto;Qtd;Fornecedor;Custo Unit.;Custo Total;Escola";
+  const rows = listaCompras.map(c => `${c.produto};${c.qtd};${c.fornecedor};${c.custoUnitario};${c.custoTotal};${c.escola}`);
+  const csv = "\uFEFF" + [header, ...rows].join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "lista-compras-" + new Date().toISOString().slice(0, 10) + ".csv";
+  a.click();
+};
+
+window.imprimirListaCompras = function() {
+  const table = document.querySelector("#compras-section table");
+  if (!table) return;
+  const win = window.open("", "_blank");
+  win.document.write(`<!DOCTYPE html><html><head><title>Lista de Compras</title>
+    <style>body{font-family:Arial;font-size:11px;margin:20px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ccc;padding:4px 6px;text-align:left}th{background:#f0f0f0}</style>
+  </head><body><h2>Lista de Compras — ${new Date().toLocaleDateString("pt-BR")}</h2>${table.outerHTML}</body></html>`);
+  win.document.close();
+  setTimeout(() => win.print(), 300);
+};
 
 // ===== INIT =====
 boot();
