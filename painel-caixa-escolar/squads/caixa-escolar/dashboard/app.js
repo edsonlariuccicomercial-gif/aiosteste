@@ -1370,7 +1370,7 @@ function renderOrcamentos() {
     if (viewingDescartados) {
       rowStyle = ' style="opacity:0.6"';
     } else if (days <= 0) {
-      rowStyle = ' style="opacity:0.5;background:#fef2f2;"';
+      rowStyle = ' style="border-left:3px solid #94a3b8;color:#64748b;"';
     } else if (days <= 3) {
       rowStyle = ' style="background:#fef2f2;border-left:3px solid #ef4444;"';
     } else if (days <= 7) {
