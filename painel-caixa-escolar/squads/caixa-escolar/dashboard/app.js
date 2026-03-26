@@ -5220,16 +5220,17 @@ async function varrerSgd() {
         return null;
       }
 
-      // Step 1: Fetch all budget summaries (paginated)
+      // Step 1: Fetch all budget summaries (paginated, 200/page for speed)
       const allBudgets = [];
       let page = 1;
+      const PAGE_SIZE = 200;
       while (true) {
-        const data = await BrowserSgdClient.listBudgets(page, 50);
+        const data = await BrowserSgdClient.listBudgets(page, PAGE_SIZE);
         const items = data.data || [];
         if (items.length === 0) break;
         allBudgets.push(...items);
         const total = data.meta ? data.meta.totalItems : 0;
-        if (allBudgets.length >= total || items.length < 50) break;
+        if (allBudgets.length >= total || items.length < PAGE_SIZE) break;
         page++;
         btn.innerHTML = `<span class="sgd-spinner"></span>Listando... ${allBudgets.length}/${total}`;
       }
@@ -5308,41 +5309,52 @@ async function varrerSgd() {
       console.log(`[Varrer] SREs:`, sreCounts, `→ ${filtered.length} aceitos de ${allBudgets.length} varridos`);
       btn.innerHTML = `<span class="sgd-spinner"></span>SREs: ${filtered.length} de ${allBudgets.length}. Buscando detalhes...`;
 
-      // Step 3: Fetch detail + items for each SRE budget
+      // Step 3: Fetch detail + items for each SRE budget (parallel, 3 concurrent)
       // Replace orcamentos entirely with fresh scan data (discard stale entries)
       const scanResults = [];
       let novos = 0;
+      const CONCURRENCY = 3;
 
-      for (let i = 0; i < filtered.length; i++) {
-        const b = filtered[i];
+      // Build existing orcamentos map to skip already-detailed budgets
+      const existingOrcMap = {};
+      orcamentos.forEach(o => { if (o.id && o.objeto && o.itens && o.itens.length > 0) existingOrcMap[o.id] = o; });
+
+      async function fetchBudgetDetail(b, idx) {
         const id = String(b.idBudget || b.id || "");
-        if (!id) continue;
+        if (!id) return null;
 
         const escolaRaw = b.schoolName || b.txSchoolName || "";
         const sreMatchKey = b._sreMatch || findSreMatch(escolaRaw) || sreNorm(escolaRaw);
         const municipio = schoolToMunicipio[sreMatchKey] || sreCountyMap[b.idCounty] || "";
 
-        // Use this budget's own networkId (each SRE has different networkId)
-        const budgetNetworkId = b.idNetwork || BrowserSgdClient.networkId;
-        const savedNetworkId = BrowserSgdClient.networkId;
-        BrowserSgdClient.networkId = budgetNetworkId;
+        // Skip if we already have full details for this budget
+        const existing = existingOrcMap[id];
+        if (existing) {
+          existing.sre = schoolToSre[sreMatchKey] || existing.sre || "Desconhecida";
+          existing.municipio = municipio || existing.municipio;
+          return existing;
+        }
 
-        // Fetch budget detail (for initiativeDescription/objeto, idAxis, dates)
+        // Use this budget's own networkId
+        const budgetNetworkId = b.idNetwork || BrowserSgdClient.networkId;
+
         let detail = {};
         let budgetItems = [];
         try {
           if (b.idSubprogram && b.idSchool && b.idBudget) {
+            const savedNid = BrowserSgdClient.networkId;
+            BrowserSgdClient.networkId = budgetNetworkId;
             detail = await BrowserSgdClient.getBudgetDetail(b.idSubprogram, b.idSchool, b.idBudget);
             const itemsRes = await BrowserSgdClient.getBudgetItems(b.idSubprogram, b.idSchool, b.idBudget);
             budgetItems = itemsRes.data || [];
             if (!Array.isArray(budgetItems)) budgetItems = [];
+            BrowserSgdClient.networkId = savedNid;
           }
         } catch (err) {
           console.warn(`[Varrer] Detalhe budget ${id}: ${err.message}`);
         }
-        BrowserSgdClient.networkId = savedNetworkId;
 
-        const orc = {
+        return {
           id, idBudget: b.idBudget, ano: detail.year || b.year || new Date().getFullYear(),
           escola: escolaRaw, municipio,
           sre: schoolToSre[sreMatchKey] || (sreCountyMap[b.idCounty] ? "Uberaba" : "Desconhecida"),
@@ -5366,13 +5378,14 @@ async function varrerSgd() {
           idNetwork: b.idNetwork || null,
           idAxis: detail.idAxis || b.idAxis || null,
         };
+      }
 
-        scanResults.push(orc);
-        novos++;
-
-        if ((i + 1) % 5 === 0 || i === filtered.length - 1) {
-          btn.innerHTML = `<span class="sgd-spinner"></span>Detalhando ${i + 1}/${filtered.length}...`;
-        }
+      // Parallel execution with concurrency limit
+      for (let i = 0; i < filtered.length; i += CONCURRENCY) {
+        const batch = filtered.slice(i, i + CONCURRENCY);
+        const results = await Promise.all(batch.map((b, j) => fetchBudgetDetail(b, i + j)));
+        results.forEach(orc => { if (orc) { scanResults.push(orc); novos++; } });
+        btn.innerHTML = `<span class="sgd-spinner"></span>Detalhando ${Math.min(i + CONCURRENCY, filtered.length)}/${filtered.length}...`;
       }
 
       // Replace orcamentos with fresh scan data
