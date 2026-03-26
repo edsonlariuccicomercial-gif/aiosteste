@@ -1260,7 +1260,10 @@ function renderOrcamentos() {
       <td class="font-mono text-muted">${escapeHtml(o.id)}</td>
       <td>${escapeHtml(o.escola)}</td>
       <td>${escapeHtml(o.municipio)}</td>
-      <td class="obj-cell" title="${escapeHtml(o.objetoOriginal || o.objeto || '')}">${escapeHtml((o.objetoCustom || o.objeto || "").replace(/\n/g, " "))}${o.objetoCustom ? ' <span class="badge badge-editado" style="font-size:0.6rem;opacity:0.7;vertical-align:middle" title="Original: ' + escapeHtml((o.objetoOriginal || o.objeto || '').substring(0,120)) + '">editado</span> <span class="btn-inline btn-muted" onclick="event.stopPropagation();resetarObjeto(\'' + o.id + '\')" title="Restaurar original" style="cursor:pointer;font-size:0.7rem">↩</span>' : ''}<span class="btn-inline btn-muted" onclick="event.stopPropagation();editarObjeto('${o.id}')" title="Editar objeto" style="cursor:pointer;font-size:0.7rem;margin-left:4px">✏️</span></td>
+      <td class="obj-cell" title="${escapeHtml(o.objetoOriginal || o.objeto || '')}">
+        ${escapeHtml((o.objetoCustom || o.objeto || "").replace(/\n/g, " "))}${o.objetoCustom ? ' <span class="badge badge-editado" style="font-size:0.6rem;opacity:0.7;vertical-align:middle" title="Original: ' + escapeHtml((o.objetoOriginal || o.objeto || '').substring(0,120)) + '">editado</span> <span class="btn-inline btn-muted" onclick="event.stopPropagation();resetarObjeto(\'' + o.id + '\')" title="Restaurar original" style="cursor:pointer;font-size:0.7rem">↩</span>' : ''}<span class="btn-inline btn-muted" onclick="event.stopPropagation();editarObjeto('${o.id}')" title="Editar objeto" style="cursor:pointer;font-size:0.7rem;margin-left:4px">✏️</span>
+        ${(o.itens && o.itens.length > 0) ? '<br><span style="font-size:0.7rem;color:#666;" title="' + o.itens.map(i => i.nome).join('\\n') + '">' + o.itens.length + ' iten(s): ' + o.itens.slice(0,3).map(i => escapeHtml((i.nome||'').slice(0,20))).join(', ') + (o.itens.length > 3 ? '...' : '') + '</span>' : ''}
+      </td>
       <td>${grupoBadge}</td>
       <td class="nowrap">${formatDate(o.prazo)}</td>
       <td class="nowrap">${entregaBadge}</td>
