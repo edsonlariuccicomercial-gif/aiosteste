@@ -1888,15 +1888,20 @@ function renderPreOrcamentosLista() {
     el.preorcamentoTitulo.textContent = "Pré-Orçamentos Salvos";
   }
 
-  el.tbodyPreorcamentosLista.innerHTML = items
-    .sort((a, b) => (b.criadoEm || "").localeCompare(a.criadoEm || ""))
+  const sorted = items.sort((a, b) => (b.criadoEm || "").localeCompare(a.criadoEm || ""));
+  el.tbodyPreorcamentosLista.innerHTML = sorted
     .map((p) => {
       const badgeClass = p.status === "ganho" ? "badge-ganho"
         : p.status === "perdido" ? "badge-perdido"
           : p.status === "enviado" ? "badge-enviado"
             : p.status === "aprovado" ? "badge-aprovado"
               : p.status === "recusado" ? "badge-recusado" : "badge-pendente";
+      const canSelect = p.status === "enviado" || p.status === "aprovado";
+      const checkbox = canSelect
+        ? `<input type="checkbox" class="pre-contrato-check" data-id="${p.orcamentoId}" />`
+        : "";
       return `<tr>
+        <td>${checkbox}</td>
         <td class="font-mono text-muted">${escapeHtml(p.orcamentoId)}</td>
         <td>${escapeHtml(p.escola)}</td>
         <td><span class="badge ${badgeClass}">${p.status}</span></td>
@@ -1908,6 +1913,28 @@ function renderPreOrcamentosLista() {
         </td>
       </tr>`;
     }).join("");
+
+  // Barra de ação para contrato unificado
+  let barHtml = document.getElementById("pre-contrato-bar");
+  if (!barHtml) {
+    barHtml = document.createElement("div");
+    barHtml.id = "pre-contrato-bar";
+    barHtml.style.cssText = "display:none;padding:0.5rem 1rem;background:#ecfdf5;border:1px solid #10b981;border-radius:8px;margin-bottom:0.75rem;align-items:center;gap:1rem;";
+    barHtml.innerHTML = `<span id="pre-contrato-count">0 selecionados</span>
+      <button class="btn btn-sm btn-accent" onclick="gerarContratoUnificado()">Gerar Contrato Unificado</button>`;
+    el.tbodyPreorcamentosLista.parentElement.parentElement.insertBefore(barHtml, el.tbodyPreorcamentosLista.parentElement);
+  }
+
+  // Bind checkboxes
+  el.tbodyPreorcamentosLista.querySelectorAll(".pre-contrato-check").forEach(cb => {
+    cb.addEventListener("change", () => {
+      const checked = el.tbodyPreorcamentosLista.querySelectorAll(".pre-contrato-check:checked");
+      const bar = document.getElementById("pre-contrato-bar");
+      const count = document.getElementById("pre-contrato-count");
+      if (bar) bar.style.display = checked.length > 0 ? "flex" : "none";
+      if (count) count.textContent = `${checked.length} selecionado(s)`;
+    });
+  });
 }
 
 window.removerPreOrcamento = function (orcId) {
@@ -5746,6 +5773,85 @@ function criarContratoGdp(orcId, preOrcamento, numContrato) {
   console.log(`[GDP] Contrato criado: ${contrato.id} — ${contrato.escola} — ${brl.format(contrato.valorTotal)}`);
   return contrato;
 }
+
+// Gerar contrato unificado a partir de múltiplos pré-orçamentos selecionados
+window.gerarContratoUnificado = function() {
+  const checked = document.querySelectorAll(".pre-contrato-check:checked");
+  if (checked.length === 0) return;
+
+  const ids = [...checked].map(cb => cb.dataset.id);
+  const pres = ids.map(id => preOrcamentos[id]).filter(Boolean);
+
+  if (pres.length === 0) return;
+
+  // Agrupar por escola
+  const escolas = [...new Set(pres.map(p => p.escola))];
+  const escolaLabel = escolas.length === 1 ? escolas[0] : `${escolas.length} escolas`;
+
+  const numContrato = prompt(`Gerar contrato unificado com ${pres.length} processo(s) (${escolaLabel}).\n\nNúmero do contrato/ARP:`);
+  if (numContrato === null) return;
+
+  // Consolidar todos os itens
+  const todosItens = [];
+  let valorTotal = 0;
+  pres.forEach(pre => {
+    (pre.itens || []).forEach(item => {
+      todosItens.push({
+        nome: item.nome || "",
+        descricao: item.descricao || "",
+        quantidade: item.quantidade || 0,
+        unidade: item.unidade || "UN",
+        precoUnitario: item.precoUnitario || 0,
+        precoTotal: item.precoTotal || 0,
+        marca: item.marca || "",
+        orcamentoOrigem: pre.orcamentoId,
+      });
+    });
+    valorTotal += pre.totalGeral || 0;
+  });
+
+  // Criar contrato GDP unificado
+  const CONTRATOS_GDP_KEY = "gdp.contratos.v1";
+  let contratosRaw;
+  try { contratosRaw = JSON.parse(localStorage.getItem(CONTRATOS_GDP_KEY) || "{}"); } catch(_) { contratosRaw = {}; }
+  const contratos = contratosRaw.items || contratosRaw || [];
+  const contratosArray = Array.isArray(contratos) ? contratos : [];
+
+  const contrato = {
+    id: "gdp-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 5),
+    numero: numContrato || "ARP-UNIF-" + ids[0],
+    tipo: "Caixa Escolar",
+    status: "ativo",
+    escola: escolas.join(", "),
+    municipio: pres[0].municipio || "",
+    sre: pres[0].sre || "",
+    valorTotal: Math.round(valorTotal * 100) / 100,
+    dataInicio: new Date().toISOString().slice(0, 10),
+    orcamentosIds: ids,
+    itens: todosItens,
+    criadoEm: new Date().toISOString().slice(0, 10),
+    origem: "contrato-unificado",
+  };
+
+  contratosArray.push(contrato);
+  localStorage.setItem(CONTRATOS_GDP_KEY, JSON.stringify({ _v: 1, updatedAt: new Date().toISOString(), items: contratosArray }));
+
+  // Marcar todos pré-orçamentos como "ganho"
+  ids.forEach(id => {
+    if (preOrcamentos[id]) {
+      preOrcamentos[id].status = "ganho";
+      preOrcamentos[id].contratoNumero = numContrato || contrato.id;
+    }
+  });
+  savePreOrcamentos();
+
+  if (typeof schedulCloudSync === "function") schedulCloudSync();
+
+  renderPreOrcamentosLista();
+  renderOrcamentos();
+  showToast(`Contrato unificado criado: ${todosItens.length} itens de ${pres.length} processos — ${brl.format(valorTotal)}`);
+  console.log(`[GDP] Contrato unificado: ${contrato.numero} — ${todosItens.length} itens — ${brl.format(valorTotal)}`);
+};
 
 function alimentarBancoComResultado(resultado) {
   if (!bancoPrecos || !bancoPrecos.itens) return;
