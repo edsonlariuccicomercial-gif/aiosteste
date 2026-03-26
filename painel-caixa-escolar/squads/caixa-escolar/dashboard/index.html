@@ -182,7 +182,7 @@
       </div>
 
       <!-- Filtros -->
-      <div class="filters filters-6col">
+      <div class="filters filters-8col">
         <select id="filtro-sre">
           <option value="all">Todas as SREs</option>
         </select>
@@ -200,7 +200,10 @@
           <option value="aberto">Aberto</option>
           <option value="vencido">Vencido</option>
           <option value="descartados">Descartados</option>
+          <option value="com-preorcamento">Com pré-orçamento</option>
         </select>
+        <input type="date" id="filtro-data-de" title="Data início" />
+        <input type="date" id="filtro-data-ate" title="Data fim" />
         <input type="text" id="filtro-texto" placeholder="Buscar escola, objeto, item..." autocomplete="off" />
       </div>
 
@@ -221,7 +224,7 @@
               <th>ID</th>
               <th>Escola</th>
               <th>Município</th>
-              <th>Objeto</th>
+              <th>Itens / Objeto</th>
               <th>Grupo</th>
               <th>Prazo</th>
               <th>Entrega</th>
@@ -358,6 +361,20 @@
       <!-- Lista de pré-orçamentos existentes -->
       <div id="preorcamentos-lista" style="display:none;">
         <h3>Pré-orçamentos salvos</h3>
+        <div class="filters" style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.75rem;">
+          <select id="filtro-pre-escola"><option value="all">Todas as escolas</option></select>
+          <select id="filtro-pre-status">
+            <option value="all">Todos os status</option>
+            <option value="pendente">Pendente</option>
+            <option value="aprovado">Aprovado</option>
+            <option value="enviado">Enviado</option>
+            <option value="recusado">Recusado</option>
+            <option value="ganho">Ganho</option>
+            <option value="perdido">Perdido</option>
+          </select>
+          <input type="text" id="filtro-pre-texto" placeholder="Buscar..." autocomplete="off" style="padding:0.4rem;" />
+          <button class="btn btn-sm" onclick="limparFiltrosPre()">Limpar</button>
+        </div>
         <div class="table-wrap">
           <table id="tabela-preorcamentos-lista">
             <thead>
@@ -365,6 +382,7 @@
                 <th></th>
                 <th>ID</th>
                 <th>Escola</th>
+                <th>Itens</th>
                 <th>Status</th>
                 <th>Total</th>
                 <th>Data</th>
@@ -589,6 +607,17 @@
         <article class="pricing-kpi-card"><p>Concluídos</p><strong id="ak-concluidos">0</strong></article>
         <article class="pricing-kpi-card"><p>Valor em Contratos</p><strong id="ak-valor" class="text-accent">R$ 0</strong></article>
       </div>
+      <div class="filters" style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.75rem;">
+        <select id="filtro-aprov-status">
+          <option value="all">Todos os status</option>
+          <option value="ativo">Ativo</option>
+          <option value="em_entrega">Em Entrega</option>
+          <option value="entregue">Entregue</option>
+          <option value="cancelado">Cancelado</option>
+        </select>
+        <input type="text" id="filtro-aprov-texto" placeholder="Buscar escola, contrato..." autocomplete="off" style="padding:0.4rem;" />
+        <button class="btn btn-sm" onclick="limparFiltrosAprov()">Limpar</button>
+      </div>
       <div id="lista-aprovados"></div>
       <p id="aprovados-empty" class="empty-msg" style="display:none;">Nenhum contrato registrado. Registre resultados na aba "Envio SGD".</p>
     </div>
@@ -638,6 +667,8 @@
           <option value="ganho">Ganho</option>
           <option value="perdido">Perdido</option>
         </select>
+        <input type="date" id="filtro-sgd-data-de" title="Data início" />
+        <input type="date" id="filtro-sgd-data-ate" title="Data fim" />
         <input type="text" id="filtro-sgd-texto" placeholder="Buscar..." autocomplete="off" style="padding:0.4rem;" />
       </div>
 
@@ -708,6 +739,11 @@
         <article class="pricing-kpi-card"><p>Taxa de Conversão</p><strong id="hk-taxa">0%</strong></article>
         <article class="pricing-kpi-card"><p>Faturamento Ganho</p><strong id="hk-faturamento" class="text-accent">R$ 0</strong></article>
         <article class="pricing-kpi-card"><p>Delta Médio (perdas)</p><strong id="hk-delta" class="text-danger">—</strong></article>
+      </div>
+      <div class="filters" style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.75rem;">
+        <select id="filtro-hist-escola"><option value="all">Todas as escolas</option></select>
+        <input type="text" id="filtro-hist-texto" placeholder="Buscar escola, item..." autocomplete="off" style="padding:0.4rem;" />
+        <button class="btn btn-sm" onclick="limparFiltrosHist()">Limpar</button>
       </div>
       <div class="rent-tabs" id="sub-tabs-historico">
         <button class="rent-tab active" onclick="switchHistoricoTab('ganhos')">Ganhos</button>

@@ -770,6 +770,18 @@ function escapeHtml(v) {
   return d.innerHTML;
 }
 
+// Story 4.42: Resumo de itens como conteudo principal
+function getItemsSummary(orcamento, maxItems = 3, maxChars = 25) {
+  const itens = orcamento.itens || orcamento.items || [];
+  if (!itens.length) return null;
+  const nomes = itens
+    .map(i => (i.nome || i.descricao || i.item || "").slice(0, maxChars))
+    .filter(Boolean);
+  if (!nomes.length) return null;
+  const display = nomes.slice(0, maxItems).join(", ") + (nomes.length > maxItems ? "..." : "");
+  return `${itens.length} iten(s): ${display}`;
+}
+
 function daysTo(dateIso) {
   if (!dateIso) return 999;
   const target = new Date(dateIso + "T00:00:00");
@@ -786,6 +798,35 @@ function setTextSafe(id, text) {
   const elem = document.getElementById(id);
   if (elem) elem.textContent = text;
 }
+
+// Story 4.40: date range filter utility
+function dentroDoIntervalo(dataStr, de, ate) {
+  if (!dataStr) return true; // sem data: não filtrar
+  const d = new Date(dataStr);
+  if (de && d < new Date(de)) return false;
+  if (ate && d > new Date(ate + "T23:59:59")) return false;
+  return true;
+}
+
+// Story 4.40: clear filter helpers
+window.limparFiltrosPre = function () {
+  const ids = ["filtro-pre-escola", "filtro-pre-status"];
+  ids.forEach(id => { const e = document.getElementById(id); if (e) e.value = "all"; });
+  const t = document.getElementById("filtro-pre-texto"); if (t) t.value = "";
+  renderPreOrcamentosLista();
+};
+
+window.limparFiltrosAprov = function () {
+  const s = document.getElementById("filtro-aprov-status"); if (s) s.value = "all";
+  const t = document.getElementById("filtro-aprov-texto"); if (t) t.value = "";
+  renderAprovados();
+};
+
+window.limparFiltrosHist = function () {
+  const e = document.getElementById("filtro-hist-escola"); if (e) e.value = "all";
+  const t = document.getElementById("filtro-hist-texto"); if (t) t.value = "";
+  renderHistorico();
+};
 
 function calcFreteEstimado(municipio) {
   if (!perfil.distancias || !perfil.distancias.estimativas) return 0;
@@ -1105,11 +1146,14 @@ function filteredOrcamentos() {
     .filter((o) => mun === "all" || o.municipio === mun)
     .filter((o) => grupo === "all" || o.grupo === grupo)
     .filter((o) => {
+      if (status === "com-preorcamento") return !!(preOrcamentos && preOrcamentos[o.id]);
       if (status === "descartados") return isDescartado(o.id);
+      // By default, hide items that already have pre-orcamento
+      if (preOrcamentos && preOrcamentos[o.id]) return false;
       return !isDescartado(o.id);
     })
     .filter((o) => {
-      if (status === "all" || status === "descartados") return true;
+      if (status === "all" || status === "descartados" || status === "com-preorcamento") return true;
       if (status === "vencido") {
         // Considerar vencido se o status é "vencido" OU se o prazo ja passou
         return o.status === "vencido" || (o.status === "aberto" && o.prazo && daysTo(o.prazo) <= 0);
@@ -1128,6 +1172,12 @@ function filteredOrcamentos() {
         ].join(" ")
       );
       return text.includes(query);
+    })
+    .filter((o) => {
+      const de = document.getElementById("filtro-data-de")?.value;
+      const ate = document.getElementById("filtro-data-ate")?.value;
+      if (!de && !ate) return true;
+      return dentroDoIntervalo(o.prazo, de, ate);
     })
     .sort((a, b) => {
       // Abertos primeiro, depois por prazo
@@ -1154,7 +1204,7 @@ function renderAll() {
 
 function renderKPIs() {
   const abertos = orcamentos.filter((o) => o.status === "aberto" && !isDescartado(o.id));
-  const urgentes = abertos.filter((o) => daysTo(o.prazo) <= 3);
+  const urgentes = abertos.filter((o) => daysTo(o.prazo) <= 3 && daysTo(o.prazo) >= 0 && !(preOrcamentos && preOrcamentos[o.id]));
 
   // Pré-orçamentos pendentes
   const pendentes = Object.values(preOrcamentos).filter((p) => p.status === "pendente");
@@ -1316,15 +1366,34 @@ function renderOrcamentos() {
       ? `<input type="checkbox" class="row-check" data-id="${o.id}" ${checked} />`
       : "";
 
-    const trStyle = viewingDescartados ? ' style="opacity:0.6"' : '';
-    return `<tr${trStyle}>
+    let rowStyle = "";
+    if (viewingDescartados) {
+      rowStyle = ' style="opacity:0.6"';
+    } else if (days <= 0) {
+      rowStyle = ' style="opacity:0.5;background:#fef2f2;"';
+    } else if (days <= 3) {
+      rowStyle = ' style="background:#fef2f2;border-left:3px solid #ef4444;"';
+    } else if (days <= 7) {
+      rowStyle = ' style="background:#fffbeb;border-left:3px solid #f59e0b;"';
+    }
+    return `<tr${rowStyle}>
       <td>${checkboxHtml}</td>
       <td class="font-mono text-muted">${escapeHtml(o.id)}</td>
       <td>${escapeHtml(o.escola)}</td>
       <td>${escapeHtml(o.municipio)}</td>
-      <td class="obj-cell" title="${escapeHtml(o.objetoOriginal || o.objeto || '')}">
-        ${escapeHtml((o.objetoCustom || o.objeto || "").replace(/\n/g, " "))}${o.objetoCustom ? ' <span class="badge badge-editado" style="font-size:0.6rem;opacity:0.7;vertical-align:middle" title="Original: ' + escapeHtml((o.objetoOriginal || o.objeto || '').substring(0,120)) + '">editado</span> <span class="btn-inline btn-muted" onclick="event.stopPropagation();resetarObjeto(\'' + o.id + '\')" title="Restaurar original" style="cursor:pointer;font-size:0.7rem">↩</span>' : ''}<span class="btn-inline btn-muted" onclick="event.stopPropagation();editarObjeto('${o.id}')" title="Editar objeto" style="cursor:pointer;font-size:0.7rem;margin-left:4px">✏️</span>
-        ${(o.itens && o.itens.length > 0) ? '<br><span style="font-size:0.7rem;color:#666;" title="' + o.itens.map(i => i.nome).join('\\n') + '">' + o.itens.length + ' iten(s): ' + o.itens.slice(0,3).map(i => escapeHtml((i.nome||'').slice(0,20))).join(', ') + (o.itens.length > 3 ? '...' : '') + '</span>' : ''}
+      <td class="obj-cell" title="${escapeHtml((o.objetoOriginal || o.objeto || '').replace(/\n/g, ' ').slice(0, 200))}">
+        ${(() => {
+          const itemsSummary = getItemsSummary(o);
+          const objetoTexto = (o.objetoCustom || o.objeto || "").replace(/\n/g, " ");
+          const editBtn = '<span class="btn-inline btn-muted" onclick="event.stopPropagation();editarObjeto(\'' + o.id + '\')" title="Ver/editar objeto" style="cursor:pointer;font-size:0.7rem;margin-left:4px">&#9998;</span>';
+          const resetBtn = o.objetoCustom ? ' <span class="badge badge-editado" style="font-size:0.6rem;opacity:0.7;vertical-align:middle" title="Original: ' + escapeHtml((o.objetoOriginal || o.objeto || '').substring(0,120)) + '">editado</span> <span class="btn-inline btn-muted" onclick="event.stopPropagation();resetarObjeto(\'' + o.id + '\')" title="Restaurar original" style="cursor:pointer;font-size:0.7rem">&#8617;</span>' : '';
+          if (itemsSummary) {
+            const _uds = (o.itens || []).length > 0 ? [...new Set(o.itens.map(i => (i.unidade || "UN").toUpperCase()))].join(", ") : "";
+            const _udBadge = _uds ? ' <span style="font-size:0.65rem;background:#e0e7ff;color:#3730a3;padding:1px 4px;border-radius:3px;margin-left:4px;">' + escapeHtml(_uds) + '</span>' : '';
+            return '<span style="font-size:0.8rem;">' + escapeHtml(itemsSummary) + _udBadge + '</span>' + resetBtn + editBtn;
+          }
+          return escapeHtml(objetoTexto) + resetBtn + editBtn;
+        })()}
       </td>
       <td>${grupoBadge}</td>
       <td class="nowrap">${formatDate(o.prazo)}</td>
@@ -1966,7 +2035,24 @@ function renderPreOrcamentosLista() {
     el.preorcamentoTitulo.textContent = "Pré-Orçamentos Salvos";
   }
 
-  const sorted = items.sort((a, b) => (b.criadoEm || "").localeCompare(a.criadoEm || ""));
+  // Story 4.40: populate escola dropdown
+  const fPreEscola = document.getElementById("filtro-pre-escola");
+  if (fPreEscola && fPreEscola.options.length <= 1) {
+    const escolas = [...new Set(items.map(p => p.escola).filter(Boolean))].sort();
+    escolas.forEach(e => { const o = document.createElement("option"); o.value = e; o.textContent = e; fPreEscola.appendChild(o); });
+  }
+
+  // Story 4.40: apply filters
+  const fPreStatus = document.getElementById("filtro-pre-status")?.value || "all";
+  const fPreTexto = normalizedText(document.getElementById("filtro-pre-texto")?.value?.trim() || "");
+  const fPreEscolaVal = fPreEscola ? fPreEscola.value : "all";
+
+  let filtered = items;
+  if (fPreEscolaVal !== "all") filtered = filtered.filter(p => p.escola === fPreEscolaVal);
+  if (fPreStatus !== "all") filtered = filtered.filter(p => p.status === fPreStatus);
+  if (fPreTexto) filtered = filtered.filter(p => normalizedText([p.escola, p.municipio, p.orcamentoId, ...(p.itens || []).map(i => i.nome)].join(" ")).includes(fPreTexto));
+
+  const sorted = filtered.sort((a, b) => (b.criadoEm || "").localeCompare(a.criadoEm || ""));
   el.tbodyPreorcamentosLista.innerHTML = sorted
     .map((p) => {
       const badgeClass = p.status === "ganho" ? "badge-ganho"
@@ -1975,10 +2061,15 @@ function renderPreOrcamentosLista() {
             : p.status === "aprovado" ? "badge-aprovado"
               : p.status === "recusado" ? "badge-recusado" : "badge-pendente";
       const checkbox = `<input type="checkbox" class="pre-lote-check" data-id="${p.orcamentoId}" />`;
+      // Story 4.42: items summary with fallback to objeto
+      const orc = orcamentos.find(o => o.id === p.orcamentoId);
+      const iSummary = getItemsSummary(p) || getItemsSummary(orc || {}) || escapeHtml((orc?.objeto || "").replace(/\n/g, " ").slice(0, 60));
+      const iTooltip = escapeHtml((orc?.objeto || "").replace(/\n/g, " ").slice(0, 200));
       return `<tr>
         <td>${checkbox}</td>
         <td class="font-mono text-muted">${escapeHtml(p.orcamentoId)}</td>
         <td>${escapeHtml(p.escola)}</td>
+        <td title="${iTooltip}" style="font-size:0.8rem;max-width:200px;">${iSummary}</td>
         <td><span class="badge ${badgeClass}">${p.status}</span></td>
         <td class="text-right font-mono">${brl.format(p.totalGeral || 0)}</td>
         <td class="nowrap">${formatDate(p.criadoEm)}</td>
@@ -3795,6 +3886,42 @@ function bindEvents() {
   const fSgdTexto = document.getElementById("filtro-sgd-texto");
   if (fSgdTexto) fSgdTexto.addEventListener("input", renderSgd);
 
+  // Story 4.40: Date filters for Radar
+  ["filtro-data-de", "filtro-data-ate"].forEach(id => {
+    const elem = document.getElementById(id);
+    if (elem) elem.addEventListener("change", renderOrcamentos);
+  });
+
+  // Story 4.40: Date filters for SGD
+  ["filtro-sgd-data-de", "filtro-sgd-data-ate"].forEach(id => {
+    const elem = document.getElementById(id);
+    if (elem) elem.addEventListener("change", renderSgd);
+  });
+
+  // Story 4.40: Filters for Pré-Orçamento list
+  ["filtro-pre-escola", "filtro-pre-status"].forEach(id => {
+    const elem = document.getElementById(id);
+    if (elem) elem.addEventListener("change", renderPreOrcamentosLista);
+  });
+  const fPreTexto = document.getElementById("filtro-pre-texto");
+  if (fPreTexto) fPreTexto.addEventListener("input", renderPreOrcamentosLista);
+
+  // Story 4.40: Filters for Aprovados
+  ["filtro-aprov-status"].forEach(id => {
+    const elem = document.getElementById(id);
+    if (elem) elem.addEventListener("change", renderAprovados);
+  });
+  const fAprovTexto = document.getElementById("filtro-aprov-texto");
+  if (fAprovTexto) fAprovTexto.addEventListener("input", renderAprovados);
+
+  // Story 4.40: Filters for Histórico
+  ["filtro-hist-escola"].forEach(id => {
+    const elem = document.getElementById(id);
+    if (elem) elem.addEventListener("change", renderHistorico);
+  });
+  const fHistTexto = document.getElementById("filtro-hist-texto");
+  if (fHistTexto) fHistTexto.addEventListener("input", renderHistorico);
+
   // Keyboard: Escape fecha modais
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
@@ -5037,12 +5164,15 @@ function renderSgd() {
   const mun = fMun ? fMun.value : "all";
   const status = fStatus ? fStatus.value : "all";
   const texto = fTexto ? normalizedText(fTexto.value.trim()) : "";
+  const sgdDe = document.getElementById("filtro-sgd-data-de")?.value || "";
+  const sgdAte = document.getElementById("filtro-sgd-data-ate")?.value || "";
 
   sgdItems = sgdItems.filter(p => {
     if (escola !== "all" && p.escola !== escola) return false;
     if (mun !== "all" && p.municipio !== mun) return false;
     if (status !== "all" && p.status !== status) return false;
     if (texto && !normalizedText([p.escola, p.municipio, p.orcamentoId, ...(p.itens || []).map(i => i.nome)].join(" ")).includes(texto)) return false;
+    if ((sgdDe || sgdAte) && !dentroDoIntervalo(p.enviadoEm || p.aprovadoEm, sgdDe, sgdAte)) return false;
     return true;
   });
 
@@ -6106,9 +6236,22 @@ function renderAprovados() {
   }
   if (emptyEl) emptyEl.style.display = "none";
 
+  // Story 4.40: apply filters
+  const fAprovStatus = document.getElementById("filtro-aprov-status")?.value || "all";
+  const fAprovTexto = normalizedText(document.getElementById("filtro-aprov-texto")?.value?.trim() || "");
+
+  let filteredContratos = contratos;
+  if (fAprovStatus !== "all") filteredContratos = filteredContratos.filter(c => c.status === fAprovStatus);
+  if (fAprovTexto) filteredContratos = filteredContratos.filter(c => normalizedText([c.escola?.nome, c.escola?.municipio, c.contratoId, ...(c.itens || []).map(i => i.nome)].join(" ")).includes(fAprovTexto));
+
+  if (filteredContratos.length === 0) {
+    listaEl.innerHTML = '<p class="empty-msg">Nenhum contrato corresponde aos filtros.</p>';
+    return;
+  }
+
   // Agrupar por escola
   const porEscola = {};
-  contratos.forEach(c => {
+  filteredContratos.forEach(c => {
     const nome = c.escola ? c.escola.nome : "Sem escola";
     if (!porEscola[nome]) porEscola[nome] = [];
     porEscola[nome].push(c);
@@ -6124,12 +6267,14 @@ function renderAprovados() {
     html += `<div style="margin-bottom:16px;padding:12px;border:1px solid var(--line);border-radius:8px;">
       <h4 style="margin-bottom:8px;">${escapeHtml(escola)} <span class="badge badge-muted">${ctrs.length} contrato(s)</span></h4>
       <div class="table-wrap"><table>
-        <thead><tr><th>Contrato</th><th>Data</th><th>Valor</th><th>Status</th><th>Entrega</th><th>Ações</th></tr></thead>
+        <thead><tr><th>Contrato</th><th>Itens</th><th>Data</th><th>Valor</th><th>Status</th><th>Entrega</th><th>Ações</th></tr></thead>
         <tbody>${ctrs.map(c => {
           const totalItens = c.itens ? c.itens.reduce((s, i) => s + (i.quantidade || 0), 0) : 0;
           const entregueItens = c.itens ? c.itens.reduce((s, i) => s + (i.entregue || 0), 0) : 0;
+          const cItemsSummary = getItemsSummary(c) || "—";
           return `<tr>
             <td><strong>${escapeHtml(c.contratoId)}</strong></td>
+            <td style="font-size:0.8rem;max-width:180px;" title="${escapeHtml((c.itens||[]).map(i=>i.nome).join(', '))}">${escapeHtml(cItemsSummary)}</td>
             <td>${formatDate(c.dataContrato)}</td>
             <td class="text-right font-mono">${brl.format(c.valorTotal || 0)}</td>
             <td><span class="badge ${statusBadge(c.status)}">${c.status}</span></td>
@@ -6205,7 +6350,22 @@ window.registrarEntrega = function (contratoId) {
 
 // ===== F4: ABA HISTÓRICO GANHOS/PERDIDOS =====
 function renderHistorico() {
-  const resultados = JSON.parse(localStorage.getItem(RESULTADOS_STORAGE_KEY) || "[]");
+  let resultados = JSON.parse(localStorage.getItem(RESULTADOS_STORAGE_KEY) || "[]");
+
+  // Story 4.40: populate escola dropdown
+  const fHistEscola = document.getElementById("filtro-hist-escola");
+  if (fHistEscola && fHistEscola.options.length <= 1) {
+    const escolas = [...new Set(resultados.map(r => r.escola).filter(Boolean))].sort();
+    escolas.forEach(e => { const o = document.createElement("option"); o.value = e; o.textContent = e; fHistEscola.appendChild(o); });
+  }
+
+  // Story 4.40: apply filters
+  const fHistEscolaVal = fHistEscola ? fHistEscola.value : "all";
+  const fHistTexto = normalizedText(document.getElementById("filtro-hist-texto")?.value?.trim() || "");
+
+  if (fHistEscolaVal !== "all") resultados = resultados.filter(r => r.escola === fHistEscolaVal);
+  if (fHistTexto) resultados = resultados.filter(r => normalizedText([r.escola, r.municipio, r.grupo, ...(r.itens || []).map(i => i.nome)].join(" ")).includes(fHistTexto));
+
   const ganhos = resultados.filter(r => r.resultado === "ganho");
   const perdidos = resultados.filter(r => r.resultado === "perdido");
   const totalGanho = ganhos.reduce((s, r) => s + (r.valorProposto || 0), 0);
@@ -6234,7 +6394,13 @@ window.switchHistoricoTab = function (tab) {
     const el = document.getElementById("hist-" + t);
     if (el) el.style.display = t === tab ? "block" : "none";
   });
-  const resultados = JSON.parse(localStorage.getItem(RESULTADOS_STORAGE_KEY) || "[]");
+  // Story 4.40: apply same filters as renderHistorico
+  let resultados = JSON.parse(localStorage.getItem(RESULTADOS_STORAGE_KEY) || "[]");
+  const fHistEscola = document.getElementById("filtro-hist-escola");
+  const fHistEscolaVal = fHistEscola ? fHistEscola.value : "all";
+  const fHistTexto = normalizedText(document.getElementById("filtro-hist-texto")?.value?.trim() || "");
+  if (fHistEscolaVal !== "all") resultados = resultados.filter(r => r.escola === fHistEscolaVal);
+  if (fHistTexto) resultados = resultados.filter(r => normalizedText([r.escola, r.municipio, r.grupo, ...(r.itens || []).map(i => i.nome)].join(" ")).includes(fHistTexto));
   renderHistoricoContent(tab, resultados.filter(r => r.resultado === "ganho"), resultados.filter(r => r.resultado === "perdido"), resultados);
 };
 
@@ -6246,14 +6412,19 @@ function renderHistoricoContent(tab, ganhos, perdidos, todos) {
     const items = tab === "ganhos" ? ganhos : perdidos;
     if (items.length === 0) { container.innerHTML = '<p class="empty-msg">Nenhum registro.</p>'; return; }
     container.innerHTML = `<div class="table-wrap"><table>
-      <thead><tr><th>Escola</th><th>Município</th><th>Valor</th><th>Data</th>${tab === "perdidos" ? "<th>Vencedor</th><th>Delta</th><th>Motivo</th>" : "<th>Contrato</th>"}<th>Obs</th></tr></thead>
-      <tbody>${items.map(r => `<tr>
+      <thead><tr><th>Escola</th><th>Município</th><th>Itens</th><th>Valor</th><th>Data</th>${tab === "perdidos" ? "<th>Vencedor</th><th>Delta</th><th>Motivo</th>" : "<th>Contrato</th>"}<th>Obs</th></tr></thead>
+      <tbody>${items.map(r => {
+        const rItemsSummary = getItemsSummary(r) || "—";
+        const rItemsTooltip = (r.itens || []).map(i => i.nome || "").join(", ");
+        return `<tr>
         <td>${escapeHtml(r.escola)}</td><td>${escapeHtml(r.municipio)}</td>
+        <td style="font-size:0.8rem;max-width:180px;" title="${escapeHtml(rItemsTooltip)}">${escapeHtml(rItemsSummary)}</td>
         <td class="font-mono text-right">${brl.format(r.valorProposto || 0)}</td>
         <td>${formatDate(r.dataResultado)}</td>
         ${tab === "perdidos" ? `<td>${escapeHtml(r.fornecedorVencedor || "—")}</td><td class="text-danger">${r.deltaTotalPercent ? "+" + r.deltaTotalPercent + "%" : "—"}</td><td>${escapeHtml(r.motivoPerda || "—")}</td>` : `<td>${r.contrato?.contratoId || "—"}</td>`}
         <td style="max-width:200px;font-size:0.78rem;">${escapeHtml(r.observacoes || "")}</td>
-      </tr>`).join("")}</tbody>
+      </tr>`;
+      }).join("")}</tbody>
     </table></div>`;
   }
 
@@ -6516,12 +6687,13 @@ window.pesquisarPrecoPNCP = async function(idx) {
   const pre = preOrcamentos[activePreOrcamentoId];
   if (!pre || !pre.itens[idx]) return;
   const item = pre.itens[idx];
+  console.log("[PNCP] Buscando:", simplificarTermoPNCP(item.nome));
   showToast("Buscando no PNCP: " + item.nome + "...");
 
   const resultado = await consultarPNCP(item.nome, item.idBudgetItem);
   if (resultado && resultado.detalhes?.length > 0 && resultado.min > 0) {
     const orgao = resultado.detalhes[0]?.orgao || "N/A";
-    const usar = confirm(`PNCP encontrou: ${brl.format(resultado.min)}\nÓrgão: ${orgao}\n\nUsar como preço de custo?`);
+    const usar = confirm(`PNCP encontrou: ${brl.format(resultado.min)}\nOrgao: ${orgao}\nAmostras: ${resultado.amostras}\n\nUsar como preco de custo?`);
     if (usar) {
       item.custoUnitario = resultado.min;
       item.precoUnitario = Math.round(item.custoUnitario * (1 + item.margem) * 100) / 100;
@@ -6529,10 +6701,11 @@ window.pesquisarPrecoPNCP = async function(idx) {
       recalcPreOrcamento(pre);
       savePreOrcamentos();
       renderPreOrcamentoItens();
-      showToast("Preço PNCP aplicado: " + brl.format(resultado.min));
+      showToast("Preco PNCP aplicado: " + brl.format(resultado.min));
     }
-  } else {
-    showToast("PNCP: nenhum resultado para " + item.nome);
+  } else if (resultado === null) {
+    // Error toasts are already shown by consultarPNCP, only show "no results" if no error occurred
+    showToast("PNCP: nenhum resultado para " + item.nome, "warning");
   }
 };
 
@@ -6595,37 +6768,67 @@ function simplificarTermoPNCP(termo) {
 }
 
 async function consultarPNCP(itemNome, itemId) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
+
   try {
     const termoSimplificado = simplificarTermoPNCP(itemNome);
-    console.log("[PNCP] Termo original:", itemNome, "→ Simplificado:", termoSimplificado);
-    const resp = await fetch("/.netlify/functions/pncp-search", {
+    console.log("[PNCP] Termo original:", itemNome, "-> Simplificado:", termoSimplificado);
+
+    const searchUrl = "/.netlify/functions/pncp-search";
+    const searchBody = { action: "search", termo: termoSimplificado, uf: "MG" };
+    console.log("[PNCP] request:", { url: searchUrl, body: searchBody });
+
+    const resp = await fetch(searchUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "search", termo: termoSimplificado, uf: "MG" }),
+      body: JSON.stringify(searchBody),
+      signal: controller.signal,
     });
 
+    console.log("[PNCP] response status:", resp.status);
+
+    if (!resp.ok) {
+      const errText = await resp.text().catch(() => "");
+      console.error("[PNCP] erro HTTP:", resp.status, errText);
+      throw new Error(`HTTP ${resp.status}`);
+    }
+
     const data = await resp.json();
-    if (!resp.ok) throw new Error(data.error || "Erro PNCP");
-
     const resultados = data.data || data || [];
-    if (!Array.isArray(resultados) || resultados.length === 0) return null;
+    console.log("[PNCP] resultados:", Array.isArray(resultados) ? resultados.length : 0);
 
-    // Extract prices from search results
+    if (!Array.isArray(resultados) || resultados.length === 0) {
+      console.log("[PNCP] nenhum resultado encontrado para:", termoSimplificado);
+      return null;
+    }
+
+    // Extract prices from search results (max 3 to avoid compound timeouts)
     const precos = [];
-    for (const contratacao of resultados.slice(0, 5)) {
+    for (const contratacao of resultados.slice(0, 3)) {
       try {
         const cnpj = contratacao.orgaoEntidade?.cnpj || contratacao.cnpjCompra;
         const ano = contratacao.anoCompra;
         const seq = contratacao.sequencialCompra;
         if (!cnpj || !ano || !seq) continue;
 
+        console.log("[PNCP] Buscando itens:", cnpj, ano, seq);
+
         const itemsResp = await fetch("/.netlify/functions/pncp-search", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ action: "items", cnpj, ano, seq }),
+          signal: controller.signal,
         });
+
+        if (!itemsResp.ok) {
+          console.warn("[PNCP] itens HTTP error:", itemsResp.status, "para", cnpj, ano, seq);
+          continue;
+        }
+
         const itemsData = await itemsResp.json();
         const itensArray = Array.isArray(itemsData) ? itemsData : (itemsData.data || []);
+        console.log("[PNCP] itens retornados:", itensArray.length, "para", cnpj, ano, seq);
 
         const keywords = simplificarTermoPNCP(itemNome).toLowerCase().split(" ");
         itensArray.forEach(i => {
@@ -6639,10 +6842,18 @@ async function consultarPNCP(itemNome, itemId) {
             }
           }
         });
-      } catch (_) { /* skip */ }
+      } catch (subErr) {
+        if (subErr.name === "AbortError") throw subErr; // re-throw timeout
+        console.warn("[PNCP] erro ao buscar itens de contratacao:", subErr.message);
+      }
     }
 
-    if (precos.length === 0) return null;
+    if (precos.length === 0) {
+      console.log("[PNCP] nenhum preco encontrado apos filtrar itens");
+      return null;
+    }
+
+    console.log("[PNCP] precos encontrados:", precos.length);
 
     const valores = precos.map(p => p.preco);
     valores.sort((a, b) => a - b);
@@ -6671,8 +6882,19 @@ async function consultarPNCP(itemNome, itemId) {
 
     return stats;
   } catch (err) {
-    console.warn("PNCP error:", err);
+    if (err.name === "AbortError") {
+      showToast("PNCP: timeout - tente novamente", "warning");
+      console.error("[PNCP] timeout (15s) para:", itemNome);
+    } else if (err.message && err.message.startsWith("HTTP")) {
+      showToast(`PNCP indisponivel (${err.message}) - tente novamente`, "error");
+      console.error("[PNCP] erro HTTP:", err.message, "para:", itemNome);
+    } else {
+      showToast("PNCP: erro de rede - verifique a conexao", "error");
+      console.error("[PNCP] erro de rede:", err, "para:", itemNome);
+    }
     return null;
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
 

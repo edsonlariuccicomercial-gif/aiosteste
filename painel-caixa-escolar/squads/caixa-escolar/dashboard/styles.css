@@ -772,6 +772,9 @@ tfoot td {
 .filters-6col {
   grid-template-columns: repeat(6, minmax(0, 1fr));
 }
+.filters-8col {
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+}
 
 /* ===== BADGE FORA DO ESCOPO ===== */
 .badge-fora-escopo {
@@ -1160,11 +1163,13 @@ tfoot td {
   .intel-charts { grid-template-columns: 1fr; }
   .filters-5col { grid-template-columns: repeat(3, 1fr); }
   .filters-6col { grid-template-columns: repeat(3, 1fr); }
+  .filters-8col { grid-template-columns: repeat(4, 1fr); }
 }
 
 @media (max-width: 600px) {
   .filters-5col { grid-template-columns: 1fr; }
   .filters-6col { grid-template-columns: 1fr; }
+  .filters-8col { grid-template-columns: 1fr; }
   .batch-bar { flex-wrap: wrap; }
 }
 
