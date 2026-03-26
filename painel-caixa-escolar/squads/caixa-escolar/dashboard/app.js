@@ -5309,52 +5309,40 @@ async function varrerSgd() {
       console.log(`[Varrer] SREs:`, sreCounts, `→ ${filtered.length} aceitos de ${allBudgets.length} varridos`);
       btn.innerHTML = `<span class="sgd-spinner"></span>SREs: ${filtered.length} de ${allBudgets.length}. Buscando detalhes...`;
 
-      // Step 3: Fetch detail + items for each SRE budget (parallel, 3 concurrent)
-      // Replace orcamentos entirely with fresh scan data (discard stale entries)
+      // Step 3: Fetch detail + items for each SRE budget (sequential — networkId is shared state)
       const scanResults = [];
       let novos = 0;
-      const CONCURRENCY = 3;
 
-      // Build existing orcamentos map to skip already-detailed budgets
-      const existingOrcMap = {};
-      orcamentos.forEach(o => { if (o.id && o.objeto && o.itens && o.itens.length > 0) existingOrcMap[o.id] = o; });
-
-      async function fetchBudgetDetail(b, idx) {
+      for (let i = 0; i < filtered.length; i++) {
+        const b = filtered[i];
         const id = String(b.idBudget || b.id || "");
-        if (!id) return null;
+        if (!id) continue;
 
         const escolaRaw = b.schoolName || b.txSchoolName || "";
         const sreMatchKey = b._sreMatch || findSreMatch(escolaRaw) || sreNorm(escolaRaw);
         const municipio = schoolToMunicipio[sreMatchKey] || sreCountyMap[b.idCounty] || "";
 
-        // Skip if we already have full details for this budget
-        const existing = existingOrcMap[id];
-        if (existing) {
-          existing.sre = schoolToSre[sreMatchKey] || existing.sre || "Desconhecida";
-          existing.municipio = municipio || existing.municipio;
-          return existing;
-        }
-
-        // Use this budget's own networkId
+        // Use this budget's own networkId (each SRE has different networkId)
         const budgetNetworkId = b.idNetwork || BrowserSgdClient.networkId;
+        const savedNetworkId = BrowserSgdClient.networkId;
+        BrowserSgdClient.networkId = budgetNetworkId;
 
+        // Fetch budget detail (for initiativeDescription/objeto, idAxis, dates)
         let detail = {};
         let budgetItems = [];
         try {
           if (b.idSubprogram && b.idSchool && b.idBudget) {
-            const savedNid = BrowserSgdClient.networkId;
-            BrowserSgdClient.networkId = budgetNetworkId;
             detail = await BrowserSgdClient.getBudgetDetail(b.idSubprogram, b.idSchool, b.idBudget);
             const itemsRes = await BrowserSgdClient.getBudgetItems(b.idSubprogram, b.idSchool, b.idBudget);
             budgetItems = itemsRes.data || [];
             if (!Array.isArray(budgetItems)) budgetItems = [];
-            BrowserSgdClient.networkId = savedNid;
           }
         } catch (err) {
           console.warn(`[Varrer] Detalhe budget ${id}: ${err.message}`);
         }
+        BrowserSgdClient.networkId = savedNetworkId;
 
-        return {
+        const orc = {
           id, idBudget: b.idBudget, ano: detail.year || b.year || new Date().getFullYear(),
           escola: escolaRaw, municipio,
           sre: schoolToSre[sreMatchKey] || (sreCountyMap[b.idCounty] ? "Uberaba" : "Desconhecida"),
@@ -5378,14 +5366,13 @@ async function varrerSgd() {
           idNetwork: b.idNetwork || null,
           idAxis: detail.idAxis || b.idAxis || null,
         };
-      }
 
-      // Parallel execution with concurrency limit
-      for (let i = 0; i < filtered.length; i += CONCURRENCY) {
-        const batch = filtered.slice(i, i + CONCURRENCY);
-        const results = await Promise.all(batch.map((b, j) => fetchBudgetDetail(b, i + j)));
-        results.forEach(orc => { if (orc) { scanResults.push(orc); novos++; } });
-        btn.innerHTML = `<span class="sgd-spinner"></span>Detalhando ${Math.min(i + CONCURRENCY, filtered.length)}/${filtered.length}...`;
+        scanResults.push(orc);
+        novos++;
+
+        if ((i + 1) % 5 === 0 || i === filtered.length - 1) {
+          btn.innerHTML = `<span class="sgd-spinner"></span>Detalhando ${i + 1}/${filtered.length}...`;
+        }
       }
 
       // Replace orcamentos with fresh scan data
