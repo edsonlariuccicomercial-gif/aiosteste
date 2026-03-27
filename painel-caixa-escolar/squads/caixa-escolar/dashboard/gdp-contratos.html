@@ -904,22 +904,12 @@
           </div>
           <div class="table-wrap" data-ei-table style="max-height:360px;overflow-y:auto"><table><thead><tr><th>Demanda</th><th>Origem</th><th>Produto</th><th class="text-right">Qtd Base</th><th>Status</th><th>Data</th><th class="text-right">Acoes</th></tr></thead><tbody id="ei-pedidos-tbody"></tbody></table></div>
         </div>
-        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem;margin-top:1rem;align-items:start">
-          <div style="border:1px solid rgba(34,197,94,.18);border-radius:14px;padding:1rem;min-height:100%;background:linear-gradient(180deg,rgba(34,197,94,.06),rgba(34,197,94,.02))">
+        <div style="margin-top:1rem">
+          <div style="border:1px solid rgba(245,158,11,.28);border-radius:14px;padding:1rem;background:linear-gradient(180deg,rgba(245,158,11,.10),rgba(245,158,11,.03))">
             <div style="display:flex;justify-content:space-between;align-items:center;gap:.75rem;margin-bottom:.75rem">
               <div>
-                <div style="font-size:.82rem;font-weight:700">Pedidos Reais com Demanda</div>
-                <div style="font-size:.76rem;color:var(--mut)">Pedidos do GDP que ja conseguiram virar demanda no estoque.</div>
-              </div>
-              <span class="badge badge-green" id="ei-pedidos-sync-ok-count">0</span>
-            </div>
-            <div class="table-wrap" data-ei-table style="max-height:280px;overflow-y:auto"><table><thead><tr><th>Pedido</th><th>Itens</th><th>Status</th><th class="text-right">Acoes</th></tr></thead><tbody id="ei-pedidos-sync-ok-tbody"></tbody></table></div>
-          </div>
-          <div style="border:1px solid rgba(245,158,11,.28);border-radius:14px;padding:1rem;min-height:100%;background:linear-gradient(180deg,rgba(245,158,11,.10),rgba(245,158,11,.03))">
-            <div style="display:flex;justify-content:space-between;align-items:center;gap:.75rem;margin-bottom:.75rem">
-              <div>
-                <div style="font-size:.82rem;font-weight:700">Pedidos Reais sem Demanda</div>
-                <div style="font-size:.76rem;color:#fcd34d">Pedidos do GDP que ainda nao conseguiram gerar demanda automaticamente.</div>
+                <div style="font-size:.82rem;font-weight:700">Pedidos com Itens nao Vinculados</div>
+                <div style="font-size:.76rem;color:#fcd34d">Vincule estes itens na aba Contratos para que a demanda seja gerada automaticamente.</div>
               </div>
               <span class="badge badge-yellow" id="ei-pedidos-sync-pendente-count">0</span>
             </div>
@@ -938,23 +928,7 @@
         <div class="table-wrap" data-ei-table style="max-height:220px;overflow-y:auto"><table><thead><tr><th>Data</th><th>Produto</th><th>Tipo</th><th>Op.</th><th class="text-right">Qtd</th><th>Origem</th></tr></thead><tbody id="ei-movimentacoes-tbody"></tbody></table></div>
       </div>
     </div>
-    <!-- Story 4.43: Demandas de Contratos (migrado de app.js) -->
-    <div class="card" id="ei-card-gdp-demandas" data-ei-section="pedidos" style="margin-top:1rem">
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;margin-bottom:.75rem">
-        <div>
-          <h3 style="margin-bottom:.35rem">Demandas de Contratos</h3>
-          <div style="font-size:.8rem;color:var(--mut)">Demandas geradas a partir de pedidos do GDP, com conversao via equivalencias.</div>
-        </div>
-        <span class="badge badge-purple" id="ei-gdp-demandas-count">0</span>
-      </div>
-      <div class="table-wrap" data-ei-table style="max-height:300px;overflow-y:auto">
-        <table>
-          <thead><tr><th>ID</th><th>Escola</th><th>Itens</th><th class="text-right">Custo Est.</th><th>Status</th><th class="text-center">Acoes</th></tr></thead>
-          <tbody id="ei-gdp-demandas-tbody"></tbody>
-        </table>
-      </div>
-      <p id="ei-gdp-demandas-empty" style="display:none;text-align:center;padding:1rem;color:var(--mut);font-size:.85rem">Nenhuma demanda de contrato gerada. Use "Gerar Demanda" no detalhe do pedido.</p>
-    </div>
+    <!-- Card "Demandas de Contratos" removido — funcionalidade absorvida pelo Estoque Intel via ponte gdpEquivalencias -->
     <!-- Story 4.43: Estoque Simples e Lista de Compras (migrado de app.js) -->
     <div class="card" id="ei-card-gdp-estoque" data-ei-section="estoque" style="margin-top:1rem">
       <h3 style="margin-bottom:.75rem">Estoque Simples (Equivalencias)</h3>
@@ -7535,6 +7509,33 @@ function resolveEstoqueIntelMatchFromPedidoItem(item = {}) {
       quantidadeBaseUnit: Number(embalagem.quantidade_base || 0)
     };
   }
+  // Tier 2: GDP equivalencia (vinculação do contrato) → Banco de Produtos → Estoque Intel
+  const equivSku = getGdpEquivalencia(descricao);
+  if (equivSku) {
+    const bancoProd = getGdpBancoProduto(equivSku);
+    if (bancoProd) {
+      const bancoText = normalizeEstoqueIntelMatchText(bancoProd.nomeComercial || bancoProd.item || "");
+      if (bancoText) {
+        const embEquiv = estoqueIntelEmbalagens.find((emb) => {
+          const embText = normalizeEstoqueIntelMatchText(`${emb.descricao} ${emb.codigo_barras || ""}`);
+          return embText && (bancoText.includes(embText) || embText.includes(bancoText));
+        });
+        if (embEquiv) {
+          return { produto: findEstoqueIntelProduto(embEquiv.produto_id), embalagem: embEquiv, quantidadeBaseUnit: Number(embEquiv.quantidade_base || 0) };
+        }
+        const prodEquiv = estoqueIntelProdutos.find((prod) => {
+          const prodText = normalizeEstoqueIntelMatchText(prod.nome);
+          return bancoText.includes(prodText) || prodText.includes(bancoText);
+        });
+        if (prodEquiv) {
+          const qtdEquiv = parseQuantidadeBaseFromText(textoBase, prodEquiv.unidade_base);
+          if (qtdEquiv) return { produto: prodEquiv, embalagem: null, quantidadeBaseUnit: qtdEquiv };
+        }
+      }
+    }
+  }
+
+  // Tier 3: similaridade textual direta
   const itemText = normalizeEstoqueIntelMatchText(textoBase);
   const produto = estoqueIntelProdutos.find((prod) => {
     const prodText = normalizeEstoqueIntelMatchText(prod.nome);
@@ -7950,10 +7951,11 @@ function gerarDemandaPedidoRealEstoqueIntel(pedidoId) {
     <div style="border:1px solid rgba(245,158,11,.28);border-radius:12px;padding:.85rem;margin-bottom:1rem;background:rgba(245,158,11,.08)">
       <div style="font-size:.78rem;font-weight:700;margin-bottom:.4rem;color:#fbbf24">Itens que ainda nao vao virar demanda</div>
       <ul style="margin:0;padding-left:1rem;color:var(--mut);font-size:.78rem">${pendentesHtml}</ul>
+      ${itensPendentes.length ? '<div style="margin-top:.6rem;font-size:.72rem;color:#fbbf24;border-top:1px solid rgba(245,158,11,.2);padding-top:.5rem">Vincule estes itens na aba <strong>Contratos</strong> &rarr; detalhes do contrato &rarr; botao <strong>Vincular</strong> ao lado de cada item. Ao vincular, a demanda sera gerada automaticamente.</div>' : ''}
     </div>
     <div style="display:flex;justify-content:flex-end;gap:.5rem;flex-wrap:wrap">
       <button class="btn btn-outline btn-sm" onclick="fecharModalGerarDemandaEstoqueIntel()">Cancelar</button>
-      <button class="btn btn-green btn-sm" onclick="confirmarGerarDemandaPedidoRealEstoqueIntel('${esc(pedidoId)}')">Confirmar Geracao da Demanda</button>
+      <button class="btn btn-green btn-sm" style="${itensPendentes.length === 0 ? 'box-shadow:0 0 12px rgba(34,197,94,.45);font-weight:700' : 'opacity:.7'}" onclick="confirmarGerarDemandaPedidoRealEstoqueIntel('${esc(pedidoId)}')">${itensPendentes.length === 0 ? 'Confirmar Geracao da Demanda' : 'Confirmar Geracao da Demanda (' + itensPendentes.length + ' pendente' + (itensPendentes.length > 1 ? 's' : '') + ')'}</button>
     </div>
   `;
   modal.classList.remove("hidden");
@@ -10429,7 +10431,6 @@ function renderEstoque() {
   const produtosTbody = document.getElementById("ei-produtos-tbody");
   const embalagensTbody = document.getElementById("ei-embalagens-tbody");
   const pedidosTbody = document.getElementById("ei-pedidos-tbody");
-  const pedidosSyncOkTbody = document.getElementById("ei-pedidos-sync-ok-tbody");
   const pedidosSyncPendenteTbody = document.getElementById("ei-pedidos-sync-pendente-tbody");
   const estoqueTbody = document.getElementById("ei-estoque-tbody");
   const movTbody = document.getElementById("ei-movimentacoes-tbody");
@@ -10437,7 +10438,7 @@ function renderEstoque() {
   const fornecedoresTbody = document.getElementById("ei-fornecedores-tbody");
   const comprasTbody = document.getElementById("ei-compras-tbody");
   const pedidosReservaFiltroEl = document.getElementById("ei-pedidos-reserva-filtro");
-  if (!produtosTbody || !embalagensTbody || !pedidosTbody || !pedidosSyncOkTbody || !pedidosSyncPendenteTbody || !estoqueTbody || !movTbody || !fornecedoresTbody || !comprasTbody) return;
+  if (!produtosTbody || !embalagensTbody || !pedidosTbody || !pedidosSyncPendenteTbody || !estoqueTbody || !movTbody || !fornecedoresTbody || !comprasTbody) return;
 
   const busca = (document.getElementById("ei-busca")?.value || "").trim().toLowerCase();
   const filtroBase = document.getElementById("ei-filtro-base")?.value || "";
@@ -10639,18 +10640,8 @@ function renderEstoque() {
       </tr>
     `;
   }).join("") : `<tr><td colspan="7" style="color:var(--mut)">Nenhuma demanda encontrada para o filtro atual.</td></tr>`;
-  const pedidosSyncOkCount = document.getElementById("ei-pedidos-sync-ok-count");
   const pedidosSyncPendenteCount = document.getElementById("ei-pedidos-sync-pendente-count");
-  if (pedidosSyncOkCount) pedidosSyncOkCount.textContent = String(pedidosReaisComDemanda.length);
   if (pedidosSyncPendenteCount) pedidosSyncPendenteCount.textContent = String(pedidosReaisPendentes.length);
-  pedidosSyncOkTbody.innerHTML = pedidosReaisComDemanda.length ? pedidosReaisComDemanda.map((item) => `
-    <tr>
-      <td class="font-mono">${esc(item.pedido.id)}</td>
-      <td>${item.itensComMatch.length}/${item.itens.length}</td>
-      <td><span class="badge badge-green">${esc(getPedidoStatusMeta(item.pedido.status).label)}</span></td>
-      <td class="text-right"><button class="btn btn-outline btn-sm" style="padding:.3rem .65rem" onclick="visualizarDemandaEstoqueIntel('${esc(item.pedido.id)}')">Ver</button></td>
-    </tr>
-  `).join("") : `<tr><td colspan="4" style="color:var(--mut)">Nenhum pedido real convertido em demanda ainda.</td></tr>`;
   pedidosSyncPendenteTbody.innerHTML = pedidosReaisPendentes.length ? pedidosReaisPendentes.map((item) => `
     <tr>
       <td class="font-mono">${esc(item.pedido.id)}</td>
