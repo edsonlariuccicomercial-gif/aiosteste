@@ -6264,6 +6264,16 @@ async function sincronizarCobrancaProvider(contaId) {
   await emitirOuSincronizarCobrancaReal(contaId, { silent: false });
 }
 
+// Sequencial de NF controlado pelo frontend (persiste em localStorage)
+function getProximoNumeroNf() {
+  const KEY = "gdp.nf-counter";
+  let counter = parseInt(localStorage.getItem(KEY) || "0", 10);
+  if (counter < 1135) counter = 1134; // Base: última NF emitida
+  counter++;
+  localStorage.setItem(KEY, String(counter));
+  return String(counter);
+}
+
 function buildInvoiceFromOrder(pedido, tipoNota) {
   const now = new Date();
   const nfId = genId("NF");
@@ -6498,7 +6508,7 @@ async function gerarNotaFiscalPedido(pedidoId) {
       const resp = await fetch("/api/gdp-integrations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "nfe-sefaz-preview", pedido })
+        body: JSON.stringify({ action: "nfe-sefaz-preview", pedido, overrides: { numero: getProximoNumeroNf() } })
       });
       const data = await resp.json().catch(() => ({}));
       if (!resp.ok || !data.ok) throw new Error(data.error || `HTTP ${resp.status}`);

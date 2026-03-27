@@ -114,35 +114,11 @@ function randomNumeric(length) {
   return out.slice(0, length);
 }
 
-// Sequencial de NF — baseado no NFE_NUMERO_INICIAL + contador persistido
-let _nfSequenceCounter = null;
+// Sequencial de NF — baseado no NFE_NUMERO_INICIAL
+// No Vercel (serverless), o número é passado pelo frontend via overrides.numero
+// Se não fornecido, usa NFE_NUMERO_INICIAL como fallback
 function getNextNfNumber() {
-  const base = parseInt(process.env.NFE_NUMERO_INICIAL || "1", 10);
-  if (_nfSequenceCounter === null) {
-    // Tentar ler o último número usado
-    try {
-      const fs = require("fs");
-      const path = require("path");
-      const counterFile = path.join(__dirname, "..", "data", "nf-counter.json");
-      if (fs.existsSync(counterFile)) {
-        const data = JSON.parse(fs.readFileSync(counterFile, "utf8"));
-        _nfSequenceCounter = data.ultimo || base;
-      } else {
-        _nfSequenceCounter = base - 1;
-      }
-    } catch(_) {
-      _nfSequenceCounter = base - 1;
-    }
-  }
-  _nfSequenceCounter++;
-  // Persistir o contador
-  try {
-    const fs = require("fs");
-    const path = require("path");
-    const counterFile = path.join(__dirname, "..", "data", "nf-counter.json");
-    fs.writeFileSync(counterFile, JSON.stringify({ ultimo: _nfSequenceCounter, atualizadoEm: new Date().toISOString() }));
-  } catch(_) {}
-  return String(_nfSequenceCounter);
+  return String(parseInt(process.env.NFE_NUMERO_INICIAL || "1", 10));
 }
 
 function buildAccessKey(payload) {
