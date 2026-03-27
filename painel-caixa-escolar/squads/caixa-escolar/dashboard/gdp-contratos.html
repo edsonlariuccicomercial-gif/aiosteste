@@ -4824,10 +4824,12 @@ function renderContratos() {
   empty.classList.add("hidden");
 
   grid.innerHTML = filtered.map(c => {
-    const totalContratado = c.valorTotal || c.itens.reduce((s, i) => s + (i.precoUnitario || 0) * (i.qtdContratada || i.quantidade || 0), 0);
-    const totalEntregue = c.itens.reduce((s, i) => s + (i.precoUnitario || 0) * (i.qtdEntregue || 0), 0);
+    const itens = Array.isArray(c.itens) ? c.itens : [];
+    const calcTotal = itens.reduce((s, i) => s + (parseFloat(i.precoUnitario) || 0) * (parseFloat(i.qtdContratada || i.quantidade) || 0), 0);
+    const totalContratado = (parseFloat(c.valorTotal) || 0) > 0 ? parseFloat(c.valorTotal) : calcTotal;
+    const totalEntregue = itens.reduce((s, i) => s + (parseFloat(i.precoUnitario) || 0) * (parseFloat(i.qtdEntregue) || 0), 0);
     const pctExec = totalContratado > 0 ? (totalEntregue / totalContratado * 100) : 0;
-    const itensPendentes = c.itens.filter(i => i.qtdEntregue < i.qtdContratada).length;
+    const itensPendentes = itens.filter(i => (parseFloat(i.qtdEntregue) || 0) < (parseFloat(i.qtdContratada || i.quantidade) || 0)).length;
     const badgeClass = c.status === "ativo" ? "badge-green" : "badge-red";
 
     return `<div class="contract-card" onclick="abrirContrato('${c.id}')">
@@ -4960,7 +4962,7 @@ function abrirCatalogoEscolar(contratoId) {
   try { _pedidosAll = unwrapData(JSON.parse(localStorage.getItem('gdp.pedidos.v1'))); } catch(_) {}
   const pedidosCtr = _pedidosAll.filter(p => p.contratoId === contratoId && p.status !== 'entregue');
 
-  const totalContratado = c.itens.reduce((s, i) => s + (i.precoUnitario || 0) * (i.qtdContratada || i.quantidade || 0), 0);
+  const totalContratado = (parseFloat(c.valorTotal) || 0) > 0 ? parseFloat(c.valorTotal) : (Array.isArray(c.itens) ? c.itens : []).reduce((s, i) => s + (parseFloat(i.precoUnitario) || 0) * (parseFloat(i.qtdContratada || i.quantidade) || 0), 0);
   const totalEntregue = c.itens.reduce((s, i) => s + (i.precoUnitario || 0) * (i.qtdEntregue || 0), 0);
   const saldoContrato = totalContratado - totalEntregue;
 
@@ -5399,7 +5401,7 @@ function abrirContrato(id) {
   _contratoAbertoId = null; // detail view: Fechar closes modal
   document.getElementById("modal-contrato-titulo").textContent = `${c.id} — ${c.escola.length > 50 ? c.escola.slice(0, 48) + "..." : c.escola}`;
 
-  const totalContratado = c.itens.reduce((s, i) => s + (i.precoUnitario || 0) * (i.qtdContratada || i.quantidade || 0), 0);
+  const totalContratado = (parseFloat(c.valorTotal) || 0) > 0 ? parseFloat(c.valorTotal) : (Array.isArray(c.itens) ? c.itens : []).reduce((s, i) => s + (parseFloat(i.precoUnitario) || 0) * (parseFloat(i.qtdContratada || i.quantidade) || 0), 0);
   const totalEntregue = c.itens.reduce((s, i) => s + (i.precoUnitario || 0) * (i.qtdEntregue || 0), 0);
   const totalSaldo = totalContratado - totalEntregue;
 
@@ -5576,7 +5578,7 @@ function recalcularSaldoContrato(contratoId) {
   renderAll();
   abrirContrato(contratoId);
 
-  const totalContratado = c.itens.reduce((s, i) => s + (i.precoUnitario || 0) * (i.qtdContratada || i.quantidade || 0), 0);
+  const totalContratado = (parseFloat(c.valorTotal) || 0) > 0 ? parseFloat(c.valorTotal) : (Array.isArray(c.itens) ? c.itens : []).reduce((s, i) => s + (parseFloat(i.precoUnitario) || 0) * (parseFloat(i.qtdContratada || i.quantidade) || 0), 0);
   const totalEntregue = c.itens.reduce((s, i) => s + (i.precoUnitario || 0) * (i.qtdEntregue || 0), 0);
   showToast(`Saldo recalculado! Contratado: ${brl.format(totalContratado)} | Entregue: ${brl.format(totalEntregue)} | Saldo: ${brl.format(totalContratado - totalEntregue)}`, 5000);
 }
@@ -5585,7 +5587,7 @@ function imprimirContrato(id) {
   const c = contratos.find(x => x.id === id);
   if (!c) return;
 
-  const totalContratado = c.itens.reduce((s, i) => s + (i.precoUnitario || 0) * (i.qtdContratada || i.quantidade || 0), 0);
+  const totalContratado = (parseFloat(c.valorTotal) || 0) > 0 ? parseFloat(c.valorTotal) : (Array.isArray(c.itens) ? c.itens : []).reduce((s, i) => s + (parseFloat(i.precoUnitario) || 0) * (parseFloat(i.qtdContratada || i.quantidade) || 0), 0);
   const totalEntregue = c.itens.reduce((s, i) => s + (i.precoUnitario || 0) * (i.qtdEntregue || 0), 0);
 
   const linked = getClientesVinculadosAoContrato(id);
@@ -10779,8 +10781,8 @@ function exportItensCSV() {
 // ===== KPIs =====
 function renderKPIs() {
   const ativos = contratos.filter(c => c.status === "ativo");
-  const totalItens = ativos.reduce((s, c) => s + c.itens.length, 0);
-  const totalValor = ativos.reduce((s, c) => s + c.itens.reduce((s2, i) => s2 + i.precoUnitario * i.qtdContratada, 0), 0);
+  const totalItens = ativos.reduce((s, c) => s + (Array.isArray(c.itens) ? c.itens.length : 0), 0);
+  const totalValor = ativos.reduce((s, c) => s + ((parseFloat(c.valorTotal) || 0) > 0 ? parseFloat(c.valorTotal) : (Array.isArray(c.itens) ? c.itens : []).reduce((s2, i) => s2 + (parseFloat(i.precoUnitario) || 0) * (parseFloat(i.qtdContratada || i.quantidade) || 0), 0)), 0);
   const pendentes = ativos.reduce((s, c) => s + c.itens.filter(i => i.qtdEntregue < i.qtdContratada).length, 0);
 
   document.getElementById("kpi-contratos").textContent = ativos.length;
