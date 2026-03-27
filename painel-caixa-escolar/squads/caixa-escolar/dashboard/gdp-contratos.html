@@ -6505,11 +6505,23 @@ async function gerarNotaFiscalPedido(pedidoId) {
 
   if (tipoNota === "nfe_real") {
     try {
-      const resp = await fetch("/api/gdp-integrations", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "nfe-sefaz-preview", pedido, overrides: { numero: getProximoNumeroNf() } })
-      });
+      // Tentar servidor local primeiro (preview completo com assinatura)
+      let resp;
+      const previewPayload = JSON.stringify({ pedido, overrides: { numero: getProximoNumeroNf() } });
+      try {
+        resp = await fetch("http://localhost:8082/api/nfe/preview", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: previewPayload,
+          signal: AbortSignal.timeout(15000),
+        });
+      } catch (_) {
+        resp = await fetch("/api/gdp-integrations", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "nfe-sefaz-preview", pedido, overrides: { numero: getProximoNumeroNf() } }),
+        });
+      }
       const data = await resp.json().catch(() => ({}));
       if (!resp.ok || !data.ok) throw new Error(data.error || `HTTP ${resp.status}`);
       invoice.sefaz.preview = data.payload;
@@ -6686,11 +6698,24 @@ async function transmitirHomologacaoNota(notaId) {
   renderAll();
 
   try {
-    const resp = await fetch("/api/gdp-integrations", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "nfe-sefaz-emitir", pedido })
-    });
+    // Tentar servidor local primeiro (tem xml-crypto pra transmissão real)
+    let resp;
+    const nfePayload = JSON.stringify({ pedido, overrides: { numero: getProximoNumeroNf() } });
+    try {
+      resp = await fetch("http://localhost:8082/api/nfe/emitir", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: nfePayload,
+        signal: AbortSignal.timeout(30000),
+      });
+    } catch (localErr) {
+      console.warn("[NF-e] Servidor local indisponível, tentando Vercel...");
+      resp = await fetch("/api/gdp-integrations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "nfe-sefaz-emitir", pedido }),
+      });
+    }
     const data = await resp.json().catch(() => ({}));
     const result = data.result || {};
     if (!resp.ok || !data.ok) throw new Error(result.message || data.error || `HTTP ${resp.status}`);

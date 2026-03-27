@@ -14,8 +14,11 @@
   },
   "dependencies": {
     "@netlify/blobs": "^10.7.0",
+    "@xmldom/xmldom": "^0.8.11",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
-    "node-cron": "^3.0.3"
+    "node-cron": "^3.0.3",
+    "xml-crypto": "^6.1.2",
+    "xpath": "^0.0.34"
   }
 }

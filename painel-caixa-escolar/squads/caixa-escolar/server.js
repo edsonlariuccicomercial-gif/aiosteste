@@ -373,6 +373,103 @@ app.post("/api/olist/order", async (req, res) => {
   }
 });
 
+// ===== NF-E SEFAZ ENDPOINTS =====
+const nfeClient = require("./dashboard/server-lib/nfe-sefaz-client");
+
+// CORS pra requests do frontend Vercel
+app.use((req, res, next) => {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  if (req.method === "OPTIONS") return res.status(204).end();
+  next();
+});
+
+// Config check
+app.get("/api/nfe/config", (req, res) => {
+  const cfg = nfeClient.getSefazConfig();
+  const validation = nfeClient.validateSefazConfig(cfg);
+  res.json({
+    ok: validation.valid,
+    ambiente: cfg.ambiente,
+    cnpj: cfg.cnpjEmitente,
+    ie: cfg.ie,
+    serie: cfg.seriePadrao,
+    certificado: !!cfg.certificadoPem || !!cfg.certificadoBase64,
+    chavePrivada: !!cfg.chavePrivadaPem,
+    missing: validation.missing || [],
+    transmissaoHabilitada: process.env.NFE_ENABLE_TRANSMIT === "true",
+  });
+});
+
+// Preview (gera XML sem transmitir)
+app.post("/api/nfe/preview", async (req, res) => {
+  try {
+    const { pedido, overrides } = req.body;
+    if (!pedido) return res.status(400).json({ ok: false, error: "pedido required" });
+
+    const payload = nfeClient.buildNfePayloadFromPedido(pedido, overrides || {});
+    const xml = nfeClient.buildNfeXml(payload);
+    const dsig = nfeClient.buildXmlDsigPreview(xml.xml, nfeClient.getSefazConfig());
+    const lote = nfeClient.buildLoteXml(dsig.signedXml, payload);
+    const auth = nfeClient.buildAutorizacaoRequestPreview ? nfeClient.buildAutorizacaoRequestPreview(payload, lote) : null;
+
+    res.json({
+      ok: true,
+      payload,
+      xmlPreview: xml,
+      xmlDsigPreview: dsig,
+      lotePreview: lote,
+      autorizacaoPreview: auth,
+      preview: { numero: payload.identificacao?.numero, serie: payload.identificacao?.serie },
+    });
+  } catch (err) {
+    console.error("[NF-e Preview]", err);
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// Emitir (gera + assina + transmite à SEFAZ)
+app.post("/api/nfe/emitir", async (req, res) => {
+  try {
+    const { pedido, overrides } = req.body;
+    if (!pedido) return res.status(400).json({ ok: false, error: "pedido required" });
+
+    const cfg = nfeClient.getSefazConfig();
+    const validation = nfeClient.validateSefazConfig(cfg);
+    if (!validation.valid) {
+      return res.status(400).json({ ok: false, error: "Config incompleta", missing: validation.missing });
+    }
+
+    if (process.env.NFE_ENABLE_TRANSMIT !== "true") {
+      return res.status(400).json({ ok: false, error: "Transmissão desabilitada. Defina NFE_ENABLE_TRANSMIT=true no .env" });
+    }
+
+    console.log("[NF-e] Emitindo NF-e para pedido:", pedido.id);
+    const resultado = await nfeClient.emitirNfeDireta(pedido, overrides || {});
+    console.log("[NF-e] Resultado:", JSON.stringify(resultado).slice(0, 200));
+
+    res.json({ ok: true, ...resultado });
+  } catch (err) {
+    console.error("[NF-e Emitir]", err);
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// Cancelar NF-e
+app.post("/api/nfe/cancelar", async (req, res) => {
+  try {
+    const { nota, motivo } = req.body;
+    if (!nota || !motivo) return res.status(400).json({ ok: false, error: "nota e motivo required" });
+
+    const resultado = await nfeClient.transmitirCancelamentoEvento(nota, motivo);
+    res.json({ ok: true, ...resultado });
+  } catch (err) {
+    console.error("[NF-e Cancelar]", err);
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
 // ===== CRON: Varredura automática diária às 20h =====
 cron.schedule("0 20 * * *", async () => {
   console.log(`[SGD Cron] Iniciando varredura automatica — ${new Date().toISOString()}`);
@@ -389,5 +486,6 @@ app.listen(PORT, () => {
   console.log(`\n  Caixa Escolar MG — Modo Local (Fase 4)`);
   console.log(`  Dashboard: http://localhost:${PORT}`);
   console.log(`  SGD API:   http://localhost:${PORT}/api/sgd/status`);
+  console.log(`  NF-e:      http://localhost:${PORT}/api/nfe/config`);
   console.log(`  Varredura: Cron diario as 20h ativo\n`);
 });
