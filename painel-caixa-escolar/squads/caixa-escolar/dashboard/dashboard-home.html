@@ -184,6 +184,7 @@ function carregarKPIs() {
     try {
       const parsed = JSON.parse(localStorage.getItem(key) || "null");
       if (Array.isArray(parsed)) return parsed;
+      if (parsed && Array.isArray(parsed.items)) return parsed.items;
       if (parsed && Array.isArray(parsed.data)) return parsed.data;
     } catch(_) {}
     return [];
@@ -229,7 +230,8 @@ function carregarKPIs() {
       const ativos = gdp.filter(c => c.status === 'ativo');
       gdpContratos = ativos.length;
       gdpValor = ativos.reduce((s, c) => {
-        return s + (c.itens || []).reduce((t, i) => t + (i.precoUnitario || 0) * (i.qtdContratada || 0), 0);
+        if (c.valorTotal) return s + c.valorTotal;
+        return s + (c.itens || []).reduce((t, i) => t + (i.precoUnitario || 0) * (i.qtdContratada || i.quantidade || 0), 0);
       }, 0);
     }
   } catch(_) {}
