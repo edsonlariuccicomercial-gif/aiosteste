@@ -6170,12 +6170,15 @@ window.gerarContratoUnificado = function() {
     (pre.itens || []).forEach(item => {
       const precoTotal = (item.precoUnitario || 0) * (item.quantidade || 0);
       todosItens.push({
-        nome: item.nome || "",
-        descricao: item.descricao || "",
-        quantidade: item.quantidade || 0,
+        num: todosItens.length + 1,
+        descricao: item.nome || item.descricao || "",
         unidade: item.unidade || "UN",
+        qtdContratada: item.quantidade || 0,
+        quantidade: item.quantidade || 0,
         precoUnitario: item.precoUnitario || 0,
         precoTotal: Math.round(precoTotal * 100) / 100,
+        qtdEntregue: 0,
+        ncm: "",
         marca: item.marca || "",
         orcamentoOrigem: pre.orcamentoId,
       });

@@ -5021,8 +5021,9 @@ function abrirCatalogoEscolar(contratoId) {
 
   // Build catalog table (enriched with Banco de Produtos)
   const itensHtml = c.itens.map((item, idx) => {
-    const saldo = item.qtdContratada - (item.qtdEntregue || 0);
-    if (saldo <= 0) return '';
+    const qtdContr = parseFloat(item.qtdContratada || item.quantidade) || 0;
+    const saldo = qtdContr - (parseFloat(item.qtdEntregue) || 0);
+    if (qtdContr <= 0 || saldo <= 0) return '';
 
     // Enrich display: match by SKU or description
     const descNorm = (item.descricao || '').toUpperCase().trim();
