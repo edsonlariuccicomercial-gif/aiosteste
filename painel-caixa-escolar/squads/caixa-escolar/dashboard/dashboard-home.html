@@ -289,16 +289,16 @@ function gRotX(x, y, z, a) { return [x, y * Math.cos(a) - z * Math.sin(a), y * M
 function gProject(x, y, z, cx, cy) { const s = 700 / (700 + z); return [x * s + cx, y * s + cy]; }
 
 // Map SRE_CONFIG to globe sections
-// Coordenadas reais de cada SRE
-const SRE_COORDS = {
-  uberaba: { lat: -19.75, lng: -47.93 },
-  uberlandia: { lat: -18.91, lng: -48.27 },
-  passos: { lat: -20.72, lng: -46.61 },
+// Posições espalhadas na esfera pra ficarem visualmente separadas
+const SRE_GLOBE_POS = {
+  uberaba:    { lat: -15, lng: -45 },
+  uberlandia: { lat:  20, lng: -100 },
+  passos:     { lat: -40, lng:  10 },
 };
 const GLOBE_SECTIONS = SRE_CONFIG.map((sre, i) => ({
   num: String(i + 1).padStart(2, '0'), label: sre.nome, color: sre.cor,
-  lat: (SRE_COORDS[sre.id] || SRE_COORDS.uberaba).lat,
-  lng: (SRE_COORDS[sre.id] || SRE_COORDS.uberaba).lng,
+  lat: (SRE_GLOBE_POS[sre.id] || { lat: i * 30 - 20, lng: i * 60 - 50 }).lat,
+  lng: (SRE_GLOBE_POS[sre.id] || { lat: i * 30 - 20, lng: i * 60 - 50 }).lng,
   sre
 }));
 
