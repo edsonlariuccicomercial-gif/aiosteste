@@ -140,6 +140,8 @@
 const MODULOS_KEY = "nexedu.modulos.acesso";
 const SRE_CONFIG = [
   { id: "uberaba", nome: "SRE Uberaba", cor: "#3b82f6", x: 55, y: 45, escolas: 0, oportunidades: 0 },
+  { id: "uberlandia", nome: "SRE Uberlândia", cor: "#f59e0b", x: 40, y: 55, escolas: 0, oportunidades: 0 },
+  { id: "passos", nome: "SRE Passos", cor: "#ef4444", x: 65, y: 60, escolas: 0, oportunidades: 0 },
 ];
 
 // ===== SIDEBAR TOGGLE =====
@@ -247,12 +249,17 @@ function carregarKPIs() {
 
   grid.innerHTML = cards || '<p style="text-align:center;color:var(--muted);grid-column:1/-1">Nenhum módulo liberado. Configure o acesso em Configurações.</p>';
 
-  // Update SRE data
-  SRE_CONFIG[0].oportunidades = oportunidades;
+  // Update SRE data from orcamentos
   try {
+    const orcs = JSON.parse(localStorage.getItem("caixaescolar.orcamentos") || "[]");
     const pre = JSON.parse(localStorage.getItem("caixaescolar.preorcamentos.v1") || "{}");
-    const escolas = new Set(Object.values(pre).map(p => p.escola).filter(Boolean));
-    if (escolas.size > 0) SRE_CONFIG[0].escolas = escolas.size;
+    SRE_CONFIG.forEach(sre => {
+      const sreNome = sre.id.charAt(0).toUpperCase() + sre.id.slice(1); // "Uberaba", "Uberlandia", "Passos"
+      const sreOrcs = orcs.filter(o => (o.sre || "").toLowerCase() === sre.id);
+      sre.oportunidades = sreOrcs.length;
+      const escolasSre = new Set(sreOrcs.map(o => o.escola).filter(Boolean));
+      sre.escolas = escolasSre.size;
+    });
   } catch(_) {}
 }
 
@@ -282,9 +289,17 @@ function gRotX(x, y, z, a) { return [x, y * Math.cos(a) - z * Math.sin(a), y * M
 function gProject(x, y, z, cx, cy) { const s = 700 / (700 + z); return [x * s + cx, y * s + cy]; }
 
 // Map SRE_CONFIG to globe sections
+// Coordenadas reais de cada SRE
+const SRE_COORDS = {
+  uberaba: { lat: -19.75, lng: -47.93 },
+  uberlandia: { lat: -18.91, lng: -48.27 },
+  passos: { lat: -20.72, lng: -46.61 },
+};
 const GLOBE_SECTIONS = SRE_CONFIG.map((sre, i) => ({
   num: String(i + 1).padStart(2, '0'), label: sre.nome, color: sre.cor,
-  lat: -19.75, lng: -47.93, sre // Uberaba coords
+  lat: (SRE_COORDS[sre.id] || SRE_COORDS.uberaba).lat,
+  lng: (SRE_COORDS[sre.id] || SRE_COORDS.uberaba).lng,
+  sre
 }));
 
 function drawGlobe() {
