@@ -984,16 +984,16 @@ input[type="checkbox"] {
   appearance: none;
   width: 16px;
   height: 16px;
-  border: 2px solid var(--accent, #6366f1);
-  border-radius: 4px;
+  border: 1px solid var(--line, rgba(143, 197, 157, 0.2));
+  border-radius: 3px;
   background: transparent;
   cursor: pointer;
   position: relative;
   vertical-align: middle;
-  transition: all 0.15s ease;
+  transition: border-color 0.15s ease;
 }
 input[type="checkbox"]:checked {
-  background: transparent;
+  border-color: var(--line, rgba(143, 197, 157, 0.45));
 }
 input[type="checkbox"]:checked::after {
   content: "✓";
@@ -1002,33 +1002,11 @@ input[type="checkbox"]:checked::after {
   left: 1px;
   font-size: 13px;
   font-weight: 700;
-  color: var(--accent, #6366f1);
+  color: var(--txt, #f1f5f9);
 }
 input[type="checkbox"]:hover {
-  border-color: var(--accent, #6366f1);
-  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.15);
+  border-color: var(--line, rgba(143, 197, 157, 0.45));
 }
-
-/* Cores por contexto */
-#tab-orcamentos input[type="checkbox"] { border-color: #6366f1; }
-#tab-orcamentos input[type="checkbox"]:checked::after { color: #6366f1; }
-
-#tab-pre-orcamento input[type="checkbox"] { border-color: #f59e0b; }
-#tab-pre-orcamento input[type="checkbox"]:checked::after { color: #f59e0b; }
-
-#tab-envio-sgd input[type="checkbox"] { border-color: #10b981; }
-#tab-envio-sgd input[type="checkbox"]:checked::after { color: #10b981; }
-
-#tab-banco-precos input[type="checkbox"] { border-color: #3b82f6; }
-#tab-banco-precos input[type="checkbox"]:checked::after { color: #3b82f6; }
-
-#tab-historico input[type="checkbox"] { border-color: #8b5cf6; }
-#tab-historico input[type="checkbox"]:checked::after { color: #8b5cf6; }
-
-.modal-overlay input[type="checkbox"],
-.modal input[type="checkbox"] { border-color: #6366f1; }
-.modal-overlay input[type="checkbox"]:checked::after,
-.modal input[type="checkbox"]:checked::after { color: #6366f1; }
 
 /* ===== PNCP TOOLTIP (Passo 5) ===== */
 .pncp-tooltip {
