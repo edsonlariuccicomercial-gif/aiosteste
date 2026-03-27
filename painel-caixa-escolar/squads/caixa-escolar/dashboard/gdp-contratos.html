@@ -2695,6 +2695,37 @@ function getClienteFiscalSnapshotDoContrato(contratoId) {
   return null;
 }
 
+function vincularClienteManual(contratoId) {
+  const c = contratos.find(x => x.id === contratoId);
+  if (!c) return;
+  const escolaInput = document.getElementById("ctr-escola-" + contratoId);
+  const nomeEscola = escolaInput ? escolaInput.value.trim() : c.escola;
+  if (!nomeEscola) { alert("Informe o nome da escola."); return; }
+
+  // Buscar cliente por nome
+  const norm = nomeEscola.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  let cliente = usuarios.find(u => (u.nome || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes(norm) || norm.includes((u.nome || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")));
+
+  if (!cliente) {
+    if (!confirm(`Cliente "${nomeEscola}" não encontrado. Criar automaticamente?`)) return;
+    cliente = {
+      id: "cli-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 5),
+      nome: nomeEscola, cnpj: "", municipio: c.municipio || "", sre: c.sre || "",
+      responsavel: "", email: "", telefone: "", uf: "MG", tipo: "escola",
+      contratos_vinculados: [], criadoEm: new Date().toISOString().slice(0, 10), origem: "vinculo-manual",
+    };
+    usuarios.push(cliente);
+  }
+
+  vincularClienteAoContrato(c, cliente);
+  c.escola = nomeEscola;
+  saveData();
+
+  const info = document.getElementById("ctr-cliente-info-" + contratoId);
+  if (info) info.innerHTML = '✓ Vinculado: ' + esc(cliente.nome);
+  showToast("Cliente vinculado: " + cliente.nome);
+}
+
 function vincularClienteAoContrato(contrato, cliente) {
   if (!contrato || !cliente) return null;
   contrato.escolaClienteId = cliente.id;
@@ -5414,7 +5445,14 @@ function abrirContrato(id) {
     <div style="background:var(--bg);border-radius:10px;padding:1rem;margin-bottom:1.5rem">
       <h3 style="font-size:.8rem;text-transform:uppercase;color:var(--mut);letter-spacing:.04em;margin-bottom:.8rem">Dados do Contrato</h3>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:.8rem">
-        <div style="grid-column:1/-1"><label style="font-size:.72rem;color:var(--dim);display:block;margin-bottom:.2rem">Caixa Escolar / Escola</label><input type="text" id="ctr-escola-${c.id}" value="${esc(c.escola || '')}" placeholder="Nome da escola" style="width:100%"></div>
+        <div style="grid-column:1/-1"><label style="font-size:.72rem;color:var(--dim);display:block;margin-bottom:.2rem">Caixa Escolar / Escola</label>
+          <div style="display:flex;gap:.5rem;align-items:center">
+            <input type="text" id="ctr-escola-${c.id}" value="${esc(c.escola || '')}" placeholder="Nome da escola" list="ctr-clientes-list-${c.id}" style="flex:1">
+            <datalist id="ctr-clientes-list-${c.id}">${usuarios.map(u => '<option value="' + esc(u.nome) + '">').join('')}</datalist>
+            <button class="btn btn-sm btn-outline" onclick="vincularClienteManual('${c.id}')" title="Vincular escola a um cliente cadastrado" style="white-space:nowrap">Vincular Cliente</button>
+          </div>
+          <div id="ctr-cliente-info-${c.id}" style="font-size:.72rem;color:var(--mut);margin-top:.3rem">${c.escolaClienteId ? '✓ Vinculado: ' + esc((usuarios.find(u => u.id === c.escolaClienteId) || {}).nome || c.escolaClienteId) : '⚠ Sem vínculo com cliente'}</div>
+        </div>
         <div><label style="font-size:.72rem;color:var(--dim);display:block;margin-bottom:.2rem">Edital</label><input type="text" id="ctr-edital-${c.id}" value="${esc(c.edital || '')}" placeholder="Ex: PE 001/2026" style="width:100%"></div>
         <div><label style="font-size:.72rem;color:var(--dim);display:block;margin-bottom:.2rem">Fornecedor</label><input type="text" id="ctr-fornecedor-${c.id}" value="${esc(c.fornecedor || '')}" placeholder="Nome do fornecedor" style="width:100%"></div>
         <div><label style="font-size:.72rem;color:var(--dim);display:block;margin-bottom:.2rem">Data Apuracao</label><input type="date" id="ctr-data-${c.id}" value="${esc(c.dataApuracao || '')}" style="width:100%"></div>
