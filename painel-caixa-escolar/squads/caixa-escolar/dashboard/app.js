@@ -6100,7 +6100,6 @@ function criarContratoGdp(orcId, preOrcamento, numContrato) {
     numero: numContrato || "",
     municipio: municipio,
     sre: sre,
-    valorTotal: preOrcamento.totalGeral || 0,
     orcamentoId: orcId,
     origem: "pre-orcamento-sgd",
     itens: (preOrcamento.itens || []).map((item, idx) => ({
@@ -6109,10 +6108,12 @@ function criarContratoGdp(orcId, preOrcamento, numContrato) {
       unidade: item.unidade || "UN",
       qtdContratada: item.quantidade || 0,
       precoUnitario: item.precoUnitario || 0,
+      precoTotal: Math.round((item.precoUnitario || 0) * (item.quantidade || 0) * 100) / 100,
       qtdEntregue: 0,
       ncm: "",
       marca: item.marca || "",
     })),
+    valorTotal: Math.round((preOrcamento.itens || []).reduce((s, i) => s + (i.precoUnitario || 0) * (i.quantidade || 0), 0) * 100) / 100,
     fornecedoresMapa: [],
   };
 

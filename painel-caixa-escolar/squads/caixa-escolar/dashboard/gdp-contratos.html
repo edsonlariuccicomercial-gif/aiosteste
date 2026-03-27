@@ -4295,7 +4295,7 @@ async function readCronoPDF(file) {
     return null;
   }
 
-  const total = items.reduce((s, it) => s + it.precoUnitario * it.qtdContratada, 0);
+  const total = items.reduce((s, it) => s + (it.precoUnitario || 0) * (it.qtdContratada || it.quantidade || 0), 0);
   const endMatch = allText.match(/Rua[^\n–—]*/i);
 
   return {
@@ -4423,7 +4423,7 @@ IMPORTANTE:
       return null;
     }
 
-    const total = result.total || itens.reduce((s, it) => s + it.precoUnitario * it.qtdContratada, 0);
+    const total = result.total || itens.reduce((s, it) => s + (it.precoUnitario || 0) * (it.qtdContratada || it.quantidade || 0), 0);
 
     showToast(`OCR concluido: ${itens.length} itens extraidos!`, 4000);
 
@@ -4590,7 +4590,7 @@ function parseCronoText(text, filename) {
     return null;
   }
 
-  const total = items.reduce((s, it) => s + it.precoUnitario * it.qtdContratada, 0);
+  const total = items.reduce((s, it) => s + (it.precoUnitario || 0) * (it.qtdContratada || it.quantidade || 0), 0);
 
   // Try to get address from text
   const endMatch = text.match(/Rua[^\n–—]*/i);
@@ -4824,8 +4824,8 @@ function renderContratos() {
   empty.classList.add("hidden");
 
   grid.innerHTML = filtered.map(c => {
-    const totalContratado = c.itens.reduce((s, i) => s + i.precoUnitario * i.qtdContratada, 0);
-    const totalEntregue = c.itens.reduce((s, i) => s + i.precoUnitario * i.qtdEntregue, 0);
+    const totalContratado = c.valorTotal || c.itens.reduce((s, i) => s + (i.precoUnitario || 0) * (i.qtdContratada || i.quantidade || 0), 0);
+    const totalEntregue = c.itens.reduce((s, i) => s + (i.precoUnitario || 0) * (i.qtdEntregue || 0), 0);
     const pctExec = totalContratado > 0 ? (totalEntregue / totalContratado * 100) : 0;
     const itensPendentes = c.itens.filter(i => i.qtdEntregue < i.qtdContratada).length;
     const badgeClass = c.status === "ativo" ? "badge-green" : "badge-red";
@@ -4960,8 +4960,8 @@ function abrirCatalogoEscolar(contratoId) {
   try { _pedidosAll = unwrapData(JSON.parse(localStorage.getItem('gdp.pedidos.v1'))); } catch(_) {}
   const pedidosCtr = _pedidosAll.filter(p => p.contratoId === contratoId && p.status !== 'entregue');
 
-  const totalContratado = c.itens.reduce((s, i) => s + i.precoUnitario * i.qtdContratada, 0);
-  const totalEntregue = c.itens.reduce((s, i) => s + i.precoUnitario * i.qtdEntregue, 0);
+  const totalContratado = c.itens.reduce((s, i) => s + (i.precoUnitario || 0) * (i.qtdContratada || i.quantidade || 0), 0);
+  const totalEntregue = c.itens.reduce((s, i) => s + (i.precoUnitario || 0) * (i.qtdEntregue || 0), 0);
   const saldoContrato = totalContratado - totalEntregue;
 
   // Load Banco de Produtos for enrichment
@@ -5399,8 +5399,8 @@ function abrirContrato(id) {
   _contratoAbertoId = null; // detail view: Fechar closes modal
   document.getElementById("modal-contrato-titulo").textContent = `${c.id} — ${c.escola.length > 50 ? c.escola.slice(0, 48) + "..." : c.escola}`;
 
-  const totalContratado = c.itens.reduce((s, i) => s + i.precoUnitario * i.qtdContratada, 0);
-  const totalEntregue = c.itens.reduce((s, i) => s + i.precoUnitario * i.qtdEntregue, 0);
+  const totalContratado = c.itens.reduce((s, i) => s + (i.precoUnitario || 0) * (i.qtdContratada || i.quantidade || 0), 0);
+  const totalEntregue = c.itens.reduce((s, i) => s + (i.precoUnitario || 0) * (i.qtdEntregue || 0), 0);
   const totalSaldo = totalContratado - totalEntregue;
 
   let html = `
@@ -5576,8 +5576,8 @@ function recalcularSaldoContrato(contratoId) {
   renderAll();
   abrirContrato(contratoId);
 
-  const totalContratado = c.itens.reduce((s, i) => s + i.precoUnitario * i.qtdContratada, 0);
-  const totalEntregue = c.itens.reduce((s, i) => s + i.precoUnitario * i.qtdEntregue, 0);
+  const totalContratado = c.itens.reduce((s, i) => s + (i.precoUnitario || 0) * (i.qtdContratada || i.quantidade || 0), 0);
+  const totalEntregue = c.itens.reduce((s, i) => s + (i.precoUnitario || 0) * (i.qtdEntregue || 0), 0);
   showToast(`Saldo recalculado! Contratado: ${brl.format(totalContratado)} | Entregue: ${brl.format(totalEntregue)} | Saldo: ${brl.format(totalContratado - totalEntregue)}`, 5000);
 }
 
@@ -5585,8 +5585,8 @@ function imprimirContrato(id) {
   const c = contratos.find(x => x.id === id);
   if (!c) return;
 
-  const totalContratado = c.itens.reduce((s, i) => s + i.precoUnitario * i.qtdContratada, 0);
-  const totalEntregue = c.itens.reduce((s, i) => s + i.precoUnitario * i.qtdEntregue, 0);
+  const totalContratado = c.itens.reduce((s, i) => s + (i.precoUnitario || 0) * (i.qtdContratada || i.quantidade || 0), 0);
+  const totalEntregue = c.itens.reduce((s, i) => s + (i.precoUnitario || 0) * (i.qtdEntregue || 0), 0);
 
   const linked = getClientesVinculadosAoContrato(id);
   const escolasHtml = linked.length > 0
