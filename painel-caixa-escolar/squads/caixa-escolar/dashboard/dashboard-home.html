@@ -378,9 +378,9 @@ function drawGlobe() {
     ctx.beginPath(); ctx.arc(sx, sy, dotR, 0, Math.PI * 2);
     ctx.fillStyle = sec.color; ctx.shadowColor = sec.color; ctx.shadowBlur = isHov ? 16 : 8; ctx.fill(); ctx.shadowBlur = 0;
 
-    ctx.font = `bold ${isHov ? '11' : '9'}px monospace`;
+    ctx.font = `bold ${isHov ? '14' : '12'}px sans-serif`;
     ctx.fillStyle = isHov ? '#fff' : sec.color + 'dd'; ctx.textAlign = 'center';
-    ctx.fillText(sec.label.replace('SRE ', ''), sx, sy - 14);
+    ctx.fillText(sec.label.replace('SRE ', ''), sx, sy - 16);
   }
 
   requestAnimationFrame(drawGlobe);

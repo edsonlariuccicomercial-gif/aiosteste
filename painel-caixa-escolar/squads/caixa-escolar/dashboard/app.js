@@ -6041,9 +6041,56 @@ function criarContratoGdp(orcId, preOrcamento, numContrato) {
   const now = new Date();
   const id = `CTR-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}-${String(Math.floor(Math.random() * 9999)).padStart(4, "0")}`;
 
+  const escolaNome = preOrcamento.escola || (orc ? orc.escola : "");
+  const municipio = preOrcamento.municipio || (orc ? orc.municipio : "");
+  const sre = orc ? (orc.sre || "Uberaba") : "Uberaba";
+
+  // Auto-criar/vincular cliente (escola) no GDP
+  let escolaClienteId = null;
+  try {
+    const USUARIOS_KEY = "gdp.usuarios.v1";
+    let usuarios = [];
+    const rawU = JSON.parse(localStorage.getItem(USUARIOS_KEY) || "null");
+    usuarios = Array.isArray(rawU) ? rawU : (rawU && rawU.items ? rawU.items : []);
+
+    // Buscar cliente existente por nome da escola
+    const normEscola = normalizedText(escolaNome);
+    let cliente = usuarios.find(u => normalizedText(u.nome) === normEscola);
+
+    if (!cliente) {
+      // Criar cliente automaticamente
+      cliente = {
+        id: "cli-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 5),
+        nome: escolaNome,
+        cnpj: "",
+        municipio: municipio,
+        sre: sre,
+        responsavel: "",
+        email: "",
+        telefone: "",
+        logradouro: "",
+        bairro: "",
+        cep: "",
+        uf: "MG",
+        tipo: "escola",
+        contratos_vinculados: [],
+        criadoEm: now.toISOString().slice(0, 10),
+        origem: "auto-contrato-ganho",
+      };
+      usuarios.push(cliente);
+      localStorage.setItem(USUARIOS_KEY, JSON.stringify(usuarios));
+      console.log(`[GDP] Cliente criado automaticamente: ${escolaNome}`);
+    }
+    escolaClienteId = cliente.id;
+    if (!Array.isArray(cliente.contratos_vinculados)) cliente.contratos_vinculados = [];
+  } catch (e) {
+    console.warn("[GDP] Erro ao vincular cliente:", e);
+  }
+
   const contrato = {
     id,
-    escola: preOrcamento.escola || (orc ? orc.escola : ""),
+    escola: escolaNome,
+    escolaClienteId: escolaClienteId,
     edital: orcId,
     criterio: "menor_preco",
     dataApuracao: now.toISOString().slice(0, 10),
@@ -6051,8 +6098,8 @@ function criarContratoGdp(orcId, preOrcamento, numContrato) {
     fornecedor: "Lariucci & Ribeiro Pereira",
     status: "ativo",
     numero: numContrato || "",
-    municipio: preOrcamento.municipio || (orc ? orc.municipio : ""),
-    sre: orc ? (orc.sre || "Uberaba") : "Uberaba",
+    municipio: municipio,
+    sre: sre,
     valorTotal: preOrcamento.totalGeral || 0,
     orcamentoId: orcId,
     origem: "pre-orcamento-sgd",
@@ -6068,6 +6115,22 @@ function criarContratoGdp(orcId, preOrcamento, numContrato) {
     })),
     fornecedoresMapa: [],
   };
+
+  // Vincular contrato ao cliente
+  if (escolaClienteId) {
+    try {
+      const USUARIOS_KEY = "gdp.usuarios.v1";
+      let usuarios = [];
+      const rawU = JSON.parse(localStorage.getItem(USUARIOS_KEY) || "null");
+      usuarios = Array.isArray(rawU) ? rawU : (rawU && rawU.items ? rawU.items : []);
+      const cliente = usuarios.find(u => u.id === escolaClienteId);
+      if (cliente) {
+        if (!Array.isArray(cliente.contratos_vinculados)) cliente.contratos_vinculados = [];
+        if (!cliente.contratos_vinculados.includes(id)) cliente.contratos_vinculados.push(id);
+        localStorage.setItem(USUARIOS_KEY, JSON.stringify(usuarios));
+      }
+    } catch(_) {}
+  }
 
   contratos.push(contrato);
 
@@ -6127,21 +6190,64 @@ window.gerarContratoUnificado = function() {
   const contratos = contratosRaw.items || contratosRaw || [];
   const contratosArray = Array.isArray(contratos) ? contratos : [];
 
+  // Auto-vincular cliente (primeira escola)
+  let escolaClienteId = null;
+  try {
+    const USUARIOS_KEY = "gdp.usuarios.v1";
+    let usuarios = [];
+    const rawU = JSON.parse(localStorage.getItem(USUARIOS_KEY) || "null");
+    usuarios = Array.isArray(rawU) ? rawU : (rawU && rawU.items ? rawU.items : []);
+    const normEscola = normalizedText(escolas[0] || "");
+    let cliente = usuarios.find(u => normalizedText(u.nome) === normEscola);
+    if (!cliente && escolas[0]) {
+      cliente = {
+        id: "cli-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 5),
+        nome: escolas[0], cnpj: "", municipio: pres[0].municipio || "", sre: pres[0].sre || "",
+        responsavel: "", email: "", telefone: "", uf: "MG", tipo: "escola",
+        contratos_vinculados: [], criadoEm: new Date().toISOString().slice(0, 10), origem: "auto-contrato-unificado",
+      };
+      usuarios.push(cliente);
+      localStorage.setItem(USUARIOS_KEY, JSON.stringify(usuarios));
+    }
+    if (cliente) escolaClienteId = cliente.id;
+  } catch(_) {}
+
   const contrato = {
     id: "gdp-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 5),
     numero: numContrato || "ARP-UNIF-" + ids[0],
     tipo: "Caixa Escolar",
     status: "ativo",
     escola: escolas.join(", "),
+    escolaClienteId: escolaClienteId,
     municipio: pres[0].municipio || "",
     sre: pres[0].sre || "",
     valorTotal: Math.round(valorTotal * 100) / 100,
     dataInicio: new Date().toISOString().slice(0, 10),
+    dataCriacao: new Date().toISOString(),
+    dataApuracao: new Date().toISOString().slice(0, 10),
+    criterio: "menor_preco",
+    fornecedor: "Lariucci & Ribeiro Pereira",
     orcamentosIds: ids,
     itens: todosItens,
     criadoEm: new Date().toISOString().slice(0, 10),
     origem: "contrato-unificado",
   };
+
+  // Vincular contrato ao cliente
+  if (escolaClienteId) {
+    try {
+      const USUARIOS_KEY = "gdp.usuarios.v1";
+      let usuarios = [];
+      const rawU = JSON.parse(localStorage.getItem(USUARIOS_KEY) || "null");
+      usuarios = Array.isArray(rawU) ? rawU : (rawU && rawU.items ? rawU.items : []);
+      const cliente = usuarios.find(u => u.id === escolaClienteId);
+      if (cliente) {
+        if (!Array.isArray(cliente.contratos_vinculados)) cliente.contratos_vinculados = [];
+        if (!cliente.contratos_vinculados.includes(contrato.id)) cliente.contratos_vinculados.push(contrato.id);
+        localStorage.setItem(USUARIOS_KEY, JSON.stringify(usuarios));
+      }
+    } catch(_) {}
+  }
 
   contratosArray.push(contrato);
   localStorage.setItem(CONTRATOS_GDP_KEY, JSON.stringify({ _v: 1, updatedAt: new Date().toISOString(), items: contratosArray }));
