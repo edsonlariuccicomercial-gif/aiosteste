@@ -450,7 +450,7 @@ app.post("/api/nfe/emitir", async (req, res) => {
     const resultado = await nfeClient.emitirNfeDireta(payload);
     console.log("[NF-e] Resultado:", JSON.stringify(resultado).slice(0, 200));
 
-    res.json({ ok: true, ...resultado });
+    res.json({ ok: resultado.ok !== false, action: "nfe-sefaz-emitir", result: resultado });
   } catch (err) {
     console.error("[NF-e Emitir]", err);
     res.status(500).json({ ok: false, error: err.message });
@@ -464,7 +464,7 @@ app.post("/api/nfe/cancelar", async (req, res) => {
     if (!nota || !motivo) return res.status(400).json({ ok: false, error: "nota e motivo required" });
 
     const resultado = await nfeClient.transmitirCancelamentoEvento(nota, motivo);
-    res.json({ ok: true, ...resultado });
+    res.json({ ok: resultado.ok !== false, action: "nfe-sefaz-cancelar", result: resultado });
   } catch (err) {
     console.error("[NF-e Cancelar]", err);
     res.status(500).json({ ok: false, error: err.message });
