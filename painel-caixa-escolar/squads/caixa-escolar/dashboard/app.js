@@ -5252,10 +5252,7 @@ function renderSgd() {
     });
   });
 
-  // Render sub-sections (Stories 4.36 / 4.37)
-  renderDemandas();
-  renderEstoque();
-  renderListaCompras();
+  // Story 4.43: renderDemandas/renderEstoque/renderListaCompras migrados para gdp-contratos.html
 }
 
 window.sgdBaixarPayload = function (orcId) {
@@ -7376,33 +7373,8 @@ window.gerarDemanda = function(orcId) {
   renderSgd();
 };
 
-function renderDemandas() {
-  const tbody = document.getElementById("tbody-demandas");
-  const empty = document.getElementById("demandas-empty");
-  if (!tbody) return;
-
-  if (demandas.length === 0) { if (empty) empty.style.display = "block"; tbody.innerHTML = ""; return; }
-  if (empty) empty.style.display = "none";
-
-  tbody.innerHTML = demandas.map(d => {
-    const convertidos = d.itens.filter(i => i.status === "convertido").length;
-    const semVinculo = d.itens.filter(i => i.status === "sem_vinculo").length;
-    const statusBadge = d.status === "confirmada"
-      ? '<span class="badge badge-ganho">Confirmada</span>'
-      : '<span class="badge badge-pendente">Rascunho</span>';
-    return `<tr>
-      <td class="font-mono text-muted">${escapeHtml(d.id)}</td>
-      <td>${escapeHtml(d.escola)}</td>
-      <td>${convertidos} ok${semVinculo > 0 ? `, <span style="color:#e74c3c">${semVinculo} sem vinculo</span>` : ""}</td>
-      <td class="font-mono">${brl.format(d.totalEstimado)}</td>
-      <td>${statusBadge}</td>
-      <td>
-        <button class="btn btn-inline" onclick="verDemanda('${d.id}')">Ver</button>
-        ${d.status === "rascunho" ? `<button class="btn btn-inline btn-accent" onclick="confirmarDemanda('${d.id}')">Confirmar</button>` : ""}
-      </td>
-    </tr>`;
-  }).join("");
-}
+// Story 4.43: renderDemandas migrado para gdp-contratos.html
+function renderDemandas() { /* noop — migrado para GDP */ }
 
 window.verDemanda = function(demandaId) {
   const d = demandas.find(x => x.id === demandaId);
@@ -7467,73 +7439,14 @@ window.confirmarDemanda = function(demandaId) {
   showToast(`Demanda confirmada. Estoque atualizado, ${listaCompras.length} item(ns) na lista de compras.`);
 };
 
-function renderEstoque() {
-  const tbody = document.getElementById("tbody-estoque");
-  const empty = document.getElementById("estoque-empty");
-  if (!tbody) return;
-  const entries = Object.entries(estoque);
-  if (entries.length === 0) { if (empty) empty.style.display = "block"; tbody.innerHTML = ""; return; }
-  if (empty) empty.style.display = "none";
-
-  tbody.innerHTML = entries.map(([sku, s]) => {
-    const produto = getProdutoBySku(sku);
-    const disp = s.qtd - s.qtdComprometida;
-    const corDisp = disp <= 0 ? "color:#e74c3c" : disp <= (s.minimo || 5) ? "color:#f59e0b" : "color:#059669";
-    return `<tr>
-      <td class="font-mono">${escapeHtml(sku)}</td>
-      <td>${escapeHtml(produto ? (produto.item || produto.nomeComercial || sku) : sku)}</td>
-      <td class="text-right">${s.qtd}</td>
-      <td class="text-right">${s.qtdComprometida}</td>
-      <td class="text-right" style="${corDisp};font-weight:600;">${disp}</td>
-      <td><button class="btn btn-inline" onclick="lancamentoEstoque('${escapeHtml(sku)}')">Entrada</button></td>
-    </tr>`;
-  }).join("");
-}
-
-function renderListaCompras() {
-  const tbody = document.getElementById("tbody-compras");
-  const empty = document.getElementById("compras-empty");
-  const totalEl = document.getElementById("compras-total");
-  if (!tbody) return;
-  if (listaCompras.length === 0) { if (empty) empty.style.display = "block"; tbody.innerHTML = ""; if (totalEl) totalEl.textContent = ""; return; }
-  if (empty) empty.style.display = "none";
-
-  tbody.innerHTML = listaCompras.map(c => `<tr>
-    <td>${escapeHtml(c.produto)}</td>
-    <td class="text-right">${c.qtd}</td>
-    <td>${escapeHtml(c.fornecedor)}</td>
-    <td class="text-right font-mono">${brl.format(c.custoUnitario)}</td>
-    <td class="text-right font-mono">${brl.format(c.custoTotal)}</td>
-    <td>${escapeHtml(c.escola)}</td>
-  </tr>`).join("");
-
-  const total = listaCompras.reduce((s, c) => s + c.custoTotal, 0);
-  if (totalEl) totalEl.textContent = `Total: ${brl.format(total)}`;
-}
-
-window.lancamentoEstoque = function(sku) {
-  const qtd = parseInt(prompt("Quantidade de entrada:"));
-  if (isNaN(qtd) || qtd <= 0) return;
-  if (!estoque[sku]) estoque[sku] = { qtd: 0, qtdComprometida: 0, minimo: 0 };
-  estoque[sku].qtd += qtd;
-  saveEstoque();
-  renderEstoque();
-  showToast(`Estoque atualizado: +${qtd} para ${sku}`);
-};
-
-window.exportarListaCompras = function() {
-  if (listaCompras.length === 0) return showToast("Lista vazia.");
-  const header = "Produto;Qtd;Fornecedor;Custo Unit.;Custo Total;Escola";
-  const rows = listaCompras.map(c => `${c.produto};${c.qtd};${c.fornecedor};${c.custoUnitario};${c.custoTotal};${c.escola}`);
-  const csv = "\uFEFF" + [header, ...rows].join("\n");
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = "lista-compras-" + new Date().toISOString().slice(0, 10) + ".csv";
-  a.click();
-};
+// Story 4.43: renderEstoque/renderListaCompras/lancamentoEstoque/exportarListaCompras migrados para gdp-contratos.html
+function renderEstoque() { /* noop — migrado para GDP */ }
+function renderListaCompras() { /* noop — migrado para GDP */ }
+window.lancamentoEstoque = function() { /* noop — migrado para GDP */ };
+window.exportarListaCompras = function() { /* noop — migrado para GDP */ };
 
 window.imprimirListaCompras = function() {
+  // Story 4.43: migrado para gdp-contratos.html — noop aqui
   const table = document.querySelector("#compras-section table");
   if (!table) return;
   const win = window.open("", "_blank");

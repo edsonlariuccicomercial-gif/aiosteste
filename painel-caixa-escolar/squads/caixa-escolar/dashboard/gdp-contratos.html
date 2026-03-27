@@ -938,6 +938,55 @@
         <div class="table-wrap" data-ei-table style="max-height:220px;overflow-y:auto"><table><thead><tr><th>Data</th><th>Produto</th><th>Tipo</th><th>Op.</th><th class="text-right">Qtd</th><th>Origem</th></tr></thead><tbody id="ei-movimentacoes-tbody"></tbody></table></div>
       </div>
     </div>
+    <!-- Story 4.43: Demandas de Contratos (migrado de app.js) -->
+    <div class="card" id="ei-card-gdp-demandas" data-ei-section="pedidos" style="margin-top:1rem">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;margin-bottom:.75rem">
+        <div>
+          <h3 style="margin-bottom:.35rem">Demandas de Contratos</h3>
+          <div style="font-size:.8rem;color:var(--mut)">Demandas geradas a partir de pedidos do GDP, com conversao via equivalencias.</div>
+        </div>
+        <span class="badge badge-purple" id="ei-gdp-demandas-count">0</span>
+      </div>
+      <div class="table-wrap" data-ei-table style="max-height:300px;overflow-y:auto">
+        <table>
+          <thead><tr><th>ID</th><th>Escola</th><th>Itens</th><th class="text-right">Custo Est.</th><th>Status</th><th class="text-center">Acoes</th></tr></thead>
+          <tbody id="ei-gdp-demandas-tbody"></tbody>
+        </table>
+      </div>
+      <p id="ei-gdp-demandas-empty" style="display:none;text-align:center;padding:1rem;color:var(--mut);font-size:.85rem">Nenhuma demanda de contrato gerada. Use "Gerar Demanda" no detalhe do pedido.</p>
+    </div>
+    <!-- Story 4.43: Estoque Simples e Lista de Compras (migrado de app.js) -->
+    <div class="card" id="ei-card-gdp-estoque" data-ei-section="estoque" style="margin-top:1rem">
+      <h3 style="margin-bottom:.75rem">Estoque Simples (Equivalencias)</h3>
+      <div style="font-size:.8rem;color:var(--mut);margin-bottom:.75rem">Saldo por SKU do Banco de Produtos, deduzido ao confirmar demandas de contrato.</div>
+      <div class="table-wrap" data-ei-table style="max-height:250px;overflow-y:auto">
+        <table>
+          <thead><tr><th>SKU</th><th>Produto</th><th class="text-right">Qtd</th><th class="text-right">Comprometido</th><th class="text-right">Disponivel</th><th class="text-center">Acao</th></tr></thead>
+          <tbody id="ei-gdp-estoque-tbody"></tbody>
+        </table>
+      </div>
+      <p id="ei-gdp-estoque-empty" style="display:none;text-align:center;padding:.6rem;color:var(--mut);font-size:.85rem">Estoque vazio.</p>
+    </div>
+    <div class="card" id="ei-card-gdp-compras" data-ei-section="compra" style="margin-top:1rem">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;margin-bottom:.75rem">
+        <div>
+          <h3 style="margin-bottom:.35rem">Lista de Compras (Contratos)</h3>
+          <div style="font-size:.8rem;color:var(--mut)">Itens que precisam ser comprados com base na falta de estoque ao confirmar demandas.</div>
+        </div>
+        <div style="display:flex;gap:.5rem">
+          <button class="btn btn-outline btn-sm" onclick="gdpExportarListaCompras()">Exportar CSV</button>
+          <button class="btn btn-outline btn-sm" onclick="gdpImprimirListaCompras()">Imprimir</button>
+        </div>
+      </div>
+      <div class="table-wrap" data-ei-table style="max-height:250px;overflow-y:auto">
+        <table id="ei-gdp-compras-table">
+          <thead><tr><th>Produto</th><th class="text-right">Qtd</th><th>Fornecedor</th><th class="text-right">Custo Unit.</th><th class="text-right">Custo Total</th><th>Escola</th></tr></thead>
+          <tbody id="ei-gdp-compras-tbody"></tbody>
+        </table>
+      </div>
+      <div id="ei-gdp-compras-total" style="font-weight:600;margin-top:.5rem;font-size:.85rem"></div>
+      <p id="ei-gdp-compras-empty" style="display:none;text-align:center;padding:.6rem;color:var(--mut);font-size:.85rem">Lista de compras vazia.</p>
+    </div>
     <div id="ei-grid-secundario" style="display:grid;grid-template-columns:1.2fr .8fr;gap:1rem;align-items:start;margin-top:1rem">
       <div class="card" id="ei-card-estoque-resumo" data-ei-section="estoque">
         <h3 style="margin-bottom:.75rem">Estoque Calculado por Movimentacoes</h3>
@@ -1630,6 +1679,35 @@
 <!-- Toast -->
 <div id="toast-container" style="position:fixed;top:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px"></div>
 
+<!-- Modal: Vincular Produto GDP (Story 4.43) -->
+<div id="modal-vincular-gdp" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1002;display:flex;align-items:flex-start;justify-content:center;padding:2rem;overflow-y:auto" onclick="if(event.target===this)fecharVincularGDP()">
+  <div style="background:var(--bg);border:1px solid var(--bdr);border-radius:14px;width:700px;max-width:96vw;max-height:90vh;display:flex;flex-direction:column;margin-top:1rem" onclick="event.stopPropagation()">
+    <div style="padding:1rem 1.5rem;border-bottom:1px solid var(--bdr);display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <h2 style="font-size:1rem;margin:0">Vincular Produto</h2>
+        <div id="vincular-gdp-desc" style="font-size:.82rem;color:var(--mut);margin-top:.3rem"></div>
+      </div>
+      <button class="btn btn-outline btn-sm" onclick="fecharVincularGDP()">Fechar</button>
+    </div>
+    <div style="padding:1rem 1.5rem;overflow-y:auto">
+      <div style="margin-bottom:1rem">
+        <input type="text" id="vincular-gdp-busca" placeholder="Buscar no Banco de Produtos..." oninput="renderVincularGDPResultados(this.value)" style="width:100%">
+      </div>
+      <div id="vincular-gdp-resultados" style="max-height:350px;overflow-y:auto"></div>
+      <div style="margin-top:1rem;padding:1rem;border:1px dashed var(--bdr);border-radius:10px;background:var(--s1)">
+        <div style="font-size:.82rem;font-weight:700;margin-bottom:.6rem">Criar novo produto e vincular</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
+          <div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.2rem">Nome Comercial</label><input type="text" id="vincular-gdp-criar-nome" style="width:100%"></div>
+          <div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.2rem">SKU</label><input type="text" id="vincular-gdp-criar-sku" style="width:100%"></div>
+          <div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.2rem">Unidade</label><input type="text" id="vincular-gdp-criar-unidade" value="UN" style="width:100%"></div>
+          <div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.2rem">Custo</label><input type="number" id="vincular-gdp-criar-custo" min="0" step="0.01" style="width:100%"></div>
+        </div>
+        <div style="margin-top:.6rem;display:flex;justify-content:flex-end"><button class="btn btn-green btn-sm" onclick="criarEVincularGDP()">Criar e Vincular</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script src="./js/gdp-integrations-client.js"></script>
 <script>
 // ===== SIDEBAR TOGGLE =====
@@ -1677,10 +1755,47 @@ const ESTOQUE_INTEL_PURCHASES_KEY = "gdp.estoque-intel.compras.v1";
 const INTEGRATIONS_KEY = "gdp.integracoes.v1";
 const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 
+// ===== EQUIVALENCIAS / DEMANDAS / ESTOQUE DATA LAYER (migrado de app.js Story 4.43) =====
+const GDP_EQUIV_KEY = "gdp.equivalencias.v1";
+const GDP_CONVERSOES_KEY = "gdp.conversoes.v1";
+const GDP_DEMANDAS_KEY = "gdp.demandas.v1";
+const GDP_ESTOQUE_SIMPLES_KEY = "gdp.estoque.v1";
+const GDP_COMPRAS_KEY = "gdp.lista-compras.v1";
+let gdpEquivalencias = {};
+let gdpConversoes = {};
+let gdpDemandas = [];
+let gdpEstoqueSimples = {};
+let gdpListaCompras = [];
+
+function loadGdpEquivalencias() { try { gdpEquivalencias = JSON.parse(localStorage.getItem(GDP_EQUIV_KEY) || "{}"); } catch(_) { gdpEquivalencias = {}; } }
+function saveGdpEquivalencias() { localStorage.setItem(GDP_EQUIV_KEY, JSON.stringify(gdpEquivalencias)); scheduleGdpCloudSync(); }
+function getGdpEquivalencia(desc) { return gdpEquivalencias[gdpNormalizedText(desc)] || null; }
+function setGdpEquivalencia(desc, sku) { gdpEquivalencias[gdpNormalizedText(desc)] = sku; saveGdpEquivalencias(); }
+function gdpNormalizedText(v) { return String(v || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ""); }
+
+function loadGdpConversoes() { try { gdpConversoes = JSON.parse(localStorage.getItem(GDP_CONVERSOES_KEY) || "{}"); } catch(_) { gdpConversoes = {}; } }
+function saveGdpConversoes() { localStorage.setItem(GDP_CONVERSOES_KEY, JSON.stringify(gdpConversoes)); scheduleGdpCloudSync(); }
+function loadGdpDemandas() { try { gdpDemandas = JSON.parse(localStorage.getItem(GDP_DEMANDAS_KEY) || "[]"); } catch(_) { gdpDemandas = []; } }
+function saveGdpDemandas() { localStorage.setItem(GDP_DEMANDAS_KEY, JSON.stringify(gdpDemandas)); scheduleGdpCloudSync(); }
+function loadGdpEstoqueSimples() { try { gdpEstoqueSimples = JSON.parse(localStorage.getItem(GDP_ESTOQUE_SIMPLES_KEY) || "{}"); } catch(_) { gdpEstoqueSimples = {}; } }
+function saveGdpEstoqueSimples() { localStorage.setItem(GDP_ESTOQUE_SIMPLES_KEY, JSON.stringify(gdpEstoqueSimples)); scheduleGdpCloudSync(); }
+function loadGdpListaCompras() { try { gdpListaCompras = JSON.parse(localStorage.getItem(GDP_COMPRAS_KEY) || "[]"); } catch(_) { gdpListaCompras = []; } }
+function saveGdpListaCompras() { localStorage.setItem(GDP_COMPRAS_KEY, JSON.stringify(gdpListaCompras)); scheduleGdpCloudSync(); }
+
+function getGdpBancoProduto(sku) {
+  const BANCO_KEY = "caixaescolar.banco.v1";
+  try {
+    const banco = JSON.parse(localStorage.getItem(BANCO_KEY));
+    if (banco && Array.isArray(banco.itens)) return banco.itens.find(i => i.sku === sku) || null;
+  } catch(_) {}
+  return null;
+}
+function scheduleGdpCloudSync() { if (typeof schedulCloudSync === "function") schedulCloudSync(); }
+
 // ===== SUPABASE CLOUD SYNC =====
 const SUPABASE_URL = "https://ohxoxencxktpzskltbsk.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9oeG94ZW5jeGt0cHpza2x0YnNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMyMTUwNDQsImV4cCI6MjA4ODc5MTA0NH0.-w8f1xjW1cW2-OZpg1Sql8PqwFDzDqyWw4pHEx6jGSk";
-const GDP_SYNC_KEYS = [CONTRACTS_KEY, CONTRACTS_DELETED_KEY, ORDERS_KEY, PROOFS_KEY, INVOICES_KEY, ENTRY_INVOICES_KEY, PAYABLES_KEY, RECEIVABLES_KEY, PAYABLE_CATEGORIES_KEY, RECEIVABLE_CATEGORIES_KEY, PAYABLE_METHODS_KEY, RECEIVABLE_METHODS_KEY, CAIXA_STATEMENT_KEY, STOCK_KEY, ESTOQUE_INTEL_PRODUCTS_KEY, ESTOQUE_INTEL_PACKAGES_KEY, ESTOQUE_INTEL_ORDERS_KEY, ESTOQUE_INTEL_ORDER_ITEMS_KEY, ESTOQUE_INTEL_MOVES_KEY, ESTOQUE_INTEL_SUPPLIERS_KEY, ESTOQUE_INTEL_PURCHASES_KEY, INTEGRATIONS_KEY, "gdp.usuarios.v1", "caixaescolar.banco.v1"];
+const GDP_SYNC_KEYS = [CONTRACTS_KEY, CONTRACTS_DELETED_KEY, ORDERS_KEY, PROOFS_KEY, INVOICES_KEY, ENTRY_INVOICES_KEY, PAYABLES_KEY, RECEIVABLES_KEY, PAYABLE_CATEGORIES_KEY, RECEIVABLE_CATEGORIES_KEY, PAYABLE_METHODS_KEY, RECEIVABLE_METHODS_KEY, CAIXA_STATEMENT_KEY, STOCK_KEY, ESTOQUE_INTEL_PRODUCTS_KEY, ESTOQUE_INTEL_PACKAGES_KEY, ESTOQUE_INTEL_ORDERS_KEY, ESTOQUE_INTEL_ORDER_ITEMS_KEY, ESTOQUE_INTEL_MOVES_KEY, ESTOQUE_INTEL_SUPPLIERS_KEY, ESTOQUE_INTEL_PURCHASES_KEY, INTEGRATIONS_KEY, "gdp.usuarios.v1", "caixaescolar.banco.v1", GDP_EQUIV_KEY, GDP_CONVERSOES_KEY, GDP_DEMANDAS_KEY, GDP_ESTOQUE_SIMPLES_KEY, GDP_COMPRAS_KEY];
 const GDP_SHARED_SYNC_KEYS = new Set(GDP_SYNC_KEYS);
 const GDP_SYNC_USER_KEY = "gdp.sync.user_id.v1";
 const GDP_SYNC_FALLBACK_USER = "LARIUCCI";
@@ -2241,6 +2356,12 @@ function loadData() {
     saveWrappedArray(ESTOQUE_INTEL_PURCHASES_KEY, estoqueIntelCompras);
   }
   syncPedidosGDPToEstoqueIntel(true);
+  // Story 4.43: load equivalencias/demandas/estoque data layer
+  loadGdpEquivalencias();
+  loadGdpConversoes();
+  loadGdpDemandas();
+  loadGdpEstoqueSimples();
+  loadGdpListaCompras();
   if (contratosDirty) saveWrappedArray(CONTRACTS_KEY, contratos);
   if (pedidosDirty) saveWrappedArray(ORDERS_KEY, pedidos);
   if (contasPagarDirty) saveWrappedArray(PAYABLES_KEY, contasPagar);
@@ -5329,14 +5450,21 @@ function abrirContrato(id) {
     </div>
     <div class="table-wrap" style="overflow-y:auto;max-height:60vh">
       <table style="font-size:.78rem">
-        <thead><tr><th style="width:30px"><input type="checkbox" onchange="toggleSelectAllItens('${c.id}',this.checked)" title="Selecionar todos"></th><th>#</th><th>Item</th><th style="min-width:100px">NCM</th><th style="min-width:80px">SKU</th><th>Unid</th><th class="text-right">Contr.</th><th class="text-right">Entr.</th><th class="text-right">Saldo</th><th>%</th><th class="text-right">Preco</th><th class="text-center">Acoes</th></tr></thead>
+        <thead><tr><th style="width:30px"><input type="checkbox" onchange="toggleSelectAllItens('${c.id}',this.checked)" title="Selecionar todos"></th><th>#</th><th>Item</th><th style="min-width:130px">Produto Vinculado</th><th style="min-width:100px">NCM</th><th style="min-width:80px">SKU</th><th>Unid</th><th class="text-right">Contr.</th><th class="text-right">Entr.</th><th class="text-right">Saldo</th><th>%</th><th class="text-right">Preco</th><th class="text-center">Acoes</th></tr></thead>
         <tbody>${c.itens.map((item, idx) => {
           const saldo = item.qtdContratada - item.qtdEntregue;
           const pct = item.qtdContratada > 0 ? (item.qtdEntregue / item.qtdContratada * 100) : 0;
+          const equivSku = getGdpEquivalencia(item.descricao);
+          const equivProduto = equivSku ? getGdpBancoProduto(equivSku) : null;
+          const equivNome = equivProduto ? (equivProduto.nomeComercial || equivProduto.item || equivSku) : (equivSku || '');
           return `<tr>
             <td class="text-center"><input type="checkbox" class="item-check-${c.id}" data-idx="${idx}" onchange="atualizarSelecaoItens('${c.id}')"></td>
             <td class="text-center">${item.num}</td>
             <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(item.descricao)}"><span title="${item.sku ? 'SKU disponível para pedido/NF' : 'SKU pendente de geração interna'}" style="font-size:.6rem;margin-right:.3rem">${item.sku ? '🟢' : '🟡'}</span>${esc(item.descricao)}</td>
+            <td style="min-width:130px">${equivSku
+              ? '<span style="color:var(--green);font-size:.76rem;font-weight:600" title="' + esc(equivSku) + '">&#10003; ' + esc(equivNome.length > 22 ? equivNome.slice(0,20) + '...' : equivNome) + '</span>'
+              : '<button class="btn btn-sm" style="font-size:.72rem;padding:.15rem .4rem;background:rgba(139,92,246,.15);color:var(--purple);border:none;cursor:pointer" onclick="abrirVincularGDP(\'' + c.id + '\',' + idx + ')" title="Vincular produto do banco">Vincular</button>'
+            }</td>
             <td style="min-width:120px">
               <div style="display:flex;align-items:center;gap:.2rem">
                 <input type="text" value="${esc(item.ncm || '')}" id="ncm-${c.id}-${idx}" placeholder="00.00.00.00" style="width:90px;font-size:.72rem;font-family:monospace;padding:.15rem .3rem;background:var(--s1);border:1px solid var(--bdr);border-radius:4px;color:var(--cyan)" onchange="salvarNcmItem('${c.id}',${idx},this.value)">
@@ -9212,7 +9340,8 @@ function verPedidoDetalhe(pedidoId) {
   const marcadorHtml = p.marcador ? '<span style="background:rgba(139,92,246,.15);color:#8b5cf6;padding:.2rem .6rem;border-radius:999px;font-size:.75rem;font-weight:700;margin-left:.5rem">' + esc(p.marcador) + '</span>' : '';
   const fiscalMissing = validatePedidoForInvoice(p);
 
-  let html = '<div style="display:flex;justify-content:flex-end;gap:.5rem;flex-wrap:wrap;margin-bottom:1rem"><button class="btn btn-outline btn-sm" onclick="editarPedido(\'' + p.id + '\')">Editar</button><button class="btn btn-purple btn-sm" onclick="imprimirPedido(\'' + p.id + '\')">Imprimir</button></div>';
+  const temDemanda = gdpDemandas.some(d => d.pedidoId === p.id);
+  let html = '<div style="display:flex;justify-content:flex-end;gap:.5rem;flex-wrap:wrap;margin-bottom:1rem">' + (temDemanda ? '<span class="badge badge-green" style="align-self:center">Demanda gerada</span>' : '<button class="btn btn-sm" style="background:rgba(34,197,94,.15);color:var(--green);border:none;font-weight:700" onclick="gdpGerarDemandaPedido(\'' + p.id + '\')">Gerar Demanda</button>') + '<button class="btn btn-outline btn-sm" onclick="editarPedido(\'' + p.id + '\')">Editar</button><button class="btn btn-purple btn-sm" onclick="imprimirPedido(\'' + p.id + '\')">Imprimir</button></div>';
   html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem">';
   html += '<div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Protocolo</div><div style="font-weight:700;font-family:monospace">' + esc(p.id) + marcadorHtml + '</div></div>';
   html += '<div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Escola</div><div style="font-weight:700">' + esc(p.escola) + '</div></div>';
@@ -10548,6 +10677,78 @@ function renderEstoque() {
   `;
   prepararIntegracaoErpEstoqueIntel();
   renderListaComprasEstoqueIntel();
+  // Story 4.43: render GDP demandas/estoque/compras (migrado de app.js)
+  renderGdpDemandasIntel();
+  renderGdpEstoqueIntel();
+  renderGdpComprasIntel();
+}
+
+function renderGdpDemandasIntel() {
+  const tbody = document.getElementById("ei-gdp-demandas-tbody");
+  const empty = document.getElementById("ei-gdp-demandas-empty");
+  const countEl = document.getElementById("ei-gdp-demandas-count");
+  if (!tbody) return;
+  if (countEl) countEl.textContent = gdpDemandas.length;
+  if (gdpDemandas.length === 0) { if (empty) empty.style.display = "block"; tbody.innerHTML = ""; return; }
+  if (empty) empty.style.display = "none";
+  tbody.innerHTML = gdpDemandas.map(d => {
+    const convertidos = d.itens.filter(i => i.status === "convertido").length;
+    const semVinculo = d.itens.filter(i => i.status === "sem_vinculo").length;
+    const statusBadge = d.status === "confirmada"
+      ? '<span class="badge badge-green">Confirmada</span>'
+      : '<span class="badge badge-yellow">Rascunho</span>';
+    return '<tr>' +
+      '<td class="font-mono" style="font-size:.76rem">' + esc(d.id) + '</td>' +
+      '<td>' + esc(d.escola) + '</td>' +
+      '<td>' + convertidos + ' ok' + (semVinculo > 0 ? ', <span style="color:var(--red)">' + semVinculo + ' sem vinculo</span>' : '') + '</td>' +
+      '<td class="text-right font-mono">' + brl.format(d.totalEstimado) + '</td>' +
+      '<td>' + statusBadge + '</td>' +
+      '<td class="text-center" style="white-space:nowrap">' +
+        '<button class="btn btn-outline btn-sm" style="font-size:.72rem;padding:.15rem .4rem" onclick="gdpVerDemanda(\'' + d.id + '\')">Ver</button> ' +
+        (d.status === "rascunho" ? '<button class="btn btn-green btn-sm" style="font-size:.72rem;padding:.15rem .4rem" onclick="gdpConfirmarDemanda(\'' + d.id + '\')">Confirmar</button>' : '') +
+      '</td></tr>';
+  }).join("");
+}
+
+function renderGdpEstoqueIntel() {
+  const tbody = document.getElementById("ei-gdp-estoque-tbody");
+  const empty = document.getElementById("ei-gdp-estoque-empty");
+  if (!tbody) return;
+  const entries = Object.entries(gdpEstoqueSimples);
+  if (entries.length === 0) { if (empty) empty.style.display = "block"; tbody.innerHTML = ""; return; }
+  if (empty) empty.style.display = "none";
+  tbody.innerHTML = entries.map(([sku, s]) => {
+    const produto = getGdpBancoProduto(sku);
+    const disp = s.qtd - s.qtdComprometida;
+    const corDisp = disp <= 0 ? "color:var(--red)" : disp <= (s.minimo || 5) ? "color:var(--yellow)" : "color:var(--green)";
+    return '<tr>' +
+      '<td class="font-mono" style="font-size:.76rem">' + esc(sku) + '</td>' +
+      '<td>' + esc(produto ? (produto.item || produto.nomeComercial || sku) : sku) + '</td>' +
+      '<td class="text-right">' + s.qtd + '</td>' +
+      '<td class="text-right">' + s.qtdComprometida + '</td>' +
+      '<td class="text-right" style="' + corDisp + ';font-weight:600">' + disp + '</td>' +
+      '<td class="text-center"><button class="btn btn-outline btn-sm" style="font-size:.72rem;padding:.15rem .4rem" onclick="gdpLancamentoEstoque(\'' + esc(sku) + '\')">Entrada</button></td>' +
+    '</tr>';
+  }).join("");
+}
+
+function renderGdpComprasIntel() {
+  const tbody = document.getElementById("ei-gdp-compras-tbody");
+  const empty = document.getElementById("ei-gdp-compras-empty");
+  const totalEl = document.getElementById("ei-gdp-compras-total");
+  if (!tbody) return;
+  if (gdpListaCompras.length === 0) { if (empty) empty.style.display = "block"; tbody.innerHTML = ""; if (totalEl) totalEl.textContent = ""; return; }
+  if (empty) empty.style.display = "none";
+  tbody.innerHTML = gdpListaCompras.map(c => '<tr>' +
+    '<td>' + esc(c.produto) + '</td>' +
+    '<td class="text-right">' + c.qtd + '</td>' +
+    '<td>' + esc(c.fornecedor) + '</td>' +
+    '<td class="text-right font-mono">' + brl.format(c.custoUnitario) + '</td>' +
+    '<td class="text-right font-mono">' + brl.format(c.custoTotal) + '</td>' +
+    '<td>' + esc(c.escola) + '</td>' +
+  '</tr>').join("");
+  const total = gdpListaCompras.reduce((s, c) => s + c.custoTotal, 0);
+  if (totalEl) totalEl.textContent = "Total: " + brl.format(total);
 }
 
 // ===== EXPORT CSV =====
@@ -10628,6 +10829,263 @@ function renderAll() {
   // Update banco tab count even when not on banco tab
   const bpCount = document.getElementById("tab-count-banco-produtos");
   if (bpCount) bpCount.textContent = bancoProdutos.itens.length;
+}
+
+// ===== VINCULAR PRODUTO GDP (Story 4.43) =====
+let _vincularGdpContratoId = "";
+let _vincularGdpItemIdx = -1;
+let _vincularGdpDescricao = "";
+
+function abrirVincularGDP(contratoId, itemIdx) {
+  const c = contratos.find(x => x.id === contratoId);
+  if (!c || !c.itens[itemIdx]) return;
+  _vincularGdpContratoId = contratoId;
+  _vincularGdpItemIdx = itemIdx;
+  _vincularGdpDescricao = c.itens[itemIdx].descricao;
+  document.getElementById("vincular-gdp-desc").textContent = _vincularGdpDescricao.slice(0, 80) + (_vincularGdpDescricao.length > 80 ? "..." : "");
+  document.getElementById("vincular-gdp-busca").value = "";
+  document.getElementById("vincular-gdp-criar-nome").value = _vincularGdpDescricao.slice(0, 60);
+  document.getElementById("vincular-gdp-criar-sku").value = gdpGerarSkuSugerido(_vincularGdpDescricao);
+  renderVincularGDPResultados("");
+  document.getElementById("modal-vincular-gdp").classList.remove("hidden");
+}
+
+function fecharVincularGDP() {
+  document.getElementById("modal-vincular-gdp").classList.add("hidden");
+  _vincularGdpContratoId = "";
+  _vincularGdpItemIdx = -1;
+  _vincularGdpDescricao = "";
+}
+
+function gdpGerarSkuSugerido(nome) {
+  return gdpNormalizedText(nome)
+    .replace(/[^a-z0-9\s]/g, "")
+    .split(/\s+/)
+    .filter(t => t.length > 1)
+    .slice(0, 3)
+    .map(t => t.slice(0, 4).toUpperCase())
+    .join("-") || ("SKU-" + Date.now().toString(36).slice(-4).toUpperCase());
+}
+
+function renderVincularGDPResultados(query) {
+  const el = document.getElementById("vincular-gdp-resultados");
+  if (!el) return;
+  const BANCO_KEY = "caixaescolar.banco.v1";
+  let banco;
+  try { banco = JSON.parse(localStorage.getItem(BANCO_KEY)); } catch(_) { banco = null; }
+  if (!banco || !Array.isArray(banco.itens) || banco.itens.length === 0) {
+    el.innerHTML = '<div style="padding:1rem;color:var(--mut);text-align:center">Banco de Produtos vazio. Crie um produto abaixo.</div>';
+    return;
+  }
+  const q = gdpNormalizedText(query);
+  let itens = banco.itens;
+  if (q) itens = itens.filter(bp => gdpNormalizedText(bp.item || bp.nomeComercial || "").includes(q) || gdpNormalizedText(bp.sku || "").includes(q));
+  itens = itens.slice(0, 50);
+  if (itens.length === 0) {
+    el.innerHTML = '<div style="padding:1rem;color:var(--mut);text-align:center">Nenhum produto encontrado.</div>';
+    return;
+  }
+  el.innerHTML = '<table style="font-size:.82rem;width:100%"><thead><tr><th>Produto</th><th>SKU</th><th>Custo</th><th></th></tr></thead><tbody>' +
+    itens.map(bp => `<tr>
+      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(bp.nomeComercial || bp.item)}">${esc((bp.nomeComercial || bp.item || "").slice(0, 40))}</td>
+      <td class="font-mono" style="font-size:.72rem">${esc(bp.sku || "-")}</td>
+      <td class="text-right">${bp.custoBase ? brl.format(bp.custoBase) : "-"}</td>
+      <td class="text-center"><button class="btn btn-sm btn-green" style="font-size:.72rem;padding:.15rem .4rem" onclick="selecionarVincularGDP('${esc(bp.id)}')">Selecionar</button></td>
+    </tr>`).join("") + '</tbody></table>';
+}
+
+function selecionarVincularGDP(bpId) {
+  const BANCO_KEY = "caixaescolar.banco.v1";
+  let banco;
+  try { banco = JSON.parse(localStorage.getItem(BANCO_KEY)); } catch(_) { banco = null; }
+  const bp = banco?.itens?.find(i => i.id === bpId);
+  if (!bp) return;
+  if (!bp.sku) {
+    bp.sku = gdpGerarSkuSugerido(bp.nomeComercial || bp.item);
+    localStorage.setItem(BANCO_KEY, JSON.stringify(banco));
+  }
+  const descSave = _vincularGdpDescricao;
+  const contratoSave = _vincularGdpContratoId;
+  setGdpEquivalencia(descSave, bp.sku);
+  // Add to bp equivalencias array for cross-module sync
+  if (!bp.equivalencias) bp.equivalencias = [];
+  const normDesc = gdpNormalizedText(descSave);
+  if (!bp.equivalencias.some(e => gdpNormalizedText(e) === normDesc)) {
+    bp.equivalencias.push(descSave);
+    localStorage.setItem(BANCO_KEY, JSON.stringify(banco));
+  }
+  fecharVincularGDP();
+  showToast('Vinculado: "' + descSave.slice(0, 40) + '..." -> "' + (bp.nomeComercial || bp.item) + '"');
+  abrirContrato(contratoSave);
+}
+
+function criarEVincularGDP() {
+  const BANCO_KEY = "caixaescolar.banco.v1";
+  const nomeComercial = (document.getElementById("vincular-gdp-criar-nome")?.value || "").trim();
+  if (!nomeComercial) { showToast("Nome comercial e obrigatorio."); return; }
+  let sku = (document.getElementById("vincular-gdp-criar-sku")?.value || "").trim();
+  if (!sku) sku = gdpGerarSkuSugerido(nomeComercial);
+  const unidade = document.getElementById("vincular-gdp-criar-unidade")?.value || "UN";
+  const custo = parseFloat(document.getElementById("vincular-gdp-criar-custo")?.value) || 0;
+  let banco;
+  try { banco = JSON.parse(localStorage.getItem(BANCO_KEY)); } catch(_) { banco = null; }
+  if (!banco || !Array.isArray(banco.itens)) banco = { updatedAt: "", itens: [] };
+  if (banco.itens.some(bp => bp.sku === sku)) { showToast("SKU ja existe. Escolha outro."); return; }
+  const novoBp = {
+    id: "bp-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 5),
+    item: nomeComercial, nomeComercial, sku,
+    marca: "", grupo: "Material de Consumo Geral",
+    unidade, unidadeCompra: unidade,
+    custoBase: custo, margemPadrao: 0.30,
+    precoReferencia: custo > 0 ? Math.round(custo * 1.30 * 100) / 100 : 0,
+    ultimaCotacao: new Date().toISOString().slice(0, 10),
+    fonte: "", fornecedorPadrao: "",
+    custo, propostas: [], concorrentes: [],
+    custosFornecedor: [],
+    equivalencias: [_vincularGdpDescricao]
+  };
+  const descSave = _vincularGdpDescricao;
+  const contratoSave = _vincularGdpContratoId;
+  banco.itens.push(novoBp);
+  localStorage.setItem(BANCO_KEY, JSON.stringify(banco));
+  setGdpEquivalencia(descSave, sku);
+  fecharVincularGDP();
+  showToast('Produto "' + nomeComercial + '" criado e vinculado.');
+  abrirContrato(contratoSave);
+}
+
+// ===== GERAR DEMANDA GDP (Story 4.43) =====
+function gdpConverterDemanda(pedidoItens) {
+  return pedidoItens.map(item => {
+    const desc = item.descricao || item.nome || "";
+    const equiv = getGdpEquivalencia(desc);
+    if (!equiv) return { ...item, status: "sem_vinculo", produtoReal: null, qtdConvertida: 0, custoEstimado: 0 };
+    const produto = getGdpBancoProduto(equiv);
+    const fator = gdpConversoes[gdpNormalizedText(desc)]?.fator || 1;
+    const qtdConvertida = Math.ceil((item.qtd || item.quantidade || 0) / fator);
+    const custo = produto ? (produto.custoBase || produto.custo || 0) * qtdConvertida : 0;
+    return {
+      ...item, status: "convertido",
+      produtoReal: produto ? (produto.nomeComercial || produto.item) : equiv,
+      skuProduto: equiv,
+      qtdOriginal: item.qtd || item.quantidade || 0,
+      unidadeOriginal: item.unidade || "UN",
+      qtdConvertida,
+      unidadeCompra: produto?.unidade || produto?.unidadeCompra || "UN",
+      fatorConversao: fator,
+      custoUnitario: produto?.custoBase || produto?.custo || 0,
+      custoEstimado: Math.round(custo * 100) / 100,
+    };
+  });
+}
+
+function gdpGerarDemandaPedido(pedidoId) {
+  const pedido = pedidos.find(p => p.id === pedidoId);
+  if (!pedido) return;
+  // Check if demanda already exists for this pedido
+  if (gdpDemandas.some(d => d.pedidoId === pedidoId)) {
+    showToast("Demanda ja existe para este pedido.");
+    return;
+  }
+  const itensConvertidos = gdpConverterDemanda(pedido.itens || []);
+  const semVinculo = itensConvertidos.filter(i => i.status === "sem_vinculo").length;
+  const demanda = {
+    id: "dem-" + Date.now().toString(36),
+    pedidoId: pedidoId,
+    escola: pedido.escola || pedido.cliente?.nome || "",
+    contratoId: pedido.contratoId || "",
+    status: "rascunho",
+    criadoEm: new Date().toISOString().slice(0, 10),
+    itens: itensConvertidos,
+    totalEstimado: itensConvertidos.reduce((s, i) => s + (i.custoEstimado || 0), 0),
+  };
+  gdpDemandas.push(demanda);
+  saveGdpDemandas();
+  if (semVinculo > 0) {
+    showToast("Demanda criada: " + itensConvertidos.length + " itens (" + semVinculo + " sem vinculo - vincule no contrato)");
+  } else {
+    showToast("Demanda criada: " + itensConvertidos.length + " itens convertidos - " + brl.format(demanda.totalEstimado));
+  }
+  fecharModalPedido();
+}
+
+function gdpVerDemanda(demandaId) {
+  const d = gdpDemandas.find(x => x.id === demandaId);
+  if (!d) return;
+  let msg = "Demanda " + d.id + " - " + d.escola + "\n\n";
+  d.itens.forEach((item, i) => {
+    if (item.status === "convertido") {
+      msg += (i + 1) + ". " + (item.descricao || item.nome) + " -> " + item.produtoReal + "\n   " + item.qtdOriginal + " " + item.unidadeOriginal + " -> " + item.qtdConvertida + " " + item.unidadeCompra + " (fator: " + item.fatorConversao + ")\n   Custo: " + brl.format(item.custoEstimado) + "\n\n";
+    } else {
+      msg += (i + 1) + ". [SEM VINCULO] " + (item.descricao || item.nome) + "\n\n";
+    }
+  });
+  msg += "Total estimado: " + brl.format(d.totalEstimado);
+  alert(msg);
+}
+
+function gdpConfirmarDemanda(demandaId) {
+  const d = gdpDemandas.find(x => x.id === demandaId);
+  if (!d || d.status !== "rascunho") return;
+  if (!confirm("Confirmar demanda " + d.id + "? Vai debitar estoque e gerar lista de compras.")) return;
+  d.itens.forEach(item => {
+    if (item.status !== "convertido" || !item.skuProduto) return;
+    const sku = item.skuProduto;
+    if (!gdpEstoqueSimples[sku]) gdpEstoqueSimples[sku] = { qtd: 0, qtdComprometida: 0, minimo: 0 };
+    const disponivel = gdpEstoqueSimples[sku].qtd - gdpEstoqueSimples[sku].qtdComprometida;
+    if (disponivel >= item.qtdConvertida) {
+      gdpEstoqueSimples[sku].qtd -= item.qtdConvertida;
+    } else {
+      const falta = item.qtdConvertida - Math.max(disponivel, 0);
+      gdpEstoqueSimples[sku].qtd = Math.max(gdpEstoqueSimples[sku].qtd - item.qtdConvertida, 0);
+      const produto = getGdpBancoProduto(sku);
+      gdpListaCompras.push({
+        sku, produto: item.produtoReal || (produto ? (produto.item || sku) : sku),
+        qtd: falta, fornecedor: produto?.fonte || produto?.fornecedorPadrao || "",
+        custoUnitario: produto?.custoBase || produto?.custo || 0,
+        custoTotal: Math.round(falta * (produto?.custoBase || produto?.custo || 0) * 100) / 100,
+        demandaId: d.id, escola: d.escola,
+        criadoEm: new Date().toISOString().slice(0, 10),
+      });
+    }
+  });
+  d.status = "confirmada";
+  saveGdpDemandas();
+  saveGdpEstoqueSimples();
+  saveGdpListaCompras();
+  renderEstoque();
+  showToast("Demanda confirmada. Estoque atualizado, " + gdpListaCompras.length + " item(ns) na lista de compras.");
+}
+
+function gdpLancamentoEstoque(sku) {
+  const qtd = parseInt(prompt("Quantidade de entrada:"));
+  if (isNaN(qtd) || qtd <= 0) return;
+  if (!gdpEstoqueSimples[sku]) gdpEstoqueSimples[sku] = { qtd: 0, qtdComprometida: 0, minimo: 0 };
+  gdpEstoqueSimples[sku].qtd += qtd;
+  saveGdpEstoqueSimples();
+  renderEstoque();
+  showToast("Estoque atualizado: +" + qtd + " para " + sku);
+}
+
+function gdpExportarListaCompras() {
+  if (gdpListaCompras.length === 0) return showToast("Lista vazia.");
+  const header = "Produto;Qtd;Fornecedor;Custo Unit.;Custo Total;Escola";
+  const rows = gdpListaCompras.map(c => c.produto + ";" + c.qtd + ";" + c.fornecedor + ";" + c.custoUnitario + ";" + c.custoTotal + ";" + c.escola);
+  const csv = "\uFEFF" + [header, ...rows].join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "lista-compras-" + new Date().toISOString().slice(0, 10) + ".csv";
+  a.click();
+}
+
+function gdpImprimirListaCompras() {
+  const table = document.querySelector("#ei-gdp-compras-table");
+  if (!table) return;
+  const win = window.open("", "_blank");
+  win.document.write('<!DOCTYPE html><html><head><title>Lista de Compras</title><style>body{font-family:Arial;font-size:11px;margin:20px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ccc;padding:4px 6px;text-align:left}th{background:#f0f0f0}</style></head><body><h2>Lista de Compras - ' + new Date().toLocaleDateString("pt-BR") + '</h2>' + table.outerHTML + '</body></html>');
+  win.document.close();
+  setTimeout(() => win.print(), 300);
 }
 
 // ===== UTILITIES =====
