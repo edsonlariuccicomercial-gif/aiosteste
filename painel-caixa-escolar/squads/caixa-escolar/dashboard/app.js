@@ -1371,7 +1371,6 @@ function renderOrcamentos() {
     const editIcon = `<span class="btn-inline btn-muted" onclick="event.stopPropagation();editarObjeto('${o.id}')" title="Editar objeto" style="cursor:pointer;font-size:0.7rem;margin-left:4px">&#9998;</span>`;
     const resetIcon = isCustom ? `<span class="btn-inline btn-muted" onclick="event.stopPropagation();resetarObjeto('${o.id}')" title="Restaurar original" style="cursor:pointer;font-size:0.7rem;margin-left:2px">&#8617;</span>` : "";
     const itensResumo = (o.itens && o.itens.length > 0) ? '<br><span style="font-size:0.7rem;color:#666;">' + o.itens.length + ' iten(s): ' + o.itens.slice(0,3).map(i => escapeHtml((i.nome||'').slice(0,20))).join(', ') + (o.itens.length > 3 ? '...' : '') + '</span>' : '';
-    const unidades = (() => { const u = (o.itens||[]).map(i=>(i.unidade||"").toUpperCase()).filter(Boolean); return [...new Set(u)].join(", ") || "—"; })();
 
     return `<tr${trStyle}>
       <td>${checkboxHtml}</td>
@@ -1379,7 +1378,6 @@ function renderOrcamentos() {
       <td>${escapeHtml(o.escola)}</td>
       <td>${escapeHtml(o.municipio)}</td>
       <td class="obj-cell" title="${escapeHtml(objetoOriginal)}">${escapeHtml(objetoDisplay)}${isCustom ? ' <span class="badge badge-editado" style="font-size:0.6rem">editado</span>' : ''}${resetIcon}${editIcon}${itensResumo}</td>
-      <td class="nowrap" style="font-size:0.75rem;">${unidades}</td>
       <td>${grupoBadge}</td>
       <td class="nowrap">${formatDate(o.prazo)}</td>
       <td class="nowrap">${entregaBadge}</td>
