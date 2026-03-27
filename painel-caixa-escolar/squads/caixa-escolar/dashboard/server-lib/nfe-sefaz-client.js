@@ -114,6 +114,37 @@ function randomNumeric(length) {
   return out.slice(0, length);
 }
 
+// Sequencial de NF — baseado no NFE_NUMERO_INICIAL + contador persistido
+let _nfSequenceCounter = null;
+function getNextNfNumber() {
+  const base = parseInt(process.env.NFE_NUMERO_INICIAL || "1", 10);
+  if (_nfSequenceCounter === null) {
+    // Tentar ler o último número usado
+    try {
+      const fs = require("fs");
+      const path = require("path");
+      const counterFile = path.join(__dirname, "..", "data", "nf-counter.json");
+      if (fs.existsSync(counterFile)) {
+        const data = JSON.parse(fs.readFileSync(counterFile, "utf8"));
+        _nfSequenceCounter = data.ultimo || base;
+      } else {
+        _nfSequenceCounter = base - 1;
+      }
+    } catch(_) {
+      _nfSequenceCounter = base - 1;
+    }
+  }
+  _nfSequenceCounter++;
+  // Persistir o contador
+  try {
+    const fs = require("fs");
+    const path = require("path");
+    const counterFile = path.join(__dirname, "..", "data", "nf-counter.json");
+    fs.writeFileSync(counterFile, JSON.stringify({ ultimo: _nfSequenceCounter, atualizadoEm: new Date().toISOString() }));
+  } catch(_) {}
+  return String(_nfSequenceCounter);
+}
+
 function buildAccessKey(payload) {
   const uf = UF_CODE[payload.emitente.uf] || "31";
   const now = new Date();
@@ -322,7 +353,7 @@ function buildNfePayloadFromPedido(pedido, overrides = {}) {
       contratoId: pedido?.contratoId || "",
       naturezaOperacao: overrides.naturezaOperacao || "VENDA DE MERCADORIA",
       serie: overrides.serie || cfg.seriePadrao,
-      numero: overrides.numero || null
+      numero: overrides.numero || getNextNfNumber()
     },
     itens: itens.map((item, idx) => ({
       itemNum: item.itemNum || idx + 1,
