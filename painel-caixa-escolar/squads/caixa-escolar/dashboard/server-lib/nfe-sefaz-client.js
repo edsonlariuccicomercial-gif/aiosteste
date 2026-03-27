@@ -27,6 +27,23 @@ const SEFAZ_EVENTO = {
 };
 
 function getSefazConfig() {
+  // Tentar ler PEM de arquivos locais se env vars estiverem vazias
+  let certPem = process.env.NFE_CERT_PEM || "";
+  let keyPem = process.env.NFE_KEY_PEM || "";
+  try {
+    const fs = require("fs");
+    const path = require("path");
+    const baseDir = path.join(__dirname, "..");
+    if (!certPem || !certPem.includes("BEGIN")) {
+      const certFile = path.join(baseDir, "cert.pem");
+      if (fs.existsSync(certFile)) certPem = fs.readFileSync(certFile, "utf8");
+    }
+    if (!keyPem || !keyPem.includes("BEGIN")) {
+      const keyFile = path.join(baseDir, "key.pem");
+      if (fs.existsSync(keyFile)) keyPem = fs.readFileSync(keyFile, "utf8");
+    }
+  } catch(_) {}
+
   return {
     ambiente: DEFAULT_AMBIENTE,
     uf: String(process.env.NFE_SEFAZ_UF || "MG").toUpperCase(),
@@ -34,12 +51,12 @@ function getSefazConfig() {
     razaoSocial: process.env.NFE_EMITENTE_RAZAO || "EDSON DE SOUSA GONCALVES",
     nomeFantasia: process.env.NFE_EMITENTE_FANTASIA || "EDSON DE SOUSA GONCALVES",
     ie: process.env.NFE_EMITENTE_IE || "",
-    crt: process.env.NFE_EMITENTE_CRT || "3",
+    crt: process.env.NFE_EMITENTE_CRT || "1",
     emitenteEndereco: {
-      logradouro: process.env.NFE_EMITENTE_LOGRADOURO || "11A AVENIDA DAS CANDIUVAS",
-      numero: process.env.NFE_EMITENTE_NUMERO || "085",
+      logradouro: process.env.NFE_EMITENTE_LOGRADOURO || "AV DAS CANDIUVAS",
+      numero: process.env.NFE_EMITENTE_NUMERO || "85",
       complemento: process.env.NFE_EMITENTE_COMPLEMENTO || "",
-      bairro: process.env.NFE_EMITENTE_BAIRRO || "AGUAS DA RIBALTA",
+      bairro: process.env.NFE_EMITENTE_BAIRRO || "RIBALTA",
       cidade: process.env.NFE_EMITENTE_CIDADE || "Conquista",
       uf: String(process.env.NFE_EMITENTE_END_UF || process.env.NFE_SEFAZ_UF || "MG").toUpperCase(),
       cep: process.env.NFE_EMITENTE_CEP || "38195000",
@@ -48,8 +65,8 @@ function getSefazConfig() {
     },
     certificadoBase64: process.env.NFE_CERT_BASE64 || "",
     certificadoSenha: process.env.NFE_CERT_PASSWORD || "",
-    certificadoPem: process.env.NFE_CERT_PEM || "",
-    chavePrivadaPem: process.env.NFE_KEY_PEM || "",
+    certificadoPem: certPem,
+    chavePrivadaPem: keyPem,
     seriePadrao: process.env.NFE_SERIE_PADRAO || "1"
   };
 }
@@ -61,7 +78,7 @@ function validateSefazConfig(config) {
   if (!config.ie) missing.push("NFE_EMITENTE_IE");
   if (!config.certificadoBase64) missing.push("NFE_CERT_BASE64");
   if (!config.certificadoSenha) missing.push("NFE_CERT_PASSWORD");
-  return missing;
+  return { valid: missing.length === 0, missing };
 }
 
 function sanitizeDigits(value) {
@@ -229,10 +246,9 @@ function summarizePemInput(certPem, keyPem) {
 }
 
 function pemBody(certPem) {
-  return String(certPem || "")
-    .replace(/-----BEGIN CERTIFICATE-----/g, "")
-    .replace(/-----END CERTIFICATE-----/g, "")
-    .replace(/\s+/g, "");
+  const match = String(certPem || "").match(/-----BEGIN CERTIFICATE-----([\s\S]*?)-----END CERTIFICATE-----/);
+  if (!match) return "";
+  return match[1].replace(/\s+/g, "");
 }
 
 function stripXmlDeclaration(xml) {
@@ -909,7 +925,7 @@ async function transmitirAutorizacaoPreview(payload, options = {}) {
 
 async function emitirNfeDireta(payload) {
   const cfg = getSefazConfig();
-  const missing = validateSefazConfig(cfg);
+  const { missing } = validateSefazConfig(cfg);
   const certificate = summarizeCertificateInput(cfg.certificadoBase64);
   const xmlPreview = buildNfeXml(payload);
   const signaturePreview = buildSignaturePreview(xmlPreview.xml, cfg);

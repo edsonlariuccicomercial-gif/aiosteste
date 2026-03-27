@@ -445,8 +445,9 @@ app.post("/api/nfe/emitir", async (req, res) => {
       return res.status(400).json({ ok: false, error: "Transmissão desabilitada. Defina NFE_ENABLE_TRANSMIT=true no .env" });
     }
 
+    const payload = nfeClient.buildNfePayloadFromPedido(pedido, overrides || {});
     console.log("[NF-e] Emitindo NF-e para pedido:", pedido.id);
-    const resultado = await nfeClient.emitirNfeDireta(pedido, overrides || {});
+    const resultado = await nfeClient.emitirNfeDireta(payload);
     console.log("[NF-e] Resultado:", JSON.stringify(resultado).slice(0, 200));
 
     res.json({ ok: true, ...resultado });

@@ -361,7 +361,7 @@ export default async function handler(req, res) {
       const action = req.query?.action || "";
       if (action === "nfe-sefaz-config") {
         const config = getSefazConfig();
-        const missing = validateSefazConfig(config);
+        const { missing } = validateSefazConfig(config);
         const certificate = summarizeCertificateInput(config.certificadoBase64);
         const pem = summarizePemInput(config.certificadoPem, config.chavePrivadaPem);
         return res.status(200).json({
