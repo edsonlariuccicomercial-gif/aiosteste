@@ -378,8 +378,8 @@ function calcPrecoUnitario(preco, unidadeDesc, quantidade) {
 }
 
 // ===== SUPABASE CLOUD SYNC =====
-const SUPABASE_URL = "https://ohxoxencxktpzskltbsk.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9oeG94ZW5jeGt0cHpza2x0YnNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMyMTUwNDQsImV4cCI6MjA4ODc5MTA0NH0.-w8f1xjW1cW2-OZpg1Sql8PqwFDzDqyWw4pHEx6jGSk";
+const SUPABASE_URL = "https://mvvsjaudhbglxttxaeop.supabase.co";
+const SUPABASE_KEY = "sb_publishable_uBqL8sLjMGWnZ2aaQ1zwvg_mlQrZUXR";
 const SHARED_SYNC_KEYS = new Set([
   "caixaescolar.banco.v1", "caixaescolar.preorcamentos.v1", "caixaescolar.resultados.v1",
   "caixaescolar.contratos.v1", "caixaescolar.orcamentos", "caixaescolar.descartados",
@@ -413,7 +413,8 @@ const SYNC_KEYS = [
   "gdp.contas-receber.v1", "gdp.integracoes.v1", "gdp.estoque.movimentos.v1",
   "gdp.equivalencias.v1",
   "gdp.conversoes.v1", "gdp.demandas.v1",
-  "gdp.estoque.v1", "gdp.lista-compras.v1"
+  "gdp.estoque.v1", "gdp.lista-compras.v1",
+  "nexedu.config.contas-bancarias", "nexedu.config.fiscal", "nexedu.config.bank-api"
 ];
 
 function ensureEmpresaContext() {
@@ -2053,7 +2054,6 @@ function renderPreOrcamentosLista() {
         <td class="font-mono text-muted">${escapeHtml(p.orcamentoId)}</td>
         <td>${escapeHtml(p.escola)}</td>
         <td title="${iTooltip}" style="font-size:0.8rem;max-width:200px;">${iSummary}</td>
-        <td class="nowrap" style="font-size:0.75rem;">${(() => { const u = (p.itens||[]).map(i=>(i.unidade||"").toUpperCase()).filter(Boolean); return [...new Set(u)].join(", ") || "—"; })()}</td>
         <td><span class="badge ${badgeClass}">${p.status}</span></td>
         <td class="text-right font-mono">${brl.format(p.totalGeral || 0)}</td>
         <td class="nowrap">${formatDate(p.criadoEm)}</td>

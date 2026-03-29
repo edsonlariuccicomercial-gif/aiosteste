@@ -13,7 +13,7 @@ export default async function handler(req, res) {
   const body = req.body;
   if (!body) return res.status(400).json({ error: "JSON invalido" });
 
-  const { to, schoolName, protocol, date, items, total, obs, olistId, responsible, cnpj, sre } = body;
+  const { to, schoolName, protocol, date, items, total, obs, olistId, responsible, cnpj, sre, pagamento } = body;
 
   if (!to || !protocol) {
     return res.status(400).json({ error: "Campos obrigatorios: to, protocol" });
@@ -58,6 +58,26 @@ export default async function handler(req, res) {
             <td style="padding:10px 12px;text-align:right;font-weight:800;color:#22c55e;font-size:16px;">R$ ${(total || 0).toFixed(2).replace('.', ',')}</td>
           </tr></tfoot>
         </table>
+        ${pagamento ? `
+        <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:16px;margin:16px 0;">
+          <h3 style="margin:0 0 12px;font-size:14px;color:#1e293b;">Dados de Pagamento</h3>
+          <table style="width:100%;font-size:13px;color:#334155;">
+            <tr><td style="padding:4px 0;color:#64748b;width:40%;">Forma:</td><td style="padding:4px 0;font-weight:600;text-transform:uppercase;">${pagamento.forma || 'boleto'}</td></tr>
+            <tr><td style="padding:4px 0;color:#64748b;">Vencimento:</td><td style="padding:4px 0;font-weight:700;color:#dc2626;">${pagamento.vencimento || ''}</td></tr>
+            <tr><td style="padding:4px 0;color:#64748b;">Valor:</td><td style="padding:4px 0;font-weight:800;color:#22c55e;">R$ ${(pagamento.valor || 0).toFixed(2).replace('.', ',')}</td></tr>
+            ${pagamento.banco ? `<tr><td style="padding:4px 0;color:#64748b;">Banco:</td><td style="padding:4px 0;">${pagamento.banco} — Ag ${pagamento.agencia || ''} Cc ${pagamento.contaNum || ''}</td></tr>` : ''}
+          </table>
+          ${pagamento.forma === 'boleto' && pagamento.linhaDigitavel ? `
+          <div style="margin-top:12px;padding:10px;background:#f1f5f9;border-radius:6px;border:1px dashed #94a3b8;">
+            <p style="margin:0 0 4px;font-size:11px;color:#64748b;text-transform:uppercase;">Linha Digitavel do Boleto</p>
+            <p style="margin:0;font-size:14px;font-weight:700;font-family:monospace;color:#1e293b;word-break:break-all;">${pagamento.linhaDigitavel}</p>
+          </div>` : ''}
+          ${pagamento.forma === 'pix' && pagamento.pixCopiaECola ? `
+          <div style="margin-top:12px;padding:10px;background:#f1f5f9;border-radius:6px;border:1px dashed #94a3b8;">
+            <p style="margin:0 0 4px;font-size:11px;color:#64748b;text-transform:uppercase;">PIX Copia e Cola</p>
+            <p style="margin:0;font-size:12px;font-family:monospace;color:#1e293b;word-break:break-all;">${pagamento.pixCopiaECola}</p>
+          </div>` : ''}
+        </div>` : ''}
         <p style="font-size:12px;color:#94a3b8;margin-top:20px;text-align:center;">Este email foi gerado automaticamente pelo sistema GDP.</p>
       </div>
     </div>
@@ -75,7 +95,7 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         from: process.env.EMAIL_FROM || 'GDP Pedidos <pedidos@gdp.lariucci.com.br>',
         to: [to],
-        subject: `Pedido ${protocol} — ${schoolName}`,
+        subject: `${pagamento ? 'NF + Cobranca' : 'Pedido'} ${protocol} — ${schoolName}`,
         html: html
       })
     });

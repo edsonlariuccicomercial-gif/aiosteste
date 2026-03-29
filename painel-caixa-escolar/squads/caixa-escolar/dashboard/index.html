@@ -202,8 +202,7 @@
           <option value="descartados">Descartados</option>
           <option value="com-preorcamento">Com pré-orçamento</option>
         </select>
-        <input type="date" id="filtro-data-de" title="Data início" />
-        <input type="date" id="filtro-data-ate" title="Data fim" />
+        <div style="display:flex;gap:.4rem;align-items:center"><input type="date" id="filtro-data-de" title="Data início" style="flex:1;min-width:0" /><span style="color:var(--mut);font-size:.75rem">a</span><input type="date" id="filtro-data-ate" title="Data fim" style="flex:1;min-width:0" /></div>
         <input type="text" id="filtro-texto" placeholder="Buscar escola, objeto, item..." autocomplete="off" />
       </div>
 
@@ -383,7 +382,6 @@
                 <th>ID</th>
                 <th>Escola</th>
                 <th>Itens</th>
-                <th>Un.</th>
                 <th>Status</th>
                 <th>Total</th>
                 <th>Data</th>

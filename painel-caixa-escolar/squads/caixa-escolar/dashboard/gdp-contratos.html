@@ -447,6 +447,7 @@
       </div>
       <div style="display:flex;gap:.5rem;align-items:center">
         <span id="pedidos-sel-count" style="font-size:.8rem;color:var(--cyan);font-weight:600;display:none"></span>
+        <button class="btn btn-green" onclick="novoPedidoManual()">+ Incluir Pedido</button>
       </div>
     </div>
     <div id="pedidos-status-tabs" style="display:flex;gap:.6rem;flex-wrap:wrap;margin-bottom:1rem"></div>
@@ -460,6 +461,7 @@
             <th>Cliente</th>
             <th>CNPJ</th>
             <th>Data</th>
+            <th>Prev. Entrega</th>
             <th class="text-right">Valor</th>
             <th>Status</th>
             <th>Integracoes</th>
@@ -469,6 +471,27 @@
       </table>
     </div>
     <div class="empty" id="pedidos-empty"><h3>Nenhum pedido registrado</h3><p>Os pedidos das escolas aparecerao aqui quando forem recebidos.</p></div>
+    <div id="pedidos-bulk-actions" class="hidden" style="position:sticky;bottom:0;z-index:4;margin-top:1rem;padding:.9rem 1rem;border:1px solid var(--bdr);border-radius:12px;background:var(--s2);display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap">
+      <div id="pedidos-bulk-summary" style="font-size:.82rem;font-weight:700;color:var(--mut)">0 pedido(s) selecionado(s)</div>
+      <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+        <button class="btn btn-green" onclick="gerarNFSelecionados()">Gerar Notas Fiscais</button>
+        <button class="btn btn-blue" onclick="gerarListaComprasDePedidos()">Gerar Lista de Compras</button>
+        <button class="btn btn-blue" onclick="imprimirPedidosSelecionados()">Imprimir Pedidos</button>
+        <button class="btn btn-outline" onclick="alterarSituacaoSelecionados()">Alterar Situacao</button>
+        <button class="btn btn-red" onclick="excluirPedidosSelecionados()">Excluir Pedidos</button>
+      </div>
+    </div>
+    <!-- Modal: Alterar Situacao em Lote -->
+    <div id="modal-alterar-situacao-bulk" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1000;display:flex;align-items:center;justify-content:center">
+      <div style="background:var(--card,#1e293b);border:1px solid var(--bdr);border-radius:16px;padding:1.5rem;width:380px;max-width:90vw">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+          <h3 style="font-size:1rem;margin:0">Alterar Situacao</h3>
+          <button onclick="fecharModalSituacaoBulk()" style="background:none;border:none;color:var(--mut);font-size:1.2rem;cursor:pointer">&times;</button>
+        </div>
+        <div id="situacao-bulk-count" style="font-size:.82rem;color:var(--mut);margin-bottom:1rem"></div>
+        <div id="situacao-bulk-options" style="display:flex;flex-wrap:wrap;gap:.3rem"></div>
+      </div>
+    </div>
   </div>
 
   <!-- Tab: Notas Fiscais -->
@@ -539,6 +562,7 @@
           <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Categoria</label><select id="cp-categoria"></select></div>
           <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Forma</label><select id="cp-forma"></select></div>
           <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Valor</label><input type="number" id="cp-valor" min="0" step="0.01" placeholder="0,00"></div>
+          <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Data de Emissao</label><input type="date" id="cp-data-emissao"></div>
           <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Vencimento</label><input type="date" id="cp-vencimento"></div>
         </div>
         <div style="padding:1rem 1.5rem;border-top:1px solid var(--bdr);display:flex;justify-content:flex-end;gap:.8rem">
@@ -563,10 +587,16 @@
       </div>
     </div>
     <div id="contas-pagar-status-tabs" style="display:flex;gap:.6rem;flex-wrap:wrap;margin-bottom:1rem"></div>
+    <div id="cp-bulk-actions" class="hidden" style="display:flex;align-items:center;gap:.8rem;padding:.6rem 1rem;background:var(--bg-alt,#1a2236);border:1px solid var(--bdr);border-radius:10px;margin-bottom:.8rem">
+      <span id="cp-bulk-count" style="font-size:.82rem;color:var(--mut)">0 conta(s) selecionada(s)</span>
+      <button class="btn btn-sm btn-green" onclick="bulkBaixarContasPagar()">Pagar (Baixar)</button>
+      <button class="btn btn-sm btn-red" onclick="bulkExcluirContasPagar()">Excluir</button>
+    </div>
     <div class="table-wrap" style="max-height:600px;overflow-y:auto">
       <table>
         <thead>
           <tr>
+            <th style="width:2.8rem"><input type="checkbox" id="cp-select-all" onchange="toggleSelectAllContasPagar()"> <button class="btn-icon" style="font-size:1rem;background:none;border:none;cursor:pointer;color:var(--mut);padding:0" onclick="toggleCpMenuHeader(event)">⋯</button></th>
             <th>Descricao</th>
             <th>Categoria</th>
             <th>Forma</th>
@@ -574,19 +604,35 @@
             <th class="text-right">Valor</th>
             <th>Status</th>
             <th>Auditoria</th>
-            <th>Acao</th>
           </tr>
         </thead>
         <tbody id="contas-pagar-tbody"></tbody>
       </table>
     </div>
     <div class="empty" id="contas-pagar-empty"><h3>Nenhuma conta a pagar</h3><p>Cadastre despesas operacionais e obrigaes financeiras do GDP.</p></div>
+    <!-- Modal Detalhe Conta a Pagar -->
+    <div class="hidden" id="cp-detalhe-modal" style="position:fixed;inset:0;background:rgba(8,15,31,.88);z-index:1013;padding:1.25rem;overflow-y:auto" onclick="fecharDetalheCp()">
+      <div style="background:var(--bg);border:1px solid var(--bdr);border-radius:18px;max-width:640px;margin:2rem auto;display:flex;flex-direction:column" onclick="event.stopPropagation()">
+        <div style="padding:1.2rem 1.5rem;border-bottom:1px solid var(--bdr);display:flex;justify-content:space-between;align-items:center">
+          <h2 style="margin:0;font-size:1.12rem">Detalhes da Conta a Pagar</h2>
+          <div style="display:flex;gap:.5rem">
+            <button class="btn btn-outline btn-sm" id="cp-detalhe-edit-btn" onclick="toggleEditCpDetalhe()">Editar</button>
+            <button class="btn btn-outline btn-sm" onclick="fecharDetalheCp()">Fechar</button>
+          </div>
+        </div>
+        <div id="cp-detalhe-body" style="padding:1.5rem;display:grid;grid-template-columns:repeat(2,minmax(200px,1fr));gap:1rem"></div>
+        <div id="cp-detalhe-actions" class="hidden" style="padding:1rem 1.5rem;border-top:1px solid var(--bdr);display:flex;justify-content:flex-end;gap:.8rem">
+          <button class="btn btn-outline" onclick="fecharDetalheCp()">Cancelar</button>
+          <button class="btn btn-green" onclick="salvarEditCpDetalhe()">Salvar</button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- Tab: Contas a Receber -->
   <div id="tab-contas-receber" class="hidden">
     <div class="card" style="padding:1rem">
-      <div style="font-size:.82rem;color:var(--mut)">Cobrança automática e conciliação bancária ficam nesta aba. Use <strong>Cobrar</strong> para disparo, <strong>Baixar</strong> para registrar recebimento e <strong>Conciliar/Diverg.</strong> para refletir o retorno da API bancária.</div>
+      <div style="font-size:.82rem;color:var(--mut)">Gerencie suas contas a receber. Use <strong>Cobrar</strong> para disparo de cobranca, <strong>Receber</strong> para registrar recebimento e os <strong>checkboxes</strong> para acoes em lote.</div>
     </div>
     <div class="hidden" id="cr-form-card" style="position:fixed;inset:0;background:rgba(8,15,31,.88);z-index:1012;padding:1.25rem;overflow-y:auto" onclick="toggleContaReceberForm(false)">
       <div style="background:var(--bg);border:1px solid var(--bdr);border-radius:18px;min-height:calc(100vh - 2.5rem);display:flex;flex-direction:column" onclick="event.stopPropagation()">
@@ -603,6 +649,7 @@
           <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Cliente</label><input type="text" id="cr-cliente" placeholder="Nome cliente"></div>
           <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Forma</label><select id="cr-forma"></select></div>
           <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Valor</label><input type="number" id="cr-valor" min="0" step="0.01" placeholder="0,00"></div>
+          <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Data de Emissao</label><input type="date" id="cr-data-emissao"></div>
           <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Vencimento</label><input type="date" id="cr-vencimento"></div>
         </div>
         <div style="padding:1rem 1.5rem;border-top:1px solid var(--bdr);display:flex;justify-content:flex-end;gap:.8rem">
@@ -628,26 +675,48 @@
       </div>
     </div>
     <div id="contas-receber-status-tabs" style="display:flex;gap:.6rem;flex-wrap:wrap;margin-bottom:1rem"></div>
+    <div id="cr-bulk-actions" class="hidden" style="display:flex;align-items:center;gap:.8rem;padding:.6rem 1rem;background:var(--bg-alt,#1a2236);border:1px solid var(--bdr);border-radius:10px;margin-bottom:.8rem">
+      <span id="cr-bulk-count" style="font-size:.82rem;color:var(--mut)">0 conta(s) selecionada(s)</span>
+      <button class="btn btn-sm btn-green" onclick="bulkReceberContas()">Receber</button>
+      <button class="btn btn-sm btn-outline" onclick="bulkImprimirBoletos()">Imprimir Boletos</button>
+      <button class="btn btn-sm btn-red" onclick="bulkExcluirContasReceber()">Excluir</button>
+    </div>
     <div class="table-wrap" style="max-height:600px;overflow-y:auto">
       <table>
         <thead>
           <tr>
+            <th style="width:2.8rem"><input type="checkbox" id="cr-select-all" onchange="toggleSelectAllContasReceber()"> <button style="font-size:1rem;background:none;border:none;cursor:pointer;color:var(--mut);padding:0" onclick="toggleCrMenuHeader(event)">⋯</button></th>
             <th>Descricao</th>
             <th>Categoria</th>
             <th>Cliente</th>
             <th>Forma</th>
-            <th>Automacao</th>
             <th>Vencimento</th>
             <th class="text-right">Valor</th>
             <th>Status</th>
             <th>Auditoria</th>
-            <th>Acao</th>
           </tr>
         </thead>
         <tbody id="contas-receber-tbody"></tbody>
       </table>
     </div>
   <div class="empty" id="contas-receber-empty"><h3>Nenhuma conta a receber</h3><p>As cobrancas geradas a partir das notas fiscais aparecerao aqui.</p></div>
+    <!-- Modal Detalhe Conta a Receber -->
+    <div class="hidden" id="cr-detalhe-modal" style="position:fixed;inset:0;background:rgba(8,15,31,.88);z-index:1013;padding:1.25rem;overflow-y:auto" onclick="fecharDetalheCr()">
+      <div style="background:var(--bg);border:1px solid var(--bdr);border-radius:18px;max-width:640px;margin:2rem auto;display:flex;flex-direction:column" onclick="event.stopPropagation()">
+        <div style="padding:1.2rem 1.5rem;border-bottom:1px solid var(--bdr);display:flex;justify-content:space-between;align-items:center">
+          <h2 style="margin:0;font-size:1.12rem">Detalhes da Conta a Receber</h2>
+          <div style="display:flex;gap:.5rem">
+            <button class="btn btn-outline btn-sm" id="cr-detalhe-edit-btn" onclick="toggleEditCrDetalhe()">Editar</button>
+            <button class="btn btn-outline btn-sm" onclick="fecharDetalheCr()">Fechar</button>
+          </div>
+        </div>
+        <div id="cr-detalhe-body" style="padding:1.5rem;display:grid;grid-template-columns:repeat(2,minmax(200px,1fr));gap:1rem"></div>
+        <div id="cr-detalhe-actions" class="hidden" style="padding:1rem 1.5rem;border-top:1px solid var(--bdr);display:flex;justify-content:flex-end;gap:.8rem">
+          <button class="btn btn-outline" onclick="fecharDetalheCr()">Cancelar</button>
+          <button class="btn btn-green" onclick="salvarEditCrDetalhe()">Salvar</button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- Tab: Caixa -->
@@ -832,29 +901,34 @@
       <div class="kpi"><div class="kpi-label">Demandas</div><div class="kpi-value green" id="est-intel-kpi-pedidos">0</div><div class="kpi-sub">Reservas e necessidades</div></div>
       <div class="kpi"><div class="kpi-label">Movimentacoes</div><div class="kpi-value red" id="est-intel-kpi-mov">0</div><div class="kpi-sub">Fisico e comprometido</div></div>
     </div>
-    <div id="ei-grid-principal" style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;align-items:start">
+    <div id="ei-grid-principal" style="display:grid;grid-template-columns:1fr;gap:1rem;align-items:start">
       <div class="card" id="ei-card-produtos" data-ei-section="produtos">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap;margin-bottom:.75rem">
           <h3 style="margin:0">Cadastro de Produtos</h3>
           <button class="btn btn-outline btn-sm" onclick="imprimirListaProdutosEstoqueIntel()">Imprimir Lista</button>
         </div>
-        <div data-ei-form style="display:grid;grid-template-columns:1.2fr .7fr auto;gap:.75rem;align-items:end;margin-bottom:1rem">
-          <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Nome</label><input type="text" id="ei-produto-nome" placeholder="Ex: Arroz"></div>
-          <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Unidade Base</label><select id="ei-produto-unidade"><option value="g">g</option><option value="ml">ml</option></select></div>
-          <div><button class="btn btn-green" onclick="registrarProdutoEstoqueIntel()">Salvar</button></div>
+        <div data-ei-form style="margin-bottom:1rem">
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.75rem;align-items:end;margin-bottom:.75rem">
+            <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Nome do Produto</label><input type="text" id="ei-produto-nome" placeholder="Ex: Arroz"></div>
+            <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Unidade Base</label><select id="ei-produto-unidade"><optgroup label="Contagem"><option value="UN" selected>UN — Unidade</option><option value="DZ">DZ — Duzia</option></optgroup><optgroup label="Peso"><option value="g">g — Grama</option><option value="KG">KG — Quilograma</option></optgroup><optgroup label="Volume"><option value="ml">ml — Mililitro</option><option value="LT">LT — Litro</option><option value="GL">GL — Galao</option></optgroup><optgroup label="Embalagem"><option value="CX">CX — Caixa</option><option value="PCT">PCT — Pacote</option><option value="FD">FD — Fardo</option><option value="BD">BD — Bandeja</option><option value="PT">PT — Pote</option><option value="SC">SC — Sache/Saco</option></optgroup><optgroup label="Outros"><option value="MÇ">MÇ — Maco</option><option value="RS">RS — Resma</option><option value="RL">RL — Rolo</option><option value="FR">FR — Frasco</option><option value="TB">TB — Tubo</option><option value="GF">GF — Garrafa</option><option value="LA">LA — Lata</option></optgroup></select></div>
+            <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">SKU / Cod. Barras</label><input type="text" id="ei-produto-sku" placeholder="789..."></div>
+            <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">NCM</label><input type="text" id="ei-produto-ncm" placeholder="1006.30.00"></div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:.75rem;align-items:end">
+            <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Embalagem (descricao)</label><input type="text" id="ei-emb-descricao" placeholder="Ex: Pacote 5kg, Caixa c/ 12"></div>
+            <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem" id="ei-emb-qtd-label">Qtd por Embalagem</label><input type="number" id="ei-emb-quantidade" min="1" step="1" placeholder="1"></div>
+            <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Preco Referencia</label><input type="number" id="ei-emb-preco-ref" min="0" step="0.01" placeholder="8.90"></div>
+            <div style="display:flex;align-items:end"><button class="btn btn-green" onclick="registrarProdutoUnificado()">Salvar Produto</button></div>
+          </div>
         </div>
-        <div class="table-wrap" data-ei-table style="max-height:220px;overflow-y:auto"><table><thead><tr><th>ID</th><th>Produto</th><th>Base</th><th class="text-right">Acoes</th></tr></thead><tbody id="ei-produtos-tbody"></tbody></table></div>
+        <div class="table-wrap" data-ei-table style="max-height:320px;overflow-y:auto"><table><thead><tr><th>Produto</th><th>Base</th><th>SKU</th><th>NCM</th><th>Embalagem</th><th class="text-right">Qtd Emb.</th><th class="text-right">Preco Ref.</th><th class="text-right">Acoes</th></tr></thead><tbody id="ei-produtos-tbody"></tbody></table></div>
       </div>
-      <div class="card" id="ei-card-embalagens" data-ei-section="embalagens">
-        <h3 style="margin-bottom:.75rem">Cadastro de Embalagens</h3>
-        <div data-ei-form style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;align-items:end;margin-bottom:1rem">
-          <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Produto</label><select id="ei-emb-produto"></select></div>
-          <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Descricao</label><input type="text" id="ei-emb-descricao" placeholder="Ex: Pacote 350g"></div>
-          <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Codigo de Barras</label><input type="text" id="ei-emb-barcode" placeholder="789..."></div>
-          <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Quantidade Base</label><input type="number" id="ei-emb-quantidade" min="1" step="1" placeholder="350"></div>
-          <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Preco de Referencia da Embalagem</label><input type="number" id="ei-emb-preco-ref" min="0" step="0.01" placeholder="8.90"></div>
+      <!-- Card embalagens oculto (dados mantidos para compatibilidade) -->
+      <div class="card hidden" id="ei-card-embalagens" data-ei-section="embalagens">
+        <div data-ei-form class="hidden">
+          <select id="ei-emb-produto" onchange="atualizarLabelQtdBaseEmb()"></select>
+          <input type="text" id="ei-emb-barcode" placeholder="789...">
         </div>
-        <div data-ei-form style="display:flex;justify-content:flex-end;margin-bottom:1rem"><button class="btn btn-green" onclick="registrarEmbalagemEstoqueIntel()">Salvar Embalagem</button></div>
         <div class="table-wrap" data-ei-table style="max-height:220px;overflow-y:auto"><table><thead><tr><th>Produto</th><th>Descricao</th><th>Barras</th><th class="text-right">Qtd Base</th><th class="text-right">Preco Padrao</th><th class="text-right">Acoes</th></tr></thead><tbody id="ei-embalagens-tbody"></tbody></table></div>
       </div>
       <div class="card" id="ei-card-pedidos" data-ei-section="pedidos">
@@ -902,7 +976,11 @@
               <span class="badge badge-blue" id="ei-demandas-geradas-count">0</span>
             </div>
           </div>
-          <div class="table-wrap" data-ei-table style="max-height:360px;overflow-y:auto"><table><thead><tr><th>Demanda</th><th>Origem</th><th>Produto</th><th class="text-right">Qtd Base</th><th>Status</th><th>Data</th><th class="text-right">Acoes</th></tr></thead><tbody id="ei-pedidos-tbody"></tbody></table></div>
+          <div class="table-wrap" data-ei-table style="max-height:360px;overflow-y:auto"><table><thead><tr><th style="width:30px"><input type="checkbox" id="demandas-select-all" onchange="toggleSelectAllDemandas()"></th><th>Demanda</th><th>Origem</th><th>Produto</th><th class="text-right">Qtd Base</th><th>Status</th><th>Data</th><th class="text-right">Acoes</th></tr></thead><tbody id="ei-pedidos-tbody"></tbody></table></div>
+          <div id="demandas-bulk-actions" class="hidden" style="margin-top:.6rem;padding:.6rem 1rem;border:1px solid var(--bdr);border-radius:10px;background:var(--s2);display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap">
+            <span id="demandas-bulk-count" style="font-size:.82rem;color:var(--mut);font-weight:700">0 demanda(s) selecionada(s)</span>
+            <button class="btn btn-blue btn-sm" onclick="gerarListaComprasDeDemandas()">Gerar Lista de Compras</button>
+          </div>
         </div>
         <div style="margin-top:1rem">
           <div style="border:1px solid rgba(245,158,11,.28);border-radius:14px;padding:1rem;background:linear-gradient(180deg,rgba(245,158,11,.10),rgba(245,158,11,.03))">
@@ -928,7 +1006,7 @@
         <div class="table-wrap" data-ei-table style="max-height:220px;overflow-y:auto"><table><thead><tr><th>Data</th><th>Produto</th><th>Tipo</th><th>Op.</th><th class="text-right">Qtd</th><th>Origem</th></tr></thead><tbody id="ei-movimentacoes-tbody"></tbody></table></div>
       </div>
     </div>
-    <!-- Card "Demandas de Contratos" removido — funcionalidade absorvida pelo Estoque Intel via ponte gdpEquivalencias -->
+    <!-- Card Demandas GDP removido — checkboxes integrados no card Demandas Geradas acima -->
     <!-- Story 4.43: Estoque Simples e Lista de Compras (migrado de app.js) -->
     <div class="card" id="ei-card-gdp-estoque" data-ei-section="estoque" style="margin-top:1rem">
       <h3 style="margin-bottom:.75rem">Estoque Simples (Equivalencias)</h3>
@@ -941,6 +1019,24 @@
       </div>
       <p id="ei-gdp-estoque-empty" style="display:none;text-align:center;padding:.6rem;color:var(--mut);font-size:.85rem">Estoque vazio.</p>
     </div>
+    <!-- Pedido Manual ao Fornecedor — largura total -->
+    <div class="card" id="ei-card-compra-manual" data-ei-section="compra" style="margin-top:1rem">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap;margin-bottom:.75rem">
+        <div>
+          <h3 style="margin-bottom:.35rem">Pedido Manual ao Fornecedor</h3>
+          <div style="font-size:.8rem;color:var(--mut)">Crie um pedido de compra avulso diretamente para o fornecedor.</div>
+        </div>
+      </div>
+      <div data-ei-form style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:.75rem;align-items:end">
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Produto</label><select id="ei-compra-manual-produto" onchange="atualizarCompraManualEmbalagens()"></select></div>
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Embalagem</label><select id="ei-compra-manual-embalagem"><option value="">Selecione</option></select></div>
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Fornecedor</label><select id="ei-compra-manual-fornecedor"></select></div>
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Pacotes</label><input type="number" id="ei-compra-manual-pacotes" min="1" step="1" placeholder="1"></div>
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Vencimento financeiro</label><input type="date" id="ei-compra-manual-vencimento"></div>
+        <div style="display:flex;align-items:end"><button class="btn btn-green" onclick="gerarPedidoCompraManualEstoqueIntel()">Gerar Pedido Manual</button></div>
+      </div>
+    </div>
+    <!-- Lista de Compras (Contratos) -->
     <div class="card" id="ei-card-gdp-compras" data-ei-section="compra" style="margin-top:1rem">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;margin-bottom:.75rem">
         <div>
@@ -961,7 +1057,17 @@
       <div id="ei-gdp-compras-total" style="font-weight:600;margin-top:.5rem;font-size:.85rem"></div>
       <p id="ei-gdp-compras-empty" style="display:none;text-align:center;padding:.6rem;color:var(--mut);font-size:.85rem">Lista de compras vazia.</p>
     </div>
-    <div id="ei-grid-secundario" style="display:grid;grid-template-columns:1.2fr .8fr;gap:1rem;align-items:start;margin-top:1rem">
+    <!-- Pedidos de Compra Gerados — logo abaixo da Lista de Compras -->
+    <div class="card" id="ei-card-compras-geradas" data-ei-section="compra" style="margin-top:1rem">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap;margin-bottom:.75rem">
+        <div>
+          <h3 style="margin-bottom:.35rem">Pedidos de Compra Gerados</h3>
+          <div style="font-size:.8rem;color:var(--mut)">Pedidos de compra criados pela lista de compras ou manualmente aparecem aqui.</div>
+        </div>
+      </div>
+      <div class="table-wrap" data-ei-table style="max-height:260px;overflow-y:auto"><table><thead><tr><th>ID</th><th>Fornecedor</th><th>Itens</th><th>Origem</th><th>Status</th><th class="text-right">Valor</th><th class="text-right">Acoes</th></tr></thead><tbody id="ei-compras-tbody"></tbody></table></div>
+    </div>
+    <div id="ei-grid-secundario" style="display:grid;grid-template-columns:1fr;gap:1rem;align-items:start;margin-top:1rem">
       <div class="card" id="ei-card-estoque-resumo" data-ei-section="estoque">
         <h3 style="margin-bottom:.75rem">Estoque Calculado por Movimentacoes</h3>
         <div class="table-wrap" data-ei-table style="max-height:320px;overflow-y:auto"><table><thead><tr><th>Produto</th><th class="text-right">Fisico</th><th class="text-right">Comprometido</th><th class="text-right">Disponivel</th><th>Base</th></tr></thead><tbody id="ei-estoque-tbody"></tbody></table></div>
@@ -996,33 +1102,8 @@
         </div>
         <div id="ei-erp-status" style="font-size:.8rem;color:var(--mut);margin-bottom:.75rem;padding:.75rem .9rem;border:1px solid rgba(56,189,248,.2);border-radius:12px;background:rgba(56,189,248,.08)">Pedido pronto para envio ao fornecedor, com embalagem escolhida e custo previsto.</div>
       </div>
-      <div class="card" id="ei-card-compra-manual" data-ei-section="compra">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap;margin-bottom:.75rem">
-          <div>
-            <h3 style="margin-bottom:.35rem">Pedido Manual ao Fornecedor</h3>
-            <div style="font-size:.8rem;color:var(--mut)">Use este card quando a compra nao vier do calculo nem da lista automatica.</div>
-          </div>
-        </div>
-        <div data-ei-form style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;align-items:end">
-          <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Produto</label><select id="ei-compra-manual-produto" onchange="atualizarCompraManualEmbalagens()"></select></div>
-          <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Embalagem</label><select id="ei-compra-manual-embalagem"><option value="">Selecione</option></select></div>
-          <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Fornecedor</label><select id="ei-compra-manual-fornecedor"></select></div>
-          <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Pacotes</label><input type="number" id="ei-compra-manual-pacotes" min="1" step="1" placeholder="1"></div>
-          <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Vencimento financeiro</label><input type="date" id="ei-compra-manual-vencimento"></div>
-          <div style="display:flex;justify-content:flex-end"><button class="btn btn-outline" onclick="gerarPedidoCompraManualEstoqueIntel()">Gerar Pedido Manual</button></div>
-        </div>
-      </div>
     </div>
-    <div class="card" id="ei-card-compras-geradas" data-ei-section="compra" style="margin-top:1rem">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap;margin-bottom:.75rem">
-        <div>
-          <h3 style="margin-bottom:.35rem">Pedidos Gerados</h3>
-          <div style="font-size:.8rem;color:var(--mut)">Pedidos criados pelo calculo, pela lista automatica ou manualmente aparecem aqui.</div>
-        </div>
-      </div>
-      <div class="table-wrap" data-ei-table style="max-height:260px;overflow-y:auto"><table><thead><tr><th>ID</th><th>Fornecedor</th><th>Itens</th><th>Origem</th><th>Status</th><th class="text-right">Valor</th><th class="text-right">Acoes</th></tr></thead><tbody id="ei-compras-tbody"></tbody></table></div>
-    </div>
-    <div class="card" id="ei-card-lista-compras" data-ei-section="compra" style="margin-top:1rem">
+    <div class="card hidden" id="ei-card-lista-compras" data-ei-section="compra-legacy" style="margin-top:1rem">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap;margin-bottom:1rem">
         <div>
           <h3 style="margin-bottom:.35rem">Lista Automatica de Compras</h3>
@@ -1247,11 +1328,14 @@
         <div style="display:flex;gap:.5rem">
           <button class="btn btn-sm btn-outline" onclick="exportarListaCSV()">Exportar CSV</button>
           <button class="btn btn-sm btn-purple" onclick="exportarListaPDF()">Imprimir</button>
+          <button class="btn btn-sm btn-green" onclick="enviarListaAoFornecedor()">Enviar ao Fornecedor</button>
           <button class="btn btn-sm btn-outline" onclick="fecharListaCompras()">Fechar</button>
         </div>
       </div>
-      <div style="padding:1rem 1.5rem;flex-shrink:0">
-        <input type="text" id="busca-lista-compras" placeholder="Buscar na lista..." oninput="filtrarListaCompras()" style="width:100%">
+      <div style="padding:1rem 1.5rem;flex-shrink:0;display:flex;gap:.75rem;align-items:end;flex-wrap:wrap">
+        <div style="flex:1;min-width:180px"><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Buscar</label><input type="text" id="busca-lista-compras" placeholder="Buscar na lista..." oninput="filtrarListaCompras()" style="width:100%"></div>
+        <div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Visualizacao</label><select id="lista-compras-modo" onchange="renderListaComprasAtual()" style="min-width:160px"><option value="produtos">Somente Produtos</option><option value="clientes-produtos">Clientes + Produtos</option><option value="fornecedores-produtos">Fornecedores + Produtos</option></select></div>
+        <div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Data Prevista Entrega</label><input type="date" id="lista-compras-filtro-data" onchange="renderListaComprasAtual()"></div>
       </div>
       <div style="padding:0 1.5rem 1rem;overflow-y:auto;flex:1">
         <div class="table-wrap">
@@ -1767,9 +1851,9 @@ function getGdpBancoProduto(sku) {
 function scheduleGdpCloudSync() { if (typeof schedulCloudSync === "function") schedulCloudSync(); }
 
 // ===== SUPABASE CLOUD SYNC =====
-const SUPABASE_URL = "https://ohxoxencxktpzskltbsk.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9oeG94ZW5jeGt0cHpza2x0YnNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMyMTUwNDQsImV4cCI6MjA4ODc5MTA0NH0.-w8f1xjW1cW2-OZpg1Sql8PqwFDzDqyWw4pHEx6jGSk";
-const GDP_SYNC_KEYS = [CONTRACTS_KEY, CONTRACTS_DELETED_KEY, ORDERS_KEY, PROOFS_KEY, INVOICES_KEY, ENTRY_INVOICES_KEY, PAYABLES_KEY, RECEIVABLES_KEY, PAYABLE_CATEGORIES_KEY, RECEIVABLE_CATEGORIES_KEY, PAYABLE_METHODS_KEY, RECEIVABLE_METHODS_KEY, CAIXA_STATEMENT_KEY, STOCK_KEY, ESTOQUE_INTEL_PRODUCTS_KEY, ESTOQUE_INTEL_PACKAGES_KEY, ESTOQUE_INTEL_ORDERS_KEY, ESTOQUE_INTEL_ORDER_ITEMS_KEY, ESTOQUE_INTEL_MOVES_KEY, ESTOQUE_INTEL_SUPPLIERS_KEY, ESTOQUE_INTEL_PURCHASES_KEY, INTEGRATIONS_KEY, "gdp.usuarios.v1", "caixaescolar.banco.v1", GDP_EQUIV_KEY, GDP_CONVERSOES_KEY, GDP_DEMANDAS_KEY, GDP_ESTOQUE_SIMPLES_KEY, GDP_COMPRAS_KEY];
+const SUPABASE_URL = "https://mvvsjaudhbglxttxaeop.supabase.co";
+const SUPABASE_KEY = "sb_publishable_uBqL8sLjMGWnZ2aaQ1zwvg_mlQrZUXR";
+const GDP_SYNC_KEYS = [CONTRACTS_KEY, CONTRACTS_DELETED_KEY, ORDERS_KEY, PROOFS_KEY, INVOICES_KEY, ENTRY_INVOICES_KEY, PAYABLES_KEY, RECEIVABLES_KEY, PAYABLE_CATEGORIES_KEY, RECEIVABLE_CATEGORIES_KEY, PAYABLE_METHODS_KEY, RECEIVABLE_METHODS_KEY, CAIXA_STATEMENT_KEY, STOCK_KEY, ESTOQUE_INTEL_PRODUCTS_KEY, ESTOQUE_INTEL_PACKAGES_KEY, ESTOQUE_INTEL_ORDERS_KEY, ESTOQUE_INTEL_ORDER_ITEMS_KEY, ESTOQUE_INTEL_MOVES_KEY, ESTOQUE_INTEL_SUPPLIERS_KEY, ESTOQUE_INTEL_PURCHASES_KEY, INTEGRATIONS_KEY, "gdp.usuarios.v1", "caixaescolar.banco.v1", GDP_EQUIV_KEY, GDP_CONVERSOES_KEY, GDP_DEMANDAS_KEY, GDP_ESTOQUE_SIMPLES_KEY, GDP_COMPRAS_KEY, "nexedu.config.contas-bancarias", "nexedu.config.fiscal", "nexedu.config.bank-api", "nexedu.empresa"];
 const GDP_SHARED_SYNC_KEYS = new Set(GDP_SYNC_KEYS);
 const GDP_SYNC_USER_KEY = "gdp.sync.user_id.v1";
 const GDP_SYNC_FALLBACK_USER = "LARIUCCI";
@@ -2684,7 +2768,7 @@ function vincularClienteManual(contratoId) {
     if (!confirm(`Cliente "${nomeEscola}" não encontrado. Criar automaticamente?`)) return;
     cliente = {
       id: "cli-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 5),
-      nome: nomeEscola, cnpj: "", municipio: c.municipio || "", sre: c.sre || "",
+      nome: nomeEscola, cnpj: "", municipio: c.municipio || "", contribuinte_icms: "9",
       responsavel: "", email: "", telefone: "", uf: "MG", tipo: "escola",
       contratos_vinculados: [], criadoEm: new Date().toISOString().slice(0, 10), origem: "vinculo-manual",
     };
@@ -5846,12 +5930,20 @@ function toggleContaPagarForm(force) {
   if (!card) return;
   const open = typeof force === "boolean" ? force : card.classList.contains("hidden");
   card.classList.toggle("hidden", !open);
+  if (open) {
+    const emissaoEl = document.getElementById("cp-data-emissao");
+    if (emissaoEl && !emissaoEl.value) emissaoEl.value = new Date().toISOString().split("T")[0];
+  }
 }
 
 function toggleContaReceberForm(force) {
   const card = document.getElementById("cr-form-card");
   if (!card) return;
   const open = typeof force === "boolean" ? force : card.classList.contains("hidden");
+  if (open) {
+    const emissaoEl = document.getElementById("cr-data-emissao");
+    if (emissaoEl && !emissaoEl.value) emissaoEl.value = new Date().toISOString().split("T")[0];
+  }
   card.classList.toggle("hidden", !open);
 }
 
@@ -6287,12 +6379,13 @@ function buildInvoiceFromOrder(pedido, tipoNota) {
       protocolo: "",
       chaveAcesso: chaveInformada
     },
+    vencimento: pedido.pagamento?.vencimento || calcularVencimentoPagamento(pedido.data || pedido.dataEntrega, pedido.pagamento?.condicao || "28"),
     cobranca: {
-      status: contaPadrao?.pix && fiscalConfig.destacarPix ? "pix_pronto" : "gerada",
-      forma: contaPadrao?.pix && fiscalConfig.destacarPix ? "pix" : "boleto",
+      status: (pedido.pagamento?.forma || (contaPadrao?.pix && fiscalConfig.destacarPix ? "pix" : "boleto")) === "pix" ? "pix_pronto" : "gerada",
+      forma: pedido.pagamento?.forma || (contaPadrao?.pix && fiscalConfig.destacarPix ? "pix" : "boleto"),
       referencia: genId("COB"),
       geradaEm: now.toISOString(),
-      contaBancariaId: contaPadrao?.id || "",
+      contaBancariaId: pedido.pagamento?.contaBancaria?.id || contaPadrao?.id || "",
       metadata: {
         contaApelido: contaPadrao?.apelido || "",
         banco: contaPadrao?.banco || "",
@@ -6345,8 +6438,12 @@ function buildInvoiceFromOrder(pedido, tipoNota) {
 
 function buildReceivableFromInvoice(invoice) {
   const issueDate = new Date(invoice.emitidaEm || Date.now());
-  const dueDate = new Date(issueDate);
-  dueDate.setDate(dueDate.getDate() + 28);
+  let dueDateStr = invoice.vencimento;
+  if (!dueDateStr) {
+    const dueDate = new Date(issueDate);
+    dueDate.setDate(dueDate.getDate() + 28);
+    dueDateStr = dueDate.toISOString().slice(0, 10);
+  }
   const contaPadrao = getConfiguredDefaultBankAccount();
   const bankApiConfig = getBankApiConfig();
   return {
@@ -6360,7 +6457,8 @@ function buildReceivableFromInvoice(invoice) {
     cliente: invoice.cliente?.nome || "",
     forma: invoice.cobranca?.forma || "boleto",
     valor: Number(invoice.valor || 0),
-    vencimento: dueDate.toISOString().slice(0, 10),
+    vencimento: dueDateStr,
+    dataEmissao: issueDate.toISOString().split("T")[0],
     status: "pendente",
     automacao: {
       whatsapp: false,
@@ -6827,6 +6925,184 @@ function clonarContaReceber(contaId) {
   showToast(`Conta a receber ${conta.id} clonada. Ajuste vencimento e demais dados antes de registrar.`, 3500);
 }
 
+/* ── Contas a Receber: Checkbox, Bulk Actions, Menu "...", Detalhe ── */
+var _selectedContaReceberIds = new Set();
+var _crDetalheId = null;
+var _crDetalheEditing = false;
+
+function toggleSelectAllContasReceber() {
+  const checked = document.getElementById("cr-select-all").checked;
+  document.querySelectorAll(".cr-check").forEach(cb => { cb.checked = checked; });
+  atualizarSelecaoContasReceber();
+}
+
+function atualizarSelecaoContasReceber() {
+  _selectedContaReceberIds.clear();
+  document.querySelectorAll(".cr-check:checked").forEach(cb => { _selectedContaReceberIds.add(cb.value); });
+  const count = _selectedContaReceberIds.size;
+  const bar = document.getElementById("cr-bulk-actions");
+  if (bar) {
+    bar.classList.toggle("hidden", count === 0);
+    if (count > 0) bar.style.display = "flex";
+    else bar.style.display = "";
+  }
+  const countEl = document.getElementById("cr-bulk-count");
+  if (countEl) countEl.textContent = `${count} conta(s) selecionada(s)`;
+  const selectAll = document.getElementById("cr-select-all");
+  if (selectAll) {
+    const total = document.querySelectorAll(".cr-check").length;
+    selectAll.checked = count > 0 && count === total;
+    selectAll.indeterminate = count > 0 && count < total;
+  }
+}
+
+function bulkReceberContas() {
+  if (!_selectedContaReceberIds.size) return;
+  const dataBaixa = promptDataBaixa("Informe a data do recebimento (AAAA-MM-DD):", new Date().toISOString().slice(0, 10));
+  if (!dataBaixa) return;
+  let count = 0;
+  _selectedContaReceberIds.forEach(id => {
+    const conta = contasReceber.find(c => c.id === id);
+    if (conta && conta.status !== "recebida") {
+      conta.status = "recebida";
+      conta.recebidaEm = `${dataBaixa}T12:00:00`;
+      conta.audit = { ...(conta.audit || {}), updatedAt: new Date().toISOString(), updatedBy: getAuditActor(), baixaManualAt: conta.recebidaEm };
+      count++;
+    }
+  });
+  saveContasReceber();
+  _selectedContaReceberIds.clear();
+  renderContasReceber();
+  showToast(`${count} conta(s) a receber baixada(s).`, 3000);
+}
+
+function bulkImprimirBoletos() {
+  const selecionadas = contasReceber.filter(c => _selectedContaReceberIds.has(c.id) && c.forma === "boleto");
+  if (!selecionadas.length) { showToast("Nenhuma conta com boleto selecionada.", "warn"); return; }
+  const rows = selecionadas.map(item => `<tr><td>${esc(item.id)}</td><td>${esc(item.descricao)}</td><td>${esc(item.cliente || "-")}</td><td>${esc(item.vencimento || "")}</td><td class="right">${brl.format(item.valor || 0)}</td><td>${esc(item.cobranca?.linhaDigitavel || "-")}</td></tr>`).join("");
+  abrirJanelaRelatorioFinanceiro("Boletos - Contas a Receber", ["ID", "Descricao", "Cliente", "Vencimento", "Valor", "Linha Digitavel"], rows);
+}
+
+function bulkExcluirContasReceber() {
+  if (!_selectedContaReceberIds.size) return;
+  if (!confirm(`Excluir ${_selectedContaReceberIds.size} conta(s) a receber selecionada(s)?`)) return;
+  contasReceber = contasReceber.filter(c => !_selectedContaReceberIds.has(c.id));
+  saveContasReceber();
+  _selectedContaReceberIds.clear();
+  renderContasReceber();
+  showToast("Contas excluidas.", 3000);
+}
+
+function toggleCrMenu(contaId, event) {
+  if (event) event.stopPropagation();
+  closeCpMenus();
+  closeCrMenus();
+  const menu = document.getElementById(`cr-menu-${contaId}`);
+  if (!menu) return;
+  menu.style.position = "fixed";
+  menu.style.left = "auto";
+  menu.style.top = "auto";
+  if (event) {
+    const rect = event.target.getBoundingClientRect();
+    menu.style.left = rect.left + "px";
+    menu.style.top = (rect.bottom + 4) + "px";
+  }
+  menu.classList.remove("hidden");
+}
+
+function closeCrMenus() {
+  document.querySelectorAll('[id^="cr-menu-"]').forEach(el => el.classList.add("hidden"));
+}
+
+function toggleCrMenuHeader(event) {
+  if (event) event.stopPropagation();
+}
+
+function abrirDetalheCr(contaId) {
+  const conta = contasReceber.find(c => c.id === contaId);
+  if (!conta) return;
+  _crDetalheId = contaId;
+  _crDetalheEditing = false;
+  const modal = document.getElementById("cr-detalhe-modal");
+  const body = document.getElementById("cr-detalhe-body");
+  const actions = document.getElementById("cr-detalhe-actions");
+  const editBtn = document.getElementById("cr-detalhe-edit-btn");
+  if (editBtn) editBtn.textContent = "Editar";
+  if (actions) actions.classList.add("hidden");
+  const statusMeta = getContaReceberStatusMeta(conta);
+  body.innerHTML = `
+    <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Descricao</label><div style="padding:.4rem 0;font-size:.92rem">${esc(conta.descricao)}</div></div>
+    <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Categoria</label><div style="padding:.4rem 0;font-size:.92rem">${esc(formatCategoriaLabel(conta.categoria))}</div></div>
+    <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Cliente</label><div style="padding:.4rem 0;font-size:.92rem">${esc(conta.cliente || "-")}</div></div>
+    <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Forma</label><div style="padding:.4rem 0;font-size:.92rem">${esc(conta.forma)}</div></div>
+    <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Valor</label><div style="padding:.4rem 0;font-size:.92rem">${brl.format(conta.valor || 0)}</div></div>
+    <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Data de Emissao</label><div style="padding:.4rem 0;font-size:.92rem">${esc(conta.dataEmissao || "-")}</div></div>
+    <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Vencimento</label><div style="padding:.4rem 0;font-size:.92rem">${esc(conta.vencimento)}</div></div>
+    <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Status</label><div style="padding:.4rem 0"><span class="badge ${statusMeta.className}">${esc(statusMeta.label)}</span></div></div>
+    <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Automacao</label><div style="padding:.4rem 0;font-size:.82rem">${conta.automacao?.whatsapp ? "WhatsApp" : "-"} / ${conta.automacao?.email ? "E-mail" : "-"}</div></div>
+    <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Cobranca</label><div style="padding:.4rem 0;font-size:.82rem">${esc(conta.cobranca?.status || "-")}</div></div>
+    <div style="grid-column:1/-1"><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Auditoria</label><div style="padding:.4rem 0;font-size:.82rem;color:var(--mut)">${esc(formatAuditStamp(conta.audit, conta.recebidaEm, conta.audit?.updatedBy))}</div></div>
+  `;
+  modal.classList.remove("hidden");
+}
+
+function fecharDetalheCr() {
+  document.getElementById("cr-detalhe-modal").classList.add("hidden");
+  _crDetalheId = null;
+  _crDetalheEditing = false;
+}
+
+function toggleEditCrDetalhe() {
+  const conta = contasReceber.find(c => c.id === _crDetalheId);
+  if (!conta) return;
+  _crDetalheEditing = !_crDetalheEditing;
+  const editBtn = document.getElementById("cr-detalhe-edit-btn");
+  const actions = document.getElementById("cr-detalhe-actions");
+  if (_crDetalheEditing) {
+    editBtn.textContent = "Cancelar Edicao";
+    actions.classList.remove("hidden");
+    const body = document.getElementById("cr-detalhe-body");
+    body.innerHTML = `
+      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Descricao</label><input type="text" id="cr-edit-descricao" value="${esc(conta.descricao)}"></div>
+      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Categoria</label><select id="cr-edit-categoria"></select></div>
+      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Cliente</label><input type="text" id="cr-edit-cliente" value="${esc(conta.cliente || "")}"></div>
+      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Forma</label><select id="cr-edit-forma"></select></div>
+      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Valor</label><input type="number" id="cr-edit-valor" min="0" step="0.01" value="${conta.valor || 0}"></div>
+      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Data de Emissao</label><input type="date" id="cr-edit-dataEmissao" value="${conta.dataEmissao || ""}"></div>
+      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Vencimento</label><input type="date" id="cr-edit-vencimento" value="${conta.vencimento || ""}"></div>
+      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Status</label><div style="padding:.4rem 0"><span class="badge ${getContaReceberStatusMeta(conta).className}">${esc(getContaReceberStatusMeta(conta).label)}</span></div></div>
+      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Automacao</label><div style="padding:.4rem 0;font-size:.82rem">${conta.automacao?.whatsapp ? "WhatsApp" : "-"} / ${conta.automacao?.email ? "E-mail" : "-"}</div></div>
+      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Cobranca</label><div style="padding:.4rem 0;font-size:.82rem">${esc(conta.cobranca?.status || "-")}</div></div>
+      <div style="grid-column:1/-1"><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Auditoria</label><div style="padding:.4rem 0;font-size:.82rem;color:var(--mut)">${esc(formatAuditStamp(conta.audit, conta.recebidaEm, conta.audit?.updatedBy))}</div></div>
+    `;
+    renderContaCategoriaOptions();
+    renderContaFormaOptions();
+    const catEl = document.getElementById("cr-edit-categoria");
+    const formaEl = document.getElementById("cr-edit-forma");
+    if (catEl) catEl.innerHTML = contaReceberCategorias.map(c => `<option value="${c}" ${c === conta.categoria ? "selected" : ""}>${formatCategoriaLabel(c)}</option>`).join("");
+    if (formaEl) formaEl.innerHTML = contaReceberFormas.map(f => `<option value="${f}" ${f === conta.forma ? "selected" : ""}>${f}</option>`).join("");
+  } else {
+    abrirDetalheCr(_crDetalheId);
+  }
+}
+
+function salvarEditCrDetalhe() {
+  const conta = contasReceber.find(c => c.id === _crDetalheId);
+  if (!conta) return;
+  conta.descricao = document.getElementById("cr-edit-descricao").value.trim() || conta.descricao;
+  conta.categoria = document.getElementById("cr-edit-categoria").value || conta.categoria;
+  conta.cliente = document.getElementById("cr-edit-cliente").value.trim() || conta.cliente;
+  conta.forma = document.getElementById("cr-edit-forma").value || conta.forma;
+  conta.valor = Number(document.getElementById("cr-edit-valor").value) || conta.valor;
+  conta.dataEmissao = document.getElementById("cr-edit-dataEmissao").value || conta.dataEmissao;
+  conta.vencimento = document.getElementById("cr-edit-vencimento").value || conta.vencimento;
+  conta.audit = { ...(conta.audit || {}), updatedAt: new Date().toISOString(), updatedBy: getAuditActor() };
+  saveContasReceber();
+  renderContasReceber();
+  abrirDetalheCr(_crDetalheId);
+  showToast("Conta a receber atualizada.", 3000);
+}
+
 function atualizarStatusConciliacao(contaId, status) {
   const conta = contasReceber.find((item) => item.id === contaId);
   if (!conta) return;
@@ -7255,9 +7531,10 @@ function registrarContaPagar() {
   const categoria = ensureContaCategoria("pagar", document.getElementById("cp-categoria").value.trim());
   const forma = ensureContaForma("pagar", document.getElementById("cp-forma").value);
   const valor = Number(document.getElementById("cp-valor").value || 0);
+  const dataEmissao = document.getElementById("cp-data-emissao").value;
   const vencimento = document.getElementById("cp-vencimento").value;
-  if (!descricao || !categoria || !valor || !vencimento) {
-    showToast("Preencha descricao, categoria, valor e vencimento.", 3500);
+  if (!descricao || !categoria || !valor || !dataEmissao || !vencimento) {
+    showToast("Preencha descricao, categoria, valor, data de emissao e vencimento.", 3500);
     return;
   }
   contasPagar.push({
@@ -7266,6 +7543,7 @@ function registrarContaPagar() {
     categoria,
     forma,
     valor,
+    dataEmissao,
     vencimento,
     status: "emitida",
     audit: { createdAt: new Date().toISOString(), createdBy: getAuditActor(), updatedAt: new Date().toISOString(), updatedBy: getAuditActor() }
@@ -7273,10 +7551,11 @@ function registrarContaPagar() {
   saveContasPagar();
   renderContaCategoriaOptions();
   renderContaFormaOptions();
-  ["cp-descricao", "cp-valor", "cp-vencimento"].forEach((id) => document.getElementById(id).value = "");
+  ["cp-descricao", "cp-valor", "cp-data-emissao", "cp-vencimento"].forEach((id) => document.getElementById(id).value = "");
   document.getElementById("cp-categoria").value = "fornecedor";
   document.getElementById("cp-forma").value = "boleto";
   toggleContaPagarForm(false);
+  contaPagarStatusTabAtual = "emitida";
   renderContasPagar();
   showToast("Conta a pagar registrada.", 3000);
 }
@@ -7287,9 +7566,10 @@ function registrarContaReceber() {
   const cliente = document.getElementById("cr-cliente").value.trim();
   const forma = ensureContaForma("receber", document.getElementById("cr-forma").value);
   const valor = Number(document.getElementById("cr-valor").value || 0);
+  const dataEmissao = document.getElementById("cr-data-emissao").value;
   const vencimento = document.getElementById("cr-vencimento").value;
-  if (!descricao || !categoria || !cliente || !valor || !vencimento) {
-    showToast("Preencha descricao, categoria, cliente, valor e vencimento.", 3500);
+  if (!descricao || !categoria || !cliente || !valor || !dataEmissao || !vencimento) {
+    showToast("Preencha descricao, categoria, cliente, valor, data de emissao e vencimento.", 3500);
     return;
   }
   contasReceber.push({
@@ -7301,6 +7581,7 @@ function registrarContaReceber() {
     cliente,
     forma,
     valor,
+    dataEmissao,
     vencimento,
     status: "emitida",
     automacao: { whatsapp: false, email: true, ultimoDisparo: "" },
@@ -7310,10 +7591,11 @@ function registrarContaReceber() {
   saveContasReceber();
   renderContaCategoriaOptions();
   renderContaFormaOptions();
-  ["cr-descricao", "cr-cliente", "cr-valor", "cr-vencimento"].forEach((id) => document.getElementById(id).value = "");
+  ["cr-descricao", "cr-cliente", "cr-valor", "cr-data-emissao", "cr-vencimento"].forEach((id) => document.getElementById(id).value = "");
   document.getElementById("cr-categoria").value = "faturamento";
   document.getElementById("cr-forma").value = "boleto";
   toggleContaReceberForm(false);
+  contaReceberStatusTabAtual = "emitida";
   renderContasReceber();
   showToast("Conta a receber registrada.", 3000);
 }
@@ -7343,6 +7625,172 @@ function clonarContaPagar(contaId) {
   document.getElementById("cp-valor").value = conta.valor || "";
   document.getElementById("cp-vencimento").value = "";
   showToast(`Conta a pagar ${conta.id} clonada. Ajuste vencimento e demais dados antes de registrar.`, 3500);
+}
+
+/* ── Contas a Pagar: Checkbox, Bulk Actions, Menu "...", Detalhe ── */
+var _selectedContaPagarIds = new Set();
+var _cpDetalheId = null;
+var _cpDetalheEditing = false;
+
+function toggleSelectAllContasPagar() {
+  const checked = document.getElementById("cp-select-all").checked;
+  document.querySelectorAll(".cp-check").forEach(cb => { cb.checked = checked; });
+  atualizarSelecaoContasPagar();
+}
+
+function atualizarSelecaoContasPagar() {
+  _selectedContaPagarIds.clear();
+  document.querySelectorAll(".cp-check:checked").forEach(cb => { _selectedContaPagarIds.add(cb.value); });
+  const count = _selectedContaPagarIds.size;
+  const bar = document.getElementById("cp-bulk-actions");
+  if (bar) {
+    bar.classList.toggle("hidden", count === 0);
+    if (count > 0) bar.style.display = "flex";
+    else bar.style.display = "";
+  }
+  const countEl = document.getElementById("cp-bulk-count");
+  if (countEl) countEl.textContent = `${count} conta(s) selecionada(s)`;
+  const selectAll = document.getElementById("cp-select-all");
+  if (selectAll) {
+    const total = document.querySelectorAll(".cp-check").length;
+    selectAll.checked = count > 0 && count === total;
+    selectAll.indeterminate = count > 0 && count < total;
+  }
+}
+
+function bulkBaixarContasPagar() {
+  if (!_selectedContaPagarIds.size) return;
+  const dataBaixa = promptDataBaixa("Informe a data da baixa (AAAA-MM-DD):", new Date().toISOString().slice(0, 10));
+  if (!dataBaixa) return;
+  let count = 0;
+  _selectedContaPagarIds.forEach(id => {
+    const conta = contasPagar.find(c => c.id === id);
+    if (conta && conta.status !== "paga") {
+      conta.status = "paga";
+      conta.pagaEm = `${dataBaixa}T12:00:00`;
+      conta.audit = { ...(conta.audit || {}), updatedAt: new Date().toISOString(), updatedBy: getAuditActor(), baixaManualAt: conta.pagaEm };
+      count++;
+    }
+  });
+  saveContasPagar();
+  _selectedContaPagarIds.clear();
+  renderContasPagar();
+  showToast(`${count} conta(s) a pagar baixada(s).`, 3000);
+}
+
+function bulkExcluirContasPagar() {
+  if (!_selectedContaPagarIds.size) return;
+  if (!confirm(`Excluir ${_selectedContaPagarIds.size} conta(s) a pagar selecionada(s)?`)) return;
+  contasPagar = contasPagar.filter(c => !_selectedContaPagarIds.has(c.id));
+  saveContasPagar();
+  _selectedContaPagarIds.clear();
+  renderContasPagar();
+  showToast("Contas excluidas.", 3000);
+}
+
+function toggleCpMenu(contaId, event) {
+  if (event) event.stopPropagation();
+  closeCpMenus();
+  closeCrMenus();
+  const menu = document.getElementById(`cp-menu-${contaId}`);
+  if (!menu) return;
+  menu.style.position = "fixed";
+  menu.style.left = "auto";
+  menu.style.top = "auto";
+  if (event) {
+    const rect = event.target.getBoundingClientRect();
+    menu.style.left = rect.left + "px";
+    menu.style.top = (rect.bottom + 4) + "px";
+  }
+  menu.classList.remove("hidden");
+}
+
+function closeCpMenus() {
+  document.querySelectorAll('[id^="cp-menu-"]').forEach(el => el.classList.add("hidden"));
+}
+
+function toggleCpMenuHeader(event) {
+  if (event) event.stopPropagation();
+}
+
+document.addEventListener("click", function() { closeCpMenus(); closeCrMenus(); });
+
+function abrirDetalheCp(contaId) {
+  const conta = contasPagar.find(c => c.id === contaId);
+  if (!conta) return;
+  _cpDetalheId = contaId;
+  _cpDetalheEditing = false;
+  const modal = document.getElementById("cp-detalhe-modal");
+  const body = document.getElementById("cp-detalhe-body");
+  const actions = document.getElementById("cp-detalhe-actions");
+  const editBtn = document.getElementById("cp-detalhe-edit-btn");
+  if (editBtn) editBtn.textContent = "Editar";
+  if (actions) actions.classList.add("hidden");
+  const statusMeta = getContaPagarStatusMeta(conta);
+  body.innerHTML = `
+    <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Descricao</label><div id="cp-det-descricao" class="cp-det-field" style="padding:.4rem 0;font-size:.92rem">${esc(conta.descricao)}</div></div>
+    <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Categoria</label><div id="cp-det-categoria" class="cp-det-field" style="padding:.4rem 0;font-size:.92rem">${esc(formatCategoriaLabel(conta.categoria))}</div></div>
+    <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Forma</label><div id="cp-det-forma" class="cp-det-field" style="padding:.4rem 0;font-size:.92rem">${esc(conta.forma)}</div></div>
+    <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Valor</label><div id="cp-det-valor" class="cp-det-field" style="padding:.4rem 0;font-size:.92rem">${brl.format(conta.valor || 0)}</div></div>
+    <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Data de Emissao</label><div id="cp-det-dataEmissao" class="cp-det-field" style="padding:.4rem 0;font-size:.92rem">${esc(conta.dataEmissao || "-")}</div></div>
+    <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Vencimento</label><div id="cp-det-vencimento" class="cp-det-field" style="padding:.4rem 0;font-size:.92rem">${esc(conta.vencimento)}</div></div>
+    <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Status</label><div style="padding:.4rem 0"><span class="badge ${statusMeta.className}">${esc(statusMeta.label)}</span></div></div>
+    <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Auditoria</label><div style="padding:.4rem 0;font-size:.82rem;color:var(--mut)">${esc(formatAuditStamp(conta.audit, conta.pagaEm, conta.audit?.updatedBy))}</div></div>
+  `;
+  modal.classList.remove("hidden");
+}
+
+function fecharDetalheCp() {
+  document.getElementById("cp-detalhe-modal").classList.add("hidden");
+  _cpDetalheId = null;
+  _cpDetalheEditing = false;
+}
+
+function toggleEditCpDetalhe() {
+  const conta = contasPagar.find(c => c.id === _cpDetalheId);
+  if (!conta) return;
+  _cpDetalheEditing = !_cpDetalheEditing;
+  const editBtn = document.getElementById("cp-detalhe-edit-btn");
+  const actions = document.getElementById("cp-detalhe-actions");
+  if (_cpDetalheEditing) {
+    editBtn.textContent = "Cancelar Edicao";
+    actions.classList.remove("hidden");
+    const body = document.getElementById("cp-detalhe-body");
+    body.innerHTML = `
+      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Descricao</label><input type="text" id="cp-edit-descricao" value="${esc(conta.descricao)}"></div>
+      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Categoria</label><select id="cp-edit-categoria"></select></div>
+      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Forma</label><select id="cp-edit-forma"></select></div>
+      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Valor</label><input type="number" id="cp-edit-valor" min="0" step="0.01" value="${conta.valor || 0}"></div>
+      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Data de Emissao</label><input type="date" id="cp-edit-dataEmissao" value="${conta.dataEmissao || ""}"></div>
+      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Vencimento</label><input type="date" id="cp-edit-vencimento" value="${conta.vencimento || ""}"></div>
+      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Status</label><div style="padding:.4rem 0"><span class="badge ${getContaPagarStatusMeta(conta).className}">${esc(getContaPagarStatusMeta(conta).label)}</span></div></div>
+      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Auditoria</label><div style="padding:.4rem 0;font-size:.82rem;color:var(--mut)">${esc(formatAuditStamp(conta.audit, conta.pagaEm, conta.audit?.updatedBy))}</div></div>
+    `;
+    renderContaCategoriaOptions();
+    renderContaFormaOptions();
+    const catEl = document.getElementById("cp-edit-categoria");
+    const formaEl = document.getElementById("cp-edit-forma");
+    if (catEl) catEl.innerHTML = contaPagarCategorias.map(c => `<option value="${c}" ${c === conta.categoria ? "selected" : ""}>${formatCategoriaLabel(c)}</option>`).join("");
+    if (formaEl) formaEl.innerHTML = contaPagarFormas.map(f => `<option value="${f}" ${f === conta.forma ? "selected" : ""}>${f}</option>`).join("");
+  } else {
+    abrirDetalheCp(_cpDetalheId);
+  }
+}
+
+function salvarEditCpDetalhe() {
+  const conta = contasPagar.find(c => c.id === _cpDetalheId);
+  if (!conta) return;
+  conta.descricao = document.getElementById("cp-edit-descricao").value.trim() || conta.descricao;
+  conta.categoria = document.getElementById("cp-edit-categoria").value || conta.categoria;
+  conta.forma = document.getElementById("cp-edit-forma").value || conta.forma;
+  conta.valor = Number(document.getElementById("cp-edit-valor").value) || conta.valor;
+  conta.dataEmissao = document.getElementById("cp-edit-dataEmissao").value || conta.dataEmissao;
+  conta.vencimento = document.getElementById("cp-edit-vencimento").value || conta.vencimento;
+  conta.audit = { ...(conta.audit || {}), updatedAt: new Date().toISOString(), updatedBy: getAuditActor() };
+  saveContasPagar();
+  renderContasPagar();
+  abrirDetalheCp(_cpDetalheId);
+  showToast("Conta a pagar atualizada.", 3000);
 }
 
 function imprimirRelatorioContasPagar() {
@@ -7488,6 +7936,16 @@ function parseQuantidadeBaseFromText(text, unidadeBase) {
     const mlMatch = normalized.match(/(\d+(?:\.\d+)?)\s*ml\b/);
     if (mlMatch) return Math.round(Number(mlMatch[1]));
   }
+  if (unidadeBase === "KG") {
+    const kgMatch = normalized.match(/(\d+(?:\.\d+)?)\s*kg\b/);
+    if (kgMatch) return Number(kgMatch[1]);
+  }
+  if (unidadeBase === "LT") {
+    const ltMatch = normalized.match(/(\d+(?:\.\d+)?)\s*l\b/);
+    if (ltMatch) return Number(ltMatch[1]);
+  }
+  const numMatch = normalized.match(/(\d+)\s*(un|cx|dz|pct|fd|bd|pt|sc|rs|rl|fr|tb|gf|la|mç)\b/i);
+  if (numMatch) return Number(numMatch[1]);
   return 0;
 }
 
@@ -8767,18 +9225,62 @@ async function prepararIntegracaoErpEstoqueIntel() {
   }
 }
 
+function formatUnidadeLabel(sigla) {
+  const map = { "UN":"Unidade","DZ":"Duzia","g":"Grama","KG":"Quilograma","ml":"Mililitro","LT":"Litro","GL":"Galao","CX":"Caixa","PCT":"Pacote","FD":"Fardo","BD":"Bandeja","PT":"Pote","SC":"Sache/Saco","MÇ":"Maco","RS":"Resma","RL":"Rolo","FR":"Frasco","TB":"Tubo","GF":"Garrafa","LA":"Lata" };
+  return map[sigla] || sigla;
+}
+
+function atualizarLabelQtdBaseEmb() {
+  const sel = document.getElementById("ei-emb-produto");
+  const label = document.getElementById("ei-emb-qtd-label");
+  if (!sel || !label) return;
+  const produto = estoqueIntelProdutos.find(p => p.id === sel.value);
+  const un = produto ? produto.unidade_base : "g";
+  label.textContent = `Quantidade Base (${un})`;
+}
+
 function registrarProdutoEstoqueIntel() {
   const nome = (document.getElementById("ei-produto-nome")?.value || "").trim();
-  const unidade_base = document.getElementById("ei-produto-unidade")?.value || "g";
+  const unidade_base = document.getElementById("ei-produto-unidade")?.value || "UN";
+  const sku = (document.getElementById("ei-produto-sku")?.value || "").trim();
+  const ncm = (document.getElementById("ei-produto-ncm")?.value || "").trim();
   if (!nome) {
     showToast("Informe o nome do produto.", 3000);
     return;
   }
-  estoqueIntelProdutos.push({ id: genId("PROD"), nome, unidade_base });
+  estoqueIntelProdutos.push({ id: genId("PROD"), nome, unidade_base, sku, ncm });
   saveEstoqueIntelProdutos();
-  document.getElementById("ei-produto-nome").value = "";
+  ["ei-produto-nome", "ei-produto-sku", "ei-produto-ncm"].forEach(id => { const el = document.getElementById(id); if (el) el.value = ""; });
   renderEstoque();
   showToast("Produto salvo no Estoque Intel.", 3000);
+}
+
+function registrarProdutoUnificado() {
+  const nome = (document.getElementById("ei-produto-nome")?.value || "").trim();
+  const unidade_base = document.getElementById("ei-produto-unidade")?.value || "UN";
+  const sku = (document.getElementById("ei-produto-sku")?.value || "").trim();
+  const ncm = (document.getElementById("ei-produto-ncm")?.value || "").trim();
+  const embDescricao = (document.getElementById("ei-emb-descricao")?.value || "").trim();
+  const embQtd = Number(document.getElementById("ei-emb-quantidade")?.value) || 1;
+  const embPreco = Number(document.getElementById("ei-emb-preco-ref")?.value) || 0;
+  if (!nome) { showToast("Informe o nome do produto.", 3000); return; }
+  const prodId = genId("PROD");
+  estoqueIntelProdutos.push({ id: prodId, nome, unidade_base, sku, ncm });
+  saveEstoqueIntelProdutos();
+  if (embDescricao || embPreco) {
+    estoqueIntelEmbalagens.push({
+      id: genId("EMB"),
+      produto_id: prodId,
+      descricao: embDescricao || nome,
+      codigo_barras: sku,
+      quantidade_base: embQtd,
+      preco_referencia: embPreco
+    });
+    saveEstoqueIntelEmbalagens();
+  }
+  ["ei-produto-nome", "ei-produto-sku", "ei-produto-ncm", "ei-emb-descricao", "ei-emb-quantidade", "ei-emb-preco-ref"].forEach(id => { const el = document.getElementById(id); if (el) el.value = ""; });
+  renderEstoque();
+  showToast("Produto" + (embDescricao || embPreco ? " e embalagem" : "") + " cadastrado.", 3000);
 }
 
 function getEstoqueIntelProdutoDependencias(produtoId) {
@@ -9132,6 +9634,7 @@ function renderPedidos() {
       <td>${esc(clienteNome.length > 30 ? clienteNome.slice(0, 28) + "..." : clienteNome)}</td>
       <td class="font-mono">${esc(clienteCnpj)}</td>
       <td class="nowrap">${esc(p.dataEntrega || p.data)}</td>
+      <td class="nowrap">${esc(p.dataPrevista || p.dataEntrega || "—")}</td>
       <td class="text-right font-mono" style="color:var(--green);font-weight:700">${brl.format(p.valor)}</td>
       <td><span class="badge ${statusMeta.className}">${statusMeta.label}</span></td>
       <td>${integracoes.html}</td>
@@ -9215,11 +9718,15 @@ function editarPedido(pedidoId) {
   pedidoEditId = pedidoId;
   pedidoCloneDraft = {
     contratoId: pedido.contratoId,
-    itens: (pedido.itens || []).map((item) => ({ itemNum: Number(item.itemNum), qtd: Number(item.qtd || 0) })),
+    escola: pedido.escola,
+    cliente: pedido.cliente ? { ...pedido.cliente } : null,
+    itens: (pedido.itens || []).map((item) => ({ itemNum: Number(item.itemNum), descricao: item.descricao || "", sku: item.sku || "", unidade: item.unidade || "UN", qtd: Number(item.qtd || 0), precoUnitario: Number(item.precoUnitario || 0), ncm: item.ncm || "" })),
     data: pedido.dataEntrega || pedido.data || "",
     dataPrevista: pedido.dataPrevista || pedido.dataEntrega || pedido.data || "",
-    status: normalizePedidoStatus(pedido.status)
+    status: normalizePedidoStatus(pedido.status),
+    pagamento: pedido.pagamento ? { ...pedido.pagamento } : null
   };
+  _pedidoManualItens = pedidoCloneDraft.itens.map(i => ({ descricao: i.descricao, sku: i.sku, unidade: i.unidade, qtd: i.qtd, precoUnitario: i.precoUnitario, itemNum: i.itemNum, ncm: i.ncm }));
   novoPedidoManual();
 }
 
@@ -9244,19 +9751,125 @@ function excluirPedidosSelecionados() {
   showToast(`${sel.length} pedido(s) excluído(s).`);
 }
 
-// ===== NOVO PEDIDO MANUAL =====
-function novoPedidoManual() {
-  if (contratos.length === 0) {
-    showToast("Crie um contrato primeiro.", 3000);
-    return;
+// ===== BULK ACTIONS PEDIDOS =====
+async function gerarNFSelecionados() {
+  const sel = [..._selectedPedidoIds];
+  if (sel.length === 0) { showToast("Selecione pedidos para gerar notas fiscais.", 3000); return; }
+  if (!confirm(`Gerar nota fiscal para ${sel.length} pedido(s) selecionado(s)?`)) return;
+  let ok = 0, fail = 0;
+  for (const id of sel) {
+    try { await gerarNotaFiscalPedido(id); ok++; } catch(e) { fail++; console.error("NF falhou para", id, e); }
   }
+  showToast(`Notas fiscais: ${ok} gerada(s)${fail ? ', ' + fail + ' falha(s)' : ''}.`, 4000);
+}
+
+function imprimirPedidosSelecionados() {
+  const sel = [..._selectedPedidoIds];
+  if (sel.length === 0) { showToast("Selecione pedidos para imprimir.", 3000); return; }
+  const empresa = JSON.parse(localStorage.getItem("nexedu.empresa") || "{}");
+  const nomeEmpresa = empresa.nome || empresa.razaoSocial || "Empresa";
+  let pages = '';
+  sel.forEach((id, idx) => {
+    const p = pedidos.find(x => x.id === id);
+    if (!p) return;
+    const c = contratos.find(x => x.id === p.contratoId);
+    const ctrLabel = c ? (c.processo ? 'Proc. ' + c.processo : c.id) : (p.contratoId || '-');
+    const tableRows = (p.itens || []).map((item, i) => {
+      const sub = (item.qtd || 0) * (item.precoUnitario || 0);
+      return '<tr><td style="text-align:center">' + (i+1) + '</td><td>' + (item.descricao || '') + '</td><td style="text-align:center">' + (item.qtd || 0) + '</td><td style="text-align:right">' + brl.format(item.precoUnitario || 0) + '</td><td style="text-align:right;font-weight:700">' + brl.format(sub) + '</td></tr>';
+    }).join("");
+    if (idx > 0) pages += '<div style="page-break-before:always"></div>';
+    pages += '<h1>Pedido — ' + nomeEmpresa + '</h1>' +
+      '<div class="meta">Protocolo: ' + p.id + ' | Data: ' + (p.dataEntrega || p.data) + ' | Contrato: ' + ctrLabel + '</div>' +
+      '<div class="info-grid"><div><div class="label">Escola</div><div class="value">' + (p.escola || '-') + '</div></div>' +
+      '<div><div class="label">Status</div><div class="value">' + (p.status || '-') + '</div></div>' +
+      '<div><div class="label">Valor Total</div><div class="value">' + brl.format(p.valor) + '</div></div>' +
+      '<div><div class="label">Itens</div><div class="value">' + (p.itens||[]).length + '</div></div></div>' +
+      '<table><thead><tr><th>#</th><th>Produto</th><th style="text-align:center">Qtd</th><th style="text-align:right">Preco Unit.</th><th style="text-align:right">Subtotal</th></tr></thead>' +
+      '<tbody>' + tableRows + '</tbody></table>' +
+      '<div class="footer">Total: ' + brl.format(p.valor) + '</div>';
+  });
+  const iframe = document.createElement('iframe');
+  iframe.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:0;height:0';
+  document.body.appendChild(iframe);
+  const doc = iframe.contentDocument || iframe.contentWindow.document;
+  doc.open();
+  doc.write('<!DOCTYPE html><html><head><title>Pedidos Selecionados</title><style>' +
+    'body{font-family:Arial,sans-serif;margin:2rem;color:#333}' +
+    'h1{font-size:18px;margin-bottom:4px}' +
+    '.meta{font-size:12px;color:#666;margin-bottom:20px}' +
+    '.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:20px;font-size:13px}' +
+    '.info-grid .label{color:#666;font-size:11px;text-transform:uppercase}' +
+    '.info-grid .value{font-weight:700}' +
+    'table{width:100%;border-collapse:collapse;font-size:13px}' +
+    'th{background:#f0f0f0;padding:8px;text-align:left;border:1px solid #ddd;font-size:11px;text-transform:uppercase}' +
+    'td{padding:6px 8px;border:1px solid #ddd}' +
+    'tr:nth-child(even){background:#f9f9f9}' +
+    '.footer{margin-top:16px;font-size:13px;font-weight:700;text-align:right}' +
+    '@media print{body{margin:1cm}}</style></head><body>' + pages + '</body></html>');
+  doc.close();
+  iframe.contentWindow.focus();
+  iframe.contentWindow.print();
+  setTimeout(() => document.body.removeChild(iframe), 5000);
+}
+
+function alterarSituacaoSelecionados() {
+  const sel = [..._selectedPedidoIds];
+  if (sel.length === 0) { showToast("Selecione pedidos para alterar situacao.", 3000); return; }
+  const modal = document.getElementById("modal-alterar-situacao-bulk");
+  document.getElementById("situacao-bulk-count").textContent = sel.length + " pedido(s) selecionado(s)";
+  const container = document.getElementById("situacao-bulk-options");
+  container.innerHTML = PEDIDO_STATUS_TABS.map(tab =>
+    '<button class="btn btn-outline btn-sm" style="margin:.3rem" onclick="aplicarSituacaoBulk(\'' + tab.key + '\')">' + tab.label + '</button>'
+  ).join("");
+  modal.classList.remove("hidden");
+}
+
+function aplicarSituacaoBulk(novoStatus) {
+  const sel = [..._selectedPedidoIds];
+  let updated = 0;
+  for (const id of sel) {
+    const p = pedidos.find(x => x.id === id);
+    if (p) { p.status = novoStatus; updated++; }
+  }
+  savePedidos();
+  renderPedidos();
+  document.getElementById("modal-alterar-situacao-bulk").classList.add("hidden");
+  showToast(`${updated} pedido(s) movido(s) para "${getPedidoStatusMeta(novoStatus).label}".`, 3000);
+}
+
+function fecharModalSituacaoBulk() {
+  document.getElementById("modal-alterar-situacao-bulk").classList.add("hidden");
+}
+
+// ===== NOVO PEDIDO MANUAL =====
+var _pedidoManualItens = [];
+var _pedidoSugestoes = [];
+
+function novoPedidoManual() {
+  if (!pedidoEditId) {
+    _pedidoManualItens = [];
+    if (pedidoCloneDraft?.itens?.length) {
+      _pedidoManualItens = pedidoCloneDraft.itens.map(i => ({ descricao: i.descricao || "", sku: i.sku || "", unidade: i.unidade || "UN", qtd: i.qtd || 0, precoUnitario: i.precoUnitario || 0 }));
+    }
+  }
+  const clienteDraft = pedidoCloneDraft?.cliente || {};
 
   let html = `
-    <div style="margin-bottom:1rem">
-      <label style="font-size:.8rem;color:var(--mut);display:block;margin-bottom:.3rem">Contrato</label>
-      <select id="pedido-contrato" style="width:100%" onchange="renderPedidoItens()" ${pedidoEditId ? 'disabled' : ''}>
-        ${contratos.map(c => `<option value="${c.id}">${c.id} — ${esc(c.escola.length > 40 ? c.escola.slice(0, 38) + "..." : c.escola)}</option>`).join("")}
-      </select>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+      <div style="position:relative">
+        <label style="font-size:.8rem;color:var(--mut);display:block;margin-bottom:.3rem">Cliente</label>
+        <input type="text" id="pedido-cliente-busca" placeholder="Buscar cliente cadastrado..." value="${esc(clienteDraft.nome || pedidoCloneDraft?.escola || '')}" oninput="buscarClientePedido()" autocomplete="off" style="width:100%">
+        <div id="pedido-cliente-sugestoes" class="hidden" style="position:absolute;top:100%;left:0;right:0;z-index:1030;background:var(--bg);border:1px solid var(--bdr);border-radius:8px;max-height:180px;overflow-y:auto;box-shadow:0 4px 16px rgba(0,0,0,.35)"></div>
+        <input type="hidden" id="pedido-cliente-id" value="${esc(clienteDraft.id || '')}">
+      </div>
+      <div>
+        <label style="font-size:.8rem;color:var(--mut);display:block;margin-bottom:.3rem">Contrato (opcional)</label>
+        <select id="pedido-contrato" style="width:100%" onchange="carregarItensContratoPedido()" ${pedidoEditId ? 'disabled' : ''}>
+          <option value="">Sem contrato (pedido avulso)</option>
+          ${contratos.map(c => `<option value="${c.id}">${c.id} — ${esc(c.escola.length > 35 ? c.escola.slice(0,33) + "..." : c.escola)}</option>`).join("")}
+        </select>
+      </div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1rem">
       <div><label style="font-size:.8rem;color:var(--mut);display:block;margin-bottom:.3rem">Data do Pedido</label><input type="date" id="pedido-data" value="${esc(pedidoCloneDraft?.data || new Date().toISOString().slice(0,10))}" style="width:100%"></div>
@@ -9264,17 +9877,154 @@ function novoPedidoManual() {
       <div><label style="font-size:.8rem;color:var(--mut);display:block;margin-bottom:.3rem">Status</label><select id="pedido-status" style="width:100%">${PEDIDO_STATUS_TABS.map((tab) => `<option value="${tab.key}" ${String(pedidoCloneDraft?.status || 'em_aberto') === tab.key ? 'selected' : ''}>${tab.label}</option>`).join("")}</select></div>
     </div>
     <div id="pedido-itens-container"></div>
+    <div style="margin-top:.8rem"><button class="btn btn-outline btn-sm" onclick="adicionarItemPedidoManual()">+ Adicionar Produto</button></div>
+    <div style="margin-top:1rem;padding:1rem;border:1px solid var(--bdr);border-radius:10px;background:var(--s1)">
+      <div style="font-size:.8rem;color:var(--mut);text-transform:uppercase;margin-bottom:.6rem">Dados de Pagamento</div>
+      <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.75rem">
+        <div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Forma de Recebimento</label><select id="novo-ped-pag-forma"><option value="boleto" ${(pedidoCloneDraft?.pagamento?.forma||'boleto')==='boleto'?'selected':''}>Boleto</option><option value="pix" ${pedidoCloneDraft?.pagamento?.forma==='pix'?'selected':''}>PIX</option><option value="ted" ${pedidoCloneDraft?.pagamento?.forma==='ted'?'selected':''}>TED</option><option value="dinheiro" ${pedidoCloneDraft?.pagamento?.forma==='dinheiro'?'selected':''}>Dinheiro</option></select></div>
+        <div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Conta Bancaria</label><select id="novo-ped-pag-conta">${getContasBancariasOptions(pedidoCloneDraft?.pagamento?.contaBancaria?.apelido)}</select></div>
+        <div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Prazo</label><select id="novo-ped-pag-prazo" onchange="recalcularVencNovoPedido()"><option value="0" ${pedidoCloneDraft?.pagamento?.condicao==='0'?'selected':''}>A vista</option><option value="15" ${pedidoCloneDraft?.pagamento?.condicao==='15'?'selected':''}>15 dias</option><option value="28" ${(!pedidoCloneDraft?.pagamento?.condicao||pedidoCloneDraft?.pagamento?.condicao==='28')?'selected':''}>28 dias</option><option value="30" ${pedidoCloneDraft?.pagamento?.condicao==='30'?'selected':''}>30 dias</option><option value="45" ${pedidoCloneDraft?.pagamento?.condicao==='45'?'selected':''}>45 dias</option><option value="60" ${pedidoCloneDraft?.pagamento?.condicao==='60'?'selected':''}>60 dias</option><option value="90" ${pedidoCloneDraft?.pagamento?.condicao==='90'?'selected':''}>90 dias</option></select></div>
+        <div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Data de Vencimento</label><input type="date" id="novo-ped-pag-vencimento" value="${pedidoCloneDraft?.pagamento?.vencimento || calcularVencimentoPagamento(new Date().toISOString().slice(0,10), '28')}"></div>
+      </div>
+    </div>
     <div style="margin-top:1rem;display:flex;justify-content:flex-end;gap:.8rem">
       <button class="btn btn-outline" onclick="fecharModalPedido()">Cancelar</button>
       <button class="btn btn-green" onclick="salvarPedidoManual()">${pedidoEditId ? 'Salvar Pedido' : 'Registrar Pedido'}</button>
     </div>`;
 
+  document.querySelector("#modal-pedido h2").textContent = pedidoEditId ? 'Editar Pedido' : 'Novo Pedido';
   document.getElementById("modal-pedido-body").innerHTML = html;
   document.getElementById("modal-pedido").classList.remove("hidden");
   if (pedidoCloneDraft?.contratoId) {
     document.getElementById("pedido-contrato").value = pedidoCloneDraft.contratoId;
   }
-  renderPedidoItens();
+  renderPedidoItensManual();
+}
+
+function buscarClientePedido() {
+  const busca = (document.getElementById("pedido-cliente-busca")?.value || "").toLowerCase().trim();
+  const container = document.getElementById("pedido-cliente-sugestoes");
+  if (!container) return;
+  if (busca.length < 2) { container.classList.add("hidden"); return; }
+  const matches = usuarios.filter(u => (u.nome || "").toLowerCase().includes(busca) || (u.cnpj || "").includes(busca)).slice(0, 8);
+  if (!matches.length) { container.classList.add("hidden"); return; }
+  container.innerHTML = matches.map(u => `<div style="padding:.5rem .8rem;cursor:pointer;font-size:.85rem;border-bottom:1px solid var(--bdr)" onmousedown="selecionarClientePedido('${esc(u.id)}')">${esc(u.nome || "")} <span style="color:var(--mut);font-size:.75rem">${esc(u.cnpj || "")}</span></div>`).join("");
+  container.classList.remove("hidden");
+}
+
+function selecionarClientePedido(clienteId) {
+  const u = usuarios.find(x => x.id === clienteId);
+  if (!u) return;
+  document.getElementById("pedido-cliente-busca").value = u.nome || "";
+  document.getElementById("pedido-cliente-id").value = u.id;
+  document.getElementById("pedido-cliente-sugestoes").classList.add("hidden");
+}
+
+function adicionarItemPedidoManual() {
+  _pedidoManualItens.push({ descricao: "", sku: "", unidade: "UN", qtd: 1, precoUnitario: 0 });
+  renderPedidoItensManual();
+  setTimeout(() => { const inputs = document.querySelectorAll("[id^='ped-item-desc-']"); if (inputs.length) inputs[inputs.length - 1].focus(); }, 100);
+}
+
+function removerItemPedidoManual(idx) {
+  _pedidoManualItens.splice(idx, 1);
+  renderPedidoItensManual();
+}
+
+function renderPedidoItensManual() {
+  const container = document.getElementById("pedido-itens-container");
+  if (!container) return;
+  if (!_pedidoManualItens.length) {
+    container.innerHTML = '<div style="color:var(--mut);font-size:.85rem;padding:.5rem 0">Nenhum item adicionado. Clique em "+ Adicionar Produto" ou selecione um contrato.</div>';
+    return;
+  }
+  let totalGeral = 0;
+  container.innerHTML = `
+    <label style="font-size:.8rem;color:var(--mut);display:block;margin-bottom:.5rem">Itens do Pedido</label>
+    <div class="table-wrap" style="max-height:300px;overflow-y:auto">
+      <table><thead><tr><th>Descricao</th><th>SKU</th><th>Un.</th><th class="text-center">Qtd</th><th class="text-right">Preco Unit.</th><th class="text-right">Total</th><th></th></tr></thead>
+      <tbody>${_pedidoManualItens.map((item, idx) => {
+        const subtotal = (item.qtd || 0) * (item.precoUnitario || 0);
+        totalGeral += subtotal;
+        return `<tr>
+          <td style="position:relative"><input type="text" id="ped-item-desc-${idx}" value="${esc(item.descricao)}" placeholder="Buscar produto..." oninput="buscarProdutoPedido(${idx})" onfocus="buscarProdutoPedido(${idx})" autocomplete="off" style="width:100%;min-width:180px"><div id="ped-prod-sug-${idx}" class="hidden" style="position:absolute;top:100%;left:0;right:0;z-index:1030;background:var(--bg);border:1px solid var(--bdr);border-radius:8px;max-height:150px;overflow-y:auto;box-shadow:0 4px 16px rgba(0,0,0,.35)"></div></td>
+          <td><input type="text" id="ped-item-sku-${idx}" value="${esc(item.sku)}" style="width:80px" readonly></td>
+          <td><input type="text" id="ped-item-un-${idx}" value="${esc(item.unidade)}" style="width:55px;text-align:center" readonly></td>
+          <td class="text-center"><input type="number" id="ped-item-qty-${idx}" value="${item.qtd || 0}" min="0" step="any" style="width:70px;text-align:center" onchange="atualizarItemPedidoManual(${idx})"></td>
+          <td class="text-right"><input type="number" id="ped-item-preco-${idx}" value="${item.precoUnitario || 0}" min="0" step="0.01" style="width:90px;text-align:right" onchange="atualizarItemPedidoManual(${idx})"></td>
+          <td class="text-right font-mono" style="color:var(--green);font-weight:700">${brl.format(subtotal)}</td>
+          <td><button onclick="removerItemPedidoManual(${idx})" style="background:none;border:none;cursor:pointer;font-size:1rem;color:var(--red,#f44);padding:.2rem" title="Excluir item">🗑️</button></td>
+        </tr>`;
+      }).join("")}</tbody>
+      <tfoot><tr><td colspan="5" style="text-align:right;font-weight:700">TOTAL</td><td class="text-right font-mono" style="color:var(--green);font-weight:800;font-size:1.05rem">${brl.format(totalGeral)}</td><td></td></tr></tfoot>
+      </table>
+    </div>`;
+}
+
+function buscarProdutoPedido(idx) {
+  const input = document.getElementById(`ped-item-desc-${idx}`);
+  const container = document.getElementById(`ped-prod-sug-${idx}`);
+  if (!input || !container) return;
+  const busca = (input.value || "").toLowerCase().trim();
+  if (busca.length < 1) { container.classList.add("hidden"); return; }
+  const matches = estoqueIntelProdutos.filter(p => (p.nome || "").toLowerCase().includes(busca) || (p.id || "").toLowerCase().includes(busca)).slice(0, 8);
+  // Also search embalagens for SKU/description
+  const embMatches = estoqueIntelEmbalagens.filter(e => (e.descricao || "").toLowerCase().includes(busca) || (e.codigo_barras || "").includes(busca)).slice(0, 4);
+  if (!matches.length && !embMatches.length) { container.classList.add("hidden"); return; }
+  let html = matches.map(p => {
+    const embs = estoqueIntelEmbalagens.filter(e => e.produto_id === p.id);
+    const precoRef = embs.length ? embs[0].preco_referencia || 0 : 0;
+    return `<div style="padding:.45rem .8rem;cursor:pointer;font-size:.82rem;border-bottom:1px solid var(--bdr)" onmousedown="selecionarProdutoPedido(${idx},'${esc(p.id)}')"><strong>${esc(p.nome)}</strong> <span class="badge badge-blue" style="font-size:.7rem">${esc(p.unidade_base)}</span>${precoRef ? ' <span style="color:var(--green);font-size:.75rem">' + brl.format(precoRef) + '</span>' : ''}</div>`;
+  }).join("");
+  container.innerHTML = html;
+  container.classList.remove("hidden");
+}
+
+function selecionarProdutoPedido(idx, produtoId) {
+  const produto = estoqueIntelProdutos.find(p => p.id === produtoId);
+  if (!produto) return;
+  const embs = estoqueIntelEmbalagens.filter(e => e.produto_id === produtoId);
+  const precoRef = embs.length ? embs[0].preco_referencia || 0 : 0;
+  const sku = produto.sku || (embs.length ? embs[0].codigo_barras : "") || produtoId;
+  const ncm = produto.ncm || "";
+  _pedidoManualItens[idx] = { descricao: produto.nome, sku, unidade: produto.unidade_base || "UN", qtd: _pedidoManualItens[idx]?.qtd || 1, precoUnitario: precoRef, ncm };
+  renderPedidoItensManual();
+  const sugContainer = document.getElementById(`ped-prod-sug-${idx}`);
+  if (sugContainer) sugContainer.classList.add("hidden");
+}
+
+function atualizarItemPedidoManual(idx) {
+  const qty = parseFloat(document.getElementById(`ped-item-qty-${idx}`)?.value) || 0;
+  const preco = parseFloat(document.getElementById(`ped-item-preco-${idx}`)?.value) || 0;
+  if (_pedidoManualItens[idx]) {
+    _pedidoManualItens[idx].qtd = qty;
+    _pedidoManualItens[idx].precoUnitario = preco;
+  }
+  renderPedidoItensManual();
+}
+
+function recalcularVencNovoPedido() {
+  const prazo = document.getElementById("novo-ped-pag-prazo")?.value || "28";
+  const dataPedido = document.getElementById("pedido-data")?.value || new Date().toISOString().slice(0, 10);
+  const el = document.getElementById("novo-ped-pag-vencimento");
+  if (el) el.value = calcularVencimentoPagamento(dataPedido, prazo);
+}
+
+function carregarItensContratoPedido() {
+  const contratoId = document.getElementById("pedido-contrato")?.value;
+  if (!contratoId) return;
+  const c = contratos.find(x => x.id === contratoId);
+  if (!c) return;
+  ensureContratoItensMetadata(c);
+  _pedidoManualItens = c.itens.filter(i => (i.qtdContratada - (i.qtdEntregue || 0)) > 0).map(i => ({
+    descricao: i.descricao, sku: i.sku || "", unidade: i.unidade || "UN", qtd: 0, precoUnitario: i.precoUnitario, itemNum: i.num
+  }));
+  // Also fill client from contract
+  const snapshot = getClienteFiscalSnapshotDoContrato(contratoId);
+  if (snapshot?.nome) {
+    document.getElementById("pedido-cliente-busca").value = snapshot.nome;
+  }
+  renderPedidoItensManual();
 }
 
 function renderPedidoItens() {
@@ -9311,28 +10061,24 @@ function renderPedidoItens() {
 
 function salvarPedidoManual() {
   const editingId = pedidoEditId;
-  const contratoId = document.getElementById("pedido-contrato").value;
-  const c = contratos.find(x => x.id === contratoId);
-  if (!c) return;
-  ensureContratoItensMetadata(c);
+  const contratoId = document.getElementById("pedido-contrato")?.value || "";
+  const c = contratoId ? contratos.find(x => x.id === contratoId) : null;
+  if (c) ensureContratoItensMetadata(c);
   const dataPedido = document.getElementById("pedido-data")?.value || new Date().toISOString().slice(0, 10);
   const dataPrevista = document.getElementById("pedido-data-prevista")?.value || dataPedido;
   const statusPedido = normalizePedidoStatus(document.getElementById("pedido-status")?.value || "em_aberto");
 
-  const itens = [];
-  let valor = 0;
-  document.querySelectorAll("[id^='ped-qty-']").forEach(input => {
-    const qty = parseFloat(input.value) || 0;
-    if (qty > 0) {
-      const itemNum = parseInt(input.dataset.itemNum);
-      const desc = input.dataset.desc;
-      const item = c.itens.find(i => i.num === itemNum);
-      if (item) {
-        itens.push({ itemNum, descricao: desc, qtd: qty, precoUnitario: item.precoUnitario, sku: item.sku || '', unidade: item.unidade || 'UN', ncm: item.ncm || '' });
-        valor += qty * item.precoUnitario;
-      }
-    }
-  });
+  // Collect items from _pedidoManualItens
+  const itens = _pedidoManualItens.filter(i => i.descricao && i.qtd > 0).map((i, idx) => ({
+    itemNum: i.itemNum || (idx + 1),
+    descricao: i.descricao,
+    qtd: Number(i.qtd) || 0,
+    precoUnitario: Number(i.precoUnitario) || 0,
+    sku: i.sku || "",
+    unidade: i.unidade || "UN",
+    ncm: i.ncm || ""
+  }));
+  let valor = itens.reduce((sum, i) => sum + i.qtd * i.precoUnitario, 0);
 
   if (itens.length === 0) {
     showToast("Preencha pelo menos um item.", 3000);
@@ -9342,25 +10088,60 @@ function salvarPedidoManual() {
   const now = new Date();
   const id = `PED-${now.getFullYear()}${String(now.getMonth()+1).padStart(2,"0")}${String(now.getDate()).padStart(2,"0")}-${String(Math.floor(Math.random()*9999)).padStart(4,"0")}`;
 
-  // Get linked client fiscal data from the contract snapshot first
-  const clienteSnapshot = getClienteFiscalSnapshotDoContrato(contratoId) || buildClienteFiscalSnapshot(null, c.escola || "");
-  const escolaNomeManual = clienteSnapshot.nome || c.escola;
+  // Resolve client: from search or contract
+  const clienteId = document.getElementById("pedido-cliente-id")?.value || "";
+  const clienteNomeBusca = document.getElementById("pedido-cliente-busca")?.value?.trim() || "";
+  const usuario = clienteId ? usuarios.find(u => u.id === clienteId) : null;
+  let clientePayload;
+  if (usuario) {
+    clientePayload = {
+      id: usuario.id,
+      nome: usuario.nome || clienteNomeBusca,
+      cnpj: usuario.cnpj || "",
+      ie: usuario.ie || "ISENTO",
+      email: usuario.email || "",
+      telefone: usuario.telefone || "",
+      logradouro: usuario.logradouro || "",
+      numero: usuario.numero || "",
+      complemento: usuario.complemento || "",
+      bairro: usuario.bairro || "",
+      cep: usuario.cep || "",
+      cidade: usuario.municipio || "",
+      uf: usuario.uf || "MG",
+      indicador_contribuinte: usuario.contribuinte_icms || "9"
+    };
+  } else if (c) {
+    const snapshot = getClienteFiscalSnapshotDoContrato(contratoId) || buildClienteFiscalSnapshot(null, c.escola || clienteNomeBusca);
+    clientePayload = { ...buildClienteFiscalSnapshot(null, clienteNomeBusca || c.escola), ...snapshot, nome: clienteNomeBusca || snapshot.nome || c.escola };
+  } else {
+    clientePayload = buildClienteFiscalSnapshot(null, clienteNomeBusca || "Cliente Avulso");
+    clientePayload.nome = clienteNomeBusca || "Cliente Avulso";
+  }
+  const escolaNome = clientePayload.nome;
 
-  const clientePayload = {
-    ...buildClienteFiscalSnapshot(null, escolaNomeManual),
-    ...clienteSnapshot,
-    nome: escolaNomeManual
+  // Coletar dados de pagamento do formulário
+  const pagForma = document.getElementById("novo-ped-pag-forma")?.value || "boleto";
+  const pagCondicao = document.getElementById("novo-ped-pag-prazo")?.value || "28";
+  const pagVencimento = document.getElementById("novo-ped-pag-vencimento")?.value || calcularVencimentoPagamento(dataPedido, pagCondicao);
+  const contaPadrao = getConfiguredDefaultBankAccount();
+  const pagamento = {
+    forma: pagForma,
+    contaBancaria: contaPadrao ? { banco: contaPadrao.banco, agencia: contaPadrao.agencia, conta: contaPadrao.conta, pix: contaPadrao.pix, apelido: contaPadrao.apelido, id: contaPadrao.id } : null,
+    condicao: pagCondicao,
+    vencimento: pagVencimento
   };
 
   if (editingId) {
     const pedido = pedidos.find(x => x.id === editingId);
     if (!pedido) return;
-    (pedido.itens || []).forEach(pi => {
-      const item = c.itens.find(ci => ci.num === pi.itemNum || ci.descricao === pi.descricao);
-      if (item && pedido.saldoDeduzido) item.qtdEntregue = Math.max(0, Number(item.qtdEntregue || 0) - Number(pi.qtd || 0));
-    });
+    if (c) {
+      (pedido.itens || []).forEach(pi => {
+        const item = c.itens.find(ci => ci.num === pi.itemNum || ci.descricao === pi.descricao);
+        if (item && pedido.saldoDeduzido) item.qtdEntregue = Math.max(0, Number(item.qtdEntregue || 0) - Number(pi.qtd || 0));
+      });
+    }
     pedido.contratoId = contratoId;
-    pedido.escola = escolaNomeManual;
+    pedido.escola = escolaNome;
     pedido.cliente = { ...(pedido.cliente || {}), ...clientePayload };
     pedido.data = dataPedido;
     pedido.dataPrevista = dataPrevista;
@@ -9368,13 +10149,14 @@ function salvarPedidoManual() {
     pedido.itens = itens;
     pedido.valor = valor;
     pedido.status = statusPedido;
-    pedido.obs = getObsContrato(contratoId);
-    pedido.saldoDeduzido = true;
+    pedido.obs = contratoId ? getObsContrato(contratoId) : "";
+    pedido.saldoDeduzido = !!contratoId;
+    pedido.pagamento = pagamento;
   } else {
     pedidos.push({
       id,
       contratoId,
-      escola: escolaNomeManual,
+      escola: escolaNome,
       cliente: clientePayload,
       data: dataPedido,
       dataPrevista,
@@ -9382,8 +10164,9 @@ function salvarPedidoManual() {
       itens,
       valor,
       status: statusPedido,
-      obs: getObsContrato(contratoId),
-      saldoDeduzido: true,
+      obs: contratoId ? getObsContrato(contratoId) : "",
+      saldoDeduzido: !!contratoId,
+      pagamento,
       fiscal: {
         notaFiscalId: "",
         status: "nao_emitida",
@@ -9392,20 +10175,68 @@ function salvarPedidoManual() {
     });
   }
 
-  // Deduzir saldo do contrato imediatamente ao criar pedido
-  itens.forEach(pi => {
-    const item = c.itens.find(ci => ci.num === pi.itemNum || ci.descricao === pi.descricao);
-    if (item) {
-      const saldo = item.qtdContratada - item.qtdEntregue;
-      item.qtdEntregue += Math.min(pi.qtd, saldo);
-    }
-  });
-  saveContratos();
+  // Deduzir saldo do contrato (apenas se vinculado a contrato)
+  if (c) {
+    itens.forEach(pi => {
+      const item = c.itens.find(ci => ci.num === pi.itemNum || ci.descricao === pi.descricao);
+      if (item) {
+        const saldo = item.qtdContratada - item.qtdEntregue;
+        item.qtdEntregue += Math.min(pi.qtd, saldo);
+      }
+    });
+    saveContratos();
+  }
 
   savePedidos();
   fecharModalPedido();
   renderAll();
   showToast(editingId ? `Pedido ${editingId} atualizado.` : `Pedido ${id} registrado! Saldo do contrato atualizado.`);
+}
+
+/* ── Pedido: Dados de Pagamento ── */
+function calcularVencimentoPagamento(dataPedido, prazoDias) {
+  const d = dataPedido ? new Date(dataPedido + "T12:00:00") : new Date();
+  d.setDate(d.getDate() + Number(prazoDias || 28));
+  return d.toISOString().split("T")[0];
+}
+
+function recalcularVencimentoPedido(pedidoId) {
+  const p = pedidos.find(x => x.id === pedidoId);
+  if (!p) return;
+  const prazo = document.getElementById("pag-prazo-" + pedidoId)?.value || "28";
+  const venc = calcularVencimentoPagamento(p.data || p.dataEntrega, prazo);
+  const el = document.getElementById("pag-vencimento-" + pedidoId);
+  if (el) el.value = venc;
+}
+
+function getContasBancariasOptions(selectedApelido) {
+  const contaPadrao = getConfiguredDefaultBankAccount();
+  if (!contaPadrao) return '<option value="">Nenhuma conta configurada</option>';
+  const contas = [contaPadrao];
+  return contas.map(c => {
+    const label = (c.apelido || c.banco || "Conta") + " — Ag " + (c.agencia || "") + " Cc " + (c.conta || "");
+    const sel = (selectedApelido && c.apelido === selectedApelido) || (!selectedApelido) ? " selected" : "";
+    return '<option value="' + esc(c.id || c.apelido || "") + '"' + sel + '>' + esc(label) + '</option>';
+  }).join("");
+}
+
+function salvarPedidoPagamento(pedidoId) {
+  const p = pedidos.find(x => x.id === pedidoId);
+  if (!p) return;
+  const forma = document.getElementById("pag-forma-" + pedidoId)?.value || "boleto";
+  const contaId = document.getElementById("pag-conta-" + pedidoId)?.value || "";
+  const condicao = document.getElementById("pag-prazo-" + pedidoId)?.value || "28";
+  const vencimento = document.getElementById("pag-vencimento-" + pedidoId)?.value || "";
+  const contaPadrao = getConfiguredDefaultBankAccount();
+  p.pagamento = {
+    forma,
+    contaBancaria: contaPadrao ? { banco: contaPadrao.banco, agencia: contaPadrao.agencia, conta: contaPadrao.conta, pix: contaPadrao.pix, apelido: contaPadrao.apelido, id: contaPadrao.id } : null,
+    condicao,
+    vencimento
+  };
+  savePedidos();
+  showToast("Dados de pagamento salvos para " + pedidoId + ".", 3000);
+  verPedidoDetalhe(pedidoId);
 }
 
 function verPedidoDetalhe(pedidoId) {
@@ -9466,6 +10297,21 @@ function verPedidoDetalhe(pedidoId) {
     });
     html += '</tbody></table></div>';
   }
+
+  // ── Seção Dados de Pagamento ──
+  const pag = p.pagamento || {};
+  const pagPreenchido = pag.forma && pag.vencimento;
+  html += '<div style="margin-top:1.2rem;padding:1rem;border:1px solid var(--bdr);border-radius:10px;background:var(--s1)">';
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;margin-bottom:.9rem">';
+  html += '<div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.25rem">Dados de Pagamento</div><div style="font-size:.82rem;color:var(--mut)">Preencha antes de gerar a NF para que vencimento e forma de pagamento fluam automaticamente.</div></div>';
+  html += '<div style="display:flex;gap:.5rem;align-items:center">' + (pagPreenchido ? '<span class="badge badge-green">Pagamento configurado</span>' : '<span class="badge badge-yellow">Pagamento pendente</span>') + '<button class="btn btn-outline btn-sm" onclick="salvarPedidoPagamento(\'' + p.id + '\')">Salvar Pagamento</button></div>';
+  html += '</div>';
+  html += '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.75rem">';
+  html += '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Forma de Recebimento</label><select id="pag-forma-' + p.id + '"><option value="boleto"' + (pag.forma === "boleto" ? " selected" : "") + '>Boleto</option><option value="pix"' + (pag.forma === "pix" ? " selected" : "") + '>PIX</option><option value="ted"' + (pag.forma === "ted" ? " selected" : "") + '>TED</option><option value="dinheiro"' + (pag.forma === "dinheiro" ? " selected" : "") + '>Dinheiro</option></select></div>';
+  html += '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Conta Bancaria</label><select id="pag-conta-' + p.id + '">' + getContasBancariasOptions(pag.contaBancaria?.apelido) + '</select></div>';
+  html += '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Condicao de Pagamento (prazo)</label><select id="pag-prazo-' + p.id + '" onchange="recalcularVencimentoPedido(\'' + p.id + '\')"><option value="0"' + (pag.condicao === "0" ? " selected" : "") + '>A vista</option><option value="15"' + (pag.condicao === "15" ? " selected" : "") + '>15 dias</option><option value="28"' + (!pag.condicao || pag.condicao === "28" ? " selected" : "") + '>28 dias</option><option value="30"' + (pag.condicao === "30" ? " selected" : "") + '>30 dias</option><option value="45"' + (pag.condicao === "45" ? " selected" : "") + '>45 dias</option><option value="60"' + (pag.condicao === "60" ? " selected" : "") + '>60 dias</option><option value="90"' + (pag.condicao === "90" ? " selected" : "") + '>90 dias</option></select></div>';
+  html += '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Data de Vencimento</label><input type="date" id="pag-vencimento-' + p.id + '" value="' + (pag.vencimento || calcularVencimentoPagamento(p.data || p.dataEntrega, pag.condicao || "28")) + '"></div>';
+  html += '</div></div>';
 
   html += '<div style="margin-top:1.2rem;display:flex;justify-content:flex-end;gap:.5rem"><button class="btn btn-outline" onclick="fecharModalPedido()">Fechar</button></div>';
 
@@ -9764,14 +10610,22 @@ function renderContasPagar() {
   empty.classList.add("hidden");
   tbody.innerHTML = filtered.map((item) => `
     <tr>
-      <td>${esc(item.descricao)}</td>
+      <td style="position:relative;white-space:nowrap">
+        <input type="checkbox" class="cp-check" value="${item.id}" onchange="atualizarSelecaoContasPagar()">
+        <button style="font-size:1.1rem;background:none;border:none;cursor:pointer;color:var(--mut);padding:0 .2rem;vertical-align:middle" onclick="toggleCpMenu('${item.id}',event)">⋯</button>
+        <div id="cp-menu-${item.id}" class="hidden" style="position:absolute;top:100%;left:0;z-index:1020;background:var(--bg);border:1px solid var(--bdr);border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.35);min-width:160px;padding:.4rem 0">
+          ${item.status !== "paga" ? `<a style="display:block;padding:.45rem 1rem;font-size:.82rem;cursor:pointer;color:var(--fg)" onclick="registrarBaixaContaPagar('${item.id}');closeCpMenus()">Pagar (Baixar)</a>` : ""}
+          <a style="display:block;padding:.45rem 1rem;font-size:.82rem;cursor:pointer;color:var(--fg)" onclick="clonarContaPagar('${item.id}');closeCpMenus()">Clonar</a>
+          <a style="display:block;padding:.45rem 1rem;font-size:.82rem;cursor:pointer;color:var(--red,#f44)" onclick="excluirContaPagar('${item.id}');closeCpMenus()">Excluir</a>
+        </div>
+      </td>
+      <td style="cursor:pointer;text-decoration:underline;text-decoration-color:var(--mut)" onclick="abrirDetalheCp('${item.id}')">${esc(item.descricao)}</td>
       <td>${esc(formatCategoriaLabel(item.categoria))}</td>
       <td>${esc(item.forma)}</td>
       <td>${esc(item.vencimento)}</td>
       <td class="text-right font-mono">${brl.format(item.valor || 0)}</td>
       <td>${(() => { const status = getContaPagarStatusMeta(item); return `<span class="badge ${status.className}">${esc(status.label)}</span>`; })()}</td>
       <td style="font-size:.76rem;color:var(--mut)">${esc(formatAuditStamp(item.audit, item.pagaEm, item.audit?.updatedBy))}</td>
-      <td style="display:flex;gap:.35rem;flex-wrap:wrap">${item.status === "paga" ? '<span style="color:var(--green);font-size:.78rem;font-weight:700">Baixada</span>' : `<button class="btn btn-sm btn-green" onclick="registrarBaixaContaPagar('${item.id}')">Baixar</button>`}<button class="btn btn-sm btn-outline" onclick="clonarContaPagar('${item.id}')">Clonar</button><button class="btn btn-sm btn-red" onclick="excluirContaPagar('${item.id}')">Excluir</button></td>
     </tr>
   `).join("");
 }
@@ -9808,21 +10662,27 @@ function renderContasReceber() {
   empty.classList.add("hidden");
   tbody.innerHTML = filtered.map((item) => `
     <tr>
-      <td>${esc(item.descricao)}</td>
+      <td style="position:relative;white-space:nowrap">
+        <input type="checkbox" class="cr-check" value="${item.id}" onchange="atualizarSelecaoContasReceber()">
+        <button style="font-size:1.1rem;background:none;border:none;cursor:pointer;color:var(--mut);padding:0 .2rem;vertical-align:middle" onclick="toggleCrMenu('${item.id}',event)">⋯</button>
+        <div id="cr-menu-${item.id}" class="hidden" style="position:absolute;top:100%;left:0;z-index:1020;background:var(--bg);border:1px solid var(--bdr);border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.35);min-width:170px;padding:.4rem 0">
+          ${item.status !== "recebida" ? `<a style="display:block;padding:.45rem 1rem;font-size:.82rem;cursor:pointer;color:var(--fg)" onclick="registrarBaixaRecebimento('${item.id}');closeCrMenus()">Receber (Baixar)</a>` : ""}
+          <a style="display:block;padding:.45rem 1rem;font-size:.82rem;cursor:pointer;color:var(--fg)" onclick="dispararCobrancaAutomatica('${item.id}');closeCrMenus()">Cobrar</a>
+          <a style="display:block;padding:.45rem 1rem;font-size:.82rem;cursor:pointer;color:var(--fg)" onclick="clonarContaReceber('${item.id}');closeCrMenus()">Clonar</a>
+          <a style="display:block;padding:.45rem 1rem;font-size:.82rem;cursor:pointer;color:var(--red,#f44)" onclick="excluirContaReceber('${item.id}');closeCrMenus()">Excluir</a>
+        </div>
+      </td>
+      <td style="cursor:pointer;text-decoration:underline;text-decoration-color:var(--mut)" onclick="abrirDetalheCr('${item.id}')">${esc(item.descricao)}</td>
       <td>${esc(formatCategoriaLabel(item.categoria))}</td>
       <td>${esc(item.cliente || "-")}</td>
       <td>${esc(item.forma)}<div style="font-size:.72rem;color:var(--mut);margin-top:.2rem">${esc(item.integracoes?.bancaria?.provider || item.cobranca?.provider || "-")}</div></td>
-      <td style="font-size:.78rem">${item.automacao?.whatsapp ? "WhatsApp" : "-"} / ${item.automacao?.email ? "E-mail" : "-"}</td>
       <td>${esc(item.vencimento || "")}</td>
       <td class="text-right font-mono">${brl.format(item.valor || 0)}</td>
       <td>${(() => {
-        const bancaria = getContaReceberOperationalBank(item);
         const status = getContaReceberStatusMeta(item);
-        const providerChargeId = item.cobranca?.providerChargeId || item.integracoes?.bancaria?.providerChargeId || "-";
-        return `<span class="badge ${status.className}">${esc(status.label)}</span><div style="font-size:.72rem;color:var(--mut);margin-top:.2rem">${esc(bancaria.detail)}</div><div style="font-size:.72rem;color:var(--mut);margin-top:.2rem">ID: ${esc(providerChargeId)}</div>`;
+        return `<span class="badge ${status.className}">${esc(status.label)}</span>`;
       })()}</td>
       <td style="font-size:.76rem;color:var(--mut)">${esc(formatAuditStamp(item.audit, item.recebidaEm, item.audit?.updatedBy))}</td>
-      <td style="display:flex;gap:.35rem;flex-wrap:wrap"><button class="btn btn-sm btn-outline" onclick="dispararCobrancaAutomatica('${item.id}')">Cobrar</button><button class="btn btn-sm btn-outline" onclick="sincronizarCobrancaProvider('${item.id}')">Sync</button><button class="btn btn-sm btn-green" onclick="registrarBaixaRecebimento('${item.id}')">Baixar</button><button class="btn btn-sm btn-outline" onclick="clonarContaReceber('${item.id}')">Clonar</button><button class="btn btn-sm btn-outline" onclick="atualizarStatusConciliacao('${item.id}','conciliado_api_bancaria')">Conciliar</button><button class="btn btn-sm btn-outline" onclick="atualizarStatusConciliacao('${item.id}','divergencia_api_bancaria')">Diverg.</button><button class="btn btn-sm btn-red" onclick="excluirContaReceber('${item.id}')">Excluir</button></td>
     </tr>
   `).join("");
 }
@@ -10065,7 +10925,17 @@ async function dispararEmailNotaEBoletoAutomatico(notaId, contaId, options = {})
         date: nf.emitidaEm ? formatDateTimeLocal(nf.emitidaEm) : "",
         total: nf.valor || 0,
         items: (nf.itens || []).map((item) => ({ description: item.descricao || "", qty: item.qtd || 0, unitPrice: item.precoUnitario || 0 })),
-        obs: conta ? `Cobranca ${conta.forma || "boleto"} vinculada` : "Nota fiscal emitida"
+        obs: conta ? `Cobranca ${conta.forma || "boleto"} vinculada` : "Nota fiscal emitida",
+        pagamento: conta ? {
+          forma: conta.forma || "boleto",
+          vencimento: conta.vencimento || "",
+          valor: conta.valor || nf.valor || 0,
+          linhaDigitavel: conta.cobranca?.linhaDigitavel || "",
+          pixCopiaECola: conta.cobranca?.pixCopiaECola || "",
+          banco: conta.cobranca?.banco || conta.contaBancaria?.banco || "",
+          agencia: conta.cobranca?.agencia || conta.contaBancaria?.agencia || "",
+          contaNum: conta.cobranca?.conta || conta.contaBancaria?.conta || ""
+        } : null
       })
     });
     const data = await resp.json().catch(() => ({}));
@@ -10412,8 +11282,37 @@ function consultarNotasEntradaApi() {
   }, {
     channel: "sefaz",
     onSuccess: (data) => {
-      item.status = "consulta_backend";
+      item.status = "consulta_concluida";
       item.remote = data.protocol || "";
+      // Processar notas retornadas e dar entrada automatica
+      const docs = data.documentos || data.notas || data.items || [];
+      if (Array.isArray(docs) && docs.length > 0) {
+        let importados = 0;
+        docs.forEach(doc => {
+          const chave = doc.chaveAcesso || doc.chave || doc.key || "";
+          const jaExiste = notasEntrada.some(ne => ne.chave === chave && chave);
+          if (!jaExiste) {
+            notasEntrada.unshift({
+              id: genId("NE"),
+              fornecedor: doc.emitente?.nome || doc.fornecedor || doc.razaoSocial || "Fornecedor",
+              numero: doc.numero || doc.nNF || "",
+              chave: chave,
+              valor: Number(doc.valor || doc.vNF || 0),
+              status: "baixada_automatica",
+              origem: "api_sefaz",
+              emitidaEm: doc.emitidaEm || doc.dhEmi || new Date().toISOString(),
+              createdAt: new Date().toISOString(),
+              cnpjEmitente: doc.emitente?.cnpj || doc.cnpjEmitente || "",
+              itens: doc.itens || []
+            });
+            importados++;
+          }
+        });
+        item.fornecedor = `Consulta API (${importados} nota${importados !== 1 ? "s" : ""} importada${importados !== 1 ? "s" : ""})`;
+        showToast(`${importados} nota(s) de entrada baixada(s) automaticamente.`, 4000);
+      } else {
+        item.fornecedor = "Consulta API (nenhuma nota nova)";
+      }
       saveNotasEntrada();
       renderNotasEntrada();
     },
@@ -10444,7 +11343,7 @@ function renderEstoque() {
   const filtroBase = document.getElementById("ei-filtro-base")?.value || "";
   document.querySelectorAll("[data-ei-section]").forEach((el) => {
     const section = el.getAttribute("data-ei-section");
-    const shouldShowCadastro = estoqueIntelCurrentView === "produtos" && (section === "produtos" || section === "embalagens");
+    const shouldShowCadastro = estoqueIntelCurrentView === "produtos" && section === "produtos";
     el.classList.toggle("hidden", !(shouldShowCadastro || estoqueIntelCurrentView === section));
   });
   ["produtos", "fornecedores", "pedidos", "compra", "notas-entrada", "estoque"].forEach((view) => {
@@ -10462,7 +11361,7 @@ function renderEstoque() {
   const secondaryGrid = document.getElementById("ei-grid-secundario");
   const compraGrid = document.getElementById("ei-grid-compra");
   const kpiGrid = document.getElementById("ei-kpi-grid");
-  if (mainGrid) mainGrid.style.gridTemplateColumns = estoqueIntelCurrentView === "pedidos" ? "1fr" : "1fr 1fr";
+  if (mainGrid) mainGrid.style.gridTemplateColumns = "1fr";
   if (secondaryGrid) secondaryGrid.style.gridTemplateColumns = estoqueIntelCurrentView === "compra" ? "1fr 1fr" : "1.2fr .8fr";
   if (secondaryGrid) secondaryGrid.classList.toggle("hidden", !["estoque", "compra"].includes(estoqueIntelCurrentView));
   if (compraGrid) compraGrid.classList.toggle("hidden", estoqueIntelCurrentView !== "fornecedores");
@@ -10600,9 +11499,12 @@ function renderEstoque() {
       <td class="font-mono">${esc(produto.id)}</td>
       <td>${esc(produto.nome)}</td>
       <td><span class="badge badge-blue">${esc(produto.unidade_base)}</span></td>
+      <td class="font-mono" style="font-size:.78rem">${esc(produto.sku || "—")}</td>
+      <td class="font-mono" style="font-size:.78rem">${esc(produto.ncm || "—")}</td>
+      ${(() => { const emb = estoqueIntelEmbalagens.find(e => e.produto_id === produto.id); return emb ? `<td style="font-size:.82rem">${esc(emb.descricao || "—")}</td><td class="text-right font-mono">${emb.quantidade_base || "—"}</td><td class="text-right font-mono">${emb.preco_referencia ? brl.format(emb.preco_referencia) : "—"}</td>` : '<td style="color:var(--mut);font-size:.78rem">—</td><td class="text-right">—</td><td class="text-right">—</td>'; })()}
       <td class="text-right"><button class="btn btn-outline btn-sm" onclick="excluirProdutoEstoqueIntel('${esc(produto.id)}')">Excluir</button></td>
     </tr>
-  `).join("") : `<tr><td colspan="4" style="color:var(--mut)">Nenhum produto encontrado para o filtro atual.</td></tr>`;
+  `).join("") : `<tr><td colspan="8" style="color:var(--mut)">Nenhum produto encontrado para o filtro atual.</td></tr>`;
 
   embalagensTbody.innerHTML = embalagensFiltradas.length ? embalagensFiltradas.map((emb) => {
     const produto = findEstoqueIntelProduto(emb.produto_id);
@@ -10630,16 +11532,17 @@ function renderEstoque() {
     const podeExcluirDemanda = getEstoqueIntelDemandaExclusaoBloqueios(pedido.id).length === 0;
     return `
       <tr>
-        <td><button class="btn btn-outline btn-sm font-mono" style="padding:.3rem .65rem" onclick="visualizarDemandaEstoqueIntel('${esc(pedido.id)}')">${esc(pedido.id)}</button></td>
+        <td><input type="checkbox" class="demanda-check" value="${esc(pedido.id)}" onchange="atualizarSelecaoDemandas()"${_selectedDemandaIds.has(pedido.id) ? ' checked' : ''}></td>
+        <td><button style="background:none;border:none;padding:0;color:var(--blue);font-weight:700;cursor:pointer;font-family:monospace;font-size:.76rem" onclick="visualizarDemandaEstoqueIntel('${esc(pedido.id)}')">${esc(pedido.id)}</button></td>
         <td><span class="badge ${origemBadge}">${esc(origemLabel)}</span></td>
         <td>${esc(produto?.nome || "-")}${extraItens ? `<br><span style="font-size:.72rem;color:var(--mut)">${extraItens} item(ns)</span>` : ""}</td>
         <td class="text-right font-mono">${Number(totalQuantidade || 0)}</td>
         <td><span class="badge ${reservaStatus.badgeClass}">${esc(reservaStatus.label)}</span><br><span style="font-size:.72rem;color:var(--mut)">${esc(reservaStatus.detail)}</span></td>
         <td>${pedido.data_prevista || pedido.data ? formatDateTimeLocal(pedido.data_prevista || pedido.data) : "-"}</td>
-        <td class="text-right" style="display:flex;justify-content:flex-end;gap:.35rem;flex-wrap:wrap"><button class="btn btn-outline btn-sm" style="padding:.3rem .65rem" onclick="visualizarDemandaEstoqueIntel('${esc(pedido.id)}')">Ver</button><button class="btn btn-outline btn-sm" style="padding:.3rem .65rem" onclick="abrirDemandaNaListaComprasEstoqueIntel('${esc(pedido.id)}')">Comprar</button>${podeExcluirDemanda ? `<button class="btn btn-outline btn-sm" style="padding:.3rem .65rem" onclick="excluirDemandaEstoqueIntel('${esc(pedido.id)}')">Excluir</button>` : ""}</td>
+        <td class="text-right" style="display:flex;justify-content:flex-end;gap:.35rem;flex-wrap:wrap">${reservaStatus.key === "reservada" ? `<button class="btn btn-green btn-sm" style="padding:.3rem .65rem;font-size:.72rem" onclick="baixarReservaEstoqueIntel('${esc(pedido.id)}')">Baixar</button>` : ""}${podeExcluirDemanda ? `<button class="btn btn-outline btn-sm" style="padding:.3rem .65rem;font-size:.72rem" onclick="excluirDemandaEstoqueIntel('${esc(pedido.id)}')">Excluir</button>` : ""}</td>
       </tr>
     `;
-  }).join("") : `<tr><td colspan="7" style="color:var(--mut)">Nenhuma demanda encontrada para o filtro atual.</td></tr>`;
+  }).join("") : `<tr><td colspan="8" style="color:var(--mut)">Nenhuma demanda encontrada para o filtro atual.</td></tr>`;
   const pedidosSyncPendenteCount = document.getElementById("ei-pedidos-sync-pendente-count");
   if (pedidosSyncPendenteCount) pedidosSyncPendenteCount.textContent = String(pedidosReaisPendentes.length);
   pedidosSyncPendenteTbody.innerHTML = pedidosReaisPendentes.length ? pedidosReaisPendentes.map((item) => `
@@ -10698,7 +11601,7 @@ function renderEstoque() {
           ? "Sugestao inteligente"
           : "Manual";
     const envioLabel = compra.envio?.enviado_em
-      ? `Enviado em ${formatDate(compra.envio.enviado_em)}`
+      ? `Enviado em ${formatDateTimeLocal(compra.envio.enviado_em)}`
       : "Aguardando envio";
     return `
       <tr>
@@ -10765,13 +11668,13 @@ function renderGdpDemandasIntel() {
       ? '<span class="badge badge-green">Confirmada</span>'
       : '<span class="badge badge-yellow">Rascunho</span>';
     return '<tr>' +
-      '<td class="font-mono" style="font-size:.76rem">' + esc(d.id) + '</td>' +
+      '<td><input type="checkbox" class="demanda-check" value="' + esc(d.id) + '" onchange="atualizarSelecaoDemandas()"' + (_selectedDemandaIds.has(d.id) ? ' checked' : '') + '></td>' +
+      '<td><button onclick="gdpVerDemanda(\'' + d.id + '\')" style="background:none;border:none;padding:0;color:var(--blue);font-weight:700;cursor:pointer;font-family:monospace;font-size:.76rem">' + esc(d.id) + '</button></td>' +
       '<td>' + esc(d.escola) + '</td>' +
       '<td>' + convertidos + ' ok' + (semVinculo > 0 ? ', <span style="color:var(--red)">' + semVinculo + ' sem vinculo</span>' : '') + '</td>' +
       '<td class="text-right font-mono">' + brl.format(d.totalEstimado) + '</td>' +
       '<td>' + statusBadge + '</td>' +
       '<td class="text-center" style="white-space:nowrap">' +
-        '<button class="btn btn-outline btn-sm" style="font-size:.72rem;padding:.15rem .4rem" onclick="gdpVerDemanda(\'' + d.id + '\')">Ver</button> ' +
         (d.status === "rascunho" ? '<button class="btn btn-green btn-sm" style="font-size:.72rem;padding:.15rem .4rem" onclick="gdpConfirmarDemanda(\'' + d.id + '\')">Confirmar</button>' : '') +
       '</td></tr>';
   }).join("");
@@ -11344,7 +12247,7 @@ function renderFormUsuario(u, draft = {}) {
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
       <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Nome do Cliente</label><input type="text" id="usr-nome" value="${esc(dataBase?.nome||'')}" style="width:100%"></div>
       <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">CNPJ</label><input type="text" id="usr-cnpj" value="${esc(dataBase?.cnpj||'')}" style="width:100%"></div>
-      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">SRE</label><input type="text" id="usr-sre" value="${esc(dataBase?.sre||'')}" style="width:100%"></div>
+      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Contribuinte ICMS</label><select id="usr-contribuinte-icms" style="width:100%"><option value="9"${(dataBase?.contribuinte_icms||dataBase?.sre||'9')==='9'?' selected':''}>9 - Nao Contribuinte</option><option value="1"${(dataBase?.contribuinte_icms||'')==='1'?' selected':''}>1 - Contribuinte ICMS</option><option value="2"${(dataBase?.contribuinte_icms||'')==='2'?' selected':''}>2 - Contribuinte isento de Inscricao</option></select></div>
       <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Email</label><input type="text" id="usr-email" value="${esc(dataBase?.email||'')}" style="width:100%"></div>
       <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Responsavel</label><input type="text" id="usr-responsavel" value="${esc(dataBase?.responsavel||'')}" style="width:100%"></div>
       <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Telefone</label><input type="text" id="usr-telefone" value="${esc(dataBase?.telefone||'')}" style="width:100%"></div>
@@ -11392,7 +12295,7 @@ function salvarUsuario(editId) {
     nome: nome,
     cnpj: document.getElementById("usr-cnpj").value.trim(),
     municipio: document.getElementById("usr-municipio").value.trim(),
-    sre: document.getElementById("usr-sre").value.trim(),
+    contribuinte_icms: document.getElementById("usr-contribuinte-icms").value,
     responsavel: document.getElementById("usr-responsavel").value.trim(),
     cargo: document.getElementById("usr-cargo").value.trim(),
     email: document.getElementById("usr-email").value.trim(),
@@ -11461,7 +12364,7 @@ function abrirDetalheCliente(id) {
       <div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Cliente</div><div style="font-weight:700;font-size:1.1rem">${esc(cliente.nome || '-')}</div></div>
       <div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">CNPJ</div><div class="font-mono" style="font-weight:700">${esc(cliente.cnpj || '-')}</div></div>
       <div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Municipio</div><div style="font-weight:700">${esc(cliente.municipio || '-')}</div></div>
-      <div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">SRE</div><div style="font-weight:700">${esc(cliente.sre || '-')}</div></div>
+      <div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Contribuinte ICMS</div><div style="font-weight:700">${esc({'1':'1 - Contribuinte ICMS','2':'2 - Contribuinte isento','9':'9 - Nao Contribuinte'}[cliente.contribuinte_icms] || cliente.contribuinte_icms || '-')}</div></div>
       <div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Responsavel</div><div style="font-weight:700">${esc(cliente.responsavel || '-')}</div></div>
       <div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Telefone</div><div style="font-weight:700">${esc(cliente.telefone || '-')}</div></div>
       <div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Email</div><div style="font-weight:700">${esc(cliente.email || '-')}</div></div>
@@ -11612,7 +12515,7 @@ function parseExcelClientes(file) {
           nome: get('Nome', 'nome', 'escola', 'Escola', 'NOME', 'ESCOLA', 'nome_escola', 'Razão Social', 'Razao Social', 'razao_social'),
           cnpj: get('CNPJ / CPF', 'CNPJ/CPF', 'cnpj', 'CNPJ', 'Cnpj', 'cpf_cnpj', 'CPF/CNPJ', 'CPF_CNPJ'),
           municipio: get('Cidade', 'cidade', 'municipio', 'Municipio', 'MUNICIPIO', 'CIDADE', 'município'),
-          sre: get('sre', 'SRE', 'Sre', 'regional', 'Regional', 'REGIONAL'),
+          contribuinte_icms: get('contribuinte_icms', 'Contribuinte ICMS', 'contribuinte', 'CONTRIBUINTE', 'indContribuinte', 'Contrib. ICMS') || '9',
           responsavel: get('Observações do contato', 'responsavel', 'Responsavel', 'RESPONSAVEL', 'contato', 'Contato', 'responsável', 'Responsável'),
           email: get('E-mail', 'e-mail', 'email', 'Email', 'EMAIL', 'E-MAIL', 'E-mail para envio de notas fiscais'),
           telefone: get('Fone', 'fone', 'telefone', 'Telefone', 'TELEFONE', 'Celular', 'celular', 'cel'),
@@ -11666,7 +12569,7 @@ async function parsePdfClientes(file) {
           nome: beforeCnpj || '',
           cnpj: cnpj,
           municipio: '',
-          sre: '',
+          contribuinte_icms: '9',
           responsavel: '',
           email: emailMatch ? emailMatch[0] : '',
           telefone: phoneMatch ? phoneMatch[0] : ''
@@ -11688,7 +12591,7 @@ async function parsePdfClientes(file) {
 function mostrarPreviewClientes() {
   const existingCnpjs = new Set(usuarios.map(u => (u.cnpj || '').replace(/[^\d]/g, '')));
 
-  let html = '<div class="table-wrap" style="max-height:350px;overflow-y:auto"><table style="font-size:.78rem"><thead><tr><th>Nome</th><th>CNPJ</th><th>Município</th><th>SRE</th><th>Endereço</th><th>Email</th><th>Telefone</th><th>Status</th></tr></thead><tbody>';
+  let html = '<div class="table-wrap" style="max-height:350px;overflow-y:auto"><table style="font-size:.78rem"><thead><tr><th>Nome</th><th>CNPJ</th><th>Município</th><th>Contrib. ICMS</th><th>Endereço</th><th>Email</th><th>Telefone</th><th>Status</th></tr></thead><tbody>';
 
   let countNew = 0, countDup = 0, countIncomplete = 0;
 
@@ -11707,7 +12610,7 @@ function mostrarPreviewClientes() {
                   '<span style="color:var(--green);font-size:.65rem">novo</span>';
 
     const endereco = [r.logradouro, r.numero, r.bairro, r.cep].filter(Boolean).join(', ') || '-';
-    html += `<tr style="${rowStyle}"><td>${esc(r.nome)}</td><td>${esc(r.cnpj)}</td><td>${esc(r.municipio)}</td><td>${esc(r.sre)}</td><td style="font-size:.72rem">${esc(endereco)}</td><td>${esc(r.email)}</td><td>${esc(r.telefone)}</td><td>${badge}</td></tr>`;
+    html += `<tr style="${rowStyle}"><td>${esc(r.nome)}</td><td>${esc(r.cnpj)}</td><td>${esc(r.municipio)}</td><td>${esc({'1':'1-Contrib.','2':'2-Isento','9':'9-Nao Contrib.'}[r.contribuinte_icms] || r.contribuinte_icms || '-')}</td><td style="font-size:.72rem">${esc(endereco)}</td><td>${esc(r.email)}</td><td>${esc(r.telefone)}</td><td>${badge}</td></tr>`;
   });
 
   html += '</tbody></table></div>';
@@ -11749,7 +12652,7 @@ function confirmarImportClientes() {
       nome: r.nome,
       cnpj: r.cnpj,
       municipio: r.municipio,
-      sre: r.sre,
+      contribuinte_icms: r.contribuinte_icms || '9',
       responsavel: r.responsavel,
       email: r.email,
       telefone: r.telefone,
@@ -13172,17 +14075,16 @@ function atualizarSelecaoPedidos() {
   const count = _selectedPedidoIds.size;
   const badge = document.getElementById("pedidos-sel-count");
   const btn = document.getElementById("btn-gerar-lista");
+  const bulkBar = document.getElementById("pedidos-bulk-actions");
+  const bulkSummary = document.getElementById("pedidos-bulk-summary");
   if (count > 0) {
-    badge.textContent = count + " protocolo" + (count > 1 ? "s" : "") + " selecionado" + (count > 1 ? "s" : "");
-    badge.style.display = "";
-    btn.disabled = false;
-    btn.style.opacity = "1";
-    btn.title = "Gerar lista de compras dos protocolos selecionados";
+    if (badge) { badge.textContent = count + " protocolo" + (count > 1 ? "s" : "") + " selecionado" + (count > 1 ? "s" : ""); badge.style.display = ""; }
+    if (btn) { btn.disabled = false; btn.style.opacity = "1"; btn.title = "Gerar lista de compras dos protocolos selecionados"; }
+    if (bulkBar) { bulkBar.classList.remove("hidden"); bulkSummary.textContent = count + " pedido(s) selecionado(s)"; }
   } else {
-    badge.style.display = "none";
-    btn.disabled = true;
-    btn.style.opacity = ".5";
-    btn.title = "Selecione ao menos 1 protocolo";
+    if (badge) badge.style.display = "none";
+    if (btn) { btn.disabled = true; btn.style.opacity = ".5"; btn.title = "Selecione ao menos 1 protocolo"; }
+    if (bulkBar) bulkBar.classList.add("hidden");
   }
   // Sync header checkbox
   const allChecks = document.querySelectorAll(".pedido-check");
@@ -13252,6 +14154,214 @@ function filtrarListaCompras() {
 
 function fecharListaCompras() {
   document.getElementById("modal-lista-compras").classList.add("hidden");
+}
+
+function enviarListaAoFornecedor() {
+  if (!_listaComprasData || !_listaComprasData.length) { showToast("Lista vazia.", 3000); return; }
+  // Agrupar por fornecedor
+  const porFornecedor = new Map();
+  _listaComprasData.forEach(item => {
+    const forn = item.fornecedor || "Sem fornecedor";
+    if (!porFornecedor.has(forn)) porFornecedor.set(forn, []);
+    porFornecedor.get(forn).push(item);
+  });
+  const fornecedores = [...porFornecedor.keys()];
+  if (fornecedores.length === 1 && fornecedores[0] === "Sem fornecedor") {
+    showToast("Nenhum fornecedor vinculado aos produtos. Cadastre fornecedores na aba Inteligencia.", 4000);
+    return;
+  }
+  // Para cada fornecedor, gerar pedido de compra
+  let gerados = 0;
+  porFornecedor.forEach((itens, fornNome) => {
+    if (fornNome === "Sem fornecedor") return;
+    const forn = estoqueIntelFornecedores.find(f => (f.nome || f.razaoSocial || "") === fornNome);
+    const pedidoCompra = {
+      id: genId("PC"),
+      fornecedor: fornNome,
+      fornecedorId: forn?.id || "",
+      email: forn?.email || "",
+      itens: itens.map(i => ({ descricao: i.descricao, sku: i.sku, unidade: i.unidade, qtd: i.qtd, precoUnitario: i.precoUnitario || 0 })),
+      valorTotal: itens.reduce((s, i) => s + (i.qtd * (i.precoUnitario || 0)), 0),
+      status: "gerado",
+      criadoEm: new Date().toISOString(),
+      origem: "lista_compras"
+    };
+    estoqueIntelCompras.push(pedidoCompra);
+    gerados++;
+    // Tentar enviar por email se fornecedor tem email
+    if (forn?.email) {
+      fetch("/api/send-order-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          to: forn.email,
+          schoolName: "Lariucci — Pedido de Compra",
+          protocol: pedidoCompra.id,
+          date: new Date().toLocaleDateString("pt-BR"),
+          total: pedidoCompra.valorTotal,
+          items: pedidoCompra.itens.map(i => ({ description: i.descricao, qty: i.qtd, unitPrice: i.precoUnitario })),
+          obs: "Pedido de compra gerado automaticamente"
+        })
+      }).catch(() => {});
+    }
+  });
+  saveEstoqueIntelCompras();
+  renderEstoque();
+  const semFornecedor = porFornecedor.get("Sem fornecedor")?.length || 0;
+  showToast(`${gerados} pedido(s) de compra gerado(s).${semFornecedor ? ` ${semFornecedor} item(ns) sem fornecedor (nao enviados).` : ""}`, 4000);
+}
+
+/* ── Lista de Compras: Gerar a partir de Pedidos e Demandas ── */
+var _listaComprasOrigem = []; // pedidos ou demandas usados na lista
+var _listaComprasModo = "produtos";
+
+function gerarListaComprasDePedidos() {
+  if (_selectedPedidoIds.size === 0) { showToast("Selecione ao menos 1 pedido.", 3000); return; }
+  _listaComprasOrigem = pedidos.filter(p => _selectedPedidoIds.has(p.id));
+  _listaComprasData = consolidarItensParaLista(_listaComprasOrigem);
+  document.getElementById("lista-compras-info").textContent = _selectedPedidoIds.size + " pedido(s) — " + new Date().toLocaleDateString("pt-BR");
+  document.getElementById("modal-lista-compras").classList.remove("hidden");
+  renderListaComprasAtual();
+}
+
+var _selectedDemandaIds = new Set();
+
+function toggleSelectAllDemandas() {
+  const checked = document.getElementById("demandas-select-all")?.checked;
+  document.querySelectorAll(".demanda-check").forEach(cb => { cb.checked = checked; });
+  atualizarSelecaoDemandas();
+}
+
+function atualizarSelecaoDemandas() {
+  _selectedDemandaIds.clear();
+  document.querySelectorAll(".demanda-check:checked").forEach(cb => { _selectedDemandaIds.add(cb.value); });
+  const count = _selectedDemandaIds.size;
+  const bar = document.getElementById("demandas-bulk-actions");
+  const countEl = document.getElementById("demandas-bulk-count");
+  if (bar) { bar.classList.toggle("hidden", count === 0); if (count > 0) bar.style.display = "flex"; else bar.style.display = ""; }
+  if (countEl) countEl.textContent = count + " demanda(s) selecionada(s)";
+  const selectAll = document.getElementById("demandas-select-all");
+  if (selectAll) {
+    const total = document.querySelectorAll(".demanda-check").length;
+    selectAll.checked = count > 0 && count === total;
+    selectAll.indeterminate = count > 0 && count < total;
+  }
+}
+
+function gerarListaComprasDeDemandas() {
+  if (_selectedDemandaIds.size === 0) { showToast("Selecione ao menos 1 demanda.", 3000); return; }
+  // Suporta demandas do estoque intel (estoqueIntelPedidos) E demandas GDP (gdpDemandas)
+  const eiDemandas = estoqueIntelPedidos.filter(d => _selectedDemandaIds.has(d.id));
+  const gdpDems = gdpDemandas.filter(d => _selectedDemandaIds.has(d.id));
+  _listaComprasOrigem = [];
+  // Converter demandas estoque intel
+  eiDemandas.forEach(d => {
+    const itensDemanda = estoqueIntelPedidoItens.filter(pi => pi.pedido_id === d.id);
+    _listaComprasOrigem.push({
+      id: d.id,
+      escola: d.cliente || d.origem || "",
+      dataPrevista: d.data_prevista || d.data || "",
+      itens: itensDemanda.map(pi => {
+        const prod = estoqueIntelProdutos.find(p => p.id === pi.produto_id);
+        const emb = estoqueIntelEmbalagens.find(e => e.produto_id === pi.produto_id);
+        return {
+          descricao: prod?.nome || pi.descricao || "",
+          sku: prod?.sku || emb?.codigo_barras || "",
+          unidade: prod?.unidade_base || "UN",
+          qtd: Number(pi.quantidade_base || 0),
+          precoUnitario: emb?.preco_referencia || 0
+        };
+      })
+    });
+  });
+  // Converter demandas GDP
+  gdpDems.forEach(d => {
+    _listaComprasOrigem.push({
+      id: d.id,
+      escola: d.escola,
+      dataPrevista: d.criadoEm,
+      itens: (d.itens || []).map(i => ({
+        descricao: i.produtoReal || i.descricao || "",
+        sku: i.skuProduto || i.sku || "",
+        unidade: i.unidadeCompra || i.unidade || "UN",
+        qtd: i.qtdConvertida || i.qtd || 0,
+        precoUnitario: i.custoUnitario || i.precoUnitario || 0
+      }))
+    });
+  });
+  _listaComprasData = consolidarItensParaLista(_listaComprasOrigem);
+  document.getElementById("lista-compras-info").textContent = _selectedDemandaIds.size + " demanda(s) — " + new Date().toLocaleDateString("pt-BR");
+  document.getElementById("modal-lista-compras").classList.remove("hidden");
+  renderListaComprasAtual();
+}
+
+function consolidarItensParaLista(origens) {
+  const filtroData = document.getElementById("lista-compras-filtro-data")?.value || "";
+  let filtered = origens;
+  if (filtroData) filtered = filtered.filter(p => (p.dataPrevista || p.dataEntrega || p.data || "") <= filtroData);
+  const consolidado = new Map();
+  for (const p of filtered) {
+    for (const item of (p.itens || [])) {
+      const desc = (item.descricao || "").trim();
+      const sku = (item.sku || "").trim();
+      const key = sku ? sku.toUpperCase() : desc.toLowerCase();
+      if (!key) continue;
+      if (consolidado.has(key)) {
+        const ex = consolidado.get(key);
+        ex.qtd += (item.qtd || 0);
+        ex.valorTotal += (item.qtd || 0) * (item.precoUnitario || 0);
+        if (!ex.protocolos.includes(p.id)) ex.protocolos.push(p.id);
+        if (p.escola && !ex.clientes.includes(p.escola)) ex.clientes.push(p.escola);
+      } else {
+        consolidado.set(key, {
+          descricao: desc, sku, unidade: item.unidade || "UN",
+          qtd: item.qtd || 0,
+          precoUnitario: item.precoUnitario || 0,
+          valorTotal: (item.qtd || 0) * (item.precoUnitario || 0),
+          protocolos: [p.id],
+          clientes: p.escola ? [p.escola] : [],
+          fornecedor: ""
+        });
+      }
+    }
+  }
+  // Tentar associar fornecedor do cadastro de fornecedores
+  consolidado.forEach(item => {
+    const forn = estoqueIntelFornecedores.find(f => (f.produtos || []).some(fp => fp.toLowerCase().includes(item.descricao.toLowerCase())));
+    if (forn) item.fornecedor = forn.nome || forn.razaoSocial || "";
+  });
+  return [...consolidado.values()].sort((a, b) => a.descricao.localeCompare(b.descricao, "pt-BR"));
+}
+
+function renderListaComprasAtual() {
+  const modo = document.getElementById("lista-compras-modo")?.value || "produtos";
+  _listaComprasModo = modo;
+  // Reconsolidar com filtro de data
+  _listaComprasData = consolidarItensParaLista(_listaComprasOrigem);
+  const busca = (document.getElementById("busca-lista-compras")?.value || "").toLowerCase();
+  let itens = busca ? _listaComprasData.filter(i => i.descricao.toLowerCase().includes(busca) || (i.sku || "").toLowerCase().includes(busca)) : _listaComprasData;
+
+  const tbody = document.getElementById("lista-compras-tbody");
+  const thead = tbody.closest("table").querySelector("thead tr");
+
+  if (modo === "clientes-produtos") {
+    thead.innerHTML = '<th>#</th><th>Cliente</th><th>Descricao</th><th>SKU</th><th>Un.</th><th class="text-right">Qtd</th><th class="text-right">Valor</th>';
+    // Expandir: uma linha por cliente+produto
+    const rows = [];
+    itens.forEach(item => {
+      if (item.clientes.length === 0) rows.push({ ...item, cliente: "—" });
+      else item.clientes.forEach(c => rows.push({ ...item, cliente: c }));
+    });
+    tbody.innerHTML = rows.map((r, i) => `<tr><td>${i+1}</td><td>${esc(r.cliente)}</td><td>${esc(r.descricao)}</td><td class="font-mono">${esc(r.sku||"—")}</td><td>${esc(r.unidade)}</td><td class="text-right font-mono" style="font-weight:700">${r.qtd}</td><td class="text-right font-mono">${brl.format(r.valorTotal||0)}</td></tr>`).join("");
+  } else if (modo === "fornecedores-produtos") {
+    thead.innerHTML = '<th>#</th><th>Fornecedor</th><th>Descricao</th><th>SKU</th><th>Un.</th><th class="text-right">Qtd</th><th class="text-right">Valor</th>';
+    tbody.innerHTML = itens.map((item, i) => `<tr><td>${i+1}</td><td>${esc(item.fornecedor||"Sem fornecedor")}</td><td>${esc(item.descricao)}</td><td class="font-mono">${esc(item.sku||"—")}</td><td>${esc(item.unidade)}</td><td class="text-right font-mono" style="font-weight:700">${item.qtd}</td><td class="text-right font-mono">${brl.format(item.valorTotal||0)}</td></tr>`).join("");
+  } else {
+    thead.innerHTML = '<th>#</th><th>Descricao</th><th>SKU</th><th>Un.</th><th class="text-right">Qtd Total</th><th class="text-right">Valor Total</th><th>Protocolos</th>';
+    tbody.innerHTML = itens.map((item, i) => `<tr><td>${i+1}</td><td>${esc(item.descricao)}</td><td class="font-mono">${esc(item.sku||"—")}</td><td>${esc(item.unidade)}</td><td class="text-right font-mono" style="font-weight:700">${item.qtd}</td><td class="text-right font-mono">${brl.format(item.valorTotal||0)}</td><td style="font-size:.75rem;color:var(--mut)">${item.protocolos.map(id=>esc(id)).join(", ")}</td></tr>`).join("");
+  }
+  document.getElementById("lista-compras-total-itens").textContent = itens.length + " item" + (itens.length !== 1 ? " únicos" : " único");
+  document.getElementById("lista-compras-total-qtd").textContent = "Qtd total: " + itens.reduce((s, i) => s + i.qtd, 0);
 }
 
 function exportarListaCSV() {

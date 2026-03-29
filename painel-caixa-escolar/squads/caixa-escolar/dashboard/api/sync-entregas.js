@@ -1,8 +1,8 @@
 // Vercel Serverless Function: sync-entregas
 // Migrated from Netlify Blobs → Supabase (nexedu_sync table)
 
-const SUPABASE_URL = process.env.SUPABASE_URL || 'https://ohxoxencxktpzskltbsk.supabase.co';
-const SUPABASE_KEY = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9oeG94ZW5jeGt0cHpza2x0YnNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDE3MjA2NDQsImV4cCI6MjA1NzI5NjY0NH0.kfPOFatyV8GwBdFe-MQf-tCpez1Slnq66roOBuvdzRw';
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://mvvsjaudhbglxttxaeop.supabase.co';
+const SUPABASE_KEY = process.env.SUPABASE_ANON_KEY || 'sb_publishable_uBqL8sLjMGWnZ2aaQ1zwvg_mlQrZUXR';
 const STORE_KEY = 'gdp.sync.entregas';
 
 function corsHeaders(res) {

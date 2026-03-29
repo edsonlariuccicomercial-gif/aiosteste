@@ -489,8 +489,8 @@
 
 <script>
 // ===== SUPABASE CLOUD SYNC =====
-const SUPABASE_URL = "https://ohxoxencxktpzskltbsk.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9oeG94ZW5jeGt0cHpza2x0YnNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMyMTUwNDQsImV4cCI6MjA4ODc5MTA0NH0.-w8f1xjW1cW2-OZpg1Sql8PqwFDzDqyWw4pHEx6jGSk";
+const SUPABASE_URL = "https://mvvsjaudhbglxttxaeop.supabase.co";
+const SUPABASE_KEY = "sb_publishable_uBqL8sLjMGWnZ2aaQ1zwvg_mlQrZUXR";
 const PORTAL_SYNC_KEYS = ["gdp.contratos.v1", "gdp.pedidos.v1", "gdp.escola.pedidos", "gdp.usuarios.v1"];
 const PORTAL_SHARED_SYNC_KEYS = new Set(PORTAL_SYNC_KEYS);
 function unwrapData(raw) { return Array.isArray(raw) ? raw : (raw && raw.items ? raw.items : []); }
@@ -1206,7 +1206,7 @@ function renderCart() {
           </div>
         </td>
         <td style="font-weight:700;color:var(--success);">R$ ${fmt(sub)}</td>
-        <td><button class="btn btn-sm btn-outline" style="color:var(--danger);border-color:var(--danger);" onclick="removeFromCart('${esc(name)}');renderCart();updateCartFloat();">X</button></td>
+        <td><button onclick="removeFromCart('${esc(name)}');renderCart();updateCartFloat();" style="background:none;border:none;cursor:pointer;font-size:1rem;color:var(--danger);padding:.2rem" title="Excluir item">🗑️</button></td>
       </tr>
     `;
   }).join('');
@@ -1591,7 +1591,7 @@ function renderMeusPedidos() {
     const ctr = _allContratos.find(c => c.id === o.contratoId);
     const ctrLabel = ctr ? (ctr.processo ? 'Proc. ' + ctr.processo : ctr.id) : (o.contratoId || '-');
     const marcadorBadge = o.marcador ? '<span style="background:rgba(139,92,246,.12);color:var(--purple);padding:.15rem .5rem;border-radius:999px;font-size:.65rem;font-weight:700;margin-left:.3rem">' + o.marcador + '</span>' : '';
-    return '<tr><td style="font-family:monospace;font-weight:700;">' + o.protocol + marcadorBadge + '</td><td style="font-size:.8rem">' + ctrLabel + '</td><td>' + (o.date || '') + '</td><td>' + (o.itemCount || 0) + '</td><td style="color:var(--success);font-weight:700;">R$ ' + fmt(o.total || 0) + '</td><td>' + statusBadge + '</td><td><div class="order-actions"><button class="btn btn-sm btn-outline" onclick="verPedido(\'' + esc + '\')" title="Ver detalhes">Ver</button><button class="btn btn-sm btn-outline" onclick="downloadPedidoPDF(\'' + esc + '\')" title="Baixar PDF" style="color:var(--accent);border-color:var(--accent);">PDF</button><button class="btn btn-sm" onclick="excluirPedidoPortal(\'' + esc + '\')" title="Excluir pedido" style="background:rgba(239,68,68,.12);color:var(--danger);border:none;font-weight:700;font-size:.7rem;">✕</button></div></td></tr>';
+    return '<tr><td style="font-family:monospace;font-weight:700;">' + o.protocol + marcadorBadge + '</td><td style="font-size:.8rem">' + ctrLabel + '</td><td>' + (o.date || '') + '</td><td>' + (o.itemCount || 0) + '</td><td style="color:var(--success);font-weight:700;">R$ ' + fmt(o.total || 0) + '</td><td>' + statusBadge + '</td><td><div class="order-actions"><button class="btn btn-sm btn-outline" onclick="verPedido(\'' + esc + '\')" title="Ver detalhes">Ver</button><button class="btn btn-sm btn-outline" onclick="downloadPedidoPDF(\'' + esc + '\')" title="Baixar PDF" style="color:var(--accent);border-color:var(--accent);">PDF</button><button onclick="excluirPedidoPortal(\'' + esc + '\')" title="Excluir pedido" style="background:none;border:none;cursor:pointer;font-size:1rem;color:var(--danger);padding:.2rem">🗑️</button></div></td></tr>';
   }).join('');
 }
 
