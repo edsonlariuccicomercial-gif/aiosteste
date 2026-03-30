@@ -1793,7 +1793,19 @@ let gdpListaCompras = [];
 
 function loadGdpEquivalencias() { try { gdpEquivalencias = JSON.parse(localStorage.getItem(GDP_EQUIV_KEY) || "{}"); } catch(_) { gdpEquivalencias = {}; } }
 function saveGdpEquivalencias() { localStorage.setItem(GDP_EQUIV_KEY, JSON.stringify(gdpEquivalencias)); cloudSave(GDP_EQUIV_KEY, gdpEquivalencias).catch(() => {}); scheduleGdpCloudSync(); }
-function getGdpEquivalencia(desc) { return gdpEquivalencias[gdpNormalizedText(desc)] || null; }
+function getGdpEquivalencia(desc) {
+  const norm = gdpNormalizedText(desc);
+  if (!norm) return null;
+  // Match exato
+  if (gdpEquivalencias[norm]) return gdpEquivalencias[norm];
+  // Match parcial: buscar todas as chaves que contenham ou sejam contidas pelo texto
+  const keys = Object.keys(gdpEquivalencias);
+  const candidates = keys.filter(k => k.startsWith(norm) || norm.startsWith(k) || k.includes(norm) || norm.includes(k));
+  if (candidates.length === 0) return null;
+  // Priorizar: menor diferença de comprimento (chave mais parecida com o pedido)
+  candidates.sort((a, b) => Math.abs(a.length - norm.length) - Math.abs(b.length - norm.length));
+  return gdpEquivalencias[candidates[0]];
+}
 function setGdpEquivalencia(desc, sku) { gdpEquivalencias[gdpNormalizedText(desc)] = sku; saveGdpEquivalencias(); }
 function gdpNormalizedText(v) { return String(v || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ""); }
 
@@ -3154,8 +3166,11 @@ async function parsePDF(file) {
   }
   if (currentTable.length > 2) tables.push(currentTable);
 
-  if (tables.length === 0) {
-    // PDF escaneado — tentar OCR via renderização + AI
+  // Verificar se as tabelas encontradas têm conteúdo real (não lixo de OCR embutido)
+  const totalCells = tables.reduce((s, t) => s + t.reduce((s2, row) => s2 + row.length, 0), 0);
+  const hasNumericData = tables.some(t => t.some(row => row.some(cell => /\d+[.,]\d{2}/.test(cell))));
+  if (tables.length === 0 || (totalCells < 10 && !hasNumericData)) {
+    // PDF escaneado ou com pouco texto extraível — tentar OCR via renderização + AI
     return await parsePdfViaOCR(pdf);
   }
   return { paragraphs, tables };
@@ -5447,6 +5462,7 @@ function salvarEdicaoItem(contratoId, idx) {
   c.itens[idx].precoUnitario = parseFloat(document.getElementById("ei-preco").value) || 0;
   c.itens[idx].ncm = (document.getElementById("ei-ncm").value || "").trim();
   enrichContratoItemMetadata(c, c.itens[idx], idx);
+  c.valorTotal = c.itens.reduce((s, i) => s + (parseFloat(i.precoUnitario) || 0) * (parseFloat(i.qtdContratada) || 0), 0);
   saveContratos();
   syncContratoItemToPedidos(contratoId, c.itens[idx]);
   showToast("Item atualizado!");
@@ -7913,6 +7929,8 @@ function parseQuantidadeBaseFromText(text, unidadeBase) {
   if (unidadeBase === "g") {
     const kgMatch = normalized.match(/(\d+(?:\.\d+)?)\s*kg\b/);
     if (kgMatch) return Math.round(Number(kgMatch[1]) * 1000);
+    // "pct kg", "pacote kg" sem número = assume 1kg
+    if (/\bkg\b/.test(normalized) && !kgMatch) return 1000;
     const gMatch = normalized.match(/(\d+(?:\.\d+)?)\s*gr?\b/);
     if (gMatch) return Math.round(Number(gMatch[1]));
   }
@@ -7952,18 +7970,43 @@ function resolveEstoqueIntelMatchFromPedidoItem(item = {}) {
       quantidadeBaseUnit: Number(embalagem.quantidade_base || 0)
     };
   }
+  // Tier 1.5: Se item vem de contrato, buscar skuVinculado direto
+  const contratoId = item.contratoId || item._contratoId || "";
+  if (contratoId) {
+    const ctr = contratos.find(x => x.id === contratoId);
+    if (ctr) {
+      const ctrItem = ctr.itens.find(ci => gdpNormalizedText(ci.descricao) === gdpNormalizedText(descricao) || (item.itemNum && ci.num === item.itemNum));
+      if (ctrItem?.skuVinculado) {
+        const prodVinc = estoqueIntelProdutos.find(p => p.sku === ctrItem.skuVinculado || p.id === ctrItem.skuVinculado);
+        if (prodVinc) {
+          const embVinc = estoqueIntelEmbalagens.find(e => e.produto_id === prodVinc.id);
+          const qtdTexto = parseQuantidadeBaseFromText(textoBase, prodVinc.unidade_base) || parseQuantidadeBaseFromText(ctrItem.descricao, prodVinc.unidade_base) || (embVinc ? Number(embVinc.quantidade_base || 1) : 1);
+          return { produto: prodVinc, embalagem: embVinc || null, quantidadeBaseUnit: qtdTexto };
+        }
+      }
+    }
+  }
+
   // Tier 2: GDP equivalencia (vinculação do contrato) → Estoque Intel direto
   const equivSku = getGdpEquivalencia(descricao);
   if (equivSku) {
     const prodIntel = estoqueIntelProdutos.find(p => p.sku === equivSku || p.id === equivSku);
     if (prodIntel) {
       const embsIntel = estoqueIntelEmbalagens.filter(e => e.produto_id === prodIntel.id);
-      // Extrair gramatura do TEXTO DO PEDIDO (ex: "Macarrao 1 kg" → 1000g)
-      const qtdDoTexto = parseQuantidadeBaseFromText(textoBase, prodIntel.unidade_base);
+      // Extrair gramatura do TEXTO DO PEDIDO ou da CHAVE DA EQUIVALÊNCIA
+      let qtdDoTexto = parseQuantidadeBaseFromText(textoBase, prodIntel.unidade_base);
+      if (!qtdDoTexto) {
+        // Tentar extrair da descrição original do contrato (que pode ter "500 gr")
+        const equivKeys = Object.keys(gdpEquivalencias).filter(k => gdpEquivalencias[k] === equivSku);
+        for (const ek of equivKeys) {
+          qtdDoTexto = parseQuantidadeBaseFromText(ek, prodIntel.unidade_base);
+          if (qtdDoTexto) break;
+        }
+      }
       if (qtdDoTexto) {
         return { produto: prodIntel, embalagem: embsIntel[0] || null, quantidadeBaseUnit: qtdDoTexto };
       }
-      // Fallback: se não conseguiu extrair do texto, usar embalagem
+      // Fallback: usar embalagem
       if (embsIntel.length) {
         return { produto: prodIntel, embalagem: embsIntel[0], quantidadeBaseUnit: Number(embsIntel[0].quantidade_base || 1) };
       }
@@ -7975,13 +8018,16 @@ function resolveEstoqueIntelMatchFromPedidoItem(item = {}) {
   const itemWords = normalizeEstoqueIntelMatchText(textoBase).split(/\s+/).filter(w => w.length > 2);
   const produto = estoqueIntelProdutos.find((prod) => {
     const prodWords = normalizeEstoqueIntelMatchText(prod.nome).split(/\s+/).filter(w => w.length > 2);
-    // Todas as palavras do produto devem estar no texto do item
     return prodWords.length > 0 && prodWords.every(pw => itemWords.some(iw => iw === pw || (iw.length >= 5 && pw.length >= 5 && (iw.startsWith(pw) || pw.startsWith(iw)))));
   }) || null;
   if (!produto) return null;
-  const quantidadeBaseUnit = parseQuantidadeBaseFromText(textoBase, produto.unidade_base);
-  if (!quantidadeBaseUnit) return null;
-  return { produto, embalagem: null, quantidadeBaseUnit };
+  let quantidadeBaseUnit = parseQuantidadeBaseFromText(textoBase, produto.unidade_base);
+  // Fallback: se não extraiu gramatura do texto, usar embalagem cadastrada
+  if (!quantidadeBaseUnit) {
+    const embFallback = estoqueIntelEmbalagens.find(e => e.produto_id === produto.id);
+    quantidadeBaseUnit = embFallback ? Number(embFallback.quantidade_base || 1) : 1;
+  }
+  return { produto, embalagem: estoqueIntelEmbalagens.find(e => e.produto_id === produto.id) || null, quantidadeBaseUnit };
 }
 
 function syncPedidosGDPToEstoqueIntel(silent = true) {
@@ -7997,6 +8043,8 @@ function syncPedidosGDPToEstoqueIntel(silent = true) {
     const itens = Array.isArray(pedido.itens) ? pedido.itens : [];
     const itensConvertidos = [];
     itens.forEach((item, idx) => {
+      // Injetar contratoId do pedido no item para Tier 1.5
+      if (pedido.contratoId && !item.contratoId) item.contratoId = pedido.contratoId;
       const match = resolveEstoqueIntelMatchFromPedidoItem(item);
       if (!match?.produto || !match.quantidadeBaseUnit) return;
       const quantidadeItens = Number(item.qtd || item.quantidade || 0);
@@ -13708,6 +13756,7 @@ function editarItensMassa(contratoId) {
       <td><input type="text" class="edit-descricao" value="${esc(item.descricao || '')}" style="width:100%;min-width:220px;font-size:.72rem;padding:.2rem .3rem;background:var(--s1);border:1px solid var(--bdr);border-radius:4px;color:var(--txt)"></td>
       <td><input type="text" class="edit-ncm" value="${esc(item.ncm || '')}" placeholder="0000.00.00" style="width:100px;font-size:.72rem;font-family:monospace;padding:.2rem .3rem;background:var(--s1);border:1px solid var(--bdr);border-radius:4px;color:var(--cyan)"></td>
       <td><input type="text" class="edit-unidade" value="${esc(item.unidade || 'UN')}" style="width:50px;font-size:.72rem;padding:.2rem .3rem;background:var(--s1);border:1px solid var(--bdr);border-radius:4px;color:var(--txt);text-transform:uppercase"></td>
+      <td><input type="number" class="edit-qtd" value="${item.qtdContratada || 0}" min="0" style="width:65px;font-size:.72rem;font-family:monospace;padding:.2rem .3rem;background:var(--s1);border:1px solid var(--bdr);border-radius:4px;color:var(--txt);text-align:right"></td>
       <td><input type="number" class="edit-preco" value="${item.precoUnitario || 0}" step="0.01" style="width:80px;font-size:.72rem;font-family:monospace;padding:.2rem .3rem;background:var(--s1);border:1px solid var(--bdr);border-radius:4px;color:var(--green);text-align:right"></td>
       <td><input type="text" class="edit-sku" value="${esc(item.sku || '')}" placeholder="auto" style="width:80px;font-size:.72rem;font-family:monospace;padding:.2rem .3rem;background:var(--s1);border:1px solid var(--bdr);border-radius:4px;color:var(--txt)"></td>
     </tr>`;
@@ -13723,6 +13772,8 @@ function editarItensMassa(contratoId) {
         <span style="font-size:.72rem;color:var(--dim)">Preencher todos:</span>
         <input type="text" id="fill-all-desc" placeholder="Descricao" style="width:180px;font-size:.7rem;padding:.2rem .3rem;background:var(--s1);border:1px solid var(--bdr);border-radius:4px">
         <button class="btn btn-sm" style="font-size:.65rem;padding:.2rem .4rem;background:rgba(16,185,129,.15);color:var(--green);border:none;font-weight:700;cursor:pointer" id="btn-fill-all-desc" title="Aplicar descricao em todos os itens da lista">Aplicar Descricao</button>
+        <input type="number" id="fill-all-qtd" placeholder="Qtd" style="width:60px;font-size:.7rem;padding:.2rem .3rem;background:var(--s1);border:1px solid var(--bdr);border-radius:4px">
+        <button class="btn btn-sm" style="font-size:.65rem;padding:.2rem .4rem;background:rgba(245,158,11,.15);color:var(--yellow);border:none;font-weight:700;cursor:pointer" id="btn-fill-all-qtd" title="Aplicar quantidade em todos os itens">Aplicar Qtd</button>
         <input type="text" id="fill-all-ncm" placeholder="NCM" style="width:90px;font-size:.7rem;font-family:monospace;padding:.2rem .3rem;background:var(--s1);border:1px solid var(--bdr);border-radius:4px">
         <button class="btn btn-sm" style="font-size:.65rem;padding:.2rem .4rem;background:rgba(59,130,246,.15);color:var(--blue);border:none;font-weight:700;cursor:pointer" id="btn-fill-all-ncm" title="Aplicar NCM em todos os itens da lista">Aplicar NCM</button>
       </div>
@@ -13731,7 +13782,7 @@ function editarItensMassa(contratoId) {
     <div style="max-height:55vh;overflow-y:auto;border:1px solid var(--bdr);border-radius:8px">
       <table style="font-size:.78rem;width:100%" id="tabela-edicao-massa">
         <thead><tr style="position:sticky;top:0;background:var(--s2);z-index:1">
-          <th>#</th><th>Descricao</th><th>NCM</th><th>Unid</th><th>Preco</th><th>SKU</th>
+          <th>#</th><th>Descricao</th><th>NCM</th><th>Unid</th><th>Qtd</th><th>Preco</th><th>SKU</th>
         </tr></thead>
         <tbody>${rowsHtml}</tbody>
       </table>
@@ -13756,6 +13807,12 @@ function editarItensMassa(contratoId) {
     document.querySelectorAll('#tabela-edicao-massa .edit-ncm').forEach(input => { input.value = val; });
     showToast('NCM aplicado em todos os itens');
   };
+  document.getElementById('btn-fill-all-qtd').onclick = () => {
+    const val = document.getElementById('fill-all-qtd').value.trim();
+    if (!val) return;
+    document.querySelectorAll('#tabela-edicao-massa .edit-qtd').forEach(input => { input.value = val; });
+    showToast('Quantidade aplicada em todos os itens');
+  };
 }
 
 function salvarEdicaoMassa(contratoId) {
@@ -13770,17 +13827,20 @@ function salvarEdicaoMassa(contratoId) {
     const descricao = row.querySelector('.edit-descricao').value.trim();
     const ncm = row.querySelector('.edit-ncm').value.trim();
     const unidade = row.querySelector('.edit-unidade').value.trim();
+    const qtd = row.querySelector('.edit-qtd')?.value?.trim();
     const preco = row.querySelector('.edit-preco').value.trim();
     const sku = row.querySelector('.edit-sku').value.trim();
     if (descricao) item.descricao = descricao;
     if (ncm !== (item.ncm || '')) item.ncm = ncm;
     if (unidade) item.unidade = unidade.toUpperCase();
+    if (qtd !== undefined && qtd !== '') item.qtdContratada = parseInt(qtd) || 0;
     if (preco) item.precoUnitario = parseFloat(preco);
     if (sku) item.sku = sku;
     enrichContratoItemMetadata(c, item, idx);
     syncContratoItemToPedidos(contratoId, item);
     updated++;
   });
+  c.valorTotal = c.itens.reduce((s, i) => s + (parseFloat(i.precoUnitario) || 0) * (parseFloat(i.qtdContratada) || 0), 0);
   saveContratos();
   abrirContrato(contratoId);
   showToast(`${updated} itens salvos`);

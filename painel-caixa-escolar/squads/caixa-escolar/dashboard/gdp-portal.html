@@ -823,29 +823,27 @@ function selectContract(type, idx) {
       });
     });
 
-    // Load Banco de Produtos para enriquecer catalogo
-    let _bancoProdutos = { itens: [] };
-    try { _bancoProdutos = JSON.parse(localStorage.getItem('gdp.produtos.v1') || '{}'); } catch(_) {}
-    if (!_bancoProdutos.itens) _bancoProdutos.itens = [];
+    // Load Estoque Intel Produtos para enriquecer catalogo
+    let _intelProdutos = [];
+    try { const raw = JSON.parse(localStorage.getItem('gdp.estoque-intel.produtos.v1') || '{}'); _intelProdutos = raw.items || raw || []; } catch(_) {}
 
     schoolProducts = c.itens.map(item => {
       const pedida = qtdPedidaPorItem[item.descricao.toUpperCase()] || 0;
       const disponivel = Math.max(0, item.qtdContratada - (item.qtdEntregue || 0) - pedida);
 
-      // Enrich from Banco de Produtos (match by SKU or description)
-      let bpMatch = null;
+      // Enrich from Estoque Intel (match by SKU or description)
+      let intelMatch = null;
       const descNorm = (item.descricao || '').toUpperCase().trim();
-      if (item.sku) bpMatch = _bancoProdutos.itens.find(bp => bp.sku && bp.sku.toUpperCase() === item.sku.toUpperCase());
-      if (!bpMatch) bpMatch = _bancoProdutos.itens.find(bp => (bp.descricao || '').toUpperCase().trim() === descNorm);
-      if (!bpMatch) {
+      if (item.sku) intelMatch = _intelProdutos.find(p => p.sku && p.sku.toUpperCase() === item.sku.toUpperCase());
+      if (!intelMatch) intelMatch = _intelProdutos.find(p => (p.nome || '').toUpperCase().trim() === descNorm);
+      if (!intelMatch) {
         const words = descNorm.split(/\s+/).slice(0, 3).join(' ');
-        if (words.length > 5) bpMatch = _bancoProdutos.itens.find(bp => (bp.descricao || '').toUpperCase().trim().startsWith(words));
+        if (words.length > 5) intelMatch = _intelProdutos.find(p => (p.nome || '').toUpperCase().trim().startsWith(words));
       }
 
-      // Use synced data when available
-      const produto = bpMatch ? (bpMatch.descricao || item.descricao) : item.descricao;
-      const sku = bpMatch ? (bpMatch.sku || item.sku || '') : (item.sku || '');
-      const unidade = bpMatch ? (bpMatch.unidade || item.unidade || 'UN') : (item.unidade || 'UN');
+      const produto = intelMatch ? (intelMatch.nome || item.descricao) : item.descricao;
+      const sku = intelMatch ? (intelMatch.sku || item.sku || '') : (item.sku || '');
+      const unidade = intelMatch ? (intelMatch.unidade_base || item.unidade || 'UN') : (item.unidade || 'UN');
 
       return {
         item: item.num,
@@ -858,7 +856,7 @@ function selectContract(type, idx) {
         qtdEntregue: (item.qtdEntregue || 0) + pedida,
         qtdDisponivel: disponivel,
         estoque: 0,
-        _syncedBanco: !!bpMatch || !!item._syncedFromBanco
+        _syncedBanco: !!intelMatch || !!item._syncedFromBanco
       };
     });
     const ctrLabel = [c.processo ? 'Proc. ' + c.processo : '', c.objeto || c.edital || c.id].filter(Boolean).join(' — ');
