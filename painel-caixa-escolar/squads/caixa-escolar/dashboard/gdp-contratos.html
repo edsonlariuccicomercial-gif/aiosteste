@@ -870,8 +870,6 @@
           <button class="btn btn-outline btn-sm" onclick="window.location.href='gdp-estoque-intel-mobile.html'">Abrir App Mobile</button>
           <button class="btn btn-outline btn-sm" onclick="syncPedidosGDPToEstoqueIntel(false)">Sincronizar Pedidos GDP</button>
           <button class="btn btn-outline btn-sm" onclick="syncEstoqueIntelApi()">Sincronizar API</button>
-          <button class="btn btn-outline btn-sm" onclick="seedEstoqueIntelExemplo()">Recarregar Exemplo</button>
-          <button class="btn btn-outline btn-sm" onclick="limparEstoqueIntel()">Limpar Base</button>
         </div>
       </div>
       <div class="estoque-intel-nav" style="margin-top:1rem">
@@ -1040,11 +1038,11 @@
       <div id="ei-gdp-compras-total" style="font-weight:600;margin-top:.5rem;font-size:.85rem"></div>
       <p id="ei-gdp-compras-empty" style="display:none;text-align:center;padding:.6rem;color:var(--mut);font-size:.85rem">Lista de compras vazia.</p>
     </div>
+    <div class="card" id="ei-card-estoque-resumo" data-ei-section="estoque" style="margin-top:1rem">
+      <h3 style="margin-bottom:.75rem">Estoque Calculado por Movimentacoes</h3>
+      <div class="table-wrap" data-ei-table style="max-height:420px;overflow-y:auto"><table><thead><tr><th>Produto</th><th class="text-right">Fisico</th><th class="text-right">Comprometido</th><th class="text-right">Disponivel</th><th>Base</th></tr></thead><tbody id="ei-estoque-tbody"></tbody></table></div>
+    </div>
     <div id="ei-grid-secundario" style="display:grid;grid-template-columns:1fr;gap:1rem;align-items:start;margin-top:1rem">
-      <div class="card" id="ei-card-estoque-resumo" data-ei-section="estoque">
-        <h3 style="margin-bottom:.75rem">Estoque Calculado por Movimentacoes</h3>
-        <div class="table-wrap" data-ei-table style="max-height:320px;overflow-y:auto"><table><thead><tr><th>Produto</th><th class="text-right">Fisico</th><th class="text-right">Comprometido</th><th class="text-right">Disponivel</th><th>Base</th></tr></thead><tbody id="ei-estoque-tbody"></tbody></table></div>
-      </div>
       <div class="card" id="ei-card-compra-sugestao" data-ei-section="compra">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap;margin-bottom:.75rem">
           <div>
@@ -1240,7 +1238,9 @@
     <div style="background:var(--bg);border:1px solid var(--bdr);border-radius:14px;width:1100px;max-width:99vw;max-height:98vh;display:flex;flex-direction:column;margin-top:.5rem">
       <div style="padding:.8rem 1.2rem;border-bottom:1px solid var(--bdr);display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
         <h2 id="modal-contrato-titulo" style="font-size:1rem;margin:0"></h2>
-        <button class="btn btn-outline btn-sm" onclick="fecharModalContrato()">Fechar</button>
+        <div style="display:flex;gap:.4rem;align-items:center" id="modal-contrato-header-actions">
+          <button class="btn btn-outline btn-sm" onclick="fecharModalContrato()">Fechar</button>
+        </div>
       </div>
       <div style="padding:1rem 1.2rem;overflow-y:auto;flex:1" id="modal-contrato-body"></div>
     </div>
@@ -1725,15 +1725,8 @@
         <input type="text" id="vincular-gdp-busca" placeholder="Buscar no Banco de Produtos..." oninput="renderVincularGDPResultados(this.value)" style="width:100%">
       </div>
       <div id="vincular-gdp-resultados" style="max-height:350px;overflow-y:auto"></div>
-      <div style="margin-top:1rem;padding:1rem;border:1px dashed var(--bdr);border-radius:10px;background:var(--s1)">
-        <div style="font-size:.82rem;font-weight:700;margin-bottom:.6rem">Criar novo produto e vincular</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
-          <div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.2rem">Nome Comercial</label><input type="text" id="vincular-gdp-criar-nome" style="width:100%"></div>
-          <div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.2rem">SKU</label><input type="text" id="vincular-gdp-criar-sku" style="width:100%"></div>
-          <div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.2rem">Unidade</label><input type="text" id="vincular-gdp-criar-unidade" value="UN" style="width:100%"></div>
-          <div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.2rem">Custo</label><input type="number" id="vincular-gdp-criar-custo" min="0" step="0.01" style="width:100%"></div>
-        </div>
-        <div style="margin-top:.6rem;display:flex;justify-content:flex-end"><button class="btn btn-green btn-sm" onclick="criarEVincularGDP()">Criar e Vincular</button></div>
+      <div style="margin-top:1rem;padding:.8rem 1rem;border:1px dashed var(--bdr);border-radius:10px;background:var(--s1);font-size:.82rem;color:var(--mut)">
+        Produto nao encontrado? Cadastre em <strong>Inteligencia > Produtos</strong> e volte para vincular.
       </div>
     </div>
   </div>
@@ -1799,7 +1792,7 @@ let gdpEstoqueSimples = {};
 let gdpListaCompras = [];
 
 function loadGdpEquivalencias() { try { gdpEquivalencias = JSON.parse(localStorage.getItem(GDP_EQUIV_KEY) || "{}"); } catch(_) { gdpEquivalencias = {}; } }
-function saveGdpEquivalencias() { localStorage.setItem(GDP_EQUIV_KEY, JSON.stringify(gdpEquivalencias)); scheduleGdpCloudSync(); }
+function saveGdpEquivalencias() { localStorage.setItem(GDP_EQUIV_KEY, JSON.stringify(gdpEquivalencias)); cloudSave(GDP_EQUIV_KEY, gdpEquivalencias).catch(() => {}); scheduleGdpCloudSync(); }
 function getGdpEquivalencia(desc) { return gdpEquivalencias[gdpNormalizedText(desc)] || null; }
 function setGdpEquivalencia(desc, sku) { gdpEquivalencias[gdpNormalizedText(desc)] = sku; saveGdpEquivalencias(); }
 function gdpNormalizedText(v) { return String(v || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ""); }
@@ -1814,6 +1807,12 @@ function loadGdpListaCompras() { try { gdpListaCompras = JSON.parse(localStorage
 function saveGdpListaCompras() { localStorage.setItem(GDP_COMPRAS_KEY, JSON.stringify(gdpListaCompras)); scheduleGdpCloudSync(); }
 
 function getGdpBancoProduto(sku) {
+  // Buscar primeiro no Estoque Intel (novo), fallback pro banco antigo
+  const intelProd = estoqueIntelProdutos.find(p => p.sku === sku || p.id === sku);
+  if (intelProd) {
+    const emb = estoqueIntelEmbalagens.find(e => e.produto_id === intelProd.id);
+    return { id: intelProd.id, item: intelProd.nome, nomeComercial: intelProd.nome, sku: intelProd.sku, custoBase: emb?.preco_referencia || 0, ncm: intelProd.ncm || "", unidade: intelProd.unidade_base || "UN", _source: "intel" };
+  }
   const BANCO_KEY = "caixaescolar.banco.v1";
   try {
     const banco = JSON.parse(localStorage.getItem(BANCO_KEY));
@@ -2306,6 +2305,8 @@ function applyDeletedContractsFilter(items = []) {
 function saveWrappedArray(key, items) {
   const wrapped = { _v: 1, updatedAt: new Date().toISOString(), items };
   localStorage.setItem(key, JSON.stringify(wrapped));
+  // Cloud save imediato para dados criticos
+  cloudSave(key, wrapped).catch(() => {});
   schedulCloudSync();
 }
 function loadData() {
@@ -5470,8 +5471,13 @@ function abrirContrato(id) {
   if (!c) return;
   ensureContratoItensMetadata(c);
 
-  _contratoAbertoId = null; // detail view: Fechar closes modal
+  _contratoAbertoId = null;
   document.getElementById("modal-contrato-titulo").textContent = `${c.id} — ${c.escola.length > 50 ? c.escola.slice(0, 48) + "..." : c.escola}`;
+  document.getElementById("modal-contrato-header-actions").innerHTML = `
+    <button class="btn btn-sm btn-red" onclick="excluirContrato('${c.id}')">Excluir</button>
+    <button class="btn btn-sm btn-blue" onclick="salvarDadosContrato('${c.id}')">Salvar</button>
+    <button class="btn btn-outline btn-sm" onclick="fecharModalContrato()">Fechar</button>
+  `;
 
   const totalContratado = (parseFloat(c.valorTotal) || 0) > 0 ? parseFloat(c.valorTotal) : (Array.isArray(c.itens) ? c.itens : []).reduce((s, i) => s + (parseFloat(i.precoUnitario) || 0) * (parseFloat(i.qtdContratada || i.quantidade) || 0), 0);
   const totalEntregue = c.itens.reduce((s, i) => s + (i.precoUnitario || 0) * (i.qtdEntregue || 0), 0);
@@ -5509,10 +5515,6 @@ function abrirContrato(id) {
           <button class="btn btn-sm btn-outline" onclick="recalcularSaldoContrato('${c.id}')" title="Recalcular saldo com base nos pedidos reais">🔄 Recalcular Saldo</button>
           <button class="btn btn-sm" style="background:rgba(107,114,128,.15);color:var(--mut);border:none;font-weight:700" onclick="imprimirContrato('${c.id}')" title="Imprimir contrato completo">🖨️ Imprimir</button>
         </div>
-        <div style="display:flex;gap:.4rem">
-          <button class="btn btn-sm btn-red" onclick="excluirContrato('${c.id}')">Excluir Contrato</button>
-          <button class="btn btn-sm btn-blue" onclick="salvarDadosContrato('${c.id}')">Salvar</button>
-        </div>
       </div>
     </div>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.8rem;flex-wrap:wrap;gap:.5rem">
@@ -5523,10 +5525,11 @@ function abrirContrato(id) {
       </div>
       <div style="display:flex;gap:.4rem;flex-wrap:wrap;align-items:center">
         <button class="btn btn-sm btn-blue hidden" id="btn-editar-massa-${c.id}" onclick="editarItensMassa('${c.id}')" title="Editar itens selecionados">Editar Selecionados</button>
+        <button class="btn btn-sm btn-green hidden" id="btn-vincular-massa-${c.id}" onclick="vincularItensMassa('${c.id}')" title="Vincular itens selecionados a produtos cadastrados">Vincular Selecionados</button>
         <button class="btn btn-sm" style="background:rgba(139,92,246,.15);color:var(--purple);border:none;font-weight:700" onclick="abrirCatalogoEscolar('${c.id}')" title="Abrir catalogo da escola vinculada para pedidos internos">📋 Catalogo Escolar</button>
         <button class="btn btn-sm" style="background:rgba(16,185,129,.15);color:var(--green);border:none;font-weight:700" onclick="autoPreencherNcm('${c.id}');abrirContrato('${c.id}')" title="Preencher NCM automaticamente (mapa local + banco)">NCM Auto</button>
         <button class="btn btn-sm" style="background:rgba(168,85,247,.15);color:#a855f7;border:none;font-weight:700" onclick="classificarNcmIA('${c.id}')" title="Classificar NCM dos itens sem codigo usando IA (GPT)">🤖 NCM IA</button>
-        <button class="btn btn-sm btn-green" onclick="adicionarItemContrato('${c.id}')">+ Item</button>
+        <button class="btn btn-sm btn-green" onclick="adicionarItemContrato('${c.id}')">+ Novo Produto</button>
       </div>
     </div>
     <div class="table-wrap" style="overflow-y:auto;max-height:60vh">
@@ -5536,15 +5539,16 @@ function abrirContrato(id) {
           const saldo = item.qtdContratada - item.qtdEntregue;
           const pct = item.qtdContratada > 0 ? (item.qtdEntregue / item.qtdContratada * 100) : 0;
           const equivSku = getGdpEquivalencia(item.descricao);
-          const equivProduto = equivSku ? getGdpBancoProduto(equivSku) : null;
-          const equivNome = equivProduto ? (equivProduto.nomeComercial || equivProduto.item || equivSku) : (equivSku || '');
+          const equivProdutoIntel = equivSku ? estoqueIntelProdutos.find(p => p.sku === equivSku || p.id === equivSku) : null;
+          const equivProdutoBanco = !equivProdutoIntel && equivSku ? getGdpBancoProduto(equivSku) : null;
+          const equivNome = equivProdutoIntel ? equivProdutoIntel.nome : (equivProdutoBanco ? (equivProdutoBanco.nomeComercial || equivProdutoBanco.item) : (item.produtoVinculado || equivSku || ''));
           return `<tr>
             <td class="text-center"><input type="checkbox" class="item-check-${c.id}" data-idx="${idx}" onchange="atualizarSelecaoItens('${c.id}')"></td>
             <td class="text-center">${item.num}</td>
             <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(item.descricao)}"><span title="${item.sku ? 'SKU disponível para pedido/NF' : 'SKU pendente de geração interna'}" style="font-size:.6rem;margin-right:.3rem">${item.sku ? '🟢' : '🟡'}</span>${esc(item.descricao)}</td>
             <td style="min-width:130px">${equivSku
-              ? '<span style="color:var(--green);font-size:.76rem;font-weight:600" title="' + esc(equivSku) + '">&#10003; ' + esc(equivNome.length > 22 ? equivNome.slice(0,20) + '...' : equivNome) + '</span>'
-              : '<button class="btn btn-sm" style="font-size:.72rem;padding:.15rem .4rem;background:rgba(139,92,246,.15);color:var(--purple);border:none;cursor:pointer" onclick="abrirVincularGDP(\'' + c.id + '\',' + idx + ')" title="Vincular produto do banco">Vincular</button>'
+              ? '<div style="display:flex;align-items:center;gap:.3rem"><span style="color:var(--green);font-size:.74rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px" title="' + esc(equivNome + ' (' + equivSku + ')') + '">&#10003; ' + esc(equivNome.length > 18 ? equivNome.slice(0,16) + '..' : equivNome) + '</span><button style="background:none;border:none;cursor:pointer;font-size:.68rem;color:var(--blue);padding:0" onclick="abrirVincularGDP(\'' + c.id + '\',' + idx + ')" title="Alterar vinculo">&#9998;</button></div>'
+              : '<button class="btn btn-sm" style="font-size:.72rem;padding:.15rem .4rem;background:rgba(139,92,246,.15);color:var(--purple);border:none;cursor:pointer" onclick="abrirVincularGDP(\'' + c.id + '\',' + idx + ')" title="Vincular produto cadastrado">Vincular</button>'
             }</td>
             <td style="min-width:120px">
               <div style="display:flex;align-items:center;gap:.2rem">
@@ -7909,7 +7913,7 @@ function parseQuantidadeBaseFromText(text, unidadeBase) {
   if (unidadeBase === "g") {
     const kgMatch = normalized.match(/(\d+(?:\.\d+)?)\s*kg\b/);
     if (kgMatch) return Math.round(Number(kgMatch[1]) * 1000);
-    const gMatch = normalized.match(/(\d+(?:\.\d+)?)\s*g\b/);
+    const gMatch = normalized.match(/(\d+(?:\.\d+)?)\s*gr?\b/);
     if (gMatch) return Math.round(Number(gMatch[1]));
   }
   if (unidadeBase === "ml") {
@@ -7936,11 +7940,10 @@ function resolveEstoqueIntelMatchFromPedidoItem(item = {}) {
   const sku = item.sku || item.codigo || item.codigoBarras || "";
   const textoBase = `${descricao} ${sku}`;
   const embalagem = estoqueIntelEmbalagens.find((emb) => {
-    const embText = normalizeEstoqueIntelMatchText(`${emb.descricao} ${emb.codigo_barras || ""}`);
-    const itemText = normalizeEstoqueIntelMatchText(textoBase);
-    if (!itemText) return false;
+    if (!normalizeEstoqueIntelMatchText(textoBase)) return false;
+    // Match exato por código de barras/SKU
     if (sku && emb.codigo_barras && String(emb.codigo_barras) === String(sku)) return true;
-    return itemText.includes(embText) || embText.includes(itemText);
+    return false;
   }) || null;
   if (embalagem) {
     return {
@@ -7949,37 +7952,31 @@ function resolveEstoqueIntelMatchFromPedidoItem(item = {}) {
       quantidadeBaseUnit: Number(embalagem.quantidade_base || 0)
     };
   }
-  // Tier 2: GDP equivalencia (vinculação do contrato) → Banco de Produtos → Estoque Intel
+  // Tier 2: GDP equivalencia (vinculação do contrato) → Estoque Intel direto
   const equivSku = getGdpEquivalencia(descricao);
   if (equivSku) {
-    const bancoProd = getGdpBancoProduto(equivSku);
-    if (bancoProd) {
-      const bancoText = normalizeEstoqueIntelMatchText(bancoProd.nomeComercial || bancoProd.item || "");
-      if (bancoText) {
-        const embEquiv = estoqueIntelEmbalagens.find((emb) => {
-          const embText = normalizeEstoqueIntelMatchText(`${emb.descricao} ${emb.codigo_barras || ""}`);
-          return embText && (bancoText.includes(embText) || embText.includes(bancoText));
-        });
-        if (embEquiv) {
-          return { produto: findEstoqueIntelProduto(embEquiv.produto_id), embalagem: embEquiv, quantidadeBaseUnit: Number(embEquiv.quantidade_base || 0) };
-        }
-        const prodEquiv = estoqueIntelProdutos.find((prod) => {
-          const prodText = normalizeEstoqueIntelMatchText(prod.nome);
-          return bancoText.includes(prodText) || prodText.includes(bancoText);
-        });
-        if (prodEquiv) {
-          const qtdEquiv = parseQuantidadeBaseFromText(textoBase, prodEquiv.unidade_base);
-          if (qtdEquiv) return { produto: prodEquiv, embalagem: null, quantidadeBaseUnit: qtdEquiv };
-        }
+    const prodIntel = estoqueIntelProdutos.find(p => p.sku === equivSku || p.id === equivSku);
+    if (prodIntel) {
+      const embsIntel = estoqueIntelEmbalagens.filter(e => e.produto_id === prodIntel.id);
+      // Extrair gramatura do TEXTO DO PEDIDO (ex: "Macarrao 1 kg" → 1000g)
+      const qtdDoTexto = parseQuantidadeBaseFromText(textoBase, prodIntel.unidade_base);
+      if (qtdDoTexto) {
+        return { produto: prodIntel, embalagem: embsIntel[0] || null, quantidadeBaseUnit: qtdDoTexto };
       }
+      // Fallback: se não conseguiu extrair do texto, usar embalagem
+      if (embsIntel.length) {
+        return { produto: prodIntel, embalagem: embsIntel[0], quantidadeBaseUnit: Number(embsIntel[0].quantidade_base || 1) };
+      }
+      return { produto: prodIntel, embalagem: null, quantidadeBaseUnit: 1 };
     }
   }
 
-  // Tier 3: similaridade textual direta
-  const itemText = normalizeEstoqueIntelMatchText(textoBase);
+  // Tier 3: similaridade textual — match por palavra completa (não substring)
+  const itemWords = normalizeEstoqueIntelMatchText(textoBase).split(/\s+/).filter(w => w.length > 2);
   const produto = estoqueIntelProdutos.find((prod) => {
-    const prodText = normalizeEstoqueIntelMatchText(prod.nome);
-    return itemText.includes(prodText) || prodText.includes(itemText);
+    const prodWords = normalizeEstoqueIntelMatchText(prod.nome).split(/\s+/).filter(w => w.length > 2);
+    // Todas as palavras do produto devem estar no texto do item
+    return prodWords.length > 0 && prodWords.every(pw => itemWords.some(iw => iw === pw || (iw.length >= 5 && pw.length >= 5 && (iw.startsWith(pw) || pw.startsWith(iw)))));
   }) || null;
   if (!produto) return null;
   const quantidadeBaseUnit = parseQuantidadeBaseFromText(textoBase, produto.unidade_base);
@@ -8133,7 +8130,7 @@ function garantirPedidoExemploDemandaAutomatica() {
 }
 
 function gerarExemploDemandaVisualEstoqueIntel() {
-  if (!estoqueIntelProdutos.length) seedEstoqueIntelExemplo();
+  // Seed de exemplo removido — produtos devem ser cadastrados pelo usuario
   const demoId = "PEDINT-DEMO-VISUAL-001";
   const existente = estoqueIntelPedidos.find((pedido) => pedido.id === demoId);
   if (existente) {
@@ -8216,8 +8213,9 @@ function limparReservasTesteEstoqueIntel() {
 }
 
 function gerarExemploDemandaAutomaticaEstoqueIntel() {
-  if (!estoqueIntelProdutos.length || !estoqueIntelEmbalagens.length || !estoqueIntelFornecedores.length) {
-    seedEstoqueIntelExemplo();
+  if (!estoqueIntelProdutos.length) {
+    showToast("Cadastre produtos em Inteligencia > Produtos primeiro.", 3500);
+    return;
   }
   const sincronizadosAntes = syncPedidosGDPToEstoqueIntel(true);
   if (!sincronizadosAntes) {
@@ -8353,7 +8351,14 @@ function confirmarGerarDemandaPedidoRealEstoqueIntel(pedidoId) {
 
 function gerarDemandaPedidoRealEstoqueIntel(pedidoId) {
   const pedido = pedidos.find((item) => item.id === pedidoId);
-  const conciliacao = getPedidosReaisConciliacaoEstoqueIntel().find((item) => item.pedido.id === pedidoId);
+  // Tentar conciliação normal; se não encontrar (já sincronizado), construir dados do pedido
+  let conciliacao = getPedidosReaisConciliacaoEstoqueIntel().find((item) => item.pedido.id === pedidoId);
+  if (!conciliacao && pedido) {
+    const itens = Array.isArray(pedido.itens) ? pedido.itens : [];
+    const itensComMatch = itens.filter(i => resolveEstoqueIntelMatchFromPedidoItem(i));
+    const itensSemMatch = itens.filter(i => !resolveEstoqueIntelMatchFromPedidoItem(i));
+    conciliacao = { pedido, itensComMatch, itensSemMatch, demandaGerada: estoqueIntelPedidos.some(p => p.id === pedidoId) };
+  }
   const body = document.getElementById("modal-ei-gerar-demanda-body");
   const modal = document.getElementById("modal-ei-gerar-demanda");
   if (!pedido || !conciliacao || !body || !modal) {
@@ -8597,7 +8602,6 @@ function visualizarDemandaEstoqueIntel(pedidoId) {
       <button class="btn btn-outline btn-sm" onclick="imprimirDemandaEstoqueIntel('${esc(pedidoId)}')">Imprimir</button>
       ${reservaStatus.key === "reservada" ? `<button class="btn btn-outline btn-sm" onclick="fecharReservaDemandaEstoqueIntel('${esc(pedidoId)}')">Cancelar Reserva</button>` : ""}
       <button class="btn btn-outline btn-sm" onclick="fecharModalDemandaEstoqueIntel()">Fechar</button>
-      <button class="btn btn-green btn-sm" onclick="fecharModalDemandaEstoqueIntel();abrirDemandaNaListaComprasEstoqueIntel('${esc(pedidoId)}')">Enviar para Lista Automatica</button>
     </div>
   `;
   modal.classList.remove("hidden");
@@ -9948,21 +9952,20 @@ function renderPedidoItensManual() {
   container.innerHTML = `
     <label style="font-size:.8rem;color:var(--mut);display:block;margin-bottom:.5rem">Itens do Pedido</label>
     <div class="table-wrap" style="max-height:300px;overflow-y:auto">
-      <table><thead><tr><th>Descricao</th><th>SKU</th><th>Un.</th><th class="text-center">Qtd</th><th class="text-right">Preco Unit.</th><th class="text-right">Total</th><th></th></tr></thead>
+      <table><thead><tr><th>Descricao</th><th>SKU</th><th>Un.</th><th class="text-center">Qtd</th><th class="text-right">Valor Total</th><th></th></tr></thead>
       <tbody>${_pedidoManualItens.map((item, idx) => {
-        const subtotal = (item.qtd || 0) * (item.precoUnitario || 0);
+        const subtotal = item.valorTotal != null ? (item.valorTotal || 0) : (item.qtd || 0) * (item.precoUnitario || 0);
         totalGeral += subtotal;
         return `<tr>
           <td style="position:relative"><input type="text" id="ped-item-desc-${idx}" value="${esc(item.descricao)}" placeholder="Buscar produto..." oninput="buscarProdutoPedido(${idx})" onfocus="buscarProdutoPedido(${idx})" autocomplete="off" style="width:100%;min-width:180px"><div id="ped-prod-sug-${idx}" class="hidden" style="position:absolute;top:100%;left:0;right:0;z-index:1030;background:var(--bg);border:1px solid var(--bdr);border-radius:8px;max-height:150px;overflow-y:auto;box-shadow:0 4px 16px rgba(0,0,0,.35)"></div></td>
           <td><input type="text" id="ped-item-sku-${idx}" value="${esc(item.sku)}" style="width:80px" readonly></td>
           <td><input type="text" id="ped-item-un-${idx}" value="${esc(item.unidade)}" style="width:55px;text-align:center" readonly></td>
           <td class="text-center"><input type="number" id="ped-item-qty-${idx}" value="${item.qtd || 0}" min="0" step="any" style="width:70px;text-align:center" onchange="atualizarItemPedidoManual(${idx})"></td>
-          <td class="text-right"><input type="number" id="ped-item-preco-${idx}" value="${item.precoUnitario || 0}" min="0" step="0.01" style="width:90px;text-align:right" onchange="atualizarItemPedidoManual(${idx})"></td>
-          <td class="text-right font-mono" style="color:var(--green);font-weight:700">${brl.format(subtotal)}</td>
+          <td class="text-right"><input type="number" id="ped-item-valor-${idx}" value="${subtotal || 0}" min="0" step="0.01" style="width:100px;text-align:right" onchange="atualizarItemPedidoManualValor(${idx})"></td>
           <td><button onclick="removerItemPedidoManual(${idx})" style="background:none;border:none;cursor:pointer;font-size:1rem;color:var(--red,#f44);padding:.2rem" title="Excluir item">🗑️</button></td>
         </tr>`;
       }).join("")}</tbody>
-      <tfoot><tr><td colspan="5" style="text-align:right;font-weight:700">TOTAL</td><td class="text-right font-mono" style="color:var(--green);font-weight:800;font-size:1.05rem">${brl.format(totalGeral)}</td><td></td></tr></tfoot>
+      <tfoot><tr><td colspan="4" style="text-align:right;font-weight:700">TOTAL</td><td class="text-right font-mono" style="color:var(--green);font-weight:800;font-size:1.05rem">${brl.format(totalGeral)}</td><td></td></tr></tfoot>
       </table>
     </div>`;
 }
@@ -9973,10 +9976,8 @@ function buscarProdutoPedido(idx) {
   if (!input || !container) return;
   const busca = (input.value || "").toLowerCase().trim();
   if (busca.length < 1) { container.classList.add("hidden"); return; }
-  const matches = estoqueIntelProdutos.filter(p => (p.nome || "").toLowerCase().includes(busca) || (p.id || "").toLowerCase().includes(busca)).slice(0, 8);
-  // Also search embalagens for SKU/description
-  const embMatches = estoqueIntelEmbalagens.filter(e => (e.descricao || "").toLowerCase().includes(busca) || (e.codigo_barras || "").includes(busca)).slice(0, 4);
-  if (!matches.length && !embMatches.length) { container.classList.add("hidden"); return; }
+  const matches = estoqueIntelProdutos.filter(p => (p.nome || "").toLowerCase().includes(busca) || (p.sku || "").toLowerCase().includes(busca) || (p.categoria || "").toLowerCase().includes(busca) || (p.id || "").toLowerCase().includes(busca)).slice(0, 20);
+  if (!matches.length) { container.classList.add("hidden"); return; }
   let html = matches.map(p => {
     const embs = estoqueIntelEmbalagens.filter(e => e.produto_id === p.id);
     const precoRef = embs.length ? embs[0].preco_referencia || 0 : 0;
@@ -9993,7 +9994,7 @@ function selecionarProdutoPedido(idx, produtoId) {
   const precoRef = embs.length ? embs[0].preco_referencia || 0 : 0;
   const sku = produto.sku || (embs.length ? embs[0].codigo_barras : "") || produtoId;
   const ncm = produto.ncm || "";
-  _pedidoManualItens[idx] = { descricao: produto.nome, sku, unidade: produto.unidade_base || "UN", qtd: _pedidoManualItens[idx]?.qtd || 1, precoUnitario: precoRef, ncm };
+  _pedidoManualItens[idx] = { descricao: produto.nome, sku, unidade: produto.unidade_base || "UN", qtd: _pedidoManualItens[idx]?.qtd || 1, precoUnitario: precoRef, valorTotal: null, ncm };
   renderPedidoItensManual();
   const sugContainer = document.getElementById(`ped-prod-sug-${idx}`);
   if (sugContainer) sugContainer.classList.add("hidden");
@@ -10001,10 +10002,22 @@ function selecionarProdutoPedido(idx, produtoId) {
 
 function atualizarItemPedidoManual(idx) {
   const qty = parseFloat(document.getElementById(`ped-item-qty-${idx}`)?.value) || 0;
-  const preco = parseFloat(document.getElementById(`ped-item-preco-${idx}`)?.value) || 0;
   if (_pedidoManualItens[idx]) {
     _pedidoManualItens[idx].qtd = qty;
-    _pedidoManualItens[idx].precoUnitario = preco;
+    // Recalcular valor total se tinha precoUnitario mas sem valorTotal explícito
+    if (_pedidoManualItens[idx].precoUnitario && _pedidoManualItens[idx].valorTotal == null) {
+      _pedidoManualItens[idx].valorTotal = qty * _pedidoManualItens[idx].precoUnitario;
+    }
+  }
+  renderPedidoItensManual();
+}
+
+function atualizarItemPedidoManualValor(idx) {
+  const valor = parseFloat(document.getElementById(`ped-item-valor-${idx}`)?.value) || 0;
+  if (_pedidoManualItens[idx]) {
+    _pedidoManualItens[idx].valorTotal = valor;
+    const qty = _pedidoManualItens[idx].qtd || 0;
+    _pedidoManualItens[idx].precoUnitario = qty > 0 ? valor / qty : 0;
   }
   renderPedidoItensManual();
 }
@@ -10075,16 +10088,21 @@ function salvarPedidoManual() {
   const statusPedido = normalizePedidoStatus(document.getElementById("pedido-status")?.value || "em_aberto");
 
   // Collect items from _pedidoManualItens
-  const itens = _pedidoManualItens.filter(i => i.descricao && i.qtd > 0).map((i, idx) => ({
-    itemNum: i.itemNum || (idx + 1),
-    descricao: i.descricao,
-    qtd: Number(i.qtd) || 0,
-    precoUnitario: Number(i.precoUnitario) || 0,
-    sku: i.sku || "",
-    unidade: i.unidade || "UN",
-    ncm: i.ncm || ""
-  }));
-  let valor = itens.reduce((sum, i) => sum + i.qtd * i.precoUnitario, 0);
+  const itens = _pedidoManualItens.filter(i => i.descricao && i.qtd > 0).map((i, idx) => {
+    const valorTotal = i.valorTotal != null ? Number(i.valorTotal) : Number(i.qtd || 0) * Number(i.precoUnitario || 0);
+    const precoUnit = Number(i.qtd) > 0 ? valorTotal / Number(i.qtd) : 0;
+    return {
+      itemNum: i.itemNum || (idx + 1),
+      descricao: i.descricao,
+      qtd: Number(i.qtd) || 0,
+      precoUnitario: precoUnit,
+      valorTotal: valorTotal,
+      sku: i.sku || "",
+      unidade: i.unidade || "UN",
+      ncm: i.ncm || ""
+    };
+  });
+  let valor = itens.reduce((sum, i) => sum + (i.valorTotal || 0), 0);
 
   if (itens.length === 0) {
     showToast("Preencha pelo menos um item.", 3000);
@@ -11548,7 +11566,7 @@ function renderEstoque() {
         <td class="text-right font-mono">${Number(totalQuantidade || 0)}</td>
         <td><span class="badge ${reservaStatus.badgeClass}">${esc(reservaStatus.label)}</span><br><span style="font-size:.72rem;color:var(--mut)">${esc(reservaStatus.detail)}</span></td>
         <td>${pedido.data_prevista || pedido.data ? formatDateTimeLocal(pedido.data_prevista || pedido.data) : "-"}</td>
-        <td class="text-right" style="display:flex;justify-content:flex-end;gap:.35rem;flex-wrap:wrap">${reservaStatus.key === "reservada" ? `<button class="btn btn-green btn-sm" style="padding:.3rem .65rem;font-size:.72rem" onclick="baixarReservaEstoqueIntel('${esc(pedido.id)}')">Baixar</button>` : ""}${podeExcluirDemanda ? `<button class="btn btn-outline btn-sm" style="padding:.3rem .65rem;font-size:.72rem" onclick="excluirDemandaEstoqueIntel('${esc(pedido.id)}')">Excluir</button>` : ""}</td>
+        <td class="text-right" style="display:flex;justify-content:flex-end;gap:.35rem;flex-wrap:wrap">${pedido.origem_sistema === "gdp_pedido" ? `<button class="btn btn-outline btn-sm" style="padding:.3rem .65rem;font-size:.72rem;border-color:rgba(59,130,246,.4);color:var(--blue)" onclick="gerarDemandaPedidoRealEstoqueIntel('${esc(pedido.id)}')">Ver Conversao</button>` : ""}${reservaStatus.key === "reservada" ? `<button class="btn btn-green btn-sm" style="padding:.3rem .65rem;font-size:.72rem" onclick="baixarReservaEstoqueIntel('${esc(pedido.id)}')">Baixar</button>` : ""}${podeExcluirDemanda ? `<button class="btn btn-outline btn-sm" style="padding:.3rem .65rem;font-size:.72rem" onclick="excluirDemandaEstoqueIntel('${esc(pedido.id)}')">Excluir</button>` : ""}</td>
       </tr>
     `;
   }).join("") : `<tr><td colspan="8" style="color:var(--mut)">Nenhuma demanda encontrada para o filtro atual.</td></tr>`;
@@ -11559,7 +11577,7 @@ function renderEstoque() {
       <td class="font-mono">${esc(item.pedido.id)}</td>
       <td style="font-size:.76rem;color:var(--mut)">${esc(item.pendenciaLabel)}</td>
       <td><span class="badge badge-yellow">${esc(getPedidoStatusMeta(item.pedido.status).label)}</span></td>
-      <td class="text-right"><button class="btn btn-outline btn-sm" style="padding:.3rem .65rem;border-color:rgba(245,158,11,.45);color:#fbbf24" onclick="gerarDemandaPedidoRealEstoqueIntel('${esc(item.pedido.id)}')">Gerar Demanda</button></td>
+      <td class="text-right"><button class="btn btn-outline btn-sm" style="padding:.3rem .65rem;border-color:rgba(245,158,11,.45);color:#fbbf24" onclick="gerarDemandaPedidoRealEstoqueIntel('${esc(item.pedido.id)}')">Ver Conversao</button></td>
     </tr>
   `).join("") : `<tr><td colspan="4" style="color:var(--mut)">Todos os pedidos reais elegiveis ja possuem demanda.</td></tr>`;
 
@@ -11822,15 +11840,25 @@ function abrirVincularGDP(contratoId, itemIdx) {
   _vincularGdpItemIdx = itemIdx;
   _vincularGdpDescricao = c.itens[itemIdx].descricao;
   document.getElementById("vincular-gdp-desc").textContent = _vincularGdpDescricao.slice(0, 80) + (_vincularGdpDescricao.length > 80 ? "..." : "");
-  document.getElementById("vincular-gdp-busca").value = "";
-  document.getElementById("vincular-gdp-criar-nome").value = _vincularGdpDescricao.slice(0, 60);
-  document.getElementById("vincular-gdp-criar-sku").value = gdpGerarSkuSugerido(_vincularGdpDescricao);
-  renderVincularGDPResultados("");
-  document.getElementById("modal-vincular-gdp").classList.remove("hidden");
+  // Se já tem vínculo, mostrar produto atual
+  const equivSku = getGdpEquivalencia(_vincularGdpDescricao);
+  const prodVinculado = equivSku ? estoqueIntelProdutos.find(p => p.sku === equivSku || p.id === equivSku) : null;
+  const descEl = document.getElementById("vincular-gdp-desc");
+  if (descEl) {
+    let descText = _vincularGdpDescricao.slice(0, 80);
+    if (prodVinculado) descText += ' → Vinculado a: ' + prodVinculado.nome + ' (' + (prodVinculado.sku || '') + ')';
+    descEl.textContent = descText;
+  }
+  const buscaEl = document.getElementById("vincular-gdp-busca");
+  if (buscaEl) buscaEl.value = prodVinculado ? prodVinculado.nome : "";
+  renderVincularGDPResultados(prodVinculado ? prodVinculado.nome : "");
+  const modal = document.getElementById("modal-vincular-gdp");
+  if (modal) { modal.classList.remove("hidden"); modal.style.display = "flex"; }
 }
 
 function fecharVincularGDP() {
-  document.getElementById("modal-vincular-gdp").classList.add("hidden");
+  const modal = document.getElementById("modal-vincular-gdp");
+  if (modal) { modal.classList.add("hidden"); modal.style.display = "none"; }
   _vincularGdpContratoId = "";
   _vincularGdpItemIdx = -1;
   _vincularGdpDescricao = "";
@@ -11849,28 +11877,64 @@ function gdpGerarSkuSugerido(nome) {
 function renderVincularGDPResultados(query) {
   const el = document.getElementById("vincular-gdp-resultados");
   if (!el) return;
-  const BANCO_KEY = "caixaescolar.banco.v1";
-  let banco;
-  try { banco = JSON.parse(localStorage.getItem(BANCO_KEY)); } catch(_) { banco = null; }
-  if (!banco || !Array.isArray(banco.itens) || banco.itens.length === 0) {
-    el.innerHTML = '<div style="padding:1rem;color:var(--mut);text-align:center">Banco de Produtos vazio. Crie um produto abaixo.</div>';
+  const allProds = estoqueIntelProdutos.map(p => {
+    const embs = estoqueIntelEmbalagens.filter(e => e.produto_id === p.id);
+    const embsDesc = embs.map(e => {
+      const qtd = e.quantidade_base || 1;
+      const desc = e.descricao || (qtd + " " + (p.unidade_base || "UN"));
+      const preco = e.preco_referencia ? " " + brl.format(e.preco_referencia) : "";
+      return desc + preco;
+    }).join(" | ") || "Sem embalagem";
+    const custoBase = embs.length ? embs[0].preco_referencia || 0 : 0;
+    return { id: p.id, nome: p.nome, sku: p.sku || "", base: p.unidade_base || "UN", categoria: p.categoria || "", embs: embsDesc, custoBase };
+  });
+
+  if (allProds.length === 0) {
+    el.innerHTML = '<div style="padding:1rem;color:var(--mut);text-align:center">Nenhum produto cadastrado. Cadastre em Inteligencia > Produtos.</div>';
     return;
   }
-  const q = gdpNormalizedText(query);
-  let itens = banco.itens;
-  if (q) itens = itens.filter(bp => gdpNormalizedText(bp.item || bp.nomeComercial || "").includes(q) || gdpNormalizedText(bp.sku || "").includes(q));
-  itens = itens.slice(0, 50);
-  if (itens.length === 0) {
-    el.innerHTML = '<div style="padding:1rem;color:var(--mut);text-align:center">Nenhum produto encontrado.</div>';
+  const q = gdpNormalizedText(query || _vincularGdpDescricao || "");
+  let filtrados = allProds;
+  if (q) filtrados = allProds.filter(p => gdpNormalizedText(p.nome).includes(q) || gdpNormalizedText(p.sku).includes(q) || gdpNormalizedText(p.categoria).includes(q) || gdpNormalizedText(p.embs).includes(q));
+  filtrados = filtrados.slice(0, 50);
+  if (filtrados.length === 0) {
+    el.innerHTML = '<div style="padding:1rem;color:var(--mut);text-align:center">Nenhum produto encontrado para "' + esc(query) + '".</div>';
     return;
   }
-  el.innerHTML = '<table style="font-size:.82rem;width:100%"><thead><tr><th>Produto</th><th>SKU</th><th>Custo</th><th></th></tr></thead><tbody>' +
-    itens.map(bp => `<tr>
-      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(bp.nomeComercial || bp.item)}">${esc((bp.nomeComercial || bp.item || "").slice(0, 40))}</td>
-      <td class="font-mono" style="font-size:.72rem">${esc(bp.sku || "-")}</td>
-      <td class="text-right">${bp.custoBase ? brl.format(bp.custoBase) : "-"}</td>
-      <td class="text-center"><button class="btn btn-sm btn-green" style="font-size:.72rem;padding:.15rem .4rem" onclick="selecionarVincularGDP('${esc(bp.id)}')">Selecionar</button></td>
-    </tr>`).join("") + '</tbody></table>';
+  const equivSkuAtual = getGdpEquivalencia(_vincularGdpDescricao);
+  el.innerHTML = '<table style="font-size:.82rem;width:100%"><thead><tr><th></th><th>Produto</th><th>Base</th><th>Embalagens</th><th>SKU</th><th></th></tr></thead><tbody>' +
+    filtrados.map(p => {
+      const isVinculado = equivSkuAtual && (p.sku === equivSkuAtual || p.id === equivSkuAtual);
+      return `<tr style="${isVinculado ? 'background:rgba(34,197,94,.1)' : ''}">
+      <td style="text-align:center;font-size:.9rem">${isVinculado ? '✅' : ''}</td>
+      <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap${isVinculado ? ';font-weight:700;color:var(--green)' : ''}" title="${esc(p.nome)}">${esc(p.nome.slice(0, 35))}</td>
+      <td><span class="badge badge-blue" style="font-size:.65rem">${esc(p.base)}</span></td>
+      <td style="font-size:.72rem;color:var(--mut);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(p.embs)}">${esc(p.embs.slice(0, 45))}</td>
+      <td class="font-mono" style="font-size:.7rem">${esc(p.sku || "-")}</td>
+      <td class="text-center">${isVinculado ? '<span style="font-size:.72rem;color:var(--green);font-weight:700">Atual</span>' : '<button class="btn btn-sm btn-green" style="font-size:.72rem;padding:.15rem .4rem" onclick="selecionarVincularGDPIntel(\'' + esc(p.id) + '\')">Vincular</button>'}</td>
+    </tr>`}).join("") + '</tbody></table>';
+}
+
+function selecionarVincularGDPIntel(produtoId) {
+  const produto = estoqueIntelProdutos.find(p => p.id === produtoId);
+  if (!produto) { showToast("Produto nao encontrado.", 3000); return; }
+  const sku = produto.sku || produtoId;
+  const descSave = _vincularGdpDescricao;
+  if (!descSave) { showToast("Descricao do item nao encontrada.", 3000); return; }
+  setGdpEquivalencia(descSave, sku);
+  // Também salvar SKU no item do contrato diretamente
+  if (_vincularGdpContratoId && _vincularGdpItemIdx >= 0) {
+    const c = contratos.find(x => x.id === _vincularGdpContratoId);
+    if (c && c.itens[_vincularGdpItemIdx]) {
+      c.itens[_vincularGdpItemIdx].skuVinculado = sku;
+      c.itens[_vincularGdpItemIdx].produtoVinculado = produto.nome;
+      saveContratos();
+    }
+  }
+  const cId = _vincularGdpContratoId;
+  fecharVincularGDP();
+  showToast('Vinculado: "' + descSave.slice(0, 40) + '" -> ' + produto.nome + ' (' + sku + ')');
+  if (cId) abrirContrato(cId);
 }
 
 function selecionarVincularGDP(bpId) {
@@ -12256,11 +12320,12 @@ function renderFormUsuario(u, draft = {}) {
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
       <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Nome do Cliente</label><input type="text" id="usr-nome" value="${esc(dataBase?.nome||'')}" style="width:100%"></div>
       <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">CNPJ</label><input type="text" id="usr-cnpj" value="${esc(dataBase?.cnpj||'')}" style="width:100%"></div>
+      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Inscricao Estadual</label><input type="text" id="usr-ie" value="${esc(dataBase?.ie||'ISENTO')}" style="width:100%"></div>
       <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Contribuinte ICMS</label><select id="usr-contribuinte-icms" style="width:100%"><option value="9"${(dataBase?.contribuinte_icms||dataBase?.sre||'9')==='9'?' selected':''}>9 - Nao Contribuinte</option><option value="1"${(dataBase?.contribuinte_icms||'')==='1'?' selected':''}>1 - Contribuinte ICMS</option><option value="2"${(dataBase?.contribuinte_icms||'')==='2'?' selected':''}>2 - Contribuinte isento de Inscricao</option></select></div>
       <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Email</label><input type="text" id="usr-email" value="${esc(dataBase?.email||'')}" style="width:100%"></div>
-      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Responsavel</label><input type="text" id="usr-responsavel" value="${esc(dataBase?.responsavel||'')}" style="width:100%"></div>
       <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Telefone</label><input type="text" id="usr-telefone" value="${esc(dataBase?.telefone||'')}" style="width:100%"></div>
     </div>
+    <input type="hidden" id="usr-responsavel" value="${esc(dataBase?.responsavel||'')}">
     <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--brd,#475569)">
       <div style="font-size:.8rem;font-weight:700;margin-bottom:.8rem;color:var(--acc,#3b82f6)">Endereco (para NF-e)</div>
       <div style="display:grid;grid-template-columns:2fr 1fr;gap:1rem">
@@ -12272,10 +12337,9 @@ function renderFormUsuario(u, draft = {}) {
         <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Bairro</label><input type="text" id="usr-bairro" value="${esc(dataBase?.bairro||'')}" style="width:100%"></div>
         <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">CEP</label><input type="text" id="usr-cep" value="${esc(dataBase?.cep||'')}" placeholder="00000-000" style="width:100%"></div>
       </div>
-      <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:1rem;margin-top:.5rem">
+      <div style="display:grid;grid-template-columns:2fr 1fr;gap:1rem;margin-top:.5rem">
         <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Municipio</label><input type="text" id="usr-municipio" value="${esc(dataBase?.municipio||'')}" style="width:100%"></div>
         <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">UF</label><input type="text" id="usr-uf" value="${esc(dataBase?.uf||'MG')}" maxlength="2" style="width:100%"></div>
-        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Inscricao Estadual</label><input type="text" id="usr-ie" value="${esc(dataBase?.ie||'ISENTO')}" style="width:100%"></div>
       </div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:1rem">
@@ -12372,12 +12436,10 @@ function abrirDetalheCliente(id) {
     <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem;margin-bottom:1.25rem">
       <div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Cliente</div><div style="font-weight:700;font-size:1.1rem">${esc(cliente.nome || '-')}</div></div>
       <div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">CNPJ</div><div class="font-mono" style="font-weight:700">${esc(cliente.cnpj || '-')}</div></div>
-      <div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Municipio</div><div style="font-weight:700">${esc(cliente.municipio || '-')}</div></div>
+      <div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Inscricao Estadual</div><div style="font-weight:700">${esc(cliente.ie || 'ISENTO')}</div></div>
       <div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Contribuinte ICMS</div><div style="font-weight:700">${esc({'1':'1 - Contribuinte ICMS','2':'2 - Contribuinte isento','9':'9 - Nao Contribuinte'}[cliente.contribuinte_icms] || cliente.contribuinte_icms || '-')}</div></div>
-      <div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Responsavel</div><div style="font-weight:700">${esc(cliente.responsavel || '-')}</div></div>
-      <div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Telefone</div><div style="font-weight:700">${esc(cliente.telefone || '-')}</div></div>
       <div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Email</div><div style="font-weight:700">${esc(cliente.email || '-')}</div></div>
-      <div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Login</div><div class="font-mono" style="font-weight:700">${esc(cliente.login || '-')}</div></div>
+      <div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Telefone</div><div style="font-weight:700">${esc(cliente.telefone || '-')}</div></div>
     </div>
     <div style="padding:1rem;border:1px solid var(--bdr);border-radius:12px;background:var(--s1);margin-bottom:1rem">
       <div style="font-size:.78rem;font-weight:700;margin-bottom:.75rem;color:var(--acc,#3b82f6)">Endereco para NF-e</div>
@@ -12387,7 +12449,7 @@ function abrirDetalheCliente(id) {
         <div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.25rem">Complemento</div><div style="font-weight:700">${esc(cliente.complemento || '-')}</div></div>
         <div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.25rem">Bairro</div><div style="font-weight:700">${esc(cliente.bairro || '-')}</div></div>
         <div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.25rem">CEP</div><div style="font-weight:700">${esc(cliente.cep || '-')}</div></div>
-        <div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.25rem">UF / IE</div><div style="font-weight:700">${esc(cliente.uf || 'MG')} • ${esc(cliente.ie || 'ISENTO')}</div></div>
+        <div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.25rem">UF</div><div style="font-weight:700">${esc(cliente.uf || 'MG')}</div></div>
       </div>
     </div>
     <div style="padding:1rem;border:1px solid var(--bdr);border-radius:12px;background:var(--s1);margin-bottom:1rem">
@@ -13530,8 +13592,101 @@ function atualizarSelecaoItens(contratoId) {
   const count = checks.length;
   const span = document.getElementById(`itens-selecionados-${contratoId}`);
   const btn = document.getElementById(`btn-editar-massa-${contratoId}`);
+  const btnVinc = document.getElementById(`btn-vincular-massa-${contratoId}`);
   if (span) span.textContent = count > 0 ? `${count} selecionado(s)` : '';
   if (btn) { if (count > 0) btn.classList.remove('hidden'); else btn.classList.add('hidden'); }
+  if (btnVinc) { if (count > 0) btnVinc.classList.remove('hidden'); else btnVinc.classList.add('hidden'); }
+}
+
+function vincularItensMassa(contratoId) {
+  const c = contratos.find(x => x.id === contratoId);
+  if (!c) return;
+  const checks = document.querySelectorAll(`.item-check-${contratoId}:checked`);
+  const indices = Array.from(checks).map(cb => parseInt(cb.dataset.idx)).filter(i => !isNaN(i));
+  if (indices.length === 0) { showToast("Nenhum item selecionado."); return; }
+
+  // Build modal with list of selected items + search for each
+  let overlay = document.getElementById("vincular-massa-overlay");
+  if (!overlay) {
+    overlay = document.createElement("div");
+    overlay.id = "vincular-massa-overlay";
+    overlay.style.cssText = "position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:1100";
+    document.body.appendChild(overlay);
+  }
+  overlay.classList.remove("hidden");
+
+  // Merge products from Intel + Banco
+  const BANCO_KEY = "caixaescolar.banco.v1";
+  let banco; try { banco = JSON.parse(localStorage.getItem(BANCO_KEY)); } catch(_) { banco = null; }
+  const bancoItens = (banco && Array.isArray(banco.itens)) ? banco.itens : [];
+  const allProds = [
+    ...estoqueIntelProdutos.map(p => ({ id: p.id, nome: p.nome, sku: p.sku || "", source: "intel" })),
+    ...bancoItens.map(bp => ({ id: bp.id, nome: bp.nomeComercial || bp.item || "", sku: bp.sku || "", source: "banco" }))
+  ];
+  const prodOptions = allProds.map(p => `<option value="${esc(p.id)}|${esc(p.source)}">${esc(p.nome)} (${esc(p.sku || p.id.slice(0,10))})</option>`).join("");
+
+  const rowsHtml = indices.map(idx => {
+    const item = c.itens[idx];
+    if (!item) return "";
+    return `<tr data-vincmassa-idx="${idx}">
+      <td style="font-size:.78rem">${item.num || idx+1}</td>
+      <td style="font-size:.78rem;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(item.descricao)}">${esc((item.descricao || "").slice(0,45))}</td>
+      <td><select class="vincmassa-select" style="width:100%;font-size:.78rem"><option value="">-- Selecionar produto --</option>${prodOptions}</select></td>
+    </tr>`;
+  }).join("");
+
+  overlay.innerHTML = `
+    <div style="background:var(--s1);border:1px solid var(--bdr);border-radius:14px;padding:1.5rem;max-width:700px;width:95%;max-height:85vh;overflow-y:auto">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+        <div style="font-size:1.1rem;font-weight:700">Vincular ${indices.length} Item(ns)</div>
+        <button class="btn btn-outline btn-sm" onclick="document.getElementById('vincular-massa-overlay').classList.add('hidden')">✕</button>
+      </div>
+      <div class="table-wrap" style="max-height:50vh;overflow-y:auto">
+        <table style="font-size:.82rem"><thead><tr><th>#</th><th>Descricao do Contrato</th><th>Produto Cadastrado</th></tr></thead>
+        <tbody>${rowsHtml}</tbody></table>
+      </div>
+      <div style="display:flex;gap:.5rem;justify-content:flex-end;margin-top:1rem">
+        <button class="btn btn-outline" onclick="document.getElementById('vincular-massa-overlay').classList.add('hidden')">Cancelar</button>
+        <button class="btn btn-green" onclick="confirmarVincularMassa('${esc(contratoId)}')">Vincular Todos</button>
+      </div>
+    </div>
+  `;
+}
+
+function confirmarVincularMassa(contratoId) {
+  const c = contratos.find(x => x.id === contratoId);
+  if (!c) return;
+  const BANCO_KEY = "caixaescolar.banco.v1";
+  let banco; try { banco = JSON.parse(localStorage.getItem(BANCO_KEY)); } catch(_) { banco = null; }
+  let vinculados = 0;
+  document.querySelectorAll("[data-vincmassa-idx]").forEach(row => {
+    const idx = parseInt(row.getAttribute("data-vincmassa-idx"));
+    const sel = row.querySelector(".vincmassa-select");
+    if (!sel || !sel.value) return;
+    const [prodId, source] = sel.value.split("|");
+    const item = c.itens[idx];
+    if (!item) return;
+    let sku = "";
+    if (source === "intel") {
+      const p = estoqueIntelProdutos.find(x => x.id === prodId);
+      sku = p?.sku || prodId;
+    } else {
+      const bp = banco?.itens?.find(x => x.id === prodId);
+      sku = bp?.sku || "";
+    }
+    if (sku) {
+      setGdpEquivalencia(item.descricao, sku);
+      vinculados++;
+    }
+  });
+  document.getElementById("vincular-massa-overlay").classList.add("hidden");
+  if (vinculados > 0) {
+    saveContratos();
+    abrirContrato(contratoId);
+    showToast(`${vinculados} item(ns) vinculado(s) com sucesso.`);
+  } else {
+    showToast("Nenhum item vinculado.");
+  }
 }
 
 function editarItensMassa(contratoId) {
@@ -14334,8 +14489,33 @@ function consolidarItensParaLista(origens) {
       }
     }
   }
-  // Tentar associar fornecedor do cadastro de fornecedores
+  // Enriquecer com embalagem e conversão inteligente
   consolidado.forEach(item => {
+    // Buscar produto no Estoque Intel
+    const prod = estoqueIntelProdutos.find(p => (item.sku && p.sku === item.sku) || p.nome.toLowerCase() === item.descricao.toLowerCase());
+    const embs = prod ? estoqueIntelEmbalagens.filter(e => e.produto_id === prod.id) : [];
+    if (embs.length) {
+      // Usar embalagem com maior quantidade_base (mais eficiente)
+      const melhorEmb = embs.reduce((best, e) => (Number(e.quantidade_base || 0) > Number(best.quantidade_base || 0)) ? e : best, embs[0]);
+      const qtdBase = Number(melhorEmb.quantidade_base || 1);
+      const qtdEmbalagens = Math.ceil(item.qtd / qtdBase);
+      const sobra = (qtdEmbalagens * qtdBase) - item.qtd;
+      const custoEmb = Number(melhorEmb.preco_referencia || 0);
+      item.embalagem = melhorEmb.descricao || (qtdBase + " " + (item.unidade || "UN"));
+      item.qtdBase = qtdBase;
+      item.qtdEmbalagens = qtdEmbalagens;
+      item.sobra = sobra;
+      item.custoEmbalagem = custoEmb;
+      item.valorTotal = qtdEmbalagens * custoEmb;
+      item.todasEmbalagens = embs;
+    } else {
+      item.embalagem = "—";
+      item.qtdBase = 1;
+      item.qtdEmbalagens = item.qtd;
+      item.sobra = 0;
+      item.custoEmbalagem = 0;
+    }
+    // Fornecedor
     const forn = estoqueIntelFornecedores.find(f => (f.produtos || []).some(fp => fp.toLowerCase().includes(item.descricao.toLowerCase())));
     if (forn) item.fornecedor = forn.nome || forn.razaoSocial || "";
   });
@@ -14366,11 +14546,27 @@ function renderListaComprasAtual() {
     thead.innerHTML = '<th>#</th><th>Fornecedor</th><th>Descricao</th><th>SKU</th><th>Un.</th><th class="text-right">Qtd</th><th class="text-right">Valor</th>';
     tbody.innerHTML = itens.map((item, i) => `<tr><td>${i+1}</td><td>${esc(item.fornecedor||"Sem fornecedor")}</td><td>${esc(item.descricao)}</td><td class="font-mono">${esc(item.sku||"—")}</td><td>${esc(item.unidade)}</td><td class="text-right font-mono" style="font-weight:700">${item.qtd}</td><td class="text-right font-mono">${brl.format(item.valorTotal||0)}</td></tr>`).join("");
   } else {
-    thead.innerHTML = '<th>#</th><th>Descricao</th><th>SKU</th><th>Un.</th><th class="text-right">Qtd Total</th><th class="text-right">Valor Total</th><th>Protocolos</th>';
-    tbody.innerHTML = itens.map((item, i) => `<tr><td>${i+1}</td><td>${esc(item.descricao)}</td><td class="font-mono">${esc(item.sku||"—")}</td><td>${esc(item.unidade)}</td><td class="text-right font-mono" style="font-weight:700">${item.qtd}</td><td class="text-right font-mono">${brl.format(item.valorTotal||0)}</td><td style="font-size:.75rem;color:var(--mut)">${item.protocolos.map(id=>esc(id)).join(", ")}</td></tr>`).join("");
+    thead.innerHTML = '<th>#</th><th>Produto</th><th>Demanda</th><th>Embalagem</th><th class="text-right">Qtd Emb.</th><th class="text-right">Sobra</th><th class="text-right">Custo Unit.</th><th class="text-right">Custo Total</th>';
+    tbody.innerHTML = itens.map((item, i) => {
+      const demandaLabel = item.qtd + " " + (item.unidade || "UN");
+      const sobraLabel = item.sobra > 0 ? ("+" + item.sobra + " " + (item.unidade || "")) : "—";
+      const sobraColor = item.sobra > 0 ? "color:var(--yellow)" : "color:var(--green)";
+      return `<tr>
+        <td>${i+1}</td>
+        <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(item.descricao)}">${esc(item.descricao)}</td>
+        <td class="text-right font-mono">${esc(demandaLabel)}</td>
+        <td style="font-size:.78rem">${esc(item.embalagem)}</td>
+        <td class="text-right font-mono" style="font-weight:700;font-size:1rem">${item.qtdEmbalagens}</td>
+        <td class="text-right font-mono" style="${sobraColor};font-size:.78rem">${sobraLabel}</td>
+        <td class="text-right font-mono">${item.custoEmbalagem ? brl.format(item.custoEmbalagem) : "—"}</td>
+        <td class="text-right font-mono" style="font-weight:700">${item.valorTotal ? brl.format(item.valorTotal) : "—"}</td>
+      </tr>`;
+    }).join("");
   }
-  document.getElementById("lista-compras-total-itens").textContent = itens.length + " item" + (itens.length !== 1 ? " únicos" : " único");
-  document.getElementById("lista-compras-total-qtd").textContent = "Qtd total: " + itens.reduce((s, i) => s + i.qtd, 0);
+  const totalEmbs = itens.reduce((s, i) => s + (i.qtdEmbalagens || 0), 0);
+  const totalValor = itens.reduce((s, i) => s + (i.valorTotal || 0), 0);
+  document.getElementById("lista-compras-total-itens").textContent = itens.length + " produto" + (itens.length !== 1 ? "s" : "");
+  document.getElementById("lista-compras-total-qtd").textContent = totalEmbs + " embalagem(ns) | " + (totalValor ? brl.format(totalValor) : "Sem preco ref.");
 }
 
 function exportarListaCSV() {
