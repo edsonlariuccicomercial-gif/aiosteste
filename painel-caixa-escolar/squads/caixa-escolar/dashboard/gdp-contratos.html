@@ -150,14 +150,17 @@
     body.estoque-intel-print-mode #estoque-intel-print-root table{width:100%;border-collapse:collapse}
     body.estoque-intel-print-mode #estoque-intel-print-root th,
     body.estoque-intel-print-mode #estoque-intel-print-root td{
-      border:1px solid #cbd5e1;padding:8px 10px;text-align:left;font-size:12px;color:#0f172a
+      border:1px solid #cbd5e1;padding:6px 8px;text-align:left;font-size:11px;color:#0f172a
     }
     body.estoque-intel-print-mode #estoque-intel-print-root th{background:#e2e8f0}
     @media print{
-      body.estoque-intel-print-mode > *{visibility:hidden!important}
+      body.estoque-intel-print-mode > *{display:none!important}
+      body.estoque-intel-print-mode #estoque-intel-print-root{display:block!important;position:static!important;overflow:visible!important;padding:0!important;background:#fff}
       body.estoque-intel-print-mode #estoque-intel-print-root,
       body.estoque-intel-print-mode #estoque-intel-print-root *{visibility:visible!important}
-      body.estoque-intel-print-mode #estoque-intel-print-root{position:absolute;inset:0;padding:0}
+      body.estoque-intel-print-mode #estoque-intel-print-root table{page-break-inside:auto}
+      body.estoque-intel-print-mode #estoque-intel-print-root tr{page-break-inside:avoid;page-break-after:auto}
+      body.estoque-intel-print-mode #estoque-intel-print-root thead{display:table-header-group}
     }
     .hidden{display:none!important}
     @media(max-width:768px){.main{padding:1rem}.kpi-grid{grid-template-columns:repeat(2,1fr)}.topbar{flex-wrap:wrap;gap:.5rem}}
@@ -871,20 +874,6 @@
           <button class="btn btn-outline btn-sm" onclick="limparEstoqueIntel()">Limpar Base</button>
         </div>
       </div>
-      <div style="display:grid;grid-template-columns:1.2fr .8fr;gap:.75rem;align-items:end;margin-top:1rem">
-        <div>
-          <label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Busca operacional</label>
-          <input type="text" id="ei-busca" placeholder="Buscar produto, embalagem ou codigo de barras" oninput="renderEstoque()">
-        </div>
-        <div>
-          <label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Base</label>
-          <select id="ei-filtro-base" onchange="renderEstoque()">
-            <option value="">Todas</option>
-            <option value="g">g</option>
-            <option value="ml">ml</option>
-          </select>
-        </div>
-      </div>
       <div class="estoque-intel-nav" style="margin-top:1rem">
         <button class="btn btn-green btn-sm" id="ei-view-btn-pedidos" onclick="setEstoqueIntelView('pedidos')">Demandas</button>
         <button class="btn btn-outline btn-sm" id="ei-view-btn-produtos" onclick="setEstoqueIntelView('produtos')">Produtos</button>
@@ -905,23 +894,20 @@
       <div class="card" id="ei-card-produtos" data-ei-section="produtos">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap;margin-bottom:.75rem">
           <h3 style="margin:0">Cadastro de Produtos</h3>
-          <button class="btn btn-outline btn-sm" onclick="imprimirListaProdutosEstoqueIntel()">Imprimir Lista</button>
-        </div>
-        <div data-ei-form style="margin-bottom:1rem">
-          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.75rem;align-items:end;margin-bottom:.75rem">
-            <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Nome do Produto</label><input type="text" id="ei-produto-nome" placeholder="Ex: Arroz"></div>
-            <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Unidade Base</label><select id="ei-produto-unidade"><optgroup label="Contagem"><option value="UN" selected>UN — Unidade</option><option value="DZ">DZ — Duzia</option></optgroup><optgroup label="Peso"><option value="g">g — Grama</option><option value="KG">KG — Quilograma</option></optgroup><optgroup label="Volume"><option value="ml">ml — Mililitro</option><option value="LT">LT — Litro</option><option value="GL">GL — Galao</option></optgroup><optgroup label="Embalagem"><option value="CX">CX — Caixa</option><option value="PCT">PCT — Pacote</option><option value="FD">FD — Fardo</option><option value="BD">BD — Bandeja</option><option value="PT">PT — Pote</option><option value="SC">SC — Sache/Saco</option></optgroup><optgroup label="Outros"><option value="MÇ">MÇ — Maco</option><option value="RS">RS — Resma</option><option value="RL">RL — Rolo</option><option value="FR">FR — Frasco</option><option value="TB">TB — Tubo</option><option value="GF">GF — Garrafa</option><option value="LA">LA — Lata</option></optgroup></select></div>
-            <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">SKU / Cod. Barras</label><input type="text" id="ei-produto-sku" placeholder="789..."></div>
-            <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">NCM</label><input type="text" id="ei-produto-ncm" placeholder="1006.30.00"></div>
-          </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:.75rem;align-items:end">
-            <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Embalagem (descricao)</label><input type="text" id="ei-emb-descricao" placeholder="Ex: Pacote 5kg, Caixa c/ 12"></div>
-            <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem" id="ei-emb-qtd-label">Qtd por Embalagem</label><input type="number" id="ei-emb-quantidade" min="1" step="1" placeholder="1"></div>
-            <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Preco Referencia</label><input type="number" id="ei-emb-preco-ref" min="0" step="0.01" placeholder="8.90"></div>
-            <div style="display:flex;align-items:end"><button class="btn btn-green" onclick="registrarProdutoUnificado()">Salvar Produto</button></div>
+          <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+            <button class="btn btn-green btn-sm" onclick="toggleFormNovoProduto()">+ Novo Produto</button>
+            <button class="btn btn-outline btn-sm" onclick="autoPreencherSKUeNCM()">Auto SKU/NCM</button>
+            <button class="btn btn-outline btn-sm" onclick="downloadModeloProdutos()">Baixar Modelo</button>
+            <button class="btn btn-blue btn-sm" onclick="importarProdutosExcel()">Importar Excel</button>
+            <button class="btn btn-outline btn-sm" onclick="imprimirListaProdutosEstoqueIntel()">Imprimir</button>
           </div>
         </div>
-        <div class="table-wrap" data-ei-table style="max-height:320px;overflow-y:auto"><table><thead><tr><th>Produto</th><th>Base</th><th>SKU</th><th>NCM</th><th>Embalagem</th><th class="text-right">Qtd Emb.</th><th class="text-right">Preco Ref.</th><th class="text-right">Acoes</th></tr></thead><tbody id="ei-produtos-tbody"></tbody></table></div>
+        <div style="display:grid;grid-template-columns:1fr auto;gap:.75rem;align-items:end;margin-bottom:.75rem">
+          <div><input type="text" id="ei-busca" placeholder="Buscar produto, embalagem ou codigo de barras..." oninput="renderEstoque()" style="width:100%"></div>
+          <div><select id="ei-filtro-base" onchange="renderEstoque()"><option value="">Todas as Bases</option><option value="UN">UN</option><option value="g">g</option><option value="KG">KG</option><option value="ml">ml</option><option value="LT">LT</option><option value="MÇ">MÇ</option></select></div>
+        </div>
+        <div id="ei-form-novo-produto" data-ei-form style="display:none"></div>
+        <div class="table-wrap" data-ei-table style="max-height:320px;overflow-y:auto"><table><thead><tr><th>ID</th><th>Produto</th><th>Base</th><th>Categoria</th><th>Origem</th><th>SKU</th><th>NCM</th><th>Embalagem</th><th class="text-right">Qtd Emb.</th><th class="text-right">Preco Ref.</th><th class="text-right">Acoes</th></tr></thead><tbody id="ei-produtos-tbody"></tbody></table></div>
       </div>
       <!-- Card embalagens oculto (dados mantidos para compatibilidade) -->
       <div class="card hidden" id="ei-card-embalagens" data-ei-section="embalagens">
@@ -938,25 +924,12 @@
             <div style="font-size:.8rem;color:var(--mut)">Aqui entram demandas manuais e demandas sincronizadas dos pedidos reais do Portal Escolar e de Contratos.</div>
           </div>
           <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center">
+            <button class="btn btn-green btn-sm" onclick="toggleFormDemandaManual()">+ Demanda Manual</button>
             <span class="badge badge-yellow">Reserva</span>
             <button class="btn btn-outline btn-sm" onclick="limparVisualizacaoDemandasEstoqueIntel()">Voltar</button>
           </div>
         </div>
-        <div data-ei-form style="display:grid;grid-template-columns:1fr 1fr 1fr 1.2fr;gap:.75rem;align-items:end;margin-bottom:1rem">
-          <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Produto</label><select id="ei-pedido-produto"></select></div>
-          <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Quantidade Necessaria</label><input type="number" id="ei-pedido-quantidade" min="1" step="1" placeholder="1700"></div>
-          <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Status</label><input type="text" id="ei-pedido-status" value="emitido"></div>
-          <div style="display:grid;gap:.55rem">
-            <div style="display:flex;justify-content:flex-end">
-              <button class="btn btn-green" onclick="registrarPedidoEstoqueIntel()">Adicionar Demanda Manual</button>
-            </div>
-            <div style="display:flex;justify-content:flex-end;gap:.5rem;flex-wrap:wrap;padding:.65rem .75rem;border:1px dashed rgba(148,163,184,.28);border-radius:12px;background:rgba(148,163,184,.06)">
-              <span style="font-size:.72rem;color:var(--mut);align-self:center;margin-right:auto">Utilitarios de teste</span>
-              <button class="btn btn-outline btn-sm" onclick="gerarExemploDemandaVisualEstoqueIntel()">Exemplo</button>
-              <button class="btn btn-outline btn-sm" onclick="limparReservasTesteEstoqueIntel()">Limpar</button>
-            </div>
-          </div>
-        </div>
+        <div id="ei-form-demanda-manual" data-ei-form style="display:none"></div>
         <div style="border:1px solid rgba(59,130,246,.18);border-radius:14px;padding:1rem;background:linear-gradient(180deg,rgba(59,130,246,.06),rgba(59,130,246,.02));margin-bottom:1rem">
           <div style="display:flex;justify-content:space-between;align-items:center;gap:.75rem;margin-bottom:.75rem;flex-wrap:wrap">
             <div>
@@ -1036,6 +1009,16 @@
         <div style="display:flex;align-items:end"><button class="btn btn-green" onclick="gerarPedidoCompraManualEstoqueIntel()">Gerar Pedido Manual</button></div>
       </div>
     </div>
+    <!-- Pedidos de Compra Gerados -->
+    <div class="card" id="ei-card-compras-geradas" data-ei-section="compra" style="margin-top:1rem">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap;margin-bottom:.75rem">
+        <div>
+          <h3 style="margin-bottom:.35rem">Pedidos de Compra Gerados</h3>
+          <div style="font-size:.8rem;color:var(--mut)">Pedidos de compra criados pela lista de compras ou manualmente aparecem aqui.</div>
+        </div>
+      </div>
+      <div class="table-wrap" data-ei-table style="max-height:260px;overflow-y:auto"><table><thead><tr><th>ID</th><th>Fornecedor</th><th>Itens</th><th>Origem</th><th>Status</th><th class="text-right">Valor</th><th class="text-right">Acoes</th></tr></thead><tbody id="ei-compras-tbody"></tbody></table></div>
+    </div>
     <!-- Lista de Compras (Contratos) -->
     <div class="card" id="ei-card-gdp-compras" data-ei-section="compra" style="margin-top:1rem">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;margin-bottom:.75rem">
@@ -1056,16 +1039,6 @@
       </div>
       <div id="ei-gdp-compras-total" style="font-weight:600;margin-top:.5rem;font-size:.85rem"></div>
       <p id="ei-gdp-compras-empty" style="display:none;text-align:center;padding:.6rem;color:var(--mut);font-size:.85rem">Lista de compras vazia.</p>
-    </div>
-    <!-- Pedidos de Compra Gerados — logo abaixo da Lista de Compras -->
-    <div class="card" id="ei-card-compras-geradas" data-ei-section="compra" style="margin-top:1rem">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap;margin-bottom:.75rem">
-        <div>
-          <h3 style="margin-bottom:.35rem">Pedidos de Compra Gerados</h3>
-          <div style="font-size:.8rem;color:var(--mut)">Pedidos de compra criados pela lista de compras ou manualmente aparecem aqui.</div>
-        </div>
-      </div>
-      <div class="table-wrap" data-ei-table style="max-height:260px;overflow-y:auto"><table><thead><tr><th>ID</th><th>Fornecedor</th><th>Itens</th><th>Origem</th><th>Status</th><th class="text-right">Valor</th><th class="text-right">Acoes</th></tr></thead><tbody id="ei-compras-tbody"></tbody></table></div>
     </div>
     <div id="ei-grid-secundario" style="display:grid;grid-template-columns:1fr;gap:1rem;align-items:start;margin-top:1rem">
       <div class="card" id="ei-card-estoque-resumo" data-ei-section="estoque">
@@ -2010,10 +1983,19 @@ async function syncFromCloud() {
     const localTime = getDataTimestamp(localData);
     const isSharedKey = GDP_SHARED_SYNC_KEYS.has(row.key);
 
-    // Cloud wins ONLY if cloud is strictly newer (not equal, not zero-vs-zero)
-    // FIX: Se local tem timestamp, SEMPRE respeitar local (evita sobrescrever sync recente)
-    if ((isSharedKey && row.data) || (cloudTime > localTime && row.data) || (!localTime && cloudTime === 0 && row.data)) {
-      // Local vazio, cloud tem dados — usar cloud
+    // Cloud wins ONLY if cloud is strictly newer AND has actual content
+    // FIX: nunca sobrescrever local que tem items com cloud vazio/menor
+    const localItems = Array.isArray(localData?.items) ? localData.items.length : (Array.isArray(localData) ? localData.length : 0);
+    const cloudItems = Array.isArray(row.data?.items) ? row.data.items.length : (Array.isArray(row.data) ? row.data.length : 0);
+    const localHasContent = localItems > 0;
+    const cloudHasMoreContent = cloudItems >= localItems;
+
+    if (localHasContent && !cloudHasMoreContent) {
+      // Local tem dados, cloud tem menos ou vazio — manter local
+      continue;
+    }
+
+    if ((isSharedKey && row.data && cloudHasMoreContent) || (cloudTime > localTime && row.data) || (!localTime && cloudTime === 0 && row.data)) {
       localStorage.setItem(row.key, JSON.stringify(row.data));
       synced++;
     }
@@ -9255,17 +9237,28 @@ function registrarProdutoEstoqueIntel() {
   showToast("Produto salvo no Estoque Intel.", 3000);
 }
 
+function gerarProximoSKU() {
+  const existentes = estoqueIntelProdutos.map(p => p.sku || "").filter(s => s.startsWith("LICT-"));
+  const nums = existentes.map(s => parseInt(s.replace("LICT-", "")) || 0);
+  const max = nums.length ? Math.max(...nums) : 0;
+  return "LICT-" + String(max + 1).padStart(4, "0");
+}
+
 function registrarProdutoUnificado() {
   const nome = (document.getElementById("ei-produto-nome")?.value || "").trim();
   const unidade_base = document.getElementById("ei-produto-unidade")?.value || "UN";
-  const sku = (document.getElementById("ei-produto-sku")?.value || "").trim();
-  const ncm = (document.getElementById("ei-produto-ncm")?.value || "").trim();
+  const skuManual = (document.getElementById("ei-produto-sku")?.value || "").trim();
+  const sku = skuManual || gerarProximoSKU();
+  const ncmRaw = (document.getElementById("ei-produto-ncm")?.value || "").trim();
+  const ncm = ncmRaw.includes(" — ") ? ncmRaw.split(" — ")[0].trim() : ncmRaw;
+  const categoria = document.getElementById("ei-produto-categoria")?.value || "";
+  const origem = document.getElementById("ei-produto-origem")?.value || "0";
   const embDescricao = (document.getElementById("ei-emb-descricao")?.value || "").trim();
   const embQtd = Number(document.getElementById("ei-emb-quantidade")?.value) || 1;
   const embPreco = Number(document.getElementById("ei-emb-preco-ref")?.value) || 0;
   if (!nome) { showToast("Informe o nome do produto.", 3000); return; }
   const prodId = genId("PROD");
-  estoqueIntelProdutos.push({ id: prodId, nome, unidade_base, sku, ncm });
+  estoqueIntelProdutos.push({ id: prodId, nome, unidade_base, sku, ncm, categoria, origem });
   saveEstoqueIntelProdutos();
   if (embDescricao || embPreco) {
     estoqueIntelEmbalagens.push({
@@ -9279,6 +9272,8 @@ function registrarProdutoUnificado() {
     saveEstoqueIntelEmbalagens();
   }
   ["ei-produto-nome", "ei-produto-sku", "ei-produto-ncm", "ei-emb-descricao", "ei-emb-quantidade", "ei-emb-preco-ref"].forEach(id => { const el = document.getElementById(id); if (el) el.value = ""; });
+  const catSel = document.getElementById("ei-produto-categoria"); if (catSel) catSel.value = "";
+  const oriSel = document.getElementById("ei-produto-origem"); if (oriSel) oriSel.value = "0";
   renderEstoque();
   showToast("Produto" + (embDescricao || embPreco ? " e embalagem" : "") + " cadastrado.", 3000);
 }
@@ -9302,17 +9297,27 @@ function excluirProdutoEstoqueIntel(produtoId) {
     showToast("Produto nao encontrado no Estoque Intel.", 3000);
     return;
   }
-  const dependencias = getEstoqueIntelProdutoDependencias(produtoId);
-  if (dependencias.length) {
-    showToast(`Nao foi possivel excluir ${produto.nome}: ha ${dependencias.join(", ")} vinculadas.`, 4500);
+  const totalPedidos = estoqueIntelPedidoItens.filter(i => i.produto_id === produtoId).length;
+  const totalMov = estoqueIntelMovimentacoes.filter(i => i.produto_id === produtoId).length;
+  const totalCompras = estoqueIntelCompras.filter(i => getEstoqueIntelCompraItens(i).some(ci => ci.produto_id === produtoId)).length;
+  if (totalPedidos || totalMov || totalCompras) {
+    const bloqueios = [];
+    if (totalPedidos) bloqueios.push(`${totalPedidos} item(ns) de pedido`);
+    if (totalMov) bloqueios.push(`${totalMov} movimentacao(oes)`);
+    if (totalCompras) bloqueios.push(`${totalCompras} compra(s)`);
+    showToast(`Nao foi possivel excluir ${produto.nome}: ha ${bloqueios.join(", ")} vinculadas.`, 4500);
     return;
   }
-  if (!confirm(`Excluir o produto "${produto.nome}" do Estoque Intel?`)) return;
+  const embCount = estoqueIntelEmbalagens.filter(e => e.produto_id === produtoId).length;
+  const msg = embCount ? `Excluir "${produto.nome}" e suas ${embCount} embalagem(ns)?` : `Excluir o produto "${produto.nome}"?`;
+  if (!confirm(msg)) return;
   estoqueIntelProdutos = estoqueIntelProdutos.filter((item) => item.id !== produtoId);
+  estoqueIntelEmbalagens = estoqueIntelEmbalagens.filter((item) => item.produto_id !== produtoId);
   if (estoqueIntelUltimaSugestao?.produto?.id === produtoId) estoqueIntelUltimaSugestao = null;
   saveEstoqueIntelProdutos();
+  saveEstoqueIntelEmbalagens();
   renderEstoque();
-  showToast("Produto excluido do Estoque Intel.", 3000);
+  showToast("Produto" + (embCount ? " e embalagens" : "") + " excluido(s).", 3000);
 }
 
 function registrarEmbalagemEstoqueIntel() {
@@ -9521,14 +9526,15 @@ function imprimirTabelaEstoqueIntel(titulo, subtitulo, headers, rows) {
 }
 
 function imprimirListaProdutosEstoqueIntel() {
+  const ORIGEM_LABELS = {'0':'Nacional','1':'Import.Direta','2':'Import.MI','3':'Nac.>40%','4':'Nac.PPB','5':'Nac.<=40%','6':'Import.CAMEX','7':'Import.MI CAMEX'};
   const rows = estoqueIntelProdutos.map((produto) => {
-    const embalagens = estoqueIntelEmbalagens
-      .filter((emb) => emb.produto_id === produto.id)
-      .map((emb) => emb.descricao || `${Number(emb.quantidade_base || 0)} ${produto.unidade_base}`)
-      .join(" | ");
-    return [produto.id, produto.nome, produto.unidade_base, embalagens || "Sem embalagem cadastrada"];
+    const emb = estoqueIntelEmbalagens.find((e) => e.produto_id === produto.id);
+    const embDesc = emb ? emb.descricao : "—";
+    const embQtd = emb ? (emb.quantidade_base || 1) : "—";
+    const embPreco = emb && emb.preco_referencia ? brl.format(emb.preco_referencia) : "—";
+    return [produto.sku || "—", produto.nome, produto.unidade_base, produto.categoria || "—", (produto.origem || "0") + "-" + (ORIGEM_LABELS[produto.origem || "0"] || "Nacional"), produto.ncm || "—", embDesc, String(embQtd), embPreco];
   });
-  imprimirTabelaEstoqueIntel("Lista de Produtos do Estoque Intel", `Gerado em ${formatDateTimeLocal(new Date().toISOString())}`, ["ID", "Produto", "Base", "Embalagens cadastradas"], rows);
+  imprimirTabelaEstoqueIntel("Lista de Produtos — Cadastro Completo", `${estoqueIntelProdutos.length} produto(s) | Gerado em ${formatDateTimeLocal(new Date().toISOString())}`, ["SKU", "Produto", "Base", "Categoria", "Origem", "NCM", "Embalagem", "Qtd", "Preco Ref."], rows);
 }
 
 function imprimirListaFornecedoresEstoqueIntel() {
@@ -11494,17 +11500,20 @@ function renderEstoque() {
   const fornecedoresVisiveis = estoqueIntelFornecedores;
   const comprasVisiveis = estoqueIntelCompras;
 
+  const ORIGEM_LABELS = {'0':'Nacional','1':'Import.Direta','2':'Import.MI','3':'Nac.>40%','4':'Nac.PPB','5':'Nac.<=40%','6':'Import.CAMEX','7':'Import.MI CAMEX'};
   produtosTbody.innerHTML = produtosVisiveis.length ? produtosVisiveis.map((produto) => `
     <tr>
-      <td class="font-mono">${esc(produto.id)}</td>
-      <td>${esc(produto.nome)}</td>
+      <td class="font-mono" style="font-size:.72rem">${esc(produto.id)}</td>
+      <td><button style="background:none;border:none;padding:0;color:var(--text);font-weight:600;cursor:pointer;font-size:.85rem;text-align:left" onclick="abrirEditarProduto('${esc(produto.id)}')">${esc(produto.nome)}</button></td>
       <td><span class="badge badge-blue">${esc(produto.unidade_base)}</span></td>
+      <td>${produto.categoria ? `<span class="badge badge-green">${esc(produto.categoria)}</span>` : '<span style="color:var(--mut)">—</span>'}</td>
+      <td><span class="badge badge-blue" style="font-size:.7rem">${esc(produto.origem || '0')}-${esc(ORIGEM_LABELS[produto.origem || '0'] || 'Nacional')}</span></td>
       <td class="font-mono" style="font-size:.78rem">${esc(produto.sku || "—")}</td>
       <td class="font-mono" style="font-size:.78rem">${esc(produto.ncm || "—")}</td>
       ${(() => { const emb = estoqueIntelEmbalagens.find(e => e.produto_id === produto.id); return emb ? `<td style="font-size:.82rem">${esc(emb.descricao || "—")}</td><td class="text-right font-mono">${emb.quantidade_base || "—"}</td><td class="text-right font-mono">${emb.preco_referencia ? brl.format(emb.preco_referencia) : "—"}</td>` : '<td style="color:var(--mut);font-size:.78rem">—</td><td class="text-right">—</td><td class="text-right">—</td>'; })()}
       <td class="text-right"><button class="btn btn-outline btn-sm" onclick="excluirProdutoEstoqueIntel('${esc(produto.id)}')">Excluir</button></td>
     </tr>
-  `).join("") : `<tr><td colspan="8" style="color:var(--mut)">Nenhum produto encontrado para o filtro atual.</td></tr>`;
+  `).join("") : `<tr><td colspan="11" style="color:var(--mut)">Nenhum produto encontrado para o filtro atual.</td></tr>`;
 
   embalagensTbody.innerHTML = embalagensFiltradas.length ? embalagensFiltradas.map((emb) => {
     const produto = findEstoqueIntelProduto(emb.produto_id);
@@ -15857,6 +15866,634 @@ function pularSincronizacao() {
   _syncContratoId = null;
   _syncMatches = [];
   switchTab("contratos");
+}
+
+// === Auto-preencher SKU e NCM ===
+function autoPreencherSKUeNCM() {
+  const NCM_MAP = [
+    {keys:["tilapia","tilápia"],ncm:"0304.61.00"},
+    {keys:["peito de frango","frango","coxa","sobrecoxa"],ncm:"0207.14.00"},
+    {keys:["carne bovina","carne moida","carne picada"],ncm:"0210.12.00"},
+    {keys:["pernil","linguica","linguiça"],ncm:"0210.12.00"},
+    {keys:["leite uht","leite"],ncm:"0401.10.10"},
+    {keys:["iogurte"],ncm:"0401.20.10"},
+    {keys:["manteiga"],ncm:"0405.10.00"},
+    {keys:["queijo minas","queijo frescal"],ncm:"0406.10.10"},
+    {keys:["queijo meia cura"],ncm:"0406.10.90"},
+    {keys:["queijo ralado","parmesão","parmesao"],ncm:"0406.20.00"},
+    {keys:["mussarela"],ncm:"0406.90.10"},
+    {keys:["ovo","ovos"],ncm:"0407.21.00"},
+    {keys:["batata"],ncm:"0701.90.00"},
+    {keys:["tomate"],ncm:"0702.00.00"},
+    {keys:["cebola"],ncm:"0703.10.19"},
+    {keys:["alho"],ncm:"0703.20.10"},
+    {keys:["cebolinha","cheiro verde"],ncm:"0703.90.00"},
+    {keys:["couve"],ncm:"0704.90.00"},
+    {keys:["repolho"],ncm:"0704.90.00"},
+    {keys:["alface"],ncm:"0705.11.00"},
+    {keys:["cenoura"],ncm:"0706.10.00"},
+    {keys:["beterraba"],ncm:"0706.90.00"},
+    {keys:["pepino"],ncm:"0707.00.00"},
+    {keys:["vagem"],ncm:"0708.20.00"},
+    {keys:["pimentão","pimentao"],ncm:"0709.60.00"},
+    {keys:["abóbora","abobora","abobrinha"],ncm:"0709.93.00"},
+    {keys:["chuchu","inhame","cara","espinafre","almeirão","almeirao"],ncm:"0709.99.90"},
+    {keys:["feijao","feijão"],ncm:"0713.33.19"},
+    {keys:["mandioca"],ncm:"0714.10.00"},
+    {keys:["coco ralado"],ncm:"0801.11.10"},
+    {keys:["banana"],ncm:"0803.10.00"},
+    {keys:["abacaxi"],ncm:"0804.30.00"},
+    {keys:["laranja"],ncm:"0805.10.00"},
+    {keys:["limao","limão"],ncm:"0805.50.00"},
+    {keys:["melancia"],ncm:"0807.11.00"},
+    {keys:["maça","maçã","maca"],ncm:"0808.10.00"},
+    {keys:["mamão","mamao"],ncm:"0808.30.00"},
+    {keys:["café","cafe"],ncm:"0901.21.00"},
+    {keys:["canela"],ncm:"0906.11.00"},
+    {keys:["açafrão","açafrao","acafrao"],ncm:"0910.30.00"},
+    {keys:["oregano","orégano"],ncm:"0910.91.00"},
+    {keys:["louro"],ncm:"1209.99.90"},
+    {keys:["arroz"],ncm:"1006.30.29"},
+    {keys:["milho para pipoca","milho de canjica","canjiquinha"],ncm:"1005.90.10"},
+    {keys:["milho in natura","milho "],ncm:"1005.90.10"},
+    {keys:["farinha de trigo","trigo p quibe"],ncm:"1101.00.10"},
+    {keys:["farinha de milho","fubá","fuba","milharina"],ncm:"1102.20.00"},
+    {keys:["farinha de mandioca"],ncm:"1106.20.00"},
+    {keys:["amido de milho"],ncm:"1108.12.00"},
+    {keys:["polvilho"],ncm:"1108.14.00"},
+    {keys:["óleo","oleo"],ncm:"1507.90.11"},
+    {keys:["azeite"],ncm:"1509.10.00"},
+    {keys:["margarina"],ncm:"1517.10.00"},
+    {keys:["açúcar","acucar"],ncm:"1701.99.00"},
+    {keys:["cacau"],ncm:"1805.00.00"},
+    {keys:["bombom","chocolate"],ncm:"1806.31.10"},
+    {keys:["aveia"],ncm:"1904.20.00"},
+    {keys:["macarrão","macarrao"],ncm:"1902.11.00"},
+    {keys:["biscoito doce","rosquinha","bolacha","maisena"],ncm:"1905.31.00"},
+    {keys:["biscoito agua","biscoito água"],ncm:"1905.40.00"},
+    {keys:["pão","pao","panetone"],ncm:"1905.90.90"},
+    {keys:["extrato de tomate","extrato tomate"],ncm:"2002.90.00"},
+    {keys:["polpa de","polpa de frutas"],ncm:"2008.99.00"},
+    {keys:["suco"],ncm:"2009.89.00"},
+    {keys:["colorau"],ncm:"2103.90.21"},
+    {keys:["vinagre"],ncm:"2103.90.91"},
+    {keys:["fermento"],ncm:"2106.90.10"},
+    {keys:["sal refinado"],ncm:"2501.00.19"},
+    {keys:["amendoim"],ncm:"2008.19.00"}
+  ];
+  function findNCM(nome) {
+    const n = nome.toLowerCase();
+    for (const e of NCM_MAP) { for (const k of e.keys) { if (n.includes(k.toLowerCase())) return e.ncm; } }
+    return "";
+  }
+  let skuCount = 0, ncmCount = 0, skuNum = 0;
+  estoqueIntelProdutos.forEach(p => {
+    if (p.sku && p.sku.startsWith("LICT-")) {
+      const num = parseInt(p.sku.replace("LICT-","")) || 0;
+      if (num > skuNum) skuNum = num;
+    }
+  });
+  estoqueIntelProdutos.forEach(p => {
+    if (!p.sku) { skuNum++; p.sku = "LICT-" + String(skuNum).padStart(4,"0"); skuCount++; }
+    if (!p.ncm) { const ncm = findNCM(p.nome); if (ncm) { p.ncm = ncm; ncmCount++; } }
+  });
+  saveEstoqueIntelProdutos();
+  renderEstoque();
+  showToast(`Auto-preenchido: ${skuCount} SKU(s), ${ncmCount} NCM(s).`, 4000);
+}
+
+// === NCM Database (alimentos escolares) ===
+const NCM_DB = [
+  {cod:"0207.14.00",desc:"Pedacos e miudezas de galos/galinhas, congelados"},
+  {cod:"0210.12.00",desc:"Barrigas e peitos suinos, salgados ou defumados"},
+  {cod:"0302.71.00",desc:"Tilapias frescas ou refrigeradas"},
+  {cod:"0304.61.00",desc:"Files de tilapia congelados"},
+  {cod:"0401.10.10",desc:"Leite UHT integral"},
+  {cod:"0401.20.10",desc:"Leite UHT semidesnatado"},
+  {cod:"0402.21.10",desc:"Leite em po integral"},
+  {cod:"0405.10.00",desc:"Manteiga"},
+  {cod:"0406.10.10",desc:"Queijo minas frescal"},
+  {cod:"0406.10.90",desc:"Queijo meia cura e outros frescos"},
+  {cod:"0406.20.00",desc:"Queijo ralado ou em po"},
+  {cod:"0406.90.10",desc:"Queijo mussarela"},
+  {cod:"0407.21.00",desc:"Ovos de galinha, frescos"},
+  {cod:"0409.00.00",desc:"Mel natural"},
+  {cod:"0701.90.00",desc:"Batatas frescas ou refrigeradas"},
+  {cod:"0702.00.00",desc:"Tomates frescos ou refrigerados"},
+  {cod:"0703.10.19",desc:"Cebolas frescas"},
+  {cod:"0703.20.10",desc:"Alho fresco"},
+  {cod:"0704.10.00",desc:"Couve-flor e brocolis"},
+  {cod:"0704.90.00",desc:"Couve, repolho e outros"},
+  {cod:"0706.10.00",desc:"Cenouras e nabos"},
+  {cod:"0706.90.00",desc:"Beterraba, rabanete e outros"},
+  {cod:"0707.00.00",desc:"Pepinos e cornichoes"},
+  {cod:"0708.20.00",desc:"Feijao verde (vagem)"},
+  {cod:"0709.30.00",desc:"Berinjelas"},
+  {cod:"0709.51.00",desc:"Cogumelos frescos"},
+  {cod:"0709.60.00",desc:"Pimentoes e pimentas"},
+  {cod:"0709.93.00",desc:"Aboboras e abobrinhas"},
+  {cod:"0709.99.90",desc:"Outros legumes (chuchu, inhame, quiabo)"},
+  {cod:"0713.33.19",desc:"Feijao comum (carioca, preto)"},
+  {cod:"0713.33.29",desc:"Feijao branco"},
+  {cod:"0714.10.00",desc:"Mandioca fresca ou congelada"},
+  {cod:"0803.10.00",desc:"Bananas frescas"},
+  {cod:"0804.30.00",desc:"Abacaxi fresco"},
+  {cod:"0805.10.00",desc:"Laranjas frescas"},
+  {cod:"0805.50.00",desc:"Limoes frescos"},
+  {cod:"0807.11.00",desc:"Melancias frescas"},
+  {cod:"0808.10.00",desc:"Macas frescas"},
+  {cod:"0808.30.00",desc:"Mamao fresco"},
+  {cod:"0901.21.00",desc:"Cafe torrado nao descafeinado"},
+  {cod:"0910.11.00",desc:"Gengibre"},
+  {cod:"0910.30.00",desc:"Acafrao (curcuma)"},
+  {cod:"1001.99.00",desc:"Trigo"},
+  {cod:"1005.90.10",desc:"Milho em grao"},
+  {cod:"1006.30.21",desc:"Arroz polido parboilizado"},
+  {cod:"1006.30.29",desc:"Arroz polido nao parboilizado"},
+  {cod:"1101.00.10",desc:"Farinha de trigo"},
+  {cod:"1102.20.00",desc:"Farinha de milho"},
+  {cod:"1106.20.00",desc:"Farinha de mandioca"},
+  {cod:"1108.12.00",desc:"Amido de milho"},
+  {cod:"1108.14.00",desc:"Fecula de mandioca (polvilho)"},
+  {cod:"1207.40.90",desc:"Gergelim"},
+  {cod:"1507.90.11",desc:"Oleo de soja refinado"},
+  {cod:"1509.10.00",desc:"Azeite de oliva virgem"},
+  {cod:"1517.10.00",desc:"Margarina"},
+  {cod:"1701.14.00",desc:"Acucar cristal"},
+  {cod:"1701.99.00",desc:"Acucar refinado"},
+  {cod:"1803.10.00",desc:"Pasta de cacau"},
+  {cod:"1805.00.00",desc:"Cacau em po sem acucar"},
+  {cod:"1806.31.10",desc:"Chocolate recheado"},
+  {cod:"1806.90.00",desc:"Achocolatado e preparacoes de cacau"},
+  {cod:"1901.10.10",desc:"Farinha lactea"},
+  {cod:"1901.90.90",desc:"Misturas para bolos e paes"},
+  {cod:"1902.11.00",desc:"Massas nao cozidas (espaguete, penne, etc)"},
+  {cod:"1902.19.00",desc:"Outras massas nao cozidas"},
+  {cod:"1904.10.00",desc:"Cereais expandidos (flocos milho)"},
+  {cod:"1904.20.00",desc:"Cereais em flocos (aveia, granola)"},
+  {cod:"1905.31.00",desc:"Biscoitos doces"},
+  {cod:"1905.32.00",desc:"Waffles"},
+  {cod:"1905.40.00",desc:"Torradas e biscoitos de agua e sal"},
+  {cod:"1905.90.90",desc:"Pao frances e outros paes"},
+  {cod:"2001.90.00",desc:"Legumes preparados em vinagre"},
+  {cod:"2002.10.00",desc:"Tomate pelado inteiro"},
+  {cod:"2002.90.00",desc:"Extrato e polpa de tomate"},
+  {cod:"2008.19.00",desc:"Amendoim preparado"},
+  {cod:"2008.99.00",desc:"Polpa de frutas congelada"},
+  {cod:"2009.11.00",desc:"Suco de laranja congelado"},
+  {cod:"2009.89.00",desc:"Suco de outras frutas"},
+  {cod:"2103.10.10",desc:"Molho de soja (shoyu)"},
+  {cod:"2103.20.10",desc:"Ketchup e molho de tomate"},
+  {cod:"2103.90.21",desc:"Temperos e condimentos"},
+  {cod:"2103.90.91",desc:"Vinagre"},
+  {cod:"2104.10.11",desc:"Caldo de carne/galinha em cubo"},
+  {cod:"2106.90.10",desc:"Fermento em po"},
+  {cod:"2501.00.19",desc:"Sal refinado"},
+  {cod:"0904.11.00",desc:"Pimenta do reino"},
+  {cod:"0906.11.00",desc:"Canela em casca ou po"},
+  {cod:"0910.91.00",desc:"Oregano"},
+  {cod:"1209.99.90",desc:"Louro em folha"},
+  {cod:"0801.11.10",desc:"Coco ralado"}
+];
+
+function filtrarNCM(input) {
+  const dl = document.getElementById("ncm-datalist");
+  if (!dl) return;
+  const v = input.value.toLowerCase().trim();
+  if (v.length < 2) { dl.innerHTML = ""; return; }
+  const matches = NCM_DB.filter(n => n.cod.includes(v) || n.desc.toLowerCase().includes(v)).slice(0, 12);
+  dl.innerHTML = matches.map(n => `<option value="${n.cod} — ${n.desc}">`).join("");
+}
+
+// === Editar Produto (modal) ===
+function abrirEditarProduto(produtoId) {
+  const produto = findEstoqueIntelProduto(produtoId);
+  if (!produto) return;
+  const embs = estoqueIntelEmbalagens.filter(e => e.produto_id === produtoId);
+  const ORIGEM_OPTS = [
+    {v:"0",l:"0 — Nacional"},{v:"1",l:"1 — Import. Direta"},{v:"2",l:"2 — Import. Merc. Interno"},
+    {v:"3",l:"3 — Nac. >40% Import."},{v:"4",l:"4 — Nac. Proc. Basicos"},{v:"5",l:"5 — Nac. <=40% Import."},
+    {v:"6",l:"6 — Import. s/ Similar"},{v:"7",l:"7 — Import. MI s/ Similar"}
+  ];
+  const CAT_OPTS = ["","Hortifruti","Carnes/Proteinas","Graos/Cereais","Laticinios","Frutas","Mercearia","Padaria/Biscoitos","Ovos","Bebidas","Polpas/Frutas","Limpeza","Outros"];
+  const UNIT_OPTS = ["UN","DZ","g","KG","ml","LT","GL","CX","PCT","FD","BD","PT","SC","MÇ","RS","RL","FR","TB","GF","LA"];
+
+  let overlay = document.getElementById("edit-prod-overlay");
+  if (!overlay) {
+    overlay = document.createElement("div");
+    overlay.id = "edit-prod-overlay";
+    overlay.style.cssText = "position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:1100";
+    document.body.appendChild(overlay);
+  }
+  overlay.classList.remove("hidden");
+  overlay.innerHTML = `
+    <div style="background:var(--s1);border:1px solid var(--bdr);border-radius:14px;padding:1.5rem;max-width:600px;width:92%;max-height:85vh;overflow-y:auto">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+        <div style="font-size:1.1rem;font-weight:700">Editar Produto</div>
+        <button class="btn btn-outline btn-sm" onclick="fecharEditarProduto()">✕</button>
+      </div>
+      <div style="font-size:.72rem;color:var(--mut);margin-bottom:1rem">ID: ${esc(produto.id)} | SKU: ${esc(produto.sku || "—")}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.75rem">
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Nome</label><input type="text" id="edit-prod-nome" value="${esc(produto.nome)}" style="width:100%"></div>
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Unidade Base</label><select id="edit-prod-unidade" style="width:100%">${UNIT_OPTS.map(u => `<option value="${u}"${produto.unidade_base===u?" selected":""}>${u}</option>`).join("")}</select></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.75rem">
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">SKU</label><input type="text" id="edit-prod-sku" value="${esc(produto.sku || "")}" style="width:100%"></div>
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">NCM</label><input type="text" id="edit-prod-ncm" value="${esc(produto.ncm || "")}" list="ncm-datalist" oninput="filtrarNCM(this)" autocomplete="off" style="width:100%"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.75rem">
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Categoria</label><select id="edit-prod-categoria" style="width:100%">${CAT_OPTS.map(c => `<option value="${c}"${(produto.categoria||"")===c?" selected":""}>${c || "Sem Categoria"}</option>`).join("")}</select></div>
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Origem NF-e</label><select id="edit-prod-origem" style="width:100%">${ORIGEM_OPTS.map(o => `<option value="${o.v}"${(produto.origem||"0")===o.v?" selected":""}>${o.l}</option>`).join("")}</select></div>
+      </div>
+      <div style="border-top:1px solid var(--bdr);margin:1rem 0;padding-top:1rem">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem">
+          <div style="font-size:.85rem;font-weight:700">Embalagens (${embs.length})</div>
+          <button class="btn btn-green btn-sm" onclick="adicionarEmbalagemNoProduto('${esc(produto.id)}')">+ Embalagem</button>
+        </div>
+        <div id="edit-embs-list">
+        ${embs.length ? embs.map((emb, idx) => `
+          <div style="display:grid;grid-template-columns:1fr .6fr .6fr auto;gap:.5rem;align-items:end;margin-bottom:.5rem" data-emb-id="${esc(emb.id)}">
+            <div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.2rem">Descricao</label><input type="text" class="edit-emb-desc" value="${esc(emb.descricao || "")}" style="width:100%"></div>
+            <div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.2rem">Qtd Base</label><input type="number" class="edit-emb-qtd" value="${emb.quantidade_base || 1}" min="1" style="width:100%"></div>
+            <div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.2rem">Preco Ref.</label><input type="number" class="edit-emb-preco" value="${emb.preco_referencia || 0}" min="0" step="0.01" style="width:100%"></div>
+            <div><button class="btn btn-outline btn-sm" style="color:var(--red)" onclick="removerEmbalagemDoEdit('${esc(emb.id)}')">X</button></div>
+          </div>
+        `).join("") : '<div style="font-size:.82rem;color:var(--mut);padding:.5rem 0">Nenhuma embalagem cadastrada.</div>'}
+        </div>
+      </div>
+      <div style="display:flex;gap:.5rem;justify-content:flex-end;margin-top:1rem">
+        <button class="btn btn-outline" onclick="fecharEditarProduto()">Cancelar</button>
+        <button class="btn btn-green" onclick="salvarEditarProduto('${esc(produto.id)}')">Salvar</button>
+      </div>
+    </div>
+  `;
+}
+
+function fecharEditarProduto() {
+  const overlay = document.getElementById("edit-prod-overlay");
+  if (overlay) overlay.classList.add("hidden");
+}
+
+function salvarEditarProduto(produtoId) {
+  const produto = findEstoqueIntelProduto(produtoId);
+  if (!produto) return;
+  const ncmRaw = (document.getElementById("edit-prod-ncm")?.value || "").trim();
+  produto.nome = (document.getElementById("edit-prod-nome")?.value || "").trim() || produto.nome;
+  produto.unidade_base = document.getElementById("edit-prod-unidade")?.value || produto.unidade_base;
+  produto.sku = (document.getElementById("edit-prod-sku")?.value || "").trim();
+  produto.ncm = ncmRaw.includes(" — ") ? ncmRaw.split(" — ")[0].trim() : ncmRaw;
+  produto.categoria = document.getElementById("edit-prod-categoria")?.value || "";
+  produto.origem = document.getElementById("edit-prod-origem")?.value || "0";
+  saveEstoqueIntelProdutos();
+
+  document.querySelectorAll("#edit-embs-list [data-emb-id]").forEach(row => {
+    const embId = row.getAttribute("data-emb-id");
+    const emb = estoqueIntelEmbalagens.find(e => e.id === embId);
+    if (!emb) return;
+    emb.descricao = (row.querySelector(".edit-emb-desc")?.value || "").trim() || emb.descricao;
+    emb.quantidade_base = Number(row.querySelector(".edit-emb-qtd")?.value) || 1;
+    emb.preco_referencia = Number(row.querySelector(".edit-emb-preco")?.value) || 0;
+  });
+  saveEstoqueIntelEmbalagens();
+  fecharEditarProduto();
+  renderEstoque();
+  showToast("Produto atualizado.", 2500);
+}
+
+// === Modal Demanda Manual (overlay) ===
+function toggleFormDemandaManual() {
+  let overlay = document.getElementById("demanda-manual-overlay");
+  if (overlay && !overlay.classList.contains("hidden")) {
+    overlay.classList.add("hidden");
+    return;
+  }
+  if (!overlay) {
+    overlay = document.createElement("div");
+    overlay.id = "demanda-manual-overlay";
+    overlay.style.cssText = "position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:1100";
+    document.body.appendChild(overlay);
+  }
+  overlay.classList.remove("hidden");
+
+  const prodOpts = estoqueIntelProdutos.map(p => `<option value="${esc(p.id)}">${esc(p.nome)} (${esc(p.unidade_base)})</option>`).join("");
+
+  overlay.innerHTML = `
+    <div style="background:var(--s1);border:1px solid var(--bdr);border-radius:14px;padding:1.5rem;max-width:500px;width:92%;max-height:85vh;overflow-y:auto">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+        <div style="font-size:1.1rem;font-weight:700">Nova Demanda Manual</div>
+        <button class="btn btn-outline btn-sm" onclick="toggleFormDemandaManual()">✕</button>
+      </div>
+      <div style="display:grid;gap:.75rem;margin-bottom:1rem">
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Produto</label><select id="ei-pedido-produto" style="width:100%"><option value="">Selecione</option>${prodOpts}</select></div>
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Quantidade Necessaria</label><input type="number" id="ei-pedido-quantidade" min="1" step="1" placeholder="1700" style="width:100%"></div>
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Status</label><input type="text" id="ei-pedido-status" value="emitido" style="width:100%"></div>
+      </div>
+      <div style="display:flex;gap:.5rem;justify-content:flex-end">
+        <button class="btn btn-outline" onclick="toggleFormDemandaManual()">Cancelar</button>
+        <button class="btn btn-green" onclick="registrarPedidoEstoqueIntel();toggleFormDemandaManual()">Salvar Demanda</button>
+      </div>
+    </div>
+  `;
+}
+
+// === Adicionar/Remover embalagem no modal de edição ===
+function adicionarEmbalagemNoProduto(produtoId) {
+  const produto = findEstoqueIntelProduto(produtoId);
+  if (!produto) return;
+  const newId = genId("EMB");
+  estoqueIntelEmbalagens.push({ id: newId, produto_id: produtoId, descricao: "", codigo_barras: produto.sku || "", quantidade_base: 1, preco_referencia: 0 });
+  saveEstoqueIntelEmbalagens();
+  abrirEditarProduto(produtoId);
+  showToast("Embalagem adicionada. Preencha os campos.", 2500);
+}
+
+function removerEmbalagemDoEdit(embId) {
+  if (!confirm("Remover esta embalagem?")) return;
+  const emb = estoqueIntelEmbalagens.find(e => e.id === embId);
+  if (!emb) return;
+  const produtoId = emb.produto_id;
+  estoqueIntelEmbalagens = estoqueIntelEmbalagens.filter(e => e.id !== embId);
+  saveEstoqueIntelEmbalagens();
+  abrirEditarProduto(produtoId);
+  showToast("Embalagem removida.", 2500);
+}
+
+// === Modal Novo Produto (overlay) ===
+let _novoProdutoEmbs = [{ id: "temp-0", descricao: "", quantidade_base: 1, preco_referencia: 0 }];
+
+function toggleFormNovoProduto() {
+  let overlay = document.getElementById("novo-prod-overlay");
+  if (overlay && !overlay.classList.contains("hidden")) {
+    overlay.classList.add("hidden");
+    return;
+  }
+  _novoProdutoEmbs = [{ id: "temp-0", descricao: "", quantidade_base: 1, preco_referencia: 0 }];
+  renderModalNovoProduto();
+}
+
+function renderModalNovoProduto() {
+  let overlay = document.getElementById("novo-prod-overlay");
+  if (!overlay) {
+    overlay = document.createElement("div");
+    overlay.id = "novo-prod-overlay";
+    overlay.style.cssText = "position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:1100";
+    document.body.appendChild(overlay);
+  }
+  overlay.classList.remove("hidden");
+
+  const UNIT_OPTS = '<optgroup label="Contagem"><option value="UN" selected>UN — Unidade</option><option value="DZ">DZ — Duzia</option></optgroup><optgroup label="Peso"><option value="g">g — Grama</option><option value="KG">KG — Quilograma</option></optgroup><optgroup label="Volume"><option value="ml">ml — Mililitro</option><option value="LT">LT — Litro</option><option value="GL">GL — Galao</option></optgroup><optgroup label="Embalagem"><option value="CX">CX — Caixa</option><option value="PCT">PCT — Pacote</option><option value="FD">FD — Fardo</option><option value="BD">BD — Bandeja</option><option value="PT">PT — Pote</option><option value="SC">SC — Sache/Saco</option></optgroup><optgroup label="Outros"><option value="MÇ">MÇ — Maco</option><option value="RS">RS — Resma</option><option value="RL">RL — Rolo</option><option value="FR">FR — Frasco</option><option value="TB">TB — Tubo</option><option value="GF">GF — Garrafa</option><option value="LA">LA — Lata</option></optgroup>';
+  const CAT_OPTS = ["","Hortifruti","Carnes/Proteinas","Graos/Cereais","Laticinios","Frutas","Mercearia","Padaria/Biscoitos","Ovos","Bebidas","Limpeza","Outros"].map(c => `<option value="${c}">${c || "Sem Categoria"}</option>`).join("");
+  const ORI_OPTS = [{v:"0",l:"0 — Nacional"},{v:"1",l:"1 — Import. Direta"},{v:"2",l:"2 — Import. Merc. Interno"},{v:"3",l:"3 — Nac. >40% Import."},{v:"4",l:"4 — Nac. Proc. Basicos"},{v:"5",l:"5 — Nac. <=40% Import."},{v:"6",l:"6 — Import. s/ Similar"},{v:"7",l:"7 — Import. MI s/ Similar"}].map(o => `<option value="${o.v}">${o.l}</option>`).join("");
+
+  let embsHtml = _novoProdutoEmbs.map((emb, i) => `
+    <div style="display:grid;grid-template-columns:1fr .6fr .6fr auto;gap:.5rem;align-items:end;margin-bottom:.5rem" data-novo-emb="${i}">
+      <div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.2rem">Descricao</label><input type="text" class="novo-emb-desc" value="${esc(emb.descricao)}" placeholder="Ex: Pacote 5kg" style="width:100%"></div>
+      <div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.2rem">Qtd Base</label><input type="number" class="novo-emb-qtd" value="${emb.quantidade_base}" min="1" style="width:100%"></div>
+      <div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.2rem">Preco Ref.</label><input type="number" class="novo-emb-preco" value="${emb.preco_referencia}" min="0" step="0.01" style="width:100%"></div>
+      <div><button class="btn btn-outline btn-sm" style="color:var(--red)" onclick="removerEmbNovoProduto(${i})">X</button></div>
+    </div>
+  `).join("");
+
+  overlay.innerHTML = `
+    <div style="background:var(--s1);border:1px solid var(--bdr);border-radius:14px;padding:1.5rem;max-width:620px;width:92%;max-height:85vh;overflow-y:auto">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+        <div style="font-size:1.1rem;font-weight:700">Novo Produto</div>
+        <button class="btn btn-outline btn-sm" onclick="toggleFormNovoProduto()">✕</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.75rem">
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Nome do Produto</label><input type="text" id="ei-produto-nome" placeholder="Ex: Arroz" style="width:100%"></div>
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Unidade Base</label><select id="ei-produto-unidade" style="width:100%">${UNIT_OPTS}</select></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.75rem">
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">SKU / Cod. Barras</label><input type="text" id="ei-produto-sku" placeholder="Auto se vazio" style="width:100%"></div>
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">NCM</label><input type="text" id="ei-produto-ncm" placeholder="Digite nome ou codigo..." list="ncm-datalist" oninput="filtrarNCM(this)" autocomplete="off" style="width:100%"><datalist id="ncm-datalist"></datalist></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.75rem">
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Categoria</label><div style="display:flex;gap:.35rem"><select id="ei-produto-categoria" style="flex:1">${CAT_OPTS}</select><button class="btn btn-outline btn-sm" onclick="adicionarCategoriaCustom()" title="Nova" style="padding:.35rem .5rem">+</button></div></div>
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Origem NF-e</label><select id="ei-produto-origem" style="width:100%">${ORI_OPTS}</select></div>
+      </div>
+      <div style="border-top:1px solid var(--bdr);margin:1rem 0;padding-top:1rem">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem">
+          <div style="font-size:.85rem;font-weight:700">Embalagens (${_novoProdutoEmbs.length})</div>
+          <button class="btn btn-green btn-sm" onclick="adicionarEmbNovoProduto()">+ Embalagem</button>
+        </div>
+        <div id="novo-embs-list">${embsHtml || '<div style="font-size:.82rem;color:var(--mut);padding:.5rem 0">Nenhuma embalagem.</div>'}</div>
+      </div>
+      <div style="display:flex;gap:.5rem;justify-content:flex-end;margin-top:1rem">
+        <button class="btn btn-outline" onclick="toggleFormNovoProduto()">Cancelar</button>
+        <button class="btn btn-green" onclick="salvarNovoProdutoModal()">Salvar Produto</button>
+      </div>
+    </div>
+  `;
+  setTimeout(() => document.getElementById("ei-produto-nome")?.focus(), 50);
+}
+
+function adicionarEmbNovoProduto() {
+  // Salvar valores atuais antes de re-render
+  document.querySelectorAll("#novo-embs-list [data-novo-emb]").forEach((row, i) => {
+    if (_novoProdutoEmbs[i]) {
+      _novoProdutoEmbs[i].descricao = row.querySelector(".novo-emb-desc")?.value || "";
+      _novoProdutoEmbs[i].quantidade_base = Number(row.querySelector(".novo-emb-qtd")?.value) || 1;
+      _novoProdutoEmbs[i].preco_referencia = Number(row.querySelector(".novo-emb-preco")?.value) || 0;
+    }
+  });
+  _novoProdutoEmbs.push({ id: "temp-" + _novoProdutoEmbs.length, descricao: "", quantidade_base: 1, preco_referencia: 0 });
+  // Salvar campos do produto antes de re-render
+  const prodData = _capturarCamposNovoProduto();
+  renderModalNovoProduto();
+  _restaurarCamposNovoProduto(prodData);
+}
+
+function removerEmbNovoProduto(idx) {
+  if (_novoProdutoEmbs.length <= 1) { showToast("Minimo 1 embalagem.", 2000); return; }
+  // Salvar valores
+  document.querySelectorAll("#novo-embs-list [data-novo-emb]").forEach((row, i) => {
+    if (_novoProdutoEmbs[i]) {
+      _novoProdutoEmbs[i].descricao = row.querySelector(".novo-emb-desc")?.value || "";
+      _novoProdutoEmbs[i].quantidade_base = Number(row.querySelector(".novo-emb-qtd")?.value) || 1;
+      _novoProdutoEmbs[i].preco_referencia = Number(row.querySelector(".novo-emb-preco")?.value) || 0;
+    }
+  });
+  _novoProdutoEmbs.splice(idx, 1);
+  const prodData = _capturarCamposNovoProduto();
+  renderModalNovoProduto();
+  _restaurarCamposNovoProduto(prodData);
+}
+
+function _capturarCamposNovoProduto() {
+  return {
+    nome: document.getElementById("ei-produto-nome")?.value || "",
+    unidade: document.getElementById("ei-produto-unidade")?.value || "UN",
+    sku: document.getElementById("ei-produto-sku")?.value || "",
+    ncm: document.getElementById("ei-produto-ncm")?.value || "",
+    categoria: document.getElementById("ei-produto-categoria")?.value || "",
+    origem: document.getElementById("ei-produto-origem")?.value || "0"
+  };
+}
+
+function _restaurarCamposNovoProduto(d) {
+  const el = (id) => document.getElementById(id);
+  if (el("ei-produto-nome")) el("ei-produto-nome").value = d.nome;
+  if (el("ei-produto-unidade")) el("ei-produto-unidade").value = d.unidade;
+  if (el("ei-produto-sku")) el("ei-produto-sku").value = d.sku;
+  if (el("ei-produto-ncm")) el("ei-produto-ncm").value = d.ncm;
+  if (el("ei-produto-categoria")) el("ei-produto-categoria").value = d.categoria;
+  if (el("ei-produto-origem")) el("ei-produto-origem").value = d.origem;
+}
+
+function salvarNovoProdutoModal() {
+  const nome = (document.getElementById("ei-produto-nome")?.value || "").trim();
+  if (!nome) { showToast("Informe o nome do produto.", 3000); return; }
+  const unidade_base = document.getElementById("ei-produto-unidade")?.value || "UN";
+  const skuManual = (document.getElementById("ei-produto-sku")?.value || "").trim();
+  const sku = skuManual || gerarProximoSKU();
+  const ncmRaw = (document.getElementById("ei-produto-ncm")?.value || "").trim();
+  const ncm = ncmRaw.includes(" — ") ? ncmRaw.split(" — ")[0].trim() : ncmRaw;
+  const categoria = document.getElementById("ei-produto-categoria")?.value || "";
+  const origem = document.getElementById("ei-produto-origem")?.value || "0";
+
+  const prodId = genId("PROD");
+  estoqueIntelProdutos.push({ id: prodId, nome, unidade_base, sku, ncm, categoria, origem });
+  saveEstoqueIntelProdutos();
+
+  // Salvar embalagens do modal
+  document.querySelectorAll("#novo-embs-list [data-novo-emb]").forEach((row, i) => {
+    const desc = (row.querySelector(".novo-emb-desc")?.value || "").trim();
+    const qtd = Number(row.querySelector(".novo-emb-qtd")?.value) || 1;
+    const preco = Number(row.querySelector(".novo-emb-preco")?.value) || 0;
+    if (desc || preco) {
+      estoqueIntelEmbalagens.push({ id: genId("EMB"), produto_id: prodId, descricao: desc || nome, codigo_barras: sku, quantidade_base: qtd, preco_referencia: preco });
+    }
+  });
+  saveEstoqueIntelEmbalagens();
+
+  toggleFormNovoProduto();
+  renderEstoque();
+  showToast("Produto cadastrado com " + document.querySelectorAll("#novo-embs-list [data-novo-emb]").length + " embalagem(ns).", 3000);
+}
+
+// === Categoria Custom ===
+function adicionarCategoriaCustom() {
+  const nome = prompt("Nome da nova categoria:");
+  if (!nome || !nome.trim()) return;
+  const sel = document.getElementById("ei-produto-categoria");
+  if (!sel) return;
+  const exists = Array.from(sel.options).some(o => o.value.toLowerCase() === nome.trim().toLowerCase());
+  if (exists) { showToast("Categoria ja existe.", 2500); return; }
+  const opt = document.createElement("option");
+  opt.value = nome.trim();
+  opt.textContent = nome.trim();
+  sel.insertBefore(opt, sel.lastElementChild);
+  sel.value = nome.trim();
+  showToast("Categoria adicionada: " + nome.trim(), 2500);
+}
+
+// === Download Modelo Excel ===
+function downloadModeloProdutos() {
+  if (typeof XLSX === "undefined") { showToast("XLSX nao carregou.", 3000); return; }
+  const wb = XLSX.utils.book_new();
+  const wsData = [
+    ["Nome", "Unidade Base", "SKU", "NCM", "Categoria", "Origem (0-7)", "Embalagem", "Qtd Embalagem", "Preco Referencia"],
+    ["Arroz Tipo 1", "KG", "789001", "1006.30.00", "Graos/Cereais", 0, "Pacote 5kg", 5, 22.50],
+    ["File de Tilapia", "g", "789003", "0304.61.00", "Carnes/Proteinas", 0, "Pacote 1kg", 1000, 45.90],
+    ["Feijao Carioca", "KG", "789002", "0713.33.19", "Graos/Cereais", 0, "Pacote 1kg", 1, 8.90]
+  ];
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+  ws["!cols"] = [{wch:22},{wch:12},{wch:14},{wch:14},{wch:16},{wch:12},{wch:18},{wch:14},{wch:14}];
+  XLSX.utils.book_append_sheet(wb, ws, "Produtos");
+  const refData = [
+    ["Codigo", "Descricao"],
+    [0, "Nacional"],
+    [1, "Estrangeira - Importacao direta"],
+    [2, "Estrangeira - Adquirida no mercado interno"],
+    [3, "Nacional - Conteudo importacao >40%"],
+    [4, "Nacional - Processos produtivos basicos"],
+    [5, "Nacional - Conteudo importacao <=40%"],
+    [6, "Estrangeira - Importacao direta, sem similar (CAMEX)"],
+    [7, "Estrangeira - Mercado interno, sem similar (CAMEX)"]
+  ];
+  const wsRef = XLSX.utils.aoa_to_sheet(refData);
+  wsRef["!cols"] = [{wch:8},{wch:55}];
+  XLSX.utils.book_append_sheet(wb, wsRef, "Referencia Origem");
+  XLSX.writeFile(wb, "modelo-importacao-produtos-gdp.xlsx");
+  showToast("Modelo Excel baixado.", 2500);
+}
+
+// === Importar Produtos via Excel ===
+function importarProdutosExcel() {
+  if (typeof XLSX === "undefined") { showToast("XLSX nao carregou.", 3000); return; }
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = ".xlsx,.csv";
+  input.onchange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const data = new Uint8Array(ev.target.result);
+      const wb = XLSX.read(data, { type: "array" });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { header: 1 });
+      if (rows.length < 2) { showToast("Planilha vazia.", 3000); return; }
+      processarImportacaoProdutos(rows);
+    };
+    reader.readAsArrayBuffer(file);
+  };
+  input.click();
+}
+
+function processarImportacaoProdutos(rows) {
+  const header = rows[0];
+  const dataRows = rows.slice(1).filter(r => r.some(c => c !== undefined && c !== ""));
+  const colMap = {};
+  header.forEach((h, i) => {
+    const hl = (h || "").toString().toLowerCase().trim();
+    if (hl.includes("nome") || hl === "produto") colMap.nome = i;
+    else if (hl.includes("unidade") || hl.includes("base")) colMap.unidade = i;
+    else if (hl.includes("sku") || hl.includes("barras")) colMap.sku = i;
+    else if (hl.includes("ncm")) colMap.ncm = i;
+    else if (hl.includes("categ")) colMap.categoria = i;
+    else if (hl.includes("orig")) colMap.origem = i;
+    else if (hl.includes("embalag") && !hl.includes("qtd") && !hl.includes("prec")) colMap.embDescricao = i;
+    else if (hl.includes("qtd")) colMap.embQtd = i;
+    else if (hl.includes("prec") || hl.includes("valor")) colMap.embPreco = i;
+  });
+  const validOrigens = ["0","1","2","3","4","5","6","7"];
+  const parsed = dataRows.map(r => {
+    const nome = (r[colMap.nome] || "").toString().trim();
+    const unidade = (r[colMap.unidade] || "UN").toString().trim().toUpperCase() || "UN";
+    const sku = (r[colMap.sku] || "").toString().trim();
+    const ncm = (r[colMap.ncm] || "").toString().trim();
+    const categoria = (r[colMap.categoria] || "").toString().trim();
+    const origem = (r[colMap.origem] !== undefined ? r[colMap.origem] : "0").toString().trim();
+    const embDescricao = (r[colMap.embDescricao] || "").toString().trim();
+    const embQtd = Number(r[colMap.embQtd] || 1) || 1;
+    const embPreco = Number((r[colMap.embPreco] || "0").toString().replace(",", ".")) || 0;
+    const errors = [];
+    if (!nome) errors.push("Nome obrigatorio");
+    if (!validOrigens.includes(origem)) errors.push("Origem invalida");
+    return { nome, unidade, sku, ncm, categoria, origem, embDescricao, embQtd, embPreco, errors };
+  });
+  const errorCount = parsed.filter(p => p.errors.length > 0).length;
+  const validCount = parsed.length - errorCount;
+  let msg = `Importacao: ${parsed.length} linha(s) lida(s), ${validCount} valida(s)`;
+  if (errorCount > 0) msg += `, ${errorCount} com erro(s) ignorada(s)`;
+  if (validCount === 0) { showToast("Nenhum produto valido encontrado.", 3500); return; }
+  if (!confirm(msg + ". Confirmar importacao?")) return;
+  let importados = 0;
+  parsed.filter(p => p.errors.length === 0).forEach(p => {
+    const prodId = genId("PROD");
+    const autoSku = p.sku || gerarProximoSKU();
+    estoqueIntelProdutos.push({ id: prodId, nome: p.nome, unidade_base: p.unidade, sku: autoSku, ncm: p.ncm, categoria: p.categoria, origem: p.origem });
+    if (p.embDescricao || p.embPreco) {
+      estoqueIntelEmbalagens.push({ id: genId("EMB"), produto_id: prodId, descricao: p.embDescricao || p.nome, codigo_barras: autoSku, quantidade_base: p.embQtd, preco_referencia: p.embPreco });
+    }
+    importados++;
+  });
+  saveEstoqueIntelProdutos();
+  saveEstoqueIntelEmbalagens();
+  renderEstoque();
+  showToast(`${importados} produto(s) importado(s) com sucesso!`, 4000);
 }
 </script>
 

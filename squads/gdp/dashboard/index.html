@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>GDP Dashboard — Gestão de Pedidos Lariucci</title>
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
   <style>
     :root {
       --bg: #0f172a;
@@ -183,6 +184,32 @@
       color: #000;
     }
 
+    .btn-outline {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+
+    .btn-outline:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .btn-danger {
+      background: var(--danger);
+      color: white;
+    }
+
+    .btn-warning {
+      background: var(--warning);
+      color: #000;
+    }
+
+    .btn-sm {
+      padding: 0.35rem 0.7rem;
+      font-size: 0.75rem;
+    }
+
     /* Tabs */
     .tabs {
       display: flex;
@@ -243,14 +270,40 @@
       padding: 0.7rem 1rem;
       font-size: 0.85rem;
       border-top: 1px solid rgba(71,85,105,0.3);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     tr:hover td { background: rgba(59,130,246,0.05); }
+
+    /* Products table — fixed layout (AC1) */
+    #tab-produtos table,
+    #school-detail table {
+      table-layout: fixed;
+    }
+
+    /* Products table column widths */
+    #tab-produtos th:nth-child(1), #tab-produtos td:nth-child(1) { width: 15%; }
+    #tab-produtos th:nth-child(2), #tab-produtos td:nth-child(2) { width: 24%; }
+    #tab-produtos th:nth-child(3), #tab-produtos td:nth-child(3) { width: 14%; }
+    #tab-produtos th:nth-child(4), #tab-produtos td:nth-child(4) { width: 17%; }
+    #tab-produtos th:nth-child(5), #tab-produtos td:nth-child(5) { width: 15%; text-align: right; }
+    #tab-produtos th:nth-child(6), #tab-produtos td:nth-child(6) { width: 15%; text-align: right; }
+
+    /* School detail table column widths */
+    #school-detail th:nth-child(1), #school-detail td:nth-child(1) { width: 7%; }
+    #school-detail th:nth-child(2), #school-detail td:nth-child(2) { width: 24%; }
+    #school-detail th:nth-child(3), #school-detail td:nth-child(3) { width: 14%; }
+    #school-detail th:nth-child(4), #school-detail td:nth-child(4) { width: 17%; }
+    #school-detail th:nth-child(5), #school-detail td:nth-child(5) { width: 15%; text-align: right; }
+    #school-detail th:nth-child(6), #school-detail td:nth-child(6) { width: 13%; text-align: right; }
 
     .price {
       font-weight: 700;
       color: var(--success);
       font-variant-numeric: tabular-nums;
+      text-align: right;
     }
 
     .stock-badge {
@@ -263,6 +316,64 @@
     .stock-ok { background: rgba(34,197,94,0.15); color: var(--success); }
     .stock-low { background: rgba(245,158,11,0.15); color: var(--warning); }
     .stock-zero { background: rgba(239,68,68,0.15); color: var(--danger); }
+
+    /* Category badge (AC8) */
+    .cat-badge {
+      display: inline-block;
+      padding: 0.15rem 0.5rem;
+      border-radius: 999px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      white-space: nowrap;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Origin badge (AC13) */
+    .origem-badge {
+      display: inline-block;
+      padding: 0.15rem 0.5rem;
+      border-radius: 999px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      background: rgba(59,130,246,0.15);
+      color: var(--accent);
+      white-space: nowrap;
+    }
+
+    /* Import error row */
+    .import-error td {
+      background: rgba(239,68,68,0.08) !important;
+    }
+
+    /* Modal overlay */
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      max-width: 750px;
+      width: 92%;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+
+    .modal-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+    }
 
     /* School Cards */
     .school-grid {
@@ -386,13 +497,18 @@
       }
     }
 
-    /* Responsive */
+    /* Responsive (AC3) */
     @media (max-width: 768px) {
       .header { flex-direction: column; gap: 0.5rem; }
       .main { padding: 1rem; }
       .kpi-grid { grid-template-columns: repeat(2, 1fr); }
       .chart-grid { grid-template-columns: 1fr; }
       .controls { flex-direction: column; }
+      /* Hide Origem column on mobile to save space */
+      #tab-produtos th:nth-child(4),
+      #tab-produtos td:nth-child(4),
+      #school-detail th:nth-child(4),
+      #school-detail td:nth-child(4) { display: none; }
     }
   </style>
 </head>
@@ -441,8 +557,10 @@
             <tr>
               <th>Item</th>
               <th>Produto</th>
-              <th>Preço Unit.</th>
-              <th>Estoque</th>
+              <th>Categoria</th>
+              <th>Origem</th>
+              <th style="text-align:right">Preco Unit.</th>
+              <th style="text-align:right">Estoque</th>
             </tr>
           </thead>
           <tbody id="detail-tbody"></tbody>
@@ -460,14 +578,21 @@
       <select id="school-filter" onchange="filterProducts()">
         <option value="">Todas as Escolas</option>
       </select>
+      <select id="category-filter" onchange="filterProducts()">
+        <option value="">Todas Categorias</option>
+      </select>
       <select id="sort-filter" onchange="filterProducts()">
         <option value="name-asc">Nome A-Z</option>
         <option value="name-desc">Nome Z-A</option>
-        <option value="price-asc">Preço: Menor</option>
-        <option value="price-desc">Preço: Maior</option>
+        <option value="cat-asc">Categoria A-Z</option>
+        <option value="price-asc">Preco: Menor</option>
+        <option value="price-desc">Preco: Maior</option>
         <option value="stock-desc">Estoque: Maior</option>
       </select>
+      <button class="btn btn-outline btn-sm" onclick="openCategoryModal()">Categorias</button>
       <button class="btn btn-success" onclick="exportCSV()">Exportar CSV</button>
+      <button class="btn btn-warning" onclick="downloadModelo()">Baixar Modelo</button>
+      <button class="btn btn-primary" onclick="importExcel()">Importar Excel</button>
     </div>
     <div class="table-container" style="max-height:600px; overflow-y:auto;">
       <table>
@@ -475,8 +600,10 @@
           <tr>
             <th onclick="sortBy('escola')">Escola</th>
             <th onclick="sortBy('produto')">Produto</th>
-            <th onclick="sortBy('preco')">Preço Unit.</th>
-            <th onclick="sortBy('estoque')">Estoque</th>
+            <th onclick="sortBy('categoria')">Categoria</th>
+            <th onclick="sortBy('origem')">Origem</th>
+            <th onclick="sortBy('preco')" style="text-align:right">Preco Unit.</th>
+            <th onclick="sortBy('estoque')" style="text-align:right">Estoque</th>
           </tr>
         </thead>
         <tbody id="products-tbody"></tbody>
@@ -497,7 +624,7 @@
         <div class="bar-chart" id="chart-expensive"></div>
       </div>
       <div class="chart-card">
-        <div class="chart-title">Distribuição por Faixa de Preço</div>
+        <div class="chart-title">Distribuicao por Faixa de Preco</div>
         <div class="bar-chart" id="chart-price-range"></div>
       </div>
       <div class="chart-card">
@@ -508,12 +635,81 @@
   </div>
 </div>
 
+<!-- Modal: Gerenciar Categorias -->
+<div id="cat-modal-overlay" class="modal-overlay hidden">
+  <div class="modal" id="cat-modal"></div>
+</div>
+
+<!-- Modal: Import Preview -->
+<div id="import-modal-overlay" class="modal-overlay hidden">
+  <div class="modal" id="import-modal" style="max-width:900px;"></div>
+</div>
+
 <div class="footer">
-  📦 GDP Dashboard — Gestão de Pedidos Pós-Licitação | Fornecedor: Lariucci & Ribeiro Pereira | Dados extraídos em 28/02/2026
+  📦 GDP Dashboard — Gestao de Pedidos Pos-Licitacao | Fornecedor: Lariucci & Ribeiro Pereira | Dados extraidos em 28/02/2026
 </div>
 
 <script>
-// Load ARP data
+// === Constants ===
+const ORIGEM_CODES = {
+  '0': 'Nacional',
+  '1': 'Import. Direta',
+  '2': 'Import. Merc.Int.',
+  '3': 'Nac. >40% Import.',
+  '4': 'Nac. Proc. Basicos',
+  '5': 'Nac. <=40% Import.',
+  '6': 'Import. s/ Similar',
+  '7': 'Import. MI s/ Similar'
+};
+
+const DEFAULT_CATEGORIES = [
+  { id: 'cat-1', nome: 'Hortifruti', cor: '#22c55e' },
+  { id: 'cat-2', nome: 'Carnes/Proteinas', cor: '#ef4444' },
+  { id: 'cat-3', nome: 'Graos/Cereais', cor: '#f59e0b' },
+  { id: 'cat-4', nome: 'Laticinios', cor: '#3b82f6' },
+  { id: 'cat-5', nome: 'Frutas', cor: '#a855f7' },
+  { id: 'cat-6', nome: 'Mercearia', cor: '#ec4899' },
+  { id: 'cat-7', nome: 'Padaria/Biscoitos', cor: '#f97316' },
+  { id: 'cat-8', nome: 'Ovos', cor: '#eab308' },
+  { id: 'cat-9', nome: 'Polpas/Frutas', cor: '#14b8a6' },
+  { id: 'cat-10', nome: 'Outros', cor: '#6b7280' }
+];
+
+// === Category Storage (AC7) ===
+function loadCategories() {
+  const stored = localStorage.getItem('gdp-categorias');
+  if (stored) return JSON.parse(stored);
+  saveCategories(DEFAULT_CATEGORIES);
+  return [...DEFAULT_CATEGORIES];
+}
+
+function saveCategories(cats) {
+  localStorage.setItem('gdp-categorias', JSON.stringify(cats));
+}
+
+function getCategoryColor(catName) {
+  const cats = loadCategories();
+  const found = cats.find(c => c.nome.toLowerCase() === (catName || '').toLowerCase());
+  return found ? found.cor : '#6b7280';
+}
+
+// === Auto-detect category from product name ===
+function detectCategory(name) {
+  const n = name.toLowerCase();
+  if (n.includes('polpa')) return 'Polpas/Frutas';
+  if (n.includes('feij')) return 'Graos/Cereais';
+  if (n.includes('arroz') || n.includes('fuba') || n.includes('farinha') || n.includes('macarr') || n.includes('aveia')) return 'Graos/Cereais';
+  if (n.includes('carne') || n.includes('file') || n.includes('peito') || n.includes('pernil') || n.includes('linguica') || n.includes('tilapia') || n.includes('frango')) return 'Carnes/Proteinas';
+  if (n.includes('queijo') || n.includes('mussarela') || n.includes('manteiga') || n.includes('iogurte') || n.includes('margarina')) return 'Laticinios';
+  if (n.includes('alface') || n.includes('batata') || n.includes('cebola') || n.includes('cenoura') || n.includes('tomate') || n.includes('repolho') || n.includes('couve') || n.includes('beterraba') || n.includes('abobora') || n.includes('chuchu') || n.includes('vagem') || n.includes('alho')) return 'Hortifruti';
+  if (n.includes('banana') || n.includes('maca') || n.includes('laranja') || n.includes('melancia') || n.includes('abacaxi') || n.includes('limao')) return 'Frutas';
+  if (n.includes('acucar') || n.includes('cafe') || n.includes('oleo') || n.includes('sal ') || n.includes('vinagre') || n.includes('extrato') || n.includes('colorau') || n.includes('acafrao') || n.includes('cacau') || n.includes('amido') || n.includes('coco') || n.includes('fermento') || n.includes('oregano') || n.includes('polvilho')) return 'Mercearia';
+  if (n.includes('biscoito') || n.includes('bolacha') || n.includes('rosquinha') || n.includes('pao')) return 'Padaria/Biscoitos';
+  if (n.includes('ovo')) return 'Ovos';
+  return '';
+}
+
+// === Data ===
 let arpData = null;
 let allProducts = [];
 
@@ -522,22 +718,20 @@ async function loadData() {
     const res = await fetch('./data/lariucci-arp-2025.json');
     arpData = await res.json();
   } catch(e) {
-    // Fallback: try relative path
     try {
       const res = await fetch('../data/arp/lariucci-arp-2025.json');
       arpData = await res.json();
     } catch(e2) {
-      // Use inline data as ultimate fallback
       arpData = window.__arpDataInline;
     }
   }
 
   if (!arpData) {
-    document.querySelector('.main').innerHTML = '<p style="padding:2rem;color:var(--danger);">Erro ao carregar dados da ARP. Verifique se o arquivo lariucci-arp-2025.json está acessível.</p>';
+    document.querySelector('.main').innerHTML = '<p style="padding:2rem;color:var(--danger);">Erro ao carregar dados da ARP. Verifique se o arquivo lariucci-arp-2025.json esta acessivel.</p>';
     return;
   }
 
-  // Flatten products
+  // Flatten ARP products with categoria + origem
   allProducts = [];
   arpData.escolas.forEach(escola => {
     escola.produtos.forEach(p => {
@@ -545,9 +739,26 @@ async function loadData() {
         escola: escola.nome,
         escolaId: escola.id,
         produto: p.produto,
+        categoria: detectCategory(p.produto),
+        origem: '0',
         preco: p.preco,
         estoque: p.estoque
       });
+    });
+  });
+
+  // Merge custom/imported products from localStorage (AC21)
+  const custom = JSON.parse(localStorage.getItem('gdp-produtos-custom') || '[]');
+  custom.forEach(p => {
+    allProducts.push({
+      escola: p.escola || 'Importado',
+      escolaId: p.escolaId || 'importado',
+      produto: p.produto,
+      categoria: p.categoria || detectCategory(p.produto),
+      origem: p.origem || '0',
+      preco: p.preco,
+      estoque: p.estoque,
+      importado: true
     });
   });
 
@@ -556,6 +767,7 @@ async function loadData() {
   renderProducts();
   renderAnalytics();
   populateSchoolFilter();
+  populateCategoryFilter();
 }
 
 // Date
@@ -563,7 +775,7 @@ document.getElementById('current-date').textContent = new Date().toLocaleDateStr
   weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
 });
 
-// KPIs
+// === KPIs ===
 function renderKPIs() {
   const totalEscolas = arpData.escolas.length;
   const totalProdutos = allProducts.length;
@@ -574,8 +786,8 @@ function renderKPIs() {
 
   const kpis = [
     { label: 'Escolas Atendidas', value: totalEscolas, cls: 'blue', sub: 'Caixas escolares vinculadas' },
-    { label: 'Total de Itens', value: totalProdutos, cls: 'purple', sub: `${uniqueProducts} produtos únicos` },
-    { label: 'Preço Médio', value: `R$ ${avgPrice.toFixed(2).replace('.', ',')}`, cls: 'green', sub: `Máx: R$ ${maxPrice.toFixed(2).replace('.', ',')}` },
+    { label: 'Total de Itens', value: totalProdutos, cls: 'purple', sub: `${uniqueProducts} produtos unicos` },
+    { label: 'Preco Medio', value: `R$ ${avgPrice.toFixed(2).replace('.', ',')}`, cls: 'green', sub: `Max: R$ ${maxPrice.toFixed(2).replace('.', ',')}` },
     { label: 'Com Estoque', value: withStock, cls: 'orange', sub: `${((withStock/totalProdutos)*100).toFixed(1)}% dos itens` },
   ];
 
@@ -588,7 +800,7 @@ function renderKPIs() {
   `).join('');
 }
 
-// Tabs
+// === Tabs ===
 function switchTab(tab) {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
@@ -598,7 +810,7 @@ function switchTab(tab) {
   });
 }
 
-// Schools
+// === Schools ===
 function renderSchools(filter = '') {
   const grid = document.getElementById('school-grid');
   const filtered = arpData.escolas.filter(e =>
@@ -613,7 +825,7 @@ function renderSchools(filter = '') {
         <div class="school-name">${e.nome}</div>
         <div class="school-stats">
           <span>${e.total_itens} itens</span>
-          <span>Média: R$ ${(total / e.produtos.length).toFixed(2).replace('.', ',')}</span>
+          <span>Media: R$ ${(total / e.produtos.length).toFixed(2).replace('.', ',')}</span>
           ${withStock > 0 ? `<span style="color:var(--success)">${withStock} c/ estoque</span>` : ''}
         </div>
       </div>
@@ -633,14 +845,19 @@ function showSchoolDetail(schoolId) {
   document.getElementById('school-detail').classList.remove('hidden');
   document.getElementById('detail-title').textContent = `${escola.nome} — ${escola.total_itens} itens`;
 
-  document.getElementById('detail-tbody').innerHTML = escola.produtos.map(p => `
+  document.getElementById('detail-tbody').innerHTML = escola.produtos.map(p => {
+    const cat = detectCategory(p.produto);
+    const catColor = getCategoryColor(cat);
+    return `
     <tr>
       <td>${p.item}</td>
       <td>${p.produto}</td>
+      <td>${cat ? `<span class="cat-badge" style="background:${catColor}20;color:${catColor}">${cat}</span>` : '<span style="color:var(--text-muted)">—</span>'}</td>
+      <td><span class="origem-badge">0-Nacional</span></td>
       <td class="price">R$ ${p.preco.toFixed(2).replace('.', ',')}</td>
-      <td><span class="stock-badge ${p.estoque > 50 ? 'stock-ok' : p.estoque > 0 ? 'stock-low' : 'stock-zero'}">${p.estoque}</span></td>
+      <td style="text-align:right"><span class="stock-badge ${p.estoque > 50 ? 'stock-ok' : p.estoque > 0 ? 'stock-low' : 'stock-zero'}">${p.estoque}</span></td>
     </tr>
-  `).join('');
+  `}).join('');
 }
 
 function closeDetail() {
@@ -648,35 +865,46 @@ function closeDetail() {
   document.getElementById('school-detail').classList.add('hidden');
 }
 
-// Products
+// === Products (AC4, AC10, AC13) ===
 function renderProducts(items = null) {
   const data = items || allProducts;
-  document.getElementById('products-tbody').innerHTML = data.map(p => `
+  document.getElementById('products-tbody').innerHTML = data.map(p => {
+    const catColor = getCategoryColor(p.categoria);
+    const origemLabel = ORIGEM_CODES[p.origem] || 'Nacional';
+    return `
     <tr>
-      <td>${p.escola}</td>
-      <td>${p.produto}</td>
+      <td title="${p.escola}">${p.escola}</td>
+      <td title="${p.produto}">${p.produto}</td>
+      <td>${p.categoria ? `<span class="cat-badge" style="background:${catColor}20;color:${catColor}">${p.categoria}</span>` : '<span style="color:var(--text-muted)">—</span>'}</td>
+      <td><span class="origem-badge">${p.origem}-${origemLabel}</span></td>
       <td class="price">R$ ${p.preco.toFixed(2).replace('.', ',')}</td>
-      <td><span class="stock-badge ${p.estoque > 50 ? 'stock-ok' : p.estoque > 0 ? 'stock-low' : 'stock-zero'}">${p.estoque}</span></td>
+      <td style="text-align:right"><span class="stock-badge ${p.estoque > 50 ? 'stock-ok' : p.estoque > 0 ? 'stock-low' : 'stock-zero'}">${p.estoque}</span></td>
     </tr>
-  `).join('');
+  `}).join('');
   document.getElementById('product-count').textContent = `Exibindo ${data.length} de ${allProducts.length} itens`;
 }
 
+// === Filter Products (AC5) ===
 function filterProducts() {
   const search = document.getElementById('product-search').value.toLowerCase();
   const school = document.getElementById('school-filter').value;
+  const category = document.getElementById('category-filter').value;
   const sort = document.getElementById('sort-filter').value;
 
   let filtered = allProducts.filter(p => {
     const matchSearch = p.produto.toLowerCase().includes(search) || p.escola.toLowerCase().includes(search);
     const matchSchool = !school || p.escolaId === school;
-    return matchSearch && matchSchool;
+    let matchCat = true;
+    if (category === '__none__') matchCat = !p.categoria;
+    else if (category) matchCat = p.categoria === category;
+    return matchSearch && matchSchool && matchCat;
   });
 
   const [field, dir] = sort.split('-');
   filtered.sort((a, b) => {
     let va, vb;
     if (field === 'name') { va = a.produto; vb = b.produto; }
+    else if (field === 'cat') { va = a.categoria || ''; vb = b.categoria || ''; }
     else if (field === 'price') { va = a.preco; vb = b.preco; }
     else if (field === 'stock') { va = a.estoque; vb = b.estoque; }
     if (typeof va === 'string') return dir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
@@ -696,6 +924,25 @@ function populateSchoolFilter() {
   });
 }
 
+function populateCategoryFilter() {
+  const sel = document.getElementById('category-filter');
+  const current = sel.value;
+  sel.innerHTML = '<option value="">Todas Categorias</option>';
+  const cats = loadCategories();
+  cats.forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c.nome;
+    opt.textContent = c.nome;
+    sel.appendChild(opt);
+  });
+  const optNone = document.createElement('option');
+  optNone.value = '__none__';
+  optNone.textContent = 'Sem Categoria';
+  sel.appendChild(optNone);
+  sel.value = current;
+}
+
+// === Sort ===
 let currentSort = { field: null, dir: 'asc' };
 function sortBy(field) {
   if (currentSort.field === field) {
@@ -704,18 +951,27 @@ function sortBy(field) {
     currentSort = { field, dir: 'asc' };
   }
   const sorted = [...allProducts].sort((a, b) => {
-    const va = a[field], vb = b[field];
+    let va = a[field], vb = b[field];
+    if (va === undefined) va = '';
+    if (vb === undefined) vb = '';
     if (typeof va === 'string') return currentSort.dir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
     return currentSort.dir === 'asc' ? va - vb : vb - va;
   });
   renderProducts(sorted);
 }
 
-// Export CSV
+// === Export CSV (AC14) ===
 function exportCSV() {
-  const rows = [['Escola', 'Produto', 'Preco', 'Estoque']];
+  const rows = [['Escola', 'Produto', 'Categoria', 'Origem', 'Preco', 'Estoque']];
   allProducts.forEach(p => {
-    rows.push([`"${p.escola}"`, `"${p.produto}"`, p.preco.toFixed(2).replace('.', ','), p.estoque]);
+    rows.push([
+      `"${p.escola}"`,
+      `"${p.produto}"`,
+      `"${p.categoria || ''}"`,
+      `"${p.origem}-${ORIGEM_CODES[p.origem] || 'Nacional'}"`,
+      p.preco.toFixed(2).replace('.', ','),
+      p.estoque
+    ]);
   });
   const csv = rows.map(r => r.join(';')).join('\n');
   const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
@@ -727,7 +983,291 @@ function exportCSV() {
   URL.revokeObjectURL(url);
 }
 
-// Analytics
+// === Category Modal (AC6) ===
+function openCategoryModal() {
+  renderCategoryModal();
+  document.getElementById('cat-modal-overlay').classList.remove('hidden');
+}
+
+function closeCategoryModal() {
+  document.getElementById('cat-modal-overlay').classList.add('hidden');
+}
+
+function renderCategoryModal() {
+  const cats = loadCategories();
+  let html = `
+    <div class="modal-title">Gerenciar Categorias</div>
+    <div style="display:flex;gap:.5rem;margin-bottom:1rem;align-items:center;">
+      <input type="text" id="new-cat-name" placeholder="Nova categoria..." style="flex:1;padding:.5rem .7rem;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:.85rem;">
+      <input type="color" id="new-cat-color" value="#3b82f6" style="width:36px;height:36px;border:1px solid var(--border);border-radius:6px;cursor:pointer;background:var(--bg);">
+      <button class="btn btn-primary btn-sm" onclick="addCategory()">Adicionar</button>
+    </div>
+    <div class="table-container">
+      <table style="table-layout:auto">
+        <thead><tr><th style="width:50px">Cor</th><th>Nome</th><th style="width:140px">Acoes</th></tr></thead>
+        <tbody>
+  `;
+  cats.forEach(c => {
+    html += `<tr>
+      <td><span style="display:inline-block;width:20px;height:20px;border-radius:50%;background:${c.cor}"></span></td>
+      <td>${c.nome}</td>
+      <td>
+        <button class="btn btn-outline btn-sm" onclick="editCategory('${c.id}')">Editar</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteCategory('${c.id}')">Excluir</button>
+      </td>
+    </tr>`;
+  });
+  html += `</tbody></table></div>
+    <div style="display:flex;justify-content:flex-end;margin-top:1rem;">
+      <button class="btn btn-outline" onclick="closeCategoryModal()">Fechar</button>
+    </div>
+  `;
+  document.getElementById('cat-modal').innerHTML = html;
+}
+
+function addCategory() {
+  const nameEl = document.getElementById('new-cat-name');
+  const colorEl = document.getElementById('new-cat-color');
+  const name = nameEl.value.trim();
+  const color = colorEl.value;
+  if (!name) return;
+
+  const cats = loadCategories();
+  if (cats.find(c => c.nome.toLowerCase() === name.toLowerCase())) {
+    alert('Categoria ja existe!');
+    return;
+  }
+  cats.push({ id: 'cat-' + Date.now(), nome: name, cor: color });
+  saveCategories(cats);
+  renderCategoryModal();
+  populateCategoryFilter();
+}
+
+function editCategory(id) {
+  const cats = loadCategories();
+  const cat = cats.find(c => c.id === id);
+  if (!cat) return;
+
+  const newName = prompt('Nome da categoria:', cat.nome);
+  if (newName === null || !newName.trim()) return;
+
+  const oldName = cat.nome;
+  cat.nome = newName.trim();
+  saveCategories(cats);
+
+  // Update products that had the old category name
+  allProducts.forEach(p => {
+    if (p.categoria === oldName) p.categoria = cat.nome;
+  });
+
+  renderCategoryModal();
+  populateCategoryFilter();
+  renderProducts();
+}
+
+function deleteCategory(id) {
+  if (!confirm('Excluir esta categoria?')) return;
+  let cats = loadCategories();
+  const removed = cats.find(c => c.id === id);
+  cats = cats.filter(c => c.id !== id);
+  saveCategories(cats);
+
+  // Clear category from products that used the deleted one
+  if (removed) {
+    allProducts.forEach(p => {
+      if (p.categoria === removed.nome) p.categoria = '';
+    });
+  }
+
+  renderCategoryModal();
+  populateCategoryFilter();
+  renderProducts();
+}
+
+// === Download Excel Template (AC16) ===
+function downloadModelo() {
+  if (typeof XLSX === 'undefined') {
+    alert('Biblioteca XLSX nao carregou. Verifique sua conexao.');
+    return;
+  }
+  const wb = XLSX.utils.book_new();
+
+  // Main sheet with example rows
+  const wsData = [
+    ['Escola', 'Produto', 'Categoria', 'Origem (0-7)', 'Preco Unitario', 'Estoque'],
+    ['CEOPEE', 'Arroz Tipo 1 5kg', 'Graos/Cereais', 0, 22.50, 100],
+    ['EM PADRE EUSTAQUIO', 'Feijao Carioca 1kg', 'Graos/Cereais', 0, 8.90, 50]
+  ];
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+  ws['!cols'] = [{ wch: 25 }, { wch: 30 }, { wch: 18 }, { wch: 15 }, { wch: 15 }, { wch: 10 }];
+  XLSX.utils.book_append_sheet(wb, ws, 'Produtos');
+
+  // Reference sheet with origin codes
+  const refData = [
+    ['Codigo', 'Descricao'],
+    [0, 'Nacional'],
+    [1, 'Estrangeira - Importacao direta'],
+    [2, 'Estrangeira - Adquirida no mercado interno'],
+    [3, 'Nacional - Conteudo importacao >40%'],
+    [4, 'Nacional - Processos produtivos basicos'],
+    [5, 'Nacional - Conteudo importacao <=40%'],
+    [6, 'Estrangeira - Importacao direta, sem similar (CAMEX)'],
+    [7, 'Estrangeira - Mercado interno, sem similar (CAMEX)']
+  ];
+  const wsRef = XLSX.utils.aoa_to_sheet(refData);
+  wsRef['!cols'] = [{ wch: 8 }, { wch: 55 }];
+  XLSX.utils.book_append_sheet(wb, wsRef, 'Referencia');
+
+  XLSX.writeFile(wb, 'modelo-importacao-produtos-gdp.xlsx');
+}
+
+// === Import Excel (AC15, AC17-AC20) ===
+function importExcel() {
+  if (typeof XLSX === 'undefined') {
+    alert('Biblioteca XLSX nao carregou. Verifique sua conexao.');
+    return;
+  }
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.xlsx,.csv';
+  input.onchange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const data = new Uint8Array(ev.target.result);
+      const wb = XLSX.read(data, { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { header: 1 });
+      if (rows.length < 2) { alert('Planilha vazia ou sem dados.'); return; }
+      showImportPreview(rows);
+    };
+    reader.readAsArrayBuffer(file);
+  };
+  input.click();
+}
+
+// === Import Preview (AC18, AC19) ===
+function showImportPreview(rows) {
+  const header = rows[0];
+  const dataRows = rows.slice(1).filter(r => r.some(cell => cell !== undefined && cell !== ''));
+
+  // Flexible column mapping
+  const colMap = {};
+  header.forEach((h, i) => {
+    const hl = (h || '').toString().toLowerCase().trim();
+    if (hl.includes('escola')) colMap.escola = i;
+    else if (hl.includes('produto') || hl.includes('nome')) colMap.produto = i;
+    else if (hl.includes('categ')) colMap.categoria = i;
+    else if (hl.includes('orig')) colMap.origem = i;
+    else if (hl.includes('prec') || hl.includes('valor')) colMap.preco = i;
+    else if (hl.includes('estoq') || hl.includes('qtd')) colMap.estoque = i;
+  });
+
+  const validSchoolNames = arpData ? arpData.escolas.map(e => e.nome.toLowerCase()) : [];
+
+  const parsed = dataRows.map(r => {
+    const escola = (r[colMap.escola] || '').toString().trim();
+    const produto = (r[colMap.produto] || '').toString().trim();
+    const categoria = (r[colMap.categoria] || '').toString().trim();
+    const origem = (r[colMap.origem] !== undefined ? r[colMap.origem] : '0').toString().trim();
+    const precoRaw = (r[colMap.preco] || '0').toString().replace(',', '.');
+    const preco = parseFloat(precoRaw);
+    const estoque = parseInt(r[colMap.estoque] || '0');
+
+    const errors = [];
+    if (!produto) errors.push('Produto obrigatorio');
+    if (isNaN(preco) || preco < 0) errors.push('Preco invalido');
+    if (!['0','1','2','3','4','5','6','7'].includes(origem)) errors.push('Origem invalida (0-7)');
+    if (escola && !validSchoolNames.includes(escola.toLowerCase())) errors.push('Escola nao encontrada');
+
+    return { escola, produto, categoria, origem, preco: isNaN(preco) ? 0 : preco, estoque: isNaN(estoque) ? 0 : estoque, errors };
+  });
+
+  window.__importPreview = parsed;
+
+  const errorCount = parsed.filter(p => p.errors.length > 0).length;
+  const validCount = parsed.length - errorCount;
+
+  let html = `
+    <div class="modal-title">Preview da Importacao</div>
+    <p style="margin-bottom:1rem;font-size:.85rem;color:var(--text-muted)">
+      ${parsed.length} linha(s) encontrada(s) —
+      <span style="color:var(--success)">${validCount} valida(s)</span>
+      ${errorCount > 0 ? ` — <span style="color:var(--danger)">${errorCount} com erro(s)</span>` : ''}
+    </p>
+    <div class="table-container" style="max-height:400px;overflow-y:auto;">
+      <table style="table-layout:auto">
+        <thead><tr>
+          <th>Escola</th><th>Produto</th><th>Categoria</th><th>Origem</th><th style="text-align:right">Preco</th><th style="text-align:right">Estoque</th><th>Status</th>
+        </tr></thead>
+        <tbody>
+  `;
+
+  parsed.forEach(p => {
+    const hasErr = p.errors.length > 0;
+    html += `<tr class="${hasErr ? 'import-error' : ''}">
+      <td>${p.escola}</td>
+      <td>${p.produto}</td>
+      <td>${p.categoria}</td>
+      <td>${p.origem}</td>
+      <td class="price">R$ ${p.preco.toFixed(2).replace('.',',')}</td>
+      <td style="text-align:right">${p.estoque}</td>
+      <td>${hasErr ? '<span style="color:var(--danger)" title="' + p.errors.join(', ') + '">Erro</span>' : '<span style="color:var(--success)">OK</span>'}</td>
+    </tr>`;
+  });
+
+  html += `</tbody></table></div>
+    <div style="display:flex;gap:.5rem;justify-content:flex-end;margin-top:1rem;">
+      <button class="btn btn-outline" onclick="closeImportPreview()">Cancelar</button>
+      <button class="btn btn-primary" onclick="confirmImport()" ${validCount === 0 ? 'disabled' : ''}>Importar ${validCount} Produto(s)</button>
+    </div>
+  `;
+
+  document.getElementById('import-modal').innerHTML = html;
+  document.getElementById('import-modal-overlay').classList.remove('hidden');
+}
+
+function closeImportPreview() {
+  document.getElementById('import-modal-overlay').classList.add('hidden');
+  window.__importPreview = null;
+}
+
+// === Confirm Import (AC20, AC21) ===
+function confirmImport() {
+  const parsed = window.__importPreview;
+  if (!parsed) return;
+
+  const valid = parsed.filter(p => p.errors.length === 0);
+  let customProducts = JSON.parse(localStorage.getItem('gdp-produtos-custom') || '[]');
+
+  valid.forEach(p => {
+    const escolaObj = arpData ? arpData.escolas.find(e => e.nome.toLowerCase() === p.escola.toLowerCase()) : null;
+    const product = {
+      escola: p.escola || 'Importado',
+      escolaId: escolaObj ? escolaObj.id : 'importado',
+      produto: p.produto,
+      categoria: p.categoria || detectCategory(p.produto),
+      origem: p.origem,
+      preco: p.preco,
+      estoque: p.estoque,
+      importado: true
+    };
+    customProducts.push(product);
+    allProducts.push(product);
+  });
+
+  localStorage.setItem('gdp-produtos-custom', JSON.stringify(customProducts));
+
+  closeImportPreview();
+  renderProducts();
+  populateCategoryFilter();
+  renderKPIs();
+  renderAnalytics();
+  alert(`${valid.length} produto(s) importado(s) com sucesso!`);
+}
+
+// === Analytics ===
 function renderAnalytics() {
   // Top schools by item count
   const schoolCounts = arpData.escolas.map(e => ({ name: e.nome, count: e.total_itens }))
@@ -756,7 +1296,7 @@ function renderAnalytics() {
 
   // Price ranges
   const ranges = [
-    { label: 'Até R$ 5', min: 0, max: 5 },
+    { label: 'Ate R$ 5', min: 0, max: 5 },
     { label: 'R$ 5 - R$ 10', min: 5, max: 10 },
     { label: 'R$ 10 - R$ 20', min: 10, max: 20 },
     { label: 'R$ 20 - R$ 50', min: 20, max: 50 },
@@ -776,21 +1316,10 @@ function renderAnalytics() {
     </div>
   `).join('');
 
-  // Product categories
+  // Product categories — use actual category field
   const categories = {};
   allProducts.forEach(p => {
-    const name = p.produto.toLowerCase();
-    let cat = 'Outros';
-    if (name.includes('polpa')) cat = 'Polpas/Frutas';
-    else if (name.includes('feij')) cat = 'Grãos/Cereais';
-    else if (name.includes('arroz') || name.includes('fubá') || name.includes('farinha') || name.includes('macarr') || name.includes('aveia')) cat = 'Grãos/Cereais';
-    else if (name.includes('carne') || name.includes('filé') || name.includes('peito') || name.includes('pernil') || name.includes('linguiça') || name.includes('tilápia') || name.includes('frango')) cat = 'Carnes/Proteínas';
-    else if (name.includes('queijo') || name.includes('mussarela') || name.includes('manteiga') || name.includes('iogurte') || name.includes('margarina')) cat = 'Laticínios';
-    else if (name.includes('alface') || name.includes('batata') || name.includes('cebola') || name.includes('cenoura') || name.includes('tomate') || name.includes('repolho') || name.includes('couve') || name.includes('beterraba') || name.includes('abóbora') || name.includes('chuchu') || name.includes('vagem') || name.includes('alho')) cat = 'Hortifruti';
-    else if (name.includes('banana') || name.includes('maça') || name.includes('laranja') || name.includes('melancia') || name.includes('abacaxi') || name.includes('limao')) cat = 'Frutas';
-    else if (name.includes('açucar') || name.includes('café') || name.includes('óleo') || name.includes('oleo') || name.includes('sal') || name.includes('vinagre') || name.includes('extrato') || name.includes('colorau') || name.includes('açafrão') || name.includes('cacau') || name.includes('amido') || name.includes('coco') || name.includes('fermento') || name.includes('orégano') || name.includes('polvilho')) cat = 'Mercearia';
-    else if (name.includes('biscoito') || name.includes('bolacha') || name.includes('rosquinha') || name.includes('pão')) cat = 'Padaria/Biscoitos';
-    else if (name.includes('ovo')) cat = 'Ovos';
+    const cat = p.categoria || 'Sem Categoria';
     categories[cat] = (categories[cat] || 0) + 1;
   });
 
