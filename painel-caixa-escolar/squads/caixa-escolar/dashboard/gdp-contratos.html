@@ -6396,14 +6396,35 @@ async function sincronizarCobrancaProvider(contaId) {
   await emitirOuSincronizarCobrancaReal(contaId, { silent: false });
 }
 
-// Sequencial de NF controlado pelo frontend (persiste em localStorage)
+// Sequencial de NF controlado pelo frontend (persiste em localStorage + Supabase)
 function getProximoNumeroNf() {
   const KEY = "gdp.nf-counter";
   let counter = parseInt(localStorage.getItem(KEY) || "0", 10);
   if (counter < 1204) counter = 1204; // Base: 1165-1204 já usados/cancelados/inutilizados na SEFAZ
   counter++;
   localStorage.setItem(KEY, String(counter));
+  // AC-2: Persistir no Supabase (fire-and-forget)
+  try { cloudSave("gdp.nf-counter.v1", { counter, updatedAt: new Date().toISOString() }); } catch(_) {}
   return String(counter);
+}
+
+// AC-2: Carregar counter do Supabase ao iniciar (chamado no boot)
+async function syncNfCounterFromCloud() {
+  try {
+    const KEY = "gdp.nf-counter";
+    const resp = await fetch(SUPABASE_URL + "/rest/v1/sync_data?key=eq.gdp.nf-counter.v1&select=data&limit=1", {
+      headers: { "apikey": SUPABASE_KEY, "Authorization": "Bearer " + SUPABASE_KEY }
+    });
+    const rows = await resp.json();
+    if (rows.length && rows[0].data?.counter) {
+      const cloudCounter = parseInt(rows[0].data.counter);
+      const localCounter = parseInt(localStorage.getItem(KEY) || "0");
+      if (cloudCounter > localCounter) {
+        localStorage.setItem(KEY, String(cloudCounter));
+        console.log("[NF-e] Counter sincronizado do cloud:", cloudCounter);
+      }
+    }
+  } catch(_) {}
 }
 
 function buildInvoiceFromOrder(pedido, tipoNota) {
@@ -6648,6 +6669,12 @@ async function gerarNotaFiscalPedido(pedidoId) {
   saveContasReceber();
 
   if (tipoNota === "nfe_real") {
+    // AC-1: Validar itens antes de transmitir
+    const qtdItens = (pedido.itens || []).length;
+    if (qtdItens === 0) { showToast("Pedido sem itens. Adicione itens antes de gerar NF-e.", 4000); return; }
+    if (!confirm("Gerar NF-e REAL com " + qtdItens + " item(ns) para " + (pedido.escola || "cliente") + "?\n\nValor: " + brl.format(pedido.valor || 0) + "\n\nConfirma transmissao a SEFAZ?")) return;
+    console.log("[NF-e] Gerando nota com", qtdItens, "itens. Pedido:", pedido.id, "Itens:", (pedido.itens||[]).map(i => i.descricao).join(", "));
+
     try {
       // Tentar API Vercel primeiro, fallback para servidor local
       let resp;
