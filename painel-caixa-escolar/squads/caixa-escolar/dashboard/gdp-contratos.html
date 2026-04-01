@@ -6400,7 +6400,7 @@ async function sincronizarCobrancaProvider(contaId) {
 function getProximoNumeroNf() {
   const KEY = "gdp.nf-counter";
   let counter = parseInt(localStorage.getItem(KEY) || "0", 10);
-  if (counter < 1200) counter = 1200; // Base: 1165-1200 já usados/cancelados na SEFAZ
+  if (counter < 1201) counter = 1201; // Base: 1165-1201 já usados/cancelados/inutilizados na SEFAZ
   counter++;
   localStorage.setItem(KEY, String(counter));
   return String(counter);
@@ -6610,9 +6610,15 @@ function getProjectedNegativeStock(pedido) {
 async function gerarNotaFiscalPedido(pedidoId) {
   const pedido = pedidos.find((x) => x.id === pedidoId);
   if (!pedido) return;
-  if (getNotaFiscalByPedido(pedidoId)) {
-    showToast(`Pedido ${pedidoId} ja possui nota fiscal gerada.`, 3500);
+  const nfExistente = getNotaFiscalByPedido(pedidoId);
+  if (nfExistente && nfExistente.status === "autorizada") {
+    showToast(`Pedido ${pedidoId} ja possui nota fiscal autorizada.`, 3500);
     return;
+  }
+  // Se nota existe mas está rejeitada/pendente, remover para gerar nova
+  if (nfExistente && nfExistente.status !== "autorizada") {
+    notasFiscais = notasFiscais.filter(n => n.id !== nfExistente.id);
+    saveNotasFiscais();
   }
 
   const tipoNota = askInvoiceMode();
