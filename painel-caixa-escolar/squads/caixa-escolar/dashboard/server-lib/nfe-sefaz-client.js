@@ -300,10 +300,9 @@ function buildIcmsXml(payload, item) {
 
 function getDestIcmsIndicator(destinatario, payload) {
   const ie = String(destinatario?.ie || "").trim().toUpperCase();
-  if (ie === "ISENTO") {
-    return String(payload?.emitente?.uf || "").toUpperCase() === "MG" ? "9" : "2";
-  }
-  if (ie) return "1";
+  const invalids = ["", "N", "ISENTO", "ISENTA", "NAO", "S/N", "SN", "NENHUMA", "9"];
+  if (invalids.includes(ie)) return "9";
+  if (/^\d{2,14}$/.test(ie)) return "1";
   return "9";
 }
 
@@ -398,7 +397,7 @@ function buildNfeXml(payload) {
   const emitUf = payload.emitente?.endereco?.uf || payload.emitente?.uf || "MG";
   const emitMunicipioCode = getMunicipioCode(emitCidade, emitUf, "3106200");
   const itensXml = payload.itens.map((item) => `
-    <det nItem="${item.itemNum}">
+    <det nItem="${idx + 1}">
       <prod>
         <cProd>${xmlEscape(item.codigo)}</cProd>
         <cEAN>SEM GTIN</cEAN>
