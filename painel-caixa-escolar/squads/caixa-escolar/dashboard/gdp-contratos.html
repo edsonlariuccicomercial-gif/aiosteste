@@ -2435,6 +2435,17 @@ function savePedidos() {
   syncPedidosGDPToEstoqueIntel(true);
 }
 function saveNotasFiscais() { saveWrappedArray(INVOICES_KEY, notasFiscais); }
+
+// Utilitário: limpar notas rejeitadas e resetar counter
+window.limparNotasRejeitadas = function() {
+  const antes = notasFiscais.length;
+  notasFiscais = notasFiscais.filter(n => n.status === "autorizada" || n.status === "emitida");
+  saveNotasFiscais();
+  localStorage.setItem("gdp.nf-counter", "1200");
+  const removidas = antes - notasFiscais.length;
+  showToast("Removidas " + removidas + " notas rejeitadas/pendentes. Proximo numero: 1201.", 5000);
+  renderAll();
+};
 function saveNotasEntrada() { saveWrappedArray(ENTRY_INVOICES_KEY, notasEntrada); }
 function saveContasPagar() { saveWrappedArray(PAYABLES_KEY, contasPagar); }
 function saveContasReceber() { saveWrappedArray(RECEIVABLES_KEY, contasReceber); }
