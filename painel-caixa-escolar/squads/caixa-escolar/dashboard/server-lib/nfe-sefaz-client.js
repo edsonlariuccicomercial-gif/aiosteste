@@ -396,7 +396,7 @@ function buildNfeXml(payload) {
   const emitCidade = payload.emitente?.endereco?.cidade || "Belo Horizonte";
   const emitUf = payload.emitente?.endereco?.uf || payload.emitente?.uf || "MG";
   const emitMunicipioCode = getMunicipioCode(emitCidade, emitUf, "3106200");
-  const itensXml = payload.itens.map((item) => `
+  const itensXml = payload.itens.map((item, idx) => `
     <det nItem="${idx + 1}">
       <prod>
         <cProd>${xmlEscape(item.codigo)}</cProd>
