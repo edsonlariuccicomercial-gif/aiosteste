@@ -2266,7 +2266,8 @@ function sanitizeContratoLegacyData(contrato) {
   delete sanitized.olistId;
   sanitized.itens = (sanitized.itens || []).map((item, idx) => {
     const cleaned = stripLegacyErpFields(item);
-    cleaned.sku = normalizeInternalSku(sanitized.id || "GDP", cleaned, idx);
+    // AC-9: Preservar skuVinculado como sku principal; não auto-gerar se vazio
+    if (cleaned.skuVinculado) cleaned.sku = cleaned.skuVinculado;
     return enrichContratoItemMetadata(sanitized, cleaned, idx);
   });
   return sanitized;
@@ -2638,7 +2639,12 @@ function enrichContratoItemMetadata(contrato, item, idx) {
     else if (match?.ncm) item.ncm = match.ncm;
   }
   if (!item.unidade && match?.unidade) item.unidade = match.unidade;
-  item.sku = normalizeInternalSku(contrato.id, item, idx);
+  // AC-9: Se item já tem skuVinculado (da Inteligência), usar como sku principal. Senão, deixar vazio (sem auto-gerar).
+  if (item.skuVinculado) {
+    item.sku = item.skuVinculado;
+  } else if (!item.sku) {
+    item.sku = '';
+  }
   return item;
 }
 
@@ -5206,7 +5212,7 @@ async function criarPedidoCatalogo(contratoId) {
       preco: item.precoUnitario,
       precoUnitario: item.precoUnitario,
       itemNum: item.num,
-      sku: item.sku || '',
+      sku: item.skuVinculado || item.sku || '',
       ncm: item.ncm || ''
     });
   });
@@ -10084,15 +10090,56 @@ function buscarProdutoPedido(idx) {
   if (!input || !container) return;
   const busca = (input.value || "").toLowerCase().trim();
   if (busca.length < 1) { container.classList.add("hidden"); return; }
-  const matches = estoqueIntelProdutos.filter(p => (p.nome || "").toLowerCase().includes(busca) || (p.sku || "").toLowerCase().includes(busca) || (p.categoria || "").toLowerCase().includes(busca) || (p.id || "").toLowerCase().includes(busca)).slice(0, 20);
-  if (!matches.length) { container.classList.add("hidden"); return; }
-  let html = matches.map(p => {
-    const embs = estoqueIntelEmbalagens.filter(e => e.produto_id === p.id);
-    const precoRef = embs.length ? embs[0].preco_referencia || 0 : 0;
-    return `<div style="padding:.45rem .8rem;cursor:pointer;font-size:.82rem;border-bottom:1px solid var(--bdr)" onmousedown="selecionarProdutoPedido(${idx},'${esc(p.id)}')"><strong>${esc(p.nome)}</strong> <span class="badge badge-blue" style="font-size:.7rem">${esc(p.unidade_base)}</span>${precoRef ? ' <span style="color:var(--green);font-size:.75rem">' + brl.format(precoRef) + '</span>' : ''}</div>`;
-  }).join("");
+
+  // AC-6: Se pedido vinculado a contrato, buscar itens do contrato primeiro
+  const ctrId = pedidoCloneDraft?.contratoId || (pedidoEditId ? pedidos.find(x => x.id === pedidoEditId)?.contratoId : null);
+  const ctr = ctrId ? contratos.find(c => c.id === ctrId) : null;
+  let html = "";
+
+  if (ctr && ctr.itens && ctr.itens.length > 0) {
+    const ctrMatches = ctr.itens.filter(i => (i.descricao || "").toLowerCase().includes(busca) || (i.sku || "").toLowerCase().includes(busca) || (i.skuVinculado || "").toLowerCase().includes(busca)).slice(0, 20);
+    if (ctrMatches.length) {
+      html = ctrMatches.map((i, cIdx) => {
+        const itemIdx = ctr.itens.indexOf(i);
+        return `<div style="padding:.45rem .8rem;cursor:pointer;font-size:.82rem;border-bottom:1px solid var(--bdr)" onmousedown="selecionarProdutoContratoParaPedido(${idx},${itemIdx})"><strong>${esc(i.descricao)}</strong> <span class="badge badge-blue" style="font-size:.7rem">${esc(i.unidade || 'UN')}</span> <span style="color:var(--green);font-size:.75rem">${i.precoUnitario ? brl.format(i.precoUnitario) : ''}</span> <span class="badge badge-green" style="font-size:.6rem">Contrato</span></div>`;
+      }).join("");
+    }
+  }
+
+  // Fallback: buscar na Inteligência (produtos cadastrados)
+  if (!html) {
+    const matches = estoqueIntelProdutos.filter(p => (p.nome || "").toLowerCase().includes(busca) || (p.sku || "").toLowerCase().includes(busca) || (p.categoria || "").toLowerCase().includes(busca) || (p.id || "").toLowerCase().includes(busca)).slice(0, 20);
+    if (!matches.length) { container.classList.add("hidden"); return; }
+    html = matches.map(p => {
+      const embs = estoqueIntelEmbalagens.filter(e => e.produto_id === p.id);
+      const precoRef = embs.length ? embs[0].preco_referencia || 0 : 0;
+      return `<div style="padding:.45rem .8rem;cursor:pointer;font-size:.82rem;border-bottom:1px solid var(--bdr)" onmousedown="selecionarProdutoPedido(${idx},'${esc(p.id)}')"><strong>${esc(p.nome)}</strong> <span class="badge badge-blue" style="font-size:.7rem">${esc(p.unidade_base)}</span>${precoRef ? ' <span style="color:var(--green);font-size:.75rem">' + brl.format(precoRef) + '</span>' : ''}</div>`;
+    }).join("");
+  }
+
+  if (!html) { container.classList.add("hidden"); return; }
   container.innerHTML = html;
   container.classList.remove("hidden");
+}
+
+function selecionarProdutoContratoParaPedido(idx, itemIdx) {
+  const ctrId = pedidoCloneDraft?.contratoId || (pedidoEditId ? pedidos.find(x => x.id === pedidoEditId)?.contratoId : null);
+  const ctr = ctrId ? contratos.find(c => c.id === ctrId) : null;
+  if (!ctr || !ctr.itens[itemIdx]) return;
+  const item = ctr.itens[itemIdx];
+  _pedidoManualItens[idx] = {
+    descricao: item.descricao,
+    sku: item.skuVinculado || item.sku || '',
+    unidade: item.unidade || 'UN',
+    qtd: _pedidoManualItens[idx]?.qtd || 1,
+    precoUnitario: item.precoUnitario || 0,
+    valorTotal: null,
+    ncm: item.ncm || '',
+    itemNum: item.num
+  };
+  renderPedidoItensManual();
+  const sugContainer = document.getElementById(`ped-prod-sug-${idx}`);
+  if (sugContainer) sugContainer.classList.add("hidden");
 }
 
 function selecionarProdutoPedido(idx, produtoId) {
@@ -10352,6 +10399,20 @@ function getContasBancariasOptions(selectedApelido) {
   }).join("");
 }
 
+function recalcSubtotalDetalhe(pedidoId, idx) {
+  const p = pedidos.find(x => x.id === pedidoId);
+  if (!p || !p.itens[idx]) return;
+  const precoInput = document.getElementById("fiscal-item-preco-" + pedidoId + "-" + idx);
+  if (!precoInput) return;
+  const preco = parseFloat(precoInput.value) || 0;
+  p.itens[idx].precoUnitario = Math.round(preco * 100) / 100;
+  const sub = Math.round((p.itens[idx].qtd || 0) * p.itens[idx].precoUnitario * 100) / 100;
+  const subEl = document.getElementById("fiscal-item-sub-" + pedidoId + "-" + idx);
+  if (subEl) subEl.textContent = brl.format(sub);
+  p.totalGeral = p.itens.reduce((s, it) => s + Math.round(((it.qtd || 0) * (it.precoUnitario || 0)) * 100) / 100, 0);
+  savePedidos();
+}
+
 function salvarPedidoPagamento(pedidoId) {
   const p = pedidos.find(x => x.id === pedidoId);
   if (!p) return;
@@ -10424,8 +10485,8 @@ function verPedidoDetalhe(pedidoId) {
     html += '<div style="border:1px solid var(--bdr);border-radius:10px;overflow:hidden"><table style="width:100%;border-collapse:collapse">';
     html += '<thead><tr style="background:var(--s2)"><th style="padding:.5rem .8rem;text-align:left;font-size:.72rem;text-transform:uppercase;color:var(--mut)">Produto</th><th style="padding:.5rem .8rem;text-align:center;font-size:.72rem;text-transform:uppercase;color:var(--mut)">Qtd</th><th style="padding:.5rem .8rem;text-align:center;font-size:.72rem;text-transform:uppercase;color:var(--mut)">Un.</th><th style="padding:.5rem .8rem;text-align:center;font-size:.72rem;text-transform:uppercase;color:var(--mut)">NCM</th><th style="padding:.5rem .8rem;text-align:center;font-size:.72rem;text-transform:uppercase;color:var(--mut)">SKU</th><th style="padding:.5rem .8rem;text-align:right;font-size:.72rem;text-transform:uppercase;color:var(--mut)">Preco Unit.</th><th style="padding:.5rem .8rem;text-align:right;font-size:.72rem;text-transform:uppercase;color:var(--mut)">Subtotal</th></tr></thead><tbody>';
     p.itens.forEach((item, idx) => {
-      const sub = (item.qtd || 0) * (item.precoUnitario || 0);
-      html += '<tr style="border-top:1px solid rgba(71,85,105,.3)"><td style="padding:.5rem .8rem;font-size:.85rem">' + esc(item.descricao || '') + '</td><td style="padding:.5rem .8rem;text-align:center">' + (item.qtd || 0) + '</td><td style="padding:.5rem .4rem"><input id="fiscal-item-un-' + p.id + '-' + idx + '" type="text" value="' + esc(item.unidade || 'UN') + '" style="width:62px;text-align:center"></td><td style="padding:.5rem .4rem"><input id="fiscal-item-ncm-' + p.id + '-' + idx + '" type="text" value="' + esc(item.ncm || '') + '" style="width:110px;text-align:center"></td><td style="padding:.5rem .4rem"><input id="fiscal-item-sku-' + p.id + '-' + idx + '" type="text" value="' + esc(item.sku || '') + '" style="width:90px;text-align:center"></td><td style="padding:.5rem .8rem;text-align:right">' + brl.format(item.precoUnitario || 0) + '</td><td style="padding:.5rem .8rem;text-align:right;color:var(--green);font-weight:700">' + brl.format(sub) + '</td></tr>';
+      const sub = Math.round(((item.qtd || 0) * (item.precoUnitario || 0)) * 100) / 100;
+      html += '<tr style="border-top:1px solid rgba(71,85,105,.3)"><td style="padding:.5rem .8rem;font-size:.85rem">' + esc(item.descricao || '') + '</td><td style="padding:.5rem .8rem;text-align:center">' + (item.qtd || 0) + '</td><td style="padding:.5rem .4rem"><input id="fiscal-item-un-' + p.id + '-' + idx + '" type="text" value="' + esc(item.unidade || 'UN') + '" style="width:62px;text-align:center"></td><td style="padding:.5rem .4rem"><input id="fiscal-item-ncm-' + p.id + '-' + idx + '" type="text" value="' + esc(item.ncm || '') + '" style="width:110px;text-align:center"></td><td style="padding:.5rem .4rem"><input id="fiscal-item-sku-' + p.id + '-' + idx + '" type="text" value="' + esc(item.sku || '') + '" style="width:90px;text-align:center"></td><td style="padding:.5rem .4rem;text-align:right"><input id="fiscal-item-preco-' + p.id + '-' + idx + '" type="number" step="0.01" min="0" value="' + (item.precoUnitario || 0).toFixed(2) + '" style="width:90px;text-align:right" onchange="recalcSubtotalDetalhe(\'' + p.id + '\',' + idx + ')"></td><td id="fiscal-item-sub-' + p.id + '-' + idx + '" style="padding:.5rem .8rem;text-align:right;color:var(--green);font-weight:700">' + brl.format(sub) + '</td></tr>';
     });
     html += '</tbody></table></div>';
   }
@@ -14262,7 +14323,9 @@ var PEDIDO_STATUS_TABS = [
   { key: "agendado", label: "Agendado", className: "badge-blue" },
   { key: "preparando_envio", label: "Preparando Envio", className: "badge-yellow" },
   { key: "pronto_para_envio", label: "Pronto para Envio", className: "badge-blue" },
-  { key: "faturado", label: "Faturado", className: "badge-green" }
+  { key: "faturado", label: "Faturado", className: "badge-green" },
+  { key: "entregue", label: "Entregue", className: "badge-green" },
+  { key: "nao_entregue", label: "Não Entregue", className: "badge-red" }
 ];
 var pedidoStatusTabAtual = "em_aberto";
 var pedidoMenuAtualId = null;
@@ -14297,6 +14360,8 @@ function normalizePedidoStatus(status) {
   if (!normalized) return "em_aberto";
   if (normalized === "recebido") return "em_aberto";
   if (normalized === "concluido") return "faturado";
+  if (normalized === "entregue" || normalized === "entrega_confirmada") return "entregue";
+  if (normalized === "nao_entregue" || normalized === "cancelado" || normalized === "devolvido") return "nao_entregue";
   return normalized;
 }
 
@@ -14314,10 +14379,14 @@ function renderPedidosStatusTabs(items = pedidos) {
   const container = document.getElementById("pedidos-status-tabs");
   if (!container) return;
   const safeItems = Array.isArray(items) ? items : [];
+  const brlFmt = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
   container.innerHTML = PEDIDO_STATUS_TABS.map((tab) => {
-    const count = safeItems.filter((item) => normalizePedidoStatus(item.status) === tab.key).length;
+    const tabItems = safeItems.filter((item) => normalizePedidoStatus(item.status) === tab.key);
+    const count = tabItems.length;
+    const total = tabItems.reduce((sum, p) => sum + (p.totalGeral || p.valorTotal || 0), 0);
+    const totalStr = total > 0 ? ` · ${brlFmt.format(total)}` : '';
     const active = pedidoStatusTabAtual === tab.key;
-    return `<button class="btn ${active ? 'btn-green' : 'btn-outline'} btn-sm" onclick="setPedidoStatusTab('${tab.key}')" style="${active ? '' : 'font-weight:700'}">${tab.label} <span style="margin-left:.35rem;opacity:.8">${count}</span></button>`;
+    return `<button class="btn ${active ? 'btn-green' : 'btn-outline'} btn-sm" onclick="setPedidoStatusTab('${tab.key}')" style="${active ? '' : 'font-weight:700'}">${tab.label} <span style="margin-left:.35rem;opacity:.8">${count}${totalStr}</span></button>`;
   }).join("");
 }
 
