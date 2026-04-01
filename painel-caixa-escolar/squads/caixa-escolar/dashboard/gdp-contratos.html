@@ -2436,24 +2436,23 @@ function savePedidos() {
 }
 function saveNotasFiscais() { saveWrappedArray(INVOICES_KEY, notasFiscais); }
 
-// Utilitário: limpar notas rejeitadas e resetar counter
+// Utilitário: limpar TODAS as notas e resetar counter
 window.limparNotasRejeitadas = function() {
   const antes = notasFiscais.length;
-  // IDs das notas que vão ser removidas
-  const idsRemover = new Set(notasFiscais.filter(n => n.status !== "autorizada" && n.status !== "emitida").map(n => n.id));
-  notasFiscais = notasFiscais.filter(n => n.status === "autorizada" || n.status === "emitida");
+  // Remover TODAS as notas (nuclear reset)
+  notasFiscais = [];
   saveNotasFiscais();
-  // Limpar referências nos pedidos
-  pedidos.forEach(p => {
-    if (p.notaFiscalId && idsRemover.has(p.notaFiscalId)) { delete p.notaFiscalId; delete p.notaFiscal; }
-  });
+  // Limpar referências em TODOS os pedidos
+  pedidos.forEach(p => { delete p.notaFiscalId; delete p.notaFiscal; delete p.nfGerada; });
   savePedidos();
-  // Limpar contas a receber vinculadas a notas removidas
-  contasReceber = contasReceber.filter(cr => !cr.notaFiscalId || !idsRemover.has(cr.notaFiscalId));
+  // Limpar contas a receber
+  contasReceber = [];
   saveContasReceber();
+  // Resetar counter
   localStorage.setItem("gdp.nf-counter", "1200");
-  const removidas = antes - notasFiscais.length;
-  alert("Removidas " + removidas + " notas rejeitadas/pendentes.\\nReferencias nos pedidos limpas.\\nProximo numero NF: 1201.\\n\\nRecarregue a pagina (F5) e gere a nota novamente.");
+  // Forçar sync para nuvem com dados limpos
+  if (typeof scheduleGdpCloudSync === "function") scheduleGdpCloudSync();
+  alert("RESET COMPLETO:\\n- " + antes + " notas removidas\\n- Referencias nos pedidos limpas\\n- Counter: proximo = 1201\\n\\nRecarregue a pagina (F5) e gere a nota novamente.");
   renderAll();
 };
 function saveNotasEntrada() { saveWrappedArray(ENTRY_INVOICES_KEY, notasEntrada); }
