@@ -27,9 +27,10 @@ body {
 .bg-shape {
   position: fixed;
   border-radius: 999px;
-  filter: blur(60px);
+  filter: blur(30px);
   opacity: 0.22;
   z-index: 0;
+  will-change: transform;
 }
 
 .bg-a {
@@ -164,7 +165,7 @@ h2 {
   border: 1px solid var(--line);
   border-radius: 14px;
   padding: 14px;
-  backdrop-filter: blur(3px);
+  background: rgba(21, 34, 28, 0.88);
 }
 
 .kpi p {
@@ -804,4 +805,22 @@ th {
   .sgd-link-badge {
     margin-left: 0;
   }
+}
+
+.btn-page {
+  background: var(--card);
+  color: var(--accent);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 6px 14px;
+  cursor: pointer;
+  font-size: 0.82rem;
+}
+.btn-page:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+.btn-page:hover:not(:disabled) {
+  background: var(--accent);
+  color: var(--bg);
 }

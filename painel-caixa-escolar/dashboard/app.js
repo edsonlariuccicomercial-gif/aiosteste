@@ -20,6 +20,45 @@ const SGD_ORCAMENTOS_URL = "https://caixaescolar.educacao.mg.gov.br/compras/orca
 
 const DASHBOARD_REFRESH_MS = 60000;
 
+// ===== PERFORMANCE UTILITIES (Story 1.6) =====
+const _fetchCache = new Map();
+const CACHE_TTL_DEFAULT = 5 * 60 * 1000;
+const CACHE_TTL_HEAVY = 15 * 60 * 1000;
+
+async function cachedFetch(url, ttlMs = CACHE_TTL_DEFAULT) {
+  const entry = _fetchCache.get(url);
+  if (entry && (Date.now() - entry.ts) < ttlMs) return entry.data;
+  const resp = await fetch(url);
+  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  const data = await resp.json();
+  _fetchCache.set(url, { data, ts: Date.now() });
+  return data;
+}
+
+function invalidateAllCaches() {
+  _fetchCache.clear();
+  _memoVersion++;
+  _memoStore.clear();
+}
+
+function debounce(fn, ms) {
+  let t;
+  return function (...args) { clearTimeout(t); t = setTimeout(() => fn.apply(this, args), ms); };
+}
+
+let _memoVersion = 0;
+const _memoStore = new Map();
+function memo(key, fn) {
+  const k = _memoVersion + ":" + key;
+  if (_memoStore.has(k)) return _memoStore.get(k);
+  const r = fn();
+  _memoStore.set(k, r);
+  return r;
+}
+
+let _paginationPage = 1;
+const PAGE_SIZE = 50;
+
 const PREQUOTE_STORAGE_KEY = "licitia.prequote.v1";
 
 const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
@@ -76,11 +115,12 @@ const el = {
   simProfit: document.getElementById("sim-profit"),
 };
 
-function daysTo(dateIso) {
+function _daysTo(dateIso) {
   const d = new Date(dateIso + "T00:00:00");
   const diff = d.getTime() - today.getTime();
   return Math.ceil(diff / 86400000);
 }
+function daysTo(dateIso) { return memo("d:" + dateIso, () => _daysTo(dateIso)); }
 
 function marginPct(row) {
   if (!row.precoSugerido) return 0;
@@ -107,7 +147,7 @@ function strategicObjectFit(row) {
   return 6;
 }
 
-function opportunityScore(row) {
+function _opportunityScore(row) {
   if (row.status === "encerrado") return 0;
 
   const days = daysTo(row.prazo);
@@ -131,6 +171,7 @@ function opportunityScore(row) {
 
   return Math.round(prazoScore + margemScore + fitScore + confiancaDadosScore);
 }
+function opportunityScore(row) { return memo("os:" + row.id, () => _opportunityScore(row)); }
 
 function normalizedText(value) {
   return String(value || "")
@@ -231,12 +272,13 @@ function setPrequoteFeedback(message) {
   el.prequoteFeedback.textContent = message || "";
 }
 
-function priority(row) {
+function _priority(row) {
   const score = opportunityScore(row);
   if (score >= 70) return { label: "Alta", cls: "p-high", score };
   if (score >= 40) return { label: "Media", cls: "p-medium", score };
   return { label: "Baixa", cls: "p-low", score };
 }
+function priority(row) { return memo("p:" + row.id, () => _priority(row)); }
 
 function populateFilters() {
   const sres = [...new Set(quotes.map((q) => q.sre))].sort();
@@ -341,7 +383,7 @@ function pricingDefaults() {
   return { freightPct, opexPct, taxPct, marginPct };
 }
 
-function historyRangeForSku(sku, sre) {
+function _historyRangeForSku(sku, sre) {
   if (!sku) return null;
   const byRegion = Array.isArray(priceHistorySummary.skuRegionSummary)
     ? priceHistorySummary.skuRegionSummary
@@ -369,6 +411,7 @@ function historyRangeForSku(sku, sre) {
     scope: "SKU",
   };
 }
+function historyRangeForSku(sku, sre) { return memo("hr:" + sku + ":" + sre, () => _historyRangeForSku(sku, sre)); }
 
 function historyRangeLabel(range) {
   if (!range || !range.count) return "-";
@@ -391,7 +434,7 @@ function suggestedBid(row, minPrice, historyRange) {
   return Number(safe.toFixed(2));
 }
 
-function quoteMinPricing(row) {
+function _quoteMinPricing(row) {
   const sku = skuForQuote(row);
   if (!sku) return { sku: "", minPrice: 0 };
 
@@ -404,6 +447,7 @@ function quoteMinPricing(row) {
   const minPrice = divisor > 0 ? adjustedCost / divisor : 0;
   return { sku, minPrice };
 }
+function quoteMinPricing(row) { return memo("qmp:" + row.id, () => _quoteMinPricing(row)); }
 
 function minPriceForSku(sku, sre) {
   if (!sku) return 0;
@@ -456,40 +500,39 @@ function filteredRows() {
   const city = el.city.value;
   const status = el.status.value;
   const query = el.query.value.trim().toLowerCase();
+  const result = [];
 
-  const base = quotes
-    .filter((q) => (sre === "all" ? true : q.sre === sre))
-    .filter((q) => (city === "all" ? true : q.municipio === city))
-    .filter((q) => (status === "all" ? true : q.status === status))
-    .filter((q) => (query ? q.objeto.toLowerCase().includes(query) : true));
-
-  const scoped = base.filter((row) => {
-    if (quickMode === "high") return priority(row).label === "Alta";
-    if (quickMode === "urgent") return row.status !== "encerrado" && daysTo(row.prazo) <= 2;
+  for (let i = 0; i < quotes.length; i++) {
+    const q = quotes[i];
+    if (sre !== "all" && q.sre !== sre) continue;
+    if (city !== "all" && q.municipio !== city) continue;
+    if (status !== "all" && q.status !== status) continue;
+    if (query && !q.objeto.toLowerCase().includes(query)) continue;
+    if (quickMode === "high" && priority(q).label !== "Alta") continue;
+    if (quickMode === "urgent" && (q.status === "encerrado" || daysTo(q.prazo) > 2)) continue;
     if (quickMode === "low_confidence") {
-      const obj = String(row.confiancaObjeto || "").toLowerCase();
-      const terr = String(row.confiancaTerritorio || "").toLowerCase();
-      return obj === "baixa" || terr === "baixa";
+      const obj = String(q.confiancaObjeto || "").toLowerCase();
+      const terr = String(q.confiancaTerritorio || "").toLowerCase();
+      if (obj !== "baixa" && terr !== "baixa") continue;
     }
-    return true;
-  });
+    result.push(q);
+  }
 
-  return scoped.sort((a, b) => opportunityScore(b) - opportunityScore(a) || daysTo(a.prazo) - daysTo(b.prazo));
+  return result.sort((a, b) => opportunityScore(b) - opportunityScore(a) || daysTo(a.prazo) - daysTo(b.prazo));
 }
 
 function renderKPIs(rows) {
-  const open = rows.filter((r) => r.status !== "encerrado");
-  const urgent = open.filter((r) => daysTo(r.prazo) <= 2);
-  const totalRevenue = open.reduce((acc, r) => acc + r.precoSugerido, 0);
-  const avgMargin = open.length
-    ? open.reduce((acc, r) => acc + marginPct(r), 0) / open.length
-    : 0;
+  const { open, urgent, totalRevenue, marginSum } = _precomputed;
+  const avgMargin = open.length ? marginSum / open.length : 0;
 
   el.kpiOpen.textContent = String(open.length);
   el.kpiUrgent.textContent = String(urgent.length);
   el.kpiMargin.textContent = `${avgMargin.toFixed(1)}%`;
   el.kpiRevenue.textContent = brl.format(totalRevenue);
-  const synced = rows.filter((r) => resolvePipelineStatus(syncStatus[r.id]) === "aceito").length;
+  let synced = 0;
+  for (let i = 0; i < rows.length; i++) {
+    if (resolvePipelineStatus(syncStatus[rows[i].id]) === "aceito") synced++;
+  }
   el.kpiOlistSync.textContent = String(synced);
 }
 
@@ -523,12 +566,14 @@ function alertBadge(days) {
 function renderAlerts(rows) {
   if (!el.criticalAlerts) return;
 
-  const critical = rows
-    .filter((r) => r.status !== "encerrado")
-    .map((r) => ({ ...r, days: daysTo(r.prazo) }))
-    .filter((r) => r.days <= 5)
-    .sort((a, b) => a.days - b.days)
-    .slice(0, 6);
+  const candidates = [];
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i];
+    if (r.status === "encerrado") continue;
+    const days = daysTo(r.prazo);
+    if (days <= 5) candidates.push({ ...r, days });
+  }
+  const critical = candidates.sort((a, b) => a.days - b.days).slice(0, 6);
 
   if (!critical.length) {
     el.criticalAlerts.innerHTML = '<small>Nenhum prazo critico no filtro atual.</small>';
@@ -623,7 +668,7 @@ function renderPrequoteOrders() {
             <button type="button" data-action="auto-suggest-prequote" data-order-id="${escapeHtml(order.id)}">Sugerir precos</button>
             <button type="button" data-action="save-prequote" data-order-id="${escapeHtml(order.id)}">Salvar rascunho</button>
             <button type="button" class="btn-primary" data-action="approve-prequote" data-order-id="${escapeHtml(order.id)}">Aprovar pre-cotacao</button>
-            <span class="prequote-total">Total proposto: <strong>${brl.format(total)}</strong></span>
+            <span class="prequote-total">Total proposto: <strong data-total-order="${escapeHtml(order.id)}">${brl.format(total)}</strong></span>
           </div>
         </article>
       `;
@@ -706,7 +751,33 @@ function renderObjetoGroups(rows) {
     return;
   }
 
-  el.objetoGroups.innerHTML = groups
+  // AC-7: Pagination — count total rows across groups, paginate
+  const totalRows = rows.length;
+  const totalPages = Math.max(1, Math.ceil(totalRows / PAGE_SIZE));
+  if (_paginationPage > totalPages) _paginationPage = totalPages;
+  const startRow = (_paginationPage - 1) * PAGE_SIZE;
+  let rowCounter = 0;
+
+  // Build paginated groups — skip groups whose rows fall outside the page window
+  const paginatedGroups = [];
+  for (const g of groups) {
+    const groupStart = rowCounter;
+    const groupEnd = rowCounter + g.rows.length;
+    if (groupEnd > startRow && groupStart < startRow + PAGE_SIZE) {
+      const sliceStart = Math.max(0, startRow - groupStart);
+      const sliceEnd = Math.min(g.rows.length, startRow + PAGE_SIZE - groupStart);
+      paginatedGroups.push({ ...g, rows: g.rows.slice(sliceStart, sliceEnd) });
+    }
+    rowCounter += g.rows.length;
+  }
+
+  const paginationHtml = totalPages > 1 ? `<div class="pagination-controls" style="display:flex;gap:8px;align-items:center;justify-content:center;padding:12px 0;">
+    <button type="button" class="btn-page" data-page="prev" ${_paginationPage <= 1 ? 'disabled' : ''}>&#9664; Anterior</button>
+    <span style="color:var(--muted);font-size:0.85rem;">Mostrando ${startRow + 1}\u2013${Math.min(startRow + PAGE_SIZE, totalRows)} de ${totalRows} resultados (Pag. ${_paginationPage}/${totalPages})</span>
+    <button type="button" class="btn-page" data-page="next" ${_paginationPage >= totalPages ? 'disabled' : ''}>Proximo &#9654;</button>
+  </div>` : '';
+
+  el.objetoGroups.innerHTML = paginatedGroups
     .map((g) => {
       const icon = objetoIcon(g.objeto);
       const expanded = expandedGroups.has(g.objeto);
@@ -718,7 +789,7 @@ function renderObjetoGroups(rows) {
         ? `<span class="grupo-badge grupo-badge-margin">Margem ${g.avgMargin.toFixed(1)}%</span>`
         : "";
 
-      const tableRows = g.rows
+      const tableRows = expanded ? g.rows
         .map((r) => {
           const p = priority(r);
           const quotePricing = quoteMinPricing(r);
@@ -737,7 +808,7 @@ function renderObjetoGroups(rows) {
             <td>${syncBadge(r.id)}</td>
           </tr>`;
         })
-        .join("");
+        .join("") : "";
 
       return `<article class="objeto-group-card ${expanded ? "expanded" : "collapsed"}">
         <div class="objeto-group-header" data-objeto="${escapeHtml(g.objeto)}">
@@ -773,7 +844,16 @@ function renderObjetoGroups(rows) {
         </div>
       </article>`;
     })
-    .join("");
+    .join("") + paginationHtml;
+
+  // Bind pagination buttons
+  el.objetoGroups.querySelectorAll(".btn-page").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      if (btn.dataset.page === "prev" && _paginationPage > 1) _paginationPage--;
+      else if (btn.dataset.page === "next" && _paginationPage < totalPages) _paginationPage++;
+      renderObjetoGroups(rows);
+    });
+  });
 }
 
 function renderTable(rows) {
@@ -870,12 +950,11 @@ async function refreshDataAndRender() {
   }
 
   try {
-  await loadQuotes();
-  await loadSyncStatus();
-  await loadPriceHistorySummary();
-  await loadOpsDailyReport();
-  await loadOpsAlertsReport();
-  await loadOpsTrendHistory();
+  await Promise.all([
+    loadQuotes(), loadSyncStatus(), loadPriceHistorySummary(),
+    loadOpsDailyReport(), loadOpsAlertsReport(), loadOpsTrendHistory()
+  ]);
+  invalidateAllCaches();
   renderAll();
   lastRefreshAt = new Date();
   nextRefreshSec = Math.floor(DASHBOARD_REFRESH_MS / 1000);
@@ -947,7 +1026,22 @@ function renderOpsAlerts() {
 }
 
 function renderAll() {
+  _memoVersion++; _memoStore.clear();
   const rows = filteredRows();
+  const open = [];
+  const urgent = [];
+  let totalRevenue = 0;
+  let marginSum = 0;
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i];
+    if (r.status !== "encerrado") {
+      open.push(r);
+      totalRevenue += r.precoSugerido || 0;
+      marginSum += marginPct(r);
+      if (daysTo(r.prazo) <= 2) urgent.push(r);
+    }
+  }
+  _precomputed = { open, urgent, totalRevenue, marginSum };
   renderOpsHealth();
   renderTrend();
   renderOpsAlerts();
@@ -958,13 +1052,14 @@ function renderAll() {
   renderSummary(rows);
   renderSkuCoverage(rows);
   renderQuickModeState();
+  _paginationPage = 1;
 }
+let _precomputed = { open: [], urgent: [], totalRevenue: 0, marginSum: 0 };
 
 function renderSummary(rows) {
   if (!el.resultSummary) return;
-  const open = rows.filter((r) => r.status !== "encerrado").length;
-  const urgent = rows.filter((r) => r.status !== "encerrado" && daysTo(r.prazo) <= 2).length;
-  el.resultSummary.textContent = `Resultado atual: ${rows.length} cotacoes (${open} abertas, ${urgent} urgentes).`;
+  const { open, urgent } = _precomputed;
+  el.resultSummary.textContent = `Resultado atual: ${rows.length} cotacoes (${open.length} abertas, ${urgent.length} urgentes).`;
 }
 
 function renderSkuCoverage(rows) {
@@ -1314,11 +1409,16 @@ function approvePrequote(orderId) {
   renderPrequoteOrders();
 }
 
-["change", "keyup"].forEach((eventName) => {
-  [el.sre, el.city, el.status, el.query].forEach((node) => node.addEventListener(eventName, renderAll));
-  [el.simCost, el.simOpex, el.simTax, el.simMargin, el.simFreight].forEach((node) =>
-    node.addEventListener(eventName, renderSim)
-  );
+const debouncedRenderAll = debounce(renderAll, 300);
+const debouncedRenderSim = debounce(renderSim, 300);
+
+[el.sre, el.city, el.status].forEach((node) => node.addEventListener("change", renderAll));
+el.query.addEventListener("keyup", debouncedRenderAll);
+el.query.addEventListener("change", renderAll);
+
+[el.simCost, el.simOpex, el.simTax, el.simMargin, el.simFreight].forEach((node) => {
+  node.addEventListener("change", renderSim);
+  node.addEventListener("keyup", debouncedRenderSim);
 });
 
 if (el.simSku) {
@@ -1371,7 +1471,19 @@ if (el.prequoteOrders) {
     const itemIndex = Number(target.dataset.itemIndex);
     if (!orderId || !Number.isInteger(itemIndex)) return;
     updatePrequoteItem(orderId, itemIndex, target.value);
-    renderPrequoteOrders();
+    // AC-5: targeted update — only update subtotal cell and order total
+    const row = target.closest("tr");
+    if (row) {
+      const cells = row.querySelectorAll("td");
+      const lastCell = cells[cells.length - 1];
+      const draft = prequoteState[orderId];
+      const item = draft?.items?.[itemIndex];
+      if (lastCell && item) {
+        lastCell.textContent = brl.format(Number(item.qty || 0) * Number(item.proposedUnitPrice || 0));
+      }
+    }
+    const totalEl = el.prequoteOrders.querySelector(`[data-total-order="${CSS.escape(orderId)}"]`);
+    if (totalEl) totalEl.textContent = brl.format(prequoteTotals(orderId).total);
   });
 
   el.prequoteOrders.addEventListener("click", (event) => {
@@ -1447,106 +1559,41 @@ if (el.objetoOverview) {
 }
 
 async function loadQuotes() {
-  try {
-    const resp = await fetch("./data/quotes.json", { cache: "no-store" });
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    quotes = await resp.json();
-  } catch (_e) {
-    quotes = [];
-  }
+  try { quotes = await cachedFetch("./data/quotes.json"); } catch (_e) { quotes = []; }
 }
-
 async function loadSyncStatus() {
-  try {
-    const resp = await fetch("./data/sync-status.json", { cache: "no-store" });
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    syncStatus = await resp.json();
-  } catch (_e) {
-    syncStatus = {};
-  }
+  try { syncStatus = await cachedFetch("./data/sync-status.json"); } catch (_e) { syncStatus = {}; }
 }
-
 async function loadSkuCosts() {
-  try {
-    const resp = await fetch("./data/sku-costs.json", { cache: "no-store" });
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    skuCosts = await resp.json();
-  } catch (_e) {
-    skuCosts = { items: [], regionFactorBySre: {}, defaults: {} };
-  }
+  try { skuCosts = await cachedFetch("./data/sku-costs.json"); } catch (_e) { skuCosts = { items: [], regionFactorBySre: {}, defaults: {} }; }
 }
-
 async function loadObjectSkuRules() {
-  try {
-    const resp = await fetch("./data/object-sku-rules.json", { cache: "no-store" });
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    objectSkuRules = await resp.json();
-  } catch (_e) {
-    objectSkuRules = { rules: [] };
-  }
+  try { objectSkuRules = await cachedFetch("./data/object-sku-rules.json"); } catch (_e) { objectSkuRules = { rules: [] }; }
 }
-
 async function loadInternalOrders() {
-  try {
-    const resp = await fetch("./data/internal-orders.json", { cache: "no-store" });
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    internalOrders = await resp.json();
-  } catch (_e) {
-    internalOrders = [];
-  }
+  try { internalOrders = await cachedFetch("./data/internal-orders.json"); } catch (_e) { internalOrders = []; }
 }
-
 async function loadPriceHistorySummary() {
-  try {
-    const resp = await fetch("./data/price-history-summary.json", { cache: "no-store" });
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    priceHistorySummary = await resp.json();
-  } catch (_e) {
-    priceHistorySummary = { skuSummary: [], skuRegionSummary: [] };
-  }
+  try { priceHistorySummary = await cachedFetch("./data/price-history-summary.json", CACHE_TTL_HEAVY); } catch (_e) { priceHistorySummary = { skuSummary: [], skuRegionSummary: [] }; }
 }
-
 async function loadOpsDailyReport() {
-  try {
-    const resp = await fetch("./data/ops-daily-run-report.json", { cache: "no-store" });
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    opsDailyReport = await resp.json();
-  } catch (_e) {
-    opsDailyReport = { ok: false, generatedAt: null };
-  }
+  try { opsDailyReport = await cachedFetch("./data/ops-daily-run-report.json"); } catch (_e) { opsDailyReport = { ok: false, generatedAt: null }; }
 }
-
 async function loadOpsTrendHistory() {
-  try {
-    const resp = await fetch("./data/ops-trend-history.json", { cache: "no-store" });
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    opsTrendHistory = await resp.json();
-  } catch (_e) {
-    opsTrendHistory = { weekly: null };
-  }
+  try { opsTrendHistory = await cachedFetch("./data/ops-trend-history.json"); } catch (_e) { opsTrendHistory = { weekly: null }; }
 }
-
 async function loadOpsAlertsReport() {
-  try {
-    const resp = await fetch("./data/ops-alerts.json", { cache: "no-store" });
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    opsAlertsReport = await resp.json();
-  } catch (_e) {
-    opsAlertsReport = { freshness: null };
-  }
+  try { opsAlertsReport = await cachedFetch("./data/ops-alerts.json"); } catch (_e) { opsAlertsReport = { freshness: null }; }
 }
 
 async function boot() {
   loadPrequoteState();
-  await loadQuotes();
-  await loadSyncStatus();
-  await loadSkuCosts();
-  await loadObjectSkuRules();
-  await loadPriceHistorySummary();
-  await loadOpsDailyReport();
-  await loadOpsAlertsReport();
-  await loadOpsTrendHistory();
-  await loadInternalOrders();
+  await Promise.all([
+    loadQuotes(), loadSyncStatus(), loadSkuCosts(), loadObjectSkuRules(),
+    loadPriceHistorySummary(), loadOpsDailyReport(), loadOpsAlertsReport(),
+    loadOpsTrendHistory(), loadInternalOrders()
+  ]);
+  invalidateAllCaches(); // reset memo after fresh data
   for (const order of internalOrders) ensurePrequoteOrder(order);
   savePrequoteState();
   populateFilters();

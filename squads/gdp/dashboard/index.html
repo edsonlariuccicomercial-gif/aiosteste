@@ -866,9 +866,18 @@ function closeDetail() {
 }
 
 // === Products (AC4, AC10, AC13) ===
+let _productPage = 1;
+const PRODUCT_PAGE_SIZE = 50;
+
 function renderProducts(items = null) {
   const data = items || allProducts;
-  document.getElementById('products-tbody').innerHTML = data.map(p => {
+  const total = data.length;
+  const totalPages = Math.max(1, Math.ceil(total / PRODUCT_PAGE_SIZE));
+  if (_productPage > totalPages) _productPage = totalPages;
+  const start = (_productPage - 1) * PRODUCT_PAGE_SIZE;
+  const page = data.slice(start, start + PRODUCT_PAGE_SIZE);
+
+  document.getElementById('products-tbody').innerHTML = page.map(p => {
     const catColor = getCategoryColor(p.categoria);
     const origemLabel = ORIGEM_CODES[p.origem] || 'Nacional';
     return `
@@ -881,11 +890,30 @@ function renderProducts(items = null) {
       <td style="text-align:right"><span class="stock-badge ${p.estoque > 50 ? 'stock-ok' : p.estoque > 0 ? 'stock-low' : 'stock-zero'}">${p.estoque}</span></td>
     </tr>
   `}).join('');
-  document.getElementById('product-count').textContent = `Exibindo ${data.length} de ${allProducts.length} itens`;
+
+  const countEl = document.getElementById('product-count');
+  countEl.textContent = `Mostrando ${start + 1}\u2013${Math.min(start + PRODUCT_PAGE_SIZE, total)} de ${total} itens`;
+
+  // Pagination controls
+  let pagEl = document.getElementById('product-pagination');
+  if (!pagEl) {
+    pagEl = document.createElement('div');
+    pagEl.id = 'product-pagination';
+    pagEl.style.cssText = 'display:flex;gap:8px;align-items:center;justify-content:center;padding:10px 0;';
+    countEl.parentElement.appendChild(pagEl);
+  }
+  if (totalPages > 1) {
+    pagEl.innerHTML = `<button onclick="_productPage=Math.max(1,_productPage-1);filterProducts()" ${_productPage<=1?'disabled':''} style="padding:4px 10px;cursor:pointer;">&#9664; Anterior</button>
+      <span style="font-size:0.82rem;color:#888;">Pag. ${_productPage}/${totalPages}</span>
+      <button onclick="_productPage=Math.min(${totalPages},_productPage+1);filterProducts()" ${_productPage>=totalPages?'disabled':''} style="padding:4px 10px;cursor:pointer;">Proximo &#9654;</button>`;
+  } else {
+    pagEl.innerHTML = '';
+  }
 }
 
 // === Filter Products (AC5) ===
-function filterProducts() {
+function filterProducts(keepPage) {
+  if (!keepPage) _productPage = 1;
   const search = document.getElementById('product-search').value.toLowerCase();
   const school = document.getElementById('school-filter').value;
   const category = document.getElementById('category-filter').value;
