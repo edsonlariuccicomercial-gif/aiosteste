@@ -1,4 +1,5 @@
-const DEFAULT_AMBIENTE = process.env.NFE_SEFAZ_AMBIENTE || "homologacao";
+function env(key, fallback) { return (process.env[key] || fallback || "").trim(); }
+const DEFAULT_AMBIENTE = env("NFE_SEFAZ_AMBIENTE", "homologacao");
 const crypto = require("crypto");
 const https = require("https");
 const { SignedXml } = require("xml-crypto");
@@ -46,28 +47,29 @@ function getSefazConfig() {
 
   return {
     ambiente: DEFAULT_AMBIENTE,
-    uf: String(process.env.NFE_SEFAZ_UF || "MG").toUpperCase(),
-    cnpjEmitente: process.env.NFE_EMITENTE_CNPJ || "",
-    razaoSocial: process.env.NFE_EMITENTE_RAZAO || "EDSON DE SOUSA GONCALVES",
-    nomeFantasia: process.env.NFE_EMITENTE_FANTASIA || "EDSON DE SOUSA GONCALVES",
-    ie: process.env.NFE_EMITENTE_IE || "",
-    crt: process.env.NFE_EMITENTE_CRT || "1",
+    uf: env("NFE_SEFAZ_UF", "MG").toUpperCase(),
+    cnpjEmitente: env("NFE_EMITENTE_CNPJ"),
+    razaoSocial: env("NFE_EMITENTE_RAZAO", "EDSON DE SOUSA GONCALVES"),
+    nomeFantasia: env("NFE_EMITENTE_FANTASIA", "LARIUCCI"),
+    ie: env("NFE_EMITENTE_IE"),
+    crt: env("NFE_EMITENTE_CRT", "1"),
     emitenteEndereco: {
-      logradouro: process.env.NFE_EMITENTE_LOGRADOURO || "AV DAS CANDIUVAS",
-      numero: process.env.NFE_EMITENTE_NUMERO || "85",
-      complemento: process.env.NFE_EMITENTE_COMPLEMENTO || "",
-      bairro: process.env.NFE_EMITENTE_BAIRRO || "RIBALTA",
-      cidade: process.env.NFE_EMITENTE_CIDADE || "Conquista",
-      uf: String(process.env.NFE_EMITENTE_END_UF || process.env.NFE_SEFAZ_UF || "MG").toUpperCase(),
-      cep: process.env.NFE_EMITENTE_CEP || "38195000",
-      telefone: process.env.NFE_EMITENTE_FONE || "16981914537",
-      email: process.env.NFE_EMITENTE_EMAIL || "edsonlariucci.comercial@gmail.com"
+      logradouro: env("NFE_EMITENTE_LOGRADOURO", "AV DAS CANDIUVAS"),
+      numero: env("NFE_EMITENTE_NUMERO", "85"),
+      complemento: env("NFE_EMITENTE_COMPLEMENTO"),
+      bairro: env("NFE_EMITENTE_BAIRRO", "RIBALTA"),
+      cidade: env("NFE_EMITENTE_CIDADE", "CONQUISTA"),
+      uf: env("NFE_EMITENTE_UF", "MG").toUpperCase(),
+      cep: env("NFE_EMITENTE_CEP", "38195000"),
+      telefone: env("NFE_EMITENTE_FONE", "16981914537"),
+      email: env("NFE_EMITENTE_EMAIL", "edsonlariucci.comercial@gmail.com"),
+      cMunFG: env("NFE_EMITENTE_CMUN", "3118304")
     },
-    certificadoBase64: process.env.NFE_CERT_BASE64 || "",
-    certificadoSenha: process.env.NFE_CERT_PASSWORD || "",
-    certificadoPem: certPem,
-    chavePrivadaPem: keyPem,
-    seriePadrao: process.env.NFE_SERIE_PADRAO || "1"
+    certificadoBase64: env("NFE_CERT_BASE64"),
+    certificadoSenha: env("NFE_CERT_PASSWORD"),
+    certificadoPem: certPem.trim(),
+    chavePrivadaPem: keyPem.trim(),
+    seriePadrao: env("NFE_SERIE_PADRAO", "1")
   };
 }
 
@@ -870,7 +872,7 @@ async function transmitirAutorizacaoPreview(payload, options = {}) {
   const xmlDsigPreview = buildXmlDsigPreview(xmlPreview.xml, cfg);
   const lotePreview = buildLoteXml(xmlDsigPreview.signedXml || xmlPreview.xml);
   const autorizacaoPreview = buildAutorizacaoRequestPreview(payload, lotePreview);
-  const allowTransmit = process.env.NFE_ENABLE_TRANSMIT === "true" || options.force === true;
+  const allowTransmit = env("NFE_ENABLE_TRANSMIT") === "true" || options.force === true;
 
   if (!allowTransmit) {
     return {
@@ -971,7 +973,7 @@ async function transmitirCancelamentoEvento(nota = {}, motivo = "", options = {}
     xml: xmlDsigPreview.signedXml || xmlPreview.xml
   };
   const requestPreview = buildCancelamentoRequestPreview(payload, signedEventoPreview);
-  const allowTransmit = process.env.NFE_ENABLE_TRANSMIT === "true" || options.force === true;
+  const allowTransmit = env("NFE_ENABLE_TRANSMIT") === "true" || options.force === true;
 
   if (!allowTransmit) {
     return {
