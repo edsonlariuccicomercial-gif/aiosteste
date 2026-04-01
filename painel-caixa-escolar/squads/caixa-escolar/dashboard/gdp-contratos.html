@@ -6400,7 +6400,7 @@ async function sincronizarCobrancaProvider(contaId) {
 function getProximoNumeroNf() {
   const KEY = "gdp.nf-counter";
   let counter = parseInt(localStorage.getItem(KEY) || "0", 10);
-  if (counter < 1204) counter = 1204; // Base: 1165-1204 já usados/cancelados/inutilizados na SEFAZ
+  if (counter < 1205) counter = 1205; // Base: 1165-1205 já usados/cancelados/inutilizados na SEFAZ
   counter++;
   localStorage.setItem(KEY, String(counter));
   // AC-2: Persistir no Supabase (fire-and-forget)
