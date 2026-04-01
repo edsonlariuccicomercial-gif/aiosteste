@@ -5114,7 +5114,7 @@ function abrirCatalogoEscolar(contratoId) {
       if (words.length > 5) bp = _bp.find(p => (p.descricao || '').toUpperCase().trim().startsWith(words));
     }
     const descFinal = bp ? (bp.descricao || item.descricao) : item.descricao;
-    const unidFinal = bp ? (bp.unidade || item.unidade || 'un') : (item.unidade || 'un');
+    const unidFinal = item.unidade || (bp ? bp.unidade : null) || 'un';
     const skuInfo = item.sku ? ' <span style="color:var(--dim);font-size:.68rem;font-family:monospace">[' + esc(item.sku) + ']</span>' : '';
 
     return `<tr>
