@@ -55,6 +55,19 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ ok: true, action, payload, xmlPreview, xmlDsigPreview, lotePreview, autorizacaoPreview });
     }
 
+    // Debug: log de itens recebidos
+    if (action === "nfe-sefaz-debug") {
+      const pedido = body.pedido;
+      return res.status(200).json({
+        ok: true,
+        pedidoId: pedido?.id,
+        itensRecebidos: (pedido?.itens || []).length,
+        itens: (pedido?.itens || []).map((it, i) => ({ idx: i, desc: it.descricao, qtd: it.qtd, preco: it.precoUnitario })),
+        bodyKeys: Object.keys(body),
+        pedidoKeys: Object.keys(pedido || {})
+      });
+    }
+
     // Transmissão real à SEFAZ
     if (action === "nfe-sefaz-emitir") {
       const pedido = body.pedido;
