@@ -57,8 +57,9 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
-    "xml-crypto": "^6.1.2",
-    "@xmldom/xmldom": "^0.8.11"
+    "@xmldom/xmldom": "^0.8.11",
+    "node-forge": "^1.4.0",
+    "xml-crypto": "^6.1.2"
   },
   "devDependencies": {
     "playwright": "^1.58.2"

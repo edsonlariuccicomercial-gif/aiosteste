@@ -51,6 +51,17 @@ function getSefazConfig() {
     }
   } catch(_) {}
 
+  // Se PEM ainda vazio mas tem PFX base64, extrair PEM do PFX
+  const pfxBase64 = env("NFE_CERT_BASE64");
+  const pfxPassword = env("NFE_CERT_PASSWORD");
+  if ((!certPem || !certPem.includes("BEGIN")) && pfxBase64) {
+    const extracted = extractPemFromPfx(pfxBase64, pfxPassword);
+    if (extracted) {
+      certPem = extracted.certPem;
+      keyPem = extracted.keyPem;
+    }
+  }
+
   return {
     ambiente: DEFAULT_AMBIENTE,
     uf: env("NFE_SEFAZ_UF", "MG").toUpperCase(),
@@ -209,6 +220,33 @@ function summarizeCertificateInput(base64Value) {
 function getCertificateBuffer(base64Value) {
   const normalized = String(base64Value || "").replace(/\s+/g, "");
   return normalized ? Buffer.from(normalized, "base64") : Buffer.alloc(0);
+}
+
+function extractPemFromPfx(base64Pfx, password) {
+  try {
+    const forge = require("node-forge");
+    const pfxDer = forge.util.decode64(base64Pfx);
+    const pfxAsn1 = forge.asn1.fromDer(pfxDer);
+    const pfx = forge.pkcs12.pkcs12FromAsn1(pfxAsn1, password || "");
+    const certBags = pfx.getBags({ bagType: forge.pki.oids.certBag });
+    const keyBags = pfx.getBags({ bagType: forge.pki.oids.pkcs8ShroudedKeyBag });
+    const cert = ((certBags[forge.pki.oids.certBag] || [])[0] || {}).cert;
+    const key = ((keyBags[forge.pki.oids.pkcs8ShroudedKeyBag] || [])[0] || {}).key;
+    if (!cert || !key) return null;
+    return { certPem: forge.pki.certificateToPem(cert), keyPem: forge.pki.privateKeyToPem(key) };
+  } catch (e) {
+    // node-forge not available, try openssl child_process
+    try {
+      const { execSync } = require("child_process");
+      const tmpPfx = require("os").tmpdir() + "/nfe-temp.pfx";
+      require("fs").writeFileSync(tmpPfx, Buffer.from(base64Pfx, "base64"));
+      const certPem = execSync(`openssl pkcs12 -in ${tmpPfx} -clcerts -nokeys -passin pass:${password} 2>/dev/null`).toString();
+      const keyPem = execSync(`openssl pkcs12 -in ${tmpPfx} -nocerts -nodes -passin pass:${password} 2>/dev/null`).toString();
+      try { require("fs").unlinkSync(tmpPfx); } catch(_) {}
+      if (certPem.includes("BEGIN CERTIFICATE") && keyPem.includes("BEGIN")) return { certPem, keyPem };
+    } catch(_) {}
+    return null;
+  }
 }
 
 function postSoapXml(url, options) {
