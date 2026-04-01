@@ -6838,6 +6838,10 @@ async function transmitirHomologacaoNota(notaId) {
     return;
   }
 
+  // Gerar novo número para retransmissão (evita duplicidade 539)
+  const novoNumero = getProximoNumeroNf();
+  nf.numero = novoNumero;
+
   setIntegrationState(nf, "sefaz", { status: "transmissao_em_preparo", lastAction: "nfe_sefaz_transmitir" });
   saveNotasFiscais();
   renderAll();
@@ -6849,7 +6853,7 @@ async function transmitirHomologacaoNota(notaId) {
       resp = await fetch("/api/gdp-integrations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "nfe-sefaz-emitir", pedido }),
+        body: JSON.stringify({ action: "nfe-sefaz-emitir", pedido, overrides: { numero: novoNumero } }),
         signal: AbortSignal.timeout(30000),
       });
     } catch (localErr) {
