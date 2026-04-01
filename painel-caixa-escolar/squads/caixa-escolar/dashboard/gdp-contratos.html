@@ -10410,6 +10410,81 @@ function getContasBancariasOptions(selectedApelido) {
   }).join("");
 }
 
+function toggleAddProdutoDetalhe(pedidoId) {
+  const el = document.getElementById('add-produto-detalhe-' + pedidoId);
+  if (!el) return;
+  el.classList.toggle('hidden');
+  if (!el.classList.contains('hidden')) {
+    const input = document.getElementById('add-prod-busca-' + pedidoId);
+    if (input) { input.value = ''; input.focus(); }
+  }
+}
+
+function buscarProdutoDetalhe(pedidoId) {
+  const input = document.getElementById('add-prod-busca-' + pedidoId);
+  const container = document.getElementById('add-prod-sug-' + pedidoId);
+  if (!input || !container) return;
+  const busca = (input.value || '').toLowerCase().trim();
+  if (busca.length < 1) { container.classList.add('hidden'); return; }
+
+  const p = pedidos.find(x => x.id === pedidoId);
+  const ctrId = p?.contratoId;
+  const ctr = ctrId ? contratos.find(c => c.id === ctrId) : null;
+  let html = '';
+
+  if (ctr && ctr.itens && ctr.itens.length > 0) {
+    const ctrMatches = ctr.itens.filter(i => (i.descricao || '').toLowerCase().includes(busca)).slice(0, 15);
+    html = ctrMatches.map((i) => {
+      const itemIdx = ctr.itens.indexOf(i);
+      return '<div style="padding:.45rem .8rem;cursor:pointer;font-size:.82rem;border-bottom:1px solid var(--bdr)" onmousedown="adicionarProdutoDetalhe(\'' + pedidoId + '\',\'contrato\',' + itemIdx + ')"><strong>' + esc(i.descricao) + '</strong> <span class="badge badge-blue" style="font-size:.7rem">' + esc(i.unidade || 'UN') + '</span> ' + (i.precoUnitario ? '<span style="color:var(--green);font-size:.75rem">' + brl.format(i.precoUnitario) + '</span>' : '') + ' <span class="badge badge-green" style="font-size:.6rem">Contrato</span></div>';
+    }).join('');
+  }
+
+  if (!html) {
+    const matches = estoqueIntelProdutos.filter(pr => (pr.nome || '').toLowerCase().includes(busca) || (pr.sku || '').toLowerCase().includes(busca)).slice(0, 15);
+    html = matches.map(pr => {
+      const embs = estoqueIntelEmbalagens.filter(e => e.produto_id === pr.id);
+      const precoRef = embs.length ? embs[0].preco_referencia || 0 : 0;
+      return '<div style="padding:.45rem .8rem;cursor:pointer;font-size:.82rem;border-bottom:1px solid var(--bdr)" onmousedown="adicionarProdutoDetalhe(\'' + pedidoId + '\',\'intel\',\'' + esc(pr.id) + '\')"><strong>' + esc(pr.nome) + '</strong> <span class="badge badge-blue" style="font-size:.7rem">' + esc(pr.unidade_base) + '</span>' + (precoRef ? ' <span style="color:var(--green);font-size:.75rem">' + brl.format(precoRef) + '</span>' : '') + '</div>';
+    }).join('');
+  }
+
+  if (!html) { container.classList.add('hidden'); return; }
+  container.innerHTML = html;
+  container.classList.remove('hidden');
+}
+
+function adicionarProdutoDetalhe(pedidoId, fonte, ref) {
+  const p = pedidos.find(x => x.id === pedidoId);
+  if (!p) return;
+  if (!p.itens) p.itens = [];
+  let novoItem = { descricao: '', unidade: 'UN', qtd: 1, precoUnitario: 0, sku: '', ncm: '' };
+
+  if (fonte === 'contrato') {
+    const ctr = contratos.find(c => c.id === p.contratoId);
+    if (ctr && ctr.itens[ref]) {
+      const ci = ctr.itens[ref];
+      novoItem = { descricao: ci.descricao, unidade: ci.unidade || 'UN', qtd: 1, precoUnitario: ci.precoUnitario || 0, sku: ci.skuVinculado || ci.sku || '', ncm: ci.ncm || '', itemNum: ci.num };
+    }
+  } else if (fonte === 'intel') {
+    const prod = estoqueIntelProdutos.find(pr => pr.id === ref);
+    if (prod) {
+      const embs = estoqueIntelEmbalagens.filter(e => e.produto_id === ref);
+      const precoRef = embs.length ? embs[0].preco_referencia || 0 : 0;
+      novoItem = { descricao: prod.nome, unidade: prod.unidade_base || 'UN', qtd: 1, precoUnitario: precoRef, sku: prod.sku || '', ncm: prod.ncm || '' };
+    }
+  }
+
+  p.itens.push(novoItem);
+  const novoTotal = p.itens.reduce((sum, it) => sum + Math.round(((it.qtd || 0) * (it.precoUnitario || 0)) * 100) / 100, 0);
+  p.valor = novoTotal;
+  p.totalGeral = novoTotal;
+  p.valorTotal = novoTotal;
+  savePedidos();
+  verPedidoDetalhe(pedidoId);
+  showToast('Produto adicionado ao pedido.', 2000);
+}
+
 function excluirItemDetalhe(pedidoId, idx) {
   const p = pedidos.find(x => x.id === pedidoId);
   if (!p || !p.itens[idx]) return;
@@ -10471,7 +10546,7 @@ function verPedidoDetalhe(pedidoId) {
   const fiscalMissing = validatePedidoForInvoice(p);
 
   const temDemanda = gdpDemandas.some(d => d.pedidoId === p.id);
-  let html = '<div style="display:flex;justify-content:flex-end;gap:.5rem;flex-wrap:wrap;margin-bottom:1rem">' + (temDemanda ? '<span class="badge badge-green" style="align-self:center">Demanda gerada</span>' : '<button class="btn btn-sm" style="background:rgba(34,197,94,.15);color:var(--green);border:none;font-weight:700" onclick="gdpGerarDemandaPedido(\'' + p.id + '\')">Gerar Demanda</button>') + '<button class="btn btn-outline btn-sm" onclick="editarPedido(\'' + p.id + '\')">Editar</button><button class="btn btn-purple btn-sm" onclick="imprimirPedido(\'' + p.id + '\')">Imprimir</button></div>';
+  let html = '<div style="display:flex;justify-content:flex-end;gap:.5rem;flex-wrap:wrap;margin-bottom:1rem">' + (temDemanda ? '<span class="badge badge-green" style="align-self:center">Demanda gerada</span>' : '<button class="btn btn-sm" style="background:rgba(34,197,94,.15);color:var(--green);border:none;font-weight:700" onclick="gdpGerarDemandaPedido(\'' + p.id + '\')">Gerar Demanda</button>') + '<button class="btn btn-outline btn-sm" onclick="editarPedido(\'' + p.id + '\')">Editar Cliente/Datas</button><button class="btn btn-purple btn-sm" onclick="imprimirPedido(\'' + p.id + '\')">Imprimir</button></div>';
   html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem">';
   html += '<div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Protocolo</div><div style="font-weight:700;font-family:monospace">' + esc(p.id) + marcadorHtml + '</div></div>';
   html += '<div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Escola</div><div style="font-weight:700">' + esc(p.escola) + '</div></div>';
@@ -10518,6 +10593,14 @@ function verPedidoDetalhe(pedidoId) {
     });
     html += '</tbody></table></div>';
   }
+
+  // ── Adicionar Produto inline ──
+  html += '<div style="margin-top:.8rem;display:flex;gap:.5rem;align-items:center">';
+  html += '<button class="btn btn-sm" style="background:rgba(34,197,94,.15);color:var(--green);border:none;font-weight:700" onclick="toggleAddProdutoDetalhe(\'' + p.id + '\')">+ Adicionar Produto</button>';
+  html += '</div>';
+  html += '<div id="add-produto-detalhe-' + p.id + '" class="hidden" style="margin-top:.6rem;padding:.8rem;border:1px solid var(--bdr);border-radius:8px;background:var(--s1)">';
+  html += '<div style="position:relative"><input type="text" id="add-prod-busca-' + p.id + '" placeholder="Buscar produto no contrato ou inteligência..." oninput="buscarProdutoDetalhe(\'' + p.id + '\')" style="width:100%;padding:.5rem .8rem;background:var(--bg);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:.85rem"><div id="add-prod-sug-' + p.id + '" class="hidden" style="position:absolute;top:100%;left:0;right:0;z-index:1030;background:var(--bg);border:1px solid var(--bdr);border-radius:8px;max-height:200px;overflow-y:auto;box-shadow:0 4px 16px rgba(0,0,0,.35)"></div></div>';
+  html += '</div>';
 
   // ── Seção Dados de Pagamento ──
   const pag = p.pagamento || {};
