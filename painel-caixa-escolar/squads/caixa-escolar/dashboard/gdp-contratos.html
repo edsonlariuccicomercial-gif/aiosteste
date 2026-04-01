@@ -2439,11 +2439,21 @@ function saveNotasFiscais() { saveWrappedArray(INVOICES_KEY, notasFiscais); }
 // Utilitário: limpar notas rejeitadas e resetar counter
 window.limparNotasRejeitadas = function() {
   const antes = notasFiscais.length;
+  // IDs das notas que vão ser removidas
+  const idsRemover = new Set(notasFiscais.filter(n => n.status !== "autorizada" && n.status !== "emitida").map(n => n.id));
   notasFiscais = notasFiscais.filter(n => n.status === "autorizada" || n.status === "emitida");
   saveNotasFiscais();
+  // Limpar referências nos pedidos
+  pedidos.forEach(p => {
+    if (p.notaFiscalId && idsRemover.has(p.notaFiscalId)) { delete p.notaFiscalId; delete p.notaFiscal; }
+  });
+  savePedidos();
+  // Limpar contas a receber vinculadas a notas removidas
+  contasReceber = contasReceber.filter(cr => !cr.notaFiscalId || !idsRemover.has(cr.notaFiscalId));
+  saveContasReceber();
   localStorage.setItem("gdp.nf-counter", "1200");
   const removidas = antes - notasFiscais.length;
-  showToast("Removidas " + removidas + " notas rejeitadas/pendentes. Proximo numero: 1201.", 5000);
+  alert("Removidas " + removidas + " notas rejeitadas/pendentes.\\nReferencias nos pedidos limpas.\\nProximo numero NF: 1201.\\n\\nRecarregue a pagina (F5) e gere a nota novamente.");
   renderAll();
 };
 function saveNotasEntrada() { saveWrappedArray(ENTRY_INVOICES_KEY, notasEntrada); }
