@@ -265,6 +265,7 @@
 
   <!-- Tab: Importar Mapa -->
   <div id="tab-importar" class="hidden">
+    <div style="margin-bottom:1rem"><button class="btn btn-outline" onclick="switchTab('contratos')" style="font-weight:600">← Voltar aos Contratos</button></div>
     <!-- Import mode selector -->
     <div class="card">
       <h2>Importar Dados para Contrato</h2>
@@ -558,7 +559,7 @@
             <h2 style="margin:0;font-size:1.12rem">Nova Conta a Pagar</h2>
             <div style="font-size:.82rem;color:var(--mut);margin-top:.3rem">Preencha os dados da despesa e salve para voltar a tela anterior.</div>
           </div>
-          <button class="btn btn-outline btn-sm" onclick="toggleContaPagarForm(false)">Fechar</button>
+          <button class="btn btn-outline btn-sm" onclick="toggleContaPagarForm(false)">Cancelar</button>
         </div>
         <div style="padding:1.5rem;display:grid;grid-template-columns:repeat(2,minmax(240px,1fr));gap:1rem;flex:1;align-content:start">
           <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Descricao</label><input type="text" id="cp-descricao" placeholder="Ex: Frete fornecedor"></div>
@@ -620,7 +621,7 @@
           <h2 style="margin:0;font-size:1.12rem">Detalhes da Conta a Pagar</h2>
           <div style="display:flex;gap:.5rem">
             <button class="btn btn-outline btn-sm" id="cp-detalhe-edit-btn" onclick="toggleEditCpDetalhe()">Editar</button>
-            <button class="btn btn-outline btn-sm" onclick="fecharDetalheCp()">Fechar</button>
+            <button class="btn btn-outline btn-sm" onclick="fecharDetalheCp()">Cancelar</button>
           </div>
         </div>
         <div id="cp-detalhe-body" style="padding:1.5rem;display:grid;grid-template-columns:repeat(2,minmax(200px,1fr));gap:1rem"></div>
@@ -644,7 +645,7 @@
             <h2 style="margin:0;font-size:1.12rem">Nova Conta a Receber</h2>
             <div style="font-size:.82rem;color:var(--mut);margin-top:.3rem">Preencha os dados da receita e salve para voltar a tela anterior.</div>
           </div>
-          <button class="btn btn-outline btn-sm" onclick="toggleContaReceberForm(false)">Fechar</button>
+          <button class="btn btn-outline btn-sm" onclick="toggleContaReceberForm(false)">Cancelar</button>
         </div>
         <div style="padding:1.5rem;display:grid;grid-template-columns:repeat(2,minmax(240px,1fr));gap:1rem;flex:1;align-content:start">
           <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Descricao</label><input type="text" id="cr-descricao" placeholder="Ex: cobranca avulsa"></div>
@@ -710,7 +711,7 @@
           <h2 style="margin:0;font-size:1.12rem">Detalhes da Conta a Receber</h2>
           <div style="display:flex;gap:.5rem">
             <button class="btn btn-outline btn-sm" id="cr-detalhe-edit-btn" onclick="toggleEditCrDetalhe()">Editar</button>
-            <button class="btn btn-outline btn-sm" onclick="fecharDetalheCr()">Fechar</button>
+            <button class="btn btn-outline btn-sm" onclick="fecharDetalheCr()">Cancelar</button>
           </div>
         </div>
         <div id="cr-detalhe-body" style="padding:1.5rem;display:grid;grid-template-columns:repeat(2,minmax(200px,1fr));gap:1rem"></div>
@@ -953,18 +954,8 @@
             <button class="btn btn-blue btn-sm" onclick="gerarListaComprasDeDemandas()">Gerar Lista de Compras</button>
           </div>
         </div>
-        <div style="margin-top:1rem">
-          <div style="border:1px solid rgba(245,158,11,.28);border-radius:14px;padding:1rem;background:linear-gradient(180deg,rgba(245,158,11,.10),rgba(245,158,11,.03))">
-            <div style="display:flex;justify-content:space-between;align-items:center;gap:.75rem;margin-bottom:.75rem">
-              <div>
-                <div style="font-size:.82rem;font-weight:700">Pedidos com Itens nao Vinculados</div>
-                <div style="font-size:.76rem;color:#fcd34d">Vincule estes itens na aba Contratos para que a demanda seja gerada automaticamente.</div>
-              </div>
-              <span class="badge badge-yellow" id="ei-pedidos-sync-pendente-count">0</span>
-            </div>
-            <div class="table-wrap" data-ei-table style="max-height:280px;overflow-y:auto"><table><thead><tr><th>Pedido</th><th>Pendencia</th><th>Status</th><th class="text-right">Acoes</th></tr></thead><tbody id="ei-pedidos-sync-pendente-tbody"></tbody></table></div>
-          </div>
-        </div>
+        <!-- Card "Pedidos com Itens nao Vinculados" removido — info disponivel via "Ver Conversao" -->
+        <div style="display:none"><span id="ei-pedidos-sync-pendente-count"></span><table><tbody id="ei-pedidos-sync-pendente-tbody"></tbody></table></div>
       </div>
       <div class="card" id="ei-card-movimentacoes" data-ei-section="estoque">
         <h3 style="margin-bottom:.75rem">Movimentacoes</h3>
@@ -1234,12 +1225,12 @@
   </div>
 
   <!-- Modal: Contract Detail -->
-  <div id="modal-contrato" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1000;display:flex;align-items:flex-start;justify-content:center;padding:.5rem;overflow-y:auto">
+  <div id="modal-contrato" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1000;display:flex;align-items:flex-start;justify-content:center;padding:.5rem;overflow-y:auto" onclick="if(event.target===this)fecharModalContrato()">
     <div style="background:var(--bg);border:1px solid var(--bdr);border-radius:14px;width:1100px;max-width:99vw;max-height:98vh;display:flex;flex-direction:column;margin-top:.5rem">
       <div style="padding:.8rem 1.2rem;border-bottom:1px solid var(--bdr);display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
         <h2 id="modal-contrato-titulo" style="font-size:1rem;margin:0"></h2>
         <div style="display:flex;gap:.4rem;align-items:center" id="modal-contrato-header-actions">
-          <button class="btn btn-outline btn-sm" onclick="fecharModalContrato()">Fechar</button>
+          <button class="btn btn-outline btn-sm" onclick="fecharModalContrato()">Cancelar</button>
         </div>
       </div>
       <div style="padding:1rem 1.2rem;overflow-y:auto;flex:1" id="modal-contrato-body"></div>
@@ -2824,7 +2815,33 @@ function abrirCadastroClienteParaContrato(draft) {
 }
 
 // ===== TABS =====
+function resetTabState() {
+  // AC1: Clear all search fields
+  ["busca-contrato","busca-item","busca-pedido","busca-nota-fiscal","cp-busca","cr-busca","int-busca","ei-busca","busca-lista-compras","busca-usuario","busca-entrega","busca-produto"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = "";
+  });
+  // AC2: Clear all selection Sets
+  _selectedPedidoIds.clear();
+  _selectedNotaFiscalIds.clear();
+  _selectedContaPagarIds.clear();
+  _selectedContaReceberIds.clear();
+  _selectedDemandaIds.clear();
+  // AC2: Uncheck all checkboxes (select-all + individual)
+  document.querySelectorAll(".pedido-check,.nota-fiscal-check,.cp-check,.cr-check,.demanda-check,.cliente-chk,.banco-prod-chk").forEach(cb => { cb.checked = false; });
+  ["pedidos-select-all","notas-fiscais-select-all","cp-select-all","cr-select-all","demandas-select-all","clientes-select-all","banco-prod-select-all","ei-lista-compras-select-all"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.checked = false; el.indeterminate = false; }
+  });
+  // AC3: Hide all bulk action bars
+  ["pedidos-bulk-actions","notas-fiscais-bulk-actions","cp-bulk-actions","cr-bulk-actions","demandas-bulk-actions","clientes-bulk-actions"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.add("hidden");
+  });
+}
+
 function switchTab(tab) {
+  resetTabState();
   toggleGdpSidebarMenu(true);
   document.querySelectorAll(".sidebar-subitem[data-gdp-tab]").forEach((item) => item.classList.remove("active"));
   const tabBtn = document.querySelector(`.sidebar-subitem[data-gdp-tab="${tab}"]`);
@@ -5110,6 +5127,9 @@ function abrirCatalogoEscolar(contratoId) {
       <div style="font-size:.85rem"><strong>Contrato:</strong> ${esc(c.id)} | <strong>Saldo disponível:</strong> <span style="color:var(--green);font-weight:700">${brl.format(saldoContrato)}</span></div>
       <button class="btn btn-sm" style="background:rgba(16,185,129,.15);color:var(--green);border:none;font-weight:700" onclick="adicionarTodosCatalogo('${contratoId}')">🛒 Adicionar Todos</button>
     </div>
+    <div style="margin-bottom:.8rem">
+      <input type="text" id="catalogo-busca" placeholder="Buscar produto no catálogo..." oninput="filtrarCatalogo()" style="width:100%;padding:.5rem .8rem;background:var(--s1);border:1px solid var(--bdr);border-radius:8px;color:var(--txt);font-size:.85rem">
+    </div>
     <div class="table-wrap" style="max-height:50vh;overflow-y:auto">
       <table style="font-size:.8rem">
         <thead><tr><th>Item</th><th>Unid</th><th>Disponível</th><th>Preço</th><th>Qtd</th><th>Subtotal</th></tr></thead>
@@ -5126,6 +5146,17 @@ function abrirCatalogoEscolar(contratoId) {
     </div>
   `;
   document.getElementById("modal-contrato").classList.remove("hidden");
+}
+
+// AC10: Filter catalog products by search term
+function filtrarCatalogo() {
+  const busca = (document.getElementById("catalogo-busca")?.value || "").toLowerCase();
+  document.querySelectorAll(".catalogo-qtd").forEach(input => {
+    const row = input.closest("tr");
+    if (!row) return;
+    const text = row.textContent.toLowerCase();
+    row.style.display = !busca || text.includes(busca) ? "" : "none";
+  });
 }
 
 function atualizarTotalCatalogo(contratoId) {
@@ -5208,13 +5239,13 @@ async function criarPedidoCatalogo(contratoId) {
     },
     itens: itensP,
     valor: valor,
-    status: 'agendado',
+    status: 'em_aberto',
     data: hoje,
     dataEntrega: hoje,
     origem: 'catalogo-fornecedor',
-    obs: c.observacoes || ''
+    obs: c.observacoes || '',
+    saldoDeduzido: true
   };
-
   pedidos.push(pedido);
   savePedidos();
 
@@ -5228,10 +5259,6 @@ async function criarPedidoCatalogo(contratoId) {
     }
   });
   saveContratos();
-
-  pedido.status = 'recebido';
-  pedido.saldoDeduzido = true;
-  savePedidos();
 
   document.getElementById("modal-contrato").classList.add("hidden");
   renderAll();
@@ -5492,7 +5519,7 @@ function abrirContrato(id) {
   document.getElementById("modal-contrato-header-actions").innerHTML = `
     <button class="btn btn-sm btn-red" onclick="excluirContrato('${c.id}')">Excluir</button>
     <button class="btn btn-sm btn-blue" onclick="salvarDadosContrato('${c.id}')">Salvar</button>
-    <button class="btn btn-outline btn-sm" onclick="fecharModalContrato()">Fechar</button>
+    <button class="btn btn-outline btn-sm" onclick="fecharModalContrato()">Cancelar</button>
   `;
 
   const totalContratado = (parseFloat(c.valorTotal) || 0) > 0 ? parseFloat(c.valorTotal) : (Array.isArray(c.itens) ? c.itens : []).reduce((s, i) => s + (parseFloat(i.precoUnitario) || 0) * (parseFloat(i.qtdContratada || i.quantidade) || 0), 0);
@@ -5542,6 +5569,7 @@ function abrirContrato(id) {
       <div style="display:flex;gap:.4rem;flex-wrap:wrap;align-items:center">
         <button class="btn btn-sm btn-blue hidden" id="btn-editar-massa-${c.id}" onclick="editarItensMassa('${c.id}')" title="Editar itens selecionados">Editar Selecionados</button>
         <button class="btn btn-sm btn-green hidden" id="btn-vincular-massa-${c.id}" onclick="vincularItensMassa('${c.id}')" title="Vincular itens selecionados a produtos cadastrados">Vincular Selecionados</button>
+        <button class="btn btn-sm btn-red hidden" id="btn-excluir-massa-${c.id}" onclick="excluirItensSelecionados('${c.id}')" title="Excluir itens selecionados">Excluir Selecionados</button>
         <button class="btn btn-sm" style="background:rgba(139,92,246,.15);color:var(--purple);border:none;font-weight:700" onclick="abrirCatalogoEscolar('${c.id}')" title="Abrir catalogo da escola vinculada para pedidos internos">📋 Catalogo Escolar</button>
         <button class="btn btn-sm" style="background:rgba(16,185,129,.15);color:var(--green);border:none;font-weight:700" onclick="autoPreencherNcm('${c.id}');abrirContrato('${c.id}')" title="Preencher NCM automaticamente (mapa local + banco)">NCM Auto</button>
         <button class="btn btn-sm" style="background:rgba(168,85,247,.15);color:#a855f7;border:none;font-weight:700" onclick="classificarNcmIA('${c.id}')" title="Classificar NCM dos itens sem codigo usando IA (GPT)">🤖 NCM IA</button>
@@ -5588,7 +5616,7 @@ function abrirContrato(id) {
       </table>
     </div>
     <div style="margin-top:1rem;padding-top:.8rem;border-top:1px solid var(--bdr);display:flex;justify-content:flex-end;gap:.5rem">
-      <button class="btn btn-outline btn-sm" onclick="fecharModalContrato()">Fechar</button>
+      <button class="btn btn-outline btn-sm" onclick="fecharModalContrato()">Cancelar</button>
     </div>
     <div id="tiny-result-${c.id}" class="hidden" style="margin-top:1rem;padding:1rem;border-radius:8px;background:var(--s1);border:1px solid var(--bdr);font-size:.85rem"></div>`;
 
@@ -5606,6 +5634,14 @@ function fecharModalContrato() {
   }
   document.getElementById("modal-contrato").classList.add("hidden");
 }
+
+// AC6: ESC to close modals
+document.addEventListener("keydown", function(e) {
+  if (e.key === "Escape") {
+    const modal = document.getElementById("modal-contrato");
+    if (modal && !modal.classList.contains("hidden")) { fecharModalContrato(); return; }
+  }
+});
 
 function registrarEntregas(contratoId) {
   const c = contratos.find(x => x.id === contratoId);
@@ -5783,9 +5819,11 @@ async function salvarDadosContrato(id) {
   // Force immediate cloud push
   if (_syncTimeout) { clearTimeout(_syncTimeout); _syncTimeout = null; }
   try { await syncToCloud(); } catch(_) {}
-  // Update title in real-time
-  document.getElementById("modal-contrato-titulo").textContent = `${c.id} — ${c.escola.length > 50 ? c.escola.slice(0, 48) + "..." : c.escola}`;
   showToast("Dados do contrato salvos!");
+  // AC5: Auto-close modal after save
+  _contratoAbertoId = null;
+  document.getElementById("modal-contrato").classList.add("hidden");
+  renderAll();
 }
 
 function getObsContrato(contratoId) {
@@ -7101,7 +7139,8 @@ function salvarEditCrDetalhe() {
   conta.audit = { ...(conta.audit || {}), updatedAt: new Date().toISOString(), updatedBy: getAuditActor() };
   saveContasReceber();
   renderContasReceber();
-  abrirDetalheCr(_crDetalheId);
+  // AC7: Auto-close after save
+  fecharDetalheCr();
   showToast("Conta a receber atualizada.", 3000);
 }
 
@@ -7791,7 +7830,8 @@ function salvarEditCpDetalhe() {
   conta.audit = { ...(conta.audit || {}), updatedAt: new Date().toISOString(), updatedBy: getAuditActor() };
   saveContasPagar();
   renderContasPagar();
-  abrirDetalheCp(_cpDetalheId);
+  // AC7: Auto-close after save
+  fecharDetalheCp();
   showToast("Conta a pagar atualizada.", 3000);
 }
 
@@ -8642,7 +8682,7 @@ function visualizarDemandaEstoqueIntel(pedidoId) {
       <div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase">Origem</div><div style="font-weight:700">${esc(origemLabel)}</div></div>
       <div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase">Reserva</div><div style="font-weight:700"><span class="badge ${reservaStatus.badgeClass}">${esc(reservaStatus.label)}</span><br><span style="font-size:.72rem;color:var(--mut)">${esc(reservaStatus.detail)}</span></div></div>
       <div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase">Data</div><div style="font-weight:700">${esc(pedido.data_prevista || pedido.data || "-")}</div></div>
-      <div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase">Cliente</div><div style="font-weight:700">${esc(pedido.cliente || "-")}</div></div>
+      <div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase">Cliente</div><div style="font-weight:700;font-size:.95rem;color:var(--blue)">${esc(pedido.cliente || (pedidos.find(pp => pp.id === (pedido.origem_pedido_id || pedido.id)) || {}).escola || "-")}</div></div>
       <div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase">Qtd Base Total</div><div class="font-mono" style="font-weight:700">${Number(totalBase || 0)}</div></div>
     </div>
     <div class="table-wrap" style="margin-bottom:1rem"><table><thead><tr><th>Produto</th><th class="text-right">Qtd Base</th></tr></thead><tbody>${itensHtml}</tbody></table></div>
@@ -9801,12 +9841,23 @@ function excluirPedido(pedidoId) {
 function excluirPedidosSelecionados() {
   const sel = [...document.querySelectorAll('.pedido-check:checked')].map(cb => cb.value);
   if (sel.length === 0) { showToast("Selecione pedidos para excluir.", 3000); return; }
-  if (!confirm(`Excluir ${sel.length} pedido(s) selecionado(s)?\n\nEsta ação não pode ser desfeita.`)) return;
+  const demandasVinculadas = estoqueIntelPedidos.filter(d => sel.some(id => d.id === id || d.origem_pedido_id === id));
+  const msgDemanda = demandasVinculadas.length ? `\n\n${demandasVinculadas.length} demanda(s) vinculada(s) também serão excluídas.` : "";
+  if (!confirm(`Excluir ${sel.length} pedido(s) selecionado(s)?${msgDemanda}\n\nEsta ação não pode ser desfeita.`)) return;
   pedidos = pedidos.filter(p => !sel.includes(p.id));
+  if (demandasVinculadas.length) {
+    const demandaIds = demandasVinculadas.map(d => d.id);
+    estoqueIntelPedidos = estoqueIntelPedidos.filter(d => !demandaIds.includes(d.id));
+    estoqueIntelPedidoItens = estoqueIntelPedidoItens.filter(pi => !demandaIds.includes(pi.pedido_id));
+    estoqueIntelMovimentacoes = estoqueIntelMovimentacoes.filter(m => !demandaIds.includes(m.referencia_id));
+    saveEstoqueIntelPedidos();
+    saveEstoqueIntelPedidoItens();
+    saveEstoqueIntelMovimentacoes();
+  }
   _selectedPedidoIds.clear();
   savePedidos();
   renderAll();
-  showToast(`${sel.length} pedido(s) excluído(s).`);
+  showToast(`${sel.length} pedido(s) excluído(s)${demandasVinculadas.length ? ` + ${demandasVinculadas.length} demanda(s)` : ""}.`);
 }
 
 // ===== BULK ACTIONS PEDIDOS =====
@@ -9825,46 +9876,55 @@ function imprimirPedidosSelecionados() {
   const sel = [..._selectedPedidoIds];
   if (sel.length === 0) { showToast("Selecione pedidos para imprimir.", 3000); return; }
   const empresa = JSON.parse(localStorage.getItem("nexedu.empresa") || "{}");
-  const nomeEmpresa = empresa.nome || empresa.razaoSocial || "Empresa";
+  const nomeEmpresa = empresa.razaoSocial || empresa.nome || "Empresa";
+  const empresaCnpj = empresa.cnpj || "";
+  const empresaEndereco = [empresa.logradouro, empresa.numero, empresa.bairro, empresa.cidade, empresa.uf, empresa.cep ? 'CEP ' + empresa.cep : ''].filter(Boolean).join(', ') || '';
+  const empresaTel = empresa.telefone || '';
+  const empresaEmail = empresa.email || '';
   let pages = '';
   sel.forEach((id, idx) => {
     const p = pedidos.find(x => x.id === id);
     if (!p) return;
     const c = contratos.find(x => x.id === p.contratoId);
-    const ctrLabel = c ? (c.processo ? 'Proc. ' + c.processo : c.id) : (p.contratoId || '-');
+    const processoLabel = c?.processo || p.contratoId || '-';
+    const escolaNome = p.escola || p.cliente?.nome || '-';
+    const escolaCnpj = p.cliente?.cnpj || '';
+    const statusLabel = getPedidoStatusMeta(p.status).label || p.status || 'Pendente';
+    const totalItens = (p.itens || []).length;
+    const totalUnidades = (p.itens || []).reduce((s, i) => s + (i.qtd || 0), 0);
+    const dataFormatada = p.data ? new Date(p.data + 'T12:00:00').toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR');
+    const obsText = p.obs || (c ? [c.processo ? 'Processo: ' + c.processo : '', c.objeto || ''].filter(Boolean).join(' - ') : '');
     const tableRows = (p.itens || []).map((item, i) => {
       const sub = (item.qtd || 0) * (item.precoUnitario || 0);
-      return '<tr><td style="text-align:center">' + (i+1) + '</td><td>' + (item.descricao || '') + '</td><td style="text-align:center">' + (item.qtd || 0) + '</td><td style="text-align:right">' + brl.format(item.precoUnitario || 0) + '</td><td style="text-align:right;font-weight:700">' + brl.format(sub) + '</td></tr>';
+      return `<tr><td style="text-align:center;border:1px solid #ddd;padding:8px">${i+1}</td><td style="border:1px solid #ddd;padding:8px">${item.descricao || ''}</td><td style="text-align:center;border:1px solid #ddd;padding:8px">${item.unidade || 'UN'}</td><td style="text-align:center;border:1px solid #ddd;padding:8px">${item.qtd || 0}</td><td style="text-align:right;border:1px solid #ddd;padding:8px">${brl.format(item.precoUnitario || 0)}</td><td style="text-align:right;border:1px solid #ddd;padding:8px;font-weight:700">${brl.format(sub)}</td></tr>`;
     }).join("");
     if (idx > 0) pages += '<div style="page-break-before:always"></div>';
-    pages += '<h1>Pedido — ' + nomeEmpresa + '</h1>' +
-      '<div class="meta">Protocolo: ' + p.id + ' | Data: ' + (p.dataEntrega || p.data) + ' | Contrato: ' + ctrLabel + '</div>' +
-      '<div class="info-grid"><div><div class="label">Escola</div><div class="value">' + (p.escola || '-') + '</div></div>' +
-      '<div><div class="label">Status</div><div class="value">' + (p.status || '-') + '</div></div>' +
-      '<div><div class="label">Valor Total</div><div class="value">' + brl.format(p.valor) + '</div></div>' +
-      '<div><div class="label">Itens</div><div class="value">' + (p.itens||[]).length + '</div></div></div>' +
-      '<table><thead><tr><th>#</th><th>Produto</th><th style="text-align:center">Qtd</th><th style="text-align:right">Preco Unit.</th><th style="text-align:right">Subtotal</th></tr></thead>' +
-      '<tbody>' + tableRows + '</tbody></table>' +
-      '<div class="footer">Total: ' + brl.format(p.valor) + '</div>';
+    pages += `
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1.5rem">
+        <div><div style="font-size:18px;font-weight:900;letter-spacing:1px">${nomeEmpresa.toUpperCase()}</div><div style="font-size:10px;color:#666;margin-top:4px">${empresaCnpj ? 'CNPJ: ' + empresaCnpj : ''}</div><div style="font-size:10px;color:#666">${empresaEndereco}</div><div style="font-size:10px;color:#666">${[empresaTel ? 'Tel: ' + empresaTel : '', empresaEmail].filter(Boolean).join(' | ')}</div></div>
+        <div style="text-align:right"><div style="font-size:10px;color:#666;text-transform:uppercase">Pedido de Fornecimento</div><div style="font-size:18px;font-weight:900;color:#2563eb">${p.id}</div><div style="font-size:12px;color:#666">${dataFormatada}</div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;margin-bottom:1rem;border:1px solid #ddd;font-size:12px">
+        <div style="padding:8px;border-bottom:1px solid #ddd"><span style="color:#666;font-size:10px;text-transform:uppercase">ESCOLA / ÓRGÃO</span><br><strong>${escolaNome}</strong></div>
+        <div style="padding:8px;border-bottom:1px solid #ddd;border-left:1px solid #ddd"><span style="color:#666;font-size:10px;text-transform:uppercase">CNPJ</span><br><strong>${escolaCnpj || '-'}</strong></div>
+        <div style="padding:8px;border-bottom:1px solid #ddd"><span style="color:#666;font-size:10px;text-transform:uppercase">RESPONSÁVEL</span><br><strong>Cliente</strong></div>
+        <div style="padding:8px;border-bottom:1px solid #ddd;border-left:1px solid #ddd"><span style="color:#666;font-size:10px;text-transform:uppercase">STATUS</span><br><strong>${statusLabel}</strong></div>
+        <div style="padding:8px"><span style="color:#666;font-size:10px;text-transform:uppercase">QTD. ITENS</span><br><strong>${totalItens} produtos (${totalUnidades} unidades)</strong></div>
+        <div style="padding:8px;border-left:1px solid #ddd"><span style="color:#666;font-size:10px;text-transform:uppercase">CONTRATO</span><br><strong>${processoLabel}</strong></div>
+      </div>
+      ${obsText ? `<div style="border:1px solid #ddd;padding:10px;margin-bottom:1rem;font-size:12px"><strong>DADOS DO CONTRATO</strong><br>Processo: <strong>${processoLabel}</strong><br>Observações: ${obsText}</div>` : ''}
+      <table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:1rem"><thead><tr style="background:#f5f5f5"><th style="border:1px solid #ddd;padding:8px;text-align:center">#</th><th style="border:1px solid #ddd;padding:8px">PRODUTO / DESCRIÇÃO</th><th style="border:1px solid #ddd;padding:8px;text-align:center">UNID.</th><th style="border:1px solid #ddd;padding:8px;text-align:center">QTD</th><th style="border:1px solid #ddd;padding:8px;text-align:right">PREÇO UNIT.</th><th style="border:1px solid #ddd;padding:8px;text-align:right">SUBTOTAL</th></tr></thead><tbody>${tableRows}</tbody></table>
+      <div style="text-align:right;margin-bottom:2rem"><span style="font-size:14px;margin-right:1rem">VALOR TOTAL</span><span style="font-size:24px;font-weight:900;color:#2563eb">${brl.format(p.valor)}</span></div>
+      <div style="border:1px solid #ddd;padding:12px;margin-bottom:2rem;font-size:11px"><strong style="text-decoration:underline">TERMOS DE RECEBIMENTO</strong><br>Declaro que recebi os produtos acima descritos em perfeito estado de conservação, conforme quantidades e especificações indicadas.<br><br>Data do recebimento: ___/___/_______ &nbsp;&nbsp; Hora: ___:___ &nbsp;&nbsp; Nota Fiscal nº: _______________</div>
+      <div style="display:flex;justify-content:space-around;margin-top:3rem;font-size:11px"><div style="text-align:center;width:40%"><div style="border-top:1px solid #333;padding-top:6px"><strong>Recebedor(a)</strong><br>Nome / Cargo / Matrícula</div></div><div style="text-align:center;width:40%"><div style="border-top:1px solid #333;padding-top:6px"><strong>Entregador</strong><br>${nomeEmpresa}</div></div></div>
+      <div style="text-align:center;margin-top:3rem;font-size:9px;color:#999">Documento gerado automaticamente pelo sistema GDP — Gestão de Pedidos<br>${nomeEmpresa}${empresaCnpj ? ' — CNPJ ' + empresaCnpj : ''}</div>`;
   });
   const iframe = document.createElement('iframe');
   iframe.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:0;height:0';
   document.body.appendChild(iframe);
   const doc = iframe.contentDocument || iframe.contentWindow.document;
   doc.open();
-  doc.write('<!DOCTYPE html><html><head><title>Pedidos Selecionados</title><style>' +
-    'body{font-family:Arial,sans-serif;margin:2rem;color:#333}' +
-    'h1{font-size:18px;margin-bottom:4px}' +
-    '.meta{font-size:12px;color:#666;margin-bottom:20px}' +
-    '.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:20px;font-size:13px}' +
-    '.info-grid .label{color:#666;font-size:11px;text-transform:uppercase}' +
-    '.info-grid .value{font-weight:700}' +
-    'table{width:100%;border-collapse:collapse;font-size:13px}' +
-    'th{background:#f0f0f0;padding:8px;text-align:left;border:1px solid #ddd;font-size:11px;text-transform:uppercase}' +
-    'td{padding:6px 8px;border:1px solid #ddd}' +
-    'tr:nth-child(even){background:#f9f9f9}' +
-    '.footer{margin-top:16px;font-size:13px;font-weight:700;text-align:right}' +
-    '@media print{body{margin:1cm}}</style></head><body>' + pages + '</body></html>');
+  doc.write('<!DOCTYPE html><html><head><title>Pedido de Fornecimento</title><style>body{font-family:Arial,sans-serif;margin:2cm;color:#333}@media print{body{margin:1.5cm}}</style></head><body>' + pages + '</body></html>');
   doc.close();
   iframe.contentWindow.focus();
   iframe.contentWindow.print();
@@ -11409,7 +11469,7 @@ function renderEstoque() {
   const fornecedoresTbody = document.getElementById("ei-fornecedores-tbody");
   const comprasTbody = document.getElementById("ei-compras-tbody");
   const pedidosReservaFiltroEl = document.getElementById("ei-pedidos-reserva-filtro");
-  if (!produtosTbody || !embalagensTbody || !pedidosTbody || !pedidosSyncPendenteTbody || !estoqueTbody || !movTbody || !fornecedoresTbody || !comprasTbody) return;
+  if (!produtosTbody || !embalagensTbody || !pedidosTbody || !estoqueTbody || !movTbody || !fornecedoresTbody || !comprasTbody) return;
 
   const busca = (document.getElementById("ei-busca")?.value || "").trim().toLowerCase();
   const filtroBase = document.getElementById("ei-filtro-base")?.value || "";
@@ -11608,13 +11668,13 @@ function renderEstoque() {
     return `
       <tr>
         <td><input type="checkbox" class="demanda-check" value="${esc(pedido.id)}" onchange="atualizarSelecaoDemandas()"${_selectedDemandaIds.has(pedido.id) ? ' checked' : ''}></td>
-        <td><button style="background:none;border:none;padding:0;color:var(--blue);font-weight:700;cursor:pointer;font-family:monospace;font-size:.76rem" onclick="visualizarDemandaEstoqueIntel('${esc(pedido.id)}')">${esc(pedido.id)}</button></td>
+        <td><button style="background:none;border:none;padding:0;color:var(--blue);font-weight:700;cursor:pointer;font-family:monospace;font-size:.76rem" onclick="visualizarDemandaEstoqueIntel('${esc(pedido.id)}')">${esc(pedido.id)}</button>${pedido.cliente || (pedidos.find(pp => pp.id === (pedido.origem_pedido_id || pedido.id)) || {}).escola ? `<br><span style="font-size:.72rem;color:var(--mut)">${esc(pedido.cliente || (pedidos.find(pp => pp.id === (pedido.origem_pedido_id || pedido.id)) || {}).escola || "")}</span>` : ""}</td>
         <td><span class="badge ${origemBadge}">${esc(origemLabel)}</span></td>
         <td>${esc(produto?.nome || "-")}${extraItens ? `<br><span style="font-size:.72rem;color:var(--mut)">${extraItens} item(ns)</span>` : ""}</td>
         <td class="text-right font-mono">${Number(totalQuantidade || 0)}</td>
         <td><span class="badge ${reservaStatus.badgeClass}">${esc(reservaStatus.label)}</span><br><span style="font-size:.72rem;color:var(--mut)">${esc(reservaStatus.detail)}</span></td>
         <td>${pedido.data_prevista || pedido.data ? formatDateTimeLocal(pedido.data_prevista || pedido.data) : "-"}</td>
-        <td class="text-right" style="display:flex;justify-content:flex-end;gap:.35rem;flex-wrap:wrap">${pedido.origem_sistema === "gdp_pedido" ? `<button class="btn btn-outline btn-sm" style="padding:.3rem .65rem;font-size:.72rem;border-color:rgba(59,130,246,.4);color:var(--blue)" onclick="gerarDemandaPedidoRealEstoqueIntel('${esc(pedido.id)}')">Ver Conversao</button>` : ""}${reservaStatus.key === "reservada" ? `<button class="btn btn-green btn-sm" style="padding:.3rem .65rem;font-size:.72rem" onclick="baixarReservaEstoqueIntel('${esc(pedido.id)}')">Baixar</button>` : ""}${podeExcluirDemanda ? `<button class="btn btn-outline btn-sm" style="padding:.3rem .65rem;font-size:.72rem" onclick="excluirDemandaEstoqueIntel('${esc(pedido.id)}')">Excluir</button>` : ""}</td>
+        <td class="text-right" style="display:flex;justify-content:flex-end;gap:.35rem;flex-wrap:wrap">${pedido.origem_sistema === "gdp_pedido" ? `<button class="btn btn-outline btn-sm" style="padding:.3rem .65rem;font-size:.72rem;border-color:rgba(59,130,246,.4);color:var(--blue)" onclick="gerarDemandaPedidoRealEstoqueIntel('${esc(pedido.id)}')">Ver Conversao</button>` : ""}<button class="btn btn-sm" style="padding:.3rem .65rem;font-size:.72rem;background:rgba(239,68,68,.15);color:var(--red);border:none;font-weight:700" onclick="excluirDemandaEstoqueIntel('${esc(pedido.id)}')">🗑️ Excluir</button></td>
       </tr>
     `;
   }).join("") : `<tr><td colspan="8" style="color:var(--mut)">Nenhuma demanda encontrada para o filtro atual.</td></tr>`;
@@ -13165,12 +13225,38 @@ function _renderEntregasUI() {
       <td style="max-width:240px"><div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(reservaResumo.produtosResumo || "-")}</div><div style="font-size:.72rem;color:var(--mut);margin-top:.2rem">${esc(p.obs || "-")}</div></td>
       <td class="nowrap">
         <button class="btn btn-outline btn-sm" onclick="verComprovante(${idx})" style="border:1px solid var(--bdr);background:transparent;color:var(--blue);border-radius:6px;cursor:pointer;padding:.3rem .6rem;font-size:.75rem">Ver</button>
-        ${status !== "concluido" ? `<button class="btn btn-sm btn-green" onclick="concluirEntrega(${idx})" style="padding:.3rem .6rem;font-size:.75rem;margin-left:.3rem">Concluir</button>` : '<span style="color:var(--mut);font-size:.75rem;font-weight:600;margin-left:.3rem">Concluida</span>'}
+        ${(status === "concluido" || status === "entregue" || reservaStatus.key === "baixada") ? `<span style="color:var(--mut);font-size:.75rem;font-weight:600;margin-left:.3rem">${status === "entregue" ? "Entregue" : status === "concluido" ? "Concluida" : ""}</span><button class="btn btn-outline btn-sm" onclick="reverterEntrega(${idx})" style="padding:.3rem .6rem;font-size:.75rem;margin-left:.3rem;border-color:rgba(245,158,11,.5);color:#f59e0b" title="Reverter baixa manual">↩️ Reverter</button>` : `<button class="btn btn-sm btn-green" onclick="concluirEntrega(${idx})" style="padding:.3rem .6rem;font-size:.75rem;margin-left:.3rem">Concluir</button>`}
         ${reservaStatus.key !== "baixada" ? `<button class="btn btn-outline btn-sm" onclick="baixarReservaEntregaManual(${idx})" style="padding:.3rem .6rem;font-size:.75rem;margin-left:.3rem">Baixar Estoque</button>` : ""}
         <button onclick="excluirEntrega(${idx})" title="Excluir entrega" style="background:rgba(239,68,68,.15);color:var(--red);border:none;border-radius:6px;padding:.3rem .55rem;font-size:.82rem;font-weight:700;cursor:pointer;margin-left:.3rem">🗑️</button>
       </td>
     </tr>`;
   }).join("");
+}
+
+function reverterEntrega(idx) {
+  const p = entregasOperacionaisRender[idx];
+  if (!p) return;
+  if (!confirm(`Reverter baixa de ${p.pedidoId}?\n\nA entrega, reserva do estoque e pedido serão revertidos.`)) return;
+  const pid = p.pedidoId;
+  const provaIdx = provasEntrega.findIndex(pr => pr.pedidoId === pid);
+  if (provaIdx >= 0) provasEntrega[provaIdx].statusEntrega = "pendente";
+  localStorage.setItem(PROOFS_KEY, JSON.stringify(provasEntrega));
+  const movsBefore = estoqueIntelMovimentacoes.length;
+  estoqueIntelMovimentacoes = estoqueIntelMovimentacoes.filter(mov => {
+    if (mov.referencia_id === pid && (mov.origem === "entrega_concluida" || mov.origem_sistema === "gdp_entrega")) return false;
+    if (mov.id && mov.id.startsWith("ENT-MOV-") && mov.id.includes(pid)) return false;
+    return true;
+  });
+  if (estoqueIntelMovimentacoes.length !== movsBefore) saveEstoqueIntelMovimentacoes();
+  const demanda = estoqueIntelPedidos.find(d => d.id === pid);
+  if (demanda && demanda.status !== "reservada") { demanda.status = "reservada"; saveEstoqueIntelPedidos(); saveEstoqueIntelPedidoItens(); }
+  const pedido = pedidos.find(pp => pp.id === pid);
+  if (pedido && (pedido.status === "entregue" || pedido.status === "faturado" || pedido.status === "concluido")) { pedido.status = "em_aberto"; savePedidos(); }
+  schedulCloudSync();
+  renderEntregas();
+  if (typeof renderEstoque === "function") renderEstoque();
+  if (typeof renderPedidos === "function") renderPedidos();
+  showToast(`Entrega ${pid} totalmente revertida: baixa desfeita, reserva e pedido restaurados.`);
 }
 
 function verComprovante(idx) {
@@ -13641,9 +13727,29 @@ function atualizarSelecaoItens(contratoId) {
   const span = document.getElementById(`itens-selecionados-${contratoId}`);
   const btn = document.getElementById(`btn-editar-massa-${contratoId}`);
   const btnVinc = document.getElementById(`btn-vincular-massa-${contratoId}`);
+  const btnExcl = document.getElementById(`btn-excluir-massa-${contratoId}`);
   if (span) span.textContent = count > 0 ? `${count} selecionado(s)` : '';
   if (btn) { if (count > 0) btn.classList.remove('hidden'); else btn.classList.add('hidden'); }
   if (btnVinc) { if (count > 0) btnVinc.classList.remove('hidden'); else btnVinc.classList.add('hidden'); }
+  if (btnExcl) { if (count > 0) btnExcl.classList.remove('hidden'); else btnExcl.classList.add('hidden'); }
+}
+
+// AC8-AC9: Bulk delete contract items
+function excluirItensSelecionados(contratoId) {
+  const c = contratos.find(x => x.id === contratoId);
+  if (!c) return;
+  const checks = document.querySelectorAll(`.item-check-${contratoId}:checked`);
+  const indices = Array.from(checks).map(cb => parseInt(cb.dataset.idx)).filter(i => !isNaN(i));
+  if (indices.length === 0) { showToast("Nenhum item selecionado."); return; }
+  if (!confirm(`Excluir ${indices.length} item(ns) selecionado(s) do contrato?`)) return;
+  // Remove from highest index to lowest to avoid shifting
+  indices.sort((a, b) => b - a).forEach(idx => { c.itens.splice(idx, 1); });
+  // Renumber
+  c.itens.forEach((item, i) => { item.num = i + 1; });
+  saveContratos();
+  showToast(`${indices.length} item(ns) excluído(s).`);
+  abrirContrato(contratoId);
+  renderAll();
 }
 
 function vincularItensMassa(contratoId) {
@@ -14522,7 +14628,16 @@ function gerarListaComprasDeDemandas() {
 function consolidarItensParaLista(origens) {
   const filtroData = document.getElementById("lista-compras-filtro-data")?.value || "";
   let filtered = origens;
-  if (filtroData) filtered = filtered.filter(p => (p.dataPrevista || p.dataEntrega || p.data || "") <= filtroData);
+  if (filtroData) filtered = filtered.filter(p => {
+    const raw = p.dataPrevista || p.dataEntrega || p.data || "";
+    if (!raw) return false;
+    let dateISO = raw;
+    if (raw.includes("/")) {
+      const parts = raw.split("/");
+      dateISO = parts.length === 3 ? `${parts[2]}-${parts[1].padStart(2,"0")}-${parts[0].padStart(2,"0")}` : raw;
+    }
+    return dateISO.slice(0, 10) <= filtroData;
+  });
   const consolidado = new Map();
   for (const p of filtered) {
     for (const item of (p.itens || [])) {
@@ -14594,17 +14709,48 @@ function renderListaComprasAtual() {
   const thead = tbody.closest("table").querySelector("thead tr");
 
   if (modo === "clientes-produtos") {
-    thead.innerHTML = '<th>#</th><th>Cliente</th><th>Descricao</th><th>SKU</th><th>Un.</th><th class="text-right">Qtd</th><th class="text-right">Valor</th>';
-    // Expandir: uma linha por cliente+produto
-    const rows = [];
+    thead.innerHTML = '<th>Cliente</th><th>Produto</th><th>Código (SKU)</th><th class="text-right">Quantidade</th><th class="text-right">Valor</th><th class="text-right">Frete</th><th class="text-right">Total</th>';
+    const grupos = new Map();
     itens.forEach(item => {
-      if (item.clientes.length === 0) rows.push({ ...item, cliente: "—" });
-      else item.clientes.forEach(c => rows.push({ ...item, cliente: c }));
+      (item.clientes.length ? item.clientes : ["—"]).forEach(c => {
+        if (!grupos.has(c)) grupos.set(c, []);
+        grupos.get(c).push(item);
+      });
     });
-    tbody.innerHTML = rows.map((r, i) => `<tr><td>${i+1}</td><td>${esc(r.cliente)}</td><td>${esc(r.descricao)}</td><td class="font-mono">${esc(r.sku||"—")}</td><td>${esc(r.unidade)}</td><td class="text-right font-mono" style="font-weight:700">${r.qtd}</td><td class="text-right font-mono">${brl.format(r.valorTotal||0)}</td></tr>`).join("");
+    let html = '', grandQtd = 0, grandVal = 0;
+    grupos.forEach((items, cliente) => {
+      const subQtd = items.reduce((s, i) => s + i.qtd, 0);
+      const subVal = items.reduce((s, i) => s + (i.valorTotal || 0), 0);
+      const pedidoCliente = _listaComprasOrigem.find(p => p.escola === cliente);
+      const cnpj = pedidoCliente?.cliente?.cnpj || "";
+      html += `<tr style="background:var(--s1);font-weight:700"><td colspan="3"><strong>${esc(cliente)}${cnpj ? ' - ' + esc(cnpj) : ''}</strong></td><td class="text-right font-mono">${subQtd.toFixed(2)}</td><td class="text-right font-mono">${brl.format(subVal)}</td><td class="text-right">0,00</td><td class="text-right font-mono">${brl.format(subVal)}</td></tr>`;
+      items.forEach(r => {
+        html += `<tr><td></td><td>${esc(r.descricao)}</td><td class="font-mono">${esc(r.sku||"—")}</td><td class="text-right font-mono">${r.qtd.toFixed(2)}</td><td class="text-right font-mono">${brl.format(r.valorTotal||0)}</td><td class="text-right">0,00</td><td class="text-right font-mono">${brl.format(r.valorTotal||0)}</td></tr>`;
+      });
+      grandQtd += subQtd; grandVal += subVal;
+    });
+    html += `<tr style="font-weight:700;border-top:2px solid var(--bdr)"><td colspan="3"><strong>Totais</strong></td><td class="text-right font-mono">${grandQtd.toFixed(2)}</td><td class="text-right font-mono">${brl.format(grandVal)}</td><td class="text-right">0,00</td><td class="text-right font-mono">${brl.format(grandVal)}</td></tr>`;
+    tbody.innerHTML = html;
   } else if (modo === "fornecedores-produtos") {
-    thead.innerHTML = '<th>#</th><th>Fornecedor</th><th>Descricao</th><th>SKU</th><th>Un.</th><th class="text-right">Qtd</th><th class="text-right">Valor</th>';
-    tbody.innerHTML = itens.map((item, i) => `<tr><td>${i+1}</td><td>${esc(item.fornecedor||"Sem fornecedor")}</td><td>${esc(item.descricao)}</td><td class="font-mono">${esc(item.sku||"—")}</td><td>${esc(item.unidade)}</td><td class="text-right font-mono" style="font-weight:700">${item.qtd}</td><td class="text-right font-mono">${brl.format(item.valorTotal||0)}</td></tr>`).join("");
+    thead.innerHTML = '<th>Fornecedor</th><th>Produto</th><th>Código (SKU)</th><th class="text-right">Quantidade</th><th class="text-right">Valor</th><th class="text-right">Frete</th><th class="text-right">Total</th>';
+    const grupos = new Map();
+    itens.forEach(item => {
+      const forn = item.fornecedor || "Sem fornecedor";
+      if (!grupos.has(forn)) grupos.set(forn, []);
+      grupos.get(forn).push(item);
+    });
+    let html = '', grandQtd = 0, grandVal = 0;
+    grupos.forEach((items, fornecedor) => {
+      const subQtd = items.reduce((s, i) => s + i.qtd, 0);
+      const subVal = items.reduce((s, i) => s + (i.valorTotal || 0), 0);
+      html += `<tr style="background:var(--s1);font-weight:700"><td colspan="3"><strong>${esc(fornecedor)}</strong></td><td class="text-right font-mono">${subQtd.toFixed(2)}</td><td class="text-right font-mono">${brl.format(subVal)}</td><td class="text-right">0,00</td><td class="text-right font-mono">${brl.format(subVal)}</td></tr>`;
+      items.forEach(r => {
+        html += `<tr><td></td><td>${esc(r.descricao)}</td><td class="font-mono">${esc(r.sku||"—")}</td><td class="text-right font-mono">${r.qtd.toFixed(2)}</td><td class="text-right font-mono">${brl.format(r.valorTotal||0)}</td><td class="text-right">0,00</td><td class="text-right font-mono">${brl.format(r.valorTotal||0)}</td></tr>`;
+      });
+      grandQtd += subQtd; grandVal += subVal;
+    });
+    html += `<tr style="font-weight:700;border-top:2px solid var(--bdr)"><td colspan="3"><strong>Totais</strong></td><td class="text-right font-mono">${grandQtd.toFixed(2)}</td><td class="text-right font-mono">${brl.format(grandVal)}</td><td class="text-right">0,00</td><td class="text-right font-mono">${brl.format(grandVal)}</td></tr>`;
+    tbody.innerHTML = html;
   } else {
     thead.innerHTML = '<th>#</th><th>Produto</th><th>Demanda</th><th>Embalagem</th><th class="text-right">Qtd Emb.</th><th class="text-right">Sobra</th><th class="text-right">Custo Unit.</th><th class="text-right">Custo Total</th>';
     tbody.innerHTML = itens.map((item, i) => {

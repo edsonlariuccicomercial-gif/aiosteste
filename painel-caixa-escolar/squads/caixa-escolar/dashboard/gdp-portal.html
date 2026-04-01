@@ -908,10 +908,15 @@ function selectContract(type, idx) {
 
   // Check if supplier allowed school to see contract saldo
   const saldoTabBtn = document.querySelector('.escola-tab[data-tab="saldo"]');
+  const ctrData = selectedContract.contrato || null;
+  const saldoPermitido = ctrData ? (ctrData.saldoVisivelEscola === true) : true; // ARP always shows
   if (saldoTabBtn) {
-    const ctrData = selectedContract.contrato || null;
-    const saldoPermitido = ctrData ? (ctrData.saldoVisivelEscola === true) : true; // ARP always shows
     saldoTabBtn.style.display = saldoPermitido ? '' : 'none';
+  }
+  // AC12: Also hide topbar saldo when not permitted
+  const topbarSaldo = document.getElementById('topbar-saldo');
+  if (topbarSaldo) {
+    topbarSaldo.style.display = saldoPermitido ? '' : 'none';
   }
 
   // Reset tabs to catalogo
@@ -1004,7 +1009,7 @@ function renderCatalog(items) {
     return `
       <div class="product-card ${inCart ? 'in-cart' : ''}">
         ${inCart ? `<span class="in-cart-badge">${inCart} no carrinho</span>` : ''}
-        ${p._syncedBanco ? '<span style="position:absolute;top:.5rem;right:.5rem;background:rgba(6,182,212,.15);color:#06b6d4;font-size:.6rem;padding:.15rem .4rem;border-radius:999px;font-weight:700">BANCO</span>' : ''}
+        ${''}<!-- AC4: Badge BANCO removido — referencia interna do Banco de Produtos, nao agrega valor para a escola -->
         <div class="product-name">${p.produto}</div>
         ${p.sku ? `<div style="font-size:.7rem;color:var(--muted);margin-top:.1rem;font-family:monospace">SKU: ${p.sku}</div>` : ''}
         <div class="product-price">R$ ${p.preco.toFixed(2).replace('.',',')}</div>
@@ -1300,7 +1305,11 @@ async function confirmOrder() {
   // Update saldo
   currentUser.saldo_disponivel -= total;
   const pct = ((currentUser.saldo_disponivel / currentUser.saldo_total) * 100).toFixed(0);
-  document.getElementById('topbar-saldo').textContent = `Saldo: R$ ${fmt(currentUser.saldo_disponivel)} (${pct}%)`;
+  // AC12: Only update topbar saldo if visible
+  const _topbarSaldo = document.getElementById('topbar-saldo');
+  if (_topbarSaldo && _topbarSaldo.style.display !== 'none') {
+    _topbarSaldo.textContent = `Saldo: R$ ${fmt(currentUser.saldo_disponivel)} (${pct}%)`;
+  }
 
   // Show confirmation
   document.getElementById('confirm-protocol').textContent = proto;

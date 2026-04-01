@@ -1,4 +1,13 @@
 {
+  "headers": [
+    {
+      "source": "/(.*).html",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" },
+        { "key": "Pragma", "value": "no-cache" }
+      ]
+    }
+  ],
   "rewrites": [
     { "source": "/.netlify/functions/sgd-proxy", "destination": "/api/caixa-proxy" },
     { "source": "/.netlify/functions/ai-parse-price", "destination": "/api/ai-parse-price" },
