@@ -6380,7 +6380,7 @@ async function sincronizarCobrancaProvider(contaId) {
 function getProximoNumeroNf() {
   const KEY = "gdp.nf-counter";
   let counter = parseInt(localStorage.getItem(KEY) || "0", 10);
-  if (counter < 1135) counter = 1134; // Base: última NF emitida
+  if (counter < 1164) counter = 1164; // Base: última NF emitida
   counter++;
   localStorage.setItem(KEY, String(counter));
   return String(counter);
