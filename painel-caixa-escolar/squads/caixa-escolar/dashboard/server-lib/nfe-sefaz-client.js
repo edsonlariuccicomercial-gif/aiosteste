@@ -20,6 +20,12 @@ const SEFAZ_AUTORIZACAO = {
     producao: "https://nfe.fazenda.mg.gov.br/nfe2/services/NFeAutorizacao4"
   }
 };
+const SEFAZ_INUTILIZACAO = {
+  MG: {
+    homologacao: "https://hnfe.fazenda.mg.gov.br/nfe2/services/NFeInutilizacao4",
+    producao: "https://nfe.fazenda.mg.gov.br/nfe2/services/NFeInutilizacao4"
+  }
+};
 const SEFAZ_EVENTO = {
   MG: {
     homologacao: "https://hnfe.fazenda.mg.gov.br/nfe2/services/NFeRecepcaoEvento4",
@@ -1058,6 +1064,60 @@ async function transmitirCancelamentoEvento(nota = {}, motivo = "", options = {}
   }
 }
 
+async function inutilizarFaixa(anoRef, serie, nfInicio, nfFim, justificativa, options = {}) {
+  const cfg = getSefazConfig();
+  const cnpj = sanitizeDigits(cfg.cnpjEmitente);
+  const ano = String(anoRef).slice(-2);
+  const serieStr = String(serie).padStart(3, "0");
+  const nfIni = String(nfInicio).padStart(9, "0");
+  const nfFn = String(nfFim).padStart(9, "0");
+  const idTag = `ID${cfg.uf === "MG" ? "31" : "31"}${ano}${cnpj}55${serieStr}${nfIni}${nfFn}`;
+  const tpAmb = cfg.ambiente === "producao" ? "1" : "2";
+  const just = onlyAscii(String(justificativa || "Numeracao inutilizada por falha em sistema")).slice(0, 255);
+
+  const xmlInf = `<infInut Id="${idTag}"><tpAmb>${tpAmb}</tpAmb><xServ>INUTILIZAR</xServ><cUF>31</cUF><ano>${ano}</ano><CNPJ>${cnpj}</CNPJ><mod>55</mod><serie>${parseInt(serie)}</serie><nNFIni>${parseInt(nfInicio)}</nNFIni><nNFFin>${parseInt(nfFim)}</nNFFin><xJust>${xmlEscape(just)}</xJust></infInut>`;
+  const xmlInut = `<?xml version="1.0" encoding="UTF-8"?><inutNFe xmlns="http://www.portalfiscal.inf.br/nfe" versao="4.00">${xmlInf}</inutNFe>`;
+
+  // Assinar
+  let signedXml = xmlInut;
+  try {
+    const certPem = cfg.certificadoPem;
+    const keyPem = cfg.chavePrivadaPem;
+    if (certPem && keyPem) {
+      const signer = new SignedXml({ privateKey: keyPem, publicCert: certPem, canonicalizationAlgorithm: "http://www.w3.org/TR/2001/REC-xml-c14n-20010315", signatureAlgorithm: "http://www.w3.org/2000/09/xmldsig#rsa-sha1" });
+      signer.addReference({ xpath: "//*[local-name(.)='infInut']", digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1", transforms: ["http://www.w3.org/2000/09/xmldsig#enveloped-signature", "http://www.w3.org/TR/2001/REC-xml-c14n-20010315"] });
+      signer.computeSignature(xmlInut, { location: { reference: "//*[local-name(.)='inutNFe']", action: "append" } });
+      signedXml = signer.getSignedXml();
+    }
+  } catch (e) { console.warn("[inutilizar] Assinatura falhou:", e.message); }
+
+  const soapEnvelope = `<?xml version="1.0" encoding="utf-8"?><soap12:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap12="http://www.w3.org/2003/05/soap-envelope"><soap12:Body><nfeDadosMsg xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeInutilizacao4">${signedXml}</nfeDadosMsg></soap12:Body></soap12:Envelope>`;
+
+  const url = (SEFAZ_INUTILIZACAO[cfg.uf] || {})[cfg.ambiente];
+  if (!url) return { ok: false, message: "Endpoint inutilizacao nao encontrado para " + cfg.uf + "/" + cfg.ambiente };
+
+  const allowTransmit = env("NFE_ENABLE_TRANSMIT") === "true" || options.force === true;
+  if (!allowTransmit) return { ok: false, mode: "transmit_disabled", message: "Transmissao desabilitada." };
+
+  const certificateBuffer = getCertificateBuffer(cfg.certificadoBase64);
+  try {
+    const resp = await postSoapXml(url, {
+      headers: { "Content-Type": "application/soap+xml;charset=UTF-8", "SOAPAction": "http://www.portalfiscal.inf.br/nfe/wsdl/NFeInutilizacao4/nfeInutilizacaoNF" },
+      body: soapEnvelope,
+      pfx: certificateBuffer.length ? certificateBuffer : undefined,
+      passphrase: cfg.certificadoSenha || undefined,
+      cert: cfg.certificadoPem || undefined,
+      key: cfg.chavePrivadaPem || undefined
+    });
+    const cStat = (resp.body.match(/<cStat>(\d+)<\/cStat>/) || [])[1] || "";
+    const xMotivo = (resp.body.match(/<xMotivo>([^<]*)<\/xMotivo>/) || [])[1] || "";
+    const nProt = (resp.body.match(/<nProt>(\d+)<\/nProt>/) || [])[1] || "";
+    return { ok: cStat === "102", cStat, xMotivo, protocolo: nProt, faixa: `${nfInicio}-${nfFim}`, rawXml: resp.body };
+  } catch (err) {
+    return { ok: false, message: err.message, error: err.name };
+  }
+}
+
 module.exports = {
   getSefazConfig,
   validateSefazConfig,
@@ -1080,5 +1140,6 @@ module.exports = {
   parseSefazEventoResponse,
   transmitirAutorizacaoPreview,
   emitirNfeDireta,
-  transmitirCancelamentoEvento
+  transmitirCancelamentoEvento,
+  inutilizarFaixa
 };

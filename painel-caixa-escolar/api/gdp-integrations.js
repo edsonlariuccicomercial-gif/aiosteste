@@ -82,6 +82,14 @@ module.exports = async function handler(req, res) {
       return res.status(result.ok ? 200 : 502).json({ ok: result.ok, action, result });
     }
 
+    // Inutilização de faixa
+    if (action === "nfe-sefaz-inutilizar" && nfeSefaz.inutilizarFaixa) {
+      const { ano, serie, nfInicio, nfFim, justificativa } = body;
+      if (!ano || !nfInicio || !nfFim) return res.status(400).json({ ok: false, error: "ano, nfInicio e nfFim obrigatorios" });
+      const result = await nfeSefaz.inutilizarFaixa(ano, serie || "1", nfInicio, nfFim, justificativa, { force: true });
+      return res.status(result.ok ? 200 : 502).json({ ok: result.ok, action, result });
+    }
+
     return res.status(400).json({ ok: false, error: "Unknown action: " + action });
   } catch (err) {
     console.error("[gdp-integrations]", err);
