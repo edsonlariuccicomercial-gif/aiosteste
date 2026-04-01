@@ -12413,7 +12413,7 @@ function gdpImprimirListaCompras() {
 }
 
 // ===== UTILITIES =====
-function esc(s) { return (s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
+function esc(s) { return String(s == null ? "" : (typeof s === "object" ? JSON.stringify(s) : s)).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
 function showToast(msg, duration = 3000) {
   const container = document.getElementById("toast-container");
   const toast = document.createElement("div");
