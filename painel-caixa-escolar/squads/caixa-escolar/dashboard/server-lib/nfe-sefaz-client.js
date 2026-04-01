@@ -95,6 +95,28 @@ function getMunicipioCode(cidade, uf, fallback = "3106200") {
   return MUNICIPIO_CODE[normalizeMunicipioKey(cidade, uf)] || fallback;
 }
 
+// Tabela dinâmica: adicionar municípios conforme necessário
+function ensureMunicipio(cidade, uf, codigo) {
+  const key = normalizeMunicipioKey(cidade, uf);
+  if (!MUNICIPIO_CODE[key]) MUNICIPIO_CODE[key] = codigo;
+}
+
+// Municípios MG comuns nas caixas escolares
+ensureMunicipio("FRUTAL", "MG", "3127107");
+ensureMunicipio("UBERABA", "MG", "3170107");
+ensureMunicipio("UBERLANDIA", "MG", "3170206");
+ensureMunicipio("ARAGUARI", "MG", "3103504");
+ensureMunicipio("ITURAMA", "MG", "3133709");
+ensureMunicipio("CAMPINA VERDE", "MG", "3111408");
+ensureMunicipio("ITUIUTABA", "MG", "3133808");
+ensureMunicipio("SACRAMENTO", "MG", "3156908");
+ensureMunicipio("PASSOS", "MG", "3147808");
+ensureMunicipio("SAO SEBASTIAO DO PARAISO", "MG", "3164704");
+ensureMunicipio("PATOS DE MINAS", "MG", "3148004");
+ensureMunicipio("PATROCINIO", "MG", "3148103");
+ensureMunicipio("MONTE CARMELO", "MG", "3143302");
+ensureMunicipio("ARAXA", "MG", "3104007");
+
 function onlyAscii(value) {
   return String(value || "")
     .normalize("NFD")
@@ -452,7 +474,7 @@ function buildNfeXml(payload) {
         <nro>${xmlEscape(payload.destinatario.endereco.numero)}</nro>
         ${optionalXml("xCpl", payload.destinatario.endereco.complemento, (value) => xmlEscape(onlyAscii(value)))}
         <xBairro>${xmlEscape(onlyAscii(payload.destinatario.endereco.bairro))}</xBairro>
-        <cMun>3106200</cMun>
+        <cMun>${getMunicipioCode(payload.destinatario.endereco.cidade, payload.destinatario.endereco.uf)}</cMun>
         <xMun>${xmlEscape(onlyAscii(payload.destinatario.endereco.cidade || "BELO HORIZONTE"))}</xMun>
         <UF>${xmlEscape(payload.destinatario.endereco.uf || "MG")}</UF>
         <CEP>${xmlEscape(payload.destinatario.endereco.cep || "30000000")}</CEP>
