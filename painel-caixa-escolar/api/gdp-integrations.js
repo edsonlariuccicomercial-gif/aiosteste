@@ -76,7 +76,9 @@ module.exports = async function handler(req, res) {
     if (action === "nfe-sefaz-cancelar" && nfeSefaz.transmitirCancelamentoEvento) {
       const { chaveAcesso, protocolo, justificativa } = body;
       if (!chaveAcesso || !protocolo) return res.status(400).json({ ok: false, error: "chaveAcesso e protocolo obrigatorios" });
-      const result = await nfeSefaz.transmitirCancelamentoEvento({ chaveAcesso, protocolo, justificativa: justificativa || "Cancelamento solicitado pelo emitente" });
+      const notaObj = { sefaz: { chaveAcesso, protocolo } };
+      const motivo = justificativa || "Cancelamento solicitado pelo emitente";
+      const result = await nfeSefaz.transmitirCancelamentoEvento(notaObj, motivo, { force: true });
       return res.status(result.ok ? 200 : 502).json({ ok: result.ok, action, result });
     }
 
