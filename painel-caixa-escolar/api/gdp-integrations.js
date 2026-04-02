@@ -7,7 +7,7 @@ const nfeSefaz = require(path.join(__dirname, "..", "squads", "caixa-escolar", "
 const {
   getSefazConfig, validateSefazConfig, buildNfePayloadFromPedido,
   buildNfeXml, buildXmlDsigPreview, buildLoteXml, buildAutorizacaoRequestPreview,
-  emitirNfeDireta, transmitirAutorizacaoPreview
+  emitirNfeDireta, transmitirAutorizacaoPreview, validateNfePayload
 } = nfeSefaz;
 
 function env(key, fallback) { return (process.env[key] || fallback || "").trim(); }
@@ -47,6 +47,11 @@ module.exports = async function handler(req, res) {
       const pedido = body.pedido;
       if (!pedido?.id) return res.status(400).json({ ok: false, error: "pedido.id obrigatorio" });
       const payload = buildNfePayloadFromPedido(pedido, body.overrides || {});
+      // Story 2.1 AC-3: Validação XSD estrutural antes de gerar XML
+      const validation = validateNfePayload(payload);
+      if (!validation.valid) {
+        return res.status(422).json({ ok: false, error: "XML invalido — falha na validacao estrutural", validationErrors: validation.errors });
+      }
       const config = getSefazConfig();
       const xmlPreview = buildNfeXml(payload);
       const xmlDsigPreview = buildXmlDsigPreview(xmlPreview.xml, config);
@@ -73,6 +78,11 @@ module.exports = async function handler(req, res) {
       const pedido = body.pedido;
       if (!pedido?.id) return res.status(400).json({ ok: false, error: "pedido.id obrigatorio" });
       const payload = buildNfePayloadFromPedido(pedido, body.overrides || {});
+      // Story 2.1 AC-3: Validação XSD estrutural ANTES de transmitir à SEFAZ
+      const validation = validateNfePayload(payload);
+      if (!validation.valid) {
+        return res.status(422).json({ ok: false, error: "XML invalido — transmissao BLOQUEADA", validationErrors: validation.errors });
+      }
       const result = await emitirNfeDireta(payload);
       return res.status(result.ok ? 200 : 502).json({ ok: result.ok, action, result });
     }

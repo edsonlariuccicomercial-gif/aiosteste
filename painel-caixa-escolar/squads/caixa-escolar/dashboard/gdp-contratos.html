@@ -1959,6 +1959,38 @@ function getDataTimestamp(data, fallback = "") {
   return Number.isFinite(time) ? time : 0;
 }
 
+// Story 2.1: merge arrays by ID, preservando a versão com mais .itens por entry
+function mergeArraysPreservingItens(localArr, cloudArr) {
+  const localMap = new Map();
+  for (const entry of localArr) {
+    if (entry?.id) localMap.set(entry.id, entry);
+  }
+  const merged = [];
+  const usedLocalIds = new Set();
+  for (const cloudEntry of cloudArr) {
+    const localEntry = cloudEntry?.id ? localMap.get(cloudEntry.id) : null;
+    if (localEntry) {
+      usedLocalIds.add(localEntry.id);
+      const localItensCount = Array.isArray(localEntry.itens) ? localEntry.itens.length : 0;
+      const cloudItensCount = Array.isArray(cloudEntry.itens) ? cloudEntry.itens.length : 0;
+      if (localItensCount > cloudItensCount) {
+        console.log("[Sync Merge] Mantendo local para", localEntry.id, "— local:", localItensCount, "itens, cloud:", cloudItensCount);
+        merged.push(localEntry);
+      } else {
+        merged.push(cloudEntry);
+      }
+    } else {
+      merged.push(cloudEntry);
+    }
+  }
+  for (const entry of localArr) {
+    if (entry?.id && !usedLocalIds.has(entry.id)) {
+      merged.push(entry);
+    }
+  }
+  return merged;
+}
+
 async function syncFromCloud() {
   const rows = await cloudLoadAll();
   if (!rows || rows.length === 0) return { restored: false, rowCount: 0, source: "local_cache", lastSyncAt: "" };
@@ -1973,32 +2005,61 @@ async function syncFromCloud() {
       localData = null;
     }
     if (row.updated_at && (!newest || new Date(row.updated_at) > new Date(newest))) newest = row.updated_at;
+    if (!row.data) continue;
+
+    // Filtrar contratos deletados ao receber do cloud
+    const incomingData = row.key === CONTRACTS_KEY
+      ? { ...(row.data), items: applyDeletedContractsFilter(unwrapData(row.data)) }
+      : row.data;
 
     // Cloud wins ONLY if local is empty OR cloud data is newer
     if (!localData) {
-      if (row.data) { localStorage.setItem(row.key, JSON.stringify(row.data)); synced++; }
+      localStorage.setItem(row.key, JSON.stringify(incomingData));
+      synced++;
       continue;
     }
 
     // Compare timestamps: prefer data's internal updatedAt, fallback to Supabase row.updated_at
-    const cloudTime = getDataTimestamp(row.data, row.updated_at);
+    const cloudTime = getDataTimestamp(incomingData, row.updated_at);
     const localTime = getDataTimestamp(localData);
     const isSharedKey = GDP_SHARED_SYNC_KEYS.has(row.key);
 
     // Cloud wins ONLY if cloud is strictly newer AND has actual content
-    // FIX: nunca sobrescrever local que tem items com cloud vazio/menor
-    const localItems = Array.isArray(localData?.items) ? localData.items.length : (Array.isArray(localData) ? localData.length : 0);
-    const cloudItems = Array.isArray(row.data?.items) ? row.data.items.length : (Array.isArray(row.data) ? row.data.length : 0);
+    // FIX Story 2.1: comparar itens DENTRO de cada pedido, não só contagem top-level
+    const localArr = Array.isArray(localData?.items) ? localData.items : (Array.isArray(localData) ? localData : []);
+    const cloudArr = Array.isArray(incomingData?.items) ? incomingData.items : (Array.isArray(incomingData) ? incomingData : []);
+    const localItems = localArr.length;
+    const cloudItems = cloudArr.length;
     const localHasContent = localItems > 0;
     const cloudHasMoreContent = cloudItems >= localItems;
 
+    // Deep check: contar .itens nested dentro de cada entry (pedidos têm .itens com produtos)
+    const countDeepItens = (arr) => arr.reduce((sum, e) => sum + (Array.isArray(e?.itens) ? e.itens.length : 0), 0);
+    const localDeepItens = countDeepItens(localArr);
+    const cloudDeepItens = countDeepItens(cloudArr);
+    const cloudHasMoreDeepContent = cloudDeepItens >= localDeepItens;
+
     if (localHasContent && !cloudHasMoreContent) {
-      // Local tem dados, cloud tem menos ou vazio — manter local
+      console.log("[Sync] Bloqueado: local tem mais entries que cloud para", row.key, "local:", localItems, "cloud:", cloudItems);
       continue;
     }
 
-    if ((isSharedKey && row.data && cloudHasMoreContent) || (cloudTime > localTime && row.data) || (!localTime && cloudTime === 0 && row.data)) {
-      localStorage.setItem(row.key, JSON.stringify(row.data));
+    // Story 2.1: se cloud tem menos itens nested (produtos em pedidos), NÃO sobrescrever
+    if (localDeepItens > 0 && !cloudHasMoreDeepContent) {
+      console.log("[Sync] Bloqueado: local tem mais itens nested que cloud para", row.key, "localDeep:", localDeepItens, "cloudDeep:", cloudDeepItens);
+      // Merge: manter pedidos locais que têm mais itens, aceitar rest do cloud
+      if (localArr.length > 0 && cloudArr.length > 0 && localData?.items) {
+        const merged = mergeArraysPreservingItens(localArr, cloudArr);
+        const mergedData = { ...incomingData, items: merged, updatedAt: new Date().toISOString() };
+        localStorage.setItem(row.key, JSON.stringify(mergedData));
+        console.log("[Sync] Merge concluído para", row.key, "— preservou itens locais mais completos");
+        synced++;
+      }
+      continue;
+    }
+
+    if ((isSharedKey && cloudHasMoreContent && cloudHasMoreDeepContent) || (cloudTime > localTime && cloudHasMoreDeepContent) || (!localTime && cloudTime === 0)) {
+      localStorage.setItem(row.key, JSON.stringify(incomingData));
       synced++;
     }
   }
@@ -6400,7 +6461,7 @@ async function sincronizarCobrancaProvider(contaId) {
 function getProximoNumeroNf() {
   const KEY = "gdp.nf-counter";
   let counter = parseInt(localStorage.getItem(KEY) || "0", 10);
-  if (counter < 1207) counter = 1207; // Base: 1165-1207 já usados/cancelados/inutilizados na SEFAZ
+  if (counter < 1208) counter = 1208; // Base: 1165-1208 já usados/cancelados/inutilizados na SEFAZ (Story 2.1)
   counter++;
   localStorage.setItem(KEY, String(counter));
   // AC-2: Persistir no Supabase (fire-and-forget)
@@ -6669,11 +6730,24 @@ async function gerarNotaFiscalPedido(pedidoId) {
   saveContasReceber();
 
   if (tipoNota === "nfe_real") {
-    // AC-1: Validar itens antes de transmitir
+    // Story 2.1 AC-2: Validar itens ANTES de transmitir — bloquear se 0, confirmar contagem
     const qtdItens = (pedido.itens || []).length;
-    if (qtdItens === 0) { showToast("Pedido sem itens. Adicione itens antes de gerar NF-e.", 4000); return; }
-    if (!confirm("Gerar NF-e REAL com " + qtdItens + " item(ns) para " + (pedido.escola || "cliente") + "?\n\nValor: " + brl.format(pedido.valor || 0) + "\n\nConfirma transmissao a SEFAZ?")) return;
-    console.log("[NF-e] Gerando nota com", qtdItens, "itens. Pedido:", pedido.id, "Itens:", (pedido.itens||[]).map(i => i.descricao).join(", "));
+    if (qtdItens === 0) {
+      showToast("ERRO: Pedido sem itens — impossivel gerar NF-e. Adicione itens ao pedido primeiro.", 5000);
+      console.error("[NF-e] BLOQUEADO: pedido", pedido.id, "sem itens. Abortando.");
+      return;
+    }
+    // Validar que cada item tem dados mínimos
+    const itensInvalidos = (pedido.itens || []).filter(i => !i.descricao || !i.qtd || Number(i.qtd) <= 0);
+    if (itensInvalidos.length > 0) {
+      showToast("ERRO: " + itensInvalidos.length + " item(ns) sem descricao ou quantidade. Corrija antes de gerar NF-e.", 5000);
+      console.error("[NF-e] Itens invalidos:", itensInvalidos);
+      return;
+    }
+    const detalhesItens = (pedido.itens || []).map((i, idx) => `  ${idx+1}. ${i.descricao} — ${i.qtd} x R$${Number(i.precoUnitario||0).toFixed(2)}`).join("\n");
+    if (!confirm("Gerar NF-e REAL com " + qtdItens + " item(ns) para " + (pedido.escola || "cliente") + "?\n\nValor Total: " + brl.format(pedido.valor || 0) + "\n\nItens:\n" + detalhesItens + "\n\nConfirma transmissao a SEFAZ?")) return;
+    console.log("[NF-e] Gerando nota com", qtdItens, "itens. Pedido:", pedido.id);
+    console.table((pedido.itens||[]).map((i,idx) => ({ "#": idx+1, descricao: i.descricao, qtd: i.qtd, preco: i.precoUnitario, ncm: i.ncm })));
 
     try {
       // Tentar API Vercel primeiro, fallback para servidor local
@@ -6695,6 +6769,13 @@ async function gerarNotaFiscalPedido(pedidoId) {
         });
       }
       const data = await resp.json().catch(() => ({}));
+      // Story 2.1 AC-3: se validação XSD falhou, mostrar erros legíveis
+      if (resp.status === 422 && data.validationErrors) {
+        const errosList = data.validationErrors.map((e, i) => `${i+1}. ${e}`).join("\n");
+        alert("ERRO DE VALIDACAO — NF-e nao pode ser gerada:\n\n" + errosList + "\n\nCorrija os dados do pedido e tente novamente.");
+        console.error("[NF-e] Validacao XSD falhou:", data.validationErrors);
+        throw new Error("Validacao estrutural falhou: " + data.validationErrors.length + " erro(s)");
+      }
       if (!resp.ok || !data.ok) throw new Error(data.error || `HTTP ${resp.status}`);
       invoice.sefaz.preview = data.payload;
       invoice.sefaz.xmlPreview = data.xmlPreview || null;
@@ -6893,6 +6974,13 @@ async function transmitirHomologacaoNota(notaId) {
       });
     }
     const data = await resp.json().catch(() => ({}));
+    // Story 2.1 AC-3: validação XSD na transmissão
+    if (resp.status === 422 && data.validationErrors) {
+      const errosList = data.validationErrors.map((e, i) => `${i+1}. ${e}`).join("\n");
+      alert("ERRO DE VALIDACAO — Transmissao BLOQUEADA:\n\n" + errosList + "\n\nCorrija os dados e tente novamente.");
+      console.error("[NF-e] Validacao XSD falhou na transmissao:", data.validationErrors);
+      throw new Error("Validacao estrutural falhou: " + data.validationErrors.length + " erro(s)");
+    }
     const result = data.result || {};
     if (!resp.ok || !data.ok) throw new Error(result.message || data.error || `HTTP ${resp.status}`);
 
@@ -7370,34 +7458,170 @@ function salvarDadosNotaFiscal(notaId) {
   showToast(`Dados da NF ${nf.numero} atualizados.`, 3000);
 }
 
+// Story 2.2 AC-1: DANFE com layout padrão NF-e + Code128 barcode
 function abrirDanfeNotaFiscal(notaId) {
   const nf = notasFiscais.find((item) => item.id === notaId);
   if (!nf) return;
-  if (nf.documentos?.danfeUrl) {
-    window.open(nf.documentos.danfeUrl, "_blank");
-    return;
-  }
+  if (nf.documentos?.danfeUrl) { window.open(nf.documentos.danfeUrl, "_blank"); return; }
   const win = window.open("", "_blank");
-  if (!win) {
-    showToast("Nao foi possivel abrir a visualizacao do DANFE.", 3500);
-    return;
+  if (!win) { showToast("Nao foi possivel abrir o DANFE.", 3500); return; }
+  const emit = nf.sefaz?.preview?.emitente || {};
+  const emEnd = emit.endereco || {};
+  const dest = nf.sefaz?.preview?.destinatario || {};
+  const dEnd = dest.endereco || {};
+  const chave = nf.sefaz?.chaveAcesso || "";
+  const chaveFormatada = chave.replace(/(.{4})/g, "$1 ").trim();
+  const prot = nf.sefaz?.protocolo || "";
+  const cancelStamp = nf.cancelamento?.retornoEvento?.dhRegEvento || nf.cancelamento?.atualizadoEm || "";
+  const isCancelada = nf.status === "cancelada";
+  const totalProd = (nf.itens || []).reduce((s, i) => s + (Number(i.qtd || 0) * Number(i.precoUnitario || 0)), 0);
+  const rows = (nf.itens || []).map((item, idx) => {
+    const vt = (Number(item.qtd || 0) * Number(item.precoUnitario || 0));
+    return `<tr><td class="c">${item.sku || item.codigoBarras || ("ITEM-"+(idx+1))}</td><td>${esc(item.descricao || "")}</td><td class="c">${esc(item.ncm || "")}</td><td class="c">${esc(item.cfop || "5102")}</td><td class="c">${esc(item.unidade || "UN")}</td><td class="r">${Number(item.qtd||0).toFixed(2)}</td><td class="r">${Number(item.precoUnitario||0).toFixed(2)}</td><td class="r">${vt.toFixed(2)}</td></tr>`;
+  }).join("");
+  win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>DANFE NF ${esc(nf.numero || "")}</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:Arial,Helvetica,sans-serif;font-size:9pt;color:#000;padding:10mm;max-width:210mm}
+.danfe{border:2px solid #000;padding:0}
+.row{display:flex;border-bottom:1px solid #000}
+.row:last-child{border-bottom:none}
+.cell{border-right:1px solid #000;padding:3px 5px;flex:1}
+.cell:last-child{border-right:none}
+.cell label{font-size:6pt;color:#555;text-transform:uppercase;display:block;margin-bottom:1px}
+.cell .val{font-size:9pt;font-weight:700}
+.header{display:flex;border-bottom:2px solid #000}
+.header .emit-info{flex:2;padding:8px;border-right:1px solid #000}
+.header .danfe-id{flex:1;padding:8px;text-align:center;border-right:1px solid #000}
+.header .danfe-id h1{font-size:16pt;margin:4px 0}
+.header .danfe-id .tp{font-size:8pt;margin:2px 0}
+.header .nf-info{flex:1;padding:8px;text-align:center}
+.barcode-area{padding:6px;text-align:center;border-bottom:2px solid #000}
+.barcode-area canvas{max-width:100%;height:40px}
+.chave{font-size:8pt;letter-spacing:1px;text-align:center;padding:3px;border-bottom:1px solid #000}
+.section-title{background:#ddd;font-weight:700;font-size:7pt;padding:2px 5px;text-transform:uppercase;border-bottom:1px solid #000}
+table.itens{width:100%;border-collapse:collapse;font-size:8pt}
+table.itens th{background:#eee;border:1px solid #000;padding:2px 4px;font-size:7pt;text-transform:uppercase}
+table.itens td{border:1px solid #ccc;padding:2px 4px}
+.c{text-align:center}.r{text-align:right}
+.cancel-stamp{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-30deg);font-size:60pt;color:rgba(220,38,38,0.25);font-weight:900;pointer-events:none;z-index:10}
+.danfe-wrapper{position:relative}
+.info-compl{font-size:8pt;padding:5px;min-height:30px;border-bottom:1px solid #000}
+.totais .cell .val{font-size:10pt}
+@media print{body{padding:0;margin:0}@page{size:A4;margin:10mm}}
+</style></head><body>
+<div class="danfe-wrapper">
+${isCancelada ? '<div class="cancel-stamp">CANCELADA</div>' : ''}
+<div class="danfe">
+  <div class="header">
+    <div class="emit-info">
+      <div style="font-weight:700;font-size:11pt">${esc(emit.razaoSocial || "-")}</div>
+      <div style="font-size:8pt">${esc(emit.nomeFantasia || "")}</div>
+      <div style="font-size:8pt;margin-top:4px">${esc(emEnd.logradouro || "")}, ${esc(emEnd.numero || "S/N")} ${esc(emEnd.complemento || "")}</div>
+      <div style="font-size:8pt">${esc(emEnd.bairro || "")} - ${esc(emEnd.cidade || "")}/${esc(emEnd.uf || "")}</div>
+      <div style="font-size:8pt">CEP: ${esc(emEnd.cep || "")} | Tel: ${esc(emEnd.telefone || "")}</div>
+      <div style="font-size:8pt">CNPJ: ${esc(emit.cnpj || "")} | IE: ${esc(emit.ie || "")}</div>
+    </div>
+    <div class="danfe-id">
+      <h1>DANFE</h1>
+      <div class="tp">DOCUMENTO AUXILIAR DA<br>NOTA FISCAL ELETRONICA</div>
+      <div style="margin-top:4px;font-size:8pt">0 - ENTRADA<br><strong>1 - SAIDA</strong></div>
+      <div style="margin-top:4px;font-size:9pt;font-weight:700">N. ${esc(nf.numero || "-")}</div>
+      <div style="font-size:8pt">Serie ${esc(nf.serie || "1")}</div>
+    </div>
+    <div class="nf-info">
+      <div id="danfe-barcode"></div>
+      <div style="font-size:7pt;margin-top:4px">CHAVE DE ACESSO</div>
+      <div style="font-size:7pt;font-weight:700;word-break:break-all">${esc(chaveFormatada || "-")}</div>
+      <div style="margin-top:6px;font-size:7pt;border:1px solid #000;padding:3px">
+        Consulta: <strong>www.nfe.fazenda.gov.br</strong>
+      </div>
+      <div style="margin-top:4px;font-size:7pt">PROTOCOLO: ${esc(prot || "-")}</div>
+      <div style="font-size:7pt">${esc(nf.sefaz?.transmissao?.parsed?.dhRecbto || nf.audit?.authorizedAt || "")}</div>
+    </div>
+  </div>
+  <div class="section-title">Destinatario / Remetente</div>
+  <div class="row">
+    <div class="cell" style="flex:3"><label>Nome/Razao Social</label><div class="val">${esc(dest.nome || nf.cliente?.nome || "-")}</div></div>
+    <div class="cell"><label>CNPJ/CPF</label><div class="val">${esc(dest.cnpj || "")}</div></div>
+    <div class="cell"><label>Data Emissao</label><div class="val">${formatDateTimeLocal(nf.emitidaEm).split(" ")[0] || "-"}</div></div>
+  </div>
+  <div class="row">
+    <div class="cell" style="flex:2"><label>Endereco</label><div class="val">${esc(dEnd.logradouro || "")}, ${esc(dEnd.numero || "S/N")}</div></div>
+    <div class="cell"><label>Bairro</label><div class="val">${esc(dEnd.bairro || "")}</div></div>
+    <div class="cell"><label>CEP</label><div class="val">${esc(dEnd.cep || "")}</div></div>
+  </div>
+  <div class="row">
+    <div class="cell"><label>Municipio</label><div class="val">${esc(dEnd.cidade || "")}</div></div>
+    <div class="cell"><label>UF</label><div class="val">${esc(dEnd.uf || "")}</div></div>
+    <div class="cell"><label>Telefone</label><div class="val">${esc(dest.telefone || "")}</div></div>
+    <div class="cell"><label>IE</label><div class="val">${esc(dest.ie || "ISENTO")}</div></div>
+  </div>
+  <div class="section-title">Produtos / Servicos</div>
+  <table class="itens">
+    <thead><tr><th>Codigo</th><th>Descricao</th><th>NCM</th><th>CFOP</th><th>UN</th><th>Qtd</th><th>V.Unit</th><th>V.Total</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table>
+  <div class="section-title">Totais</div>
+  <div class="row totais">
+    <div class="cell"><label>Valor Produtos</label><div class="val">${totalProd.toFixed(2)}</div></div>
+    <div class="cell"><label>Base ICMS</label><div class="val">0,00</div></div>
+    <div class="cell"><label>Valor ICMS</label><div class="val">0,00</div></div>
+    <div class="cell"><label>Valor Frete</label><div class="val">0,00</div></div>
+    <div class="cell"><label>Valor Total NF</label><div class="val" style="font-size:12pt">${(nf.valor || totalProd).toFixed(2)}</div></div>
+  </div>
+  <div class="section-title">Informacoes Complementares</div>
+  <div class="info-compl">
+    ${isCancelada ? `<strong>NF-e CANCELADA</strong> em ${esc(cancelStamp)} — ${esc(nf.cancelamento?.retornoEvento?.xMotivo || "")}<br>` : ""}
+    Pedido: ${esc(nf.pedidoId || "-")} | Sistema: Licit-AIX GDP
+  </div>
+</div>
+</div>
+<script>
+// Code128 barcode generator (lightweight, no dependencies)
+(function(){
+  const chave = "${chave}";
+  if (!chave || chave.length < 10) return;
+  const canvas = document.createElement("canvas");
+  canvas.height = 50; canvas.width = Math.max(chave.length * 11, 400);
+  const ctx = canvas.getContext("2d");
+  // Simple Code128B encoding
+  const START_B = 104, STOP = 106;
+  const patterns = [
+    "11011001100","11001101100","11001100110","10010011000","10010001100","10001001100","10011001000","10011000100","10001100100","11001001000",
+    "11001000100","11000100100","10110011100","10011011100","10011001110","10111001100","10011101100","10011100110","11001110010","11001011100",
+    "11001001110","11011100100","11001110100","11100101100","11100100110","11101100100","11100110100","11100110010","11011011000","11011000110",
+    "11000110110","10100011000","10001011000","10001000110","10110001000","10001101000","10001100010","11010001000","11000101000","11000100010",
+    "10110111000","10110001110","10001101110","10111011000","10111000110","10001110110","11101110110","11010001110","11000101110","11011101000",
+    "11011100010","11011101110","11101011000","11101000110","11100010110","11101101000","11101100010","11100011010","11101111010","11001000010",
+    "11110001010","10100110000","10100001100","10010110000","10010000110","10000101100","10000100110","10110010000","10110000100","10011010000",
+    "10011000010","10000110100","10000110010","11000010010","11001010000","11110111010","11000010100","10001111010","10100111100","10010111100",
+    "10010011110","10111100100","10011110100","10011110010","11110100100","11110010100","11110010010","11011110110","11110110110","21121141211"
+  ];
+  const encode = [];
+  encode.push(patterns[START_B]);
+  let checksum = START_B;
+  for (let i = 0; i < chave.length; i++) {
+    const val = chave.charCodeAt(i) - 32;
+    encode.push(patterns[val]);
+    checksum += val * (i + 1);
   }
-  const rows = (nf.itens || []).map((item, idx) => `
-    <tr>
-      <td>${idx + 1}</td>
-      <td>${esc(item.descricao || "")}</td>
-      <td>${esc(item.ncm || "-")}</td>
-      <td>${esc(item.unidade || "-")}</td>
-      <td style="text-align:right">${item.qtd || 0}</td>
-      <td style="text-align:right">${brl.format(item.precoUnitario || 0)}</td>
-      <td style="text-align:right">${brl.format((item.qtd || 0) * (item.precoUnitario || 0))}</td>
-    </tr>`).join("");
-  const emitentePreview = nf.sefaz?.preview?.emitente || {};
-  const emitEndereco = emitentePreview.endereco || {};
-  const destPreview = nf.sefaz?.preview?.destinatario || {};
-  const destEndereco = destPreview.endereco || {};
-  const cancelamentoStamp = nf.cancelamento?.retornoEvento?.dhRegEvento || nf.cancelamento?.atualizadoEm || "";
-  win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>DANFE ${esc(nf.numero || "")}</title><style>body{font-family:Arial,sans-serif;padding:24px;color:#111}h1,h2{margin:0 0 8px}table{width:100%;border-collapse:collapse;margin-top:16px}th,td{border:1px solid #ccc;padding:8px;font-size:12px}th{background:#f3f4f6}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:16px 0}.box{border:1px solid #ccc;padding:10px}.muted{color:#555;font-size:12px}.alert{border:1px solid #dc2626;background:#fef2f2;color:#7f1d1d;padding:12px;margin:16px 0;font-weight:700}</style></head><body><h1>DANFE</h1><div class="muted">Visualizacao operacional da ${esc(getNotaFiscalTipoLabel(nf))} registrada no GDP</div>${nf.status === "cancelada" ? `<div class="alert">NF-e cancelada na SEFAZ em ${esc(cancelamentoStamp || "-")}</div>` : ""}<div class="grid"><div class="box"><strong>NF</strong><br>${esc(nf.numero || "-")} / Serie ${esc(nf.serie || "1")}</div><div class="box"><strong>Tipo</strong><br>${esc(getNotaFiscalTipoLabel(nf))}</div><div class="box"><strong>Valor</strong><br>${brl.format(nf.valor || 0)}</div><div class="box"><strong>Chave</strong><br>${esc(nf.sefaz?.chaveAcesso || "-")}</div><div class="box"><strong>Protocolo</strong><br>${esc(nf.sefaz?.protocolo || "-")}</div><div class="box"><strong>Status Fiscal</strong><br>${esc(nf.status || "-")} | ${esc(nf.sefaz?.transmissao?.parsed?.cStat || nf.cancelamento?.retornoEvento?.cStat || "-")}</div><div class="box"><strong>Pedido</strong><br>${esc(nf.pedidoId || "-")}</div><div class="box"><strong>Emissao</strong><br>${formatDateTimeLocal(nf.emitidaEm)}</div><div class="box"><strong>Autorizacao</strong><br>${esc(nf.sefaz?.transmissao?.parsed?.dhRecbto || nf.audit?.authorizedAt || "-")}</div></div><div class="grid"><div class="box"><strong>Emitente</strong><br>${esc(emitentePreview.razaoSocial || "-")}<br>${esc(emitEndereco.logradouro || "-")}, ${esc(emitEndereco.numero || "-")}<br>${esc(emitEndereco.bairro || "-")} - ${esc(emitEndereco.cidade || "-")}/${esc(emitEndereco.uf || "-")}<br>CEP ${esc(emitEndereco.cep || "-")}</div><div class="box"><strong>Destinatario</strong><br>${esc(destPreview.nome || nf.cliente?.nome || "-")}<br>${esc(destEndereco.logradouro || "-")}, ${esc(destEndereco.numero || "-")}<br>${esc(destEndereco.bairro || "-")} - ${esc(destEndereco.cidade || "-")}/${esc(destEndereco.uf || "-")}<br>CEP ${esc(destEndereco.cep || "-")}</div><div class="box"><strong>Cancelamento</strong><br>${esc(nf.cancelamento?.status || "-")}<br>${esc(nf.cancelamento?.retornoEvento?.xMotivo || nf.cancelamento?.motivo || "-")}<br>Prot. ${esc(nf.cancelamento?.retornoEvento?.prot || "-")}</div></div><h2>Itens</h2><table><thead><tr><th>#</th><th>Descricao</th><th>NCM</th><th>Un.</th><th>Qtd</th><th>Unit.</th><th>Total</th></tr></thead><tbody>${rows}</tbody></table></body></html>`);
+  encode.push(patterns[checksum % 103]);
+  encode.push(patterns[STOP]);
+  const bits = encode.join("");
+  const barW = Math.max(1, Math.floor(canvas.width / bits.length));
+  canvas.width = bits.length * barW + 20;
+  ctx.fillStyle = "#fff";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = "#000";
+  for (let i = 0; i < bits.length; i++) {
+    if (bits[i] === "1") ctx.fillRect(10 + i * barW, 2, barW, canvas.height - 4);
+  }
+  const target = document.getElementById("danfe-barcode");
+  if (target) target.appendChild(canvas);
+})();
+<\/script>
+</body></html>`);
   win.document.close();
 }
 
@@ -14373,46 +14597,6 @@ async function enviarTiny(contratoId) {
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = "Enviar para Tiny"; }
   }
-}
-
-async function syncFromCloud() {
-  const rows = await cloudLoadAll();
-  if (!rows || rows.length === 0) return { restored: false, rowCount: 0, source: "local_cache", lastSyncAt: "" };
-  let synced = 0;
-  let newest = "";
-
-  for (const row of rows) {
-    const local = localStorage.getItem(row.key);
-    let localData = null;
-    try {
-      localData = local ? JSON.parse(local) : null;
-    } catch (_) {
-      localData = null;
-    }
-
-    if (row.updated_at && (!newest || new Date(row.updated_at) > new Date(newest))) newest = row.updated_at;
-    if (!row.data) continue;
-    const incomingData = row.key === CONTRACTS_KEY
-      ? { ...(row.data || {}), items: applyDeletedContractsFilter(unwrapData(row.data)) }
-      : row.data;
-
-    if (!localData) {
-      localStorage.setItem(row.key, JSON.stringify(incomingData));
-      synced++;
-      continue;
-    }
-
-    const cloudTime = getDataTimestamp(incomingData, row.updated_at);
-    const localTime = getDataTimestamp(localData);
-    const isSharedKey = GDP_SHARED_SYNC_KEYS.has(row.key);
-
-    if (isSharedKey || cloudTime > localTime || (!localTime && cloudTime === 0)) {
-      localStorage.setItem(row.key, JSON.stringify(incomingData));
-      synced++;
-    }
-  }
-
-  return { restored: synced > 0, rowCount: rows.length, source: "cloud", lastSyncAt: newest };
 }
 
 // ===== INIT =====

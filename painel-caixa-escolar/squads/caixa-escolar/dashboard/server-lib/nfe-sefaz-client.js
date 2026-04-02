@@ -14,23 +14,66 @@ const MUNICIPIO_CODE = {
   "BELO HORIZONTE|MG": "3106200",
   "CONQUISTA|MG": "3118304"
 };
+// Story 2.2 AC-3: Multi-UF — endpoints SEFAZ para todos os estados
+// Referência: NT 2019.001 v1.60 — Tabela de WebServices NF-e 4.00
+// SVAN = Sefaz Virtual do Ambiente Nacional, SVRS = Sefaz Virtual do RS
+const SVAN_AUTH = { homologacao: "https://hom.sefazvirtual.fazenda.gov.br/NFeAutorizacao4/NFeAutorizacao4.asmx", producao: "https://www.sefazvirtual.fazenda.gov.br/NFeAutorizacao4/NFeAutorizacao4.asmx" };
+const SVRS_AUTH = { homologacao: "https://nfe-homologacao.svrs.rs.gov.br/ws/NfeAutorizacao/NFeAutorizacao4.asmx", producao: "https://nfe.svrs.rs.gov.br/ws/NfeAutorizacao/NFeAutorizacao4.asmx" };
+const SVAN_INUT = { homologacao: "https://hom.sefazvirtual.fazenda.gov.br/NFeInutilizacao4/NFeInutilizacao4.asmx", producao: "https://www.sefazvirtual.fazenda.gov.br/NFeInutilizacao4/NFeInutilizacao4.asmx" };
+const SVRS_INUT = { homologacao: "https://nfe-homologacao.svrs.rs.gov.br/ws/NfeInutilizacao/NFeInutilizacao4.asmx", producao: "https://nfe.svrs.rs.gov.br/ws/NfeInutilizacao/NFeInutilizacao4.asmx" };
+const SVAN_EVT = { homologacao: "https://hom.sefazvirtual.fazenda.gov.br/NFeRecepcaoEvento4/NFeRecepcaoEvento4.asmx", producao: "https://www.sefazvirtual.fazenda.gov.br/NFeRecepcaoEvento4/NFeRecepcaoEvento4.asmx" };
+const SVRS_EVT = { homologacao: "https://nfe-homologacao.svrs.rs.gov.br/ws/NfeRecepcaoEvento/NFeRecepcaoEvento4.asmx", producao: "https://nfe.svrs.rs.gov.br/ws/NfeRecepcaoEvento/NFeRecepcaoEvento4.asmx" };
+
 const SEFAZ_AUTORIZACAO = {
-  MG: {
-    homologacao: "https://hnfe.fazenda.mg.gov.br/nfe2/services/NFeAutorizacao4",
-    producao: "https://nfe.fazenda.mg.gov.br/nfe2/services/NFeAutorizacao4"
-  }
+  // Estados com webservice próprio
+  AM: { homologacao: "https://homnfe.sefaz.am.gov.br/services2/services/NfeAutorizacao4", producao: "https://nfe.sefaz.am.gov.br/services2/services/NfeAutorizacao4" },
+  BA: { homologacao: "https://hnfe.sefaz.ba.gov.br/webservices/NFeAutorizacao4/NFeAutorizacao4.asmx", producao: "https://nfe.sefaz.ba.gov.br/webservices/NFeAutorizacao4/NFeAutorizacao4.asmx" },
+  GO: { homologacao: "https://homolog.sefaz.go.gov.br/nfe/services/NFeAutorizacao4", producao: "https://nfe.sefaz.go.gov.br/nfe/services/NFeAutorizacao4" },
+  MG: { homologacao: "https://hnfe.fazenda.mg.gov.br/nfe2/services/NFeAutorizacao4", producao: "https://nfe.fazenda.mg.gov.br/nfe2/services/NFeAutorizacao4" },
+  MS: { homologacao: "https://hom.nfe.sefaz.ms.gov.br/ws/NFeAutorizacao4", producao: "https://nfe.sefaz.ms.gov.br/ws/NFeAutorizacao4" },
+  MT: { homologacao: "https://homologacao.sefaz.mt.gov.br/nfews/v2/services/NfeAutorizacao4", producao: "https://nfe.sefaz.mt.gov.br/nfews/v2/services/NfeAutorizacao4" },
+  PE: { homologacao: "https://nfehomolog.sefaz.pe.gov.br/nfe-service/services/NFeAutorizacao4", producao: "https://nfe.sefaz.pe.gov.br/nfe-service/services/NFeAutorizacao4" },
+  PR: { homologacao: "https://homologacao.nfe.sefa.pr.gov.br/nfe/NFeAutorizacao4", producao: "https://nfe.sefa.pr.gov.br/nfe/NFeAutorizacao4" },
+  RS: { homologacao: "https://nfe-homologacao.sefazrs.rs.gov.br/ws/NfeAutorizacao/NFeAutorizacao4.asmx", producao: "https://nfe.sefazrs.rs.gov.br/ws/NfeAutorizacao/NFeAutorizacao4.asmx" },
+  SP: { homologacao: "https://homologacao.nfe.fazenda.sp.gov.br/ws/nfeautorizacao4.asmx", producao: "https://nfe.fazenda.sp.gov.br/ws/nfeautorizacao4.asmx" },
+  // Estados via SVAN
+  MA: SVAN_AUTH, PA: SVAN_AUTH, PI: SVAN_AUTH,
+  // Estados via SVRS
+  AC: SVRS_AUTH, AL: SVRS_AUTH, AP: SVRS_AUTH, CE: SVRS_AUTH, DF: SVRS_AUTH,
+  ES: SVRS_AUTH, PB: SVRS_AUTH, RJ: SVRS_AUTH, RN: SVRS_AUTH, RO: SVRS_AUTH,
+  RR: SVRS_AUTH, SC: SVRS_AUTH, SE: SVRS_AUTH, TO: SVRS_AUTH
 };
 const SEFAZ_INUTILIZACAO = {
-  MG: {
-    homologacao: "https://hnfe.fazenda.mg.gov.br/nfe2/services/NFeInutilizacao4",
-    producao: "https://nfe.fazenda.mg.gov.br/nfe2/services/NFeInutilizacao4"
-  }
+  AM: { homologacao: "https://homnfe.sefaz.am.gov.br/services2/services/NfeInutilizacao4", producao: "https://nfe.sefaz.am.gov.br/services2/services/NfeInutilizacao4" },
+  BA: { homologacao: "https://hnfe.sefaz.ba.gov.br/webservices/NFeInutilizacao4/NFeInutilizacao4.asmx", producao: "https://nfe.sefaz.ba.gov.br/webservices/NFeInutilizacao4/NFeInutilizacao4.asmx" },
+  GO: { homologacao: "https://homolog.sefaz.go.gov.br/nfe/services/NFeInutilizacao4", producao: "https://nfe.sefaz.go.gov.br/nfe/services/NFeInutilizacao4" },
+  MG: { homologacao: "https://hnfe.fazenda.mg.gov.br/nfe2/services/NFeInutilizacao4", producao: "https://nfe.fazenda.mg.gov.br/nfe2/services/NFeInutilizacao4" },
+  MS: { homologacao: "https://hom.nfe.sefaz.ms.gov.br/ws/NFeInutilizacao4", producao: "https://nfe.sefaz.ms.gov.br/ws/NFeInutilizacao4" },
+  MT: { homologacao: "https://homologacao.sefaz.mt.gov.br/nfews/v2/services/NfeInutilizacao4", producao: "https://nfe.sefaz.mt.gov.br/nfews/v2/services/NfeInutilizacao4" },
+  PE: { homologacao: "https://nfehomolog.sefaz.pe.gov.br/nfe-service/services/NFeInutilizacao4", producao: "https://nfe.sefaz.pe.gov.br/nfe-service/services/NFeInutilizacao4" },
+  PR: { homologacao: "https://homologacao.nfe.sefa.pr.gov.br/nfe/NFeInutilizacao4", producao: "https://nfe.sefa.pr.gov.br/nfe/NFeInutilizacao4" },
+  RS: { homologacao: "https://nfe-homologacao.sefazrs.rs.gov.br/ws/NfeInutilizacao/NFeInutilizacao4.asmx", producao: "https://nfe.sefazrs.rs.gov.br/ws/NfeInutilizacao/NFeInutilizacao4.asmx" },
+  SP: { homologacao: "https://homologacao.nfe.fazenda.sp.gov.br/ws/nfeinutilizacao4.asmx", producao: "https://nfe.fazenda.sp.gov.br/ws/nfeinutilizacao4.asmx" },
+  MA: SVAN_INUT, PA: SVAN_INUT, PI: SVAN_INUT,
+  AC: SVRS_INUT, AL: SVRS_INUT, AP: SVRS_INUT, CE: SVRS_INUT, DF: SVRS_INUT,
+  ES: SVRS_INUT, PB: SVRS_INUT, RJ: SVRS_INUT, RN: SVRS_INUT, RO: SVRS_INUT,
+  RR: SVRS_INUT, SC: SVRS_INUT, SE: SVRS_INUT, TO: SVRS_INUT
 };
 const SEFAZ_EVENTO = {
-  MG: {
-    homologacao: "https://hnfe.fazenda.mg.gov.br/nfe2/services/NFeRecepcaoEvento4",
-    producao: "https://nfe.fazenda.mg.gov.br/nfe2/services/NFeRecepcaoEvento4"
-  }
+  AM: { homologacao: "https://homnfe.sefaz.am.gov.br/services2/services/RecepcaoEvento4", producao: "https://nfe.sefaz.am.gov.br/services2/services/RecepcaoEvento4" },
+  BA: { homologacao: "https://hnfe.sefaz.ba.gov.br/webservices/NFeRecepcaoEvento4/NFeRecepcaoEvento4.asmx", producao: "https://nfe.sefaz.ba.gov.br/webservices/NFeRecepcaoEvento4/NFeRecepcaoEvento4.asmx" },
+  GO: { homologacao: "https://homolog.sefaz.go.gov.br/nfe/services/NFeRecepcaoEvento4", producao: "https://nfe.sefaz.go.gov.br/nfe/services/NFeRecepcaoEvento4" },
+  MG: { homologacao: "https://hnfe.fazenda.mg.gov.br/nfe2/services/NFeRecepcaoEvento4", producao: "https://nfe.fazenda.mg.gov.br/nfe2/services/NFeRecepcaoEvento4" },
+  MS: { homologacao: "https://hom.nfe.sefaz.ms.gov.br/ws/NFeRecepcaoEvento4", producao: "https://nfe.sefaz.ms.gov.br/ws/NFeRecepcaoEvento4" },
+  MT: { homologacao: "https://homologacao.sefaz.mt.gov.br/nfews/v2/services/RecepcaoEvento4", producao: "https://nfe.sefaz.mt.gov.br/nfews/v2/services/RecepcaoEvento4" },
+  PE: { homologacao: "https://nfehomolog.sefaz.pe.gov.br/nfe-service/services/NFeRecepcaoEvento4", producao: "https://nfe.sefaz.pe.gov.br/nfe-service/services/NFeRecepcaoEvento4" },
+  PR: { homologacao: "https://homologacao.nfe.sefa.pr.gov.br/nfe/NFeRecepcaoEvento4", producao: "https://nfe.sefa.pr.gov.br/nfe/NFeRecepcaoEvento4" },
+  RS: { homologacao: "https://nfe-homologacao.sefazrs.rs.gov.br/ws/NfeRecepcaoEvento/NFeRecepcaoEvento4.asmx", producao: "https://nfe.sefazrs.rs.gov.br/ws/NfeRecepcaoEvento/NFeRecepcaoEvento4.asmx" },
+  SP: { homologacao: "https://homologacao.nfe.fazenda.sp.gov.br/ws/nferecepcaoevento4.asmx", producao: "https://nfe.fazenda.sp.gov.br/ws/nferecepcaoevento4.asmx" },
+  MA: SVAN_EVT, PA: SVAN_EVT, PI: SVAN_EVT,
+  AC: SVRS_EVT, AL: SVRS_EVT, AP: SVRS_EVT, CE: SVRS_EVT, DF: SVRS_EVT,
+  ES: SVRS_EVT, PB: SVRS_EVT, RJ: SVRS_EVT, RN: SVRS_EVT, RO: SVRS_EVT,
+  RR: SVRS_EVT, SC: SVRS_EVT, SE: SVRS_EVT, TO: SVRS_EVT
 };
 
 function getSefazConfig() {
@@ -109,7 +152,12 @@ function normalizeMunicipioKey(cidade, uf) {
 }
 
 function getMunicipioCode(cidade, uf, fallback = "3106200") {
-  return MUNICIPIO_CODE[normalizeMunicipioKey(cidade, uf)] || fallback;
+  const key = normalizeMunicipioKey(cidade, uf);
+  const code = MUNICIPIO_CODE[key];
+  if (!code) {
+    console.warn("[NF-e] AVISO: municipio nao encontrado na tabela IBGE:", cidade, uf, "— usando fallback", fallback);
+  }
+  return code || fallback;
 }
 
 // Tabela dinâmica: adicionar municípios conforme necessário
@@ -118,9 +166,11 @@ function ensureMunicipio(cidade, uf, codigo) {
   if (!MUNICIPIO_CODE[key]) MUNICIPIO_CODE[key] = codigo;
 }
 
-// AC-3: Municípios MG — tabela expandida (Triângulo Mineiro + regiões de atuação)
-const MG_MUNICIPIOS = {"ABADIA DOS DOURADOS":"3100104","ABAETE":"3100203","AGUA COMPRIDA":"3100906","AGUANIL":"3101003","ALFENAS":"3101607","ALTEROSA":"3102209","ARAGUARI":"3103504","ARAPORA":"3103900","ARAXA":"3104007","ARCEBURGO":"3104403","ARCOS":"3104502","AREADO":"3104700","BAMBUI":"3105004","BELO HORIZONTE":"3106200","BOA ESPERANCA":"3107109","BOM DESPACHO":"3107406","BURITIZEIRO":"3109402","CABO VERDE":"3109808","CACHOEIRA DOURADA":"3110004","CAMPINA VERDE":"3111408","CAMPO BELO":"3111507","CAMPO FLORIDO":"3111606","CAMPOS ALTOS":"3111903","CANAPOLIS":"3112000","CAPINOPOLIS":"3112703","CARMO DO PARANAIBA":"3113701","CARNEIRINHO":"3114006","CASCALHO RICO":"3114800","CENTRALINA":"3115904","CLARAVAL":"3116407","COIMBRA":"3116704","COMENDADOR GOMES":"3117007","CONCEICAO DAS ALAGOAS":"3117306","CONQUISTA":"3118304","COROMANDEL":"3119302","CRUZEIRO DA FORTALEZA":"3120508","DELTA":"3121308","DIVINOPOLIS":"3122306","DOURADOQUARA":"3123502","ESTRELA DO SUL":"3124906","FORMIGA":"3126109","FRONTEIRA":"3126703","FRUTAL":"3127107","GOVERNADOR VALADARES":"3127701","GRUPIARA":"3128709","GUIMARANIA":"3128907","GURINHATÃ":"3129004","IBIA":"3130002","INDIANOPOLIS":"3130606","IPIACU":"3131307","ITUIUTABA":"3133808","ITURAMA":"3133709","JABOTICATUBAS":"3134608","JUIZ DE FORA":"3136702","LAGOA FORMOSA":"3137403","LAVRAS":"3138203","LIMEIRA DO OESTE":"3138674","MANGA":"3139409","MATUTINA":"3140704","MEDEIROS":"3141405","MONTE ALEGRE DE MINAS":"3143005","MONTE CARMELO":"3143302","MONTES CLAROS":"3143906","MURIAE":"3144300","NOVA PONTE":"3145208","NOVA SERRANA":"3145307","OLIVEIRA":"3145604","PATOS DE MINAS":"3148004","PATROCINIO":"3148103","PATOS DE MINAS":"3148004","PASSOS":"3147808","PEDRINOPOLIS":"3148756","PERDIZES":"3149507","PIRAJUBA":"3150703","PIUI":"3151206","PLANURA":"3151404","POCOS DE CALDAS":"3151800","PRATA":"3152808","PRESIDENTE OLEGARIO":"3153004","RIO PARANAIBA":"3155504","ROMARIA":"3156403","SACRAMENTO":"3156908","SANTA JULIANA":"3157807","SANTA VITORIA":"3158300","SAO GOTARDO":"3162104","SAO JOSE DO ALEGRE":"3162658","SAO SEBASTIAO DO PARAISO":"3164704","SERRA DO SALITRE":"3166600","TIROS":"3168804","TRES MARIAS":"3169356","TUPACIGUARA":"3169505","UBERABA":"3170107","UBERLANDIA":"3170206","UNIAO DE MINAS":"3170404","VAZANTE":"3171006","VERISSIMO":"3171303","VERISSSIMO":"3171303"};
-Object.entries(MG_MUNICIPIOS).forEach(([nome, cod]) => ensureMunicipio(nome, "MG", cod));
+// Story 2.2 AC-2: Tabela IBGE completa MG (853 municípios) — carregada de ibge-mg.json
+const path = require("path");
+const IBGE_MG = (() => { try { return require(path.join(__dirname, "ibge-mg.json")); } catch(_) { return {}; } })();
+Object.entries(IBGE_MG).forEach(([nome, cod]) => ensureMunicipio(nome, "MG", cod));
+console.log("[NF-e] IBGE MG carregado:", Object.keys(IBGE_MG).length, "municipios");
 
 function onlyAscii(value) {
   return String(value || "")
@@ -1146,6 +1196,41 @@ async function inutilizarFaixa(anoRef, serie, nfInicio, nfFim, justificativa, op
   }
 }
 
+// Story 2.1 AC-3: Validação estrutural do payload NF-e (equivalente XSD)
+function validateNfePayload(payload) {
+  const errors = [];
+  // Emitente
+  if (!payload?.emitente?.cnpj || sanitizeDigits(payload.emitente.cnpj).length !== 14) {
+    errors.push("Emitente: CNPJ invalido (deve ter 14 digitos)");
+  }
+  if (!payload?.emitente?.razaoSocial) errors.push("Emitente: Razao Social obrigatoria");
+  if (!payload?.emitente?.ie) errors.push("Emitente: IE obrigatoria");
+  // Destinatário
+  const destDoc = sanitizeDigits(payload?.destinatario?.cnpj || "");
+  if (destDoc.length !== 14 && destDoc.length !== 11) {
+    errors.push("Destinatario: CNPJ (14 digitos) ou CPF (11 digitos) invalido — recebido: " + destDoc.length + " digitos");
+  }
+  if (!payload?.destinatario?.nome) errors.push("Destinatario: Nome/Razao Social obrigatorio");
+  // Itens
+  if (!Array.isArray(payload?.itens) || payload.itens.length === 0) {
+    errors.push("NF-e deve ter pelo menos 1 item (det/prod)");
+  } else {
+    payload.itens.forEach((item, idx) => {
+      const n = idx + 1;
+      if (!item.descricao) errors.push(`Item ${n}: descricao obrigatoria`);
+      if (!item.ncm || sanitizeDigits(item.ncm).length !== 8) errors.push(`Item ${n}: NCM invalido (deve ter 8 digitos) — recebido: "${item.ncm || ""}"`);
+      if (!item.cfop || sanitizeDigits(item.cfop).length !== 4) errors.push(`Item ${n}: CFOP invalido (deve ter 4 digitos)`);
+      if (!item.quantidade || Number(item.quantidade) <= 0) errors.push(`Item ${n}: quantidade deve ser > 0`);
+      if (!item.valorUnitario || Number(item.valorUnitario) <= 0) errors.push(`Item ${n}: valorUnitario deve ser > 0`);
+      if (!item.valorTotal || Number(item.valorTotal) <= 0) errors.push(`Item ${n}: valorTotal deve ser > 0`);
+    });
+  }
+  // Identificação
+  if (!payload?.identificacao?.numero) errors.push("Identificacao: numero da NF-e obrigatorio");
+  if (!payload?.identificacao?.serie) errors.push("Identificacao: serie obrigatoria");
+  return { valid: errors.length === 0, errors };
+}
+
 module.exports = {
   getSefazConfig,
   validateSefazConfig,
@@ -1169,5 +1254,6 @@ module.exports = {
   transmitirAutorizacaoPreview,
   emitirNfeDireta,
   transmitirCancelamentoEvento,
-  inutilizarFaixa
+  inutilizarFaixa,
+  validateNfePayload
 };
