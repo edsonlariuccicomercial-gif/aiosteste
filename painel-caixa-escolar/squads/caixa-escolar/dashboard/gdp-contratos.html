@@ -958,14 +958,14 @@
         <div style="display:none"><span id="ei-pedidos-sync-pendente-count"></span><table><tbody id="ei-pedidos-sync-pendente-tbody"></tbody></table></div>
       </div>
       <div class="card" id="ei-card-movimentacoes" data-ei-section="estoque">
-        <h3 style="margin-bottom:.75rem">Movimentacoes</h3>
+        <h3 style="margin-bottom:.75rem">Entrada e Saida de Mercadorias</h3>
         <div data-ei-form style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:.75rem;align-items:end;margin-bottom:1rem">
           <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Produto</label><select id="ei-mov-produto"></select></div>
           <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Operacao</label><select id="ei-mov-operacao"><option value="entrada_mercadoria">Entrada Mercadoria</option><option value="saida_mercadoria">Saida Mercadoria</option><option value="entrega_direta">Entrega Direta</option></select></div>
           <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Quantidade Base</label><input type="number" id="ei-mov-quantidade" min="1" step="1" placeholder="350"></div>
           <div><button class="btn btn-green" onclick="registrarMovimentoEstoque()">Registrar</button></div>
         </div>
-        <div class="table-wrap" data-ei-table style="max-height:220px;overflow-y:auto"><table><thead><tr><th>Data</th><th>Produto</th><th>Tipo</th><th>Op.</th><th class="text-right">Qtd</th><th>Origem</th></tr></thead><tbody id="ei-movimentacoes-tbody"></tbody></table></div>
+        <div class="table-wrap" data-ei-table style="max-height:220px;overflow-y:auto"><table><thead><tr><th>Data</th><th>Produto</th><th>Op.</th><th class="text-right">Qtd</th><th>Origem</th></tr></thead><tbody id="ei-movimentacoes-tbody"></tbody></table></div>
       </div>
     </div>
     <!-- Card Demandas GDP removido — checkboxes integrados no card Demandas Geradas acima -->
@@ -12316,6 +12316,7 @@ function renderEstoque() {
     return matchBusca && matchBase;
   });
   const movFiltrados = estoqueIntelMovimentacoes.filter((mov) => {
+    if (mov.tipo === "comprometido") return false; // comprometido já aparece no Estoque Calculado
     const produto = findEstoqueIntelProduto(mov.produto_id);
     const matchBusca = !busca || `${produto?.nome || ""} ${mov.tipo} ${mov.origem}`.toLowerCase().includes(busca);
     const matchBase = !filtroBase || produto?.unidade_base === filtroBase;
@@ -12421,13 +12422,12 @@ function renderEstoque() {
       <tr>
         <td>${mov.data ? formatDateTimeLocal(mov.data) : "-"}</td>
         <td>${esc(produto?.nome || mov.produto_id)}</td>
-        <td><span class="badge ${mov.tipo === "fisico" ? "badge-blue" : "badge-yellow"}">${esc(mov.tipo)}</span></td>
-        <td><span class="badge ${mov.operacao === "+" ? "badge-green" : "badge-red"}">${esc(mov.operacao)}</span></td>
+        <td><span class="badge ${mov.operacao === "+" ? "badge-green" : "badge-red"}">${mov.operacao === "+" ? "Entrada" : "Saída"}</span></td>
         <td class="text-right font-mono">${Number(mov.quantidade || 0)}</td>
         <td>${esc(mov.origem || "-")}</td>
       </tr>
     `;
-  }).join("") : `<tr><td colspan="6" style="color:var(--mut)">Nenhuma movimentacao encontrada para o filtro atual.</td></tr>`;
+  }).join("") : `<tr><td colspan="5" style="color:var(--mut)">Nenhuma movimentacao registrada.</td></tr>`;
   fornecedoresTbody.innerHTML = fornecedoresVisiveis.length ? fornecedoresVisiveis.map((fornecedor) => `
     <tr>
       <td>${esc(fornecedor.nome)}<br><span style="font-size:.72rem;color:var(--mut)">Tel: ${esc(getEstoqueIntelFornecedorTelefone(fornecedor) || "-")} | E-mail: ${esc(getEstoqueIntelFornecedorEmail(fornecedor) || "-")}</span></td>
