@@ -578,7 +578,7 @@
     <div class="kpi-grid" style="margin-bottom:1rem">
       <div class="kpi"><div class="kpi-label">Em Aberto</div><div class="kpi-value yellow" id="cp-kpi-aberto">R$&nbsp;0,00</div><div class="kpi-sub">Contas pendentes</div></div>
       <div class="kpi"><div class="kpi-label">Pagas</div><div class="kpi-value green" id="cp-kpi-pago">R$&nbsp;0,00</div><div class="kpi-sub">Baixadas manualmente</div></div>
-      <div class="kpi"><div class="kpi-label">Categorias</div><div class="kpi-value blue" id="cp-kpi-categorias">0</div><div class="kpi-sub">Uso financeiro</div></div>
+      <div class="kpi"><div class="kpi-label">Atrasadas</div><div class="kpi-value red" id="cp-kpi-atrasadas">0</div><div class="kpi-sub">Contas vencidas</div></div>
     </div>
     <div style="display:flex;justify-content:space-between;gap:.8rem;align-items:center;margin-bottom:1rem;flex-wrap:wrap">
       <div style="display:flex;gap:.8rem;align-items:center;flex-wrap:wrap">
@@ -666,7 +666,7 @@
       <div class="kpi"><div class="kpi-label">A Receber</div><div class="kpi-value yellow" id="cr-kpi-aberto">R$&nbsp;0,00</div><div class="kpi-sub">Titulos pendentes</div></div>
       <div class="kpi"><div class="kpi-label">Recebido</div><div class="kpi-value green" id="cr-kpi-recebido">R$&nbsp;0,00</div><div class="kpi-sub">Baixas registradas</div></div>
       <div class="kpi"><div class="kpi-label">Conciliacao</div><div class="kpi-value blue" id="cr-kpi-conciliacao">0</div><div class="kpi-sub">Titulos aguardando retorno do banco</div></div>
-      <div class="kpi"><div class="kpi-label">Falha Provider</div><div class="kpi-value red" id="cr-kpi-provider-falha">0</div><div class="kpi-sub">Cobrancas com erro bancario</div></div>
+      <div class="kpi"><div class="kpi-label">Em Atraso</div><div class="kpi-value red" id="cr-kpi-atrasadas">0</div><div class="kpi-sub">Titulos vencidos</div></div>
     </div>
     <div style="display:flex;justify-content:space-between;gap:.8rem;align-items:center;margin-bottom:1rem;flex-wrap:wrap">
       <div style="display:flex;gap:.8rem;align-items:center;flex-wrap:wrap">
@@ -7631,6 +7631,7 @@ ${isCancelada ? '<div class="cancel-stamp">CANCELADA</div>' : ''}
   }
   const target = document.getElementById("danfe-barcode");
   if (target) target.appendChild(canvas);
+  window.print();
 })();
 <\/script>
 </body></html>`);
@@ -7639,6 +7640,33 @@ ${isCancelada ? '<div class="cancel-stamp">CANCELADA</div>' : ''}
 
 function imprimirDanfe(notaId) {
   abrirDanfeNotaFiscal(notaId);
+}
+
+function gerarDanfeHtml(nf) {
+  if (!nf) return '';
+  const emit = nf.sefaz?.preview?.emitente || {};
+  const emEnd = emit.endereco || {};
+  const dest = nf.sefaz?.preview?.destinatario || {};
+  const dEnd = dest.endereco || {};
+  const chave = nf.sefaz?.chaveAcesso || "";
+  const chaveFormatada = chave.replace(/(.{4})/g, "$1 ").trim();
+  const prot = nf.sefaz?.protocolo || "";
+  const isCancelada = nf.status === "cancelada";
+  const totalProd = (nf.itens || []).reduce((s, i) => s + (Number(i.qtd || 0) * Number(i.precoUnitario || 0)), 0);
+  const rows = (nf.itens || []).map((item, idx) => {
+    const vt = (Number(item.qtd || 0) * Number(item.precoUnitario || 0));
+    return `<tr><td style="text-align:center;border:1px solid #000;padding:2px 4px;font-size:8pt">${item.sku || ("ITEM-"+(idx+1))}</td><td style="border:1px solid #000;padding:2px 4px;font-size:8pt">${item.descricao || ""}</td><td style="text-align:center;border:1px solid #000;padding:2px 4px;font-size:8pt">${item.unidade || "UN"}</td><td style="text-align:right;border:1px solid #000;padding:2px 4px;font-size:8pt">${Number(item.qtd||0).toFixed(2)}</td><td style="text-align:right;border:1px solid #000;padding:2px 4px;font-size:8pt">${Number(item.precoUnitario||0).toFixed(2)}</td><td style="text-align:right;border:1px solid #000;padding:2px 4px;font-size:8pt;font-weight:700">${vt.toFixed(2)}</td></tr>`;
+  }).join("");
+  return `<div style="border:2px solid #000;padding:8px;margin-bottom:12px;font-family:Arial,sans-serif;font-size:9pt;color:#000;${isCancelada ? 'opacity:.6' : ''}">
+    <div style="display:flex;justify-content:space-between;border-bottom:1px solid #000;padding-bottom:6px;margin-bottom:6px">
+      <div><strong style="font-size:11pt">${emit.razaoSocial || "Emitente"}</strong><br><span style="font-size:8pt">${emit.cnpj ? 'CNPJ: '+emit.cnpj : ''} ${emit.ie ? '| IE: '+emit.ie : ''}</span><br><span style="font-size:7pt">${[emEnd.logradouro, emEnd.numero, emEnd.bairro, emEnd.municipio, emEnd.uf].filter(Boolean).join(', ')}</span></div>
+      <div style="text-align:right"><strong style="font-size:14pt">DANFE</strong><br><span style="font-size:8pt">NF-e Nº ${nf.numero || "-"}</span><br><span style="font-size:7pt">Chave: ${chaveFormatada || "-"}</span>${prot ? '<br><span style="font-size:7pt">Prot: '+prot+'</span>' : ''}</div>
+    </div>
+    <div style="border-bottom:1px solid #000;padding-bottom:4px;margin-bottom:6px;font-size:8pt"><strong>Destinatário:</strong> ${dest.razaoSocial || "-"} | CNPJ: ${dest.cnpj || "-"} | ${[dEnd.logradouro, dEnd.numero, dEnd.bairro, dEnd.municipio, dEnd.uf].filter(Boolean).join(', ')}</div>
+    <table style="width:100%;border-collapse:collapse;margin-bottom:6px"><thead><tr style="background:#eee"><th style="border:1px solid #000;padding:2px 4px;font-size:7pt">Código</th><th style="border:1px solid #000;padding:2px 4px;font-size:7pt">Descrição</th><th style="border:1px solid #000;padding:2px 4px;font-size:7pt">UN</th><th style="border:1px solid #000;padding:2px 4px;font-size:7pt;text-align:right">Qtd</th><th style="border:1px solid #000;padding:2px 4px;font-size:7pt;text-align:right">Vl.Unit</th><th style="border:1px solid #000;padding:2px 4px;font-size:7pt;text-align:right">Vl.Total</th></tr></thead><tbody>${rows}</tbody></table>
+    <div style="text-align:right;font-size:10pt;font-weight:700">Total: R$ ${totalProd.toFixed(2)}</div>
+    ${isCancelada ? '<div style="text-align:center;color:red;font-size:14pt;font-weight:900;margin-top:4px">CANCELADA</div>' : ''}
+  </div>`;
 }
 
 function solicitarCancelamentoNotaFiscal(notaId) {
@@ -11352,15 +11380,16 @@ function renderContasPagar() {
   filtered = filtered.filter((item) => normalizeContaPagarStatus(item) === contaPagarStatusTabAtual);
   document.getElementById("tab-count-contas-pagar").textContent = filtered.length;
 
+  const hoje = new Date().toISOString().slice(0, 10);
   const totalAberto = contasPagar.filter((item) => item.status !== "paga").reduce((sum, item) => sum + Number(item.valor || 0), 0);
   const totalPago = contasPagar.filter((item) => item.status === "paga").reduce((sum, item) => sum + Number(item.valor || 0), 0);
-  const categorias = new Set(contasPagar.map((item) => item.categoria).filter(Boolean));
+  const atrasadas = contasPagar.filter((item) => item.status !== "paga" && item.vencimento && item.vencimento < hoje);
   const abertoEl = document.getElementById("cp-kpi-aberto");
   const pagoEl = document.getElementById("cp-kpi-pago");
-  const catEl = document.getElementById("cp-kpi-categorias");
+  const atrasadasEl = document.getElementById("cp-kpi-atrasadas");
   if (abertoEl) abertoEl.textContent = brl.format(totalAberto);
   if (pagoEl) pagoEl.textContent = brl.format(totalPago);
-  if (catEl) catEl.textContent = categorias.size;
+  if (atrasadasEl) atrasadasEl.textContent = atrasadas.length;
 
   if (!filtered.length) {
     tbody.innerHTML = "";
@@ -11403,17 +11432,19 @@ function renderContasReceber() {
   filtered = filtered.filter((item) => normalizeContaReceberStatus(item) === contaReceberStatusTabAtual);
   document.getElementById("tab-count-contas-receber").textContent = filtered.length;
 
+  const hojeCr = new Date().toISOString().slice(0, 10);
   const totalAberto = contasReceber.filter((item) => item.status !== "recebida").reduce((sum, item) => sum + Number(item.valor || 0), 0);
   const totalRecebido = contasReceber.filter((item) => item.status === "recebida").reduce((sum, item) => sum + Number(item.valor || 0), 0);
   const pendentesConc = contasReceber.filter((item) => item.conciliacao?.status === "pendente_api_bancaria").length;
+  const atrasadasCr = contasReceber.filter((item) => item.status !== "recebida" && item.vencimento && item.vencimento < hojeCr);
   const abertoEl = document.getElementById("cr-kpi-aberto");
   const recebidoEl = document.getElementById("cr-kpi-recebido");
   const concEl = document.getElementById("cr-kpi-conciliacao");
-  const providerFalhaEl = document.getElementById("cr-kpi-provider-falha");
+  const atrasadasCrEl = document.getElementById("cr-kpi-atrasadas");
   if (abertoEl) abertoEl.textContent = brl.format(totalAberto);
   if (recebidoEl) recebidoEl.textContent = brl.format(totalRecebido);
   if (concEl) concEl.textContent = pendentesConc;
-  if (providerFalhaEl) providerFalhaEl.textContent = contasReceber.filter((item) => String(item.integracoes?.bancaria?.status || "").includes("falha")).length;
+  if (atrasadasCrEl) atrasadasCrEl.textContent = atrasadasCr.length;
 
   if (!filtered.length) {
     tbody.innerHTML = "";
@@ -11737,8 +11768,18 @@ function imprimirDanfeNotaAtual() {
 
 function imprimirDanfesSelecionadas() {
   const items = notasFiscais.filter((item) => _selectedNotaFiscalIds.has(item.id));
-  if (!items.length) return;
-  items.forEach((nf) => imprimirDanfe(nf.id));
+  if (!items.length) { showToast("Selecione notas fiscais para imprimir.", 3000); return; }
+  const pages = items.map((nf, i) => (i > 0 ? '<div style="page-break-before:always"></div>' : '') + gerarDanfeHtml(nf)).join('');
+  const iframe = document.createElement('iframe');
+  iframe.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:0;height:0';
+  document.body.appendChild(iframe);
+  const doc = iframe.contentDocument;
+  doc.open();
+  doc.write('<!DOCTYPE html><html><head><title>DANFEs</title><style>body{font-family:Arial,sans-serif;margin:1cm;color:#000}@media print{body{margin:5mm}}</style></head><body>' + pages + '</body></html>');
+  doc.close();
+  iframe.contentWindow.focus();
+  iframe.contentWindow.print();
+  setTimeout(() => document.body.removeChild(iframe), 5000);
 }
 
 function excluirNotasSelecionadas() {
