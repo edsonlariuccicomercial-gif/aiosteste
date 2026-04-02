@@ -486,14 +486,14 @@
       </div>
     </div>
     <!-- Modal: Alterar Situacao em Lote -->
-    <div id="modal-alterar-situacao-bulk" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1000;display:flex;align-items:center;justify-content:center">
-      <div style="background:var(--card,#1e293b);border:1px solid var(--bdr);border-radius:16px;padding:1.5rem;width:380px;max-width:90vw">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
-          <h3 style="font-size:1rem;margin:0">Alterar Situacao</h3>
-          <button onclick="fecharModalSituacaoBulk()" style="background:none;border:none;color:var(--mut);font-size:1.2rem;cursor:pointer">&times;</button>
+    <div id="modal-alterar-situacao-bulk" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1000;display:flex;align-items:center;justify-content:center" onclick="if(event.target===this)fecharModalSituacaoBulk()">
+      <div style="background:var(--card,#1e293b);border:1px solid var(--bdr);border-radius:16px;padding:1.2rem 1.5rem;max-width:90vw">
+        <div style="display:flex;align-items:center;gap:.8rem;margin-bottom:1rem">
+          <span style="font-size:.9rem">✂</span>
+          <span style="font-size:.92rem;font-weight:600">alterar situação</span>
+          <span id="situacao-bulk-count" style="font-size:.75rem;color:var(--mut);margin-left:auto"></span>
         </div>
-        <div id="situacao-bulk-count" style="font-size:.82rem;color:var(--mut);margin-bottom:1rem"></div>
-        <div id="situacao-bulk-options" style="display:flex;flex-wrap:wrap;gap:.3rem"></div>
+        <div id="situacao-bulk-options" style="display:flex;gap:.6rem;align-items:center;justify-content:center"></div>
       </div>
     </div>
   </div>
@@ -1031,7 +1031,7 @@
     </div>
     <div class="card" id="ei-card-estoque-resumo" data-ei-section="estoque" style="margin-top:1rem">
       <h3 style="margin-bottom:.75rem">Estoque Calculado por Movimentacoes</h3>
-      <div class="table-wrap" data-ei-table style="max-height:420px;overflow-y:auto"><table><thead><tr><th>Produto</th><th class="text-right">Fisico</th><th class="text-right">Comprometido</th><th class="text-right">Disponivel</th><th>Base</th></tr></thead><tbody id="ei-estoque-tbody"></tbody></table></div>
+      <div class="table-wrap" data-ei-table style="max-height:420px;overflow-y:auto"><table><thead><tr><th>Produto</th><th class="text-right">Fisico</th><th class="text-right">Comprometido</th><th class="text-right">Compr. Emb.</th><th class="text-right">Disponivel</th><th>Base</th></tr></thead><tbody id="ei-estoque-tbody"></tbody></table></div>
     </div>
     <div id="ei-grid-secundario" style="display:grid;grid-template-columns:1fr;gap:1rem;align-items:start;margin-top:1rem">
       <div class="card" id="ei-card-compra-sugestao" data-ei-section="compra">
@@ -5209,6 +5209,7 @@ function abrirCatalogoEscolar(contratoId) {
   }).filter(Boolean).join("");
 
   document.getElementById("modal-contrato-titulo").textContent = "📋 Catálogo — " + (c.escola.length > 40 ? c.escola.slice(0,38)+'...' : c.escola);
+  document.getElementById("modal-contrato-header-actions").innerHTML = '';
   document.getElementById("modal-contrato-body").innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
       <div style="font-size:.85rem"><strong>Contrato:</strong> ${esc(c.id)} | <strong>Saldo disponível:</strong> <span style="color:var(--green);font-weight:700">${brl.format(saldoContrato)}</span></div>
@@ -7672,7 +7673,14 @@ function solicitarCancelamentoNotaFiscal(notaId) {
   }).then(async (resp) => {
     const data = await resp.json().catch(() => ({}));
     const result = data.result || {};
-    if (!resp.ok || !data.ok) throw new Error(result.error || data.error || `HTTP ${resp.status}`);
+    if (!resp.ok) throw new Error(result.error || data.error || `HTTP ${resp.status}`);
+    // Rejeicao SEFAZ nao e erro de sistema — tratar resposta normalmente
+    const sefazRejeitou = !data.ok && result.parsed;
+    if (sefazRejeitou) {
+      const cStat = result.parsed?.cStat || result.parsed?.eventoCStat || "";
+      const xMotivo = result.parsed?.xMotivo || result.parsed?.eventoXMotivo || "";
+      showToast(`SEFAZ rejeitou cancelamento: ${cStat} — ${xMotivo}`, 6000);
+    }
     const eventoRegistrado = !!result.parsed?.eventoRegistrado;
     nf.cancelamento = {
       ...(nf.cancelamento || {}),
@@ -10086,16 +10094,19 @@ function avancarPedido(pedidoId, novoStatus) {
 function clonarPedido(pedidoId) {
   const pedido = pedidos.find((item) => item.id === pedidoId);
   if (!pedido) return;
-  pedidoCloneDraft = {
-    sourcePedidoId: pedido.id,
-    contratoId: pedido.contratoId,
-    itens: (pedido.itens || []).map((item) => ({ itemNum: Number(item.itemNum), qtd: Number(item.qtd || 0) })),
-    data: pedido.dataEntrega || pedido.data || "",
-    dataPrevista: pedido.dataPrevista || pedido.dataEntrega || pedido.data || "",
-    status: normalizePedidoStatus(pedido.status)
-  };
-  novoPedidoManual();
-  showToast(`Pedido ${pedido.id} clonado. Revise os dados, edite o que precisar e salve a nova venda.`, 3500);
+  const novoId = genId("PED");
+  const clone = JSON.parse(JSON.stringify(pedido));
+  clone.id = novoId;
+  clone.status = "em_aberto";
+  clone.data = new Date().toISOString().slice(0, 10);
+  clone.dataEntrega = clone.data;
+  delete clone.nfeId;
+  delete clone.nfeStatus;
+  pedidos.push(clone);
+  savePedidos();
+  renderPedidos();
+  showToast(`Pedido ${pedido.id} clonado como ${novoId}. Edite o que precisar e salve.`, 4000);
+  verPedidoDetalhe(novoId);
 }
 
 function editarPedido(pedidoId) {
@@ -10219,15 +10230,28 @@ function imprimirPedidosSelecionados() {
   setTimeout(() => document.body.removeChild(iframe), 5000);
 }
 
+var PEDIDO_STATUS_COLORS = {
+  em_aberto: '#eab308',
+  agendado: '#3b82f6',
+  preparando_envio: '#f97316',
+  pronto_para_envio: '#06b6d4',
+  faturado: '#22c55e',
+  entregue: '#10b981',
+  nao_entregue: '#ef4444'
+};
+
 function alterarSituacaoSelecionados() {
   const sel = [..._selectedPedidoIds];
   if (sel.length === 0) { showToast("Selecione pedidos para alterar situacao.", 3000); return; }
   const modal = document.getElementById("modal-alterar-situacao-bulk");
-  document.getElementById("situacao-bulk-count").textContent = sel.length + " pedido(s) selecionado(s)";
+  document.getElementById("situacao-bulk-count").textContent = sel.length + " pedido(s)";
   const container = document.getElementById("situacao-bulk-options");
-  container.innerHTML = PEDIDO_STATUS_TABS.map(tab =>
-    '<button class="btn btn-outline btn-sm" style="margin:.3rem" onclick="aplicarSituacaoBulk(\'' + tab.key + '\')">' + tab.label + '</button>'
-  ).join("");
+  container.innerHTML = PEDIDO_STATUS_TABS.map(tab => {
+    const cor = PEDIDO_STATUS_COLORS[tab.key] || '#94a3b8';
+    return '<div style="position:relative;display:inline-block" onmouseenter="this.querySelector(\'.dot-tip\').style.opacity=1;this.querySelector(\'.dot-tip\').style.transform=\'translateX(-50%) translateY(0)\'" onmouseleave="this.querySelector(\'.dot-tip\').style.opacity=0;this.querySelector(\'.dot-tip\').style.transform=\'translateX(-50%) translateY(4px)\'">'
+      + '<div class="dot-tip" style="position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%) translateY(4px);background:var(--bg);border:1px solid var(--bdr);border-radius:6px;padding:.25rem .5rem;font-size:.72rem;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity .15s,transform .15s;z-index:10;color:var(--txt)">' + tab.label + '</div>'
+      + '<button onclick="aplicarSituacaoBulk(\'' + tab.key + '\')" style="width:28px;height:28px;border-radius:50%;border:2px solid rgba(255,255,255,.15);background:' + cor + ';cursor:pointer;transition:transform .12s,box-shadow .12s" onmouseenter="this.style.transform=\'scale(1.2)\';this.style.boxShadow=\'0 0 8px ' + cor + '80\'" onmouseleave="this.style.transform=\'scale(1)\';this.style.boxShadow=\'none\'" title="' + tab.label + '"></button></div>';
+  }).join("");
   modal.classList.remove("hidden");
 }
 
@@ -10828,12 +10852,13 @@ function verPedidoDetalhe(pedidoId) {
   const fiscalMissing = validatePedidoForInvoice(p);
 
   const temDemanda = gdpDemandas.some(d => d.pedidoId === p.id);
-  let html = '<div style="display:flex;justify-content:flex-end;gap:.5rem;flex-wrap:wrap;margin-bottom:1rem">' + (temDemanda ? '<span class="badge badge-green" style="align-self:center">Demanda gerada</span>' : '<button class="btn btn-sm" style="background:rgba(34,197,94,.15);color:var(--green);border:none;font-weight:700" onclick="gdpGerarDemandaPedido(\'' + p.id + '\')">Gerar Demanda</button>') + '<button class="btn btn-outline btn-sm" onclick="editarPedido(\'' + p.id + '\')">Editar Cliente/Datas</button><button class="btn btn-purple btn-sm" onclick="imprimirPedido(\'' + p.id + '\')">Imprimir</button></div>';
+  let html = '<div style="display:flex;justify-content:flex-end;gap:.5rem;flex-wrap:wrap;margin-bottom:1rem">' + (temDemanda ? '<span class="badge badge-green" style="align-self:center">Demanda gerada</span>' : '<button class="btn btn-sm" style="background:rgba(34,197,94,.15);color:var(--green);border:none;font-weight:700" onclick="gdpGerarDemandaPedido(\'' + p.id + '\')">Gerar Demanda</button>') + '<button class="btn btn-purple btn-sm" onclick="imprimirPedido(\'' + p.id + '\')">Imprimir</button></div>';
   html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem">';
   html += '<div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Protocolo</div><div style="font-weight:700;font-family:monospace">' + esc(p.id) + marcadorHtml + '</div></div>';
   html += '<div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Escola</div><div style="font-weight:700">' + esc(p.escola) + '</div></div>';
   html += '<div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Contrato</div><div style="font-weight:700">' + esc(ctrLabel) + '</div></div>';
   html += '<div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Data</div><div style="font-weight:700">' + esc(p.dataEntrega || p.data) + '</div></div>';
+  html += '<div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Data Prevista</div><div style="display:flex;align-items:center;gap:.4rem"><input type="date" id="detalhe-data-prevista-' + p.id + '" value="' + esc(p.dataPrevista || p.dataEntrega || p.data || '') + '" style="background:var(--s1);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);padding:.3rem .5rem;font-size:.85rem" onchange="salvarDataPrevistaPedido(\'' + p.id + '\',this.value)"><span id="detalhe-data-prevista-ok-' + p.id + '" style="color:var(--green);font-size:.8rem;display:none">✓</span></div></div>';
   html += '<div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Valor Total</div><div style="font-weight:700;color:var(--green);font-size:1.2rem">' + brl.format(p.valor) + '</div></div>';
   html += '<div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Status</div><div><span class="badge ' + statusMeta.className + '">' + esc(statusMeta.label) + '</span></div></div>';
   html += '</div>';
@@ -10958,6 +10983,16 @@ function imprimirPedido(pedidoId) {
   iframe.contentWindow.focus();
   iframe.contentWindow.print();
   setTimeout(() => document.body.removeChild(iframe), 3000);
+}
+
+function salvarDataPrevistaPedido(pedidoId, novaData) {
+  const p = pedidos.find(x => x.id === pedidoId);
+  if (!p) return;
+  p.dataPrevista = novaData;
+  savePedidos();
+  const ok = document.getElementById('detalhe-data-prevista-ok-' + pedidoId);
+  if (ok) { ok.style.display = ''; setTimeout(() => ok.style.display = 'none', 2000); }
+  showToast('Data prevista atualizada.', 2000);
 }
 
 function fecharModalPedido() {
@@ -12143,15 +12178,25 @@ function renderEstoque() {
     </tr>
   `).join("") : `<tr><td colspan="4" style="color:var(--mut)">Todos os pedidos reais elegiveis ja possuem demanda.</td></tr>`;
 
-  estoqueTbody.innerHTML = resumoVisivel.length ? resumoVisivel.map((item) => `
-    <tr>
+  estoqueTbody.innerHTML = resumoVisivel.length ? resumoVisivel.map((item) => {
+    const embs = estoqueIntelEmbalagens.filter(e => e.produto_id === item.produto.id);
+    let comprEmb = '—';
+    if (embs.length && item.comprometido > 0) {
+      const melhorEmb = embs.reduce((best, e) => (Number(e.quantidade_base || 0) > Number(best.quantidade_base || 0)) ? e : best, embs[0]);
+      const qtdBase = Number(melhorEmb.quantidade_base || 1);
+      const qtdEmbs = Math.ceil(item.comprometido / qtdBase - 0.0001);
+      const descEmb = melhorEmb.descricao || (qtdBase + ' ' + (item.produto.unidade_base || 'UN'));
+      comprEmb = qtdEmbs + ' emb. (' + descEmb + ')';
+    }
+    return `<tr>
       <td>${esc(item.produto.nome)}</td>
       <td class="text-right font-mono">${item.fisico}</td>
       <td class="text-right font-mono">${item.comprometido}</td>
+      <td class="text-right font-mono" style="font-size:.78rem;color:var(--yellow)">${comprEmb}</td>
       <td class="text-right font-mono" style="color:${item.disponivel >= 0 ? "var(--green)" : "var(--red)"};font-weight:700">${item.disponivel}</td>
       <td>${esc(item.produto.unidade_base)}</td>
-    </tr>
-  `).join("") : `<tr><td colspan="5" style="color:var(--mut)">Sem estoque calculado para o filtro atual.</td></tr>`;
+    </tr>`;
+  }).join("") : `<tr><td colspan="6" style="color:var(--mut)">Sem estoque calculado para o filtro atual.</td></tr>`;
 
   movTbody.innerHTML = movVisiveis.length ? [...movVisiveis].sort((a, b) => new Date(b.data || 0) - new Date(a.data || 0)).map((mov) => {
     const produto = findEstoqueIntelProduto(mov.produto_id);
@@ -14763,7 +14808,13 @@ function abrirMenuPedido(id) {
   pedidoMenuAtualId = id;
   pedidoStatusMenuExpandido = false;
   document.getElementById("pedido-side-menu-nome").textContent = `${pedido.id} • ${pedido.escola || ""}`;
-  document.getElementById("pedido-status-menu-options").innerHTML = PEDIDO_STATUS_TABS.map((tab) => `<button class="btn ${normalizePedidoStatus(pedido.status) === tab.key ? 'btn-green' : 'btn-outline'} btn-sm" onclick="alterarStatusPedido('${id}','${tab.key}')">${tab.label}</button>`).join("");
+  document.getElementById("pedido-status-menu-options").innerHTML = PEDIDO_STATUS_TABS.map((tab) => {
+    const cor = PEDIDO_STATUS_COLORS[tab.key] || '#94a3b8';
+    const ativo = normalizePedidoStatus(pedido.status) === tab.key;
+    return '<div style="position:relative;display:inline-block" onmouseenter="this.querySelector(\'.dot-tip\').style.opacity=1;this.querySelector(\'.dot-tip\').style.transform=\'translateX(-50%) translateY(0)\'" onmouseleave="this.querySelector(\'.dot-tip\').style.opacity=0;this.querySelector(\'.dot-tip\').style.transform=\'translateX(-50%) translateY(4px)\'">'
+      + '<div class="dot-tip" style="position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%) translateY(4px);background:var(--bg);border:1px solid var(--bdr);border-radius:6px;padding:.25rem .5rem;font-size:.72rem;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity .15s,transform .15s;z-index:10;color:var(--txt)">' + tab.label + '</div>'
+      + '<button onclick="alterarStatusPedido(\'' + id + '\',\'' + tab.key + '\')" style="width:26px;height:26px;border-radius:50%;border:2px solid ' + (ativo ? '#fff' : 'rgba(255,255,255,.15)') + ';background:' + cor + ';cursor:pointer;transition:transform .12s,box-shadow .12s;' + (ativo ? 'box-shadow:0 0 8px ' + cor + '80;transform:scale(1.15)' : '') + '" onmouseenter="this.style.transform=\'scale(1.2)\';this.style.boxShadow=\'0 0 8px ' + cor + '80\'" onmouseleave="this.style.transform=\'' + (ativo ? 'scale(1.15)' : 'scale(1)') + '\';this.style.boxShadow=\'' + (ativo ? '0 0 8px ' + cor + '80' : 'none') + '\'" title="' + tab.label + '"></button></div>';
+  }).join("");
   document.getElementById("pedido-status-menu-panel").classList.add("hidden");
   document.getElementById("pedido-status-toggle-icon").textContent = "+";
   document.getElementById("pedido-side-menu").classList.remove("hidden");
@@ -14786,8 +14837,9 @@ function togglePedidoStatusMenu() {
 
 function imprimirPedidoAtualMenu() {
   if (!pedidoMenuAtualId) return;
+  const id = pedidoMenuAtualId;
   fecharMenuPedido();
-  imprimirPedido(pedidoMenuAtualId);
+  imprimirPedido(id);
 }
 
 function clonarPedidoAtualMenu() {
@@ -15092,11 +15144,27 @@ function consolidarItensParaLista(origens) {
     const prod = estoqueIntelProdutos.find(p => (item.sku && p.sku === item.sku) || p.nome.toLowerCase() === item.descricao.toLowerCase());
     const embs = prod ? estoqueIntelEmbalagens.filter(e => e.produto_id === prod.id) : [];
     if (embs.length) {
+      // Normalizar unidade: converter demanda para mesma unidade da embalagem
+      const unidItem = (item.unidade || "UN").toUpperCase().trim();
+      let qtdNorm = item.qtd;
       // Usar embalagem com maior quantidade_base (mais eficiente)
       const melhorEmb = embs.reduce((best, e) => (Number(e.quantidade_base || 0) > Number(best.quantidade_base || 0)) ? e : best, embs[0]);
       const qtdBase = Number(melhorEmb.quantidade_base || 1);
-      const qtdEmbalagens = Math.ceil(item.qtd / qtdBase);
-      const sobra = (qtdEmbalagens * qtdBase) - item.qtd;
+      // Conversão de unidade se necessário (KG↔G, L↔ML)
+      const unidEmb = (melhorEmb.unidade || prod.unidade_base || "").toUpperCase().trim();
+      if ((unidItem === "KG" || unidItem === "KG(S)") && (unidEmb === "G" || unidEmb === "GR")) {
+        qtdNorm = item.qtd * 1000;
+      } else if ((unidItem === "G" || unidItem === "GR") && (unidEmb === "KG" || unidEmb === "KG(S)")) {
+        qtdNorm = item.qtd / 1000;
+      } else if (unidItem === "L" && (unidEmb === "ML")) {
+        qtdNorm = item.qtd * 1000;
+      } else if (unidItem === "ML" && unidEmb === "L") {
+        qtdNorm = item.qtd / 1000;
+      }
+      // Arredondar para evitar erros de ponto flutuante
+      qtdNorm = Math.round(qtdNorm * 1000) / 1000;
+      const qtdEmbalagens = Math.ceil(qtdNorm / qtdBase - 0.0001);
+      const sobra = Math.round(((qtdEmbalagens * qtdBase) - qtdNorm) * 1000) / 1000;
       const custoEmb = Number(melhorEmb.preco_referencia || 0);
       item.embalagem = melhorEmb.descricao || (qtdBase + " " + (item.unidade || "UN"));
       item.qtdBase = qtdBase;
