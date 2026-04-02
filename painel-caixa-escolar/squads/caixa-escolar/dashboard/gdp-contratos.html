@@ -6004,6 +6004,14 @@ function formatDateTimeLocal(date = new Date()) {
   return new Date(date).toLocaleString("pt-BR");
 }
 
+function fmtDate(d) {
+  if (!d) return '—';
+  const s = String(d).slice(0, 10);
+  if (s.length < 10 || !s.includes('-')) return s;
+  const [y, m, day] = s.split('-');
+  return `${day}/${m}/${y}`;
+}
+
 function getNotaFiscalByPedido(pedidoId) {
   return notasFiscais.find((nf) => nf.pedidoId === pedidoId) || null;
 }
@@ -7182,7 +7190,7 @@ function bulkReceberContas() {
 function bulkImprimirBoletos() {
   const selecionadas = contasReceber.filter(c => _selectedContaReceberIds.has(c.id) && c.forma === "boleto");
   if (!selecionadas.length) { showToast("Nenhuma conta com boleto selecionada.", "warn"); return; }
-  const rows = selecionadas.map(item => `<tr><td>${esc(item.id)}</td><td>${esc(item.descricao)}</td><td>${esc(item.cliente || "-")}</td><td>${esc(item.vencimento || "")}</td><td class="right">${brl.format(item.valor || 0)}</td><td>${esc(item.cobranca?.linhaDigitavel || "-")}</td></tr>`).join("");
+  const rows = selecionadas.map(item => `<tr><td>${esc(item.id)}</td><td>${esc(item.descricao)}</td><td>${esc(item.cliente || "-")}</td><td>${fmtDate(item.vencimento)}</td><td class="right">${brl.format(item.valor || 0)}</td><td>${esc(item.cobranca?.linhaDigitavel || "-")}</td></tr>`).join("");
   abrirJanelaRelatorioFinanceiro("Boletos - Contas a Receber", ["ID", "Descricao", "Cliente", "Vencimento", "Valor", "Linha Digitavel"], rows);
 }
 
@@ -8275,7 +8283,7 @@ function salvarEditCpDetalhe() {
 function imprimirRelatorioContasPagar() {
   const rows = contasPagar.map((item) => {
     const status = getContaPagarStatusMeta(item);
-    return `<tr><td>${esc(item.id)}</td><td>${esc(item.descricao)}</td><td>${esc(formatCategoriaLabel(item.categoria))}</td><td>${esc(item.vencimento || "")}</td><td class="right">${brl.format(item.valor || 0)}</td><td>${esc(status.label)}</td></tr>`;
+    return `<tr><td>${esc(item.id)}</td><td>${esc(item.descricao)}</td><td>${esc(formatCategoriaLabel(item.categoria))}</td><td>${fmtDate(item.vencimento)}</td><td class="right">${brl.format(item.valor || 0)}</td><td>${esc(status.label)}</td></tr>`;
   }).join("");
   abrirJanelaRelatorioFinanceiro("Relatorio - Contas a Pagar", ["ID", "Descricao", "Categoria", "Vencimento", "Valor", "Status"], rows);
 }
@@ -8283,7 +8291,7 @@ function imprimirRelatorioContasPagar() {
 function imprimirRelatorioContasReceber() {
   const rows = contasReceber.map((item) => {
     const status = getContaReceberStatusMeta(item);
-    return `<tr><td>${esc(item.id)}</td><td>${esc(item.descricao)}</td><td>${esc(item.cliente || "-")}</td><td>${esc(formatCategoriaLabel(item.categoria))}</td><td>${esc(item.vencimento || "")}</td><td class="right">${brl.format(item.valor || 0)}</td><td>${esc(status.label)}</td></tr>`;
+    return `<tr><td>${esc(item.id)}</td><td>${esc(item.descricao)}</td><td>${esc(item.cliente || "-")}</td><td>${esc(formatCategoriaLabel(item.categoria))}</td><td>${fmtDate(item.vencimento)}</td><td class="right">${brl.format(item.valor || 0)}</td><td>${esc(status.label)}</td></tr>`;
   }).join("");
   abrirJanelaRelatorioFinanceiro("Relatorio - Contas a Receber", ["ID", "Descricao", "Cliente", "Categoria", "Vencimento", "Valor", "Status"], rows);
 }
@@ -9047,7 +9055,7 @@ function imprimirDemandaEstoqueIntel(pedidoId) {
   });
   imprimirTabelaEstoqueIntel(
     `Demanda ${pedido.id}`,
-    `Origem: ${pedido.origem_sistema === "gdp_pedido" ? "Sincronizada do GDP" : "Manual"} | Reserva: ${reservaStatus.label} | Data: ${pedido.data_prevista || pedido.data || "-"}`,
+    `Origem: ${pedido.origem_sistema === "gdp_pedido" ? "Sincronizada do GDP" : "Manual"} | Reserva: ${reservaStatus.label} | Data: ${fmtDate(pedido.data_prevista || pedido.data)}`,
     ["Produto", "Qtd Base"],
     rows
   );
@@ -9118,7 +9126,7 @@ function visualizarDemandaEstoqueIntel(pedidoId) {
       <div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase">Demanda</div><div class="font-mono" style="font-weight:700">${esc(pedido.id)}</div></div>
       <div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase">Origem</div><div style="font-weight:700">${esc(origemLabel)}</div></div>
       <div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase">Reserva</div><div style="font-weight:700"><span class="badge ${reservaStatus.badgeClass}">${esc(reservaStatus.label)}</span><br><span style="font-size:.72rem;color:var(--mut)">${esc(reservaStatus.detail)}</span></div></div>
-      <div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase">Data</div><div style="font-weight:700">${esc(pedido.data_prevista || pedido.data || "-")}</div></div>
+      <div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase">Data</div><div style="font-weight:700">${fmtDate(pedido.data_prevista || pedido.data)}</div></div>
       <div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase">Cliente</div><div style="font-weight:700;font-size:.95rem;color:var(--blue)">${esc(pedido.cliente || (pedidos.find(pp => pp.id === (pedido.origem_pedido_id || pedido.id)) || {}).escola || "-")}</div></div>
       <div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase">Qtd Base Total</div><div class="font-mono" style="font-weight:700">${Number(totalBase || 0)}</div></div>
     </div>
@@ -9364,7 +9372,7 @@ function renderListaComprasEstoqueIntel() {
       <td>${esc(item.fornecedor?.nome || "-")}</td>
       <td>${esc(item.produto.nome)}</td>
       <td>${esc(item.statusLabel || "-")}</td>
-      <td>${esc(item.data || "-")}</td>
+      <td>${fmtDate(item.data)}</td>
       <td class="text-right font-mono">${Number(item.necessidade || 0)}</td>
       <td class="text-right font-mono">${Number(item.estoqueDisponivel || 0)}</td>
       <td class="text-right font-mono" style="color:${Number(item.faltante || 0) > 0 ? "var(--yellow)" : "var(--green)"};font-weight:700">${Number(item.faltante || 0)}</td>
@@ -10168,8 +10176,8 @@ function renderPedidos() {
       <td><button onclick="verPedidoDetalhe('${p.id}')" style="background:none;border:none;padding:0;color:var(--blue);font-weight:700;cursor:pointer;font-family:monospace">${esc(p.id)}</button></td>
       <td>${esc(clienteNome.length > 30 ? clienteNome.slice(0, 28) + "..." : clienteNome)}</td>
       <td class="font-mono">${esc(clienteCnpj)}</td>
-      <td class="nowrap">${esc(p.dataEntrega || p.data)}</td>
-      <td class="nowrap">${esc(p.dataPrevista || p.dataEntrega || "—")}</td>
+      <td class="nowrap">${fmtDate(p.dataEntrega || p.data)}</td>
+      <td class="nowrap">${fmtDate(p.dataPrevista || p.dataEntrega)}</td>
       <td class="text-right font-mono" style="color:var(--green);font-weight:700">${brl.format(p.valor)}</td>
       <td><span class="badge ${statusMeta.className}">${statusMeta.label}</span></td>
       <td>${integracoes.html}</td>
@@ -11015,7 +11023,7 @@ function verPedidoDetalhe(pedidoId, isClone) {
   html += '<div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Protocolo</div><div style="font-weight:700;font-family:monospace">' + esc(p.id) + marcadorHtml + '</div></div>';
   html += '<div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Escola</div><div style="font-weight:700">' + esc(p.escola) + '</div></div>';
   html += '<div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Contrato</div><div style="font-weight:700">' + esc(ctrLabel) + '</div></div>';
-  html += '<div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Data</div><div style="font-weight:700">' + esc(p.dataEntrega || p.data) + '</div></div>';
+  html += '<div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Data</div><div style="font-weight:700">' + fmtDate(p.dataEntrega || p.data) + '</div></div>';
   html += '<div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Data Prevista</div><div style="display:flex;align-items:center;gap:.4rem"><input type="date" id="detalhe-data-prevista-' + p.id + '" value="' + esc(p.dataPrevista || p.dataEntrega || p.data || '') + '" style="background:var(--s1);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);padding:.3rem .5rem;font-size:.85rem" onchange="salvarDataPrevistaPedido(\'' + p.id + '\',this.value)"><span id="detalhe-data-prevista-ok-' + p.id + '" style="color:var(--green);font-size:.8rem;display:none">✓</span></div></div>';
   html += '<div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Valor Total</div><div style="font-weight:700;color:var(--green);font-size:1.2rem">' + brl.format(p.valor) + '</div></div>';
   html += '<div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Status</div><div><span class="badge ' + statusMeta.className + '">' + esc(statusMeta.label) + '</span></div></div>';
@@ -11411,7 +11419,7 @@ function renderContasPagar() {
       <td style="cursor:pointer;text-decoration:underline;text-decoration-color:var(--mut)" onclick="abrirDetalheCp('${item.id}')">${esc(item.descricao)}</td>
       <td>${esc(formatCategoriaLabel(item.categoria))}</td>
       <td>${esc(item.forma)}</td>
-      <td>${esc(item.vencimento)}</td>
+      <td>${fmtDate(item.vencimento)}</td>
       <td class="text-right font-mono">${brl.format(item.valor || 0)}</td>
       <td>${(() => { const status = getContaPagarStatusMeta(item); return `<span class="badge ${status.className}">${esc(status.label)}</span>`; })()}</td>
       <td style="font-size:.76rem;color:var(--mut)">${esc(formatAuditStamp(item.audit, item.pagaEm, item.audit?.updatedBy))}</td>
@@ -11468,7 +11476,7 @@ function renderContasReceber() {
       <td>${esc(formatCategoriaLabel(item.categoria))}</td>
       <td>${esc(item.cliente || "-")}</td>
       <td>${esc(item.forma)}<div style="font-size:.72rem;color:var(--mut);margin-top:.2rem">${esc(item.integracoes?.bancaria?.provider || item.cobranca?.provider || "-")}</div></td>
-      <td>${esc(item.vencimento || "")}</td>
+      <td>${fmtDate(item.vencimento)}</td>
       <td class="text-right font-mono">${brl.format(item.valor || 0)}</td>
       <td>${(() => {
         const status = getContaReceberStatusMeta(item);
