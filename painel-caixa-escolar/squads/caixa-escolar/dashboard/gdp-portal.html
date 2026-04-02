@@ -1824,6 +1824,15 @@ function downloadPedidoPDF(protocol) {
   const resp = currentUser?.responsavel || '';
   const sre = currentUser?.sre || '';
 
+  // Dados da empresa fornecedora
+  const _emp = JSON.parse(localStorage.getItem('nexedu.empresa') || '{}');
+  const empNome = (_emp.razaoSocial || _emp.nome || 'Empresa').toUpperCase();
+  const empFantasia = _emp.nomeFantasia || _emp.fantasia || '';
+  const empCnpj = _emp.cnpj || '';
+  const empEndereco = [_emp.logradouro, _emp.numero, _emp.bairro, _emp.cidade, _emp.uf, _emp.cep ? 'CEP ' + _emp.cep : ''].filter(Boolean).join(', ') || '';
+  const empTel = _emp.telefone || '';
+  const empEmail = _emp.email || '';
+
   // Lookup contract data
   let ctrData = null;
   try { const cs = unwrapData(JSON.parse(localStorage.getItem('gdp.contratos.v1') || '{}')); ctrData = cs.find(c => c.id === order.contratoId); } catch(_) {}
@@ -1887,10 +1896,10 @@ function downloadPedidoPDF(protocol) {
 
 <div class="header">
   <div>
-    <div style="font-size:20px;font-weight:800;color:#1e40af;">LARIUCCI & RIBEIRO PEREIRA LTDA</div>
-    <div style="color:#64748b;font-size:10px;margin-top:2px;">CNPJ: 26.917.392/0001-70</div>
-    <div style="color:#64748b;font-size:10px;">Rua João Pinheiro, 495 — Uberaba/MG — CEP 38010-300</div>
-    <div style="color:#64748b;font-size:10px;">Tel: (34) 3312-5000 | edsonlariucci.comercial@gmail.com</div>
+    <div style="font-size:20px;font-weight:800;color:#1e40af;">${empNome}${empFantasia ? ' <span style="font-weight:400;font-size:13px">(' + empFantasia + ')</span>' : ''}</div>
+    <div style="color:#64748b;font-size:10px;margin-top:2px;">${empCnpj ? 'CNPJ: ' + empCnpj : ''}</div>
+    <div style="color:#64748b;font-size:10px;">${empEndereco}</div>
+    <div style="color:#64748b;font-size:10px;">${[empTel ? 'Tel: ' + empTel : '', empEmail].filter(Boolean).join(' | ')}</div>
   </div>
   <div style="text-align:right">
     <div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:1px;">Pedido de Fornecimento</div>
@@ -1926,35 +1935,9 @@ ${ctrSection}
   </tr></tfoot>
 </table>
 
-<div class="signature-section">
-  <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#64748b;margin-bottom:4px;">Termos de Recebimento</div>
-  <div style="font-size:10px;color:#475569;margin-bottom:8px;">
-    Declaro que recebi os produtos acima descritos em perfeito estado de conservação, conforme quantidades e especificações indicadas.
-  </div>
-  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:20px;font-size:11px;">
-    <div><span style="color:#64748b;">Data do recebimento:</span> ____/____/________</div>
-    <div><span style="color:#64748b;">Hora:</span> ____:____</div>
-    <div><span style="color:#64748b;">Nota Fiscal nº:</span> __________________</div>
-  </div>
-  <div class="sig-grid">
-    <div class="sig-box">
-      <div class="sig-line">
-        <div class="sig-name">Recebedor(a)</div>
-        <div class="sig-role">Nome / Cargo / Matrícula</div>
-      </div>
-    </div>
-    <div class="sig-box">
-      <div class="sig-line">
-        <div class="sig-name">Entregador</div>
-        <div class="sig-role">Lariucci & Ribeiro Pereira Ltda</div>
-      </div>
-    </div>
-  </div>
-</div>
-
 <div class="footer">
   <p>Documento gerado automaticamente pelo sistema GDP — Gestão de Pedidos</p>
-  <p>Lariucci & Ribeiro Pereira Ltda — CNPJ 26.917.392/0001-70</p>
+  <p>${empNome}${empCnpj ? ' — CNPJ ' + empCnpj : ''}</p>
 </div>
 
 </body></html>`;

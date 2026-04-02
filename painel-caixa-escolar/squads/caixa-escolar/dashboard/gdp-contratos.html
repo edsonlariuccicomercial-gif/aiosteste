@@ -1030,7 +1030,17 @@
       <p id="ei-gdp-compras-empty" style="display:none;text-align:center;padding:.6rem;color:var(--mut);font-size:.85rem">Lista de compras vazia.</p>
     </div>
     <div class="card" id="ei-card-estoque-resumo" data-ei-section="estoque" style="margin-top:1rem">
-      <h3 style="margin-bottom:.75rem">Estoque Calculado por Movimentacoes</h3>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem;flex-wrap:wrap;gap:.5rem">
+        <h3 style="margin:0">Estoque Calculado por Movimentacoes</h3>
+        <button class="btn btn-sm btn-outline" onclick="abrirInventario()" title="Atualizar estoque fisico de todos os produtos">📋 Inventário</button>
+        <button class="btn btn-sm btn-outline" onclick="imprimirEstoqueCalculado()" title="Imprimir estoque">🖨️ Imprimir</button>
+      </div>
+      <div style="display:flex;gap:.6rem;margin-bottom:.8rem;flex-wrap:wrap;align-items:center">
+        <div style="font-size:.75rem;color:var(--mut)">Filtrar comprometido:</div>
+        <input type="date" id="ei-estoque-filtro-data" onchange="renderEstoque()" placeholder="Data prevista" style="padding:.3rem .5rem;background:var(--s1);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:.8rem" title="Filtrar por data prevista de entrega">
+        <select id="ei-estoque-filtro-cliente" onchange="renderEstoque()" style="padding:.3rem .5rem;background:var(--s1);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:.8rem;min-width:160px"><option value="">Todos os clientes</option></select>
+        <button class="btn btn-sm btn-outline" onclick="document.getElementById('ei-estoque-filtro-data').value='';document.getElementById('ei-estoque-filtro-cliente').value='';renderEstoque()" style="font-size:.72rem">Limpar</button>
+      </div>
       <div class="table-wrap" data-ei-table style="max-height:420px;overflow-y:auto"><table><thead><tr><th>Produto</th><th class="text-right">Fisico</th><th class="text-right">Comprometido</th><th class="text-right">Compr. Emb.</th><th class="text-right">Disponivel</th><th>Base</th></tr></thead><tbody id="ei-estoque-tbody"></tbody></table></div>
     </div>
     <div id="ei-grid-secundario" style="display:grid;grid-template-columns:1fr;gap:1rem;align-items:start;margin-top:1rem">
@@ -5438,6 +5448,7 @@ function adicionarItemContrato(contratoId) {
   _contratoAbertoId = contratoId; // sub-screen: Fechar returns to detail
   const nextNum = c.itens.length + 1;
   document.getElementById("modal-contrato-titulo").textContent = "Adicionar Item — " + c.id;
+  document.getElementById("modal-contrato-header-actions").innerHTML = '';
   document.getElementById("modal-contrato-body").innerHTML = `
     <div style="display:grid;grid-template-columns:1fr;gap:1rem">
       <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Descrição do Produto</label><input type="text" id="ai-descricao" placeholder="Ex: Arroz tipo 1, 5kg" style="width:100%" oninput="sugerirNcmAdd()"></div>
@@ -5546,6 +5557,7 @@ function editarItemContrato(contratoId, idx) {
   _contratoAbertoId = contratoId; // sub-screen: Fechar returns to detail
   const item = c.itens[idx];
   document.getElementById("modal-contrato-titulo").textContent = "Editar Item #" + item.num + " — " + c.id;
+  document.getElementById("modal-contrato-header-actions").innerHTML = '';
   document.getElementById("modal-contrato-body").innerHTML = `
     <div style="display:grid;grid-template-columns:1fr;gap:1rem">
       <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Descrição do Produto</label><input type="text" id="ei-descricao" value="${esc(item.descricao)}" style="width:100%" oninput="sugerirNcmEdit()"></div>
@@ -5656,7 +5668,6 @@ function abrirContrato(id) {
       </div>
       <div style="display:flex;gap:.4rem;flex-wrap:wrap;align-items:center">
         <button class="btn btn-sm btn-blue hidden" id="btn-editar-massa-${c.id}" onclick="editarItensMassa('${c.id}')" title="Editar itens selecionados">Editar Selecionados</button>
-        <button class="btn btn-sm btn-green hidden" id="btn-vincular-massa-${c.id}" onclick="vincularItensMassa('${c.id}')" title="Vincular itens selecionados a produtos cadastrados">Vincular Selecionados</button>
         <button class="btn btn-sm btn-red hidden" id="btn-excluir-massa-${c.id}" onclick="excluirItensSelecionados('${c.id}')" title="Excluir itens selecionados">Excluir Selecionados</button>
         <button class="btn btn-sm" style="background:rgba(139,92,246,.15);color:var(--purple);border:none;font-weight:700" onclick="abrirCatalogoEscolar('${c.id}')" title="Abrir catalogo da escola vinculada para pedidos internos">📋 Catalogo Escolar</button>
         <button class="btn btn-sm" style="background:rgba(16,185,129,.15);color:var(--green);border:none;font-weight:700" onclick="autoPreencherNcm('${c.id}');abrirContrato('${c.id}')" title="Preencher NCM automaticamente (mapa local + banco)">NCM Auto</button>
@@ -7819,6 +7830,97 @@ function excluirContaReceber(contaId) {
   showToast(`Conta a receber "${conta.descricao}" excluida.`, 3000);
 }
 
+function abrirInventario() {
+  const resumo = getEstoqueIntelResumo();
+  const rows = resumo.map(item => `<tr>
+    <td style="font-size:.82rem">${esc(item.produto.nome)}</td>
+    <td class="text-center">${esc(item.produto.unidade_base)}</td>
+    <td class="text-right font-mono">${item.fisico}</td>
+    <td class="text-center"><input type="number" class="inv-qtd" data-prod-id="${item.produto.id}" value="${item.fisico}" min="0" style="width:80px;text-align:right;padding:.3rem .4rem;background:var(--s1);border:1px solid var(--bdr);border-radius:4px;color:var(--txt);font-family:monospace"></td>
+  </tr>`).join('');
+  const modal = document.getElementById('modal-contrato');
+  document.getElementById('modal-contrato-titulo').textContent = '📋 Inventário de Estoque';
+  document.getElementById('modal-contrato-header-actions').innerHTML = '';
+  document.getElementById('modal-contrato-body').innerHTML = `
+    <p style="font-size:.82rem;color:var(--mut);margin-bottom:1rem">Atualize a quantidade física real de cada produto. Ao salvar, as diferenças serão registradas como ajuste de inventário.</p>
+    <div class="table-wrap" style="max-height:60vh;overflow-y:auto">
+      <table style="font-size:.8rem"><thead><tr><th>Produto</th><th class="text-center">Unidade</th><th class="text-right">Estoque Atual</th><th class="text-center">Contagem Real</th></tr></thead>
+      <tbody>${rows}</tbody></table>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:.5rem;margin-top:1rem">
+      <button class="btn btn-outline" onclick="fecharModalContrato()">Cancelar</button>
+      <button class="btn btn-green" onclick="salvarInventario()">Salvar Inventário</button>
+    </div>`;
+  modal.classList.remove('hidden');
+}
+
+function salvarInventario() {
+  const inputs = document.querySelectorAll('.inv-qtd');
+  let ajustes = 0;
+  const agora = new Date().toISOString();
+  inputs.forEach(input => {
+    const prodId = input.dataset.prodId;
+    const novaQtd = Number(input.value || 0);
+    const resumo = getEstoqueIntelResumo();
+    const item = resumo.find(r => r.produto.id === prodId);
+    if (!item) return;
+    const diff = novaQtd - item.fisico;
+    if (diff === 0) return;
+    estoqueIntelMovimentacoes.push({
+      id: genId('MOV'),
+      produto_id: prodId,
+      tipo: 'fisico',
+      operacao: diff > 0 ? '+' : '-',
+      quantidade: Math.abs(diff),
+      data: agora,
+      origem: 'inventario',
+      referencia_id: 'INV-' + agora.slice(0,10)
+    });
+    ajustes++;
+  });
+  if (ajustes > 0) {
+    saveEstoqueIntelMovimentacoes();
+    renderEstoque();
+    showToast(`Inventário salvo: ${ajustes} produto(s) ajustado(s).`, 3000);
+  } else {
+    showToast('Nenhuma alteração detectada.', 2000);
+  }
+  fecharModalContrato();
+}
+
+function imprimirEstoqueCalculado() {
+  const tbody = document.getElementById('ei-estoque-tbody');
+  if (!tbody || !tbody.children.length) { showToast('Nenhum estoque para imprimir.'); return; }
+  const empresa = JSON.parse(localStorage.getItem('nexedu.empresa') || '{}');
+  const nomeEmpresa = empresa.razaoSocial || empresa.nome || 'Empresa';
+  const rows = Array.from(tbody.querySelectorAll('tr')).map(tr => {
+    const tds = tr.querySelectorAll('td');
+    return tds.length >= 5 ? `<tr>${Array.from(tds).map((td,i) => `<td style="border:1px solid #ddd;padding:6px 8px;${i > 0 && i < 5 ? 'text-align:right' : ''}">${td.textContent}</td>`).join('')}</tr>` : '';
+  }).join('');
+  const iframe = document.createElement('iframe');
+  iframe.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:0;height:0';
+  document.body.appendChild(iframe);
+  const doc = iframe.contentDocument;
+  doc.open();
+  doc.write(`<!DOCTYPE html><html><head><title>Estoque</title><style>body{font-family:Arial,sans-serif;margin:2cm;color:#333}table{width:100%;border-collapse:collapse;font-size:12px}th{background:#f0f0f0;padding:8px;border:1px solid #ddd;text-align:left;font-size:11px}@media print{body{margin:1cm}}</style></head><body><h2>Estoque Calculado — ${nomeEmpresa}</h2><p style="font-size:11px;color:#666">${new Date().toLocaleDateString('pt-BR')}</p><table><thead><tr><th>Produto</th><th style="text-align:right">Físico</th><th style="text-align:right">Comprometido</th><th style="text-align:right">Compr. Emb.</th><th style="text-align:right">Disponível</th><th>Base</th></tr></thead><tbody>${rows}</tbody></table></body></html>`);
+  doc.close();
+  iframe.contentWindow.focus();
+  iframe.contentWindow.print();
+  setTimeout(() => document.body.removeChild(iframe), 3000);
+}
+
+function estornarContaReceber(contaId) {
+  const conta = contasReceber.find((item) => item.id === contaId);
+  if (!conta) return;
+  if (!confirm(`Estornar conta a receber "${conta.descricao}"?\nValor: ${brl.format(conta.valor)}\n\nO status voltará para pendente.`)) return;
+  conta.status = "pendente";
+  delete conta.recebidaEm;
+  conta.audit = { ...(conta.audit || {}), updatedAt: new Date().toISOString(), updatedBy: getAuditActor(), estornoAt: new Date().toISOString() };
+  saveContasReceber();
+  renderContasReceber();
+  showToast(`Conta a receber "${conta.descricao}" estornada.`, 3000);
+}
+
 function excluirContaPagar(contaId) {
   const conta = contasPagar.find((item) => item.id === contaId);
   if (!conta) return;
@@ -7962,6 +8064,18 @@ function clonarContaPagar(contaId) {
   document.getElementById("cp-valor").value = conta.valor || "";
   document.getElementById("cp-vencimento").value = "";
   showToast(`Conta a pagar ${conta.id} clonada. Ajuste vencimento e demais dados antes de registrar.`, 3500);
+}
+
+function estornarContaPagar(contaId) {
+  const conta = contasPagar.find((item) => item.id === contaId);
+  if (!conta) return;
+  if (!confirm(`Estornar conta a pagar "${conta.descricao}"?\nValor: ${brl.format(conta.valor)}\n\nO status voltará para pendente.`)) return;
+  conta.status = "pendente";
+  delete conta.pagaEm;
+  conta.audit = { ...(conta.audit || {}), updatedAt: new Date().toISOString(), updatedBy: getAuditActor(), estornoAt: new Date().toISOString() };
+  saveContasPagar();
+  renderContasPagar();
+  showToast(`Conta a pagar "${conta.descricao}" estornada.`, 3000);
 }
 
 /* ── Contas a Pagar: Checkbox, Bulk Actions, Menu "...", Detalhe ── */
@@ -10193,6 +10307,7 @@ function imprimirPedidosSelecionados() {
   if (sel.length === 0) { showToast("Selecione pedidos para imprimir.", 3000); return; }
   const empresa = JSON.parse(localStorage.getItem("nexedu.empresa") || "{}");
   const nomeEmpresa = empresa.razaoSocial || empresa.nome || "Empresa";
+  const nomeFantasia = empresa.nomeFantasia || empresa.fantasia || "";
   const empresaCnpj = empresa.cnpj || "";
   const empresaEndereco = [empresa.logradouro, empresa.numero, empresa.bairro, empresa.cidade, empresa.uf, empresa.cep ? 'CEP ' + empresa.cep : ''].filter(Boolean).join(', ') || '';
   const empresaTel = empresa.telefone || '';
@@ -10217,7 +10332,7 @@ function imprimirPedidosSelecionados() {
     if (idx > 0) pages += '<div style="page-break-before:always"></div>';
     pages += `
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1.5rem">
-        <div><div style="font-size:18px;font-weight:900;letter-spacing:1px">${nomeEmpresa.toUpperCase()}</div><div style="font-size:10px;color:#666;margin-top:4px">${empresaCnpj ? 'CNPJ: ' + empresaCnpj : ''}</div><div style="font-size:10px;color:#666">${empresaEndereco}</div><div style="font-size:10px;color:#666">${[empresaTel ? 'Tel: ' + empresaTel : '', empresaEmail].filter(Boolean).join(' | ')}</div></div>
+        <div><div style="font-size:18px;font-weight:900;letter-spacing:1px">${nomeEmpresa.toUpperCase()}${nomeFantasia ? ' <span style="font-weight:400;font-size:13px">(' + nomeFantasia + ')</span>' : ''}</div><div style="font-size:10px;color:#666;margin-top:4px">${empresaCnpj ? 'CNPJ: ' + empresaCnpj : ''}</div><div style="font-size:10px;color:#666">${empresaEndereco}</div><div style="font-size:10px;color:#666">${[empresaTel ? 'Tel: ' + empresaTel : '', empresaEmail].filter(Boolean).join(' | ')}</div></div>
         <div style="text-align:right"><div style="font-size:10px;color:#666;text-transform:uppercase">Pedido de Fornecimento</div><div style="font-size:18px;font-weight:900;color:#2563eb">${p.id}</div><div style="font-size:12px;color:#666">${dataFormatada}</div></div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;margin-bottom:1rem;border:1px solid #ddd;font-size:12px">
@@ -10231,7 +10346,6 @@ function imprimirPedidosSelecionados() {
       ${obsText ? `<div style="border:1px solid #ddd;padding:10px;margin-bottom:1rem;font-size:12px"><strong>DADOS DO CONTRATO</strong><br>Processo: <strong>${processoLabel}</strong><br>Observações: ${obsText}</div>` : ''}
       <table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:1rem"><thead><tr style="background:#f5f5f5"><th style="border:1px solid #ddd;padding:8px;text-align:center">#</th><th style="border:1px solid #ddd;padding:8px">PRODUTO / DESCRIÇÃO</th><th style="border:1px solid #ddd;padding:8px;text-align:center">UNID.</th><th style="border:1px solid #ddd;padding:8px;text-align:center">QTD</th><th style="border:1px solid #ddd;padding:8px;text-align:right">PREÇO UNIT.</th><th style="border:1px solid #ddd;padding:8px;text-align:right">SUBTOTAL</th></tr></thead><tbody>${tableRows}</tbody></table>
       <div style="text-align:right;margin-bottom:2rem"><span style="font-size:14px;margin-right:1rem">VALOR TOTAL</span><span style="font-size:24px;font-weight:900;color:#2563eb">${brl.format(p.valor)}</span></div>
-      <div style="border:1px solid #ddd;padding:12px;margin-bottom:2rem;font-size:11px"><strong style="text-decoration:underline">TERMOS DE RECEBIMENTO</strong><br>Declaro que recebi os produtos acima descritos em perfeito estado de conservação, conforme quantidades e especificações indicadas.<br><br>Data do recebimento: ___/___/_______ &nbsp;&nbsp; Hora: ___:___ &nbsp;&nbsp; Nota Fiscal nº: _______________</div>
       <div style="display:flex;justify-content:space-around;margin-top:3rem;font-size:11px"><div style="text-align:center;width:40%"><div style="border-top:1px solid #333;padding-top:6px"><strong>Recebedor(a)</strong><br>Nome / Cargo / Matrícula</div></div><div style="text-align:center;width:40%"><div style="border-top:1px solid #333;padding-top:6px"><strong>Entregador</strong><br>${nomeEmpresa}</div></div></div>
       <div style="text-align:center;margin-top:3rem;font-size:9px;color:#999">Documento gerado automaticamente pelo sistema GDP — Gestão de Pedidos<br>${nomeEmpresa}${empresaCnpj ? ' — CNPJ ' + empresaCnpj : ''}</div>`;
   });
@@ -10959,7 +11073,8 @@ function imprimirPedido(pedidoId) {
   const p = pedidos.find(x => x.id === pedidoId);
   if (!p) return;
   const empresa = JSON.parse(localStorage.getItem("nexedu.empresa") || "{}");
-  const nomeEmpresa = empresa.nome || empresa.razaoSocial || "Empresa";
+  const nomeEmpresa = empresa.razaoSocial || empresa.nome || "Empresa";
+  const nomeFantasia = empresa.nomeFantasia || empresa.fantasia || "";
   const c = contratos.find(x => x.id === p.contratoId);
   const ctrLabel = c ? (c.processo ? 'Proc. ' + c.processo : c.id) : (p.contratoId || '-');
 
@@ -10989,7 +11104,7 @@ function imprimirPedido(pedidoId) {
       @media print{body{margin:1cm}}
     </style>
   </head><body>
-    <h1>Pedido — ${nomeEmpresa}</h1>
+    <h1>Pedido — ${nomeEmpresa}${nomeFantasia ? ' (' + nomeFantasia + ')' : ''}</h1>
     <div class="meta">Protocolo: ${p.id} | Data: ${p.dataEntrega || p.data} | Contrato: ${ctrLabel}</div>
     <div class="info-grid">
       <div><div class="label">Escola</div><div class="value">${p.escola}</div></div>
@@ -11260,6 +11375,7 @@ function renderContasPagar() {
         <button style="font-size:1.1rem;background:none;border:none;cursor:pointer;color:var(--mut);padding:0 .2rem;vertical-align:middle" onclick="toggleCpMenu('${item.id}',event)">⋯</button>
         <div id="cp-menu-${item.id}" class="hidden" style="position:absolute;top:100%;left:0;z-index:1020;background:var(--bg);border:1px solid var(--bdr);border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.35);min-width:160px;padding:.4rem 0">
           ${item.status !== "paga" ? `<a style="display:block;padding:.45rem 1rem;font-size:.82rem;cursor:pointer;color:var(--fg)" onclick="registrarBaixaContaPagar('${item.id}');closeCpMenus()">Pagar (Baixar)</a>` : ""}
+          ${item.status === "paga" ? `<a style="display:block;padding:.45rem 1rem;font-size:.82rem;cursor:pointer;color:var(--yellow,#eab308)" onclick="estornarContaPagar('${item.id}');closeCpMenus()">Estornar</a>` : ""}
           <a style="display:block;padding:.45rem 1rem;font-size:.82rem;cursor:pointer;color:var(--fg)" onclick="clonarContaPagar('${item.id}');closeCpMenus()">Clonar</a>
           <a style="display:block;padding:.45rem 1rem;font-size:.82rem;cursor:pointer;color:var(--red,#f44)" onclick="excluirContaPagar('${item.id}');closeCpMenus()">Excluir</a>
         </div>
@@ -11312,6 +11428,7 @@ function renderContasReceber() {
         <button style="font-size:1.1rem;background:none;border:none;cursor:pointer;color:var(--mut);padding:0 .2rem;vertical-align:middle" onclick="toggleCrMenu('${item.id}',event)">⋯</button>
         <div id="cr-menu-${item.id}" class="hidden" style="position:absolute;top:100%;left:0;z-index:1020;background:var(--bg);border:1px solid var(--bdr);border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.35);min-width:170px;padding:.4rem 0">
           ${item.status !== "recebida" ? `<a style="display:block;padding:.45rem 1rem;font-size:.82rem;cursor:pointer;color:var(--fg)" onclick="registrarBaixaRecebimento('${item.id}');closeCrMenus()">Receber (Baixar)</a>` : ""}
+          ${item.status === "recebida" ? `<a style="display:block;padding:.45rem 1rem;font-size:.82rem;cursor:pointer;color:var(--yellow,#eab308)" onclick="estornarContaReceber('${item.id}');closeCrMenus()">Estornar</a>` : ""}
           <a style="display:block;padding:.45rem 1rem;font-size:.82rem;cursor:pointer;color:var(--fg)" onclick="dispararCobrancaAutomatica('${item.id}');closeCrMenus()">Cobrar</a>
           <a style="display:block;padding:.45rem 1rem;font-size:.82rem;cursor:pointer;color:var(--fg)" onclick="clonarContaReceber('${item.id}');closeCrMenus()">Clonar</a>
           <a style="display:block;padding:.45rem 1rem;font-size:.82rem;cursor:pointer;color:var(--red,#f44)" onclick="excluirContaReceber('${item.id}');closeCrMenus()">Excluir</a>
@@ -12117,7 +12234,42 @@ function renderEstoque() {
     const matchReserva = !estoqueIntelFiltroReservaStatus || reservaStatus.key === estoqueIntelFiltroReservaStatus;
     return matchBusca && matchBase && matchReserva;
   });
-  const resumoFiltrado = resumo.filter((item) => {
+  // Filtros de estoque comprometido: data prevista e cliente
+  const filtroEstData = document.getElementById("ei-estoque-filtro-data")?.value || "";
+  const filtroEstCliente = document.getElementById("ei-estoque-filtro-cliente")?.value || "";
+  // Populate client dropdown
+  const clienteSelect = document.getElementById("ei-estoque-filtro-cliente");
+  if (clienteSelect && clienteSelect.options.length <= 1) {
+    const clientes = new Set();
+    estoqueIntelPedidos.forEach(d => {
+      const p = pedidos.find(pp => pp.id === (d.origem_pedido_id || d.id));
+      if (p?.escola) clientes.add(p.escola);
+      if (d.cliente) clientes.add(d.cliente);
+    });
+    [...clientes].sort().forEach(c => { const o = document.createElement('option'); o.value = c; o.textContent = c; clienteSelect.appendChild(o); });
+  }
+  // Filter comprometido movements by date/client
+  const resumoFiltrado = (filtroEstData || filtroEstCliente ? resumo.map(item => {
+    const movCompr = estoqueIntelMovimentacoes.filter(mov => {
+      if (mov.produto_id !== item.produto.id || mov.tipo !== 'comprometido') return false;
+      if (filtroEstData) {
+        const demanda = estoqueIntelPedidos.find(d => d.id === mov.referencia_id);
+        const pedOrigem = demanda ? pedidos.find(pp => pp.id === (demanda.origem_pedido_id || demanda.id)) : null;
+        const dataPrev = pedOrigem?.dataPrevista || pedOrigem?.dataEntrega || demanda?.data_prevista || '';
+        if (dataPrev && dataPrev.slice(0,10) > filtroEstData) return false;
+        if (!dataPrev) return false;
+      }
+      if (filtroEstCliente) {
+        const demanda = estoqueIntelPedidos.find(d => d.id === mov.referencia_id);
+        const pedOrigem = demanda ? pedidos.find(pp => pp.id === (demanda.origem_pedido_id || demanda.id)) : null;
+        const cliente = pedOrigem?.escola || demanda?.cliente || '';
+        if (cliente !== filtroEstCliente) return false;
+      }
+      return true;
+    });
+    const comprFiltrado = movCompr.reduce((s, m) => s + (m.operacao === '+' ? Number(m.quantidade||0) : -Number(m.quantidade||0)), 0);
+    return { ...item, comprometido: comprFiltrado, disponivel: item.fisico - comprFiltrado };
+  }) : resumo).filter((item) => {
     const matchBusca = !busca || `${item.produto.id} ${item.produto.nome}`.toLowerCase().includes(busca);
     const matchBase = !filtroBase || item.produto.unidade_base === filtroBase;
     return matchBusca && matchBase;
@@ -14376,6 +14528,8 @@ function editarItensMassa(contratoId) {
 
   const body = document.getElementById("modal-contrato-body");
   const prevHtml = body.innerHTML;
+  document.getElementById("modal-contrato-header-actions").innerHTML = '';
+  document.getElementById("modal-contrato-titulo").textContent = `Editar ${indices.length} itens — ${c.id}`;
 
   const rowsHtml = indices.map(idx => {
     const item = c.itens[idx];
@@ -14418,7 +14572,7 @@ function editarItensMassa(contratoId) {
     </div>
 
     <div style="display:flex;justify-content:flex-end;gap:.5rem;margin-top:1rem">
-      <button class="btn btn-sm btn-outline" id="btn-cancelar-massa">Voltar</button>
+      <button class="btn btn-sm btn-outline" id="btn-cancelar-massa">Cancelar</button>
       <button class="btn btn-sm btn-green" id="btn-salvar-massa" style="font-weight:700">Salvar ${indices.length} itens</button>
     </div>`;
 
@@ -14805,11 +14959,21 @@ function renderPedidosStatusTabs(items = pedidos) {
   container.innerHTML = PEDIDO_STATUS_TABS.map((tab) => {
     const tabItems = safeItems.filter((item) => normalizePedidoStatus(item.status) === tab.key);
     const count = tabItems.length;
-    const total = tabItems.reduce((sum, p) => sum + (p.valor || p.totalGeral || p.valorTotal || 0), 0);
-    const totalStr = total > 0 ? ` · ${brlFmt.format(total)}` : '';
+    const cor = PEDIDO_STATUS_COLORS[tab.key] || '#94a3b8';
     const active = pedidoStatusTabAtual === tab.key;
-    return `<button class="btn ${active ? 'btn-green' : 'btn-outline'} btn-sm" onclick="setPedidoStatusTab('${tab.key}')" style="${active ? '' : 'font-weight:700'}">${tab.label} <span style="margin-left:.35rem;opacity:.8">${count}${totalStr}</span></button>`;
+    return `<button class="btn ${active ? 'btn-green' : 'btn-outline'} btn-sm" onclick="setPedidoStatusTab('${tab.key}')" style="display:flex;flex-direction:column;align-items:center;min-width:80px;padding:.4rem .7rem;${active ? '' : 'font-weight:700'}"><span style="display:flex;align-items:center;gap:.35rem;font-size:.78rem"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${cor}"></span>${tab.label}</span><span style="font-size:.85rem;font-weight:700;margin-top:.15rem">${count.toString().padStart(2,'0')}</span></button>`;
   }).join("");
+  // Totais rodapé
+  const totalQtd = safeItems.length;
+  const totalValor = safeItems.reduce((s, p) => s + (p.valor || p.totalGeral || p.valorTotal || 0), 0);
+  let footer = document.getElementById("pedidos-totais-footer");
+  if (!footer) {
+    footer = document.createElement("div");
+    footer.id = "pedidos-totais-footer";
+    footer.style.cssText = "display:flex;justify-content:flex-end;gap:2rem;padding:.5rem 1rem;font-size:.82rem;color:var(--mut)";
+    container.parentElement.appendChild(footer);
+  }
+  footer.innerHTML = `<span>quantidade <strong style="color:var(--txt);font-size:.95rem">${totalQtd.toString().padStart(2,'0')}</strong></span><span>valor total (R$) <strong style="color:var(--txt);font-size:.95rem">${brlFmt.format(totalValor)}</strong></span>`;
 }
 
 function getPedidoIntegracoesResumo(pedido) {
