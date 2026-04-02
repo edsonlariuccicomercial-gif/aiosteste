@@ -10091,6 +10091,8 @@ function avancarPedido(pedidoId, novoStatus) {
   showToast(`Pedido ${pedidoId} → ${novoStatus}`);
 }
 
+var _pendingClone = null;
+
 function clonarPedido(pedidoId) {
   const pedido = pedidos.find((item) => item.id === pedidoId);
   if (!pedido) return;
@@ -10102,11 +10104,26 @@ function clonarPedido(pedidoId) {
   clone.dataEntrega = clone.data;
   delete clone.nfeId;
   delete clone.nfeStatus;
-  pedidos.push(clone);
+  _pendingClone = clone;
+  verPedidoDetalhe(novoId, true);
+  showToast(`Clone de ${pedido.id}. Revise os dados e clique em Salvar.`, 4000);
+}
+
+function salvarClonePedido() {
+  if (!_pendingClone) return;
+  pedidos.push(_pendingClone);
   savePedidos();
   renderPedidos();
-  showToast(`Pedido ${pedido.id} clonado como ${novoId}. Edite o que precisar e salve.`, 4000);
-  verPedidoDetalhe(novoId);
+  const id = _pendingClone.id;
+  _pendingClone = null;
+  fecharModalPedido();
+  showToast(`Pedido ${id} salvo com sucesso.`, 3000);
+}
+
+function cancelarClonePedido() {
+  _pendingClone = null;
+  fecharModalPedido();
+  showToast('Clone descartado.', 2000);
 }
 
 function editarPedido(pedidoId) {
@@ -10841,8 +10858,8 @@ function salvarPedidoPagamento(pedidoId) {
   verPedidoDetalhe(pedidoId);
 }
 
-function verPedidoDetalhe(pedidoId) {
-  const p = pedidos.find(x => x.id === pedidoId);
+function verPedidoDetalhe(pedidoId, isClone) {
+  const p = isClone ? _pendingClone : pedidos.find(x => x.id === pedidoId);
   if (!p) return;
   ensurePedidoFiscalData(p);
   const c = contratos.find(x => x.id === p.contratoId);
@@ -10924,10 +10941,17 @@ function verPedidoDetalhe(pedidoId) {
   html += '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Data de Vencimento</label><input type="date" id="pag-vencimento-' + p.id + '" value="' + (pag.vencimento || calcularVencimentoPagamento(p.data || p.dataEntrega, pag.condicao || "28")) + '"></div>';
   html += '</div></div>';
 
-  html += '<div style="margin-top:1.2rem;display:flex;justify-content:flex-end;gap:.5rem"><button class="btn btn-outline" onclick="fecharModalPedido()">Fechar</button></div>';
+  if (isClone) {
+    html += '<div style="margin-top:1.2rem;display:flex;justify-content:flex-end;gap:.5rem"><button class="btn btn-outline" onclick="cancelarClonePedido()">Cancelar</button><button class="btn btn-green" onclick="salvarClonePedido()">Salvar</button></div>';
+  } else {
+    html += '<div style="margin-top:1.2rem;display:flex;justify-content:flex-end;gap:.5rem"><button class="btn btn-outline" onclick="fecharModalPedido()">Fechar</button></div>';
+  }
 
-  document.querySelector("#modal-pedido h2").textContent = 'Pedido ' + p.id;
+  document.querySelector("#modal-pedido h2").textContent = isClone ? 'Clone — ' + p.id : 'Pedido ' + p.id;
   document.getElementById("modal-pedido-body").innerHTML = html;
+  // Hide/show header close button based on clone mode
+  const headerBtn = document.querySelector('#modal-pedido .btn.btn-outline.btn-sm');
+  if (headerBtn) headerBtn.style.display = isClone ? 'none' : '';
   document.getElementById("modal-pedido").classList.remove("hidden");
 }
 
