@@ -15444,12 +15444,14 @@ function gerarListaComprasDeDemandas() {
   renderListaComprasAtual();
 }
 
-function consolidarItensParaLista(origens) {
+function consolidarItensParaLista(origens, skipDateFilter) {
   const filtroData = document.getElementById("lista-compras-filtro-data")?.value || "";
   let filtered = origens;
-  // Filtro de data obrigatório — sem data, retorna vazio
-  if (!filtroData) return [];
-  filtered = filtered.filter(p => {
+  // Filtro de data obrigatório — sem data, retorna vazio (exceto quando já filtrado externamente)
+  if (!skipDateFilter) {
+    if (!filtroData) return [];
+  }
+  filtered = skipDateFilter ? filtered : filtered.filter(p => {
     const raw = p.dataPrevista || p.dataEntrega || p.data || "";
     if (!raw) return false;
     let dateISO = raw;
@@ -15600,19 +15602,26 @@ function renderListaComprasAtual() {
 
   if (modo === "clientes-produtos") {
     thead.innerHTML = '<th>Cliente</th><th>Item Pedido</th>' + _convHeaders;
+    // Consolidar POR CLIENTE (não usar dados globais que somam tudo)
+    const filtroData = document.getElementById("lista-compras-filtro-data")?.value || "";
+    const origensData = filtroData ? _listaComprasOrigem.filter(p => {
+      const raw = p.dataPrevista || p.dataEntrega || p.data || "";
+      let dateISO = raw; if (raw.includes("/")) { const parts = raw.split("/"); dateISO = parts.length === 3 ? `${parts[2]}-${parts[1].padStart(2,"0")}-${parts[0].padStart(2,"0")}` : raw; }
+      return dateISO.slice(0, 10) === filtroData;
+    }) : [];
     const grupos = new Map();
-    itens.forEach(item => {
-      (item.clientes.length ? item.clientes : ["—"]).forEach(c => {
-        if (!grupos.has(c)) grupos.set(c, []);
-        grupos.get(c).push(item);
-      });
+    origensData.forEach(p => {
+      const cliente = p.escola || "—";
+      if (!grupos.has(cliente)) grupos.set(cliente, []);
+      grupos.get(cliente).push(p);
     });
     let html = '';
-    grupos.forEach((items, cliente) => {
-      const pedidoCliente = _listaComprasOrigem.find(p => p.escola === cliente);
-      const cnpj = pedidoCliente?.cliente?.cnpj || "";
+    grupos.forEach((pedidosCliente, cliente) => {
+      const cnpj = pedidosCliente[0]?.cliente?.cnpj || "";
+      // Consolidar itens deste cliente (skipDateFilter=true pois já filtrado acima)
+      const itensCliente = consolidarItensParaLista(pedidosCliente, true);
       html += `<tr style="background:var(--s1);font-weight:700"><td colspan="8"><strong>${esc(cliente)}${cnpj ? ' - ' + esc(cnpj) : ''}</strong></td></tr>`;
-      items.forEach(r => {
+      itensCliente.forEach(r => {
         html += `<tr><td></td><td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(r.descricao)}">${esc(r.descricao)}</td>${_listaRowConversao(r)}</tr>`;
       });
     });
