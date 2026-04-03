@@ -8404,7 +8404,9 @@ function normalizeEstoqueIntelMatchText(value) {
 }
 
 function parseQuantidadeBaseFromText(text, unidadeBase) {
-  const normalized = normalizeEstoqueIntelMatchText(text).replace(/,/g, ".");
+  // Preservar decimais: converter "1,02" → "1.02" e normalizar mantendo pontos decimais
+  const preNorm = String(text || "").replace(/(\d)[,.](\d)/g, "$1DECIMALSEP$2");
+  const normalized = normalizeEstoqueIntelMatchText(preNorm).replace(/decimalsep/g, ".");
   if (!normalized) return 0;
   if (unidadeBase === "g") {
     const kgMatch = normalized.match(/(\d+(?:\.\d+)?)\s*kg\b/);
@@ -8494,12 +8496,19 @@ function resolveEstoqueIntelMatchFromPedidoItem(item = {}) {
     }
   }
 
-  // Tier 3: similaridade textual — match por palavra completa (não substring)
+  // Tier 3: similaridade textual — match por palavra completa, preferir nome mais específico (mais palavras)
   const itemWords = normalizeEstoqueIntelMatchText(textoBase).split(/\s+/).filter(w => w.length > 2);
-  const produto = estoqueIntelProdutos.find((prod) => {
+  const candidatos = estoqueIntelProdutos.filter((prod) => {
     const prodWords = normalizeEstoqueIntelMatchText(prod.nome).split(/\s+/).filter(w => w.length > 2);
     return prodWords.length > 0 && prodWords.every(pw => itemWords.some(iw => iw === pw || (iw.length >= 5 && pw.length >= 5 && (iw.startsWith(pw) || pw.startsWith(iw)))));
-  }) || null;
+  });
+  // Preferir o candidato com mais palavras correspondentes (mais específico)
+  candidatos.sort((a, b) => {
+    const aWords = normalizeEstoqueIntelMatchText(a.nome).split(/\s+/).filter(w => w.length > 2).length;
+    const bWords = normalizeEstoqueIntelMatchText(b.nome).split(/\s+/).filter(w => w.length > 2).length;
+    return bWords - aWords;
+  });
+  const produto = candidatos[0] || null;
   if (!produto) return null;
   let quantidadeBaseUnit = parseQuantidadeBaseFromText(textoBase, produto.unidade_base);
   // Fallback: se não extraiu gramatura do texto, usar embalagem cadastrada
