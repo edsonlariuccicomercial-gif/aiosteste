@@ -479,7 +479,6 @@
       <div id="pedidos-bulk-summary" style="font-size:.82rem;font-weight:700;color:var(--mut)">0 pedido(s) selecionado(s)</div>
       <div style="display:flex;gap:.5rem;flex-wrap:wrap">
         <button class="btn btn-green" onclick="gerarNFSelecionados()">Gerar Notas Fiscais</button>
-        <button class="btn btn-blue" onclick="gerarListaComprasDePedidos()">Gerar Lista de Compras</button>
         <button class="btn btn-blue" onclick="imprimirPedidosSelecionados()">Imprimir Pedidos</button>
         <button class="btn btn-outline" onclick="alterarSituacaoSelecionados()">Alterar Situacao</button>
         <button class="btn btn-red" onclick="excluirPedidosSelecionados()">Excluir Pedidos</button>
@@ -1251,7 +1250,6 @@
     <div style="background:var(--bg);border:1px solid var(--bdr);border-radius:14px;width:700px;max-width:95vw;max-height:90vh;overflow-y:auto">
       <div style="padding:1.5rem;border-bottom:1px solid var(--bdr);display:flex;justify-content:space-between;align-items:center">
         <h2 style="font-size:1.1rem">Registrar Pedido Manual</h2>
-        <button class="btn btn-outline btn-sm" onclick="fecharModalPedido()">Fechar</button>
       </div>
       <div style="padding:1.5rem" id="modal-pedido-body"></div>
     </div>
@@ -9111,24 +9109,86 @@ function visualizarDemandaEstoqueIntel(pedidoId) {
     return;
   }
   const itens = estoqueIntelPedidoItens.filter((item) => item.pedido_id === pedidoId);
-  const origemLabel = pedido.origem_sistema === "gdp_pedido" ? "Sincronizada do pedido real do GDP" : "Demanda manual";
   const reservaStatus = getEstoqueIntelReservaStatus(pedidoId);
-  const totalBase = itens.reduce((sum, item) => sum + Number(item.quantidade_base || 0), 0);
-  const itensHtml = itens.map((item) => {
+
+  // Dados da empresa
+  const empresa = JSON.parse(localStorage.getItem("nexedu.empresa") || "{}");
+  const nomeEmpresa = empresa.razaoSocial || empresa.nome || "Empresa";
+  const nomeFantasia = empresa.nomeFantasia || empresa.fantasia || "";
+  const empresaCnpj = empresa.cnpj || "";
+  const empresaEndereco = [empresa.logradouro, empresa.numero, empresa.bairro, empresa.cidade, empresa.uf, empresa.cep ? 'CEP ' + empresa.cep : ''].filter(Boolean).join(', ') || '';
+  const empresaTel = empresa.telefone || '';
+  const empresaEmail = empresa.email || '';
+
+  // Dados da escola/cliente (buscar do pedido original se sincronizado)
+  const pedidoOriginal = pedidos.find(pp => pp.id === (pedido.origem_pedido_id || pedido.id));
+  const escolaNome = pedido.cliente || pedidoOriginal?.escola || pedidoOriginal?.cliente?.nome || '-';
+  const escolaCnpj = pedidoOriginal?.cliente?.cnpj || '';
+  const c = pedidoOriginal ? contratos.find(x => x.id === pedidoOriginal.contratoId) : null;
+  const processoLabel = c?.processo || pedidoOriginal?.contratoId || '-';
+  const obsText = pedidoOriginal?.obs || (c ? [c.processo ? 'Processo: ' + c.processo : '', c.objeto || ''].filter(Boolean).join(' - ') : '');
+  const dataFormatada = fmtDate(pedido.data_prevista || pedido.data);
+  const totalItens = itens.length;
+
+  // Tabela de itens com Qtd Emb.
+  const itensHtml = itens.map((item, i) => {
     const produto = findEstoqueIntelProduto(item.produto_id);
-    return `<tr><td>${esc(produto?.nome || item.produto_id)}</td><td class="text-right font-mono">${Number(item.quantidade_base || 0)}</td></tr>`;
-  }).join("") || `<tr><td colspan="2">Sem itens vinculados.</td></tr>`;
+    const qtdBase = Number(item.quantidade_base || 0);
+    const unidadeBase = produto?.unidade_base || 'g';
+    const embalagem = estoqueIntelEmbalagens.find(e => e.produto_id === item.produto_id);
+    let qtdEmbLabel = '-';
+    if (embalagem && Number(embalagem.quantidade_base || 0) > 0) {
+      const qtdEmb = Math.ceil(qtdBase / Number(embalagem.quantidade_base));
+      qtdEmbLabel = qtdEmb + ' emb. (' + Number(embalagem.quantidade_base) + ' ' + unidadeBase + ')';
+    }
+    return `<tr style="border-top:1px solid rgba(71,85,105,.3)">
+      <td style="text-align:center;padding:.5rem .8rem">${i + 1}</td>
+      <td style="padding:.5rem .8rem">${esc(produto?.nome || item.produto_id)}</td>
+      <td style="text-align:center;padding:.5rem .8rem">${Number(item.origem_item_num || item.qtd || 0) || '-'}</td>
+      <td style="text-align:center;padding:.5rem .8rem;font-family:monospace">${qtdBase} ${esc(unidadeBase)}</td>
+      <td style="text-align:center;padding:.5rem .8rem">${esc(qtdEmbLabel)}</td>
+    </tr>`;
+  }).join("") || `<tr><td colspan="5" style="text-align:center;padding:.8rem;color:var(--mut)">Sem itens vinculados.</td></tr>`;
+
   body.innerHTML = `
-    <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.75rem;margin-bottom:1rem">
-      <div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase">Demanda</div><div class="font-mono" style="font-weight:700">${esc(pedido.id)}</div></div>
-      <div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase">Origem</div><div style="font-weight:700">${esc(origemLabel)}</div></div>
-      <div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase">Reserva</div><div style="font-weight:700"><span class="badge ${reservaStatus.badgeClass}">${esc(reservaStatus.label)}</span><br><span style="font-size:.72rem;color:var(--mut)">${esc(reservaStatus.detail)}</span></div></div>
-      <div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase">Data</div><div style="font-weight:700">${fmtDate(pedido.data_prevista || pedido.data)}</div></div>
-      <div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase">Cliente</div><div style="font-weight:700;font-size:.95rem;color:var(--blue)">${esc(pedido.cliente || (pedidos.find(pp => pp.id === (pedido.origem_pedido_id || pedido.id)) || {}).escola || "-")}</div></div>
-      <div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase">Qtd Base Total</div><div class="font-mono" style="font-weight:700">${Number(totalBase || 0)}</div></div>
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1.2rem">
+      <div>
+        <div style="font-size:1.1rem;font-weight:900;letter-spacing:.5px">${esc(nomeEmpresa.toUpperCase())}${nomeFantasia ? ' <span style="font-weight:400;font-size:.82rem">(' + esc(nomeFantasia) + ')</span>' : ''}</div>
+        <div style="font-size:.75rem;color:var(--mut);margin-top:.2rem">${empresaCnpj ? 'CNPJ: ' + esc(empresaCnpj) : ''}</div>
+        <div style="font-size:.75rem;color:var(--mut)">${esc(empresaEndereco)}</div>
+        <div style="font-size:.75rem;color:var(--mut)">${[empresaTel ? 'Tel: ' + empresaTel : '', empresaEmail].filter(Boolean).join(' | ')}</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:.72rem;color:var(--mut);text-transform:uppercase">Demanda</div>
+        <div style="font-size:1.1rem;font-weight:900;color:var(--blue);font-family:monospace">${esc(pedido.id)}</div>
+        <div style="font-size:.78rem;color:var(--mut)">${dataFormatada}</div>
+        <div style="margin-top:.3rem"><span class="badge ${reservaStatus.badgeClass}">${esc(reservaStatus.label)}</span></div>
+      </div>
     </div>
-    <div class="table-wrap" style="margin-bottom:1rem"><table><thead><tr><th>Produto</th><th class="text-right">Qtd Base</th></tr></thead><tbody>${itensHtml}</tbody></table></div>
-    <div style="display:flex;justify-content:flex-end;gap:.5rem;flex-wrap:wrap">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;margin-bottom:1rem;border:1px solid var(--bdr);font-size:.82rem;border-radius:8px;overflow:hidden">
+      <div style="padding:.6rem .8rem;border-bottom:1px solid var(--bdr)"><span style="color:var(--mut);font-size:.7rem;text-transform:uppercase">ESCOLA / ÓRGÃO</span><br><strong>${esc(escolaNome)}</strong></div>
+      <div style="padding:.6rem .8rem;border-bottom:1px solid var(--bdr);border-left:1px solid var(--bdr)"><span style="color:var(--mut);font-size:.7rem;text-transform:uppercase">CNPJ</span><br><strong>${esc(escolaCnpj || '-')}</strong></div>
+      <div style="padding:.6rem .8rem;border-bottom:1px solid var(--bdr)"><span style="color:var(--mut);font-size:.7rem;text-transform:uppercase">QTD. ITENS</span><br><strong>${totalItens} produto(s)</strong></div>
+      <div style="padding:.6rem .8rem;border-bottom:1px solid var(--bdr);border-left:1px solid var(--bdr)"><span style="color:var(--mut);font-size:.7rem;text-transform:uppercase">CONTRATO</span><br><strong>${esc(processoLabel)}</strong></div>
+    </div>
+    ${obsText ? `<div style="border:1px solid var(--bdr);padding:.7rem .9rem;margin-bottom:1rem;font-size:.82rem;border-radius:8px"><strong>DADOS DO CONTRATO</strong><br>Processo: <strong>${esc(processoLabel)}</strong><br>Observações: ${esc(obsText)}</div>` : ''}
+    <div style="border:1px solid var(--bdr);border-radius:8px;overflow:hidden;margin-bottom:1rem">
+      <table style="width:100%;border-collapse:collapse;font-size:.82rem">
+        <thead><tr style="background:var(--s2)">
+          <th style="padding:.5rem .8rem;text-align:center;font-size:.72rem;text-transform:uppercase;color:var(--mut)">#</th>
+          <th style="padding:.5rem .8rem;text-align:left;font-size:.72rem;text-transform:uppercase;color:var(--mut)">Produto</th>
+          <th style="padding:.5rem .8rem;text-align:center;font-size:.72rem;text-transform:uppercase;color:var(--mut)">Qtd</th>
+          <th style="padding:.5rem .8rem;text-align:center;font-size:.72rem;text-transform:uppercase;color:var(--mut)">Base</th>
+          <th style="padding:.5rem .8rem;text-align:center;font-size:.72rem;text-transform:uppercase;color:var(--mut)">Qtd Emb.</th>
+        </tr></thead>
+        <tbody>${itensHtml}</tbody>
+      </table>
+    </div>
+    <div style="display:flex;justify-content:space-around;margin-top:1.5rem;font-size:.78rem;margin-bottom:1rem">
+      <div style="text-align:center;width:40%"><div style="border-top:1px solid var(--bdr);padding-top:.5rem"><strong>Recebedor(a)</strong><br><span style="color:var(--mut)">Nome / Cargo / Matrícula</span></div></div>
+      <div style="text-align:center;width:40%"><div style="border-top:1px solid var(--bdr);padding-top:.5rem"><strong>Entregador</strong><br><span style="color:var(--mut)">${esc(nomeEmpresa)}</span></div></div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:.5rem;flex-wrap:wrap;margin-top:1rem">
       <button class="btn btn-outline btn-sm" onclick="imprimirDemandaEstoqueIntel('${esc(pedidoId)}')">Imprimir</button>
       ${reservaStatus.key === "reservada" ? `<button class="btn btn-outline btn-sm" onclick="fecharReservaDemandaEstoqueIntel('${esc(pedidoId)}')">Cancelar Reserva</button>` : ""}
       <button class="btn btn-outline btn-sm" onclick="fecharModalDemandaEstoqueIntel()">Fechar</button>
@@ -11090,70 +11150,20 @@ function verPedidoDetalhe(pedidoId, isClone) {
   if (isClone) {
     html += '<div style="margin-top:1.2rem;display:flex;justify-content:flex-end;gap:.5rem"><button class="btn btn-outline" onclick="cancelarClonePedido()">Cancelar</button><button class="btn btn-green" onclick="salvarClonePedido()">Salvar</button></div>';
   } else {
-    html += '<div style="margin-top:1.2rem;display:flex;justify-content:flex-end;gap:.5rem"><button class="btn btn-outline" onclick="fecharModalPedido()">Fechar</button></div>';
+    html += '<div style="margin-top:1.2rem;display:flex;justify-content:flex-end;gap:.5rem"><button class="btn btn-outline" onclick="fecharModalPedido()">Cancelar</button></div>';
   }
 
   document.querySelector("#modal-pedido h2").textContent = isClone ? 'Clone — ' + p.id : 'Pedido ' + p.id;
   document.getElementById("modal-pedido-body").innerHTML = html;
-  // Hide/show header close button based on clone mode
-  const headerBtn = document.querySelector('#modal-pedido .btn.btn-outline.btn-sm');
-  if (headerBtn) headerBtn.style.display = isClone ? 'none' : '';
   document.getElementById("modal-pedido").classList.remove("hidden");
 }
 
 function imprimirPedido(pedidoId) {
-  const p = pedidos.find(x => x.id === pedidoId);
-  if (!p) return;
-  const empresa = JSON.parse(localStorage.getItem("nexedu.empresa") || "{}");
-  const nomeEmpresa = empresa.razaoSocial || empresa.nome || "Empresa";
-  const nomeFantasia = empresa.nomeFantasia || empresa.fantasia || "";
-  const c = contratos.find(x => x.id === p.contratoId);
-  const ctrLabel = c ? (c.processo ? 'Proc. ' + c.processo : c.id) : (p.contratoId || '-');
-
-  let tableRows = (p.itens || []).map((item, i) => {
-    const sub = (item.qtd || 0) * (item.precoUnitario || 0);
-    return `<tr><td style="text-align:center">${i+1}</td><td>${item.descricao || ''}</td><td style="text-align:center">${item.qtd || 0}</td><td style="text-align:right">${brl.format(item.precoUnitario || 0)}</td><td style="text-align:right;font-weight:700">${brl.format(sub)}</td></tr>`;
-  }).join("");
-
-  const iframe = document.createElement('iframe');
-  iframe.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:0;height:0';
-  document.body.appendChild(iframe);
-  const doc = iframe.contentDocument || iframe.contentWindow.document;
-  doc.open();
-  doc.write(`<!DOCTYPE html><html><head><title>Pedido ${p.id}</title>
-    <style>
-      body{font-family:Arial,sans-serif;margin:2rem;color:#333}
-      h1{font-size:18px;margin-bottom:4px}
-      .meta{font-size:12px;color:#666;margin-bottom:20px}
-      .info-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:20px;font-size:13px}
-      .info-grid .label{color:#666;font-size:11px;text-transform:uppercase}
-      .info-grid .value{font-weight:700}
-      table{width:100%;border-collapse:collapse;font-size:13px}
-      th{background:#f0f0f0;padding:8px;text-align:left;border:1px solid #ddd;font-size:11px;text-transform:uppercase}
-      td{padding:6px 8px;border:1px solid #ddd}
-      tr:nth-child(even){background:#f9f9f9}
-      .footer{margin-top:16px;font-size:13px;font-weight:700;text-align:right}
-      @media print{body{margin:1cm}}
-    </style>
-  </head><body>
-    <h1>Pedido — ${nomeEmpresa}${nomeFantasia ? ' (' + nomeFantasia + ')' : ''}</h1>
-    <div class="meta">Protocolo: ${p.id} | Data: ${p.dataEntrega || p.data} | Contrato: ${ctrLabel}</div>
-    <div class="info-grid">
-      <div><div class="label">Escola</div><div class="value">${p.escola}</div></div>
-      <div><div class="label">Status</div><div class="value">${p.status}</div></div>
-      <div><div class="label">Valor Total</div><div class="value">${brl.format(p.valor)}</div></div>
-      <div><div class="label">Itens</div><div class="value">${(p.itens||[]).length}</div></div>
-    </div>
-    <table>
-      <thead><tr><th>#</th><th>Produto</th><th style="text-align:center">Qtd</th><th style="text-align:right">Preco Unit.</th><th style="text-align:right">Subtotal</th></tr></thead>
-      <tbody>${tableRows}</tbody>
-    </table>
-    <div class="footer">Total: ${brl.format(p.valor)}</div>
-  </body></html>`);
-  doc.close();
-  iframe.contentWindow.focus();
-  iframe.contentWindow.print();
-  setTimeout(() => document.body.removeChild(iframe), 3000);
+  _selectedPedidoIds.clear();
+  _selectedPedidoIds.add(pedidoId);
+  imprimirPedidosSelecionados();
+  _selectedPedidoIds.clear();
+  atualizarSelecaoPedidos();
 }
 
 function salvarDataPrevistaPedido(pedidoId, novaData) {
@@ -15016,9 +15026,10 @@ function renderPedidosStatusTabs(items = pedidos) {
     const active = pedidoStatusTabAtual === tab.key;
     return `<button class="btn ${active ? 'btn-green' : 'btn-outline'} btn-sm" onclick="setPedidoStatusTab('${tab.key}')" style="display:flex;flex-direction:column;align-items:center;min-width:80px;padding:.4rem .7rem;${active ? '' : 'font-weight:700'}"><span style="display:flex;align-items:center;gap:.35rem;font-size:.78rem"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${cor}"></span>${tab.label}</span><span style="font-size:.85rem;font-weight:700;margin-top:.15rem">${count.toString().padStart(2,'0')}</span></button>`;
   }).join("");
-  // Totais rodapé
-  const totalQtd = safeItems.length;
-  const totalValor = safeItems.reduce((s, p) => s + (p.valor || p.totalGeral || p.valorTotal || 0), 0);
+  // Totais rodapé — filtrar pela aba de status ativa
+  const activeTabItems = safeItems.filter((item) => normalizePedidoStatus(item.status) === pedidoStatusTabAtual);
+  const totalQtd = activeTabItems.length;
+  const totalValor = activeTabItems.reduce((s, p) => s + (p.valor || p.totalGeral || p.valorTotal || 0), 0);
   let footer = document.getElementById("pedidos-totais-footer");
   if (!footer) {
     footer = document.createElement("div");
