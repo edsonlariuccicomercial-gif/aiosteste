@@ -8472,7 +8472,23 @@ function resolveEstoqueIntelMatchFromPedidoItem(item = {}) {
   // Tier 2: GDP equivalencia (vinculação do contrato) → Estoque Intel direto
   const equivSku = getGdpEquivalencia(descricao);
   if (equivSku) {
-    const prodIntel = estoqueIntelProdutos.find(p => p.sku === equivSku || p.id === equivSku);
+    let prodIntel = estoqueIntelProdutos.find(p => p.sku === equivSku || p.id === equivSku);
+    // Validar: se descrição do pedido contém palavras que não estão no produto vinculado,
+    // buscar produto mais específico (ex: "Extrato de tomate" vinculado a "Tomate" → preferir "Extrato De Tomate")
+    if (prodIntel) {
+      const descWords = normalizeEstoqueIntelMatchText(descricao).split(/\s+/).filter(w => w.length > 3);
+      const prodWords = normalizeEstoqueIntelMatchText(prodIntel.nome).split(/\s+/).filter(w => w.length > 3);
+      const descHasExtraWords = descWords.some(dw => !prodWords.some(pw => pw === dw || pw.startsWith(dw) || dw.startsWith(pw)));
+      if (descHasExtraWords) {
+        // Buscar produto com nome mais específico que contenha TODAS as palavras-chave
+        const maisEspecifico = estoqueIntelProdutos.find(p => {
+          if (p.id === prodIntel.id) return false;
+          const pWords = normalizeEstoqueIntelMatchText(p.nome).split(/\s+/).filter(w => w.length > 3);
+          return pWords.length > prodWords.length && pWords.every(pw => descWords.some(dw => dw === pw || dw.startsWith(pw) || pw.startsWith(dw)));
+        });
+        if (maisEspecifico) prodIntel = maisEspecifico;
+      }
+    }
     if (prodIntel) {
       const embsIntel = estoqueIntelEmbalagens.filter(e => e.produto_id === prodIntel.id);
       // Extrair gramatura do TEXTO DO PEDIDO ou da CHAVE DA EQUIVALÊNCIA
@@ -15522,10 +15538,50 @@ function consolidarItensParaLista(origens) {
   return [...consolidado.values()].sort((a, b) => a.descricao.localeCompare(b.descricao, "pt-BR"));
 }
 
+function refreshListaComprasOrigem() {
+  // Reconstruir _listaComprasOrigem com dados frescos (ex: dataPrevista atualizada)
+  const idsAtivos = new Set(_listaComprasOrigem.map(p => p.id));
+  _listaComprasOrigem = [];
+  estoqueIntelPedidos.filter(d => idsAtivos.has(d.id)).forEach(d => {
+    const itensDemanda = estoqueIntelPedidoItens.filter(pi => pi.pedido_id === d.id);
+    const pedidoOrig = pedidos.find(pp => pp.id === (d.origem_pedido_id || d.id));
+    const pedidoItensOrig = pedidoOrig?.itens || [];
+    _listaComprasOrigem.push({
+      id: d.id,
+      escola: d.cliente || d.origem || "",
+      cliente: pedidoOrig?.cliente || null,
+      dataPrevista: d.data_prevista || d.data || "",
+      itens: itensDemanda.map(pi => {
+        const prod = estoqueIntelProdutos.find(p => p.id === pi.produto_id);
+        const emb = estoqueIntelEmbalagens.find(e => e.produto_id === pi.produto_id);
+        const nomeProd = (prod?.nome || '').toLowerCase();
+        const itemOrig = nomeProd ? pedidoItensOrig.find(oi => { const desc = (oi.descricao || '').toLowerCase(); return desc.includes(nomeProd) || nomeProd.includes(desc); }) : null;
+        return {
+          descricao: itemOrig?.descricao || prod?.nome || pi.descricao || "",
+          sku: prod?.sku || emb?.codigo_barras || "",
+          unidade: prod?.unidade_base || "UN",
+          qtd: Number(pi.quantidade_base || 0),
+          qtdOriginal: itemOrig ? Number(itemOrig.qtd || itemOrig.quantidade || 0) : 0,
+          precoUnitario: emb?.preco_referencia || 0
+        };
+      })
+    });
+  });
+  // Adicionar demandas GDP ativas
+  const gdpIds = [...idsAtivos].filter(id => gdpDemandas.some(d => d.id === id));
+  gdpDemandas.filter(d => gdpIds.includes(d.id)).forEach(d => {
+    _listaComprasOrigem.push({
+      id: d.id, escola: d.escola, dataPrevista: d.criadoEm,
+      itens: (d.itens || []).map(i => ({ descricao: i.produtoReal || i.descricao || "", sku: i.skuProduto || i.sku || "", unidade: i.unidadeCompra || i.unidade || "UN", qtd: i.qtdConvertida || i.qtd || 0, qtdOriginal: i.qtdOriginal || 0, precoUnitario: i.custoUnitario || i.precoUnitario || 0 }))
+    });
+  });
+}
+
 function renderListaComprasAtual() {
   const modo = document.getElementById("lista-compras-modo")?.value || "produtos";
   _listaComprasModo = modo;
-  // Reconsolidar com filtro de data
+  // Refresh dados frescos (dataPrevista pode ter mudado) e reconsolidar
+  refreshListaComprasOrigem();
   _listaComprasData = consolidarItensParaLista(_listaComprasOrigem);
   const busca = (document.getElementById("busca-lista-compras")?.value || "").toLowerCase();
   let itens = busca ? _listaComprasData.filter(i => i.descricao.toLowerCase().includes(busca) || (i.sku || "").toLowerCase().includes(busca)) : _listaComprasData;
