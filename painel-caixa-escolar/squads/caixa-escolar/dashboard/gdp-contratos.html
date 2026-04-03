@@ -15386,6 +15386,7 @@ function gerarListaComprasDeDemandas() {
           sku: prod?.sku || emb?.codigo_barras || "",
           unidade: prod?.unidade_base || "UN",
           qtd: Number(pi.quantidade_base || 0),
+          qtdOriginal: itemOrig ? Number(itemOrig.qtd || itemOrig.quantidade || 0) : 0,
           precoUnitario: emb?.preco_referencia || 0
         };
       })
@@ -15435,6 +15436,7 @@ function consolidarItensParaLista(origens) {
       if (consolidado.has(key)) {
         const ex = consolidado.get(key);
         ex.qtd += (item.qtd || 0);
+        ex.qtdOriginal += (item.qtdOriginal || 0);
         ex.valorTotal += (item.qtd || 0) * (item.precoUnitario || 0);
         if (!ex.protocolos.includes(p.id)) ex.protocolos.push(p.id);
         if (p.escola && !ex.clientes.includes(p.escola)) ex.clientes.push(p.escola);
@@ -15442,6 +15444,7 @@ function consolidarItensParaLista(origens) {
         consolidado.set(key, {
           descricao: desc, sku, unidade: item.unidade || "UN",
           qtd: item.qtd || 0,
+          qtdOriginal: item.qtdOriginal || 0,
           precoUnitario: item.precoUnitario || 0,
           valorTotal: (item.qtd || 0) * (item.precoUnitario || 0),
           protocolos: [p.id],
@@ -15518,9 +15521,9 @@ function renderListaComprasAtual() {
     const embLabel = r.qtdEmbalagens ? r.qtdEmbalagens + ' emb. (' + (r.embalagem || '-') + ')' : '—';
     const sobraLabel = r.sobra > 0 ? '+' + r.sobra + ' ' + (r.baseUnidade || r.unidade || '') : '—';
     const sobraColor = r.sobra > 0 ? 'color:var(--yellow)' : 'color:var(--green)';
-    return `<td style="font-size:.78rem">${esc(r.produtoEstoque || '—')}</td><td class="text-right font-mono">${r.qtd}</td><td style="font-size:.78rem">${esc(r.baseUnidade || r.unidade || '—')}</td><td class="text-right font-mono" style="font-size:.78rem">${embLabel}</td><td class="text-right font-mono" style="${sobraColor};font-size:.78rem">${sobraLabel}</td>`;
+    return `<td style="font-size:.78rem">${esc(r.produtoEstoque || '—')}</td><td class="text-right font-mono">${r.qtdOriginal || '-'}</td><td class="text-right font-mono">${r.qtd}</td><td style="font-size:.78rem">${esc(r.baseUnidade || r.unidade || '—')}</td><td class="text-right font-mono" style="font-size:.78rem">${embLabel}</td><td class="text-right font-mono" style="${sobraColor};font-size:.78rem">${sobraLabel}</td>`;
   }
-  const _convHeaders = '<th>Produto Estoque</th><th class="text-right">Quantidade</th><th>Base</th><th class="text-right">Qtd Emb.</th><th class="text-right">Sobra</th>';
+  const _convHeaders = '<th>Produto Estoque</th><th class="text-right">Qtd</th><th class="text-right">Quantidade</th><th>Base</th><th class="text-right">Qtd Emb.</th><th class="text-right">Sobra</th>';
 
   if (modo === "clientes-produtos") {
     thead.innerHTML = '<th>Cliente</th><th>Item Pedido</th>' + _convHeaders;
@@ -15535,7 +15538,7 @@ function renderListaComprasAtual() {
     grupos.forEach((items, cliente) => {
       const pedidoCliente = _listaComprasOrigem.find(p => p.escola === cliente);
       const cnpj = pedidoCliente?.cliente?.cnpj || "";
-      html += `<tr style="background:var(--s1);font-weight:700"><td colspan="7"><strong>${esc(cliente)}${cnpj ? ' - ' + esc(cnpj) : ''}</strong></td></tr>`;
+      html += `<tr style="background:var(--s1);font-weight:700"><td colspan="8"><strong>${esc(cliente)}${cnpj ? ' - ' + esc(cnpj) : ''}</strong></td></tr>`;
       items.forEach(r => {
         html += `<tr><td></td><td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(r.descricao)}">${esc(r.descricao)}</td>${_listaRowConversao(r)}</tr>`;
       });
@@ -15551,7 +15554,7 @@ function renderListaComprasAtual() {
     });
     let html = '';
     grupos.forEach((items, fornecedor) => {
-      html += `<tr style="background:var(--s1);font-weight:700"><td colspan="7"><strong>${esc(fornecedor)}</strong></td></tr>`;
+      html += `<tr style="background:var(--s1);font-weight:700"><td colspan="8"><strong>${esc(fornecedor)}</strong></td></tr>`;
       items.forEach(r => {
         html += `<tr><td></td><td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(r.descricao)}">${esc(r.descricao)}</td>${_listaRowConversao(r)}</tr>`;
       });
@@ -15567,6 +15570,7 @@ function renderListaComprasAtual() {
         <td>${i+1}</td>
         <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(item.descricao)}">${esc(item.descricao)}</td>
         <td style="font-size:.78rem">${esc(item.produtoEstoque || '—')}</td>
+        <td class="text-right font-mono">${item.qtdOriginal || '-'}</td>
         <td class="text-right font-mono">${item.qtd}</td>
         <td style="font-size:.78rem">${esc(item.baseUnidade || item.unidade || '—')}</td>
         <td class="text-right font-mono" style="font-size:.78rem">${embLabel}</td>
@@ -15599,14 +15603,21 @@ function exportarListaPDF() {
   if (_listaComprasData.length === 0) return;
 
   const empresa = JSON.parse(localStorage.getItem("nexedu.empresa") || "{}");
-  const nomeEmpresa = empresa.nome || empresa.razaoSocial || "Empresa";
+  const nomeEmpresa = empresa.razaoSocial || empresa.nome || "Empresa";
+  const nomeFantasia = empresa.nomeFantasia || empresa.fantasia || "";
+  const empresaCnpj = empresa.cnpj || "";
+  const empresaEndereco = [empresa.logradouro, empresa.numero, empresa.bairro, empresa.cidade, empresa.uf, empresa.cep ? 'CEP ' + empresa.cep : ''].filter(Boolean).join(', ') || '';
+  const empresaTel = empresa.telefone || '';
+  const empresaEmail = empresa.email || '';
   const dataGeracao = new Date().toLocaleDateString('pt-BR');
+  const protocolos = [..._selectedDemandaIds].length ? [..._selectedDemandaIds].join(', ') : [..._selectedPedidoIds].join(', ');
+  const totalEmbs = _listaComprasData.reduce((s, i) => s + (i.qtdEmbalagens || 0), 0);
 
-  let tableRows = _listaComprasData.map((item, i) =>
-    `<tr><td style="text-align:center">${i+1}</td><td>${item.descricao}</td><td style="font-family:monospace">${item.sku||'-'}</td><td style="text-align:center">${item.unidade}</td><td style="text-align:right;font-weight:700">${item.qtd}</td><td style="font-size:11px;color:#666">${item.protocolos.join(', ')}</td></tr>`
-  ).join("");
-
-  const totalQtd = _listaComprasData.reduce((s, i) => s + i.qtd, 0);
+  let tableRows = _listaComprasData.map((item, i) => {
+    const embLabel = item.qtdEmbalagens ? item.qtdEmbalagens + ' emb. (' + (item.embalagem || '-') + ')' : '—';
+    const sobraLabel = item.sobra > 0 ? '+' + item.sobra + ' ' + (item.baseUnidade || item.unidade || '') : '—';
+    return `<tr><td style="text-align:center">${i+1}</td><td>${item.descricao}</td><td style="font-size:11px">${item.produtoEstoque || '—'}</td><td style="text-align:center">${item.qtdOriginal || '-'}</td><td style="text-align:center">${item.qtd}</td><td style="text-align:center">${item.baseUnidade || item.unidade || '—'}</td><td style="text-align:center;font-size:11px">${embLabel}</td><td style="text-align:center;font-size:11px">${sobraLabel}</td></tr>`;
+  }).join("");
 
   const iframe = document.createElement('iframe');
   iframe.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:0;height:0';
@@ -15615,29 +15626,30 @@ function exportarListaPDF() {
   doc.open();
   doc.write(`<!DOCTYPE html><html><head><title>Lista de Compras</title>
     <style>
-      body{font-family:Arial,sans-serif;margin:2rem;color:#333}
-      h1{font-size:18px;margin-bottom:4px}
-      .meta{font-size:12px;color:#666;margin-bottom:20px}
-      table{width:100%;border-collapse:collapse;font-size:13px}
-      th{background:#f0f0f0;padding:8px;text-align:left;border:1px solid #ddd;font-size:11px;text-transform:uppercase}
+      body{font-family:Arial,sans-serif;margin:2cm;color:#333}
+      table{width:100%;border-collapse:collapse;font-size:12px}
+      th{background:#f5f5f5;padding:8px;text-align:left;border:1px solid #ddd;font-size:10px;text-transform:uppercase}
       td{padding:6px 8px;border:1px solid #ddd}
       tr:nth-child(even){background:#f9f9f9}
-      .footer{margin-top:16px;font-size:12px;font-weight:700;text-align:right}
-      @media print{body{margin:1cm}}
+      @media print{body{margin:1.5cm}}
     </style>
   </head><body>
-    <h1>Lista de Compras — ${nomeEmpresa}</h1>
-    <div class="meta">Data: ${dataGeracao} | Protocolos: ${[..._selectedPedidoIds].join(', ')} | Itens: ${_listaComprasData.length}</div>
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1.5rem">
+      <div><div style="font-size:18px;font-weight:900;letter-spacing:1px">${nomeEmpresa.toUpperCase()}${nomeFantasia ? ' <span style="font-weight:400;font-size:13px">(' + nomeFantasia + ')</span>' : ''}</div><div style="font-size:10px;color:#666;margin-top:4px">${empresaCnpj ? 'CNPJ: ' + empresaCnpj : ''}</div><div style="font-size:10px;color:#666">${empresaEndereco}</div><div style="font-size:10px;color:#666">${[empresaTel ? 'Tel: ' + empresaTel : '', empresaEmail].filter(Boolean).join(' | ')}</div></div>
+      <div style="text-align:right"><div style="font-size:10px;color:#666;text-transform:uppercase">Lista de Compras Consolidada</div><div style="font-size:12px;color:#666;margin-top:4px">${dataGeracao}</div><div style="font-size:10px;color:#666;margin-top:2px">Protocolos: ${protocolos}</div></div>
+    </div>
     <table>
-      <thead><tr><th>#</th><th>Descricao</th><th>SKU</th><th>Unidade</th><th style="text-align:right">Qtd</th><th>Protocolos</th></tr></thead>
+      <thead><tr><th style="text-align:center">#</th><th>Item Pedido</th><th>Produto Estoque</th><th style="text-align:center">Qtd</th><th style="text-align:center">Quantidade</th><th style="text-align:center">Base</th><th style="text-align:center">Qtd Emb.</th><th style="text-align:center">Sobra</th></tr></thead>
       <tbody>${tableRows}</tbody>
     </table>
-    <div class="footer">Total: ${_listaComprasData.length} itens | Quantidade total: ${totalQtd}</div>
+    <div style="text-align:right;margin-top:1rem;font-size:12px;font-weight:700">${_listaComprasData.length} produtos | ${totalEmbs} embalagem(ns)</div>
+    <div style="display:flex;justify-content:space-around;margin-top:3rem;font-size:11px"><div style="text-align:center;width:40%"><div style="border-top:1px solid #333;padding-top:6px"><strong>Recebedor(a)</strong><br>Nome / Cargo / Matrícula</div></div><div style="text-align:center;width:40%"><div style="border-top:1px solid #333;padding-top:6px"><strong>Entregador</strong><br>${nomeEmpresa}</div></div></div>
+    <div style="text-align:center;margin-top:3rem;font-size:9px;color:#999">Documento gerado automaticamente pelo sistema GDP — Gestão de Pedidos<br>${nomeEmpresa}${empresaCnpj ? ' — CNPJ ' + empresaCnpj : ''}</div>
   </body></html>`);
   doc.close();
   iframe.contentWindow.focus();
   iframe.contentWindow.print();
-  setTimeout(() => document.body.removeChild(iframe), 3000);
+  setTimeout(() => document.body.removeChild(iframe), 5000);
 }
 
 // ===== BANCO DE PRODUTOS ERP =====
