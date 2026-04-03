@@ -738,6 +738,7 @@
         <button class="config-tab" data-config-tab="notas-fiscais">Notas Fiscais</button>
         <button class="config-tab" data-config-tab="contas-bancarias">Contas Bancarias</button>
         <button class="config-tab" data-config-tab="modulos">Módulos</button>
+        <button class="config-tab" data-config-tab="banco-precos">Banco de Preços</button>
       </nav>
       <!-- Dados da Empresa -->
       <div id="config-empresa" class="config-content active">
@@ -978,6 +979,22 @@
           </label>
         </div>
       </div>
+
+      <!-- Banco de Preços Config -->
+      <div id="config-banco-precos" class="config-content">
+        <p style="color:var(--muted);margin-bottom:16px;">Configure a integração com o Banco de Preços Inteligente. Com a integração ativa, o sistema sugere preços com semáforo (verde/amarelo/vermelho) baseado em dados reais de licitações.</p>
+        <div id="bp-config-container"></div>
+        <script>
+          document.addEventListener('DOMContentLoaded', () => {
+            const container = document.getElementById('bp-config-container');
+            if (container && typeof BancoPrecos !== 'undefined') {
+              container.innerHTML = BancoPrecos.renderConfigPanel();
+              BancoPrecos.bindConfigEvents();
+            }
+          });
+        </script>
+      </div>
+
     </div>
   </section>
 
@@ -1323,7 +1340,8 @@
   <div class="sidebar-overlay" id="sidebar-overlay"></div>
 
   <script src="auth.js"></script>
-  <script src="app.js?v=20"></script>
+  <script src="js/banco-precos-client.js?v=1"></script>
+  <script src="app.js?v=21"></script>
   <script src="pricing-intel.js?v=1"></script>
 </body>
 </html>

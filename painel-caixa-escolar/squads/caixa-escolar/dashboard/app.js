@@ -1702,9 +1702,40 @@ window.abrirPreOrcamento = function (orcId) {
 };
 
 // ===== RENDER PRÉ-ORÇAMENTO ITENS (Passo 5 — PNCP) =====
+// Enriquecer itens com sugestão do banco de preços (async)
+async function enrichWithBancoPrecos(pre) {
+  if (typeof BancoPrecos === "undefined" || !BancoPrecos.isEnabled()) return;
+  if (!pre || !pre.itens) return;
+
+  for (const item of pre.itens) {
+    if (item._bpLoaded) continue; // skip if already enriched
+    try {
+      const result = await BancoPrecos.calcularPreco(
+        item.nome, item.unidade, item.quantidade,
+        pre.escola || "", pre.municipio || ""
+      );
+      if (result) {
+        item._bpHtml = BancoPrecos.precoSugeridoHtml(result);
+        item._bpPrecoSugerido = result.preco_sugerido;
+        item._bpSemaforo = result.semaforo;
+        item._bpLoaded = true;
+      }
+    } catch (_) { /* silent */ }
+  }
+}
+
 function renderPreOrcamentoItens() {
   const pre = preOrcamentos[activePreOrcamentoId];
   if (!pre) return;
+
+  // Trigger async enrichment (updates _bpHtml for next render)
+  enrichWithBancoPrecos(pre).then(() => {
+    // Re-render only if we got new data
+    if (pre.itens.some(i => i._bpHtml && !i._bpRendered)) {
+      pre.itens.forEach(i => { if (i._bpHtml) i._bpRendered = true; });
+      renderPreOrcamentoItens(); // recursive but stops because _bpRendered is set
+    }
+  });
 
   const isEditable = pre.status === "pendente" || pre.status === "aprovado";
 
@@ -1804,6 +1835,7 @@ function renderPreOrcamentoItens() {
         ${pncpHint}
         ${concHint}
         ${fornHint}
+        ${item._bpHtml || ""}
         ${equivHint}
         ${searchBtn}
       </td>
@@ -5757,6 +5789,20 @@ async function varrerSgd() {
   } finally {
     btn.disabled = false;
     btn.textContent = "Varrer SGD";
+  }
+
+  // === INTEGRAÇÃO BANCO DE PREÇOS ===
+  // Após varrer SGD, enviar itens ao banco de preços para intake + normalização
+  if (typeof BancoPrecos !== "undefined" && BancoPrecos.isEnabled() && orcamentos.length > 0) {
+    try {
+      console.log("[BancoPrecos] Enviando itens do SGD ao banco de preços...");
+      const intakeResult = await BancoPrecos.enviarItensIntake(orcamentos);
+      if (intakeResult) {
+        console.log(`[BancoPrecos] Intake: ${intakeResult.vinculados} vinculados, ${intakeResult.pendentes} pendentes`);
+      }
+    } catch (e) {
+      console.warn("[BancoPrecos] Erro no intake:", e.message);
+    }
   }
 }
 
