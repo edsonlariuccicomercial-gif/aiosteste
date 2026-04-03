@@ -11169,7 +11169,7 @@ function verPedidoDetalhe(pedidoId, isClone) {
   html += '<div style="display:flex;justify-content:space-between;gap:1rem;align-items:flex-start;flex-wrap:wrap">';
   html += '<div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Fiscal e Cobranca</div><div style="font-weight:700">' + esc(getNotaFiscalResumoOperacional(nf)) + '</div><div style="font-size:.8rem;color:var(--mut);margin-top:.3rem">O pedido precisa conter todos os campos fiscais obrigatorios antes da emissao.</div>' + (fiscalMissing.length ? '<div style="margin-top:.55rem;color:var(--yellow);font-size:.78rem"><strong>Pendencias:</strong> ' + esc(fiscalMissing.join(', ')) + '</div>' : '<div style="margin-top:.55rem;color:var(--green);font-size:.78rem"><strong>Base fiscal completa.</strong></div>') + '</div>';
   html += (nf
-    ? '<button class="btn btn-outline" onclick="switchTab(\'notas-fiscais\')">Ver NF</button>'
+    ? '<button class="btn btn-outline" onclick="fecharModalPedido();switchTab(\'notas-fiscais\');setTimeout(function(){verNotaFiscal(\'' + nf.id + '\')},300)">Ver NF</button>'
     : '<button class="btn btn-purple" onclick="gerarNotaFiscalPedido(\'' + p.id + '\')">Gerar Nota Fiscal</button>');
   html += '</div></div>';
 
