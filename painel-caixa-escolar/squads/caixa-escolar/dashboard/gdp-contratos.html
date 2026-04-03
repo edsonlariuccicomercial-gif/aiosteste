@@ -15367,15 +15367,22 @@ function gerarListaComprasDeDemandas() {
   // Converter demandas estoque intel
   eiDemandas.forEach(d => {
     const itensDemanda = estoqueIntelPedidoItens.filter(pi => pi.pedido_id === d.id);
+    // Buscar pedido original para usar descrição exata do cliente
+    const pedidoOrig = pedidos.find(pp => pp.id === (d.origem_pedido_id || d.id));
+    const pedidoItensOrig = pedidoOrig?.itens || [];
     _listaComprasOrigem.push({
       id: d.id,
       escola: d.cliente || d.origem || "",
+      cliente: pedidoOrig?.cliente || null,
       dataPrevista: d.data_prevista || d.data || "",
       itens: itensDemanda.map(pi => {
         const prod = estoqueIntelProdutos.find(p => p.id === pi.produto_id);
         const emb = estoqueIntelEmbalagens.find(e => e.produto_id === pi.produto_id);
+        // Buscar descrição exata do pedido do cliente por match de nome
+        const nomeProd = (prod?.nome || '').toLowerCase();
+        const itemOrig = nomeProd ? pedidoItensOrig.find(oi => { const desc = (oi.descricao || '').toLowerCase(); return desc.includes(nomeProd) || nomeProd.includes(desc); }) : null;
         return {
-          descricao: prod?.nome || pi.descricao || "",
+          descricao: itemOrig?.descricao || prod?.nome || pi.descricao || "",
           sku: prod?.sku || emb?.codigo_barras || "",
           unidade: prod?.unidade_base || "UN",
           qtd: Number(pi.quantidade_base || 0),
