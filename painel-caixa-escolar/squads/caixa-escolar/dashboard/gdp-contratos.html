@@ -15416,6 +15416,12 @@ function gerarListaComprasDeDemandas() {
       }))
     });
   });
+  // Auto-preencher filtro de data com a próxima data prevista das demandas selecionadas
+  const datasDisponiveis = _listaComprasOrigem.map(p => (p.dataPrevista || "").slice(0, 10)).filter(Boolean).sort();
+  const hoje = new Date().toISOString().slice(0, 10);
+  const proximaData = datasDisponiveis.find(d => d >= hoje) || datasDisponiveis[datasDisponiveis.length - 1] || hoje;
+  const filtroDataEl = document.getElementById("lista-compras-filtro-data");
+  if (filtroDataEl && !filtroDataEl.value) filtroDataEl.value = proximaData;
   _listaComprasData = consolidarItensParaLista(_listaComprasOrigem);
   document.getElementById("lista-compras-info").textContent = _selectedDemandaIds.size + " demanda(s) — " + new Date().toLocaleDateString("pt-BR");
   document.getElementById("modal-lista-compras").classList.remove("hidden");
@@ -15425,7 +15431,9 @@ function gerarListaComprasDeDemandas() {
 function consolidarItensParaLista(origens) {
   const filtroData = document.getElementById("lista-compras-filtro-data")?.value || "";
   let filtered = origens;
-  if (filtroData) filtered = filtered.filter(p => {
+  // Filtro de data obrigatório — sem data, retorna vazio
+  if (!filtroData) return [];
+  filtered = filtered.filter(p => {
     const raw = p.dataPrevista || p.dataEntrega || p.data || "";
     if (!raw) return false;
     let dateISO = raw;
@@ -15433,7 +15441,7 @@ function consolidarItensParaLista(origens) {
       const parts = raw.split("/");
       dateISO = parts.length === 3 ? `${parts[2]}-${parts[1].padStart(2,"0")}-${parts[0].padStart(2,"0")}` : raw;
     }
-    return dateISO.slice(0, 10) <= filtroData;
+    return dateISO.slice(0, 10) === filtroData;
   });
   const consolidado = new Map();
   for (const p of filtered) {
@@ -15586,6 +15594,11 @@ function renderListaComprasAtual() {
         <td class="text-right font-mono" style="${sobraColor};font-size:.78rem">${sobraLabel}</td>
       </tr>`;
     }).join("");
+  }
+  // Mensagem quando sem itens
+  const filtroData = document.getElementById("lista-compras-filtro-data")?.value || "";
+  if (itens.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:2rem;color:var(--mut);font-size:.9rem">${!filtroData ? 'Selecione a <strong>Data Prevista de Entrega</strong> para filtrar a lista de compras.' : 'Nenhum item encontrado para a data <strong>' + new Date(filtroData + 'T12:00:00').toLocaleDateString('pt-BR') + '</strong>.'}</td></tr>`;
   }
   const totalEmbs = itens.reduce((s, i) => s + (i.qtdEmbalagens || 0), 0);
   const totalValor = itens.reduce((s, i) => s + (i.valorTotal || 0), 0);
