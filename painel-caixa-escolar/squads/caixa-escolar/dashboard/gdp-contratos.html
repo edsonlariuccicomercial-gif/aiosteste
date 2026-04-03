@@ -7691,6 +7691,7 @@ function solicitarCancelamentoNotaFiscal(notaId) {
     solicitadoEm: new Date().toISOString(),
     solicitadoPor: getAuditActor()
   };
+  nf.status = "cancelada";
   nf.audit = {
     ...(nf.audit || {}),
     updatedAt: new Date().toISOString(),
@@ -7703,8 +7704,31 @@ function solicitarCancelamentoNotaFiscal(notaId) {
     accessKey: nf.sefaz?.chaveAcesso || "",
     protocol: nf.sefaz?.protocolo || ""
   });
+  // Cancelar pedido vinculado imediatamente
+  const pedidoCanc = pedidos.find((item) => item.id === nf.pedidoId);
+  if (pedidoCanc) {
+    pedidoCanc.fiscal = {
+      ...(pedidoCanc.fiscal || {}),
+      notaFiscalId: nf.id,
+      tipoNota: "nfe_real",
+      status: "cancelada",
+      updatedAt: new Date().toISOString(),
+      updatedBy: getAuditActor()
+    };
+    savePedidos();
+  }
+  // Cancelar conta a receber vinculada imediatamente
+  const contaCanc = getContaReceberByNota(nf.id);
+  if (contaCanc) {
+    contaCanc.status = "cancelada";
+    contaCanc.cobranca = { ...(contaCanc.cobranca || {}), status: "cancelada" };
+    contaCanc.audit = { ...(contaCanc.audit || {}), updatedAt: new Date().toISOString(), updatedBy: getAuditActor() };
+    setIntegrationState(contaCanc, "bancaria", { status: "cancelamento_fiscal_iniciado", lastAction: "vincular_cancelamento_nf" });
+    saveContasReceber();
+  }
   saveNotasFiscais();
   renderNotasFiscais();
+  renderPedidos();
   verNotaFiscal(notaId);
 
   fetch("/api/gdp-integrations", {
