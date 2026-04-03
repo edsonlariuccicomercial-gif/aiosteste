@@ -1247,7 +1247,7 @@
 
   <!-- Modal: Novo Pedido -->
   <div id="modal-pedido" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1000;display:flex;align-items:flex-start;justify-content:center;padding:2rem;overflow-y:auto">
-    <div style="background:var(--bg);border:1px solid var(--bdr);border-radius:14px;width:700px;max-width:95vw;max-height:90vh;overflow-y:auto">
+    <div style="background:var(--bg);border:1px solid var(--bdr);border-radius:14px;width:960px;max-width:95vw;max-height:90vh;overflow-y:auto">
       <div style="padding:1.5rem;border-bottom:1px solid var(--bdr);display:flex;justify-content:space-between;align-items:center">
         <h2 style="font-size:1.1rem">Registrar Pedido Manual</h2>
       </div>
@@ -11160,7 +11160,7 @@ function verPedidoDetalhe(pedidoId, isClone) {
   html += '<div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Escola</div><div style="font-weight:700">' + esc(p.escola) + '</div></div>';
   html += '<div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Contrato</div><div style="font-weight:700">' + esc(ctrLabel) + '</div></div>';
   html += '<div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Data</div><div style="font-weight:700">' + fmtDate(p.dataEntrega || p.data) + '</div></div>';
-  html += '<div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Data Prevista</div><div style="display:flex;align-items:center;gap:.4rem"><input type="date" id="detalhe-data-prevista-' + p.id + '" value="' + esc(p.dataPrevista || p.dataEntrega || p.data || '') + '" style="background:var(--s1);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);padding:.3rem .5rem;font-size:.85rem" onchange="salvarDataPrevistaPedido(\'' + p.id + '\',this.value)"><span id="detalhe-data-prevista-ok-' + p.id + '" style="color:var(--green);font-size:.8rem;display:none">✓</span></div></div>';
+  html += '<div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Data Prevista</div><div style="display:flex;align-items:center;gap:.4rem"><input type="date" id="detalhe-data-prevista-' + p.id + '" value="' + esc(p.dataPrevista || p.dataEntrega || p.data || '') + '" style="background:var(--s1);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);padding:.3rem .5rem;font-size:.85rem"></div></div>';
   html += '<div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Valor Total</div><div style="font-weight:700;color:var(--green);font-size:1.2rem">' + brl.format(p.valor) + '</div></div>';
   html += '<div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Status</div><div><span class="badge ' + statusMeta.className + '">' + esc(statusMeta.label) + '</span></div></div>';
   html += '</div>';
@@ -11229,12 +11229,37 @@ function verPedidoDetalhe(pedidoId, isClone) {
   if (isClone) {
     html += '<div style="margin-top:1.2rem;display:flex;justify-content:flex-end;gap:.5rem"><button class="btn btn-outline" onclick="cancelarClonePedido()">Cancelar</button><button class="btn btn-green" onclick="salvarClonePedido()">Salvar</button></div>';
   } else {
-    html += '<div style="margin-top:1.2rem;display:flex;justify-content:flex-end;gap:.5rem"><button class="btn btn-outline" onclick="fecharModalPedido()">Cancelar</button></div>';
+    html += '<div style="margin-top:1.2rem;display:flex;justify-content:flex-end;gap:.5rem"><button class="btn btn-outline" onclick="fecharModalPedido()">Cancelar</button><button class="btn btn-green" onclick="salvarPedidoCompleto(\'' + p.id + '\')">Salvar</button></div>';
   }
 
   document.querySelector("#modal-pedido h2").textContent = isClone ? 'Clone — ' + p.id : 'Pedido ' + p.id;
   document.getElementById("modal-pedido-body").innerHTML = html;
   document.getElementById("modal-pedido").classList.remove("hidden");
+}
+
+function salvarPedidoCompleto(pedidoId) {
+  const p = pedidos.find(x => x.id === pedidoId);
+  if (!p) return;
+  // Salvar data prevista
+  const dataPrevistaEl = document.getElementById('detalhe-data-prevista-' + pedidoId);
+  if (dataPrevistaEl) p.dataPrevista = dataPrevistaEl.value;
+  // Salvar dados fiscais
+  savePedidoFiscalData(pedidoId);
+  // Salvar pagamento
+  salvarPedidoPagamento(pedidoId);
+  // Recalcular preços dos itens
+  (p.itens || []).forEach((item, idx) => {
+    const precoEl = document.getElementById('fiscal-item-preco-' + pedidoId + '-' + idx);
+    if (precoEl) item.precoUnitario = Math.round(parseFloat(precoEl.value || 0) * 100) / 100;
+  });
+  const novoTotal = p.itens.reduce((sum, it) => sum + Math.round(((it.qtd || 0) * (it.precoUnitario || 0)) * 100) / 100, 0);
+  p.valor = novoTotal;
+  p.totalGeral = novoTotal;
+  p.valorTotal = novoTotal;
+  savePedidos();
+  renderPedidos();
+  showToast('Pedido salvo com sucesso!', 3000);
+  fecharModalPedido();
 }
 
 function imprimirPedido(pedidoId) {
