@@ -10563,7 +10563,8 @@ var PEDIDO_STATUS_COLORS = {
   pronto_para_envio: '#06b6d4',
   faturado: '#22c55e',
   entregue: '#10b981',
-  nao_entregue: '#ef4444'
+  nao_entregue: '#ef4444',
+  cancelado: '#94a3b8'
 };
 
 function alterarSituacaoSelecionados() {
@@ -11769,15 +11770,19 @@ async function conciliarCaixaViaApi() {
 }
 
 function renderRelatorios() {
+  // Filtrar itens cancelados dos relatórios
+  const contasReceberAtivas = contasReceber.filter(c => c.status !== "cancelada");
+  const contasPagarAtivas = contasPagar.filter(c => c.status !== "cancelada");
+  const notasFiscaisAtivas = notasFiscais.filter(nf => nf.status !== "cancelada");
   const fluxoMap = new Map();
-  contasReceber.forEach((item) => {
+  contasReceberAtivas.forEach((item) => {
     const data = String(item.recebidaEm || item.vencimento || "").slice(0, 10);
     if (!data) return;
     const row = fluxoMap.get(data) || { data, entradas: 0, saidas: 0 };
     row.entradas += Number(item.valor || 0);
     fluxoMap.set(data, row);
   });
-  contasPagar.forEach((item) => {
+  contasPagarAtivas.forEach((item) => {
     const data = String(item.pagaEm || item.vencimento || "").slice(0, 10);
     if (!data) return;
     const row = fluxoMap.get(data) || { data, entradas: 0, saidas: 0 };
@@ -11794,13 +11799,13 @@ function renderRelatorios() {
     }).join("");
   }
   const categoriaMap = new Map();
-  contasReceber.forEach((item) => {
+  contasReceberAtivas.forEach((item) => {
     const key = item.categoria || "sem_categoria";
     const row = categoriaMap.get(key) || { categoria: key, entradas: 0, saidas: 0 };
     row.entradas += Number(item.valor || 0);
     categoriaMap.set(key, row);
   });
-  contasPagar.forEach((item) => {
+  contasPagarAtivas.forEach((item) => {
     const key = item.categoria || "sem_categoria";
     const row = categoriaMap.get(key) || { categoria: key, entradas: 0, saidas: 0 };
     row.saidas += Number(item.valor || 0);
@@ -11813,10 +11818,10 @@ function renderRelatorios() {
       .map((row) => `<tr><td>${esc(formatCategoriaLabel(row.categoria))}</td><td class="text-right font-mono">${brl.format(row.entradas)}</td><td class="text-right font-mono">${brl.format(row.saidas)}</td><td class="text-right font-mono">${brl.format(row.entradas - row.saidas)}</td></tr>`)
       .join("");
   }
-  const totalEntradas = contasReceber.reduce((sum, item) => sum + Number(item.valor || 0), 0);
-  const totalSaidas = contasPagar.reduce((sum, item) => sum + Number(item.valor || 0), 0);
-  const lucroBruto = notasFiscais.reduce((sum, nf) => sum + Number(nf.valor || 0), 0);
-  const despesasOperacionais = contasPagar
+  const totalEntradas = contasReceberAtivas.reduce((sum, item) => sum + Number(item.valor || 0), 0);
+  const totalSaidas = contasPagarAtivas.reduce((sum, item) => sum + Number(item.valor || 0), 0);
+  const lucroBruto = notasFiscaisAtivas.reduce((sum, nf) => sum + Number(nf.valor || 0), 0);
+  const despesasOperacionais = contasPagarAtivas
     .filter((item) => ["operacional", "servico", "comissao", "frete"].includes(item.categoria))
     .reduce((sum, item) => sum + Number(item.valor || 0), 0);
   const resultadoOperacional = lucroBruto - totalSaidas;
@@ -15092,7 +15097,8 @@ var PEDIDO_STATUS_TABS = [
   { key: "pronto_para_envio", label: "Pronto para Envio", className: "badge-blue" },
   { key: "faturado", label: "Faturado", className: "badge-green" },
   { key: "entregue", label: "Entregue", className: "badge-green" },
-  { key: "nao_entregue", label: "Não Entregue", className: "badge-red" }
+  { key: "nao_entregue", label: "Não Entregue", className: "badge-red" },
+  { key: "cancelado", label: "Cancelado", className: "badge-red" }
 ];
 var pedidoStatusTabAtual = "em_aberto";
 var pedidoMenuAtualId = null;
@@ -15128,7 +15134,8 @@ function normalizePedidoStatus(status) {
   if (normalized === "recebido") return "em_aberto";
   if (normalized === "concluido") return "faturado";
   if (normalized === "entregue" || normalized === "entrega_confirmada") return "entregue";
-  if (normalized === "nao_entregue" || normalized === "cancelado" || normalized === "devolvido") return "nao_entregue";
+  if (normalized === "cancelado" || normalized === "cancelada") return "cancelado";
+  if (normalized === "nao_entregue" || normalized === "devolvido") return "nao_entregue";
   return normalized;
 }
 
@@ -15152,7 +15159,7 @@ function renderPedidosStatusTabs(items = pedidos) {
     const count = tabItems.length;
     const cor = PEDIDO_STATUS_COLORS[tab.key] || '#94a3b8';
     const active = pedidoStatusTabAtual === tab.key;
-    return `<button class="btn ${active ? 'btn-green' : 'btn-outline'} btn-sm" onclick="setPedidoStatusTab('${tab.key}')" style="display:flex;flex-direction:column;align-items:center;min-width:80px;padding:.4rem .7rem;${active ? '' : 'font-weight:700'}"><span style="display:flex;align-items:center;gap:.35rem;font-size:.78rem"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${cor}"></span>${tab.label}</span><span style="font-size:.85rem;font-weight:700;margin-top:.15rem">${count.toString().padStart(2,'0')}</span></button>`;
+    return `<button class="btn ${active ? 'btn-green' : 'btn-outline'} btn-sm" onclick="setPedidoStatusTab('${tab.key}')" style="display:flex;align-items:center;gap:.45rem;padding:.4rem .8rem;${active ? '' : 'font-weight:700'}"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${cor}"></span><span style="font-size:.78rem">${tab.label}</span><span style="font-size:.82rem;font-weight:800;opacity:.85">${count.toString().padStart(2,'0')}</span></button>`;
   }).join("");
   // Totais rodapé — filtrar pela aba de status ativa
   const activeTabItems = safeItems.filter((item) => normalizePedidoStatus(item.status) === pedidoStatusTabAtual);
