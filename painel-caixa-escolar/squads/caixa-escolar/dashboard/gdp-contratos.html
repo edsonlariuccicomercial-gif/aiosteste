@@ -5083,7 +5083,7 @@ function renderContratos() {
   const statusFiltro = document.getElementById("filtro-status-contrato").value;
 
   let filtered = contratos.filter(c => {
-    const matchBusca = !busca || c.escola.toLowerCase().includes(busca) || c.edital.toLowerCase().includes(busca) || c.id.toLowerCase().includes(busca);
+    const matchBusca = !busca || (c.escola||'').toLowerCase().includes(busca) || (c.edital||'').toLowerCase().includes(busca) || (c.id||'').toLowerCase().includes(busca) || (c.processo||'').toLowerCase().includes(busca) || (c.objeto||'').toLowerCase().includes(busca);
     const matchStatus = !statusFiltro || c.status === statusFiltro;
     return matchBusca && matchStatus;
   });
