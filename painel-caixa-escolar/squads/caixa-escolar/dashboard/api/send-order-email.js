@@ -13,7 +13,7 @@ export default async function handler(req, res) {
   const body = req.body;
   if (!body) return res.status(400).json({ error: "JSON invalido" });
 
-  const { to, schoolName, protocol, date, items, total, obs, olistId, responsible, cnpj, sre, pagamento } = body;
+  const { to, schoolName, protocol, date, items, total, obs, olistId, responsible, cnpj, sre, pagamento, nfe } = body;
 
   if (!to || !protocol) {
     return res.status(400).json({ error: "Campos obrigatorios: to, protocol" });
@@ -58,6 +58,22 @@ export default async function handler(req, res) {
             <td style="padding:10px 12px;text-align:right;font-weight:800;color:#22c55e;font-size:16px;">R$ ${(total || 0).toFixed(2).replace('.', ',')}</td>
           </tr></tfoot>
         </table>
+        ${nfe ? `
+        <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:16px;margin:16px 0;">
+          <h3 style="margin:0 0 12px;font-size:14px;color:#166534;">📄 Nota Fiscal Eletrônica — NF ${nfe.numero || ''}</h3>
+          <table style="width:100%;font-size:13px;color:#334155;">
+            <tr><td style="padding:4px 0;color:#64748b;width:40%;">Número:</td><td style="padding:4px 0;font-weight:700;">${nfe.numero || '-'}</td></tr>
+            <tr><td style="padding:4px 0;color:#64748b;">Série:</td><td style="padding:4px 0;">${nfe.serie || '1'}</td></tr>
+            <tr><td style="padding:4px 0;color:#64748b;">Protocolo:</td><td style="padding:4px 0;font-family:monospace;font-size:12px;">${nfe.protocolo || '-'}</td></tr>
+            <tr><td style="padding:4px 0;color:#64748b;">Valor:</td><td style="padding:4px 0;font-weight:800;color:#22c55e;">R$ ${(nfe.valor || 0).toFixed(2).replace('.', ',')}</td></tr>
+          </table>
+          ${nfe.chaveAcesso ? `
+          <div style="margin-top:12px;padding:10px;background:#fff;border-radius:6px;border:1px solid #d1fae5;">
+            <p style="margin:0 0 4px;font-size:11px;color:#64748b;text-transform:uppercase;">Chave de Acesso</p>
+            <p style="margin:0;font-size:12px;font-weight:700;font-family:monospace;color:#1e293b;word-break:break-all;">${nfe.chaveAcesso.replace(/(.{4})/g, '$1 ').trim()}</p>
+          </div>` : ''}
+          <p style="margin:12px 0 0;font-size:11px;color:#64748b;">Consulte em: <a href="https://www.nfe.fazenda.gov.br/portal/consultaRecaptcha.aspx?tipoConsulta=resumo&tipoConteudo=7PhJ+gAVw2g=" style="color:#3b82f6;">www.nfe.fazenda.gov.br</a></p>
+        </div>` : ''}
         ${pagamento ? `
         <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:16px;margin:16px 0;">
           <h3 style="margin:0 0 12px;font-size:14px;color:#1e293b;">Dados de Pagamento</h3>
@@ -89,17 +105,59 @@ export default async function handler(req, res) {
     const apiKey = process.env.RESEND_API_KEY;
     if (!apiKey) return res.status(500).json({ error: "RESEND_API_KEY nao configurado" });
 
+    // Build attachments
+    const attachments = [];
+    if (nfe?.danfePdf) {
+      attachments.push({
+        filename: `DANFE_${nfe.numero || 'sem-numero'}.pdf`,
+        content: nfe.danfePdf
+      });
+    }
+    if (nfe?.xml) {
+      attachments.push({
+        filename: `NFe_${nfe.numero || 'sem-numero'}.xml`,
+        content: Buffer.from(nfe.xml, 'utf-8').toString('base64')
+      });
+    }
+    if (!nfe?.danfePdf && nfe?.danfeHtml) {
+      attachments.push({
+        filename: `DANFE_${nfe.numero || 'sem-numero'}.html`,
+        content: Buffer.from(nfe.danfeHtml, 'utf-8').toString('base64')
+      });
+    }
+
+    const fromAddr = process.env.EMAIL_FROM || 'GDP Pedidos <onboarding@resend.dev>';
+    const subject = `${nfe ? 'NF-e ' + (nfe.numero || '') + ' — ' : ''}${pagamento ? 'Cobranca' : 'Pedido'} ${protocol} — ${schoolName}`;
+
+    const emailPayload = {
+      from: fromAddr,
+      to: [to],
+      subject,
+      html: html
+    };
+    if (attachments.length > 0) emailPayload.attachments = attachments;
+
     const resp = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        from: process.env.EMAIL_FROM || 'GDP Pedidos <pedidos@gdp.lariucci.com.br>',
-        to: [to],
-        subject: `${pagamento ? 'NF + Cobranca' : 'Pedido'} ${protocol} — ${schoolName}`,
-        html: html
-      })
+      body: JSON.stringify(emailPayload)
     });
     const result = await resp.json();
+
+    // Se falhou por dominio nao verificado (403), tentar com from generico do Resend
+    if (!resp.ok && result.statusCode === 403 && result.name === 'validation_error') {
+      console.log(`[Email] Dominio nao verificado para ${to}, tentando com onboarding@resend.dev`);
+      const retryPayload = { ...emailPayload, from: 'GDP Pedidos <onboarding@resend.dev>' };
+      const resp2 = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(retryPayload)
+      });
+      const result2 = await resp2.json();
+      if (!resp2.ok) return res.status(500).json({ error: `Resend retry: ${JSON.stringify(result2)}` });
+      return res.status(200).json({ success: true, provider: 'resend', id: result2.id, fallback: true });
+    }
+
     if (!resp.ok) return res.status(500).json({ error: `Resend: ${JSON.stringify(result)}` });
     return res.status(200).json({ success: true, provider: 'resend', id: result.id });
   }

@@ -450,7 +450,8 @@ function buildNfePayloadFromPedido(pedido, overrides = {}) {
       contratoId: pedido?.contratoId || "",
       naturezaOperacao: overrides.naturezaOperacao || "VENDA DE MERCADORIA",
       serie: overrides.serie || cfg.seriePadrao,
-      numero: overrides.numero || getNextNfNumber()
+      numero: overrides.numero || getNextNfNumber(),
+      observacao: overrides.observacao || ""
     },
     itens: itens.map((item, idx) => ({
       itemNum: item.itemNum || idx + 1,
@@ -458,7 +459,7 @@ function buildNfePayloadFromPedido(pedido, overrides = {}) {
       descricao: item.descricao || `Item ${idx + 1}`,
       ncm: sanitizeDigits(item.ncm),
       cfop: item.cfop || overrides.cfop || "5102",
-      unidade: item.unidade || "UN",
+      unidade: (item.unidade || "UN").replace(/[^!-\x7E]/g, "").slice(0, 6) || "UN",
       quantidade: Number(item.qtd || 0),
       valorUnitario: Number(item.precoUnitario || 0),
       valorTotal: Number((Number(item.qtd || 0) * Number(item.precoUnitario || 0)).toFixed(2))

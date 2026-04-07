@@ -2091,6 +2091,7 @@ function renderPreOrcamentosLista() {
         <td class="nowrap">${formatDate(p.criadoEm)}</td>
         <td>
           <button class="btn btn-inline" onclick="abrirPreOrcamento('${p.orcamentoId}')">Ver</button>
+          ${(p.status === "ganho" || p.status === "perdido" || p.status === "enviado") ? `<button class="btn btn-inline" onclick="editarResultadoPreOrcamento('${p.orcamentoId}')" title="Alterar resultado">Editar Resultado</button>` : ""}
           <button class="btn btn-inline btn-danger" onclick="removerPreOrcamento('${p.orcamentoId}')">Excluir</button>
         </td>
       </tr>`;
@@ -3382,6 +3383,34 @@ function saveNotaFiscalConfig() {
   };
   localStorage.setItem(NF_CONFIG_STORAGE_KEY, JSON.stringify(config));
   if (typeof showToast === "function") showToast("Configuracoes fiscais salvas.");
+}
+
+function buildObservacaoBancaria(contrato) {
+  const contaId = getNotaFiscalConfig().contaBancariaPadraoId;
+  const accounts = getBankAccounts();
+  const conta = (contaId && accounts.find(a => a.id === contaId)) || accounts.find(a => a.padrao) || accounts[0];
+  if (!conta) return "";
+  const parts = [];
+  parts.push("DADOS PARA PAGAMENTO:");
+  if (conta.titular) parts.push("Titular: " + conta.titular);
+  if (conta.documento) parts.push("CNPJ/CPF: " + conta.documento);
+  if (conta.banco) parts.push("Banco: " + conta.banco + (conta.codigo ? " (" + conta.codigo + ")" : ""));
+  if (conta.agencia) parts.push("Agencia: " + conta.agencia);
+  if (conta.conta) parts.push("Conta: " + conta.conta + (conta.tipo ? " (" + conta.tipo + ")" : ""));
+  if (conta.pix) parts.push("Chave PIX: " + conta.pix);
+  return parts.join("\n");
+}
+
+function autoPreencherObservacaoNF() {
+  const textarea = document.getElementById("nf-observacoes");
+  if (!textarea) return;
+  const obs = buildObservacaoBancaria();
+  if (!obs) {
+    if (typeof showToast === "function") showToast("Cadastre uma conta bancaria primeiro.", 3000);
+    return;
+  }
+  textarea.value = obs;
+  if (typeof showToast === "function") showToast("Observacao preenchida com dados bancarios e PIX.");
 }
 
 function refreshContaBancariaOptions() {
@@ -5340,8 +5369,32 @@ async function browserSgdSubmit(payload) {
   await BrowserSgdClient.login();
   if (!BrowserSgdClient.networkId) await BrowserSgdClient.listBudgets(1, 1);
 
-  const { idSubprogram, idSchool, idBudget } = payload;
-  if (!idSubprogram || !idSchool || !idBudget) throw new Error("IDs SGD ausentes no payload");
+  let { idSubprogram, idSchool, idBudget } = payload;
+  // Tentar recuperar IDs do orcamento vinculado se ausentes
+  if ((!idSubprogram || !idSchool || !idBudget) && payload.orcamentoId) {
+    const orc = orcamentos.find(o => o.id === payload.orcamentoId);
+    if (orc) {
+      if (!idSubprogram && orc.idSubprogram) idSubprogram = orc.idSubprogram;
+      if (!idSchool && orc.idSchool) idSchool = orc.idSchool;
+      if (!idBudget && orc.idBudget) idBudget = orc.idBudget;
+    }
+  }
+  // Tentar pegar do primeiro orcamento que tenha IDs SGD
+  if (!idSubprogram || !idSchool || !idBudget) {
+    const orcComIds = orcamentos.find(o => o.idSubprogram && o.idSchool && o.idBudget);
+    if (orcComIds) {
+      if (!idSubprogram) idSubprogram = orcComIds.idSubprogram;
+      if (!idSchool) idSchool = orcComIds.idSchool;
+      if (!idBudget) idBudget = orcComIds.idBudget;
+    }
+  }
+  if (!idSubprogram || !idSchool || !idBudget) {
+    const missing = [];
+    if (!idSubprogram) missing.push("idSubprogram");
+    if (!idSchool) missing.push("idSchool");
+    if (!idBudget) missing.push("idBudget");
+    throw new Error("IDs SGD ausentes (" + missing.join(", ") + "). Importe o orcamento do SGD primeiro ou vincule a um orcamento importado.");
+  }
 
   // Use saved idAxis and networkId from orcamento if available
   const orc = orcamentos.find((o) => o.id === payload.orcamentoId);
@@ -6036,6 +6089,47 @@ window.salvarResultado = function () {
   } else {
     showToast("Resultado registrado — histórico atualizado");
   }
+};
+
+window.editarResultadoPreOrcamento = function (orcId) {
+  const pre = preOrcamentos[orcId];
+  if (!pre) return;
+  const statusAtual = pre.status;
+  const opcoes = ["enviado", "ganho", "perdido"];
+  const labels = { enviado: "Enviado (reverter)", ganho: "Ganho", perdido: "Perdido" };
+  const escolha = prompt(
+    "Status atual: " + statusAtual.toUpperCase() + "\n\n" +
+    "Digite o novo status:\n" +
+    "1 = Enviado (reverter resultado)\n" +
+    "2 = Ganho\n" +
+    "3 = Perdido\n\n" +
+    "Ou digite: enviado / ganho / perdido"
+  );
+  if (!escolha) return;
+  const map = { "1": "enviado", "2": "ganho", "3": "perdido" };
+  const novoStatus = map[escolha.trim()] || escolha.trim().toLowerCase();
+  if (!opcoes.includes(novoStatus)) { showToast("Status inválido: " + escolha, 3000); return; }
+  if (novoStatus === statusAtual) { showToast("Já está como " + statusAtual, 2000); return; }
+
+  pre.status = novoStatus;
+  savePreOrcamentos();
+
+  // Atualizar resultado se existir
+  const resultados = JSON.parse(localStorage.getItem(RESULTADOS_STORAGE_KEY) || "[]");
+  const resIdx = resultados.findIndex(r => r.orcamentoId === orcId);
+  if (resIdx >= 0 && novoStatus === "enviado") {
+    resultados.splice(resIdx, 1);
+    localStorage.setItem(RESULTADOS_STORAGE_KEY, JSON.stringify(resultados));
+  } else if (resIdx >= 0) {
+    resultados[resIdx].resultado = novoStatus;
+    localStorage.setItem(RESULTADOS_STORAGE_KEY, JSON.stringify(resultados));
+  }
+
+  renderSgd();
+  renderKPIs();
+  renderOrcamentos();
+  schedulCloudSync();
+  showToast("Resultado alterado de " + statusAtual + " para " + novoStatus);
 };
 
 // ===== F3: GERAR CONTRATO DE RESULTADO =====

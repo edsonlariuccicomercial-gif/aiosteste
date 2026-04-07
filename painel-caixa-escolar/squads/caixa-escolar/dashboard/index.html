@@ -861,7 +861,7 @@
               <label>Prazo maximo de emissao (horas)<input type="number" id="nf-prazo-emissao" min="1" step="1" placeholder="Ex: 24" /></label>
               <label>Conta bancaria padrao<select id="nf-conta-bancaria-padrao"><option value="">Selecione...</option></select></label>
             </div>
-            <label class="config-block-field">Observacoes padrao no documento fiscal<textarea id="nf-observacoes" rows="4" placeholder="Dados adicionais para DANFE, entrega ou cobranca"></textarea></label>
+            <label class="config-block-field">Observacoes padrao no documento fiscal<textarea id="nf-observacoes" rows="6" placeholder="Dados adicionais para DANFE, entrega ou cobranca"></textarea><button type="button" class="btn btn-outline" style="margin-top:6px;font-size:.78rem" onclick="autoPreencherObservacaoNF()">Preencher com dados bancarios + PIX</button></label>
             <div class="config-inline-toggles">
               <label><input type="checkbox" id="nf-destacar-pix" /> Destacar chave PIX</label>
               <label><input type="checkbox" id="nf-gerar-conta-receber" /> Gerar conta a receber automaticamente</label>

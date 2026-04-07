@@ -165,6 +165,7 @@
     .hidden{display:none!important}
     @media(max-width:768px){.main{padding:1rem}.kpi-grid{grid-template-columns:repeat(2,1fr)}.topbar{flex-wrap:wrap;gap:.5rem}}
   </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
 <body>
 
@@ -220,9 +221,10 @@
       <span class="badge badge-blue">Gestao Pos-Licitacao</span>
     </div>
     <div class="topbar-right">
-      <div class="sync-indicator" id="gdp-sync-indicator" data-state="cloud">
+      <div class="sync-indicator" id="gdp-sync-indicator" data-state="cloud" style="cursor:pointer" onclick="forcarSyncCompleto()" title="Clique para forçar sincronização">
         <strong id="gdp-sync-state">Fonte remota ativa</strong>
-        <span id="gdp-sync-meta">Sessao: LARIUCCI | Fonte: cloud | Cloud atualizado com dados do GDP | Atualizado 22/03/2026, 11:09:03</span>
+        <span id="gdp-sync-meta">Sessao: LARIUCCI | Fonte: cloud</span>
+        <button onclick="event.stopPropagation();forcarSyncCompleto()" style="margin-top:4px;padding:2px 10px;font-size:.7rem;font-weight:700;border:1px solid var(--bdr);border-radius:6px;background:var(--s2);color:var(--txt);cursor:pointer">⟳ Forçar Sync</button>
       </div>
       <a href="gdp-portal.html">Portal Escolar</a>
       <a href="gdp-entregador.html">Entregador</a>
@@ -2095,6 +2097,28 @@ function schedulCloudSync() {
   if (_syncTimeout) clearTimeout(_syncTimeout);
   setGdpSyncState({ status: "pending", source: "cloud", detail: "Aguardando envio automatico" });
   _syncTimeout = setTimeout(() => syncToCloud(), 2000);
+}
+
+async function forcarSyncCompleto() {
+  try {
+    setGdpSyncState({ status: "syncing", detail: "Enviando dados locais para cloud..." });
+    showToast("Sync: enviando dados locais...", 2000);
+    await syncToCloud();
+    setGdpSyncState({ status: "syncing", detail: "Baixando dados do cloud..." });
+    showToast("Sync: baixando dados do cloud...", 2000);
+    const result = await syncFromCloud();
+    if (result.restored) {
+      loadData();
+      renderAll();
+      showToast("Sync completo! " + result.rowCount + " chaves sincronizadas. Recarregue em outras maquinas.", 5000);
+    } else {
+      showToast("Sync completo — tudo ja estava atualizado.", 3000);
+    }
+    setGdpSyncState({ status: "cloud", detail: "Sync manual concluido" });
+  } catch (e) {
+    setGdpSyncState({ status: "offline", detail: "Falha no sync: " + e.message });
+    showToast("Erro no sync: " + e.message, 5000);
+  }
 }
 
 // Sync on tab hide/close to prevent data loss
@@ -4292,21 +4316,30 @@ async function readCronoPDF(file) {
   const page = await pdf.getPage(1);
   const content = await page.getTextContent();
 
-  // Group text items by Y coordinate (rows) using X for column positioning
-  const rowMap = {};
-  content.items.forEach(item => {
-    const y = Math.round(item.transform[5]);
-    const x = Math.round(item.transform[4]);
-    if (!rowMap[y]) rowMap[y] = [];
-    rowMap[y].push({ x, text: item.str.trim() });
+  // Group text items by Y coordinate (rows) with tolerance for sub-pixel differences
+  const Y_TOLERANCE = 4;
+  const rawItems = content.items.map(item => ({
+    y: Math.round(item.transform[5]),
+    x: Math.round(item.transform[4]),
+    text: item.str.trim()
+  })).filter(i => i.text);
+
+  // Cluster Y values within tolerance
+  const yClusters = [];
+  const sortedByY = [...rawItems].sort((a, b) => b.y - a.y);
+  sortedByY.forEach(item => {
+    const existing = yClusters.find(c => Math.abs(c.y - item.y) <= Y_TOLERANCE);
+    if (existing) {
+      existing.items.push(item);
+      existing.y = Math.round(existing.items.reduce((s, i) => s + i.y, 0) / existing.items.length);
+    } else {
+      yClusters.push({ y: item.y, items: [item] });
+    }
   });
 
-  // Sort rows top-to-bottom (Y descending in PDF coords)
-  const sortedYs = Object.keys(rowMap).map(Number).sort((a, b) => b - a);
-  const rows = sortedYs.map(y => {
-    const cells = rowMap[y].sort((a, b) => a.x - b.x);
-    return cells;
-  });
+  // Sort clusters top-to-bottom and build rows
+  yClusters.sort((a, b) => b.y - a.y);
+  const rows = yClusters.map(c => c.items.sort((a, b) => a.x - b.x));
 
   // Extract header info from top rows
   let escola = '', cnpj = '', processo = '', fornecedor = '', recurso = 'Geral';
@@ -4392,14 +4425,26 @@ async function readCronoPDF(file) {
   const datas = dateColumns.map(d => d.date);
 
   // Find column positions for PRODUTO, VR. UNIT., TOTAL
-  let prodXMin = 0, prodXMax = 0, precoX = 0, totalX = 0, itemNumX = 0;
+  let prodXMin = 0, prodXMax = 0, precoX = 0, totalQtyX = 0, totalValX = 0, itemNumX = 0;
   const headerRow = rows[headerRowIdx];
+  const totalPositions = [];
   headerRow.forEach(c => {
     if (c.text === 'PRODUTO') { prodXMin = c.x; }
     if (c.text.includes('VR.') || c.text.includes('UNIT')) { precoX = c.x; }
-    if (c.text === 'TOTAL') { totalX = c.x; }
+    if (c.text === 'TOTAL') { totalPositions.push(c.x); }
     if (c.text.includes('ITENS')) { itemNumX = c.x; }
   });
+  // First TOTAL = quantity total, second TOTAL = value total
+  if (totalPositions.length >= 2) {
+    totalPositions.sort((a,b) => a - b);
+    totalQtyX = totalPositions[0];
+    totalValX = totalPositions[1];
+  } else if (totalPositions.length === 1) {
+    totalQtyX = totalPositions[0];
+  }
+  const lastDateX = Math.max(...dateColumns.map(d => d.x));
+  // Cutoff: anything beyond lastDateX + margin is post-date columns
+  const postDateCutoff = lastDateX + 15;
 
   // Parse data rows (rows after header)
   const items = [];
@@ -4421,33 +4466,57 @@ async function readCronoPDF(file) {
 
     // Parse unit, product, price from pre-date columns
     beforeDates.forEach(c => {
-      if (/^(Kg|Pc\([^)]*\)|Lt\([^)]*\)|Fr\([^)]*\)|Un|L)$/i.test(c.text)) {
+      if (/^(Kg|Pc\([^)]*\)|Lt\([^)]*\)|Fr\([^)]*\)|Un|Cx|Pct|Bd|Mç|Dz|L|G)$/i.test(c.text)) {
         unidade = c.text;
       } else if (/^R\$/.test(c.text)) {
         const pStr = c.text.replace('R$', '').replace(/\s+/g, '').replace(',', '.');
         preco = parseFloat(pStr) || 0;
-      } else if (/^[A-ZÁÀÂÃÉÊÍÓÔÕÚÜÇÑ]{2,}/.test(c.text) && c.text.length > 2) {
+      } else if (/^\d+[,.]?\d*$/.test(c.text) && !unidade) {
+        // quantity before unit — skip (will be captured as QUANT)
+      } else if (/^[A-ZÁÀÂÃÉÊÍÓÔÕÚÜÇÑ]/.test(c.text) && c.text.length > 1 && !/^\d/.test(c.text) && !/^R\$/.test(c.text)) {
         descricao = descricao ? descricao + ' ' + c.text : c.text;
       }
     });
 
     if (!descricao || !unidade) continue;
 
-    // Fix broken prices like "1 9,40" → merge adjacent number fragments before dates
+    // Fix broken prices — R$ and value often on separate cells
     if (preco === 0) {
-      const priceItems = beforeDates.filter(c => /^\d/.test(c.text) || /^,\d/.test(c.text) || /R\$/.test(c.text));
-      if (priceItems.length > 0) {
-        const pStr = priceItems.map(c => c.text).join('').replace('R$', '').replace(/\s+/g, '').replace(',', '.');
-        preco = parseFloat(pStr) || 0;
+      // Find R$ marker and take the next numeric cell as price
+      for (let ci = 0; ci < beforeDates.length; ci++) {
+        if (/R\$/.test(beforeDates[ci].text)) {
+          // Collect adjacent numeric fragments after R$
+          const fragments = [];
+          for (let cj = ci; cj < beforeDates.length; cj++) {
+            const t = beforeDates[cj].text.replace('R$', '').trim();
+            if (t) fragments.push(t);
+          }
+          const pStr = fragments.join('').replace(/\s+/g, '').replace(/\./g, '').replace(',', '.');
+          preco = parseFloat(pStr) || 0;
+          break;
+        }
       }
     }
 
     // Match quantities to dates by closest X position
     inDates.forEach(c => {
+      if (/R\$/.test(c.text) || /[,.]/.test(c.text)) return; // Skip monetary values
       const val = parseInt(c.text);
-      if (isNaN(val)) return;
+      if (isNaN(val) || val <= 0) return;
 
-      // Find closest date column
+      // Post-date zone: TOTAL qty, TOTAL R$, ITENS-PAS
+      if (c.x > postDateCutoff) {
+        if (totalQtyX > 0 && Math.abs(c.x - totalQtyX) < 15) {
+          totalQty = val;
+        } else if (itemNumX > 0 && Math.abs(c.x - itemNumX) < 15) {
+          itemNum = String(val);
+        } else if (!totalQty && totalValX === 0) {
+          totalQty = val; // First number after dates = total qty
+        }
+        return;
+      }
+
+      // Date zone: find closest date column
       let closestDate = null;
       let closestDist = Infinity;
       dateColumns.forEach(dc => {
@@ -4455,22 +4524,7 @@ async function readCronoPDF(file) {
         if (dist < closestDist) { closestDist = dist; closestDate = dc.date; }
       });
 
-      // Check if this is a TOTAL column (far right) or ITEM NUM
-      if (closestDist > 30) {
-        // Could be total qty or item number - check X position
-        if (totalX > 0 && Math.abs(c.x - totalX) < 20) {
-          totalQty = val;
-        } else if (itemNumX > 0 && Math.abs(c.x - itemNumX) < 20) {
-          itemNum = String(val);
-        } else if (c.x > dateColumns[dateColumns.length - 1].x + 20) {
-          // After last date - first is total, last might be item num
-          if (!totalQty) totalQty = val;
-          else itemNum = String(val);
-        }
-        return;
-      }
-
-      if (closestDate && val > 0) {
+      if (closestDate && closestDist < 20 && val > 0) {
         qtdByDate[closestDate] = val;
       }
     });
@@ -5168,29 +5222,17 @@ function abrirCatalogoEscolar(contratoId) {
   loadBancoProdutos();
   const _bp = bancoProdutos.itens || [];
 
-  // Enrich SKU from Banco de Produtos and persist back to contract items
-  let skuUpdated = false;
-  c.itens.forEach(item => {
-    const descNorm = (item.descricao || '').toUpperCase().trim();
-    let bp = null;
-    if (item.sku) bp = _bp.find(p => p.sku && p.sku.toUpperCase() === item.sku.toUpperCase());
-    if (!bp) bp = _bp.find(p => (p.descricao || '').toUpperCase().trim() === descNorm);
-    if (!bp) {
-      const words = descNorm.split(/\s+/).slice(0, 3).join(' ');
-      if (words.length > 5) bp = _bp.find(p => (p.descricao || '').toUpperCase().trim().startsWith(words));
-    }
-    if (bp && bp.sku && !item.sku) {
-      item.sku = bp.sku;
-      skuUpdated = true;
-    }
-  });
-  if (skuUpdated) saveContratos();
+  // Enrich SKU from Banco de Produtos — ONLY for display enrichment, do NOT auto-assign SKU to contract items
+  // SKU assignment is exclusively via manual linking (skuVinculado) through Inteligência
 
   // Build catalog table (enriched with Banco de Produtos)
   const itensHtml = c.itens.map((item, idx) => {
     const qtdContr = parseFloat(item.qtdContratada || item.quantidade) || 0;
-    const saldo = qtdContr - (parseFloat(item.qtdEntregue) || 0);
-    if (qtdContr <= 0 || saldo <= 0) return '';
+    const entregue = parseFloat(item.qtdEntregue) || 0;
+    const saldo = qtdContr > 0 ? qtdContr - entregue : 0;
+    // Item is only truly exhausted if it HAD a quantity AND it's all delivered
+    const semLimite = qtdContr <= 0;
+    const esgotado = !semLimite && saldo <= 0;
 
     // Enrich display: match by SKU or description
     const descNorm = (item.descricao || '').toUpperCase().trim();
@@ -5205,18 +5247,24 @@ function abrirCatalogoEscolar(contratoId) {
     const unidFinal = item.unidade || (bp ? bp.unidade : null) || 'un';
     const skuInfo = item.sku ? ' <span style="color:var(--dim);font-size:.68rem;font-family:monospace">[' + esc(item.sku) + ']</span>' : '';
 
-    return `<tr>
+    const maxQtd = semLimite ? 9999 : saldo;
+    const dispLabel = semLimite ? '—' : (esgotado ? '<span style="color:var(--red)">0</span>' : String(saldo));
+
+    return `<tr style="${esgotado ? 'opacity:.45' : ''}">
       <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(descFinal)}">${esc(descFinal)}${skuInfo}</td>
       <td class="text-center">${esc(unidFinal)}</td>
-      <td class="text-center">${saldo}</td>
+      <td class="text-center">${dispLabel}</td>
       <td class="text-right">${brl.format(item.precoUnitario)}</td>
-      <td class="text-center"><input type="number" min="0" max="${saldo}" value="0" step="any" class="catalogo-qtd" data-idx="${idx}" data-preco="${item.precoUnitario}" data-max="${saldo}" style="width:60px;text-align:center;padding:.2rem;background:var(--s1);border:1px solid var(--bdr);border-radius:4px;color:var(--txt);font-size:.8rem" onchange="atualizarTotalCatalogo('${contratoId}')"></td>
+      <td class="text-center">${esgotado
+        ? '<span style="font-size:.72rem;color:var(--dim)">Esgotado</span>'
+        : '<input type="number" min="0" max="' + maxQtd + '" value="0" step="any" class="catalogo-qtd" data-idx="' + idx + '" data-preco="' + item.precoUnitario + '" data-max="' + maxQtd + '" style="width:60px;text-align:center;padding:.2rem;background:var(--s1);border:1px solid var(--bdr);border-radius:4px;color:var(--txt);font-size:.8rem" onchange="atualizarTotalCatalogo(\'' + contratoId + '\')">'
+      }</td>
       <td class="text-right catalogo-subtotal" id="cat-sub-${idx}">R$ 0,00</td>
     </tr>`;
-  }).filter(Boolean).join("");
+  }).join("");
 
   document.getElementById("modal-contrato-titulo").textContent = "📋 Catálogo — " + (c.escola.length > 40 ? c.escola.slice(0,38)+'...' : c.escola);
-  document.getElementById("modal-contrato-header-actions").innerHTML = '';
+  document.getElementById("modal-contrato-header-actions").innerHTML = `<button class="btn btn-outline btn-sm" onclick="abrirContrato('${contratoId}')">← Voltar</button>`;
   document.getElementById("modal-contrato-body").innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
       <div style="font-size:.85rem"><strong>Contrato:</strong> ${esc(c.id)} | <strong>Saldo disponível:</strong> <span style="color:var(--green);font-weight:700">${brl.format(saldoContrato)}</span></div>
@@ -5238,6 +5286,61 @@ function abrirCatalogoEscolar(contratoId) {
         <button class="btn btn-outline" onclick="document.getElementById('modal-contrato').classList.add('hidden')">Cancelar</button>
         <button class="btn btn-green" id="btn-catalogo-pedir" onclick="criarPedidoCatalogo('${contratoId}')">Criar Pedido</button>
       </div>
+    </div>
+  `;
+  document.getElementById("modal-contrato").classList.remove("hidden");
+}
+
+// Visualizar vinculos de itens e escolas do contrato
+function visualizarVinculos(contratoId) {
+  const c = contratos.find(x => x.id === contratoId);
+  if (!c) return;
+  _contratoAbertoId = contratoId;
+
+  // Escolas vinculadas
+  const escolasVinc = usuarios.filter(u => (u.contratos_vinculados || []).includes(contratoId));
+
+  // Itens com vinculos
+  loadBancoProdutos();
+  const _bp = bancoProdutos.itens || [];
+  const itensRows = c.itens.map((item, idx) => {
+    const manualSku = item.skuVinculado || '';
+    const autoSku = getGdpEquivalencia(item.descricao) || '';
+    const sku = manualSku || autoSku;
+    let prodNome = '';
+    if (sku) {
+      const intel = estoqueIntelProdutos.find(p => p.sku === sku || p.id === sku);
+      const bp = !intel ? _bp.find(p => p.sku === sku) : null;
+      prodNome = intel ? intel.nome : (bp ? (bp.nomeComercial || bp.item) : sku);
+    }
+    const tipo = manualSku ? '<span style="color:var(--green)">Manual</span>' : (autoSku ? '<span style="color:var(--yellow)">Auto</span>' : '<span style="color:var(--red)">Sem vínculo</span>');
+    return `<tr>
+      <td>${item.num}</td>
+      <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(item.descricao)}">${esc(item.descricao)}</td>
+      <td class="text-center">${tipo}</td>
+      <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(prodNome)}">${prodNome ? esc(prodNome) : '—'}</td>
+      <td style="font-family:monospace;font-size:.72rem;color:var(--dim)">${esc(sku) || '—'}</td>
+    </tr>`;
+  }).join('');
+
+  const vinculados = c.itens.filter(i => i.skuVinculado || getGdpEquivalencia(i.descricao)).length;
+  const manuais = c.itens.filter(i => i.skuVinculado).length;
+
+  document.getElementById("modal-contrato-titulo").textContent = "🔗 Vínculos — " + (c.escola.length > 40 ? c.escola.slice(0,38)+'...' : c.escola);
+  document.getElementById("modal-contrato-header-actions").innerHTML = `<button class="btn btn-outline btn-sm" onclick="abrirContrato('${contratoId}')">← Voltar</button>`;
+  document.getElementById("modal-contrato-body").innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1.5rem">
+      <div class="kpi" style="margin:0"><div class="kpi-label">Itens Vinculados</div><div class="kpi-value green" style="font-size:1.3rem">${vinculados}/${c.itens.length}</div></div>
+      <div class="kpi" style="margin:0"><div class="kpi-label">Vínculos Manuais</div><div class="kpi-value blue" style="font-size:1.3rem">${manuais}</div></div>
+      <div class="kpi" style="margin:0"><div class="kpi-label">Escolas Vinculadas</div><div class="kpi-value yellow" style="font-size:1.3rem">${escolasVinc.length}</div></div>
+    </div>
+    ${escolasVinc.length > 0 ? '<div style="margin-bottom:1.5rem"><h3 style="font-size:.8rem;text-transform:uppercase;color:var(--mut);margin-bottom:.5rem">Escolas com Acesso</h3><div style="display:flex;flex-wrap:wrap;gap:.4rem">' + escolasVinc.map(u => '<span style="background:var(--s1);border:1px solid var(--bdr);border-radius:6px;padding:.25rem .6rem;font-size:.78rem">' + esc(u.nome || u.nome_completo) + (u.municipio ? ' <span style="color:var(--dim);font-size:.68rem">(' + esc(u.municipio) + ')</span>' : '') + '</span>').join('') + '</div></div>' : '<div style="margin-bottom:1rem;color:var(--mut);font-size:.85rem">Nenhuma escola vinculada a este contrato.</div>'}
+    <h3 style="font-size:.8rem;text-transform:uppercase;color:var(--mut);margin-bottom:.5rem">Vínculos de Produtos</h3>
+    <div class="table-wrap" style="max-height:50vh;overflow-y:auto">
+      <table style="font-size:.78rem">
+        <thead><tr><th>#</th><th>Item Contrato</th><th class="text-center">Tipo</th><th>Produto Vinculado</th><th>SKU</th></tr></thead>
+        <tbody>${itensRows}</tbody>
+      </table>
     </div>
   `;
   document.getElementById("modal-contrato").classList.remove("hidden");
@@ -5445,7 +5548,7 @@ function adicionarItemContrato(contratoId) {
   _contratoAbertoId = contratoId; // sub-screen: Fechar returns to detail
   const nextNum = c.itens.length + 1;
   document.getElementById("modal-contrato-titulo").textContent = "Adicionar Item — " + c.id;
-  document.getElementById("modal-contrato-header-actions").innerHTML = '';
+  document.getElementById("modal-contrato-header-actions").innerHTML = `<button class="btn btn-outline btn-sm" onclick="abrirContrato('${contratoId}')">← Voltar</button>`;
   document.getElementById("modal-contrato-body").innerHTML = `
     <div style="display:grid;grid-template-columns:1fr;gap:1rem">
       <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Descrição do Produto</label><input type="text" id="ai-descricao" placeholder="Ex: Arroz tipo 1, 5kg" style="width:100%" oninput="sugerirNcmAdd()"></div>
@@ -5554,7 +5657,7 @@ function editarItemContrato(contratoId, idx) {
   _contratoAbertoId = contratoId; // sub-screen: Fechar returns to detail
   const item = c.itens[idx];
   document.getElementById("modal-contrato-titulo").textContent = "Editar Item #" + item.num + " — " + c.id;
-  document.getElementById("modal-contrato-header-actions").innerHTML = '';
+  document.getElementById("modal-contrato-header-actions").innerHTML = `<button class="btn btn-outline btn-sm" onclick="abrirContrato('${contratoId}')">← Voltar</button>`;
   document.getElementById("modal-contrato-body").innerHTML = `
     <div style="display:grid;grid-template-columns:1fr;gap:1rem">
       <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Descrição do Produto</label><input type="text" id="ei-descricao" value="${esc(item.descricao)}" style="width:100%" oninput="sugerirNcmEdit()"></div>
@@ -5667,6 +5770,7 @@ function abrirContrato(id) {
         <button class="btn btn-sm btn-blue hidden" id="btn-editar-massa-${c.id}" onclick="editarItensMassa('${c.id}')" title="Editar itens selecionados">Editar Selecionados</button>
         <button class="btn btn-sm btn-red hidden" id="btn-excluir-massa-${c.id}" onclick="excluirItensSelecionados('${c.id}')" title="Excluir itens selecionados">Excluir Selecionados</button>
         <button class="btn btn-sm" style="background:rgba(139,92,246,.15);color:var(--purple);border:none;font-weight:700" onclick="abrirCatalogoEscolar('${c.id}')" title="Abrir catalogo da escola vinculada para pedidos internos">📋 Catalogo Escolar</button>
+        <button class="btn btn-sm" style="background:rgba(59,130,246,.15);color:var(--blue);border:none;font-weight:700" onclick="visualizarVinculos('${c.id}')" title="Visualizar vinculos de itens e escolas">🔗 Ver Vínculos</button>
         <button class="btn btn-sm" style="background:rgba(16,185,129,.15);color:var(--green);border:none;font-weight:700" onclick="autoPreencherNcm('${c.id}');abrirContrato('${c.id}')" title="Preencher NCM automaticamente (mapa local + banco)">NCM Auto</button>
         <button class="btn btn-sm" style="background:rgba(168,85,247,.15);color:#a855f7;border:none;font-weight:700" onclick="classificarNcmIA('${c.id}')" title="Classificar NCM dos itens sem codigo usando IA (GPT)">🤖 NCM IA</button>
         <button class="btn btn-sm btn-green" onclick="adicionarItemContrato('${c.id}')">+ Novo Produto</button>
@@ -5678,10 +5782,11 @@ function abrirContrato(id) {
         <tbody>${c.itens.map((item, idx) => {
           const saldo = item.qtdContratada - item.qtdEntregue;
           const pct = item.qtdContratada > 0 ? (item.qtdEntregue / item.qtdContratada * 100) : 0;
-          const equivSku = getGdpEquivalencia(item.descricao);
+          // Priority: manual skuVinculado > equivalencia auto-match
+          const equivSku = item.skuVinculado || getGdpEquivalencia(item.descricao);
           const equivProdutoIntel = equivSku ? estoqueIntelProdutos.find(p => p.sku === equivSku || p.id === equivSku) : null;
           const equivProdutoBanco = !equivProdutoIntel && equivSku ? getGdpBancoProduto(equivSku) : null;
-          const equivNome = equivProdutoIntel ? equivProdutoIntel.nome : (equivProdutoBanco ? (equivProdutoBanco.nomeComercial || equivProdutoBanco.item) : (item.produtoVinculado || equivSku || ''));
+          const equivNome = item.skuVinculado && item.produtoVinculado ? item.produtoVinculado : (equivProdutoIntel ? equivProdutoIntel.nome : (equivProdutoBanco ? (equivProdutoBanco.nomeComercial || equivProdutoBanco.item) : (item.produtoVinculado || equivSku || '')));
           return `<tr>
             <td class="text-center"><input type="checkbox" class="item-check-${c.id}" data-idx="${idx}" onchange="atualizarSelecaoItens('${c.id}')"></td>
             <td class="text-center">${item.num}</td>
@@ -5715,6 +5820,8 @@ function abrirContrato(id) {
 
   document.getElementById("modal-contrato-body").innerHTML = html;
   document.getElementById("modal-contrato").classList.remove("hidden");
+  // Reset checkbox selection count after HTML rebuild
+  atualizarSelecaoItens(c.id);
 }
 
 // Track which contract is currently open so Fechar can return to it
@@ -6475,7 +6582,15 @@ async function sincronizarCobrancaProvider(contaId) {
 function getProximoNumeroNf() {
   const KEY = "gdp.nf-counter";
   let counter = parseInt(localStorage.getItem(KEY) || "0", 10);
-  if (counter < 1208) counter = 1208; // Base: 1165-1208 já usados/cancelados/inutilizados na SEFAZ (Story 2.1)
+
+  // Garantir que counter reflete o maior numero ja usado em notas existentes
+  try {
+    const nfs = unwrapData(JSON.parse(localStorage.getItem("gdp.notas-fiscais.v1") || "[]"));
+    const maxUsado = nfs.reduce((max, nf) => Math.max(max, parseInt(nf.numero) || 0), 0);
+    if (maxUsado > counter) counter = maxUsado;
+  } catch(_) {}
+
+  if (counter < 1208) counter = 1208; // Base: 1165-1208 já usados/cancelados/inutilizados na SEFAZ
   counter++;
   localStorage.setItem(KEY, String(counter));
   // AC-2: Persistir no Supabase (fire-and-forget)
@@ -6500,6 +6615,32 @@ async function syncNfCounterFromCloud() {
       }
     }
   } catch(_) {}
+}
+
+function buildObsCompletaNF(pedido, contaPadrao, fiscalConfig) {
+  const parts = [];
+  // Observacao configurada pelo usuario (config global)
+  if (fiscalConfig.observacoes) parts.push(fiscalConfig.observacoes);
+  // Observacao do contrato (campo "Observacoes replicadas nos pedidos")
+  const contrato = pedido.contratoId ? contratos.find(c => c.id === pedido.contratoId) : null;
+  if (contrato?.observacoes) parts.push(contrato.observacoes);
+  // Observacao da escola (portal)
+  if (pedido.obs && pedido.obs !== (contrato?.observacoes || "")) parts.push("OBS ESCOLA: " + pedido.obs);
+  // Dados bancarios da conta padrao
+  if (contaPadrao) {
+    const bankParts = [];
+    if (!fiscalConfig.observacoes || !fiscalConfig.observacoes.includes("DADOS PARA PAGAMENTO")) {
+      bankParts.push("DADOS PARA PAGAMENTO:");
+      if (contaPadrao.titular) bankParts.push("Titular: " + contaPadrao.titular);
+      if (contaPadrao.documento) bankParts.push("CNPJ/CPF: " + contaPadrao.documento);
+      if (contaPadrao.banco) bankParts.push("Banco: " + contaPadrao.banco + (contaPadrao.codigo ? " (" + contaPadrao.codigo + ")" : ""));
+      if (contaPadrao.agencia) bankParts.push("Agencia: " + contaPadrao.agencia);
+      if (contaPadrao.conta) bankParts.push("Conta: " + contaPadrao.conta + (contaPadrao.tipo ? " (" + contaPadrao.tipo + ")" : ""));
+      if (contaPadrao.pix) bankParts.push("Chave PIX: " + contaPadrao.pix);
+      if (bankParts.length > 1) parts.push(bankParts.join(" | "));
+    }
+  }
+  return parts.filter(Boolean).join(" | ");
 }
 
 function buildInvoiceFromOrder(pedido, tipoNota) {
@@ -6564,7 +6705,7 @@ function buildInvoiceFromOrder(pedido, tipoNota) {
       numeroManual: tipoNota === "manual_externa",
       danfeUrl: "",
       xmlUrl: "",
-      observacao: fiscalConfig.observacoes || (tipoNota === "manual_externa" ? "numero_informado_manual" : "emissao_real_pendente")
+      observacao: buildObsCompletaNF(pedido, contaPadrao, fiscalConfig) || (tipoNota === "manual_externa" ? "numero_informado_manual" : "emissao_real_pendente")
     },
     parametros: {
       ambiente: fiscalConfig.ambiente || "homologacao",
@@ -6767,18 +6908,20 @@ async function gerarNotaFiscalPedido(pedidoId) {
       // Tentar API Vercel primeiro, fallback para servidor local
       let resp;
       const nfeNumero = getProximoNumeroNf();
+      const nfeObs = invoice.documentos?.observacao || "";
+      const nfeOverrides = { numero: nfeNumero, observacao: nfeObs };
       try {
         resp = await fetch("/api/gdp-integrations", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "nfe-sefaz-preview", pedido, overrides: { numero: nfeNumero } }),
+          body: JSON.stringify({ action: "nfe-sefaz-preview", pedido, overrides: nfeOverrides }),
           signal: AbortSignal.timeout(20000),
         });
       } catch (_) {
         resp = await fetch("http://localhost:8082/api/nfe/preview", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ pedido, overrides: { numero: nfeNumero } }),
+          body: JSON.stringify({ pedido, overrides: nfeOverrides }),
           signal: AbortSignal.timeout(15000),
         });
       }
@@ -6963,6 +7106,7 @@ async function transmitirHomologacaoNota(notaId) {
   // Gerar novo número para retransmissão (evita duplicidade 539)
   const novoNumero = getProximoNumeroNf();
   nf.numero = novoNumero;
+  const nfObs = nf.documentos?.observacao || "";
 
   setIntegrationState(nf, "sefaz", { status: "transmissao_em_preparo", lastAction: "nfe_sefaz_transmitir" });
   saveNotasFiscais();
@@ -6975,7 +7119,7 @@ async function transmitirHomologacaoNota(notaId) {
       resp = await fetch("/api/gdp-integrations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "nfe-sefaz-emitir", pedido, overrides: { numero: novoNumero } }),
+        body: JSON.stringify({ action: "nfe-sefaz-emitir", pedido, overrides: { numero: novoNumero, observacao: nfObs } }),
         signal: AbortSignal.timeout(30000),
       });
     } catch (localErr) {
@@ -6983,7 +7127,7 @@ async function transmitirHomologacaoNota(notaId) {
       resp = await fetch("http://localhost:8082/api/nfe/emitir", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pedido, overrides: { numero: getProximoNumeroNf() } }),
+        body: JSON.stringify({ pedido, overrides: { numero: getProximoNumeroNf(), observacao: nfObs } }),
         signal: AbortSignal.timeout(30000),
       });
     }
@@ -7381,6 +7525,15 @@ function verNotaFiscal(notaId) {
   html += '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Chave de Acesso</label><input id="nf-chave-manual" type="text" value="' + esc(nf.sefaz?.chaveAcesso || '') + '" style="width:100%"></div>';
   html += '<div style="grid-column:1/-1"><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Link do DANFE/PDF</label><input id="nf-danfe-url" type="text" value="' + esc(nf.documentos?.danfeUrl || '') + '" placeholder="Cole aqui o link do DANFE ou PDF" style="width:100%"></div>';
   html += '</div>';
+  // Email section
+  const destEmail = nf.cliente?.email || nf.sefaz?.preview?.destinatario?.email || '';
+  html += '<div style="margin-top:1rem;padding:.8rem 1rem;background:var(--bg);border:1px solid var(--bdr);border-radius:8px">';
+  html += '<div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap">';
+  html += '<label style="font-size:.72rem;color:var(--mut);white-space:nowrap">Enviar NF por email:</label>';
+  html += '<input type="email" id="nf-email-dest-' + nf.id + '" value="' + esc(destEmail) + '" placeholder="email@destino.com" style="flex:1;min-width:200px">';
+  html += '<button class="btn btn-sm" style="background:rgba(59,130,246,.15);color:var(--blue);border:none;font-weight:700;white-space:nowrap" onclick="enviarEmailNotaFiscal(\'' + nf.id + '\')">📧 Enviar Email</button>';
+  html += '</div></div>';
+
   html += '<div style="display:flex;gap:.6rem;flex-wrap:wrap;margin-top:1rem">';
   html += '<button class="btn btn-outline" onclick="salvarDadosNotaFiscal(\'' + nf.id + '\')">' + (isReal ? 'Salvar Metadados da NF' : 'Salvar Dados da NF') + '</button>';
   html += '<button class="btn btn-outline" onclick="abrirDanfeNotaFiscal(\'' + nf.id + '\')">Visualizar DANFE</button>';
@@ -7447,6 +7600,169 @@ function verNotaFiscal(notaId) {
   document.getElementById("modal-nota-fiscal").classList.remove("hidden");
 }
 
+async function enviarEmailNotaFiscal(notaId) {
+  const nf = notasFiscais.find(n => n.id === notaId);
+  if (!nf) return;
+  const emailInput = document.getElementById('nf-email-dest-' + notaId);
+  const to = (emailInput?.value || '').trim();
+  if (!to || !to.includes('@')) { showToast('Informe um email válido.', 3000); return; }
+
+  const pedido = pedidos.find(p => p.id === nf.pedidoId);
+  const totalProd = (nf.itens || []).reduce((s, i) => s + (Number(i.qtd || 0) * Number(i.precoUnitario || 0)), 0);
+
+  // Gerar PDF do DANFE
+  let danfePdfBase64 = "";
+  try {
+    if (typeof html2pdf !== "undefined") {
+      showToast("Gerando PDF do DANFE...", 2000);
+      danfePdfBase64 = await gerarDanfePdfBase64(nf);
+    }
+  } catch (pdfErr) {
+    console.warn("[Email NF] Falha PDF:", pdfErr.message);
+  }
+  const payload = {
+    to,
+    schoolName: nf.cliente?.nome || pedido?.escola || '',
+    protocol: nf.pedidoId || nf.id,
+    date: formatDateTimeLocal(nf.emitidaEm).split(' ')[0],
+    items: (nf.itens || []).map(i => ({ name: i.descricao, qty: i.qtd, unitPrice: i.precoUnitario, unit: i.unidade })),
+    total: nf.valor || totalProd,
+    responsible: nf.cliente?.responsavel || '',
+    cnpj: nf.cliente?.cnpj || '',
+    nfe: {
+      numero: nf.numero,
+      serie: nf.serie || '1',
+      protocolo: nf.sefaz?.protocolo || '',
+      valor: nf.valor || totalProd,
+      chaveAcesso: nf.sefaz?.chaveAcesso || '',
+      danfePdf: danfePdfBase64,
+      xml: nf.sefaz?.xmlDsigPreview?.signedXml || nf.sefaz?.xmlPreview?.xml || ''
+    }
+  };
+
+  // Include pagamento if conta exists
+  const conta = getContaReceberByNota(notaId);
+  if (conta && conta.cobranca) {
+    payload.pagamento = {
+      forma: conta.cobranca.forma || nf.cobranca?.forma || 'boleto',
+      vencimento: conta.vencimento || '',
+      valor: conta.valor || nf.valor || totalProd,
+      banco: conta.cobranca.banco || '',
+      agencia: conta.cobranca.agencia || '',
+      contaNum: conta.cobranca.contaNum || '',
+      linhaDigitavel: conta.cobranca.linhaDigitavel || '',
+      pixCopiaECola: conta.cobranca.pixCopiaECola || ''
+    };
+  }
+
+  const supplierEmail = 'edsonlariucci.comercial@gmail.com';
+  const recipients = [to];
+  if (to !== supplierEmail) recipients.push(supplierEmail);
+
+  showToast('Enviando email...', 2000);
+  try {
+    const sendPromises = recipients.map(addr =>
+      fetch('/api/send-order-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...payload, to: addr })
+      })
+    );
+    const responses = await Promise.all(sendPromises);
+    const resp = responses[0];
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || 'Erro ' + resp.status);
+    showToast('Email enviado para ' + to + (recipients.length > 1 ? ' + cópia para fornecedor' : '') + ' (provider: ' + (data.provider || '-') + ')', 4000);
+  } catch (e) {
+    showToast('Erro ao enviar email: ' + e.message, 5000);
+    console.error('[Email NF-e]', e);
+  }
+}
+
+async function gerarDanfePdfBase64(nf) {
+  const danfeHtml = gerarDanfeHtmlCompleto(nf);
+  const container = document.createElement("div");
+  container.style.cssText = "position:absolute;left:-9999px;top:0;width:210mm;background:#fff";
+  container.innerHTML = danfeHtml;
+  document.body.appendChild(container);
+  try {
+    const opt = { margin: [6, 6, 6, 6], filename: "DANFE_" + (nf.numero || nf.id) + ".pdf", image: { type: "jpeg", quality: 0.95 }, html2canvas: { scale: 2, useCORS: true }, jsPDF: { unit: "mm", format: "a4", orientation: "portrait" } };
+    const pdfBlob = await html2pdf().set(opt).from(container).outputPdf("blob");
+    const reader = new FileReader();
+    return new Promise((resolve) => {
+      reader.onloadend = () => resolve(reader.result.split(",")[1]);
+      reader.readAsDataURL(pdfBlob);
+    });
+  } finally {
+    document.body.removeChild(container);
+  }
+}
+
+function gerarDanfeHtmlCompleto(nf) {
+  if (!nf) return "";
+  const emit = nf.sefaz?.preview?.emitente || {};
+  const emEnd = emit.endereco || {};
+  const dest = nf.sefaz?.preview?.destinatario || {};
+  const dEnd = dest.endereco || {};
+  const chave = nf.sefaz?.chaveAcesso || "";
+  const chaveFormatada = chave.replace(/(.{4})/g, "$1 ").trim();
+  const prot = nf.sefaz?.protocolo || "";
+  const protDt = nf.sefaz?.transmissao?.parsed?.dhRecbto || nf.audit?.authorizedAt || "";
+  const protFormatado = prot ? prot + (protDt ? "  -  " + protDt : "") : "-";
+  const isCancelada = nf.status === "cancelada";
+  const cancelStamp = nf.cancelamento?.retornoEvento?.dhRegEvento || nf.cancelamento?.atualizadoEm || "";
+  const totalProd = (nf.itens || []).reduce((s, i) => s + (Number(i.qtd || 0) * Number(i.precoUnitario || 0)), 0);
+  const totalNota = nf.valor || totalProd;
+  const dtEmissao = formatDateTimeLocal(nf.emitidaEm);
+  const dtParts = dtEmissao.split(" ");
+  const f2 = (v) => Number(v || 0).toFixed(2).replace(".", ",");
+  const f4 = (v) => Number(v || 0).toFixed(4).replace(".", ",");
+  const numNf = String(nf.numero || "0").padStart(9, "0");
+  const numFmt = numNf.replace(/^(\d{3})(\d{3})(\d{3})$/, "$1.$2.$3");
+  const destNome = dest.nome || dest.razaoSocial || nf.cliente?.nome || "-";
+  const destEnd = [dEnd.logradouro, dEnd.numero].filter(Boolean).join(", ");
+  const destCidade = dEnd.cidade || dEnd.municipio || "";
+  const emEndFull = [emEnd.logradouro, emEnd.numero].filter(Boolean).join(", ");
+  const destEmail = dest.email || nf.cliente?.email || "";
+  const infCplParts = [];
+  if (nf.pedidoId) infCplParts.push("Inf. Contribuinte: Pedido GDP " + nf.pedidoId);
+  if (destEmail) infCplParts.push("Email do Destinatário: " + destEmail);
+  if (nf.documentos?.observacao) infCplParts.push(esc(nf.documentos.observacao).replace(/\|/g, "<br>"));
+  infCplParts.push("Valor Aproximado dos Tributos : R$ 0,00");
+  const rows = (nf.itens || []).map((item, idx) => {
+    const vt = Number(item.qtd || 0) * Number(item.precoUnitario || 0);
+    return "<tr><td class='c'>" + esc(item.sku || String(idx+1).padStart(3,"0")) + "</td><td>" + esc(item.descricao || "") + "</td><td class='c'>" + esc(item.ncm || "") + "</td><td class='c'>" + esc(item.cst || "0/102") + "</td><td class='c'>" + esc(item.cfop || "5102") + "</td><td class='c'>" + esc(item.unidade || "UN") + "</td><td class='r'>" + f4(item.qtd) + "</td><td class='r'>" + f4(item.precoUnitario) + "</td><td class='r'>" + f2(vt) + "</td><td class='r'>0,00</td><td class='r'>0,00</td><td class='r'>0,00</td><td class='r'>0,00</td><td class='r'>0,00</td><td class='r'>0,00</td></tr>";
+  }).join("");
+  return `<style>*{margin:0;padding:0;box-sizing:border-box}body,div,table{font-family:Arial,sans-serif;font-size:7.5pt;color:#000}.bx{border:1px solid #000}.row{display:flex;border-bottom:1px solid #000}.cell{border-right:1px solid #000;padding:0 3px;flex:1;min-height:16px;overflow:hidden}.cell:last-child{border-right:none}.cell label{font-size:5pt;text-transform:uppercase;display:block}.cell .v{font-size:8pt;font-weight:700}.cell .v-lg{font-size:9pt;font-weight:900}.cell .v-sm{font-size:7pt;font-weight:700}.stit{font-weight:700;font-size:5.5pt;padding:0 3px;text-transform:uppercase;border-bottom:1px solid #000}table.it{width:100%;border-collapse:collapse}table.it th{border:1px solid #000;padding:0 2px;font-size:4.5pt;text-transform:uppercase;font-weight:700}table.it td{border-right:1px solid #aaa;border-bottom:1px solid #aaa;padding:0 2px;font-size:6pt}.c{text-align:center}.r{text-align:right}.hdr{display:flex;border-bottom:1px solid #000}.hdr-emit{flex:2;padding:3px 5px;border-right:1px solid #000;text-align:center}.hdr-danfe{width:120px;text-align:center;padding:2px 3px;border-right:1px solid #000}.hdr-chave{flex:1;padding:2px 3px}</style>
+<div class="bx">
+<div class="hdr"><div class="hdr-emit"><div style="font-size:5pt;text-transform:uppercase">IDENTIFICAÇÃO DO EMITENTE</div><div style="font-size:10pt;font-weight:700">${esc(emit.razaoSocial || "-")}</div><div style="font-size:6.5pt">${esc(emEndFull)}${emEnd.complemento ? ", " + esc(emEnd.complemento) : ""}</div><div style="font-size:6.5pt">${esc(emEnd.bairro || "")} - ${esc(emEnd.cep || "")} - ${esc(emEnd.cidade || "")}/${esc(emEnd.uf || "")} Fone: ${esc(emEnd.telefone || "")}</div></div><div class="hdr-danfe"><div style="font-size:14pt;font-weight:900">DANFE</div><div style="font-size:5.5pt">Documento Auxiliar da Nota<br>Fiscal Eletrônica</div><div style="font-size:6.5pt;margin-top:2px">0-ENTRADA 1-SAÍDA <span style="border:1px solid #000;padding:0 4px;font-weight:900">1</span></div><div style="font-size:9pt;font-weight:900;margin-top:2px">N°. ${esc(numFmt)}</div><div style="font-size:6.5pt">Série ${String(nf.serie||"1").padStart(3,"0")}</div></div><div class="hdr-chave"><div style="font-size:5pt;text-align:center;text-transform:uppercase">CHAVE DE ACESSO</div><div style="font-size:6pt;font-weight:700;text-align:center;word-break:break-all">${esc(chaveFormatada || "-")}</div><div style="font-size:5pt;text-align:center;margin-top:2px">www.nfe.fazenda.gov.br/portal</div></div></div>
+<div class="row"><div class="cell" style="flex:1"><label>NATUREZA DA OPERAÇÃO</label><div class="v-lg">VENDA DE MERCADORIA</div></div><div class="cell" style="flex:1"><label>PROTOCOLO DE AUTORIZAÇÃO DE USO</label><div class="v">${esc(protFormatado)}</div></div></div>
+<div class="row"><div class="cell"><label>INSCRIÇÃO ESTADUAL</label><div class="v-sm">${esc(emit.ie || "")}</div></div><div class="cell"><label>INSCRIÇÃO MUNICIPAL</label><div class="v-sm"></div></div><div class="cell"><label>INSC. EST. SUBST. TRIBUT.</label><div class="v-sm"></div></div><div class="cell"><label>CNPJ / CPF</label><div class="v">${esc(emit.cnpj || "")}</div></div></div>
+<div class="stit">DESTINATÁRIO / REMETENTE</div>
+<div class="row"><div class="cell" style="flex:3"><label>NOME / RAZÃO SOCIAL</label><div class="v">${esc(destNome)}</div></div><div class="cell"><label>CNPJ / CPF</label><div class="v-sm">${esc(dest.cnpj || "")}</div></div><div class="cell"><label>DATA DA EMISSÃO</label><div class="v-sm">${dtParts[0] || "-"}</div></div></div>
+<div class="row"><div class="cell" style="flex:3"><label>ENDEREÇO</label><div class="v-sm">${esc(destEnd)}</div></div><div class="cell"><label>BAIRRO</label><div class="v-sm">${esc(dEnd.bairro || "")}</div></div><div class="cell"><label>CEP</label><div class="v-sm">${esc(dEnd.cep || "")}</div></div></div>
+<div class="row"><div class="cell" style="flex:2"><label>MUNICÍPIO</label><div class="v-sm">${esc(destCidade)}</div></div><div class="cell" style="width:24px;flex:none"><label>UF</label><div class="v-sm">${esc(dEnd.uf || "")}</div></div><div class="cell"><label>FONE</label><div class="v-sm">${esc(dest.telefone || "")}</div></div><div class="cell"><label>IE</label><div class="v-sm">${esc(dest.ie || "")}</div></div></div>
+<div class="stit">CÁLCULO DO IMPOSTO</div>
+<div class="row"><div class="cell"><label>BASE CÁLC. ICMS</label><div class="v-sm">0,00</div></div><div class="cell"><label>VALOR ICMS</label><div class="v-sm">0,00</div></div><div class="cell"><label>BASE ICMS S.T.</label><div class="v-sm">0,00</div></div><div class="cell"><label>VALOR ICMS SUBST.</label><div class="v-sm">0,00</div></div><div class="cell"><label>V. IMP. IMPORT.</label><div class="v-sm">0,00</div></div><div class="cell"><label>V. TOTAL PRODUTOS</label><div class="v">${f2(totalProd)}</div></div></div>
+<div class="row"><div class="cell"><label>FRETE</label><div class="v-sm">0,00</div></div><div class="cell"><label>SEGURO</label><div class="v-sm">0,00</div></div><div class="cell"><label>DESCONTO</label><div class="v-sm">0,00</div></div><div class="cell"><label>OUTRAS</label><div class="v-sm">0,00</div></div><div class="cell"><label>VALOR IPI</label><div class="v-sm">0,00</div></div><div class="cell"><label>V. TOTAL DA NOTA</label><div class="v">${f2(totalNota)}</div></div></div>
+<div class="stit">TRANSPORTADOR / VOLUMES TRANSPORTADOS</div>
+<div class="row"><div class="cell" style="flex:2"><label>NOME / RAZÃO SOCIAL</label><div class="v-sm"></div></div><div class="cell"><label>FRETE</label><div class="v-sm">9-Sem Transporte</div></div><div class="cell"><label>PLACA</label><div class="v-sm"></div></div><div class="cell" style="width:24px;flex:none"><label>UF</label><div class="v-sm"></div></div><div class="cell"><label>CNPJ / CPF</label><div class="v-sm"></div></div></div>
+<div class="stit">DADOS DOS PRODUTOS / SERVIÇOS</div>
+<table class="it"><thead><tr><th>CÓDIGO</th><th style="min-width:80px">DESCRIÇÃO</th><th>NCM/SH</th><th>O/CSOSN</th><th>CFOP</th><th>UN</th><th>QUANT</th><th>VL.UNIT</th><th>VL.TOTAL</th><th>DESC</th><th>B.CÁLC</th><th>VL.ICMS</th><th>VL.IPI</th><th>AL.ICMS</th><th>AL.IPI</th></tr></thead><tbody>${rows}</tbody></table>
+<div class="stit">DADOS ADICIONAIS</div>
+<div class="row" style="min-height:30px"><div class="cell" style="flex:2"><label>INFORMAÇÕES COMPLEMENTARES</label><div style="font-size:6pt;padding-top:1px">${isCancelada ? '<strong style="color:red">CANCELADA</strong> ' + esc(cancelStamp) + "<br>" : ""}${infCplParts.join("<br>")}</div></div><div class="cell"><label>RESERVADO AO FISCO</label></div></div>
+</div>
+<div style="font-size:5.5pt;margin-top:2px">Impresso em ${new Date().toLocaleDateString("pt-BR")} as ${new Date().toLocaleTimeString("pt-BR")}</div>`;
+}
+
+async function reenviarEmailNfPedido(pedidoId) {
+  const nf = notasFiscais.find(n => n.pedidoId === pedidoId);
+  if (!nf) { showToast('Este pedido ainda não tem nota fiscal gerada.', 3000); return; }
+  const conta = contasReceber.find(c => c.notaFiscalId === nf.id || c.pedidoId === pedidoId) || null;
+  showToast('Gerando PDF e enviando e-mail da NF ' + (nf.numero || nf.id) + '...', 3000);
+  await dispararEmailNotaEBoletoAutomatico(nf.id, conta?.id || null, { manual: true });
+}
+
 function salvarDadosNotaFiscal(notaId) {
   const nf = notasFiscais.find((item) => item.id === notaId);
   if (!nf) return;
@@ -7486,122 +7802,256 @@ function abrirDanfeNotaFiscal(notaId) {
   const chave = nf.sefaz?.chaveAcesso || "";
   const chaveFormatada = chave.replace(/(.{4})/g, "$1 ").trim();
   const prot = nf.sefaz?.protocolo || "";
+  const protDt = nf.sefaz?.transmissao?.parsed?.dhRecbto || nf.audit?.authorizedAt || "";
+  const protFormatado = prot ? prot + (protDt ? "  -  " + protDt : "") : "-";
   const cancelStamp = nf.cancelamento?.retornoEvento?.dhRegEvento || nf.cancelamento?.atualizadoEm || "";
   const isCancelada = nf.status === "cancelada";
   const totalProd = (nf.itens || []).reduce((s, i) => s + (Number(i.qtd || 0) * Number(i.precoUnitario || 0)), 0);
+  const totalNota = nf.valor || totalProd;
+  const dtEmissao = formatDateTimeLocal(nf.emitidaEm);
+  const dtParts = dtEmissao.split(" ");
+  const f2 = (v) => Number(v || 0).toFixed(2).replace(".", ",");
+  const f4 = (v) => Number(v || 0).toFixed(4).replace(".", ",");
+  const numNf = String(nf.numero || "0").padStart(9, "0");
+  const numFmt = numNf.replace(/^(\d{3})(\d{3})(\d{3})$/, "$1.$2.$3");
+  const destNome = dest.nome || dest.razaoSocial || nf.cliente?.nome || "-";
+  const destEnd = [dEnd.logradouro, dEnd.numero].filter(Boolean).join(", ");
+  const destCidade = dEnd.cidade || dEnd.municipio || "";
+  const emEndFull = [emEnd.logradouro, emEnd.numero].filter(Boolean).join(", ");
+  const destEmail = dest.email || nf.cliente?.email || "";
+  const reciboTxt = `RECEBEMOS DE ${emit.razaoSocial || "-"} OS PRODUTOS E/OU SERVIÇOS CONSTANTES DA NOTA FISCAL ELETRÔNICA INDICADA ABAIXO. EMISSÃO: ${dtParts[0] || "-"} VALOR TOTAL: R$ ${f2(totalNota)} DESTINATÁRIO: ${destNome} - ${destEnd} ${dEnd.bairro || ""} ${destCidade}-${dEnd.uf || ""}`;
+  const infCplParts = [];
+  if (nf.pedidoId) infCplParts.push("Inf. Contribuinte: Pedido GDP " + nf.pedidoId);
+  if (destEmail) infCplParts.push("Email do Destinatário: " + destEmail);
+  if (nf.documentos?.observacao) infCplParts.push(nf.documentos.observacao.replace(/\|/g, "\n"));
+  infCplParts.push("Valor Aproximado dos Tributos : R$ 0,00");
+  const infCplTxt = infCplParts.join("\n");
+  const nowPrint = new Date();
+  const impressoEm = "Impresso em " + nowPrint.toLocaleDateString("pt-BR") + " as " + nowPrint.toLocaleTimeString("pt-BR", {hour:"2-digit",minute:"2-digit",second:"2-digit"});
   const rows = (nf.itens || []).map((item, idx) => {
-    const vt = (Number(item.qtd || 0) * Number(item.precoUnitario || 0));
-    return `<tr><td class="c">${item.sku || item.codigoBarras || ("ITEM-"+(idx+1))}</td><td>${esc(item.descricao || "")}</td><td class="c">${esc(item.ncm || "")}</td><td class="c">${esc(item.cfop || "5102")}</td><td class="c">${esc(item.unidade || "UN")}</td><td class="r">${Number(item.qtd||0).toFixed(2)}</td><td class="r">${Number(item.precoUnitario||0).toFixed(2)}</td><td class="r">${vt.toFixed(2)}</td></tr>`;
+    const vt = Number(item.qtd || 0) * Number(item.precoUnitario || 0);
+    return `<tr>
+      <td class="c">${esc(item.sku || item.codigoBarras || String(idx+1).padStart(3,"0"))}</td>
+      <td class="desc">${esc(item.descricao || "")}</td>
+      <td class="c mono">${esc(item.ncm || "")}</td>
+      <td class="c">${esc(item.cst || "0/102")}</td>
+      <td class="c">${esc(item.cfop || "5102")}</td>
+      <td class="c">${esc(item.unidade || "UN")}</td>
+      <td class="r">${f4(item.qtd)}</td>
+      <td class="r">${f4(item.precoUnitario)}</td>
+      <td class="r">${f2(vt)}</td>
+      <td class="r">0,00</td><td class="r">0,00</td><td class="r">0,00</td><td class="r">0,00</td><td class="r">0,00</td><td class="r">0,00</td>
+    </tr>`;
   }).join("");
   win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>DANFE NF ${esc(nf.numero || "")}</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:Arial,Helvetica,sans-serif;font-size:9pt;color:#000;padding:10mm;max-width:210mm}
-.danfe{border:2px solid #000;padding:0}
+body{font-family:Arial,Helvetica,sans-serif;font-size:7.5pt;color:#000;padding:6mm;max-width:210mm;margin:0 auto}
+.bx{border:1px solid #000}
 .row{display:flex;border-bottom:1px solid #000}
 .row:last-child{border-bottom:none}
-.cell{border-right:1px solid #000;padding:3px 5px;flex:1}
+.cell{border-right:1px solid #000;padding:0 3px;flex:1;min-height:18px;overflow:hidden}
 .cell:last-child{border-right:none}
-.cell label{font-size:6pt;color:#555;text-transform:uppercase;display:block;margin-bottom:1px}
-.cell .val{font-size:9pt;font-weight:700}
-.header{display:flex;border-bottom:2px solid #000}
-.header .emit-info{flex:2;padding:8px;border-right:1px solid #000}
-.header .danfe-id{flex:1;padding:8px;text-align:center;border-right:1px solid #000}
-.header .danfe-id h1{font-size:16pt;margin:4px 0}
-.header .danfe-id .tp{font-size:8pt;margin:2px 0}
-.header .nf-info{flex:1;padding:8px;text-align:center}
-.barcode-area{padding:6px;text-align:center;border-bottom:2px solid #000}
-.barcode-area canvas{max-width:100%;height:40px}
-.chave{font-size:8pt;letter-spacing:1px;text-align:center;padding:3px;border-bottom:1px solid #000}
-.section-title{background:#ddd;font-weight:700;font-size:7pt;padding:2px 5px;text-transform:uppercase;border-bottom:1px solid #000}
-table.itens{width:100%;border-collapse:collapse;font-size:8pt}
-table.itens th{background:#eee;border:1px solid #000;padding:2px 4px;font-size:7pt;text-transform:uppercase}
-table.itens td{border:1px solid #ccc;padding:2px 4px}
-.c{text-align:center}.r{text-align:right}
-.cancel-stamp{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-30deg);font-size:60pt;color:rgba(220,38,38,0.25);font-weight:900;pointer-events:none;z-index:10}
-.danfe-wrapper{position:relative}
-.info-compl{font-size:8pt;padding:5px;min-height:30px;border-bottom:1px solid #000}
-.totais .cell .val{font-size:10pt}
-@media print{body{padding:0;margin:0}@page{size:A4;margin:10mm}}
+.cell label{font-size:5pt;color:#000;text-transform:uppercase;display:block;line-height:1}
+.cell .v{font-size:8pt;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cell .v-lg{font-size:10pt;font-weight:900}
+.cell .v-sm{font-size:7pt;font-weight:700;white-space:nowrap}
+.stit{font-weight:700;font-size:5.5pt;padding:0 3px;text-transform:uppercase;border-bottom:1px solid #000}
+table.it{width:100%;border-collapse:collapse}
+table.it th{border:1px solid #000;padding:0 2px;font-size:5pt;text-transform:uppercase;font-weight:700}
+table.it td{border-right:1px solid #aaa;border-bottom:1px solid #aaa;padding:0 2px;font-size:6.5pt;line-height:1.4}
+table.it td:first-child{border-left:1px solid #aaa}
+table.it td.desc{max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.c{text-align:center}.r{text-align:right}.mono{font-family:monospace;font-size:6pt}
+.cancel-stamp{position:absolute;top:40%;left:50%;transform:translate(-50%,-50%) rotate(-30deg);font-size:64pt;color:rgba(220,38,38,.18);font-weight:900;pointer-events:none;z-index:10;letter-spacing:6px}
+.wrap{position:relative}
+/* Recibo */
+.rec{border:1px solid #000;display:flex;margin-bottom:3px}
+.rec-body{flex:3;border-right:1px solid #000;display:flex;flex-direction:column}
+.rec-body .rec-txt{padding:2px 4px;font-size:6pt;line-height:1.3;flex:1}
+.rec-body .rec-flds{display:flex;border-top:1px solid #000}
+.rec-body .rec-flds .rf{flex:1;padding:1px 3px;border-right:1px solid #000}
+.rec-body .rec-flds .rf:last-child{border-right:none}
+.rec-body .rec-flds .rf label{font-size:5pt;text-transform:uppercase}
+.rec-nf{width:130px;text-align:center;padding:4px}
+.rec-nf .nfe{font-size:12pt;font-weight:900}
+.rec-nf .num{font-size:11pt;font-weight:900}
+.rec-nf .ser{font-size:7pt}
+/* Header */
+.hdr{display:flex;border-bottom:1px solid #000}
+.hdr-emit{flex:2;padding:4px 6px;border-right:1px solid #000}
+.hdr-emit .ident{font-size:5pt;text-transform:uppercase;text-align:center;margin-bottom:2px}
+.hdr-emit .nome{font-size:11pt;font-weight:700;text-align:center}
+.hdr-emit .end{font-size:7pt;text-align:center}
+.hdr-danfe{width:140px;text-align:center;padding:2px 4px;border-right:1px solid #000}
+.hdr-danfe h1{font-size:16pt;font-weight:900;letter-spacing:1px;margin:0}
+.hdr-danfe .sub{font-size:6pt;line-height:1.2}
+.hdr-danfe .tp-row{font-size:7pt;margin-top:2px}
+.hdr-danfe .tp-box{display:inline-block;border:1px solid #000;padding:0 6px;font-size:10pt;font-weight:900;margin:1px 0}
+.hdr-danfe .nf-num{font-size:10pt;font-weight:900;margin-top:2px}
+.hdr-danfe .nf-ser{font-size:7pt}
+.hdr-danfe .nf-fol{font-size:6pt;font-style:italic}
+.hdr-chave{flex:1;padding:2px 4px}
+.hdr-chave .bc{text-align:center;min-height:32px}
+.hdr-chave .lbl{font-size:5pt;text-align:center;text-transform:uppercase;margin-top:1px}
+.hdr-chave .val{font-size:6.5pt;font-weight:700;text-align:center;letter-spacing:.4px;word-break:break-all}
+.hdr-chave .cons{font-size:5.5pt;text-align:center;margin-top:2px}
+@media print{body{padding:0;margin:0}@page{size:A4;margin:6mm}}
 </style></head><body>
-<div class="danfe-wrapper">
+<!-- RECIBO -->
+<div class="rec">
+  <div class="rec-body">
+    <div class="rec-txt">${esc(reciboTxt)}</div>
+    <div class="rec-flds">
+      <div class="rf"><label>DATA DE RECEBIMENTO</label><div style="min-height:12px"></div></div>
+      <div class="rf" style="flex:2"><label>IDENTIFICAÇÃO E ASSINATURA DO RECEBEDOR</label><div style="min-height:12px"></div></div>
+    </div>
+  </div>
+  <div class="rec-nf">
+    <div class="nfe">NF-e</div>
+    <div class="num">N°. ${esc(numFmt)}</div>
+    <div class="ser">Série ${String(nf.serie || "1").padStart(3,"0")}</div>
+  </div>
+</div>
+<div style="border-bottom:1px dashed #000;margin-bottom:3px"></div>
+<!-- DANFE -->
+<div class="wrap">
 ${isCancelada ? '<div class="cancel-stamp">CANCELADA</div>' : ''}
-<div class="danfe">
-  <div class="header">
-    <div class="emit-info">
-      <div style="font-weight:700;font-size:11pt">${esc(emit.razaoSocial || "-")}</div>
-      <div style="font-size:8pt">${esc(emit.nomeFantasia || "")}</div>
-      <div style="font-size:8pt;margin-top:4px">${esc(emEnd.logradouro || "")}, ${esc(emEnd.numero || "S/N")} ${esc(emEnd.complemento || "")}</div>
-      <div style="font-size:8pt">${esc(emEnd.bairro || "")} - ${esc(emEnd.cidade || "")}/${esc(emEnd.uf || "")}</div>
-      <div style="font-size:8pt">CEP: ${esc(emEnd.cep || "")} | Tel: ${esc(emEnd.telefone || "")}</div>
-      <div style="font-size:8pt">CNPJ: ${esc(emit.cnpj || "")} | IE: ${esc(emit.ie || "")}</div>
+<div class="bx">
+  <div class="hdr">
+    <div class="hdr-emit">
+      <div class="ident">IDENTIFICAÇÃO DO EMITENTE</div>
+      <div class="nome">${esc(emit.razaoSocial || "-")}</div>
+      <div class="end">${esc(emEndFull)}${emEnd.complemento ? ", " + esc(emEnd.complemento) : ""}</div>
+      <div class="end">${esc(emEnd.bairro || "")} - ${esc(emEnd.cep || "")}</div>
+      <div class="end">${esc(emEnd.cidade || "")} - ${esc(emEnd.uf || "")} Fone/Fax: ${esc(emEnd.telefone || emit.telefone || "")}</div>
+      <div class="end">${esc(emit.email || "")}</div>
     </div>
-    <div class="danfe-id">
+    <div class="hdr-danfe">
       <h1>DANFE</h1>
-      <div class="tp">DOCUMENTO AUXILIAR DA<br>NOTA FISCAL ELETRONICA</div>
-      <div style="margin-top:4px;font-size:8pt">0 - ENTRADA<br><strong>1 - SAIDA</strong></div>
-      <div style="margin-top:4px;font-size:9pt;font-weight:700">N. ${esc(nf.numero || "-")}</div>
-      <div style="font-size:8pt">Serie ${esc(nf.serie || "1")}</div>
+      <div class="sub">Documento Auxiliar da Nota<br>Fiscal Eletrônica</div>
+      <div class="tp-row">0 - ENTRADA</div>
+      <div class="tp-row">1 - SAÍDA <div class="tp-box">1</div></div>
+      <div class="nf-num">N°. ${esc(numFmt)}</div>
+      <div class="nf-ser">Série ${String(nf.serie || "1").padStart(3,"0")}</div>
+      <div class="nf-fol">Folha 1/1</div>
     </div>
-    <div class="nf-info">
-      <div id="danfe-barcode"></div>
-      <div style="font-size:7pt;margin-top:4px">CHAVE DE ACESSO</div>
-      <div style="font-size:7pt;font-weight:700;word-break:break-all">${esc(chaveFormatada || "-")}</div>
-      <div style="margin-top:6px;font-size:7pt;border:1px solid #000;padding:3px">
-        Consulta: <strong>www.nfe.fazenda.gov.br</strong>
-      </div>
-      <div style="margin-top:4px;font-size:7pt">PROTOCOLO: ${esc(prot || "-")}</div>
-      <div style="font-size:7pt">${esc(nf.sefaz?.transmissao?.parsed?.dhRecbto || nf.audit?.authorizedAt || "")}</div>
+    <div class="hdr-chave">
+      <div class="bc" id="danfe-barcode"></div>
+      <div class="lbl">CHAVE DE ACESSO</div>
+      <div class="val">${esc(chaveFormatada || "-")}</div>
+      <div class="cons">Consulta de autenticidade no portal nacional da NF-e<br><strong>www.nfe.fazenda.gov.br/portal</strong> ou no site da Sefaz Autorizadora</div>
     </div>
   </div>
-  <div class="section-title">Destinatario / Remetente</div>
+  <!-- NAT. OPERAÇÃO + PROTOCOLO -->
   <div class="row">
-    <div class="cell" style="flex:3"><label>Nome/Razao Social</label><div class="val">${esc(dest.nome || nf.cliente?.nome || "-")}</div></div>
-    <div class="cell"><label>CNPJ/CPF</label><div class="val">${esc(dest.cnpj || "")}</div></div>
-    <div class="cell"><label>Data Emissao</label><div class="val">${formatDateTimeLocal(nf.emitidaEm).split(" ")[0] || "-"}</div></div>
+    <div class="cell" style="flex:1"><label>NATUREZA DA OPERAÇÃO</label><div class="v-lg">VENDA DE MERCADORIA</div></div>
+    <div class="cell" style="flex:1"><label>PROTOCOLO DE AUTORIZAÇÃO DE USO</label><div class="v">${esc(protFormatado)}</div></div>
+  </div>
+  <!-- IE EMITENTE -->
+  <div class="row">
+    <div class="cell"><label>INSCRIÇÃO ESTADUAL</label><div class="v-sm">${esc(emit.ie || "")}</div></div>
+    <div class="cell"><label>INSCRIÇÃO MUNICIPAL</label><div class="v-sm"></div></div>
+    <div class="cell"><label>INSCRIÇÃO ESTADUAL DO SUBST. TRIBUT.</label><div class="v-sm"></div></div>
+    <div class="cell"><label>CNPJ / CPF</label><div class="v">${esc(emit.cnpj || "")}</div></div>
+  </div>
+  <!-- DESTINATÁRIO -->
+  <div class="stit">DESTINATÁRIO / REMETENTE</div>
+  <div class="row">
+    <div class="cell" style="flex:3"><label>NOME / RAZÃO SOCIAL</label><div class="v">${esc(destNome)}</div></div>
+    <div class="cell"><label>CNPJ / CPF</label><div class="v-sm">${esc(dest.cnpj || "")}</div></div>
+    <div class="cell"><label>DATA DA EMISSÃO</label><div class="v-sm">${dtParts[0] || "-"}</div></div>
   </div>
   <div class="row">
-    <div class="cell" style="flex:2"><label>Endereco</label><div class="val">${esc(dEnd.logradouro || "")}, ${esc(dEnd.numero || "S/N")}</div></div>
-    <div class="cell"><label>Bairro</label><div class="val">${esc(dEnd.bairro || "")}</div></div>
-    <div class="cell"><label>CEP</label><div class="val">${esc(dEnd.cep || "")}</div></div>
+    <div class="cell" style="flex:3"><label>ENDEREÇO</label><div class="v">${esc(destEnd)}</div></div>
+    <div class="cell"><label>BAIRRO / DISTRITO</label><div class="v-sm">${esc(dEnd.bairro || "")}</div></div>
+    <div class="cell"><label>CEP</label><div class="v-sm">${esc(dEnd.cep || "")}</div></div>
+    <div class="cell"><label>DATA DA SAÍDA/ENTRADA</label><div class="v-sm">${dtParts[0] || "-"}</div></div>
   </div>
   <div class="row">
-    <div class="cell"><label>Municipio</label><div class="val">${esc(dEnd.cidade || "")}</div></div>
-    <div class="cell"><label>UF</label><div class="val">${esc(dEnd.uf || "")}</div></div>
-    <div class="cell"><label>Telefone</label><div class="val">${esc(dest.telefone || "")}</div></div>
-    <div class="cell"><label>IE</label><div class="val">${esc(dest.ie || "ISENTO")}</div></div>
+    <div class="cell" style="flex:2"><label>MUNICÍPIO</label><div class="v">${esc(destCidade)}</div></div>
+    <div class="cell" style="width:30px;flex:none;min-width:30px"><label>UF</label><div class="v-sm">${esc(dEnd.uf || "")}</div></div>
+    <div class="cell"><label>FONE / FAX</label><div class="v-sm">${esc(dest.telefone || "")}</div></div>
+    <div class="cell"><label>INSCRIÇÃO ESTADUAL</label><div class="v-sm">${esc(dest.ie || "")}</div></div>
+    <div class="cell"><label>HORA DA SAÍDA/ENTRADA</label><div class="v-sm">${dtParts[1] || ""}</div></div>
   </div>
-  <div class="section-title">Produtos / Servicos</div>
-  <table class="itens">
-    <thead><tr><th>Codigo</th><th>Descricao</th><th>NCM</th><th>CFOP</th><th>UN</th><th>Qtd</th><th>V.Unit</th><th>V.Total</th></tr></thead>
+  <!-- CÁLCULO DO IMPOSTO -->
+  <div class="stit">CÁLCULO DO IMPOSTO</div>
+  <div class="row">
+    <div class="cell"><label>BASE DE CALC. DO ICMS</label><div class="v-sm">0,00</div></div>
+    <div class="cell"><label>VALOR DO ICMS</label><div class="v-sm">0,00</div></div>
+    <div class="cell"><label>BASE DE CALC. ICMS S.T</label><div class="v-sm">0,00</div></div>
+    <div class="cell"><label>VALOR DO ICMS SUBST</label><div class="v-sm">0,00</div></div>
+    <div class="cell"><label>V. IMP. IMPORTAÇÃO</label><div class="v-sm">0,00</div></div>
+    <div class="cell"><label>V. ICMS UF REMET.</label><div class="v-sm">0,00</div></div>
+    <div class="cell"><label>V. FCP UF DEST.</label><div class="v-sm">0,00</div></div>
+    <div class="cell"><label>V. TOTAL PRODUTOS</label><div class="v">${f2(totalProd)}</div></div>
+  </div>
+  <div class="row">
+    <div class="cell"><label>VALOR DO FRETE</label><div class="v-sm">0,00</div></div>
+    <div class="cell"><label>VALOR DO SEGURO</label><div class="v-sm">0,00</div></div>
+    <div class="cell"><label>DESCONTO</label><div class="v-sm">0,00</div></div>
+    <div class="cell"><label>OUTRAS DESPESAS</label><div class="v-sm">0,00</div></div>
+    <div class="cell"><label>VALOR TOTAL IPI</label><div class="v-sm">0,00</div></div>
+    <div class="cell"><label>V. ICMS UF DEST.</label><div class="v-sm">0,00</div></div>
+    <div class="cell"><label>V. TOT. TRIB.</label><div class="v-sm">0,00</div></div>
+    <div class="cell"><label>V. TOTAL DA NOTA</label><div class="v">${f2(totalNota)}</div></div>
+  </div>
+  <!-- TRANSPORTADOR -->
+  <div class="stit">TRANSPORTADOR / VOLUMES TRANSPORTADOS</div>
+  <div class="row">
+    <div class="cell" style="flex:2"><label>NOME / RAZÃO SOCIAL</label><div class="v-sm"></div></div>
+    <div class="cell"><label>FRETE</label><div class="v-sm">9-Sem Transporte</div></div>
+    <div class="cell"><label>CÓDIGO ANTT</label><div class="v-sm"></div></div>
+    <div class="cell"><label>PLACA DO VEÍCULO</label><div class="v-sm"></div></div>
+    <div class="cell" style="width:24px;flex:none"><label>UF</label><div class="v-sm"></div></div>
+    <div class="cell"><label>CNPJ / CPF</label><div class="v-sm"></div></div>
+  </div>
+  <div class="row">
+    <div class="cell" style="flex:2"><label>ENDEREÇO</label><div class="v-sm"></div></div>
+    <div class="cell"><label>MUNICÍPIO</label><div class="v-sm"></div></div>
+    <div class="cell" style="width:24px;flex:none"><label>UF</label><div class="v-sm"></div></div>
+    <div class="cell"><label>INSCRIÇÃO ESTADUAL</label><div class="v-sm"></div></div>
+  </div>
+  <div class="row">
+    <div class="cell"><label>QUANTIDADE</label><div class="v-sm"></div></div>
+    <div class="cell"><label>ESPÉCIE</label><div class="v-sm"></div></div>
+    <div class="cell"><label>MARCA</label><div class="v-sm"></div></div>
+    <div class="cell"><label>NUMERAÇÃO</label><div class="v-sm"></div></div>
+    <div class="cell"><label>PESO BRUTO</label><div class="v-sm"></div></div>
+    <div class="cell"><label>PESO LÍQUIDO</label><div class="v-sm"></div></div>
+  </div>
+  <!-- PRODUTOS -->
+  <div class="stit">DADOS DOS PRODUTOS / SERVIÇOS</div>
+  <table class="it">
+    <thead><tr>
+      <th>CÓDIGO PRODUTO</th><th style="min-width:120px">DESCRIÇÃO DO PRODUTO / SERVIÇO</th><th>NCM/SH</th><th>O/CSON</th><th>CFOP</th>
+      <th>UN</th><th>QUANT.</th><th>VALOR UNIT.</th><th>VALOR TOTAL</th><th>DESC.</th>
+      <th>B.CALC ICMS</th><th>VALOR ICMS</th><th>VALOR IPI</th><th>ALIQ ICMS</th><th>ALIQ IPI</th>
+    </tr></thead>
     <tbody>${rows}</tbody>
   </table>
-  <div class="section-title">Totais</div>
-  <div class="row totais">
-    <div class="cell"><label>Valor Produtos</label><div class="val">${totalProd.toFixed(2)}</div></div>
-    <div class="cell"><label>Base ICMS</label><div class="val">0,00</div></div>
-    <div class="cell"><label>Valor ICMS</label><div class="val">0,00</div></div>
-    <div class="cell"><label>Valor Frete</label><div class="val">0,00</div></div>
-    <div class="cell"><label>Valor Total NF</label><div class="val" style="font-size:12pt">${(nf.valor || totalProd).toFixed(2)}</div></div>
-  </div>
-  <div class="section-title">Informacoes Complementares</div>
-  <div class="info-compl">
-    ${isCancelada ? `<strong>NF-e CANCELADA</strong> em ${esc(cancelStamp)} — ${esc(nf.cancelamento?.retornoEvento?.xMotivo || "")}<br>` : ""}
-    Pedido: ${esc(nf.pedidoId || "-")} | Sistema: Licit-AIX GDP
+  <!-- DADOS ADICIONAIS -->
+  <div class="stit">DADOS ADICIONAIS</div>
+  <div class="row" style="min-height:30px">
+    <div class="cell" style="flex:2"><label>INFORMAÇÕES COMPLEMENTARES</label><div style="font-size:6.5pt;padding-top:1px">
+      ${isCancelada ? '<strong style="color:red">NF-e CANCELADA</strong> em ' + esc(cancelStamp) + ' — ' + esc(nf.cancelamento?.retornoEvento?.xMotivo || "") + '<br>' : ""}
+      <span style="white-space:pre-line">${esc(infCplTxt)}</span>
+    </div></div>
+    <div class="cell"><label>RESERVADO AO FISCO</label></div>
   </div>
 </div>
 </div>
+<div style="font-size:6pt;margin-top:3px;color:#333">${esc(impressoEm)}</div>
 <script>
-// Code128 barcode generator (lightweight, no dependencies)
 (function(){
   const chave = "${chave}";
   if (!chave || chave.length < 10) return;
   const canvas = document.createElement("canvas");
-  canvas.height = 50; canvas.width = Math.max(chave.length * 11, 400);
+  canvas.height = 40; canvas.width = Math.max(chave.length * 11, 400);
   const ctx = canvas.getContext("2d");
-  // Simple Code128B encoding
   const START_B = 104, STOP = 106;
-  const patterns = [
+  const P = [
     "11011001100","11001101100","11001100110","10010011000","10010001100","10001001100","10011001000","10011000100","10001100100","11001001000",
     "11001000100","11000100100","10110011100","10011011100","10011001110","10111001100","10011101100","10011100110","11001110010","11001011100",
     "11001001110","11011100100","11001110100","11100101100","11100100110","11101100100","11100110100","11100110010","11011011000","11011000110",
@@ -7612,27 +8062,13 @@ ${isCancelada ? '<div class="cancel-stamp">CANCELADA</div>' : ''}
     "10011000010","10000110100","10000110010","11000010010","11001010000","11110111010","11000010100","10001111010","10100111100","10010111100",
     "10010011110","10111100100","10011110100","10011110010","11110100100","11110010100","11110010010","11011110110","11110110110","21121141211"
   ];
-  const encode = [];
-  encode.push(patterns[START_B]);
-  let checksum = START_B;
-  for (let i = 0; i < chave.length; i++) {
-    const val = chave.charCodeAt(i) - 32;
-    encode.push(patterns[val]);
-    checksum += val * (i + 1);
-  }
-  encode.push(patterns[checksum % 103]);
-  encode.push(patterns[STOP]);
-  const bits = encode.join("");
-  const barW = Math.max(1, Math.floor(canvas.width / bits.length));
-  canvas.width = bits.length * barW + 20;
-  ctx.fillStyle = "#fff";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = "#000";
-  for (let i = 0; i < bits.length; i++) {
-    if (bits[i] === "1") ctx.fillRect(10 + i * barW, 2, barW, canvas.height - 4);
-  }
-  const target = document.getElementById("danfe-barcode");
-  if (target) target.appendChild(canvas);
+  const e=[];e.push(P[START_B]);let cs=START_B;
+  for(let i=0;i<chave.length;i++){const v=chave.charCodeAt(i)-32;e.push(P[v]);cs+=v*(i+1)}
+  e.push(P[cs%103]);e.push(P[STOP]);const b=e.join("");
+  const bw=Math.max(1,Math.floor(canvas.width/b.length));
+  canvas.width=b.length*bw+20;ctx.fillStyle="#fff";ctx.fillRect(0,0,canvas.width,canvas.height);
+  ctx.fillStyle="#000";for(let i=0;i<b.length;i++){if(b[i]==="1")ctx.fillRect(10+i*bw,2,bw,canvas.height-4)}
+  const t=document.getElementById("danfe-barcode");if(t)t.appendChild(canvas);
   window.print();
 })();
 <\/script>
@@ -11193,9 +11629,11 @@ function verPedidoDetalhe(pedidoId, isClone) {
   html += '<div style="margin-bottom:1rem;padding:1rem;border:1px solid var(--bdr);border-radius:10px;background:var(--s1)">';
   html += '<div style="display:flex;justify-content:space-between;gap:1rem;align-items:flex-start;flex-wrap:wrap">';
   html += '<div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Fiscal e Cobranca</div><div style="font-weight:700">' + esc(getNotaFiscalResumoOperacional(nf)) + '</div><div style="font-size:.8rem;color:var(--mut);margin-top:.3rem">O pedido precisa conter todos os campos fiscais obrigatorios antes da emissao.</div>' + (fiscalMissing.length ? '<div style="margin-top:.55rem;color:var(--yellow);font-size:.78rem"><strong>Pendencias:</strong> ' + esc(fiscalMissing.join(', ')) + '</div>' : '<div style="margin-top:.55rem;color:var(--green);font-size:.78rem"><strong>Base fiscal completa.</strong></div>') + '</div>';
+  html += '<div style="display:flex;gap:.5rem;flex-wrap:wrap">';
   html += (nf
-    ? '<button class="btn btn-outline" onclick="fecharModalPedido();switchTab(\'notas-fiscais\');setTimeout(function(){verNotaFiscal(\'' + nf.id + '\')},300)">Ver NF</button>'
+    ? '<button class="btn btn-outline" onclick="fecharModalPedido();switchTab(\'notas-fiscais\');setTimeout(function(){verNotaFiscal(\'' + nf.id + '\')},300)">Ver NF</button><button class="btn btn-sm" style="background:rgba(59,130,246,.15);color:var(--blue);border:none;font-weight:700" onclick="reenviarEmailNfPedido(\'' + p.id + '\')">📧 Reenviar E-mail</button>'
     : '<button class="btn btn-purple" onclick="gerarNotaFiscalPedido(\'' + p.id + '\')">Gerar Nota Fiscal</button>');
+  html += '</div>';
   html += '</div></div>';
 
   html += '<div style="margin-bottom:1rem;padding:1rem;border:1px solid var(--bdr);border-radius:10px;background:var(--s1)">';
@@ -11251,6 +11689,19 @@ function verPedidoDetalhe(pedidoId, isClone) {
   html += '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Data de Vencimento</label><input type="date" id="pag-vencimento-' + p.id + '" value="' + (pag.vencimento || calcularVencimentoPagamento(p.data || p.dataEntrega, pag.condicao || "28")) + '"></div>';
   html += '</div></div>';
 
+  // ── Observações do Pedido (editável — vai para a NF) ──
+  const obsAtual = p.obs || '';
+  const obsContrato = c?.observacoes || '';
+  html += '<div style="margin-top:1.2rem;padding:1rem;border:1px solid var(--bdr);border-radius:10px;background:var(--s1)">';
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;margin-bottom:.6rem">';
+  html += '<div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.25rem">Observações do Pedido</div><div style="font-size:.82rem;color:var(--mut)">Este texto será incluído nas Informações Complementares da Nota Fiscal.</div></div>';
+  html += '</div>';
+  html += '<textarea id="pedido-obs-' + p.id + '" style="width:100%;min-height:80px;padding:.6rem .8rem;background:var(--bg);border:1px solid var(--bdr);border-radius:8px;color:var(--txt);font-size:.85rem;resize:vertical;font-family:inherit" placeholder="Observações que serão replicadas na NF...">' + esc(obsAtual) + '</textarea>';
+  if (obsContrato && obsAtual !== obsContrato) {
+    html += '<div style="margin-top:.5rem;font-size:.78rem;color:var(--mut);padding:.5rem .7rem;background:var(--s2);border-radius:6px"><strong>Obs. do contrato:</strong> ' + esc(obsContrato) + '</div>';
+  }
+  html += '</div>';
+
   if (isClone) {
     html += '<div style="margin-top:1.2rem;display:flex;justify-content:flex-end;gap:.5rem"><button class="btn btn-outline" onclick="cancelarClonePedido()">Cancelar</button><button class="btn btn-green" onclick="salvarClonePedido()">Salvar</button></div>';
   } else {
@@ -11268,6 +11719,9 @@ function salvarPedidoCompleto(pedidoId) {
   // Salvar data prevista
   const dataPrevistaEl = document.getElementById('detalhe-data-prevista-' + pedidoId);
   if (dataPrevistaEl) p.dataPrevista = dataPrevistaEl.value;
+  // Salvar observação do pedido
+  const obsEl = document.getElementById('pedido-obs-' + pedidoId);
+  if (obsEl) p.obs = obsEl.value;
   // Salvar dados fiscais
   savePedidoFiscalData(pedidoId);
   // Salvar pagamento
@@ -11850,52 +12304,94 @@ async function dispararEmailNotaEBoletoAutomatico(notaId, contaId, options = {})
   if (!nf) return false;
   const conta = contasReceber.find((item) => item.id === contaId) || null;
   const email = (nf.cliente?.email || "").trim();
-  if (!email) {
+  const supplierEmail = "edsonlariucci.comercial@gmail.com";
+  const recipients = [email, supplierEmail].filter(e => e && e.includes("@"));
+  if (recipients.length === 0) {
     updateNotaFiscalIntegration(notaId, "comunicacao", { status: "email_sem_destino", lastAction: options.manual ? "compartilhar_email" : "disparo_automatico_email" });
     return false;
   }
+  const totalProd = (nf.itens || []).reduce((s, i) => s + (Number(i.qtd || 0) * Number(i.precoUnitario || 0)), 0);
+  // Gerar PDF do DANFE
+  let danfePdfBase64 = "";
   try {
-    const resp = await fetch("/api/send-order-email", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        to: email,
-        schoolName: nf.cliente?.nome || "",
-        protocol: nf.numero || nf.id,
-        date: nf.emitidaEm ? formatDateTimeLocal(nf.emitidaEm) : "",
-        total: nf.valor || 0,
-        items: (nf.itens || []).map((item) => ({ description: item.descricao || "", qty: item.qtd || 0, unitPrice: item.precoUnitario || 0 })),
-        obs: conta ? `Cobranca ${conta.forma || "boleto"} vinculada` : "Nota fiscal emitida",
-        pagamento: conta ? {
-          forma: conta.forma || "boleto",
-          vencimento: conta.vencimento || "",
-          valor: conta.valor || nf.valor || 0,
-          linhaDigitavel: conta.cobranca?.linhaDigitavel || "",
-          pixCopiaECola: conta.cobranca?.pixCopiaECola || "",
-          banco: conta.cobranca?.banco || conta.contaBancaria?.banco || "",
-          agencia: conta.cobranca?.agencia || conta.contaBancaria?.agencia || "",
-          contaNum: conta.cobranca?.conta || conta.contaBancaria?.conta || ""
-        } : null
-      })
-    });
-    const data = await resp.json().catch(() => ({}));
-    if (!resp.ok || data.error) throw new Error(data.error || `HTTP ${resp.status}`);
+    if (typeof html2pdf !== "undefined") {
+      danfePdfBase64 = await gerarDanfePdfBase64(nf);
+      console.log("[Email NF] PDF gerado:", danfePdfBase64.length, "bytes base64");
+    }
+  } catch (pdfErr) {
+    console.warn("[Email NF] Falha ao gerar PDF, enviando sem anexo:", pdfErr.message);
+  }
+  const emailPayload = {
+    schoolName: nf.cliente?.nome || "",
+    protocol: nf.pedidoId || nf.numero || nf.id,
+    date: nf.emitidaEm ? formatDateTimeLocal(nf.emitidaEm) : "",
+    total: nf.valor || totalProd,
+    items: (nf.itens || []).map((item) => ({ name: item.descricao || "", description: item.descricao || "", qty: item.qtd || 0, unitPrice: item.precoUnitario || 0 })),
+    obs: nf.documentos?.observacao || (conta ? `Cobranca ${conta.forma || "boleto"} vinculada` : "Nota fiscal emitida"),
+    cnpj: nf.cliente?.cnpj || "",
+    responsible: nf.cliente?.responsavel || "",
+    nfe: {
+      numero: nf.numero || "",
+      serie: nf.serie || "1",
+      protocolo: nf.sefaz?.protocolo || "",
+      valor: nf.valor || totalProd,
+      chaveAcesso: nf.sefaz?.chaveAcesso || "",
+      danfePdf: danfePdfBase64
+    },
+    pagamento: conta ? {
+      forma: conta.forma || "boleto",
+      vencimento: conta.vencimento || "",
+      valor: conta.valor || nf.valor || 0,
+      linhaDigitavel: conta.cobranca?.linhaDigitavel || "",
+      pixCopiaECola: conta.cobranca?.pixCopiaECola || "",
+      banco: conta.cobranca?.banco || conta.contaBancaria?.banco || "",
+      agencia: conta.cobranca?.agencia || conta.contaBancaria?.agencia || "",
+      contaNum: conta.cobranca?.conta || conta.contaBancaria?.conta || ""
+    } : null
+  };
+  try {
+    let successCount = 0;
+    let lastId = "";
+    for (const addr of recipients) {
+      try {
+        const resp = await fetch("/api/send-order-email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...emailPayload, to: addr })
+        });
+        const data = await resp.json().catch(() => ({}));
+        if (resp.ok && !data.error) {
+          successCount++;
+          lastId = data.id || "";
+          console.log("[Email NF] OK para:", addr, "ID:", data.id || "-");
+        } else {
+          console.warn("[Email NF] Falha para", addr, ":", data.error || resp.status);
+        }
+      } catch (singleErr) {
+        console.warn("[Email NF] Erro para", addr, ":", singleErr.message);
+      }
+    }
+    if (successCount === 0) throw new Error("Nenhum email enviado com sucesso");
     updateNotaFiscalIntegration(notaId, "comunicacao", {
       status: options.manual ? "email_compartilhado" : "email_disparado",
       lastAction: options.manual ? "compartilhar_email" : "disparo_automatico_email",
-      protocol: data.id || data.message || "",
+      protocol: lastId,
       emailDisparadoAt: new Date().toISOString()
     });
     if (contaId) {
       updateContaReceberIntegration(contaId, "comunicacao", {
         status: options.manual ? "email_compartilhado" : "email_disparado",
         lastAction: options.manual ? "compartilhar_email" : "disparo_automatico_email",
-        protocol: data.id || data.message || "",
+        protocol: lastId,
         emailDisparadoAt: new Date().toISOString()
       });
     }
+    console.log("[Email NF] Enviado:", successCount + "/" + recipients.length);
+    showToast("Email NF enviado (" + successCount + "/" + recipients.length + " destinatarios)", 4000);
     return true;
   } catch (err) {
+    console.error("[Email NF] FALHA:", err.message, "Recipients:", recipients);
+    showToast("Falha ao enviar email NF: " + err.message, 5000);
     updateNotaFiscalIntegration(notaId, "comunicacao", { status: "falha_email", error: err.message, lastAction: options.manual ? "compartilhar_email" : "disparo_automatico_email" });
     if (contaId) updateContaReceberIntegration(contaId, "comunicacao", { status: "falha_email", error: err.message, lastAction: options.manual ? "compartilhar_email" : "disparo_automatico_email" });
     return false;
@@ -12936,6 +13432,15 @@ function selecionarVincularGDP(bpId) {
     bp.equivalencias.push(descSave);
     localStorage.setItem(BANCO_KEY, JSON.stringify(banco));
   }
+  // Persist manual link directly on contract item (prevents auto-enrichment override)
+  if (contratoSave && _vincularGdpItemIdx >= 0) {
+    const ctr = contratos.find(x => x.id === contratoSave);
+    if (ctr && ctr.itens[_vincularGdpItemIdx]) {
+      ctr.itens[_vincularGdpItemIdx].skuVinculado = bp.sku;
+      ctr.itens[_vincularGdpItemIdx].produtoVinculado = bp.nomeComercial || bp.item;
+      saveContratos();
+    }
+  }
   fecharVincularGDP();
   showToast('Vinculado: "' + descSave.slice(0, 40) + '..." -> "' + (bp.nomeComercial || bp.item) + '"');
   abrirContrato(contratoSave);
@@ -12971,6 +13476,15 @@ function criarEVincularGDP() {
   banco.itens.push(novoBp);
   localStorage.setItem(BANCO_KEY, JSON.stringify(banco));
   setGdpEquivalencia(descSave, sku);
+  // Persist manual link directly on contract item
+  if (contratoSave && _vincularGdpItemIdx >= 0) {
+    const ctr = contratos.find(x => x.id === contratoSave);
+    if (ctr && ctr.itens[_vincularGdpItemIdx]) {
+      ctr.itens[_vincularGdpItemIdx].skuVinculado = sku;
+      ctr.itens[_vincularGdpItemIdx].produtoVinculado = nomeComercial;
+      saveContratos();
+    }
+  }
   fecharVincularGDP();
   showToast('Produto "' + nomeComercial + '" criado e vinculado.');
   abrirContrato(contratoSave);
@@ -15020,22 +15534,24 @@ async function enviarTiny(contratoId) {
 
 // ===== INIT =====
 (async function initGDP() {
-  setGdpSyncState({ status: "syncing", source: "cloud", detail: "Carregando dados compartilhados", userId: getSyncUserId() });
-  // Carregar dados locais primeiro (render imediato sem esperar cloud)
-  // loadData();
-  // loadUsuarios();
-  // bancoProdutos é declarado mais abaixo — só pode chamar loadBancoProdutos depois
-  // renderAll();
+  // Render imediato com dados locais — sem esperar cloud
+  loadData();
+  loadUsuarios();
+  renderAll();
+  setGdpSyncState({ status: "syncing", source: "cloud", detail: "Sincronizando com cloud...", userId: getSyncUserId() });
+
+  // Cloud sync em background — atualiza se houver dados mais recentes
   try {
     const restored = await syncFromCloud();
-    loadData();
-    loadUsuarios();
-    renderAll();
     if (restored?.restored) {
+      // Cloud trouxe dados novos — recarregar e re-renderizar
+      loadData();
+      loadUsuarios();
+      renderAll();
       setGdpSyncState({
         status: "cloud",
         source: restored.source || "cloud",
-        detail: `${restored.rowCount || 0} chave(s) remotas verificadas`,
+        detail: `Cloud atualizado com dados do GDP`,
         lastSyncAt: restored.lastSyncAt || new Date().toISOString(),
         userId: getSyncUserId()
       });
@@ -15050,9 +15566,6 @@ async function enviarTiny(contratoId) {
     }
   } catch (e) {
     console.warn("[GDP] Restauracao do cloud falhou:", e);
-    loadData();
-    loadUsuarios();
-    renderAll();
     setGdpSyncState({
       status: "offline",
       source: "local_cache",
