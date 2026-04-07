@@ -6143,38 +6143,76 @@ window.checarStatusSgd = async function(orcId) {
   const pre = preOrcamentos[orcId];
   if (!pre) return showToast("Pré-orçamento não encontrado", 3000);
 
-  const orc = orcamentos.find(o => o.id === orcId);
-  const idSub = pre.idSubprogram || orc?.idSubprogram;
-  const idSch = pre.idSchool || orc?.idSchool;
-  const idBud = pre.idBudget || orc?.idBudget;
-
-  if (!idSub || !idSch || !idBud) return showToast("IDs SGD ausentes. Vincule a um orçamento importado.", 3000);
-
   showToast("Consultando SGD...", 2000);
   try {
     await BrowserSgdClient.login();
     if (!BrowserSgdClient.networkId) await BrowserSgdClient.listBudgets(1, 1);
+
+    // Tentar IDs salvos primeiro
+    let idSub = pre.idSubprogram;
+    let idSch = pre.idSchool;
+    let idBud = pre.idBudget;
+
+    // Fallback: buscar nos orcamentos
+    if (!idSub || !idSch || !idBud) {
+      const orc = orcamentos.find(o => o.id === orcId || String(o.idBudget) === String(orcId));
+      if (orc) {
+        idSub = idSub || orc.idSubprogram;
+        idSch = idSch || orc.idSchool;
+        idBud = idBud || orc.idBudget;
+      }
+    }
+
+    // Fallback: buscar na lista do SGD (status ENVI = enviados)
+    if (!idSub || !idSch || !idBud) {
+      showToast("Buscando processo " + orcId + " no SGD...", 3000);
+      let found = null;
+      let page = 1;
+      while (!found) {
+        const data = await BrowserSgdClient.listBudgets(page, 100, ["ENVI", "APRO", "RECU"]);
+        const items = data.data || [];
+        if (items.length === 0) break;
+        found = items.find(b => String(b.idBudget) === String(orcId) || String(b.id) === String(orcId));
+        if (found) break;
+        const total = data.meta?.totalItems || 0;
+        if (page * 100 >= total) break;
+        page++;
+      }
+      if (found) {
+        idSub = found.idSubprogram;
+        idSch = found.idSchool;
+        idBud = found.idBudget;
+        // Salvar IDs para futuras consultas
+        pre.idSubprogram = idSub;
+        pre.idSchool = idSch;
+        pre.idBudget = idBud;
+        // Já verificar o status do supplierStatus retornado
+        if (found.supplierStatus) {
+          const st = found.supplierStatus;
+          if (st === "APRO") { pre.status = "ganho"; pre.statusSgd = "APRO"; pre.resultadoEm = new Date().toISOString().slice(0,10); }
+          else if (st === "RECU") { pre.status = "perdido"; pre.statusSgd = "RECU"; pre.resultadoEm = new Date().toISOString().slice(0,10); }
+        }
+        savePreOrcamentos();
+      }
+    }
+
+    if (!idSub || !idSch || !idBud) {
+      return showToast("Processo " + orcId + " não encontrado no SGD. Pode já ter expirado.", 4000);
+    }
+
     const detail = await BrowserSgdClient.getBudgetDetail(idSub, idSch, idBud);
     const sgdStatus = detail.supplierStatus || detail.flSupplierStatus || "";
 
     if (sgdStatus === "APRO" || sgdStatus === "Aprovado") {
-      pre.status = "ganho";
-      pre.statusSgd = "APRO";
-      pre.resultadoEm = new Date().toISOString().slice(0, 10);
-      savePreOrcamentos();
-      renderSgd();
-      renderKPIs();
+      pre.status = "ganho"; pre.statusSgd = "APRO"; pre.resultadoEm = new Date().toISOString().slice(0, 10);
+      savePreOrcamentos(); renderSgd(); renderKPIs();
       showToast("APROVADO! Proposta " + orcId + " foi aceita no SGD.", 5000);
     } else if (sgdStatus === "RECU" || sgdStatus === "Recusado") {
-      pre.status = "perdido";
-      pre.statusSgd = "RECU";
-      pre.resultadoEm = new Date().toISOString().slice(0, 10);
-      savePreOrcamentos();
-      renderSgd();
-      renderKPIs();
+      pre.status = "perdido"; pre.statusSgd = "RECU"; pre.resultadoEm = new Date().toISOString().slice(0, 10);
+      savePreOrcamentos(); renderSgd(); renderKPIs();
       showToast("RECUSADO. Proposta " + orcId + " não foi aceita.", 5000);
-    } else if (sgdStatus === "ENVI" || sgdStatus === "Enviado") {
-      showToast("Aguardando resultado. Status SGD: Enviado.", 3000);
+    } else if (sgdStatus === "ENVI" || sgdStatus === "Enviado" || sgdStatus === "NAEN") {
+      showToast("Aguardando resultado. Status SGD: " + sgdStatus, 3000);
     } else {
       showToast("Status SGD: " + (sgdStatus || "desconhecido"), 3000);
     }
