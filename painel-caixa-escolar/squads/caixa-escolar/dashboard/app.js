@@ -384,9 +384,10 @@ const SHARED_SYNC_KEYS = new Set([
   "caixaescolar.banco.v1", "caixaescolar.preorcamentos.v1", "caixaescolar.resultados.v1",
   "caixaescolar.contratos.v1", "caixaescolar.orcamentos", "caixaescolar.descartados",
   "caixaescolar.itens-mestres", "caixaescolar.arquivos-importados",
-  "gdp.contratos.v1", "gdp.pedidos.v1", "gdp.entregas.provas.v1", "gdp.usuarios.v1",
-  "gdp.notas-entrada.v1", "gdp.notas-fiscais.v1", "gdp.contas-pagar.v1",
-  "gdp.contas-receber.v1", "gdp.integracoes.v1", "gdp.estoque.movimentos.v1",
+  // gdp.contratos.v1, gdp.pedidos.v1, gdp.notas-fiscais.v1, gdp.contas-receber.v1,
+  // gdp.contas-pagar.v1, gdp.entregas.provas.v1, gdp.usuarios.v1
+  // — removed: these entities now have dedicated Supabase tables
+  "gdp.notas-entrada.v1", "gdp.integracoes.v1", "gdp.estoque.movimentos.v1",
   "gdp.equivalencias.v1",
   "gdp.conversoes.v1", "gdp.demandas.v1",
   "gdp.estoque.v1", "gdp.lista-compras.v1"
@@ -408,9 +409,10 @@ const SYNC_KEYS = [
   "nexedu.empresa", "caixaescolar.banco.v1", "caixaescolar.preorcamentos.v1",
   "caixaescolar.resultados.v1", "caixaescolar.contratos.v1", "caixaescolar.orcamentos",
   "caixaescolar.descartados", "caixaescolar.itens-mestres", "caixaescolar.arquivos-importados",
-  "gdp.contratos.v1", "gdp.pedidos.v1", "gdp.entregas.provas.v1",
-  "gdp.usuarios.v1", "gdp.notas-entrada.v1", "gdp.notas-fiscais.v1", "gdp.contas-pagar.v1",
-  "gdp.contas-receber.v1", "gdp.integracoes.v1", "gdp.estoque.movimentos.v1",
+  // gdp.contratos.v1, gdp.pedidos.v1, gdp.notas-fiscais.v1, gdp.contas-receber.v1,
+  // gdp.contas-pagar.v1, gdp.entregas.provas.v1, gdp.usuarios.v1
+  // — removed: these entities now have dedicated Supabase tables
+  "gdp.notas-entrada.v1", "gdp.integracoes.v1", "gdp.estoque.movimentos.v1",
   "gdp.equivalencias.v1",
   "gdp.conversoes.v1", "gdp.demandas.v1",
   "gdp.estoque.v1", "gdp.lista-compras.v1",

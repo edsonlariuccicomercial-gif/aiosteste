@@ -7082,6 +7082,29 @@ async function autorizarNotaFiscal(notaId) {
   };
   saveNotasFiscais();
 
+  // Persist to Supabase immediately after SEFAZ authorization
+  if (window.gdpApi) {
+    window.gdpApi.notas_fiscais.save({
+      id: nf.id,
+      numero: nf.numero,
+      serie: nf.serie,
+      valor: nf.valor,
+      status: nf.status,
+      pedido_id: nf.pedidoId,
+      contrato_id: nf.contratoId,
+      tipo_nota: nf.tipoNota,
+      emitida_em: nf.emitidaEm,
+      cliente: nf.cliente,
+      itens: nf.itens,
+      sefaz: nf.sefaz,
+      chave_acesso: nf.sefaz?.chaveAcesso,
+      protocolo: nf.sefaz?.protocolo,
+      xml_autorizado: nf.sefaz?.xmlAutorizado || nf.sefaz?.autorizacaoPreview || '',
+      cobranca: nf.cobranca,
+      audit: nf.audit
+    }).catch(e => console.warn('[NF] Supabase save failed:', e));
+  }
+
   const pedido = pedidos.find((item) => item.id === nf.pedidoId);
   if (pedido) {
     pedido.fiscal = { ...(pedido.fiscal || {}), notaFiscalId: nf.id, status: "autorizada", updatedAt: new Date().toISOString(), updatedBy: actor };
@@ -7220,6 +7243,30 @@ async function transmitirHomologacaoNota(notaId) {
     }
 
     saveNotasFiscais();
+
+    // Persist to Supabase immediately after real SEFAZ authorization
+    if (window.gdpApi && result.parsed?.autorizado) {
+      window.gdpApi.notas_fiscais.save({
+        id: nf.id,
+        numero: nf.numero,
+        serie: nf.serie,
+        valor: nf.valor,
+        status: nf.status,
+        pedido_id: nf.pedidoId,
+        contrato_id: nf.contratoId,
+        tipo_nota: nf.tipoNota,
+        emitida_em: nf.emitidaEm,
+        cliente: nf.cliente,
+        itens: nf.itens,
+        sefaz: nf.sefaz,
+        chave_acesso: nf.sefaz?.chaveAcesso,
+        protocolo: nf.sefaz?.protocolo,
+        xml_autorizado: nf.sefaz?.transmissao?.xml || nf.sefaz?.xmlAutorizado || nf.sefaz?.autorizacaoPreview || '',
+        cobranca: nf.cobranca,
+        audit: nf.audit
+      }).catch(e => console.warn('[NF] Supabase save failed:', e));
+    }
+
     renderAll();
     showToast(`SEFAZ: ${result.parsed?.cStat || "-"} ${result.parsed?.xMotivo || ""}`.trim(), 5000);
   } catch (err) {
