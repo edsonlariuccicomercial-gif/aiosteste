@@ -48,6 +48,34 @@
     localStorage.setItem(entity.lsKey, JSON.stringify(value));
   }
 
+  // Map localStorage camelCase items to Supabase snake_case columns
+  var TABLE_COLS = {
+    contratos: ['id','empresa_id','escola','processo','edital','objeto','status','fornecedor','vigencia','observacoes','data_apuracao','itens','cliente_snapshot','dados_extras','deleted_at','created_at','updated_at'],
+    pedidos: ['id','empresa_id','contrato_id','escola','data','status','valor','obs','itens','fiscal','cliente','pagamento','marcador','audit','dados_extras','created_at','updated_at'],
+    notas_fiscais: ['id','empresa_id','pedido_id','contrato_id','numero','serie','valor','status','tipo_nota','origem','emitida_em','vencimento','cliente','itens','sefaz','cobranca','documentos','parametros','integracoes','xml_autorizado','chave_acesso','protocolo','audit','created_at','updated_at'],
+    clientes: ['id','empresa_id','nome','cnpj','ie','uf','cep','sre','email','telefone','endereco','contratos_vinculados','dados_extras','created_at','updated_at'],
+    contas_receber: ['id','empresa_id','pedido_id','origem_id','descricao','valor','status','forma','categoria','vencimento','cliente','cobranca','automacao','audit','created_at','updated_at'],
+    contas_pagar: ['id','empresa_id','descricao','valor','status','forma','categoria','vencimento','fornecedor','audit','created_at','updated_at'],
+    entregas: ['id','empresa_id','pedido_id','escola','data_entrega','status_entrega','recebedor','obs','foto','assinatura','created_at','updated_at']
+  };
+  var CAMEL_TO_SNAKE = {
+    contratoId:'contrato_id', pedidoId:'pedido_id', origemId:'origem_id',
+    tipoNota:'tipo_nota', emitidaEm:'emitida_em', clienteSnapshot:'cliente_snapshot',
+    dataApuracao:'data_apuracao', dataEntrega:'data_entrega', statusEntrega:'status_entrega',
+    xmlAutorizado:'xml_autorizado', chaveAcesso:'chave_acesso',
+    nomeFantasia:'nome_fantasia', razaoSocial:'razao_social'
+  };
+  function mapToTable(table, item) {
+    var cols = TABLE_COLS[table];
+    if (!cols) return item; // unknown table, pass through
+    var row = {};
+    for (var key in item) {
+      var mapped = CAMEL_TO_SNAKE[key] || key;
+      if (cols.indexOf(mapped) >= 0) row[mapped] = item[key];
+    }
+    return row;
+  }
+
   async function sbFetch(path) {
     try {
       var resp = await fetch(REST + path, { headers: HEADERS });
@@ -127,8 +155,9 @@
         if (!item.id) item.id = genId();
         if (!item.empresa_id) item.empresa_id = getEmpresaId();
         item.updated_at = new Date().toISOString();
-        var ok = await sbUpsert(table, item, 'id');
-        if (!ok) enqueueRetry(table, item, 'id');
+        var row = mapToTable(table, item);
+        var ok = await sbUpsert(table, row, 'id');
+        if (!ok) enqueueRetry(table, row, 'id');
         // update localStorage cache
         var ls = readLS(entity) || [];
         var idx = -1;
@@ -140,18 +169,25 @@
 
       saveAll: async function (items) {
         var eid = getEmpresaId(), now = new Date().toISOString();
-        for (var i = 0; i < items.length; i++) {
-          if (!items[i].id) items[i].id = genId();
-          if (!items[i].empresa_id) items[i].empresa_id = eid;
-          items[i].updated_at = now;
-        }
+        var mapped = items.map(function (it) {
+          var row = mapToTable(table, it);
+          if (!row.id) row.id = genId();
+          if (!row.empresa_id) row.empresa_id = eid;
+          row.updated_at = now;
+          return row;
+        });
         try {
           var resp = await fetch(REST + '/' + table + '?on_conflict=id', {
-            method: 'POST', headers: UPSERT_HEADERS, body: JSON.stringify(items)
+            method: 'POST', headers: UPSERT_HEADERS, body: JSON.stringify(mapped)
           });
-          if (!resp.ok) items.forEach(function (it) { enqueueRetry(table, it, 'id'); });
-        } catch (_) {
-          items.forEach(function (it) { enqueueRetry(table, it, 'id'); });
+          if (!resp.ok) {
+            var err = ''; try { err = await resp.text(); } catch(_){}
+            console.warn('[gdpApi] saveAll failed ' + table + ':', resp.status, err);
+            mapped.forEach(function (it) { enqueueRetry(table, it, 'id'); });
+          }
+        } catch (e) {
+          console.warn('[gdpApi] saveAll error ' + table + ':', e);
+          mapped.forEach(function (it) { enqueueRetry(table, it, 'id'); });
         }
         writeLS(entity, items);
         return items;
