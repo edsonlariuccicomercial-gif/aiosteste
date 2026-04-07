@@ -2080,7 +2080,13 @@ async function syncToCloud() {
   const promises = GDP_SYNC_KEYS.map(key => {
     const raw = localStorage.getItem(key);
     if (!raw) return Promise.resolve();
-    try { return cloudSave(key, JSON.parse(raw)); }
+    try {
+      const data = JSON.parse(raw);
+      // Guard: never push empty data to cloud — prevents overwriting good data
+      if (Array.isArray(data) && data.length === 0) return Promise.resolve();
+      if (data && typeof data === 'object' && Array.isArray(data.items) && data.items.length === 0) return Promise.resolve();
+      return cloudSave(key, data);
+    }
     catch(_) { return Promise.resolve(); }
   });
   await Promise.all(promises);
@@ -2101,9 +2107,7 @@ function schedulCloudSync() {
 
 async function forcarSyncCompleto() {
   try {
-    setGdpSyncState({ status: "syncing", detail: "Enviando dados locais para cloud..." });
-    showToast("Sync: enviando dados locais...", 2000);
-    await syncToCloud();
+    // PULL first, THEN push — prevents overwriting cloud with stale local data
     setGdpSyncState({ status: "syncing", detail: "Baixando dados do cloud..." });
     showToast("Sync: baixando dados do cloud...", 2000);
     const result = await syncFromCloud();
@@ -2114,6 +2118,9 @@ async function forcarSyncCompleto() {
     } else {
       showToast("Sync completo — tudo ja estava atualizado.", 3000);
     }
+    // Push AFTER pull
+    setGdpSyncState({ status: "syncing", detail: "Enviando dados locais para cloud..." });
+    await syncToCloud();
     setGdpSyncState({ status: "cloud", detail: "Sync manual concluido" });
   } catch (e) {
     setGdpSyncState({ status: "offline", detail: "Falha no sync: " + e.message });
