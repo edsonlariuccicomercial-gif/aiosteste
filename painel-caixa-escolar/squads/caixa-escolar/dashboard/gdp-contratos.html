@@ -2381,7 +2381,8 @@ function sanitizePedidoLegacyData(pedido) {
   if (sanitized.status === "concluido") sanitized.status = "faturado";
   sanitized.itens = (sanitized.itens || []).map((item, idx) => stripLegacyErpFields({
     ...item,
-    sku: normalizeInternalSku(sanitized.contratoId || "GDP", item, idx)
+    // SKU: preservar skuVinculado (inteligência), não auto-gerar
+    sku: item.skuVinculado || item.sku || ""
   }));
   return ensurePedidoFiscalData(sanitized);
 }
@@ -6272,11 +6273,13 @@ function ensurePedidoFiscalData(pedido) {
     const contratoItem = pedido.contratoId ? getContratoItemForPedidoItem(pedido.contratoId, baseItem) : null;
     return {
       ...baseItem,
-      descricao: baseItem.descricao || contratoItem?.descricao || `Item ${idx + 1}`,
+      // NF-e: descrição SEMPRE do contrato (edital), não do produto inteligência
+      descricao: contratoItem?.descricao || baseItem.descricao || `Item ${idx + 1}`,
       precoUnitario: Number(baseItem.precoUnitario || contratoItem?.precoUnitario || 0),
       unidade: baseItem.unidade || contratoItem?.unidade || "UN",
       ncm: baseItem.ncm || contratoItem?.ncm || "",
-      sku: baseItem.sku || contratoItem?.sku || buildAutoSku(pedido.contratoId || "GDP", contratoItem || baseItem, idx)
+      // SKU: apenas skuVinculado (inteligência LICT-xxxx), nunca auto-gerar
+      sku: baseItem.skuVinculado || contratoItem?.skuVinculado || baseItem.sku || contratoItem?.sku || ""
     };
   });
   return pedido;
