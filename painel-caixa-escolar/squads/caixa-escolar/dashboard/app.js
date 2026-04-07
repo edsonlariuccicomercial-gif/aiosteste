@@ -527,6 +527,14 @@ async function syncFromCloud() {
     const localTime = getDataTimestamp(localData);
     const isSharedKey = SHARED_SYNC_KEYS.has(row.key);
 
+    // Merge protection: if local has MORE items than cloud, keep local (prevents data loss)
+    const localItems = localData?.items || (Array.isArray(localData) ? localData : null);
+    const cloudItems = row.data?.items || (Array.isArray(row.data) ? row.data : null);
+    if (localItems && cloudItems && localItems.length > cloudItems.length && cloudItems.length > 0) {
+      console.warn("[Sync] Keeping local for " + row.key + " (local:" + localItems.length + " > cloud:" + cloudItems.length + ")");
+      continue;
+    }
+
     if (isSharedKey || cloudTime > localTime || (!localTime && cloudTime === 0)) {
       localStorage.setItem(row.key, JSON.stringify(row.data));
       synced++;
@@ -542,6 +550,9 @@ async function syncToCloud() {
     if (!raw) return Promise.resolve();
     try {
       const data = JSON.parse(raw);
+      // Guard: never push empty/tiny data if cloud has more
+      if (Array.isArray(data) && data.length === 0) return Promise.resolve();
+      if (data && typeof data === 'object' && Array.isArray(data.items) && data.items.length === 0) return Promise.resolve();
       return cloudSave(key, data);
     } catch(_) { return Promise.resolve(); }
   });
@@ -1050,7 +1061,7 @@ async function boot() {
     updateModeIndicator(sgdAvailable);
   }).catch(() => {});
 
-  // 6. Cloud sync in background (non-blocking)
+  // 6. Cloud sync — PULL first, THEN push (never overwrite cloud with stale local)
   syncFromCloud().then(synced => {
     if (synced) {
       console.log("[Boot] Cloud data synced to localStorage");
@@ -1061,10 +1072,10 @@ async function boot() {
       if (freshOrc) { try { orcamentos = JSON.parse(freshOrc); } catch(_) {} }
       renderAll();
     }
-  }).catch(e => console.warn("[Boot] Cloud sync pull failed:", e));
-
-  syncToCloud().then(() => console.log("[Boot] Local data pushed to cloud"))
-    .catch(e => console.warn("[Boot] Cloud push failed:", e));
+    // Only push AFTER pull completes — prevents overwriting cloud with empty data
+    return syncToCloud();
+  }).then(() => console.log("[Boot] Local data pushed to cloud"))
+    .catch(e => console.warn("[Boot] Cloud sync failed:", e));
 }
 
 // ===== FILTERS =====
