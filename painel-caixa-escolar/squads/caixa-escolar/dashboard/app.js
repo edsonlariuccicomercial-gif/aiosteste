@@ -2105,6 +2105,7 @@ function renderPreOrcamentosLista() {
         <td>
           <button class="btn btn-inline" onclick="abrirPreOrcamento('${p.orcamentoId}')">Ver</button>
           ${(p.status === "ganho" || p.status === "perdido" || p.status === "enviado") ? `<button class="btn btn-inline" onclick="editarResultadoPreOrcamento('${p.orcamentoId}')" title="Alterar resultado">Editar Resultado</button>` : ""}
+          ${p.status === "enviado" ? `<button class="btn btn-inline" onclick="checarStatusSgd('${p.orcamentoId}')" title="Consultar resultado no SGD" style="color:#3b82f6">Checar SGD</button>` : ""}
           <button class="btn btn-inline btn-danger" onclick="removerPreOrcamento('${p.orcamentoId}')">Excluir</button>
         </td>
       </tr>`;
@@ -6135,6 +6136,50 @@ window.salvarResultado = function () {
     showToast(msg);
   } else {
     showToast("Resultado registrado — histórico atualizado");
+  }
+};
+
+window.checarStatusSgd = async function(orcId) {
+  const pre = preOrcamentos[orcId];
+  if (!pre) return showToast("Pré-orçamento não encontrado", 3000);
+
+  const orc = orcamentos.find(o => o.id === orcId);
+  const idSub = pre.idSubprogram || orc?.idSubprogram;
+  const idSch = pre.idSchool || orc?.idSchool;
+  const idBud = pre.idBudget || orc?.idBudget;
+
+  if (!idSub || !idSch || !idBud) return showToast("IDs SGD ausentes. Vincule a um orçamento importado.", 3000);
+
+  showToast("Consultando SGD...", 2000);
+  try {
+    await BrowserSgdClient.login();
+    if (!BrowserSgdClient.networkId) await BrowserSgdClient.listBudgets(1, 1);
+    const detail = await BrowserSgdClient.getBudgetDetail(idSub, idSch, idBud);
+    const sgdStatus = detail.supplierStatus || detail.flSupplierStatus || "";
+
+    if (sgdStatus === "APRO" || sgdStatus === "Aprovado") {
+      pre.status = "ganho";
+      pre.statusSgd = "APRO";
+      pre.resultadoEm = new Date().toISOString().slice(0, 10);
+      savePreOrcamentos();
+      renderSgd();
+      renderKPIs();
+      showToast("APROVADO! Proposta " + orcId + " foi aceita no SGD.", 5000);
+    } else if (sgdStatus === "RECU" || sgdStatus === "Recusado") {
+      pre.status = "perdido";
+      pre.statusSgd = "RECU";
+      pre.resultadoEm = new Date().toISOString().slice(0, 10);
+      savePreOrcamentos();
+      renderSgd();
+      renderKPIs();
+      showToast("RECUSADO. Proposta " + orcId + " não foi aceita.", 5000);
+    } else if (sgdStatus === "ENVI" || sgdStatus === "Enviado") {
+      showToast("Aguardando resultado. Status SGD: Enviado.", 3000);
+    } else {
+      showToast("Status SGD: " + (sgdStatus || "desconhecido"), 3000);
+    }
+  } catch (e) {
+    showToast("Erro ao consultar SGD: " + e.message, 4000);
   }
 };
 
