@@ -647,9 +647,11 @@ const BrowserSgdClient = {
     return user;
   },
 
-  async listBudgets(page = 1, limit = 50) {
+  async listBudgets(page = 1, limit = 50, supplierStatus = null) {
     await this.ensureAuth();
-    const data = await this.proxy({ action: "list-budgets", cookie: this.cookie, networkId: this.networkId, page, limit });
+    const payload = { action: "list-budgets", cookie: this.cookie, networkId: this.networkId, page, limit };
+    if (supplierStatus) payload.supplierStatus = supplierStatus;
+    const data = await this.proxy(payload);
     if (!this.networkId && data.data && data.data[0]) this.networkId = data.data[0].idNetwork;
     return data;
   },
@@ -5668,19 +5670,23 @@ async function varrerSgd() {
         return null;
       }
 
-      // Step 1: Fetch all budget summaries (paginated, 100/page — API max is 100)
+      // Step 1: Fetch all budget summaries — TODOS os status (aberto, enviado, aprovado, recusado)
       const allBudgets = [];
-      let page = 1;
-      const PAGE_SIZE = 100;
-      while (true) {
-        const data = await BrowserSgdClient.listBudgets(page, PAGE_SIZE);
-        const items = data.data || [];
-        if (items.length === 0) break;
-        allBudgets.push(...items);
-        const total = data.meta ? data.meta.totalItems : 0;
-        if (allBudgets.length >= total) break;
-        page++;
-        btn.innerHTML = `<span class="sgd-spinner"></span>Listando... ${allBudgets.length}/${total}`;
+      const SGD_STATUSES = ["NAEN", "ENVI", "APRO", "RECU"];
+      for (const st of SGD_STATUSES) {
+        let page = 1;
+        const PAGE_SIZE = 100;
+        while (true) {
+          btn.innerHTML = `<span class="sgd-spinner"></span>Varrendo ${st}... ${allBudgets.length} total`;
+          const data = await BrowserSgdClient.listBudgets(page, PAGE_SIZE, [st]);
+          const items = (data.data || []).map(b => ({ ...b, supplierStatus: st }));
+          if (items.length === 0) break;
+          allBudgets.push(...items);
+          const total = data.meta ? data.meta.totalItems : 0;
+          const stCount = allBudgets.filter(b => b.supplierStatus === st).length;
+          if (stCount >= total) break;
+          page++;
+        }
       }
 
       // Step 2: Filter using confirmed idSchool whitelist + county/name fallback
@@ -5800,7 +5806,10 @@ async function varrerSgd() {
           prazo: (b.dtProposalSubmission || detail.dtProposalSubmission || "").slice(0, 10),
           prazoEntrega: (detail.dtDelivery || "").slice(0, 10),
           valorEstimado: detail.estimatedValue ? parseFloat(detail.estimatedValue) : null,
-          status: "aberto", participantes: detail.inNaturalPersonAllowed ? "PJ/PF" : "PJ",
+          // Status mapeado do SGD: NAEN=aberto, ENVI=enviado, APRO=aprovado, RECU=recusado
+          status: ({ NAEN: "aberto", ENVI: "enviado", APRO: "aprovado", RECU: "recusado" })[b.supplierStatus] || "aberto",
+          statusSgd: b.supplierStatus || "NAEN",
+          participantes: detail.inNaturalPersonAllowed ? "PJ/PF" : "PJ",
           itens: budgetItems.map((bi) => ({
             nome: bi.txBudgetItemType || bi.txName || "",
             descricao: bi.txDescription || "",

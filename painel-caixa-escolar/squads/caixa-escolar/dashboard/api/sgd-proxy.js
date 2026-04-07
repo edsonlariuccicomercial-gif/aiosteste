@@ -56,18 +56,34 @@ async function handleGetUser({ cookie }, res) {
   return res.status(200).json(await r.json());
 }
 
-async function handleListBudgets({ cookie, networkId, page, limit }, res) {
+async function handleListBudgets({ cookie, networkId, page, limit, supplierStatus }, res) {
   const params = new URLSearchParams();
-  params.set("filter.supplierStatus", "$eq:NAEN");
-  params.set("page", String(page || 1));
-  params.set("limit", String(limit || 50));
+  // supplierStatus: NAEN (não enviado), ENVI (enviado), APRO (aprovado), RECU (recusado)
+  // Default: NAEN para backward compatibility. Aceita array para buscar múltiplos.
+  const statuses = supplierStatus
+    ? (Array.isArray(supplierStatus) ? supplierStatus : [supplierStatus])
+    : ["NAEN"];
 
-  const r = await fetch(
-    `${SGD_API}/budget-proposal/summary-by-supplier-profile?${params}`,
-    { headers: buildHeaders(cookie, networkId) }
-  );
-  if (!r.ok) return res.status(r.status).json({ error: `listBudgets failed (${r.status})` });
-  return res.status(200).json(await r.json());
+  // Fetch each status and merge results
+  const allItems = [];
+  let meta = {};
+  for (const st of statuses) {
+    params.set("filter.supplierStatus", "$eq:" + st);
+    params.set("page", String(page || 1));
+    params.set("limit", String(limit || 50));
+
+    const r = await fetch(
+      `${SGD_API}/budget-proposal/summary-by-supplier-profile?${params}`,
+      { headers: buildHeaders(cookie, networkId) }
+    );
+    if (!r.ok) continue;
+    const data = await r.json();
+    const items = (data.data || []).map(item => ({ ...item, supplierStatus: st }));
+    allItems.push(...items);
+    if (data.meta) meta = { ...meta, ...data.meta, totalItems: (meta.totalItems || 0) + (data.meta.totalItems || 0) };
+  }
+
+  return res.status(200).json({ data: allItems, meta });
 }
 
 async function handleBudgetDetail({ cookie, networkId, idSubprogram, idSchool, idBudget }, res) {
