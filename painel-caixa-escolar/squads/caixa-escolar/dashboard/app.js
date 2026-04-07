@@ -5670,23 +5670,50 @@ async function varrerSgd() {
         return null;
       }
 
-      // Step 1: Fetch all budget summaries — TODOS os status (aberto, enviado, aprovado, recusado)
+      // Step 1a: Fetch ABERTOS (NAEN) — varredura normal de oportunidades
       const allBudgets = [];
-      const SGD_STATUSES = ["NAEN", "ENVI", "APRO", "RECU"];
-      for (const st of SGD_STATUSES) {
-        let page = 1;
-        const PAGE_SIZE = 100;
-        while (true) {
-          btn.innerHTML = `<span class="sgd-spinner"></span>Varrendo ${st}... ${allBudgets.length} total`;
-          const data = await BrowserSgdClient.listBudgets(page, PAGE_SIZE, [st]);
-          const items = (data.data || []).map(b => ({ ...b, supplierStatus: st }));
-          if (items.length === 0) break;
-          allBudgets.push(...items);
-          const total = data.meta ? data.meta.totalItems : 0;
-          const stCount = allBudgets.filter(b => b.supplierStatus === st).length;
-          if (stCount >= total) break;
-          page++;
+      let page = 1;
+      const PAGE_SIZE = 100;
+      while (true) {
+        const data = await BrowserSgdClient.listBudgets(page, PAGE_SIZE);
+        const items = data.data || [];
+        if (items.length === 0) break;
+        allBudgets.push(...items);
+        const total = data.meta ? data.meta.totalItems : 0;
+        if (allBudgets.length >= total) break;
+        page++;
+        btn.innerHTML = `<span class="sgd-spinner"></span>Listando... ${allBudgets.length}/${total}`;
+      }
+
+      // Step 1b: Checar status das ENVIADAS — consulta pontual por ID
+      const enviadas = Object.values(preOrcamentos).filter(p => p.status === "enviado" && p.idBudget);
+      if (enviadas.length > 0) {
+        btn.innerHTML = `<span class="sgd-spinner"></span>Checando ${enviadas.length} propostas enviadas...`;
+        for (const pre of enviadas) {
+          try {
+            const orc = orcamentos.find(o => o.idBudget == pre.idBudget);
+            const idSub = pre.idSubprogram || orc?.idSubprogram;
+            const idSch = pre.idSchool || orc?.idSchool;
+            const idBud = pre.idBudget || orc?.idBudget;
+            if (!idSub || !idSch || !idBud) continue;
+            const detail = await BrowserSgdClient.getBudgetDetail(idSub, idSch, idBud);
+            const sgdStatus = detail.supplierStatus || detail.flSupplierStatus || "";
+            if (sgdStatus === "APRO" || sgdStatus === "Aprovado") {
+              pre.status = "ganho";
+              pre.statusSgd = "APRO";
+              pre.resultadoEm = new Date().toISOString().slice(0, 10);
+              console.log(`[Varrer] Proposta ${pre.orcamentoId} APROVADA no SGD!`);
+            } else if (sgdStatus === "RECU" || sgdStatus === "Recusado") {
+              pre.status = "perdido";
+              pre.statusSgd = "RECU";
+              pre.resultadoEm = new Date().toISOString().slice(0, 10);
+              console.log(`[Varrer] Proposta ${pre.orcamentoId} RECUSADA no SGD.`);
+            }
+          } catch (e) {
+            console.warn(`[Varrer] Erro ao checar enviada ${pre.orcamentoId}:`, e.message);
+          }
         }
+        savePreOrcamentos();
       }
 
       // Step 2: Filter using confirmed idSchool whitelist + county/name fallback
