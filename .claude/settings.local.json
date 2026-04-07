@@ -21,7 +21,29 @@
       "Bash(netlify sites:create:*)",
       "Bash(netlify api:*)",
       "Bash(curl:*)",
-      "Bash(xargs ls:*)"
+      "Bash(xargs ls:*)",
+      "mcp__playwright__browser_snapshot",
+      "Bash(vercel --prod --yes)",
+      "Bash(vercel alias:*)",
+      "Bash(npx http-server:*)",
+      "Read(//c/Users/Hearthz Gaming/Desktop/aios//**)",
+      "Read(//c/Users/Hearthz Gaming/Área de Trabalho/**)",
+      "Read(//c/Users/Hearthz Gaming/Desktop//**)",
+      "Bash(cp:*)",
+      "Bash(vercel env:*)",
+      "Bash(vercel logs:*)",
+      "Bash(vercel inspect:*)",
+      "Bash(vercel --prod --yes --force)",
+      "Bash(printf \"resend\")",
+      "Bash(printf \"re_R5tnKwpJ_GWYsyXzmfsE6A7UxByfcaqDY\")",
+      "Bash(printf \"GDP Pedidos <onboarding@resend.dev>\")",
+      "Bash(cp \"/c/Users/Hearthz Gaming/Desktop/distribuidora 2026/contratos fechados/clemente/Controle_de_compra_EDSON_-_PAS_033-2025_-_FEDERAL_assinado.pdf\" \"/c/Users/Hearthz Gaming/aiosteste/painel-caixa-escolar/squads/caixa-escolar/dashboard/clemente-033.pdf\")",
+      "Bash(cp \"/c/Users/Hearthz Gaming/Desktop/distribuidora 2026/contratos fechados/clemente/Controle_de_compra_EDSON_-_PAS_034-2025_-_ESTADUAL_assinado.pdf\" \"/c/Users/Hearthz Gaming/aiosteste/painel-caixa-escolar/squads/caixa-escolar/dashboard/clemente-034.pdf\")",
+      "Bash(npx vercel:*)",
+      "Read(//c/Users/Hearthz Gaming/OneDrive/Desktop/**)",
+      "Read(//c/Users/Hearthz Gaming/OneDrive/Área de Trabalho/**)",
+      "Bash(node consulta-sefaz.js)",
+      "Bash(node -e ':*)"
     ]
   }
 }

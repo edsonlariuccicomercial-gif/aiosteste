@@ -581,8 +581,8 @@ const SGD_API = "https://api.caixaescolar.educacao.mg.gov.br";
 const SGD_CRED_KEY = "caixaescolar.sgd.credentials";
 
 // ===== BROWSER SGD CLIENT (via Netlify Function proxy) =====
-// Auto-detect: Vercel usa /api/, Netlify usa /.netlify/functions/, local usa /api/
-const PROXY_URL = (location.hostname.includes("vercel") || location.hostname.includes("localhost")) ? "/api/sgd-proxy" : "/.netlify/functions/sgd-proxy";
+// Proxy unificado: /api/caixa-proxy no Vercel e local, /.netlify/functions/sgd-proxy no Netlify
+const PROXY_URL = location.hostname.includes("netlify") ? "/.netlify/functions/sgd-proxy" : "/api/caixa-proxy";
 const BrowserSgdClient = {
   cookie: null,
   networkId: null,
