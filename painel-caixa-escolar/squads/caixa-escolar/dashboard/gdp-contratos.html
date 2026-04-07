@@ -166,6 +166,7 @@
     @media(max-width:768px){.main{padding:1rem}.kpi-grid{grid-template-columns:repeat(2,1fr)}.topbar{flex-wrap:wrap;gap:.5rem}}
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <script src="gdp-api.js"></script>
 </head>
 <body>
 
@@ -2405,10 +2406,25 @@ function applyDeletedContractsFilter(items = []) {
   if (!deletedIds.size) return items;
   return items.filter((item) => !deletedIds.has(String(item?.id || "")));
 }
+// Mapa localStorage key → tabela Supabase
+const _LS_TO_TABLE = {
+  'gdp.contratos.v1': 'contratos',
+  'gdp.pedidos.v1': 'pedidos',
+  'gdp.notas-fiscais.v1': 'notas_fiscais',
+  'gdp.contas-receber.v1': 'contas_receber',
+  'gdp.contas-pagar.v1': 'contas_pagar',
+  'gdp.entregas.provas.v1': 'entregas'
+};
+
 function saveWrappedArray(key, items) {
   const wrapped = { _v: 1, updatedAt: new Date().toISOString(), items };
   localStorage.setItem(key, JSON.stringify(wrapped));
-  // Cloud save imediato para dados criticos
+  // Gravar no Supabase tabela real (fonte primária)
+  const table = _LS_TO_TABLE[key];
+  if (table && window.gdpApi && window.gdpApi[table]) {
+    window.gdpApi[table].saveAll(items).catch(e => console.warn('[gdpApi] Save failed:', table, e));
+  }
+  // Cloud save legado (backup)
   cloudSave(key, wrapped).catch(() => {});
   schedulCloudSync();
 }
@@ -15541,20 +15557,48 @@ async function enviarTiny(contratoId) {
 
 // ===== INIT =====
 (async function initGDP() {
-  // Force cloud pull via URL param: ?force-cloud=1
-  if (new URLSearchParams(location.search).has("force-cloud")) {
+  // Supabase-First: carregar dados das tabelas reais ANTES do localStorage
+  if (window.gdpApi) {
     try {
-      const _h = { apikey: SUPABASE_KEY, Authorization: "Bearer " + SUPABASE_KEY };
-      const _rows = await (await fetch(SUPABASE_URL + "/rest/v1/sync_data?user_id=eq." + encodeURIComponent(getSyncUserId()) + "&select=key,data,updated_at", { headers: _h })).json();
-      if (Array.isArray(_rows)) {
-        for (const r of _rows) { if (r.data) localStorage.setItem(r.key, JSON.stringify(r.data)); }
-        console.log("[ForceCloud] Restored " + _rows.length + " keys from cloud");
+      const ready = await gdpApi.isReady();
+      if (ready) {
+        console.log("[GDP] Supabase-First: carregando das tabelas reais...");
+        const _tableMap = {
+          'gdp.contratos.v1': 'contratos',
+          'gdp.pedidos.v1': 'pedidos',
+          'gdp.notas-fiscais.v1': 'notas_fiscais',
+          'gdp.contas-receber.v1': 'contas_receber',
+          'gdp.contas-pagar.v1': 'contas_pagar',
+          'gdp.entregas.provas.v1': 'entregas'
+        };
+        const _wrapKeys = new Set(['gdp.contratos.v1','gdp.pedidos.v1','gdp.notas-fiscais.v1','gdp.contas-receber.v1','gdp.contas-pagar.v1']);
+        for (const [lsKey, table] of Object.entries(_tableMap)) {
+          try {
+            const rows = await gdpApi[table].list();
+            if (rows && rows.length > 0) {
+              const data = _wrapKeys.has(lsKey) ? { _v: 1, updatedAt: new Date().toISOString(), items: rows } : rows;
+              localStorage.setItem(lsKey, JSON.stringify(data));
+              console.log("[GDP] " + table + ": " + rows.length + " registros do Supabase");
+            }
+          } catch(e) { console.warn("[GDP] Falha ao carregar " + table + ":", e); }
+        }
+        // Clientes (usuarios)
+        try {
+          const clientes = await gdpApi.clientes.list();
+          if (clientes && clientes.length > 0) {
+            localStorage.setItem('gdp.usuarios.v1', JSON.stringify(clientes));
+            console.log("[GDP] clientes: " + clientes.length + " registros do Supabase");
+          }
+        } catch(e) {}
+      } else {
+        console.log("[GDP] Tabelas Supabase não encontradas, usando localStorage");
       }
-    } catch(e) { console.warn("[ForceCloud] Failed:", e); }
-    history.replaceState(null, "", location.pathname);
+    } catch(e) {
+      console.warn("[GDP] Supabase-First falhou, fallback localStorage:", e);
+    }
   }
 
-  // Render imediato com dados locais — sem esperar cloud
+  // Render com dados (agora do Supabase via localStorage cache)
   loadData();
   loadUsuarios();
   renderAll();
