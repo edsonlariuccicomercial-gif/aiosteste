@@ -33,6 +33,9 @@ export default async function handler(req, res) {
     // B2B scrape
     if (action === "b2b-scrape") return await handleB2bScrape(params, res);
 
+    // SEFAZ DistribuicaoDFe — buscar NFs de entrada
+    if (action === "sefaz-dist-dfe") return await handleSefazDistDFe(params, res);
+
     // PNCP proxy (supports both new "pncp-search"/"pncp-items" and legacy "search"/"items" action names)
     if (action === "pncp-search" || action === "search") return await handlePncpSearch(params, res);
     if (action === "pncp-items" || action === "items") return await handlePncpItems(params, res);
@@ -182,4 +185,95 @@ function getDateMonthsAgo(months) {
   const d = new Date();
   d.setMonth(d.getMonth() - months);
   return d.toISOString().split("T")[0];
+}
+
+// ===== SEFAZ DistribuicaoDFe — Buscar NFs emitidas contra nosso CNPJ =====
+
+const SEFAZ_DIST_URL = "https://www1.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx";
+
+async function handleSefazDistDFe({ cnpj, ultNSU }, res) {
+  const certBase64 = process.env.NFE_CERT_BASE64;
+  const certPassword = process.env.NFE_CERT_PASSWORD || "1234567";
+  if (!certBase64) return res.status(500).json({ error: "NFE_CERT_BASE64 não configurado no servidor" });
+  if (!cnpj) return res.status(400).json({ error: "CNPJ obrigatório" });
+
+  const cleanCnpj = cnpj.replace(/\D/g, "");
+  const nsu = String(ultNSU || 0).padStart(15, "0");
+
+  const soap = `<?xml version="1.0" encoding="utf-8"?>
+<soap12:Envelope xmlns:soap12="http://www.w3.org/2003/05/soap-envelope">
+<soap12:Body>
+<nfeDistDFeInteresse xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe">
+<nfeDadosMsg>
+<distDFeInt versao="1.01" xmlns="http://www.portalfiscal.inf.br/nfe">
+<tpAmb>1</tpAmb><cUFAutor>31</cUFAutor><CNPJ>${cleanCnpj}</CNPJ>
+<distNSU><ultNSU>${nsu}</ultNSU></distNSU>
+</distDFeInt></nfeDadosMsg></nfeDistDFeInteresse>
+</soap12:Body></soap12:Envelope>`;
+
+  try {
+    const https = await import("https");
+    const zlib = await import("zlib");
+    const pfxBuffer = Buffer.from(certBase64, "base64");
+    const body = Buffer.from(soap, "utf8");
+
+    const sefazResp = await new Promise((resolve, reject) => {
+      const req = https.request(SEFAZ_DIST_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/soap+xml; charset=utf-8", "Content-Length": body.length },
+        pfx: pfxBuffer, passphrase: certPassword, minVersion: "TLSv1.2"
+      }, (r) => {
+        let raw = ""; r.on("data", c => raw += c); r.on("end", () => resolve(raw));
+      });
+      req.on("error", reject);
+      req.write(body); req.end();
+    });
+
+    const cStat = (sefazResp.match(/<cStat>(\d+)<\/cStat>/) || [])[1] || "";
+    const xMotivo = (sefazResp.match(/<xMotivo>([^<]+)<\/xMotivo>/) || [])[1] || "";
+    const maxNSU = (sefazResp.match(/<maxNSU>(\d+)<\/maxNSU>/) || [])[1] || "0";
+    const ultNSUResp = (sefazResp.match(/<ultNSU>(\d+)<\/ultNSU>/) || [])[1] || "0";
+
+    // Extrair documentos
+    const docs = [];
+    const docZips = sefazResp.match(/<docZip[^>]*>([^<]+)<\/docZip>/g) || [];
+    for (const dz of docZips) {
+      try {
+        const b64 = dz.replace(/<[^>]+>/g, "");
+        const xml = zlib.gunzipSync(Buffer.from(b64, "base64")).toString("utf8");
+
+        const tag = (t) => (xml.match(new RegExp(`<${t}>([^<]*)</${t}>`)) || [])[1] || "";
+        const emitNome = (xml.match(/<emit>[\s\S]*?<xNome>([^<]+)<\/xNome>/) || [])[1] || "";
+        const emitCnpj = (xml.match(/<emit>[\s\S]*?<CNPJ>([^<]+)<\/CNPJ>/) || [])[1] || "";
+        const nNF = tag("nNF");
+        const chNFe = tag("chNFe") || (xml.match(/Id="NFe(\d{44})"/) || [])[1] || "";
+        const vNF = Number(tag("vNF") || 0);
+        const dhEmi = tag("dhEmi") || tag("dEmi");
+
+        // Extrair itens
+        const itens = [];
+        const detMatches = xml.match(/<det\s[^>]*>[\s\S]*?<\/det>/g) || [];
+        for (const det of detMatches) {
+          const pTag = (t) => (det.match(new RegExp(`<${t}>([^<]*)</${t}>`)) || [])[1] || "";
+          itens.push({
+            descricao: pTag("xProd"),
+            ncm: pTag("NCM"),
+            unidade: pTag("uCom"),
+            quantidade: Number(pTag("qCom") || 0),
+            valorUnitario: Number(pTag("vUnCom") || 0),
+            valorTotal: Number(pTag("vProd") || 0),
+            codigo: pTag("cProd")
+          });
+        }
+
+        if (nNF || chNFe) {
+          docs.push({ nNF, chave: chNFe, fornecedor: emitNome, cnpjEmitente: emitCnpj, valor: vNF, emitidaEm: dhEmi, itens });
+        }
+      } catch (_) { /* skip malformed */ }
+    }
+
+    return res.status(200).json({ cStat, xMotivo, maxNSU: Number(maxNSU), ultNSU: Number(ultNSUResp), documentos: docs });
+  } catch (err) {
+    return res.status(500).json({ error: "SEFAZ DistDFe: " + err.message });
+  }
 }

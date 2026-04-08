@@ -1731,92 +1731,110 @@ function importarNotaEntradaXml(input) {
   reader.readAsText(file);
 }
 
-function consultarNotasEntradaApi() {
+async function consultarNotasEntradaApi() {
   const empresa = JSON.parse(localStorage.getItem("nexedu.empresa") || "{}");
   const cnpj = String(empresa.cnpj || "").replace(/\D/g, "");
-  const item = {
-    id: genId("NE"),
-    fornecedor: "Consulta API",
-    numero: "-",
-    chave: "",
-    valor: 0,
-    status: "consulta_pendente",
-    origem: "api_sefaz",
-    emitidaEm: new Date().toISOString(),
-    createdAt: new Date().toISOString()
-  };
-  notasEntrada.unshift(item);
-  saveNotasEntrada();
-  renderNotasEntrada();
-  queueGdpIntegration("nota_entrada", "consultar_documentos_destinados", item.id, {
-    notaEntradaId: item.id,
-    cnpjDestinatario: cnpj,
-    requestedAt: new Date().toISOString()
-  }, {
-    channel: "sefaz",
-    onSuccess: (data) => {
-      item.status = "consulta_concluida";
-      item.remote = data.protocol || "";
-      // Processar notas retornadas e dar entrada automatica
-      const docs = data.documentos || data.notas || data.items || [];
-      if (Array.isArray(docs) && docs.length > 0) {
-        let importados = 0;
-        docs.forEach(doc => {
-          const chave = doc.chaveAcesso || doc.chave || doc.key || "";
-          const jaExiste = notasEntrada.some(ne => ne.chave === chave && chave);
-          if (!jaExiste) {
-            notasEntrada.unshift({
-              id: genId("NE"),
-              fornecedor: doc.emitente?.nome || doc.fornecedor || doc.razaoSocial || "Fornecedor",
-              numero: doc.numero || doc.nNF || "",
-              chave: chave,
-              valor: Number(doc.valor || doc.vNF || 0),
-              status: "baixada_automatica",
-              origem: "api_sefaz",
-              emitidaEm: doc.emitidaEm || doc.dhEmi || new Date().toISOString(),
-              createdAt: new Date().toISOString(),
-              cnpjEmitente: doc.emitente?.cnpj || doc.cnpjEmitente || "",
-              itens: doc.itens || []
-            });
-            importados++;
-          }
-        });
-        item.fornecedor = `Consulta API (${importados} nota${importados !== 1 ? "s" : ""} importada${importados !== 1 ? "s" : ""})`;
-        showToast(`${importados} nota(s) de entrada baixada(s) automaticamente.`, 4000);
-      } else {
-        item.fornecedor = "Consulta API (nenhuma nota nova)";
-      }
-      saveNotasEntrada();
+  if (!cnpj) { showToast("CNPJ da empresa não configurado.", 3500); return; }
 
-      // Bridge 1: NF Entrada → Custo real (API import — processar todas notas importadas)
-      if (typeof bancoPrecos !== 'undefined' && bancoPrecos.itens) {
-        notasEntrada.filter(function(ne) { return ne.origem === 'api_sefaz' && ne.itens && ne.itens.length > 0; }).forEach(function(notaEntrada) {
-          (notaEntrada.itens || []).forEach(function(itemNe) {
-            var bp = bancoPrecos.itens.find(function(b) {
-              return (itemNe.ncm && b.ncm === itemNe.ncm && normalizedText(b.item).includes(normalizedText(itemNe.descricao).split(' ')[0])) ||
-                     normalizedText(b.item) === normalizedText(itemNe.descricao);
-            });
-            if (bp) {
-              bp.custoBase = itemNe.precoUnitario || itemNe.valorUnitario;
-              if (!bp.custosFornecedor) bp.custosFornecedor = [];
-              bp.custosFornecedor.push({ fornecedor: notaEntrada.fornecedor || 'NF Entrada', preco: bp.custoBase, data: new Date().toISOString().slice(0,10), tipo: 'nf_entrada' });
-              bp.precoReferencia = bp.custoBase * (1 + (bp.margemPadrao || 0.30));
-            }
-          });
-        });
-        saveBancoLocal();
+  showToast("Consultando SEFAZ... Buscando NFs de entrada.", 3000);
+
+  // Consulta direta via caixa-proxy → SEFAZ DistribuicaoDFe
+  const PROXY = location.hostname.includes("netlify") ? "/.netlify/functions/sgd-proxy" : "/api/caixa-proxy";
+  const nsuKey = "radar.sefaz.ultNSU";
+  const ultNSU = localStorage.getItem(nsuKey) || "0";
+
+  try {
+    let allDocs = [];
+    let currentNSU = Number(ultNSU);
+    let maxNSU = 0;
+    let tentativas = 0;
+
+    do {
+      tentativas++;
+      const resp = await fetch(PROXY, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "sefaz-dist-dfe", cnpj, ultNSU: currentNSU })
+      });
+      const data = await resp.json();
+
+      if (!resp.ok) {
+        if (data.error?.includes("NFE_CERT_BASE64")) {
+          showToast("Certificado A1 não configurado no servidor. Configure NFE_CERT_BASE64 nas variáveis de ambiente.", 6000);
+          return;
+        }
+        throw new Error(data.error || "Erro na consulta SEFAZ");
       }
 
-      renderNotasEntrada();
-    },
-    onError: (err) => {
-      item.status = "consulta_falhou";
-      item.error = err.message;
-      saveNotasEntrada();
-      renderNotasEntrada();
+      if (data.cStat === "656") {
+        showToast("SEFAZ: rate limit ativo. Tente novamente em 1 hora.", 4000);
+        return;
+      }
+
+      if (data.cStat === "137") {
+        showToast("Nenhum documento novo na SEFAZ.", 3000);
+        break;
+      }
+
+      const docs = data.documentos || [];
+      allDocs.push(...docs);
+      maxNSU = data.maxNSU || 0;
+      currentNSU = data.ultNSU || currentNSU;
+
+      if (currentNSU >= maxNSU || docs.length === 0 || tentativas > 10) break;
+    } while (true);
+
+    // Salvar NSU pra próxima consulta
+    localStorage.setItem(nsuKey, String(currentNSU));
+
+    // Processar documentos encontrados
+    let importados = 0;
+    for (const doc of allDocs) {
+      const chave = doc.chave || "";
+      const jaExiste = notasEntrada.some(ne => ne.chave === chave && chave);
+      if (!jaExiste && (doc.nNF || doc.chave)) {
+        notasEntrada.unshift({
+          id: genId("NE"),
+          fornecedor: doc.fornecedor || "Fornecedor",
+          numero: doc.nNF || "",
+          chave: chave,
+          valor: Number(doc.valor || 0),
+          status: "baixada_automatica",
+          origem: "api_sefaz",
+          emitidaEm: doc.emitidaEm || new Date().toISOString(),
+          createdAt: new Date().toISOString(),
+          cnpjEmitente: doc.cnpjEmitente || "",
+          itens: doc.itens || []
+        });
+        importados++;
+      }
     }
-  });
-  showToast("Consulta de notas de entrada enviada para o backend.", 3500);
+
+    saveNotasEntrada();
+
+    // Bridge 1: NF Entrada → Custo real
+    if (typeof bancoPrecos !== 'undefined' && bancoPrecos.itens) {
+      for (const ne of allDocs) {
+        (ne.itens || []).forEach(function(itemNe) {
+          var bp = bancoPrecos.itens.find(function(b) {
+            return (itemNe.ncm && b.ncm === itemNe.ncm && normalizedText(b.item).includes(normalizedText(itemNe.descricao).split(' ')[0])) ||
+                   normalizedText(b.item) === normalizedText(itemNe.descricao);
+          });
+          if (bp) {
+            bp.custoBase = itemNe.valorUnitario || itemNe.precoUnitario;
+            if (!bp.custosFornecedor) bp.custosFornecedor = [];
+            bp.custosFornecedor.push({ fornecedor: ne.fornecedor || 'NF Entrada', preco: bp.custoBase, data: new Date().toISOString().slice(0,10), tipo: 'nf_entrada' });
+            bp.precoReferencia = bp.custoBase * (1 + (bp.margemPadrao || 0.30));
+          }
+      }
+      saveBancoLocal();
+    }
+
+    renderNotasEntrada();
+    showToast(importados > 0 ? `${importados} nota(s) de entrada importada(s) da SEFAZ.` : "Nenhuma nota nova encontrada.", 4000);
+  } catch (err) {
+    showToast("Erro na consulta SEFAZ: " + err.message, 5000);
+  }
 }
 
 // [gdp-estoque-intel.js loaded above — Stock Intelligence render functions]
