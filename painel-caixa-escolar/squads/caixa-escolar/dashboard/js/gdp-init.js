@@ -1616,6 +1616,27 @@ function registrarNotaEntradaManual() {
     audit: { createdAt: new Date().toISOString(), createdBy: getAuditActor(), updatedAt: new Date().toISOString(), updatedBy: getAuditActor() }
   });
   saveNotasEntrada();
+
+  // Bridge 1: NF Entrada → Custo real
+  (function() {
+    var notaEntrada = notasEntrada[0]; // just unshifted
+    if (typeof bancoPrecos !== 'undefined' && bancoPrecos.itens) {
+      (notaEntrada.itens || []).forEach(function(item) {
+        var bp = bancoPrecos.itens.find(function(b) {
+          return (item.ncm && b.ncm === item.ncm && normalizedText(b.item).includes(normalizedText(item.descricao).split(' ')[0])) ||
+                 normalizedText(b.item) === normalizedText(item.descricao);
+        });
+        if (bp) {
+          bp.custoBase = item.precoUnitario || item.valorUnitario;
+          if (!bp.custosFornecedor) bp.custosFornecedor = [];
+          bp.custosFornecedor.push({ fornecedor: notaEntrada.fornecedor || 'NF Entrada', preco: bp.custoBase, data: new Date().toISOString().slice(0,10), tipo: 'nf_entrada' });
+          bp.precoReferencia = bp.custoBase * (1 + (bp.margemPadrao || 0.30));
+        }
+      });
+      saveBancoLocal();
+    }
+  })();
+
   ["ne-fornecedor", "ne-numero", "ne-chave", "ne-valor"].forEach((id) => { const el = document.getElementById(id); if (el) el.value = ""; });
   renderNotasEntrada();
   showToast("Nota de entrada registrada.", 3000);
@@ -1650,6 +1671,27 @@ function importarNotaEntradaXml(input) {
         audit: { createdAt: new Date().toISOString(), createdBy: getAuditActor(), updatedAt: new Date().toISOString(), updatedBy: getAuditActor() }
       });
       saveNotasEntrada();
+
+      // Bridge 1: NF Entrada → Custo real (XML import)
+      (function() {
+        var notaEntrada = notasEntrada[0]; // just unshifted
+        if (typeof bancoPrecos !== 'undefined' && bancoPrecos.itens) {
+          (notaEntrada.itens || []).forEach(function(item) {
+            var bp = bancoPrecos.itens.find(function(b) {
+              return (item.ncm && b.ncm === item.ncm && normalizedText(b.item).includes(normalizedText(item.descricao).split(' ')[0])) ||
+                     normalizedText(b.item) === normalizedText(item.descricao);
+            });
+            if (bp) {
+              bp.custoBase = item.precoUnitario || item.valorUnitario;
+              if (!bp.custosFornecedor) bp.custosFornecedor = [];
+              bp.custosFornecedor.push({ fornecedor: notaEntrada.fornecedor || 'NF Entrada', preco: bp.custoBase, data: new Date().toISOString().slice(0,10), tipo: 'nf_entrada' });
+              bp.precoReferencia = bp.custoBase * (1 + (bp.margemPadrao || 0.30));
+            }
+          });
+          saveBancoLocal();
+        }
+      })();
+
       renderNotasEntrada();
       showToast("XML de nota de entrada importado.", 3000);
     } catch (err) {
@@ -1715,6 +1757,26 @@ function consultarNotasEntradaApi() {
         item.fornecedor = "Consulta API (nenhuma nota nova)";
       }
       saveNotasEntrada();
+
+      // Bridge 1: NF Entrada → Custo real (API import — processar todas notas importadas)
+      if (typeof bancoPrecos !== 'undefined' && bancoPrecos.itens) {
+        notasEntrada.filter(function(ne) { return ne.origem === 'api_sefaz' && ne.itens && ne.itens.length > 0; }).forEach(function(notaEntrada) {
+          (notaEntrada.itens || []).forEach(function(itemNe) {
+            var bp = bancoPrecos.itens.find(function(b) {
+              return (itemNe.ncm && b.ncm === itemNe.ncm && normalizedText(b.item).includes(normalizedText(itemNe.descricao).split(' ')[0])) ||
+                     normalizedText(b.item) === normalizedText(itemNe.descricao);
+            });
+            if (bp) {
+              bp.custoBase = itemNe.precoUnitario || itemNe.valorUnitario;
+              if (!bp.custosFornecedor) bp.custosFornecedor = [];
+              bp.custosFornecedor.push({ fornecedor: notaEntrada.fornecedor || 'NF Entrada', preco: bp.custoBase, data: new Date().toISOString().slice(0,10), tipo: 'nf_entrada' });
+              bp.precoReferencia = bp.custoBase * (1 + (bp.margemPadrao || 0.30));
+            }
+          });
+        });
+        saveBancoLocal();
+      }
+
       renderNotasEntrada();
     },
     onError: (err) => {

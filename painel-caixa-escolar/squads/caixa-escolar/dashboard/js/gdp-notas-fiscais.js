@@ -995,6 +995,21 @@ async function autorizarNotaFiscal(notaId) {
     await emitirOuSincronizarCobrancaReal(conta.id, { silent: true });
   }
 
+  // Bridge 5: NF Saída → Banco (preço real faturado)
+  if (typeof bancoPrecos !== 'undefined' && bancoPrecos.itens && nf.itens) {
+    nf.itens.forEach(function(item) {
+      var sku = item.skuVinculado || item.sku;
+      if (!sku) return;
+      var bp = bancoPrecos.itens.find(function(b) { return b.sku === sku; });
+      if (bp) {
+        if (!bp.propostas) bp.propostas = [];
+        bp.propostas.push({ escola: nf.cliente?.nome || '', preco: item.precoUnitario, data: new Date().toISOString().slice(0,10), tipo: 'nf_saida', nfNumero: nf.numero });
+        bp.margemReal = bp.custoBase > 0 ? ((item.precoUnitario - bp.custoBase) / bp.custoBase) : null;
+      }
+    });
+    saveBancoLocal();
+  }
+
   renderAll();
   showToast(`NF ${nf.numero} autorizada. ${conta ? "Cobranca real enviada ao provider." : "Sem conta a receber vinculada."}`, 4000);
 }
@@ -1105,6 +1120,21 @@ async function transmitirHomologacaoNota(notaId) {
     }
 
     saveNotasFiscais();
+
+    // Bridge 5: NF Saída → Banco (preço real faturado) — transmissão SEFAZ real
+    if (result.parsed?.autorizado && typeof bancoPrecos !== 'undefined' && bancoPrecos.itens && nf.itens) {
+      nf.itens.forEach(function(item) {
+        var sku = item.skuVinculado || item.sku;
+        if (!sku) return;
+        var bp = bancoPrecos.itens.find(function(b) { return b.sku === sku; });
+        if (bp) {
+          if (!bp.propostas) bp.propostas = [];
+          bp.propostas.push({ escola: nf.cliente?.nome || '', preco: item.precoUnitario, data: new Date().toISOString().slice(0,10), tipo: 'nf_saida', nfNumero: nf.numero });
+          bp.margemReal = bp.custoBase > 0 ? ((item.precoUnitario - bp.custoBase) / bp.custoBase) : null;
+        }
+      });
+      saveBancoLocal();
+    }
 
     // Persist to Supabase immediately after real SEFAZ authorization
     if (window.gdpApi && result.parsed?.autorizado) {

@@ -692,6 +692,23 @@ function criarContrato() {
   // Alimentar banco de precos com dados de concorrentes
   alimentarBancoConcorrentes(m, supplier.nome);
 
+  // Bridge 4: Contrato → Banco (preço confirmado)
+  if (typeof bancoPrecos !== 'undefined' && bancoPrecos.itens) {
+    (contrato.itens || []).forEach(function(item) {
+      if (!item.skuVinculado) return;
+      var bp = bancoPrecos.itens.find(function(b) { return b.sku === item.skuVinculado || normalizedText(b.item) === normalizedText(item.descricao); });
+      if (bp) {
+        if (!bp.propostas) bp.propostas = [];
+        bp.propostas.push({ edital: contrato.processo || contrato.id, escola: contrato.escola, preco: item.precoUnitario, data: new Date().toISOString().slice(0,10), tipo: 'contrato' });
+        if (!bp.precoReferenciaHistorico || item.precoUnitario > 0) {
+          var ganhos = bp.propostas.filter(function(p) { return p.tipo === 'contrato'; });
+          bp.precoReferenciaHistorico = ganhos.reduce(function(s,p) { return s + p.preco; }, 0) / ganhos.length;
+        }
+      }
+    });
+    saveBancoLocal();
+  }
+
   // Reset import
   parsedMapa = null;
   selectedSupplierIdx = null;
@@ -1196,6 +1213,23 @@ function criarContratoLista() {
   // Auto-preencher NCM + cadastrar itens no ERP (background, non-blocking)
   const ncmResult2 = autoPreencherNcm(contrato.id);
   if (ncmResult2.pending > 0) classificarNcmIA(contrato.id);
+
+  // Bridge 4: Contrato → Banco (preço confirmado)
+  if (typeof bancoPrecos !== 'undefined' && bancoPrecos.itens) {
+    (contrato.itens || []).forEach(function(item) {
+      if (!item.skuVinculado) return;
+      var bp = bancoPrecos.itens.find(function(b) { return b.sku === item.skuVinculado || normalizedText(b.item) === normalizedText(item.descricao); });
+      if (bp) {
+        if (!bp.propostas) bp.propostas = [];
+        bp.propostas.push({ edital: contrato.processo || contrato.id, escola: contrato.escola, preco: item.precoUnitario, data: new Date().toISOString().slice(0,10), tipo: 'contrato' });
+        if (!bp.precoReferenciaHistorico || item.precoUnitario > 0) {
+          var ganhos = bp.propostas.filter(function(p) { return p.tipo === 'contrato'; });
+          bp.precoReferenciaHistorico = ganhos.reduce(function(s,p) { return s + p.preco; }, 0) / ganhos.length;
+        }
+      }
+    });
+    saveBancoLocal();
+  }
 
   // Reset
   cancelListaImport();

@@ -527,9 +527,20 @@ window.gerarContratoUnificado = function() {
 function alimentarBancoComResultado(resultado) {
   if (!bancoPrecos || !bancoPrecos.itens) return;
   resultado.itens.forEach(itemRes => {
-    const bp = bancoPrecos.itens.find(b =>
-      b.item && itemRes.nome && (b.item.toLowerCase().includes(itemRes.nome.toLowerCase()) || itemRes.nome.toLowerCase().includes(b.item.toLowerCase()))
-    );
+    // Bridge 3: matching melhorado — SKU primeiro, depois RadarMatcher, depois substring
+    var bp = null;
+    var skuRef = itemRes.skuBanco || itemRes.skuVinculado;
+    if (skuRef) {
+      bp = bancoPrecos.itens.find(b => b.sku === skuRef);
+    }
+    if (!bp && window.RadarMatcher && typeof window.RadarMatcher.match === 'function') {
+      bp = window.RadarMatcher.match(itemRes.nome);
+    }
+    if (!bp) {
+      bp = bancoPrecos.itens.find(b =>
+        b.item && itemRes.nome && (b.item.toLowerCase().includes(itemRes.nome.toLowerCase()) || itemRes.nome.toLowerCase().includes(b.item.toLowerCase()))
+      );
+    }
     if (bp) {
       if (!bp.historicoResultados) bp.historicoResultados = [];
       bp.historicoResultados.push({
@@ -540,14 +551,29 @@ function alimentarBancoComResultado(resultado) {
       if (resultado.resultado === "ganho") {
         const ganhos = bp.historicoResultados.filter(h => h.resultado === "ganho");
         if (ganhos.length >= 2) bp.precoReferenciaHistorico = ganhos.reduce((s, h) => s + h.precoPraticado, 0) / ganhos.length;
+        // Bridge 3: atualizar taxa de conversao
+        var totalResultados = bp.historicoResultados.length;
+        var totalGanhos = ganhos.length;
+        if (totalResultados > 0) bp.taxaConversao = totalGanhos / totalResultados;
       }
-      if (resultado.resultado === "perdido" && resultado.fornecedorVencedor) {
-        if (!bp.concorrentes) bp.concorrentes = [];
-        bp.concorrentes.push({
-          nome: resultado.fornecedorVencedor,
-          preco: itemRes.precoVencedor || resultado.valorVencedor,
-          data: resultado.dataResultado, edital: resultado.escola,
-        });
+      if (resultado.resultado === "perdido") {
+        if (resultado.fornecedorVencedor) {
+          if (!bp.concorrentes) bp.concorrentes = [];
+          bp.concorrentes.push({
+            nome: resultado.fornecedorVencedor,
+            preco: itemRes.precoVencedor || resultado.valorVencedor,
+            data: resultado.dataResultado, edital: resultado.escola,
+          });
+        }
+        // Bridge 3: adicionar concorrente com precoVencedor mesmo sem fornecedorVencedor
+        if (!resultado.fornecedorVencedor && (itemRes.precoVencedor || resultado.valorVencedor)) {
+          if (!bp.concorrentes) bp.concorrentes = [];
+          bp.concorrentes.push({
+            nome: "Desconhecido",
+            preco: itemRes.precoVencedor || resultado.valorVencedor,
+            data: resultado.dataResultado, edital: resultado.escola,
+          });
+        }
       }
     }
   });
