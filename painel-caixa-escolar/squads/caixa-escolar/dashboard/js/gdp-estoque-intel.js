@@ -3,6 +3,39 @@
 // syncPedidosGDPToEstoqueIntel, renderEstoque, renderGdpDemandasIntel, renderGdpEstoqueIntel,
 // renderGdpComprasIntel, and all related stock intelligence functions.
 
+// ===== LIMPAR PRODUTOS E MOVIMENTAÇÕES =====
+window.limparProdutosEstoqueIntel = function() {
+  const total = estoqueIntelProdutos.length + estoqueIntelEmbalagens.length + estoqueIntelMovimentacoes.length;
+  if (total === 0) { showToast("Já está limpo."); return; }
+  if (!confirm("Limpar TODOS os produtos (" + estoqueIntelProdutos.length + "), embalagens (" + estoqueIntelEmbalagens.length + "), movimentações (" + estoqueIntelMovimentacoes.length + ") e dados relacionados?\n\nNotas fiscais NÃO serão afetadas.")) return;
+
+  estoqueIntelProdutos = [];
+  estoqueIntelEmbalagens = [];
+  estoqueIntelPedidos = [];
+  estoqueIntelPedidoItens = [];
+  estoqueIntelMovimentacoes = [];
+  estoqueIntelFornecedores = [];
+  estoqueIntelCompras = [];
+  estoqueMovimentos = [];
+
+  var keys = [
+    "gdp.estoque-intel.produtos.v1", "gdp.estoque-intel.embalagens.v1",
+    "gdp.estoque-intel.pedidos.v1", "gdp.estoque-intel.pedido-itens.v1",
+    "gdp.estoque-intel.movimentacoes.v1", "gdp.estoque-intel.fornecedores.v1",
+    "gdp.estoque-intel.compras.v1", "gdp.estoque.movimentos.v1"
+  ];
+  var empty = { _v: 1, updatedAt: new Date().toISOString(), items: [] };
+  keys.forEach(function(k) {
+    localStorage.setItem(k, JSON.stringify(empty));
+    // Sync to cloud
+    if (typeof cloudSave === "function") cloudSave(k, empty);
+  });
+
+  if (typeof renderEstoque === "function") renderEstoque();
+  if (typeof renderAll === "function") renderAll();
+  showToast("Produtos, embalagens e movimentações limpos. NFs preservadas.", 4000);
+};
+
 // ===== STOCK INTELLIGENCE — CORE FUNCTIONS =====
 function findEstoqueIntelProduto(produtoId) {
   return estoqueIntelProdutos.find((item) => item.id === produtoId) || null;
