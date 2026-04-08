@@ -717,7 +717,21 @@ window.abrirPreOrcamento = function (orcId) {
   el.preorcamentoMunicipio.textContent = pre.municipio;
 
   const orc = orcamentos.find((o) => o.id === orcId);
-  el.preorcamentoPrazo.textContent = orc ? formatDate(orc.prazo) : "—";
+  if (orc && orc.prazo) {
+    const dias = daysTo(orc.prazo);
+    const dataFmt = formatDate(orc.prazo);
+    if (dias < 0) {
+      el.preorcamentoPrazo.innerHTML = `<span style="color:#ef4444;font-weight:800;font-size:1.1em">VENCIDO (${dataFmt})</span>`;
+    } else if (dias <= 2) {
+      el.preorcamentoPrazo.innerHTML = `<span style="background:#fee2e2;color:#dc2626;font-weight:800;padding:4px 10px;border-radius:6px;font-size:1.1em;animation:pulse 1s infinite">URGENTE — ${dataFmt} (${dias === 0 ? "HOJE" : dias === 1 ? "AMANHÃ" : dias + " dias"})</span>`;
+    } else if (dias <= 5) {
+      el.preorcamentoPrazo.innerHTML = `<span style="background:#fef3c7;color:#b45309;font-weight:700;padding:4px 10px;border-radius:6px">${dataFmt} (${dias} dias restantes)</span>`;
+    } else {
+      el.preorcamentoPrazo.innerHTML = `<span style="color:#16a34a;font-weight:600">${dataFmt} (${dias} dias)</span>`;
+    }
+  } else {
+    el.preorcamentoPrazo.textContent = "—";
+  }
 
   // Frete real (Passo 1) — mostra valor e km quando disponível
   const frete = pre.freteEstimado || 0;
@@ -1176,7 +1190,7 @@ function renderPreOrcamentosLista() {
         <td title="${iTooltip}" style="font-size:0.8rem;max-width:200px;">${iSummary}</td>
         <td><span class="badge ${badgeClass}">${p.status}</span></td>
         <td class="text-right font-mono">${brl.format(p.totalGeral || 0)}</td>
-        <td class="nowrap">${formatDate(p.criadoEm)}</td>
+        <td class="nowrap">${(() => { const dias = orc ? daysTo(orc.prazo) : 999; return dias < 0 ? '<span style="color:#ef4444;font-weight:700">VENCIDO</span>' : dias <= 2 ? '<span style="color:#dc2626;font-weight:800;background:#fee2e2;padding:2px 6px;border-radius:4px">' + (dias === 0 ? 'HOJE' : dias === 1 ? 'AMANHÃ' : dias + 'd') + '</span>' : dias <= 5 ? '<span style="color:#b45309;font-weight:600">' + dias + ' dias</span>' : formatDate(orc?.prazo || p.criadoEm); })()}</td>
         <td>
           <button class="btn btn-inline" onclick="abrirPreOrcamento('${p.orcamentoId}')">Ver</button>
           ${(p.status === "ganho" || p.status === "perdido" || p.status === "enviado") ? `<button class="btn btn-inline" onclick="editarResultadoPreOrcamento('${p.orcamentoId}')" title="Alterar resultado">Editar Resultado</button>` : ""}
