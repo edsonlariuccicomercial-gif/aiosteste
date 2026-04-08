@@ -1652,21 +1652,51 @@ function importarNotaEntradaXml(input) {
       const xml = String(reader.result || "");
       const doc = new DOMParser().parseFromString(xml, "text/xml");
       const text = (tag) => doc.getElementsByTagName(tag)?.[0]?.textContent?.trim() || "";
-      const emit = text("emit") || text("xNome");
+      // Extrair emitente
+      const emitNode = doc.getElementsByTagName("emit")[0];
+      const emit = emitNode?.getElementsByTagName("xNome")[0]?.textContent?.trim() || text("xNome");
+      const cnpjEmit = emitNode?.getElementsByTagName("CNPJ")[0]?.textContent?.trim() || "";
       const nNF = text("nNF");
       const chave = text("chNFe");
       const vNF = Number(text("vNF") || 0);
       const dhEmi = text("dhEmi") || text("dEmi") || new Date().toISOString();
       if (!emit || !nNF) throw new Error("XML sem emitente ou numero da NF");
+
+      // Extrair itens da NF (tags <det>)
+      const detNodes = doc.getElementsByTagName("det");
+      const itensNF = [];
+      for (let i = 0; i < detNodes.length; i++) {
+        const det = detNodes[i];
+        const prod = det.getElementsByTagName("prod")[0];
+        if (!prod) continue;
+        const pText = (tag) => prod.getElementsByTagName(tag)[0]?.textContent?.trim() || "";
+        itensNF.push({
+          itemNum: i + 1,
+          codigo: pText("cProd"),
+          descricao: pText("xProd"),
+          ncm: pText("NCM"),
+          cfop: pText("CFOP"),
+          unidade: pText("uCom"),
+          quantidade: Number(pText("qCom") || 0),
+          valorUnitario: Number(pText("vUnCom") || 0),
+          precoUnitario: Number(pText("vUnCom") || 0),
+          valorTotal: Number(pText("vProd") || 0),
+          ean: pText("cEAN") !== "SEM GTIN" ? pText("cEAN") : ""
+        });
+      }
+
       notasEntrada.unshift({
         id: genId("NE"),
         fornecedor: emit,
+        cnpjEmitente: cnpjEmit,
         numero: nNF,
         chave,
         valor: vNF,
         status: "registrada",
         origem: "xml",
         emitidaEm: dhEmi,
+        itens: itensNF,
+        totalItens: itensNF.length,
         createdAt: new Date().toISOString(),
         audit: { createdAt: new Date().toISOString(), createdBy: getAuditActor(), updatedAt: new Date().toISOString(), updatedBy: getAuditActor() }
       });
