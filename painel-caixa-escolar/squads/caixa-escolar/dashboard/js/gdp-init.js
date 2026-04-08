@@ -506,8 +506,7 @@ function abrirContrato(id) {
   atualizarSelecaoItens(c.id);
 }
 
-// Track which contract is currently open so Fechar can return to it
-let _contratoAbertoId = null;
+// _contratoAbertoId declared in gdp-contratos-module.js
 
 function fecharModalContrato() {
   if (_contratoAbertoId) {
