@@ -684,36 +684,7 @@ async function varrerSgd() {
         btn.innerHTML = `<span class="sgd-spinner"></span>Listando... ${allBudgets.length}/${total}`;
       }
 
-      // Step 1b: Checar status das ENVIADAS — consulta pontual por ID
-      const enviadas = Object.values(preOrcamentos).filter(p => p.status === "enviado" && p.idBudget);
-      if (enviadas.length > 0) {
-        btn.innerHTML = `<span class="sgd-spinner"></span>Checando ${enviadas.length} propostas enviadas...`;
-        for (const pre of enviadas) {
-          try {
-            const orc = orcamentos.find(o => o.idBudget == pre.idBudget);
-            const idSub = pre.idSubprogram || orc?.idSubprogram;
-            const idSch = pre.idSchool || orc?.idSchool;
-            const idBud = pre.idBudget || orc?.idBudget;
-            if (!idSub || !idSch || !idBud) continue;
-            const detail = await BrowserSgdClient.getBudgetDetail(idSub, idSch, idBud);
-            const sgdStatus = detail.supplierStatus || detail.flSupplierStatus || "";
-            if (sgdStatus === "APRO" || sgdStatus === "Aprovado") {
-              pre.status = "ganho";
-              pre.statusSgd = "APRO";
-              pre.resultadoEm = new Date().toISOString().slice(0, 10);
-              console.log(`[Varrer] Proposta ${pre.orcamentoId} APROVADA no SGD!`);
-            } else if (sgdStatus === "RECU" || sgdStatus === "Recusado") {
-              pre.status = "perdido";
-              pre.statusSgd = "RECU";
-              pre.resultadoEm = new Date().toISOString().slice(0, 10);
-              console.log(`[Varrer] Proposta ${pre.orcamentoId} RECUSADA no SGD.`);
-            }
-          } catch (e) {
-            console.warn(`[Varrer] Erro ao checar enviada ${pre.orcamentoId}:`, e.message);
-          }
-        }
-        savePreOrcamentos();
-      }
+      // Checar status das enviadas: use o botão "Checar SGD" individual em cada proposta
 
       // Step 2: Filter using confirmed idSchool whitelist + county/name fallback
       // Whitelist persists in localStorage — once a school is confirmed, it never needs re-matching
