@@ -1167,7 +1167,13 @@ function renderPreOrcamentosLista() {
 
   let filtered = items;
   if (fPreEscolaVal !== "all") filtered = filtered.filter(p => p.escola === fPreEscolaVal);
-  if (fPreStatus !== "all") filtered = filtered.filter(p => p.status === fPreStatus);
+  if (fPreStatus === "all") {
+    // Default: esconder enviados, ganhos e perdidos — mostrar só pendentes/aprovados (trabalho ativo)
+    filtered = filtered.filter(p => !["enviado", "ganho", "perdido"].includes(p.status));
+  } else if (fPreStatus !== "todos") {
+    filtered = filtered.filter(p => p.status === fPreStatus);
+  }
+  // "todos" mostra tudo sem filtro
   if (fPreTexto) filtered = filtered.filter(p => normalizedText([p.escola, p.municipio, p.orcamentoId, ...(p.itens || []).map(i => i.nome)].join(" ")).includes(fPreTexto));
 
   const sorted = filtered.sort((a, b) => (b.criadoEm || "").localeCompare(a.criadoEm || ""));
