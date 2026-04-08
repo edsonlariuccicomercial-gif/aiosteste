@@ -1826,6 +1826,7 @@ async function consultarNotasEntradaApi() {
             bp.custosFornecedor.push({ fornecedor: ne.fornecedor || 'NF Entrada', preco: bp.custoBase, data: new Date().toISOString().slice(0,10), tipo: 'nf_entrada' });
             bp.precoReferencia = bp.custoBase * (1 + (bp.margemPadrao || 0.30));
           }
+        });
       }
       saveBancoLocal();
     }
