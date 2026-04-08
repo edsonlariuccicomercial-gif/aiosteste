@@ -705,8 +705,14 @@ window.abrirPreOrcamento = function (orcId) {
   const pre = preOrcamentos[orcId];
   if (!pre) return;
 
+  // Salvar posição do scroll antes de trocar tab
+  const scrollPos = window.scrollY;
+
   // Switch to tab
   switchTab("pre-orcamento");
+
+  // Restaurar posição do scroll
+  requestAnimationFrame(() => window.scrollTo(0, scrollPos));
 
   el.preorcamentoVazio.style.display = "none";
   el.preorcamentoForm.style.display = "block";
