@@ -1123,6 +1123,7 @@ async function transmitirHomologacaoNota(notaId) {
 
     // Bridge 5: NF Saída → Banco (preço real faturado) — transmissão SEFAZ real
     if (result.parsed?.autorizado && typeof bancoPrecos !== 'undefined' && bancoPrecos.itens && nf.itens) {
+      var nfSaidaRows = []; // Story 6.6
       nf.itens.forEach(function(item) {
         var sku = item.skuVinculado || item.sku;
         if (!sku) return;
@@ -1131,9 +1132,22 @@ async function transmitirHomologacaoNota(notaId) {
           if (!bp.propostas) bp.propostas = [];
           bp.propostas.push({ escola: nf.cliente?.nome || '', preco: item.precoUnitario, data: new Date().toISOString().slice(0,10), tipo: 'nf_saida', nfNumero: nf.numero });
           bp.margemReal = bp.custoBase > 0 ? ((item.precoUnitario - bp.custoBase) / bp.custoBase) : null;
+          // Story 6.6: Collect for Supabase preco_historico
+          var margemPct = bp.custoBase > 0 ? Number((((item.precoUnitario - bp.custoBase) / item.precoUnitario) * 100).toFixed(2)) : null;
+          nfSaidaRows.push({
+            empresa_id: (typeof getEmpresaId === 'function') ? getEmpresaId() : 'LARIUCCI',
+            sku: sku, escola: nf.cliente?.nome || '', tipo: 'nf_saida',
+            valor: item.precoUnitario, custo_base: bp.custoBase || null, margem_pct: margemPct,
+            fonte: 'nf_saida',
+            metadata: { nf_numero: nf.numero, chave_acesso: nf.sefaz?.chaveAcesso || '', cnpj_dest: nf.cliente?.cnpj || '' }
+          });
         }
       });
       saveBancoLocal();
+      // Story 6.6: Persist NF saída to Supabase preco_historico
+      if (nfSaidaRows.length > 0 && typeof _SB_PRECO_HIST !== 'undefined') {
+        _SB_PRECO_HIST.insert(nfSaidaRows);
+      }
     }
 
     // Persist to Supabase immediately after real SEFAZ authorization

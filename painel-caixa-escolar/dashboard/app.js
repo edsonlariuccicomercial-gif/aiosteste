@@ -346,11 +346,14 @@ function regionFactor(sre) {
   return factor > 0 ? factor : 1;
 }
 
+// Story 6.5: Hierarchical SKU matching — specific first, then category fallback
 function skuForQuote(row) {
   const obj = normalizedText(row.objeto);
   const rules = Array.isArray(objectSkuRules.rules) ? objectSkuRules.rules : [];
 
-  for (const rule of rules) {
+  // Pass 1: Try specific rules first (tier=specific)
+  const specific = rules.filter(r => r.tier === "specific");
+  for (const rule of specific) {
     const keywords = Array.isArray(rule.keywords) ? rule.keywords : [];
     const hasMatch = keywords.some((keyword) => {
       const normalizedKeyword = normalizedText(keyword);
@@ -359,18 +362,30 @@ function skuForQuote(row) {
     if (hasMatch) {
       const prefix = String(rule.skuPrefix || "");
       const sku = findSkuByPrefix(prefix);
-      if (sku) return sku;
+      if (sku) { console.log("[SKU] " + obj.slice(0, 40) + " → " + sku + " (específico)"); return sku; }
     }
   }
 
+  // Pass 2: Try category rules (tier=category or no tier)
+  const category = rules.filter(r => r.tier !== "specific");
+  for (const rule of category) {
+    const keywords = Array.isArray(rule.keywords) ? rule.keywords : [];
+    const hasMatch = keywords.some((keyword) => {
+      const normalizedKeyword = normalizedText(keyword);
+      return normalizedKeyword && obj.includes(normalizedKeyword);
+    });
+    if (hasMatch) {
+      const prefix = String(rule.skuPrefix || "");
+      const sku = findSkuByPrefix(prefix);
+      if (sku) { console.log("[SKU] " + obj.slice(0, 40) + " → " + sku + " (categoria)"); return sku; }
+    }
+  }
+
+  // Pass 3: Hardcoded fallback
   if (obj.includes("feijao")) return findSkuByPrefix("ALIM-FEIJAO");
-  if (obj.includes("alimentacao") || obj.includes("merenda") || obj.includes("arroz")) {
-    return findSkuByPrefix("ALIM-ARROZ");
-  }
+  if (obj.includes("alimentacao") || obj.includes("merenda") || obj.includes("arroz")) return findSkuByPrefix("ALIM-ARROZ");
   if (obj.includes("limpeza") || obj.includes("higiene")) return findSkuByPrefix("LIMP-AGUA-SANITARIA");
-  if (obj.includes("escritorio") || obj.includes("consumo") || obj.includes("caderno")) {
-    return findSkuByPrefix("ESCR-CADERNO");
-  }
+  if (obj.includes("escritorio") || obj.includes("consumo") || obj.includes("caderno")) return findSkuByPrefix("ESCR-CADERNO");
   return "";
 }
 
@@ -461,15 +476,112 @@ function minPriceForSku(sku, sre) {
   return Number((adjustedCost / divisor).toFixed(2));
 }
 
+// Story 6.4: Engine v2 with 5 intelligent signals
 function suggestedUnitPriceForSku(sku, sre, fallbackPrice) {
+  const base = baseCostForSku(sku);
   const floor = minPriceForSku(sku, sre);
   const history = historyRangeForSku(sku, sre);
-  const historical = history && history.count
-    ? Number(history.median || history.min || 0)
-    : 0;
+  const historical = history && history.count ? Number(history.median || history.min || 0) : 0;
   const reference = historical || Number(fallbackPrice || 0) || floor;
-  const safe = Math.max(floor, reference);
-  return Number(safe.toFixed(2));
+  let price = Math.max(floor, reference);
+
+  // Absolute floor and ceiling guards
+  const absFloor = base > 0 ? base * 1.05 : 0;
+  const absCeiling = base > 0 ? base * 2.5 : Infinity;
+
+  // Collect signals for breakdown
+  const signals = [];
+  let { marginPct: baseMargin } = pricingDefaults();
+  let adjustedMargin = baseMargin;
+
+  // Signal 1: Taxa de Conversão
+  const skuSummary = Array.isArray(priceHistorySummary.skuSummary) ? priceHistorySummary.skuSummary.find(s => s.sku === sku) : null;
+  const taxa = skuSummary?.taxaConversao;
+  if (taxa !== null && taxa !== undefined && skuSummary && (skuSummary.totalGanhos + (skuSummary.totalPerdidos || 0)) >= 3) {
+    if (taxa < 0.50) { adjustedMargin -= 5; signals.push({ name: "conversao", adj: "-5pp", detail: "taxa " + (taxa * 100).toFixed(0) + "%" }); }
+    else if (taxa > 0.80) { adjustedMargin += 5; signals.push({ name: "conversao", adj: "+5pp", detail: "taxa " + (taxa * 100).toFixed(0) + "%" }); }
+  }
+
+  // Signal 2: Concorrência (from bancoPrecos if available)
+  if (typeof bancoPrecos !== "undefined" && bancoPrecos.itens) {
+    const bp = bancoPrecos.itens.find(b => b.sku === sku);
+    if (bp && Array.isArray(bp.concorrentes) && bp.concorrentes.length > 0) {
+      const recent = bp.concorrentes.filter(c => {
+        if (!c.data) return true;
+        const d = new Date(c.data); const now = new Date();
+        return (now - d) < 90 * 24 * 3600 * 1000;
+      });
+      if (recent.length > 0) {
+        const menorConc = Math.min(...recent.map(c => Number(c.preco || Infinity)));
+        if (menorConc > 0 && price > menorConc * 1.15) {
+          price = Math.max(absFloor, menorConc * 1.10);
+          signals.push({ name: "concorrencia", adj: "ajustado", detail: "menor R$ " + menorConc.toFixed(2) });
+        }
+      }
+    }
+  }
+
+  // Signal 3: Referência escola-específica
+  if (typeof bancoPrecos !== "undefined" && bancoPrecos.itens) {
+    const bp = bancoPrecos.itens.find(b => b.sku === sku);
+    if (bp && Array.isArray(bp.historicoResultados)) {
+      const ganhos = bp.historicoResultados.filter(h => h.resultado === "ganho" && h.precoPraticado > 0);
+      const recent = ganhos.filter(h => {
+        if (!h.data) return false;
+        const d = new Date(h.data); const now = new Date();
+        return (now - d) < 180 * 24 * 3600 * 1000;
+      });
+      if (recent.length > 0) {
+        const ultimoGanho = recent[recent.length - 1];
+        const ref = ultimoGanho.precoPraticado;
+        const adjusted = Math.max(absFloor, Math.min(ref * 1.05, price));
+        if (adjusted !== price) {
+          price = adjusted;
+          signals.push({ name: "ref_escola", adj: "R$ " + ref.toFixed(2), detail: (ultimoGanho.escola || "").slice(0, 25) });
+        }
+      }
+    }
+  }
+
+  // Signal 4: Recorrência
+  if (skuSummary && skuSummary.count) {
+    const recorrencia = skuSummary.count;
+    if (recorrencia >= 10) { adjustedMargin -= 3; signals.push({ name: "recorrencia", adj: "-3pp", detail: recorrencia + "x" }); }
+    else if (recorrencia < 3) { adjustedMargin += 2; signals.push({ name: "recorrencia", adj: "+2pp", detail: recorrencia + "x" }); }
+  }
+
+  // Apply margin adjustments if signals changed it
+  if (adjustedMargin !== baseMargin && base > 0) {
+    const { freightPct, opexPct, taxPct } = pricingDefaults();
+    const adjustedCost = base * regionFactor(sre) * (1 + freightPct / 100);
+    const divisor = 1 - opexPct / 100 - taxPct / 100 - adjustedMargin / 100;
+    if (divisor > 0) price = Math.max(price, adjustedCost / divisor);
+  }
+
+  // Enforce guards
+  if (absFloor > 0) price = Math.max(absFloor, price);
+  if (absCeiling < Infinity) price = Math.min(absCeiling, price);
+
+  // Store breakdown for UI (Story 6.4 AC-5)
+  if (!window._pricingBreakdown) window._pricingBreakdown = {};
+  window._pricingBreakdown[sku + ":" + sre] = {
+    custoBase: base, margemBase: baseMargin, margemAjustada: adjustedMargin,
+    floor, signals, finalPrice: Number(price.toFixed(2))
+  };
+
+  if (signals.length > 0) console.log("[Story 6.4] Pricing signals for", sku, ":", signals.map(s => s.name + " " + s.adj).join(", "));
+
+  return Number(price.toFixed(2));
+}
+
+// Story 6.4 AC-5: Breakdown tooltip for pricing signals
+function pricingTooltip(sku, sre) {
+  if (!window._pricingBreakdown) return "";
+  const bd = window._pricingBreakdown[sku + ":" + sre];
+  if (!bd || !bd.signals || bd.signals.length === 0) return "";
+  const lines = bd.signals.map(s => s.name + ": " + s.adj + " (" + s.detail + ")");
+  lines.unshift("Custo: R$ " + (bd.custoBase || 0).toFixed(2) + " | Margem: " + bd.margemBase + "% → " + bd.margemAjustada + "%");
+  return ' <span title="' + lines.join("&#10;") + '" style="cursor:help;opacity:0.6">ℹ️</span>';
 }
 
 function applySuggestedPrequote(orderId) {
@@ -803,7 +915,7 @@ function renderObjetoGroups(rows) {
             <td>${escapeHtml(r.sre)}</td>
             <td>${new Date(r.prazo + "T00:00:00").toLocaleDateString("pt-BR")}</td>
             <td>${quotePricing.sku || "-"}</td>
-            <td>${bid ? brl.format(bid) : "-"}</td>
+            <td>${bid ? brl.format(bid) + pricingTooltip(quotePricing.sku, r.sre) : "-"}</td>
             <td>${r.precoSugerido ? brl.format(r.precoSugerido) : "-"}</td>
             <td>${syncBadge(r.id)}</td>
           </tr>`;
@@ -876,7 +988,7 @@ function renderTable(rows) {
         <td>${new Date(r.prazo + "T00:00:00").toLocaleDateString("pt-BR")}</td>
         <td>${historyRangeLabel(historyRange)}</td>
         <td>${quotePricing.minPrice ? brl.format(quotePricing.minPrice) : "-"}</td>
-        <td>${bid ? brl.format(bid) : "-"}</td>
+        <td>${bid ? brl.format(bid) + pricingTooltip(quotePricing.sku, r.sre) : "-"}</td>
         <td>${r.precoSugerido ? brl.format(r.precoSugerido) : "-"}</td>
         <td>${r.precoSugerido ? `${margin.toFixed(1)}%` : "-"}</td>
         <td>${syncBadge(r.id)}</td>

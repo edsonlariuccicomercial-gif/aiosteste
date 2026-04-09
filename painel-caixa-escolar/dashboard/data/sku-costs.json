@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-03-02",
+  "updatedAt": "2026-04-08",
   "defaults": {
     "fretePct": 2.5,
     "opexPct": 6,
@@ -28,13 +28,33 @@
   ],
   "items": [
     {
-      "sku": "ALIM-ARROZ-5KG",
+      "sku": "ALIM-ARROZ-TIPO1-5KG",
       "descricao": "Arroz tipo 1 5kg",
       "custoBase": 24.8
     },
     {
-      "sku": "ALIM-FEIJAO-1KG",
+      "sku": "ALIM-ARROZ-PARBO-5KG",
+      "descricao": "Arroz parboilizado 5kg",
+      "custoBase": 26.5
+    },
+    {
+      "sku": "ALIM-ARROZ-5KG",
+      "descricao": "Arroz geral 5kg (fallback categoria)",
+      "custoBase": 24.8
+    },
+    {
+      "sku": "ALIM-FEIJAO-CARIOCA-1KG",
       "descricao": "Feijao carioca 1kg",
+      "custoBase": 7.9
+    },
+    {
+      "sku": "ALIM-FEIJAO-PRETO-1KG",
+      "descricao": "Feijao preto 1kg",
+      "custoBase": 8.5
+    },
+    {
+      "sku": "ALIM-FEIJAO-1KG",
+      "descricao": "Feijao geral 1kg (fallback categoria)",
       "custoBase": 7.9
     },
     {
@@ -43,9 +63,29 @@
       "custoBase": 3.4
     },
     {
+      "sku": "LIMP-DETERGENTE-500ML",
+      "descricao": "Detergente neutro 500ml",
+      "custoBase": 2.1
+    },
+    {
+      "sku": "LIMP-PAPEL-HIG-30M",
+      "descricao": "Papel higienico 30m",
+      "custoBase": 1.8
+    },
+    {
+      "sku": "LIMP-PAPEL-TOALHA-2F",
+      "descricao": "Papel toalha 2 folhas",
+      "custoBase": 4.2
+    },
+    {
       "sku": "ESCR-CADERNO-10M",
       "descricao": "Caderno brochura 10 materias",
       "custoBase": 13.7
+    },
+    {
+      "sku": "ESCR-LAPIS-GRAFITE",
+      "descricao": "Lapis grafite HB",
+      "custoBase": 0.75
     },
     {
       "sku": "SERV-EVENTO-ESCOLAR",

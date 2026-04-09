@@ -6,6 +6,7 @@ const QUOTES_PATH = path.join(DATA_DIR, "quotes.json");
 const RULES_PATH = path.join(DATA_DIR, "object-sku-rules.json");
 const COSTS_PATH = path.join(DATA_DIR, "sku-costs.json");
 const OUT_PATH = path.join(DATA_DIR, "price-history.json");
+const RESULTADOS_PATH = path.join(DATA_DIR, "resultados.json"); // Story 6.3: optional local export
 
 function readJson(filePath, fallback) {
   try {
@@ -92,6 +93,18 @@ function main() {
     map.set(key, entry);
   }
 
+  // Story 6.3: Load resultados (ganho/perdido) for enrichment
+  const resultados = readJson(RESULTADOS_PATH, []);
+  const resultadosList = Array.isArray(resultados) ? resultados : [];
+  const resultadosByOrcId = new Map();
+  for (const r of resultadosList) {
+    const key = String(r.orcamentoId || r.orcamento_id || "");
+    if (key) resultadosByOrcId.set(key, r);
+  }
+  if (resultadosList.length > 0) {
+    console.log(`[Story 6.3] ${resultadosList.length} resultados carregados para enriquecimento`);
+  }
+
   const rows = Array.isArray(quotes) ? quotes : [];
   let inserted = 0;
   for (const row of rows) {
@@ -99,8 +112,16 @@ function main() {
     const preco = toNumber(row.precoSugerido, 0);
     const sku = skuForObject(row.objeto, ruleList, items);
 
+    // Story 6.3: Enrich with resultado (ganho/perdido)
+    const quoteId = String(row.id || "");
+    const res = resultadosByOrcId.get(quoteId);
+    const tipo = res ? String(res.resultado || "proposta") : "proposta";
+    const precoVencedor = res ? toNumber(res.valorVencedor || res.valor_vencedor, null) : null;
+    const concorrente = res ? String(res.fornecedorVencedor || res.fornecedor_vencedor || "") : "";
+    const motivoPerda = res ? String(res.motivoPerda || res.motivo_perda || "") : "";
+
     const entry = {
-      quoteId: String(row.id || ""),
+      quoteId,
       escola: String(row.escola || ""),
       municipio: String(row.municipio || ""),
       sre: String(row.sre || ""),
@@ -114,6 +135,10 @@ function main() {
       margemPct: Number(marginPct(custo, preco).toFixed(2)),
       collectedAt,
       source: "quotes.json",
+      tipo,
+      precoVencedor,
+      concorrente,
+      motivoPerda,
     };
 
     const key = uniqueKey(entry);

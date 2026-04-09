@@ -1,91 +1,153 @@
 {
-  "updatedAt": "2026-03-03",
-  "version": 2,
+  "updatedAt": "2026-04-08",
+  "version": 3,
   "rules": [
     {
-      "name": "Alimentacao feijao",
+      "name": "Alimentacao feijao carioca",
+      "skuPrefix": "ALIM-FEIJAO-CARIOCA",
+      "keywords": ["feijao carioca", "feijão carioca", "carioquinha"],
+      "tier": "specific"
+    },
+    {
+      "name": "Alimentacao feijao preto",
+      "skuPrefix": "ALIM-FEIJAO-PRETO",
+      "keywords": ["feijao preto", "feijão preto"],
+      "tier": "specific"
+    },
+    {
+      "name": "Alimentacao feijao (geral)",
       "skuPrefix": "ALIM-FEIJAO",
-      "keywords": ["feijao", "feijão", "carioca", "leguminosas"]
+      "keywords": ["feijao", "feijão", "leguminosas"],
+      "tier": "category"
     },
     {
-      "name": "Alimentacao arroz e merenda",
+      "name": "Alimentacao arroz tipo 1",
+      "skuPrefix": "ALIM-ARROZ-TIPO1",
+      "keywords": ["arroz tipo 1", "arroz tipo1"],
+      "tier": "specific"
+    },
+    {
+      "name": "Alimentacao arroz parboilizado",
+      "skuPrefix": "ALIM-ARROZ-PARBO",
+      "keywords": ["arroz parboilizado", "parboilizado", "parbolizado"],
+      "tier": "specific"
+    },
+    {
+      "name": "Alimentacao arroz e merenda (geral)",
       "skuPrefix": "ALIM-ARROZ",
-      "keywords": ["arroz", "merenda", "alimentacao", "alimentação", "generos alimenticios", "gêneros alimentícios"]
+      "keywords": ["arroz", "merenda", "alimentacao", "alimentação", "generos alimenticios", "gêneros alimentícios"],
+      "tier": "category"
     },
     {
-      "name": "Limpeza e higiene",
+      "name": "Limpeza agua sanitaria",
       "skuPrefix": "LIMP-AGUA-SANITARIA",
-      "keywords": ["limpeza", "higiene", "agua sanitaria", "água sanitária", "saneante", "desinfetante"]
+      "keywords": ["agua sanitaria", "água sanitária"],
+      "tier": "specific"
     },
     {
-      "name": "Escritorio e consumo escolar",
+      "name": "Limpeza detergente",
+      "skuPrefix": "LIMP-DETERGENTE",
+      "keywords": ["detergente", "detergente neutro", "detergente liquido"],
+      "tier": "specific"
+    },
+    {
+      "name": "Limpeza papel higienico",
+      "skuPrefix": "LIMP-PAPEL-HIG",
+      "keywords": ["papel higienico", "papel higiênico"],
+      "tier": "specific"
+    },
+    {
+      "name": "Limpeza papel toalha",
+      "skuPrefix": "LIMP-PAPEL-TOALHA",
+      "keywords": ["papel toalha"],
+      "tier": "specific"
+    },
+    {
+      "name": "Limpeza e higiene (geral)",
+      "skuPrefix": "LIMP-AGUA-SANITARIA",
+      "keywords": ["limpeza", "higiene", "saneante", "desinfetante"],
+      "tier": "category"
+    },
+    {
+      "name": "Escritorio caderno",
       "skuPrefix": "ESCR-CADERNO",
-      "keywords": ["escritorio", "escritório", "consumo", "caderno", "papelaria", "material escolar"]
+      "keywords": ["caderno", "caderno brochura"],
+      "tier": "specific"
+    },
+    {
+      "name": "Escritorio lapis",
+      "skuPrefix": "ESCR-LAPIS",
+      "keywords": ["lapis", "lápis", "lapis grafite", "lápis grafite"],
+      "tier": "specific"
+    },
+    {
+      "name": "Escritorio e consumo escolar (geral)",
+      "skuPrefix": "ESCR-CADERNO",
+      "keywords": ["escritorio", "escritório", "consumo", "papelaria", "material escolar"],
+      "tier": "category"
     },
     {
       "name": "Servicos e eventos escolares",
       "skuPrefix": "SERV-EVENTO",
       "keywords": [
-        "confraternizacao",
-        "confraternizações",
-        "evento",
-        "formatura",
-        "excursao",
-        "rodizio",
-        "pizza",
-        "premio saeb",
-        "prêmio saeb"
-      ]
+        "confraternizacao", "confraternizações", "evento", "formatura",
+        "excursao", "rodizio", "pizza", "premio saeb", "prêmio saeb"
+      ],
+      "tier": "category"
     },
     {
       "name": "Manutencao e reformas",
       "skuPrefix": "MANUT-REFORMA",
-      "keywords": ["manutencao", "manutenção", "reforma", "reformas", "reparo", "reparos", "predial"]
+      "keywords": ["manutencao", "manutenção", "reforma", "reformas", "reparo", "reparos", "predial"],
+      "tier": "category"
     },
     {
       "name": "Capacitacao e formacao",
       "skuPrefix": "CAPAC-FORMACAO",
-      "keywords": ["capacitacao", "capacitação", "formacao", "formação", "treinamento", "profissionais da educacao", "profissionais da educação"]
+      "keywords": ["capacitacao", "capacitação", "formacao", "formação", "treinamento", "profissionais da educacao", "profissionais da educação"],
+      "tier": "category"
     },
     {
       "name": "Servicos operacionais continuos",
       "skuPrefix": "SERV-OPERACIONAL",
-      "keywords": ["servicos operacionais", "serviços operacionais", "operacionais contínuos", "operacionais continuos"]
+      "keywords": ["servicos operacionais", "serviços operacionais", "operacionais contínuos", "operacionais continuos"],
+      "tier": "category"
     },
     {
       "name": "Gas recarga",
       "skuPrefix": "GAS-RECARGA",
-      "keywords": ["gas recarga", "gás recarga", "gas de cozinha", "gás de cozinha", "botijao", "botijão"]
+      "keywords": ["gas recarga", "gás recarga", "gas de cozinha", "gás de cozinha", "botijao", "botijão"],
+      "tier": "category"
     },
     {
       "name": "Equipamentos de cozinha",
       "skuPrefix": "EQUIP-COZINHA",
-      "keywords": ["equipamentos de cozinha", "equipamento de cozinha", "utensilios", "utensílios", "fogao", "fogão"]
+      "keywords": ["equipamentos de cozinha", "equipamento de cozinha", "utensilios", "utensílios", "fogao", "fogão"],
+      "tier": "category"
     },
     {
       "name": "Material pedagogico de seguranca",
       "skuPrefix": "MATPED-SEGURANCA",
-      "keywords": ["material pedagogico de seguranca", "material pedagógico de segurança", "pedagogico de seguranca", "pedagógico de segurança"]
+      "keywords": ["material pedagogico de seguranca", "material pedagógico de segurança", "pedagogico de seguranca", "pedagógico de segurança"],
+      "tier": "category"
     },
     {
       "name": "Equipamentos tecnologicos",
       "skuPrefix": "EQUIP-TECNOLOGIA",
-      "keywords": ["equipamentos tecnologicos", "equipamentos tecnológicos", "tecnologico", "tecnológico", "computador", "notebook", "impressora"]
+      "keywords": ["equipamentos tecnologicos", "equipamentos tecnológicos", "tecnologico", "tecnológico", "computador", "notebook", "impressora"],
+      "tier": "category"
     },
     {
       "name": "Equipamentos de seguranca",
       "skuPrefix": "EQUIP-SEGURANCA",
-      "keywords": ["equipamentos de seguranca", "equipamentos de segurança", "seguranca predial", "segurança predial", "extintor", "camera"]
+      "keywords": ["equipamentos de seguranca", "equipamentos de segurança", "seguranca predial", "segurança predial", "extintor", "camera"],
+      "tier": "category"
     },
     {
       "name": "Mobiliarios administrativos",
       "skuPrefix": "MOBIL-ADMINISTRATIVO",
-      "keywords": ["mobiliarios", "mobiliários", "mobiliario", "mobiliário", "administrativo", "mesa", "cadeira", "armario", "armário"]
-    },
-    {
-      "name": "Material de consumo geral",
-      "skuPrefix": "ESCR-CADERNO",
-      "keywords": ["material de consumo geral", "consumo geral"]
+      "keywords": ["mobiliarios", "mobiliários", "mobiliario", "mobiliário", "administrativo", "mesa", "cadeira", "armario", "armário"],
+      "tier": "category"
     }
   ]
 }

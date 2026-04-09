@@ -1,4 +1,98 @@
 // ===== F2: REGISTRO DE RESULTADOS SGD =====
+// Story 6.1: Supabase persistence for resultados
+const _SB_RESULTADOS = {
+  URL: 'https://mvvsjaudhbglxttxaeop.supabase.co/rest/v1',
+  KEY: 'sb_publishable_uBqL8sLjMGWnZ2aaQ1zwvg_mlQrZUXR',
+  headers() {
+    return { apikey: this.KEY, Authorization: 'Bearer ' + this.KEY, 'Content-Type': 'application/json' };
+  },
+  async upsert(resultado) {
+    try {
+      const empId = (typeof getEmpresaId === 'function') ? getEmpresaId() : 'LARIUCCI';
+      const row = {
+        id: resultado.id,
+        empresa_id: empId,
+        orcamento_id: resultado.orcamentoId,
+        resultado: resultado.resultado,
+        data_resultado: resultado.dataResultado || null,
+        valor_proposta: resultado.valorProposto || null,
+        valor_vencedor: resultado.valorVencedor || null,
+        fornecedor_vencedor: resultado.fornecedorVencedor || null,
+        motivo_perda: resultado.motivoPerda || null,
+        delta_total_percent: resultado.deltaTotalPercent || null,
+        escola: resultado.escola || null,
+        municipio: resultado.municipio || null,
+        sre: resultado.sre || null,
+        grupo: resultado.grupo || null,
+        itens: resultado.itens || [],
+        contrato: resultado.contrato || {},
+        observacoes: resultado.observacoes || null,
+      };
+      await fetch(this.URL + '/resultados_orcamento', {
+        method: 'POST',
+        headers: Object.assign({}, this.headers(), { Prefer: 'return=minimal,resolution=merge-duplicates' }),
+        body: JSON.stringify([row])
+      });
+      console.log('[Story 6.1] Resultado salvo em Supabase:', resultado.id);
+    } catch (e) {
+      console.warn('[Story 6.1] Fallback localStorage — Supabase indisponível:', e.message);
+    }
+  },
+  async loadAll() {
+    try {
+      const empId = (typeof getEmpresaId === 'function') ? getEmpresaId() : 'LARIUCCI';
+      const res = await fetch(this.URL + '/resultados_orcamento?empresa_id=eq.' + empId + '&order=created_at.desc', {
+        headers: this.headers()
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      return await res.json();
+    } catch (e) {
+      console.warn('[Story 6.1] Supabase indisponível, usando localStorage:', e.message);
+      return null;
+    }
+  },
+  async migrateFromLocalStorage() {
+    if (localStorage.getItem('resultados.migrated.v1') === 'true') return;
+    const local = JSON.parse(localStorage.getItem(RESULTADOS_STORAGE_KEY) || '[]');
+    if (local.length === 0) { localStorage.setItem('resultados.migrated.v1', 'true'); return; }
+    console.log('[Story 6.1] Migrando', local.length, 'resultados para Supabase...');
+    for (const r of local) { await this.upsert(r); }
+    localStorage.setItem('resultados.migrated.v1', 'true');
+    console.log('[Story 6.1] Migração concluída.');
+  }
+};
+
+// Boot: carregar resultados do Supabase e merge com localStorage
+(async function _bootResultados() {
+  try {
+    await _SB_RESULTADOS.migrateFromLocalStorage();
+    const sbData = await _SB_RESULTADOS.loadAll();
+    if (sbData && sbData.length > 0) {
+      const local = JSON.parse(localStorage.getItem(RESULTADOS_STORAGE_KEY) || '[]');
+      const localMap = new Map(local.map(r => [r.orcamentoId, r]));
+      // Supabase prevalece em caso de conflito (Story 6.1 AC-3)
+      for (const sb of sbData) {
+        const localR = localMap.get(sb.orcamento_id);
+        if (!localR || new Date(sb.updated_at) >= new Date(localR.dataResultado || 0)) {
+          localMap.set(sb.orcamento_id, {
+            id: sb.id, orcamentoId: sb.orcamento_id, escola: sb.escola,
+            municipio: sb.municipio, grupo: sb.grupo, resultado: sb.resultado,
+            dataResultado: sb.data_resultado, valorProposto: sb.valor_proposta,
+            valorVencedor: sb.valor_vencedor, fornecedorVencedor: sb.fornecedor_vencedor,
+            motivoPerda: sb.motivo_perda, deltaTotalPercent: sb.delta_total_percent,
+            observacoes: sb.observacoes, itens: sb.itens || [], contrato: sb.contrato || {},
+          });
+        }
+      }
+      const merged = Array.from(localMap.values());
+      localStorage.setItem(RESULTADOS_STORAGE_KEY, JSON.stringify(merged));
+      console.log('[Story 6.1] Resultados sincronizados:', merged.length, 'registros');
+    }
+  } catch (e) {
+    console.warn('[Story 6.1] Boot resultados — usando localStorage:', e.message);
+  }
+})();
+
 let currentResultadoOrcamentoId = null;
 let selectedResultado = null;
 
@@ -75,6 +169,9 @@ window.salvarResultado = function () {
   const resultados = JSON.parse(localStorage.getItem(RESULTADOS_STORAGE_KEY) || "[]");
   resultados.push(resultado);
   localStorage.setItem(RESULTADOS_STORAGE_KEY, JSON.stringify(resultados));
+
+  // Story 6.1: Dual-write para Supabase
+  _SB_RESULTADOS.upsert(resultado);
 
   // Atualizar status do pré-orçamento
   pre.status = selectedResultado === "ganho" ? "ganho" : "perdido";
@@ -187,10 +284,26 @@ window.checarStatusSgd = async function(orcId) {
     if (sgdStatus === "APRO" || sgdStatus === "Aprovado") {
       pre.status = "ganho"; pre.statusSgd = "APRO"; pre.resultadoEm = new Date().toISOString().slice(0, 10);
       savePreOrcamentos(); renderSgd(); renderKPIs();
+      // Story 6.1: Persistir resultado automático em Supabase
+      _SB_RESULTADOS.upsert({
+        id: "res-auto-" + Date.now(), orcamentoId: orcId, escola: pre.escola,
+        municipio: pre.municipio, grupo: pre.grupo || "Geral", resultado: "ganho",
+        dataResultado: pre.resultadoEm, valorProposto: pre.totalGeral,
+        itens: (pre.itens || []).map(i => ({ nome: i.nome, precoUnitario: i.precoUnitario, ganhou: true })),
+        contrato: { gerado: false }
+      });
       showToast("APROVADO! Proposta " + orcId + " foi aceita no SGD.", 5000);
     } else if (sgdStatus === "RECU" || sgdStatus === "Recusado") {
       pre.status = "perdido"; pre.statusSgd = "RECU"; pre.resultadoEm = new Date().toISOString().slice(0, 10);
       savePreOrcamentos(); renderSgd(); renderKPIs();
+      // Story 6.1: Persistir resultado automático em Supabase
+      _SB_RESULTADOS.upsert({
+        id: "res-auto-" + Date.now(), orcamentoId: orcId, escola: pre.escola,
+        municipio: pre.municipio, grupo: pre.grupo || "Geral", resultado: "perdido",
+        dataResultado: pre.resultadoEm, valorProposto: pre.totalGeral,
+        itens: (pre.itens || []).map(i => ({ nome: i.nome, precoUnitario: i.precoUnitario, ganhou: false })),
+        contrato: { gerado: false }
+      });
       showToast("RECUSADO. Proposta " + orcId + " não foi aceita.", 5000);
     } else if (sgdStatus === "ENVI" || sgdStatus === "Enviado" || sgdStatus === "NAEN") {
       showToast("Aguardando resultado. Status SGD: " + sgdStatus, 3000);
@@ -393,6 +506,22 @@ function criarContratoGdp(orcId, preOrcamento, numContrato) {
   // Trigger cloud sync
   if (typeof schedulCloudSync === "function") schedulCloudSync();
 
+  // Story 6.6: Persist contrato items to Supabase preco_historico
+  if (typeof _SB_PRECO_HIST !== 'undefined' && contrato.itens) {
+    const empId = (typeof getEmpresaId === 'function') ? getEmpresaId() : 'LARIUCCI';
+    const rows = contrato.itens.filter(i => i.precoUnitario > 0).map(i => {
+      const custoBase = (typeof bancoPrecos !== 'undefined' && bancoPrecos.itens) ?
+        (bancoPrecos.itens.find(b => b.item && i.descricao && b.item.toLowerCase().includes(i.descricao.toLowerCase().split(' ')[0]))?.custoBase || null) : null;
+      const margemPct = (custoBase && custoBase > 0) ? Number((((i.precoUnitario - custoBase) / i.precoUnitario) * 100).toFixed(2)) : null;
+      return {
+        empresa_id: empId, sku: i.skuVinculado || '', escola: contrato.escola,
+        tipo: 'contrato', valor: i.precoUnitario, custo_base: custoBase, margem_pct: margemPct,
+        fonte: 'contrato', metadata: { contrato_id: contrato.id, edital: contrato.edital || '', fornecedor: contrato.fornecedor || '' }
+      };
+    });
+    if (rows.length > 0) _SB_PRECO_HIST.insert(rows);
+  }
+
   console.log(`[GDP] Contrato criado: ${contrato.id} — ${contrato.escola} — ${brl.format(contrato.valorTotal)}`);
   return contrato;
 }
@@ -517,6 +646,17 @@ window.gerarContratoUnificado = function() {
   savePreOrcamentos();
 
   if (typeof schedulCloudSync === "function") schedulCloudSync();
+
+  // Story 6.6: Persist contrato unificado items to Supabase preco_historico
+  if (typeof _SB_PRECO_HIST !== 'undefined' && todosItens.length > 0) {
+    const empId = (typeof getEmpresaId === 'function') ? getEmpresaId() : 'LARIUCCI';
+    const rows = todosItens.filter(i => (i.precoUnitario || 0) > 0).map(i => ({
+      empresa_id: empId, sku: i.skuVinculado || '', escola: contrato.escola,
+      tipo: 'contrato', valor: i.precoUnitario, custo_base: null, margem_pct: null,
+      fonte: 'contrato-unificado', metadata: { contrato_id: contrato.id, fornecedor: contrato.fornecedor || '' }
+    }));
+    if (rows.length > 0) _SB_PRECO_HIST.insert(rows);
+  }
 
   renderPreOrcamentosLista();
   renderOrcamentos();

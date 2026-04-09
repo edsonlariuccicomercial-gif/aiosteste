@@ -1,5 +1,44 @@
 // [gdp-core.js loaded above — sidebar, constants, cloud sync, state, storage, save/load, etc.]
 
+// Story 6.2: Helper para persistir preço histórico em Supabase
+const _SB_PRECO_HIST = {
+  URL: 'https://mvvsjaudhbglxttxaeop.supabase.co/rest/v1',
+  KEY: 'sb_publishable_uBqL8sLjMGWnZ2aaQ1zwvg_mlQrZUXR',
+  headers() {
+    return { apikey: this.KEY, Authorization: 'Bearer ' + this.KEY, 'Content-Type': 'application/json' };
+  },
+  async insert(rows) {
+    try {
+      const res = await fetch(this.URL + '/preco_historico', {
+        method: 'POST',
+        headers: Object.assign({}, this.headers(), { Prefer: 'return=minimal' }),
+        body: JSON.stringify(rows)
+      });
+      if (res.ok) console.log('[Story 6.2] preco_historico:', rows.length, 'registros inseridos');
+      else console.warn('[Story 6.2] preco_historico insert falhou:', res.status);
+    } catch (e) {
+      console.warn('[Story 6.2] Supabase indisponível:', e.message);
+    }
+  },
+  buildNfEntradaRows(notaEntrada, matchedItems) {
+    const empId = (typeof getEmpresaId === 'function') ? getEmpresaId() : 'LARIUCCI';
+    return matchedItems.map(m => ({
+      empresa_id: empId,
+      sku: m.sku || m.bp?.sku || '',
+      tipo: 'nf_entrada',
+      valor: m.valorUnitario,
+      custo_base: m.valorUnitario,
+      fonte: 'nf_entrada',
+      metadata: {
+        fornecedor: notaEntrada.fornecedor || '',
+        nf_numero: notaEntrada.numero || '',
+        ncm: m.ncm || '',
+        descricao: m.descricao || ''
+      }
+    }));
+  }
+};
+
 // ===== TABS =====
 function resetTabState() {
   // AC1: Clear all search fields
@@ -1620,6 +1659,7 @@ function registrarNotaEntradaManual() {
   // Bridge 1: NF Entrada → Custo real
   (function() {
     var notaEntrada = notasEntrada[0]; // just unshifted
+    var matchedForSb = []; // Story 6.2: collect matched items
     if (typeof bancoPrecos !== 'undefined' && bancoPrecos.itens) {
       (notaEntrada.itens || []).forEach(function(item) {
         var bp = bancoPrecos.itens.find(function(b) {
@@ -1631,9 +1671,17 @@ function registrarNotaEntradaManual() {
           if (!bp.custosFornecedor) bp.custosFornecedor = [];
           bp.custosFornecedor.push({ fornecedor: notaEntrada.fornecedor || 'NF Entrada', preco: bp.custoBase, data: new Date().toISOString().slice(0,10), tipo: 'nf_entrada' });
           bp.precoReferencia = bp.custoBase * (1 + (bp.margemPadrao || 0.30));
+          matchedForSb.push({ sku: bp.sku, valorUnitario: bp.custoBase, ncm: item.ncm, descricao: item.descricao });
+          showToast("✅ Custo atualizado: " + bp.item + " → R$ " + bp.custoBase.toFixed(2) + " (NF #" + notaEntrada.numero + " de " + notaEntrada.fornecedor + ")", 4000);
+        } else {
+          showToast("⚠️ Item NF sem match no banco: " + (item.descricao || '?') + " (NCM: " + (item.ncm || '?') + ")", 4000);
         }
       });
       saveBancoLocal();
+      // Story 6.2: Persistir em Supabase preco_historico
+      if (matchedForSb.length > 0) {
+        _SB_PRECO_HIST.insert(_SB_PRECO_HIST.buildNfEntradaRows(notaEntrada, matchedForSb));
+      }
     }
   })();
 
@@ -1705,6 +1753,7 @@ function importarNotaEntradaXml(input) {
       // Bridge 1: NF Entrada → Custo real (XML import)
       (function() {
         var notaEntrada = notasEntrada[0]; // just unshifted
+        var matchedForSb = []; // Story 6.2
         if (typeof bancoPrecos !== 'undefined' && bancoPrecos.itens) {
           (notaEntrada.itens || []).forEach(function(item) {
             var bp = bancoPrecos.itens.find(function(b) {
@@ -1716,9 +1765,17 @@ function importarNotaEntradaXml(input) {
               if (!bp.custosFornecedor) bp.custosFornecedor = [];
               bp.custosFornecedor.push({ fornecedor: notaEntrada.fornecedor || 'NF Entrada', preco: bp.custoBase, data: new Date().toISOString().slice(0,10), tipo: 'nf_entrada' });
               bp.precoReferencia = bp.custoBase * (1 + (bp.margemPadrao || 0.30));
+              matchedForSb.push({ sku: bp.sku, valorUnitario: bp.custoBase, ncm: item.ncm, descricao: item.descricao });
+              showToast("✅ Custo atualizado: " + bp.item + " → R$ " + bp.custoBase.toFixed(2) + " (NF XML #" + notaEntrada.numero + ")", 4000);
+            } else {
+              showToast("⚠️ Item NF sem match: " + (item.descricao || '?') + " (NCM: " + (item.ncm || '?') + ")", 4000);
             }
           });
           saveBancoLocal();
+          // Story 6.2: Persistir em Supabase preco_historico
+          if (matchedForSb.length > 0) {
+            _SB_PRECO_HIST.insert(_SB_PRECO_HIST.buildNfEntradaRows(notaEntrada, matchedForSb));
+          }
         }
       })();
 
@@ -1813,6 +1870,7 @@ async function consultarNotasEntradaApi() {
     saveNotasEntrada();
 
     // Bridge 1: NF Entrada → Custo real
+    var allMatchedForSb = []; // Story 6.2
     if (typeof bancoPrecos !== 'undefined' && bancoPrecos.itens) {
       for (const ne of allDocs) {
         (ne.itens || []).forEach(function(itemNe) {
@@ -1825,10 +1883,21 @@ async function consultarNotasEntradaApi() {
             if (!bp.custosFornecedor) bp.custosFornecedor = [];
             bp.custosFornecedor.push({ fornecedor: ne.fornecedor || 'NF Entrada', preco: bp.custoBase, data: new Date().toISOString().slice(0,10), tipo: 'nf_entrada' });
             bp.precoReferencia = bp.custoBase * (1 + (bp.margemPadrao || 0.30));
+            allMatchedForSb.push({ sku: bp.sku, valorUnitario: bp.custoBase, ncm: itemNe.ncm, descricao: itemNe.descricao, _ne: ne });
           }
         });
       }
       saveBancoLocal();
+      // Story 6.2: Persistir em Supabase preco_historico
+      if (allMatchedForSb.length > 0) {
+        const empId = (typeof getEmpresaId === 'function') ? getEmpresaId() : 'LARIUCCI';
+        const rows = allMatchedForSb.map(m => ({
+          empresa_id: empId, sku: m.sku || '', tipo: 'nf_entrada',
+          valor: m.valorUnitario, custo_base: m.valorUnitario, fonte: 'nf_entrada',
+          metadata: { fornecedor: m._ne?.fornecedor || '', nf_numero: m._ne?.numero || '', ncm: m.ncm || '', descricao: m.descricao || '' }
+        }));
+        _SB_PRECO_HIST.insert(rows);
+      }
     }
 
     renderNotasEntrada();
