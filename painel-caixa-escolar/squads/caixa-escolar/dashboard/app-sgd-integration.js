@@ -702,6 +702,19 @@ async function varrerSgd() {
       const rejected = [];
       const filtered = [];
 
+      // DEBUG: log all budgets containing "ROTARY" to diagnose matching issues
+      const rotaryBudgets = allBudgets.filter(b => (b.schoolName || b.txSchoolName || "").toUpperCase().includes("ROTARY"));
+      if (rotaryBudgets.length > 0) {
+        console.log(`[Varrer DEBUG] ROTARY budgets encontrados na API (${rotaryBudgets.length}):`, rotaryBudgets.map(b => ({
+          schoolName: b.schoolName, txSchoolName: b.txSchoolName, idCounty: b.idCounty, idSchool: b.idSchool,
+          countyName: b.countyName, txCountyName: b.txCountyName, supplierStatus: b.supplierStatus,
+          idBudget: b.idBudget, findMatch: findSreMatch(b.schoolName || b.txSchoolName || ""),
+          allFields: Object.keys(b)
+        })));
+      } else {
+        console.log("[Varrer DEBUG] NENHUM budget com 'ROTARY' encontrado na API. Total budgets:", allBudgets.length);
+      }
+
       allBudgets.forEach((b) => {
         const escola = b.schoolName || b.txSchoolName || "";
         const county = b.idCounty;
