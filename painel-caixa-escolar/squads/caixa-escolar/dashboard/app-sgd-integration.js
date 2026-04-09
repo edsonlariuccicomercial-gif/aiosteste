@@ -666,6 +666,14 @@ async function varrerSgd() {
           .replace(/^CE\s+/, "")
           .trim();
         if (sgdCore && sreSchoolsList.includes(sgdCore)) return sgdCore;
+        // Last resort: strip "EE " from SRE names and check if contained in sgdCore
+        // e.g. sgdCore="ROTARY DE ARAXA" contains sreCore="ROTARY" (from "EE ROTARY")
+        if (sgdCore) {
+          for (const sre of sreSchoolsList) {
+            const sreCore = sre.replace(/^EE\s+/, "").trim();
+            if (sreCore && containsWholeMatch(sgdCore, sreCore)) return sre;
+          }
+        }
         return null;
       }
 
@@ -724,7 +732,22 @@ async function varrerSgd() {
         if (nameMatch) {
           const possibleMuns = schoolToMunicipios[nameMatch] || [];
           if (possibleMuns.length > 1) {
-            rejected.push({ sgd: escola, sre: nameMatch, county, reason: `nome ambíguo: ${possibleMuns.join("/")}`, idSchool });
+            // Try to disambiguate using city name embedded in SGD schoolName
+            // e.g. "CAIXA ESCOLAR ROTARY DE ARAXÁ" → contains "ARAXA" → resolves to Araxa
+            const sgdNorm = sreNorm(escola);
+            const countyNorm = sreNorm(b.countyName || b.txCountyName || "");
+            const disambiguated = possibleMuns.find(m => {
+              const mNorm = sreNorm(m);
+              return sgdNorm.includes(mNorm) || countyNorm === mNorm;
+            });
+            if (disambiguated) {
+              b._sreMatch = nameMatch;
+              filtered.push(b);
+              matched.push({ sgd: escola, county, mun: disambiguated, via: "name-disambiguated", idSchool });
+              if (idSchool) schoolWhitelist[idSchool] = { escola, municipio: disambiguated, sre: nameMatch, confirmedAt: new Date().toISOString().slice(0, 10) };
+            } else {
+              rejected.push({ sgd: escola, sre: nameMatch, county, reason: `nome ambíguo: ${possibleMuns.join("/")}`, idSchool });
+            }
           } else {
             b._sreMatch = nameMatch;
             filtered.push(b);
@@ -745,7 +768,8 @@ async function varrerSgd() {
       const whitelistHits = matched.filter((m) => m.via === "whitelist").length;
       const countyHits = matched.filter((m) => m.via === "county+name" || m.via === "county-only").length;
       const nameHits = matched.filter((m) => m.via === "name-only").length;
-      console.log(`[Varrer] ${whitelistHits} whitelist, ${countyHits} county, ${nameHits} name-only → ${filtered.length} aceitos de ${allBudgets.length} varridos`);
+      const disambiguatedHits = matched.filter((m) => m.via === "name-disambiguated").length;
+      console.log(`[Varrer] ${whitelistHits} whitelist, ${countyHits} county, ${nameHits} name-only, ${disambiguatedHits} desambiguados → ${filtered.length} aceitos de ${allBudgets.length} varridos`);
       console.log(`[Varrer] Whitelist total: ${whitelistSize} escolas confirmadas`);
       if (rejected.length > 0) console.log(`[Varrer] ${rejected.length} rejeitados:`, rejected);
       const munsEncontrados = [...new Set(matched.map((m) => m.mun).filter(Boolean).filter(m => m !== "?"))].sort();

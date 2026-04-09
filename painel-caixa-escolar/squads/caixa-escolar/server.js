@@ -208,23 +208,105 @@ async function executeSgdScan() {
   // Load SRE data for filtering + enrichment (only SRE Uberaba for now)
   const sreData = readJson(path.join(DATA_DIR, "sre-uberaba.json")) || {};
   const sreNorm = (s) => (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").toUpperCase().trim();
-  const sreSchools = new Set();
+  const sreSchoolsList = [];
   const schoolToMunicipio = {};
+  const schoolToMunicipios = {}; // array — para nomes duplicados entre cidades
   if (sreData.municipios) {
     sreData.municipios.forEach((m) => {
       (m.escolas || []).forEach((e) => {
         const n = sreNorm(e);
-        sreSchools.add(n);
+        sreSchoolsList.push(n);
         schoolToMunicipio[n] = m.nome || m.name;
+        if (!schoolToMunicipios[n]) schoolToMunicipios[n] = [];
+        if (!schoolToMunicipios[n].includes(m.nome || m.name)) schoolToMunicipios[n].push(m.nome || m.name);
       });
     });
   }
+  const sreSchools = new Set(sreSchoolsList);
 
-  // Filter budgets: only SRE Uberaba schools
-  // API field: schoolName (not txSchoolName)
+  // Word-boundary checking to prevent partial matches
+  function containsWholeMatch(haystack, needle) {
+    const idx = haystack.indexOf(needle);
+    if (idx === -1) return false;
+    const endIdx = idx + needle.length;
+    if (endIdx < haystack.length && /[A-Z0-9]/.test(haystack[endIdx])) return false;
+    if (idx > 0 && /[A-Z0-9]/.test(haystack[idx - 1])) return false;
+    return true;
+  }
+
+  function findSreMatch(sgdSchoolName) {
+    const norm = sreNorm(sgdSchoolName);
+    if (sreSchools.has(norm)) return norm;
+    for (const sre of sreSchoolsList) {
+      if (containsWholeMatch(norm, sre)) return sre;
+    }
+    for (const sre of sreSchoolsList) {
+      const expanded = sre.replace(/^EE\s+/, "ESCOLA ESTADUAL ");
+      if (containsWholeMatch(norm, expanded)) return sre;
+    }
+    const sgdCore = norm
+      .replace(/^CAIXA ESCOLAR\s*(DA|DE|DO)?\s*/i, "")
+      .replace(/^ASSOCIACAO\s*(DA|DE|DO)?\s*/i, "")
+      .replace(/^CE\s+/, "")
+      .trim();
+    if (sgdCore && sreSchools.has(sgdCore)) return sgdCore;
+    // Last resort: strip "EE " from SRE names and check if contained in sgdCore
+    if (sgdCore) {
+      for (const sre of sreSchoolsList) {
+        const sreCore = sre.replace(/^EE\s+/, "").trim();
+        if (sreCore && containsWholeMatch(sgdCore, sreCore)) return sre;
+      }
+    }
+    return null;
+  }
+
+  // Confirmed SRE Uberaba municipality IDs (SGD API idCounty field)
+  const sreCountyMap = {
+    2623: "Uberaba", 2857: "Uberaba",
+    2568: "Araxa", 2494: "Sacramento", 2158: "Iturama",
+    2805: "Pirajuba", 2480: "Santa Juliana", 2631: "Frutal",
+    2422: "Campos Altos",
+  };
+  const sreCountyIds = new Set(Object.keys(sreCountyMap).map(Number));
+
+  // Filter budgets: SRE schools with county, name match, or disambiguated name
   const filtered = budgets.filter((b) => {
-    const escola = sreNorm(b.schoolName || b.txSchoolName || "");
-    return sreSchools.has(escola);
+    const escola = b.schoolName || b.txSchoolName || "";
+    const county = b.idCounty;
+
+    // TIER 1: County is confirmed SRE
+    if (sreCountyIds.has(county)) {
+      const nameMatch = findSreMatch(escola);
+      b._sreMatch = nameMatch || sreNorm(escola);
+      b._municipio = nameMatch ? schoolToMunicipio[nameMatch] || sreCountyMap[county] : sreCountyMap[county];
+      return true;
+    }
+
+    // TIER 2: Name match — unique names only
+    const nameMatch = findSreMatch(escola);
+    if (nameMatch) {
+      const possibleMuns = schoolToMunicipios[nameMatch] || [];
+      if (possibleMuns.length > 1) {
+        // Try to disambiguate using city name in SGD schoolName or countyName
+        const sgdNorm = sreNorm(escola);
+        const countyNorm = sreNorm(b.countyName || b.txCountyName || "");
+        const disambiguated = possibleMuns.find(m => {
+          const mNorm = sreNorm(m);
+          return sgdNorm.includes(mNorm) || countyNorm === mNorm;
+        });
+        if (disambiguated) {
+          b._sreMatch = nameMatch;
+          b._municipio = disambiguated;
+          return true;
+        }
+        return false; // ambiguous — skip
+      }
+      b._sreMatch = nameMatch;
+      b._municipio = schoolToMunicipio[nameMatch] || "";
+      return true;
+    }
+
+    return false;
   });
   console.log(`[SGD Scan] Filtered to ${filtered.length} SRE Uberaba budgets (from ${budgets.length} total)`);
 
@@ -238,7 +320,7 @@ async function executeSgdScan() {
     // API list fields: schoolName, year, dtProposalSubmission, expenseGroupId, idCounty
     const escola = b.schoolName || b.txSchoolName || "";
     const escolaNorm = sreNorm(escola);
-    const municipio = schoolToMunicipio[escolaNorm] || "";
+    const municipio = b._municipio || schoolToMunicipio[b._sreMatch || escolaNorm] || "";
 
     const orcamento = {
       id: id,

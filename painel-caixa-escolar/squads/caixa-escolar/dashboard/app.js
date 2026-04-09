@@ -267,9 +267,11 @@ function filteredOrcamentos() {
       return dentroDoIntervalo(o.prazo, de, ate);
     })
     .sort((a, b) => {
-      // Abertos primeiro, depois por prazo
+      // Abertos primeiro, depois por urgência de prazo (mais urgente no topo)
       if (a.status !== b.status) return a.status === "aberto" ? -1 : 1;
-      return (a.prazo || "").localeCompare(b.prazo || "");
+      const dA = daysTo(a.prazo);
+      const dB = daysTo(b.prazo);
+      return dA - dB;
     });
 }
 
@@ -1182,7 +1184,15 @@ function renderPreOrcamentosLista() {
   // "todos" mostra tudo sem filtro
   if (fPreTexto) filtered = filtered.filter(p => normalizedText([p.escola, p.municipio, p.orcamentoId, ...(p.itens || []).map(i => i.nome)].join(" ")).includes(fPreTexto));
 
-  const sorted = filtered.sort((a, b) => (b.criadoEm || "").localeCompare(a.criadoEm || ""));
+  const sorted = filtered.sort((a, b) => {
+    // Ordenar por urgência de prazo (mais urgente no topo)
+    const orcA = orcamentos.find(o => o.id === a.orcamentoId);
+    const orcB = orcamentos.find(o => o.id === b.orcamentoId);
+    const dA = daysTo(orcA?.prazo);
+    const dB = daysTo(orcB?.prazo);
+    if (dA !== dB) return dA - dB;
+    return (b.criadoEm || "").localeCompare(a.criadoEm || "");
+  });
   el.tbodyPreorcamentosLista.innerHTML = sorted
     .map((p) => {
       const badgeClass = p.status === "ganho" ? "badge-ganho"
