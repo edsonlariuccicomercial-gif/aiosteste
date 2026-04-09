@@ -801,6 +801,10 @@ async function varrerSgd() {
       const rotaryRejected = rejected.filter(r => (r.sgd || "").toUpperCase().includes("ROTARY"));
       const rotaryFiltered = filtered.filter(b => (b.schoolName || b.txSchoolName || "").toUpperCase().includes("ROTARY"));
       console.log(`[Varrer ROTARY] matched: ${rotaryMatched.length}, rejected: ${rotaryRejected.length}, filtered: ${rotaryFiltered.length}`, { rotaryMatched, rotaryRejected });
+      if (rotaryRejected.length > 0) console.warn(`[Varrer ROTARY REJEITADO]`, JSON.stringify(rotaryRejected, null, 2));
+      // Show ROTARY API raw data
+      const rotaryRaw = allBudgets.filter(b => (b.schoolName || b.txSchoolName || "").toUpperCase().includes("ROTARY"));
+      if (rotaryRaw.length > 0) console.warn(`[Varrer ROTARY RAW]`, JSON.stringify(rotaryRaw.map(b => ({ schoolName: b.schoolName, idCounty: b.idCounty, idSchool: b.idSchool, idBudget: b.idBudget, supplierStatus: b.supplierStatus })), null, 2));
 
       btn.innerHTML = `<span class="sgd-spinner"></span>SREs: ${filtered.length} de ${allBudgets.length}. Buscando detalhes...`;
 
