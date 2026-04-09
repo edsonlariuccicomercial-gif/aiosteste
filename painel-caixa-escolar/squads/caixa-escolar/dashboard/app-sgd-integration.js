@@ -795,6 +795,13 @@ async function varrerSgd() {
         sreCounts[sre] = (sreCounts[sre] || 0) + 1;
       });
       console.log(`[Varrer] SREs:`, sreCounts, `→ ${filtered.length} aceitos de ${allBudgets.length} varridos`);
+
+      // DEBUG ROTARY — mostrar diagnóstico visível
+      const rotaryMatched = matched.filter(m => (m.sgd || "").toUpperCase().includes("ROTARY"));
+      const rotaryRejected = rejected.filter(r => (r.sgd || "").toUpperCase().includes("ROTARY"));
+      const rotaryFiltered = filtered.filter(b => (b.schoolName || b.txSchoolName || "").toUpperCase().includes("ROTARY"));
+      console.log(`[Varrer ROTARY] matched: ${rotaryMatched.length}, rejected: ${rotaryRejected.length}, filtered: ${rotaryFiltered.length}`, { rotaryMatched, rotaryRejected });
+
       btn.innerHTML = `<span class="sgd-spinner"></span>SREs: ${filtered.length} de ${allBudgets.length}. Buscando detalhes...`;
 
       // Step 3: Fetch detail + items for each SRE budget (sequential — networkId is shared state)
