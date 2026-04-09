@@ -702,17 +702,17 @@ async function varrerSgd() {
       const rejected = [];
       const filtered = [];
 
-      // DEBUG: log all budgets containing "ROTARY" to diagnose matching issues
-      const rotaryBudgets = allBudgets.filter(b => (b.schoolName || b.txSchoolName || "").toUpperCase().includes("ROTARY"));
+      // DEBUG: log all budgets containing "ROTARY" or idBudget 2026077239
+      const rotaryBudgets = allBudgets.filter(b =>
+        (b.schoolName || b.txSchoolName || "").toUpperCase().includes("ROTARY") ||
+        String(b.idBudget) === "2026077239" || String(b.id) === "2026077239"
+      );
       if (rotaryBudgets.length > 0) {
-        console.log(`[Varrer DEBUG] ROTARY budgets encontrados na API (${rotaryBudgets.length}):`, rotaryBudgets.map(b => ({
-          schoolName: b.schoolName, txSchoolName: b.txSchoolName, idCounty: b.idCounty, idSchool: b.idSchool,
-          countyName: b.countyName, txCountyName: b.txCountyName, supplierStatus: b.supplierStatus,
-          idBudget: b.idBudget, findMatch: findSreMatch(b.schoolName || b.txSchoolName || ""),
-          allFields: Object.keys(b)
-        })));
+        const debugInfo = rotaryBudgets.map(b => `schoolName=${b.schoolName} | idCounty=${b.idCounty} | idSchool=${b.idSchool} | idBudget=${b.idBudget} | match=${findSreMatch(b.schoolName || b.txSchoolName || "")} | keys=${Object.keys(b).join(",")}`);
+        alert("[DEBUG ROTARY]\n" + debugInfo.join("\n\n"));
+        console.log(`[Varrer DEBUG] ROTARY/2026077239:`, rotaryBudgets);
       } else {
-        console.log("[Varrer DEBUG] NENHUM budget com 'ROTARY' encontrado na API. Total budgets:", allBudgets.length);
+        alert("[DEBUG] Nenhum budget ROTARY ou 2026077239 na API. Total: " + allBudgets.length);
       }
 
       allBudgets.forEach((b) => {
