@@ -702,13 +702,13 @@ async function varrerSgd() {
       const rejected = [];
       const filtered = [];
 
-      // Debug: log budgets with ambiguous names for troubleshooting
+      // Debug: log budgets with ambiguous names or specific schools being investigated
       if (typeof console !== "undefined") {
-        const ambiguousNames = allBudgets.filter(b => {
-          const nm = findSreMatch(b.schoolName || b.txSchoolName || "");
-          return nm && (schoolToMunicipios[nm] || []).length > 1;
+        const debugSchools = ["VICENTE", "ROTARY"];
+        debugSchools.forEach(term => {
+          const found = allBudgets.filter(b => (b.schoolName || b.txSchoolName || "").toUpperCase().includes(term));
+          if (found.length > 0) console.log(`[Varrer DEBUG ${term}]`, found.map(b => ({ schoolName: b.schoolName, idCounty: b.idCounty, idSchool: b.idSchool, idBudget: b.idBudget, match: findSreMatch(b.schoolName || b.txSchoolName || "") })));
         });
-        if (ambiguousNames.length > 0) console.log(`[Varrer] ${ambiguousNames.length} budgets com nomes ambíguos:`, ambiguousNames.map(b => ({ schoolName: b.schoolName, idCounty: b.idCounty, idSchool: b.idSchool })));
       }
 
       allBudgets.forEach((b) => {
