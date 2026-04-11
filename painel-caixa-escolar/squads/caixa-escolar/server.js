@@ -314,7 +314,12 @@ async function executeSgdScan() {
           b._municipio = disambiguated;
           return true;
         }
-        return false; // ambiguous — skip
+        // Accept ambiguous schools provisionally — resolve later using detail
+        b._sreMatch = nameMatch;
+        b._municipio = possibleMuns[0] || "";
+        b._ambiguous = true;
+        b._possibleMuns = possibleMuns;
+        return true;
       }
       b._sreMatch = nameMatch;
       b._municipio = schoolToMunicipio[nameMatch] || "";
@@ -365,8 +370,9 @@ async function executeSgdScan() {
 
     // Fetch budget detail (for initiativeDescription/objeto, dates, etc.)
     if (orcamento.idSubprogram && orcamento.idSchool && orcamento.idBudget) {
+      let detail = {};
       try {
-        const detail = await client.getBudgetDetail(
+        detail = await client.getBudgetDetail(
           orcamento.idSubprogram, orcamento.idSchool, orcamento.idBudget
         );
         orcamento.objeto = detail.initiativeDescription || "";
@@ -379,6 +385,16 @@ async function executeSgdScan() {
         if (detail.dtDelivery) orcamento.prazoEntrega = detail.dtDelivery.slice(0, 10);
       } catch (err) {
         console.warn(`[SGD Scan] Could not fetch detail for budget ${id}: ${err.message}`);
+      }
+
+      // Resolve ambiguous schools using detail countyName
+      if (b._ambiguous && b._possibleMuns) {
+        const detailCounty = sreNorm(detail.countyName || detail.txCountyName || "");
+        const resolved = b._possibleMuns.find(m => sreNorm(m) === detailCounty);
+        if (resolved) {
+          orcamento.municipio = resolved;
+          console.log(`[SGD Scan] Ambíguo resolvido via detail: ${escola} → ${resolved}`);
+        }
       }
 
       try {

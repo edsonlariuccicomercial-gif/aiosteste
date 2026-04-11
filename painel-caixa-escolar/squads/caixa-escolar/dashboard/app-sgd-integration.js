@@ -718,15 +718,6 @@ async function varrerSgd() {
       const rejected = [];
       const filtered = [];
 
-      // Debug: log budgets with ambiguous names or specific schools being investigated
-      if (typeof console !== "undefined") {
-        const debugSchools = ["VICENTE", "ROTARY"];
-        debugSchools.forEach(term => {
-          const found = allBudgets.filter(b => (b.schoolName || b.txSchoolName || "").toUpperCase().includes(term));
-          if (found.length > 0) console.log(`[Varrer DEBUG ${term}]`, found.map(b => ({ schoolName: b.schoolName, idCounty: b.idCounty, idSchool: b.idSchool, idBudget: b.idBudget, match: findSreMatch(b.schoolName || b.txSchoolName || "") })));
-        });
-      }
-
       allBudgets.forEach((b) => {
         const escola = b.schoolName || b.txSchoolName || "";
         const county = b.idCounty;
@@ -771,7 +762,12 @@ async function varrerSgd() {
               matched.push({ sgd: escola, county, mun: disambiguated, via: "name-disambiguated", idSchool });
               if (idSchool) schoolWhitelist[idSchool] = { escola, municipio: disambiguated, sre: nameMatch, confirmedAt: new Date().toISOString().slice(0, 10) };
             } else {
-              rejected.push({ sgd: escola, sre: nameMatch, county, reason: `nome ambíguo: ${possibleMuns.join("/")}`, idSchool });
+              // Accept ambiguous schools provisionally — resolve in Step 3 using detail.countyName
+              b._sreMatch = nameMatch;
+              b._ambiguous = true;
+              b._possibleMuns = possibleMuns;
+              filtered.push(b);
+              matched.push({ sgd: escola, county, mun: "?", via: "ambiguous-pending", idSchool });
             }
           } else {
             b._sreMatch = nameMatch;
@@ -843,9 +839,24 @@ async function varrerSgd() {
         }
         BrowserSgdClient.networkId = savedNetworkId;
 
+        // Resolve ambiguous schools using detail countyName
+        let resolvedMunicipio = municipio;
+        if (b._ambiguous && b._possibleMuns) {
+          const detailCounty = sreNorm(detail.countyName || detail.txCountyName || "");
+          const resolved = b._possibleMuns.find(m => sreNorm(m) === detailCounty);
+          if (resolved) {
+            resolvedMunicipio = resolved;
+            if (b.idSchool) schoolWhitelist[b.idSchool] = { escola: escolaRaw, municipio: resolved, sre: sreMatchKey, confirmedAt: new Date().toISOString().slice(0, 10) };
+            console.log(`[Varrer] Ambíguo resolvido via detail: ${escolaRaw} → ${resolved}`);
+          } else {
+            resolvedMunicipio = b._possibleMuns[0] || "?";
+            console.log(`[Varrer] Ambíguo sem resolução detail, usando: ${resolvedMunicipio} (countyName: ${detailCounty || "vazio"})`);
+          }
+        }
+
         const orc = {
           id, idBudget: b.idBudget, ano: detail.year || b.year || new Date().getFullYear(),
-          escola: escolaRaw, municipio,
+          escola: escolaRaw, municipio: resolvedMunicipio,
           sre: schoolToSre[sreMatchKey] || (sreCountyMap[b.idCounty] ? "Uberaba" : "Desconhecida"),
           grupo: detail.expenseGroupDescription || "",
           subPrograma: detail.subprogramName || "",
