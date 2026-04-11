@@ -799,7 +799,7 @@ window.abrirPreOrcamento = function (orcId) {
   const showEditar = pre.status === "aprovado" || pre.status === "enviado";
   el.btnEditarOrcamento.style.display = showEditar ? "inline-block" : "none";
 
-  // Botão SGD: aparece sempre que aprovado (modo local envia API, modo Netlify baixa payload)
+  // Botão SGD: aparece sempre que aprovado (modo local envia API, modo cloud baixa payload)
   const showSgd = pre.status === "aprovado";
   el.btnEnviarSgd.style.display = showSgd ? "inline-block" : "none";
   el.btnEnviarSgd.textContent = "Enviar ao SGD";
@@ -1623,7 +1623,7 @@ async function processAIImport(file) {
     if (btnAI) btnAI.textContent = "Enviando para IA...";
     const fornecedor = prompt("Nome do fornecedor (opcional):") || "";
 
-    const resp = await fetch("/.netlify/functions/ai-parse-price", {
+    const resp = await fetch("/api/ai-parse-price", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ texto: textoExtraido, formato: ext, fornecedor }),
@@ -1873,7 +1873,7 @@ async function consultarPNCP(itemNome, itemId) {
     const termoSimplificado = simplificarTermoPNCP(itemNome);
     console.log("[PNCP] Termo original:", itemNome, "-> Simplificado:", termoSimplificado);
 
-    const searchUrl = "/.netlify/functions/pncp-search";
+    const searchUrl = "/api/caixa-proxy";
     const searchBody = { action: "search", termo: termoSimplificado, uf: "MG" };
     console.log("[PNCP] request:", { url: searchUrl, body: searchBody });
 
@@ -1912,7 +1912,7 @@ async function consultarPNCP(itemNome, itemId) {
 
         console.log("[PNCP] Buscando itens:", cnpj, ano, seq);
 
-        const itemsResp = await fetch("/.netlify/functions/pncp-search", {
+        const itemsResp = await fetch("/api/caixa-proxy", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ action: "items", cnpj, ano, seq }),

@@ -9,9 +9,6 @@
     }
   ],
   "rewrites": [
-    { "source": "/.netlify/functions/sgd-proxy", "destination": "/api/caixa-proxy" },
-    { "source": "/.netlify/functions/ai-parse-price", "destination": "/api/ai-parse-price" },
-    { "source": "/.netlify/functions/pncp-search", "destination": "/api/caixa-proxy" },
     { "source": "/api/sgd-proxy", "destination": "/api/caixa-proxy" },
     { "source": "/api/b2b-scrape", "destination": "/api/caixa-proxy" }
   ],

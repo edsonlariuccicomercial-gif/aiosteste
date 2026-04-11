@@ -489,7 +489,7 @@ window.b2bBuscar = async function() {
 
     if (status) status.textContent = "Extraindo produtos com IA...";
 
-    const aiRes = await fetch("/.netlify/functions/ai-parse-price", {
+    const aiRes = await fetch("/api/ai-parse-price", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

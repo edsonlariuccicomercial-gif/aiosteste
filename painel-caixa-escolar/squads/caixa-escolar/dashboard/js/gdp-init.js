@@ -1796,7 +1796,7 @@ async function consultarNotasEntradaApi() {
   showToast("Consultando SEFAZ... Buscando NFs de entrada.", 3000);
 
   // Consulta direta via caixa-proxy → SEFAZ DistribuicaoDFe
-  const PROXY = location.hostname.includes("netlify") ? "/.netlify/functions/sgd-proxy" : "/api/caixa-proxy";
+  const PROXY = "/api/caixa-proxy";
   const nsuKey = "radar.sefaz.ultNSU";
   const ultNSU = localStorage.getItem(nsuKey) || "0";
 
@@ -2987,7 +2987,7 @@ async function enviarTiny(contratoId) {
     showToast(`Tiny: ${s.cadastrados} cadastrados, ${s.existentes} existentes, ${s.erros} erros`);
   } catch (err) {
     resultDiv.innerHTML = `<div style="color:var(--red)">Erro de conexao: ${esc(err.message)}</div>
-      <p style="color:var(--mut);font-size:.8rem;margin-top:.5rem">Verifique se o TINY_API_TOKEN esta configurado nas variaveis do Netlify.</p>
+      <p style="color:var(--mut);font-size:.8rem;margin-top:.5rem">Verifique se o TINY_API_TOKEN esta configurado nas variaveis de ambiente do Vercel.</p>
       <button class="btn btn-outline btn-sm" style="margin-top:.5rem" onclick="this.parentElement.classList.add('hidden')">Fechar</button>`;
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = "Enviar para Tiny"; }

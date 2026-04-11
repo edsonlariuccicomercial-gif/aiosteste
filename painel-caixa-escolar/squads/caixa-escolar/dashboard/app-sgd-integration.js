@@ -27,7 +27,7 @@ async function isSgdApiAvailable() {
     }
   } catch (_) { /* no local server */ }
 
-  // 2. In Netlify mode, SGD is available if user has credentials saved
+  // 2. In cloud mode, SGD is available if user has credentials saved
   sgdLocalServer = false;
   return !!localStorage.getItem(SGD_CRED_KEY);
 }
@@ -37,8 +37,8 @@ function updateModeIndicator(isLocal) {
     el.modeIndicator.textContent = "Modo Local";
     el.modeIndicator.className = "mode-indicator mode-local";
   } else {
-    el.modeIndicator.textContent = "Modo Netlify";
-    el.modeIndicator.className = "mode-indicator mode-netlify";
+    el.modeIndicator.textContent = "Modo Cloud";
+    el.modeIndicator.className = "mode-indicator mode-cloud";
   }
 }
 
@@ -376,7 +376,7 @@ window.sgdEnviarUnico = async function (orcId) {
   }
 };
 
-// Browser-side SGD submit (direct API, Netlify mode)
+// Browser-side SGD submit (direct API, cloud mode)
 async function browserSgdSubmit(payload) {
   await BrowserSgdClient.login();
   if (!BrowserSgdClient.networkId) await BrowserSgdClient.listBudgets(1, 1);
@@ -583,7 +583,7 @@ async function varrerSgd() {
       orcamentos = Array.isArray(orcData) ? orcData : [];
       showToast(result.novos > 0 ? `${result.novos} novo(s) orçamento(s)!` : "Nenhum orçamento novo.");
     } else {
-      // Mode 2: Direct browser API calls (Netlify mode)
+      // Mode 2: Direct browser API calls (cloud mode)
       await BrowserSgdClient.login();
 
       // Resolve networkId via /auth/user (same strategy as server-side SgdClient)

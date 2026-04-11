@@ -548,7 +548,7 @@ function findNcmLocal(description) {
 
 function getBaseUrl() {
   // Vercel API routes use /api/ prefix
-  if (location.hostname.includes("vercel.app") || location.hostname.includes("netlify.app")) return "/api";
+  if (location.hostname.includes("vercel.app")) return "/api";
   return "/api"; // Works with both Vercel and local dev
 }
 
