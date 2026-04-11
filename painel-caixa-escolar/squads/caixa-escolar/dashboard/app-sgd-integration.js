@@ -631,12 +631,15 @@ async function varrerSgd() {
       });
 
       // Confirmed SRE Uberaba municipality IDs (SGD API idCounty field)
-      // ONLY confirmed county IDs — do NOT add auto-discovered ones (nomes duplicados entre cidades causam falsos positivos)
+      // Confirmed via varredura logs — only counties that map consistently to ONE municipality
       const sreCountyMap = {
         2623: "Uberaba", 2857: "Uberaba",
         2568: "Araxa", 2494: "Sacramento", 2158: "Iturama",
-        2805: "Pirajuba", 2480: "Santa Juliana", 2631: "Frutal",
-        2422: "Campos Altos",
+        2805: "Pirajuba", 2480: "Santa Juliana",
+        2631: "Frutal", 2242: "Frutal",
+        2422: "Campos Altos", 2646: "Tapira", 2309: "Delta",
+        2245: "Fronteira", 2344: "Conquista", 2731: "Agua Comprida",
+        2360: "Comendador Gomes",
       };
       const sreCountyIds = new Set(Object.keys(sreCountyMap).map(Number));
 
