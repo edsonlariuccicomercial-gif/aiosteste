@@ -702,17 +702,13 @@ async function varrerSgd() {
       const rejected = [];
       const filtered = [];
 
-      // DEBUG: log all budgets containing "ROTARY" or idBudget 2026077239
-      const rotaryBudgets = allBudgets.filter(b =>
-        (b.schoolName || b.txSchoolName || "").toUpperCase().includes("ROTARY") ||
-        String(b.idBudget) === "2026077239" || String(b.id) === "2026077239"
-      );
-      if (rotaryBudgets.length > 0) {
-        const debugInfo = rotaryBudgets.map(b => `schoolName=${b.schoolName} | idCounty=${b.idCounty} | idSchool=${b.idSchool} | idBudget=${b.idBudget} | match=${findSreMatch(b.schoolName || b.txSchoolName || "")} | keys=${Object.keys(b).join(",")}`);
-        alert("[DEBUG ROTARY]\n" + debugInfo.join("\n\n"));
-        console.log(`[Varrer DEBUG] ROTARY/2026077239:`, rotaryBudgets);
-      } else {
-        alert("[DEBUG] Nenhum budget ROTARY ou 2026077239 na API. Total: " + allBudgets.length);
+      // Debug: log budgets with ambiguous names for troubleshooting
+      if (typeof console !== "undefined") {
+        const ambiguousNames = allBudgets.filter(b => {
+          const nm = findSreMatch(b.schoolName || b.txSchoolName || "");
+          return nm && (schoolToMunicipios[nm] || []).length > 1;
+        });
+        if (ambiguousNames.length > 0) console.log(`[Varrer] ${ambiguousNames.length} budgets com nomes ambíguos:`, ambiguousNames.map(b => ({ schoolName: b.schoolName, idCounty: b.idCounty, idSchool: b.idSchool })));
       }
 
       allBudgets.forEach((b) => {
@@ -795,16 +791,6 @@ async function varrerSgd() {
         sreCounts[sre] = (sreCounts[sre] || 0) + 1;
       });
       console.log(`[Varrer] SREs:`, sreCounts, `→ ${filtered.length} aceitos de ${allBudgets.length} varridos`);
-
-      // DEBUG ROTARY — mostrar diagnóstico visível
-      const rotaryMatched = matched.filter(m => (m.sgd || "").toUpperCase().includes("ROTARY"));
-      const rotaryRejected = rejected.filter(r => (r.sgd || "").toUpperCase().includes("ROTARY"));
-      const rotaryFiltered = filtered.filter(b => (b.schoolName || b.txSchoolName || "").toUpperCase().includes("ROTARY"));
-      console.log(`[Varrer ROTARY] matched: ${rotaryMatched.length}, rejected: ${rotaryRejected.length}, filtered: ${rotaryFiltered.length}`, { rotaryMatched, rotaryRejected });
-      if (rotaryRejected.length > 0) console.warn(`[Varrer ROTARY REJEITADO]`, JSON.stringify(rotaryRejected, null, 2));
-      // Show ROTARY API raw data
-      const rotaryRaw = allBudgets.filter(b => (b.schoolName || b.txSchoolName || "").toUpperCase().includes("ROTARY"));
-      if (rotaryRaw.length > 0) console.warn(`[Varrer ROTARY RAW]`, JSON.stringify(rotaryRaw.map(b => ({ schoolName: b.schoolName, idCounty: b.idCounty, idSchool: b.idSchool, idBudget: b.idBudget, supplierStatus: b.supplierStatus })), null, 2));
 
       btn.innerHTML = `<span class="sgd-spinner"></span>SREs: ${filtered.length} de ${allBudgets.length}. Buscando detalhes...`;
 

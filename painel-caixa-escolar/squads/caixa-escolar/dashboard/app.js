@@ -237,7 +237,8 @@ function filteredOrcamentos() {
     .filter((o) => {
       if (status === "com-preorcamento") return !!(preOrcamentos && preOrcamentos[o.id]);
       if (status === "descartados") return isDescartado(o.id);
-      return !isDescartado(o.id);
+      // Default: hide descartados AND those already with pré-orçamento
+      return !isDescartado(o.id) && !(preOrcamentos && preOrcamentos[o.id]);
     })
     .filter((o) => {
       if (status === "all" || status === "descartados" || status === "com-preorcamento") return true;
