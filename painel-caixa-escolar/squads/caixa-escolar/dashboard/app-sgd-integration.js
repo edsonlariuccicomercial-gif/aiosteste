@@ -650,6 +650,10 @@ async function varrerSgd() {
         return true;
       }
 
+      // Strip prepositions (DE, DA, DO, DOS, DAS) for fuzzy name comparison
+      // e.g. "VICENTE MACEDO" matches "VICENTE DE MACEDO"
+      const stripPrepositions = (s) => s.replace(/\b(DE|DA|DO|DOS|DAS)\b/g, "").replace(/\s+/g, " ").trim();
+
       function findSreMatch(sgdSchoolName) {
         const norm = sreNorm(sgdSchoolName);
         if (sreSchoolsList.includes(norm)) return norm;
@@ -672,6 +676,18 @@ async function varrerSgd() {
           for (const sre of sreSchoolsList) {
             const sreCore = sre.replace(/^EE\s+/, "").trim();
             if (sreCore && containsWholeMatch(sgdCore, sreCore)) return sre;
+          }
+        }
+        // Preposition-tolerant match: "VICENTE MACEDO" ↔ "VICENTE DE MACEDO"
+        const normStripped = stripPrepositions(norm);
+        for (const sre of sreSchoolsList) {
+          if (stripPrepositions(sre) === normStripped) return sre;
+        }
+        if (sgdCore) {
+          const sgdCoreStripped = stripPrepositions(sgdCore);
+          for (const sre of sreSchoolsList) {
+            const sreCore = sre.replace(/^EE\s+/, "").trim();
+            if (sreCore && stripPrepositions(sreCore) === sgdCoreStripped) return sre;
           }
         }
         return null;
