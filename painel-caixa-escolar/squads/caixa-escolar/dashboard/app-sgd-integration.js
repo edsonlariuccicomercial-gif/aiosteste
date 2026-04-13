@@ -164,22 +164,12 @@ async function enviarParaSgd() {
 }
 
 // ===== PDF PROPOSTA =====
-window.gerarPdfProposta = function (orcId) {
-  const pre = preOrcamentos[orcId];
-  if (!pre) return;
-
-  if (!window.jspdf || !window.jspdf.jsPDF) {
-    showToast("Erro: biblioteca jsPDF não carregou. Verifique sua conexão.");
-    return;
-  }
-
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+function renderPdfProposta(doc, pre, orcId) {
   const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
   const margin = 15;
   const contentW = pageW - margin * 2;
 
-  // Dados do fornecedor
   const empresa = JSON.parse(localStorage.getItem("nexedu.empresa") || "{}");
   const razao = empresa.razaoSocial || empresa.nome || "Fornecedor";
   const cnpj = empresa.cnpj || "";
@@ -191,7 +181,6 @@ window.gerarPdfProposta = function (orcId) {
   if (cnpj) doc.text("CNPJ: " + cnpj, margin, 20);
   doc.text(new Date().toLocaleDateString("pt-BR"), pageW - margin, 15, { align: "right" });
 
-  // Linha separadora
   doc.setDrawColor(200);
   doc.line(margin, 24, pageW - margin, 24);
 
@@ -200,7 +189,6 @@ window.gerarPdfProposta = function (orcId) {
   doc.setTextColor(30);
   doc.text("Proposta Comercial", pageW / 2, 33, { align: "center" });
 
-  // ID
   doc.setFontSize(10);
   doc.setTextColor(100);
   doc.text("ID: " + (pre.orcamentoId || orcId), pageW / 2, 39, { align: "center" });
@@ -285,15 +273,12 @@ window.gerarPdfProposta = function (orcId) {
   if (pre.dtGoodsDelivery) {
     const dtEntrega = pre.dtGoodsDelivery.slice(0, 10).split("-").reverse().join("/");
     doc.text("Prazo de entrega: " + dtEntrega, margin, obsY);
-    obsY += 5;
   } else if (orc && orc.prazoEntrega) {
     const dtEntrega = orc.prazoEntrega.split("-").reverse().join("/");
     doc.text("Prazo de entrega: " + dtEntrega, margin, obsY);
-    obsY += 5;
   }
 
   // Rodapé
-  const pageH = doc.internal.pageSize.getHeight();
   doc.setDrawColor(200);
   doc.line(margin, pageH - 20, pageW - margin, pageH - 20);
   doc.setFontSize(8);
@@ -302,7 +287,20 @@ window.gerarPdfProposta = function (orcId) {
   if (razao || cnpj) {
     doc.text(razao + (cnpj ? " | CNPJ: " + cnpj : ""), margin, pageH - 11);
   }
+}
 
+window.gerarPdfProposta = function (orcId) {
+  const pre = preOrcamentos[orcId];
+  if (!pre) return;
+
+  if (!window.jspdf || !window.jspdf.jsPDF) {
+    showToast("Erro: biblioteca jsPDF não carregou. Verifique sua conexão.");
+    return;
+  }
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  renderPdfProposta(doc, pre, orcId);
   doc.save("proposta-" + (pre.orcamentoId || orcId) + ".pdf");
 };
 
@@ -707,16 +705,38 @@ function sgdBaixarTodos() {
 }
 
 function sgdBaixarTodosPdf() {
-  const items = Object.values(preOrcamentos).filter(
-    (p) => p.status === "aprovado" || p.status === "enviado" || p.status === "ganho" || p.status === "perdido"
-  );
-  if (items.length === 0) return;
   if (!window.jspdf || !window.jspdf.jsPDF) {
     showToast("Erro: biblioteca jsPDF nao carregou.");
     return;
   }
-  items.forEach((p) => gerarPdfProposta(p.orcamentoId));
-  showToast(items.length + " PDF(s) gerado(s).");
+
+  // 1. Pegar selecionados via checkbox; se nenhum, usar todos visíveis
+  const checked = document.querySelectorAll(".sgd-contrato-check:checked");
+  let items;
+  if (checked.length > 0) {
+    const ids = [...checked].map(cb => cb.dataset.id);
+    items = ids.map(id => preOrcamentos[id]).filter(Boolean);
+  } else {
+    items = Object.values(preOrcamentos).filter(
+      (p) => p.status === "aprovado" || p.status === "enviado" || p.status === "ganho" || p.status === "perdido"
+    );
+  }
+  if (items.length === 0) return;
+
+  // 2. Gerar um único PDF com todas as propostas (uma por página)
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+
+  items.forEach((pre, idx) => {
+    if (idx > 0) doc.addPage();
+    renderPdfProposta(doc, pre, pre.orcamentoId);
+  });
+
+  // Nome do arquivo
+  const escolas = [...new Set(items.map(p => p.escola).filter(Boolean))];
+  const label = escolas.length === 1 ? escolas[0].replace(/\s+/g, "-").slice(0, 40) : items.length + "-propostas";
+  doc.save("propostas-" + label + ".pdf");
+  showToast(items.length + " proposta(s) em um unico PDF.");
 }
 
 // ===== VARREDURA SGD (Fase 4) =====
