@@ -163,6 +163,149 @@ async function enviarParaSgd() {
   }
 }
 
+// ===== PDF PROPOSTA =====
+window.gerarPdfProposta = function (orcId) {
+  const pre = preOrcamentos[orcId];
+  if (!pre) return;
+
+  if (!window.jspdf || !window.jspdf.jsPDF) {
+    showToast("Erro: biblioteca jsPDF não carregou. Verifique sua conexão.");
+    return;
+  }
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  const pageW = doc.internal.pageSize.getWidth();
+  const margin = 15;
+  const contentW = pageW - margin * 2;
+
+  // Dados do fornecedor
+  const empresa = JSON.parse(localStorage.getItem("nexedu.empresa") || "{}");
+  const razao = empresa.razaoSocial || empresa.nome || "Fornecedor";
+  const cnpj = empresa.cnpj || "";
+
+  // Cabeçalho
+  doc.setFontSize(10);
+  doc.setTextColor(100);
+  doc.text(razao, margin, 15);
+  if (cnpj) doc.text("CNPJ: " + cnpj, margin, 20);
+  doc.text(new Date().toLocaleDateString("pt-BR"), pageW - margin, 15, { align: "right" });
+
+  // Linha separadora
+  doc.setDrawColor(200);
+  doc.line(margin, 24, pageW - margin, 24);
+
+  // Título
+  doc.setFontSize(16);
+  doc.setTextColor(30);
+  doc.text("Proposta Comercial", pageW / 2, 33, { align: "center" });
+
+  // ID
+  doc.setFontSize(10);
+  doc.setTextColor(100);
+  doc.text("ID: " + (pre.orcamentoId || orcId), pageW / 2, 39, { align: "center" });
+
+  // Dados da escola
+  let y = 47;
+  doc.setFontSize(11);
+  doc.setTextColor(30);
+  doc.setFont(undefined, "bold");
+  doc.text("Dados da Escola", margin, y);
+  y += 6;
+  doc.setFont(undefined, "normal");
+  doc.setFontSize(10);
+  doc.setTextColor(60);
+  if (pre.escola) { doc.text("Escola: " + pre.escola, margin, y); y += 5; }
+  if (pre.municipio) { doc.text("Municipio: " + pre.municipio, margin, y); y += 5; }
+  const orc = orcamentos.find(o => o.id === pre.orcamentoId);
+  if (orc && orc.sre) { doc.text("SRE: " + orc.sre, margin, y); y += 5; }
+  if (orc && orc.objeto) {
+    const objetoLines = doc.splitTextToSize("Objeto: " + orc.objeto, contentW);
+    doc.text(objetoLines, margin, y);
+    y += objetoLines.length * 5;
+  }
+  y += 4;
+
+  // Tabela de itens
+  const itens = pre.itens || [];
+  const tableBody = itens.map((item, i) => [
+    i + 1,
+    item.nome || "",
+    item.marca || "-",
+    item.quantidade || 0,
+    item.unidade || "UN",
+    brl.format(item.precoUnitario || 0),
+    brl.format(item.precoTotal || 0),
+  ]);
+
+  doc.autoTable({
+    startY: y,
+    head: [["#", "Descricao", "Marca", "Qtd", "Und", "Preco Unit.", "Preco Total"]],
+    body: tableBody,
+    margin: { left: margin, right: margin },
+    styles: { fontSize: 9, cellPadding: 2 },
+    headStyles: { fillColor: [41, 98, 255], textColor: 255, fontStyle: "bold", fontSize: 9 },
+    alternateRowStyles: { fillColor: [245, 247, 250] },
+    columnStyles: {
+      0: { halign: "center", cellWidth: 10 },
+      3: { halign: "center", cellWidth: 14 },
+      4: { halign: "center", cellWidth: 14 },
+      5: { halign: "right", cellWidth: 28 },
+      6: { halign: "right", cellWidth: 28 },
+    },
+    didParseCell: function (data) {
+      if (data.section === "body" && data.column.index === 1) {
+        data.cell.styles.cellWidth = "auto";
+      }
+    },
+  });
+
+  // Total
+  const finalY = doc.lastAutoTable.finalY + 4;
+  doc.setFontSize(12);
+  doc.setFont(undefined, "bold");
+  doc.setTextColor(30);
+  doc.text("Total Geral: " + brl.format(pre.totalGeral || 0), pageW - margin, finalY, { align: "right" });
+
+  // Observações
+  let obsY = finalY + 10;
+  doc.setFontSize(10);
+  doc.setFont(undefined, "bold");
+  doc.setTextColor(30);
+  doc.text("Observacoes", margin, obsY);
+  obsY += 5;
+  doc.setFont(undefined, "normal");
+  doc.setFontSize(9);
+  doc.setTextColor(80);
+
+  const garantia = (itens[0] && itens[0].garantia) || "Garantia de 12 meses conforme CDC";
+  doc.text("Garantia: " + garantia, margin, obsY);
+  obsY += 5;
+
+  if (pre.dtGoodsDelivery) {
+    const dtEntrega = pre.dtGoodsDelivery.slice(0, 10).split("-").reverse().join("/");
+    doc.text("Prazo de entrega: " + dtEntrega, margin, obsY);
+    obsY += 5;
+  } else if (orc && orc.prazoEntrega) {
+    const dtEntrega = orc.prazoEntrega.split("-").reverse().join("/");
+    doc.text("Prazo de entrega: " + dtEntrega, margin, obsY);
+    obsY += 5;
+  }
+
+  // Rodapé
+  const pageH = doc.internal.pageSize.getHeight();
+  doc.setDrawColor(200);
+  doc.line(margin, pageH - 20, pageW - margin, pageH - 20);
+  doc.setFontSize(8);
+  doc.setTextColor(130);
+  doc.text("Documento gerado pelo Licit-AIX em " + new Date().toLocaleDateString("pt-BR"), margin, pageH - 15);
+  if (razao || cnpj) {
+    doc.text(razao + (cnpj ? " | CNPJ: " + cnpj : ""), margin, pageH - 11);
+  }
+
+  doc.save("proposta-" + (pre.orcamentoId || orcId) + ".pdf");
+};
+
 // ===== SGD TAB =====
 window.imprimirSgd = function() {
   const tabela = document.getElementById("tabela-sgd");
@@ -247,6 +390,7 @@ function renderSgd() {
   // Botão enviar todos (se tem prontos)
   el.btnSgdEnviarTodos.style.display = ready.length > 0 ? "inline-block" : "none";
   el.btnSgdBaixarTodos.style.display = sgdItems.length > 0 ? "inline-block" : "none";
+  if (el.btnSgdBaixarPdfs) el.btnSgdBaixarPdfs.style.display = sgdItems.length > 0 ? "inline-block" : "none";
 
   // Empty
   el.sgdEmpty.style.display = sgdItems.length ? "none" : "block";
@@ -269,18 +413,19 @@ function renderSgd() {
       const canSelect = p.status === "enviado" || p.status === "aprovado";
       const checkbox = canSelect ? `<input type="checkbox" class="sgd-contrato-check" data-id="${p.orcamentoId}" />` : "";
 
+      const pdfBtn = `<button class="btn btn-inline" onclick="gerarPdfProposta('${p.orcamentoId}')" title="Baixar PDF da proposta">PDF</button>`;
       let actions = "";
       if (p.status === "aprovado") {
         actions = `<button class="btn btn-inline btn-sgd" onclick="sgdEnviarUnico('${p.orcamentoId}')">Enviar</button>
-          <button class="btn btn-inline" onclick="sgdBaixarPayload('${p.orcamentoId}')">Payload</button>`;
+          <button class="btn btn-inline" onclick="sgdBaixarPayload('${p.orcamentoId}')">Payload</button> ${pdfBtn}`;
       } else if (p.status === "enviado") {
         actions = `<button class="btn btn-inline btn-accent" onclick="abrirModalResultado('${p.orcamentoId}')">Resultado</button>
-          <button class="btn btn-inline" onclick="sgdBaixarPayload('${p.orcamentoId}')">Payload</button>`;
+          <button class="btn btn-inline" onclick="sgdBaixarPayload('${p.orcamentoId}')">Payload</button> ${pdfBtn}`;
       } else if (p.status === "ganho") {
         actions = `<button class="btn btn-inline" onclick="abrirPreOrcamento('${p.orcamentoId}')">Ver Itens</button>
-          <button class="btn btn-inline btn-accent" onclick="gerarDemanda('${p.orcamentoId}')">Gerar Demanda</button>`;
+          <button class="btn btn-inline btn-accent" onclick="gerarDemanda('${p.orcamentoId}')">Gerar Demanda</button> ${pdfBtn}`;
       } else {
-        actions = `<button class="btn btn-inline" onclick="sgdBaixarPayload('${p.orcamentoId}')">Payload</button>`;
+        actions = `<button class="btn btn-inline" onclick="sgdBaixarPayload('${p.orcamentoId}')">Payload</button> ${pdfBtn}`;
       }
 
       // Resumo dos itens
@@ -559,6 +704,19 @@ function sgdBaixarTodos() {
   savePreOrcamentos();
   renderSgd();
   renderKPIs();
+}
+
+function sgdBaixarTodosPdf() {
+  const items = Object.values(preOrcamentos).filter(
+    (p) => p.status === "aprovado" || p.status === "enviado" || p.status === "ganho" || p.status === "perdido"
+  );
+  if (items.length === 0) return;
+  if (!window.jspdf || !window.jspdf.jsPDF) {
+    showToast("Erro: biblioteca jsPDF nao carregou.");
+    return;
+  }
+  items.forEach((p) => gerarPdfProposta(p.orcamentoId));
+  showToast(items.length + " PDF(s) gerado(s).");
 }
 
 // ===== VARREDURA SGD (Fase 4) =====

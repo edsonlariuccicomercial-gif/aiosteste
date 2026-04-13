@@ -1490,6 +1490,7 @@ function bindEvents() {
   // SGD Tab
   el.btnSgdEnviarTodos.addEventListener("click", sgdEnviarTodos);
   el.btnSgdBaixarTodos.addEventListener("click", sgdBaixarTodos);
+  if (el.btnSgdBaixarPdfs) el.btnSgdBaixarPdfs.addEventListener("click", sgdBaixarTodosPdf);
 
   // Filtros SGD
   ["filtro-sgd-escola", "filtro-sgd-municipio", "filtro-sgd-status"].forEach(id => {

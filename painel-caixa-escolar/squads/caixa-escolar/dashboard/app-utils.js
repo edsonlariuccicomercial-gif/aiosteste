@@ -97,6 +97,7 @@ const el = {
   sgdKpiValor: document.getElementById("sgd-kpi-valor"),
   btnSgdEnviarTodos: document.getElementById("btn-sgd-enviar-todos"),
   btnSgdBaixarTodos: document.getElementById("btn-sgd-baixar-todos"),
+  btnSgdBaixarPdfs: document.getElementById("btn-sgd-baixar-pdfs"),
 };
 
 // ===== UTILITIES =====
