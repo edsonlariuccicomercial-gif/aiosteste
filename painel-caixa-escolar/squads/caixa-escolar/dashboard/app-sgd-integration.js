@@ -163,7 +163,7 @@ async function enviarParaSgd() {
   }
 }
 
-// ===== PDF PROPOSTA =====
+// ===== PDF PROPOSTA (formato SGD) =====
 function renderPdfProposta(doc, pre, orcId) {
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
@@ -173,8 +173,29 @@ function renderPdfProposta(doc, pre, orcId) {
   const empresa = JSON.parse(localStorage.getItem("nexedu.empresa") || "{}");
   const razao = empresa.razaoSocial || empresa.nome || "Fornecedor";
   const cnpj = empresa.cnpj || "";
+  const orc = orcamentos.find(o => o.id === pre.orcamentoId);
 
-  // Cabeçalho
+  // Buscar categoria dos itens do orçamento original
+  const orcItens = (orc && orc.itens) || [];
+  function getCategoria(item, idx) {
+    if (item.categoria) return item.categoria;
+    if (orcItens[idx] && orcItens[idx].categoria) return orcItens[idx].categoria;
+    return "Custeio";
+  }
+  function getUnidade(item, idx) {
+    if (item.unidade && item.unidade !== "UN") return item.unidade;
+    if (orcItens[idx] && orcItens[idx].unidade) return orcItens[idx].unidade;
+    return item.unidade || "UN";
+  }
+  function getDescricao(item, idx) {
+    // Descrição completa como enviada ao SGD (observação inclui marca + descrição)
+    if (item.observacao) return item.observacao.replace(/\n/g, " ");
+    if (item.descricao) return item.descricao.replace(/\n/g, " ");
+    if (orcItens[idx] && orcItens[idx].descricao) return orcItens[idx].descricao.replace(/\n/g, " ");
+    return item.nome || "";
+  }
+
+  // === Cabeçalho ===
   doc.setFontSize(10);
   doc.setTextColor(100);
   doc.text(razao, margin, 15);
@@ -184,16 +205,16 @@ function renderPdfProposta(doc, pre, orcId) {
   doc.setDrawColor(200);
   doc.line(margin, 24, pageW - margin, 24);
 
-  // Título
+  // === Título ===
   doc.setFontSize(16);
   doc.setTextColor(30);
-  doc.text("Proposta Comercial", pageW / 2, 33, { align: "center" });
+  doc.text("Proposta Comercial — SGD", pageW / 2, 33, { align: "center" });
 
   doc.setFontSize(10);
   doc.setTextColor(100);
-  doc.text("ID: " + (pre.orcamentoId || orcId), pageW / 2, 39, { align: "center" });
+  doc.text("Orcamento ID: " + (pre.orcamentoId || orcId), pageW / 2, 39, { align: "center" });
 
-  // Dados da escola
+  // === Dados da escola ===
   let y = 47;
   doc.setFontSize(11);
   doc.setTextColor(30);
@@ -205,7 +226,6 @@ function renderPdfProposta(doc, pre, orcId) {
   doc.setTextColor(60);
   if (pre.escola) { doc.text("Escola: " + pre.escola, margin, y); y += 5; }
   if (pre.municipio) { doc.text("Municipio: " + pre.municipio, margin, y); y += 5; }
-  const orc = orcamentos.find(o => o.id === pre.orcamentoId);
   if (orc && orc.sre) { doc.text("SRE: " + orc.sre, margin, y); y += 5; }
   if (orc && orc.objeto) {
     const objetoLines = doc.splitTextToSize("Objeto: " + orc.objeto, contentW);
@@ -214,71 +234,104 @@ function renderPdfProposta(doc, pre, orcId) {
   }
   y += 4;
 
-  // Tabela de itens
+  // === Itens no formato SGD (um bloco por item) ===
   const itens = pre.itens || [];
-  const tableBody = itens.map((item, i) => [
-    i + 1,
-    item.nome || "",
-    item.marca || "-",
-    item.quantidade || 0,
-    item.unidade || "UN",
-    brl.format(item.precoUnitario || 0),
-    brl.format(item.precoTotal || 0),
-  ]);
+  doc.setFontSize(11);
+  doc.setTextColor(30);
+  doc.setFont(undefined, "bold");
+  doc.text("Itens da Proposta (" + itens.length + ")", margin, y);
+  y += 7;
 
-  doc.autoTable({
-    startY: y,
-    head: [["#", "Descricao", "Marca", "Qtd", "Und", "Preco Unit.", "Preco Total"]],
-    body: tableBody,
-    margin: { left: margin, right: margin },
-    styles: { fontSize: 9, cellPadding: 2 },
-    headStyles: { fillColor: [41, 98, 255], textColor: 255, fontStyle: "bold", fontSize: 9 },
-    alternateRowStyles: { fillColor: [245, 247, 250] },
-    columnStyles: {
-      0: { halign: "center", cellWidth: 10 },
-      3: { halign: "center", cellWidth: 14 },
-      4: { halign: "center", cellWidth: 14 },
-      5: { halign: "right", cellWidth: 28 },
-      6: { halign: "right", cellWidth: 28 },
-    },
-    didParseCell: function (data) {
-      if (data.section === "body" && data.column.index === 1) {
-        data.cell.styles.cellWidth = "auto";
-      }
-    },
+  itens.forEach((item, idx) => {
+    // Checar se precisa nova página
+    if (y > pageH - 60) {
+      doc.addPage();
+      y = 20;
+    }
+
+    const desc = getDescricao(item, idx);
+    const cat = getCategoria(item, idx);
+    const und = getUnidade(item, idx);
+    const qty = item.quantidade || 0;
+    const marca = item.marca || "";
+    const pu = item.precoUnitario || 0;
+    const pt = item.precoTotal || (pu * parseFloat(qty));
+    const garantia = item.garantia || "";
+
+    // Nome do item (negrito, destaque)
+    doc.setFontSize(10);
+    doc.setFont(undefined, "bold");
+    doc.setTextColor(30);
+    doc.text((idx + 1) + ". " + (item.nome || ""), margin, y);
+    y += 5;
+
+    // Descrição completa (como enviada ao SGD)
+    doc.setFont(undefined, "normal");
+    doc.setFontSize(8.5);
+    doc.setTextColor(60);
+    const descLines = doc.splitTextToSize(desc, contentW - 5);
+    doc.text(descLines, margin + 3, y);
+    y += descLines.length * 4 + 2;
+
+    // Grid de dados: Categoria | Unidade | Qtd | Marca | Preco Unit. | Preco Total
+    doc.autoTable({
+      startY: y,
+      head: [["Categoria", "Unidade", "Qtd", "Marca", "Preco Unit.", "Preco Total"]],
+      body: [[cat, und, qty, marca || "-", brl.format(pu), brl.format(pt)]],
+      margin: { left: margin, right: margin },
+      styles: { fontSize: 8, cellPadding: 1.5 },
+      headStyles: { fillColor: [41, 98, 255], textColor: 255, fontStyle: "bold", fontSize: 7.5 },
+      columnStyles: {
+        0: { cellWidth: 22 },
+        1: { cellWidth: 22 },
+        2: { halign: "center", cellWidth: 15 },
+        3: { cellWidth: "auto" },
+        4: { halign: "right", cellWidth: 26 },
+        5: { halign: "right", cellWidth: 26 },
+      },
+      tableWidth: contentW,
+    });
+    y = doc.lastAutoTable.finalY;
+
+    // Garantia (se disponível)
+    if (garantia) {
+      doc.setFontSize(7.5);
+      doc.setTextColor(100);
+      doc.text("Garantia: " + garantia, margin + 3, y + 3);
+      y += 5;
+    }
+
+    y += 5; // espaço entre itens
   });
 
-  // Total
-  const finalY = doc.lastAutoTable.finalY + 4;
-  doc.setFontSize(12);
+  // === Total Geral ===
+  if (y > pageH - 40) { doc.addPage(); y = 20; }
+  y += 3;
+  doc.setDrawColor(41, 98, 255);
+  doc.line(margin, y, pageW - margin, y);
+  y += 7;
+  doc.setFontSize(13);
   doc.setFont(undefined, "bold");
   doc.setTextColor(30);
-  doc.text("Total Geral: " + brl.format(pre.totalGeral || 0), pageW - margin, finalY, { align: "right" });
+  doc.text("Total Geral: " + brl.format(pre.totalGeral || 0), pageW - margin, y, { align: "right" });
 
-  // Observações
-  let obsY = finalY + 10;
-  doc.setFontSize(10);
-  doc.setFont(undefined, "bold");
-  doc.setTextColor(30);
-  doc.text("Observacoes", margin, obsY);
-  obsY += 5;
-  doc.setFont(undefined, "normal");
+  // === Prazos ===
+  y += 10;
   doc.setFontSize(9);
+  doc.setFont(undefined, "normal");
   doc.setTextColor(80);
-
-  const garantia = (itens[0] && itens[0].garantia) || "Garantia de 12 meses conforme CDC";
-  doc.text("Garantia: " + garantia, margin, obsY);
-  obsY += 5;
-
   if (pre.dtGoodsDelivery) {
-    const dtEntrega = pre.dtGoodsDelivery.slice(0, 10).split("-").reverse().join("/");
-    doc.text("Prazo de entrega: " + dtEntrega, margin, obsY);
+    doc.text("Prazo de entrega bens: " + pre.dtGoodsDelivery.slice(0, 10).split("-").reverse().join("/"), margin, y);
+    y += 5;
   } else if (orc && orc.prazoEntrega) {
-    const dtEntrega = orc.prazoEntrega.split("-").reverse().join("/");
-    doc.text("Prazo de entrega: " + dtEntrega, margin, obsY);
+    doc.text("Prazo de entrega: " + orc.prazoEntrega.split("-").reverse().join("/"), margin, y);
+    y += 5;
+  }
+  if (pre.dtServiceDelivery) {
+    doc.text("Prazo execucao servicos: " + pre.dtServiceDelivery.slice(0, 10).split("-").reverse().join("/"), margin, y);
   }
 
-  // Rodapé
+  // === Rodapé ===
   doc.setDrawColor(200);
   doc.line(margin, pageH - 20, pageW - margin, pageH - 20);
   doc.setFontSize(8);
