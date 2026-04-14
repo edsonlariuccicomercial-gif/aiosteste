@@ -546,6 +546,26 @@ function batchPreOrcar() {
 
     const itens = (orc.itens || []).map((item) => {
       let bp = findBancoItem(item.nome);
+      let matchStatus = "sem_match";
+      let matchScore = 0;
+
+      if (bp) {
+        const normItem = normalizedText(item.nome);
+        const normBp = normalizedText(bp.item);
+        if (normItem === normBp) {
+          matchStatus = "exato";
+          matchScore = 1.0;
+        } else if (typeof getEquivalencia === "function" && getEquivalencia(item.nome)) {
+          matchStatus = "exato";
+          matchScore = 1.0;
+        } else {
+          matchStatus = "sugestao";
+          matchScore = typeof calcTokenSimilarity === "function"
+            ? calcTokenSimilarity(normalizedMatchTokens(item.nome), normalizedMatchTokens(bp.item))
+            : 0.5;
+        }
+      }
+
       if (!bp) {
         bp = {
           id: "bp-" + String(Date.now()).slice(-6) + "-" + Math.random().toString(36).slice(2, 5),
@@ -571,6 +591,9 @@ function batchPreOrcar() {
         nome: item.nome,
         marca: bp.marca || "",
         descricao: item.descricao || "",
+        matchStatus: matchStatus,
+        matchScore: matchScore,
+        skuBanco: bp.sku || bp.id || null,
         quantidade: item.quantidade || 0,
         unidade: item.unidade || "Unidade",
         custoUnitario: custoUnit,
@@ -634,6 +657,26 @@ window.gerarPreOrcamento = function (orcId) {
 
   const itens = (orc.itens || []).map((item) => {
     let bp = findBancoItem(item.nome);
+    let matchStatus = "sem_match";
+    let matchScore = 0;
+
+    if (bp) {
+      // Determinar status do match baseado na qualidade
+      const normItem = normalizedText(item.nome);
+      const normBp = normalizedText(bp.item);
+      if (normItem === normBp) {
+        matchStatus = "exato";
+        matchScore = 1.0;
+      } else if (typeof getEquivalencia === "function" && getEquivalencia(item.nome)) {
+        matchStatus = "exato";
+        matchScore = 1.0;
+      } else {
+        matchStatus = "sugestao";
+        matchScore = typeof calcTokenSimilarity === "function"
+          ? calcTokenSimilarity(normalizedMatchTokens(item.nome), normalizedMatchTokens(bp.item))
+          : 0.5;
+      }
+    }
 
     // Auto-create banco entry if item doesn't exist
     if (!bp) {
@@ -668,6 +711,9 @@ window.gerarPreOrcamento = function (orcId) {
       nome: item.nome,
       marca: bp.marca || "",
       descricao: item.descricao || "",
+      matchStatus: matchStatus,
+      matchScore: matchScore,
+      skuBanco: bp.sku || bp.id || null,
       quantidade: item.quantidade || 0,
       unidade: item.unidade || "Unidade",
       custoUnitario: custoUnit,

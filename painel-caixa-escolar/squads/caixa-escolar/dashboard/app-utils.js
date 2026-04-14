@@ -105,6 +105,48 @@ function normalizedText(v) {
   return String(v || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
 
+// ===== MATCHING: Sinônimos e Noise Words (SOP-RADAR-001) =====
+const SINONIMOS = {
+  carioquinha: "carioca",
+  parbolizado: "parboilizado",
+  mucarela: "mussarela",
+  muzzarela: "mussarela",
+  extr: "extrato",
+};
+
+const NOISE_WORDS = new Set([
+  "tipo", "pct", "c/", "un", "kg", "gr", "ml", "lt",
+  "marca", "de", "do", "da", "com", "para", "em",
+  "qualidade", "primeira", "segunda", "pacote",
+  "und", "cx", "fls", "pte", "saco", "sc", "c"
+]);
+
+// Normalização avançada: remove acentos, aplica sinônimos, remove noise words
+function normalizedMatchTokens(v) {
+  const text = normalizedText(v);
+  let tokens = text.split(/[\s\/,;.()\-]+/).filter(Boolean);
+  tokens = tokens.map(function(t) { return SINONIMOS[t] || t; });
+  tokens = tokens.filter(function(t) { return t.length > 2 && !NOISE_WORDS.has(t); });
+  return tokens;
+}
+
+// Jaccard similarity entre dois arrays de tokens
+function calcTokenSimilarity(tokensA, tokensB) {
+  var setA = {};
+  var setB = {};
+  var unionSize = 0;
+  var interSize = 0;
+  tokensA.forEach(function(t) { setA[t] = true; });
+  tokensB.forEach(function(t) { setB[t] = true; });
+  var all = {};
+  tokensA.forEach(function(t) { all[t] = true; });
+  tokensB.forEach(function(t) { all[t] = true; });
+  unionSize = Object.keys(all).length;
+  if (unionSize === 0) return tokensA.length === 0 && tokensB.length === 0 ? 1 : 0;
+  Object.keys(setA).forEach(function(t) { if (setB[t]) interSize++; });
+  return interSize / unionSize;
+}
+
 function escapeHtml(v) {
   const d = document.createElement("div");
   d.textContent = String(v || "");
@@ -185,21 +227,48 @@ function calcFreteEstimado(municipio) {
 }
 
 function findBancoItem(nomeItem) {
-  const norm = normalizedText(nomeItem);
-  // 1. Exact match
-  const exact = bancoPrecos.itens.find((bp) => normalizedText(bp.item) === norm);
-  if (exact) return exact;
-  // 2. Partial match: banco item name contained in query or vice versa
-  const partial = bancoPrecos.itens.find((bp) => {
-    const bpNorm = normalizedText(bp.item);
-    return (bpNorm.length >= 4 && norm.includes(bpNorm)) || (norm.length >= 4 && bpNorm.includes(norm));
-  });
-  if (partial) return partial;
-  // 3. First-word match (e.g. "Álcool" matches "Álcool etílico 70%")
-  const firstWord = norm.split(/\s+/)[0];
-  if (firstWord.length >= 4) {
-    return bancoPrecos.itens.find((bp) => normalizedText(bp.item).split(/\s+/)[0] === firstWord) || null;
+  // Camada 1: Equivalências confirmadas (match direto por SKU)
+  if (typeof getEquivalencia === "function") {
+    var sku = getEquivalencia(nomeItem);
+    if (sku && typeof getProdutoBySku === "function") {
+      var bpEquiv = getProdutoBySku(sku);
+      if (bpEquiv) return bpEquiv;
+    }
   }
+
+  // Camada 2: Match exato normalizado
+  var norm = normalizedText(nomeItem);
+  var exact = bancoPrecos.itens.find(function(bp) { return normalizedText(bp.item) === norm; });
+  if (exact) return exact;
+
+  // Camada 3: Itens mestres (aliases + similaridade ≥ 0.5)
+  if (typeof findBestMestre === "function") {
+    var mestreMatch = findBestMestre(nomeItem);
+    if (mestreMatch && mestreMatch.score >= 0.5) {
+      var bpMestre = bancoPrecos.itens.find(function(bp) {
+        return bp.mesterId === mestreMatch.mestre.id ||
+          normalizedText(bp.item) === normalizedText(mestreMatch.mestre.nomeCanonico);
+      });
+      if (bpMestre) return bpMestre;
+    }
+  }
+
+  // Camada 4: Jaccard similarity com tokens normalizados (sinônimos + sem noise)
+  var tokensQuery = normalizedMatchTokens(nomeItem);
+  var bestMatch = null;
+  var bestScore = 0;
+
+  for (var i = 0; i < bancoPrecos.itens.length; i++) {
+    var bp = bancoPrecos.itens[i];
+    var tokensBp = normalizedMatchTokens(bp.item);
+    var score = calcTokenSimilarity(tokensQuery, tokensBp);
+    if (score > bestScore) {
+      bestScore = score;
+      bestMatch = bp;
+    }
+  }
+
+  if (bestScore >= 0.5 && bestMatch) return bestMatch;
   return null;
 }
 
