@@ -200,6 +200,31 @@ window.salvarResultado = function () {
   // Alimentar banco de preços
   alimentarBancoComResultado(resultado);
 
+  // Story 8.9: Persistir resultado no preco_historico (G4 — Série Histórica)
+  if (typeof _SB_PRECO_HIST !== 'undefined' && resultado.itens) {
+    const empId = (typeof getEmpresaId === 'function') ? getEmpresaId() : 'LARIUCCI';
+    const tipoHist = resultado.resultado === 'ganho' ? 'ganho' : 'perdido';
+    const rows = resultado.itens.filter(i => i.precoUnitario > 0).map(i => ({
+      empresa_id: empId,
+      sku: i.skuBanco || i.skuVinculado || '',
+      escola: resultado.escola,
+      sre: pre.sre || '',
+      tipo: tipoHist,
+      valor: i.precoUnitario,
+      custo_base: null,
+      margem_pct: null,
+      fonte: 'resultado_sgd',
+      metadata: {
+        municipio: resultado.municipio || pre.municipio || '',
+        edital: resultado.orcamentoId,
+        preco_vencedor: resultado.valorVencedor || null,
+        fornecedor_vencedor: resultado.fornecedorVencedor || null,
+        data_resultado: resultado.dataResultado
+      }
+    }));
+    if (rows.length > 0) _SB_PRECO_HIST.insert(rows);
+  }
+
   fecharModalResultado();
   renderSgd();
   renderKPIs();
