@@ -7,8 +7,11 @@
     "doc": "docs"
   },
   "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
     "lint": "node -e \"console.log('lint: sem regras configuradas ainda')\"",
-    "typecheck": "node -e \"console.log('typecheck: sem tsconfig ainda')\"",
+    "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
@@ -68,8 +71,11 @@
     "xml-crypto": "^6.1.2"
   },
   "devDependencies": {
+    "@types/node": "^25.6.0",
     "@vitest/coverage-v8": "^3.2.4",
     "playwright": "^1.58.2",
+    "typescript": "^6.0.3",
+    "vite": "^7.3.2",
     "vitest": "^3.2.4"
   }
 }

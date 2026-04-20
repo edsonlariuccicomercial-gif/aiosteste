@@ -184,10 +184,12 @@
 </head>
 <body>
 
+  <a class="visually-hidden" href="#main-area">Pular para conteúdo principal</a>
+
   <!-- ===== SIDEBAR ===== -->
-  <aside class="sidebar" id="sidebar">
-    <div class="sidebar-brand" style="cursor:pointer" onclick="window.location.href='dashboard-home.html'" title="Voltar ao Dashboard">Licit-AIX</div>
-    <nav class="sidebar-nav">
+  <aside class="sidebar" id="sidebar" role="navigation" aria-label="Menu principal">
+    <div class="sidebar-brand" style="cursor:pointer" onclick="window.location.href='dashboard-home.html'" title="Voltar ao Dashboard" role="banner">Licit-AIX</div>
+    <nav class="sidebar-nav" aria-label="Navegação GDP">
       <button class="sidebar-item" onclick="window.location.href='dashboard-home.html'" title="Dashboard Home">
         <span class="sidebar-icon">🏠</span>
         <span class="sidebar-label">HOME</span>
@@ -227,11 +229,11 @@
   </aside>
 
   <!-- ===== MAIN AREA ===== -->
-  <div class="main-area" id="main-area">
+  <main class="main-area" id="main-area" role="main" aria-label="Conteúdo principal">
 
   <div class="topbar" style="border-bottom:1px solid var(--bdr)">
     <div style="display:flex;align-items:center;gap:1rem">
-      <button class="sidebar-toggle" id="sidebar-toggle" title="Menu" style="background:none;border:none;color:var(--txt);font-size:1.3rem;cursor:pointer;padding:.2rem .5rem">☰</button>
+      <button class="sidebar-toggle" id="sidebar-toggle" title="Menu" aria-label="Abrir menu lateral" aria-expanded="true" aria-controls="sidebar" style="background:none;border:none;color:var(--txt);font-size:1.3rem;cursor:pointer;padding:.2rem .5rem">☰</button>
       <h1><span>GDP</span> <span id="gdp-section-title">Contratos</span></h1>
       <span class="badge badge-blue">Gestao Pos-Licitacao</span>
     </div>

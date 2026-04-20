@@ -1,6 +1,8 @@
 /**
- * gdp-api.js — Supabase-first data access layer for GDP
- * Falls back to localStorage cache and legacy sync_data table when needed.
+ * gdp-api.js — Supabase-first data access layer for GDP (Story 7.22)
+ * Architecture: Supabase is source-of-truth; localStorage is offline cache.
+ * Write path: Supabase → localStorage (mirror)
+ * Read path: Supabase → localStorage fallback → sync_data legacy fallback
  */
 (function () {
   'use strict';
@@ -10,6 +12,9 @@
   var REST = SUPABASE_URL + '/rest/v1';
   var HEADERS = { apikey: SUPABASE_KEY, Authorization: 'Bearer ' + SUPABASE_KEY, 'Content-Type': 'application/json' };
   var UPSERT_HEADERS = Object.assign({}, HEADERS, { Prefer: 'return=minimal,resolution=merge-duplicates' });
+
+  // Data source tracking (Story 7.22)
+  var _dataSource = 'initializing'; // 'cloud' | 'cache' | 'offline'
 
   var ENTITIES = {
     contratos:      { lsKey: 'gdp.contratos.v1',      table: 'contratos',      wrapped: true  },
@@ -137,9 +142,10 @@
     return {
       list: async function () {
         var rows = await sbFetch('/' + table + '?select=*&empresa_id=eq.' + encodeURIComponent(getEmpresaId()));
-        if (rows != null) return rows;
+        if (rows != null) { _dataSource = 'cloud'; writeLS(entity, rows); return rows; }
         var ls = readLS(entity);
-        if (ls != null) return ls;
+        if (ls != null) { _dataSource = 'cache'; return ls; }
+        _dataSource = 'offline';
         return (await readSyncData(entity.lsKey)) || [];
       },
 
@@ -307,7 +313,8 @@
     migrateFromSyncData: migrateFromSyncData,
     flushRetryQueue:     flushRetryQueue,
     _retryQueue: _retryQueue,
-    _ENTITIES:   ENTITIES
+    _ENTITIES:   ENTITIES,
+    getDataSource: function () { return _dataSource; }
   };
 
   // Auto-set RLS context on load

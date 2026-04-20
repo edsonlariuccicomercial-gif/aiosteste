@@ -1,0 +1,33 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "noEmit": true,
+    "allowJs": true,
+    "checkJs": false,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "baseUrl": ".",
+    "paths": {
+      "@api/*": ["api/*"],
+      "@lib/*": ["api/lib/*"],
+      "@dashboard/*": ["squads/caixa-escolar/dashboard/*"]
+    },
+    "types": ["vitest/globals", "node"]
+  },
+  "include": [
+    "api/**/*.ts",
+    "api/**/*.js",
+    "tests/**/*.ts",
+    "tests/**/*.js"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "squads/caixa-escolar/dashboard/**/*.js"
+  ]
+}
