@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'painel-caixa-escolar/**'
+  pull_request:
+    branches: [master]
+    paths:
+      - 'painel-caixa-escolar/**'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: painel-caixa-escolar
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: painel-caixa-escolar/package-lock.json
+
+      - run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+      - name: Run tests with coverage
+        run: npm run test:coverage
+        continue-on-error: true
+
+  lint-sql:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate SQL migrations syntax
+        run: |
+          for f in painel-caixa-escolar/supabase/migrations/*.sql; do
+            echo "Checking $f..."
+            # Basic syntax check: no unmatched quotes, no obvious errors
+            if grep -Pn "^[^-]*'[^']*$" "$f" 2>/dev/null; then
+              echo "WARNING: Possible unmatched quote in $f"
+            fi
+          done
+          echo "SQL migration files checked."
