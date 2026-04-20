@@ -117,11 +117,150 @@ function downloadSgdPayload(pre) {
   URL.revokeObjectURL(url);
 }
 
+// ===== Story 8.5: REVISÃO PRÉ-ENVIO (G1 — Validação de Unidade) =====
+// Intercepta envio ao SGD para validar unidades, quantidades e preços.
+// Bloqueia envio se divergências críticas forem detectadas.
+function revisarCotacaoAnteEnvio(pre) {
+  const divergencias = [];
+  const itens = pre.itens || [];
+
+  // Carregar Central de Produtos para comparação
+  if (typeof loadBancoProdutos === 'function') loadBancoProdutos();
+  const central = (typeof bancoProdutos !== 'undefined' && bancoProdutos.itens) ? bancoProdutos.itens : [];
+
+  // Tabela de conversão de unidades compatíveis
+  const UNIDADES_COMPATIVEIS = {
+    'CX': ['UN', 'PCT', 'FD'],
+    'UN': ['CX', 'PCT'],
+    'PCT': ['UN', 'CX', 'FD'],
+    'FD': ['CX', 'PCT'],
+    'KG': ['G'],
+    'G': ['KG'],
+    'L': ['ML'],
+    'ML': ['L'],
+    'MT': ['CM'],
+    'CM': ['MT']
+  };
+
+  for (let i = 0; i < itens.length; i++) {
+    const item = itens[i];
+    const descNorm = (item.descricao || item.nome || "").toLowerCase().trim();
+    const unidadeSgd = (item.unidade || "UN").toUpperCase().trim();
+
+    // Buscar produto correspondente na Central
+    const prodCentral = central.find(p =>
+      (p.descricao || "").toLowerCase().includes(descNorm.split(' ')[0]) ||
+      (p.sku && item.sku && p.sku === item.sku)
+    );
+
+    if (prodCentral) {
+      const unidadeCentral = (prodCentral.unidade || "UN").toUpperCase().trim();
+
+      // Divergência de unidade
+      if (unidadeSgd !== unidadeCentral) {
+        const compativel = UNIDADES_COMPATIVEIS[unidadeCentral]?.includes(unidadeSgd);
+        divergencias.push({
+          idx: i,
+          tipo: 'unidade',
+          severidade: compativel ? 'warning' : 'critical',
+          descricao: item.descricao || item.nome,
+          esperado: unidadeCentral,
+          encontrado: unidadeSgd,
+          sugestao: compativel ? `Converter ${unidadeSgd} → ${unidadeCentral}` : `UNIDADE INCOMPATÍVEL: SGD pede ${unidadeSgd}, Central tem ${unidadeCentral}`
+        });
+      }
+
+      // Preço muito abaixo do custo (margem negativa)
+      if (prodCentral.custoBase && item.precoUnitario && item.precoUnitario < prodCentral.custoBase) {
+        divergencias.push({
+          idx: i,
+          tipo: 'preco',
+          severidade: 'critical',
+          descricao: item.descricao || item.nome,
+          esperado: `≥ ${prodCentral.custoBase.toFixed(2)} (custo)`,
+          encontrado: item.precoUnitario.toFixed(2),
+          sugestao: `Preço abaixo do custo! Margem negativa de ${(((item.precoUnitario - prodCentral.custoBase) / prodCentral.custoBase) * 100).toFixed(1)}%`
+        });
+      }
+    }
+
+    // Quantidade zero ou nula
+    if (!item.quantidade || item.quantidade <= 0) {
+      divergencias.push({
+        idx: i,
+        tipo: 'quantidade',
+        severidade: 'critical',
+        descricao: item.descricao || item.nome,
+        esperado: '> 0',
+        encontrado: String(item.quantidade || 0),
+        sugestao: 'Quantidade inválida — item será rejeitado'
+      });
+    }
+  }
+
+  return divergencias;
+}
+
+function exibirRevisaoCotacao(divergencias, onConfirm) {
+  const criticas = divergencias.filter(d => d.severidade === 'critical');
+  const avisos = divergencias.filter(d => d.severidade === 'warning');
+
+  let html = `<div style="max-height:400px;overflow-y:auto;">`;
+
+  if (criticas.length > 0) {
+    html += `<h4 style="color:var(--danger);margin-bottom:8px;">⛔ ${criticas.length} problema(s) crítico(s) — envio BLOQUEADO</h4>`;
+    html += criticas.map(d => `<div style="background:var(--danger-dim);padding:8px;border-radius:6px;margin-bottom:6px;">
+      <strong>#${d.idx + 1} ${esc(d.descricao)}</strong><br>
+      <span style="color:var(--danger)">${d.tipo.toUpperCase()}: ${esc(d.sugestao)}</span><br>
+      <small>Esperado: ${esc(d.esperado)} | Encontrado: ${esc(d.encontrado)}</small>
+    </div>`).join('');
+  }
+
+  if (avisos.length > 0) {
+    html += `<h4 style="color:var(--warning);margin:12px 0 8px;">⚠️ ${avisos.length} aviso(s) — revisar antes de enviar</h4>`;
+    html += avisos.map(d => `<div style="background:var(--warning-dim);padding:8px;border-radius:6px;margin-bottom:6px;">
+      <strong>#${d.idx + 1} ${esc(d.descricao)}</strong><br>
+      <span style="color:var(--warning)">${d.tipo.toUpperCase()}: ${esc(d.sugestao)}</span>
+    </div>`).join('');
+  }
+
+  html += `</div>`;
+
+  if (criticas.length > 0) {
+    alert(`⛔ ENVIO BLOQUEADO\n\n${criticas.length} problema(s) crítico(s) detectado(s):\n\n` +
+      criticas.map(d => `• ${d.descricao}: ${d.sugestao}`).join('\n') +
+      `\n\nCorrija os itens antes de enviar.`);
+    return; // Bloqueia envio
+  }
+
+  if (avisos.length > 0) {
+    const confirma = confirm(
+      `⚠️ REVISÃO DE COTAÇÃO\n\n${avisos.length} aviso(s) detectado(s):\n\n` +
+      avisos.map(d => `• ${d.descricao}: ${d.sugestao}`).join('\n') +
+      `\n\nDeseja enviar mesmo assim?`
+    );
+    if (!confirma) return;
+  }
+
+  // Sem divergências ou avisos aceitos — prosseguir
+  onConfirm();
+}
+
 async function enviarParaSgd() {
   if (!activePreOrcamentoId) return;
   const pre = preOrcamentos[activePreOrcamentoId];
   if (!pre || pre.status !== "aprovado") return;
 
+  // Story 8.5: Revisão pré-envio (G1)
+  const divergencias = revisarCotacaoAnteEnvio(pre);
+  if (divergencias.length > 0) {
+    exibirRevisaoCotacao(divergencias, () => _executarEnvioSgd(pre));
+    return;
+  }
+  _executarEnvioSgd(pre);
+}
+
+async function _executarEnvioSgd(pre) {
   // Read extra fields from the form
   saveSgdFieldsToPreOrcamento(pre);
   savePreOrcamentos();

@@ -188,10 +188,12 @@ window.salvarResultado = function () {
     geradoLocal = true;
   }
 
-  // Se ganhou e checkbox GDP marcado → criar contrato no GDP
-  if (resultado.resultado === "ganho" && document.getElementById("res-gerar-contrato-gdp").checked) {
-    const numContrato = (document.getElementById("res-numero-contrato").value || "").trim();
-    criarContratoGdp(currentResultadoOrcamentoId, pre, numContrato);
+  // Story 8.7: Auto-criar contrato no GDP quando ganhou (G3)
+  // Checkbox GDP é checked por default para ganhos — automação com override manual
+  const gdpCheckbox = document.getElementById("res-gerar-contrato-gdp");
+  if (resultado.resultado === "ganho" && (gdpCheckbox?.checked !== false)) {
+    const numContrato = (document.getElementById("res-numero-contrato")?.value || "").trim();
+    criarContratoGdpComCentral(currentResultadoOrcamentoId, pre, numContrato);
     geradoGdp = true;
   }
 
@@ -524,6 +526,33 @@ function criarContratoGdp(orcId, preOrcamento, numContrato) {
 
   console.log(`[GDP] Contrato criado: ${contrato.id} — ${contrato.escola} — ${brl.format(contrato.valorTotal)}`);
   return contrato;
+}
+
+// Story 8.7: Criar contrato GDP com enriquecimento da Central de Produtos (G3)
+function criarContratoGdpComCentral(orcId, preOrcamento, numContrato) {
+  // Enriquecer itens com dados da Central antes de criar contrato
+  if (typeof loadBancoProdutos === 'function') loadBancoProdutos();
+  const central = (typeof bancoProdutos !== 'undefined' && bancoProdutos.itens) ? bancoProdutos.itens : [];
+
+  if (central.length > 0 && preOrcamento.itens) {
+    for (const item of preOrcamento.itens) {
+      const descNorm = (item.nome || item.descricao || "").toLowerCase().trim();
+      const match = central.find(p =>
+        (p.sku && item.sku && p.sku === item.sku) ||
+        (p.descricao || "").toLowerCase().includes(descNorm.split(' ')[0])
+      );
+      if (match) {
+        // Enriquecer com NCM, SKU e marca da Central
+        if (!item.ncm && match.ncm) item.ncm = match.ncm;
+        if (!item.sku && match.sku) item.sku = match.sku;
+        if (!item.marca && match.marca) item.marca = match.marca;
+        // Registrar vínculo
+        item.skuVinculado = match.sku || match.id;
+      }
+    }
+  }
+
+  return criarContratoGdp(orcId, preOrcamento, numContrato);
 }
 
 // Gerar contrato unificado a partir de múltiplos pré-orçamentos selecionados

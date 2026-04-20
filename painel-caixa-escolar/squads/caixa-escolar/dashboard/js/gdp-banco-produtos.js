@@ -1,4 +1,6 @@
-// ===== BANCO DE PRODUTOS ERP =====
+// ===== CENTRAL DE PRODUTOS UNIFICADA (Story 8.1 — Epic 8, G2) =====
+// Fonte única de verdade para produtos, preços, custos e inteligência competitiva.
+// Substitui o antigo "Banco de Preços" (app-banco.js) que agora é facade.
 const PRODUTOS_KEY = "gdp.produtos.v1";
 // FIX: usar var para evitar temporal dead zone — initGDP e renderAll
 // chamam loadBancoProdutos() antes desta linha no fluxo de execução
@@ -6,13 +8,54 @@ var bancoProdutos = { updatedAt: "", itens: [] };
 var _editProdutoId = null;
 var _importProdutosBuffer = [];
 
+// Schema unificado defaults (FR-G2-001)
+var PRODUTO_DEFAULTS = {
+  id: null,
+  descricao: "",
+  sku: "",
+  ncm: "",
+  unidade: "UN",
+  marca: "",
+  // --- Campos migrados do Banco de Preços (Story 8.1) ---
+  custoBase: null,           // number — Custo de aquisição (C.A.)
+  precoReferencia: null,     // number — Preço de venda sugerido
+  margemAlvo: null,          // number — % margem alvo
+  custosFornecedor: [],      // array — Histórico de custos [{data, valor, fornecedor}]
+  concorrentes: [],          // array — Preços de concorrentes [{nome, preco, edital, data}]
+  propostas: [],             // array — Histórico de propostas [{preco, escola, edital, data}]
+  historicoResultados: [],   // array — Resultados ganho/perdido [{resultado, delta, data}]
+  precoReferenciaHistorico: null, // number — Média de preços ganhos
+  taxaConversao: null,       // number — % de propostas ganhas
+  grupo: "",                 // string — Grupo de despesa (alimentação, limpeza, etc.)
+  fonte: "",                 // string — Origem dos dados (b2b, excel, nf, manual)
+  criadoEm: null,
+  atualizadoEm: null
+};
+
+// Garante que produto tem todos os campos do schema unificado
+function getProdutoComDefaults(produto) {
+  var result = {};
+  for (var key in PRODUTO_DEFAULTS) {
+    if (produto && produto[key] !== undefined) {
+      result[key] = produto[key];
+    } else {
+      result[key] = Array.isArray(PRODUTO_DEFAULTS[key]) ? [] : PRODUTO_DEFAULTS[key];
+    }
+  }
+  return result;
+}
+
 function sanitizeBancoProduto(item, idx) {
   const cleaned = stripLegacyErpFields(item || {});
-  cleaned.descricao = cleaned.descricao || cleaned.nome || `Produto ${idx + 1}`;
+  cleaned.descricao = cleaned.descricao || cleaned.nome || cleaned.item || `Produto ${idx + 1}`;
   cleaned.unidade = cleaned.unidade || "UN";
   cleaned.sku = normalizeInternalSku("BANK", cleaned, idx);
-  return cleaned;
+  // Migrar campo 'item' do Banco de Preços para 'descricao'
+  if (!cleaned.descricao && cleaned.item) cleaned.descricao = cleaned.item;
+  return getProdutoComDefaults(cleaned);
 }
+
+var _centralLoaded = false;
 
 function loadBancoProdutos() {
   let dirty = false;
@@ -27,6 +70,11 @@ function loadBancoProdutos() {
   if (dirty) {
     bancoProdutos.updatedAt = new Date().toISOString();
     try { localStorage.setItem(PRODUTOS_KEY, JSON.stringify(bancoProdutos)); } catch (_) {}
+  }
+  // Story 8.2: Auto-migrar Banco de Preços na primeira carga
+  if (!_centralLoaded) {
+    _centralLoaded = true;
+    try { migrarBancoPrecoParaCentral(); } catch(_) {}
   }
 }
 
@@ -61,14 +109,25 @@ function renderBancoProdutos() {
   }
   empty.classList.add("hidden");
 
-  tbody.innerHTML = itens.map((p, idx) => `<tr>
+  const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+  tbody.innerHTML = itens.map((p, idx) => {
+    const custo = p.custoBase ? brl.format(p.custoBase) : '-';
+    const preco = p.precoReferencia ? brl.format(p.precoReferencia) : '-';
+    const margem = (p.custoBase && p.precoReferencia) ? (((p.precoReferencia - p.custoBase) / p.custoBase) * 100).toFixed(1) + '%' : '-';
+    const margemClass = (p.custoBase && p.precoReferencia) ? (((p.precoReferencia - p.custoBase) / p.custoBase) >= 0.2 ? 'text-accent' : ((p.precoReferencia - p.custoBase) / p.custoBase) >= 0.1 ? '' : 'text-danger') : '';
+    const grupo = p.grupo ? `<span class="badge badge-muted" style="font-size:.65rem">${esc(p.grupo)}</span>` : '';
+    return `<tr>
     <td class="text-center"><input type="checkbox" class="banco-prod-chk" value="${p.id}"></td>
     <td class="text-center">${idx + 1}</td>
-    <td>${esc(p.descricao)}</td>
+    <td>${esc(p.descricao)} ${grupo}</td>
     <td class="font-mono">${esc(p.sku || '-')}</td>
     <td class="font-mono" style="font-size:.78rem">${esc(p.ncm || '-')}</td>
     <td class="text-center">${esc(p.unidade)}</td>
-  </tr>`).join("");
+    <td class="text-right font-mono">${custo}</td>
+    <td class="text-right font-mono">${preco}</td>
+    <td class="text-right ${margemClass}">${margem}</td>
+  </tr>`;
+  }).join("");
 }
 
 function toggleSelectAllBancoProd(checked) {
@@ -156,13 +215,17 @@ function salvarProduto() {
 
   if (_editProdutoId) {
     const p = bancoProdutos.itens.find(x => x.id === _editProdutoId);
-    if (p) { p.descricao = descricao; p.sku = sku; p.ncm = ncm; p.unidade = unidade; }
+    if (p) {
+      p.descricao = descricao; p.sku = sku; p.ncm = ncm; p.unidade = unidade;
+      p.atualizadoEm = new Date().toISOString();
+    }
   } else {
-    bancoProdutos.itens.push({
+    bancoProdutos.itens.push(getProdutoComDefaults({
       id: 'PROD-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
       descricao, sku, ncm, unidade,
-      criadoEm: new Date().toISOString()
-    });
+      criadoEm: new Date().toISOString(),
+      atualizadoEm: new Date().toISOString()
+    }));
   }
 
   saveBancoProdutos();
@@ -194,6 +257,103 @@ function excluirProduto(id) {
 function fecharModalProduto() {
   document.getElementById("modal-produto").classList.add("hidden");
   _editProdutoId = null;
+}
+
+// ===== Story 8.2: Migração Banco de Preços → Central de Produtos =====
+// Executa uma vez para trazer dados do antigo bancoPrecos (caixaescolar.banco.v1)
+// para a Central unificada (gdp.produtos.v1). Idempotente — não duplica.
+function migrarBancoPrecoParaCentral() {
+  const BANCO_KEY = "caixaescolar.banco.v1";
+  const MIGRATION_FLAG = "gdp.banco-migrated-to-central";
+
+  // Skip se já migrou
+  if (localStorage.getItem(MIGRATION_FLAG)) return { migrated: 0, skipped: 'already_done' };
+
+  let bancoData;
+  try {
+    bancoData = JSON.parse(localStorage.getItem(BANCO_KEY) || 'null');
+  } catch(_) { return { migrated: 0, error: 'parse_error' }; }
+
+  if (!bancoData || !bancoData.itens || !bancoData.itens.length) {
+    localStorage.setItem(MIGRATION_FLAG, new Date().toISOString());
+    return { migrated: 0, skipped: 'empty_source' };
+  }
+
+  loadBancoProdutos();
+  let migrated = 0, skipped = 0;
+
+  for (const item of bancoData.itens) {
+    // Verificar duplicidade por nome normalizado
+    const normName = (item.item || item.descricao || "").toLowerCase().trim();
+    const exists = bancoProdutos.itens.find(p =>
+      (p.descricao || "").toLowerCase().trim() === normName ||
+      (p.sku && item.sku && p.sku === item.sku)
+    );
+
+    if (exists) {
+      // Merge: enriquecer produto existente com dados de pricing
+      if (item.custoBase && !exists.custoBase) exists.custoBase = item.custoBase;
+      if (item.precoReferencia && !exists.precoReferencia) exists.precoReferencia = item.precoReferencia;
+      if (item.custosFornecedor?.length && !exists.custosFornecedor?.length) exists.custosFornecedor = item.custosFornecedor;
+      if (item.concorrentes?.length && !exists.concorrentes?.length) exists.concorrentes = item.concorrentes;
+      if (item.propostas?.length && !exists.propostas?.length) exists.propostas = item.propostas;
+      if (item.grupo && !exists.grupo) exists.grupo = item.grupo;
+      if (item.marca && !exists.marca) exists.marca = item.marca;
+      exists.atualizadoEm = new Date().toISOString();
+      skipped++;
+    } else {
+      // Criar novo produto na Central com dados completos
+      bancoProdutos.itens.push(getProdutoComDefaults({
+        id: 'PROD-MIG-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
+        descricao: item.item || item.descricao || "Produto migrado",
+        sku: item.sku || "",
+        ncm: item.ncm || "",
+        unidade: item.unidade || "UN",
+        marca: item.marca || "",
+        custoBase: item.custoBase || null,
+        precoReferencia: item.precoReferencia || null,
+        margemAlvo: item.margemPadrao || null,
+        custosFornecedor: item.custosFornecedor || [],
+        concorrentes: item.concorrentes || [],
+        propostas: item.propostas || [],
+        grupo: item.grupo || "",
+        fonte: "migracao_banco_precos",
+        criadoEm: new Date().toISOString(),
+        atualizadoEm: new Date().toISOString()
+      }));
+      migrated++;
+    }
+  }
+
+  saveBancoProdutos();
+  localStorage.setItem(MIGRATION_FLAG, new Date().toISOString());
+  console.log(`[Central] Migração concluída: ${migrated} novos, ${skipped} enriquecidos de ${bancoData.itens.length} itens do Banco de Preços`);
+  return { migrated, enriched: skipped, total: bancoData.itens.length };
+}
+
+// Facade: expõe bancoPrecos como view da Central (Story 8.3 — compatibilidade)
+function getCentralComoBancoPrecos() {
+  loadBancoProdutos();
+  return {
+    updatedAt: bancoProdutos.updatedAt,
+    itens: bancoProdutos.itens.map(p => ({
+      id: p.id,
+      item: p.descricao,
+      descricao: p.descricao,
+      sku: p.sku,
+      ncm: p.ncm,
+      unidade: p.unidade,
+      marca: p.marca,
+      grupo: p.grupo,
+      custoBase: p.custoBase || 0,
+      precoReferencia: p.precoReferencia || 0,
+      margemPadrao: p.margemAlvo || 0,
+      custosFornecedor: p.custosFornecedor || [],
+      concorrentes: p.concorrentes || [],
+      propostas: p.propostas || [],
+      fonte: p.fonte || ""
+    }))
+  };
 }
 
 // ===== Story 4.15: Limpar Todo Banco de Produtos (AC-1) =====
