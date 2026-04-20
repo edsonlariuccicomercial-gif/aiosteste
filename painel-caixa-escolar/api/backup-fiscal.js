@@ -10,6 +10,9 @@
  * Retention: 5 years (Art. 174 CTN)
  */
 
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+const { corsHeaders } = require('./lib/cors');
 import { createClient } from '@supabase/supabase-js';
 import { gzipSync } from 'zlib';
 
@@ -19,8 +22,7 @@ const BACKUP_BUCKET = 'fiscal-backups';
 const BACKUP_SECRET = process.env.BACKUP_CRON_SECRET || '';
 
 export default async function handler(req, res) {
-  // CORS
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  corsHeaders(req, res);
   if (req.method === 'OPTIONS') return res.status(204).end();
 
   // Auth: protect endpoint with secret (for external cron triggers)
