@@ -5,8 +5,8 @@
 (function () {
   'use strict';
 
-  var SUPABASE_URL = 'https://mvvsjaudhbglxttxaeop.supabase.co';
-  var SUPABASE_KEY = 'sb_publishable_uBqL8sLjMGWnZ2aaQ1zwvg_mlQrZUXR';
+  var SUPABASE_URL = window.SUPABASE_URL || 'https://mvvsjaudhbglxttxaeop.supabase.co';
+  var SUPABASE_KEY = window.SUPABASE_KEY || 'sb_publishable_uBqL8sLjMGWnZ2aaQ1zwvg_mlQrZUXR';
   var REST = SUPABASE_URL + '/rest/v1';
   var HEADERS = { apikey: SUPABASE_KEY, Authorization: 'Bearer ' + SUPABASE_KEY, 'Content-Type': 'application/json' };
   var UPSERT_HEADERS = Object.assign({}, HEADERS, { Prefer: 'return=minimal,resolution=merge-duplicates' });
@@ -273,6 +273,24 @@
     return migrated;
   }
 
+  // --- RLS context: set empresa_id for Row Level Security policies (Story 7.1) ---
+  async function setEmpresaContext(empresaId) {
+    var eid = empresaId || getEmpresaId();
+    try {
+      var resp = await fetch(SUPABASE_URL + '/rest/v1/rpc/set_empresa_context', {
+        method: 'POST',
+        headers: HEADERS,
+        body: JSON.stringify({ p_empresa_id: eid })
+      });
+      if (!resp.ok) console.warn('[gdp-api] RLS context failed:', resp.status);
+      else console.log('[gdp-api] RLS context set for:', eid);
+      return resp.ok;
+    } catch (e) {
+      console.warn('[gdp-api] RLS context error:', e.message);
+      return false;
+    }
+  }
+
   // --- public API ---
   window.gdpApi = {
     contratos:      createEntityApi('contratos'),
@@ -284,12 +302,16 @@
     entregas:       createEntityApi('entregas'),
     nf_counter:     nfCounterApi,
     getEmpresaId:        getEmpresaId,
+    setEmpresaContext:   setEmpresaContext,
     isReady:             isReady,
     migrateFromSyncData: migrateFromSyncData,
     flushRetryQueue:     flushRetryQueue,
     _retryQueue: _retryQueue,
     _ENTITIES:   ENTITIES
   };
+
+  // Auto-set RLS context on load
+  setEmpresaContext();
 
   console.log('[gdp-api] loaded, empresa_id:', getEmpresaId());
 })();

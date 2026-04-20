@@ -377,9 +377,9 @@ function calcPrecoUnitario(preco, unidadeDesc, quantidade) {
   return preco;
 }
 
-// ===== SUPABASE CLOUD SYNC =====
-const SUPABASE_URL = "https://mvvsjaudhbglxttxaeop.supabase.co";
-const SUPABASE_KEY = "sb_publishable_uBqL8sLjMGWnZ2aaQ1zwvg_mlQrZUXR";
+// ===== SUPABASE CLOUD SYNC (uses centralized config from supabase-config.js) =====
+const SUPABASE_URL = window.SUPABASE_URL || "https://mvvsjaudhbglxttxaeop.supabase.co";
+const SUPABASE_KEY = window.SUPABASE_KEY || "sb_publishable_uBqL8sLjMGWnZ2aaQ1zwvg_mlQrZUXR";
 const SHARED_SYNC_KEYS = new Set([
   "caixaescolar.banco.v1", "caixaescolar.preorcamentos.v1", "caixaescolar.resultados.v1",
   "caixaescolar.contratos.v1", "caixaescolar.orcamentos", "caixaescolar.descartados",

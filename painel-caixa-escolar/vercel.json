@@ -32,6 +32,13 @@
   "functions": {
     "api/caixa-proxy.js": { "maxDuration": 60 },
     "api/ai-parse-price.js": { "maxDuration": 60 },
-    "api/gdp-integrations.js": { "maxDuration": 60 }
-  }
+    "api/gdp-integrations.js": { "maxDuration": 60 },
+    "api/backup-fiscal.js": { "maxDuration": 60 }
+  },
+  "crons": [
+    {
+      "path": "/api/backup-fiscal",
+      "schedule": "0 3 * * *"
+    }
+  ]
 }

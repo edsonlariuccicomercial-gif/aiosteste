@@ -468,41 +468,53 @@ async function sincronizarCobrancaProvider(contaId) {
   await emitirOuSincronizarCobrancaReal(contaId, { silent: false });
 }
 
-// Sequencial de NF controlado pelo frontend (persiste em localStorage + Supabase)
-function getProximoNumeroNf() {
-  const KEY = "gdp.nf-counter";
-  let counter = parseInt(localStorage.getItem(KEY) || "0", 10);
-
-  // Garantir que counter reflete o maior numero ja usado em notas existentes
+// Sequencial de NF controlado atomicamente via PostgreSQL RPC (Story 7.3 — TD-017 fix)
+// Usa SELECT ... FOR UPDATE no banco para garantir unicidade mesmo com concorrência
+async function getProximoNumeroNf() {
+  const empresaId = typeof gdpApi !== 'undefined' ? gdpApi.getEmpresaId() : getEmpresaId();
   try {
-    const nfs = unwrapData(JSON.parse(localStorage.getItem("gdp.notas-fiscais.v1") || "[]"));
-    const maxUsado = nfs.reduce((max, nf) => Math.max(max, parseInt(nf.numero) || 0), 0);
-    if (maxUsado > counter) counter = maxUsado;
-  } catch(_) {}
-
-  if (counter < 1208) counter = 1208; // Base: 1165-1208 já usados/cancelados/inutilizados na SEFAZ
-  counter++;
-  localStorage.setItem(KEY, String(counter));
-  // AC-2: Persistir no Supabase (fire-and-forget)
-  try { cloudSave("gdp.nf-counter.v1", { counter, updatedAt: new Date().toISOString() }); } catch(_) {}
-  return String(counter);
+    const resp = await fetch(SUPABASE_URL + "/rest/v1/rpc/next_nf_number", {
+      method: "POST",
+      headers: {
+        "apikey": SUPABASE_KEY,
+        "Authorization": "Bearer " + SUPABASE_KEY,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ p_empresa_id: empresaId })
+    });
+    if (!resp.ok) throw new Error("RPC failed: " + resp.status);
+    const nextNumber = await resp.json();
+    // Sync localStorage for offline display/fallback
+    localStorage.setItem("gdp.nf-counter", String(nextNumber));
+    return String(nextNumber);
+  } catch (err) {
+    console.error("[NF-e] Falha ao obter numero atomico, usando fallback local:", err.message);
+    // Fallback: increment locally (last resort, still has race condition risk)
+    const KEY = "gdp.nf-counter";
+    let counter = parseInt(localStorage.getItem(KEY) || "0", 10);
+    try {
+      const nfs = unwrapData(JSON.parse(localStorage.getItem("gdp.notas-fiscais.v1") || "[]"));
+      const maxUsado = nfs.reduce((max, nf) => Math.max(max, parseInt(nf.numero) || 0), 0);
+      if (maxUsado > counter) counter = maxUsado;
+    } catch(_) {}
+    if (counter < 1208) counter = 1208;
+    counter++;
+    localStorage.setItem(KEY, String(counter));
+    return String(counter);
+  }
 }
 
-// AC-2: Carregar counter do Supabase ao iniciar (chamado no boot)
+// Sync counter from DB to localStorage on boot (for display purposes only)
 async function syncNfCounterFromCloud() {
   try {
-    const KEY = "gdp.nf-counter";
-    const resp = await fetch(SUPABASE_URL + "/rest/v1/sync_data?key=eq.gdp.nf-counter.v1&select=data&limit=1", {
+    const empresaId = typeof gdpApi !== 'undefined' ? gdpApi.getEmpresaId() : getEmpresaId();
+    const resp = await fetch(SUPABASE_URL + "/rest/v1/nf_counter?empresa_id=eq." + encodeURIComponent(empresaId) + "&select=counter", {
       headers: { "apikey": SUPABASE_KEY, "Authorization": "Bearer " + SUPABASE_KEY }
     });
     const rows = await resp.json();
-    if (rows.length && rows[0].data?.counter) {
-      const cloudCounter = parseInt(rows[0].data.counter);
-      const localCounter = parseInt(localStorage.getItem(KEY) || "0");
-      if (cloudCounter > localCounter) {
-        localStorage.setItem(KEY, String(cloudCounter));
-        console.log("[NF-e] Counter sincronizado do cloud:", cloudCounter);
-      }
+    if (rows.length && rows[0].counter) {
+      localStorage.setItem("gdp.nf-counter", String(rows[0].counter));
+      console.log("[NF-e] Counter sincronizado do DB:", rows[0].counter);
     }
   } catch(_) {}
 }
@@ -797,7 +809,7 @@ async function gerarNotaFiscalPedido(pedidoId) {
     try {
       // Tentar API Vercel primeiro, fallback para servidor local
       let resp;
-      const nfeNumero = getProximoNumeroNf();
+      const nfeNumero = await getProximoNumeroNf();
       const nfeObs = invoice.documentos?.observacao || "";
       const nfeOverrides = { numero: nfeNumero, observacao: nfeObs };
       try {
@@ -1032,7 +1044,7 @@ async function transmitirHomologacaoNota(notaId) {
   }
 
   // Gerar novo número para retransmissão (evita duplicidade 539)
-  const novoNumero = getProximoNumeroNf();
+  const novoNumero = await getProximoNumeroNf();
   nf.numero = novoNumero;
   const nfObs = nf.documentos?.observacao || "";
 
@@ -1055,7 +1067,7 @@ async function transmitirHomologacaoNota(notaId) {
       resp = await fetch("http://localhost:8082/api/nfe/emitir", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pedido, overrides: { numero: getProximoNumeroNf(), observacao: nfObs } }),
+        body: JSON.stringify({ pedido, overrides: { numero: novoNumero, observacao: nfObs } }),
         signal: AbortSignal.timeout(30000),
       });
     }

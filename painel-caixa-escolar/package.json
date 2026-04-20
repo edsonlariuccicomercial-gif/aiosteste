@@ -50,7 +50,10 @@
     "prequote:submit": "node scripts/submit-sgd-prequotes.js",
     "orders:test:sync:olist": "node scripts/test-orders-sync-olist.js",
     "dashboard:serve": "node scripts/serve-dashboard.js",
-    "orders:sync:olist": "node scripts/sync-sgd-orders-olist.js"
+    "orders:sync:olist": "node scripts/sync-sgd-orders-olist.js",
+    "backup:fiscal": "node scripts/restore-fiscal-backup.js --dry-run",
+    "backup:fiscal:restore": "node scripts/restore-fiscal-backup.js",
+    "backup:fiscal:restore:date": "node scripts/restore-fiscal-backup.js --date"
   },
   "keywords": [],
   "author": "",

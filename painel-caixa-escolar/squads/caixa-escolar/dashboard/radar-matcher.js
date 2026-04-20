@@ -2,8 +2,8 @@
 (function () {
   'use strict';
 
-  var SUPABASE_URL = 'https://mvvsjaudhbglxttxaeop.supabase.co';
-  var SUPABASE_KEY = 'sb_publishable_uBqL8sLjMGWnZ2aaQ1zwvg_mlQrZUXR';
+  var SUPABASE_URL = window.SUPABASE_URL || 'https://mvvsjaudhbglxttxaeop.supabase.co';
+  var SUPABASE_KEY = window.SUPABASE_KEY || 'sb_publishable_uBqL8sLjMGWnZ2aaQ1zwvg_mlQrZUXR';
   var REST = SUPABASE_URL + '/rest/v1';
   var HEADERS = { apikey: SUPABASE_KEY, Authorization: 'Bearer ' + SUPABASE_KEY, 'Content-Type': 'application/json' };
   var LS_KEY = 'radar.equivalencias.v1';

@@ -1,8 +1,8 @@
 // ===== F2: REGISTRO DE RESULTADOS SGD =====
 // Story 6.1: Supabase persistence for resultados
 const _SB_RESULTADOS = {
-  URL: 'https://mvvsjaudhbglxttxaeop.supabase.co/rest/v1',
-  KEY: 'sb_publishable_uBqL8sLjMGWnZ2aaQ1zwvg_mlQrZUXR',
+  URL: (window.SUPABASE_URL || 'https://mvvsjaudhbglxttxaeop.supabase.co') + '/rest/v1',
+  KEY: window.SUPABASE_KEY || 'sb_publishable_uBqL8sLjMGWnZ2aaQ1zwvg_mlQrZUXR',
   headers() {
     return { apikey: this.KEY, Authorization: 'Bearer ' + this.KEY, 'Content-Type': 'application/json' };
   },

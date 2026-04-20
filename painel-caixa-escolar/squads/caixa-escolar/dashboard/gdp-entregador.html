@@ -171,14 +171,15 @@
   </div>
 </div>
 
+<script src="js/supabase-config.js"></script>
 <script>
 const ACCESS_CODE = "entregador2025";
 const ORDERS_KEY = "gdp.pedidos.v1";
 const PROOFS_KEY = "gdp.entregas.provas.v1";
 
-// ===== SUPABASE CLOUD SYNC =====
-const SUPABASE_URL = "https://mvvsjaudhbglxttxaeop.supabase.co";
-const SUPABASE_KEY = "sb_publishable_uBqL8sLjMGWnZ2aaQ1zwvg_mlQrZUXR";
+// ===== SUPABASE CLOUD SYNC (uses centralized config from supabase-config.js) =====
+const SUPABASE_URL = window.SUPABASE_URL || "https://mvvsjaudhbglxttxaeop.supabase.co";
+const SUPABASE_KEY = window.SUPABASE_KEY || "sb_publishable_uBqL8sLjMGWnZ2aaQ1zwvg_mlQrZUXR";
 
 function getSyncUserId() {
   const emp = JSON.parse(localStorage.getItem("nexedu.empresa") || "{}");

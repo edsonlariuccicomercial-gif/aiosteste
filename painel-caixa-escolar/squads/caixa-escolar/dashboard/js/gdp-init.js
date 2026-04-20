@@ -2,8 +2,8 @@
 
 // Story 6.2: Helper para persistir preço histórico em Supabase
 const _SB_PRECO_HIST = {
-  URL: 'https://mvvsjaudhbglxttxaeop.supabase.co/rest/v1',
-  KEY: 'sb_publishable_uBqL8sLjMGWnZ2aaQ1zwvg_mlQrZUXR',
+  URL: (window.SUPABASE_URL || 'https://mvvsjaudhbglxttxaeop.supabase.co') + '/rest/v1',
+  KEY: window.SUPABASE_KEY || 'sb_publishable_uBqL8sLjMGWnZ2aaQ1zwvg_mlQrZUXR',
   headers() {
     return { apikey: this.KEY, Authorization: 'Bearer ' + this.KEY, 'Content-Type': 'application/json' };
   },

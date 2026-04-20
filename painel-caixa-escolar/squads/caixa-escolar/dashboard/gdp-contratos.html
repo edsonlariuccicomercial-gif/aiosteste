@@ -166,6 +166,19 @@
     @media(max-width:768px){.main{padding:1rem}.kpi-grid{grid-template-columns:repeat(2,1fr)}.topbar{flex-wrap:wrap;gap:.5rem}}
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <script src="js/supabase-config.js"></script>
+  <script src="js/supabase-auth.js"></script>
+  <script>
+    // Session guard (Story 7.2): redirect to login if no valid session
+    (async function() {
+      var session = await window.gdpAuth.getSession();
+      // Allow legacy auth during transition
+      var legacyOk = sessionStorage.getItem('ce.auth') === 'b01b3ce6c2432fe67e535235bd985a787557c9584b56c70e855abad11d0bd871';
+      if (!session && !legacyOk) {
+        window.location.href = 'login.html';
+      }
+    })();
+  </script>
   <script src="gdp-api.js"></script>
 </head>
 <body>

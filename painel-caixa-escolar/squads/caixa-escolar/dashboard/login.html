@@ -68,25 +68,38 @@
       <h1>Licit-AIX</h1>
       <p style="color:#94a3b8;font-size:0.85rem;margin-top:0.3rem;line-height:1.4;font-style:italic;">Inteligência comercial para fornecedores da educação pública</p>
       <form id="login-form" style="margin-top:24px;">
-        <input type="text" class="login-input" id="login-user" placeholder="Usuário" autocomplete="username" required />
+        <input type="email" class="login-input" id="login-user" placeholder="Email" autocomplete="username" required />
         <input type="password" class="login-input" id="login-pass" placeholder="Senha" autocomplete="current-password" required />
-        <button type="submit" class="login-btn">Entrar</button>
-        <p class="login-error" id="login-error">Usuário ou senha inválidos.</p>
+        <button type="submit" class="login-btn" id="login-btn">Entrar</button>
+        <p class="login-error" id="login-error"></p>
       </form>
     </div>
   </div>
 
+  <script src="js/supabase-config.js"></script>
+  <script src="js/supabase-auth.js"></script>
   <script>
-    const AUTH_CONFIG = {
+    // Story 7.2: Supabase Auth login with legacy fallback
+    const LEGACY_AUTH = {
       user: "lariucci",
       passHash: "b01b3ce6c2432fe67e535235bd985a787557c9584b56c70e855abad11d0bd871",
       sessionKey: "ce.auth",
     };
 
-    // Already logged in? Go to dashboard
-    if (sessionStorage.getItem(AUTH_CONFIG.sessionKey) === AUTH_CONFIG.passHash) {
-      window.location.href = "dashboard-home.html";
-    }
+    const DASHBOARD_URL = "gdp-contratos.html";
+
+    // Already logged in? Check Supabase session first, then legacy
+    (async function checkExistingSession() {
+      const session = await window.gdpAuth.getSession();
+      if (session) {
+        window.location.href = DASHBOARD_URL;
+        return;
+      }
+      // Legacy check (will be removed after full migration)
+      if (sessionStorage.getItem(LEGACY_AUTH.sessionKey) === LEGACY_AUTH.passHash) {
+        window.location.href = DASHBOARD_URL;
+      }
+    })();
 
     async function sha256(text) {
       const data = new TextEncoder().encode(text);
@@ -96,15 +109,32 @@
 
     document.getElementById("login-form").addEventListener("submit", async (e) => {
       e.preventDefault();
-      const user = document.getElementById("login-user").value.trim();
-      const pass = document.getElementById("login-pass").value;
-      const hash = await sha256(pass);
+      const errEl = document.getElementById("login-error");
+      const btnEl = document.getElementById("login-btn");
+      errEl.style.display = "none";
+      btnEl.disabled = true;
+      btnEl.textContent = "Entrando...";
 
-      if (user === AUTH_CONFIG.user && hash === AUTH_CONFIG.passHash) {
-        sessionStorage.setItem(AUTH_CONFIG.sessionKey, AUTH_CONFIG.passHash);
-        window.location.href = "dashboard-home.html";
-      } else {
-        document.getElementById("login-error").style.display = "block";
+      const email = document.getElementById("login-user").value.trim();
+      const pass = document.getElementById("login-pass").value;
+
+      try {
+        // Try Supabase Auth first
+        await window.gdpAuth.signIn(email, pass);
+        window.location.href = DASHBOARD_URL;
+      } catch (authErr) {
+        // Fallback to legacy auth (transition period)
+        const hash = await sha256(pass);
+        if (email === LEGACY_AUTH.user && hash === LEGACY_AUTH.passHash) {
+          sessionStorage.setItem(LEGACY_AUTH.sessionKey, LEGACY_AUTH.passHash);
+          window.location.href = DASHBOARD_URL;
+        } else {
+          errEl.textContent = authErr.message || "Email ou senha inválidos.";
+          errEl.style.display = "block";
+        }
+      } finally {
+        btnEl.disabled = false;
+        btnEl.textContent = "Entrar";
       }
     });
   </script>
