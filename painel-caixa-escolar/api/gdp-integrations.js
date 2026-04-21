@@ -2,8 +2,14 @@
 // Importa nfe-sefaz-client.js completo com xml-crypto para transmissão real à SEFAZ
 
 const path = require("path");
-const { corsHeaders } = require("./lib/cors");
 const nfeSefaz = require(path.join(__dirname, "..", "squads", "caixa-escolar", "dashboard", "server-lib", "nfe-sefaz-client.js"));
+
+function corsHeaders(req, res) {
+  const origin = (req.headers && req.headers.origin) || '';
+  res.setHeader("Access-Control-Allow-Origin", origin || "*");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+}
 
 const {
   getSefazConfig, validateSefazConfig, buildNfePayloadFromPedido,

@@ -1,10 +1,22 @@
 // Unified proxy for Caixa Escolar dashboard — combines sgd-proxy + b2b-scrape + pncp-search
 // This avoids hitting the 12-function limit on Vercel Hobby plan
 
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
-const { corsHeaders } = require('./lib/cors');
 const SGD_API = "https://api.caixaescolar.educacao.mg.gov.br";
+
+const ALLOWED_ORIGINS = [
+  /^https:\/\/.*\.vercel\.app$/,
+  /^http:\/\/localhost(:\d+)?$/,
+  /^http:\/\/127\.0\.0\.1(:\d+)?$/,
+];
+
+function corsHeaders(req, res) {
+  const origin = req.headers?.origin || '';
+  const allowed = !origin || ALLOWED_ORIGINS.some(p => p.test(origin));
+  res.setHeader("Access-Control-Allow-Origin", allowed ? (origin || "*") : "https://null.invalid");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.setHeader("Vary", "Origin");
+}
 
 function buildHeaders(cookie, networkId) {
   const h = { "Content-Type": "application/json", Cookie: cookie };

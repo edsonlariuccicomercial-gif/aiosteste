@@ -6,9 +6,12 @@ export const config = {
   },
 };
 
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
-const { corsHeaders } = require('./lib/cors');
+function corsHeaders(req, res) {
+  const origin = req.headers?.origin || '';
+  res.setHeader("Access-Control-Allow-Origin", origin || "*");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+}
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
 export default async function handler(req, res) {
