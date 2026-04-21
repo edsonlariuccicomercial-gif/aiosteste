@@ -38,6 +38,10 @@ export default async function handler(req, res) {
     if (action === "pncp-items" || action === "items") return await handlePncpItems(params, res);
     if (action === "pncp-detail" || action === "detail") return await handlePncpDetail(params, res);
 
+    // Health check & backup (Story 7.8, 7.4 — consolidated into proxy)
+    if (action === "health-check") return await handleHealthCheck(req, res);
+    if (action === "backup-fiscal") return await handleBackupFiscal(req, res, params);
+
     return res.status(400).json({ error: "Unknown action: " + action });
   } catch (err) {
     return res.status(500).json({ error: err.message });
@@ -272,5 +276,103 @@ async function handleSefazDistDFe({ cnpj, ultNSU }, res) {
     return res.status(200).json({ cStat, xMotivo, maxNSU: Number(maxNSU), ultNSU: Number(ultNSUResp), documentos: docs });
   } catch (err) {
     return res.status(500).json({ error: "SEFAZ DistDFe: " + err.message });
+  }
+}
+
+// ===== HEALTH CHECK (Story 7.8 + 7.10) =====
+async function handleHealthCheck(req, res) {
+  const checks = {};
+  let overallStatus = "healthy";
+
+  // SGD
+  try {
+    const start = Date.now();
+    const r = await fetch(SGD_API, { signal: AbortSignal.timeout(10000) });
+    checks.sgd = { status: r.ok ? "healthy" : "degraded", latency_ms: Date.now() - start, http_status: r.status };
+  } catch (e) {
+    checks.sgd = { status: "critical", message: e.message };
+  }
+
+  // Supabase
+  const SB_URL = process.env.SUPABASE_URL;
+  const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
+  if (SB_URL && SB_KEY) {
+    try {
+      const start = Date.now();
+      const r = await fetch(SB_URL + "/rest/v1/", { headers: { apikey: SB_KEY }, signal: AbortSignal.timeout(5000) });
+      checks.supabase = { status: r.ok ? "healthy" : "degraded", latency_ms: Date.now() - start };
+    } catch (e) {
+      checks.supabase = { status: "critical", message: e.message };
+    }
+  }
+
+  // Certificate check
+  if (SB_URL && SB_KEY) {
+    try {
+      const r = await fetch(SB_URL + "/rest/v1/empresas?select=id,config_fiscal&limit=10", {
+        headers: { apikey: SB_KEY, Authorization: "Bearer " + SB_KEY }, signal: AbortSignal.timeout(5000)
+      });
+      if (r.ok) {
+        const empresas = await r.json();
+        const alerts = [];
+        for (const emp of empresas) {
+          const valStr = emp.config_fiscal?.certificadoValidade || emp.config_fiscal?.validade;
+          if (!valStr) continue;
+          const days = Math.floor((new Date(valStr) - new Date()) / 86400000);
+          if (days < 0) alerts.push({ empresa_id: emp.id, issue: "expired", days });
+          else if (days < 30) alerts.push({ empresa_id: emp.id, issue: "expiring_soon", days });
+        }
+        checks.certificate = alerts.length ? { status: alerts.some(a => a.days < 0) ? "critical" : "warning", alerts } : { status: "healthy" };
+      }
+    } catch (_) {}
+  }
+
+  const statuses = Object.values(checks).map(c => c.status);
+  if (statuses.includes("critical")) overallStatus = "critical";
+  else if (statuses.includes("warning")) overallStatus = "warning";
+
+  return res.status(overallStatus === "healthy" ? 200 : overallStatus === "critical" ? 503 : 207).json({
+    status: overallStatus, timestamp: new Date().toISOString(), checks
+  });
+}
+
+// ===== BACKUP FISCAL (Story 7.4) =====
+async function handleBackupFiscal(req, res, params) {
+  const SB_URL = process.env.SUPABASE_URL;
+  const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const BACKUP_SECRET = process.env.BACKUP_CRON_SECRET || "";
+
+  if (BACKUP_SECRET && params.secret !== BACKUP_SECRET) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+  if (!SB_URL || !SB_KEY) {
+    return res.status(500).json({ error: "Missing SUPABASE env vars" });
+  }
+
+  const headers = { apikey: SB_KEY, Authorization: "Bearer " + SB_KEY };
+  const results = { tables: {}, errors: [], timestamp: new Date().toISOString() };
+
+  try {
+    const [nfs, counter, contas] = await Promise.all([
+      fetch(SB_URL + "/rest/v1/notas_fiscais?select=*", { headers }).then(r => r.json()),
+      fetch(SB_URL + "/rest/v1/nf_counter?select=*", { headers }).then(r => r.json()),
+      fetch(SB_URL + "/rest/v1/contas_receber?select=*", { headers }).then(r => r.json())
+    ]);
+
+    results.tables = { notas_fiscais: nfs.length || 0, nf_counter: counter.length || 0, contas_receber: contas.length || 0 };
+
+    const payload = JSON.stringify({ version: "1.0", exported_at: results.timestamp, data: { notas_fiscais: nfs, nf_counter: counter, contas_receber: contas } });
+    const now = new Date();
+    const filePath = `daily/${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, "0")}/${now.toISOString().split("T")[0]}.json`;
+
+    await fetch(SB_URL + "/storage/v1/object/fiscal-backups/" + filePath, {
+      method: "POST", headers: { ...headers, "Content-Type": "application/json", "x-upsert": "true" }, body: payload
+    });
+
+    results.success = true;
+    return res.status(200).json(results);
+  } catch (err) {
+    results.errors.push({ error: err.message });
+    return res.status(500).json(results);
   }
 }
