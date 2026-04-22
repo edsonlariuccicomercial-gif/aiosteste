@@ -2756,57 +2756,79 @@ window.exportarCentralCsv = function () {
   if (typeof downloadCsv === 'function') downloadCsv('central-precos.csv', [header, ...rows].join('\n'));
 };
 
-// Story 10.2 (revisado): Revisão de Unidades inline no pré-orçamento
+// Story 10.2: Revisão de Unidades — vínculo manual humano, item por item
 window.renderRevisaoUnidadesInline = function () {
   const pre = preOrcamentos[activePreOrcamentoId];
   const tbody = document.getElementById("tbody-revisao-inline");
   const countBadge = document.getElementById("revisao-inline-count");
   if (!tbody || !pre) return;
   const itens = (pre.itens || []).map((item, idx) => {
-    const descricao = item.descricao || item.nome || "";
-    const unidadeSgd = item.unidade || "";
-    const descLower = descricao.toLowerCase();
-    let inconsistente = false;
-    if (unidadeSgd === "UN" && (descLower.includes("galão") || descLower.includes("galao") || descLower.includes("litro") || descLower.includes("kg"))) inconsistente = true;
-    if (unidadeSgd === "GL" && descLower.includes("caixa")) inconsistente = true;
-    if (unidadeSgd === "PCT" && (descLower.includes("galão") || descLower.includes("galao"))) inconsistente = true;
     const confirmado = item._unidadeConfirmada || false;
-    const status = inconsistente ? "inconsistente" : (confirmado ? "confirmado" : "pendente");
-    return { idx, nome: item.nome || "", descricao, unidadeSgd, status, confirmado };
+    return {
+      idx,
+      nome: item.nome || "",
+      descricao: item.descricao || item.nome || "",
+      unidadeAtual: item.unidade || "",
+      confirmado
+    };
   });
-  const pendentes = itens.filter(i => i.status !== "confirmado").length;
+  const pendentes = itens.filter(i => !i.confirmado).length;
   if (countBadge) {
-    countBadge.textContent = pendentes > 0 ? pendentes + " pendente" + (pendentes > 1 ? "s" : "") : "OK";
-    countBadge.className = "badge " + (pendentes > 0 ? (itens.some(i => i.status === "inconsistente") ? "badge-recusado" : "badge-pendente") : "badge-aprovado");
+    countBadge.textContent = pendentes > 0 ? pendentes + "/" + itens.length + " pendentes" : "Todos confirmados";
+    countBadge.className = "badge " + (pendentes > 0 ? "badge-pendente" : "badge-aprovado");
   }
-  const statusBadge = { pendente: 'badge-pendente', confirmado: 'badge-aprovado', inconsistente: 'badge-recusado' };
-  const statusLabel = { pendente: 'Pendente', confirmado: 'OK', inconsistente: 'Inconsistente' };
-  const unBadgeMap = {'KG':'badge-un-kg','UN':'badge-un-un','PCT':'badge-un-pct','LT':'badge-un-lt','GL':'badge-un-lt','CX':'badge-un-cx'};
-  tbody.innerHTML = itens.map(i =>
-    '<tr style="' + (i.status === 'inconsistente' ? 'background:rgba(239,68,68,.1);' : '') + '">' +
-    '<td><strong>' + escapeHtml(i.nome.slice(0, 40)) + '</strong></td>' +
-    '<td style="font-size:.78rem;color:var(--mut);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + escapeHtml(i.descricao) + '">' + escapeHtml(i.descricao.slice(0, 50)) + '</td>' +
-    '<td style="text-align:center;"><span class="badge-unidade ' + (unBadgeMap[i.unidadeSgd.toUpperCase()] || 'badge-un-default') + '" style="font-size:.85rem;">' + escapeHtml(i.unidadeSgd || '—') + '</span></td>' +
-    '<td style="text-align:center;"><span class="badge ' + (statusBadge[i.status] || 'badge-muted') + '" style="font-size:.7rem;">' + (statusLabel[i.status] || '') + '</span>' +
-    (i.status === 'inconsistente' ? ' <span style="color:#ef4444;font-weight:800;font-size:.75rem;">!</span>' : '') + '</td>' +
-    '<td>' + (i.confirmado ? '' : '<select onchange="confirmarUnidadeInline(' + i.idx + ',this.value)" style="padding:.2rem .4rem;font-size:.78rem;"><option value="">Corrigir</option><option value="UN">UN</option><option value="KG">KG</option><option value="PCT">PCT</option><option value="CX">CX</option><option value="GL">GL</option><option value="LT">LT</option><option value="FD">FD</option><option value="SC">SC</option></select>') + '</td>' +
-    '</tr>'
-  ).join('');
+  const unBadgeMap = {'KG':'badge-un-kg','UN':'badge-un-un','PCT':'badge-un-pct','LT':'badge-un-lt','GL':'badge-un-lt','CX':'badge-un-cx','FD':'badge-un-pct','SC':'badge-un-cx'};
+  tbody.innerHTML = itens.map(i => {
+    const selOpts = ['UN','KG','PCT','CX','GL','LT','FD','SC','BD','RL','DZ','FR','ML','M'].map(u =>
+      '<option value="' + u + '"' + (u === i.unidadeAtual ? ' selected' : '') + '>' + u + '</option>'
+    ).join('');
+    return '<tr style="' + (i.confirmado ? '' : 'background:rgba(245,158,11,.06);') + '">' +
+      '<td><strong>' + escapeHtml(i.nome.slice(0, 35)) + '</strong></td>' +
+      '<td style="font-size:.78rem;color:var(--txt);max-width:250px;" title="' + escapeHtml(i.descricao) + '">' + escapeHtml(i.descricao) + '</td>' +
+      '<td style="text-align:center;">' +
+        '<select onchange="alterarUnidadeInline(' + i.idx + ',this.value)" style="padding:.3rem .5rem;font-size:.82rem;font-weight:700;background:var(--bg);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);">' + selOpts + '</select>' +
+      '</td>' +
+      '<td style="text-align:center;">' +
+        (i.confirmado
+          ? '<span class="badge badge-aprovado" style="font-size:.72rem;">Confirmado</span>'
+          : '<button class="btn btn-sm btn-accent" onclick="confirmarUnidadeInline(' + i.idx + ')" style="font-size:.75rem;padding:.2rem .6rem;">Confirmar</button>') +
+      '</td>' +
+      '<td>' +
+        (i.confirmado ? '<button class="btn btn-inline" onclick="desconfirmarUnidadeInline(' + i.idx + ')" style="font-size:.7rem;color:var(--mut);">Editar</button>' : '') +
+      '</td>' +
+      '</tr>';
+  }).join('');
 };
 
-window.confirmarUnidadeInline = function (idx, valor) {
-  if (!valor) return;
+window.alterarUnidadeInline = function (idx, valor) {
   const pre = preOrcamentos[activePreOrcamentoId];
   if (!pre || !pre.itens[idx]) return;
   pre.itens[idx].unidade = valor;
+  pre.itens[idx]._unidadeConfirmada = false;
+  savePreOrcamentos();
+  renderRevisaoUnidadesInline();
+  renderPreOrcamentoItens();
+};
+
+window.confirmarUnidadeInline = function (idx) {
+  const pre = preOrcamentos[activePreOrcamentoId];
+  if (!pre || !pre.itens[idx]) return;
   pre.itens[idx]._unidadeConfirmada = true;
   savePreOrcamentos();
   renderRevisaoUnidadesInline();
   renderPreOrcamentoItens();
-  showToast("Unidade corrigida: " + valor);
+  showToast("Unidade confirmada: " + pre.itens[idx].unidade);
 };
 
-// Legacy: keep renderRevisaoUnidades as alias
+window.desconfirmarUnidadeInline = function (idx) {
+  const pre = preOrcamentos[activePreOrcamentoId];
+  if (!pre || !pre.itens[idx]) return;
+  pre.itens[idx]._unidadeConfirmada = false;
+  savePreOrcamentos();
+  renderRevisaoUnidadesInline();
+};
+
+// Legacy aliases
 window.renderRevisaoUnidades = window.renderRevisaoUnidadesInline;
 window.confirmarUnidade = window.confirmarUnidadeInline;
 
