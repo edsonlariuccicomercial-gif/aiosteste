@@ -1,0 +1,480 @@
+implementation:
+  id: PLAN-GDP-SIMPLIFICATION-2026
+  spec_ref: SPEC-GDP-SIMPLIFICATION-2026
+  critique_ref: CRITIQUE-GDP-SIMPLIFICATION-2026
+  created_by: "@architect (Aria)"
+  date: "2026-04-22"
+  status: APPROVED
+  total_waves: 4
+
+# ============================================================
+# WAVE 1 — Radar/Intel Precos Fixes (Quick Wins)
+# ============================================================
+
+wave_1:
+  name: "Radar/Intel Precos Fixes"
+  frs: [FR-001, FR-002, FR-003]
+  risk: LOW
+  estimated_effort: "3-4 hours"
+  deploy_independently: true
+
+  tasks:
+    - id: W1-T1
+      title: "FR-001: Aprovacao humana no match"
+      type: frontend
+      files:
+        - path: "painel-caixa-escolar/squads/caixa-escolar/dashboard/radar-matcher.js"
+          changes:
+            - "Line 143-148: Layer 1 — if !entry.confirmado, return status='pendente_revisao' instead of 'exato'"
+            - "Line 156-158: Layer 2 — always return status='pendente_revisao'"
+            - "Line 168-176: Layer 3 — return status='pendente_revisao' instead of 'sugestao'"
+            - "Add new function reject(itemName) — removes cache entry"
+        - path: "painel-caixa-escolar/squads/caixa-escolar/dashboard/index.html"
+          changes:
+            - "Pre-orcamento row: add badge for match status (pendente=amarelo, confirmado=verde, rejeitado=vermelho)"
+            - "Add [Confirmar] [Rejeitar] buttons per row when status=pendente_revisao"
+        - path: "painel-caixa-escolar/squads/caixa-escolar/dashboard/app.js"
+          changes:
+            - "renderPreOrcamento(): add match status badge + action buttons"
+            - "Add confirmarMatch(itemName, sku, nomeBanco) handler → RadarMatcher.confirm()"
+            - "Add rejeitarMatch(itemName) handler → RadarMatcher.reject()"
+      verification:
+        - "Abrir pre-orcamento com itens que tem match automatico"
+        - "Verificar que TODOS mostram badge 'Pendente' (amarelo)"
+        - "Clicar Confirmar → badge muda para verde, confirmado=true"
+        - "Clicar Rejeitar → badge muda para vermelho, entrada removida do cache"
+        - "Recarregar pagina → status persiste (localStorage + Supabase)"
+
+    - id: W1-T2
+      title: "FR-002: Coluna Unidade no pre-orcamento"
+      type: frontend
+      files:
+        - path: "painel-caixa-escolar/squads/caixa-escolar/dashboard/index.html"
+          changes:
+            - "Line 284-293: Add <th>Unidade</th> after <th>Item</th>"
+            - "Line 296-300: Adjust tfoot colspan from 5 to 6"
+        - path: "painel-caixa-escolar/squads/caixa-escolar/dashboard/app.js"
+          changes:
+            - "renderPreOrcamento(): Add <td> with badge-unidade after item name"
+            - "Badge logic: switch(unidade.toUpperCase()) for color mapping"
+            - "Export CSV: include Unidade column"
+        - path: "painel-caixa-escolar/squads/caixa-escolar/dashboard/styles.css"
+          changes:
+            - "Add .badge-unidade base class"
+            - "Add .badge-un-kg (azul), .badge-un-un (verde), .badge-un-pct (laranja), .badge-un-lt (roxo), .badge-un-cx (amarelo)"
+      verification:
+        - "Abrir pre-orcamento com itens de diferentes unidades"
+        - "Verificar coluna Unidade visivel entre Item e Marca"
+        - "Verificar cores diferentes para KG, UN, PCT, LT, CX"
+        - "Exportar CSV e verificar coluna Unidade incluida"
+
+    - id: W1-T3
+      title: "FR-003: Remover aba Banco de Precos"
+      type: frontend
+      files:
+        - path: "painel-caixa-escolar/squads/caixa-escolar/dashboard/index.html"
+          changes:
+            - "Line 169: Remove <button data-tab='banco-precos'>"
+            - "Lines 400-487: Remove entire <section id='tab-banco-precos'>"
+            - "Line 744: Remove config tab banco-precos"
+            - "Lines 986-1062: Remove config section banco-precos"
+            - "Line 976: Update INTEL PRECOS description — remove 'Banco de Precos' text"
+        - path: "painel-caixa-escolar/squads/caixa-escolar/dashboard/pricing-intel.js"
+          changes:
+            - "Line 609+: Remove/noop renderBancoTable() function"
+            - "Line 11, 257: Update text references to point to Central de Precos"
+        - path: "painel-caixa-escolar/squads/caixa-escolar/dashboard/app-config.js"
+          changes:
+            - "Remove banco-precos config handlers if present"
+      verification:
+        - "Navegar para Intel Precos"
+        - "Verificar que aba 'Banco de Precos' NAO aparece no nav"
+        - "Verificar que configuracoes nao mostram opcao Banco de Precos"
+        - "Verificar que Pre-Orcamento, Aprovados, Envio SGD, Historico, Rentabilidade continuam funcionando"
+
+  wave_1_commit: "feat(radar): human approval gate, unit column, remove banco-precos tab [GDP-Simplification Wave 1]"
+
+# ============================================================
+# WAVE 2 — Contrato ≠ Produto + Vinculacao Manual
+# ============================================================
+
+wave_2:
+  name: "Contrato/Produto Separation + Manual Linking"
+  frs: [FR-004, FR-005, FR-006, FR-019]
+  risk: MEDIUM
+  estimated_effort: "4-6 hours"
+  deploy_independently: true
+  prerequisite: wave_1
+
+  tasks:
+    - id: W2-T1
+      title: "Migration 014: Schema changes"
+      type: database
+      files:
+        - path: "painel-caixa-escolar/supabase/migrations/014_gdp_simplification.sql"
+          action: CREATE
+          content: |
+            -- Produto: campos para produto_critico (Wave 4, but adding now)
+            ALTER TABLE produtos ADD COLUMN IF NOT EXISTS produto_critico boolean DEFAULT false;
+            ALTER TABLE produtos ADD COLUMN IF NOT EXISTS unidade_base text;
+            ALTER TABLE produtos ADD COLUMN IF NOT EXISTS embalagens jsonb DEFAULT '[]'::jsonb;
+
+            -- Estoque simplificado
+            CREATE TABLE IF NOT EXISTS estoque_simples (
+              produto_id uuid PRIMARY KEY REFERENCES produtos(id),
+              empresa_id text NOT NULL DEFAULT current_setting('app.empresa_id', true),
+              quantidade_atual numeric DEFAULT 0,
+              updated_at timestamptz DEFAULT now()
+            );
+            ALTER TABLE estoque_simples ENABLE ROW LEVEL SECURITY;
+            CREATE POLICY estoque_simples_empresa ON estoque_simples
+              USING (empresa_id = current_setting('app.empresa_id', true));
+            CREATE TRIGGER set_updated_at_estoque_simples
+              BEFORE UPDATE ON estoque_simples
+              FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+      verification:
+        - "supabase db push — migration applies without errors"
+        - "supabase migration list — shows 014"
+        - "Verify ALTER TABLE on produtos succeeds"
+        - "Verify estoque_simples table created with RLS"
+
+    - id: W2-T2
+      title: "FR-004/FR-006: Contrato item structure — remove SKU, add produto_vinculado_id"
+      type: frontend
+      files:
+        - path: "painel-caixa-escolar/squads/caixa-escolar/dashboard/js/gdp-core.js"
+          changes:
+            - "Lines 638-654: Remove auto-match SKU fallback. Keep only produto_vinculado_id"
+            - "Lines 1047-1050: Remove SKU priority logic (skuVinculado > auto > empty)"
+            - "Cloud sync: ensure produto_vinculado_id is synced"
+        - path: "painel-caixa-escolar/squads/caixa-escolar/dashboard/js/gdp-contratos-module.js"
+          changes:
+            - "Contract import/parse: preserve descricao as imutavel"
+            - "Remove auto SKU assignment on import"
+            - "Add produto_vinculado_id field (null by default on import)"
+        - path: "painel-caixa-escolar/squads/caixa-escolar/dashboard/js/gdp-notas-fiscais.js"
+          changes:
+            - "Line 145-146: xProd = item.descricao (contrato), cProd = produto.sku (via produto_vinculado_id)"
+      verification:
+        - "Import novo contrato — itens tem descricao + produto_vinculado_id=null"
+        - "Itens NÃO recebem SKU automaticamente"
+        - "NF preview mostra descricao do contrato como xProd"
+
+    - id: W2-T3
+      title: "FR-005/FR-019: UI vinculacao manual + criacao de produto inline"
+      type: frontend
+      files:
+        - path: "painel-caixa-escolar/squads/caixa-escolar/dashboard/gdp-contratos.html"
+          changes:
+            - "Na tabela de itens do contrato: adicionar coluna 'Produto Vinculado'"
+            - "Coluna mostra: dropdown search de produtos existentes"
+            - "Botao [+ Criar Produto] abre modal inline"
+            - "Modal: nome (sem gramatura), categoria, unidade_padrao, SKU auto-gerado"
+            - "Apos salvar: produto criado e vinculado automaticamente"
+        - path: "painel-caixa-escolar/squads/caixa-escolar/dashboard/js/gdp-contratos-module.js"
+          changes:
+            - "Add searchProdutos(term) — busca simples por nome ILIKE"
+            - "Add vincularProduto(contratoId, itemIdx, produtoId)"
+            - "Add criarEVincularProduto(contratoId, itemIdx, produtoData)"
+        - path: "painel-caixa-escolar/squads/caixa-escolar/dashboard/js/gdp-banco-produtos.js"
+          changes:
+            - "Add criarProdutoRapido({nome, categoria, unidade}) — SKU auto, return id"
+            - "Validacao: nome sem gramatura, busca duplicatas antes de criar"
+      verification:
+        - "Abrir contrato com itens sem vinculo"
+        - "Coluna 'Produto Vinculado' mostra dropdown + botao [+ Criar]"
+        - "Buscar produto existente e vincular — campo preenchido"
+        - "Criar produto novo — modal abre, salva, vincula automaticamente"
+        - "Produto criado aparece no cadastro de Produtos"
+
+    - id: W2-T4
+      title: "Data migration: existing contratos skuVinculado → produto_vinculado_id"
+      type: frontend
+      note: "Critique recommendation — add data transformation for existing records"
+      files:
+        - path: "painel-caixa-escolar/squads/caixa-escolar/dashboard/js/gdp-contratos-module.js"
+          changes:
+            - "One-time migration function: for each contrato item with skuVinculado, lookup produto by SKU"
+            - "If found: set item.produto_vinculado_id = produto.id"
+            - "If not found: leave null (user fills later)"
+            - "Run on first load after Wave 2 deploy (version check)"
+      verification:
+        - "Carregar contratos existentes com skuVinculado"
+        - "Verificar que produto_vinculado_id foi preenchido automaticamente"
+        - "Itens sem skuVinculado tem produto_vinculado_id=null"
+
+  wave_2_commit: "feat(gdp): separate contrato/produto, manual product linking, migration 014 [GDP-Simplification Wave 2]"
+
+# ============================================================
+# WAVE 3 — Pedido como Centro + Remover Demanda
+# ============================================================
+
+wave_3:
+  name: "Pedido as Execution Center + Remove Demanda"
+  frs: [FR-007, FR-008, FR-009, FR-010, FR-018]
+  risk: HIGH
+  estimated_effort: "6-8 hours"
+  deploy_independently: true
+  prerequisite: wave_2
+
+  tasks:
+    - id: W3-T1
+      title: "FR-008a: Remove demanda — UI references"
+      type: frontend
+      note: "Sub-task split per critique recommendation"
+      files:
+        - path: "painel-caixa-escolar/squads/caixa-escolar/dashboard/gdp-contratos.html"
+          changes:
+            - "Remove demanda tab/section from sidebar if exists"
+            - "Remove demanda-check CSS classes"
+            - "Remove demandas-select-all, demandas-bulk-actions elements"
+        - path: "painel-caixa-escolar/squads/caixa-escolar/dashboard/js/gdp-pedidos.js"
+          changes:
+            - "Lines 1906-1998: Remove _selectedDemandaIds Set and handlers"
+            - "Lines 2128, 2256: Remove demanda references in pedido creation"
+      verification:
+        - "Nenhum elemento de UI 'Demanda' visivel"
+        - "Console sem erros de elementos demanda nao encontrados"
+
+    - id: W3-T2
+      title: "FR-008b: Remove demanda — data layer"
+      type: frontend
+      files:
+        - path: "painel-caixa-escolar/squads/caixa-escolar/dashboard/js/gdp-init.js"
+          changes:
+            - "Lines 54-62: Remove GDP_DEMANDAS_KEY, loadGdpDemandas, saveGdpDemandas"
+            - "Lines 2206-2249: Remove demanda initialization functions"
+            - "Lines 3308-3315: Remove demanda in init sequence"
+        - path: "painel-caixa-escolar/squads/caixa-escolar/dashboard/js/gdp-core.js"
+          changes:
+            - "Line 53: Remove GDP_DEMANDAS_KEY constant"
+            - "Lines 789, 868-924: Remove demanda cloud sync functions"
+        - path: "painel-caixa-escolar/squads/caixa-escolar/dashboard/app-state.js"
+          changes:
+            - "Lines 291-298, 304: Remove DEMANDAS_KEY and demanda state"
+            - "Lines 392, 417: Remove demanda from sync keys"
+      verification:
+        - "localStorage nao contem gdp.demandas.v1 apos clean reload"
+        - "Cloud sync nao tenta sync de demandas"
+
+    - id: W3-T3
+      title: "FR-008c: Remove demanda — estoque intel references"
+      type: frontend
+      files:
+        - path: "painel-caixa-escolar/squads/caixa-escolar/dashboard/js/gdp-estoque-intel.js"
+          changes:
+            - "~40 references: remove demanda calculations, reservas, aggregations"
+            - "Key lines: 348, 439, 482, 495, 547, 590, 604-662, 696, 740, 886-925, 1124-1249, 1576-1605, 1795, 2120-2396"
+            - "Remove functions that aggregate demandas for purchase planning"
+      verification:
+        - "Estoque Intel funciona sem demandas"
+        - "Nenhum erro de referencia a funcoes de demanda removidas"
+
+    - id: W3-T4
+      title: "FR-007: Saldo contrato baseado somente em pedidos"
+      type: frontend
+      files:
+        - path: "painel-caixa-escolar/squads/caixa-escolar/dashboard/js/gdp-pedidos.js"
+          changes:
+            - "Add/update calcularSaldoContrato(contratoId) function"
+            - "Formula: saldo = qtd_contratada - SUM(pedidos where status != cancelado)"
+            - "Display saldo em tempo real na view de contrato"
+        - path: "painel-caixa-escolar/squads/caixa-escolar/dashboard/js/gdp-contratos-module.js"
+          changes:
+            - "Update contrato detail view to show saldo per item"
+            - "Badge: verde (>50% saldo), amarelo (10-50%), vermelho (<10%)"
+      verification:
+        - "Criar pedido → saldo diminui"
+        - "Cancelar pedido → saldo aumenta"
+        - "Estoque nao afeta saldo"
+
+    - id: W3-T5
+      title: "FR-009/FR-010: Pedido com execucao completa"
+      type: frontend
+      files:
+        - path: "painel-caixa-escolar/squads/caixa-escolar/dashboard/js/gdp-pedidos.js"
+          changes:
+            - "Pedido item: add estoque_disponivel, qtd_a_comprar calculations"
+            - "Add actions bar: [Separar do Estoque] [Compra Direta] [Finalizar Entrega]"
+            - "Separar do Estoque: bipa items, decrementa estoque"
+            - "Compra Direta: registra compra no pedido, NAO entra em estoque"
+            - "Finalizar Entrega: fecha pedido, status=finalizado"
+            - "Status flow: criado → separando → comprando → entregando → finalizado"
+        - path: "painel-caixa-escolar/squads/caixa-escolar/dashboard/gdp-contratos.html"
+          changes:
+            - "Pedido detail: add action buttons section"
+            - "Status badges for each phase"
+            - "Item-level status tracking"
+      verification:
+        - "Abrir pedido → ver estoque disponivel e qtd a comprar por item"
+        - "Clicar [Separar do Estoque] → estoque diminui"
+        - "Clicar [Compra Direta] → registra sem afetar estoque"
+        - "Clicar [Finalizar] → pedido fechado, saldo contrato inalterado"
+
+    - id: W3-T6
+      title: "FR-018: Cancelamento devolve saldo"
+      type: frontend
+      files:
+        - path: "painel-caixa-escolar/squads/caixa-escolar/dashboard/js/gdp-pedidos.js"
+          changes:
+            - "cancelarPedido(): set status=cancelado, log auditoria"
+            - "Saldo recalculado automaticamente (FR-007 formula exclui cancelados)"
+            - "Modal de confirmacao antes de cancelar"
+      verification:
+        - "Cancelar pedido → saldo contrato recalculado (aumenta)"
+        - "Pedido cancelado visivel com badge vermelho"
+        - "Log de cancelamento registrado"
+
+  wave_3_commit: "feat(gdp): pedido as execution center, remove demanda, contract balance [GDP-Simplification Wave 3]"
+
+# ============================================================
+# WAVE 4 — Estoque Simples + Produto Critico + Menu + Relatorios
+# ============================================================
+
+wave_4:
+  name: "Estoque Simplification + Menu + Reports"
+  frs: [FR-011, FR-012, FR-013, FR-014, FR-015, FR-016, FR-017]
+  risk: LOW-MEDIUM
+  estimated_effort: "4-6 hours"
+  deploy_independently: true
+  prerequisite: wave_3
+
+  tasks:
+    - id: W4-T1
+      title: "FR-011: Estoque simplificado"
+      type: frontend
+      files:
+        - path: "painel-caixa-escolar/squads/caixa-escolar/dashboard/js/gdp-estoque-intel.js"
+          changes:
+            - "Simplify model: {produto_id, quantidade_atual} only"
+            - "Remove comprometido calculations (17 refs)"
+            - "Remove complex movement types — keep only entrada(+) and saida(-)"
+            - "Sync with estoque_simples Supabase table"
+        - path: "painel-caixa-escolar/squads/caixa-escolar/dashboard/js/gdp-init.js"
+          changes:
+            - "Remove gdp.conversoes.v1 storage key and functions"
+            - "Simplify estoque initialization"
+      verification:
+        - "Estoque mostra apenas produto + quantidade"
+        - "Sem coluna comprometido ou transito"
+        - "Entrada/saida simples funciona"
+
+    - id: W4-T2
+      title: "FR-012: Bipagem mobile 2 modos"
+      type: frontend
+      files:
+        - path: "painel-caixa-escolar/squads/caixa-escolar/dashboard/gdp-estoque-intel-mobile.html"
+          changes:
+            - "Add mode selector: Modo Estoque / Modo Compra"
+            - "Modo Estoque: scan → decrement quantidade_atual"
+            - "Modo Compra: scan → register purchase on selected pedido"
+            - "Visual feedback: green (estoque) / blue (compra)"
+      verification:
+        - "Alternar entre Modo Estoque e Modo Compra"
+        - "Bipar em Modo Estoque → estoque diminui"
+        - "Bipar em Modo Compra → compra registrada no pedido"
+
+    - id: W4-T3
+      title: "FR-013: Conversao gramatura por produto"
+      type: frontend
+      files:
+        - path: "painel-caixa-escolar/squads/caixa-escolar/dashboard/js/gdp-banco-produtos.js"
+          changes:
+            - "Add produto_critico toggle in product form"
+            - "If produto_critico: show unidade_base and embalagens[] fields"
+        - path: "painel-caixa-escolar/squads/caixa-escolar/dashboard/js/gdp-pedidos.js"
+          changes:
+            - "If item is produto_critico: show [Calcular melhor embalagem] button"
+            - "Calculate optimal packaging from embalagens[] vs quantity needed"
+      verification:
+        - "Marcar produto como critico → campos extras aparecem"
+        - "No pedido, item critico mostra botao embalagem"
+        - "Produto nao-critico: fluxo normal sem conversao"
+
+    - id: W4-T4
+      title: "FR-014/FR-015: Simplificar Inteligencia → Produtos & Estoque"
+      type: frontend
+      files:
+        - path: "painel-caixa-escolar/squads/caixa-escolar/dashboard/gdp-contratos.html"
+          changes:
+            - "Rename sidebar item 'Estoque Intel' → 'Produtos & Estoque'"
+            - "Remove complex sub-sections (demandas ja removidas, compra inteligente)"
+        - path: "painel-caixa-escolar/squads/caixa-escolar/dashboard/js/gdp-estoque-intel.js"
+          changes:
+            - "Simplify render: only products list + simple stock view"
+            - "Remove 'compra inteligente' complex logic"
+        - path: "painel-caixa-escolar/squads/caixa-escolar/dashboard/js/gdp-banco-produtos.js"
+          changes:
+            - "Ensure product CRUD is clean and dedup-aware (busca similaridade)"
+      verification:
+        - "Menu mostra 'Produtos & Estoque' em vez de 'Estoque Intel'"
+        - "Tela mostra CRUD de produtos + estoque simples"
+        - "Sem opcoes de demanda ou compra inteligente"
+
+    - id: W4-T5
+      title: "FR-016: Menu reorganizado"
+      type: frontend
+      files:
+        - path: "painel-caixa-escolar/squads/caixa-escolar/dashboard/gdp-contratos.html"
+          changes:
+            - "Sidebar order: Clientes, Contratos, PEDIDOS (destacado), NF, Produtos & Estoque, Entregas, Financeiro"
+            - "Pedidos: icone maior, badge com count de pedidos abertos"
+        - path: "painel-caixa-escolar/squads/caixa-escolar/dashboard/js/gdp-init.js"
+          changes:
+            - "Update switchTab labels to match new names"
+      verification:
+        - "Menu reorganizado conforme spec"
+        - "Pedidos com destaque visual"
+        - "Todas as tabs navegam corretamente"
+
+    - id: W4-T6
+      title: "FR-017: 4 relatorios essenciais"
+      type: frontend
+      files:
+        - path: "painel-caixa-escolar/squads/caixa-escolar/dashboard/gdp-contratos.html"
+          changes:
+            - "Tab relatorios: keep only 4 reports"
+            - "1. Contratos (total/utilizado/saldo)"
+            - "2. Pedidos em aberto"
+            - "3. Compras por pedido"
+            - "4. Estoque"
+      verification:
+        - "Tab relatorios mostra 4 relatorios"
+        - "Cada relatorio carrega e exibe dados corretos"
+
+  wave_4_commit: "feat(gdp): simple stock, bipagem mobile, menu reorg, reports [GDP-Simplification Wave 4]"
+
+# ============================================================
+# TESTING STRATEGY
+# ============================================================
+
+testing:
+  per_wave:
+    - "Smoke test: all existing pages load without JS errors"
+    - "Portal escolar: verify sgd-proxy, sync-pedidos, sync-entregas untouched"
+    - "NF-e: verify preview generates correct XML fields"
+    - "Login: verify auth flow unchanged"
+
+  regression:
+    - "Full GDP flow: contrato → pedido → NF"
+    - "Portal escolar → pedido sync"
+    - "Financial modules (contas pagar/receber) unchanged"
+    - "Entregas flow"
+    - "Dashboard KPIs load correctly"
+
+  production_validation:
+    - "Deploy each wave to Vercel"
+    - "Test at https://painel-caixa-escolar.vercel.app"
+    - "Verify Supabase migration applied"
+    - "Check browser console for errors"
+
+# ============================================================
+# RISK MITIGATION
+# ============================================================
+
+risk_mitigation:
+  - strategy: "Wave-based deployment — each wave independently deployable and testable"
+  - backup: "Git commits per wave — easy rollback to previous wave"
+  - data_safety: "Migration 014 is additive only (ALTER TABLE, CREATE TABLE) — no data destruction"
+  - portal_safety: "sgd-proxy.js, sync-pedidos.js, sync-entregas.js NEVER touched"
+  - demanda_removal: "FR-008 split into 3 sub-tasks (UI → data → estoque) per critique recommendation"

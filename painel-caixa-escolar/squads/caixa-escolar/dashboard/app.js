@@ -919,7 +919,7 @@ function renderPreOrcamentoItens() {
       const diffClass = diff > 0.30 ? "pncp-alert" : "pncp-ok";
       pncpHint = `<span class="pncp-tooltip ${diffClass}" title="Ref. Banco: ${brl.format(bp.precoReferencia)} (custo: ${brl.format(bp.custoBase)})">Ref: ${brl.format(bp.precoReferencia)}</span>`;
     } else if (!bp || bp.custoBase === 0) {
-      pncpHint = `<span class="pncp-tooltip" style="color:#f59e0b;font-size:0.7rem" title="Item sem referência no banco de preços. Preencha o custo e ele será salvo automaticamente.">&#9888; Sem ref. no banco</span>`;
+      pncpHint = `<span class="pncp-tooltip" style="color:#f59e0b;font-size:0.7rem" title="Item sem referência na central de preços. Preencha o custo e ele será salvo automaticamente.">&#9888; Sem ref.</span>`;
     }
 
     // Competitor intelligence hint — always pull fresh from banco
@@ -966,16 +966,30 @@ function renderPreOrcamentoItens() {
           <div id="search-menu-${idx}" class="search-menu" style="display:none;position:absolute;background:#fff;border:1px solid #ddd;border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,0.15);z-index:100;padding:4px 0;min-width:180px;">
             <a href="#" onclick="pesquisarPrecoPNCP(${idx});return false;" style="display:block;padding:6px 12px;text-decoration:none;color:#333;font-size:0.8rem;">📋 PNCP (Preço de Referência)</a>
             <a href="#" onclick="pesquisarPrecoGoogle(${idx});return false;" style="display:block;padding:6px 12px;text-decoration:none;color:#333;font-size:0.8rem;">🔎 Google Shopping</a>
-            <a href="#" onclick="pesquisarPrecoBanco(${idx});return false;" style="display:block;padding:6px 12px;text-decoration:none;color:#333;font-size:0.8rem;">💰 Banco de Preços</a>
+            <a href="#" onclick="pesquisarPrecoBanco(${idx});return false;" style="display:block;padding:6px 12px;text-decoration:none;color:#333;font-size:0.8rem;">💰 Central de Preços</a>
             <a href="#" onclick="pesquisarPrecoMercadoLivre(${idx});return false;" style="display:block;padding:6px 12px;text-decoration:none;color:#333;font-size:0.8rem;">🛒 Mercado Livre</a>
           </div>
         </div>`
       : "";
 
-    // Equivalência de produto (Story 4.35)
+    // Equivalência de produto (Story 4.35) + match approval (FR-001)
     const equivSku = getEquivalencia(item.nome);
     const equivProd = equivSku ? getProdutoBySku(equivSku) : null;
     let equivHint = "";
+    // Match status from RadarMatcher (FR-001: human approval gate)
+    const matchResult = (typeof RadarMatcher !== 'undefined' && RadarMatcher.isReady()) ? RadarMatcher.match(item.nome) : null;
+    const matchStatus = matchResult ? matchResult.status : 'sem_match';
+    let matchBadge = "";
+    if (matchStatus === 'pendente_revisao') {
+      const safeNome = escapeHtml(item.nome).replace(/'/g, "\\'");
+      const safeSku = escapeHtml(matchResult.sku || '').replace(/'/g, "\\'");
+      const safeBanco = escapeHtml(matchResult.nomeBanco || '').replace(/'/g, "\\'");
+      matchBadge = `<br><span class="badge badge-match-pendente" title="Match pendente de revisao humana">Pendente</span>
+        <button class="btn btn-inline btn-sm" onclick="confirmarMatchPreOrc('${safeNome}','${safeSku}','${safeBanco}')" style="font-size:0.65rem;padding:1px 6px;color:#059669;border:1px solid #059669;border-radius:4px;margin-left:4px;">Confirmar</button>
+        <button class="btn btn-inline btn-sm" onclick="rejeitarMatchPreOrc('${safeNome}')" style="font-size:0.65rem;padding:1px 6px;color:#ef4444;border:1px solid #ef4444;border-radius:4px;margin-left:2px;">Rejeitar</button>`;
+    } else if (matchStatus === 'confirmado') {
+      matchBadge = `<br><span class="badge badge-match-confirmado" title="Match confirmado por humano">Confirmado</span>`;
+    }
     if (equivSku && equivProd) {
       equivHint = `<br><span style="font-size:0.72rem;color:#059669;" title="SKU: ${escapeHtml(equivSku)}">&#10003; Produto: ${escapeHtml(equivProd.nomeComercial || equivProd.item)}</span> <button class="btn btn-inline" onclick="abrirModalVincular('${escapeHtml(activePreOrcamentoId)}', ${idx})" style="font-size:0.65rem;padding:1px 4px;color:#6b7280;" title="Alterar vínculo">&#9998;</button>`;
     } else if (equivSku) {
@@ -984,18 +998,25 @@ function renderPreOrcamentoItens() {
       equivHint = `<br><button class="btn btn-inline" onclick="abrirModalVincular('${escapeHtml(activePreOrcamentoId)}', ${idx})" style="font-size:0.7rem;padding:2px 8px;background:#fef3c7;color:#92400e;border:1px solid #fbbf24;border-radius:4px;">Vincular Produto</button>`;
     }
 
+    // FR-002: Unit badge with color coding
+    const unitRaw = (item.unidade || '').trim().toUpperCase();
+    const unitKey = unitRaw.replace(/[^A-Z]/g, '').substring(0, 3);
+    const unitClassMap = { KG: 'badge-un-kg', UN: 'badge-un-un', PCT: 'badge-un-pct', LT: 'badge-un-lt', L: 'badge-un-l', CX: 'badge-un-cx', UND: 'badge-un-un', PC: 'badge-un-pct', ML: 'badge-un-lt' };
+    const unitClass = unitClassMap[unitKey] || 'badge-un-default';
+
     return `<tr>
       <td>
         <strong>${escapeHtml(item.nome)}</strong>
         <br><span class="text-muted" style="font-size:0.75rem">${escapeHtml(item.descricao)}</span>
-        <br><span class="text-muted" style="font-size:0.72rem">${item.quantidade} ${escapeHtml(item.unidade)}</span>
         ${pncpHint}
         ${concHint}
         ${fornHint}
         ${item._bpHtml || ""}
+        ${matchBadge}
         ${equivHint}
         ${searchBtn}
       </td>
+      <td style="text-align:center;"><span class="badge-unidade ${unitClass}">${escapeHtml(item.unidade || '—')}</span></td>
       <td>${marcaInput}</td>
       <td class="text-right">${item.quantidade}</td>
       <td class="text-right">${custoInput}</td>
@@ -1086,6 +1107,20 @@ window.updatePreItem = function (idx, field, value) {
     renderPreOrcamentoItens();
     renderKPIs();
   });
+};
+
+// FR-001: Confirmar/Rejeitar match no pré-orçamento (aprovação humana)
+window.confirmarMatchPreOrc = function (itemName, sku, nomeBanco) {
+  if (typeof RadarMatcher !== 'undefined') {
+    RadarMatcher.confirm(itemName, sku, nomeBanco);
+    renderPreOrcamentoItens();
+  }
+};
+window.rejeitarMatchPreOrc = function (itemName) {
+  if (typeof RadarMatcher !== 'undefined') {
+    RadarMatcher.reject(itemName);
+    renderPreOrcamentoItens();
+  }
 };
 
 // Aprovar pré-orçamento

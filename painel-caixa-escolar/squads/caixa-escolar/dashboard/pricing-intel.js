@@ -8,7 +8,7 @@
 function renderPricingDashboard() {
   const itens = bancoPrecos.itens || [];
   if (itens.length === 0) {
-    document.getElementById("chart-top-cotados").innerHTML = '<p class="text-muted" style="font-size:0.82rem;">Sem dados no banco de preços.</p>';
+    document.getElementById("chart-top-cotados").innerHTML = '<p class="text-muted" style="font-size:0.82rem;">Sem dados na central de preços.</p>';
     return;
   }
 
@@ -254,7 +254,7 @@ function renderPricingAlerts(itens, vencidosCount) {
     alerts.push({
       type: "info",
       icon: "🏛️",
-      text: `${semPncp.length} itens sem referência PNCP — clique "Consultar PNCP" no Banco de Preços`,
+      text: `${semPncp.length} itens sem referência PNCP — consulte preços de referência no PNCP`,
       count: semPncp.length
     });
   }

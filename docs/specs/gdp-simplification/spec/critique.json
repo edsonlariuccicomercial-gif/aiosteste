@@ -1,0 +1,98 @@
+{
+  "metadata": {
+    "id": "CRITIQUE-GDP-SIMPLIFICATION-2026",
+    "critiqued_by": "@qa (Quinn)",
+    "date": "2026-04-22",
+    "spec_ref": "SPEC-GDP-SIMPLIFICATION-2026",
+    "spec_version": "1.0.0"
+  },
+
+  "dimensions": {
+    "accuracy": {
+      "weight": 0.25,
+      "score": 4.5,
+      "rationale": "All 19 FRs accurately trace to user's 16 regras + 3 fixes. Line numbers and file paths verified against codebase analysis. SKU strategy (AC-9 precedent) correctly identified. Portal escolar isolation confirmed via RES-004. Migration strategy aligns with existing pattern (001-013). Minor: FR-012 (bipagem mobile) references 'existing barcode infra' but specific implementation details could be more precise.",
+      "issues": [
+        {
+          "severity": "MINOR",
+          "description": "FR-012: barcode scanning implementation details (which API, which library) not specified",
+          "recommendation": "Acceptable — existing gdp-estoque-intel-mobile.html already has the pattern"
+        }
+      ]
+    },
+    "completeness": {
+      "weight": 0.25,
+      "score": 4.0,
+      "rationale": "All 16 user regras covered. 3 Radar fixes covered. Migration plan included. Traceability matrix complete. Wave breakdown logical. Two gaps identified.",
+      "issues": [
+        {
+          "severity": "MEDIUM",
+          "description": "Data migration strategy for existing contratos: existing items with 'sku' field need migration to 'produto_vinculado_id'. Spec mentions removal but doesn't detail how existing data is transformed.",
+          "recommendation": "Add data migration step in Wave 2: for each contrato item with skuVinculado, lookup produto by SKU and set produto_vinculado_id. Items without skuVinculado get null (user fills later)."
+        },
+        {
+          "severity": "MINOR",
+          "description": "Rollback strategy mentioned (feature flags, _disabled/) but not formalized per wave.",
+          "recommendation": "Acceptable for this scope — wave-based deployment is inherently rollback-friendly."
+        }
+      ]
+    },
+    "consistency": {
+      "weight": 0.20,
+      "score": 5.0,
+      "rationale": "No contradictions between FRs. Wave ordering respects dependency chain (FR-004→FR-005→FR-006, FR-008→FR-007, etc.). Constitutional Gate properly applied — no invented features. NFRs and CONs consistently enforced throughout. Menu reorganization (FR-016) aligns with module changes in other FRs.",
+      "issues": []
+    },
+    "feasibility": {
+      "weight": 0.15,
+      "score": 4.0,
+      "rationale": "All changes validated as technically feasible (RES-*). No new libraries needed. Vercel function limit respected. Supabase migration is additive. Biggest risk: 152 demanda references removal (FR-008). Wave-based approach mitigates risk.",
+      "issues": [
+        {
+          "severity": "MEDIUM",
+          "description": "FR-008 (remove demanda): 152 references is a significant amount of code to modify in one wave. Risk of missing a reference causing runtime errors.",
+          "recommendation": "Consider splitting FR-008 into sub-tasks: (a) remove UI references, (b) remove data layer, (c) remove sync/storage. Test each sub-task independently."
+        }
+      ]
+    },
+    "alignment": {
+      "weight": 0.15,
+      "score": 5.0,
+      "rationale": "Spec directly implements user's stated objective: 'Reduzir complexidade do sistema ERP atual'. All 16 regras mapped 1:1 to FRs. Constraints (NAO criar projeto novo, NAO substituir layout, NAO quebrar funcionalidades, NAO remover portal escolar) explicitly enforced via CON-001 to CON-004. Fluxo final matches user's diagram: Contrato → Portal → Pedidos → NF.",
+      "issues": []
+    }
+  },
+
+  "weighted_score": 4.475,
+  "verdict": "APPROVED",
+
+  "summary": {
+    "strengths": [
+      "Complete 1:1 mapping of user's 16 regras to FRs",
+      "Excellent traceability — every spec statement traces to FR/NFR/CON/RES",
+      "Wave-based approach respects dependency ordering",
+      "Portal escolar safety confirmed via research",
+      "Constitutional Gate properly applied — no invented features",
+      "Existing codebase patterns leveraged (AC-9, getCentralComoBancoPrecos)"
+    ],
+    "weaknesses": [
+      "Data migration for existing contrato items needs more detail",
+      "FR-008 (demanda removal) is high-risk due to 152 references — needs sub-task breakdown",
+      "FR-012 (bipagem mobile) barcode implementation slightly underspecified"
+    ],
+    "recommendations": [
+      "Add data migration step for existing contrato→produto linkage in Wave 2 plan",
+      "Break FR-008 into 3 sub-tasks for safer execution",
+      "Otherwise: PROCEED TO IMPLEMENTATION PLAN"
+    ]
+  },
+
+  "quality_gate": {
+    "accuracy_pass": true,
+    "completeness_pass": true,
+    "consistency_pass": true,
+    "feasibility_pass": true,
+    "alignment_pass": true,
+    "overall": "APPROVED (4.475 / 5.0 — threshold: 4.0)"
+  }
+}

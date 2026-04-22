@@ -1,0 +1,105 @@
+{
+  "metadata": {
+    "id": "RESEARCH-GDP-SIMPLIFICATION-2026",
+    "researched_by": "@analyst (Alex)",
+    "date": "2026-04-22",
+    "requirements_ref": "REQ-GDP-SIMPLIFICATION-2026",
+    "complexity_ref": "COMPLEXITY-GDP-SIMPLIFICATION-2026"
+  },
+
+  "findings": [
+    {
+      "id": "RES-001",
+      "topic": "Demanda removal impact",
+      "finding": "152 references to 'demanda' across 6+ files. Heaviest in gdp-estoque-intel.js (~40 refs), gdp-init.js (~10 refs), gdp-pedidos.js (~15 refs), gdp-core.js (~10 refs), app-state.js (~7 refs). _selectedDemandaIds is a Set for bulk ops. Removal requires commenting/removing in all files but does NOT affect portal escolar (demandas are internal only).",
+      "risk": "MEDIUM — Many references but all internal. No external API depends on demanda.",
+      "recommendation": "Remove in Wave 3. Comment out (not delete) initially. Mark with // REMOVED: demanda (Regra 5)."
+    },
+    {
+      "id": "RES-002",
+      "topic": "Conversão global removal impact",
+      "finding": "11 references across app-state.js, app.js, gdp-core.js, gdp-estoque-intel.js. Key: gdp.conversoes.v1 localStorage key. Used in app.js line 2489 for fator calculation. Replacement: produto_critico boolean per product (FR-013).",
+      "risk": "LOW — Minimal references, clear replacement strategy.",
+      "recommendation": "Remove in Wave 4 when produto_critico is added."
+    },
+    {
+      "id": "RES-003",
+      "topic": "SKU strategy in contratos — current state",
+      "finding": "111+ SKU references. Priority hierarchy already exists: skuVinculado (manual) > auto-match > empty (AC-9 rule in gdp-core.js line 638-639). skuVinculado is ALREADY the preferred approach. FR-005 aligns with existing AC-9 rule — just make it mandatory and remove auto-match.",
+      "risk": "LOW — Already partially implemented via AC-9 rule.",
+      "recommendation": "Wave 2: Make skuVinculado the ONLY path. Rename to produto_vinculado_id. Remove auto-match fallback."
+    },
+    {
+      "id": "RES-004",
+      "topic": "Portal escolar integration safety",
+      "finding": "Portal integration lives in app-sgd-integration.js (varrerSgd function). Data flows: SGD → orcamentos → pré-orçamento → aprovação → envio. Pedidos from portal are created via sync flow, not direct gdp-pedidos.js calls. Functions: buildSgdPayload(), BrowserSgdClient.listBudgets(). NONE of these touch demanda, conversão, or match automático directly.",
+      "risk": "LOW — Portal integration is isolated from GDP simplification changes.",
+      "recommendation": "Leave app-sgd-integration.js, sgd-proxy.js, sync-pedidos.js, sync-entregas.js completely untouched."
+    },
+    {
+      "id": "RES-005",
+      "topic": "Estoque comprometido removal",
+      "finding": "17 references to 'comprometido'. Logic: tracked as movement type in gdp-estoque-intel.js. Formula: Disponivel = Fisico - Comprometido. No 'transito' references found (never implemented). Removal simplifies to: estoque = {produto_id, quantidade_atual}.",
+      "risk": "MEDIUM — Need to recalculate existing estoque records. Migration should set quantidade_atual = fisico - comprometido for final snapshot.",
+      "recommendation": "Wave 4: Simplify estoque model. Migration: snapshot current disponivel as quantidade_atual."
+    },
+    {
+      "id": "RES-006",
+      "topic": "getCentralComoBancoPrecos() facade",
+      "finding": "Defined in gdp-banco-produtos.js lines 335-357. Maps bancoProdutos internal schema to bancoPrecos interface (Story 8.3). Currently defined but not actively called in dashboard code. Available for future use.",
+      "risk": "NONE — Facade exists and works. FR-003 removes the UI tab, not the data.",
+      "recommendation": "FR-003: Remove Banco de Preços TAB and CONFIG. Keep getCentralComoBancoPrecos() facade for API compatibility."
+    },
+    {
+      "id": "RES-007",
+      "topic": "Supabase migration strategy",
+      "finding": "Latest migration: 013_preco_historico_aggregation.sql. Next migration will be 014. Schema changes needed: (1) Add produto_vinculado_id to contratos.itens, (2) Add produto_critico to produtos, (3) Simplify estoque table. All additive (ALTER TABLE) — no destructive changes.",
+      "risk": "LOW — All additive migrations. No data loss.",
+      "recommendation": "Single migration 014_gdp_simplification.sql with all schema changes."
+    },
+    {
+      "id": "RES-008",
+      "topic": "Vercel function limit",
+      "finding": "Currently 10 functions (limit 12). GDP simplification does NOT require new serverless functions. All changes are frontend JS + Supabase schema. Safe.",
+      "risk": "NONE",
+      "recommendation": "No new API routes needed."
+    },
+    {
+      "id": "RES-009",
+      "topic": "Radar-matcher vs GDP match — separation",
+      "finding": "radar-matcher.js (230 lines) handles Radar/Intel Preços matching (SGD → banco de precos). This is SEPARATE from GDP contrato matching. FR-001 changes apply ONLY to radar-matcher.js flow (add human approval gate). FR-005 changes apply to GDP contrato flow (eliminate auto-match, use produto_vinculado_id). Two separate systems — can be changed independently.",
+      "risk": "LOW — Clear separation between Radar and GDP matching.",
+      "recommendation": "Wave 1: Fix radar-matcher.js (FR-001). Wave 2: Fix GDP contrato matching (FR-005). Independent."
+    },
+    {
+      "id": "RES-010",
+      "topic": "Pre-orcamento table — unidade data availability",
+      "finding": "Pré-orçamento table (index.html line 282-294) has columns: Item, Marca, Qtd, Custo Unit., Margem%, Preço Unit., Total. NO unidade column. However, SGD orcamento items DO contain 'unidade' field (from school budget). Data is available in the orcamento object but not displayed.",
+      "risk": "NONE — Data exists, just needs to be shown.",
+      "recommendation": "Wave 1: Add <th>Unidade</th> column and render with color-coded badges."
+    }
+  ],
+
+  "unverified_claims": [],
+
+  "technology_validation": {
+    "supabase_alter_table": "VERIFIED — Supabase supports ALTER TABLE via migrations. Used in migrations 006-013.",
+    "vanilla_js_dom_manipulation": "VERIFIED — Codebase uses vanilla JS throughout. No framework dependency.",
+    "barcode_api": "VERIFIED — gdp-estoque-intel-mobile.html already uses barcode scanning. FR-012 extends existing pattern.",
+    "localStorage_sync": "VERIFIED — gdp-core.js has cloud sync infrastructure. Pattern reusable."
+  },
+
+  "dependencies_map": {
+    "FR-001 (approval gate)": "Independent — radar-matcher.js + index.html only",
+    "FR-002 (unidade column)": "Independent — index.html + app.js only",
+    "FR-003 (remove banco tab)": "Independent — index.html + pricing-intel.js",
+    "FR-004 → FR-005 → FR-006": "Chain — contrato/produto separation enables SKU cleanup",
+    "FR-019 → FR-004": "Depends on contrato/produto separation being in place",
+    "FR-007 → FR-008": "Saldo formula needs demanda removed first",
+    "FR-009 → FR-010": "Pedido as execution needs operations centralized",
+    "FR-011 → FR-013": "Simple estoque enables produto_critico approach",
+    "FR-015 → FR-016 → FR-017": "Menu + reports depend on module simplification"
+  },
+
+  "conclusion": "All 19 FRs are technically feasible with the existing codebase. No new libraries, frameworks, or infrastructure needed. Wave-based approach validated — each wave is independently deployable. Highest risk is Wave 3 (pedido centralization + demanda removal) due to 152 demanda references. Portal escolar integration is confirmed safe."
+}

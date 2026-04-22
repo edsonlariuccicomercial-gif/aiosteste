@@ -139,12 +139,13 @@
     var noMatch = { status: 'sem_match', score: 0, sku: null, nomeBanco: null, custoBase: 0, margem: 0, precoSugerido: 0 };
     if (!key) return noMatch;
 
-    // Layer 1: Exact dictionary match
+    // Layer 1: Exact dictionary match — requires human confirmation
     if (_cache[key]) {
       var entry = _cache[key];
       entry.vezes_usado = (entry.vezes_usado || 0) + 1;
       var bp = findBancoItem(entry.sku);
-      return buildResult('exato', 1.0, entry, bp);
+      var status = entry.confirmado ? 'confirmado' : 'pendente_revisao';
+      return buildResult(status, 1.0, entry, bp);
     }
 
     // Layer 2: Seed from contratos — token similarity >= 0.6
@@ -155,7 +156,7 @@
     });
     if (bestSeed) {
       var bp2 = findBancoItem(bestSeed.sku);
-      return buildResult('sugestao', bestSeedScore, bestSeed, bp2);
+      return buildResult('pendente_revisao', bestSeedScore, bestSeed, bp2);
     }
 
     // Layer 3: Fuzzy match in bancoPrecos.itens >= 0.5
@@ -167,7 +168,7 @@
       });
       if (bestBp) {
         return {
-          status: 'sugestao', score: bestBpScore,
+          status: 'pendente_revisao', score: bestBpScore,
           sku: bestBp.id, nomeBanco: bestBp.item,
           custoBase: bestBp.custoBase || 0,
           margem: bestBp.margemPadrao || 0,
@@ -214,10 +215,23 @@
     try { await sbUpsert([entry]); } catch (e) { console.warn('[RadarMatcher] confirm save failed', e.message); }
   }
 
+  async function reject(itemName) {
+    var key = normalizeProductName(itemName);
+    if (!key) return;
+    delete _cache[key];
+    saveLS();
+    try {
+      await fetch(REST + '/radar_equivalencias?chave_normalizada=eq.' + encodeURIComponent(key) + '&empresa_id=eq.' + encodeURIComponent(empresaId()), {
+        method: 'DELETE', headers: HEADERS
+      });
+    } catch (e) { console.warn('[RadarMatcher] reject delete failed', e.message); }
+  }
+
   window.RadarMatcher = {
     init: init,
     match: match,
     confirm: confirm,
+    reject: reject,
     normalizeProductName: normalizeProductName,
     tokenSimilarity: tokenSimilarity,
     seedFromContratos: seedFromContratos,

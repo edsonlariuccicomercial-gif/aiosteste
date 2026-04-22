@@ -166,8 +166,6 @@
     <button class="tab" data-tab="aprovados">Aprovados</button>
     <button class="tab" data-tab="envio-sgd">Envio SGD</button>
     <button class="tab" data-tab="historico">Histórico</button>
-    <button class="tab" data-tab="banco-precos">Banco de Preços</button>
-
     <button class="tab" data-tab="rentabilidade">Rentabilidade</button>
   </nav>
 
@@ -283,6 +281,7 @@
             <thead>
               <tr>
                 <th>Item</th>
+                <th>Unidade</th>
                 <th>Marca</th>
                 <th>Qtd</th>
                 <th>Custo Unit.</th>
@@ -294,12 +293,12 @@
             <tbody id="tbody-preorcamento"></tbody>
             <tfoot>
               <tr class="total-row">
-                <td colspan="5"></td>
+                <td colspan="6"></td>
                 <td><strong>TOTAL</strong></td>
                 <td><strong id="preorcamento-total">R$ 0,00</strong></td>
               </tr>
               <tr class="total-row">
-                <td colspan="4"></td>
+                <td colspan="5"></td>
                 <td>Margem média</td>
                 <td id="preorcamento-margem-media">0%</td>
               </tr>
@@ -397,94 +396,7 @@
     </div>
   </section>
 
-  <!-- ===== TAB: BANCO DE PREÇOS ===== -->
-  <section id="tab-banco-precos" class="tab-content">
-    <div class="card">
-      <!-- Inteligência de Preços (Story 4.28) -->
-      <div id="banco-intel-panel" class="intel-panel" style="margin-bottom:1rem;">
-        <div class="intel-header" id="banco-intel-toggle" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;padding:0.5rem 0;">
-          <h3 style="margin:0;">Inteligência de Preços</h3>
-          <span id="banco-intel-chevron">▼</span>
-        </div>
-        <div id="banco-intel-body" style="display:none;">
-          <div class="kpi-row" style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:1rem;">
-            <div class="kpi-card"><div class="kpi-value" id="intel-total-mestres">0</div><div class="kpi-label">Itens Mestres</div></div>
-            <div class="kpi-card"><div class="kpi-value" id="intel-fornecedores">0</div><div class="kpi-label">Fornecedores</div></div>
-            <div class="kpi-card"><div class="kpi-value" id="intel-preco-medio">R$ 0</div><div class="kpi-label">Preço Médio</div></div>
-            <div class="kpi-card"><div class="kpi-value" id="intel-pct-competitivo">0%</div><div class="kpi-label">% Competitivos</div></div>
-          </div>
-          <!-- Ranking Fornecedores -->
-          <details style="margin-bottom:1rem;">
-            <summary style="cursor:pointer;font-weight:600;">Ranking de Fornecedores</summary>
-            <div class="table-wrap" style="max-height:250px;overflow-y:auto;margin-top:0.5rem;">
-              <table><thead><tr><th>Fornecedor</th><th>Itens</th><th>% Menor Preço</th><th>Última Atualização</th></tr></thead>
-              <tbody id="tbody-ranking-fornecedores"></tbody></table>
-            </div>
-          </details>
-          <!-- Alertas -->
-          <details>
-            <summary style="cursor:pointer;font-weight:600;">Alertas e Oportunidades</summary>
-            <div id="intel-alertas" style="margin-top:0.5rem;max-height:200px;overflow-y:auto;"></div>
-          </details>
-        </div>
-      </div>
-
-      <div class="table-head">
-        <h2>Banco de Preços</h2>
-        <div class="table-head-actions">
-          <button id="btn-itens-mestres" class="btn btn-sm">Itens Mestres</button>
-          <button id="btn-import-excel" class="btn btn-sm">Importar Cotacao</button>
-          <button id="btn-import-ai" class="btn btn-sm btn-sgd">Importar com IA</button>
-          <button id="btn-import-b2b" class="btn btn-sm btn-accent">Importar de Site</button>
-          <button id="btn-pncp-batch" class="btn btn-sm" title="Consultar preços de referência no PNCP para todos os itens">Consultar PNCP</button>
-          <button id="btn-add-preco" class="btn btn-sm btn-accent">+ Novo Item</button>
-          <button id="btn-export-banco" class="btn btn-sm">Exportar CSV</button>
-          <button id="btn-excluir-selecionados-banco" class="btn btn-sm btn-danger" style="display:none;">Excluir Selecionados (<span id="banco-sel-count">0</span>)</button>
-          <button id="btn-limpar-banco" class="btn btn-sm btn-danger">Limpar Banco</button>
-        </div>
-      </div>
-
-      <div class="filters">
-        <select id="filtro-banco-grupo">
-          <option value="all">Todos os grupos</option>
-        </select>
-        <input type="text" id="filtro-banco-texto" placeholder="Buscar item..." autocomplete="off" />
-      </div>
-
-      <!-- PNCP Progress -->
-      <div id="pncp-progress" style="display:none;margin:8px 0;padding:8px 12px;background:var(--bg);border-radius:6px;border:1px solid var(--line);">
-        <div style="display:flex;justify-content:space-between;align-items:center;font-size:0.8rem;">
-          <span class="label">Consultando PNCP...</span>
-          <span class="pct">0%</span>
-        </div>
-        <progress class="bar" value="0" max="100" style="width:100%;height:6px;margin-top:4px;"></progress>
-      </div>
-
-      <div class="table-wrap">
-        <table id="tabela-banco">
-          <thead>
-            <tr>
-              <th style="width:30px"><input type="checkbox" id="banco-select-all" title="Selecionar todos" /></th>
-              <th>Item</th>
-              <th>Marca</th>
-              <th>Grupo</th>
-              <th>Meu Custo</th>
-              <th>P.U.</th>
-              <th>Minha Proposta</th>
-              <th>Menor Concorrente</th>
-              <th>Ref. PNCP</th>
-              <th>Margem Real</th>
-              <th>Tendência</th>
-              <th>Competitividade</th>
-              <th>Ações</th>
-            </tr>
-          </thead>
-          <tbody id="tbody-banco"></tbody>
-        </table>
-      </div>
-      <p id="banco-empty" class="empty-msg" style="display:none;">Nenhum item no banco de preços.</p>
-    </div>
-  </section>
+  <!-- FR-003: Banco de Preços tab removed — replaced by Central de Preços -->
 
 
   <!-- ===== TAB: RENTABILIDADE ===== -->
@@ -741,7 +653,7 @@
         <button class="config-tab" data-config-tab="notas-fiscais">Notas Fiscais</button>
         <button class="config-tab" data-config-tab="contas-bancarias">Contas Bancarias</button>
         <button class="config-tab" data-config-tab="modulos">Módulos</button>
-        <button class="config-tab" data-config-tab="banco-precos">Banco de Preços</button>
+        <!-- FR-003: Banco de Preços config removed -->
       </nav>
       <!-- Dados da Empresa -->
       <div id="config-empresa" class="config-content active">
@@ -973,7 +885,7 @@
           <label style="display:flex;align-items:center;gap:12px;padding:12px;background:var(--bg);border:1px solid var(--line);border-radius:8px;cursor:pointer;">
             <input type="checkbox" id="mod-intel" checked onchange="salvarModulos()">
             <span>💰</span>
-            <div><strong>INTEL PREÇOS</strong><br><span style="font-size:.8rem;color:var(--muted);">Banco de Preços, Pré-Orçamento, Rentabilidade</span></div>
+            <div><strong>INTEL PREÇOS</strong><br><span style="font-size:.8rem;color:var(--muted);">Central de Preços, Pré-Orçamento, Rentabilidade</span></div>
           </label>
           <label style="display:flex;align-items:center;gap:12px;padding:12px;background:var(--bg);border:1px solid var(--line);border-radius:8px;cursor:pointer;">
             <input type="checkbox" id="mod-gdp" checked onchange="salvarModulos()">
@@ -983,20 +895,7 @@
         </div>
       </div>
 
-      <!-- Banco de Preços Config -->
-      <div id="config-banco-precos" class="config-content">
-        <p style="color:var(--muted);margin-bottom:16px;">Configure a integração com o Banco de Preços Inteligente. Com a integração ativa, o sistema sugere preços com semáforo (verde/amarelo/vermelho) baseado em dados reais de licitações.</p>
-        <div id="bp-config-container"></div>
-        <script>
-          document.addEventListener('DOMContentLoaded', () => {
-            const container = document.getElementById('bp-config-container');
-            if (container && typeof BancoPrecos !== 'undefined') {
-              container.innerHTML = BancoPrecos.renderConfigPanel();
-              BancoPrecos.bindConfigEvents();
-            }
-          });
-        </script>
-      </div>
+      <!-- FR-003: Banco de Preços config removed -->
 
     </div>
   </section>

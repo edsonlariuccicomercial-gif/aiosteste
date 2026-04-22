@@ -1,0 +1,507 @@
+{
+  "metadata": {
+    "id": "REQ-GDP-SIMPLIFICATION-2026",
+    "title": "GDP Simplification + Radar/Intel Preços Fixes",
+    "version": "1.0.0",
+    "created": "2026-04-22",
+    "author": "@pm (Morgan)",
+    "source": "User requirements (16 rules) + 3 Radar/Intel Preços fixes",
+    "status": "GATHERED"
+  },
+
+  "functional_requirements": [
+    {
+      "id": "FR-001",
+      "category": "radar-intel",
+      "title": "Aprovação humana obrigatória no match de verificação",
+      "description": "No módulo Radar/Intel Preços, a etapa de verificação (match de produto) deve exigir aprovação manual de um humano antes de confirmar o vínculo. O sistema pode sugerir, mas NÃO pode auto-confirmar.",
+      "source": "User request (Radar & Intel Preços)",
+      "acceptance_criteria": [
+        "Match automático (Layer 1/2/3 do radar-matcher.js) NUNCA auto-confirma — sempre status='pendente'",
+        "UI mostra botão 'Confirmar' e 'Rejeitar' para cada sugestão de match",
+        "Somente após clique humano em 'Confirmar' o campo confirmado=true é salvo",
+        "Matches não confirmados são marcados visualmente como 'pendente revisão'",
+        "Fluxo: sistema sugere → humano revisa → humano confirma/rejeita"
+      ],
+      "files_affected": [
+        "painel-caixa-escolar/squads/caixa-escolar/dashboard/radar-matcher.js",
+        "painel-caixa-escolar/squads/caixa-escolar/dashboard/index.html",
+        "painel-caixa-escolar/squads/caixa-escolar/dashboard/app.js"
+      ]
+    },
+    {
+      "id": "FR-002",
+      "category": "radar-intel",
+      "title": "Coluna de unidade com destaque no pré-orçamento",
+      "description": "Adicionar coluna 'Unidade' na tabela de pré-orçamento (tab-pre-orcamento) com destaque visual para evitar erros. Unidades das planilhas devem ser visíveis e diferenciadas (ex: KG, UN, PCT, LT).",
+      "source": "User request (Radar & Intel Preços)",
+      "acceptance_criteria": [
+        "Nova coluna 'Unidade' adicionada entre 'Item' e 'Marca' na tabela preorcamento",
+        "Unidade exibida com badge colorido e destaque visual (font-weight bold, background)",
+        "Diferentes unidades têm cores distintas (ex: KG=azul, UN=verde, PCT=laranja, LT=roxo)",
+        "Coluna visível tanto na tabela principal quanto na exportação CSV",
+        "Dados da unidade vêm do orçamento SGD original (campo unidade do item)"
+      ],
+      "files_affected": [
+        "painel-caixa-escolar/squads/caixa-escolar/dashboard/index.html (linha ~284, thead tabela-preorcamento)",
+        "painel-caixa-escolar/squads/caixa-escolar/dashboard/app.js (render pré-orçamento rows)",
+        "painel-caixa-escolar/squads/caixa-escolar/dashboard/styles.css (badge styles)"
+      ]
+    },
+    {
+      "id": "FR-003",
+      "category": "radar-intel",
+      "title": "Remover aba 'Banco de Preços' do Intel Preços",
+      "description": "Remover completamente a aba 'Banco de Preços' da navegação do Intel Preços. Foi substituída pela Central de Preços. Também remover referências no menu de configurações.",
+      "source": "User request (Radar & Intel Preços)",
+      "acceptance_criteria": [
+        "Aba 'Banco de Preços' removida do nav tabs-intel-precos (index.html linha 169)",
+        "Section tab-banco-precos removida ou hidden (index.html linhas 400-487)",
+        "Config tab 'Banco de Preços' removida das configurações (index.html linha 744)",
+        "Config section banco-precos removida (index.html linhas 986-1062)",
+        "Referências a 'Banco de Preços' no pricing-intel.js limpas",
+        "Funcionalidade substituída pela Central de Preços (getCentralComoBancoPrecos() facade já existe)"
+      ],
+      "files_affected": [
+        "painel-caixa-escolar/squads/caixa-escolar/dashboard/index.html",
+        "painel-caixa-escolar/squads/caixa-escolar/dashboard/pricing-intel.js",
+        "painel-caixa-escolar/squads/caixa-escolar/dashboard/app-banco.js",
+        "painel-caixa-escolar/squads/caixa-escolar/dashboard/app-config.js"
+      ]
+    },
+    {
+      "id": "FR-004",
+      "category": "gdp-contrato",
+      "title": "Separação Contrato ≠ Produto (Regra 1)",
+      "description": "Contrato é fiscal (descrição exata usada na NF, quantidade contratada, preço unitário, SEM SKU). Produto é interno (cadastro único, possui SKU, usado para estoque e compra).",
+      "source": "Regra 1 — CONTRATO ≠ PRODUTO",
+      "acceptance_criteria": [
+        "Item de contrato tem: descricao (imutável), quantidade_contratada, preco_unitario",
+        "Item de contrato NÃO tem SKU próprio — tem campo produto_vinculado_id",
+        "Produto tem: nome, SKU (gerado automaticamente), categoria, unidade_padrao",
+        "Na NF: usar descricao do contrato + SKU do produto vinculado",
+        "Schema Supabase reflete separação (contratos.itens vs produtos)"
+      ],
+      "files_affected": [
+        "painel-caixa-escolar/squads/caixa-escolar/dashboard/js/gdp-contratos-module.js",
+        "painel-caixa-escolar/squads/caixa-escolar/dashboard/js/gdp-banco-produtos.js",
+        "painel-caixa-escolar/supabase/migrations/ (nova migration)"
+      ]
+    },
+    {
+      "id": "FR-005",
+      "category": "gdp-contrato",
+      "title": "Eliminar match automático (Regra 2)",
+      "description": "Remover toda lógica de match automático de produtos no GDP. Substituir por campo obrigatório produto_vinculado_id com sugestão opcional + confirmação manual.",
+      "source": "Regra 2 — ELIMINAR MATCH AUTOMÁTICO",
+      "acceptance_criteria": [
+        "Lógica de match automático complexo removida do GDP (NÃO do Radar — Radar mantém match para pré-orçamento)",
+        "Novo campo produto_vinculado_id no item do contrato",
+        "Sistema sugere produto similar (busca simples por nome) — opcional",
+        "Usuário DEVE confirmar manualmente a vinculação",
+        "Sem match automático no fluxo contrato → pedido"
+      ],
+      "files_affected": [
+        "painel-caixa-escolar/squads/caixa-escolar/dashboard/js/gdp-contratos-module.js",
+        "painel-caixa-escolar/squads/caixa-escolar/dashboard/gdp-contratos.html"
+      ]
+    },
+    {
+      "id": "FR-006",
+      "category": "gdp-contrato",
+      "title": "SKU único no produto (Regra 3)",
+      "description": "SKU existe apenas no cadastro de Produto. Contrato NÃO tem SKU. Na NF: descrição do contrato + SKU do produto vinculado.",
+      "source": "Regra 3 — SKU ÚNICO",
+      "acceptance_criteria": [
+        "Campo SKU removido dos itens de contrato",
+        "SKU presente apenas na tabela/objeto de produtos",
+        "NF-e usa: descricao do contrato para campo xProd, SKU do produto vinculado para código",
+        "Geração automática de SKU no cadastro de produto"
+      ],
+      "files_affected": [
+        "painel-caixa-escolar/squads/caixa-escolar/dashboard/js/gdp-notas-fiscais.js",
+        "painel-caixa-escolar/squads/caixa-escolar/dashboard/server-lib/nfe-sefaz-client.js",
+        "painel-caixa-escolar/squads/caixa-escolar/dashboard/js/gdp-banco-produtos.js"
+      ]
+    },
+    {
+      "id": "FR-007",
+      "category": "gdp-pedido",
+      "title": "Saldo do contrato baseado somente em pedidos (Regra 4)",
+      "description": "Saldo = total_contratado - soma_dos_pedidos. Nenhum outro fator (estoque, demanda, conversão, movimentação) altera o saldo.",
+      "source": "Regra 4 — SALDO DO CONTRATO",
+      "acceptance_criteria": [
+        "Fórmula: saldo_item = qtd_contratada - SUM(qtd pedidos aprovados)",
+        "Ao criar pedido: quantidade_utilizada += quantidade, saldo -= quantidade",
+        "Estoque NÃO altera saldo do contrato",
+        "Demanda NÃO altera saldo do contrato",
+        "Conversão NÃO altera saldo do contrato",
+        "Dashboard mostra saldo em tempo real por item"
+      ],
+      "files_affected": [
+        "painel-caixa-escolar/squads/caixa-escolar/dashboard/js/gdp-pedidos.js",
+        "painel-caixa-escolar/squads/caixa-escolar/dashboard/js/gdp-contratos-module.js"
+      ]
+    },
+    {
+      "id": "FR-008",
+      "category": "gdp-pedido",
+      "title": "Remover módulo de demanda (Regra 5)",
+      "description": "Eliminar completamente: tabela de demanda, reserva em g/ml, duplicação pedido × demanda. Pedido = unidade central do sistema.",
+      "source": "Regra 5 — REMOVER 'DEMANDA'",
+      "acceptance_criteria": [
+        "Variável/storage gdp.demandas.v1 removida ou ignorada",
+        "Referências a _selectedDemandaIds, .demanda-check removidas",
+        "Nenhuma UI de 'Demandas' visível no GDP",
+        "Pedido substitui demanda como unidade central",
+        "Dados existentes de demanda NÃO são migrados (descartados)"
+      ],
+      "files_affected": [
+        "painel-caixa-escolar/squads/caixa-escolar/dashboard/js/gdp-init.js",
+        "painel-caixa-escolar/squads/caixa-escolar/dashboard/gdp-contratos.html"
+      ]
+    },
+    {
+      "id": "FR-009",
+      "category": "gdp-pedido",
+      "title": "Pedido como unidade de execução completa (Regra 6)",
+      "description": "Cada pedido contém: produto, quantidade pedida, estoque disponível, quantidade a comprar. Pedido é a peça central de execução.",
+      "source": "Regra 6 — PEDIDO VIRA EXECUÇÃO",
+      "acceptance_criteria": [
+        "Pedido mostra: produto, qtd_pedida, estoque_disponivel, qtd_a_comprar",
+        "qtd_a_comprar = qtd_pedida - estoque_disponivel (se positivo)",
+        "Cada item do pedido tem visibilidade do estoque atual",
+        "Não precisa de módulo separado para calcular necessidade de compra"
+      ],
+      "files_affected": [
+        "painel-caixa-escolar/squads/caixa-escolar/dashboard/js/gdp-pedidos.js",
+        "painel-caixa-escolar/squads/caixa-escolar/dashboard/gdp-contratos.html"
+      ]
+    },
+    {
+      "id": "FR-010",
+      "category": "gdp-pedido",
+      "title": "Centralizar operação em pedidos com ações internas (Regra 7)",
+      "description": "Mover separação de estoque, compra, execução e entrega para dentro do pedido como ações.",
+      "source": "Regra 7 — CENTRALIZAR OPERAÇÃO EM PEDIDOS",
+      "acceptance_criteria": [
+        "Ação [Separar do Estoque]: bipagem + baixa estoque, dentro do pedido",
+        "Ação [Compra Direta]: registra compra vinculada ao pedido, NÃO entra no estoque",
+        "Ação [Finalizar Entrega]: fecha pedido, não altera saldo do contrato",
+        "Status do pedido reflete a ação: separando → comprando → entregando → finalizado",
+        "Todas ações acessíveis de dentro do pedido (sem navegar para outro módulo)"
+      ],
+      "files_affected": [
+        "painel-caixa-escolar/squads/caixa-escolar/dashboard/js/gdp-pedidos.js",
+        "painel-caixa-escolar/squads/caixa-escolar/dashboard/js/gdp-estoque-intel.js",
+        "painel-caixa-escolar/squads/caixa-escolar/dashboard/gdp-contratos.html"
+      ]
+    },
+    {
+      "id": "FR-011",
+      "category": "gdp-estoque",
+      "title": "Estoque simplificado (Regra 8)",
+      "description": "Manter apenas produto_id + quantidade_atual. Remover estoque comprometido, estoque em trânsito complexo, múltiplas movimentações.",
+      "source": "Regra 8 — ESTOQUE SIMPLES",
+      "acceptance_criteria": [
+        "Modelo de estoque: {produto_id, quantidade_atual} — apenas 2 campos essenciais",
+        "Removido: estoque_comprometido, estoque_em_transito",
+        "Movimentações simplificadas: entrada (compra/devolução) e saída (separação/ajuste)",
+        "Sem rastreamento de múltiplos lotes ou localizações"
+      ],
+      "files_affected": [
+        "painel-caixa-escolar/squads/caixa-escolar/dashboard/js/gdp-estoque-intel.js",
+        "painel-caixa-escolar/squads/caixa-escolar/dashboard/js/gdp-init.js"
+      ]
+    },
+    {
+      "id": "FR-012",
+      "category": "gdp-mobile",
+      "title": "Bipagem mobile com 2 modos (Regra 9)",
+      "description": "Modo Estoque: leitura código barras → decrementa estoque. Modo Compra: leitura código barras → registra compra no pedido.",
+      "source": "Regra 9 — BIPAGEM MOBILE",
+      "acceptance_criteria": [
+        "Tela mobile com seletor de modo: 'Estoque' ou 'Compra'",
+        "Modo Estoque: bipa → decrementa quantidade_atual do produto",
+        "Modo Compra: bipa → registra compra vinculada ao pedido selecionado",
+        "Feedback visual e sonoro após cada bipagem",
+        "Funciona offline com sync posterior"
+      ],
+      "files_affected": [
+        "painel-caixa-escolar/squads/caixa-escolar/dashboard/gdp-estoque-intel-mobile.html"
+      ]
+    },
+    {
+      "id": "FR-013",
+      "category": "gdp-produto",
+      "title": "Conversão de gramatura por produto (Regra 10)",
+      "description": "Remover conversão global. Criar campo produto_critico (boolean). Se crítico: ativar unidade base (g/ml) e embalagens. No pedido: botão 'Calcular melhor embalagem'.",
+      "source": "Regra 10 — CONVERSÃO DE GRAMATURA",
+      "acceptance_criteria": [
+        "Conversão global (gdp.conversoes.v1) removida",
+        "Novo campo: produto.produto_critico (boolean, default false)",
+        "Se produto_critico=false: fluxo normal sem conversão",
+        "Se produto_critico=true: campos unidade_base (g/ml), embalagens[] disponíveis",
+        "No pedido, se item é produto crítico: botão 'Calcular melhor embalagem'"
+      ],
+      "files_affected": [
+        "painel-caixa-escolar/squads/caixa-escolar/dashboard/js/gdp-init.js",
+        "painel-caixa-escolar/squads/caixa-escolar/dashboard/js/gdp-banco-produtos.js",
+        "painel-caixa-escolar/squads/caixa-escolar/dashboard/js/gdp-pedidos.js"
+      ]
+    },
+    {
+      "id": "FR-014",
+      "category": "gdp-produto",
+      "title": "Produto base único sem duplicação (Regra 11)",
+      "description": "Manter apenas 1 produto base. Evitar duplicação por descrição de escola.",
+      "source": "Regra 11 — PRODUTOS",
+      "acceptance_criteria": [
+        "Cadastro de produto é único — busca por similaridade antes de criar novo",
+        "Não duplica produto quando escola diferente tem descrição ligeiramente diferente",
+        "Nome do produto NÃO contém gramatura (ex: 'Arroz' não 'Arroz 5kg')",
+        "Fusão de duplicatas existentes via interface"
+      ],
+      "files_affected": [
+        "painel-caixa-escolar/squads/caixa-escolar/dashboard/js/gdp-banco-produtos.js"
+      ]
+    },
+    {
+      "id": "FR-015",
+      "category": "gdp-inteligencia",
+      "title": "Simplificar módulo Inteligência → Cadastro Base (Regra 12)",
+      "description": "Transformar módulo 'Inteligência' em cadastro base. Manter: Produtos, Estoque. Remover: demandas, movimentações complexas, compra inteligente.",
+      "source": "Regra 12 — INTELIGÊNCIA (SIMPLIFICAR)",
+      "acceptance_criteria": [
+        "Tab 'Estoque Intel' renomeada ou simplificada para 'Produtos & Estoque'",
+        "Mantido: cadastro de produtos, visualização de estoque",
+        "Removido: demandas, compra inteligente complexa, movimentações detalhadas",
+        "Interface limpa com foco em CRUD de produtos e consulta de estoque"
+      ],
+      "files_affected": [
+        "painel-caixa-escolar/squads/caixa-escolar/dashboard/js/gdp-estoque-intel.js",
+        "painel-caixa-escolar/squads/caixa-escolar/dashboard/gdp-contratos.html",
+        "painel-caixa-escolar/squads/caixa-escolar/dashboard/js/gdp-init.js"
+      ]
+    },
+    {
+      "id": "FR-016",
+      "category": "gdp-menu",
+      "title": "Reorganização do menu GDP (Regra 13)",
+      "description": "Manter menu atual mas redefinir funções. Pedidos = centro do sistema.",
+      "source": "Regra 13 — MENU (REORGANIZAÇÃO)",
+      "acceptance_criteria": [
+        "Clientes → sem alteração",
+        "Contratos → controle fiscal + vínculo com produto",
+        "Pedidos → execução completa (centro do sistema, destaque visual)",
+        "Notas Fiscais → geração baseada no pedido",
+        "Inteligência → apenas cadastro de produtos e estoque",
+        "Entregas → status do pedido (opcional como tab separada)",
+        "Financeiro → não alterar agora"
+      ],
+      "files_affected": [
+        "painel-caixa-escolar/squads/caixa-escolar/dashboard/gdp-contratos.html (sidebar)",
+        "painel-caixa-escolar/squads/caixa-escolar/dashboard/js/gdp-init.js (switchTab labels)"
+      ]
+    },
+    {
+      "id": "FR-017",
+      "category": "gdp-relatorios",
+      "title": "Relatórios simplificados (Regra 14)",
+      "description": "Manter apenas 4 relatórios essenciais.",
+      "source": "Regra 14 — RELATÓRIOS",
+      "acceptance_criteria": [
+        "Relatório 1: Contratos (total / utilizado / saldo)",
+        "Relatório 2: Pedidos em aberto",
+        "Relatório 3: Compras por pedido",
+        "Relatório 4: Estoque",
+        "Relatórios desnecessários removidos ou ocultados"
+      ],
+      "files_affected": [
+        "painel-caixa-escolar/squads/caixa-escolar/dashboard/gdp-contratos.html (tab relatorios)"
+      ]
+    },
+    {
+      "id": "FR-018",
+      "category": "gdp-pedido",
+      "title": "Cancelamento de pedido devolve saldo (Regra 15)",
+      "description": "Ao cancelar pedido, devolver saldo ao contrato automaticamente.",
+      "source": "Regra 15 — CANCELAMENTO",
+      "acceptance_criteria": [
+        "Cancelar pedido → saldo do contrato é recalculado (saldo += qtd do pedido cancelado)",
+        "Status do pedido muda para 'cancelado'",
+        "Registro de log/auditoria do cancelamento",
+        "Confirmação antes de cancelar (modal de confirmação)"
+      ],
+      "files_affected": [
+        "painel-caixa-escolar/squads/caixa-escolar/dashboard/js/gdp-pedidos.js"
+      ]
+    },
+    {
+      "id": "FR-019",
+      "category": "gdp-contrato",
+      "title": "Criação de produto direto no contrato (Regra 16)",
+      "description": "Ao cadastrar/importar contrato, cada item pode vincular produto existente ou criar produto na hora.",
+      "source": "Regra 16 — CRIAÇÃO DE PRODUTO DIRETO NO CONTRATO",
+      "acceptance_criteria": [
+        "Para cada item do contrato: descrição original (imutável) + campo produto_vinculado_id",
+        "Sistema sugere produtos existentes por nome semelhante (busca simples)",
+        "Permite selecionar produto existente (seleção manual)",
+        "Botão '+ Criar produto' abre formulário: nome (sem gramatura), categoria, unidade, SKU auto",
+        "Após salvar: produto criado e vinculado automaticamente ao item do contrato",
+        "Nome do produto NÃO inclui gramatura",
+        "NÃO duplicar produtos automaticamente",
+        "NÃO usar match automático complexo"
+      ],
+      "files_affected": [
+        "painel-caixa-escolar/squads/caixa-escolar/dashboard/js/gdp-contratos-module.js",
+        "painel-caixa-escolar/squads/caixa-escolar/dashboard/js/gdp-banco-produtos.js",
+        "painel-caixa-escolar/squads/caixa-escolar/dashboard/gdp-contratos.html"
+      ]
+    }
+  ],
+
+  "non_functional_requirements": [
+    {
+      "id": "NFR-001",
+      "title": "Não reescrever o sistema — apenas adaptar",
+      "description": "Todas as mudanças devem adaptar o sistema existente, não recriá-lo do zero.",
+      "acceptance_criteria": [
+        "Nenhum arquivo criado do zero para substituir existente",
+        "Layout/design mantido (dark theme, sidebar, cards)",
+        "Funcionalidades existentes que não são alteradas continuam funcionando"
+      ]
+    },
+    {
+      "id": "NFR-002",
+      "title": "Não quebrar integração com portal escolar",
+      "description": "Integração com SGD/portal escolar deve continuar funcionando.",
+      "acceptance_criteria": [
+        "sgd-proxy.js intocado",
+        "Fluxo: portal escolar → pedido continua operacional",
+        "Credenciais e sync não são afetados"
+      ]
+    },
+    {
+      "id": "NFR-003",
+      "title": "Reaproveitar banco de dados existente",
+      "description": "Usar migrations incrementais, não recriar tabelas.",
+      "acceptance_criteria": [
+        "Novas colunas via ALTER TABLE, não DROP+CREATE",
+        "Dados existentes preservados",
+        "Migrations numeradas sequencialmente após 013"
+      ]
+    },
+    {
+      "id": "NFR-004",
+      "title": "Uma fonte de verdade — Supabase first",
+      "description": "Dados centralizados no Supabase. localStorage apenas como cache/offline.",
+      "acceptance_criteria": [
+        "Supabase é source of truth para contratos, pedidos, produtos, estoque",
+        "localStorage usado como cache com sync bidirecional",
+        "Sem dados críticos exclusivos em localStorage"
+      ]
+    },
+    {
+      "id": "NFR-005",
+      "title": "Um fluxo central: Contrato → Pedido → NF",
+      "description": "Fluxo principal simplificado e linear.",
+      "acceptance_criteria": [
+        "Contrato → Portal escolar (pedido) → Pedidos (execução) → NF",
+        "Sem desvios por demanda, conversão global ou match automático"
+      ]
+    }
+  ],
+
+  "constraints": [
+    {
+      "id": "CON-001",
+      "title": "NÃO criar projeto novo",
+      "description": "Trabalhar sobre o projeto existente em painel-caixa-escolar/"
+    },
+    {
+      "id": "CON-002",
+      "title": "NÃO substituir layout atual",
+      "description": "Dark theme, sidebar, cards — tudo mantido"
+    },
+    {
+      "id": "CON-003",
+      "title": "NÃO quebrar funcionalidades existentes",
+      "description": "Login, NF-e, financeiro, entregas — tudo que não é alterado deve continuar"
+    },
+    {
+      "id": "CON-004",
+      "title": "NÃO remover integração portal escolar",
+      "description": "SGD proxy, sync-pedidos, sync-entregas — intocáveis"
+    },
+    {
+      "id": "CON-005",
+      "title": "Vercel Hobby — máximo 12 serverless functions",
+      "description": "Atualmente 10 functions. Qualquer nova API deve consolidar ou reutilizar existente."
+    },
+    {
+      "id": "CON-006",
+      "title": "Supabase free tier",
+      "description": "Limitações de storage, edge functions e bandwidth aplicáveis"
+    }
+  ],
+
+  "domain_model": {
+    "entities": [
+      {
+        "name": "Contrato",
+        "fields": ["id", "empresa_id", "escola", "edital", "objeto", "fornecedor", "vigencia", "status", "itens[]"],
+        "notes": "Fiscal. Item tem descricao imutável + produto_vinculado_id. SEM SKU."
+      },
+      {
+        "name": "Produto",
+        "fields": ["id", "empresa_id", "nome", "sku", "categoria", "unidade_padrao", "produto_critico", "unidade_base", "embalagens[]"],
+        "notes": "Cadastro único. SKU gerado automaticamente. Nome sem gramatura."
+      },
+      {
+        "name": "Pedido",
+        "fields": ["id", "contrato_id", "escola", "itens[]", "status", "valor", "acoes[]"],
+        "notes": "Centro do sistema. Item mostra: produto, qtd_pedida, estoque_disponivel, qtd_a_comprar. Status: criado→separando→comprando→entregando→finalizado→cancelado"
+      },
+      {
+        "name": "Estoque",
+        "fields": ["produto_id", "quantidade_atual"],
+        "notes": "Simplificado. Sem comprometido, sem trânsito."
+      },
+      {
+        "name": "NotaFiscal",
+        "fields": ["id", "pedido_id", "numero", "serie", "chave_acesso", "xml_autorizado", "status"],
+        "notes": "Gerada a partir do pedido. Descrição do contrato + SKU do produto."
+      }
+    ],
+    "flow": "Contrato → Portal Escolar (pedido) → Pedidos (execução: separar/comprar/entregar) → NF"
+  },
+
+  "terminology": {
+    "Contrato": "Instrumento fiscal (ATA/ARP) com itens e preços fixos",
+    "Produto": "Cadastro interno com SKU único, usado para estoque e compra",
+    "Pedido": "Unidade central de execução — substitui demanda",
+    "Saldo": "total_contratado - SUM(pedidos)",
+    "Bipagem": "Leitura de código de barras para separação ou compra",
+    "Produto crítico": "Produto que requer conversão de gramatura (g/ml → embalagem)",
+    "Central de Preços": "Substitui Banco de Preços — fonte única de referência de preços"
+  },
+
+  "statistics": {
+    "total_functional_requirements": 19,
+    "total_non_functional_requirements": 5,
+    "total_constraints": 6,
+    "categories": {
+      "radar-intel": 3,
+      "gdp-contrato": 4,
+      "gdp-pedido": 4,
+      "gdp-estoque": 1,
+      "gdp-mobile": 1,
+      "gdp-produto": 2,
+      "gdp-inteligencia": 1,
+      "gdp-menu": 1,
+      "gdp-relatorios": 1,
+      "gdp-outros": 1
+    }
+  }
+}

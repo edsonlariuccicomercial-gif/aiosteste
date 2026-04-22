@@ -1,0 +1,83 @@
+{
+  "metadata": {
+    "id": "COMPLEXITY-GDP-SIMPLIFICATION-2026",
+    "assessed_by": "@architect (Aria)",
+    "date": "2026-04-22",
+    "requirements_ref": "REQ-GDP-SIMPLIFICATION-2026"
+  },
+
+  "dimensions": {
+    "scope": {
+      "score": 5,
+      "rationale": "19 FRs touching 12+ files across frontend (HTML/JS/CSS), backend (API), database (Supabase migrations), and mobile. Major structural changes to core modules: pedidos, contratos, estoque, init. Removal of entire subsystems (demanda, match automático, conversão global, banco de preços tab)."
+    },
+    "integration": {
+      "score": 3,
+      "rationale": "External integrations are NOT being changed (SGD proxy, SEFAZ, Tiny). But internal integration points are many: contrato→pedido→NF flow, estoque→pedido, radar-matcher→UI. The portal escolar integration must be preserved exactly."
+    },
+    "infrastructure": {
+      "score": 3,
+      "rationale": "New Supabase migration(s) needed for schema changes (produto_vinculado_id, produto_critico, estoque simplification). No new serverless functions needed (within 12 limit). No new deploy targets. Vercel and Supabase configs unchanged."
+    },
+    "knowledge": {
+      "score": 2,
+      "rationale": "Team has full familiarity with the codebase (just completed Epic 7+8). Technologies are well-known: vanilla JS, Supabase REST, Vercel. No new libraries or frameworks needed."
+    },
+    "risk": {
+      "score": 4,
+      "rationale": "HIGH — Production system with real users. Changes to core data flow (contrato→pedido→NF) affect fiscal operations. Removing demanda and simplifying estoque must not break existing orders. Portal escolar integration must be preserved. Data migration needed for existing records."
+    }
+  },
+
+  "total_score": 17,
+  "classification": "COMPLEX",
+  "phases_required": [
+    "gather",
+    "assess",
+    "research",
+    "spec",
+    "critique_1",
+    "revise (if needed)",
+    "critique_2 (if needed)",
+    "plan"
+  ],
+
+  "estimation": {
+    "implementation_days": "5-8 days (phased rollout recommended)",
+    "recommended_approach": "Wave-based implementation similar to Epic 8",
+    "suggested_waves": [
+      {
+        "wave": 1,
+        "name": "Radar/Intel Preços Fixes (low risk, quick wins)",
+        "frs": ["FR-001", "FR-002", "FR-003"],
+        "days": "1"
+      },
+      {
+        "wave": 2,
+        "name": "Contrato ≠ Produto + Vinculação Manual",
+        "frs": ["FR-004", "FR-005", "FR-006", "FR-019"],
+        "days": "1-2"
+      },
+      {
+        "wave": 3,
+        "name": "Pedido como Centro + Remover Demanda",
+        "frs": ["FR-007", "FR-008", "FR-009", "FR-010", "FR-018"],
+        "days": "2"
+      },
+      {
+        "wave": 4,
+        "name": "Estoque Simples + Produto Crítico + Menu + Relatórios",
+        "frs": ["FR-011", "FR-012", "FR-013", "FR-014", "FR-015", "FR-016", "FR-017"],
+        "days": "1-2"
+      }
+    ]
+  },
+
+  "risk_mitigation": [
+    "Wave-based rollout: cada wave é testável e deployável independentemente",
+    "Backup de dados antes de cada migration",
+    "Feature flags via localStorage para rollback imediato se necessário",
+    "Testar fluxo portal escolar após cada wave",
+    "Manter arquivos _disabled/ com código removido para referência"
+  ]
+}
