@@ -166,7 +166,6 @@
     <button class="tab" data-tab="envio-sgd">Enviados ao SGD</button>
     <button class="tab" data-tab="historico">Histórico</button>
     <button class="tab" data-tab="central-precos">Central de Preços</button>
-    <button class="tab" data-tab="revisao-unidades">Revisão de Unidades</button>
   </nav>
 
   <!-- ===== TAB: ORÇAMENTOS ===== -->
@@ -275,6 +274,22 @@
             <span id="preorcamento-frete"></span>
           </div>
         </div>
+
+        <!-- Story 10.2 (revisado): Revisão de Unidades inline no pré-orçamento -->
+        <details id="revisao-unidades-inline" style="margin-bottom:1rem;border:1px solid var(--bdr);border-radius:10px;background:var(--s1);">
+          <summary style="cursor:pointer;padding:.7rem 1rem;font-weight:700;font-size:.85rem;display:flex;align-items:center;gap:.5rem;">
+            Revisão de Unidades <span id="revisao-inline-count" class="badge badge-pendente" style="font-size:.7rem;">0 pendentes</span>
+          </summary>
+          <div style="padding:0 1rem 1rem;">
+            <p style="font-size:.78rem;color:var(--mut);margin-bottom:.5rem;">Confirme que a unidade de cada item corresponde à descrição. Itens inconsistentes ficam em vermelho.</p>
+            <div class="table-wrap" style="max-height:300px;overflow-y:auto;">
+              <table style="font-size:.8rem;">
+                <thead><tr><th>Item</th><th>Descrição SGD</th><th style="text-align:center;">Unidade</th><th style="text-align:center;">Status</th><th>Ação</th></tr></thead>
+                <tbody id="tbody-revisao-inline"></tbody>
+              </table>
+            </div>
+          </div>
+        </details>
 
         <!-- Story 10.6: Margem global -->
         <div id="margem-global-bar" style="display:none;margin-bottom:1rem;padding:.8rem 1rem;background:var(--s1);border:1px solid var(--bdr);border-radius:10px;">
@@ -685,43 +700,7 @@
     </div>
   </section>
 
-  <!-- Epic 10: Revisão de Unidades (Story 10.2) -->
-  <section id="tab-revisao-unidades" class="tab-content">
-    <div class="card">
-      <div class="table-head">
-        <h2>Revisão de Unidades</h2>
-        <div class="table-head-actions">
-          <span style="font-size:.8rem;color:var(--mut);">Confirme unidades antes de cotar</span>
-        </div>
-      </div>
-      <p style="font-size:.82rem;color:var(--mut);margin-bottom:1rem;">Valide que a unidade de cada item corresponde à descrição. Itens com inconsistência são destacados.</p>
-      <div class="filters" style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.75rem;">
-        <select id="filtro-revisao-status">
-          <option value="all">Todos</option>
-          <option value="pendente">Pendentes</option>
-          <option value="confirmado">Confirmados</option>
-          <option value="inconsistente">Inconsistentes</option>
-        </select>
-        <input type="text" id="filtro-revisao-texto" placeholder="Buscar item..." autocomplete="off" style="padding:0.4rem;flex:1;" oninput="renderRevisaoUnidades()" />
-      </div>
-      <div class="table-wrap">
-        <table id="tabela-revisao-unidades">
-          <thead>
-            <tr>
-              <th>Item (Descrição SGD)</th>
-              <th>Unidade SGD</th>
-              <th>Unidade Confirmada</th>
-              <th>Produto Central</th>
-              <th>Status</th>
-              <th>Ação</th>
-            </tr>
-          </thead>
-          <tbody id="tbody-revisao-unidades"></tbody>
-        </table>
-      </div>
-      <p id="revisao-empty" class="empty-msg" style="display:none;">Nenhum item para revisar. Faça uma varredura SGD primeiro.</p>
-    </div>
-  </section>
+  <!-- Epic 10: Revisão de Unidades movida para dentro do Pré-Orçamento (inline) -->
 
   <!-- ===== PAINEL DE CONFIGURAÇÕES ===== -->
   <section id="config-panel" class="tab-content">

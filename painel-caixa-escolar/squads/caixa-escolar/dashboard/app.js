@@ -2756,54 +2756,59 @@ window.exportarCentralCsv = function () {
   if (typeof downloadCsv === 'function') downloadCsv('central-precos.csv', [header, ...rows].join('\n'));
 };
 
-// Story 10.2: Revisão de Unidades — render
-window.renderRevisaoUnidades = function () {
-  const filtroStatus = (document.getElementById("filtro-revisao-status") || {}).value || "all";
-  const busca = (document.getElementById("filtro-revisao-texto") || {}).value || "";
-  const buscaNorm = busca.toLowerCase().trim();
-  // Coletar itens de todos os pré-orçamentos
-  const itens = [];
-  Object.values(preOrcamentos).forEach(pre => {
-    (pre.itens || []).forEach((item, idx) => {
-      const descricao = item.descricao || item.nome || "";
-      const unidadeSgd = item.unidade || "";
-      const descLower = descricao.toLowerCase();
-      // Detectar inconsistências
-      let inconsistente = false;
-      if (unidadeSgd === "UN" && (descLower.includes("galão") || descLower.includes("galao") || descLower.includes("litro") || descLower.includes("kg"))) inconsistente = true;
-      if (unidadeSgd === "GL" && descLower.includes("caixa")) inconsistente = true;
-      if (unidadeSgd === "PCT" && (descLower.includes("galão") || descLower.includes("galao"))) inconsistente = true;
-      const confirmado = item._unidadeConfirmada || false;
-      const status = inconsistente ? "inconsistente" : (confirmado ? "confirmado" : "pendente");
-      itens.push({ preId: pre.orcamentoId || pre.id, idx, nome: item.nome || "", descricao, unidadeSgd, status, confirmado, escola: pre.escola || "" });
-    });
+// Story 10.2 (revisado): Revisão de Unidades inline no pré-orçamento
+window.renderRevisaoUnidadesInline = function () {
+  const pre = preOrcamentos[activePreOrcamentoId];
+  const tbody = document.getElementById("tbody-revisao-inline");
+  const countBadge = document.getElementById("revisao-inline-count");
+  if (!tbody || !pre) return;
+  const itens = (pre.itens || []).map((item, idx) => {
+    const descricao = item.descricao || item.nome || "";
+    const unidadeSgd = item.unidade || "";
+    const descLower = descricao.toLowerCase();
+    let inconsistente = false;
+    if (unidadeSgd === "UN" && (descLower.includes("galão") || descLower.includes("galao") || descLower.includes("litro") || descLower.includes("kg"))) inconsistente = true;
+    if (unidadeSgd === "GL" && descLower.includes("caixa")) inconsistente = true;
+    if (unidadeSgd === "PCT" && (descLower.includes("galão") || descLower.includes("galao"))) inconsistente = true;
+    const confirmado = item._unidadeConfirmada || false;
+    const status = inconsistente ? "inconsistente" : (confirmado ? "confirmado" : "pendente");
+    return { idx, nome: item.nome || "", descricao, unidadeSgd, status, confirmado };
   });
-  // Filtrar
-  let filtrados = itens;
-  if (filtroStatus !== "all") filtrados = filtrados.filter(i => i.status === filtroStatus);
-  if (buscaNorm) filtrados = filtrados.filter(i => (i.descricao + ' ' + i.nome + ' ' + i.escola).toLowerCase().includes(buscaNorm));
-  const tbody = document.getElementById("tbody-revisao-unidades");
-  const empty = document.getElementById("revisao-empty");
-  if (!tbody) return;
-  if (filtrados.length === 0) {
-    tbody.innerHTML = '';
-    if (empty) empty.style.display = 'block';
-    return;
+  const pendentes = itens.filter(i => i.status !== "confirmado").length;
+  if (countBadge) {
+    countBadge.textContent = pendentes > 0 ? pendentes + " pendente" + (pendentes > 1 ? "s" : "") : "OK";
+    countBadge.className = "badge " + (pendentes > 0 ? (itens.some(i => i.status === "inconsistente") ? "badge-recusado" : "badge-pendente") : "badge-aprovado");
   }
-  if (empty) empty.style.display = 'none';
   const statusBadge = { pendente: 'badge-pendente', confirmado: 'badge-aprovado', inconsistente: 'badge-recusado' };
   const statusLabel = { pendente: 'Pendente', confirmado: 'OK', inconsistente: 'Inconsistente' };
-  tbody.innerHTML = filtrados.map(i =>
-    '<tr style="' + (i.status === 'inconsistente' ? 'background:rgba(239,68,68,.08);' : '') + '">' +
-    '<td><strong>' + escapeHtml(i.nome) + '</strong><br><span class="text-muted" style="font-size:.75rem;">' + escapeHtml(i.descricao) + '</span></td>' +
-    '<td style="text-align:center;"><span class="badge-unidade ' + (({'KG':'badge-un-kg','UN':'badge-un-un','PCT':'badge-un-pct','LT':'badge-un-lt','GL':'badge-un-lt','CX':'badge-un-cx'})[i.unidadeSgd.toUpperCase()] || 'badge-un-default') + '" style="font-size:.9rem;">' + escapeHtml(i.unidadeSgd) + '</span></td>' +
-    '<td style="text-align:center;">' + (i.confirmado ? '<span class="badge badge-aprovado">OK</span>' : '<select onchange="confirmarUnidade(\'' + i.preId + '\',' + i.idx + ',this.value)" style="padding:.3rem;"><option value="">—</option><option value="UN">UN</option><option value="KG">KG</option><option value="PCT">PCT</option><option value="CX">CX</option><option value="GL">GL</option><option value="LT">LT</option><option value="FD">FD</option><option value="SC">SC</option></select>') + '</td>' +
-    '<td style="font-size:.78rem;color:var(--mut);">—</td>' +
-    '<td><span class="badge ' + (statusBadge[i.status] || 'badge-muted') + '">' + (statusLabel[i.status] || i.status) + '</span></td>' +
-    '<td>' + (i.status === 'inconsistente' ? '<span style="color:var(--danger);font-size:.78rem;font-weight:700;">Verificar!</span>' : '') + '</td>' +
+  const unBadgeMap = {'KG':'badge-un-kg','UN':'badge-un-un','PCT':'badge-un-pct','LT':'badge-un-lt','GL':'badge-un-lt','CX':'badge-un-cx'};
+  tbody.innerHTML = itens.map(i =>
+    '<tr style="' + (i.status === 'inconsistente' ? 'background:rgba(239,68,68,.1);' : '') + '">' +
+    '<td><strong>' + escapeHtml(i.nome.slice(0, 40)) + '</strong></td>' +
+    '<td style="font-size:.78rem;color:var(--mut);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + escapeHtml(i.descricao) + '">' + escapeHtml(i.descricao.slice(0, 50)) + '</td>' +
+    '<td style="text-align:center;"><span class="badge-unidade ' + (unBadgeMap[i.unidadeSgd.toUpperCase()] || 'badge-un-default') + '" style="font-size:.85rem;">' + escapeHtml(i.unidadeSgd || '—') + '</span></td>' +
+    '<td style="text-align:center;"><span class="badge ' + (statusBadge[i.status] || 'badge-muted') + '" style="font-size:.7rem;">' + (statusLabel[i.status] || '') + '</span>' +
+    (i.status === 'inconsistente' ? ' <span style="color:#ef4444;font-weight:800;font-size:.75rem;">!</span>' : '') + '</td>' +
+    '<td>' + (i.confirmado ? '' : '<select onchange="confirmarUnidadeInline(' + i.idx + ',this.value)" style="padding:.2rem .4rem;font-size:.78rem;"><option value="">Corrigir</option><option value="UN">UN</option><option value="KG">KG</option><option value="PCT">PCT</option><option value="CX">CX</option><option value="GL">GL</option><option value="LT">LT</option><option value="FD">FD</option><option value="SC">SC</option></select>') + '</td>' +
     '</tr>'
   ).join('');
 };
+
+window.confirmarUnidadeInline = function (idx, valor) {
+  if (!valor) return;
+  const pre = preOrcamentos[activePreOrcamentoId];
+  if (!pre || !pre.itens[idx]) return;
+  pre.itens[idx].unidade = valor;
+  pre.itens[idx]._unidadeConfirmada = true;
+  savePreOrcamentos();
+  renderRevisaoUnidadesInline();
+  renderPreOrcamentoItens();
+  showToast("Unidade corrigida: " + valor);
+};
+
+// Legacy: keep renderRevisaoUnidades as alias
+window.renderRevisaoUnidades = window.renderRevisaoUnidadesInline;
+window.confirmarUnidade = window.confirmarUnidadeInline;
 
 window.confirmarUnidade = function (preId, idx, valor) {
   if (!valor) return;
@@ -2833,7 +2838,7 @@ window.switchHistoricoTab = function (tab) {
   if (tab === 'rentabilidade' && typeof renderRentabilidade === 'function') renderRentabilidade();
 };
 
-// Show margem-global-bar when pre-orcamento form is visible
+// Show margem-global-bar + revisão unidades when pre-orcamento form is visible
 const _origRenderPreOrcItens = typeof renderPreOrcamentoItens === 'function' ? renderPreOrcamentoItens : null;
 if (_origRenderPreOrcItens) {
   const origFn = _origRenderPreOrcItens;
@@ -2841,6 +2846,10 @@ if (_origRenderPreOrcItens) {
     origFn();
     const bar = document.getElementById("margem-global-bar");
     if (bar) bar.style.display = activePreOrcamentoId ? "block" : "none";
+    // Render inline unit review for active pre-orcamento
+    if (activePreOrcamentoId && typeof renderRevisaoUnidadesInline === 'function') {
+      renderRevisaoUnidadesInline();
+    }
   };
 }
 
