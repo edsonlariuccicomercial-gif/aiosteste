@@ -1523,54 +1523,54 @@ function bindEvents() {
   const btnAutoPreencher = document.getElementById("btn-auto-preencher");
   if (btnAutoPreencher) btnAutoPreencher.addEventListener("click", autoPreencherPreOrcamento);
 
-  // Modal overlay click to close
-  el.modalBanco.addEventListener("click", (e) => {
+  // Modal overlay click to close (FR-003: null-safe)
+  if (el.modalBanco) el.modalBanco.addEventListener("click", (e) => {
     if (e.target === el.modalBanco) closeBancoModal();
   });
 
   // Export
-  el.btnExportCsv.addEventListener("click", exportCsvOrcamentos);
+  if (el.btnExportCsv) el.btnExportCsv.addEventListener("click", exportCsvOrcamentos);
   if (el.btnExportBanco) el.btnExportBanco.addEventListener("click", exportCsvBanco);
 
   // Import Excel (FR-003: null-safe)
   if (el.btnImportExcel) el.btnImportExcel.addEventListener("click", openImportDialog);
-  el.importFileInput.addEventListener("change", (e) => {
+  if (el.importFileInput) el.importFileInput.addEventListener("change", (e) => {
     if (e.target.files[0]) handleExcelUpload(e.target.files[0]);
   });
-  el.btnImportConfirmar.addEventListener("click", mergeImportIntoBanco);
-  el.btnImportCancelar.addEventListener("click", closeImportModal);
-  el.modalImport.addEventListener("click", (e) => {
+  if (el.btnImportConfirmar) el.btnImportConfirmar.addEventListener("click", mergeImportIntoBanco);
+  if (el.btnImportCancelar) el.btnImportCancelar.addEventListener("click", closeImportModal);
+  if (el.modalImport) el.modalImport.addEventListener("click", (e) => {
     if (e.target === el.modalImport) closeImportModal();
   });
 
   // Editar orçamento aprovado
-  el.btnEditarOrcamento.addEventListener("click", editarOrcamentoAprovado);
+  if (el.btnEditarOrcamento) el.btnEditarOrcamento.addEventListener("click", editarOrcamentoAprovado);
 
   // SGD
-  el.btnEnviarSgd.addEventListener("click", enviarParaSgd);
+  if (el.btnEnviarSgd) el.btnEnviarSgd.addEventListener("click", enviarParaSgd);
 
   // Select all (Passo 3)
-  el.selectAll.addEventListener("change", toggleSelectAll);
+  if (el.selectAll) el.selectAll.addEventListener("change", toggleSelectAll);
 
   // Batch actions (Passo 3)
-  el.btnBatchPreorcar.addEventListener("click", batchPreOrcar);
-  el.btnBatchExport.addEventListener("click", batchExportCsv);
+  if (el.btnBatchPreorcar) el.btnBatchPreorcar.addEventListener("click", batchPreOrcar);
+  if (el.btnBatchExport) el.btnBatchExport.addEventListener("click", batchExportCsv);
 
   // Batch descartar (Story 4.25)
   const btnBatchDescartar = document.getElementById("btn-batch-descartar");
   if (btnBatchDescartar) btnBatchDescartar.addEventListener("click", descartarSelecionados);
 
   // Inteligência toggle (Passo 2)
-  el.intelToggle.addEventListener("click", toggleIntel);
+  if (el.intelToggle) el.intelToggle.addEventListener("click", toggleIntel);
 
   // Varredura SGD (Fase 4)
-  el.btnCollectSgd.addEventListener("click", varrerSgd);
+  if (el.btnCollectSgd) el.btnCollectSgd.addEventListener("click", varrerSgd);
   const btnVarrer = document.getElementById("btn-varrer-sgd");
   if (btnVarrer) btnVarrer.addEventListener("click", varrerSgd);
 
   // SGD Tab
-  el.btnSgdEnviarTodos.addEventListener("click", sgdEnviarTodos);
-  el.btnSgdBaixarTodos.addEventListener("click", sgdBaixarTodos);
+  if (el.btnSgdEnviarTodos) el.btnSgdEnviarTodos.addEventListener("click", sgdEnviarTodos);
+  if (el.btnSgdBaixarTodos) el.btnSgdBaixarTodos.addEventListener("click", sgdBaixarTodos);
   if (el.btnSgdBaixarPdfs) el.btnSgdBaixarPdfs.addEventListener("click", sgdBaixarTodosPdf);
 
   // Filtros SGD
@@ -1623,8 +1623,8 @@ function bindEvents() {
       const vincularModal = document.getElementById("modal-vincular-produto");
       if (vincularModal && vincularModal.style.display !== "none") fecharModalVincular();
       else if (document.getElementById("modal-mestres")?.style.display !== "none") closeMestresModal();
-      else if (el.modalImport.style.display !== "none") closeImportModal();
-      else if (el.modalBanco.style.display !== "none") closeBancoModal();
+      else if (el.modalImport && el.modalImport.style.display !== "none") closeImportModal();
+      else if (el.modalBanco && el.modalBanco.style.display !== "none") closeBancoModal();
     }
   });
 }
