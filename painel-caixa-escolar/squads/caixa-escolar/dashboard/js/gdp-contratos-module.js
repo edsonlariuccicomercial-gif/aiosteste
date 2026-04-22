@@ -2921,8 +2921,9 @@ function recalcularSaldoContrato(contratoId) {
   const c = contratos.find(x => x.id === contratoId);
   if (!c) return;
 
-  // Get all pedidos for this contract that had saldo deducted (status recebido or faturado)
-  const pedidosCtr = pedidos.filter(p => p.contratoId === contratoId && (p.status === 'recebido' || p.status === 'faturado' || p.status === 'concluido' || p.saldoDeduzido));
+  // FR-007: Saldo = total contratado - soma dos pedidos (exceto cancelados)
+  // FR-018: Pedidos cancelados não contam no saldo
+  const pedidosCtr = pedidos.filter(p => p.contratoId === contratoId && p.status !== 'cancelado');
 
   // Reset all qtdEntregue to 0
   c.itens.forEach(item => { item.qtdEntregue = 0; });

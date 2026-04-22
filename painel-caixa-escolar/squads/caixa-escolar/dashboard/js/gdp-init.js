@@ -51,15 +51,16 @@ function resetTabState() {
   _selectedNotaFiscalIds.clear();
   _selectedContaPagarIds.clear();
   _selectedContaReceberIds.clear();
-  _selectedDemandaIds.clear();
+  // FR-008: _selectedDemandaIds removed (demanda deprecated)
+  if (typeof _selectedDemandaIds !== 'undefined') _selectedDemandaIds.clear();
   // AC2: Uncheck all checkboxes (select-all + individual)
-  document.querySelectorAll(".pedido-check,.nota-fiscal-check,.cp-check,.cr-check,.demanda-check,.cliente-chk,.banco-prod-chk").forEach(cb => { cb.checked = false; });
-  ["pedidos-select-all","notas-fiscais-select-all","cp-select-all","cr-select-all","demandas-select-all","clientes-select-all","banco-prod-select-all","ei-lista-compras-select-all"].forEach(id => {
+  document.querySelectorAll(".pedido-check,.nota-fiscal-check,.cp-check,.cr-check,.cliente-chk,.banco-prod-chk").forEach(cb => { cb.checked = false; });
+  ["pedidos-select-all","notas-fiscais-select-all","cp-select-all","cr-select-all","clientes-select-all","banco-prod-select-all","ei-lista-compras-select-all"].forEach(id => {
     const el = document.getElementById(id);
     if (el) { el.checked = false; el.indeterminate = false; }
   });
   // AC3: Hide all bulk action bars
-  ["pedidos-bulk-actions","notas-fiscais-bulk-actions","cp-bulk-actions","cr-bulk-actions","demandas-bulk-actions","clientes-bulk-actions"].forEach(id => {
+  ["pedidos-bulk-actions","notas-fiscais-bulk-actions","cp-bulk-actions","cr-bulk-actions","clientes-bulk-actions"].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.classList.add("hidden");
   });
@@ -2187,7 +2188,8 @@ function criarEVincularGDP() {
   abrirContrato(contratoSave);
 }
 
-// ===== GERAR DEMANDA GDP (Story 4.43) =====
+// ===== FR-008: Demanda REMOVIDA — Pedido é a unidade central =====
+// Funções abaixo mantidas como stubs para evitar erros de referência.
 function gdpConverterDemanda(pedidoItens) {
   return pedidoItens.map(item => {
     const desc = item.descricao || item.nome || "";

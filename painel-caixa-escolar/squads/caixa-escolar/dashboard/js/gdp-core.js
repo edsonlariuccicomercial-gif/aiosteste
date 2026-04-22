@@ -47,15 +47,16 @@ const ESTOQUE_INTEL_PURCHASES_KEY = "gdp.estoque-intel.compras.v1";
 const INTEGRATIONS_KEY = "gdp.integracoes.v1";
 const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 
-// ===== EQUIVALENCIAS / DEMANDAS / ESTOQUE DATA LAYER (migrado de app.js Story 4.43) =====
+// ===== EQUIVALENCIAS / ESTOQUE DATA LAYER =====
 const GDP_EQUIV_KEY = "gdp.equivalencias.v1";
-const GDP_CONVERSOES_KEY = "gdp.conversoes.v1";
-const GDP_DEMANDAS_KEY = "gdp.demandas.v1";
+const GDP_CONVERSOES_KEY = "gdp.conversoes.v1"; // FR-013: será removido na Wave 4
+// FR-008: Demanda removida — pedido é a unidade central do sistema
+const GDP_DEMANDAS_KEY = "gdp.demandas.v1"; // kept for cleanup only
 const GDP_ESTOQUE_SIMPLES_KEY = "gdp.estoque.v1";
 const GDP_COMPRAS_KEY = "gdp.lista-compras.v1";
 let gdpEquivalencias = {};
 let gdpConversoes = {};
-let gdpDemandas = [];
+let gdpDemandas = []; // FR-008: deprecated, kept as empty array
 let gdpEstoqueSimples = {};
 let gdpListaCompras = [];
 

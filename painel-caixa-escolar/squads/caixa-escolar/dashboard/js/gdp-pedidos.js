@@ -175,6 +175,21 @@ function editarPedido(pedidoId) {
   novoPedidoManual();
 }
 
+// FR-018: Cancelar pedido (devolve saldo ao contrato automaticamente via FR-007)
+function cancelarPedido(pedidoId) {
+  const p = pedidos.find(x => x.id === pedidoId);
+  if (!p) return;
+  if (p.status === 'cancelado') { showToast("Pedido já está cancelado."); return; }
+  if (!confirm(`Cancelar pedido ${pedidoId}?\nEscola: ${p.escola}\nValor: ${brl.format(p.valor)}\n\nO saldo será devolvido ao contrato.`)) return;
+  p.status = 'cancelado';
+  p.canceladoEm = new Date().toISOString();
+  savePedidos();
+  // FR-007: Saldo do contrato é recalculado automaticamente (pedidos cancelados excluídos do SUM)
+  if (p.contratoId) recalcularSaldoContrato(p.contratoId);
+  renderAll();
+  showToast(`Pedido ${pedidoId} cancelado. Saldo devolvido ao contrato.`);
+}
+
 function excluirPedido(pedidoId) {
   const p = pedidos.find(x => x.id === pedidoId);
   if (!p) return;
@@ -183,6 +198,30 @@ function excluirPedido(pedidoId) {
   savePedidos();
   renderAll();
   showToast(`Pedido ${pedidoId} excluído.`);
+}
+
+// FR-009/FR-010: Ações de execução dentro do pedido
+function executarAcaoPedido(pedidoId, acao) {
+  const p = pedidos.find(x => x.id === pedidoId);
+  if (!p) return;
+  if (acao === 'separar') {
+    p.status = 'separando';
+    savePedidos();
+    showToast('Pedido em separação de estoque. Use bipagem mobile para separar itens.');
+    verPedidoDetalhe(pedidoId);
+  } else if (acao === 'compra') {
+    p.status = 'comprando';
+    savePedidos();
+    showToast('Compra direta registrada. Itens serão entregues sem passar pelo estoque.');
+    verPedidoDetalhe(pedidoId);
+  } else if (acao === 'finalizar') {
+    if (!confirm('Finalizar entrega do pedido ' + pedidoId + '? Isso fecha o pedido.')) return;
+    p.status = 'finalizado';
+    p.finalizadoEm = new Date().toISOString();
+    savePedidos();
+    renderAll();
+    showToast('Pedido ' + pedidoId + ' finalizado.');
+  }
 }
 
 function excluirPedidosSelecionados() {
@@ -900,8 +939,18 @@ function verPedidoDetalhe(pedidoId, isClone) {
   const marcadorHtml = p.marcador ? '<span style="background:rgba(139,92,246,.15);color:#8b5cf6;padding:.2rem .6rem;border-radius:999px;font-size:.75rem;font-weight:700;margin-left:.5rem">' + esc(p.marcador) + '</span>' : '';
   const fiscalMissing = validatePedidoForInvoice(p);
 
-  const temDemanda = gdpDemandas.some(d => d.pedidoId === p.id);
-  let html = '<div style="display:flex;justify-content:flex-end;gap:.5rem;flex-wrap:wrap;margin-bottom:1rem">' + (temDemanda ? '<span class="badge badge-green" style="align-self:center">Demanda gerada</span>' : '<button class="btn btn-sm" style="background:rgba(34,197,94,.15);color:var(--green);border:none;font-weight:700" onclick="gdpGerarDemandaPedido(\'' + p.id + '\')">Gerar Demanda</button>') + '<button class="btn btn-purple btn-sm" onclick="imprimirPedido(\'' + p.id + '\')">Imprimir</button></div>';
+  // FR-009/FR-010: Pedido como centro de execução — ações inline
+  const isCancelado = p.status === 'cancelado';
+  let html = '<div style="display:flex;justify-content:flex-end;gap:.5rem;flex-wrap:wrap;margin-bottom:1rem">';
+  if (!isCancelado) {
+    html += '<button class="btn btn-sm" style="background:rgba(34,197,94,.15);color:var(--green);border:none;font-weight:700" onclick="executarAcaoPedido(\'' + p.id + '\',\'separar\')" title="Separar itens do estoque">Separar Estoque</button>';
+    html += '<button class="btn btn-sm" style="background:rgba(59,130,246,.15);color:var(--blue);border:none;font-weight:700" onclick="executarAcaoPedido(\'' + p.id + '\',\'compra\')" title="Registrar compra direta">Compra Direta</button>';
+    html += '<button class="btn btn-sm" style="background:rgba(139,92,246,.15);color:#a855f7;border:none;font-weight:700" onclick="executarAcaoPedido(\'' + p.id + '\',\'finalizar\')" title="Finalizar entrega">Finalizar</button>';
+    html += '<button class="btn btn-sm" style="background:rgba(239,68,68,.15);color:var(--red);border:none;font-weight:700" onclick="cancelarPedido(\'' + p.id + '\')" title="Cancelar pedido e devolver saldo">Cancelar</button>';
+  } else {
+    html += '<span class="badge badge-danger" style="align-self:center">Cancelado em ' + fmtDate(p.canceladoEm) + '</span>';
+  }
+  html += '<button class="btn btn-purple btn-sm" onclick="imprimirPedido(\'' + p.id + '\')">Imprimir</button></div>';
   html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem">';
   html += '<div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Protocolo</div><div style="font-weight:700;font-family:monospace">' + esc(p.id) + marcadorHtml + '</div></div>';
   html += '<div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Escola</div><div style="font-weight:700">' + esc(p.escola) + '</div></div>';
@@ -1592,10 +1641,13 @@ var _listaComprasData = [];
 var _selectedNotaFiscalIds = new Set();
 var PEDIDO_STATUS_TABS = [
   { key: "em_aberto", label: "Em Aberto", className: "badge-yellow" },
+  { key: "separando", label: "Separando", className: "badge-blue" },
+  { key: "comprando", label: "Comprando", className: "badge-blue" },
   { key: "agendado", label: "Agendado", className: "badge-blue" },
   { key: "preparando_envio", label: "Preparando Envio", className: "badge-yellow" },
   { key: "pronto_para_envio", label: "Pronto para Envio", className: "badge-blue" },
   { key: "faturado", label: "Faturado", className: "badge-green" },
+  { key: "finalizado", label: "Finalizado", className: "badge-green" },
   { key: "entregue", label: "Entregue", className: "badge-green" },
   { key: "nao_entregue", label: "Não Entregue", className: "badge-red" },
   { key: "cancelado", label: "Cancelado", className: "badge-red" }
@@ -1636,6 +1688,8 @@ function normalizePedidoStatus(status) {
   if (normalized === "entregue" || normalized === "entrega_confirmada") return "entregue";
   if (normalized === "cancelado" || normalized === "cancelada") return "cancelado";
   if (normalized === "nao_entregue" || normalized === "devolvido") return "nao_entregue";
+  // FR-009: novos status de execução
+  if (normalized === "separando" || normalized === "comprando" || normalized === "finalizado") return normalized;
   return normalized;
 }
 
