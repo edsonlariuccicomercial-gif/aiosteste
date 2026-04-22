@@ -2,8 +2,9 @@
 let editingBancoId = null;
 
 function filteredBanco() {
-  const grupo = el.filtroBancoGrupo.value;
-  const query = normalizedText(el.filtroBancoTexto.value.trim());
+  // FR-003: Banco de Preços tab removed — null-safe
+  const grupo = el.filtroBancoGrupo ? el.filtroBancoGrupo.value : "all";
+  const query = el.filtroBancoTexto ? normalizedText(el.filtroBancoTexto.value.trim()) : "";
 
   return bancoPrecos.itens
     .filter((i) => grupo === "all" || i.grupo === grupo)
@@ -18,6 +19,8 @@ function filteredBanco() {
 
 function renderBanco() {
   const list = filteredBanco();
+  // FR-003: Banco tab removed — skip render if elements don't exist
+  if (!el.tbodyBanco || !el.bancoEmpty) return;
   el.bancoEmpty.style.display = list.length ? "none" : "block";
 
   el.tbodyBanco.innerHTML = list.map((item) => {
@@ -669,6 +672,7 @@ function renderAnaliseCompetitiva(preOrcamento) {
 }
 
 function openBancoModal(item) {
+  if (!el.modalBanco) return; // FR-003: tab removed
   el.modalBanco.style.display = "flex";
   el.modalBancoTitulo.textContent = item ? "Editar Item" : "Novo Item";
   el.modalItem.value = item ? item.item : "";
@@ -683,11 +687,12 @@ function openBancoModal(item) {
 }
 
 function closeBancoModal() {
-  el.modalBanco.style.display = "none";
+  if (el.modalBanco) el.modalBanco.style.display = "none";
   editingBancoId = null;
 }
 
 function salvarBancoItem() {
+  if (!el.modalItem) return; // FR-003: tab removed
   const nome = el.modalItem.value.trim();
   if (!nome) { alert("Informe o nome do item."); return; }
 
