@@ -160,13 +160,13 @@
     </div>
   </section>
 
-  <!-- ===== NAVEGAÇÃO TABS (Intel. Preços) ===== -->
+  <!-- ===== NAVEGAÇÃO TABS (Intel. Preços) — Epic 10: v2 ===== -->
   <nav class="tabs" id="tabs-intel-precos" style="display:none;">
     <button class="tab active" data-tab="pre-orcamento">Pré-Orçamento</button>
-    <button class="tab" data-tab="aprovados">Aprovados</button>
-    <button class="tab" data-tab="envio-sgd">Envio SGD</button>
+    <button class="tab" data-tab="envio-sgd">Enviados ao SGD</button>
     <button class="tab" data-tab="historico">Histórico</button>
-    <button class="tab" data-tab="rentabilidade">Rentabilidade</button>
+    <button class="tab" data-tab="central-precos">Central de Preços</button>
+    <button class="tab" data-tab="revisao-unidades">Revisão de Unidades</button>
   </nav>
 
   <!-- ===== TAB: ORÇAMENTOS ===== -->
@@ -276,6 +276,17 @@
           </div>
         </div>
 
+        <!-- Story 10.6: Margem global -->
+        <div id="margem-global-bar" style="display:none;margin-bottom:1rem;padding:.8rem 1rem;background:var(--s1);border:1px solid var(--bdr);border-radius:10px;">
+          <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;">
+            <label style="font-size:.82rem;font-weight:700;color:var(--mut);white-space:nowrap;">Margem Global:</label>
+            <input type="range" id="margem-global-slider" min="5" max="60" value="25" step="1" style="flex:1;min-width:120px;" oninput="previewMargemGlobal(this.value)">
+            <strong id="margem-global-valor" style="font-size:1rem;min-width:45px;text-align:center;">25%</strong>
+            <button class="btn btn-sm btn-accent" onclick="aplicarMargemGlobal()" title="Aplicar margem a todos os itens">Aplicar a Todos</button>
+          </div>
+          <div id="margem-global-alertas" style="margin-top:.5rem;font-size:.78rem;"></div>
+        </div>
+
         <div class="table-wrap">
           <table id="tabela-preorcamento">
             <thead>
@@ -358,11 +369,12 @@
         </div>
       </div>
 
-      <!-- Lista de pré-orçamentos existentes -->
+      <!-- Lista de pré-orçamentos existentes — Epic 10 -->
       <div id="preorcamentos-lista" style="display:none;">
         <h3>Pré-orçamentos salvos</h3>
         <div class="filters" style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.75rem;">
           <select id="filtro-pre-escola"><option value="all">Todas as escolas</option></select>
+          <select id="filtro-pre-cidade"><option value="all">Todas as cidades</option></select>
           <select id="filtro-pre-status">
             <option value="all">Ativos (pendente/aprovado)</option>
             <option value="pendente">Pendente</option>
@@ -372,6 +384,8 @@
             <option value="perdido">Perdido</option>
             <option value="todos">Todos (inclui finalizados)</option>
           </select>
+          <input type="date" id="filtro-pre-data-de" title="Data início" style="padding:0.4rem;" />
+          <input type="date" id="filtro-pre-data-ate" title="Data fim" style="padding:0.4rem;" />
           <input type="text" id="filtro-pre-texto" placeholder="Buscar..." autocomplete="off" style="padding:0.4rem;" />
           <button class="btn btn-sm" onclick="limparFiltrosPre()">Limpar</button>
         </div>
@@ -382,6 +396,7 @@
                 <th></th>
                 <th>ID</th>
                 <th>Escola</th>
+                <th>Cidade</th>
                 <th>Itens</th>
                 <th>Status</th>
                 <th>Total</th>
@@ -399,8 +414,8 @@
   <!-- FR-003: Banco de Preços tab removed — replaced by Central de Preços -->
 
 
-  <!-- ===== TAB: RENTABILIDADE ===== -->
-  <section id="tab-rentabilidade" class="tab-content">
+  <!-- Epic 10: Rentabilidade movida para sub-tab dentro do Histórico -->
+  <section id="tab-rentabilidade" class="tab-content" style="display:none !important;">
     <div class="card">
       <div class="table-head">
         <h2>Relatório de Rentabilidade</h2>
@@ -506,35 +521,7 @@
   </section>
 
   <!-- ===== TAB: APROVADOS / CONTRATOS ===== -->
-  <section id="tab-aprovados" class="tab-content">
-    <div class="card">
-      <div class="table-head">
-        <h2>Orçamentos Aprovados & Contratos</h2>
-        <div class="table-head-actions">
-          <button id="btn-export-contratos" class="btn btn-sm">Exportar CSV</button>
-        </div>
-      </div>
-      <div class="pricing-kpis" id="kpi-aprovados">
-        <article class="pricing-kpi-card"><p>Contratos Ativos</p><strong id="ak-ativos">0</strong></article>
-        <article class="pricing-kpi-card"><p>Em Entrega</p><strong id="ak-entrega">0</strong></article>
-        <article class="pricing-kpi-card"><p>Concluídos</p><strong id="ak-concluidos">0</strong></article>
-        <article class="pricing-kpi-card"><p>Valor em Contratos</p><strong id="ak-valor" class="text-accent">R$ 0</strong></article>
-      </div>
-      <div class="filters" style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.75rem;">
-        <select id="filtro-aprov-status">
-          <option value="all">Todos os status</option>
-          <option value="ativo">Ativo</option>
-          <option value="em_entrega">Em Entrega</option>
-          <option value="entregue">Entregue</option>
-          <option value="cancelado">Cancelado</option>
-        </select>
-        <input type="text" id="filtro-aprov-texto" placeholder="Buscar escola, contrato..." autocomplete="off" style="padding:0.4rem;" />
-        <button class="btn btn-sm" onclick="limparFiltrosAprov()">Limpar</button>
-      </div>
-      <div id="lista-aprovados"></div>
-      <p id="aprovados-empty" class="empty-msg" style="display:none;">Nenhum contrato registrado. Registre resultados na aba "Envio SGD".</p>
-    </div>
-  </section>
+  <!-- Epic 10: Aprovados fundido no Histórico (Story 10.5) -->
 
   <!-- ===== TAB: ENVIO SGD ===== -->
   <section id="tab-envio-sgd" class="tab-content">
@@ -612,32 +599,127 @@
   </section>
 
   <!-- ===== TAB: HISTÓRICO GANHOS/PERDIDOS ===== -->
+  <!-- Epic 10: Histórico unificado (Story 10.5 — fundido com Aprovados) -->
   <section id="tab-historico" class="tab-content">
     <div class="card">
       <div class="table-head">
-        <h2>Histórico de Propostas — Referência de Preços</h2>
+        <h2>Histórico & Contratos</h2>
+        <div class="table-head-actions">
+          <button id="btn-export-contratos" class="btn btn-sm">Exportar CSV</button>
+        </div>
       </div>
+      <!-- KPIs unificados -->
       <div class="pricing-kpis" id="kpi-historico">
-        <article class="pricing-kpi-card"><p>Total Propostas</p><strong id="hk-total">0</strong></article>
+        <article class="pricing-kpi-card"><p>Propostas</p><strong id="hk-total">0</strong></article>
         <article class="pricing-kpi-card"><p>Ganhas</p><strong id="hk-ganhos" class="text-accent">0</strong></article>
         <article class="pricing-kpi-card"><p>Perdidas</p><strong id="hk-perdidos" class="text-danger">0</strong></article>
-        <article class="pricing-kpi-card"><p>Taxa de Conversão</p><strong id="hk-taxa">0%</strong></article>
-        <article class="pricing-kpi-card"><p>Faturamento Ganho</p><strong id="hk-faturamento" class="text-accent">R$ 0</strong></article>
-        <article class="pricing-kpi-card"><p>Delta Médio (perdas)</p><strong id="hk-delta" class="text-danger">—</strong></article>
+        <article class="pricing-kpi-card"><p>Conversão</p><strong id="hk-taxa">0%</strong></article>
+        <article class="pricing-kpi-card"><p>Faturamento</p><strong id="hk-faturamento" class="text-accent">R$ 0</strong></article>
       </div>
       <div class="filters" style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.75rem;">
         <select id="filtro-hist-escola"><option value="all">Todas as escolas</option></select>
-        <input type="text" id="filtro-hist-texto" placeholder="Buscar escola, item..." autocomplete="off" style="padding:0.4rem;" />
+        <select id="filtro-aprov-status">
+          <option value="all">Todos os status</option>
+          <option value="ativo">Contratos Ativos</option>
+          <option value="ganho">Ganhos</option>
+          <option value="perdido">Perdidos</option>
+          <option value="cancelado">Cancelado</option>
+        </select>
+        <input type="text" id="filtro-aprov-texto" placeholder="Buscar escola, contrato, item..." autocomplete="off" style="padding:0.4rem;" />
+        <input type="text" id="filtro-hist-texto" placeholder="" autocomplete="off" style="display:none;" />
         <button class="btn btn-sm" onclick="limparFiltrosHist()">Limpar</button>
       </div>
       <div class="rent-tabs" id="sub-tabs-historico">
-        <button class="rent-tab active" onclick="switchHistoricoTab('ganhos')">Ganhos</button>
+        <button class="rent-tab active" onclick="switchHistoricoTab('contratos')">Contratos</button>
+        <button class="rent-tab" onclick="switchHistoricoTab('ganhos')">Ganhos</button>
         <button class="rent-tab" onclick="switchHistoricoTab('perdidos')">Perdidos</button>
-        <button class="rent-tab" onclick="switchHistoricoTab('analise')">Análise Comparativa</button>
+        <button class="rent-tab" onclick="switchHistoricoTab('analise')">Análise</button>
+        <button class="rent-tab" onclick="switchHistoricoTab('rentabilidade')">Rentabilidade</button>
       </div>
-      <div id="hist-ganhos" class="rent-content active"></div>
+      <!-- Contratos (ex-Aprovados) -->
+      <div id="hist-contratos" class="rent-content active">
+        <div id="lista-aprovados"></div>
+        <p id="aprovados-empty" class="empty-msg" style="display:none;">Nenhum contrato registrado.</p>
+      </div>
+      <div id="hist-ganhos" class="rent-content" style="display:none;"></div>
       <div id="hist-perdidos" class="rent-content" style="display:none;"></div>
       <div id="hist-analise" class="rent-content" style="display:none;"></div>
+      <!-- Rentabilidade integrada (ex-aba separada) -->
+      <div id="hist-rentabilidade" class="rent-content" style="display:none;">
+        <div id="rentabilidade-inline"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Epic 10: Central de Preços (Story 10.3) — atalho para mesma fonte -->
+  <section id="tab-central-precos" class="tab-content">
+    <div class="card">
+      <div class="table-head">
+        <h2>Central de Preços</h2>
+        <div class="table-head-actions">
+          <button class="btn btn-sm btn-accent" onclick="abrirNovoProdutoCentral()">+ Novo Produto</button>
+          <button class="btn btn-sm" onclick="exportarCentralCsv()">Exportar CSV</button>
+        </div>
+      </div>
+      <div class="filters" style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.75rem;">
+        <input type="text" id="filtro-central-texto" placeholder="Buscar produto, SKU..." autocomplete="off" style="padding:0.4rem;flex:1;" oninput="renderCentralPrecos()" />
+      </div>
+      <div class="table-wrap">
+        <table id="tabela-central-precos">
+          <thead>
+            <tr>
+              <th>Produto</th>
+              <th>SKU</th>
+              <th>Unidade</th>
+              <th>Custo Base</th>
+              <th>Preço Ref.</th>
+              <th>Margem</th>
+              <th>Grupo</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-central-precos"></tbody>
+        </table>
+      </div>
+      <p id="central-empty" class="empty-msg" style="display:none;">Nenhum produto cadastrado.</p>
+    </div>
+  </section>
+
+  <!-- Epic 10: Revisão de Unidades (Story 10.2) -->
+  <section id="tab-revisao-unidades" class="tab-content">
+    <div class="card">
+      <div class="table-head">
+        <h2>Revisão de Unidades</h2>
+        <div class="table-head-actions">
+          <span style="font-size:.8rem;color:var(--mut);">Confirme unidades antes de cotar</span>
+        </div>
+      </div>
+      <p style="font-size:.82rem;color:var(--mut);margin-bottom:1rem;">Valide que a unidade de cada item corresponde à descrição. Itens com inconsistência são destacados.</p>
+      <div class="filters" style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.75rem;">
+        <select id="filtro-revisao-status">
+          <option value="all">Todos</option>
+          <option value="pendente">Pendentes</option>
+          <option value="confirmado">Confirmados</option>
+          <option value="inconsistente">Inconsistentes</option>
+        </select>
+        <input type="text" id="filtro-revisao-texto" placeholder="Buscar item..." autocomplete="off" style="padding:0.4rem;flex:1;" oninput="renderRevisaoUnidades()" />
+      </div>
+      <div class="table-wrap">
+        <table id="tabela-revisao-unidades">
+          <thead>
+            <tr>
+              <th>Item (Descrição SGD)</th>
+              <th>Unidade SGD</th>
+              <th>Unidade Confirmada</th>
+              <th>Produto Central</th>
+              <th>Status</th>
+              <th>Ação</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-revisao-unidades"></tbody>
+        </table>
+      </div>
+      <p id="revisao-empty" class="empty-msg" style="display:none;">Nenhum item para revisar. Faça uma varredura SGD primeiro.</p>
     </div>
   </section>
 

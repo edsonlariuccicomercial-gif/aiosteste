@@ -1243,28 +1243,39 @@ function renderPreOrcamentosLista() {
     el.preorcamentoTitulo.textContent = "Pré-Orçamentos Salvos";
   }
 
-  // Story 4.40: populate escola dropdown
+  // Story 4.40 + Epic 10: populate escola and cidade dropdowns
   const fPreEscola = document.getElementById("filtro-pre-escola");
   if (fPreEscola && fPreEscola.options.length <= 1) {
     const escolas = [...new Set(items.map(p => p.escola).filter(Boolean))].sort();
     escolas.forEach(e => { const o = document.createElement("option"); o.value = e; o.textContent = e; fPreEscola.appendChild(o); });
   }
+  const fPreCidade = document.getElementById("filtro-pre-cidade");
+  if (fPreCidade && fPreCidade.options.length <= 1) {
+    const cidades = [...new Set(items.map(p => p.municipio).filter(Boolean))].sort();
+    cidades.forEach(c => { const o = document.createElement("option"); o.value = c; o.textContent = c; fPreCidade.appendChild(o); });
+  }
 
-  // Story 4.40: apply filters
+  // Apply filters
   const fPreStatus = document.getElementById("filtro-pre-status")?.value || "all";
   const fPreTexto = normalizedText(document.getElementById("filtro-pre-texto")?.value?.trim() || "");
   const fPreEscolaVal = fPreEscola ? fPreEscola.value : "all";
+  const fPreCidadeVal = fPreCidade ? fPreCidade.value : "all";
+  // Epic 10: filtro por data
+  const fPreDataDe = document.getElementById("filtro-pre-data-de")?.value || "";
+  const fPreDataAte = document.getElementById("filtro-pre-data-ate")?.value || "";
 
   let filtered = items;
   if (fPreEscolaVal !== "all") filtered = filtered.filter(p => p.escola === fPreEscolaVal);
+  if (fPreCidadeVal !== "all") filtered = filtered.filter(p => p.municipio === fPreCidadeVal);
   if (fPreStatus === "all") {
-    // Default: esconder enviados, ganhos e perdidos — mostrar só pendentes/aprovados (trabalho ativo)
     filtered = filtered.filter(p => !["enviado", "ganho", "perdido"].includes(p.status));
   } else if (fPreStatus !== "todos") {
     filtered = filtered.filter(p => p.status === fPreStatus);
   }
-  // "todos" mostra tudo sem filtro
   if (fPreTexto) filtered = filtered.filter(p => normalizedText([p.escola, p.municipio, p.orcamentoId, ...(p.itens || []).map(i => i.nome)].join(" ")).includes(fPreTexto));
+  // Date filter
+  if (fPreDataDe) filtered = filtered.filter(p => { const orc = orcamentos.find(o => o.id === p.orcamentoId); return orc && orc.prazo >= fPreDataDe; });
+  if (fPreDataAte) filtered = filtered.filter(p => { const orc = orcamentos.find(o => o.id === p.orcamentoId); return orc && orc.prazo <= fPreDataAte; });
 
   const sorted = filtered.sort((a, b) => {
     // Ordenar por urgência de prazo (mais urgente no topo)
@@ -1291,6 +1302,7 @@ function renderPreOrcamentosLista() {
         <td>${checkbox}</td>
         <td class="font-mono text-muted">${escapeHtml(p.orcamentoId)}</td>
         <td>${escapeHtml(p.escola)}</td>
+        <td style="font-size:.8rem;color:var(--mut);">${escapeHtml(p.municipio || '-')}</td>
         <td title="${iTooltip}" style="font-size:0.8rem;max-width:200px;">${iSummary}</td>
         <td><span class="badge ${badgeClass}">${p.status}</span></td>
         <td class="text-right font-mono">${brl.format(p.totalGeral || 0)}</td>
@@ -1593,8 +1605,8 @@ function bindEvents() {
     if (elem) elem.addEventListener("change", renderSgd);
   });
 
-  // Story 4.40: Filters for Pré-Orçamento list
-  ["filtro-pre-escola", "filtro-pre-status"].forEach(id => {
+  // Epic 10: Filters for Pré-Orçamento list (cidade + data added)
+  ["filtro-pre-escola", "filtro-pre-cidade", "filtro-pre-status", "filtro-pre-data-de", "filtro-pre-data-ate"].forEach(id => {
     const elem = document.getElementById(id);
     if (elem) elem.addEventListener("change", renderPreOrcamentosLista);
   });
@@ -2653,6 +2665,194 @@ window.imprimirListaCompras = function() {
   win.document.close();
   setTimeout(() => win.print(), 300);
 };
+
+// ===== EPIC 10: Intel Preços v2 — Novas funções =====
+
+// Story 10.6: Margem global — preview e aplicar
+window.previewMargemGlobal = function (val) {
+  const el = document.getElementById("margem-global-valor");
+  if (el) el.textContent = val + "%";
+};
+
+window.aplicarMargemGlobal = function () {
+  const slider = document.getElementById("margem-global-slider");
+  if (!slider) return;
+  const margem = parseInt(slider.value) / 100;
+  const pre = preOrcamentos[activePreOrcamentoId];
+  if (!pre) return;
+  const alertas = [];
+  pre.itens.forEach((item, idx) => {
+    if (item.custoUnitario <= 0) return;
+    item.margem = margem;
+    item.precoUnitario = Math.round(item.custoUnitario * (1 + margem) * 100) / 100;
+    item.precoTotal = Math.round(item.precoUnitario * item.quantidade * 100) / 100;
+    // Alerta: margem < 10%
+    if (margem < 0.10) {
+      alertas.push('<span style="color:var(--danger);">&#9888; ' + escapeHtml((item.nome || '').slice(0, 30)) + ' — margem ' + (margem * 100).toFixed(0) + '% (risco de prejuízo)</span>');
+    }
+    // Alerta: acima do concorrente
+    if (item.menorConcorrente > 0 && item.precoUnitario > item.menorConcorrente) {
+      alertas.push('<span style="color:var(--warning);">&#9888; ' + escapeHtml((item.nome || '').slice(0, 30)) + ' — acima do concorrente (' + brl.format(item.menorConcorrente) + ')</span>');
+    }
+  });
+  pre.totalGeral = Math.round(pre.itens.reduce((s, i) => s + i.precoTotal, 0) * 100) / 100;
+  const margens = pre.itens.filter(i => i.custoUnitario > 0).map(i => i.margem);
+  pre.margemMedia = margens.length ? margens.reduce((a, b) => a + b, 0) / margens.length : 0;
+  savePreOrcamentos();
+  renderPreOrcamentoItens();
+  renderKPIs();
+  const alertaEl = document.getElementById("margem-global-alertas");
+  if (alertaEl) alertaEl.innerHTML = alertas.length ? alertas.join('<br>') : '<span style="color:var(--accent);">Margem aplicada a todos os itens.</span>';
+  showToast("Margem " + (margem * 100).toFixed(0) + "% aplicada a " + pre.itens.filter(i => i.custoUnitario > 0).length + " itens.");
+};
+
+// Story 10.3: Central de Preços — render
+window.renderCentralPrecos = function () {
+  if (typeof loadBancoProdutos === 'function') loadBancoProdutos();
+  const produtos = (typeof bancoProdutos !== 'undefined' && bancoProdutos.itens) ? bancoProdutos.itens : [];
+  const busca = (document.getElementById("filtro-central-texto") || {}).value || "";
+  const buscaNorm = busca.toLowerCase().trim();
+  const filtrados = buscaNorm ? produtos.filter(p => ((p.descricao || '') + ' ' + (p.sku || '') + ' ' + (p.grupo || '')).toLowerCase().includes(buscaNorm)) : produtos;
+  const tbody = document.getElementById("tbody-central-precos");
+  const empty = document.getElementById("central-empty");
+  if (!tbody) return;
+  if (filtrados.length === 0) {
+    tbody.innerHTML = '';
+    if (empty) empty.style.display = 'block';
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+  tbody.innerHTML = filtrados.map(p => {
+    const margem = p.margemAlvo || p.margemPadrao || 0;
+    return '<tr>' +
+      '<td><strong>' + escapeHtml(p.descricao || '') + '</strong></td>' +
+      '<td class="font-mono" style="font-size:.75rem;">' + escapeHtml(p.sku || '-') + '</td>' +
+      '<td><span class="badge-unidade ' + (({'KG':'badge-un-kg','UN':'badge-un-un','PCT':'badge-un-pct','LT':'badge-un-lt','CX':'badge-un-cx'})[( p.unidade||'').toUpperCase()] || 'badge-un-default') + '">' + escapeHtml(p.unidade || '-') + '</span></td>' +
+      '<td class="text-right font-mono">' + brl.format(p.custoBase || 0) + '</td>' +
+      '<td class="text-right font-mono">' + brl.format(p.precoReferencia || 0) + '</td>' +
+      '<td class="text-right">' + ((margem * 100).toFixed(0)) + '%</td>' +
+      '<td>' + escapeHtml(p.grupo || '-') + '</td>' +
+      '<td><button class="btn btn-inline btn-sm" onclick="editarProdutoCentral(\'' + escapeHtml(p.id) + '\')" style="font-size:.72rem;">Editar</button></td>' +
+      '</tr>';
+  }).join('');
+};
+
+window.abrirNovoProdutoCentral = function () {
+  if (typeof novoProduto === 'function') novoProduto();
+  else if (typeof editarProduto === 'function') editarProduto(null);
+  else showToast('Função de cadastro não disponível nesta página.');
+};
+
+window.editarProdutoCentral = function (id) {
+  if (typeof editarProduto === 'function') editarProduto(id);
+  else showToast('Função de edição não disponível nesta página.');
+};
+
+window.exportarCentralCsv = function () {
+  if (typeof loadBancoProdutos === 'function') loadBancoProdutos();
+  const produtos = (typeof bancoProdutos !== 'undefined' && bancoProdutos.itens) ? bancoProdutos.itens : [];
+  const header = "Produto;SKU;Unidade;Custo Base;Preco Ref;Margem;Grupo";
+  const rows = produtos.map(p => [p.descricao, p.sku, p.unidade, p.custoBase || 0, p.precoReferencia || 0, ((p.margemAlvo || p.margemPadrao || 0) * 100).toFixed(0) + '%', p.grupo || ''].map(v => '"' + String(v || '').replace(/"/g, '""') + '"').join(';'));
+  if (typeof downloadCsv === 'function') downloadCsv('central-precos.csv', [header, ...rows].join('\n'));
+};
+
+// Story 10.2: Revisão de Unidades — render
+window.renderRevisaoUnidades = function () {
+  const filtroStatus = (document.getElementById("filtro-revisao-status") || {}).value || "all";
+  const busca = (document.getElementById("filtro-revisao-texto") || {}).value || "";
+  const buscaNorm = busca.toLowerCase().trim();
+  // Coletar itens de todos os pré-orçamentos
+  const itens = [];
+  Object.values(preOrcamentos).forEach(pre => {
+    (pre.itens || []).forEach((item, idx) => {
+      const descricao = item.descricao || item.nome || "";
+      const unidadeSgd = item.unidade || "";
+      const descLower = descricao.toLowerCase();
+      // Detectar inconsistências
+      let inconsistente = false;
+      if (unidadeSgd === "UN" && (descLower.includes("galão") || descLower.includes("galao") || descLower.includes("litro") || descLower.includes("kg"))) inconsistente = true;
+      if (unidadeSgd === "GL" && descLower.includes("caixa")) inconsistente = true;
+      if (unidadeSgd === "PCT" && (descLower.includes("galão") || descLower.includes("galao"))) inconsistente = true;
+      const confirmado = item._unidadeConfirmada || false;
+      const status = inconsistente ? "inconsistente" : (confirmado ? "confirmado" : "pendente");
+      itens.push({ preId: pre.orcamentoId || pre.id, idx, nome: item.nome || "", descricao, unidadeSgd, status, confirmado, escola: pre.escola || "" });
+    });
+  });
+  // Filtrar
+  let filtrados = itens;
+  if (filtroStatus !== "all") filtrados = filtrados.filter(i => i.status === filtroStatus);
+  if (buscaNorm) filtrados = filtrados.filter(i => (i.descricao + ' ' + i.nome + ' ' + i.escola).toLowerCase().includes(buscaNorm));
+  const tbody = document.getElementById("tbody-revisao-unidades");
+  const empty = document.getElementById("revisao-empty");
+  if (!tbody) return;
+  if (filtrados.length === 0) {
+    tbody.innerHTML = '';
+    if (empty) empty.style.display = 'block';
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+  const statusBadge = { pendente: 'badge-pendente', confirmado: 'badge-aprovado', inconsistente: 'badge-recusado' };
+  const statusLabel = { pendente: 'Pendente', confirmado: 'OK', inconsistente: 'Inconsistente' };
+  tbody.innerHTML = filtrados.map(i =>
+    '<tr style="' + (i.status === 'inconsistente' ? 'background:rgba(239,68,68,.08);' : '') + '">' +
+    '<td><strong>' + escapeHtml(i.nome) + '</strong><br><span class="text-muted" style="font-size:.75rem;">' + escapeHtml(i.descricao) + '</span></td>' +
+    '<td style="text-align:center;"><span class="badge-unidade ' + (({'KG':'badge-un-kg','UN':'badge-un-un','PCT':'badge-un-pct','LT':'badge-un-lt','GL':'badge-un-lt','CX':'badge-un-cx'})[i.unidadeSgd.toUpperCase()] || 'badge-un-default') + '" style="font-size:.9rem;">' + escapeHtml(i.unidadeSgd) + '</span></td>' +
+    '<td style="text-align:center;">' + (i.confirmado ? '<span class="badge badge-aprovado">OK</span>' : '<select onchange="confirmarUnidade(\'' + i.preId + '\',' + i.idx + ',this.value)" style="padding:.3rem;"><option value="">—</option><option value="UN">UN</option><option value="KG">KG</option><option value="PCT">PCT</option><option value="CX">CX</option><option value="GL">GL</option><option value="LT">LT</option><option value="FD">FD</option><option value="SC">SC</option></select>') + '</td>' +
+    '<td style="font-size:.78rem;color:var(--mut);">—</td>' +
+    '<td><span class="badge ' + (statusBadge[i.status] || 'badge-muted') + '">' + (statusLabel[i.status] || i.status) + '</span></td>' +
+    '<td>' + (i.status === 'inconsistente' ? '<span style="color:var(--danger);font-size:.78rem;font-weight:700;">Verificar!</span>' : '') + '</td>' +
+    '</tr>'
+  ).join('');
+};
+
+window.confirmarUnidade = function (preId, idx, valor) {
+  if (!valor) return;
+  const pre = preOrcamentos[preId];
+  if (!pre || !pre.itens[idx]) return;
+  pre.itens[idx].unidade = valor;
+  pre.itens[idx]._unidadeConfirmada = true;
+  savePreOrcamentos();
+  renderRevisaoUnidades();
+  showToast("Unidade confirmada: " + valor);
+};
+
+// Story 10.5: switchHistoricoTab atualizado para incluir contratos e rentabilidade
+const _origSwitchHistoricoTab = typeof switchHistoricoTab === 'function' ? switchHistoricoTab : null;
+window.switchHistoricoTab = function (tab) {
+  ['contratos', 'ganhos', 'perdidos', 'analise', 'rentabilidade'].forEach(t => {
+    const el = document.getElementById('hist-' + t);
+    if (el) el.style.display = t === tab ? 'block' : 'none';
+  });
+  document.querySelectorAll('#sub-tabs-historico .rent-tab').forEach(btn => {
+    btn.classList.toggle('active', btn.textContent.toLowerCase().includes(tab.substring(0, 4)));
+  });
+  if (tab === 'contratos' && typeof renderAprovados === 'function') renderAprovados();
+  if (tab === 'ganhos' || tab === 'perdidos' || tab === 'analise') {
+    if (typeof renderHistoricoContent === 'function') renderHistoricoContent(tab);
+  }
+  if (tab === 'rentabilidade' && typeof renderRentabilidade === 'function') renderRentabilidade();
+};
+
+// Show margem-global-bar when pre-orcamento form is visible
+const _origRenderPreOrcItens = typeof renderPreOrcamentoItens === 'function' ? renderPreOrcamentoItens : null;
+if (_origRenderPreOrcItens) {
+  const origFn = _origRenderPreOrcItens;
+  window.renderPreOrcamentoItens = function () {
+    origFn();
+    const bar = document.getElementById("margem-global-bar");
+    if (bar) bar.style.display = activePreOrcamentoId ? "block" : "none";
+  };
+}
+
+// Tab switching for new tabs
+document.querySelectorAll('#tabs-intel-precos .tab').forEach(btn => {
+  btn.addEventListener("click", () => {
+    const tab = btn.dataset.tab;
+    if (tab === "central-precos") setTimeout(renderCentralPrecos, 100);
+    if (tab === "revisao-unidades") setTimeout(renderRevisaoUnidades, 100);
+    if (tab === "historico") setTimeout(() => { if (typeof renderAprovados === 'function') renderAprovados(); }, 100);
+  });
+});
 
 // ===== INIT =====
 boot();

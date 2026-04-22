@@ -1603,6 +1603,11 @@ input[type="checkbox"]:hover {
 .badge-un-cx { background: #78350f22; color: #fbbf24; border: 1px solid #78350f44; }
 .badge-un-default { background: #37415122; color: #94a3b8; border: 1px solid #37415144; }
 
+/* Epic 10: Margin alert row highlight */
+.pre-item-alerta-baixa { background: rgba(239, 68, 68, 0.08) !important; }
+.pre-item-alerta-baixa td:nth-child(6) { color: #ef4444 !important; font-weight: 800 !important; }
+.pre-item-alerta-acima { background: rgba(245, 158, 11, 0.06) !important; }
+
 @media (max-width: 768px) {
   .pricing-charts { grid-template-columns: 1fr; }
   .pricing-kpis { grid-template-columns: repeat(2, 1fr); }
