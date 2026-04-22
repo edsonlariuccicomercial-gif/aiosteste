@@ -1469,20 +1469,20 @@ function bindEvents() {
   el.filtroStatus.addEventListener("change", renderOrcamentos);
   el.filtroTexto.addEventListener("input", renderOrcamentos);
 
-  // Filtros banco
-  el.filtroBancoGrupo.addEventListener("change", renderBanco);
-  el.filtroBancoTexto.addEventListener("input", renderBanco);
+  // Filtros banco (FR-003: elementos removidos, null-safe)
+  if (el.filtroBancoGrupo) el.filtroBancoGrupo.addEventListener("change", renderBanco);
+  if (el.filtroBancoTexto) el.filtroBancoTexto.addEventListener("input", renderBanco);
 
   // Pré-orçamento actions
   el.btnAprovar.addEventListener("click", aprovarPreOrcamento);
   el.btnRecusar.addEventListener("click", recusarPreOrcamento);
   el.btnVoltar.addEventListener("click", voltarPreOrcamento);
 
-  // Banco actions
-  el.btnAddPreco.addEventListener("click", () => openBancoModal(null));
-  el.btnModalSalvar.addEventListener("click", salvarBancoItem);
-  el.btnModalCancelar.addEventListener("click", closeBancoModal);
-  el.btnLimparBanco.addEventListener("click", limparBanco);
+  // Banco actions (FR-003: elementos removidos, null-safe)
+  if (el.btnAddPreco) el.btnAddPreco.addEventListener("click", () => openBancoModal(null));
+  if (el.btnModalSalvar) el.btnModalSalvar.addEventListener("click", salvarBancoItem);
+  if (el.btnModalCancelar) el.btnModalCancelar.addEventListener("click", closeBancoModal);
+  if (el.btnLimparBanco) el.btnLimparBanco.addEventListener("click", limparBanco);
 
   // Itens Mestres (Story 4.26)
   const btnMestres = document.getElementById("btn-itens-mestres");
@@ -1530,10 +1530,10 @@ function bindEvents() {
 
   // Export
   el.btnExportCsv.addEventListener("click", exportCsvOrcamentos);
-  el.btnExportBanco.addEventListener("click", exportCsvBanco);
+  if (el.btnExportBanco) el.btnExportBanco.addEventListener("click", exportCsvBanco);
 
-  // Import Excel
-  el.btnImportExcel.addEventListener("click", openImportDialog);
+  // Import Excel (FR-003: null-safe)
+  if (el.btnImportExcel) el.btnImportExcel.addEventListener("click", openImportDialog);
   el.importFileInput.addEventListener("change", (e) => {
     if (e.target.files[0]) handleExcelUpload(e.target.files[0]);
   });
