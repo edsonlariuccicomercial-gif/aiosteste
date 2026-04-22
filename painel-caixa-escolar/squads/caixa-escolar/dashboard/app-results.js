@@ -506,7 +506,9 @@ function criarContratoGdp(orcId, preOrcamento, numContrato) {
     origem: "pre-orcamento-sgd",
     itens: (preOrcamento.itens || []).map((item, idx) => ({
       num: idx + 1,
-      descricao: item.nome || item.descricao || "",
+      // Story 9.2: Descrição completa (txDescription do SGD) tem prioridade sobre nome resumido
+      descricao: item.descricao || item.nome || "",
+      nomeResumido: item.nome || "",
       unidade: item.unidade || "UN",
       qtdContratada: item.quantidade || 0,
       precoUnitario: item.precoUnitario || 0,
