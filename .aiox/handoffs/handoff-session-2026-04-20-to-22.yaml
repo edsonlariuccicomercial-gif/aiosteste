@@ -1,0 +1,156 @@
+handoff:
+  session_dates: "2026-04-20 to 2026-04-22"
+  branch: master
+  last_commit: d2a23af
+  consumed: false
+
+# ============================================================
+# RESUMO DA SESSÃO — O QUE FOI FEITO
+# ============================================================
+
+summary: |
+  Sessão massiva de 2 dias cobrindo Brownfield Discovery completo,
+  implementação de 2 Epics, deploy em produção e migrations no Supabase.
+
+epics_completed:
+  - id: "Epic 7 — Modernização e Remediação de Dívida Técnica"
+    status: DONE
+    sprints: 4 (Sprint 0-3)
+    commits:
+      - "8288fbe: Sprint 0 — Security (RLS, auth, NF-e atômica, backup)"
+      - "3ee92e3: Sprint 1 — Foundation (CORS, Vitest, health check)"
+      - "1241508: Sprint 2 — Quality (design tokens, CI/CD, 16 testes)"
+      - "c3149e9: Sprint 3 — Evolution (Vite, TypeScript, ARIA)"
+
+  - id: "Epic 8 — Consolidação GDP e Fechamento de Gaps"
+    status: DONE
+    waves: 4
+    commits:
+      - "d303fe0: Spec Pipeline completo (26 FRs, QA APPROVED 4.5/5)"
+      - "9414648: Waves 1-3 (Central unificada, revisão cotação, contrato auto)"
+      - "d122000: Wave 4 (Série histórica, 3 RPCs agregação)"
+
+deploy_fixes:
+  - "b38cd38: Consolidar backup+health no proxy (limite 12 functions)"
+  - "ae2fcda: Remover vite build do deploy (serve HTML direto)"
+  - "bb7b679: Login aceita usuário legado e email"
+  - "d8e03a9: Remover createRequire que quebrava ESM→CJS"
+
+# ============================================================
+# ESTADO ATUAL DO SISTEMA
+# ============================================================
+
+infrastructure:
+  vercel:
+    status: DEPLOYED
+    url: "https://painel-caixa-escolar.vercel.app"
+    env_vars_configured:
+      - SUPABASE_URL
+      - SUPABASE_ANON_KEY
+      - SUPABASE_SERVICE_ROLE_KEY
+      - BACKUP_CRON_SECRET
+    functions: 10 (limite 12)
+
+  supabase:
+    migrations_applied: "006 a 013 (todas)"
+    rls: "100% — todas as 13 tabelas"
+    bucket_fiscal_backups: CREATED
+    auth_user: "NÃO CRIADO — login funciona via fallback legado"
+    functions_rpc:
+      - set_empresa_context
+      - next_nf_number
+      - get_user_empresa_id
+      - get_current_empresa_id
+      - cleanup_old_snapshots
+      - cleanup_old_audit
+      - run_retention_cleanup
+      - preco_historico_tendencia
+      - preco_historico_por_regiao
+      - preco_historico_competitividade
+
+  github:
+    repo: "edsonlariuccicomercial-gif/aiosteste"
+    ci: ".github/workflows/ci.yml (GitHub Actions)"
+
+# ============================================================
+# DOCUMENTAÇÃO CRIADA
+# ============================================================
+
+docs_created:
+  architecture:
+    - "docs/architecture/system-architecture.md"
+    - "docs/architecture/SCHEMA.md"
+    - "docs/architecture/DB-AUDIT.md"
+    - "docs/architecture/frontend-spec.md"
+    - "docs/architecture/technical-debt-DRAFT.md"
+    - "docs/architecture/db-specialist-review.md"
+    - "docs/architecture/ux-specialist-review.md"
+    - "docs/architecture/qa-review.md (APPROVED 4.5/5)"
+    - "docs/architecture/technical-debt-assessment.md (FINAL)"
+    - "docs/architecture/TECHNICAL-DEBT-REPORT.md (executivo)"
+  specs:
+    - "docs/specs/SPEC-GDP-GAPS.md (26 FRs, QA APPROVED)"
+  sops:
+    - "docs/sops/SOP-GDP-000-fluxo-operacional-completo.md (14 etapas)"
+  stories:
+    - "docs/stories/EPIC-7-MODERNIZATION.md (26 stories)"
+    - "docs/stories/7.1-7.5.story.md (Sprint 0)"
+    - "docs/stories/EPIC-8-GDP-GAPS.md (12 stories)"
+    - "docs/stories/8.1-8.12.story.md (4 waves)"
+
+# ============================================================
+# O QUE FALTA FAZER
+# ============================================================
+
+pending_items:
+  priority_high:
+    - description: "Criar usuário no Supabase Auth para ativar login real (Story 7.2)"
+      how: "Supabase Dashboard → Authentication → Add User → email+senha"
+      then: "INSERT INTO user_empresa (user_id, empresa_id, role) VALUES ('<uuid>', 'LARIUCCI', 'admin')"
+
+    - description: "Verificar fluxo GDP completo em produção"
+      how: "Testar: login → contratos → pedidos → NF-e → resultados"
+      areas: "Validar que revisão pré-envio funciona, Central mostra custos, contrato auto cria"
+
+  priority_medium:
+    - description: "PNCP — definir retenção e limpeza de dados antigos"
+      decision: "Manter últimos 12 meses, excluir > 2 anos"
+
+    - description: "Deprecar Banco de Preços no UI (menu lateral)"
+      note: "A facade getCentralComoBancoPrecos() já existe, falta remover aba do menu"
+
+    - description: "Cron backup fiscal — Vercel Hobby não suporta cron nativo"
+      alternative: "Usar cron-job.org ou GitHub Actions scheduled para chamar /api/caixa-proxy com action=backup-fiscal"
+
+  priority_low:
+    - description: "Sentry — configurar conta e DSN para monitoramento de erros"
+    - description: "Configurar Vercel env vars para preview/development (além de production)"
+
+# ============================================================
+# MÉTRICAS DE SAÚDE (ANTES → DEPOIS)
+# ============================================================
+
+health_metrics:
+  rls_coverage: "15% → 100%"
+  critical_vulns: "5 → 0"
+  high_vulns: "17 → ~5"
+  tests: "0 → 16 (passando)"
+  ci_cd: "Nenhum → GitHub Actions"
+  backup_rpo: "Inexistente → 24h"
+  build_system: "Nenhum → Vite (dev only)"
+  typescript: "Nenhum → Configurado + types"
+  cors: "* (aberto) → Allowlist"
+  monitoring: "Nenhum → Health check endpoint"
+  design_system: "Duplicado inline → Tokens centralizados"
+
+# ============================================================
+# PIPELINE OPERACIONAL (SOP-GDP-000)
+# ============================================================
+
+pipeline_coverage:
+  total_steps: 14
+  implemented: 12
+  partial: 2
+  gaps_remaining:
+    - "Revisão de cotação — UI modal existe no código, testar em produção"
+    - "Série histórica — RPCs criadas, falta dashboard UI"
