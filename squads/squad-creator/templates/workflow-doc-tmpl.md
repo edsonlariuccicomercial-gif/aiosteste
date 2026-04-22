@@ -70,7 +70,7 @@ O workflow **{{workflow_name}}** {{workflow_description}}. Este workflow automat
 | Arquivo | Propósito |
 |---------|-----------|
 | `{{squad_path}}/workflows/{{workflow_file}}.yaml` | Definição YAML do workflow |
-| `.claude/commands/{{squad_name}}/workflows/{{workflow_file}}.yaml` | Comando Claude Code |
+| `.claude/skills/{{squad_name}}/{{workflow_file}}/SKILL.md` | Slash skill Claude Code |
 
 ### Tasks Executadas pelo Workflow
 
@@ -857,4 +857,4 @@ Erro: {{error_5_message}}
 ---
 
 *Documentação gerada seguindo SC-DP-002 (Workflow Documentation)*
-*Padrão baseado em: docs/guides/aios-workflows/*
+*Padrão baseado em: docs/guides/aiox-workflows/*

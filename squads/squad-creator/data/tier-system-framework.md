@@ -1,7 +1,7 @@
 # Tier System Framework
 
 > **Version:** 1.0.0
-> **Source:** AIOS Quality Standards
+> **Source:** AIOX Quality Standards
 
 Framework for organizing agents by expertise level and orchestrating their collaboration.
 
@@ -165,7 +165,7 @@ Standard configuration for tier-based squads:
 
 ```yaml
 # Squad Configuration Template
-pack:
+squad:
   name: "{squad-name}"
   title: "{Human-Readable Title}"
   version: "X.Y.Z"
@@ -472,4 +472,4 @@ tier_quality_gates:
 
 ---
 
-*AIOS Tier System Framework v1.0*
+*AIOX Tier System Framework v1.0*

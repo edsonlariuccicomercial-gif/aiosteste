@@ -180,7 +180,7 @@ operational_checks:
 
 ---
 
-## Level 3: Voice DNA (All Required)
+## Level 3: Voice DNA (MIND CLONES ONLY — skip for orchestrators/functional agents)
 
 ```yaml
 voice_checks:
@@ -326,7 +326,7 @@ integration_checks:
 
 ```bash
 # Run quality gate on agent file
-*validate-agent squads/{pack}/agents/{agent}.md
+*validate-agent squads/{squad}/agents/{agent}.md
 ```
 
 ### Manual Validation Checklist
@@ -429,6 +429,5 @@ research-then-create-agent workflow
 
 ---
 
-**Version:** 2.0.0
 **Created:** 2026-01-30
-**Standard:** AIOS Agent Quality Level
+**Standard:** AIOX Agent Quality Level

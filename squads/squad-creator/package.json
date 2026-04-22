@@ -1,26 +1,27 @@
 {
-  "name": "@aios-fullstack/expansion-creator",
-  "version": "1.0.0",
-  "description": "Expansion Creator Pack - Tools for creating and managing AIOS expansion packs",
-  "main": "index.js",
+  "name": "@aiox/squad-creator",
+  "version": "4.0.0",
+  "description": "Squad Creator - Base meta-squad for creating and managing AIOX squads",
   "scripts": {
-    "install:expansion": "echo 'Use the tasks in this pack to install other expansion packs'"
+    "analytics": "python3 scripts/squad-analytics.py --squad squad-creator",
+    "validate": "python3 scripts/validate-squad-structure.py",
+    "refresh": "python3 scripts/refresh-registry.py --write",
+    "greeting": "node scripts/generate-squad-greeting.js squad-creator squad-chief",
+    "guide": "node scripts/generate-squad-guide.js squad-creator"
   },
   "keywords": [
-    "aios",
-    "aios-fullstack",
+    "aiox",
     "squad",
-    "expansion-creator",
-    "tools"
+    "squad-creator",
+    "agent-orchestration"
   ],
-  "author": "AIOS Team",
+  "author": "AIOX Team",
   "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/Pedrovaleriolopez/aios-fullstack",
-    "directory": "squads/expansion-creator"
-  },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=18.0.0",
+    "python": ">=3.10"
+  },
+  "dependencies": {
+    "js-yaml": "^4.1.0"
   }
 }

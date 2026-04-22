@@ -1,297 +1,171 @@
-# Task: Create Pipeline Scaffolding
+# Task: Create Pipeline Scaffolding (Composed)
 
-**Task ID:** create-pipeline
-**Version:** 1.0
-**Execution Type:** Worker
-**Purpose:** Generate pipeline code scaffolding for a squad that needs multi-phase data processing
-**Orchestrator:** @squad-chief
-**Mode:** Guided (human checkpoints at Phase 1 and Phase 3)
+## Task Anatomy
 
-**References:**
-- `data/pipeline-patterns.md` → Pattern reference (consulted in Phase 1)
-- `templates/pipeline-state-tmpl.py` → State manager scaffold
-- `templates/pipeline-progress-tmpl.py` → Progress tracker scaffold
-- `templates/pipeline-runner-tmpl.py` → Phase runner scaffold
+| Field | Value |
+|-------|-------|
+| **Task ID** | `create-pipeline` |
+| **Version** | `2.0.0` |
+| **Status** | `active` |
+| **Responsible Executor** | `squad-chief` |
+| **Execution Type** | `Composed` |
 
----
+## Metadata
 
-## Overview
-
-This task generates a customized pipeline code layer (`lib/`) for squads that need multi-phase data processing. **Not every squad needs this** — use the checklist in Phase 0 to determine.
+```yaml
+id: create-pipeline
+name: "Create Pipeline Scaffolding"
+category: creation
+agent: squad-chief
+elicit: true
+autonomous: false
+description: "Task composta que qualifica, desenha, gera, persiste e valida scaffolding de pipeline multi-fase para squads que realmente precisam de runtime sequencial."
+owner_workflow: "workflows/wf-create-pipeline.yaml"
+pattern: "PIPELINE-SCAFFOLD-001"
+accountability:
+  human: squad-operator
+  scope: review_only
+domain: Tactical
 
 ```
+
+
+<!-- SINKRA_CONTRACT -->
+Domain: `Tactical`
+atomic_layer: Atom
+Input: request::create_pipeline
+Output: artifact::create_pipeline
+pre_condition: contexto mínimo carregado e rota validada
+post_condition: decisão registrada com artefato persistido ou handoff emitido
+performance: registrar evidências, falhas e próximo passo sem erro silencioso
+Completion Criteria: contrato mínimo SINKRA explícito e saída rastreável produzida
+
+## Purpose
+
+Gerar a camada `lib/` de pipelines para squads com processamento multi-fase,
+preservando o veto anti-overengineering, a definição explícita de fases e o
+autoteste mínimo antes de entregar o scaffold ao desenvolvedor.
+
+## Execution Sequence
+
+```text
 INPUT (squad_name + phase_definitions + requirements)
-    ↓
-[PHASE 0: QUALIFICATION]
-    → Run "Does My Squad Need a Pipeline?" checklist
-    → VETO if score < 3
-    ↓
-[PHASE 1: DESIGN]
-    → Gather phase definitions (names, handlers, criticality)
-    → Determine which components needed (state/progress/runner)
-    → CHECKPOINT: Present design for approval
-    ↓
-[PHASE 2: GENERATE]
-    → Copy and customize templates
-    → Wire up phase definitions
-    → Generate __init__.py with imports
-    ↓
-[PHASE 3: VALIDATE]
-    → Run self-test (python -m lib.phase_runner)
-    → Verify state persistence works
-    → CHECKPOINT: Present generated files for review
-    ↓
-OUTPUT: squads/{squad}/lib/ with pipeline code
+    |
+[1] create-pipeline-qualify
+    -> Executa checklist "does this squad need a pipeline?"
+    |
+[2] create-pipeline-design
+    -> Fecha fases, componentes, criticalidade e estratégia de handlers
+    |
+[3] create-pipeline-render
+    -> Renderiza draft dos arquivos a partir dos templates canônicos
+    -> INCLUI: scripts/{squad}.sh + templates/pipeline/prompt.md + lib/ + handlers/
+    |
+[4] create-pipeline-persist
+    -> Persiste scripts/{squad}.sh (chmod +x), templates/pipeline/prompt.md,
+       lib/, lib/handlers/, __init__.py
+    |
+[5] create-pipeline-validate
+    -> Executa autotestes (python3 lib/*.py) E verifica que .sh parseia --help
+    |
+OUTPUT: pipeline_scaffolding_report
 ```
 
----
+## Sub-Task Reference
 
-## Phase 0: Qualification
+| # | Task ID | Responsibility | Executor |
+|---|---------|----------------|----------|
+| 1 | `create-pipeline-qualify` | Aplicar checklist de qualificação e vetoes | Worker |
+| 2 | `create-pipeline-design` | Fechar contrato de fases e componentes | Hybrid |
+| 3 | `create-pipeline-render` | Customizar templates e stubs | Hybrid |
+| 4 | `create-pipeline-persist` | Salvar arquivos em `lib/` | Worker |
+| 5 | `create-pipeline-validate` | Rodar self-tests e emitir veredito | Worker |
 
-**Run this checklist before proceeding:**
+## Inputs
 
-| # | Question | Y/N |
-|---|----------|-----|
-| 1 | Does the squad process items through 3+ sequential phases? | |
-| 2 | Does each item take > 1 minute to process? | |
-| 3 | Would it be painful to restart from scratch if interrupted? | |
-| 4 | Do you process items in batches (> 1 item)? | |
-| 5 | Do you need to track cost per item/phase? | |
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `squad_name` | string | Yes | Squad alvo do scaffold |
+| `phase_definitions` | array | No | Fases já definidas; se ausentes, coletar/inferir |
+| `requirements` | object | No | Requisitos extras do pipeline |
+| `item_noun` | string | No | Nome do item processado (`books`, `minds`, `courses`) |
 
-**Score:**
-- **3+ yes** → Proceed to Phase 1
-- **1-2 yes** → Pipeline is optional, ask user
-- **0 yes** → **VETO** — squad doesn't need pipeline, just use functions
+## Outputs
 
-**Examples:**
-- Books squad: 5/5 → Pipeline (11 phases, hours per book, batch processing)
-- MMOS squad: 4/5 → Pipeline (8+ phases, long-running, resume needed)
-- Creator-OS: 3/5 → Pipeline (curriculum → lessons → validation)
-- Copy squad: 1/5 → No pipeline (single-shot copywriting)
-- Legal squad: 0/5 → No pipeline (request/response analysis)
+| Output | Location | Description | Required |
+|--------|----------|-------------|----------|
+| Shell runner | `squads/{squad}/scripts/{squad}.sh` | **PRIMARY** — CLI entry point with runner-lib bootstrap, arg parsing, phase loop, E9 gates | YES |
+| Prompt template | `squads/{squad}/templates/pipeline/prompt.md` | LLM prompt template with env vars, phase map, enforcement rules | YES |
+| Pipeline library | `squads/{squad}/lib/` | State manager, phase runner, progress tracker (Python) | YES |
+| Phase handlers | `squads/{squad}/lib/handlers/` | One handler per phase with build_prompt() + output verification | YES |
+| Handler init | `squads/{squad}/lib/handlers/__init__.py` | Exports all handlers | YES |
+| Validation report | `runtime_context` | Veredito final e próximos passos | YES |
 
----
+### Shell Runner Requirements (NON-NEGOTIABLE)
 
-## Phase 1: Design
+O `.sh` é o deliverable principal — sem ele o scaffold Python é inútil. O runner DEVE:
 
-### Step 1.1: Gather Phase Definitions
+1. **Bootstrap runner-lib v2** — `source "$RUNNER_LIB_DIR/pipeline-bootstrap.sh"`
+2. **Aceitar flags padrão** — `--claude/--codex/--gemini`, `--model <name>`, `--phase <num>`, `--timeout <s>`
+3. **Aceitar --source <path>** — caminho para o codebase/diretório alvo (relativo ou absoluto)
+4. **greenfield/brownfield** — modo de execução como argumento posicional
+5. **State management** — `decoder-state.json` via `state_init`/`state_update`/`state_validate`
+6. **Phase loop** — iterar fases sequencialmente com retry e max-iterations
+7. **E9 gate validation** — verificar outputs existem (>500 bytes, sem VETO markers) após cada fase
+8. **Progress dashboard** — exibir progresso visual entre fases
+9. **Job metrics** — JSONL em `logs/job-metrics.jsonl`
+10. **Completion signal** — detectar `<promise>PHASE_COMPLETE</promise>` no output do LLM
 
-Ask the user or infer from existing squad code:
-
-```
-For each phase, I need:
-1. Phase number (0-indexed)
-2. Phase name (kebab-case: "url-discovery", "source-curation")
-3. Is it critical? (failure stops pipeline vs non-blocking)
-4. Timeout in seconds (default: 600)
-5. Can it be cached? (check for existing output)
-6. Brief description of what it does
-```
-
-**Format output as table:**
-
-| # | Name | Critical | Timeout | Cacheable | Description |
-|---|------|----------|---------|-----------|-------------|
-| 0 | research | Yes | 600s | Yes | Fetch external sources |
-| 1 | extract | Yes | 300s | No | Extract key content |
-| ... | | | | | |
-
-### Step 1.2: Determine Components
-
-| Component | When to Include | Default |
-|-----------|----------------|---------|
-| `pipeline_state.py` | Always if resume needed (Q3 = yes) | Include |
-| `progress.py` | Always if batch processing (Q4 = yes) | Include |
-| `phase_runner.py` | Always | Include |
-| `__init__.py` | Always | Include |
-
-### Step 1.3: CHECKPOINT
-
-Present the design:
-
-```
-Pipeline Design for: {squad_name}
-═══════════════════════════════════
-Phases: {count}
-Components: {list}
-Critical phases: {list}
-Non-critical: {list}
-Cacheable: {list}
-
-Estimated execution per item: ~{estimate}
-```
-
-**Wait for user approval before proceeding.**
-
----
-
-## Phase 2: Generate
-
-### Step 2.1: Copy Templates
-
-For each included component:
-
-1. Read the template from `squads/squad-creator/templates/`
-2. Replace customization points:
-   - `PHASE_DEFINITIONS` → User's phases
-   - `item_noun` → Squad's item type (books, minds, courses, etc.)
-   - `PANEL_TITLE` → Squad name
-   - Example handlers → Stub handlers with correct signatures
-3. Write to `squads/{squad}/lib/`
-
-### Step 2.2: Generate Phase Handlers
-
-For each phase, generate a stub handler:
-
-```python
-async def phase_{name}_handler(
-    item_id: str,
-    metadata: Dict[str, Any],
-    previous_outputs: Dict[int, str],
-    **kwargs,
-) -> PhaseResult:
-    """
-    Phase {num}: {description}
-
-    TODO: Implement this handler.
-
-    Args:
-        item_id: Unique identifier for the item being processed
-        metadata: Domain-specific metadata (e.g., title, author)
-        previous_outputs: Outputs from completed phases {num: output_str}
-
-    Returns:
-        PhaseResult with success status and output
-    """
-    raise NotImplementedError("TODO: Implement phase_{name}_handler")
-```
-
-### Step 2.3: Generate __init__.py
-
-```python
-"""
-{Squad Name} Pipeline Library
-Auto-generated by squad-creator/tasks/create-pipeline.md
-"""
-
-from .pipeline_state import PipelineStateManager, load_or_create_state
-from .progress import create_progress_tracker
-from .phase_runner import PhaseRunner, PhaseDefinition, PhaseResult, get_phase_definitions
-
-__all__ = [
-    "PipelineStateManager",
-    "load_or_create_state",
-    "create_progress_tracker",
-    "PhaseRunner",
-    "PhaseDefinition",
-    "PhaseResult",
-    "get_phase_definitions",
-]
-```
-
-### Step 2.4: File Layout
-
-After generation, the squad should have:
-
-```
-squads/{squad}/
-├── lib/
-│   ├── __init__.py              ← Exports
-│   ├── pipeline_state.py        ← From pipeline-state-tmpl.py
-│   ├── progress.py              ← From pipeline-progress-tmpl.py
-│   ├── phase_runner.py          ← From pipeline-runner-tmpl.py
-│   └── handlers/                ← Phase handler stubs (optional)
-│       ├── __init__.py
-│       └── phase_{name}.py      ← One file per phase (for complex squads)
-├── agents/
-├── tasks/
-└── ...
-```
-
-**Decision: Flat vs Handlers directory**
-- **< 5 phases**: Keep handlers inline in `phase_runner.py`
-- **5+ phases**: Create `handlers/` directory with one file per phase
-
----
-
-## Phase 3: Validate
-
-### Step 3.1: Self-Test
-
-Run the built-in test:
-
-```bash
-cd squads/{squad}
-python -m lib.phase_runner
-```
-
-**Expected:** Test passes, shows phase execution with timing.
-
-### Step 3.2: State Persistence Test
-
-```bash
-cd squads/{squad}
-python -m lib.pipeline_state
-```
-
-**Expected:** Creates state, completes a phase, shows summary.
-
-### Step 3.3: CHECKPOINT
-
-Present generated files:
-
-```
-Generated Pipeline for: {squad_name}
-═══════════════════════════════════
-Files created:
-  ✅ lib/__init__.py
-  ✅ lib/pipeline_state.py ({n} phases configured)
-  ✅ lib/progress.py (item_noun: "{noun}")
-  ✅ lib/phase_runner.py ({n} phase stubs)
-
-Self-test: {PASS/FAIL}
-State test: {PASS/FAIL}
-
-Next steps for the developer:
-1. Implement phase handlers (marked with TODO)
-2. Wire up with your squad's CLI/entry point
-3. Test with real data
-```
-
----
+Referência: `squads/books/scripts/books.sh`, `squads/mmos/scripts/mmos.sh`
 
 ## Veto Conditions
 
-| Condition | Action |
-|-----------|--------|
-| Squad scored 0 on qualification | **VETO** — don't create pipeline |
-| Phase has no clear input/output contract | **VETO** — define contracts first |
-| Squad already has lib/ with different pattern | **VETO** — audit existing code first |
-| Phases are not sequential (parallel needed) | **VETO** — this pattern is sequential only |
+- Score de qualificação = `0` -> bloquear
+- Menos de `3` sinais de necessidade sem aprovação explícita -> bloquear
+- Fases sem input/output claro -> bloquear
+- Squad já possui `lib/` conflitante com outro padrão -> bloquear
+- Necessidade declarada de paralelismo -> redirecionar para padrão diferente
+- **Pipeline sem `scripts/{squad}.sh` -> VETO. O .sh é o deliverable principal.**
+- **Pipeline sem `templates/pipeline/prompt.md` -> VETO. O LLM precisa do prompt template.**
+- **`.sh` que não aceita `--source`, `--model`, `--phase` -> VETO. Interface padrão obrigatória.**
+
+## Commands
+
+```yaml
+commands:
+  standard: "*create-pipeline {squad_name}"
+  explicit_phases: "*create-pipeline {squad_name} --phases {phase_list}"
+  audit: "*create-pipeline {squad_name} --audit"
+```
+
+## Acceptance Criteria
+
+- [ ] Checklist de qualificação executado e documentado
+- [ ] Design fecha fases, criticalidade, cache e componentes
+- [ ] `scripts/{squad}.sh` criado, executável, `--help` funciona
+- [ ] `scripts/{squad}.sh` aceita `--source <path>`, `--model <name>`, `--phase <num>`, `--claude/--codex/--gemini`
+- [ ] `templates/pipeline/prompt.md` criado com env vars, phase map, enforcement rules
+- [ ] `lib/` persistido com `__init__.py`, pipeline_state.py, phase_runner.py, progress.py
+- [ ] `lib/handlers/` com um handler por fase (build_prompt + output verification)
+- [ ] Self-test: `python3 lib/pipeline_state.py` e `python3 lib/phase_runner.py` passam
+- [ ] Self-test: `bash scripts/{squad}.sh --help` parseia argumentos sem erro
+
+## Related Documents
+
+- `workflows/wf-create-pipeline.yaml`
+- `data/pipeline-patterns.md`
+- `templates/pipeline-state-tmpl.py`
+- `templates/pipeline-progress-tmpl.py`
+- `templates/pipeline-runner-tmpl.py`
+
+### Reference Implementations (use as pattern, NOT as template)
+
+- `squads/books/scripts/books.sh` — 12-phase book summary pipeline
+- `squads/mmos/scripts/mmos.sh` — 8-phase mind mapping pipeline
+- `squads/domain-decoder/scripts/decoder.sh` — 6-phase rule extraction pipeline
+- `infrastructure/scripts/runner-lib/pipeline-bootstrap.sh` — runner-lib bootstrap
 
 ---
 
-## Anti-Patterns to Prevent
-
-| Anti-Pattern | Why | Prevention |
-|-------------|-----|------------|
-| Copy template without customizing | Dead code, confusion | Phase 2 replaces ALL customization points |
-| Create pipeline for simple squad | Over-engineering | Phase 0 qualification with score threshold |
-| Hardcode domain terms in state manager | Can't reuse | State manager stays agnostic, domain in metadata |
-| Skip self-test | Broken code ships | Phase 3 is mandatory |
-
----
-
-## Handoffs
-
-| When | To | What |
-|------|-----|------|
-| Need custom CLI entry point | `@dev` | `bin/run-pipeline.py` script |
-| Need database persistence (not JSON) | `@data-engineer` | DB adapter for state |
-| Need parallel phase execution | `@architect` | Different pattern needed |
-
----
-
-_Task: create-pipeline v1.0_
-_Created: 2026-02-08_
-_Source: Pipeline patterns extracted from squads/books/lib/_
+_Task Version: 2.0.0_
+_Last Updated: 2026-03-27_

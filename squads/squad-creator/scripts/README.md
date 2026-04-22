@@ -39,21 +39,21 @@ O Squad Creator usa o **Executor Decision Tree** para decidir quem executa cada 
 
 | Script | Linhas | Propósito |
 |--------|--------|-----------|
-| `sync-ide-command.py` | 430 | Sincroniza squad components para IDEs |
+| `sync-ide-skills.py` | 430 | Sincroniza squad components para IDEs |
 
 ```bash
 # Sincronizar squad completo
-python3 scripts/sync-ide-command.py squad squad-creator
+python3 scripts/sync-ide-skills.py squad squad-creator
 
 # Preview sem executar
-python3 scripts/sync-ide-command.py squad squad-creator --dry-run
+python3 scripts/sync-ide-skills.py squad squad-creator --dry-run
 
 # Forçar sobrescrita
-python3 scripts/sync-ide-command.py agent oalanicolas --force
+python3 scripts/sync-ide-skills.py agent oalanicolas --force
 ```
 
 **Suporta:**
-- Claude Code: `.claude/commands/{pack}/`
+- Claude Code: `.claude/agents/{slashPrefix}/`
 - Cursor: `.cursor/rules/` (converte MD → MDC)
 
 ---
@@ -88,18 +88,38 @@ python3 scripts/quality_gate.py squads/squad-creator/
 | `refresh-registry.py` | 267 | Escaneia squads, gera JSON | Worker |
 | `squad-analytics.py` | 335 | Métricas e estatísticas | Worker |
 | `inventory.py` | 268 | Inventário de componentes | Worker |
-| `scoring.py` | 392 | Scoring de qualidade | Worker |
+| `coherence-validator.py` | adapter | Bridge Base↔Pro para coherence modular (`SKIPPED_PRO_ONLY` sem pro) | Adapter |
+| `scoring.py` | adapter | Bridge Base↔Pro para scoring modular (`SKIPPED_PRO_ONLY` sem pro) | Adapter |
 
 ```bash
 # Refresh registry (output JSON para Agent enriquecer)
 python3 scripts/refresh-registry.py --output json
 
 # Analytics
-python3 scripts/squad-analytics.py squad-creator
+python3 scripts/squad-analytics.py --squad squad-creator
 
 # Inventário completo
 python3 scripts/inventory.py squads/squad-creator/
 ```
+
+---
+
+## Orphan Script Governance (SC-INT-6)
+
+Cross-check Base↔Pro realizado para scripts sinalizados no audit de orfandade. Resultado:
+
+| Script (Base) | Counterpart no Pro | Decisão | Justificativa |
+|---------------|--------------------|---------|---------------|
+| `scaffold-squad.cjs` | Não identificado | KEEP | Utilitário local de scaffold; não há versão promovida no pro. |
+| `validate-squad-structure.py` | `validate-squad.sh`/`quality_gate.py` (escopo diferente) | KEEP | Continua referenciado por workflow/package do base; não é substituído 1:1 no pro. |
+| `validate-all.sh` | Não identificado | DEPRECATE (manter) | Script legado sem referências ativas; mantido temporariamente para compatibilidade manual. |
+| `verify-squad-completeness.sh` | Não identificado | KEEP | Referenciado em checklist estrutural; utilitário manual de governança. |
+| `yaml_validator.py` | Testes no pro (`scripts/tests/test_yaml_validator.py`) | KEEP | Validador base segue útil e ainda é alvo de testes/integrações relacionadas. |
+
+Política aplicada:
+- `KEEP`: permanece oficial no base.
+- `DEPRECATE (manter)`: não remover sem plano de migração explícito.
+- Remoções só ocorrem com prova de substituição funcional.
 
 ---
 
@@ -183,25 +203,21 @@ Para tasks Hybrid, o Worker coleta dados e o Agent enriquece:
 
 ## Testes
 
-Cada script tem testes correspondentes em `scripts/tests/`:
+Suite base em `squads/squad-creator/scripts/tests/`:
 
 ```bash
-# Rodar todos os testes
-cd squads/squad-creator
-python -m pytest scripts/tests/ -v
+# Rodar todos os testes da suite base (a partir da raiz do repo)
+python3 -m pytest squads/squad-creator/scripts/tests -v
 
-# Rodar teste específico
-python -m pytest scripts/tests/test_sync_ide_command.py -v
+# Rodar arquivo específico
+python3 -m pytest squads/squad-creator/scripts/tests/test_adapters.py -v
 ```
 
-| Script | Teste | Cases |
-|--------|-------|-------|
-| `sync-ide-command.py` | `test_sync_ide_command.py` | 25+ |
-| `validate-squad-structure.py` | `test_validate_squad_structure.py` | 30+ |
-| `quality_gate.py` | `test_quality_gate.py` | 15+ |
-| `yaml_validator.py` | `test_yaml_validator.py` | 20+ |
-| `refresh-registry.py` | `test_refresh_registry.py` | 20+ |
-| `squad-analytics.py` | `test_squad_analytics.py` | 25+ |
+| Área | Teste | Cobertura |
+|------|-------|-----------|
+| Adapters Base↔Pro | `test_adapters.py` | Delegação com Pro + fallback JSON sem Pro |
+| Refresh Registry | `test_refresh_registry_contract.py` | Version/counts essenciais + merge policy semântica |
+| Validator YOLO | `test_validate_squad_yolo_warning.py` | Warning com/sem `settings.activation.yolo_required` |
 
 ---
 

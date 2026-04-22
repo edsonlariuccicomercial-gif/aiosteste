@@ -43,7 +43,82 @@
       "Read(//c/Users/Hearthz Gaming/OneDrive/Desktop/**)",
       "Read(//c/Users/Hearthz Gaming/OneDrive/Área de Trabalho/**)",
       "Bash(node consulta-sefaz.js)",
-      "Bash(node -e ':*)"
+      "Bash(node -e ':*)",
+      "Bash(grep -E \"\\\\.\\(html|js\\)$\")",
+      "Bash(head:*)",
+      "Bash(grep -E \"\\\\.js$\")",
+      "Bash(node retry-sefaz.js)",
+      "Bash(node _extract-nf.js)",
+      "Bash(node extract_estoque.js)",
+      "Bash(node extract_pedidos.js)",
+      "Bash(node extract_batch.js)",
+      "Bash(node extract_init.js)",
+      "Skill(squadCreator:squad)",
+      "Bash(node -e \"const fs=require\\('fs'\\); const b64=fs.readFileSync\\('EDSON DE SOUSA GONCALVES_36802147000142 \\(1\\).pfx'\\).toString\\('base64'\\); console.log\\('Tamanho base64:', b64.length, 'chars'\\); fs.writeFileSync\\('cert-base64.txt', b64\\); console.log\\('Salvo em cert-base64.txt'\\);\")",
+      "Bash(node:*)",
+      "Bash(printf \"1234567\")",
+      "Bash(unzip -l \"ATSum_0020260-39.2022.5.04.0019_1grau.zip\")",
+      "Bash(unzip -o \"ATSum_0020260-39.2022.5.04.0019_1grau.zip\" -d extracted -x \"__MACOSX/*\" \"*.DS_Store\")",
+      "Bash(cp -r '/c/Users/Hearthz Gaming/Desktop/AIOS/atualização das squads/extracted/squads/aiox-sop' '/c/Users/Hearthz Gaming/aiosteste/squads/')",
+      "Bash(cp -r '/c/Users/Hearthz Gaming/Desktop/AIOS/atualização das squads/extracted/squads/brand' '/c/Users/Hearthz Gaming/aiosteste/squads/')",
+      "Bash(cp -r '/c/Users/Hearthz Gaming/Desktop/AIOS/atualização das squads/extracted/squads/claude-code-mastery' '/c/Users/Hearthz Gaming/aiosteste/squads/')",
+      "Bash(cp -r '/c/Users/Hearthz Gaming/Desktop/AIOS/atualização das squads/extracted/squads/data' '/c/Users/Hearthz Gaming/aiosteste/squads/')",
+      "Bash(cp -r '/c/Users/Hearthz Gaming/Desktop/AIOS/atualização das squads/extracted/squads/db-sage' '/c/Users/Hearthz Gaming/aiosteste/squads/')",
+      "Bash(cp -r '/c/Users/Hearthz Gaming/Desktop/AIOS/atualização das squads/extracted/squads/design/*' '/c/Users/Hearthz Gaming/aiosteste/squads/design/')",
+      "Bash(cp -r '/c/Users/Hearthz Gaming/Desktop/AIOS/atualização das squads/extracted/squads/squad-creator/*' '/c/Users/Hearthz Gaming/aiosteste/squads/squad-creator/')",
+      "Bash(cp -r '/c/Users/Hearthz Gaming/Desktop/AIOS/atualização das squads/extracted/squads/squad-creator-pro/*' '/c/Users/Hearthz Gaming/aiosteste/squads/squad-creator-pro/')",
+      "Bash(cp '/c/Users/Hearthz Gaming/Desktop/AIOS/atualização das squads/extracted/squads/index.js' '/c/Users/Hearthz Gaming/aiosteste/squads/index.js')",
+      "Bash(cp '/c/Users/Hearthz Gaming/Desktop/AIOS/atualização das squads/extracted/squads/README.md' '/c/Users/Hearthz Gaming/aiosteste/squads/README.md')",
+      "Bash(cp -r '/c/Users/Hearthz Gaming/Desktop/AIOS/atualização das squads/extracted/infrastructure' '/c/Users/Hearthz Gaming/aiosteste/')",
+      "Bash(cp -r '/c/Users/Hearthz Gaming/Desktop/AIOS/atualização das squads/extracted/outputs' '/c/Users/Hearthz Gaming/aiosteste/')",
+      "mcp__playwright__browser_handle_dialog",
+      "Bash(ls -la \"/c/Users/Hearthz Gaming/aiosteste/painel-caixa-escolar/squads/caixa-escolar/dashboard/\"*.js)",
+      "Bash(awk '{print $5, $NF}')",
+      "Bash(mkdir -p _archive/netlify-functions)",
+      "Bash(cp netlify/functions/*.js _archive/netlify-functions/)",
+      "Bash(cp netlify.toml _archive/netlify-functions/netlify.toml.bak)",
+      "Bash(rm -rf netlify/)",
+      "Bash(rm netlify.toml)",
+      "WebFetch(domain:painel-caixa-escolar.vercel.app)",
+      "Bash(npx aiox-core@5.0.4 install)",
+      "Bash(npx vitest:*)",
+      "Bash(npx supabase:*)",
+      "Bash(supabase --version)",
+      "Bash(vercel --version)",
+      "Bash(vercel whoami:*)",
+      "Bash(vercel project:*)",
+      "Bash(vercel --prod)",
+      "Bash(ls api/*.js)",
+      "Bash(mkdir -p api/_disabled)",
+      "Bash(mv api/backup-fiscal.js api/_disabled/)",
+      "Bash(mv api/health-check.js api/_disabled/)",
+      "Bash(mv api/compras.js api/_disabled/)",
+      "Bash(mv api/embalagens.js api/_disabled/)",
+      "Bash(ls \"C:/Users/Hearthz Gaming/aiosteste/painel-caixa-escolar/api/\"*.js)"
+    ]
+  },
+  "hooks": {
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"C:\\\\Users\\\\Hearthz Gaming\\\\aiosteste\\\\.claude\\\\hooks\\\\precompact-session-digest.cjs\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"C:\\\\Users\\\\Hearthz Gaming\\\\aiosteste\\\\.claude\\\\hooks\\\\synapse-engine.cjs\"",
+            "timeout": 10
+          }
+        ]
+      }
     ]
   }
 }

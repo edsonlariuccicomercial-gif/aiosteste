@@ -1,6 +1,6 @@
 # Core Heuristics for Squad Creation
 
-> **Source:** AIOS Heuristics Standard
+> **Source:** AIOX Heuristics Standard
 > **Version:** 1.0.0
 > **Updated:** 2026-01-24
 > **Prefix:** SC (Squad-Creator)
@@ -426,7 +426,7 @@ evaluation:
 
 ```yaml
 evaluation:
-  task: "Sincronizar squads/ para .claude/commands/"
+  task: "Sincronizar squads/ para .claude/skills/"
   repetitions: 5
   current_state: "manual"
 
@@ -439,7 +439,7 @@ evaluation:
     guardrails:
       loop_prevention: "Max 1 sync per commit"
       idempotency: "Hash check before copy"
-      audit_trail: "Log to .aios/logs/sync.log"
+      audit_trail: "Log to .aiox/logs/sync.log"
       manual_escape: "--no-sync flag"
       retry_logic: "3 retries, 1s backoff"
 
@@ -507,4 +507,4 @@ decision_log:
 ---
 
 *Squad-Creator Core Heuristics v1.0.0*
-*AIOS Heuristics Standard for squad creation*
+*AIOX Heuristics Standard for squad creation*

@@ -5,7 +5,7 @@ template:
   output:
     format: markdown
     filename: README.md
-    title: "{{pack_name}} README"
+    title: "{{squad_name}} README"
 
 workflow:
   mode: interactive
@@ -25,17 +25,17 @@ sections:
       Initial Setup for README Generation
 
       Gather information about the squad:
-      - Pack name and purpose
+      - Squad name and purpose
       - Target users and use cases
       - Main features and capabilities
       - Example workflows
       - Installation requirements
 
-      Output file location: `squads/{{pack_name}}/README.md`
+      Output file location: `squads/{{squad_name}}/README.md`
 
   - id: header
     title: Header Section
-    instruction: Generate pack title and brief description
+    instruction: Generate squad title and brief description
     template: |
       # {{pack_title}}
 
@@ -55,18 +55,18 @@ sections:
 
   - id: when-to-use
     title: When to Use
-    instruction: List specific scenarios when users should activate this pack
+    instruction: List specific scenarios when users should activate this squad
     template: |
-      ## When to Use This Pack
+      ## When to Use This Squad
 
-      Use {{pack_name}} when you want to:
+      Use {{squad_name}} when you want to:
 
       {{use_cases}}
 
   - id: whats-included
     title: What's Included
     instruction: |
-      List all components included in the pack:
+      List all components included in the squad:
       - Agents (with brief description)
       - Tasks (with brief description)
       - Templates (with brief description)
@@ -103,13 +103,13 @@ sections:
       To install this squad, run:
 
       ```bash
-      npm run install:squad {{pack_name}}
+      npm run install:squad {{squad_name}}
       ```
 
       Or manually:
 
       ```bash
-      node tools/install-squad.js {{pack_name}}
+      node tools/install-squad.js {{squad_name}}
       ```
 
   - id: usage-examples
@@ -126,22 +126,22 @@ sections:
 
       {{usage_examples}}
 
-  - id: pack-structure
-    title: Pack Structure
-    instruction: Show the directory structure of the pack
+  - id: squad-structure
+    title: Squad Structure
+    instruction: Show the directory structure of the squad
     template: |
-      ## Pack Structure
+      ## Squad Structure
 
       ```
-      squads/{{pack_name}}/
+      squads/{{squad_name}}/
       ├── agents/                          # Domain-specific agents
       {{agents_structure}}
       ├── checklists/                      # Validation checklists
       {{checklists_structure}}
-      ├── config.yaml                      # Pack configuration
+      ├── config.yaml                      # Squad configuration
       ├── data/                           # Knowledge bases
       {{data_structure}}
-      ├── README.md                       # Pack documentation
+      ├── README.md                       # Squad documentation
       ├── tasks/                          # Workflow tasks
       {{tasks_structure}}
       └── templates/                      # Output templates
@@ -150,21 +150,44 @@ sections:
 
   - id: key-features
     title: Key Features
-    instruction: Highlight 3-5 distinguishing features of this pack
+    instruction: Highlight 3-5 distinguishing features of this squad
     template: |
       ## Key Features
 
       {{key_features}}
 
   - id: integration
-    title: Integration with Core AIOS
-    instruction: Explain how this pack integrates with AIOS framework
+    title: Integration with Core AIOX
+    instruction: Explain how this squad integrates with AIOX framework
     template: |
-      ## Integration with Core AIOS
+      ## Integration with Core AIOX
 
-      {{pack_name}} integrates seamlessly with:
+      {{squad_name}} integrates seamlessly with:
 
       {{integration_details}}
+
+  - id: workspace-governance
+    title: Workspace Integration Governance
+    instruction: |
+      Declare required workspace integration level and contract.
+      Use canonical levels: none | read_only | controlled_runtime_consumer | workspace_first.
+    template: |
+      ## Workspace Integration Governance
+
+      - **Integration level:** `{{workspace_integration_level}}`
+      - **Rationale:** {{workspace_integration_rationale}}
+      - **Read paths:** {{workspace_read_paths}}
+      - **Write paths:** {{workspace_write_paths}}
+      - **Template namespace:** {{workspace_template_namespace}}
+      - **Owner:** {{workspace_integration_owner}}
+      - **Execution mode:** {{workspace_integration_execution_mode}}
+
+      ### Required structural artifacts
+      - `config.yaml` with `workspace_integration.level`
+      - `scripts/bootstrap-*-workspace.sh` (if `workspace_first`)
+      - `scripts/validate-*-essentials.sh` (if `workspace_first`)
+      - `workspace-handoff.yaml` for `COO` (if `controlled_runtime_consumer` or `workspace_first`)
+      - `squads/c-level/` present in the repo (if `controlled_runtime_consumer` or `workspace_first`)
 
   - id: getting-started
     title: Getting Started Guide
@@ -199,7 +222,7 @@ sections:
 
       This squad requires:
 
-      - Core AIOS-FULLSTACK framework
+      - Core AIOX-FULLSTACK framework
       {{additional_dependencies}}
 
   - id: support
@@ -228,4 +251,4 @@ sections:
       **Ready to {{pack_tagline}}? Let's get started! 🚀**
 
       _Version: {{version}}_
-      _Compatible with: AIOS-FULLSTACK v4+_
+      _Compatible with: AIOX-FULLSTACK v4+_

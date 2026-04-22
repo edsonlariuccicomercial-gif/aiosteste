@@ -51,26 +51,70 @@ workflow:
 # TASK ANATOMY STANDARD (HO-TP-001)
 # ============================================================================
 # Every task MUST have these 8 mandatory fields. No exceptions.
-# Reference: AIOS Task Anatomy Standard
+# Reference: AIOX Task Anatomy Standard
 # ============================================================================
 
 task_anatomy:
-  required_fields: 8
+  required_fields: 9
   fields:
     - task_name          # Format: "Verb + Object" (e.g., "Create Legal Contract")
     - status             # Enum: pending | in_progress | completed
     - responsible_executor  # Who executes (role or specific person/agent)
     - execution_type     # Enum: Human | Agent | Hybrid | Worker
     - input              # Array of required inputs
-    - output             # Array of produced outputs
+    - output             # Array of produced outputs (MUST include output_persistence)
     - action_items       # Execution steps
     - acceptance_criteria # Criteria for completion
+    - output_persistence # Enum: canonical_workspace | transient_output (see Output Path Governance)
   optional_fields:
     - estimated_time     # Format: "Xh" or "X-Yh"
     - dependencies       # Array of task IDs this depends on
     - templates          # Array of template IDs to use
     - quality_gate       # Quality gate configuration
     - handoff            # Handoff configuration
+    - governance_protocol # e.g., squads/squad-creator/protocols/ai-first-governance.md
+
+# ============================================================================
+# OUTPUT PATH GOVERNANCE (BLOCKING)
+# ============================================================================
+# Every task with outputs MUST classify persistence BEFORE defining paths.
+# This prevents HIGH-VALUE data from being written to transient outputs/.
+# ============================================================================
+
+output_persistence:
+  description: "Classify where task outputs should live based on their lifecycle value."
+  field: output_persistence
+  required: true
+  values:
+    canonical_workspace:
+      meaning: "Data that persists across sessions, is loaded as context, or feeds other tasks"
+      path_pattern: "workspace/businesses/{business}/[analytics|products|operations]/"
+      signals:
+        - "Loaded on agent boot (session context)"
+        - "Used as input by other tasks in the squad or cross-squad"
+        - "Snapshot of business state (scores, maturity, health, onboarding)"
+        - "Filled template that becomes canonical business data"
+      examples:
+        - "cs-maturity.yaml (loaded every CS session)"
+        - "health-score.yaml (input for EWS and expansion)"
+        - "onboarding-flow.yaml (canonical product data)"
+        - "kpi-scorecards.yaml (business KPIs)"
+    transient_output:
+      meaning: "Drafts, reports, one-time artifacts, intermediate versions"
+      path_pattern: "outputs/{squad}/{business}/"
+      signals:
+        - "One-time report or analysis"
+        - "Draft copy, intermediate version"
+        - "Export or snapshot for external sharing"
+        - "NOT loaded on boot, NOT input for other tasks"
+      examples:
+        - "campaign-copy-v3-draft.md"
+        - "competitor-analysis-2026-03.md"
+        - "export-for-client-presentation.pdf"
+  veto: |
+    VETO: Task with output classified as canonical_workspace using path outputs/ → BLOCK.
+    VETO: Task with output classified as transient_output using path workspace/ → BLOCK.
+    When ambiguous: ASK the user before defining the path.
 
 executor_types:
   Human:
@@ -123,7 +167,7 @@ sections:
       - Quality gate
       - Handoff configuration
 
-      Output file location: `squads/{{pack_name}}/tasks/{{task_id}}.md`
+      Output file location: `squads/{{squad_name}}/tasks/{{task_id}}.md`
 
   - id: task-header
     title: Task Header
@@ -135,6 +179,18 @@ sections:
       **Pattern:** HO-TP-001 (Task Anatomy Standard)
       **Version:** {{version}}
       **Last Updated:** {{last_updated}}
+      **Governance Protocol:** `{{governance_protocol}}`
+
+  - id: ai-first-governance-gate
+    title: AI-First Governance Gate
+    instruction: Add mandatory governance checks before task execution/closure.
+    template: |
+      ## AI-First Governance Gate
+
+      - [ ] Applied `{{governance_protocol}}`
+      - [ ] Mapped `Existing -> Gap -> Decision`
+      - [ ] Validated canonical sources
+      - [ ] Documented contradictions and unresolved items
 
   - id: task-anatomy-table
     title: Task Anatomy Table
@@ -207,9 +263,17 @@ sections:
 
   - id: outputs
     title: Output Specification
-    instruction: List all outputs produced by this task
+    instruction: |
+      List all outputs produced by this task.
+      CRITICAL: For each output, classify output_persistence BEFORE defining the path.
+      Use the Output Path Governance heuristics to decide canonical_workspace vs transient_output.
     template: |
       ## Output
+
+      **Output Persistence:** `{{output_persistence}}`
+      {{#if output_persistence_justification}}
+      **Justification:** {{output_persistence_justification}}
+      {{/if}}
 
       {{#each outputs}}
       - **{{name}}** ({{type}})
@@ -221,6 +285,12 @@ sections:
         - Format: {{format}}
         {{/if}}
       {{/each}}
+
+      {{#if output_persistence_is_canonical}}
+      > **Canonical workspace path:** `workspace/businesses/{business}/{{canonical_subpath}}`
+      {{else}}
+      > **Transient output path:** `outputs/{{squad_name}}/{business}/{{output_subpath}}`
+      {{/if}}
 
   - id: action-items
     title: Action Items
@@ -441,6 +511,8 @@ sections:
       - [ ] `output` array has at least 1 item
       - [ ] `action_items` has clear, actionable steps
       - [ ] `acceptance_criteria` has measurable criteria
+      - [ ] `output_persistence` is canonical_workspace or transient_output
+      - [ ] Output path matches persistence classification (workspace/ for canonical, outputs/ for transient)
 
       ### Quality Check
 

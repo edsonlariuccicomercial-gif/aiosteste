@@ -90,6 +90,23 @@ def read_config_yaml(squad_path: Path) -> Optional[Dict]:
         return None
 
 
+def extract_manifest_field(config: Optional[Dict[str, Any]], key: str) -> Optional[str]:
+    """Extract a manifest field from root or nested squad/metadata wrappers."""
+    if not isinstance(config, dict):
+        return None
+
+    squad = config.get("squad") if isinstance(config.get("squad"), dict) else {}
+    metadata = config.get("metadata") if isinstance(config.get("metadata"), dict) else {}
+
+    for candidate in (config.get(key), squad.get(key), metadata.get(key)):
+        if isinstance(candidate, str):
+            value = candidate.strip()
+            if value:
+                return value
+
+    return None
+
+
 def scan_squad(squad_path: Path) -> SquadInventory:
     """Scan a squad directory and return inventory"""
 
@@ -144,10 +161,10 @@ def scan_squad(squad_path: Path) -> SquadInventory:
 
     # Read config metadata
     config = read_config_yaml(squad_path)
-    config_name = config.get("name") if config else None
-    config_version = config.get("version") if config else None
-    config_description = config.get("description") if config else None
-    config_slash_prefix = config.get("slashPrefix") if config else None
+    config_name = extract_manifest_field(config, "name")
+    config_version = extract_manifest_field(config, "version")
+    config_description = extract_manifest_field(config, "description")
+    config_slash_prefix = extract_manifest_field(config, "slashPrefix")
 
     # Check config name matches folder
     if config_name and config_name != squad_path.name:

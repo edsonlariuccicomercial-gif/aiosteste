@@ -1,7 +1,7 @@
 # Executor Matrix Framework
 
 > **Version:** 1.0.0
-> **Source:** AIOS Quality Standards
+> **Source:** AIOX Quality Standards
 
 Framework for classifying WHO executes each task in a workflow.
 
@@ -438,4 +438,4 @@ migration:
 
 ---
 
-*AIOS Executor Matrix Framework v1.0*
+*AIOX Executor Matrix Framework v1.0*

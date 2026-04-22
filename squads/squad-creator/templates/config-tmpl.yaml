@@ -5,7 +5,7 @@ template:
   output:
     format: yaml
     filename: config.yaml
-    title: "{{pack_name}} Configuration"
+    title: "{{squad_name}} Configuration"
 
 workflow:
   mode: interactive
@@ -16,45 +16,69 @@ sections:
     instruction: |
       Initial Setup for Squad Configuration
 
-      This template generates the config.yaml file for a new AIOS squad.
+      This template generates the config.yaml file for a new AIOX squad.
 
       Gather the following information from the user:
-      - Pack name (kebab-case, e.g., 'legal-assistant')
+      - Squad name (kebab-case, e.g., 'legal-assistant')
       - Short title (human-readable, e.g., 'Legal Assistant')
-      - Description (brief explanation of pack purpose)
+      - Description (brief explanation of squad purpose)
       - Author (person or organization)
+      - Entry agent (orchestrator id, e.g., 'legal-chief')
       - Slash prefix (camelCase for commands, e.g., 'legalAssistant')
+      - Workspace integration level (`none|read_only|controlled_runtime_consumer|workspace_first`)
+      - If `controlled_runtime_consumer` or `workspace_first`, only use these levels when `squads/c-level/` exists and document COO/c-level handoff instead of direct workspace mutation during squad creation
 
-      Output file location: `squads/{{pack_name}}/config.yaml`
+      Output file location: `squads/{{squad_name}}/config.yaml`
 
-  - id: pack-metadata
+  - id: squad-metadata
     title: Squad Metadata
     instruction: |
-      Elicit pack metadata from user. Ensure pack_name uses kebab-case and slash_prefix uses camelCase.
+      Elicit squad metadata from user. Ensure squad_name uses kebab-case, slash_prefix uses camelCase,
+      and entry_agent points to an agent file in agents/{entry_agent}.md.
     elicit: true
     template: |
-      pack:
-        name: {{pack_name}}
+      squad:
+        name: {{squad_name}}
         version: {{version}}
         short-title: {{short_title}}
         description: >-
           {{description}}
         author: {{author}}
         icon: {{icon}}
+        entry_agent: {{entry_agent}}
         slashPrefix: {{slash_prefix}}
+      workspace_integration:
+        level: {{workspace_integration_level}}
+        rationale: "{{workspace_integration_rationale}}"
+        read_paths: {{workspace_read_paths}}
+        write_paths: {{workspace_write_paths}}
+        template_namespace: {{workspace_template_namespace}}
+        owner: "{{workspace_integration_owner}}"
+        execution_mode: "{{workspace_integration_execution_mode}}"
     examples:
       - |
-        pack:
+        squad:
           name: legal-assistant
           version: 1.0.0
-          short-title: Legal Assistant Pack
+          short-title: Legal Assistant Squad
           description: >-
             This squad provides specialized agents, tasks, and templates
             for legal professionals. It automates document drafting, case analysis,
             legal research, and compliance workflows.
-          author: AIOS Community
+          author: AIOX Community
           icon: "⚖️"
+          entry_agent: legal-chief
           slashPrefix: legalAssistant
+        workspace_integration:
+          level: read_only
+          rationale: "Reads legal context from workspace for alignment; write integration is handed off to COO/c-level"
+          read_paths:
+            - workspace/businesses/{brand}/L0-identity/
+            - workspace/businesses/{brand}/L1-strategy/
+          write_paths: []
+          template_namespace: legal
+          owner: c-level/coo
+          execution_mode: handoff_only
 
   - id: pattern-library
     title: Pattern Library
@@ -315,12 +339,169 @@ sections:
           fail_fast: true
           allow_manual_override: false
 
+  - id: fw-compliance
+    title: Governance Framework Compliance
+    instruction: |
+      Generate the governance framework compliance block for the squad.
+
+      This is MANDATORY for all squads in the Hub. Every squad MUST declare:
+
+      1. artifact_contracts[] — What artifacts this squad produces, with template paths
+         and lifecycle states. Minimum 1 contract required.
+         Ask the user: "What are the main outputs/artifacts this squad produces?"
+
+      2. bu_mapping — Which Business Unit this squad belongs to.
+         Default: "hub-framework" for shared squads.
+         Ask: "Is this a shared squad (hub-framework) or business-specific?"
+
+      3. supported_modes[] — Which operational modes this squad supports.
+         Valid modes: CRIAR, RESOLVER, GERENCIAR, ENTENDER, VALIDAR, CONFIGURAR, PLANEJAR, EXPLORAR
+         Ask: "What does this squad primarily do?" and map to modes.
+
+      4. artifact_lifecycle — Tracking configuration (use defaults).
+      5. instance_lifecycle — Squad instance states (use defaults).
+      6. journey_log — Event logging (use defaults).
+
+      Mode mapping guide:
+      - Squad creates things → CRIAR
+      - Squad fixes/debugs → RESOLVER
+      - Squad manages ongoing processes → GERENCIAR
+      - Squad explains/documents → ENTENDER
+      - Squad validates/reviews → VALIDAR
+      - Squad configures/sets up → CONFIGURAR
+      - Squad plans/strategizes → PLANEJAR
+      - Squad explores/researches → EXPLORAR
+    elicit: true
+    template: |
+      # Governance framework compliance (mandatory)
+      artifact_contracts:
+        {{#each artifact_contracts}}
+        - artifact_id: "{{artifact_id}}"
+          template_path: "templates/{{template_file}}"
+          lifecycle_states: [draft, pending_validation, validated, approved, rejected, consumed, superseded, archived]
+        {{/each}}
+
+      artifact_lifecycle:
+        tracking_enabled: true
+        state_persistence: ".aiox/squad-runtime/{{squad_name}}/artifact-state.yaml"
+        transitions: [draft -> pending_validation -> validated/rejected -> approved -> consumed/superseded -> archived]
+
+      instance_lifecycle:
+        tracking_enabled: true
+        state_persistence: ".aiox/squad-runtime/{{squad_name}}/instance.yaml"
+        states: [CRIADA, EM_EXECUCAO, COMPLETA, PAUSADA, BLOQUEADA, CANCELADA, ARQUIVADA]
+
+      journey_log:
+        enabled: true
+        template: "templates/journey-log-tmpl.yaml"
+        persistence: ".aiox/squad-runtime/{{squad_name}}/journey-log.yaml"
+
+      bu_mapping: "{{bu_mapping}}"
+      supported_modes: [{{supported_modes}}]
+    examples:
+      - |
+        # Governance framework compliance
+        artifact_contracts:
+          - artifact_id: "legal-brief"
+            template_path: "templates/legal-brief-tmpl.md"
+            lifecycle_states: [draft, pending_validation, validated, approved, rejected, consumed, superseded, archived]
+          - artifact_id: "case-analysis"
+            template_path: "templates/case-analysis-tmpl.md"
+            lifecycle_states: [draft, validated, approved]
+
+        artifact_lifecycle:
+          tracking_enabled: true
+          state_persistence: ".aiox/squad-runtime/legal-assistant/artifact-state.yaml"
+          transitions: [draft -> pending_validation -> validated/rejected -> approved -> consumed/superseded -> archived]
+
+        instance_lifecycle:
+          tracking_enabled: true
+          state_persistence: ".aiox/squad-runtime/legal-assistant/instance.yaml"
+          states: [CRIADA, EM_EXECUCAO, COMPLETA, PAUSADA, BLOQUEADA, CANCELADA, ARQUIVADA]
+
+        journey_log:
+          enabled: true
+          template: "templates/journey-log-tmpl.yaml"
+          persistence: ".aiox/squad-runtime/legal-assistant/journey-log.yaml"
+
+        bu_mapping: "hub-framework"
+        supported_modes: [CRIAR, VALIDAR]
+
+  - id: model-strategy
+    title: Model Strategy (Reasoning Sandwich)
+    instruction: |
+      Optional section. Configures model routing for reasoning-tier classification.
+
+      When enabled, phases in workflows are classified into reasoning tiers:
+      - planning: High-reasoning tasks (discover, research, design, plan, analyze)
+      - implementation: Standard tasks (generate, create, build, render, scaffold)
+      - verification: Validation tasks (validate, check, verify, qa, test)
+
+      The "reasoning sandwich" pattern uses high-reasoning models for planning
+      and verification phases, with efficient models for implementation.
+
+      IMPORTANT: Default model MUST NOT be gemini-flash (project policy).
+      Use gemini-3.1-pro-preview or equivalent.
+
+      Only include this section when the user opts in to model routing.
+    condition: User requests model routing
+    elicit: true
+    template: |
+      # Model Strategy (optional — reasoning sandwich pattern)
+      # When enabled, workflow phases are classified by reasoning tier
+      # and routed to appropriate model configurations.
+      # See: STORY-109.1, Concept C3
+      model_strategy:
+        enabled: {{model_strategy_enabled}}  # false by default
+        default_model: "gemini-3.1-pro-preview"
+        tier_mapping:
+          planning: "{{planning_model}}"          # High-reasoning model
+          implementation: "{{implementation_model}}"  # Efficient model
+          verification: "{{verification_model}}"      # High-reasoning model
+        classification_heuristic: "verb-pattern"
+        verb_patterns:
+          planning:
+            - discover
+            - research
+            - design
+            - plan
+            - analyze
+          implementation:
+            - generate
+            - create
+            - build
+            - render
+            - scaffold
+          verification:
+            - validate
+            - check
+            - verify
+            - qa
+            - test
+    examples:
+      - |
+        model_strategy:
+          enabled: false
+      - |
+        model_strategy:
+          enabled: true
+          default_model: "gemini-3.1-pro-preview"
+          tier_mapping:
+            planning: "gemini-3.1-pro-preview"
+            implementation: "gemini-3.1-pro-preview"
+            verification: "gemini-3.1-pro-preview"
+          classification_heuristic: "verb-pattern"
+          verb_patterns:
+            planning: [discover, research, design, plan, analyze]
+            implementation: [generate, create, build, render, scaffold]
+            verification: [validate, check, verify, qa, test]
+
   - id: optional-config
     title: Optional Configuration
     instruction: |
       Ask user if they want to add optional configuration:
       - Dependencies on other squads
-      - Required AIOS core version
+      - Required AIOX core version
       - Custom installation hooks
       - Environment variables
 
@@ -332,9 +513,9 @@ sections:
       dependencies:
         {{dependencies}}
 
-      # Optional: Minimum AIOS version required
+      # Optional: Minimum AIOX version required
       requires:
-        aios-version: {{min_version}}
+        aiox-version: {{min_version}}
 
       # Optional: Installation hooks
       hooks:
@@ -346,7 +527,8 @@ sections:
       Validate the generated config.yaml:
       - Ensure all required fields are present
       - Verify YAML syntax is correct
-      - Check that pack_name matches directory name
+      - Check that squad_name matches directory name
+      - Confirm entry_agent is explicitly defined
       - Confirm slash_prefix is unique
 
       If validation fails, prompt user to correct issues.

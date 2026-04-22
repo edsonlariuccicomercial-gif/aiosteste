@@ -126,6 +126,8 @@ def validate_config_naming(squad_path: str) -> List[Dict]:
     slash_prefix = None
     if isinstance(config, dict):
         slash_prefix = config.get('slashPrefix') or config.get('slash_prefix')
+        if 'squad' in config and isinstance(config['squad'], dict):
+            slash_prefix = slash_prefix or config['squad'].get('slash_prefix')
         if 'pack' in config and isinstance(config['pack'], dict):
             slash_prefix = slash_prefix or config['pack'].get('slash_prefix')
 
@@ -147,6 +149,8 @@ def validate_config_naming(squad_path: str) -> List[Dict]:
     config_name = None
     if isinstance(config, dict):
         config_name = config.get('name')
+        if 'squad' in config and isinstance(config['squad'], dict):
+            config_name = config_name or config['squad'].get('name')
         if 'pack' in config and isinstance(config['pack'], dict):
             config_name = config_name or config['pack'].get('name')
 

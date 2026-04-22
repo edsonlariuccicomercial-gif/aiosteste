@@ -405,7 +405,7 @@ Tudo mais foi automático.
 
 ### Antes de começar
 - [ ] Claude Code está funcionando?
-- [ ] Você está no diretório do projeto AIOS?
+- [ ] Você está no diretório do projeto AIOX?
 - [ ] Sabe o domínio que quer criar?
 
 ### Durante a criação

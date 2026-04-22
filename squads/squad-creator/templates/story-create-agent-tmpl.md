@@ -100,7 +100,7 @@ final_step:
   task: "create-agent.md"
   template: "agent-tmpl.md"
   input: "mind_dna_complete.yaml"
-  output: "squads/{{PACK}}/agents/{{agent_id}}.md"
+  output: "squads/{{SQUAD}}/agents/{{agent_id}}.md"
 ```
 
 ### Para Agents functional (orchestrators, validators, executors)
@@ -125,7 +125,7 @@ phases_to_execute:
     template: "agent-tmpl.md"
 
 final_step:
-  output: "squads/{{PACK}}/agents/{{agent_id}}.md"
+  output: "squads/{{SQUAD}}/agents/{{agent_id}}.md"
 ```
 
 ## 4. Inputs Necessários
@@ -135,7 +135,7 @@ inputs:
   # Obrigatórios
   agent_id: "{{agent_id}}"
   agent_name: "{{AGENT_NAME}}"
-  pack_name: "{{PACK}}"
+  squad_name: "{{SQUAD}}"
   tier: {{TIER}}
   domain: "{{DOMAIN}}"
 
@@ -166,7 +166,7 @@ inputs:
 ```yaml
 quality_gates:
   SC_AGT_001:  # Structure Gate
-    - "[ ] Agent file exists at squads/{{PACK}}/agents/{{agent_id}}.md"
+    - "[ ] Agent file exists at squads/{{SQUAD}}/agents/{{agent_id}}.md"
     - "[ ] Agent file >= 300 lines"
     - "[ ] YAML structure válido"
 
@@ -200,7 +200,7 @@ quality_gates:
 ## 7. Arquivo de Saída
 
 ```
-squads/{{PACK}}/agents/{{agent_id}}.md
+squads/{{SQUAD}}/agents/{{agent_id}}.md
 ```
 
 ---
@@ -262,7 +262,7 @@ phases:
 ## Inputs
 inputs:
   agent_id: "mei-specialist"
-  pack_name: "contabilidade"
+  squad_name: "contabilidade"
   tier: 0
   domain: "MEI"
   base_knowledge: "data/mei-kb.md"

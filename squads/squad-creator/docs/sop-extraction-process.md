@@ -9,7 +9,7 @@
 
 ## Overview
 
-The SOP Extraction Process transforms meeting transcripts into structured, automation-ready Standard Operating Procedures (SOPs) that can be immediately converted into working AIOS Squads.
+The SOP Extraction Process transforms meeting transcripts into structured, automation-ready Standard Operating Procedures (SOPs) that can be immediately converted into working AIOX Squads.
 
 ### Purpose
 
@@ -534,7 +534,7 @@ squad_blueprint:
 │     ├── Part 5: Quality & Validation                              │
 │     ├── Part 6: Exceptions & Troubleshooting                      │
 │     ├── Part 7: Automation Analysis                               │
-│     ├── Part 8: AIOS Squad Blueprint                              │
+│     ├── Part 8: AIOX Squad Blueprint                              │
 │     ├── Part 9: Gaps & Next Steps                                 │
 │     ├── Part 10: Glossary                                         │
 │     └── Part 11: Extraction Metadata                              │
@@ -573,7 +573,7 @@ squad_blueprint:
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
-│  HANDOFF → /squad-creator create-squad                            │
+│  HANDOFF → /AIOX:agents:squad-creator → *create-squad            │
 │  ─────────────────────────────────────────────────────────────── │
 │                                                                   │
 │  handoff:                                                         │
@@ -652,7 +652,8 @@ squads/[process-name]/
 *validate-sop
 
 # 6. Create squad
-/squad-creator create-squad
+/AIOX:agents:squad-creator
+*create-squad
 ```
 
 ---

@@ -38,10 +38,10 @@ pre_creation:
 
 ```yaml
 context_checks:
-  - id: pack-exists
-    check: "Target pack exists at squads/{pack_name}/"
+  - id: squad-exists
+    check: "Target squad exists at squads/{squad_name}/"
     type: blocking
-    validation: "ls squads/{pack_name}/ succeeds"
+    validation: "ls squads/{squad_name}/ succeeds"
 
   - id: tier-classification
     check: "Agent tier (0, 1, 2, 3) determined based on role"
@@ -51,7 +51,7 @@ context_checks:
   - id: no-duplicate
     check: "Agent with same id doesn't already exist"
     type: blocking
-    validation: "squads/{pack_name}/agents/{agent_id}.md doesn't exist"
+    validation: "squads/{squad_name}/agents/{agent_id}.md doesn't exist"
 ```
 
 ---
@@ -169,6 +169,62 @@ smoke_test:
 
 ---
 
+## Phase 5: CC-Compatible Schema Validation
+
+```yaml
+cc_schema_checks:
+  - id: cc-tools-defined
+    check: "Agent defines tools array (allowlist) or explicitly inherits from squad default"
+    type: recommended
+    validation: "YAML frontmatter has 'tools:' field OR config.yaml defines squad default tools"
+    examples:
+      - "tools: [Read, Edit, Write, Grep, Glob, Bash]"
+      - "tools: [Agent, TaskStop, SendMessage, SyntheticOutput, Read, Grep]"
+    notes: "Workers typically restrict to file tools. Leaders need Agent/SendMessage."
+
+  - id: cc-disallowed-tools
+    check: "Agent defines disallowedTools if role has operations that MUST be blocked"
+    type: recommended
+    validation: "If agent is a worker: disallowedTools includes Agent, TaskStop, AskUserQuestion"
+    examples:
+      - "disallowedTools: [TaskOutput, ExitPlanMode, EnterPlanMode, AskUserQuestion]"
+    notes: "BR-AGENT-005: Workers must not have TeamCreate or AskUserQuestion."
+
+  - id: cc-permission-mode
+    check: "Agent specifies permissionMode (default | plan | bypassPermissions)"
+    type: blocking
+    validation: "permissionMode is one of: default, plan, bypassPermissions, acceptEdits, dontAsk"
+    default: "default"
+    notes: "Workers in headless pipeline MUST be 'default' or 'bypassPermissions'. 'plan' for review agents."
+
+  - id: cc-max-turns
+    check: "Agent sets maxTurns if task is time-bounded (prevents infinite loops)"
+    type: recommended
+    validation: "Integer > 0. Workers: 50-100. Leaders: 100-200. Unbounded tasks: omit."
+    examples:
+      - "maxTurns: 50   # worker, single-phase task"
+      - "maxTurns: 200  # leader, multi-phase coordination"
+
+  - id: cc-hooks-valid
+    check: "Agent hooks field references valid lifecycle events if automation is needed"
+    type: recommended
+    validation: "Hook events must be from the 27-event catalog (17 CC-native + 10 AIOX-specific)"
+    valid_events: [PreToolUse, PostToolUse, Stop, SessionStart, UserPromptSubmit, PreCompact,
+                   SubagentStart, SubagentStop, TeammateIdle, TaskCompleted, Notification,
+                   PermissionRequest, PostToolUseFailure, ConfigChange, WorktreeCreate,
+                   WorktreeRemove, SessionEnd, PreSquadActivation, PostSquadActivation,
+                   PreTaskExecution, PostTaskExecution, PreHandoff, PostHandoff,
+                   PreCommit, PostCommit, PipelineStart, PipelineEnd]
+
+  - id: cc-flat-roster
+    check: "Worker agents do NOT attempt to spawn sub-agents (BR-AGENT-041)"
+    type: blocking
+    validation: "If role=worker: Agent tool NOT in tools array. 'swarm.role: worker' confirmed."
+    notes: "BR-AGENT-041: Teammates cannot spawn teammates. Flat roster. No hierarchy in swarm."
+```
+
+---
+
 ## Scoring
 
 | Score | Result | Action |
@@ -179,6 +235,5 @@ smoke_test:
 
 ---
 
-**Version:** 1.0.0
 **Created:** 2026-02-10
 **Task Reference:** tasks/create-agent.md

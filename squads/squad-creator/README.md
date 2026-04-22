@@ -25,12 +25,30 @@
 
 ## Sobre o Squad Creator
 
-O Squad Creator gerencia os squads da sua instalação AIOS. Use o comando `*refresh-registry` para ver estatísticas atualizadas do seu ecossistema.
+O Squad Creator gerencia os squads da sua instalação AIOX. Use o comando `*refresh-registry` para ver estatísticas atualizadas do seu ecossistema.
 
 **Características:**
 - Cria squads baseados em elite minds reais
 - Extrai Voice DNA e Thinking DNA automaticamente
 - Valida qualidade com quality gates rigorosos
+
+### Governança de Estrutura (Obrigatória)
+
+Todo squad criado deve declarar no `config.yaml`:
+
+```yaml
+workspace_integration:
+  level: "<none|read_only|controlled_runtime_consumer|workspace_first>"
+  rationale: "Por que esse nível é necessário"
+  read_paths: []
+  write_paths: []
+  template_namespace: null
+```
+
+Regras mínimas:
+- `read_only|controlled_runtime_consumer|workspace_first`: precisa ter referências explícitas a `workspace/`.
+- `controlled_runtime_consumer|workspace_first`: só são válidos quando `squads/c-level/` existe no repo.
+- `workspace_first`: precisa de `scripts/bootstrap-*-workspace.sh` e `scripts/validate-*-essentials.sh`.
 
 ---
 
@@ -213,23 +231,23 @@ Comparação:
 
 | Comando | Descrição |
 |---------|-----------|
-| `*discover-tools {domain}` | Executar deep discovery (5 sub-agents) |
+| `*discover-tools {domain}` | Executar deep discovery (5 sub-agents) com validação canônica de escopo (sem inferência por nome) |
 | `*show-tools` | Exibir registro global de tools |
 | `*add-tool {name}` | Adicionar tool às dependências |
 
 ### Arquivos
 
-| Arquivo | Descrição |
-|---------|-----------|
-| `workflows/wf-discover-tools.yaml` | Workflow completo (900+ linhas) |
-| `data/tool-registry.yaml` | Catálogo global de tools |
-| `data/tool-evaluation-framework.md` | Framework RICE/WSJF/Security |
-| `tasks/discover-tools.md` | Task standalone (uso avulso) |
+| Arquivo | Descrição | Modo |
+|---------|-----------|------|
+| `tasks/discover-tools.md` | Task de descoberta de ferramentas MCP | Base |
+| `workflows/wf-discover-tools.yaml` | Workflow completo multi-source (900+ linhas) | [PRO] |
+| `data/tool-registry.yaml` | Catálogo global de tools | [PRO] |
+| `data/tool-evaluation-framework.md` | Framework RICE/WSJF/Security | [PRO] |
 
 ### Outputs por Squad
 
 ```
-squads/{pack}/
+squads/{squad}/
 ├── docs/
 │   ├── tool-discovery-report.md   # Relatório completo
 │   └── tool-integration-plan.md   # Plano de implementação
@@ -257,47 +275,124 @@ squads/{pack}/
 
 O Squad Creator possui agentes especializados organizados por Tiers:
 
-| Tier | Agent | Especialidade | Quando Usar |
-|------|-------|---------------|-------------|
-| **Orch** | **squad-chief** | Orquestração + Triagem + SOP | Ponto de entrada, criar squads, extrair SOPs |
-| **1** | **oalanicolas** | Mind Cloning | Extrair DNA, curar fontes, validar fidelidade |
-| **1** | **pedro-valerio** | Process Design | Validar workflows, criar checklists, veto conditions |
+| Tier | Agent | Especialidade | Quando Usar | Modo |
+|------|-------|---------------|-------------|------|
+| **Orch** | **squad-chief** | Orquestração + Triagem + Criação | Ponto de entrada, criar squads | Base |
+| **1** | **oalanicolas** | Mind Cloning | Extrair DNA, curar fontes, validar fidelidade | [PRO] |
+| **1** | **pedro-valerio** | Process Design | Validar workflows, criar checklists, veto conditions | [PRO] |
+| **1** | **thiago_finch** | Business Strategy | Estratégia de negócio e marketing | [PRO] |
+| **2** | **ecosystem-analyst** | Ecosystem Observability | Analisar topologia, performance, gaps, radar, custo | [PRO] |
 
-### Divisão de Responsabilidades
+> Os agentes [PRO] são ativados automaticamente quando o AIOX Pro está instalado.
+> Disponível para alunos do **Cohort Avançado**.
+
+### Arquitetura
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    ARQUITETURA v2.9.0                           │
+│                    ARQUITETURA v6.0.0                            │
 ├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  Orchestrator: @squad-chief (Entrada + Criação + SOP)           │
-│  ├── Triagem rápida de necessidades                             │
-│  ├── Verificação de ecossistema existente                       │
-│  ├── Criação completa de squads                                 │
-│  ├── Research de elite minds                                    │
-│  ├── Extração de SOPs de transcrições                           │
-│  ├── Coordenação entre especialistas                            │
-│  └── Validação final de qualidade                               │
-│                                                                 │
-│  Tier 1: @oalanicolas (Mind Cloning)                            │
-│  ├── DNA Mental™ 8 camadas                                      │
-│  ├── Curadoria de fontes (ouro vs bronze)                       │
-│  ├── Playbook + Framework + Swipe File                          │
-│  ├── 46 decision checkpoints (VALUES/OBSESSIONS/MODELS)         │
-│  └── Validação de fidelidade (85-97%)                           │
-│                                                                 │
-│  Tier 1: @pedro-valerio (Process Design)                        │
-│  ├── Impossibilitar caminhos errados                            │
-│  ├── Veto conditions em checkpoints                             │
-│  ├── Automação de gaps de tempo                                 │
-│  └── Fluxo unidirecional                                        │
-│                                                                 │
-│  Sinergia:                                                      │
-│  Chief roteia/orquestra → Alan extrai DNA →                     │
-│  Pedro valida processo                                          │
-│                                                                 │
+│                                                                  │
+│  Orchestrator: @squad-chief (Entrada + Criação + SOP)            │
+│  ├── Triagem rápida de necessidades                              │
+│  ├── Verificação de ecossistema existente                        │
+│  ├── Criação completa de squads via templates                    │
+│  ├── Research de elite minds                                     │
+│  ├── Coordenação entre especialistas                             │
+│  └── Validação final de qualidade                                │
+│                                                                  │
+│  [PRO] Tier 1: @oalanicolas (Mind Cloning)                       │
+│  ├── DNA Mental 8 camadas                                        │
+│  ├── Curadoria de fontes (ouro vs bronze)                        │
+│  ├── Playbook + Framework + Swipe File                           │
+│  ├── 46 decision checkpoints (VALUES/OBSESSIONS/MODELS)          │
+│  └── Validação de fidelidade (85-97%)                            │
+│                                                                  │
+│  [PRO] Tier 1: @pedro-valerio (Process Design)                   │
+│  ├── Impossibilitar caminhos errados                             │
+│  ├── Veto conditions em checkpoints                              │
+│  ├── Automação de gaps de tempo                                  │
+│  └── Fluxo unidirecional                                         │
+│                                                                  │
+│  [PRO] Tier 1: @thiago_finch (Business Strategy)                 │
+│  ├── Análise de funil e ROI                                      │
+│  ├── Go-to-market strategy                                       │
+│  └── Inteligência de mercado                                     │
+│                                                                  │
+│  [PRO] Tier 2: @ecosystem-analyst (Ecosystem Observability)      │
+│  ├── 6 lentes internas (distilação das 7 inteligências kaizen)   │
+│  ├── Topologia de squads (Team Topologies + Wardley)             │
+│  ├── Dashboard DORA/OKR de performance                           │
+│  ├── Bottleneck detection (Theory of Constraints)                │
+│  ├── Capability gap analysis (Wardley Mapping)                   │
+│  ├── Technology radar (Adopt/Trial/Assess/Hold)                  │
+│  └── Cost/ROI portfolio analysis (FinOps)                        │
+│                                                                  │
+│  Sinergia [PRO]:                                                 │
+│  Chief roteia/orquestra → Alan extrai DNA →                      │
+│  Pedro valida processo → Thiago direciona estratégia →           │
+│  Ecosystem Analyst monitora saúde contínua do ecossistema        │
+│                                                                  │
 └─────────────────────────────────────────────────────────────────┘
 ```
+
+---
+
+## Ecosystem Mode (v6.0.0)
+
+> **Novo em v6.0.0**: Observabilidade contínua do ecossistema integrada ao squad-creator via fusão com kaizen.
+
+O Ecosystem Mode adiciona uma camada de **inteligência de observabilidade** ao squad-creator. O agente `ecosystem-analyst` distila a inteligência de 7 especialistas kaizen em 6 lentes analíticas internas, sem fragmentar o contexto.
+
+### Agente: ecosystem-analyst
+
+**Ativação**: `@squad-creator:ecosystem-analyst`  
+**Tier**: Tier 2 — Ecosystem Analysis (squad-creator-pro)
+
+### Comandos de Observabilidade
+
+| Comando | Descrição | Output |
+|---------|-----------|--------|
+| `*analyze` | Relatório completo (todas as 6 lentes) | `ecosystem-health-tmpl.md` |
+| `*topology` | Mapa de topologia de squads (Team Topologies) | Estrutura + anti-padrões |
+| `*performance` | Dashboard DORA/OKR | `performance-dashboard-tmpl.md` |
+| `*bottleneck` | Constraint ativo + plano de subordinação | Análise inline |
+| `*gaps` | Matriz de capability gaps (Wardley) | `gap-analysis-tmpl.md` |
+| `*radar` | Atualização do tech radar | `tech-radar-tmpl.md` |
+| `*cost` | Matriz custo/ROI do portfólio | Análise inline |
+| `*report` | Digest semanal do ecossistema | `weekly-report-tmpl.md` |
+
+### As 6 Lentes Internas
+
+| Lente | Framework | Trigger |
+|-------|-----------|---------|
+| 1 — Topology | Team Topologies + Wardley Maps | Antes de criar squad, após crescimento |
+| 2 — Performance | DORA + OKR + Balanced Scorecard | Pós-epic, revisão semanal |
+| 3 — Bottleneck | Theory of Constraints + Lean | Delay em epic, expansão planejada |
+| 4 — Capability Gaps | Wardley Maps + Skills Framework | Sprint planning, quarterly review |
+| 5 — Technology Radar | ThoughtWorks Tech Radar | Quarterly, nova ferramenta, obsolescência |
+| 6 — Cost & ROI | FinOps + Unit Economics | Antes de criar squad, portfolio review |
+
+### Tasks Absorvidas do Kaizen
+
+| Task | Lente | Provenance |
+|------|-------|-----------|
+| `detect-gaps.md` | Lente 4 | `migrated_from: kaizen` |
+| `performance-dashboard.md` | Lente 2 | `migrated_from: kaizen` |
+| `update-radar.md` | Lente 5 | `migrated_from: kaizen` |
+| `cost-analysis.md` | Lente 6 | `migrated_from: kaizen` |
+| `generate-recommendations.md` | Síntese | `migrated_from: kaizen` |
+| `self-improve.md` | Meta | `migrated_from: kaizen` |
+| `audit-output-quality.md` | QA | `migrated_from: kaizen` |
+| `auto-healing-gate.md` | Gate | `migrated_from: kaizen` |
+
+### Workflows de Observabilidade
+
+| Workflow | Propósito | Fases |
+|----------|-----------|-------|
+| `wf-ecosystem-analysis.yaml` | Análise completa do ecossistema | 6 |
+| `wf-weekly-report.yaml` | Cadência semanal de relatório | 3 |
+| `wf-self-improve.yaml` | Meta-melhoria do próprio squad | 4 |
 
 ### Ativação
 
@@ -381,7 +476,7 @@ Máxima fidelidade com materiais do usuário:
 | Comando | Descrição | Output |
 |---------|-----------|--------|
 | `*create-squad` | Criar squad completo (6 fases) | `squads/{name}/` |
-| `*clone-mind {name}` | Extrair Voice + Thinking DNA | `outputs/minds/{slug}/` |
+| `*clone-mind {name}` | Extrair Voice + Thinking DNA | `.aiox/squad-runtime/minds/{slug}/` |
 | `*create-agent` | Agent individual para squad | `agents/{name}.md` |
 | `*create-workflow` | Workflow multi-fase | `workflows/{name}.yaml` |
 | `*create-task` | Task atômica | `tasks/{name}.md` |
@@ -401,7 +496,7 @@ Máxima fidelidade com materiais do usuário:
 | Comando | Descrição | Gate |
 |---------|-----------|------|
 | `*validate-squad {name}` | Validação completa (9 fases) | Blocking |
-| `*validate-agent {file}` | AIOS 6-level structure | SC_AGT_001 |
+| `*validate-agent {file}` | AIOX 6-level structure | SC_AGT_001 |
 | `*validate-task {file}` | Task Anatomy (8 campos) | - |
 | `*validate-workflow {file}` | Phases + checkpoints | - |
 | `*quality-dashboard {name}` | Métricas visuais | - |
@@ -437,21 +532,39 @@ Máxima fidelidade com materiais do usuário:
 
 ### Agents
 
-- `squad-chief.md` - Agent arquiteto de squads (inclui triagem e extração de SOPs)
-- `oalanicolas.md` - Especialista em mind cloning
-- `pedro-valerio.md` - Especialista em process design
+- `squad-chief.md` - Agent orquestrador de squads (triagem, criação, validação)
 
 ### Tasks
 
 **Criação**
-- `create-squad.md` - Workflow completo de criação de squad (854 linhas)
-- `create-agent.md` - Criação individual de agent para squads (756 linhas)
+- `create-squad.md` - Workflow completo de criação de squad
+- `create-agent.md` - Criação individual de agent para squads
+- `create-workflow.md` - Criação de workflows multi-fase
 - `create-task.md` - Criação de task para workflows
 - `create-template.md` - Criação de template para outputs
-- `extract-sop.md` - Extração de SOPs de transcrições (AIOS-ready)
+- `create-pipeline.md` - Scaffolding de pipeline (state, progress, runner)
+- `create-documentation.md` - Geração de documentação de squad
 
 **Validação**
-- `validate-squad.md` - Validação granular de squad (795 linhas, 9 fases)
+- `validate-squad.md` - Validação granular de squad
+- `validate-final-artifacts.md` - Validação de artefatos finais com hard gates
+- `qa-after-creation.md` - Quality assurance pós-criação
+
+**Gestão & Utilidades**
+- `discover-tools.md` - Descoberta de ferramentas MCP
+- `upgrade-squad.md` - Upgrade de squad existente
+- `next-squad.md` - Recomendação de próximo squad
+- `squad-overview.md` - Geração de documentação SQUAD-OVERVIEW.md
+- `squad-analytics.md` - Analytics e métricas
+- `refresh-registry.md` - Atualização do registro de squads
+- `sync-ide-skills.md` - Sincronização de skills para IDE
+- `install-skills.md` - Instalação de skills
+- `reexecute-squad-phase.md` - Re-execução segura de fase de workflow
+- `detect-squad-context.md` - Detecção de contexto (greenfield/brownfield)
+- `detect-operational-mode.md` - Detecção de modo operacional
+- `setup-runtime.md` - Setup de runtime
+- `auto-heal.md` - Auto-correção de problemas
+- `operational-test.md` - Teste operacional
 
 ### Templates
 
@@ -465,7 +578,8 @@ Máxima fidelidade com materiais do usuário:
 ### Checklists
 
 - `squad-checklist.md` - Checklist completo de validação de qualidade
-- `sop-validation.md` - Checklist de validação de extração de SOP (SC-CK-001)
+- `agent-quality-gate.md` - Quality gate de validação de agents
+- `task-anatomy-checklist.md` - Checklist de anatomia de tasks
 
 ### Config
 
@@ -481,12 +595,11 @@ Scripts Python para operações determinísticas (zero tokens LLM):
 
 | Script | Propósito | Tipo |
 |--------|-----------|------|
-| `sync-ide-command.py` | Sincroniza components para IDEs | Worker |
+| `sync-ide-skills.py` | Sincroniza components para IDEs | Worker |
 | `validate-squad-structure.py` | Validação Phases 0-2 | Worker |
 | `refresh-registry.py` | Escaneia squads, gera JSON | Worker |
 | `squad-analytics.py` | Métricas e estatísticas | Worker |
-| `quality_gate.py` | Quality gates | Worker |
-| `yaml_validator.py` | Validação YAML | Worker |
+| `naming_validator.py` | Validação de nomes | Worker |
 
 **Documentação completa:** [scripts/README.md](scripts/README.md)
 
@@ -516,12 +629,12 @@ O Squad Creator usa o **Executor Decision Tree** para otimizar custos:
 
 | Task | Tipo | Script Worker |
 |------|------|---------------|
-| `sync-ide-command.md` | Worker | `sync-ide-command.py` |
-| `install-commands.md` | Worker | `sync-ide-command.py` |
+| `sync-ide-skills.md` | Worker | `sync-ide-skills.py` |
+| `install-skills.md` | Worker | `sync-ide-skills.py` |
 | `refresh-registry.md` | Hybrid | `refresh-registry.py` |
 | `squad-analytics.md` | Hybrid | `squad-analytics.py` |
 | `validate-squad.md` | Hybrid | `validate-squad-structure.py` |
-| `optimize.md` | Agent | (análise semântica) |
+| `validate-squad.md` (Phase 3+) | Agent | (análise semântica) |
 | `create-squad.md` | Agent | (geração criativa) |
 
 ### Economia
@@ -536,16 +649,12 @@ O Squad Creator usa o **Executor Decision Tree** para otimizar custos:
 
 ## Instalação
 
-Para instalar este squad, execute:
+1. Copie a pasta `squads/squad-creator/` para o seu projeto AIOX
+2. Sincronize os comandos para o IDE:
 
 ```bash
-npm run install:squad squad-chief
-```
-
-Ou manualmente:
-
-```bash
-node tools/install-squad.js squad-chief
+# Dentro do Claude Code, ative o squad e execute:
+*sync
 ```
 
 ---
@@ -559,7 +668,7 @@ O SOP Extractor transforma transcrições de reuniões em Procedimentos Operacio
 Extrair SOPs de reuniões gravadas onde alguém explicou um processo de negócio, produzindo:
 1. SOP completo seguindo padrão SC-PE-001 (11 partes)
 2. Análise de automação usando heurística PV_PM_001
-3. Blueprint de Squad AIOS pronto para criação imediata
+3. Blueprint de Squad AIOX pronto para criação imediata
 4. Relatório de gaps com perguntas de esclarecimento
 
 ### Fontes de Dados
@@ -581,13 +690,15 @@ data_sources:
     active_source: supabase  # ← mude aqui
 ```
 
-### Workflow de Extração de SOP
+### Workflow de Extração de SOP [PRO]
+
+> Esta funcionalidade requer o AIOX Pro (Cohort Avançado).
 
 ```bash
-# Ativar o squad-chief (agora inclui extração de SOP)
+# Ativar o squad-chief
 @squad-creator
 
-# Rodar extração (workflow principal)
+# Rodar extração (workflow principal) [PRO]
 *extract-sop
 
 # O agent irá:
@@ -690,10 +801,10 @@ squads/nome-do-seu-squad/
 │   └── seu-agent.md
 ├── checklists/                      # Checklists de validação
 │   └── seu-checklist.md
-├── config.yaml                      # Configuração do pack
+├── config.yaml                      # Configuração do squad
 ├── data/                           # Knowledge bases
 │   └── seu-kb.md
-├── README.md                       # Documentação do pack
+├── README.md                       # Documentação do squad
 ├── tasks/                          # Tasks de workflow
 │   └── sua-task.md
 └── templates/                      # Templates de output
@@ -718,7 +829,7 @@ squads/nome-do-seu-squad/
 
 - Checklist completo cobrindo todas as dimensões de qualidade
 - Validação de segurança para todo código gerado
-- Verificação de conformidade com padrões AIOS
+- Verificação de conformidade com padrões AIOX
 
 ### Automação de Documentação
 
@@ -726,11 +837,11 @@ squads/nome-do-seu-squad/
 - Exemplos de uso e guias de integração
 - Documentação de melhores práticas
 
-## Integração com AIOS Core
+## Integração com AIOX Core
 
 O Squad Architect integra perfeitamente com:
 
-1. **AIOS Developer Agent** - Pode usar aios-developer para modificações avançadas de componentes
+1. **AIOX Developer Agent** - Pode usar aiox-developer para modificações avançadas de componentes
 2. **Core Workflows** - Squads gerados integram com workflows greenfield e brownfield
 3. **Memory Layer** - Rastreia todos os squads e componentes criados
 4. **Installer** - Squads gerados podem ser instalados via installer padrão
@@ -788,30 +899,19 @@ O squad `copy` é a referência de qualidade máxima:
 | **Data** | 50+ | Swipe files, frameworks, heurísticas |
 | **Total** | 32,049 linhas | Maior squad do ecossistema |
 
-### Squads em Produção
+### Exemplos de Squads em Produção
 
-```
-mmos/squads/
-├── copy/                 # 25 copywriters clonados (Gold Standard)
-│   ├── alex-hormozi      # $100M Offers framework
-│   ├── ry-schwartz       # Email copywriter expert
-│   ├── gary-halbert      # Prince of Print
-│   ├── dan-kennedy       # Direct response legend
-│   └── ... (21 mais)
-├── sales/                # Vendedores de elite
-├── marketing/            # Estrategistas de marketing
-├── persuasion/           # Especialistas em persuasão
-├── storytelling/         # Mestres de narrativa
-├── branding/             # Brand strategists
-├── content/              # Content creators
-└── ... (24 mais squads)
+O AIOX Pro possui 31+ squads em produção, incluindo:
 
-mmos/outputs/minds/       # Minds extraídos
-├── alex-hormozi/         # Voice DNA + Thinking DNA completo
-├── ry-schwartz/          # Email mastery framework
-├── gary-halbert/         # Boron Letters DNA
-└── ... (57 mais minds)
-```
+| Squad | Agents | Destaque |
+|-------|--------|----------|
+| **copy** | 25 copywriters | Gold Standard - Alex Hormozi, Gary Halbert, Dan Kennedy |
+| **storytelling** | 10+ | Joseph Campbell, Kindra Hall, Nancy Duarte |
+| **brand** | 12+ | Brand strategy, positioning, naming |
+| **traffic-masters** | 10+ | Meta Ads, Google Ads, YouTube |
+| **deep-research** | 8+ | Systematic reviews, evidence synthesis |
+
+> Estes squads foram criados usando o squad-creator e estão disponíveis no AIOX Pro (Cohort Avançado).
 
 ### Exemplo de Agent Real: Alex Hormozi
 
@@ -866,27 +966,27 @@ output_examples:
 Este creator pode gerar squads para qualquer domínio:
 
 **Serviços Profissionais**
-- Pack de Assistente Jurídico
-- Pack de Contabilidade & Finanças
-- Pack de Imobiliário
-- Pack de Prática de Saúde
+- Squad de Assistente Jurídico
+- Squad de Contabilidade & Finanças
+- Squad de Imobiliário
+- Squad de Prática de Saúde
 
 **Criativo & Conteúdo**
-- Pack de Marketing de Conteúdo
-- Pack de Produção de Vídeo
-- Pack de Criação de Podcast
-- Pack de Escrita Criativa
+- Squad de Marketing de Conteúdo
+- Squad de Produção de Vídeo
+- Squad de Criação de Podcast
+- Squad de Escrita Criativa
 
 **Educação & Treinamento**
-- Pack de Design Curricular
-- Pack de Treinamento Corporativo
-- Pack de Criação de Curso Online
+- Squad de Design Curricular
+- Squad de Treinamento Corporativo
+- Squad de Criação de Curso Online
 
 **Pessoal & Estilo de Vida**
-- Pack de Desenvolvimento Pessoal
-- Pack de Fitness & Nutrição
-- Pack de Organização Doméstica
-- Pack de Planejamento de Viagem
+- Squad de Desenvolvimento Pessoal
+- Squad de Fitness & Nutrição
+- Squad de Organização Doméstica
+- Squad de Planejamento de Viagem
 
 ## Melhores Práticas
 
@@ -910,13 +1010,13 @@ Você pode customizar squads gerados por:
 
 Este squad requer:
 
-- Framework AIOS-FULLSTACK core
-- AIOS Developer agent (opcional, para modificações avançadas)
+- Framework AIOX-FULLSTACK core
+- AIOX Developer agent (opcional, para modificações avançadas)
 - Entendimento básico da sua expertise de domínio
 
 ## Suporte & Comunidade
 
-- **Documentação**: Veja `docs/squads.md` para guias detalhados
+- **Documentação**: Veja a pasta `docs/` para guias detalhados
 - **Exemplos**: Navegue `squads/` para implementações de referência
 - **Issues**: Reporte problemas via GitHub issues
 - **Contribuições**: Envie PRs com melhorias
@@ -932,17 +1032,17 @@ Este squad requer:
 **Soluções:**
 1. Verifique se o arquivo do agent existe: `ls squads/squad-creator/agents/squad-chief.md`
 2. Cheque sintaxe YAML: Garanta que o bloco YAML está formatado corretamente
-3. Verifique se o squad está sincronizado: Cheque se `.claude/commands/squad-creator/` existe
+3. Verifique se o squad está sincronizado: Cheque se `.claude/agents/squad-creator/` existe
 
 ---
 
-#### Loop de Research Não Inicia
+#### Loop de Research Não Inicia [PRO]
 
-**Sintoma:** Ao solicitar um squad, agent faz perguntas ao invés de pesquisar
+**Sintoma:** Ao solicitar um squad, agent faz perguntas ao invés de pesquisar automaticamente
 
-**Comportamento Esperado:** Agent deve IMEDIATAMENTE iniciar pesquisa quando domínio é mencionado.
+**Nota:** Pesquisa automática (mind-research-loop) é uma funcionalidade do AIOX Pro. No modo base, o agent coleta informações do domínio através de perguntas estruturadas.
 
-**Solução:**
+**Solução (com Pro):**
 1. Diga explicitamente: "Inicie o mind-research-loop agora"
 2. Ou reinicie: `*exit` então reative `@squad-chief`
 
@@ -993,7 +1093,7 @@ Este squad requer:
 10. Auditoria
 11. Histórico de Revisão
 
-**Referência:** `checklists/sop-validation.md`
+**Referência:** `checklists/sop-validation.md` [PRO]
 
 ---
 
@@ -1022,7 +1122,7 @@ Veja `CHANGELOG.md` para histórico detalhado de versões.
 
 ## Notas
 
-- Squads gerados seguem padrões AIOS-FULLSTACK automaticamente
+- Squads gerados seguem padrões AIOX-FULLSTACK automaticamente
 - Todos os componentes incluem validação e checks de segurança embutidos
 - O creator usa elicitação interativa para garantir qualidade
 - Documentação gerada inclui exemplos de uso e guias de integração
@@ -1053,6 +1153,24 @@ docs/
 
 ---
 
-_Versão: 3.0.0_
-_Compatível com: AIOS-FULLSTACK v5+_
-_Última Atualização: 2026-02-11_
+## Índice de Tasks do Pipeline
+
+Tasks de execução e validação referenciadas explicitamente pelo squad:
+
+- `tasks/create-documentation.md`
+- `tasks/install-skills-prepare.md`
+- `tasks/install-skills-write.md`
+- `tasks/install-skills-finalize.md`
+- `tasks/qa-after-creation.md`
+- `tasks/reexecute-squad-phase.md`
+- `tasks/sync-chief-codex-skill.md`
+- `tasks/validate-squad-classify.md`
+- `tasks/validate-squad-preflight.md`
+- `tasks/validate-squad-deep-review.md`
+- `tasks/validate-squad-verdict.md`
+
+---
+
+_Versão: 6.0.0_
+_Compatível com: AIOX v5+_
+_Última Atualização: 2026-04-04_

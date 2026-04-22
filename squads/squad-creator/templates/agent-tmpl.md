@@ -4,7 +4,7 @@
 template:
   id: squad-agent-template
   name: Squad Agent (Hybrid Loader)
-  quality_standard: "aios-agent-v2"
+  quality_standard: "aiox-agent-v2"
   min_lines: 800
 
   output:
@@ -75,7 +75,7 @@ ACTIVATION-NOTICE: |
   External files are loaded ON-DEMAND when commands are executed.
 
 IDE-FILE-RESOLUTION:
-  base_path: "squads/{{pack_name}}"
+  base_path: "squads/{{squad_name}}"
   resolution_pattern: "{base_path}/{type}/{name}"
   types:
     - tasks
@@ -90,6 +90,12 @@ REQUEST-RESOLUTION: |
   - "{{example_request_1}}" → *{{command_1}} → loads {{task_1}}
   - "{{example_request_2}}" → *{{command_2}} → loads {{task_2}}
   ALWAYS ask for clarification if no clear match.
+
+# AI-FIRST GOVERNANCE: mandatory before final claims
+AI-FIRST-GOVERNANCE: |
+  Apply squads/squad-creator/protocols/ai-first-governance.md
+  before final recommendations, completion claims, or handoffs.
+  Use canonical sources and expose unresolved items.
 
 # CRITICAL: Loader rules that MUST be followed
 activation-instructions:

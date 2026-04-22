@@ -1,10 +1,10 @@
-# AIOS Best Practices - Padroes Avancados para Criacao de Squads
+# AIOX Best Practices - Padroes Avancados para Criacao de Squads
 
-> **Source:** AIOS Quality Standards
+> **Source:** AIOX Quality Standards
 > **Version:** 1.0.0
 > **Updated:** 2026-01-24
 
-Este documento consolida as boas praticas para criacao de squads de alta qualidade no ecossistema AIOS.
+Este documento consolida as boas praticas para criacao de squads de alta qualidade no ecossistema AIOX.
 
 ---
 
@@ -14,7 +14,7 @@ Este documento define **18 padroes avancados** que devem ser considerados como r
 
 ### Metricas de Maturidade
 
-| Dimensao | Padrao AIOS | Minimo | Recomendado |
+| Dimensao | Padrao AIOX | Minimo | Recomendado |
 |----------|-------------|--------|-------------|
 | Estrutura de Tasks | 8 campos obrigatorios | 5 campos | 8 campos |
 | Quality Gates | Gates formais | 2 gates | 10+ gates |
@@ -712,10 +712,10 @@ squads/{squad-name}/
 ### 8.1 config.yaml Template
 
 ```yaml
-pack:
+squad:
   name: "{squad_name}"
   version: "1.0.0"
-  author: "AIOS Team"
+  author: "AIOX Team"
   description: "{description}"
   icon: "{emoji}"
   slash_prefix: "{prefix}"
@@ -982,5 +982,5 @@ task_backlog_rule:
 
 ---
 
-*AIOS Squad Creator Best Practices v2.0*
+*AIOX Squad Creator Best Practices v2.0*
 *Squad-Creator Reference v1.0.0*

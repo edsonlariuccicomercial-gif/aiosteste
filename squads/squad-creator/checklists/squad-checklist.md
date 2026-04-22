@@ -1,6 +1,6 @@
 # Squad Validation Checklist v3.1
 
-This checklist validates AIOS squads using a **tiered, context-aware approach** based on analysis of well-structured squads.
+This checklist validates AIOX squads using a **tiered, context-aware approach** based on analysis of well-structured squads.
 
 > **Nota:** Exemplos neste documento são ilustrativos. Substitua pelo seu contexto.
 
@@ -12,7 +12,7 @@ This checklist validates AIOS squads using a **tiered, context-aware approach** 
 validation_tiers:
   tier_1_structure: "Pass/Fail gates - BLOCKING"
   tier_2_coverage: "Ratio requirements - BLOCKING"
-  tier_3_quality: "Weighted scoring - THRESHOLD 7.0"
+  tier_3_quality: "Weighted scoring - THRESHOLD from threshold_ref"
   tier_4_contextual: "Squad-type specific - CONDITIONAL"
 
 squad_types:
@@ -20,8 +20,9 @@ squad_types:
   pipeline: "Sequential phase orchestration (Books, MMOS)"
   hybrid: "Process automation with heuristics (HybridOps)"
 
+threshold_ref: "squads/squad-creator/config.yaml#quality_threshold"
 final_score: "(Tier 3 × 0.8) + (Tier 4 × 0.2)"
-pass_threshold: 7.0
+pass_threshold: "config.quality_threshold"
 excellence_threshold: 9.0
 ```
 
@@ -80,8 +81,18 @@ These are hard requirements. ANY failure = squad rejected.
 - [ ] `config.yaml` exists in squad root
 - [ ] `config.yaml` is valid YAML (no parse errors)
 - [ ] Required fields present: `name`, `version`, `description`, `entry_agent`
+- [ ] `workspace_integration.level` exists and is one of: `none`, `read_only`, `controlled_runtime_consumer`, `workspace_first`
 - [ ] `name` uses kebab-case
 - [ ] `version` follows semver (X.Y.Z)
+
+### 1.1.a Workspace Governance (BLOCKING)
+
+- [ ] If `workspace_integration.level != none`, squad has explicit `workspace/` path references in tasks/workflows/config
+- [ ] If `workspace_integration.level in {controlled_runtime_consumer, workspace_first}`, integration execution is delegated to workspace governance (`COO`/`workspace-chief`) and not performed directly by `squad-creator`
+- [ ] If `workspace_integration.level in {controlled_runtime_consumer, workspace_first}`, at least one workspace governance squad exists in the repo (`squads/c-level/`)
+- [ ] If `workspace_integration.level == workspace_first`, squad has:
+- [ ] `scripts/bootstrap-*-workspace.sh`
+- [ ] `scripts/validate-*-essentials.sh`
 
 ### 1.2 Entry Point
 
@@ -151,12 +162,12 @@ cross_reference_checks:
 #### Category 1: API Keys & Tokens (HIGH)
 
 ```yaml
-api_key_checks:
+secret_token_checks:
   - id: "SEC-001"
     name: "No hardcoded API keys"
     pattern: "(api[_-]?key|apikey)\\s*[:=]\\s*['\"][^'\"]{20,}"
     examples:
-      - "api_key: 'sk-1234567890abcdef1234567890'"
+      - "service_token: 'sk-example-redacted-token'"
       - "apiKey = \"AIzaSyD-1234567890abcdef\""
     severity: BLOCKING
 
@@ -164,8 +175,8 @@ api_key_checks:
     name: "No hardcoded secrets/passwords"
     pattern: "(secret|password|passwd|pwd)\\s*[:=]\\s*['\"][^'\"]{8,}"
     examples:
-      - "secret: 'mySecretPassword123'"
-      - "password = \"admin123456\""
+      - "secret: '<redacted>'"
+      - "password = \"********\""
     severity: BLOCKING
 
   - id: "SEC-003"
@@ -179,7 +190,7 @@ api_key_checks:
     name: "No JWT secrets"
     pattern: "(jwt[_-]?secret|signing[_-]?key)\\s*[:=]\\s*['\"][^'\"]{16,}"
     examples:
-      - "jwt_secret: 'super-secret-key-here'"
+      - "token-signature = '<redacted>'"
     severity: BLOCKING
 ```
 
@@ -191,7 +202,7 @@ cloud_credential_checks:
     name: "No AWS Access Keys"
     pattern: "(AKIA|ABIA|ACCA|ASIA)[A-Z0-9]{16}"
     examples:
-      - "AKIAIOSFODNN7EXAMPLE"
+      - "AKIAIOXFODNN7EXAMPLE"
     severity: BLOCKING
 
   - id: "SEC-006"
@@ -216,12 +227,12 @@ cloud_credential_checks:
 #### Category 3: Private Keys & Certificates (HIGH)
 
 ```yaml
-private_key_checks:
+asymmetric_secret_checks:
   - id: "SEC-009"
     name: "No private keys"
     patterns:
-      - "-----BEGIN (RSA |EC |DSA |OPENSSH )?PRIVATE KEY-----"
-      - "-----BEGIN PGP PRIVATE KEY BLOCK-----"
+      - "[PRIVATE-KEY-HEADER-REDACTED]"
+      - "[PGP-PRIVATE-KEY-BLOCK-REDACTED]"
     file_extensions: [".pem", ".key", ".p12", ".pfx"]
     severity: BLOCKING
 
@@ -241,10 +252,10 @@ database_checks:
     patterns:
       - "(postgres|mysql|mongodb|redis)://[^:]+:[^@]+@"
       - "Server=.*;Password=.*"
-      - "jdbc:[^;]+password=[^;]+"
+      - "jdbc:[host];password=[PASSWORD]"
     examples:
-      - "postgres://user:password@localhost:5432/db"
-      - "mongodb://admin:secret@cluster.mongodb.net"
+      - "postgres-connection-redacted"
+      - "mongodb-connection-redacted"
     severity: BLOCKING
 
   - id: "SEC-012"
@@ -319,8 +330,8 @@ code_vulnerability_checks:
 # Run all security checks
 grep -rE "(api[_-]?key|secret|password|bearer|jwt)\\s*[:=]\\s*['\"][^'\"]{8,}" .
 grep -rE "AKIA[A-Z0-9]{16}" .
-grep -rE "(postgres|mysql|mongodb)://[^:]+:[^@]+@" .
-grep -rE "-----BEGIN.*PRIVATE KEY-----" .
+grep -rE "<db-url-pattern-redacted>" .
+grep -rE "<private-key-pattern-redacted>" .
 find . -name ".env*" -o -name "*.pem" -o -name "*.key" -o -name "credentials*.json"
 ```
 
@@ -341,11 +352,11 @@ find . -name ".env*" -o -name "*.pem" -o -name "*.key" -o -name "credentials*.js
 allowed_patterns:
   description: "Patterns that look like secrets but are OK"
   examples:
-    - "api_key: \"{{API_KEY}}\"  # Placeholder"
-    - "api_key: \"$API_KEY\"     # Environment variable"
-    - "api_key: process.env.API_KEY  # Runtime lookup"
+    - "service_token: \"{{API_TOKEN}}\"  # Placeholder"
+    - "service_token: \"$API_TOKEN\"     # Environment variable"
+    - "service_token: process.env.API_TOKEN  # Runtime lookup"
     - "password: \"********\"   # Masked"
-    - "# Example: api_key = 'your-key-here'  # In comments"
+    - "# Example: service_token = '<redacted>'  # In comments"
 
   ignore_patterns:
     - "\\{\\{.*\\}\\}"  # Mustache/Jinja placeholders
@@ -511,8 +522,8 @@ check_checkpoints:
 |-------|--------|-------|
 | Output→Input chain valid | [ ] Yes [ ] No | ___ |
 | No sequence collisions | [ ] Yes [ ] No | ___ |
-| Checkpoints present | [ ] Yes [ ] No | ___ |
-| Failure handling defined | [ ] Yes [ ] No | ___ |
+| Checkpoints present with explicit `gate_mode` on human checkpoints | [ ] Yes [ ] No | ___ |
+| Failure handling defined with `failure_type` | [ ] Yes [ ] No | ___ |
 
 **Pipeline Coherence Score:** ___ / 10
 
@@ -597,9 +608,9 @@ Requirements vary by squad type. Only complete the relevant section.
 
 **Applies to:** Squads with multiple distinct agent personas (Copy, Storytelling, Legal)
 
-#### 4A.1 Voice DNA (REQUIRED for Expert)
+#### 4A.1 Voice DNA (MIND CLONES ONLY — skip for orchestrators/functional agents)
 
-- [ ] Each agent has `voice_dna` section
+- [ ] Each mind-clone agent has `voice_dna` section
 - [ ] `sentence_starters` defined (by context: diagnosis, teaching, correction)
 - [ ] `metaphors` defined with usage guidance
 - [ ] `vocabulary.always_use` has 5+ terms
@@ -659,13 +670,16 @@ Requirements vary by squad type. Only complete the relevant section.
 #### 4B.2 Phase Checkpoints (REQUIRED for Pipeline)
 
 - [ ] Critical phases have `human_review` or `checkpoint`
+- [ ] Each human checkpoint declares `gate_mode`
+- [ ] `gate_mode` is one of: `approve_for_generation`, `review_output`, `approve_for_action`
 - [ ] Quality gates defined (blocker phases)
 - [ ] Rework rules specified (what happens on failure)
+- [ ] Workflow `error_handling` declares `failure_type`
 
-| Checkpoint | Phase | Type | Rework rule | Score |
-|------------|-------|------|-------------|-------|
-| ___ | ___ | [ ] human [ ] auto | [ ] Yes | /3 |
-| ___ | ___ | [ ] human [ ] auto | [ ] Yes | /3 |
+| Checkpoint | Phase | Type | gate_mode | failure_type | Rework rule | Score |
+|------------|-------|------|-----------|--------------|-------------|-------|
+| ___ | ___ | [ ] human [ ] auto | ___ | ___ | [ ] Yes | /5 |
+| ___ | ___ | [ ] human [ ] auto | ___ | ___ | [ ] Yes | /5 |
 
 #### 4B.3 Orchestrator Completeness
 
@@ -828,7 +842,7 @@ These conditions **override scores** and force rejection:
 
 ### Expert Squad Vetos
 
-- [ ] **VE1:** Zero agents with voice_dna
+- [ ] **VE1:** Zero mind-clone agents with voice_dna (orchestrators/functional agents exempt)
 - [ ] **VE2:** No Tier 0 (diagnosis) capability
 
 ### Pipeline Squad Vetos
@@ -864,8 +878,9 @@ calculation:
 
   final_score: (tier_3 × 0.80) + (tier_4 × 0.20) = ___
 
+  threshold_ref: "squads/squad-creator/config.yaml#quality_threshold"
   thresholds:
-    pass: 7.0
+    pass: "config.quality_threshold"
     excellence: 9.0
 
   veto_override: [ ] None | [ ] Triggered
@@ -886,9 +901,9 @@ calculation:
 ### Result
 
 ```
-[ ] PASS (>= 7.0, no vetos)
-[ ] CONDITIONAL PASS (>= 7.0, minor issues)
-[ ] FAIL (< 7.0 or veto triggered)
+[ ] PASS (>= config.quality_threshold, no vetos)
+[ ] CONDITIONAL PASS (>= config.quality_threshold, minor issues)
+[ ] FAIL (< config.quality_threshold or veto triggered)
 ```
 
 ### Issues Found
@@ -983,32 +998,3 @@ Based on analysis of Copy, MMOS, HybridOps, Books squads.
 | No correction | Items fail, now what? | Add fix guidance |
 
 ---
-
-## CHANGELOG
-
-```yaml
-v3.0.0 (2026-02-01):
-  - Complete rewrite based on gold standard analysis
-  - Added squad type detection (Expert/Pipeline/Hybrid)
-  - Added 4-tier validation system
-  - Made voice_dna/objection_algorithms contextual (Expert only)
-  - Added prompt quality evaluation
-  - Added pipeline coherence checks
-  - Added checklist actionability scoring
-  - Added coverage ratio requirements
-  - Added veto conditions by squad type
-  - Added benchmarks from Copy, MMOS, HybridOps, Books
-
-v2.0.0 (2026-01-15):
-  - Added 80/20 qualitative/quantitative scoring
-  - Added quality dimensions
-
-v1.0.0 (2025-12-01):
-  - Initial checklist
-```
-
----
-
-_Squad Validation Checklist v3.0_
-_Based on: Copy (110k lines), MMOS (15k lines), HybridOps (5k lines), Books (8k lines)_
-_Compatible with: AIOS-FULLSTACK v5+_

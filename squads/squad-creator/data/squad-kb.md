@@ -2,17 +2,17 @@
 
 ## Overview
 
-This knowledge base contains comprehensive guidance on creating high-quality AIOS-FULLSTACK squads. It covers architectural patterns, best practices, design principles, and domain-specific knowledge for the Squad Architect Pack.
+This knowledge base contains comprehensive guidance on creating high-quality AIOX-FULLSTACK squads. It covers architectural patterns, best practices, design principles, and domain-specific knowledge for the Squad Architect Squad.
 
 ---
 
-## 1. EXPANSION PACK ARCHITECTURE
+## 1. SQUAD ARCHITECTURE
 
 ### 1.1 Core Concepts
 
 **What is an Squad?**
 
-An squad is a modular, self-contained extension to AIOS-FULLSTACK that adds domain-specific capabilities through:
+An squad is a modular, self-contained extension to AIOX-FULLSTACK that adds domain-specific capabilities through:
 - Specialized agents with domain expertise
 - Workflow tasks that solve domain problems
 - Output templates that produce domain artifacts
@@ -21,27 +21,27 @@ An squad is a modular, self-contained extension to AIOS-FULLSTACK that adds doma
 
 **Why Squads?**
 
-- **Modularity:** Extend AIOS without modifying core framework
+- **Modularity:** Extend AIOX without modifying core framework
 - **Domain Focus:** Specialize in specific industries or use cases
 - **Reusability:** Share expertise across projects and teams
 - **Maintainability:** Update domain knowledge independently
-- **Community:** Enable community contributions to AIOS ecosystem
+- **Community:** Enable community contributions to AIOX ecosystem
 
-### 1.2 Pack Structure Standards
+### 1.2 squad structure Standards
 
 ```
-squads/{pack-name}/
+squads/{squad-name}/
 ├── agents/              # Domain-specific AI agents
 │   ├── {agent-id}.md
 │   └── ...
 ├── checklists/          # Validation checklists
 │   ├── {checklist}.md
 │   └── ...
-├── config.yaml          # Pack metadata and configuration
+├── config.yaml          # squad metadata and configuration
 ├── data/               # Knowledge bases and reference data
 │   ├── {domain}-kb.md
 │   └── ...
-├── README.md           # Pack documentation
+├── README.md           # Squad documentation
 ├── tasks/              # Workflow definitions
 │   ├── {task-id}.md
 │   └── ...
@@ -51,7 +51,7 @@ squads/{pack-name}/
 ```
 
 **Required Files:**
-- `config.yaml` - Pack configuration and metadata
+- `config.yaml` - squad configuration and metadata
 - `README.md` - Comprehensive documentation
 - At least one agent in `agents/`
 
@@ -65,7 +65,7 @@ squads/{pack-name}/
 
 ```
 ┌─────────────┐
-│   config.yaml │  ← Pack metadata
+│   config.yaml │  ← squad metadata
 └─────────────┘
       ↓
 ┌─────────────┐
@@ -418,7 +418,7 @@ sections:
 - Outputs meet professional standards
 
 **Level 5: Integration Validation**
-- Integrates with AIOS framework
+- Integrates with AIOX framework
 - Works with other packs
 - Memory layer functions correctly
 
@@ -439,7 +439,7 @@ Test components together:
 1. Agent → Task execution
 2. Task → Template generation
 3. Agent → Checklist validation
-4. Cross-pack interactions
+4. cross-squad interactions
 
 **User Acceptance Testing**
 
@@ -487,10 +487,10 @@ Required practices:
 
 ```yaml
 # ❌ WRONG
-api_key: "sk-1234567890abcdef"
+service_token: "sk-example-redacted-token"
 
 # ✅ CORRECT
-api_key: "{{API_KEY}}"  # Load from environment variable
+service_token: "{{API_TOKEN}}"  # Load from environment variable
 ```
 
 ### 6.3 Output Security
@@ -528,7 +528,7 @@ Every component should answer:
 
 **Essential Documentation**
 
-Every pack must document:
+Every squad must document:
 1. Purpose and use cases
 2. Installation instructions
 3. Usage examples
@@ -627,7 +627,7 @@ Good error message structure:
 
 ## 9. INTEGRATION PATTERNS
 
-### 9.1 Core AIOS Integration
+### 9.1 Core AIOX Integration
 
 **Agent Activation**
 
@@ -662,14 +662,14 @@ const contracts = memory.query('legal-contracts', {
 });
 ```
 
-### 9.2 Cross-Pack Collaboration
+### 9.2 cross-squad Collaboration
 
 **Dependency Declaration**
 
 In `config.yaml`:
 ```yaml
 dependencies:
-  - aios-developer  # For code generation
+  - aiox-developer  # For code generation
   - document-library  # For templates
 ```
 
@@ -901,7 +901,7 @@ Solution: Test template with sample data, validate YAML syntax
 - Better: At least 2-3 realistic examples
 
 ❌ **Assumed Knowledge**
-- Expecting users know AIOS internals
+- Expecting users know AIOX internals
 - Better: Self-contained documentation
 
 ---
@@ -923,9 +923,9 @@ Solution: Test template with sample data, validate YAML syntax
 ### 14.2 Technology Evolution
 
 **Stay Current**
-- Monitor AIOS framework updates
+- Monitor AIOX framework updates
 - Update dependencies regularly
-- Test with new AIOS versions
+- Test with new AIOX versions
 - Deprecate obsolete features gracefully
 
 **Plan for Growth**
@@ -960,7 +960,7 @@ Solution: Test template with sample data, validate YAML syntax
 - Feature requests
 - Contribution rate
 - Update frequency
-- Compatibility with latest AIOS
+- Compatibility with latest AIOX
 
 ---
 
@@ -978,10 +978,10 @@ Follow this knowledge base to create squads that:
 - Provide genuine value
 - Delight users
 - Stand the test of time
-- Contribute to AIOS ecosystem
+- Contribute to AIOX ecosystem
 
 ---
 
 _Knowledge Base Version: 1.0_
 _Last Updated: 2025-09-30_
-_Maintained by: AIOS Squad Architect Team_
+_Maintained by: AIOX Squad Architect Team_

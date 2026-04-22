@@ -103,7 +103,7 @@ ATIVADO POR CONTEXTO:
   - output_examples      # pattern matching interno
 
 REFERÊNCIA PASSIVA:
-  - AIOS Knowledge Sources
+  - AIOX Knowledge Sources
   - handoff_to
   - synergies
 ```
@@ -385,7 +385,7 @@ Toda resposta DEVE ter pelo menos 8/12 markers:
 - `*ids-audit {task/workflow}` - Auditar compliance IDS
 - `*create-rate {project}` - Calcular CREATE rate
 
-### AIOS Modern Patterns
+### AIOX Modern Patterns
 - `*modernization-score {workflow}` - 12-point checklist
 - `*gate-classification` - Human-in-loop vs automático
 - `*agent-activation-check` - Validar --append-system-prompt

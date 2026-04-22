@@ -12,7 +12,7 @@
 
 | Metric | Minimum | Target | Measurement |
 |--------|---------|--------|-------------|
-| Required fields present | 8/8 | 8/8 | Count of 8 mandatory fields |
+| Required fields present | 9/9 | 9/9 | Count of 9 mandatory fields |
 | task_name format valid | true | true | Verb + Object pattern |
 | execution_type valid | true | true | Enum: Human/Agent/Hybrid/Worker |
 | estimated_time format | valid | valid | Xh or X-Yh pattern |
@@ -75,17 +75,33 @@ Every task MUST have ALL 8 fields. No exceptions.
 - [ ] **output** - Array of outputs produced
 - [ ] **action_items** - Array of execution steps
 - [ ] **acceptance_criteria** - Array of completion criteria
+- [ ] **output_persistence** - canonical_workspace or transient_output (Output Path Governance)
 
 ### 1.2 Field Presence Scoring
 
 | Fields Present | Score | Status |
 |----------------|-------|--------|
-| 8/8 | 100% | PASS |
-| 7/8 | 87.5% | CONDITIONAL |
-| 6/8 | 75% | FAIL |
-| <6/8 | <75% | HARD FAIL |
+| 9/9 | 100% | PASS |
+| 8/9 | 89% | CONDITIONAL |
+| 7/9 | 78% | FAIL |
+| <7/9 | <78% | HARD FAIL |
 
-### 1.3 Optional Fields
+### 1.3 SINKRA v1.2 Required Fields (Accountability Token)
+
+For tasks with non-Human executor (Agent, Worker, Hybrid, Composed) this field is **CRITICAL / AUTO-FAIL** if absent:
+
+- [ ] **accountability** - Human accountable for the task output
+  ```yaml
+  accountability:
+    human: squad-operator   # Human role or name
+    scope: review_only      # full | review_only | escalation_target
+  ```
+  - `Worker` → `scope: review_only`
+  - `Agent` → `scope: review_only`
+  - `Hybrid` → `scope: full`
+  - Human executor → field optional
+
+### 1.4 Optional Fields
 
 These fields enhance task definition but are not required:
 
@@ -95,6 +111,47 @@ These fields enhance task definition but are not required:
 - [ ] **quality_gate** - Quality gate reference
 - [ ] **handoff** - Handoff configuration (to, trigger)
 - [ ] **patterns** - Pattern compliance references
+
+---
+
+## 1B. OUTPUT PATH GOVERNANCE (BLOCKING)
+
+Every task with outputs MUST classify `output_persistence` and use the correct path.
+
+### 1B.1 Persistence Classification
+
+- [ ] **output_persistence** field is present (canonical_workspace or transient_output)
+- [ ] Classification matches output characteristics (see heuristics below)
+
+### 1B.2 Classification Heuristics
+
+| Signal | Classification |
+|--------|---------------|
+| Loaded on agent boot (session context) | **canonical_workspace** |
+| Used as input by other tasks | **canonical_workspace** |
+| Snapshot of business state (scores, maturity, health) | **canonical_workspace** |
+| Filled template that becomes canonical data | **canonical_workspace** |
+| One-time report or analysis | transient_output |
+| Draft, intermediate version | transient_output |
+| Export for external sharing | transient_output |
+
+### 1B.3 Path Validation
+
+- [ ] `canonical_workspace` outputs use path `workspace/businesses/{business}/`
+- [ ] `transient_output` outputs use path `.aiox/squad-runtime/{squad}/{business}/`
+- [ ] No HIGH-VALUE canonical output points to `.aiox/squad-runtime/` (VETO if found)
+- [ ] No transient draft points to `workspace/` (VETO if found)
+
+### 1B.4 HIGH-VALUE Signal Words
+
+If output path contains `.aiox/squad-runtime/` AND task description contains any of these words, it is likely misclassified:
+`score`, `maturity`, `health`, `onboarding`, `analytics`, `kpi`, `scorecard`, `diagnosis`, `assessment`, `strategy`
+
+```yaml
+output_path_check:
+  severity: blocking
+  fail_action: "VETO - Reclassify output_persistence and fix path before proceeding"
+```
 
 ---
 
@@ -551,6 +608,11 @@ task:
     - "{Testable criterion 1}"
     - "{Testable criterion 2}"
 
+  # SINKRA v1.2 — required for non-Human executors (AUTO-FAIL if absent)
+  accountability:
+    human: "{human-role-or-name}"
+    scope: "{full|review_only|escalation_target}"
+
   # Optional fields
   dependencies: []
   templates: []
@@ -619,8 +681,7 @@ task:
 
 ---
 
-**Checklist Version:** 1.0.0
 **Pattern Reference:** HO-TP-001 (Task Anatomy Standard)
 **Created:** 2026-01-24
 **Part of:** squads/squad-creator
-**Based on:** AIOS Best Practices
+**Based on:** AIOX Best Practices

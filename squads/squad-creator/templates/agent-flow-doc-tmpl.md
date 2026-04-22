@@ -47,7 +47,7 @@ O agente **@{{agent_id}} ({{agent_persona}})** é {{agent_description}}. Este ag
 | Arquivo | Propósito |
 |---------|-----------|
 | `{{squad_path}}/agents/{{agent_id}}.md` | Definição core do agente (persona, comandos, workflows) |
-| `.claude/commands/{{squad_name}}/agents/{{agent_id}}.md` | Comando Claude Code para ativar |
+| `.claude/skills/{{squad_name}}/{{agent_id}}/SKILL.md` | Slash skill Claude Code para ativar |
 
 ### Arquivos de Data/Knowledge Usados pelo @{{agent_id}}
 
@@ -462,7 +462,7 @@ Erro: Handoff para @xyz falhou - agente não encontrado
 | Arquivo | Path |
 |---------|------|
 | Agent Definition | `{{squad_path}}/agents/{{agent_id}}.md` |
-| Claude Command | `.claude/commands/{{squad_name}}/agents/{{agent_id}}.md` |
+| Claude Slash Skill | `.claude/skills/{{squad_name}}/{{agent_id}}/SKILL.md` |
 
 ### Workflows
 
@@ -509,4 +509,4 @@ Erro: Handoff para @xyz falhou - agente não encontrado
 ---
 
 *Documentação gerada seguindo SC-DP-001 (Agent Flow Documentation)*
-*Padrão baseado em: docs/guides/aios-agent-flows/*
+*Padrão baseado em: docs/guides/aiox-agent-flows/*

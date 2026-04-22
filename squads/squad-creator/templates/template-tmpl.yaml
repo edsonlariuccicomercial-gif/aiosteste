@@ -37,7 +37,7 @@ sections:
       - Placeholders and variables
       - Elicitation requirements
 
-      Output file location: `squads/{{pack_name}}/templates/{{template_id}}.yaml`
+      Output file location: `squads/{{squad_name}}/templates/{{template_id}}.yaml`
 
   - id: template-metadata
     title: Template Metadata

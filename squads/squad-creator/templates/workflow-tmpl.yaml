@@ -1,12 +1,12 @@
-# Workflow Template (AIOS Quality Standard)
+# Workflow Template (AIOX Quality Standard)
 # Version: 1.0.0
-# Standard: AIOS multi-phase workflow pattern
+# Standard: AIOX multi-phase workflow pattern
 # Min Lines: 500+
 
 template:
   id: squad-workflow-template
   name: Squad Workflow
-  quality_standard: "aios-workflow-v2"
+  quality_standard: "aiox-workflow-v2"
   min_lines: 500
 
   output:
@@ -23,7 +23,7 @@ template:
     - Multiple agents involved
 
 # ============================================================================
-# WORKFLOW STRUCTURE (AIOS Standard)
+# WORKFLOW STRUCTURE (AIOX Standard)
 # ============================================================================
 # Multi-phase workflows with checkpoints, agent assignments, and quality gates
 # ============================================================================
@@ -38,16 +38,24 @@ workflow_anatomy:
     - outputs          # Artifacts produced
     - agents_by_phase  # Agent assignments
     - quality_checklist # Final validation
+    - governance_gate   # AI-first governance checks
     - metadata
 
   phase_requirements:
-    - id               # PHASE-1, PHASE-2, etc.
-    - name             # Human-readable name
+    - id               # PHASE-1, PHASE-2, etc. (used as step id in sequence)
+    - name             # Human-readable name (used as phase_name in sequence)
+    - agent            # REQUIRED: Agent responsible. Use agent ID WITHOUT @ prefix (e.g., "scanner" not "@scanner")
     - days             # Timing estimate (e.g., "1-2")
     - tier             # 0=foundation, 1=core, 2=advanced, 3=polish
     - description      # What happens in this phase
     - tasks            # Array of task references
     - checkpoint       # Validation criteria + human_review flag
+    - reasoning_tier   # OPTIONAL: planning | implementation | verification (for model routing)
+
+  # CANONICAL SCHEMA: workflow.sequence[] is the executable contract.
+  # workflow.phases is optional supplemental metadata only.
+  # Agent names MUST NOT use @ prefix (files are agent-name.md, not @agent-name.md)
+  diagram_schema: "squads/squad-creator/config/workflow-yaml-schema.yaml"
 
 # ============================================================================
 # TEMPLATE STRUCTURE
@@ -68,6 +76,8 @@ sections:
       workflow:
         id: wf-{{workflow_id}}
         name: "{{workflow_name}}"
+        version: "1.0"
+        orchestrator: "{{orchestrator_agent}}"
         duration: "{{duration}}"
         description: |
           {{workflow_description}}
@@ -111,13 +121,65 @@ sections:
 
     template: |
       # ═══════════════════════════════════════════════════════════════════════════════
-      # PHASE {{phase_number}}: {{phase_name}} (Days {{phase_days}})
+      # EXECUTABLE SEQUENCE (canonical contract per workflow-yaml-schema.yaml)
+      # ═══════════════════════════════════════════════════════════════════════════════
+      # IMPORTANT: workflow.sequence[] is the canonical executable contract.
+      # Agent names MUST NOT use @ prefix (e.g., "scanner" not "@scanner").
+      # Add handoff_prompts when workflow has agent transitions.
+      sequence:
+        {{#each phases}}
+        - step: {{step_id}}
+          id: PHASE-{{phase_number}}
+          phase: {{phase_number}}
+          phase_name: "{{phase_name}}"
+          agent: {{agent_id}}
+          task: {{primary_task_file}}
+          {{#if reasoning_tier}}
+          reasoning_tier: {{reasoning_tier}}  # planning | implementation | verification
+          {{/if}}
+          {{#if requires}}
+          requires: {{requires}}
+          {{/if}}
+          {{#if next}}
+          next: {{next}}
+          {{/if}}
+          outputs:
+            {{#each outputs}}
+            - "{{this}}"
+            {{/each}}
+          checkpoint:
+            criteria:
+              {{#each checkpoint_criteria}}
+              - "{{this}}"
+              {{/each}}
+            human_review: {{human_review}}
+          {{#if notes}}
+          notes: |
+            {{notes}}
+          {{/if}}
+        {{/each}}
+
+      # ═══════════════════════════════════════════════════════════════════════════════
+      # HANDOFF PROMPTS (required when workflow has agent transitions)
+      # ═══════════════════════════════════════════════════════════════════════════════
+      handoff_prompts:
+        {{#each transitions}}
+        {{from}}_to_{{to}}:
+          context: "{{context_passed}}"
+          instruction: "{{instruction}}"
+        {{/each}}
+
+      # ═══════════════════════════════════════════════════════════════════════════════
+      # SUPPLEMENTAL PHASE METADATA (optional, non-executable)
       # ═══════════════════════════════════════════════════════════════════════════════
       phases:
         - id: PHASE-{{phase_number}}
           name: "{{phase_name}}"
           days: "{{phase_days}}"
           tier: {{phase_tier}}
+          {{#if reasoning_tier}}
+          reasoning_tier: {{reasoning_tier}}  # planning | implementation | verification
+          {{/if}}
           description: |
             {{phase_description}}
 
@@ -128,9 +190,9 @@ sections:
               required: {{required}}
               description: "{{task_description}}"
               output: "{{output_file}}"
-              {{#if notes}}
+              {{#if task_notes}}
               notes: |
-                {{notes}}
+                {{task_notes}}
               {{/if}}
             {{/each}}
 
@@ -252,6 +314,32 @@ sections:
           {{/each}}
         {{/each}}
 
+  - id: governance-gate
+    title: Governance Gate
+    instruction: |
+      Add a governance gate with canonical-source validation and contradiction checks.
+      CI should block only deterministic checks; semantic checks stay in workflow checkpoints.
+    template: |
+      # ═══════════════════════════════════════════════════════════════════════════════
+      # GOVERNANCE GATE
+      # ═══════════════════════════════════════════════════════════════════════════════
+      governance_gate:
+        protocol: "squads/squad-creator/protocols/ai-first-governance.md"
+        required_checks:
+          - "Existing -> Gap -> Decision mapped"
+          - "Canonical sources validated"
+          - "Contradictions documented"
+          - "Unresolved items explicit"
+
+        ci_policy:
+          blocking_deterministic_only: true
+          deterministic_checks:
+            - "syntax/schema"
+            - "broken references"
+            - "required files presence"
+            - "security/secrets"
+          semantic_checks_enforced_in_workflow: true
+
   - id: metadata
     title: Metadata
     instruction: Document workflow metadata for tracking and versioning.
@@ -318,6 +406,10 @@ inline_structure_examples:
 
 quality_gate:
   blocking_requirements:
+    - "Workflow uses workflow.sequence[] as canonical executable contract (per workflow-yaml-schema.yaml)"
+    - "Workflow includes workflow.type field"
+    - "Agent names do NOT use @ prefix (e.g., 'scanner' not '@scanner')"
+    - "handoff_prompts section exists when workflow has agent transitions"
     - "Workflow has at least 3 phases"
     - "Each phase has id, name, days, tier, description"
     - "Each phase has at least 1 task"

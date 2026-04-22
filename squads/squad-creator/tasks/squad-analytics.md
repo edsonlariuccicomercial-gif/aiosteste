@@ -1,10 +1,44 @@
 # Task: Squad Analytics
 
 **Task ID:** squad-analytics
-**Version:** 3.0.0
 **Purpose:** Generate metrics and quality analysis for squads
 **Orchestrator:** @squad-chief
 **Execution Type:** `Hybrid` (Script for metrics + Agent for analysis)
+**Domain:** `Tactical`
+**Worker Script:** `scripts/squad-analytics.py`
+**Model:** `Haiku` (QUALIFIED — script handles all metrics, LLM only interprets)
+**Haiku Eligible:** YES — deterministic metrics collection via script
+
+**Accountability:** `human: squad-operator | scope: full`
+
+---
+
+
+<!-- SINKRA_CONTRACT -->
+Domain: `Tactical`
+atomic_layer: Atom
+agent: squad-chief
+Input: request::squad_analytics
+Output: artifact::squad_analytics
+pre_condition: contexto mínimo carregado e rota validada
+post_condition: decisão registrada com artefato persistido ou handoff emitido
+performance: registrar evidências, falhas e próximo passo sem erro silencioso
+Completion Criteria: contrato mínimo SINKRA explícito e saída rastreável produzida
+
+## ⛔ MANDATORY PREFLIGHT: Run Worker Script FIRST
+
+```
+EXECUTE FIRST — before ANY manual analysis:
+
+  python3 squads/squad-creator/scripts/squad-analytics.py --squad {squad_name} -l -q --format json > /tmp/preflight-analytics.json
+
+IF the command fails → FIX the script error. Do NOT proceed manually.
+IF the command succeeds → READ /tmp/preflight-analytics.json. Use ONLY these metrics.
+
+VETO: If /tmp/preflight-analytics.json does not exist → BLOCK.
+      Do NOT count files manually. Do NOT calculate averages yourself.
+      The script computes all metrics faster and 100% consistently.
+```
 
 ---
 
@@ -99,7 +133,7 @@ python3 scripts/squad-analytics.py --squad hormozi -l --format json
    ✅ hormozi-closer.md                         2408 lines
    ...
 
-🔍 QUALITY AUDIT (AIOS Standards)
+🔍 QUALITY AUDIT (AIOX Standards)
 📋 AGENTS (min: 300 lines) — ✅ ALL PASS
 📋 WORKFLOWS (min: 500 lines) — ⚠️ 1/9 BELOW MIN
 ```
@@ -237,29 +271,6 @@ squads/squad-creator/scripts/squad-analytics.py
 
 **Dependencies:** Python 3.8+ (stdlib only, no pip install)
 
----
-
-## Changelog
-
-### v3.0.0 (2026-02-10)
-- Clear separation: Script (deterministic) vs Agent (LLM)
-- Added `--squad NAME` filter
-- Added `--line-counts` / `-l` flag
-- Added `--quality-audit` / `-q` flag
-- Added extra folders detection (data/minds/, docs/sops/)
-- Removed promises that require LLM (health-check, gap-analysis, etc.)
-- Those features now documented as "Agent Phase"
-
-### v2.0.0 (2026-02-05)
-- Added health indicators (moved to Agent phase)
-- Added gap analysis (moved to Agent phase)
-- Added recommendations (moved to Agent phase)
-
-### v1.0.0 (2026-02-01)
-- Initial release with basic counting
+**Output Schema:** `squads/squad-creator/config/workflow-yaml-schema.yaml`
 
 ---
-
-_Task Version: 3.0.0_
-_Updated: 2026-02-10_
-_Author: squad-chief_

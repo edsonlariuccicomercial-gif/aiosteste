@@ -5,7 +5,7 @@ checklist:
   id: create-workflow-checklist
   version: 1.0.0
   created: 2026-02-10
-  purpose: "Validate workflow creation meets AIOS quality standards"
+  purpose: "Validate workflow creation meets AIOX quality standards"
   mode: blocking
   task_reference: tasks/create-workflow.md
 ```
@@ -26,10 +26,10 @@ pre_creation:
     type: blocking
     validation: "complexity warrants workflow, not simple task"
 
-  - id: pack-exists
-    check: "Target pack exists"
+  - id: squad-exists
+    check: "Target squad exists"
     type: blocking
-    validation: "squads/{pack_name}/ exists"
+    validation: "squads/{squad_name}/ exists"
 ```
 
 ---
@@ -38,6 +38,15 @@ pre_creation:
 
 ```yaml
 structure_checks:
+  - id: diagram-schema
+    check: "Workflow passes diagram schema validation"
+    type: blocking
+    schema: "squads/squad-creator/config/workflow-yaml-schema.yaml"
+    validation: |
+      Every phase MUST have id, name, and agent fields (or workflow-level
+      orchestrator as fallback). This ensures the workflow renders visually
+      as a Mermaid diagram in the AIOX Dashboard.
+
   - id: min-lines
     check: "Workflow file has 500+ lines"
     type: blocking
@@ -47,6 +56,12 @@ structure_checks:
     check: "YAML syntax is valid"
     type: blocking
     validation: "yamllint passes"
+
+  - id: workflow-contract-valid
+    check: "Workflow contract passes workflow-validator.js (strict, no warnings)"
+    type: blocking
+    validator_source: ".aiox-core/development/scripts/workflow-validator.js"
+    validation: "node infrastructure/scripts/squads/validate_workflow_contract_single.cjs --file {file} --strict --fail-on-warnings"
 
   - id: min-phases
     check: "Workflow has 3+ phases"
@@ -62,6 +77,11 @@ structure_checks:
     check: "version field is defined"
     type: blocking
     field: "version"
+
+  - id: agent-defined
+    check: "Every phase has agent field or workflow has orchestrator"
+    type: blocking
+    validation: "phases[].agent exists OR top-level orchestrator exists"
 ```
 
 ---
@@ -219,6 +239,5 @@ quality_gate_checks:
 
 ---
 
-**Version:** 1.0.0
 **Created:** 2026-02-10
 **Task Reference:** tasks/create-workflow.md

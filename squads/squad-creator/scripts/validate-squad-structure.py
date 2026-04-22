@@ -14,6 +14,19 @@ Usage:
     python scripts/validate-squad-structure.py {squad-name}
     python scripts/validate-squad-structure.py {squad-name} --output json
     python scripts/validate-squad-structure.py {squad-name} --verbose
+    python scripts/validate-squad-structure.py /path/to/squad  (path mode)
+
+Output format (--output json):
+{
+  "phase": "structure",
+  "squad_type": "...",
+  "structure_valid": true/false,
+  "coverage": {"agents": N, "tasks": N, "workflows": N},
+  "issues": [],
+  "score": 0-100
+}
+
+Exit codes: 0 = pass, 1 = fail, 2 = error
 
 Pattern: EXEC-W-001 (Worker - Deterministic)
 """
@@ -39,12 +52,14 @@ THRESHOLDS = {
     "data_usage_min": 0.50,  # 50%
     "security_patterns": {
         "api_key": r"(api[_-]?key|apikey)\s*[:=]\s*['\"][^'\"\$\{]{8,}",
-        "secret": r"(secret|password)\s*[:=]\s*['\"][^'\"\$\{]{8,}",
+        "credential_secret": r"((client|api|app|access|jwt|signing|service)[_-]?secret|secret[_-]?key|password)\s*[:=]\s*['\"][^'\"\$\{]{8,}",
         "aws_key": r"AKIA[A-Z0-9]{16}",
         "private_key": r"-----BEGIN.*(PRIVATE|RSA|DSA|EC).*KEY-----",
         "db_url": r"(postgres|mysql|mongodb|redis)://[^:]+:[^@]+@",
     }
 }
+
+WORKSPACE_LEVELS = {"none", "read_only", "controlled_runtime_consumer", "workspace_first"}
 
 
 # ============================================================================
@@ -65,6 +80,10 @@ def find_squads_root() -> Path:
         return cwd
 
     raise FileNotFoundError("Could not find squads/ directory")
+
+
+def has_workspace_governance_squad(squads_root: Path) -> bool:
+    return (squads_root / "c-level").exists()
 
 
 def count_files(directory: Path, patterns: List[str] = ["*.md", "*.yaml", "*.yml"]) -> int:
@@ -200,6 +219,7 @@ def detect_squad_type(squad_path: Path) -> Dict[str, Any]:
 
 def validate_structure(squad_path: Path) -> Dict[str, Any]:
     """Validate squad structure - Phase 1"""
+    squads_root = find_squads_root()
     result = {
         "passed": True,
         "checks": [],
@@ -217,14 +237,25 @@ def validate_structure(squad_path: Path) -> Dict[str, Any]:
         if config:
             result["checks"].append({"id": "T1-CFG-002", "status": "pass", "message": "config.yaml is valid YAML"})
 
+            # CI-PAR-001: pack: section (mirrors CI validate-squads "Verify squad structure" step)
+            config_text = config_path.read_text(encoding='utf-8', errors='ignore')
+            if re.search(r'^pack:', config_text, re.MULTILINE):
+                result["checks"].append({"id": "CI-PAR-001", "status": "pass", "message": "config.yaml has 'pack:' section"})
+            else:
+                result["checks"].append({"id": "CI-PAR-001", "status": "fail", "message": "config.yaml missing 'pack:' section (CI hard-mandatory)"})
+                result["blocking_issues"].append("config.yaml missing 'pack:' section (CI hard-mandatory)")
+                result["passed"] = False
+
             # T1-CFG-003: Required fields
             required = ["name", "version"]
             for field in required:
-                # Check top level or under squad_config/pack
+                # Check top level or under squad_config/squad/pack (legacy)
                 found = False
                 if field in config:
                     found = True
                 elif "squad_config" in config and field in config["squad_config"]:
+                    found = True
+                elif "squad" in config and field in config["squad"]:
                     found = True
                 elif "pack" in config and field in config["pack"]:
                     found = True
@@ -235,6 +266,136 @@ def validate_structure(squad_path: Path) -> Dict[str, Any]:
                     result["checks"].append({"id": f"T1-CFG-003-{field}", "status": "fail", "message": f"Missing '{field}' field"})
                     result["blocking_issues"].append(f"config.yaml missing required field: {field}")
                     result["passed"] = False
+
+            # T1-WSP-001: workspace integration level declared
+            workspace_level = None
+            if isinstance(config.get("workspace_integration"), dict):
+                workspace_level = config.get("workspace_integration", {}).get("level")
+            if workspace_level is None:
+                workspace_level = config.get("workspace_integration_level")
+
+            if not workspace_level:
+                result["checks"].append({
+                    "id": "T1-WSP-001",
+                    "status": "fail",
+                    "message": "Missing workspace integration level (workspace_integration.level)"
+                })
+                result["blocking_issues"].append("workspace integration level is required")
+                result["passed"] = False
+            elif workspace_level not in WORKSPACE_LEVELS:
+                result["checks"].append({
+                    "id": "T1-WSP-001",
+                    "status": "fail",
+                    "message": f"Invalid workspace integration level: {workspace_level}"
+                })
+                result["blocking_issues"].append(f"invalid workspace integration level: {workspace_level}")
+                result["passed"] = False
+            else:
+                result["checks"].append({
+                    "id": "T1-WSP-001",
+                    "status": "pass",
+                    "message": f"Workspace integration level: {workspace_level}"
+                })
+
+                if workspace_level != "none":
+                    refs_found = False
+                    for file in squad_path.rglob("*"):
+                        if file.suffix.lower() not in [".md", ".yaml", ".yml"]:
+                            continue
+                        content = file.read_text(encoding='utf-8', errors='ignore')
+                        if "workspace/" in content:
+                            refs_found = True
+                            break
+
+                    if refs_found:
+                        result["checks"].append({
+                            "id": "T1-WSP-002",
+                            "status": "pass",
+                            "message": "Workspace references found in squad artifacts"
+                        })
+                    else:
+                        result["checks"].append({
+                            "id": "T1-WSP-002",
+                            "status": "fail",
+                            "message": f"Level '{workspace_level}' requires workspace path references"
+                        })
+                        result["blocking_issues"].append("workspace integration declared without workspace path references")
+                        result["passed"] = False
+
+                if workspace_level in {"controlled_runtime_consumer", "workspace_first"}:
+                    if has_workspace_governance_squad(squads_root):
+                        result["checks"].append({
+                            "id": "T1-WSP-003A",
+                            "status": "pass",
+                            "message": "Workspace governance squad exists for advanced workspace integration"
+                        })
+                    else:
+                        result["checks"].append({
+                            "id": "T1-WSP-003A",
+                            "status": "fail",
+                            "message": f"Level '{workspace_level}' requires squads/c-level to exist"
+                        })
+                        result["blocking_issues"].append("advanced workspace integration requires squads/c-level")
+                        result["passed"] = False
+
+                    handoff_found = False
+                    for file in squad_path.rglob("*"):
+                        if file.suffix.lower() not in [".md", ".yaml", ".yml"]:
+                            continue
+                        content = file.read_text(encoding='utf-8', errors='ignore')
+                        if any(token in content for token in ["@coo", "COO", "c-level", "workspace-handoff.yaml"]):
+                            handoff_found = True
+                            break
+
+                    if handoff_found:
+                        result["checks"].append({
+                            "id": "T1-WSP-003",
+                            "status": "pass",
+                            "message": "Workspace write integration delegates to COO/c-level"
+                        })
+                    else:
+                        result["checks"].append({
+                            "id": "T1-WSP-003",
+                            "status": "fail",
+                            "message": f"Level '{workspace_level}' requires explicit COO/c-level handoff"
+                        })
+                        result["blocking_issues"].append("workspace write integration missing COO/c-level handoff")
+                        result["passed"] = False
+
+                if workspace_level == "workspace_first":
+                    scripts_dir = squad_path / "scripts"
+                    bootstrap_scripts = list(scripts_dir.glob("bootstrap-*-workspace.sh")) if scripts_dir.exists() else []
+                    essentials_scripts = list(scripts_dir.glob("validate-*-essentials.sh")) if scripts_dir.exists() else []
+
+                    if bootstrap_scripts:
+                        result["checks"].append({
+                            "id": "T1-WSP-004",
+                            "status": "pass",
+                            "message": "workspace_first bootstrap script exists"
+                        })
+                    else:
+                        result["checks"].append({
+                            "id": "T1-WSP-004",
+                            "status": "fail",
+                            "message": "workspace_first requires scripts/bootstrap-*-workspace.sh"
+                        })
+                        result["blocking_issues"].append("workspace_first missing bootstrap workspace script")
+                        result["passed"] = False
+
+                    if essentials_scripts:
+                        result["checks"].append({
+                            "id": "T1-WSP-005",
+                            "status": "pass",
+                            "message": "workspace_first essentials validator script exists"
+                        })
+                    else:
+                        result["checks"].append({
+                            "id": "T1-WSP-005",
+                            "status": "fail",
+                            "message": "workspace_first requires scripts/validate-*-essentials.sh"
+                        })
+                        result["blocking_issues"].append("workspace_first missing essentials validator script")
+                        result["passed"] = False
         else:
             result["checks"].append({"id": "T1-CFG-002", "status": "fail", "message": "config.yaml has invalid YAML"})
             result["blocking_issues"].append("config.yaml has invalid YAML syntax")
@@ -281,6 +442,30 @@ def validate_structure(squad_path: Path) -> Dict[str, Any]:
         result["passed"] = False
     else:
         result["checks"].append({"id": "T1-SEC-001", "status": "pass", "message": "No security issues found"})
+
+    # CI-PAR-002: YAML syntax check for all .yaml/.yml files in squad
+    # Mirrors GrantBirki json-yaml-validate action used in CI validate-yaml job
+    yaml_errors = []
+    for yaml_file in sorted(squad_path.rglob("*.yaml")) + sorted(squad_path.rglob("*.yml")):
+        try:
+            with open(yaml_file, encoding='utf-8', errors='ignore') as f:
+                yaml.safe_load(f)
+        except yaml.YAMLError as e:
+            rel = yaml_file.relative_to(squad_path)
+            mark = getattr(e, 'problem_mark', None)
+            line = mark.line + 1 if mark else '?'
+            yaml_errors.append(f"{rel}:{line} — {e.problem if hasattr(e, 'problem') else str(e)}")
+
+    if yaml_errors:
+        result["checks"].append({
+            "id": "CI-PAR-002",
+            "status": "fail",
+            "message": f"YAML syntax errors in {len(yaml_errors)} file(s)"
+        })
+        result["blocking_issues"].extend([f"Invalid YAML: {e}" for e in yaml_errors])
+        result["passed"] = False
+    else:
+        result["checks"].append({"id": "CI-PAR-002", "status": "pass", "message": "All YAML files have valid syntax"})
 
     return result
 
@@ -340,14 +525,23 @@ def analyze_coverage(squad_path: Path) -> Dict[str, Any]:
         # Get all task names
         task_names = {f.stem for f in tasks_dir.glob("*.md") if f.name.lower() not in ["readme.md", "changelog.md"]}
 
-        # Get all tasks referenced in agents
+        # Get all tasks referenced across agents, workflows, and squad docs/config.
         referenced_tasks = set()
-        for agent_file in agents_dir.glob("*.md"):
-            content = agent_file.read_text(encoding='utf-8', errors='ignore')
-            # Match *task-name or tasks/task-name.md patterns
-            refs = re.findall(r'\*([a-z0-9_-]+)|tasks/([a-z0-9_-]+)\.md', content, re.IGNORECASE)
-            for ref in refs:
-                referenced_tasks.add(ref[0] or ref[1])
+        ref_patterns = [
+            r'\*([a-z0-9_-]+)',
+            r'tasks/([a-z0-9_-]+)\.md',
+            r'task_ref:\s*([a-z0-9_-]+)',
+            r'task:\s*([a-z0-9_-]+)',
+        ]
+        for source_file in squad_path.rglob("*"):
+            if source_file.parent == tasks_dir:
+                continue
+            if source_file.suffix.lower() not in [".md", ".yaml", ".yml"]:
+                continue
+            content = source_file.read_text(encoding='utf-8', errors='ignore')
+            for pattern in ref_patterns:
+                for ref in re.findall(pattern, content, re.IGNORECASE):
+                    referenced_tasks.add(ref)
 
         orphan_tasks = list(task_names - referenced_tasks)
 
@@ -505,20 +699,172 @@ def print_report(results: Dict[str, Any]) -> None:
     print("=" * 60)
 
 
+def build_atomic_output(results: Dict[str, Any]) -> Dict[str, Any]:
+    """Build the atomic JSON output format for orchestrator consumption."""
+    if "error" in results:
+        return {
+            "phase": "structure",
+            "squad_type": "unknown",
+            "type_confidence": 0,
+            "structure_valid": False,
+            "coverage": {"agents": 0, "tasks": 0, "workflows": 0},
+            "blocking_issues": [results["error"]],
+            "warnings": [],
+            "blocking_issue_count": 1,
+            "warning_count": 0,
+            "security_issue_count": 0,
+            "non_security_blocking_count": 1,
+            "issues": [results["error"]],
+            "score": 0
+        }
+
+    p0 = results["phases"]["phase_0_type_detection"]
+    p1 = results["phases"]["phase_1_structure"]
+    p2 = results["phases"]["phase_2_coverage"]
+    summary = results["summary"]
+
+    # Collect issues with category separation
+    blocking_issues: List[str] = []
+    warnings: List[str] = []
+    for phase_data in results["phases"].values():
+        if isinstance(phase_data, dict):
+            blocking_issues.extend(phase_data.get("blocking_issues", []))
+            warnings.extend(phase_data.get("warnings", []))
+
+    security_issues = [issue for issue in blocking_issues if str(issue).startswith("Security:")]
+    non_security_blocking = [issue for issue in blocking_issues if not str(issue).startswith("Security:")]
+    issues = blocking_issues + warnings
+
+    task_count = p0.get("signals", {}).get("task_count", 0)
+    checklist_count = p2.get("metrics", {}).get("checklist_count", 0)
+    orphan_tasks = p2.get("metrics", {}).get("orphan_tasks", 0)
+    checklist_coverage = p2.get("metrics", {}).get("checklist_coverage", 0)
+
+    # Calculate score (0-100 scale)
+    score = 100
+    blocking_count = summary.get("blocking_issues", 0)
+    warning_count = summary.get("warnings", 0)
+    score -= blocking_count * 15
+    score -= warning_count * 5
+    if score < 0:
+        score = 0
+
+    return {
+        "phase": "structure",
+        "squad_type": p0.get("detected_type", "unknown"),
+        "type_confidence": p0.get("confidence", 0),
+        "structure_valid": summary.get("all_phases_passed", False),
+        "coverage": {
+            "agents": p0.get("signals", {}).get("agent_count", 0),
+            "tasks": task_count,
+            "workflows": p0.get("signals", {}).get("workflow_count", 0),
+            "checklists": checklist_count,
+        },
+        "metrics": {
+            "task_count": task_count,
+            "checklist_count": checklist_count,
+            "orphan_tasks": orphan_tasks,
+            "checklist_coverage": checklist_coverage,
+        },
+        "blocking_issues": blocking_issues,
+        "warnings": warnings,
+        "blocking_issue_count": len(blocking_issues),
+        "warning_count": len(warnings),
+        "security_issue_count": len(security_issues),
+        "non_security_blocking_count": len(non_security_blocking),
+        "issues": issues,
+        "score": score
+    }
+
+
+def resolve_squad_input(squad_input: str) -> tuple:
+    """Resolve squad input - accepts either a name or a path.
+
+    Returns (squad_name, squad_path) or raises an error.
+    """
+    input_path = Path(squad_input)
+
+    # If it looks like a path (contains / or is an existing directory)
+    if '/' in squad_input or input_path.is_dir():
+        squad_path = input_path.resolve()
+        if squad_path.exists():
+            return squad_path.name, squad_path
+        # Try as relative
+        if not input_path.is_absolute():
+            cwd_path = Path.cwd() / squad_input
+            if cwd_path.exists():
+                return cwd_path.name, cwd_path.resolve()
+        raise FileNotFoundError(f"Squad path not found: {squad_input}")
+
+    # Otherwise treat as squad name
+    return squad_input, None
+
+
+def validate_squad_by_path(squad_path: Path, verbose: bool = False) -> Dict[str, Any]:
+    """Run Phases 0-2 validation directly on a squad path."""
+    if not squad_path.exists():
+        return {"error": f"Squad path not found: {squad_path}"}
+
+    results = {
+        "squad_name": squad_path.name,
+        "squad_path": str(squad_path),
+        "timestamp": datetime.now().isoformat(),
+        "validator": "validate-squad-structure.py (Worker)",
+        "phases": {}
+    }
+
+    # Phase 0: Type Detection
+    results["phases"]["phase_0_type_detection"] = detect_squad_type(squad_path)
+
+    # Phase 1: Structure
+    results["phases"]["phase_1_structure"] = validate_structure(squad_path)
+
+    # Phase 2: Coverage
+    results["phases"]["phase_2_coverage"] = analyze_coverage(squad_path)
+
+    # Summary
+    all_passed = all(p.get("passed", True) for p in results["phases"].values() if isinstance(p, dict))
+    total_blocking = sum(len(p.get("blocking_issues", [])) for p in results["phases"].values() if isinstance(p, dict))
+    total_warnings = sum(len(p.get("warnings", [])) for p in results["phases"].values() if isinstance(p, dict))
+
+    results["summary"] = {
+        "all_phases_passed": all_passed,
+        "blocking_issues": total_blocking,
+        "warnings": total_warnings,
+        "detected_type": results["phases"]["phase_0_type_detection"]["detected_type"],
+        "recommendation": "PROCEED to Phase 3-6" if all_passed else "FIX blocking issues before proceeding"
+    }
+
+    return results
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Validate squad structure (Phases 0-2) - Worker script"
     )
-    parser.add_argument("squad_name", help="Name of squad to validate")
+    parser.add_argument("squad_input", help="Name of squad or path to squad directory")
     parser.add_argument("--output", "-o", choices=["text", "json"], default="text")
     parser.add_argument("--verbose", "-v", action="store_true")
 
     args = parser.parse_args()
 
-    results = validate_squad(args.squad_name, args.verbose)
+    try:
+        squad_name, squad_path = resolve_squad_input(args.squad_input)
+    except FileNotFoundError as e:
+        if args.output == "json":
+            print(json.dumps({"phase": "structure", "error": str(e), "score": 0}, indent=2))
+        else:
+            print(f"ERROR: {e}")
+        sys.exit(2)
+
+    if squad_path:
+        results = validate_squad_by_path(squad_path, args.verbose)
+    else:
+        results = validate_squad(squad_name, args.verbose)
 
     if args.output == "json":
-        print(json.dumps(results, indent=2))
+        atomic = build_atomic_output(results)
+        print(json.dumps(atomic, indent=2))
     else:
         print_report(results)
 

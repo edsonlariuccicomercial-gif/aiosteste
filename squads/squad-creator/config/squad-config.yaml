@@ -1,11 +1,23 @@
 # Squad Creator Configuration
 # Pattern: SC-CF-001 (Squad Configuration Standard)
-# Version: 1.0.0
+# Version: 4.0.0
 
 squad_config:
   name: squad-creator
-  version: 1.0.0
-  description: Tools and agents to create custom AIOS squads
+  version: 4.0.0
+  description: Tools and agents to create custom AIOX squads
+
+  # =========================================
+  # SINKRA v1.2 — BU Mapping
+  # =========================================
+  bu_mapping:
+    id: hub-framework
+    name: SINKRA Hub Framework
+    business_slug: sinkra-hub
+    heads:
+      - human: oalanicolas
+        role: Framework Owner
+        scope: full
 
   # =========================================
   # Data Sources Configuration
@@ -86,7 +98,7 @@ squad_config:
       destinations:
         local_file:
           type: file
-          base_path: "outputs/sops/"
+          base_path: ".aiox/squad-runtime/sops/"
           filename_pattern: "{process_code}_{timestamp}.md"
 
         supabase:
@@ -152,7 +164,7 @@ squad_config:
       status: ready
       config:
         templates_dir: ../templates
-        output_dir: outputs/sops
+        output_dir: .aiox/squad-runtime/sops
 
   # =========================================
   # Logging
@@ -163,3 +175,28 @@ squad_config:
     debug_mode:
       environment_variable: SQUAD_CREATOR_DEBUG
       default: false
+
+  # =========================================
+  # Paths Configuration
+  # =========================================
+  # All paths are RELATIVE to project root (detected via git or package.json)
+  # NEVER use absolute paths like /abs/path/...
+  paths:
+    # Squad-creator internal paths (relative to squads/squad-creator/)
+    squad_root: "squads/squad-creator"
+    tasks: "squads/squad-creator/tasks"
+    agents: "squads/squad-creator/agents"
+    config: "squads/squad-creator/config"
+    scripts: "squads/squad-creator/scripts"
+
+    # Runtime artifact paths (relative to project root)
+    outputs:
+      root: ".aiox/squad-runtime"
+      minds: ".aiox/squad-runtime/minds"
+      llm_tests: ".aiox/squad-runtime/llm-tests"
+      llm_test_inputs: ".aiox/squad-runtime/llm-tests/inputs"
+
+    # Infrastructure paths
+    infrastructure:
+      env_loader: "infrastructure/services/env-loader.cjs"
+      llm_router: "services/llm-router"

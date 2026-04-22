@@ -1,58 +1,105 @@
 # Task: Refresh Squad Registry
 
 **Task ID:** refresh-registry
-**Version:** 2.0.0
-**Purpose:** Scan all squads in the ecosystem and update squad-registry.yaml
+**Purpose:** Scan all squads in the ecosystem and update ecosystem-registry.yaml
 **Orchestrator:** @squad-chief
-**Mode:** Hybrid (Script + LLM)
-**Execution Type:** `Hybrid` (Worker script + Agent enrichment)
-**Worker Script:** `scripts/refresh-registry.py`
+**Mode:** 100% Deterministic (Script only)
+**Execution Type:** `Worker` (Script handles everything — scan, merge, write)
+**Domain:** `Operational`
+**Worker Script:** `scripts/refresh-registry.py --write`
+**Model:** None (no LLM needed)
+**Haiku Eligible:** N/A (Worker task)
+**Mapped in:** `command_scripts` section of squad-chief.md
+**Registry Path Resolution:** `--registry-path` > `AIOX_ECOSYSTEM_REGISTRY_PATH` > `.aiox/squad-runtime/ecosystem-registry.yaml`
+
+**Accountability:** `human: squad-operator | scope: review_only`
+
+**Coherence Threshold:** `>= 0.95` | **Error Behavior:** `raise` (no silent failure)
+
+---
+
+
+<!-- SINKRA_CONTRACT -->
+Domain: `Operational`
+atomic_layer: Atom
+agent: squad-chief
+Input: request::refresh_registry
+Output: artifact::refresh_registry
+pre_condition: contexto mínimo carregado e rota validada
+post_condition: decisão registrada com artefato persistido ou handoff emitido
+performance: registrar evidências, falhas e próximo passo sem erro silencioso
+Completion Criteria: contrato mínimo SINKRA explícito e saída rastreável produzida
+
+## ⛔ EXECUTION: Script Only — Zero LLM
+
+```
+EXECUTE THIS COMMAND AND DISPLAY OUTPUT:
+
+  python3 squads/squad-creator/scripts/refresh-registry.py --write
+
+DO NOT:
+- Count agents/tasks manually
+- Read squad manifests yourself (`config.yaml` / `squad.yaml`)
+- Infer domains or keywords
+- Generate highlights or example_use
+- Do ANY enrichment manually
+
+The script handles: scan → merge with existing → preserve enrichments → write YAML → print summary.
+Semantic enrichments (domain, keywords, highlights, example_use) are preserved from existing registry.
+New squads get auto-inferred values that can be manually improved later.
+```
+
+---
 
 **Architecture:**
 ```
-DETERMINISTIC (Python Script)          LLM (Semantic Understanding)
-├── Count agents, tasks, etc.          ├── Infer domain category
-├── Read config.yaml metadata          ├── Extract keywords from README
-├── List directory contents            ├── Generate highlights
-├── Validate YAML syntax               ├── Generate example_use
-└── Output structured JSON             └── Analyze gaps
+100% DETERMINISTIC (Python Script)
+├── Count agents, tasks, etc.
+├── Read canonical squad metadata from config.yaml (fallback: squad.yaml)
+├── List directory contents
+├── Merge with existing registry (preserve manual enrichments)
+├── Auto-infer domain/keywords for NEW squads only
+├── Write ecosystem-registry.yaml
+└── Print summary with changes detected
 ```
 
-**Script:** `scripts/refresh-registry.py`
+**Script:** `scripts/refresh-registry.py --write`
 
 ---
 
 ## Overview
 
-This task uses a hybrid approach:
-1. **Python script** handles all deterministic operations (counts, file reads)
-2. **LLM** handles semantic understanding (keywords, domain inference)
+This task is 100% deterministic — a single Python script handles everything:
 
 ```
-TRIGGER (hook or command)
+TRIGGER (*refresh-registry command or post-create hook)
     ↓
-[STEP 1: RUN SCRIPT] (Deterministic)
-    → python3 scripts/refresh-registry.py --output json
-    → Gets: counts, config metadata, agent names
-    → Output: structured JSON with factual data
+[SINGLE STEP: RUN SCRIPT]
+    → python3 scripts/refresh-registry.py --write
+    → Scans squads/ directory (counts, config metadata, agent names)
+    → Loads existing registry (preserves manual enrichments)
+    → Merges: fresh counts + preserved semantics
+    → Writes updated ecosystem-registry.yaml
+    → Prints summary with changes detected
     ↓
-[STEP 2: LLM ENRICHMENT] (Semantic)
-    → For each squad:
-      - Infer domain from description
-      - Extract keywords from README
-      - Generate highlights
-      - Generate example_use
-    ↓
-[STEP 3: MERGE]
-    → Combine script output + LLM enrichment
-    → Preserve manual annotations (quality_reference)
-    → Update domain_index
-    ↓
-[STEP 4: WRITE]
-    → Write updated squad-registry.yaml
-    → Validate YAML syntax
-    ↓
-OUTPUT: Updated squad-registry.yaml
+OUTPUT: Updated ecosystem-registry.yaml + console summary
+```
+
+---
+
+## Veto Conditions
+
+```yaml
+veto_conditions:
+  - id: "VETO-REG-001"
+    condition: "Target registry write requested without backup artifact"
+    trigger: "Before --write operation"
+    block_behavior: "BLOCK write unless backup exists or operator explicitly accepts risk"
+
+  - id: "VETO-REG-002"
+    condition: "squads/ root not detected or manifest scan fails"
+    trigger: "Before scan starts"
+    block_behavior: "BLOCK refresh; require valid squads path"
 ```
 
 ---
@@ -83,10 +130,10 @@ post_create_hook:
 ### 4. Pre-Commit Hook (Recommended)
 ```bash
 # .claude/hooks/refresh-registry.sh
-# Trigger: Changes to squads/*/config.yaml
+# Trigger: Changes to squads/*/config.yaml or squads/*/squad.yaml
 
 #!/bin/bash
-if git diff --cached --name-only | grep -q "squads/.*/config.yaml"; then
+if git diff --cached --name-only | grep -qE "squads/.*/(config|squad)\.yaml"; then
   echo "Squad config changed, refreshing registry..."
   # Claude Code will handle this via hook
 fi
@@ -104,189 +151,38 @@ fi
 
 ---
 
-## Execution Steps
-
-### Step 1: Run Python Script (DETERMINISTIC)
+## Execution
 
 ```bash
-# Run the refresh script
-python3 squads/squad-creator/scripts/refresh-registry.py --output json --registry-format
+# Single command — does everything
+python3 squads/squad-creator/scripts/refresh-registry.py --write
 ```
 
-**Script Output:**
-```json
-{
-  "metadata": {
-    "scan_date": "2026-02-01T13:04:19",
-    "total_squads": 22
-  },
-  "squads": {
-    "{squad-name}": {  // Example: "copy", "legal", "data"
-      "path": "squads/{squad-name}/",
-      "version": "1.0.0",
-      "description": "Squad description...",
-      "counts": {
-        "agents": N,
-        "tasks": N,
-        "workflows": N,
-        "templates": N,
-        "checklists": N,
-        "data_files": N
-      },
-      "agent_names": ["{agent-1}", "{agent-2}", ...],  // Your agent names
-      "domain": "_TO_BE_INFERRED_",  // LLM will fill
-      "keywords": [],                 // LLM will fill
-      "highlights": [],               // LLM will fill
-      "example_use": ""               // LLM will fill
-    }
-  },
-  "summary": {
-    "total_agents": 124,
-    "total_tasks": 291,
-    "total_workflows": 49
-  }
-}
-```
+**What the script does:**
+1. Scans `squads/` directory
+2. Reads each canonical `config.yaml` (fallback: `squad.yaml`)
+3. Counts files in each subdirectory (agents, tasks, workflows, templates, checklists, data)
+4. Lists agent names
+5. Checks for README.md, CHANGELOG.md
+6. Loads existing `ecosystem-registry.yaml`
+7. Merges: fresh deterministic data + preserved semantic enrichments
+8. Auto-infers domain/keywords/highlights for NEW squads only
+9. Writes updated `ecosystem-registry.yaml`
+10. Prints summary with changes detected
 
-**What Script Does (Deterministic):**
-- Scans `squads/` directory
-- Reads each `config.yaml`
-- Counts files in each subdirectory
-- Lists agent names
-- Checks for README.md, CHANGELOG.md
-- Validates YAML syntax
+**Merge strategy:**
+- **ALWAYS fresh:** counts, agent_names, paths, version, has_readme, has_changelog
+- **ALWAYS preserved from existing:** description, domain, keywords, highlights, example_use, quality_score
+- **Preserved sections:** gaps, ecosystem_health, quality_references, conventions
+- **New squads:** get auto-inferred values (can be manually improved later)
 
-**What Script Does NOT Do:**
-- Infer domain category
-- Extract keywords
-- Generate highlights
-- Generate example_use
+**Other modes (for debugging):**
+```bash
+# JSON output (no write)
+python3 scripts/refresh-registry.py --output json --registry-format
 
-### Step 2: LLM Enrichment (SEMANTIC)
-
-For each squad in script output, LLM analyzes:
-
-```yaml
-llm_enrichment:
-  for_each_squad:
-    # Read README.md for context
-    read: "squads/{name}/README.md"
-
-    infer_domain:
-      from: "description + README overview"
-      categories:
-        - content_marketing
-        - technical
-        - business_ops
-        - people_psychology
-        - meta_frameworks
-      output: "Single category that best fits"
-
-    extract_keywords:
-      from: "README.md + agent_names + description"
-      method: |
-        1. Extract nouns and key phrases
-        2. Include agent names as keywords
-        3. Add domain-specific terms
-        4. Deduplicate and lowercase
-      output: "List of 5-15 keywords"
-
-    generate_highlights:
-      from: "README.md + counts + agent_names"
-      method: |
-        1. What makes this squad unique?
-        2. Key features or capabilities
-        3. Notable agents or frameworks
-      output: "List of 2-4 bullet points"
-
-    generate_example_use:
-      from: "purpose + keywords"
-      method: "Create realistic usage example"
-      output: "Single sentence starting with verb"
-```
-
-### Step 3: Build Registry Entry
-
-```yaml
-build_entry:
-  template: |
-    {squad_name}:
-      path: "squads/{squad_name}/"
-      domain: "{inferred_domain}"
-      purpose: "{description_from_config}"
-      keywords: {extracted_keywords}
-      agents: {agent_count}
-      tasks: {task_count}
-      workflows: {workflow_count}
-      highlights:
-        - "{auto_generated_highlight_1}"
-        - "{auto_generated_highlight_2}"
-      example_use: "{generated_example}"
-
-  preserve_if_exists:
-    - highlights  # Keep manual annotations
-    - quality_reference
-    - example_use  # Keep if manually set
-```
-
-### Step 4: Update Domain Index
-
-```yaml
-update_domain_index:
-  for_each_squad:
-    - Add squad.domain → squad_name mapping
-    - Add each keyword → squad_name mapping
-
-  handle_conflicts:
-    # If keyword maps to multiple squads
-    action: "keep both, note in comments"
-    example: |
-      analytics: ["data", "monitor"]  # Multiple squads cover this
-```
-
-### Step 5: Update Gaps Analysis
-
-```yaml
-update_gaps:
-  # Only if update_gaps=true (slower operation)
-  known_domains:
-    - finance
-    - health
-    - sales
-    - customer_success
-    - product_management
-    - research
-    - real_estate
-
-  for_each_gap:
-    check: "Is there now a squad covering this?"
-    if_covered: "Remove from gaps"
-    if_not_covered: "Keep in gaps"
-```
-
-### Step 6: Write Updated Registry
-
-```yaml
-write_registry:
-  file: "squads/squad-creator/data/squad-registry.yaml"
-
-  structure:
-    metadata:
-      version: "1.0.0"
-      last_updated: "{current_date}"
-      total_squads: "{count}"
-      maintainer: "squad-creator"
-
-    squads: "{all_squad_entries}"
-    domain_index: "{all_mappings}"
-    gaps: "{remaining_gaps}"
-    quality_references: "{preserved_from_original}"
-    conventions: "{preserved_from_original}"
-
-  validate:
-    - "YAML syntax valid"
-    - "No duplicate squad names"
-    - "All paths exist"
+# Summary only
+python3 scripts/refresh-registry.py --output summary
 ```
 
 ---
@@ -295,7 +191,7 @@ write_registry:
 
 ```yaml
 output:
-  file: "squads/squad-creator/data/squad-registry.yaml"
+  file: "{registry_path}"
   console: |
     Registry updated successfully!
 

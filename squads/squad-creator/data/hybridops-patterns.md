@@ -1,7 +1,7 @@
 # PATTERNS REUTILIZÁVEIS DO HYBRIDOPS PARA SQUAD-CREATOR
 
 **Data da Extração:** 2026-02-10
-**Fonte:** `/Users/oalanicolas/Code/mmos/squads/hybrid-ops-squad`
+**Fonte:** `squads/hybrid-ops-squad`
 **Status:** Pronto para Implementação
 **Última Atualização:** 2026-02-10 (v1.2 - Self-contained: COPIAR artifacts)
 
@@ -382,7 +382,7 @@ decision_points:
 
 end_state_vision: "Autonomous creation of purpose-built squads with 0 manual configuration"
 vision_clarity: 0.85  # Clear vision
-strategic_priority: 0.9  # Top priority for AIOS
+strategic_priority: 0.9  # Top priority for AIOX
 optionality_paths: 3  # Multiple integration points
 
 result: APPROVE (0.87 score)

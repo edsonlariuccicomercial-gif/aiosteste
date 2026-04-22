@@ -1,7 +1,7 @@
 # Decision Heuristics Framework
 
 > **Version:** 1.0.0
-> **Source:** AIOS Quality Standards
+> **Source:** AIOX Quality Standards
 
 Framework for creating decision heuristics that validate choices at workflow checkpoints.
 
@@ -359,39 +359,110 @@ scope_complexity_heuristic:
   phase: "phase_0 (Discovery)"
   blocking: true
 
+  # ═══════════════════════════════════════════════════════════════
+  # REGRA UNIVERSAL: Persistir plano ANTES de criar
+  # ═══════════════════════════════════════════════════════════════
+  # Toda criação de squad DEVE persistir um plano rastreável
+  # ANTES de criar qualquer arquivo. Isso é NON-NEGOTIABLE,
+  # independente do tamanho do squad.
+  #
+  # O plano pode ser:
+  #   - PRD completo (docs/projects/{domain}/prd.md)
+  #   - Checklist de criação (state.json com itens rastreáveis)
+  #   - Architecture manifest (ARCHITECTURE.md com checklist)
+  #
+  # O formato depende da complexidade. A persistência, não.
+  # Jamais confiar apenas na janela de contexto.
+  # ═══════════════════════════════════════════════════════════════
+
+  mandatory_pre_creation:
+    rule: "SEMPRE persistir plano de criação antes de executar"
+    blocking: true
+    applies_to: "ALL squads, regardless of size"
+    rationale: |
+      Janela de contexto não é rastreamento. Squads de 4 agentes
+      podem ter 25+ artefatos interdependentes. Sem plano persistido:
+      - Itens são esquecidos
+      - Não há como conferir completude
+      - QA final não tem baseline para comparar
+      - Sessões longas perdem contexto por compressão
+    outputs:
+      small: ".aiox/squad-runtime/create-squad/{squad_name}/creation-plan.yaml"
+      medium: "docs/projects/{squad_name}/prd.md"
+      large: "docs/projects/{squad_name}/prd.md + epics/"
+    format:
+      minimum_fields:
+        - "Lista completa de TODOS os artefatos a criar (agentes, tasks, workflows, checklists, templates, data, scripts)"
+        - "Checklist com [ ] por item para tracking de progresso"
+        - "Dependências entre artefatos"
+        - "Critérios de validação por tipo de artefato"
+        - "Definition of Done"
+
   thresholds:
-    workflows_mapped: 10       # >= 10 workflows = PRD required
-    agents_needed: 8           # >= 8 agents = PRD required
-    domain_precedent: false    # No similar squad exists = higher risk
+    total_artifacts: 15    # >= 15 arquivos = PRD completo obrigatório
+    workflows_mapped: 10   # >= 10 workflows = PRD com Epics obrigatório
+    agents_needed: 8       # >= 8 agents = PRD com Epics obrigatório
+    domain_precedent: false # No similar squad exists = higher risk
 
   decision_tree: |
-    PRIMARY CHECK - Workflow Count:
+    ZERO CHECK - Creation Plan (ALWAYS):
+      ALWAYS → ACTION: Persistir plano de criação com checklist completo
+               → Formatos aceitos: creation-plan.yaml, prd.md, ou ARCHITECTURE.md com checklist
+               → VETO: Não pode criar nenhum arquivo de squad sem plano persistido
+
+    PRIMARY CHECK - Total Artifacts:
+      IF (total_artifacts >= 15)
+        THEN → STOP: "Muitos artefatos para criar sem PRD"
+               → ACTION: Create PRD em docs/projects/{domain}/prd.md
+               → PRD deve listar TODOS os artefatos com [ ] checklist
+
+    SECONDARY CHECK - Workflow Count:
       IF (workflows_mapped >= 10)
         THEN → STOP: "Escopo grande demais para criação direta"
                → ACTION: Create PRD with Epics/Stories
                → VETO: Cannot proceed with direct squad creation
 
-    SECONDARY CHECK - Agent Count:
+    TERTIARY CHECK - Agent Count:
       ELSE IF (agents_needed >= 8)
         THEN → STOP: "Muitos agents para criar sem roadmap"
                → ACTION: Create PRD with phased implementation
                → VETO: Cannot proceed without planning
 
-    TERTIARY CHECK - Domain Precedent:
+    QUATERNARY CHECK - Domain Precedent:
       ELSE IF (no_similar_squad AND workflows >= 5)
         THEN → WARNING: "Domínio novo sem precedente"
                → RECOMMEND: Consider PRD for risk mitigation
                → ALLOW: User can override
 
-    DEFAULT:
-      ELSE → PROCEED with direct squad creation
+    DEFAULT (small squads):
+      ELSE → Persistir creation-plan.yaml mínimo, depois PROCEED
 
   veto_conditions:
+    - condition: "no_persisted_plan"
+      action: "VETO - Plano persistido obrigatório"
+      message: |
+        Nenhuma criação pode iniciar sem plano persistido.
+
+        Antes de criar qualquer arquivo do squad, preciso persistir
+        a lista completa de artefatos com checklist de tracking.
+
+        Formato mínimo: creation-plan.yaml com todos os itens.
+        Formato completo: PRD em docs/projects/{domain}/prd.md.
+
+    - condition: "total_artifacts >= 15"
+      action: "VETO - PRD obrigatório"
+      message: |
+        Mapeei {n} artefatos totais. PRD obrigatório para rastrear.
+
+        AÇÃO NECESSÁRIA:
+        1. Criar PRD em docs/projects/{domain}/prd.md
+        2. Listar TODOS os artefatos com [ ] checklist
+        3. Definir dependências entre artefatos
+        4. Definir critérios de validação por tipo
+
     - condition: "workflows_mapped >= 10"
       action: "VETO - PRD obrigatório"
       message: |
-        ❌ ESCOPO GRANDE DEMAIS
-
         Mapeei {n} workflows. Isso é complexo demais para criar diretamente.
 
         AÇÃO NECESSÁRIA:
@@ -400,19 +471,23 @@ scope_complexity_heuristic:
         3. Criar Stories por Epic
         4. Implementar por fases
 
-        Quer que eu crie o PRD agora?
-
     - condition: "agents_needed >= 8"
       action: "VETO - Roadmap obrigatório"
       message: "Precisa de roadmap de implementação para {n} agents"
 
   rationale: |
-    PRD para squads grandes garante:
-    - Todos os workflows são documentados antes de começar
-    - Dependências entre agents são mapeadas
+    Plano persistido para QUALQUER squad garante:
+    - Nenhum artefato esquecido (checklist rastreável)
+    - QA final tem baseline para comparar
+    - Sessões longas sobrevivem a compressão de contexto
+    - Retomada em outra sessão possível sem perda
+    - Conformidade verificável item a item
+    PRD para squads grandes adiciona:
+    - Todos os workflows documentados antes de começar
+    - Dependências entre agents mapeadas
     - Priorização clara (o que criar primeiro)
     - Checkpoints de validação por Epic
-    - Possibilidade de implementação incremental
+    - Implementação incremental
 ```
 
 ### 10.3 PRD Structure for Large Squads
@@ -494,9 +569,9 @@ examples:
 
 | Specialist | Domain | Activation |
 |------------|--------|------------|
-| `@oalanicolas` | Mind cloning, DNA extraction, source curation | `/squad-creator @oalanicolas` |
-| `@pedro-valerio` | Processes, tasks, checklists, automation | `/squad-creator @pedro-valerio` |
-| `@squad-chief` | General squad creation, orchestration | `/squad-creator` (default) |
+| `@oalanicolas` | Mind cloning, DNA extraction, source curation | `/AIOX:agents:oalanicolas` |
+| `@pedro-valerio` | Processes, tasks, checklists, automation | `/AIOX:agents:pedro-valerio` |
+| `@squad-chief` | General squad creation, orchestration | `/AIOX:agents:squad-creator` (default) |
 
 ### 10.2 Decision Matrix
 
@@ -616,5 +691,5 @@ anti_patterns:
 
 ---
 
-*AIOS Decision Heuristics Framework v1.1*
+*AIOX Decision Heuristics Framework v1.1*
 *Updated: Specialist Selection Heuristic added*

@@ -1,4 +1,4 @@
-# SOP Extractor for Hybrid Automation (AIOS-Ready)
+# SOP Extractor for Hybrid Automation (AIOX-Ready)
 
 > **Pattern:** SC-PE-001 (SOP Extraction Standard)
 > **Version:** 1.0.0
@@ -12,7 +12,7 @@ You are a **Hybrid Process Architect** specialized in transforming tacit knowled
 ## Mission
 
 Extract a **complete and executable SOP** from a meeting transcript, structured to:
-1. Create AIOS agents that execute automatable parts
+1. Create AIOX agents that execute automatable parts
 2. Define checkpoints where humans must validate/decide
 3. Map data flow between steps
 4. Identify required guardrails for safe automation
@@ -393,7 +393,7 @@ For each step, apply the **Automation Tipping Point Rule**:
 
 ---
 
-# PART 8: AIOS SQUAD BLUEPRINT
+# PART 8: AIOX SQUAD BLUEPRINT
 
 ## 8.1 Recommended Agents
 
@@ -482,7 +482,7 @@ workflow:
 
 1. [ ] **Validate SOP** with process owner
 2. [ ] **Clarify gaps** listed above
-3. [ ] **Create AIOS Squad** using Part 8 blueprint
+3. [ ] **Create AIOX Squad** using Part 8 blueprint
 4. [ ] **Implement guardrails** before automating
 5. [ ] **Test in controlled environment** with real cases
 6. [ ] **Measure baseline** (current time vs. automated)

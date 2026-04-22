@@ -9,7 +9,7 @@
 ## Pré-requisitos
 
 - Claude Code ativo
-- Projeto AIOS configurado
+- Projeto AIOX configurado
 
 ---
 

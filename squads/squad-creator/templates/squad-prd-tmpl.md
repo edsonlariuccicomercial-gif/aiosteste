@@ -238,7 +238,7 @@ Epic 6 (Tier 3)
 
 **Deliverables:**
 - [ ] Directory structure (`squads/{{PACK_NAME}}/`)
-- [ ] `config.yaml` with pack metadata
+- [ ] `config.yaml` with squad metadata
 - [ ] `README.md` with usage documentation
 - [ ] Orchestrator agent (`{{PACK_NAME}}-chief`)
 - [ ] Core data files (KB, frameworks)
@@ -331,6 +331,28 @@ SC_AGT_003:
 
 ---
 
+### CRITICAL: Workflow Compliance Rules
+
+> **RULE:** Stories that create workflows MUST include structural compliance ACs.
+> Canonical schema: `squads/squad-creator/config/workflow-yaml-schema.yaml`.
+
+**Mandatory ACs for ANY story that creates a workflow:**
+
+```yaml
+# Copy these ACs into EVERY story that delivers a workflow:
+workflow_compliance_acs:
+  - "Workflow uses workflow.sequence[] as canonical executable contract"
+  - "Workflow includes workflow.type field"
+  - "Agent names WITHOUT @ prefix (e.g., scanner, NOT @scanner)"
+  - "handoff_prompts defined when workflow has agent transitions"
+  - "validate-squad PASSES after workflow creation"
+```
+
+**Reason:** Workflows created without consulting the canonical schema generate validation
+errors that are only caught later (WF_MISSING_REQUIRED_FIELD, WF_AGENT_NOT_FOUND, WF_MISSING_HANDOFF).
+
+---
+
 ### Epic 2: {{EPIC_TITLE}}
 
 **Goal:** {{EPIC_GOAL}}
@@ -350,6 +372,7 @@ SC_AGT_003:
 **Acceptance Criteria:**
 - [ ] {{CRITERION_1}}
 - [ ] {{CRITERION_2}}
+- [ ] _(If story creates workflow)_ Workflow compliant with `workflow-yaml-schema.yaml` (sequence[], type, handoff_prompts, agent naming without @)
 
 **Quality Gates:**
 - Pre-Commit: {{GATE}}
@@ -381,7 +404,7 @@ SC_AGT_003:
 
 ### 7.3 Quality Criteria
 
-- [ ] All agents have voice_dna
+- [ ] All mind-clone agents have voice_dna (orchestrators/functional agents exempt)
 - [ ] All agents have output_examples >= 3
 - [ ] All workflows have checkpoints
 - [ ] No orphan dependencies
@@ -454,6 +477,7 @@ SC_AGT_003:
 - [ ] Gates defined per story
 - [ ] Specialists assigned
 - [ ] Success criteria measurable
+- [ ] Stories with workflows include compliance ACs (workflow-yaml-schema.yaml)
 
 **Score:** __/6 categories
 **Threshold:** >= 5/6 to approve

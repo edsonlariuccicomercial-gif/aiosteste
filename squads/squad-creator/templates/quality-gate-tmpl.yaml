@@ -3,7 +3,7 @@
 # =============================================================================
 # Pattern: HO-PP-003 (Quality Gate Pattern)
 # Version: 1.0.0
-# Author: AIOS Team / Squad-Creator
+# Author: AIOX Team / Squad-Creator
 #
 # Purpose: Template for creating formal Quality Gates between workflow phases.
 #          Quality Gates ensure checkpoints are met before progression.
@@ -14,7 +14,7 @@
 #   3. Adjust criteria, thresholds, and actions to your workflow needs
 #   4. Reference the gate in your workflow-definition.yaml
 #
-# Reference: AIOS Quality Gate Standard
+# Reference: AIOX Quality Gate Standard
 # =============================================================================
 
 # -----------------------------------------------------------------------------
@@ -24,7 +24,7 @@ _template:
   name: "quality-gate-tmpl"
   version: "1.0.0"
   description: "Template for creating Quality Gates"
-  author: "AIOS Team"
+  author: "AIOX Team"
   pattern: "HO-PP-003"
   created_at: "2026-01-24"
 

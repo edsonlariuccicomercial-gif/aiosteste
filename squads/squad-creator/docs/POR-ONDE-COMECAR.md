@@ -28,8 +28,8 @@ SE TIVER PROBLEMAS
 ## Passo 1: Verifique os Pré-requisitos
 
 ### Obrigatório
-- [ ] **Claude Code funcionando** - Você consegue rodar `@aios-master`?
-- [ ] **Projeto AIOS** - Você está no diretório do seu projeto?
+- [ ] **Claude Code funcionando** - Você consegue rodar `@squad-creator`?
+- [ ] **Projeto AIOX** - Você está no diretório do seu projeto?
 
 ### Opcional (mas recomendado)
 - [ ] **Materiais dos experts** - PDFs, livros, transcrições

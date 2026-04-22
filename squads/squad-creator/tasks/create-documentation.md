@@ -1,4 +1,15 @@
 ---
+
+<!-- SINKRA_CONTRACT -->
+Domain: `Operational`
+atomic_layer: Atom
+Input: request::create_documentation
+Output: artifact::create_documentation
+pre_condition: contexto mínimo carregado e rota validada
+post_condition: decisão registrada com artefato persistido ou handoff emitido
+performance: registrar evidências, falhas e próximo passo sem erro silencioso
+Completion Criteria: contrato mínimo SINKRA explícito e saída rastreável produzida
+
 task: Create Documentation
 task_id: PV_DOC_001
 execution_type: Worker
@@ -28,14 +39,28 @@ rationale: |
   Documentação é OPERACIONALIZAÇÃO, não extração.
   Transforma conhecimento do artefato em processo documentado.
   "Se não está documentado, não existe." — @pedro-valerio
+**Coherence Threshold:** `>= 0.95` | **Error Behavior:** `raise` (no silent failure)
+
 ---
 
 # Create Documentation
+**Execution Type:** `Worker` (deterministic template-driven documentation flow)
+**Domain:** `Operational`
+**Model:** N/A (Worker -- no LLM needed)
+**Haiku Eligible:** N/A (Worker task)
 
 **Squad:** squad-creator
 **Phase:** Operationalization (Fase 3 do pipeline)
 **Agent:** @pedro-valerio
 **Pattern:** SC-DP-* (Documentation Patterns)
+
+## Accountability
+
+```yaml
+accountability:
+  human: squad-operator
+  scope: review_only
+```
 
 ## Purpose
 
@@ -84,8 +109,8 @@ Triggered automaticamente após:
 
 | Artefato Criado | Tipo de Doc | Template | Destino |
 |-----------------|-------------|----------|---------|
-| Agent | Agent Flow Doc | `agent-flow-doc-tmpl.md` | `docs/guides/aios-agent-flows/{agent}-system.md` |
-| Workflow | Workflow Doc | `workflow-doc-tmpl.md` | `docs/guides/aios-workflows/{workflow}-workflow.md` |
+| Agent | Agent Flow Doc | `agent-flow-doc-tmpl.md` | `docs/guides/aiox-agent-flows/{agent}-system.md` |
+| Workflow | Workflow Doc | `workflow-doc-tmpl.md` | `docs/guides/aiox-workflows/{workflow}-workflow.md` |
 | Squad | README | `squad-readme-tmpl.md` | `squads/{squad}/README.md` |
 
 ---
