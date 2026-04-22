@@ -259,6 +259,45 @@ function fecharModalProduto() {
   _editProdutoId = null;
 }
 
+// ===== FR-019: Criação rápida de produto (direto do contrato) =====
+// Cria produto na Central sem abrir modal, retorna o ID para vincular ao contrato.
+function criarProdutoRapido(dados) {
+  if (!dados || !dados.nome) return null;
+  loadBancoProdutos();
+  // Buscar duplicata por nome normalizado
+  var nomeNorm = (dados.nome || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+  var duplicata = bancoProdutos.itens.find(function (p) {
+    var pNorm = (p.descricao || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+    return pNorm === nomeNorm;
+  });
+  if (duplicata) return duplicata;
+  var sku = dados.sku || gdpGerarSkuSugerido(dados.nome);
+  var novo = getProdutoComDefaults({
+    id: 'PROD-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
+    descricao: dados.nome,
+    sku: sku,
+    ncm: dados.ncm || '',
+    unidade: dados.unidade || 'UN',
+    grupo: dados.categoria || '',
+    criadoEm: new Date().toISOString(),
+    atualizadoEm: new Date().toISOString()
+  });
+  bancoProdutos.itens.push(novo);
+  saveBancoProdutos();
+  return novo;
+}
+
+// Busca produtos por nome (busca simples para sugestão — FR-005)
+function buscarProdutosPorNome(termo) {
+  if (!termo) return [];
+  loadBancoProdutos();
+  var termoNorm = (termo || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+  return bancoProdutos.itens.filter(function (p) {
+    var descNorm = (p.descricao || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+    return descNorm.includes(termoNorm);
+  }).slice(0, 10);
+}
+
 // ===== Story 8.2: Migração Banco de Preços → Central de Produtos =====
 // Executa uma vez para trazer dados do antigo bancoPrecos (caixaescolar.banco.v1)
 // para a Central unificada (gdp.produtos.v1). Idempotente — não duplica.

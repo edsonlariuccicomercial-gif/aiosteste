@@ -2797,7 +2797,7 @@ function abrirContrato(id) {
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.8rem;flex-wrap:wrap;gap:.5rem">
       <div style="display:flex;align-items:center;gap:.6rem">
         <h3 style="font-size:.9rem;margin:0">Itens do Contrato (${c.itens.length})</h3>
-        <span style="font-size:.72rem;color:var(--dim)">${c.itens.filter(i => i.sku).length}/${c.itens.length} com SKU</span>
+        <span style="font-size:.72rem;color:var(--dim)">${c.itens.filter(i => i.skuVinculado || i.produto_vinculado_id).length}/${c.itens.length} vinculados</span>
         <span id="itens-selecionados-${c.id}" style="font-size:.72rem;color:var(--cyan);font-weight:600"></span>
       </div>
       <div style="display:flex;gap:.4rem;flex-wrap:wrap;align-items:center">

@@ -2082,12 +2082,13 @@ function selecionarVincularGDPIntel(produtoId) {
   const descSave = _vincularGdpDescricao;
   if (!descSave) { showToast("Descricao do item nao encontrada.", 3000); return; }
   setGdpEquivalencia(descSave, sku);
-  // Também salvar SKU no item do contrato diretamente
+  // FR-005: Salvar vínculo manual no item do contrato (produto_vinculado_id pattern)
   if (_vincularGdpContratoId && _vincularGdpItemIdx >= 0) {
     const c = contratos.find(x => x.id === _vincularGdpContratoId);
     if (c && c.itens[_vincularGdpItemIdx]) {
       c.itens[_vincularGdpItemIdx].skuVinculado = sku;
       c.itens[_vincularGdpItemIdx].produtoVinculado = produto.nome;
+      c.itens[_vincularGdpItemIdx].produto_vinculado_id = produtoId;
       saveContratos();
     }
   }
@@ -2132,41 +2133,52 @@ function selecionarVincularGDP(bpId) {
 }
 
 function criarEVincularGDP() {
-  const BANCO_KEY = "caixaescolar.banco.v1";
   const nomeComercial = (document.getElementById("vincular-gdp-criar-nome")?.value || "").trim();
   if (!nomeComercial) { showToast("Nome comercial e obrigatorio."); return; }
   let sku = (document.getElementById("vincular-gdp-criar-sku")?.value || "").trim();
   if (!sku) sku = gdpGerarSkuSugerido(nomeComercial);
   const unidade = document.getElementById("vincular-gdp-criar-unidade")?.value || "UN";
   const custo = parseFloat(document.getElementById("vincular-gdp-criar-custo")?.value) || 0;
+
+  // FR-019: Criar na Central de Produtos (fonte de verdade)
+  const novoProduto = typeof criarProdutoRapido === 'function'
+    ? criarProdutoRapido({ nome: nomeComercial, sku: sku, unidade: unidade, ncm: '' })
+    : null;
+  const produtoSku = novoProduto ? (novoProduto.sku || sku) : sku;
+  const produtoId = novoProduto ? novoProduto.id : null;
+
+  // Legacy: also save to banco de precos for backwards compat
+  const BANCO_KEY = "caixaescolar.banco.v1";
   let banco;
   try { banco = JSON.parse(localStorage.getItem(BANCO_KEY)); } catch(_) { banco = null; }
   if (!banco || !Array.isArray(banco.itens)) banco = { updatedAt: "", itens: [] };
-  if (banco.itens.some(bp => bp.sku === sku)) { showToast("SKU ja existe. Escolha outro."); return; }
-  const novoBp = {
-    id: "bp-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 5),
-    item: nomeComercial, nomeComercial, sku,
-    marca: "", grupo: "Material de Consumo Geral",
-    unidade, unidadeCompra: unidade,
-    custoBase: custo, margemPadrao: 0.30,
-    precoReferencia: custo > 0 ? Math.round(custo * 1.30 * 100) / 100 : 0,
-    ultimaCotacao: new Date().toISOString().slice(0, 10),
-    fonte: "", fornecedorPadrao: "",
-    custo, propostas: [], concorrentes: [],
-    custosFornecedor: [],
-    equivalencias: [_vincularGdpDescricao]
-  };
+  if (!banco.itens.some(bp => bp.sku === produtoSku)) {
+    banco.itens.push({
+      id: "bp-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 5),
+      item: nomeComercial, nomeComercial, sku: produtoSku,
+      marca: "", grupo: "Material de Consumo Geral",
+      unidade, unidadeCompra: unidade,
+      custoBase: custo, margemPadrao: 0.30,
+      precoReferencia: custo > 0 ? Math.round(custo * 1.30 * 100) / 100 : 0,
+      ultimaCotacao: new Date().toISOString().slice(0, 10),
+      fonte: "", fornecedorPadrao: "",
+      custo, propostas: [], concorrentes: [],
+      custosFornecedor: [],
+      equivalencias: [_vincularGdpDescricao]
+    });
+    localStorage.setItem(BANCO_KEY, JSON.stringify(banco));
+  }
+
   const descSave = _vincularGdpDescricao;
   const contratoSave = _vincularGdpContratoId;
-  banco.itens.push(novoBp);
-  localStorage.setItem(BANCO_KEY, JSON.stringify(banco));
-  setGdpEquivalencia(descSave, sku);
-  // Persist manual link directly on contract item
+  setGdpEquivalencia(descSave, produtoSku);
+  // FR-005: Persist manual link directly on contract item (produto_vinculado_id pattern)
   if (contratoSave && _vincularGdpItemIdx >= 0) {
     const ctr = contratos.find(x => x.id === contratoSave);
     if (ctr && ctr.itens[_vincularGdpItemIdx]) {
-      ctr.itens[_vincularGdpItemIdx].skuVinculado = sku;
+      ctr.itens[_vincularGdpItemIdx].skuVinculado = produtoSku;
       ctr.itens[_vincularGdpItemIdx].produtoVinculado = nomeComercial;
+      if (produtoId) ctr.itens[_vincularGdpItemIdx].produto_vinculado_id = produtoId;
       saveContratos();
     }
   }

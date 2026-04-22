@@ -635,7 +635,8 @@ function sanitizeContratoLegacyData(contrato) {
   delete sanitized.olistId;
   sanitized.itens = (sanitized.itens || []).map((item, idx) => {
     const cleaned = stripLegacyErpFields(item);
-    // AC-9: Preservar skuVinculado como sku principal; não auto-gerar se vazio
+    // FR-005: SKU vem exclusivamente de produto_vinculado_id/skuVinculado (manual).
+    // Sem auto-match. Se não tem vínculo manual, sku fica vazio.
     if (cleaned.skuVinculado) cleaned.sku = cleaned.skuVinculado;
     return enrichContratoItemMetadata(sanitized, cleaned, idx);
   });
@@ -650,7 +651,7 @@ function sanitizePedidoLegacyData(pedido) {
   if (sanitized.status === "concluido") sanitized.status = "faturado";
   sanitized.itens = (sanitized.itens || []).map((item, idx) => stripLegacyErpFields({
     ...item,
-    // SKU: preservar skuVinculado (inteligência), não auto-gerar
+    // FR-005: SKU somente de vínculo manual (skuVinculado), sem auto-match
     sku: item.skuVinculado || item.sku || ""
   }));
   return ensurePedidoFiscalData(sanitized);
@@ -1044,10 +1045,11 @@ function enrichContratoItemMetadata(contrato, item, idx) {
     else if (match?.ncm) item.ncm = match.ncm;
   }
   if (!item.unidade && match?.unidade) item.unidade = match.unidade;
-  // AC-9: Se item já tem skuVinculado (da Inteligência), usar como sku principal. Senão, deixar vazio (sem auto-gerar).
+  // FR-005: SKU vem SOMENTE de vínculo manual (skuVinculado/produto_vinculado_id).
+  // Sem auto-match, sem auto-geração. Vínculo é decisão humana.
   if (item.skuVinculado) {
     item.sku = item.skuVinculado;
-  } else if (!item.sku) {
+  } else {
     item.sku = '';
   }
   return item;

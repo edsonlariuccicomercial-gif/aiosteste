@@ -137,12 +137,12 @@ function ensurePedidoFiscalData(pedido) {
     const contratoItem = pedido.contratoId ? getContratoItemForPedidoItem(pedido.contratoId, baseItem) : null;
     return {
       ...baseItem,
-      // NF-e: descrição SEMPRE do contrato (edital), não do produto inteligência
+      // FR-004/FR-006: NF-e descrição SEMPRE do contrato (imutável), SKU do produto vinculado
       descricao: contratoItem?.descricao || baseItem.descricao || `Item ${idx + 1}`,
       precoUnitario: Number(baseItem.precoUnitario || contratoItem?.precoUnitario || 0),
       unidade: baseItem.unidade || contratoItem?.unidade || "UN",
       ncm: baseItem.ncm || contratoItem?.ncm || "",
-      // SKU: apenas skuVinculado (inteligência LICT-xxxx), nunca auto-gerar
+      // FR-006: SKU vem do produto vinculado (manual), sem auto-match
       sku: baseItem.skuVinculado || contratoItem?.skuVinculado || baseItem.sku || contratoItem?.sku || ""
     };
   });
