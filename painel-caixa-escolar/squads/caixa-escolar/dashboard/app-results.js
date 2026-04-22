@@ -541,7 +541,43 @@ function criarContratoGdp(orcId, preOrcamento, numContrato) {
   const wrapped = { _v: 1, updatedAt: now.toISOString(), items: contratos };
   localStorage.setItem(GDP_CONTRATOS_KEY, JSON.stringify(wrapped));
 
-  // Trigger cloud sync
+  // Story 9.1: Salvar contrato diretamente no Supabase (fonte de verdade)
+  // index.html não carrega gdp-core.js/gdp-api.js, então usamos _SB_RESULTADOS.URL/KEY
+  try {
+    const empId = (typeof getEmpresaId === 'function') ? getEmpresaId() : 'LARIUCCI';
+    const sbContrato = {
+      id: contrato.id,
+      empresa_id: empId,
+      escola: contrato.escola,
+      edital: contrato.edital || '',
+      objeto: contrato.objeto || '',
+      fornecedor: contrato.fornecedor || '',
+      status: contrato.status || 'ativo',
+      itens: contrato.itens || [],
+      data: contrato.dataCriacao || now.toISOString(),
+      valor_total: contrato.valorTotal || 0,
+      metadata: {
+        origem: contrato.origem || 'pre-orcamento-sgd',
+        municipio: contrato.municipio || '',
+        sre: contrato.sre || '',
+        numero: contrato.numero || '',
+        escolaClienteId: contrato.escolaClienteId || null,
+        orcamentoId: contrato.orcamentoId || ''
+      }
+    };
+    fetch(_SB_RESULTADOS.URL + '/contratos', {
+      method: 'POST',
+      headers: Object.assign({}, _SB_RESULTADOS.headers(), { Prefer: 'return=minimal,resolution=merge-duplicates' }),
+      body: JSON.stringify(sbContrato)
+    }).then(res => {
+      if (res.ok) console.log('[GDP] Contrato salvo no Supabase:', contrato.id);
+      else res.text().then(t => console.warn('[GDP] Supabase save failed:', res.status, t));
+    }).catch(e => console.warn('[GDP] Supabase save error:', e.message));
+  } catch (e) {
+    console.warn('[GDP] Supabase direct save failed:', e.message);
+  }
+
+  // Trigger cloud sync (backup legado)
   if (typeof schedulCloudSync === "function") schedulCloudSync();
 
   // Story 6.6: Persist contrato items to Supabase preco_historico
