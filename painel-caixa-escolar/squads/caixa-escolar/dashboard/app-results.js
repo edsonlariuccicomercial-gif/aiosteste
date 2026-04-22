@@ -554,15 +554,15 @@ function criarContratoGdp(orcId, preOrcamento, numContrato) {
       fornecedor: contrato.fornecedor || '',
       status: contrato.status || 'ativo',
       itens: contrato.itens || [],
-      data: contrato.dataCriacao || now.toISOString(),
-      valor_total: contrato.valorTotal || 0,
-      metadata: {
+      data_apuracao: contrato.dataApuracao || now.toISOString().slice(0, 10),
+      dados_extras: {
         origem: contrato.origem || 'pre-orcamento-sgd',
         municipio: contrato.municipio || '',
         sre: contrato.sre || '',
         numero: contrato.numero || '',
         escolaClienteId: contrato.escolaClienteId || null,
-        orcamentoId: contrato.orcamentoId || ''
+        orcamentoId: contrato.orcamentoId || '',
+        valorTotal: contrato.valorTotal || 0
       }
     };
     fetch(_SB_RESULTADOS.URL + '/contratos', {
