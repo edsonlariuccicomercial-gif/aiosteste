@@ -78,7 +78,7 @@ function switchTab(tab) {
   const labels = {
     usuarios: "Clientes",
     "notas-entrada": "Notas de Entrada",
-    estoque: "Estoque Intel",
+    estoque: "Produtos & Estoque",  // FR-015: renomeado de "Estoque Intel"
     contratos: "Contratos",
     pedidos: "Pedidos",
     entregas: "Entregas",

@@ -184,6 +184,9 @@ function editarProduto(id) {
   document.getElementById("prod-sku").value = p.sku || "";
   document.getElementById("prod-ncm").value = p.ncm || "";
   document.getElementById("prod-unidade").value = p.unidade || "";
+  // FR-013: Produto crítico
+  const criticoEl = document.getElementById("prod-critico");
+  if (criticoEl) criticoEl.checked = !!p.produto_critico;
   document.getElementById("modal-produto").classList.remove("hidden");
 }
 
@@ -192,6 +195,9 @@ function salvarProduto() {
   const sku = (document.getElementById("prod-sku").value || "").trim();
   const ncm = (document.getElementById("prod-ncm").value || "").trim();
   const unidade = document.getElementById("prod-unidade").value;
+  // FR-013: Produto crítico (conversão de gramatura)
+  const prodCriticoEl = document.getElementById("prod-critico");
+  const produtoCritico = prodCriticoEl ? prodCriticoEl.checked : false;
 
   if (!descricao) { showToast("Descricao e obrigatoria.", 3000); return; }
   if (!unidade) { showToast("Unidade e obrigatoria.", 3000); return; }
@@ -217,12 +223,14 @@ function salvarProduto() {
     const p = bancoProdutos.itens.find(x => x.id === _editProdutoId);
     if (p) {
       p.descricao = descricao; p.sku = sku; p.ncm = ncm; p.unidade = unidade;
+      p.produto_critico = produtoCritico;
       p.atualizadoEm = new Date().toISOString();
     }
   } else {
     bancoProdutos.itens.push(getProdutoComDefaults({
       id: 'PROD-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
       descricao, sku, ncm, unidade,
+      produto_critico: produtoCritico,
       criadoEm: new Date().toISOString(),
       atualizadoEm: new Date().toISOString()
     }));

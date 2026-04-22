@@ -211,9 +211,9 @@
           <div class="sidebar-subnav-label">Menu GDP</div>
           <button class="sidebar-subitem" data-gdp-tab="usuarios" onclick="switchTab('usuarios')"><span class="sidebar-subitem-label">Clientes</span><span class="count" id="tab-count-usuarios">0</span></button>
           <button class="sidebar-subitem active" data-gdp-tab="contratos" onclick="switchTab('contratos')"><span class="sidebar-subitem-label">Contratos</span><span class="count" id="tab-count-contratos">0</span></button>
-          <button class="sidebar-subitem" data-gdp-tab="pedidos" onclick="switchTab('pedidos')"><span class="sidebar-subitem-label">Pedidos</span><span class="count" id="tab-count-pedidos">0</span></button>
+          <button class="sidebar-subitem" data-gdp-tab="pedidos" onclick="switchTab('pedidos')" style="font-weight:800"><span class="sidebar-subitem-label" style="font-size:.95rem">Pedidos</span><span class="count" id="tab-count-pedidos" style="background:var(--green);color:#fff;font-weight:800">0</span></button>
           <button class="sidebar-subitem" data-gdp-tab="notas-fiscais" onclick="switchTab('notas-fiscais')"><span class="sidebar-subitem-label">Notas Fiscais</span><span class="count" id="tab-count-notas-fiscais">0</span></button>
-          <button class="sidebar-subitem" data-gdp-tab="estoque" onclick="switchTab('estoque')"><span class="sidebar-subitem-label">Inteligência</span><span class="count" id="tab-count-estoque">0</span></button>
+          <button class="sidebar-subitem" data-gdp-tab="estoque" onclick="switchTab('estoque')"><span class="sidebar-subitem-label">Produtos & Estoque</span><span class="count" id="tab-count-estoque">0</span></button>
           <button class="sidebar-subitem" data-gdp-tab="entregas" onclick="switchTab('entregas')"><span class="sidebar-subitem-label">Entregas</span><span class="count" id="tab-count-entregas">0</span></button>
           <button class="sidebar-subitem" data-gdp-tab="caixa" onclick="switchTab('caixa')"><span class="sidebar-subitem-label">Caixa</span><span class="count" id="tab-count-caixa">0</span></button>
           <button class="sidebar-subitem" data-gdp-tab="contas-pagar" onclick="switchTab('contas-pagar')"><span class="sidebar-subitem-label">Contas a Pagar</span><span class="count" id="tab-count-contas-pagar">0</span></button>
@@ -1052,7 +1052,7 @@
     </div>
     <div class="card" id="ei-card-gdp-estoque" data-ei-section="estoque" style="margin-top:1rem">
       <h3 style="margin-bottom:.75rem">Estoque Simples (Equivalencias)</h3>
-      <div style="font-size:.8rem;color:var(--mut);margin-bottom:.75rem">Saldo por SKU do Banco de Produtos, deduzido ao confirmar demandas de contrato.</div>
+      <div style="font-size:.8rem;color:var(--mut);margin-bottom:.75rem">Cadastro de produtos e controle de estoque simplificado.</div>
       <div class="table-wrap" data-ei-table style="max-height:250px;overflow-y:auto">
         <table>
           <thead><tr><th>SKU</th><th>Produto</th><th>Base</th><th>Embalagem</th><th class="text-right">Qtd</th><th class="text-right">Comprometido</th><th class="text-right">Disponivel</th><th class="text-center">Acao</th></tr></thead>
@@ -1504,6 +1504,12 @@
             <option value="KIT">KIT</option>
           </select>
         </div>
+        <!-- FR-013: Produto crítico (conversão de gramatura) -->
+        <div>
+          <label style="font-size:.8rem;color:var(--mut);display:flex;align-items:center;gap:.5rem;cursor:pointer;padding:.5rem .6rem;background:var(--s1);border:1px solid var(--bdr);border-radius:8px">
+            <input type="checkbox" id="prod-critico"> Produto crítico (requer conversão de gramatura)
+          </label>
+        </div>
       </div>
       <div style="margin-top:1.5rem;display:flex;justify-content:flex-end;gap:.8rem">
         <button class="btn btn-outline" onclick="fecharModalProduto()">Cancelar</button>
@@ -1539,7 +1545,7 @@
     <div style="background:var(--bg);border:1px solid var(--bdr);border-radius:14px;width:960px;max-width:98vw;max-height:92vh;display:flex;flex-direction:column;margin-top:2rem">
       <div style="padding:1rem 1.5rem;border-bottom:1px solid var(--bdr)">
         <h2 style="font-size:1.1rem;display:flex;align-items:center;gap:.5rem">
-          🔗 Sincronização de Itens — Contrato vs Banco de Produtos
+          🔗 Sincronização de Itens — Contrato vs Produtos
         </h2>
         <p style="font-size:.8rem;color:var(--mut);margin-top:.4rem" id="sync-itens-info">Comparando itens do contrato com produtos do banco...</p>
       </div>
@@ -1740,7 +1746,7 @@
     </div>
     <div style="padding:1rem 1.5rem;overflow-y:auto">
       <div style="margin-bottom:1rem">
-        <input type="text" id="vincular-gdp-busca" placeholder="Buscar no Banco de Produtos..." oninput="renderVincularGDPResultados(this.value)" style="width:100%">
+        <input type="text" id="vincular-gdp-busca" placeholder="Buscar produto cadastrado..." oninput="renderVincularGDPResultados(this.value)" style="width:100%">
       </div>
       <div id="vincular-gdp-resultados" style="max-height:350px;overflow-y:auto"></div>
       <div style="margin-top:1rem;padding:.8rem 1rem;border:1px dashed var(--bdr);border-radius:10px;background:var(--s1);font-size:.82rem;color:var(--mut)">
