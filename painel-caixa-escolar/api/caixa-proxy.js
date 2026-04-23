@@ -54,6 +54,11 @@ export default async function handler(req, res) {
     if (action === "health-check") return await handleHealthCheck(req, res);
     if (action === "backup-fiscal") return await handleBackupFiscal(req, res, params);
 
+    // FR-011: Inter Banking — extrato, boleto, PIX
+    if (action === "inter-extrato") return await handleInterExtrato(res);
+    if (action === "inter-emitir-boleto") return await handleInterEmitirBoleto(params, res);
+    if (action === "inter-consultar-pix") return await handleInterConsultarPix(res);
+
     return res.status(400).json({ error: "Unknown action: " + action });
   } catch (err) {
     return res.status(500).json({ error: err.message });
@@ -387,4 +392,75 @@ async function handleBackupFiscal(req, res, params) {
     results.errors.push({ error: err.message });
     return res.status(500).json(results);
   }
+}
+
+// ===== FR-011: INTER BANKING HANDLERS =====
+
+const INTER_BASE = "https://cdpj.partners.bancointer.com.br";
+
+async function getInterToken() {
+  const clientId = process.env.INTER_CLIENT_ID;
+  const clientSecret = process.env.INTER_CLIENT_SECRET;
+  if (!clientId || !clientSecret) return null;
+  const body = new URLSearchParams({
+    grant_type: "client_credentials",
+    client_id: clientId,
+    client_secret: clientSecret,
+    scope: "extrato.read boleto-cobranca.read boleto-cobranca.write pagamento-pix.read",
+  });
+  const resp = await fetch(`${INTER_BASE}/oauth/v2/token`, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: body.toString(),
+  });
+  if (!resp.ok) throw new Error(`Inter OAuth: ${resp.status}`);
+  const data = await resp.json();
+  return data.access_token;
+}
+
+async function handleInterExtrato(res) {
+  const token = await getInterToken();
+  if (!token) return res.status(200).json({ success: false, error: "API Inter não configurada.", mock: true });
+  const dataFim = new Date().toISOString().slice(0, 10);
+  const dataInicio = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
+  const resp = await fetch(`${INTER_BASE}/banking/v2/extrato?dataInicio=${dataInicio}&dataFim=${dataFim}`, {
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+  });
+  if (!resp.ok) throw new Error(`Extrato: ${resp.status}`);
+  const data = await resp.json();
+  return res.status(200).json({ success: true, transacoes: data.transacoes || [], saldo: data.saldo || null });
+}
+
+async function handleInterEmitirBoleto({ valor, vencimento, nomePagador, cpfCnpjPagador, descricao }, res) {
+  const token = await getInterToken();
+  if (!token) return res.status(200).json({ success: false, error: "API Inter não configurada.", mock: true });
+  const boleto = {
+    seuNumero: `BOL-${Date.now()}`,
+    valorNominal: valor,
+    dataVencimento: vencimento,
+    numDiasAgenda: 30,
+    pagador: { cpfCnpj: cpfCnpjPagador, tipoPessoa: (cpfCnpjPagador || "").length > 11 ? "JURIDICA" : "FISICA", nome: nomePagador },
+    mensagem: { linha1: descricao || "Cobrança Licit-AIX" },
+  };
+  const resp = await fetch(`${INTER_BASE}/cobranca/v3/cobrancas`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify(boleto),
+  });
+  if (!resp.ok) throw new Error(`Boleto: ${resp.status}`);
+  const data = await resp.json();
+  return res.status(200).json({ success: true, codigoSolicitacao: data.codigoSolicitacao, linhaDigitavel: data.linhaDigitavel || null });
+}
+
+async function handleInterConsultarPix(res) {
+  const token = await getInterToken();
+  if (!token) return res.status(200).json({ success: false, error: "API Inter não configurada.", mock: true });
+  const dataFim = new Date().toISOString().slice(0, 10);
+  const dataInicio = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
+  const resp = await fetch(`${INTER_BASE}/banking/v2/pix?dataInicio=${dataInicio}&dataFim=${dataFim}`, {
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+  });
+  if (!resp.ok) throw new Error(`PIX: ${resp.status}`);
+  const data = await resp.json();
+  return res.status(200).json({ success: true, pix: data.pix || [] });
 }
