@@ -109,6 +109,8 @@ function switchTab(tab) {
     const viewMap = { estoque: "produtos", fornecedores: "fornecedores", "notas-entrada": "notas-entrada", "estoque-op": "estoque" };
     // setEstoqueIntelView já chama renderEstoque() internamente
     if (typeof setEstoqueIntelView === "function") setEstoqueIntelView(viewMap[tab]);
+    // Notas de entrada tem render próprio além do renderEstoque
+    if (tab === "notas-entrada" && typeof renderNotasEntrada === "function") renderNotasEntrada();
   } else if (isFinanceiro) {
     // Mostrar tab-financeiro
     const finEl = document.getElementById("tab-financeiro");
@@ -3634,13 +3636,13 @@ function downloadModeloProdutos() {
   if (typeof XLSX === "undefined") { showToast("XLSX nao carregou.", 3000); return; }
   const wb = XLSX.utils.book_new();
   const wsData = [
-    ["Nome", "Unidade Base", "SKU", "NCM", "Categoria", "Origem (0-7)", "Embalagem", "Qtd Embalagem", "Preco Referencia"],
-    ["Arroz Tipo 1", "KG", "789001", "1006.30.00", "Graos/Cereais", 0, "Pacote 5kg", 5, 22.50],
-    ["File de Tilapia", "g", "789003", "0304.61.00", "Carnes/Proteinas", 0, "Pacote 1kg", 1000, 45.90],
-    ["Feijao Carioca", "KG", "789002", "0713.33.19", "Graos/Cereais", 0, "Pacote 1kg", 1, 8.90]
+    ["Nome", "Unidade Base", "SKU", "NCM", "Categoria", "Origem (0-7)", "Tipo (comum/critico)", "Embalagem", "Qtd Embalagem", "Preco Referencia"],
+    ["Arroz Tipo 1", "KG", "789001", "1006.30.00", "Graos/Cereais", 0, "critico", "Pacote 5kg", 5, 22.50],
+    ["Caneta Esferografica", "UN", "789003", "9608.10.00", "Outros", 0, "comum", "Caixa 50un", 50, 35.00],
+    ["Feijao Carioca", "KG", "789002", "0713.33.19", "Graos/Cereais", 0, "critico", "Pacote 1kg", 1, 8.90]
   ];
   const ws = XLSX.utils.aoa_to_sheet(wsData);
-  ws["!cols"] = [{wch:22},{wch:12},{wch:14},{wch:14},{wch:16},{wch:12},{wch:18},{wch:14},{wch:14}];
+  ws["!cols"] = [{wch:22},{wch:12},{wch:14},{wch:14},{wch:16},{wch:12},{wch:16},{wch:18},{wch:14},{wch:14}];
   XLSX.utils.book_append_sheet(wb, ws, "Produtos");
   const refData = [
     ["Codigo", "Descricao"],
@@ -3695,6 +3697,7 @@ function processarImportacaoProdutos(rows) {
     else if (hl.includes("ncm")) colMap.ncm = i;
     else if (hl.includes("categ")) colMap.categoria = i;
     else if (hl.includes("orig")) colMap.origem = i;
+    else if (hl.includes("tipo") || hl.includes("critico") || hl.includes("comum")) colMap.tipo = i;
     else if (hl.includes("embalag") && !hl.includes("qtd") && !hl.includes("prec")) colMap.embDescricao = i;
     else if (hl.includes("qtd")) colMap.embQtd = i;
     else if (hl.includes("prec") || hl.includes("valor")) colMap.embPreco = i;
@@ -3713,7 +3716,9 @@ function processarImportacaoProdutos(rows) {
     const errors = [];
     if (!nome) errors.push("Nome obrigatorio");
     if (!validOrigens.includes(origem)) errors.push("Origem invalida");
-    return { nome, unidade, sku, ncm, categoria, origem, embDescricao, embQtd, embPreco, errors };
+    const tipo = (r[colMap.tipo] || "comum").toString().trim().toLowerCase();
+    const produto_critico = tipo === "critico";
+    return { nome, unidade, sku, ncm, categoria, origem, produto_critico, embDescricao, embQtd, embPreco, errors };
   });
   const errorCount = parsed.filter(p => p.errors.length > 0).length;
   const validCount = parsed.length - errorCount;
@@ -3725,7 +3730,7 @@ function processarImportacaoProdutos(rows) {
   parsed.filter(p => p.errors.length === 0).forEach(p => {
     const prodId = genId("PROD");
     const autoSku = p.sku || gerarProximoSKU();
-    estoqueIntelProdutos.push({ id: prodId, nome: p.nome, unidade_base: p.unidade, sku: autoSku, ncm: p.ncm, categoria: p.categoria, origem: p.origem });
+    estoqueIntelProdutos.push({ id: prodId, nome: p.nome, unidade_base: p.unidade, sku: autoSku, ncm: p.ncm, categoria: p.categoria, origem: p.origem, produto_critico: p.produto_critico });
     if (p.embDescricao || p.embPreco) {
       estoqueIntelEmbalagens.push({ id: genId("EMB"), produto_id: prodId, descricao: p.embDescricao || p.nome, codigo_barras: autoSku, quantidade_base: p.embQtd, preco_referencia: p.embPreco });
     }

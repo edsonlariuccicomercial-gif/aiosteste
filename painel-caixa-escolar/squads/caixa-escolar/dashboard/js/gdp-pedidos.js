@@ -1641,19 +1641,18 @@ var _selectedPedidoIds = new Set();
 var _listaComprasData = [];
 var _selectedNotaFiscalIds = new Set();
 var PEDIDO_STATUS_TABS = [
-  { key: "em_aberto", label: "Em Aberto", className: "badge-yellow" },
-  { key: "separando", label: "Separando", className: "badge-blue" },
-  { key: "comprando", label: "Comprando", className: "badge-blue" },
   { key: "agendado", label: "Agendado", className: "badge-blue" },
+  { key: "em_aberto", label: "Em Aberto", className: "badge-yellow" },
+  { key: "comprando", label: "Comprando", className: "badge-blue" },
+  { key: "separando", label: "Separando", className: "badge-blue" },
   { key: "preparando_envio", label: "Preparando Envio", className: "badge-yellow" },
   { key: "pronto_para_envio", label: "Pronto para Envio", className: "badge-blue" },
   { key: "faturado", label: "Faturado", className: "badge-green" },
-  { key: "finalizado", label: "Finalizado", className: "badge-green" },
   { key: "entregue", label: "Entregue", className: "badge-green" },
   { key: "nao_entregue", label: "Não Entregue", className: "badge-red" },
   { key: "cancelado", label: "Cancelado", className: "badge-red" }
 ];
-var pedidoStatusTabAtual = "em_aberto";
+var pedidoStatusTabAtual = "agendado";
 var pedidoMenuAtualId = null;
 var pedidoStatusMenuExpandido = false;
 var pedidoEditId = null;
@@ -1690,7 +1689,8 @@ function normalizePedidoStatus(status) {
   if (normalized === "cancelado" || normalized === "cancelada") return "cancelado";
   if (normalized === "nao_entregue" || normalized === "devolvido") return "nao_entregue";
   // FR-009: novos status de execução
-  if (normalized === "separando" || normalized === "comprando" || normalized === "finalizado") return normalized;
+  if (normalized === "finalizado") return "entregue";
+  if (normalized === "separando" || normalized === "comprando") return normalized;
   return normalized;
 }
 

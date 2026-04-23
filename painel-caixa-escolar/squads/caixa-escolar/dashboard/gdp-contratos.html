@@ -998,7 +998,13 @@
       </div>
       <!-- Card Demandas removido (Épico A - FR-006) -->
       <div class="card" id="ei-card-movimentacoes" data-ei-section="estoque">
-        <h3 style="margin-bottom:.75rem">Entrada e Saida de Mercadorias</h3>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem;flex-wrap:wrap;gap:.5rem">
+          <h3 style="margin:0">Entrada e Saida de Mercadorias</h3>
+          <div style="display:flex;gap:.4rem">
+            <button class="btn btn-sm btn-outline" onclick="abrirInventario()" title="Atualizar estoque fisico">📋 Inventario</button>
+            <button class="btn btn-sm btn-outline" onclick="imprimirEstoqueCalculado()" title="Imprimir estoque">🖨️ Imprimir</button>
+          </div>
+        </div>
         <div data-ei-form style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:.75rem;align-items:end;margin-bottom:1rem">
           <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Produto</label><select id="ei-mov-produto"></select></div>
           <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Operacao</label><select id="ei-mov-operacao"><option value="entrada_mercadoria">Entrada Mercadoria</option><option value="saida_mercadoria">Saida Mercadoria</option><option value="entrega_direta">Entrega Direta</option></select></div>
@@ -1008,32 +1014,10 @@
         <div class="table-wrap" data-ei-table style="max-height:220px;overflow-y:auto"><table><thead><tr><th>Data</th><th>Produto</th><th>Op.</th><th class="text-right">Qtd</th><th>Origem</th></tr></thead><tbody id="ei-movimentacoes-tbody"></tbody></table></div>
       </div>
     </div>
-    <!-- Cards Compra Inteligente removidos (Épico A - FR-006) -->
-    <div class="card" id="ei-card-estoque-resumo" data-ei-section="estoque" style="margin-top:1rem">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem;flex-wrap:wrap;gap:.5rem">
-        <h3 style="margin:0">Estoque Calculado por Movimentacoes</h3>
-        <button class="btn btn-sm btn-outline" onclick="abrirInventario()" title="Atualizar estoque fisico de todos os produtos">📋 Inventário</button>
-        <button class="btn btn-sm btn-outline" onclick="imprimirEstoqueCalculado()" title="Imprimir estoque">🖨️ Imprimir</button>
-      </div>
-      <div style="display:flex;gap:.6rem;margin-bottom:.8rem;flex-wrap:wrap;align-items:center">
-        <div style="font-size:.75rem;color:var(--mut)">Filtrar comprometido:</div>
-        <input type="date" id="ei-estoque-filtro-data" onchange="renderEstoque()" placeholder="Data prevista" style="padding:.3rem .5rem;background:var(--s1);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:.8rem" title="Filtrar por data prevista de entrega">
-        <select id="ei-estoque-filtro-cliente" onchange="renderEstoque()" style="padding:.3rem .5rem;background:var(--s1);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:.8rem;min-width:160px"><option value="">Todos os clientes</option></select>
-        <button class="btn btn-sm btn-outline" onclick="document.getElementById('ei-estoque-filtro-data').value='';document.getElementById('ei-estoque-filtro-cliente').value='';renderEstoque()" style="font-size:.72rem">Limpar</button>
-      </div>
-      <div class="table-wrap" data-ei-table style="max-height:420px;overflow-y:auto"><table><thead><tr><th>Produto</th><th class="text-right">Fisico</th><th class="text-right">Comprometido</th><th class="text-right">Compr. Emb.</th><th class="text-right">Disponivel</th><th>Base</th></tr></thead><tbody id="ei-estoque-tbody"></tbody></table></div>
-    </div>
-    <div class="card" id="ei-card-gdp-estoque" data-ei-section="estoque" style="margin-top:1rem">
-      <h3 style="margin-bottom:.75rem">Estoque Simples (Equivalencias)</h3>
-      <div style="font-size:.8rem;color:var(--mut);margin-bottom:.75rem">Cadastro de produtos e controle de estoque simplificado.</div>
-      <div class="table-wrap" data-ei-table style="max-height:250px;overflow-y:auto">
-        <table>
-          <thead><tr><th>SKU</th><th>Produto</th><th>Base</th><th>Embalagem</th><th class="text-right">Qtd</th><th class="text-right">Comprometido</th><th class="text-right">Disponivel</th><th class="text-center">Acao</th></tr></thead>
-          <tbody id="ei-gdp-estoque-tbody"></tbody>
-        </table>
-      </div>
-      <p id="ei-gdp-estoque-empty" style="display:none;text-align:center;padding:.6rem;color:var(--mut);font-size:.85rem">Estoque vazio.</p>
-    </div>
+    <!-- Cards "Estoque Calculado" e "Estoque Simples" removidos — manter apenas Entrada/Saída + Inventário -->
+    <!-- tbody mantido oculto para compatibilidade JS -->
+    <div style="display:none"><table><tbody id="ei-estoque-tbody"></tbody></table><table><tbody id="ei-gdp-estoque-tbody"></tbody></table><p id="ei-gdp-estoque-empty"></p></div>
+    <!-- Botão Inventário movido para card Entrada/Saída -->
     <!-- ei-grid-secundario (Compra Inteligente) removido (Épico A - FR-006) -->
     <!-- Lista Compras legacy removida (Épico A - FR-006) -->
     <!-- Notas de Entrada -->
