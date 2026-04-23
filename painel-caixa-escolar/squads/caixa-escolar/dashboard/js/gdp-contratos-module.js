@@ -2350,7 +2350,7 @@ function visualizarVinculos(contratoId) {
     const tipo = manualSku ? '<span style="color:var(--green)">Manual</span>' : (autoSku ? '<span style="color:var(--yellow)">Auto</span>' : '<span style="color:var(--red)">Sem vínculo</span>');
     return `<tr>
       <td>${item.num}</td>
-      <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(item.descricao)}">${esc(item.descricao)}</td>
+      <td style="max-width:320px;white-space:normal;word-break:break-word;line-height:1.3">${esc(item.descricao)}</td>
       <td class="text-center">${tipo}</td>
       <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(prodNome)}">${prodNome ? esc(prodNome) : '—'}</td>
       <td style="font-family:monospace;font-size:.72rem;color:var(--dim)">${esc(sku) || '—'}</td>
@@ -2824,7 +2824,7 @@ function abrirContrato(id) {
           return `<tr>
             <td class="text-center"><input type="checkbox" class="item-check-${c.id}" data-idx="${idx}" onchange="atualizarSelecaoItens('${c.id}')"></td>
             <td class="text-center">${item.num}</td>
-            <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(item.descricao)}"><span title="${item.sku ? 'SKU disponível para pedido/NF' : 'SKU pendente de geração interna'}" style="font-size:.6rem;margin-right:.3rem">${item.sku ? '🟢' : '🟡'}</span>${esc(item.descricao)}</td>
+            <td style="max-width:320px;white-space:normal;word-break:break-word;line-height:1.3"><span title="${item.sku ? 'SKU disponível para pedido/NF' : 'SKU pendente de geração interna'}" style="font-size:.6rem;margin-right:.3rem">${item.sku ? '🟢' : '🟡'}</span>${esc(item.descricao)}</td>
             <td style="min-width:130px">${equivSku
               ? '<div style="display:flex;align-items:center;gap:.3rem"><span style="color:var(--green);font-size:.74rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px" title="' + esc(equivNome + ' (' + equivSku + ')') + '">&#10003; ' + esc(equivNome.length > 18 ? equivNome.slice(0,16) + '..' : equivNome) + '</span><button style="background:none;border:none;cursor:pointer;font-size:.68rem;color:var(--blue);padding:0" onclick="abrirVincularGDP(\'' + c.id + '\',' + idx + ')" title="Alterar vinculo">&#9998;</button></div>'
               : '<button class="btn btn-sm" style="font-size:.72rem;padding:.15rem .4rem;background:rgba(139,92,246,.15);color:var(--purple);border:none;cursor:pointer" onclick="abrirVincularGDP(\'' + c.id + '\',' + idx + ')" title="Vincular produto cadastrado">Vincular</button>'

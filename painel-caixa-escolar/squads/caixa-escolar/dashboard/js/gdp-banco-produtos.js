@@ -171,6 +171,10 @@ function novoProdutoManual() {
   document.getElementById("prod-sku").value = "";
   document.getElementById("prod-ncm").value = "";
   document.getElementById("prod-unidade").value = "";
+  const criticoEl = document.getElementById("prod-critico");
+  if (criticoEl) criticoEl.checked = false;
+  const radioComum = document.querySelector('input[name="prod-tipo"][value="comum"]');
+  if (radioComum) radioComum.checked = true;
   document.getElementById("modal-produto").classList.remove("hidden");
 }
 
@@ -184,9 +188,14 @@ function editarProduto(id) {
   document.getElementById("prod-sku").value = p.sku || "";
   document.getElementById("prod-ncm").value = p.ncm || "";
   document.getElementById("prod-unidade").value = p.unidade || "";
-  // FR-013: Produto crítico
+  // FR-004: Produto comum/crítico
   const criticoEl = document.getElementById("prod-critico");
   if (criticoEl) criticoEl.checked = !!p.produto_critico;
+  const radioComum = document.querySelector('input[name="prod-tipo"][value="comum"]');
+  const radioCritico = document.querySelector('input[name="prod-tipo"][value="critico"]');
+  if (radioComum && radioCritico) {
+    if (p.produto_critico) { radioCritico.checked = true; } else { radioComum.checked = true; }
+  }
   document.getElementById("modal-produto").classList.remove("hidden");
 }
 

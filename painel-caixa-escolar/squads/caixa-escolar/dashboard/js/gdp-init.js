@@ -78,10 +78,9 @@ function switchTab(tab) {
   const labels = {
     usuarios: "Clientes",
     "notas-entrada": "Notas de Entrada",
-    estoque: "Produtos & Estoque",  // FR-015: renomeado de "Estoque Intel"
+    estoque: "Central de Preços",
     contratos: "Contratos",
     pedidos: "Pedidos",
-    entregas: "Entregas",
     "notas-fiscais": "Notas Fiscais",
     "contas-pagar": "Contas a Pagar",
     "contas-receber": "Contas a Receber",
@@ -90,7 +89,7 @@ function switchTab(tab) {
     importar: "Importar Contrato"
   };
   if (title) title.textContent = labels[tab] || "Contratos";
-  ["importar","contratos","itens","usuarios","pedidos","notas-fiscais","contas-pagar","contas-receber","caixa","relatorios","notas-entrada","estoque","entregas"].forEach(t => {
+  ["importar","contratos","itens","usuarios","pedidos","notas-fiscais","contas-pagar","contas-receber","caixa","relatorios","notas-entrada","estoque"].forEach(t => {
     document.getElementById(`tab-${t}`).classList.toggle("hidden", t !== tab);
   });
   if (tab === "contratos") renderContratos();
@@ -101,7 +100,14 @@ function switchTab(tab) {
   if (tab === "contas-receber") renderContasReceber();
   if (tab === "caixa") renderCaixa();
   if (tab === "relatorios") renderRelatorios();
-  if (tab === "notas-entrada") renderNotasEntrada();
+  if (tab === "notas-entrada") {
+    // Notas de Entrada está dentro de tab-estoque como sub-view
+    document.getElementById("tab-estoque").classList.remove("hidden");
+    document.getElementById("tab-notas-entrada").classList.add("hidden");
+    renderEstoque();
+    if (typeof setEstoqueIntelView === "function") setEstoqueIntelView("notas-entrada");
+    return;
+  }
   if (tab === "estoque") renderEstoque();
   if (tab === "usuarios") renderUsuarios();
 }
@@ -1983,7 +1989,6 @@ function renderAll() {
   renderCaixa();
   renderRelatorios();
   renderEstoque();
-  renderEntregas();
   // Update banco tab count even when not on banco tab
   const bpCount = document.getElementById("tab-count-banco-produtos");
   if (bpCount) bpCount.textContent = bancoProdutos.itens.length;

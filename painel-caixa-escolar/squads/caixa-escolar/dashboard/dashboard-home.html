@@ -111,6 +111,48 @@
       <!-- KPI Cards -->
       <div class="kpi-grid-home" id="kpi-grid"></div>
 
+      <!-- FR-015: Resumos financeiros -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:2rem">
+        <!-- FATURAMENTO -->
+        <div style="background:var(--card);border:1px solid var(--line);border-radius:16px;padding:1.5rem">
+          <h3 style="font-size:.75rem;text-transform:uppercase;color:var(--muted);letter-spacing:.06em;margin-bottom:1rem">Faturamento</h3>
+          <div style="display:grid;gap:.8rem">
+            <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:.85rem;color:var(--muted)">Faturamento Mensal</span><strong style="font-size:1.6rem;color:#22c55e" id="dash-fat-mensal">R$ 0</strong></div>
+            <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:.85rem;color:var(--muted)">Faturamento Semanal</span><strong style="font-size:1.1rem;color:#3b82f6" id="dash-fat-semanal">R$ 0</strong></div>
+            <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:.85rem;color:var(--muted)">Crescimento vs anterior</span><strong style="font-size:1rem" id="dash-fat-crescimento">0%</strong></div>
+          </div>
+        </div>
+        <!-- PEDIDOS -->
+        <div style="background:var(--card);border:1px solid var(--line);border-radius:16px;padding:1.5rem">
+          <h3 style="font-size:.75rem;text-transform:uppercase;color:var(--muted);letter-spacing:.06em;margin-bottom:1rem">Pedidos</h3>
+          <div style="display:grid;gap:.8rem">
+            <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:.85rem;color:var(--muted)">Pedidos da Semana</span><strong style="font-size:1.3rem;color:#8b5cf6" id="dash-ped-semana">0</strong></div>
+            <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:.85rem;color:var(--muted)">Volume (qtd total)</span><strong id="dash-ped-volume">0</strong></div>
+            <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:.85rem;color:var(--muted)">Ticket Medio</span><strong style="color:#22c55e" id="dash-ped-ticket">R$ 0</strong></div>
+          </div>
+        </div>
+        <!-- CONTAS A RECEBER -->
+        <div style="background:var(--card);border:1px solid var(--line);border-radius:16px;padding:1.5rem">
+          <h3 style="font-size:.75rem;text-transform:uppercase;color:var(--muted);letter-spacing:.06em;margin-bottom:1rem">Contas a Receber</h3>
+          <div style="display:grid;gap:.8rem">
+            <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:.85rem;color:var(--muted)">Receber Hoje</span><strong style="color:#eab308" id="dash-cr-hoje">R$ 0</strong></div>
+            <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:.85rem;color:var(--muted)">Receber na Semana</span><strong id="dash-cr-semana">R$ 0</strong></div>
+            <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:.85rem;color:var(--muted)">Receber no Mes</span><strong id="dash-cr-mes">R$ 0</strong></div>
+            <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:.85rem;color:var(--muted)">Atrasados</span><strong style="color:#ef4444;font-size:1.1rem" id="dash-cr-atrasados">R$ 0</strong></div>
+          </div>
+        </div>
+        <!-- CONTAS A PAGAR -->
+        <div style="background:var(--card);border:1px solid var(--line);border-radius:16px;padding:1.5rem">
+          <h3 style="font-size:.75rem;text-transform:uppercase;color:var(--muted);letter-spacing:.06em;margin-bottom:1rem">Contas a Pagar</h3>
+          <div style="display:grid;gap:.8rem">
+            <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:.85rem;color:var(--muted)">Pagar Hoje</span><strong style="color:#eab308" id="dash-cp-hoje">R$ 0</strong></div>
+            <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:.85rem;color:var(--muted)">Pagar na Semana</span><strong id="dash-cp-semana">R$ 0</strong></div>
+            <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:.85rem;color:var(--muted)">Pagar no Mes</span><strong id="dash-cp-mes">R$ 0</strong></div>
+            <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:.85rem;color:var(--muted)">Alertas de Vencimento</span><strong style="color:#ef4444" id="dash-cp-alertas">0</strong></div>
+          </div>
+        </div>
+      </div>
+
       <!-- Globe Section — Interactive Canvas -->
       <div class="globe-section">
         <h2>Áreas de Atuação — SREs</h2>

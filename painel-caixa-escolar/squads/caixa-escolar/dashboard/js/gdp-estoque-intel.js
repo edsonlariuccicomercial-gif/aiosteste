@@ -149,7 +149,30 @@ function normalizeEstoqueIntelMatchText(value) {
     .trim();
 }
 
-function parseQuantidadeBaseFromText(text, unidadeBase) {
+// FR-005: Verifica se produto é crítico (requer conversão de gramatura)
+function isProdutoCritico(produtoId) {
+  if (!produtoId) return false;
+  // Buscar no banco de produtos (Central de Preços)
+  if (typeof bancoProdutos !== 'undefined' && bancoProdutos.itens) {
+    const bp = bancoProdutos.itens.find(p => p.id === produtoId || p.sku === produtoId);
+    if (bp) return !!bp.produto_critico;
+  }
+  // Buscar no estoque intel (pode ter flag próprio)
+  const prodIntel = estoqueIntelProdutos.find(p => p.id === produtoId);
+  if (prodIntel) return !!prodIntel.produto_critico;
+  return false;
+}
+
+function parseQuantidadeBaseFromText(text, unidadeBase, produtoId) {
+  // FR-005: Só faz conversão de gramatura se produto é crítico
+  if ((unidadeBase === "g" || unidadeBase === "ml") && produtoId && !isProdutoCritico(produtoId)) {
+    // Produto comum — não converter gramatura, extrair número simples
+    const preNorm = String(text || "").replace(/(\d)[,.](\d)/g, "$1DECIMALSEP$2");
+    const normalized = normalizeEstoqueIntelMatchText(preNorm).replace(/decimalsep/g, ".");
+    const numMatch = normalized.match(/(\d+(?:\.\d+)?)\s*(un|cx|dz|pct|fd|bd|pt|sc|rs|rl|fr|tb|gf|la|mç|kg|g|ml|l)\b/i);
+    if (numMatch) return Number(numMatch[1]);
+    return 0;
+  }
   // Preservar decimais: converter "1,02" → "1.02" e normalizar mantendo pontos decimais
   const preNorm = String(text || "").replace(/(\d)[,.](\d)/g, "$1DECIMALSEP$2");
   const normalized = normalizeEstoqueIntelMatchText(preNorm).replace(/decimalsep/g, ".");
@@ -208,7 +231,7 @@ function resolveEstoqueIntelMatchFromPedidoItem(item = {}) {
         const prodVinc = estoqueIntelProdutos.find(p => p.sku === ctrItem.skuVinculado || p.id === ctrItem.skuVinculado);
         if (prodVinc) {
           const embVinc = estoqueIntelEmbalagens.find(e => e.produto_id === prodVinc.id);
-          const qtdTexto = parseQuantidadeBaseFromText(textoBase, prodVinc.unidade_base) || parseQuantidadeBaseFromText(ctrItem.descricao, prodVinc.unidade_base) || (embVinc ? Number(embVinc.quantidade_base || 1) : 1);
+          const qtdTexto = parseQuantidadeBaseFromText(textoBase, prodVinc.unidade_base, prodVinc.id) || parseQuantidadeBaseFromText(ctrItem.descricao, prodVinc.unidade_base, prodVinc.id) || (embVinc ? Number(embVinc.quantidade_base || 1) : 1);
           return { produto: prodVinc, embalagem: embVinc || null, quantidadeBaseUnit: qtdTexto };
         }
       }
@@ -238,12 +261,12 @@ function resolveEstoqueIntelMatchFromPedidoItem(item = {}) {
     if (prodIntel) {
       const embsIntel = estoqueIntelEmbalagens.filter(e => e.produto_id === prodIntel.id);
       // Extrair gramatura do TEXTO DO PEDIDO ou da CHAVE DA EQUIVALÊNCIA
-      let qtdDoTexto = parseQuantidadeBaseFromText(textoBase, prodIntel.unidade_base);
+      let qtdDoTexto = parseQuantidadeBaseFromText(textoBase, prodIntel.unidade_base, prodIntel.id);
       if (!qtdDoTexto) {
         // Tentar extrair da descrição original do contrato (que pode ter "500 gr")
         const equivKeys = Object.keys(gdpEquivalencias).filter(k => gdpEquivalencias[k] === equivSku);
         for (const ek of equivKeys) {
-          qtdDoTexto = parseQuantidadeBaseFromText(ek, prodIntel.unidade_base);
+          qtdDoTexto = parseQuantidadeBaseFromText(ek, prodIntel.unidade_base, prodIntel.id);
           if (qtdDoTexto) break;
         }
       }
@@ -272,7 +295,7 @@ function resolveEstoqueIntelMatchFromPedidoItem(item = {}) {
   });
   const produto = candidatos[0] || null;
   if (!produto) return null;
-  let quantidadeBaseUnit = parseQuantidadeBaseFromText(textoBase, produto.unidade_base);
+  let quantidadeBaseUnit = parseQuantidadeBaseFromText(textoBase, produto.unidade_base, produto.id);
   // Fallback: se não extraiu gramatura do texto, usar embalagem cadastrada
   if (!quantidadeBaseUnit) {
     const embFallback = estoqueIntelEmbalagens.find(e => e.produto_id === produto.id);
@@ -507,7 +530,6 @@ function limparReservasTesteEstoqueIntel() {
     estoqueIntelListaDemandaContextoId = "";
   }
   renderEstoque();
-  if (typeof renderEntregas === "function") renderEntregas();
   showToast(`${idsTeste.size} reserva(s) de teste removida(s).`, 3500);
 }
 

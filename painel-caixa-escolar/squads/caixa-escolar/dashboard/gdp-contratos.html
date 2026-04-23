@@ -213,8 +213,9 @@
           <button class="sidebar-subitem active" data-gdp-tab="contratos" onclick="switchTab('contratos')"><span class="sidebar-subitem-label">Contratos</span><span class="count" id="tab-count-contratos">0</span></button>
           <button class="sidebar-subitem" data-gdp-tab="pedidos" onclick="switchTab('pedidos')" style="font-weight:800"><span class="sidebar-subitem-label" style="font-size:.95rem">Pedidos</span><span class="count" id="tab-count-pedidos" style="background:var(--green);color:#fff;font-weight:800">0</span></button>
           <button class="sidebar-subitem" data-gdp-tab="notas-fiscais" onclick="switchTab('notas-fiscais')"><span class="sidebar-subitem-label">Notas Fiscais</span><span class="count" id="tab-count-notas-fiscais">0</span></button>
-          <button class="sidebar-subitem" data-gdp-tab="estoque" onclick="switchTab('estoque')"><span class="sidebar-subitem-label">Produtos & Estoque</span><span class="count" id="tab-count-estoque">0</span></button>
-          <button class="sidebar-subitem" data-gdp-tab="entregas" onclick="switchTab('entregas')"><span class="sidebar-subitem-label">Entregas</span><span class="count" id="tab-count-entregas">0</span></button>
+          <button class="sidebar-subitem" data-gdp-tab="estoque" onclick="switchTab('estoque')"><span class="sidebar-subitem-label">Central de Preços</span><span class="count" id="tab-count-estoque">0</span></button>
+          <button class="sidebar-subitem" data-gdp-tab="notas-entrada" onclick="switchTab('notas-entrada')"><span class="sidebar-subitem-label">Notas de Entrada</span><span class="count" id="tab-count-notas-entrada">0</span></button>
+          <div class="sidebar-subnav-label" style="margin-top:8px;font-size:.65rem;letter-spacing:.08em;opacity:.6">FINANCEIRO</div>
           <button class="sidebar-subitem" data-gdp-tab="caixa" onclick="switchTab('caixa')"><span class="sidebar-subitem-label">Caixa</span><span class="count" id="tab-count-caixa">0</span></button>
           <button class="sidebar-subitem" data-gdp-tab="contas-pagar" onclick="switchTab('contas-pagar')"><span class="sidebar-subitem-label">Contas a Pagar</span><span class="count" id="tab-count-contas-pagar">0</span></button>
           <button class="sidebar-subitem" data-gdp-tab="contas-receber" onclick="switchTab('contas-receber')"><span class="sidebar-subitem-label">Contas a Receber</span><span class="count" id="tab-count-contas-receber">0</span></button>
@@ -255,7 +256,7 @@
     <div class="kpi"><div class="kpi-label">Contratos Ativos</div><div class="kpi-value blue" id="kpi-contratos">0</div><div class="kpi-sub">Em vigencia</div></div>
     <div class="kpi"><div class="kpi-label">Itens Contratados</div><div class="kpi-value purple" id="kpi-itens">0</div><div class="kpi-sub">Total de itens ganhos</div></div>
     <div class="kpi"><div class="kpi-label">Valor Total Contratado</div><div class="kpi-value green" id="kpi-valor">R$&nbsp;0,00</div><div class="kpi-sub">Soma de todos os contratos</div></div>
-    <div class="kpi"><div class="kpi-label">Entregas Pendentes</div><div class="kpi-value yellow" id="kpi-pendentes">0</div><div class="kpi-sub">Itens com saldo a entregar</div></div>
+    <div class="kpi"><div class="kpi-label">Saldo a Entregar</div><div class="kpi-value yellow" id="kpi-pendentes">0</div><div class="kpi-sub">Itens com saldo pendente</div></div>
   </div>
 
   <!-- Tab: Contratos -->
@@ -594,9 +595,10 @@
       </div>
     </div>
     <div class="kpi-grid" style="margin-bottom:1rem">
-      <div class="kpi"><div class="kpi-label">Em Aberto</div><div class="kpi-value yellow" id="cp-kpi-aberto">R$&nbsp;0,00</div><div class="kpi-sub">Contas pendentes</div></div>
-      <div class="kpi"><div class="kpi-label">Pagas</div><div class="kpi-value green" id="cp-kpi-pago">R$&nbsp;0,00</div><div class="kpi-sub">Baixadas manualmente</div></div>
-      <div class="kpi"><div class="kpi-label">Atrasadas</div><div class="kpi-value red" id="cp-kpi-atrasadas">0</div><div class="kpi-sub">Contas vencidas</div></div>
+      <div class="kpi"><div class="kpi-label">Contas do Mes</div><div class="kpi-value blue" id="cp-kpi-mes">R$&nbsp;0,00</div><div class="kpi-sub">Total previsto no mes</div></div>
+      <div class="kpi"><div class="kpi-label">Pago no Mes</div><div class="kpi-value green" id="cp-kpi-pago">R$&nbsp;0,00</div><div class="kpi-sub">Pagamentos realizados</div></div>
+      <div class="kpi"><div class="kpi-label">A Pagar</div><div class="kpi-value yellow" id="cp-kpi-aberto">R$&nbsp;0,00</div><div class="kpi-sub">Contas pendentes</div></div>
+      <div class="kpi"><div class="kpi-label">Em Atraso</div><div class="kpi-value red" id="cp-kpi-atrasadas">0</div><div class="kpi-sub">Contas vencidas</div></div>
     </div>
     <div style="display:flex;justify-content:space-between;gap:.8rem;align-items:center;margin-bottom:1rem;flex-wrap:wrap">
       <div style="display:flex;gap:.8rem;align-items:center;flex-wrap:wrap">
@@ -653,8 +655,58 @@
 
   <!-- Tab: Contas a Receber -->
   <div id="tab-contas-receber" class="hidden">
-    <div class="card" style="padding:1rem">
-      <div style="font-size:.82rem;color:var(--mut)">Gerencie suas contas a receber. Use <strong>Cobrar</strong> para disparo de cobranca, <strong>Receber</strong> para registrar recebimento e os <strong>checkboxes</strong> para acoes em lote.</div>
+    <!-- FR-009: Resumos de vencimento -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+      <div class="card" style="padding:1rem;border-left:4px solid var(--yellow);cursor:pointer" onclick="filtrarContasReceberVencendo('hoje')">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div style="font-size:.75rem;text-transform:uppercase;color:var(--mut);font-weight:700;letter-spacing:.05em">Vencendo Hoje</div>
+            <div style="font-size:1.4rem;font-weight:800;color:var(--yellow);margin-top:.3rem" id="cr-vencendo-hoje-valor">R$ 0,00</div>
+            <div style="font-size:.75rem;color:var(--mut);margin-top:.2rem"><span id="cr-vencendo-hoje-qtd">0</span> titulo(s)</div>
+          </div>
+          <div style="display:flex;gap:.4rem;flex-direction:column">
+            <button class="btn btn-sm btn-outline" onclick="event.stopPropagation();enviarLembreteVencendoHoje('whatsapp')" title="Enviar lembrete por WhatsApp" style="font-size:.7rem;padding:.2rem .5rem">📱 WhatsApp</button>
+            <button class="btn btn-sm btn-outline" onclick="event.stopPropagation();enviarLembreteVencendoHoje('email')" title="Enviar lembrete por Email" style="font-size:.7rem;padding:.2rem .5rem">📧 Email</button>
+          </div>
+        </div>
+      </div>
+      <div class="card" style="padding:1rem;border-left:4px solid var(--red);cursor:pointer" onclick="filtrarContasReceberVencendo('vencidas')">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div style="font-size:.75rem;text-transform:uppercase;color:var(--mut);font-weight:700;letter-spacing:.05em">Contas Vencidas</div>
+            <div style="font-size:1.4rem;font-weight:800;color:var(--red);margin-top:.3rem" id="cr-vencidas-valor">R$ 0,00</div>
+            <div style="font-size:.75rem;color:var(--mut);margin-top:.2rem"><span id="cr-vencidas-qtd">0</span> titulo(s) em atraso</div>
+          </div>
+          <div style="display:flex;gap:.4rem;flex-direction:column">
+            <button class="btn btn-sm btn-outline" onclick="event.stopPropagation();enviarCobrancaVencidas('whatsapp')" title="Enviar cobranca por WhatsApp com boleto" style="font-size:.7rem;padding:.2rem .5rem">📱 Cobrar</button>
+            <button class="btn btn-sm btn-outline" onclick="event.stopPropagation();enviarCobrancaVencidas('email')" title="Enviar cobranca por Email com boleto" style="font-size:.7rem;padding:.2rem .5rem">📧 Cobrar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- FR-009: Lista expandida de contas vencendo/vencidas -->
+    <div id="cr-lista-vencimento" class="hidden" style="margin-bottom:1rem">
+      <div class="card" style="padding:1rem">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem">
+          <h3 id="cr-lista-vencimento-titulo" style="margin:0;font-size:.95rem">Contas Vencendo Hoje</h3>
+          <button class="btn btn-outline btn-sm" onclick="fecharListaVencimento()">Fechar</button>
+        </div>
+        <div class="table-wrap" style="max-height:400px;overflow-y:auto">
+          <table>
+            <thead>
+              <tr>
+                <th>Cliente</th>
+                <th>Descricao</th>
+                <th>Vencimento</th>
+                <th class="text-right">Valor</th>
+                <th>Forma</th>
+                <th class="text-center">Acoes</th>
+              </tr>
+            </thead>
+            <tbody id="cr-lista-vencimento-tbody"></tbody>
+          </table>
+        </div>
+      </div>
     </div>
     <div class="hidden" id="cr-form-card" style="position:fixed;inset:0;background:rgba(8,15,31,.88);z-index:1012;padding:1.25rem;overflow-y:auto" onclick="toggleContaReceberForm(false)">
       <div style="background:var(--bg);border:1px solid var(--bdr);border-radius:18px;min-height:calc(100vh - 2.5rem);display:flex;flex-direction:column" onclick="event.stopPropagation()">
@@ -681,9 +733,9 @@
       </div>
     </div>
     <div class="kpi-grid" style="margin-bottom:1rem">
+      <div class="kpi"><div class="kpi-label">Faturamento do Mes</div><div class="kpi-value blue" id="cr-kpi-conciliacao">R$&nbsp;0,00</div><div class="kpi-sub">Total faturado no periodo</div></div>
       <div class="kpi"><div class="kpi-label">A Receber</div><div class="kpi-value yellow" id="cr-kpi-aberto">R$&nbsp;0,00</div><div class="kpi-sub">Titulos pendentes</div></div>
-      <div class="kpi"><div class="kpi-label">Recebido</div><div class="kpi-value green" id="cr-kpi-recebido">R$&nbsp;0,00</div><div class="kpi-sub">Baixas registradas</div></div>
-      <div class="kpi"><div class="kpi-label">Conciliacao</div><div class="kpi-value blue" id="cr-kpi-conciliacao">0</div><div class="kpi-sub">Titulos aguardando retorno do banco</div></div>
+      <div class="kpi"><div class="kpi-label">Recebido no Mes</div><div class="kpi-value green" id="cr-kpi-recebido">R$&nbsp;0,00</div><div class="kpi-sub">Recebimentos no mes atual</div></div>
       <div class="kpi"><div class="kpi-label">Em Atraso</div><div class="kpi-value red" id="cr-kpi-atrasadas">0</div><div class="kpi-sub">Titulos vencidos</div></div>
     </div>
     <div style="display:flex;justify-content:space-between;gap:.8rem;align-items:center;margin-bottom:1rem;flex-wrap:wrap">
@@ -746,8 +798,8 @@
     <div class="card" style="padding:1rem">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap">
         <div>
-          <h2 style="margin-bottom:.35rem">Conciliacao Bancaria Automatizada</h2>
-          <div style="font-size:.82rem;color:var(--mut)">Concilia por API os titulos do sistema e tambem um extrato bancario completo. Quando o provider nao estiver configurado, o GDP usa a API interna em modo estruturado para simular e validar o fluxo.</div>
+          <h2 style="margin-bottom:.35rem">Conciliacao Bancaria — API Inter</h2>
+          <div style="font-size:.82rem;color:var(--mut)">Concilia automaticamente o extrato do Banco Inter com os titulos do sistema. Configure <code>INTER_CLIENT_ID</code> e <code>INTER_CLIENT_SECRET</code> nas variaveis de ambiente do Vercel.</div>
         </div>
         <div style="display:flex;gap:.5rem;flex-wrap:wrap">
           <button class="btn btn-outline" onclick="sincronizarExtratoCaixaViaApi()">Sincronizar Extrato via API</button>
@@ -887,15 +939,12 @@
         </div>
         <div style="display:flex;gap:.5rem;flex-wrap:wrap">
           <button class="btn btn-outline btn-sm" onclick="window.location.href='gdp-estoque-intel-mobile.html'">Abrir App Mobile</button>
-          <button class="btn btn-outline btn-sm" onclick="syncPedidosGDPToEstoqueIntel(false)">Sincronizar Pedidos GDP</button>
           <button class="btn btn-outline btn-sm" onclick="syncEstoqueIntelApi()">Sincronizar API</button>
         </div>
       </div>
       <div class="estoque-intel-nav" style="margin-top:1rem">
-        <button class="btn btn-green btn-sm" id="ei-view-btn-pedidos" onclick="setEstoqueIntelView('pedidos')">Demandas</button>
-        <button class="btn btn-outline btn-sm" id="ei-view-btn-produtos" onclick="setEstoqueIntelView('produtos')">Produtos</button>
+        <button class="btn btn-green btn-sm" id="ei-view-btn-produtos" onclick="setEstoqueIntelView('produtos')">Produtos</button>
         <button class="btn btn-outline btn-sm" id="ei-view-btn-fornecedores" onclick="setEstoqueIntelView('fornecedores')">Fornecedores</button>
-        <button class="btn btn-outline btn-sm" id="ei-view-btn-compra" onclick="setEstoqueIntelView('compra')">Compra Inteligente</button>
         <button class="btn btn-outline btn-sm" id="ei-view-btn-notas-entrada" onclick="setEstoqueIntelView('notas-entrada')">Notas de Entrada</button>
         <button class="btn btn-outline btn-sm" id="ei-view-btn-estoque" onclick="setEstoqueIntelView('estoque')">Estoque</button>
         <button class="btn btn-red btn-sm" onclick="limparProdutosEstoqueIntel()" title="Limpar todos os produtos, embalagens e movimentações" style="margin-left:auto">Limpar Produtos</button>
@@ -905,7 +954,7 @@
     <div class="kpi-grid" style="margin-bottom:1rem">
       <div class="kpi"><div class="kpi-label">Produtos</div><div class="kpi-value blue" id="est-intel-kpi-produtos">0</div><div class="kpi-sub">Catalogo base</div></div>
       <div class="kpi"><div class="kpi-label">Embalagens</div><div class="kpi-value yellow" id="est-intel-kpi-embalagens">0</div><div class="kpi-sub">Variacoes por gramatura/ml</div></div>
-      <div class="kpi"><div class="kpi-label">Demandas</div><div class="kpi-value green" id="est-intel-kpi-pedidos">0</div><div class="kpi-sub">Reservas e necessidades</div></div>
+      <div class="kpi"><div class="kpi-label">Compras</div><div class="kpi-value green" id="est-intel-kpi-pedidos">0</div><div class="kpi-sub">Pedidos de compra</div></div>
       <div class="kpi"><div class="kpi-label">Movimentacoes</div><div class="kpi-value red" id="est-intel-kpi-mov">0</div><div class="kpi-sub">Fisico e comprometido</div></div>
     </div>
     <div id="ei-grid-principal" style="display:grid;grid-template-columns:1fr;gap:1rem;align-items:start">
@@ -935,47 +984,7 @@
         </div>
         <div class="table-wrap" data-ei-table style="max-height:220px;overflow-y:auto"><table><thead><tr><th>Produto</th><th>Descricao</th><th>Barras</th><th class="text-right">Qtd Base</th><th class="text-right">Preco Padrao</th><th class="text-right">Acoes</th></tr></thead><tbody id="ei-embalagens-tbody"></tbody></table></div>
       </div>
-      <div class="card" id="ei-card-pedidos" data-ei-section="pedidos">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap;margin-bottom:.75rem">
-          <div>
-            <h3 style="margin-bottom:.35rem">Demandas do Estoque</h3>
-            <div style="font-size:.8rem;color:var(--mut)">Aqui entram demandas manuais e demandas sincronizadas dos pedidos reais do Portal Escolar e de Contratos.</div>
-          </div>
-          <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center">
-            <button class="btn btn-green btn-sm" onclick="toggleFormDemandaManual()">+ Demanda Manual</button>
-            <span class="badge badge-yellow">Reserva</span>
-            <button class="btn btn-outline btn-sm" onclick="limparVisualizacaoDemandasEstoqueIntel()">Voltar</button>
-          </div>
-        </div>
-        <div id="ei-form-demanda-manual" data-ei-form style="display:none"></div>
-        <div style="border:1px solid rgba(59,130,246,.18);border-radius:14px;padding:1rem;background:linear-gradient(180deg,rgba(59,130,246,.06),rgba(59,130,246,.02));margin-bottom:1rem">
-          <div style="display:flex;justify-content:space-between;align-items:center;gap:.75rem;margin-bottom:.75rem;flex-wrap:wrap">
-            <div>
-              <div style="font-size:.82rem;font-weight:700">Demandas Geradas</div>
-              <div style="font-size:.76rem;color:var(--mut)">Abra uma demanda para visualizar a reserva, os itens vinculados e enviar para compra.</div>
-            </div>
-            <div style="display:flex;gap:.75rem;align-items:center;flex-wrap:wrap">
-              <div>
-                <label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.2rem">Filtrar reserva</label>
-                <select id="ei-pedidos-reserva-filtro" onchange="estoqueIntelFiltroReservaStatus=this.value;renderEstoque()" style="min-width:180px">
-                  <option value="">Todas</option>
-                  <option value="reservada">Aguardando entrega</option>
-                  <option value="baixada">Entrega baixada</option>
-                  <option value="encerrada_manual">Reserva cancelada</option>
-                </select>
-              </div>
-              <span class="badge badge-blue" id="ei-demandas-geradas-count">0</span>
-            </div>
-          </div>
-          <div class="table-wrap" data-ei-table style="max-height:360px;overflow-y:auto"><table><thead><tr><th style="width:30px"><input type="checkbox" id="demandas-select-all" onchange="toggleSelectAllDemandas()"></th><th>Demanda</th><th>Origem</th><th>Produto</th><th class="text-right">Qtd Base</th><th>Status</th><th>Data</th><th class="text-right">Acoes</th></tr></thead><tbody id="ei-pedidos-tbody"></tbody></table></div>
-          <div id="demandas-bulk-actions" class="hidden" style="margin-top:.6rem;padding:.6rem 1rem;border:1px solid var(--bdr);border-radius:10px;background:var(--s2);display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap">
-            <span id="demandas-bulk-count" style="font-size:.82rem;color:var(--mut);font-weight:700">0 demanda(s) selecionada(s)</span>
-            <button class="btn btn-blue btn-sm" onclick="gerarListaComprasDeDemandas()">Gerar Lista de Compras</button>
-          </div>
-        </div>
-        <!-- Card "Pedidos com Itens nao Vinculados" removido — info disponivel via "Ver Conversao" -->
-        <div style="display:none"><span id="ei-pedidos-sync-pendente-count"></span><table><tbody id="ei-pedidos-sync-pendente-tbody"></tbody></table></div>
-      </div>
+      <!-- Card Demandas removido (Épico A - FR-006) -->
       <div class="card" id="ei-card-movimentacoes" data-ei-section="estoque">
         <h3 style="margin-bottom:.75rem">Entrada e Saida de Mercadorias</h3>
         <div data-ei-form style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:.75rem;align-items:end;margin-bottom:1rem">
@@ -987,55 +996,7 @@
         <div class="table-wrap" data-ei-table style="max-height:220px;overflow-y:auto"><table><thead><tr><th>Data</th><th>Produto</th><th>Op.</th><th class="text-right">Qtd</th><th>Origem</th></tr></thead><tbody id="ei-movimentacoes-tbody"></tbody></table></div>
       </div>
     </div>
-    <!-- Card Demandas GDP removido — checkboxes integrados no card Demandas Geradas acima -->
-    <!-- Pedido Manual ao Fornecedor — largura total -->
-    <div class="card" id="ei-card-compra-manual" data-ei-section="compra" style="margin-top:1rem">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap;margin-bottom:.75rem">
-        <div>
-          <h3 style="margin-bottom:.35rem">Pedido Manual ao Fornecedor</h3>
-          <div style="font-size:.8rem;color:var(--mut)">Crie um pedido de compra avulso diretamente para o fornecedor.</div>
-        </div>
-      </div>
-      <div data-ei-form style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:.75rem;align-items:end">
-        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Produto</label><select id="ei-compra-manual-produto" onchange="atualizarCompraManualEmbalagens()"></select></div>
-        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Embalagem</label><select id="ei-compra-manual-embalagem"><option value="">Selecione</option></select></div>
-        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Fornecedor</label><select id="ei-compra-manual-fornecedor"></select></div>
-        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Pacotes</label><input type="number" id="ei-compra-manual-pacotes" min="1" step="1" placeholder="1"></div>
-        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Vencimento financeiro</label><input type="date" id="ei-compra-manual-vencimento"></div>
-        <div style="display:flex;align-items:end"><button class="btn btn-green" onclick="gerarPedidoCompraManualEstoqueIntel()">Gerar Pedido Manual</button></div>
-      </div>
-    </div>
-    <!-- Pedidos de Compra Gerados -->
-    <div class="card" id="ei-card-compras-geradas" data-ei-section="compra" style="margin-top:1rem">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap;margin-bottom:.75rem">
-        <div>
-          <h3 style="margin-bottom:.35rem">Pedidos de Compra Gerados</h3>
-          <div style="font-size:.8rem;color:var(--mut)">Pedidos de compra criados pela lista de compras ou manualmente aparecem aqui.</div>
-        </div>
-      </div>
-      <div class="table-wrap" data-ei-table style="max-height:260px;overflow-y:auto"><table><thead><tr><th>ID</th><th>Fornecedor</th><th>Itens</th><th>Origem</th><th>Status</th><th class="text-right">Valor</th><th class="text-right">Acoes</th></tr></thead><tbody id="ei-compras-tbody"></tbody></table></div>
-    </div>
-    <!-- Lista de Compras (Contratos) -->
-    <div class="card" id="ei-card-gdp-compras" data-ei-section="compra" style="margin-top:1rem">
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;margin-bottom:.75rem">
-        <div>
-          <h3 style="margin-bottom:.35rem">Lista de Compras (Contratos)</h3>
-          <div style="font-size:.8rem;color:var(--mut)">Itens que precisam ser comprados com base na falta de estoque ao confirmar demandas.</div>
-        </div>
-        <div style="display:flex;gap:.5rem">
-          <button class="btn btn-outline btn-sm" onclick="gdpExportarListaCompras()">Exportar CSV</button>
-          <button class="btn btn-outline btn-sm" onclick="gdpImprimirListaCompras()">Imprimir</button>
-        </div>
-      </div>
-      <div class="table-wrap" data-ei-table style="max-height:250px;overflow-y:auto">
-        <table id="ei-gdp-compras-table">
-          <thead><tr><th>Produto</th><th class="text-right">Qtd</th><th>Fornecedor</th><th class="text-right">Custo Unit.</th><th class="text-right">Custo Total</th><th>Escola</th></tr></thead>
-          <tbody id="ei-gdp-compras-tbody"></tbody>
-        </table>
-      </div>
-      <div id="ei-gdp-compras-total" style="font-weight:600;margin-top:.5rem;font-size:.85rem"></div>
-      <p id="ei-gdp-compras-empty" style="display:none;text-align:center;padding:.6rem;color:var(--mut);font-size:.85rem">Lista de compras vazia.</p>
-    </div>
+    <!-- Cards Compra Inteligente removidos (Épico A - FR-006) -->
     <div class="card" id="ei-card-estoque-resumo" data-ei-section="estoque" style="margin-top:1rem">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem;flex-wrap:wrap;gap:.5rem">
         <h3 style="margin:0">Estoque Calculado por Movimentacoes</h3>
@@ -1061,136 +1022,9 @@
       </div>
       <p id="ei-gdp-estoque-empty" style="display:none;text-align:center;padding:.6rem;color:var(--mut);font-size:.85rem">Estoque vazio.</p>
     </div>
-    <div id="ei-grid-secundario" style="display:grid;grid-template-columns:1fr;gap:1rem;align-items:start;margin-top:1rem">
-      <div class="card" id="ei-card-compra-sugestao" data-ei-section="compra">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap;margin-bottom:.75rem">
-          <div>
-            <h3 style="margin-bottom:.35rem">Calculo da Melhor Compra</h3>
-            <div style="font-size:.8rem;color:var(--mut)">Calcula a melhor embalagem para a necessidade informada e reduz sobra na compra.</div>
-          </div>
-          <div style="margin-left:auto;display:flex;align-items:flex-start"><span class="badge badge-green">Etapa 1</span></div>
-        </div>
-        <div data-ei-form style="display:grid;grid-template-columns:1fr;gap:.75rem">
-          <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Produto</label><select id="ei-sugestao-produto"></select></div>
-          <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Necessidade em g/ml</label><input type="number" id="ei-sugestao-quantidade" min="1" step="1" placeholder="1700"></div>
-          <div style="display:flex;justify-content:flex-end"><button class="btn btn-green" onclick="calcularSugestaoCompraEstoqueIntel()">Calcular</button></div>
-        </div>
-        <div id="ei-sugestao-resultado" style="margin-top:1rem;font-size:.84rem;color:var(--mut)">Informe a necessidade para gerar a melhor embalagem.</div>
-      </div>
-      <div class="card" id="ei-card-precompra" data-ei-section="compra">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap;margin-bottom:.75rem">
-          <div>
-            <h3 style="margin-bottom:.35rem">Geracao do Pedido de Compra</h3>
-            <div style="font-size:.8rem;color:var(--mut)">Use o calculo acima para transformar a necessidade em pedido ao fornecedor.</div>
-          </div>
-          <div style="margin-left:auto;display:flex;align-items:flex-start"><span class="badge badge-blue">Etapa 2</span></div>
-        </div>
-        <div data-ei-form style="display:grid;grid-template-columns:1fr 1fr auto;gap:.75rem;align-items:end;margin-bottom:1rem">
-          <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Fornecedor</label><select id="ei-compra-fornecedor"></select></div>
-          <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Vencimento financeiro</label><input type="date" id="ei-compra-vencimento"></div>
-          <div><button class="btn btn-green" onclick="gerarPreCompraEstoqueIntel()">Gerar Pedido</button></div>
-        </div>
-        <div id="ei-erp-status" style="font-size:.8rem;color:var(--mut);margin-bottom:.75rem;padding:.75rem .9rem;border:1px solid rgba(56,189,248,.2);border-radius:12px;background:rgba(56,189,248,.08)">Pedido pronto para envio ao fornecedor, com embalagem escolhida e custo previsto.</div>
-      </div>
-    </div>
-    <div class="card hidden" id="ei-card-lista-compras" data-ei-section="compra-legacy" style="margin-top:1rem">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap;margin-bottom:1rem">
-        <div>
-          <h3 style="margin-bottom:.35rem">Lista Automatica de Compras</h3>
-          <div style="font-size:.8rem;color:var(--mut)">Visao consolidada da necessidade por cliente, produto e fornecedor, sempre ao fim do fluxo de compra.</div>
-        </div>
-        <div style="display:flex;gap:.5rem;flex-wrap:wrap">
-          <button class="btn btn-outline btn-sm" onclick="resetVisualizacaoCompraEstoqueIntel()">Voltar</button>
-          <button class="btn btn-outline btn-sm" onclick="gerarExemploDemandaAutomaticaEstoqueIntel()">Exemplo de Compra</button>
-          <button class="btn btn-outline btn-sm" onclick="toggleListaComprasPeriodo('mes')" id="ei-periodo-mes-btn">Do mes</button>
-          <button class="btn btn-outline btn-sm" onclick="toggleListaComprasPeriodo('intervalo')" id="ei-periodo-intervalo-btn">Intervalo</button>
-        </div>
-      </div>
-      <div id="ei-lista-demanda-contexto" class="hidden" style="margin-bottom:1rem;padding:.9rem 1rem;border:1px solid rgba(59,130,246,.28);border-radius:14px;background:linear-gradient(180deg,rgba(59,130,246,.10),rgba(59,130,246,.04));font-size:.82rem;color:#dbeafe"></div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.9rem;align-items:end;margin-bottom:1rem;padding:1rem;border:1px solid rgba(255,255,255,.06);border-radius:14px;background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,.015))">
-        <div id="ei-periodo-mes-wrap">
-          <label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Mes</label>
-          <input type="month" id="ei-lista-mes" onchange="renderListaComprasEstoqueIntel()">
-        </div>
-        <div id="ei-periodo-intervalo-wrap" class="hidden" style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
-          <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">De</label><input type="date" id="ei-lista-data-de" onchange="renderListaComprasEstoqueIntel()"></div>
-          <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Ate</label><input type="date" id="ei-lista-data-ate" onchange="renderListaComprasEstoqueIntel()"></div>
-        </div>
-        <div>
-          <label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Agrupar por</label>
-          <select id="ei-lista-agrupar" onchange="renderListaComprasEstoqueIntel()">
-            <option value="cliente_produto">Cliente e Produto</option>
-            <option value="fornecedor_produto">Fornecedor e Produto</option>
-            <option value="produto">Somente Produto</option>
-          </select>
-        </div>
-        <div>
-          <label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Cliente</label>
-          <select id="ei-lista-cliente" onchange="renderListaComprasEstoqueIntel()"><option value="">Todos</option></select>
-        </div>
-        <div>
-          <label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Produto</label>
-          <select id="ei-lista-produto" onchange="renderListaComprasEstoqueIntel()"><option value="">Todos</option></select>
-        </div>
-        <div>
-          <label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Fornecedor</label>
-          <select id="ei-lista-fornecedor" onchange="renderListaComprasEstoqueIntel()"><option value="">Todos</option></select>
-        </div>
-        <div style="position:relative">
-          <label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Situacao do pedido</label>
-          <button class="btn btn-outline btn-sm" id="ei-status-filter-btn" onclick="toggleListaComprasStatusPanel()" style="width:100%;justify-content:space-between;display:flex;align-items:center">Sem filtro por situacoes <span id="ei-status-filter-icon">+</span></button>
-          <div id="ei-status-filter-panel" class="hidden" style="position:absolute;z-index:4;left:0;right:0;top:100%;margin-top:.4rem;background:var(--bg);border:1px solid var(--bdr);border-radius:12px;padding:.85rem;display:grid;gap:.5rem;max-height:240px;overflow-y:auto">
-            <label style="display:flex;gap:.5rem;align-items:center"><input type="checkbox" onchange="toggleListaComprasStatusAll(this.checked)"> Selecionar todas</label>
-            <div id="ei-status-filter-options"></div>
-          </div>
-        </div>
-        <div>
-          <label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Data a ser considerada</label>
-          <select id="ei-lista-data-considerada" onchange="renderListaComprasEstoqueIntel()">
-            <option value="pedido">Data do pedido</option>
-            <option value="prevista">Data prevista</option>
-          </select>
-        </div>
-        <div>
-          <label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Comparar com estoque</label>
-          <select id="ei-lista-comparar-estoque" onchange="renderListaComprasEstoqueIntel()">
-            <option value="sim">Sim</option>
-            <option value="nao">Nao</option>
-          </select>
-        </div>
-        <div style="display:flex;align-items:flex-end"><button class="btn btn-green" style="width:100%" onclick="renderListaComprasEstoqueIntel()">Gerar</button></div>
-      </div>
-      <div id="ei-lista-compras-resumo" style="font-size:.8rem;color:var(--mut);margin-bottom:.75rem;padding:.75rem .9rem;border:1px solid rgba(34,197,94,.15);border-radius:12px;background:rgba(34,197,94,.06)">Aguardando geracao da lista.</div>
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:.75rem;flex-wrap:wrap;margin-bottom:.75rem">
-        <div id="ei-lista-compras-lote-resumo" style="font-size:.78rem;color:var(--mut)">Nenhuma linha selecionada para lote.</div>
-        <div style="display:flex;gap:.5rem;flex-wrap:wrap">
-          <button class="btn btn-outline btn-sm" onclick="toggleSelecionarTodasListaComprasEstoqueIntel(true)">Selecionar todas</button>
-          <button class="btn btn-outline btn-sm" onclick="toggleSelecionarTodasListaComprasEstoqueIntel(false)">Limpar selecao</button>
-          <button class="btn btn-green btn-sm" onclick="gerarPedidosCompraListaSelecionados()">Gerar Pedidos em Lote</button>
-        </div>
-      </div>
-      <div class="table-wrap" data-ei-table style="max-height:320px;overflow-y:auto">
-        <table>
-          <thead>
-            <tr>
-              <th class="text-center"><input type="checkbox" id="ei-lista-compras-select-all" onchange="toggleSelecionarTodasListaComprasEstoqueIntel(this.checked)"></th>
-              <th>Grupo</th>
-              <th>Fornecedor</th>
-              <th>Produto</th>
-              <th>Status</th>
-              <th>Data</th>
-              <th class="text-right">Necessidade</th>
-              <th class="text-right">Estoque</th>
-              <th class="text-right">Comprar</th>
-              <th>Sugestao</th>
-              <th class="text-right">Acoes</th>
-            </tr>
-          </thead>
-          <tbody id="ei-lista-compras-tbody"></tbody>
-        </table>
-      </div>
-    </div>
-    <!-- Notas de Entrada (dentro de Inteligência, entre Compra e Estoque) -->
+    <!-- ei-grid-secundario (Compra Inteligente) removido (Épico A - FR-006) -->
+    <!-- Lista Compras legacy removida (Épico A - FR-006) -->
+    <!-- Notas de Entrada -->
     <div class="card" id="ei-card-notas-entrada" data-ei-section="notas-entrada" style="margin-top:1rem">
       <h3>Notas de Entrada</h3>
       <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr auto;gap:.8rem;align-items:end;margin-bottom:1rem">
@@ -1400,43 +1234,7 @@
     </div>
   </div>
 
-  <!-- Tab: Entregas -->
-  <div id="tab-entregas" class="hidden">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
-      <div style="display:flex;gap:.8rem;align-items:center">
-        <input type="text" id="busca-entrega" placeholder="Buscar escola ou protocolo..." oninput="renderEntregas()">
-        <input type="date" id="filtro-data-entrega" onchange="renderEntregas()">
-        <select id="filtro-status-entrega" onchange="renderEntregas()">
-          <option value="">Todos os status</option>
-          <option value="pendente">Pendente</option>
-          <option value="entregue">Entregue</option>
-          <option value="concluido">Concluído</option>
-        </select>
-      </div>
-      <span style="color:var(--mut);font-size:.8rem">Dados sincronizados automaticamente do app Entregador</span>
-    </div>
-    <div id="entregas-operacionais-box" class="hidden" style="margin-bottom:1rem;padding:1rem;border:1px solid rgba(59,130,246,.22);border-radius:14px;background:linear-gradient(180deg,rgba(59,130,246,.08),rgba(59,130,246,.03))"></div>
-    <div class="table-wrap" style="max-height:600px;overflow-y:auto">
-      <table>
-        <thead>
-          <tr>
-            <th>Protocolo</th>
-            <th>Escola</th>
-            <th>Data Entrega</th>
-            <th>Recebedor</th>
-            <th>Foto</th>
-            <th>Assinatura</th>
-            <th>Status Entrega</th>
-            <th>Reserva</th>
-            <th>Detalhe</th>
-            <th>Acoes</th>
-          </tr>
-        </thead>
-        <tbody id="entregas-tbody"></tbody>
-      </table>
-    </div>
-    <div class="empty" id="entregas-empty"><h3>Nenhuma entrega registrada</h3><p>As entregas aparecerao aqui assim que o entregador confirmar pelo app.</p></div>
-  </div>
+  <!-- Tab: Entregas REMOVIDO (Épico A - FR-016) -->
 
   <!-- Tab: Banco de Produtos ERP -->
   <div id="tab-banco-produtos" class="hidden">
@@ -1504,11 +1302,19 @@
             <option value="KIT">KIT</option>
           </select>
         </div>
-        <!-- FR-013: Produto crítico (conversão de gramatura) -->
+        <!-- FR-004: Tipo de produto -->
         <div>
-          <label style="font-size:.8rem;color:var(--mut);display:flex;align-items:center;gap:.5rem;cursor:pointer;padding:.5rem .6rem;background:var(--s1);border:1px solid var(--bdr);border-radius:8px">
-            <input type="checkbox" id="prod-critico"> Produto crítico (requer conversão de gramatura)
-          </label>
+          <label style="font-size:.8rem;color:var(--mut);display:block;margin-bottom:.3rem">Tipo de Produto</label>
+          <div style="display:flex;gap:.8rem">
+            <label style="font-size:.82rem;display:flex;align-items:center;gap:.4rem;cursor:pointer;padding:.45rem .7rem;background:var(--s1);border:1px solid var(--bdr);border-radius:8px;flex:1">
+              <input type="radio" name="prod-tipo" value="comum" checked onchange="document.getElementById('prod-critico').checked=false"> Produto Comum
+            </label>
+            <label style="font-size:.82rem;display:flex;align-items:center;gap:.4rem;cursor:pointer;padding:.45rem .7rem;background:rgba(234,179,8,.08);border:1px solid rgba(234,179,8,.25);border-radius:8px;flex:1">
+              <input type="radio" name="prod-tipo" value="critico" onchange="document.getElementById('prod-critico').checked=true"> Produto Critico
+            </label>
+          </div>
+          <input type="checkbox" id="prod-critico" style="display:none">
+          <div style="font-size:.7rem;color:var(--mut);margin-top:.3rem">Produto critico usa conversao de gramatura (unidade base em gramas) para calculo de precos.</div>
         </div>
       </div>
       <div style="margin-top:1.5rem;display:flex;justify-content:flex-end;gap:.8rem">
@@ -1763,7 +1569,7 @@
 <script src="./js/gdp-estoque-intel.js"></script>
 <script src="./js/gdp-pedidos.js"></script>
 <script src="./js/gdp-usuarios.js"></script>
-<script src="./js/gdp-entregas.js"></script>
+<!-- gdp-entregas.js removido (Épico A - FR-016) -->
 <script src="./js/gdp-banco-produtos.js"></script>
 <script src="./js/gdp-init.js"></script>
 

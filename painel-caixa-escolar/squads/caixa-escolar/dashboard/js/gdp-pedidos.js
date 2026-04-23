@@ -950,7 +950,8 @@ function verPedidoDetalhe(pedidoId, isClone) {
   } else {
     html += '<span class="badge badge-danger" style="align-self:center">Cancelado em ' + fmtDate(p.canceladoEm) + '</span>';
   }
-  html += '<button class="btn btn-purple btn-sm" onclick="imprimirPedido(\'' + p.id + '\')">Imprimir</button></div>';
+  html += '<button class="btn btn-purple btn-sm" onclick="imprimirPedido(\'' + p.id + '\')">Imprimir</button>';
+  html += '<button class="btn btn-outline btn-sm" onclick="gerarRelatorioDemanda(\'' + p.id + '\')" title="Relatorio: Solicitado / Disponivel / Falta Comprar">📋 Rel. Demanda</button></div>';
   html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem">';
   html += '<div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Protocolo</div><div style="font-weight:700;font-family:monospace">' + esc(p.id) + marcadorHtml + '</div></div>';
   html += '<div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Escola</div><div style="font-weight:700">' + esc(p.escola) + '</div></div>';
@@ -2342,6 +2343,59 @@ function exportarListaPDF() {
     <div style="text-align:right;margin-top:1rem;font-size:12px;font-weight:700">${_listaComprasData.length} produtos | ${totalEmbs} embalagem(ns)</div>
     <div style="display:flex;justify-content:space-around;margin-top:3rem;font-size:11px"><div style="text-align:center;width:40%"><div style="border-top:1px solid #333;padding-top:6px"><strong>Recebedor(a)</strong><br>Nome / Cargo / Matrícula</div></div><div style="text-align:center;width:40%"><div style="border-top:1px solid #333;padding-top:6px"><strong>Entregador</strong><br>${nomeEmpresa}</div></div></div>
     <div style="text-align:center;margin-top:3rem;font-size:9px;color:#999">Documento gerado automaticamente pelo sistema GDP — Gestão de Pedidos<br>${nomeEmpresa}${empresaCnpj ? ' — CNPJ ' + empresaCnpj : ''}</div>
+  </body></html>`);
+  doc.close();
+  iframe.contentWindow.focus();
+  iframe.contentWindow.print();
+  setTimeout(() => document.body.removeChild(iframe), 5000);
+}
+
+// FR-010: Relatório de demanda — Solicitado / Disponível / Falta Comprar
+function gerarRelatorioDemanda(pedidoId) {
+  const p = pedidos.find(x => x.id === pedidoId);
+  if (!p) { showToast("Pedido não encontrado."); return; }
+
+  const linhas = (p.itens || []).map(item => {
+    const qtdSolicitada = Number(item.qtd || item.quantidade || 0);
+    let estoqueDisp = 0;
+    if (typeof estoqueIntelProdutos !== 'undefined' && typeof estoqueIntelMovimentacoes !== 'undefined') {
+      const sku = item.sku || item.codigoBarras || "";
+      const descNorm = (item.descricao || "").toLowerCase();
+      const prod = estoqueIntelProdutos.find(pr =>
+        (sku && (pr.sku === sku || pr.id === sku)) ||
+        (pr.nome || "").toLowerCase().includes(descNorm.split(" ")[0] || "___")
+      );
+      if (prod) {
+        const entradas = estoqueIntelMovimentacoes.filter(m => m.produto_id === prod.id && m.operacao.startsWith("entrada")).reduce((s, m) => s + Number(m.quantidade || 0), 0);
+        const saidas = estoqueIntelMovimentacoes.filter(m => m.produto_id === prod.id && m.operacao.startsWith("saida")).reduce((s, m) => s + Number(m.quantidade || 0), 0);
+        estoqueDisp = entradas - saidas;
+      }
+    }
+    const faltaComprar = Math.max(0, qtdSolicitada - estoqueDisp);
+    return { descricao: item.descricao, unidade: item.unidade || "UN", qtdSolicitada, estoqueDisp, faltaComprar };
+  });
+
+  const iframe = document.createElement("iframe");
+  iframe.style.cssText = "position:fixed;left:-9999px;width:0;height:0";
+  document.body.appendChild(iframe);
+  const doc = iframe.contentDocument || iframe.contentWindow.document;
+  const nomeEmpresa = (typeof empresa !== 'undefined' && empresa) ? (empresa.nomeFantasia || empresa.razaoSocial || "Empresa") : "Empresa";
+  doc.open();
+  doc.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Relatório de Demanda</title>
+  <style>body{font-family:Arial,sans-serif;font-size:12px;color:#333;padding:20px}
+  h1{font-size:16px;margin-bottom:4px}h2{font-size:13px;color:#666;margin-bottom:12px}
+  table{width:100%;border-collapse:collapse;margin-top:12px}th,td{border:1px solid #ddd;padding:6px 10px;text-align:left}
+  th{background:#f5f5f5;font-weight:700;font-size:11px;text-transform:uppercase}
+  .text-right{text-align:right}.text-center{text-align:center}
+  .falta{color:#e53e3e;font-weight:700}.ok{color:#38a169;font-weight:700}
+  </style></head><body>
+  <h1>Relatório de Demanda</h1>
+  <h2>Pedido: ${p.id} — ${p.escola || ""} — ${p.dataEntrega || p.data || ""}</h2>
+  <table>
+    <thead><tr><th>Produto</th><th>Unidade</th><th class="text-right">Qtd Solicitada</th><th class="text-right">Disponível Estoque</th><th class="text-right">Falta Comprar</th></tr></thead>
+    <tbody>${linhas.map(l => '<tr><td>' + l.descricao + '</td><td class="text-center">' + l.unidade + '</td><td class="text-right">' + l.qtdSolicitada + '</td><td class="text-right">' + l.estoqueDisp + '</td><td class="text-right ' + (l.faltaComprar > 0 ? 'falta' : 'ok') + '">' + (l.faltaComprar > 0 ? l.faltaComprar : '✓') + '</td></tr>').join("")}</tbody>
+  </table>
+  <div style="margin-top:16px;font-size:10px;color:#999">Gerado em ${new Date().toLocaleString("pt-BR")} — GDP ${nomeEmpresa}</div>
   </body></html>`);
   doc.close();
   iframe.contentWindow.focus();

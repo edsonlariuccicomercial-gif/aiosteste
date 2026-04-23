@@ -605,25 +605,48 @@ function criarContratoGdp(orcId, preOrcamento, numContrato) {
 // Story 8.7: Criar contrato GDP com enriquecimento da Central de Produtos (G3)
 function criarContratoGdpComCentral(orcId, preOrcamento, numContrato) {
   try {
-    // Enriquecer itens com dados da Central antes de criar contrato
+    // FR-003: Enriquecer itens com dados da Central de Preços antes de criar contrato
     if (typeof loadBancoProdutos === 'function') loadBancoProdutos();
     const central = (typeof bancoProdutos !== 'undefined' && bancoProdutos.itens) ? bancoProdutos.itens : [];
 
     if (central.length > 0 && preOrcamento && preOrcamento.itens) {
+      const normalize = (s) => (s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
       for (const item of preOrcamento.itens) {
-        const descNorm = (item.nome || item.descricao || "").toLowerCase().trim();
+        // Se já vinculado no pré-orçamento, manter
+        if (item.skuVinculado || item.produto_vinculado_id) continue;
+        const descNorm = normalize(item.nome || item.descricao || "");
         if (!descNorm) continue;
-        const firstWord = descNorm.split(' ')[0];
-        if (!firstWord) continue;
-        const match = central.find(p =>
-          (p.sku && item.sku && p.sku === item.sku) ||
-          (p.descricao || "").toLowerCase().includes(firstWord)
-        );
+        const descWords = descNorm.split(/\s+/).filter(w => w.length > 2);
+        // 1) Match exato por SKU
+        let match = central.find(p => p.sku && item.sku && p.sku === item.sku);
+        // 2) Match exato por descrição normalizada
+        if (!match) match = central.find(p => normalize(p.descricao) === descNorm);
+        // 3) Match por todas as palavras significativas
+        if (!match && descWords.length > 0) {
+          const candidates = central.filter(p => {
+            const pWords = normalize(p.descricao).split(/\s+/).filter(w => w.length > 2);
+            return pWords.length > 0 && pWords.every(pw => descWords.some(dw => dw.includes(pw) || pw.includes(dw)));
+          });
+          // Preferir candidato com mais palavras em comum
+          if (candidates.length > 0) {
+            candidates.sort((a, b) => {
+              const aWords = normalize(a.descricao).split(/\s+/).filter(w => w.length > 2).length;
+              const bWords = normalize(b.descricao).split(/\s+/).filter(w => w.length > 2).length;
+              return bWords - aWords;
+            });
+            match = candidates[0];
+          }
+        }
         if (match) {
           if (!item.ncm && match.ncm) item.ncm = match.ncm;
           if (!item.sku && match.sku) item.sku = match.sku;
           if (!item.marca && match.marca) item.marca = match.marca;
           item.skuVinculado = match.sku || match.id;
+          item.produto_vinculado_id = match.id;
+          // Persistir equivalência para futuras consultas
+          if (typeof setGdpEquivalencia === 'function') {
+            setGdpEquivalencia(item.nome || item.descricao, match.sku || match.id);
+          }
         }
       }
     }
@@ -631,7 +654,6 @@ function criarContratoGdpComCentral(orcId, preOrcamento, numContrato) {
     return criarContratoGdp(orcId, preOrcamento, numContrato);
   } catch (e) {
     console.error('[GDP] Erro ao criar contrato com Central:', e);
-    // Fallback: criar sem enriquecimento
     try {
       return criarContratoGdp(orcId, preOrcamento, numContrato);
     } catch (e2) {
