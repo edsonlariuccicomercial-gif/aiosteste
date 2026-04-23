@@ -246,6 +246,26 @@ function excluirPedidosSelecionados() {
   showToast(`${sel.length} pedido(s) excluído(s)${demandasVinculadas.length ? ` + ${demandasVinculadas.length} demanda(s)` : ""}.`);
 }
 
+// Ações em lote para pedidos selecionados via checkbox
+function executarAcaoPedidosSelecionados(acao) {
+  const sel = [..._selectedPedidoIds];
+  if (sel.length === 0) { showToast("Selecione pedidos primeiro.", 3000); return; }
+  sel.forEach(id => { if (typeof executarAcaoPedido === "function") executarAcaoPedido(id, acao); });
+}
+
+function cancelarPedidosSelecionados() {
+  const sel = [..._selectedPedidoIds];
+  if (sel.length === 0) { showToast("Selecione pedidos primeiro.", 3000); return; }
+  if (!confirm("Cancelar " + sel.length + " pedido(s) selecionado(s)?")) return;
+  sel.forEach(id => { if (typeof cancelarPedido === "function") cancelarPedido(id); });
+}
+
+function gerarRelatorioDemandaSelecionados() {
+  const sel = [..._selectedPedidoIds];
+  if (sel.length === 0) { showToast("Selecione pedidos primeiro.", 3000); return; }
+  sel.forEach(id => { if (typeof gerarRelatorioDemanda === "function") gerarRelatorioDemanda(id); });
+}
+
 // ===== BULK ACTIONS PEDIDOS =====
 async function gerarNFSelecionados() {
   const sel = [..._selectedPedidoIds];
@@ -939,15 +959,11 @@ function verPedidoDetalhe(pedidoId, isClone) {
   const marcadorHtml = p.marcador ? '<span style="background:rgba(139,92,246,.15);color:#8b5cf6;padding:.2rem .6rem;border-radius:999px;font-size:.75rem;font-weight:700;margin-left:.5rem">' + esc(p.marcador) + '</span>' : '';
   const fiscalMissing = validatePedidoForInvoice(p);
 
-  // FR-009/FR-010: Pedido como centro de execução — ações inline
+  // Botões de ação no detalhe — apenas Imprimir e Rel. Demanda
+  // Ações (Separar, Compra, Finalizar, Cancelar) movidas para barra de seleção (checkbox)
   const isCancelado = p.status === 'cancelado';
   let html = '<div style="display:flex;justify-content:flex-end;gap:.5rem;flex-wrap:wrap;margin-bottom:1rem">';
-  if (!isCancelado) {
-    html += '<button class="btn btn-sm" style="background:rgba(34,197,94,.15);color:var(--green);border:none;font-weight:700" onclick="executarAcaoPedido(\'' + p.id + '\',\'separar\')" title="Separar itens do estoque">Separar Estoque</button>';
-    html += '<button class="btn btn-sm" style="background:rgba(59,130,246,.15);color:var(--blue);border:none;font-weight:700" onclick="executarAcaoPedido(\'' + p.id + '\',\'compra\')" title="Registrar compra direta">Compra Direta</button>';
-    html += '<button class="btn btn-sm" style="background:rgba(139,92,246,.15);color:#a855f7;border:none;font-weight:700" onclick="executarAcaoPedido(\'' + p.id + '\',\'finalizar\')" title="Finalizar entrega">Finalizar</button>';
-    html += '<button class="btn btn-sm" style="background:rgba(239,68,68,.15);color:var(--red);border:none;font-weight:700" onclick="cancelarPedido(\'' + p.id + '\')" title="Cancelar pedido e devolver saldo">Cancelar</button>';
-  } else {
+  if (isCancelado) {
     html += '<span class="badge badge-danger" style="align-self:center">Cancelado em ' + fmtDate(p.canceladoEm) + '</span>';
   }
   html += '<button class="btn btn-purple btn-sm" onclick="imprimirPedido(\'' + p.id + '\')">Imprimir</button>';
@@ -1641,8 +1657,8 @@ var _selectedPedidoIds = new Set();
 var _listaComprasData = [];
 var _selectedNotaFiscalIds = new Set();
 var PEDIDO_STATUS_TABS = [
-  { key: "agendado", label: "Agendado", className: "badge-blue" },
   { key: "em_aberto", label: "Em Aberto", className: "badge-yellow" },
+  { key: "agendado", label: "Agendado", className: "badge-blue" },
   { key: "comprando", label: "Comprando", className: "badge-blue" },
   { key: "separando", label: "Separando", className: "badge-blue" },
   { key: "preparando_envio", label: "Preparando Envio", className: "badge-yellow" },
@@ -1652,7 +1668,7 @@ var PEDIDO_STATUS_TABS = [
   { key: "nao_entregue", label: "Não Entregue", className: "badge-red" },
   { key: "cancelado", label: "Cancelado", className: "badge-red" }
 ];
-var pedidoStatusTabAtual = "agendado";
+var pedidoStatusTabAtual = "em_aberto";
 var pedidoMenuAtualId = null;
 var pedidoStatusMenuExpandido = false;
 var pedidoEditId = null;
