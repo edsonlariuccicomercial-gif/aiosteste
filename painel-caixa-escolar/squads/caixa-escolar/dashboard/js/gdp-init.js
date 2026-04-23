@@ -77,39 +77,76 @@ function switchTab(tab) {
   const title = document.getElementById("gdp-section-title");
   const labels = {
     usuarios: "Clientes",
-    "notas-entrada": "Notas de Entrada",
     estoque: "Central de Preços",
+    fornecedores: "Fornecedores",
+    "notas-entrada": "Notas de Entrada",
+    "estoque-op": "Estoque",
     contratos: "Contratos",
     pedidos: "Pedidos",
     "notas-fiscais": "Notas Fiscais",
-    "contas-pagar": "Contas a Pagar",
-    "contas-receber": "Contas a Receber",
-    caixa: "Caixa",
+    financeiro: "Financeiro",
     relatorios: "Relatorios",
     importar: "Importar Contrato"
   };
   if (title) title.textContent = labels[tab] || "Contratos";
-  ["importar","contratos","itens","usuarios","pedidos","notas-fiscais","contas-pagar","contas-receber","caixa","relatorios","notas-entrada","estoque"].forEach(t => {
-    document.getElementById(`tab-${t}`).classList.toggle("hidden", t !== tab);
+
+  // Tabs que são sub-views de tab-estoque (Central de Preços / Fornecedores / Notas Entrada / Estoque)
+  const estoqueSubViews = ["estoque", "fornecedores", "notas-entrada", "estoque-op"];
+  const isEstoqueView = estoqueSubViews.includes(tab);
+
+  // Financeiro agrupa 3 sub-tabs
+  const isFinanceiro = tab === "financeiro";
+
+  // Esconder todas as tabs reais
+  ["importar","contratos","itens","usuarios","pedidos","notas-fiscais","contas-pagar","contas-receber","caixa","relatorios","notas-entrada","estoque","financeiro"].forEach(t => {
+    const el = document.getElementById(`tab-${t}`);
+    if (el) el.classList.add("hidden");
   });
+
+  if (isEstoqueView) {
+    // Mostrar tab-estoque e definir a sub-view correta
+    document.getElementById("tab-estoque").classList.remove("hidden");
+    const viewMap = { estoque: "produtos", fornecedores: "fornecedores", "notas-entrada": "notas-entrada", "estoque-op": "estoque" };
+    renderEstoque();
+    if (typeof setEstoqueIntelView === "function") setEstoqueIntelView(viewMap[tab]);
+  } else if (isFinanceiro) {
+    // Mostrar tab-financeiro
+    const finEl = document.getElementById("tab-financeiro");
+    if (finEl) finEl.classList.remove("hidden");
+    // Ativar primeira sub-tab se nenhuma ativa
+    if (!document.querySelector('.fin-tab-btn.active')) {
+      switchFinanceiroTab('caixa');
+    }
+  } else {
+    // Tab normal
+    const tabEl = document.getElementById(`tab-${tab}`);
+    if (tabEl) tabEl.classList.remove("hidden");
+  }
+
   if (tab === "contratos") renderContratos();
   if (tab === "itens") renderItens();
   if (tab === "pedidos") renderPedidos();
   if (tab === "notas-fiscais") renderNotasFiscais();
-  if (tab === "contas-pagar") renderContasPagar();
-  if (tab === "contas-receber") renderContasReceber();
-  if (tab === "caixa") renderCaixa();
   if (tab === "relatorios") renderRelatorios();
-  if (tab === "notas-entrada") {
-    // Notas de Entrada está dentro de tab-estoque como sub-view
-    document.getElementById("tab-estoque").classList.remove("hidden");
-    document.getElementById("tab-notas-entrada").classList.add("hidden");
-    renderEstoque();
-    if (typeof setEstoqueIntelView === "function") setEstoqueIntelView("notas-entrada");
-    return;
-  }
-  if (tab === "estoque") renderEstoque();
   if (tab === "usuarios") renderUsuarios();
+  if (tab === "financeiro" && typeof atualizarResumosVencimento === "function") atualizarResumosVencimento();
+}
+
+// Financeiro sub-tab switching
+function switchFinanceiroTab(subTab) {
+  ["caixa","contas-pagar","contas-receber"].forEach(t => {
+    const el = document.getElementById(`fin-content-${t}`);
+    if (el) el.classList.toggle("hidden", t !== subTab);
+  });
+  document.querySelectorAll(".fin-tab-btn").forEach(btn => {
+    btn.classList.toggle("active", btn.dataset.finTab === subTab);
+  });
+  if (subTab === "caixa" && typeof renderCaixa === "function") renderCaixa();
+  if (subTab === "contas-pagar" && typeof renderContasPagar === "function") renderContasPagar();
+  if (subTab === "contas-receber") {
+    if (typeof renderContasReceber === "function") renderContasReceber();
+    if (typeof atualizarResumosVencimento === "function") atualizarResumosVencimento();
+  }
 }
 
 // [gdp-contratos-module.js loaded above — file parsers, import, contract CRUD, catalog, render]
@@ -3015,6 +3052,19 @@ async function enviarTiny(contratoId) {
 
 // ===== INIT =====
 (async function initGDP() {
+  // FR-008: Montar abas do Financeiro — mover conteúdo de Caixa, CP, CR para dentro de tab-financeiro
+  try {
+    const finCaixa = document.getElementById("fin-content-caixa");
+    const finCP = document.getElementById("fin-content-contas-pagar");
+    const finCR = document.getElementById("fin-content-contas-receber");
+    const tabCaixa = document.getElementById("tab-caixa");
+    const tabCP = document.getElementById("tab-contas-pagar");
+    const tabCR = document.getElementById("tab-contas-receber");
+    if (finCaixa && tabCaixa) { while (tabCaixa.firstChild) finCaixa.appendChild(tabCaixa.firstChild); }
+    if (finCP && tabCP) { while (tabCP.firstChild) finCP.appendChild(tabCP.firstChild); }
+    if (finCR && tabCR) { while (tabCR.firstChild) finCR.appendChild(tabCR.firstChild); }
+  } catch(e) { console.warn("[GDP] Erro montando financeiro:", e); }
+
   // Supabase-First: carregar dados das tabelas reais ANTES do localStorage
   if (window.gdpApi) {
     try {

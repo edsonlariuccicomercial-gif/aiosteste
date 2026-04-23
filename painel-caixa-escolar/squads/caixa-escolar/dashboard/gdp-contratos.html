@@ -214,11 +214,10 @@
           <button class="sidebar-subitem" data-gdp-tab="pedidos" onclick="switchTab('pedidos')" style="font-weight:800"><span class="sidebar-subitem-label" style="font-size:.95rem">Pedidos</span><span class="count" id="tab-count-pedidos" style="background:var(--green);color:#fff;font-weight:800">0</span></button>
           <button class="sidebar-subitem" data-gdp-tab="notas-fiscais" onclick="switchTab('notas-fiscais')"><span class="sidebar-subitem-label">Notas Fiscais</span><span class="count" id="tab-count-notas-fiscais">0</span></button>
           <button class="sidebar-subitem" data-gdp-tab="estoque" onclick="switchTab('estoque')"><span class="sidebar-subitem-label">Central de Preços</span><span class="count" id="tab-count-estoque">0</span></button>
+          <button class="sidebar-subitem" data-gdp-tab="fornecedores" onclick="switchTab('fornecedores')"><span class="sidebar-subitem-label">Fornecedores</span><span class="count" id="tab-count-fornecedores">0</span></button>
           <button class="sidebar-subitem" data-gdp-tab="notas-entrada" onclick="switchTab('notas-entrada')"><span class="sidebar-subitem-label">Notas de Entrada</span><span class="count" id="tab-count-notas-entrada">0</span></button>
-          <div class="sidebar-subnav-label" style="margin-top:8px;font-size:.65rem;letter-spacing:.08em;opacity:.6">FINANCEIRO</div>
-          <button class="sidebar-subitem" data-gdp-tab="caixa" onclick="switchTab('caixa')"><span class="sidebar-subitem-label">Caixa</span><span class="count" id="tab-count-caixa">0</span></button>
-          <button class="sidebar-subitem" data-gdp-tab="contas-pagar" onclick="switchTab('contas-pagar')"><span class="sidebar-subitem-label">Contas a Pagar</span><span class="count" id="tab-count-contas-pagar">0</span></button>
-          <button class="sidebar-subitem" data-gdp-tab="contas-receber" onclick="switchTab('contas-receber')"><span class="sidebar-subitem-label">Contas a Receber</span><span class="count" id="tab-count-contas-receber">0</span></button>
+          <button class="sidebar-subitem" data-gdp-tab="estoque-op" onclick="switchTab('estoque-op')"><span class="sidebar-subitem-label">Estoque</span><span class="count" id="tab-count-estoque-op">0</span></button>
+          <button class="sidebar-subitem" data-gdp-tab="financeiro" onclick="switchTab('financeiro')"><span class="sidebar-subitem-label">Financeiro</span><span class="count" id="tab-count-financeiro">0</span></button>
           <button class="sidebar-subitem" data-gdp-tab="relatorios" onclick="switchTab('relatorios')"><span class="sidebar-subitem-label">Relatórios</span><span class="count" id="tab-count-relatorios">0</span></button>
         </div>
       </div>
@@ -569,7 +568,20 @@
     </div>
   </div>
 
-  <!-- Tab: Contas a Pagar -->
+  <!-- Tab: Financeiro (wrapper com abas internas) -->
+  <div id="tab-financeiro" class="hidden">
+    <div style="display:flex;gap:.6rem;margin-bottom:1rem;border-bottom:2px solid var(--bdr);padding-bottom:.6rem">
+      <button class="fin-tab-btn active" data-fin-tab="caixa" onclick="switchFinanceiroTab('caixa')" style="padding:.5rem 1.2rem;border:none;border-radius:8px 8px 0 0;cursor:pointer;font-weight:700;font-size:.85rem;background:var(--s1);color:var(--txt);transition:all .2s">Caixa</button>
+      <button class="fin-tab-btn" data-fin-tab="contas-pagar" onclick="switchFinanceiroTab('contas-pagar')" style="padding:.5rem 1.2rem;border:none;border-radius:8px 8px 0 0;cursor:pointer;font-weight:700;font-size:.85rem;background:transparent;color:var(--mut);transition:all .2s">Contas a Pagar</button>
+      <button class="fin-tab-btn" data-fin-tab="contas-receber" onclick="switchFinanceiroTab('contas-receber')" style="padding:.5rem 1.2rem;border:none;border-radius:8px 8px 0 0;cursor:pointer;font-weight:700;font-size:.85rem;background:transparent;color:var(--mut);transition:all .2s">Contas a Receber</button>
+    </div>
+    <div id="fin-content-caixa"></div>
+    <div id="fin-content-contas-pagar" class="hidden"></div>
+    <div id="fin-content-contas-receber" class="hidden"></div>
+  </div>
+  <style>.fin-tab-btn.active{background:var(--s1)!important;color:var(--txt)!important;border-bottom:2px solid var(--blue)}</style>
+
+  <!-- Tab: Contas a Pagar (legacy container — conteúdo movido para financeiro via JS) -->
   <div id="tab-contas-pagar" class="hidden">
     <div class="hidden" id="cp-form-card" style="position:fixed;inset:0;background:rgba(8,15,31,.88);z-index:1012;padding:1.25rem;overflow-y:auto" onclick="toggleContaPagarForm(false)">
       <div style="background:var(--bg);border:1px solid var(--bdr);border-radius:18px;min-height:calc(100vh - 2.5rem);display:flex;flex-direction:column" onclick="event.stopPropagation()">
@@ -931,25 +943,25 @@
 
   <!-- Tab: Estoque -->
   <div id="tab-estoque" class="hidden">
-    <div class="card" style="margin-bottom:1rem">
+    <!-- Header oculto — navegação agora é pelo sidebar -->
+    <div class="card" id="ei-header-card" style="margin-bottom:1rem;display:none">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap">
         <div>
-          <h2>Inteligência</h2>
-          <div style="font-size:.82rem;color:var(--mut)">Fase 2 web ativa: operacao por produto, embalagem, demanda, estoque calculado e sugestao inteligente de compra.</div>
+          <h2 id="ei-section-title">Central de Preços</h2>
+          <div style="font-size:.82rem;color:var(--mut)">Gerencie produtos, fornecedores, notas de entrada e estoque.</div>
         </div>
         <div style="display:flex;gap:.5rem;flex-wrap:wrap">
-          <button class="btn btn-outline btn-sm" onclick="window.location.href='gdp-estoque-intel-mobile.html'">Abrir App Mobile</button>
           <button class="btn btn-outline btn-sm" onclick="syncEstoqueIntelApi()">Sincronizar API</button>
         </div>
       </div>
-      <div class="estoque-intel-nav" style="margin-top:1rem">
+      <div class="estoque-intel-nav" style="margin-top:1rem;display:none">
         <button class="btn btn-green btn-sm" id="ei-view-btn-produtos" onclick="setEstoqueIntelView('produtos')">Produtos</button>
         <button class="btn btn-outline btn-sm" id="ei-view-btn-fornecedores" onclick="setEstoqueIntelView('fornecedores')">Fornecedores</button>
         <button class="btn btn-outline btn-sm" id="ei-view-btn-notas-entrada" onclick="setEstoqueIntelView('notas-entrada')">Notas de Entrada</button>
         <button class="btn btn-outline btn-sm" id="ei-view-btn-estoque" onclick="setEstoqueIntelView('estoque')">Estoque</button>
         <button class="btn btn-red btn-sm" onclick="limparProdutosEstoqueIntel()" title="Limpar todos os produtos, embalagens e movimentações" style="margin-left:auto">Limpar Produtos</button>
       </div>
-      <div id="ei-api-status" style="margin-top:.75rem;font-size:.8rem;color:var(--mut)">API pronta para consulta em <span class="font-mono">/api/produtos</span>, <span class="font-mono">/api/embalagens</span> e <span class="font-mono">/api/estoque</span>.</div>
+      <div id="ei-api-status" style="margin-top:.75rem;font-size:.8rem;color:var(--mut);display:none"></div>
     </div>
     <div class="kpi-grid" style="margin-bottom:1rem">
       <div class="kpi"><div class="kpi-label">Produtos</div><div class="kpi-value blue" id="est-intel-kpi-produtos">0</div><div class="kpi-sub">Catalogo base</div></div>

@@ -44,12 +44,21 @@ function renderPricingDashboard() {
   const aprovados = Object.values(preOrcamentos).filter(p => p.status === "aprovado" || p.status === "enviado");
   const faturamento = aprovados.reduce((s, p) => s + (p.totalGeral || 0), 0);
 
-  setTextSafe("pk-total-itens", itens.length);
-  setTextSafe("pk-custo-medio", brl.format(custoMedio));
-  setTextSafe("pk-margem-media", margemMedia.toFixed(1) + "%");
-  setTextSafe("pk-competitivos", pctCompetitivos + "%");
-  setTextSafe("pk-vencidos", vencidos);
+  // FR-014: KPIs reorganizados — Enviados, Ganhos, Perdidos, Conversão, Faturamento, Margem, Itens
+  const resultados = Object.values(preOrcamentos).filter(p => p.resultado);
+  const mesAtual = new Date().toISOString().slice(0, 7);
+  const enviadosMes = Object.values(preOrcamentos).filter(p => (p.dataEnvio || p.criadoEm || "").slice(0, 7) === mesAtual).length;
+  const ganhosMes = resultados.filter(r => r.resultado === "ganho" && (r.dataResultado || "").slice(0, 7) === mesAtual).length;
+  const perdidosMes = resultados.filter(r => r.resultado === "perdido" && (r.dataResultado || "").slice(0, 7) === mesAtual).length;
+  const taxaConversao = (ganhosMes + perdidosMes) > 0 ? Math.round(ganhosMes / (ganhosMes + perdidosMes) * 100) : 0;
+
+  setTextSafe("kpi-pendentes", enviadosMes);
+  setTextSafe("pk-ganhos-mes", ganhosMes);
+  setTextSafe("pk-perdidos-mes", perdidosMes);
+  setTextSafe("pk-competitivos", taxaConversao + "%");
   setTextSafe("pk-faturamento", brl.format(faturamento));
+  setTextSafe("pk-margem-media", margemMedia.toFixed(1) + "%");
+  setTextSafe("pk-total-itens", itens.length);
 
   // Alertas
   renderPricingAlerts(itens, vencidos);
