@@ -497,14 +497,14 @@
     <div id="pedidos-bulk-actions" class="hidden" style="position:sticky;bottom:0;z-index:4;margin-top:1rem;padding:.9rem 1rem;border:1px solid var(--bdr);border-radius:12px;background:var(--s2);display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap">
       <div id="pedidos-bulk-summary" style="font-size:.82rem;font-weight:700;color:var(--mut)">0 pedido(s) selecionado(s)</div>
       <div style="display:flex;gap:.5rem;flex-wrap:wrap">
-        <button class="btn btn-sm" style="background:rgba(34,197,94,.15);color:var(--green);border:none;font-weight:700" onclick="executarAcaoPedidosSelecionados('separar')" title="Separar itens do estoque">Separar Estoque</button>
-        <button class="btn btn-sm" style="background:rgba(59,130,246,.15);color:var(--blue);border:none;font-weight:700" onclick="executarAcaoPedidosSelecionados('compra')" title="Registrar compra direta">Compra Direta</button>
-        <button class="btn btn-sm" style="background:rgba(139,92,246,.15);color:#a855f7;border:none;font-weight:700" onclick="executarAcaoPedidosSelecionados('finalizar')" title="Finalizar entrega">Finalizar</button>
+        <button class="btn btn-sm" style="background:rgba(34,197,94,.15);color:var(--green);border:none;font-weight:700" onclick="executarAcaoPedidosSelecionados('separar')">Separar Estoque</button>
+        <button class="btn btn-sm" style="background:rgba(59,130,246,.15);color:var(--blue);border:none;font-weight:700" onclick="executarAcaoPedidosSelecionados('compra')">Compra Direta</button>
+        <button class="btn btn-sm" style="background:rgba(139,92,246,.15);color:#a855f7;border:none;font-weight:700" onclick="executarAcaoPedidosSelecionados('finalizar')">Finalizar</button>
+        <button class="btn btn-sm" style="background:rgba(239,68,68,.15);color:var(--red);border:none;font-weight:700" onclick="cancelarPedidosSelecionados()">Cancelar</button>
+        <button class="btn btn-outline" onclick="alterarSituacaoSelecionados()">Alterar Situacao</button>
+        <button class="btn btn-outline" onclick="gerarRelatorioDemandaSelecionados()">📋 Rel. Demanda</button>
         <button class="btn btn-green" onclick="gerarNFSelecionados()">Gerar Notas Fiscais</button>
         <button class="btn btn-blue" onclick="imprimirPedidosSelecionados()">Imprimir</button>
-        <button class="btn btn-outline" onclick="gerarRelatorioDemandaSelecionados()">📋 Rel. Demanda</button>
-        <button class="btn btn-outline" onclick="alterarSituacaoSelecionados()">Alterar Situacao</button>
-        <button class="btn btn-sm" style="background:rgba(239,68,68,.15);color:var(--red);border:none;font-weight:700" onclick="cancelarPedidosSelecionados()" title="Cancelar pedidos">Cancelar</button>
         <button class="btn btn-red" onclick="excluirPedidosSelecionados()">Excluir</button>
       </div>
     </div>

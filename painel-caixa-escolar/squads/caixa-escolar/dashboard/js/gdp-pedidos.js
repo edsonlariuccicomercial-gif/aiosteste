@@ -263,7 +263,68 @@ function cancelarPedidosSelecionados() {
 function gerarRelatorioDemandaSelecionados() {
   const sel = [..._selectedPedidoIds];
   if (sel.length === 0) { showToast("Selecione pedidos primeiro.", 3000); return; }
-  sel.forEach(id => { if (typeof gerarRelatorioDemanda === "function") gerarRelatorioDemanda(id); });
+  if (sel.length === 1) { gerarRelatorioDemanda(sel[0]); return; }
+
+  // Unificar itens de todos os pedidos selecionados, somando produtos iguais
+  const pedidosSel = pedidos.filter(p => sel.includes(p.id));
+  const mapa = {};
+  pedidosSel.forEach(p => {
+    (p.itens || []).forEach(item => {
+      const chave = (item.descricao || "").toLowerCase().trim();
+      if (!chave) return;
+      if (!mapa[chave]) {
+        mapa[chave] = { descricao: item.descricao, unidade: item.unidade || "UN", qtdSolicitada: 0, estoqueDisp: null, sku: item.sku || item.codigoBarras || "" };
+      }
+      mapa[chave].qtdSolicitada += Number(item.qtd || item.quantidade || 0);
+    });
+  });
+
+  // Calcular estoque disponível
+  const linhas = Object.values(mapa).map(item => {
+    let estoqueDisp = 0;
+    if (typeof estoqueIntelProdutos !== 'undefined' && typeof estoqueIntelMovimentacoes !== 'undefined') {
+      const descNorm = (item.descricao || "").toLowerCase();
+      const prod = estoqueIntelProdutos.find(pr =>
+        (item.sku && (pr.sku === item.sku || pr.id === item.sku)) ||
+        (pr.nome || "").toLowerCase().includes(descNorm.split(" ")[0] || "___")
+      );
+      if (prod) {
+        const entradas = estoqueIntelMovimentacoes.filter(m => m.produto_id === prod.id && m.operacao.startsWith("entrada")).reduce((s, m) => s + Number(m.quantidade || 0), 0);
+        const saidas = estoqueIntelMovimentacoes.filter(m => m.produto_id === prod.id && m.operacao.startsWith("saida")).reduce((s, m) => s + Number(m.quantidade || 0), 0);
+        estoqueDisp = entradas - saidas;
+      }
+    }
+    const faltaComprar = Math.max(0, item.qtdSolicitada - estoqueDisp);
+    return { descricao: item.descricao, unidade: item.unidade, qtdSolicitada: item.qtdSolicitada, estoqueDisp, faltaComprar };
+  });
+
+  linhas.sort((a, b) => a.descricao.localeCompare(b.descricao));
+
+  const nomeEmpresa = (typeof empresa !== 'undefined' && empresa) ? (empresa.nomeFantasia || empresa.razaoSocial || "Empresa") : "Empresa";
+  const pedidosIds = pedidosSel.map(p => p.id).join(", ");
+  const iframe = document.createElement("iframe");
+  iframe.style.cssText = "position:fixed;left:-9999px;width:0;height:0";
+  document.body.appendChild(iframe);
+  const doc = iframe.contentDocument || iframe.contentWindow.document;
+  doc.open();
+  doc.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>Relatório de Demanda Unificado</title>' +
+  '<style>body{font-family:Arial,sans-serif;font-size:12px;color:#333;padding:20px}' +
+  'h1{font-size:16px;margin-bottom:4px}h2{font-size:13px;color:#666;margin-bottom:12px}' +
+  'table{width:100%;border-collapse:collapse;margin-top:12px}th,td{border:1px solid #ddd;padding:6px 10px;text-align:left}' +
+  'th{background:#f5f5f5;font-weight:700;font-size:11px;text-transform:uppercase}' +
+  '.text-right{text-align:right}.text-center{text-align:center}' +
+  '.falta{color:#e53e3e;font-weight:700}.ok{color:#38a169;font-weight:700}' +
+  '</style></head><body>' +
+  '<h1>Relatório de Demanda Unificado</h1>' +
+  '<h2>' + sel.length + ' pedido(s): ' + pedidosIds + '</h2>' +
+  '<table><thead><tr><th>Produto</th><th>Unidade</th><th class="text-right">Qtd Solicitada</th><th class="text-right">Disponível Estoque</th><th class="text-right">Falta Comprar</th></tr></thead>' +
+  '<tbody>' + linhas.map(l => '<tr><td>' + l.descricao + '</td><td class="text-center">' + l.unidade + '</td><td class="text-right">' + l.qtdSolicitada + '</td><td class="text-right">' + l.estoqueDisp + '</td><td class="text-right ' + (l.faltaComprar > 0 ? 'falta' : 'ok') + '">' + (l.faltaComprar > 0 ? l.faltaComprar : '✓') + '</td></tr>').join("") + '</tbody></table>' +
+  '<div style="margin-top:16px;font-size:10px;color:#999">Gerado em ' + new Date().toLocaleString("pt-BR") + ' — GDP ' + nomeEmpresa + '</div>' +
+  '</body></html>');
+  doc.close();
+  iframe.contentWindow.focus();
+  iframe.contentWindow.print();
+  setTimeout(() => document.body.removeChild(iframe), 5000);
 }
 
 // ===== BULK ACTIONS PEDIDOS =====
