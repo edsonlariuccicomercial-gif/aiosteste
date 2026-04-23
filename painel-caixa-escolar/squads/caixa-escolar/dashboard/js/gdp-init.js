@@ -107,7 +107,7 @@ function switchTab(tab) {
     // Mostrar tab-estoque e definir a sub-view correta
     document.getElementById("tab-estoque").classList.remove("hidden");
     const viewMap = { estoque: "produtos", fornecedores: "fornecedores", "notas-entrada": "notas-entrada", "estoque-op": "estoque" };
-    renderEstoque();
+    // setEstoqueIntelView já chama renderEstoque() internamente
     if (typeof setEstoqueIntelView === "function") setEstoqueIntelView(viewMap[tab]);
   } else if (isFinanceiro) {
     // Mostrar tab-financeiro

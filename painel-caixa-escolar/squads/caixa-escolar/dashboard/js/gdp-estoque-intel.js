@@ -2034,7 +2034,8 @@ function renderEstoque() {
   const fornecedoresTbody = document.getElementById("ei-fornecedores-tbody");
   const comprasTbody = document.getElementById("ei-compras-tbody");
   const pedidosReservaFiltroEl = document.getElementById("ei-pedidos-reserva-filtro");
-  if (!produtosTbody || !embalagensTbody || !pedidosTbody || !estoqueTbody || !movTbody || !fornecedoresTbody || !comprasTbody) return;
+  // Guard: só abortar se elementos essenciais não existem (compras/pedidos removidos no Épico A)
+  if (!produtosTbody || !estoqueTbody || !movTbody) return;
 
   const busca = (document.getElementById("ei-busca")?.value || "").trim().toLowerCase();
   const filtroBase = document.getElementById("ei-filtro-base")?.value || "";
@@ -2244,7 +2245,7 @@ function renderEstoque() {
     </tr>
   `).join("") : `<tr><td colspan="11" style="color:var(--mut)">Nenhum produto encontrado para o filtro atual.</td></tr>`;
 
-  embalagensTbody.innerHTML = embalagensFiltradas.length ? embalagensFiltradas.map((emb) => {
+  if (embalagensTbody) embalagensTbody.innerHTML = embalagensFiltradas.length ? embalagensFiltradas.map((emb) => {
     const produto = findEstoqueIntelProduto(emb.produto_id);
     return `
       <tr>
@@ -2258,7 +2259,7 @@ function renderEstoque() {
     `;
   }).join("") : `<tr><td colspan="6" style="color:var(--mut)">Nenhuma embalagem encontrada para o filtro atual.</td></tr>`;
 
-  pedidosTbody.innerHTML = pedidosVisiveis.length ? pedidosVisiveis.map((pedido) => {
+  if (pedidosTbody) pedidosTbody.innerHTML = pedidosVisiveis.length ? pedidosVisiveis.map((pedido) => {
     const itensPedido = estoqueIntelPedidoItens.filter((pedidoItem) => pedidoItem.pedido_id === pedido.id);
     const item = itensPedido[0] || null;
     const produto = item ? findEstoqueIntelProduto(item.produto_id) : null;
@@ -2283,7 +2284,7 @@ function renderEstoque() {
   }).join("") : `<tr><td colspan="8" style="color:var(--mut)">Nenhuma demanda encontrada para o filtro atual.</td></tr>`;
   const pedidosSyncPendenteCount = document.getElementById("ei-pedidos-sync-pendente-count");
   if (pedidosSyncPendenteCount) pedidosSyncPendenteCount.textContent = String(pedidosReaisPendentes.length);
-  pedidosSyncPendenteTbody.innerHTML = pedidosReaisPendentes.length ? pedidosReaisPendentes.map((item) => `
+  if (pedidosSyncPendenteTbody) pedidosSyncPendenteTbody.innerHTML = pedidosReaisPendentes.length ? pedidosReaisPendentes.map((item) => `
     <tr>
       <td class="font-mono">${esc(item.pedido.id)}</td>
       <td style="font-size:.76rem;color:var(--mut)">${esc(item.pendenciaLabel)}</td>
@@ -2324,7 +2325,7 @@ function renderEstoque() {
       </tr>
     `;
   }).join("") : `<tr><td colspan="5" style="color:var(--mut)">Nenhuma movimentacao registrada.</td></tr>`;
-  fornecedoresTbody.innerHTML = fornecedoresVisiveis.length ? fornecedoresVisiveis.map((fornecedor) => `
+  if (fornecedoresTbody) fornecedoresTbody.innerHTML = fornecedoresVisiveis.length ? fornecedoresVisiveis.map((fornecedor) => `
     <tr>
       <td>${esc(fornecedor.nome)}<br><span style="font-size:.72rem;color:var(--mut)">Tel: ${esc(getEstoqueIntelFornecedorTelefone(fornecedor) || "-")} | E-mail: ${esc(getEstoqueIntelFornecedorEmail(fornecedor) || "-")}</span></td>
       <td class="font-mono">${esc(fornecedor.documento || "-")}</td>
@@ -2336,7 +2337,7 @@ function renderEstoque() {
       <td class="text-right"><button class="btn btn-outline btn-sm" onclick="excluirFornecedorEstoqueIntel('${esc(fornecedor.id)}')">Excluir</button></td>
     </tr>
   `).join("") : `<tr><td colspan="5" style="color:var(--mut)">Nenhum fornecedor cadastrado.</td></tr>`;
-  comprasTbody.innerHTML = comprasVisiveis.length ? comprasVisiveis.map((compra) => {
+  if (comprasTbody) comprasTbody.innerHTML = comprasVisiveis.length ? comprasVisiveis.map((compra) => {
     const fornecedor = findEstoqueIntelFornecedor(compra.fornecedor_id);
     const itensCompra = getEstoqueIntelCompraItens(compra);
     const produtosCompra = itensCompra.map((item) => findEstoqueIntelProduto(item.produto_id)?.nome || item.produto_id).filter(Boolean);
