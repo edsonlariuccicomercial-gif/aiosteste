@@ -77,7 +77,7 @@ function switchTab(tab) {
   const title = document.getElementById("gdp-section-title");
   const labels = {
     usuarios: "Clientes",
-    estoque: "Central de Preços",
+    estoque: "Central de Produtos",
     fornecedores: "Fornecedores",
     "notas-entrada": "Notas de Entrada",
     "estoque-op": "Estoque",

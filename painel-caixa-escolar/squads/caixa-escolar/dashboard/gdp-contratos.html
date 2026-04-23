@@ -213,7 +213,7 @@
           <button class="sidebar-subitem active" data-gdp-tab="contratos" onclick="switchTab('contratos')"><span class="sidebar-subitem-label">Contratos</span><span class="count" id="tab-count-contratos">0</span></button>
           <button class="sidebar-subitem" data-gdp-tab="pedidos" onclick="switchTab('pedidos')" style="font-weight:800"><span class="sidebar-subitem-label" style="font-size:.95rem">Pedidos</span><span class="count" id="tab-count-pedidos" style="background:var(--green);color:#fff;font-weight:800">0</span></button>
           <button class="sidebar-subitem" data-gdp-tab="notas-fiscais" onclick="switchTab('notas-fiscais')"><span class="sidebar-subitem-label">Notas Fiscais</span><span class="count" id="tab-count-notas-fiscais">0</span></button>
-          <button class="sidebar-subitem" data-gdp-tab="estoque" onclick="switchTab('estoque')"><span class="sidebar-subitem-label">Central de Preços</span><span class="count" id="tab-count-estoque">0</span></button>
+          <button class="sidebar-subitem" data-gdp-tab="estoque" onclick="switchTab('estoque')"><span class="sidebar-subitem-label">Central de Produtos</span><span class="count" id="tab-count-estoque">0</span></button>
           <button class="sidebar-subitem" data-gdp-tab="fornecedores" onclick="switchTab('fornecedores')"><span class="sidebar-subitem-label">Fornecedores</span><span class="count" id="tab-count-fornecedores">0</span></button>
           <button class="sidebar-subitem" data-gdp-tab="notas-entrada" onclick="switchTab('notas-entrada')"><span class="sidebar-subitem-label">Notas de Entrada</span><span class="count" id="tab-count-notas-entrada">0</span></button>
           <button class="sidebar-subitem" data-gdp-tab="estoque-op" onclick="switchTab('estoque-op')"><span class="sidebar-subitem-label">Estoque</span><span class="count" id="tab-count-estoque-op">0</span></button>
@@ -947,7 +947,7 @@
     <div class="card" id="ei-header-card" style="margin-bottom:1rem;display:none">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap">
         <div>
-          <h2 id="ei-section-title">Central de Preços</h2>
+          <h2 id="ei-section-title">Central de Produtos</h2>
           <div style="font-size:.82rem;color:var(--mut)">Gerencie produtos, fornecedores, notas de entrada e estoque.</div>
         </div>
         <div style="display:flex;gap:.5rem;flex-wrap:wrap">
@@ -963,7 +963,7 @@
       </div>
       <div id="ei-api-status" style="margin-top:.75rem;font-size:.8rem;color:var(--mut);display:none"></div>
     </div>
-    <div class="kpi-grid" style="margin-bottom:1rem">
+    <div class="kpi-grid" data-ei-section="produtos" style="margin-bottom:1rem">
       <div class="kpi"><div class="kpi-label">Produtos</div><div class="kpi-value blue" id="est-intel-kpi-produtos">0</div><div class="kpi-sub">Catalogo base</div></div>
       <div class="kpi"><div class="kpi-label">Embalagens</div><div class="kpi-value yellow" id="est-intel-kpi-embalagens">0</div><div class="kpi-sub">Variacoes por gramatura/ml</div></div>
       <div class="kpi"><div class="kpi-label">Compras</div><div class="kpi-value green" id="est-intel-kpi-pedidos">0</div><div class="kpi-sub">Pedidos de compra</div></div>
