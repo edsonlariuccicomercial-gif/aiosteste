@@ -3317,6 +3317,18 @@ function abrirEditarProduto(produtoId) {
         <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Categoria</label><select id="edit-prod-categoria" style="width:100%">${CAT_OPTS.map(c => `<option value="${c}"${(produto.categoria||"")===c?" selected":""}>${c || "Sem Categoria"}</option>`).join("")}</select></div>
         <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Origem NF-e</label><select id="edit-prod-origem" style="width:100%">${ORIGEM_OPTS.map(o => `<option value="${o.v}"${(produto.origem||"0")===o.v?" selected":""}>${o.l}</option>`).join("")}</select></div>
       </div>
+      <div style="margin-bottom:.75rem">
+        <label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Tipo de Produto</label>
+        <div style="display:flex;gap:.8rem">
+          <label style="font-size:.82rem;display:flex;align-items:center;gap:.4rem;cursor:pointer;padding:.4rem .7rem;background:var(--bg);border:1px solid var(--bdr);border-radius:8px;flex:1">
+            <input type="radio" name="edit-prod-tipo" value="comum" ${!produto.produto_critico ? 'checked' : ''}> Produto Comum
+          </label>
+          <label style="font-size:.82rem;display:flex;align-items:center;gap:.4rem;cursor:pointer;padding:.4rem .7rem;background:rgba(234,179,8,.08);border:1px solid rgba(234,179,8,.25);border-radius:8px;flex:1">
+            <input type="radio" name="edit-prod-tipo" value="critico" ${produto.produto_critico ? 'checked' : ''}> Produto Critico
+          </label>
+        </div>
+        <div style="font-size:.68rem;color:var(--mut);margin-top:.25rem">Produto critico usa conversao de gramatura (unidade base em gramas).</div>
+      </div>
       <div style="border-top:1px solid var(--bdr);margin:1rem 0;padding-top:1rem">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem">
           <div style="font-size:.85rem;font-weight:700">Embalagens (${embs.length})</div>
@@ -3356,6 +3368,8 @@ function salvarEditarProduto(produtoId) {
   produto.ncm = ncmRaw.includes(" — ") ? ncmRaw.split(" — ")[0].trim() : ncmRaw;
   produto.categoria = document.getElementById("edit-prod-categoria")?.value || "";
   produto.origem = document.getElementById("edit-prod-origem")?.value || "0";
+  const editTipoEl = document.querySelector('input[name="edit-prod-tipo"]:checked');
+  produto.produto_critico = editTipoEl ? editTipoEl.value === "critico" : false;
   saveEstoqueIntelProdutos();
 
   document.querySelectorAll("#edit-embs-list [data-emb-id]").forEach(row => {
@@ -3484,6 +3498,18 @@ function renderModalNovoProduto() {
         <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Categoria</label><div style="display:flex;gap:.35rem"><select id="ei-produto-categoria" style="flex:1">${CAT_OPTS}</select><button class="btn btn-outline btn-sm" onclick="adicionarCategoriaCustom()" title="Nova" style="padding:.35rem .5rem">+</button></div></div>
         <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Origem NF-e</label><select id="ei-produto-origem" style="width:100%">${ORI_OPTS}</select></div>
       </div>
+      <div style="margin-bottom:.75rem">
+        <label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Tipo de Produto</label>
+        <div style="display:flex;gap:.8rem">
+          <label style="font-size:.82rem;display:flex;align-items:center;gap:.4rem;cursor:pointer;padding:.4rem .7rem;background:var(--bg);border:1px solid var(--bdr);border-radius:8px;flex:1">
+            <input type="radio" name="ei-prod-tipo" value="comum" checked> Produto Comum
+          </label>
+          <label style="font-size:.82rem;display:flex;align-items:center;gap:.4rem;cursor:pointer;padding:.4rem .7rem;background:rgba(234,179,8,.08);border:1px solid rgba(234,179,8,.25);border-radius:8px;flex:1">
+            <input type="radio" name="ei-prod-tipo" value="critico"> Produto Critico
+          </label>
+        </div>
+        <div style="font-size:.68rem;color:var(--mut);margin-top:.25rem">Produto critico usa conversao de gramatura (unidade base em gramas).</div>
+      </div>
       <div style="border-top:1px solid var(--bdr);margin:1rem 0;padding-top:1rem">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem">
           <div style="font-size:.85rem;font-weight:700">Embalagens (${_novoProdutoEmbs.length})</div>
@@ -3564,8 +3590,11 @@ function salvarNovoProdutoModal() {
   const categoria = document.getElementById("ei-produto-categoria")?.value || "";
   const origem = document.getElementById("ei-produto-origem")?.value || "0";
 
+  const prodTipoEl = document.querySelector('input[name="ei-prod-tipo"]:checked');
+  const produto_critico = prodTipoEl ? prodTipoEl.value === "critico" : false;
+
   const prodId = genId("PROD");
-  estoqueIntelProdutos.push({ id: prodId, nome, unidade_base, sku, ncm, categoria, origem });
+  estoqueIntelProdutos.push({ id: prodId, nome, unidade_base, sku, ncm, categoria, origem, produto_critico });
   saveEstoqueIntelProdutos();
 
   // Salvar embalagens do modal
