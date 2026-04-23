@@ -40,16 +40,18 @@ function renderPricingDashboard() {
     return diff > 90;
   }).length;
 
-  // Faturamento aprovado
-  const aprovados = Object.values(preOrcamentos).filter(p => p.status === "aprovado" || p.status === "enviado");
-  const faturamento = aprovados.reduce((s, p) => s + (p.totalGeral || 0), 0);
+  // Faturamento: soma dos orçamentos ganhos no mês
+  const ganhosMesResultados = JSON.parse(localStorage.getItem("caixaescolar.resultados.v1") || "[]")
+    .filter(r => r.resultado === "ganho" && (r.dataResultado || "").slice(0, 7) === new Date().toISOString().slice(0, 7));
+  const faturamento = ganhosMesResultados.reduce((s, r) => s + (r.valorProposto || 0), 0);
 
   // FR-014: KPIs reorganizados — Enviados, Ganhos, Perdidos, Conversão, Faturamento, Margem, Itens
-  const resultados = Object.values(preOrcamentos).filter(p => p.resultado);
+  const allResultados = JSON.parse(localStorage.getItem("caixaescolar.resultados.v1") || "[]");
   const mesAtual = new Date().toISOString().slice(0, 7);
-  const enviadosMes = Object.values(preOrcamentos).filter(p => (p.dataEnvio || p.criadoEm || "").slice(0, 7) === mesAtual).length;
-  const ganhosMes = resultados.filter(r => r.resultado === "ganho" && (r.dataResultado || "").slice(0, 7) === mesAtual).length;
-  const perdidosMes = resultados.filter(r => r.resultado === "perdido" && (r.dataResultado || "").slice(0, 7) === mesAtual).length;
+  const allPres = Object.values(preOrcamentos);
+  const enviadosMes = allPres.filter(p => (p.dataEnvio || p.criadoEm || "").slice(0, 7) === mesAtual).length;
+  const ganhosMes = allResultados.filter(r => r.resultado === "ganho" && (r.dataResultado || "").slice(0, 7) === mesAtual).length;
+  const perdidosMes = allResultados.filter(r => r.resultado === "perdido" && (r.dataResultado || "").slice(0, 7) === mesAtual).length;
   const taxaConversao = (ganhosMes + perdidosMes) > 0 ? Math.round(ganhosMes / (ganhosMes + perdidosMes) * 100) : 0;
 
   setTextSafe("kpi-pendentes", enviadosMes);
