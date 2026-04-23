@@ -40,25 +40,34 @@ function renderPricingDashboard() {
     return diff > 90;
   }).length;
 
-  // Faturamento: soma dos orçamentos ganhos no mês
-  const ganhosMesResultados = JSON.parse(localStorage.getItem("caixaescolar.resultados.v1") || "[]")
-    .filter(r => r.resultado === "ganho" && (r.dataResultado || "").slice(0, 7) === new Date().toISOString().slice(0, 7));
-  const faturamento = ganhosMesResultados.reduce((s, r) => s + (r.valorProposto || 0), 0);
-
-  // FR-014: KPIs reorganizados — Enviados, Ganhos, Perdidos, Conversão, Faturamento, Margem, Itens
+  // FR-014: Dashboard simplificado — apenas Enviados, Ganhos, Perdidos (qtd + valor)
   const allResultados = JSON.parse(localStorage.getItem("caixaescolar.resultados.v1") || "[]");
   const mesAtual = new Date().toISOString().slice(0, 7);
   const allPres = Object.values(preOrcamentos);
-  const enviadosMes = allPres.filter(p => (p.dataEnvio || p.criadoEm || "").slice(0, 7) === mesAtual).length;
-  const ganhosMes = allResultados.filter(r => r.resultado === "ganho" && (r.dataResultado || "").slice(0, 7) === mesAtual).length;
-  const perdidosMes = allResultados.filter(r => r.resultado === "perdido" && (r.dataResultado || "").slice(0, 7) === mesAtual).length;
-  const taxaConversao = (ganhosMes + perdidosMes) > 0 ? Math.round(ganhosMes / (ganhosMes + perdidosMes) * 100) : 0;
 
-  setTextSafe("kpi-pendentes", enviadosMes);
-  setTextSafe("pk-ganhos-mes", ganhosMes);
-  setTextSafe("pk-perdidos-mes", perdidosMes);
-  setTextSafe("pk-competitivos", taxaConversao + "%");
-  setTextSafe("pk-faturamento", brl.format(faturamento));
+  // Enviados no mês
+  const enviadosMesArr = allPres.filter(p => (p.dataEnvio || p.criadoEm || "").slice(0, 7) === mesAtual);
+  const enviadosMesQtd = enviadosMesArr.length;
+  const enviadosMesValor = enviadosMesArr.reduce((s, p) => s + (p.totalGeral || 0), 0);
+
+  // Ganhos no mês
+  const ganhosMesArr = allResultados.filter(r => r.resultado === "ganho" && (r.dataResultado || "").slice(0, 7) === mesAtual);
+  const ganhosMesQtd = ganhosMesArr.length;
+  const ganhosMesValor = ganhosMesArr.reduce((s, r) => s + (r.valorProposto || 0), 0);
+
+  // Perdidos no mês
+  const perdidosMesArr = allResultados.filter(r => r.resultado === "perdido" && (r.dataResultado || "").slice(0, 7) === mesAtual);
+  const perdidosMesQtd = perdidosMesArr.length;
+  const perdidosMesValor = perdidosMesArr.reduce((s, r) => s + (r.valorProposto || 0), 0);
+
+  setTextSafe("kpi-pendentes", enviadosMesQtd);
+  setTextSafe("pk-enviados-valor", brl.format(enviadosMesValor));
+  setTextSafe("pk-ganhos-mes", ganhosMesQtd);
+  setTextSafe("pk-faturamento", brl.format(ganhosMesValor));
+  setTextSafe("pk-perdidos-mes", perdidosMesQtd);
+  setTextSafe("pk-perdidos-valor", brl.format(perdidosMesValor));
+  // IDs ocultos mantidos para compatibilidade
+  setTextSafe("pk-competitivos", (ganhosMesQtd + perdidosMesQtd) > 0 ? Math.round(ganhosMesQtd / (ganhosMesQtd + perdidosMesQtd) * 100) + "%" : "0%");
   setTextSafe("pk-margem-media", margemMedia.toFixed(1) + "%");
   setTextSafe("pk-total-itens", itens.length);
 

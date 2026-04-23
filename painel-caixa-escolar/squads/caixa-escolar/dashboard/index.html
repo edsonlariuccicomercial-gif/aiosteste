@@ -98,65 +98,62 @@
     </div>
   </section>
 
-  <!-- ===== INTEL PREÇOS: KPIs + DASHBOARD (acima das tabs) ===== -->
+  <!-- ===== INTEL PREÇOS: DASHBOARD (FR-014) ===== -->
   <section id="intel-precos-dashboard" style="display:none;">
     <span id="kpi-margem" style="display:none">0%</span>
+    <!-- IDs mantidos para compatibilidade com JS existente -->
+    <span id="pk-competitivos" style="display:none">0%</span>
+    <span id="pk-margem-media" style="display:none">0%</span>
+    <span id="pk-total-itens" style="display:none">0</span>
 
-    <div class="card">
-      <div class="table-head">
-        <h2>Dashboard de Inteligência de Preços</h2>
-      </div>
+    <div class="card" style="padding:1.5rem">
+      <h2 style="margin-bottom:1.5rem;font-size:1.15rem">Dashboard de Inteligência de Preços</h2>
       <div id="pricing-alerts" class="pricing-alerts"></div>
-      <div class="pricing-kpis">
-        <article class="pricing-kpi-card">
-          <p>Orcamentos Enviados (Mes)</p>
-          <strong id="kpi-pendentes">0</strong>
-        </article>
-        <article class="pricing-kpi-card">
-          <p>Ganhos (Mes)</p>
-          <strong id="pk-ganhos-mes" style="color:#22c55e">0</strong>
-        </article>
-        <article class="pricing-kpi-card">
-          <p>Perdidos (Mes)</p>
-          <strong id="pk-perdidos-mes" style="color:#ef4444">0</strong>
-        </article>
-        <article class="pricing-kpi-card">
-          <p>Taxa de Conversao</p>
-          <strong id="pk-competitivos" class="text-accent">0%</strong>
-        </article>
-        <article class="pricing-kpi-card">
-          <p>Faturamento (Mes)</p>
-          <strong id="pk-faturamento">R$ 0</strong>
-        </article>
-        <article class="pricing-kpi-card">
-          <p>Margem Media</p>
-          <strong id="pk-margem-media">0%</strong>
-        </article>
-        <article class="pricing-kpi-card">
-          <p>Itens na Central de Precos</p>
-          <strong id="pk-total-itens">0</strong>
-        </article>
-      </div>
-      <div class="pricing-charts">
-        <div class="pricing-chart-box">
-          <h3>Top 10 Itens Mais Cotados</h3>
-          <div id="chart-top-cotados"></div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem">
+        <!-- Orçamentos Enviados -->
+        <div style="background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.25);border-radius:14px;padding:1.2rem">
+          <div style="font-size:.72rem;text-transform:uppercase;color:#94a3b8;letter-spacing:.06em;font-weight:700;margin-bottom:.8rem">Orcamentos Enviados (Mes)</div>
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:.4rem">
+            <span style="font-size:.82rem;color:#94a3b8">Quantidade</span>
+            <strong style="font-size:1.8rem;color:#3b82f6" id="kpi-pendentes">0</strong>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:baseline">
+            <span style="font-size:.82rem;color:#94a3b8">Valor Total</span>
+            <strong style="font-size:1.1rem;color:#3b82f6" id="pk-enviados-valor">R$ 0</strong>
+          </div>
         </div>
-        <div class="pricing-chart-box">
-          <h3>Margem por Grupo</h3>
-          <div id="chart-margem-grupo"></div>
+        <!-- Ganhos -->
+        <div style="background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.25);border-radius:14px;padding:1.2rem">
+          <div style="font-size:.72rem;text-transform:uppercase;color:#94a3b8;letter-spacing:.06em;font-weight:700;margin-bottom:.8rem">Ganhos (Mes)</div>
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:.4rem">
+            <span style="font-size:.82rem;color:#94a3b8">Quantidade</span>
+            <strong style="font-size:1.8rem;color:#22c55e" id="pk-ganhos-mes">0</strong>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:baseline">
+            <span style="font-size:.82rem;color:#94a3b8">Valor Total</span>
+            <strong style="font-size:1.1rem;color:#22c55e" id="pk-faturamento">R$ 0</strong>
+          </div>
+        </div>
+        <!-- Perdidos -->
+        <div style="background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);border-radius:14px;padding:1.2rem">
+          <div style="font-size:.72rem;text-transform:uppercase;color:#94a3b8;letter-spacing:.06em;font-weight:700;margin-bottom:.8rem">Perdidos (Mes)</div>
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:.4rem">
+            <span style="font-size:.82rem;color:#94a3b8">Quantidade</span>
+            <strong style="font-size:1.8rem;color:#ef4444" id="pk-perdidos-mes">0</strong>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:baseline">
+            <span style="font-size:.82rem;color:#94a3b8">Valor Total</span>
+            <strong style="font-size:1.1rem;color:#ef4444" id="pk-perdidos-valor">R$ 0</strong>
+          </div>
         </div>
       </div>
-      <div class="pricing-charts">
-        <div class="pricing-chart-box">
-          <h3>Evolução de Custos (Últimas Cotações)</h3>
-          <div id="chart-evolucao-custos"></div>
-        </div>
-        <div class="pricing-chart-box">
-          <h3>Competitividade por Grupo</h3>
-          <div id="chart-competitividade"></div>
-        </div>
-      </div>
+    </div>
+    <!-- Charts ocultos — mantidos para não quebrar JS -->
+    <div style="display:none">
+      <div id="chart-top-cotados"></div>
+      <div id="chart-margem-grupo"></div>
+      <div id="chart-evolucao-custos"></div>
+      <div id="chart-competitividade"></div>
     </div>
   </section>
 
