@@ -3307,29 +3307,35 @@ function abrirEditarProduto(produtoId) {
         <button class="btn btn-outline btn-sm" onclick="fecharEditarProduto()">✕</button>
       </div>
       <div style="font-size:.72rem;color:var(--mut);margin-bottom:1rem">ID: ${esc(produto.id)} | SKU: ${esc(produto.sku || "—")}</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.75rem">
-        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Nome</label><input type="text" id="edit-prod-nome" value="${esc(produto.nome)}" style="width:100%"></div>
-        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Unidade Base</label><select id="edit-prod-unidade" style="width:100%">${UNIT_OPTS.map(u => `<option value="${u}"${produto.unidade_base===u?" selected":""}>${u}</option>`).join("")}</select></div>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.75rem">
-        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">SKU</label><input type="text" id="edit-prod-sku" value="${esc(produto.sku || "")}" style="width:100%"></div>
-        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">NCM</label><input type="text" id="edit-prod-ncm" value="${esc(produto.ncm || "")}" list="ncm-datalist" oninput="filtrarNCM(this)" autocomplete="off" style="width:100%"></div>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.75rem">
-        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Categoria</label><select id="edit-prod-categoria" style="width:100%">${CAT_OPTS.map(c => `<option value="${c}"${(produto.categoria||"")===c?" selected":""}>${c || "Sem Categoria"}</option>`).join("")}</select></div>
-        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Origem NF-e</label><select id="edit-prod-origem" style="width:100%">${ORIGEM_OPTS.map(o => `<option value="${o.v}"${(produto.origem||"0")===o.v?" selected":""}>${o.l}</option>`).join("")}</select></div>
+      <div style="margin-bottom:.75rem">
+        <label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Nome</label>
+        <input type="text" id="edit-prod-nome" value="${esc(produto.nome)}" style="width:100%">
       </div>
       <div style="margin-bottom:.75rem">
         <label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Tipo de Produto</label>
         <div style="display:flex;gap:.8rem">
           <label style="font-size:.82rem;display:flex;align-items:center;gap:.4rem;cursor:pointer;padding:.4rem .7rem;background:var(--bg);border:1px solid var(--bdr);border-radius:8px;flex:1">
-            <input type="radio" name="edit-prod-tipo" value="comum" ${!produto.produto_critico ? 'checked' : ''}> Produto Comum
+            <input type="radio" name="edit-prod-tipo" value="comum" ${!produto.produto_critico ? 'checked' : ''} onchange="atualizarUnidadesPorTipo('edit')"> Produto Comum
           </label>
           <label style="font-size:.82rem;display:flex;align-items:center;gap:.4rem;cursor:pointer;padding:.4rem .7rem;background:rgba(234,179,8,.08);border:1px solid rgba(234,179,8,.25);border-radius:8px;flex:1">
-            <input type="radio" name="edit-prod-tipo" value="critico" ${produto.produto_critico ? 'checked' : ''}> Produto Critico
+            <input type="radio" name="edit-prod-tipo" value="critico" ${produto.produto_critico ? 'checked' : ''} onchange="atualizarUnidadesPorTipo('edit')"> Produto Critico
           </label>
         </div>
-        <div style="font-size:.68rem;color:var(--mut);margin-top:.25rem">Produto critico usa conversao de gramatura (unidade base em gramas).</div>
+        <div style="font-size:.68rem;color:var(--mut);margin-top:.25rem">Produto critico usa conversao de gramatura (unidade base em gramas/ml).</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.75rem">
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Unidade Base</label><select id="edit-prod-unidade" style="width:100%">${produto.produto_critico
+          ? ['g','KG','ml','LT','GL'].map(u => '<option value="' + u + '"' + (produto.unidade_base===u?' selected':'') + '>' + u + '</option>').join('')
+          : ['UN','DZ','CX','PCT','FD','BD','PT','SC','MÇ','RS','RL','FR','TB','GF','LA','KG','LT','GL'].map(u => '<option value="' + u + '"' + (produto.unidade_base===u?' selected':'') + '>' + u + '</option>').join('')
+        }</select></div>
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">SKU</label><input type="text" id="edit-prod-sku" value="${esc(produto.sku || "")}" style="width:100%"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.75rem">
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">NCM</label><input type="text" id="edit-prod-ncm" value="${esc(produto.ncm || "")}" list="ncm-datalist" oninput="filtrarNCM(this)" autocomplete="off" style="width:100%"></div>
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Categoria</label><select id="edit-prod-categoria" style="width:100%">${CAT_OPTS.map(c => '<option value="' + c + '"' + ((produto.categoria||"")===c?' selected':'') + '>' + (c || "Sem Categoria") + '</option>').join("")}</select></div>
+      </div>
+      <div style="margin-bottom:.75rem">
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Origem NF-e</label><select id="edit-prod-origem" style="width:100%">${ORIGEM_OPTS.map(o => '<option value="' + o.v + '"' + ((produto.origem||"0")===o.v?' selected':'') + '>' + o.l + '</option>').join("")}</select></div>
       </div>
       <div style="border-top:1px solid var(--bdr);margin:1rem 0;padding-top:1rem">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem">
@@ -3449,6 +3455,23 @@ function removerEmbalagemDoEdit(embId) {
 // === Modal Novo Produto (overlay) ===
 let _novoProdutoEmbs = [{ id: "temp-0", descricao: "", quantidade_base: 1, preco_referencia: 0 }];
 
+// FR-004: Atualizar opções de unidade base conforme tipo de produto
+function atualizarUnidadesPorTipo(prefix) {
+  const tipoEl = document.querySelector('input[name="' + prefix + '-prod-tipo"]:checked');
+  const selectId = prefix === "ei" ? "ei-produto-unidade" : "edit-prod-unidade";
+  const sel = document.getElementById(selectId);
+  if (!sel || !tipoEl) return;
+  const prevVal = sel.value;
+  const isCritico = tipoEl.value === "critico";
+  const comumOpts = '<optgroup label="Contagem"><option value="UN">UN — Unidade</option><option value="DZ">DZ — Duzia</option></optgroup><optgroup label="Embalagem"><option value="CX">CX — Caixa</option><option value="PCT">PCT — Pacote</option><option value="FD">FD — Fardo</option><option value="BD">BD — Bandeja</option><option value="PT">PT — Pote</option><option value="SC">SC — Sache/Saco</option></optgroup><optgroup label="Outros"><option value="MÇ">MÇ — Maco</option><option value="RS">RS — Resma</option><option value="RL">RL — Rolo</option><option value="FR">FR — Frasco</option><option value="TB">TB — Tubo</option><option value="GF">GF — Garrafa</option><option value="LA">LA — Lata</option><option value="KG">KG — Quilograma</option><option value="LT">LT — Litro</option><option value="GL">GL — Galao</option></optgroup>';
+  const criticoOpts = '<optgroup label="Peso (conversao gramatura)"><option value="g">g — Grama</option><option value="KG">KG — Quilograma</option></optgroup><optgroup label="Volume (conversao ml)"><option value="ml">ml — Mililitro</option><option value="LT">LT — Litro</option><option value="GL">GL — Galao</option></optgroup>';
+  sel.innerHTML = isCritico ? criticoOpts : comumOpts;
+  // Tentar manter o valor anterior se existir na nova lista
+  if (prevVal && sel.querySelector('option[value="' + prevVal + '"]')) {
+    sel.value = prevVal;
+  }
+}
+
 function toggleFormNovoProduto() {
   let overlay = document.getElementById("novo-prod-overlay");
   if (overlay && !overlay.classList.contains("hidden")) {
@@ -3469,7 +3492,9 @@ function renderModalNovoProduto() {
   }
   overlay.classList.remove("hidden");
 
-  const UNIT_OPTS = '<optgroup label="Contagem"><option value="UN" selected>UN — Unidade</option><option value="DZ">DZ — Duzia</option></optgroup><optgroup label="Peso"><option value="g">g — Grama</option><option value="KG">KG — Quilograma</option></optgroup><optgroup label="Volume"><option value="ml">ml — Mililitro</option><option value="LT">LT — Litro</option><option value="GL">GL — Galao</option></optgroup><optgroup label="Embalagem"><option value="CX">CX — Caixa</option><option value="PCT">PCT — Pacote</option><option value="FD">FD — Fardo</option><option value="BD">BD — Bandeja</option><option value="PT">PT — Pote</option><option value="SC">SC — Sache/Saco</option></optgroup><optgroup label="Outros"><option value="MÇ">MÇ — Maco</option><option value="RS">RS — Resma</option><option value="RL">RL — Rolo</option><option value="FR">FR — Frasco</option><option value="TB">TB — Tubo</option><option value="GF">GF — Garrafa</option><option value="LA">LA — Lata</option></optgroup>';
+  const UNIT_OPTS_COMUM = '<optgroup label="Contagem"><option value="UN" selected>UN — Unidade</option><option value="DZ">DZ — Duzia</option></optgroup><optgroup label="Embalagem"><option value="CX">CX — Caixa</option><option value="PCT">PCT — Pacote</option><option value="FD">FD — Fardo</option><option value="BD">BD — Bandeja</option><option value="PT">PT — Pote</option><option value="SC">SC — Sache/Saco</option></optgroup><optgroup label="Outros"><option value="MÇ">MÇ — Maco</option><option value="RS">RS — Resma</option><option value="RL">RL — Rolo</option><option value="FR">FR — Frasco</option><option value="TB">TB — Tubo</option><option value="GF">GF — Garrafa</option><option value="LA">LA — Lata</option><option value="KG">KG — Quilograma</option><option value="LT">LT — Litro</option><option value="GL">GL — Galao</option></optgroup>';
+  const UNIT_OPTS_CRITICO = '<optgroup label="Peso (conversao gramatura)"><option value="g" selected>g — Grama</option><option value="KG">KG — Quilograma</option></optgroup><optgroup label="Volume (conversao ml)"><option value="ml">ml — Mililitro</option><option value="LT">LT — Litro</option><option value="GL">GL — Galao</option></optgroup>';
+  const UNIT_OPTS = UNIT_OPTS_COMUM;
   const CAT_OPTS = ["","Hortifruti","Carnes/Proteinas","Graos/Cereais","Laticinios","Frutas","Mercearia","Padaria/Biscoitos","Ovos","Bebidas","Limpeza","Outros"].map(c => `<option value="${c}">${c || "Sem Categoria"}</option>`).join("");
   const ORI_OPTS = [{v:"0",l:"0 — Nacional"},{v:"1",l:"1 — Import. Direta"},{v:"2",l:"2 — Import. Merc. Interno"},{v:"3",l:"3 — Nac. >40% Import."},{v:"4",l:"4 — Nac. Proc. Basicos"},{v:"5",l:"5 — Nac. <=40% Import."},{v:"6",l:"6 — Import. s/ Similar"},{v:"7",l:"7 — Import. MI s/ Similar"}].map(o => `<option value="${o.v}">${o.l}</option>`).join("");
 
@@ -3488,29 +3513,32 @@ function renderModalNovoProduto() {
         <div style="font-size:1.1rem;font-weight:700">Novo Produto</div>
         <button class="btn btn-outline btn-sm" onclick="toggleFormNovoProduto()">✕</button>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.75rem">
-        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Nome do Produto</label><input type="text" id="ei-produto-nome" placeholder="Ex: Arroz" style="width:100%"></div>
-        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Unidade Base</label><select id="ei-produto-unidade" style="width:100%">${UNIT_OPTS}</select></div>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.75rem">
-        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">SKU / Cod. Barras</label><input type="text" id="ei-produto-sku" placeholder="Auto se vazio" style="width:100%"></div>
-        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">NCM</label><input type="text" id="ei-produto-ncm" placeholder="Digite nome ou codigo..." list="ncm-datalist" oninput="filtrarNCM(this)" autocomplete="off" style="width:100%"><datalist id="ncm-datalist"></datalist></div>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.75rem">
-        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Categoria</label><div style="display:flex;gap:.35rem"><select id="ei-produto-categoria" style="flex:1">${CAT_OPTS}</select><button class="btn btn-outline btn-sm" onclick="adicionarCategoriaCustom()" title="Nova" style="padding:.35rem .5rem">+</button></div></div>
-        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Origem NF-e</label><select id="ei-produto-origem" style="width:100%">${ORI_OPTS}</select></div>
+      <div style="margin-bottom:.75rem">
+        <label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Nome do Produto</label>
+        <input type="text" id="ei-produto-nome" placeholder="Ex: Arroz" style="width:100%">
       </div>
       <div style="margin-bottom:.75rem">
         <label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Tipo de Produto</label>
         <div style="display:flex;gap:.8rem">
           <label style="font-size:.82rem;display:flex;align-items:center;gap:.4rem;cursor:pointer;padding:.4rem .7rem;background:var(--bg);border:1px solid var(--bdr);border-radius:8px;flex:1">
-            <input type="radio" name="ei-prod-tipo" value="comum" checked> Produto Comum
+            <input type="radio" name="ei-prod-tipo" value="comum" checked onchange="atualizarUnidadesPorTipo('ei')"> Produto Comum
           </label>
           <label style="font-size:.82rem;display:flex;align-items:center;gap:.4rem;cursor:pointer;padding:.4rem .7rem;background:rgba(234,179,8,.08);border:1px solid rgba(234,179,8,.25);border-radius:8px;flex:1">
-            <input type="radio" name="ei-prod-tipo" value="critico"> Produto Critico
+            <input type="radio" name="ei-prod-tipo" value="critico" onchange="atualizarUnidadesPorTipo('ei')"> Produto Critico
           </label>
         </div>
-        <div style="font-size:.68rem;color:var(--mut);margin-top:.25rem">Produto critico usa conversao de gramatura (unidade base em gramas).</div>
+        <div style="font-size:.68rem;color:var(--mut);margin-top:.25rem">Produto critico usa conversao de gramatura (unidade base em gramas/ml).</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.75rem">
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Unidade Base</label><select id="ei-produto-unidade" style="width:100%">${UNIT_OPTS_COMUM}</select></div>
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">SKU / Cod. Barras</label><input type="text" id="ei-produto-sku" placeholder="Auto se vazio" style="width:100%"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.75rem">
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">NCM</label><input type="text" id="ei-produto-ncm" placeholder="Digite nome ou codigo..." list="ncm-datalist" oninput="filtrarNCM(this)" autocomplete="off" style="width:100%"><datalist id="ncm-datalist"></datalist></div>
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Categoria</label><div style="display:flex;gap:.35rem"><select id="ei-produto-categoria" style="flex:1">${CAT_OPTS}</select><button class="btn btn-outline btn-sm" onclick="adicionarCategoriaCustom()" title="Nova" style="padding:.35rem .5rem">+</button></div></div>
+      </div>
+      <div style="margin-bottom:.75rem">
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Origem NF-e</label><select id="ei-produto-origem" style="width:100%">${ORI_OPTS}</select></div>
       </div>
       <div style="border-top:1px solid var(--bdr);margin:1rem 0;padding-top:1rem">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem">
