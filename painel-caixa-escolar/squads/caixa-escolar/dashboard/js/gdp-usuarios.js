@@ -267,17 +267,41 @@ function abrirDetalheCliente(id) {
       ${ultimosPedidos.length ? `<div class="table-wrap"><table><thead><tr><th>Pedido</th><th>Data</th><th>Status</th><th class="text-right">Valor</th></tr></thead><tbody>${ultimosPedidos.map((pedido) => `<tr><td><button onclick="verPedidoDetalhe('${pedido.id}')" style="background:none;border:none;padding:0;color:var(--blue);cursor:pointer;font-weight:700">${esc(pedido.id)}</button></td><td>${esc(pedido.dataEntrega || pedido.data || '-')}</td><td>${esc(pedido.status || '-')}</td><td class="text-right">${brl.format(pedido.valor || 0)}</td></tr>`).join('')}</tbody></table></div>` : '<div style="font-size:.85rem;color:var(--mut)">Nenhuma venda encontrada para este cliente.</div>'}
     </div>
   `;
-  document.getElementById("modal-usuario").classList.remove("hidden");
+  // Renderizar como pagina inline (nao modal)
+  const detalhePage = document.getElementById("cliente-detalhe-page");
+  const listagem = document.getElementById("clientes-listagem");
+  if (detalhePage && listagem) {
+    const titulo = "Cadastro do Cliente";
+    const headerHtml = '<div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;padding-bottom:1rem;border-bottom:1px solid rgba(143,197,157,.25)"><button onclick="voltarListaClientes()" style="background:transparent;border:none;cursor:pointer;color:var(--mut);font-size:1.1rem;padding:4px 8px" title="Voltar para lista">&#x2190;</button><h2 style="font-size:1.1rem;font-weight:600;margin:0;flex:1">' + titulo + ' — ' + esc(cliente.nome || '') + '</h2><div style="display:flex;gap:.5rem"><button class="btn btn-outline btn-sm" onclick="editarClienteDoDetalhe()">Editar</button><button class="btn btn-outline btn-sm" onclick="voltarListaClientes()">Voltar</button></div></div>';
+    detalhePage.innerHTML = headerHtml + document.getElementById("modal-usuario-body").innerHTML;
+    document.getElementById("modal-usuario-body").innerHTML = '';
+    listagem.classList.add("hidden");
+    detalhePage.classList.remove("hidden");
+  } else {
+    document.getElementById("modal-usuario").classList.remove("hidden");
+  }
 }
 
 function editarClienteDoDetalhe() {
   if (!clienteDetalheAtualId) return;
+  voltarListaClientes();
   editarUsuario(clienteDetalheAtualId);
+}
+
+function voltarListaClientes() {
+  const detalhePage = document.getElementById("cliente-detalhe-page");
+  const listagem = document.getElementById("clientes-listagem");
+  if (detalhePage && listagem) {
+    detalhePage.classList.add("hidden");
+    detalhePage.innerHTML = "";
+    listagem.classList.remove("hidden");
+  }
 }
 
 function fecharModalUsuario() {
   clienteDetalheAtualId = null;
   document.getElementById("modal-usuario").classList.add("hidden");
+  voltarListaClientes();
 }
 
 function abrirMenuCliente(id) {

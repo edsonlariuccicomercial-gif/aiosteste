@@ -100,6 +100,9 @@
     /* Flat tabs — neutralizar .card dentro das tabs flat */
     #tab-pedidos .card,#tab-notas-fiscais .card,#tab-financeiro .card,#tab-contas-pagar .card,#tab-contas-receber .card,#tab-caixa .card,#tab-estoque .card,#tab-usuarios .card,#tab-notas-entrada .card,#tab-banco-produtos .card{background:transparent;border:none;border-radius:0;padding:0;margin-bottom:1rem;border-bottom:1px solid rgba(143,197,157,.25);padding-bottom:1rem}
 
+    /* Modais fixos — restaurar background solido */
+    #modal-produto > div,#modal-usuario > div,#modal-nota-fiscal > div,#modal-comprovante > div,#modal-import-clientes > div,#modal-sync-banco > div,#modal-sync-itens > div,#modal-import-tiny > div,#modal-import-produtos > div,#modal-vincular-gdp > div,#modal-lista-compras > div,#modal-ei-demanda > div,#modal-ei-compra > div,#modal-ei-gerar-demanda > div,#modal-cliente-vendas > div,#modal-contrato > div,#modal-pedido > div,#modal-alterar-situacao-bulk > div{background:var(--bg) !important;border:1px solid var(--bdr) !important;border-radius:4px !important}
+
     /* Contratos e Relatorios — manter estilo card */
     #tab-contratos .table-wrap,#tab-relatorios .table-wrap,#tab-importar .table-wrap,#tab-itens .table-wrap{background:var(--s1);border:1px solid var(--bdr);border-radius:4px}
     #tab-contratos table,#tab-relatorios table,#tab-importar table,#tab-itens table{border-collapse:collapse;border-spacing:0}
@@ -970,6 +973,8 @@
 
   <!-- Tab: Estoque -->
   <div id="tab-estoque" class="hidden">
+    <div id="produto-detalhe-page" class="hidden"></div>
+    <div id="estoque-listagem">
     <!-- Header oculto — navegação agora é pelo sidebar -->
     <div class="card" id="ei-header-card" style="margin-bottom:1rem;display:none">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap">
@@ -1013,7 +1018,7 @@
           <div><select id="ei-filtro-base" onchange="renderEstoque()"><option value="">Todas as Bases</option><option value="UN">UN</option><option value="g">g</option><option value="KG">KG</option><option value="ml">ml</option><option value="LT">LT</option><option value="MÇ">MÇ</option></select></div>
         </div>
         <div id="ei-form-novo-produto" data-ei-form style="display:none"></div>
-        <div class="table-wrap" data-ei-table style="max-height:320px;overflow-y:auto"><table><thead><tr><th>ID</th><th>Produto</th><th>Base</th><th>Categoria</th><th>Origem</th><th>SKU</th><th>NCM</th><th>Embalagem</th><th class="text-right">Qtd Emb.</th><th class="text-right">Preco Ref.</th><th class="text-right">Acoes</th></tr></thead><tbody id="ei-produtos-tbody"></tbody></table></div>
+        <div class="table-wrap" data-ei-table style="max-height:600px;overflow-y:auto"><table><thead><tr><th>ID</th><th>Produto</th><th>Base</th><th>Categoria</th><th>Origem</th><th>SKU</th><th>NCM</th><th>Embalagem</th><th class="text-right">Qtd Emb.</th><th class="text-right">Preco Ref.</th><th class="text-right">Acoes</th></tr></thead><tbody id="ei-produtos-tbody"></tbody></table></div>
       </div>
       <!-- Card embalagens oculto (dados mantidos para compatibilidade) -->
       <div class="card hidden" id="ei-card-embalagens" data-ei-section="embalagens">
@@ -1198,10 +1203,13 @@
         <span id="lista-compras-total-qtd"></span>
       </div>
     </div>
+    </div><!-- /estoque-listagem -->
   </div>
 
   <!-- Tab: Clientes (Escolas) -->
   <div id="tab-usuarios" class="hidden">
+    <div id="cliente-detalhe-page" class="hidden"></div>
+    <div id="clientes-listagem">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
       <div style="display:flex;gap:.8rem;align-items:center">
         <input type="text" id="busca-usuario" placeholder="Buscar escola, CNPJ..." oninput="renderUsuarios()">
@@ -1234,6 +1242,7 @@
       <div id="clientes-bulk-summary" style="font-size:.82rem;font-weight:700;color:var(--mut)">0 cadastro(s) selecionado(s)</div>
       <button class="btn btn-red" onclick="excluirClientesSelecionados()">Excluir Cadastro</button>
     </div>
+    </div><!-- /clientes-listagem -->
   </div>
 
   <!-- Modal: Import Clientes -->
