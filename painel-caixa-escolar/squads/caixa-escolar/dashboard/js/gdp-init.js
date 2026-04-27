@@ -3292,20 +3292,18 @@ function abrirEditarProduto(produtoId) {
   const CAT_OPTS = ["","Hortifruti","Carnes/Proteinas","Graos/Cereais","Laticinios","Frutas","Mercearia","Padaria/Biscoitos","Ovos","Bebidas","Polpas/Frutas","Limpeza","Outros"];
   const UNIT_OPTS = ["UN","DZ","g","KG","ml","LT","GL","CX","PCT","FD","BD","PT","SC","MÇ","RS","RL","FR","TB","GF","LA"];
 
-  let overlay = document.getElementById("edit-prod-overlay");
-  if (!overlay) {
-    overlay = document.createElement("div");
-    overlay.id = "edit-prod-overlay";
-    overlay.style.cssText = "position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:1100";
-    document.body.appendChild(overlay);
-  }
-  overlay.classList.remove("hidden");
-  overlay.innerHTML = `
-    <div style="background:transparent;border:none;border-radius:0;border-bottom:1px solid rgba(143,197,157,.25);padding:1.5rem;max-width:600px;width:92%;max-height:85vh;overflow-y:auto">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
-        <div style="font-size:1.1rem;font-weight:700">Editar Produto</div>
-        <button class="btn btn-outline btn-sm" onclick="fecharEditarProduto()">✕</button>
-      </div>
+  const detalhePage = document.getElementById("produto-detalhe-page");
+  const listagem = document.getElementById("estoque-listagem");
+  const useInline = detalhePage && listagem;
+
+  const formHeader = `
+    <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;padding-bottom:1rem;border-bottom:1px solid rgba(143,197,157,.25)">
+      <button onclick="fecharEditarProduto()" style="background:transparent;border:none;cursor:pointer;color:var(--mut);font-size:1.1rem;padding:4px 8px" title="Voltar">&#x2190;</button>
+      <h2 style="font-size:1.1rem;font-weight:600;margin:0;flex:1">Editar Produto — ${esc(produto.nome)}</h2>
+    </div>`;
+
+  const formBody = `
+    <div style="padding:0;width:100%;max-width:100%">
       <div style="font-size:.72rem;color:var(--mut);margin-bottom:1rem">ID: ${esc(produto.id)} | SKU: ${esc(produto.sku || "—")}</div>
       <div style="margin-bottom:.75rem">
         <label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Nome</label>
@@ -3359,11 +3357,30 @@ function abrirEditarProduto(produtoId) {
       </div>
     </div>
   `;
+  if (useInline) {
+    detalhePage.innerHTML = formHeader + formBody;
+    listagem.classList.add("hidden");
+    detalhePage.classList.remove("hidden");
+  } else {
+    let overlay = document.getElementById("edit-prod-overlay");
+    if (!overlay) {
+      overlay = document.createElement("div");
+      overlay.id = "edit-prod-overlay";
+      overlay.style.cssText = "position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:1100";
+      document.body.appendChild(overlay);
+    }
+    overlay.classList.remove("hidden");
+    overlay.innerHTML = formBody;
+  }
 }
 
 function fecharEditarProduto() {
   const overlay = document.getElementById("edit-prod-overlay");
   if (overlay) overlay.classList.add("hidden");
+  const detalhePage = document.getElementById("produto-detalhe-page");
+  const listagem = document.getElementById("estoque-listagem");
+  if (detalhePage) { detalhePage.classList.add("hidden"); detalhePage.innerHTML = ""; }
+  if (listagem) listagem.classList.remove("hidden");
 }
 
 function salvarEditarProduto(produtoId) {

@@ -1018,7 +1018,7 @@
           <div><select id="ei-filtro-base" onchange="renderEstoque()"><option value="">Todas as Bases</option><option value="UN">UN</option><option value="g">g</option><option value="KG">KG</option><option value="ml">ml</option><option value="LT">LT</option><option value="MÇ">MÇ</option></select></div>
         </div>
         <div id="ei-form-novo-produto" data-ei-form style="display:none"></div>
-        <div class="table-wrap" data-ei-table style="max-height:600px;overflow-y:auto"><table><thead><tr><th>ID</th><th>Produto</th><th>Base</th><th>Categoria</th><th>Origem</th><th>SKU</th><th>NCM</th><th>Embalagem</th><th class="text-right">Qtd Emb.</th><th class="text-right">Preco Ref.</th><th class="text-right">Acoes</th></tr></thead><tbody id="ei-produtos-tbody"></tbody></table></div>
+        <div class="table-wrap" data-ei-table><table><thead><tr><th>ID</th><th>Produto</th><th>Base</th><th>Categoria</th><th>Origem</th><th>SKU</th><th>NCM</th><th>Embalagem</th><th class="text-right">Qtd Emb.</th><th class="text-right">Preco Ref.</th><th class="text-right">Acoes</th></tr></thead><tbody id="ei-produtos-tbody"></tbody></table></div>
       </div>
       <!-- Card embalagens oculto (dados mantidos para compatibilidade) -->
       <div class="card hidden" id="ei-card-embalagens" data-ei-section="embalagens">
@@ -1026,7 +1026,7 @@
           <select id="ei-emb-produto" onchange="atualizarLabelQtdBaseEmb()"></select>
           <input type="text" id="ei-emb-barcode" placeholder="789...">
         </div>
-        <div class="table-wrap" data-ei-table style="max-height:220px;overflow-y:auto"><table><thead><tr><th>Produto</th><th>Descricao</th><th>Barras</th><th class="text-right">Qtd Base</th><th class="text-right">Preco Padrao</th><th class="text-right">Acoes</th></tr></thead><tbody id="ei-embalagens-tbody"></tbody></table></div>
+        <div class="table-wrap" data-ei-table><table><thead><tr><th>Produto</th><th>Descricao</th><th>Barras</th><th class="text-right">Qtd Base</th><th class="text-right">Preco Padrao</th><th class="text-right">Acoes</th></tr></thead><tbody id="ei-embalagens-tbody"></tbody></table></div>
       </div>
       <!-- Card Demandas removido (Épico A - FR-006) -->
       <div class="card" id="ei-card-movimentacoes" data-ei-section="estoque">
@@ -1043,7 +1043,7 @@
           <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Quantidade Base</label><input type="number" id="ei-mov-quantidade" min="1" step="1" placeholder="350"></div>
           <div><button class="btn btn-green" onclick="registrarMovimentoEstoque()">Registrar</button></div>
         </div>
-        <div class="table-wrap" data-ei-table style="max-height:220px;overflow-y:auto"><table><thead><tr><th>Data</th><th>Produto</th><th>Op.</th><th class="text-right">Qtd</th><th>Origem</th></tr></thead><tbody id="ei-movimentacoes-tbody"></tbody></table></div>
+        <div class="table-wrap" data-ei-table><table><thead><tr><th>Data</th><th>Produto</th><th>Op.</th><th class="text-right">Qtd</th><th>Origem</th></tr></thead><tbody id="ei-movimentacoes-tbody"></tbody></table></div>
       </div>
     </div>
     <!-- Cards "Estoque Calculado" e "Estoque Simples" removidos — manter apenas Entrada/Saída + Inventário -->
@@ -1109,7 +1109,7 @@
             <div><button class="btn btn-green" onclick="registrarFornecedorEstoqueIntel()">Salvar Oferta</button></div>
           </div>
         </div>
-        <div class="table-wrap" data-ei-table style="max-height:260px;overflow-y:auto"><table><thead><tr><th>Fornecedor</th><th>Documento</th><th>Status</th><th>Oferta</th><th class="text-right">Acoes</th></tr></thead><tbody id="ei-fornecedores-tbody"></tbody></table></div>
+        <div class="table-wrap" data-ei-table><table><thead><tr><th>Fornecedor</th><th>Documento</th><th>Status</th><th>Oferta</th><th class="text-right">Acoes</th></tr></thead><tbody id="ei-fornecedores-tbody"></tbody></table></div>
       </div>
     </div>
   </div>
