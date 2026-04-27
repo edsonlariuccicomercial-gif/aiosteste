@@ -249,13 +249,13 @@ function novoContratoManual() {
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
       <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Escola / Órgão</label><input type="text" id="mc-escola" list="mc-clientes-list" value="${esc(draft.escola || '')}" placeholder="Nome da escola" oninput="sugerirClienteContrato(this.value)" style="width:100%"><datalist id="mc-clientes-list">${usuarios.map((u) => `<option value="${esc(u.nome)}"></option>`).join("")}</datalist></div>
       <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Número do Edital</label><input type="text" id="mc-edital" value="${esc(draft.edital || '')}" placeholder="Ex: PE 001/2026" style="width:100%"></div>
-      <div style="grid-column:1/-1;font-size:.78rem;padding:.65rem .8rem;background:var(--s1);border:1px solid var(--bdr);border-radius:8px;color:var(--mut)" id="mc-cliente-info">Selecione um cliente já cadastrado ou digite um nome para localizar.</div>
+      <div style="grid-column:1/-1;font-size:.78rem;padding:.65rem .8rem;background:var(--s1);border:1px solid var(--bdr);border-radius:4px;color:var(--mut)" id="mc-cliente-info">Selecione um cliente já cadastrado ou digite um nome para localizar.</div>
       <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Número do Processo</label><input type="text" id="mc-processo" value="${esc(draft.processo || '')}" placeholder="Ex: 001/2026" style="width:100%"></div>
       <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Vigência</label><input type="text" id="mc-vigencia" value="${esc(draft.vigencia || '')}" placeholder="Ex: 01/01/2026 a 31/12/2026" style="width:100%"></div>
       <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Fornecedor</label><input type="text" id="mc-fornecedor" value="${esc(draft.fornecedor || 'Lariucci & Ribeiro Pereira')}" style="width:100%"></div>
       <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Status</label><select id="mc-status" style="width:100%"><option value="ativo"${(draft.status || 'ativo') === 'ativo' ? ' selected' : ''}>Ativo</option><option value="encerrado"${draft.status === 'encerrado' ? ' selected' : ''}>Encerrado</option></select></div>
       <div style="grid-column:1/-1"><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Objeto</label><input type="text" id="mc-objeto" value="${esc(draft.objeto || '')}" placeholder="Descrição do objeto" style="width:100%"></div>
-      <div style="grid-column:1/-1"><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Observações</label><textarea id="mc-obs" placeholder="Informações adicionais..." style="width:100%;min-height:50px;padding:.5rem .8rem;background:var(--s1);border:1px solid var(--bdr);border-radius:8px;color:var(--txt);font-size:.85rem;resize:vertical">${esc(draft.observacoes || '')}</textarea></div>
+      <div style="grid-column:1/-1"><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Observações</label><textarea id="mc-obs" placeholder="Informações adicionais..." style="width:100%;min-height:50px;padding:.5rem .8rem;background:var(--s1);border:1px solid var(--bdr);border-radius:4px;color:var(--txt);font-size:.85rem;resize:vertical">${esc(draft.observacoes || '')}</textarea></div>
     </div>
     <div style="margin-top:1.5rem;display:flex;gap:.8rem;justify-content:flex-end">
       <button class="btn btn-outline" onclick="fecharModalContrato()">Cancelar</button>
@@ -499,7 +499,7 @@ function abrirContrato(id) {
       <div class="kpi" style="margin:0"><div class="kpi-label">Entregue</div><div class="kpi-value blue" style="font-size:1.3rem">${brl.format(totalEntregue)}</div></div>
       <div class="kpi" style="margin:0"><div class="kpi-label">Saldo</div><div class="kpi-value yellow" style="font-size:1.3rem">${brl.format(totalSaldo)}</div></div>
     </div>
-    <div style="background:var(--bg);border-radius:10px;padding:1rem;margin-bottom:1.5rem">
+    <div style="background:var(--bg);border-radius:4px;padding:1rem;margin-bottom:1.5rem">
       <h3 style="font-size:.8rem;text-transform:uppercase;color:var(--mut);letter-spacing:.04em;margin-bottom:.8rem">Dados do Contrato</h3>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:.8rem">
         <div style="grid-column:1/-1"><label style="font-size:.72rem;color:var(--dim);display:block;margin-bottom:.2rem">Caixa Escolar / Escola</label>
@@ -517,8 +517,8 @@ function abrirContrato(id) {
         <div><label style="font-size:.72rem;color:var(--dim);display:block;margin-bottom:.2rem">Numero do Processo</label><input type="text" id="ctr-processo-${c.id}" value="${esc(c.processo || '')}" placeholder="Ex: 001/2026" style="width:100%"></div>
         <div><label style="font-size:.72rem;color:var(--dim);display:block;margin-bottom:.2rem">Vigencia</label><input type="text" id="ctr-vigencia-${c.id}" value="${esc(c.vigencia || '')}" placeholder="Ex: 01/01/2026 a 31/12/2026" style="width:100%"></div>
         <div style="grid-column:1/-1"><label style="font-size:.72rem;color:var(--dim);display:block;margin-bottom:.2rem">Objeto</label><input type="text" id="ctr-objeto-${c.id}" value="${esc(c.objeto || '')}" placeholder="Descricao do objeto" style="width:100%"></div>
-        <div style="grid-column:1/-1"><label style="font-size:.72rem;color:var(--dim);display:block;margin-bottom:.2rem">Observacoes (replicadas automaticamente nos pedidos)</label><textarea id="ctr-obs-${c.id}" placeholder="Informacoes adicionais..." style="width:100%;min-height:50px;padding:.5rem .8rem;background:var(--s1);border:1px solid var(--bdr);border-radius:8px;color:var(--txt);font-size:.85rem;resize:vertical">${esc(c.observacoes || '')}</textarea></div>
-        <div style="grid-column:1/-1;margin-top:.4rem"><label style="display:flex;align-items:center;gap:.5rem;font-size:.82rem;cursor:pointer;padding:.4rem .6rem;background:var(--s1);border:1px solid var(--bdr);border-radius:8px"><input type="checkbox" id="ctr-saldo-visivel-${c.id}" ${c.saldoVisivelEscola ? 'checked' : ''}> Permitir que a escola acompanhe o saldo do contrato no Portal Escolar</label></div>
+        <div style="grid-column:1/-1"><label style="font-size:.72rem;color:var(--dim);display:block;margin-bottom:.2rem">Observacoes (replicadas automaticamente nos pedidos)</label><textarea id="ctr-obs-${c.id}" placeholder="Informacoes adicionais..." style="width:100%;min-height:50px;padding:.5rem .8rem;background:var(--s1);border:1px solid var(--bdr);border-radius:4px;color:var(--txt);font-size:.85rem;resize:vertical">${esc(c.observacoes || '')}</textarea></div>
+        <div style="grid-column:1/-1;margin-top:.4rem"><label style="display:flex;align-items:center;gap:.5rem;font-size:.82rem;cursor:pointer;padding:.4rem .6rem;background:var(--s1);border:1px solid var(--bdr);border-radius:4px"><input type="checkbox" id="ctr-saldo-visivel-${c.id}" ${c.saldoVisivelEscola ? 'checked' : ''}> Permitir que a escola acompanhe o saldo do contrato no Portal Escolar</label></div>
       </div>
       <div style="margin-top:.6rem;display:flex;justify-content:space-between;align-items:center">
         <div style="display:flex;gap:.4rem">
@@ -564,7 +564,7 @@ function abrirContrato(id) {
             }</td>
             <td style="min-width:120px">
               <div style="display:flex;align-items:center;gap:.2rem">
-                <input type="text" value="${esc(item.ncm || '')}" id="ncm-${c.id}-${idx}" placeholder="00.00.00.00" style="width:90px;font-size:.72rem;font-family:monospace;padding:.15rem .3rem;background:var(--s1);border:1px solid var(--bdr);border-radius:4px;color:var(--cyan)" onchange="salvarNcmItem('${c.id}',${idx},this.value)">
+                <input type="text" value="${esc(item.ncm || '')}" id="ncm-${c.id}-${idx}" placeholder="00.00.00.00" style="width:90px;font-size:.72rem;font-family:monospace;padding:.15rem .3rem;background:transparent;border:none;border-radius:0;border-bottom:1px solid rgba(143,197,157,.25);color:var(--cyan)" onchange="salvarNcmItem('${c.id}',${idx},this.value)">
                 <button style="background:none;border:none;cursor:pointer;font-size:.7rem;color:var(--blue);padding:0" onclick="buscarNcmItem('${c.id}',${idx})" title="Buscar NCM automaticamente">🔍</button>
               </div>
             </td>
@@ -583,7 +583,7 @@ function abrirContrato(id) {
         }).join("")}</tbody>
       </table>
     </div>
-    <div id="tiny-result-${c.id}" class="hidden" style="margin-top:1rem;padding:1rem;border-radius:8px;background:var(--s1);border:1px solid var(--bdr);font-size:.85rem"></div>`;
+    <div id="tiny-result-${c.id}" class="hidden" style="margin-top:1rem;padding:1rem;border-radius:4px;background:var(--s1);border:1px solid var(--bdr);font-size:.85rem"></div>`;
 
   document.getElementById("modal-contrato-body").innerHTML = html;
   document.getElementById("modal-contrato").classList.remove("hidden");
@@ -1156,7 +1156,7 @@ function abrirInventario() {
     <td style="font-size:.82rem">${esc(item.produto.nome)}</td>
     <td class="text-center">${esc(item.produto.unidade_base)}</td>
     <td class="text-right font-mono">${item.fisico}</td>
-    <td class="text-center"><input type="number" class="inv-qtd" data-prod-id="${item.produto.id}" value="${item.fisico}" min="0" style="width:80px;text-align:right;padding:.3rem .4rem;background:var(--s1);border:1px solid var(--bdr);border-radius:4px;color:var(--txt);font-family:monospace"></td>
+    <td class="text-center"><input type="number" class="inv-qtd" data-prod-id="${item.produto.id}" value="${item.fisico}" min="0" style="width:80px;text-align:right;padding:.3rem .4rem;background:transparent;border:none;border-radius:0;border-bottom:1px solid rgba(143,197,157,.25);color:var(--txt);font-family:monospace"></td>
   </tr>`).join('');
   const modal = document.getElementById('modal-contrato');
   document.getElementById('modal-contrato-titulo').textContent = '📋 Inventário de Estoque';
@@ -2372,7 +2372,7 @@ function esc(s) { return String(s == null ? "" : (typeof s === "object" ? JSON.s
 function showToast(msg, duration = 3000) {
   const container = document.getElementById("toast-container");
   const toast = document.createElement("div");
-  toast.style.cssText = "background:#f59e0b;color:#000;font-weight:600;padding:.7rem 1.4rem;border-radius:8px;font-size:.85rem;box-shadow:0 4px 16px rgba(245,158,11,.4);transition:opacity .3s;border:2px solid #d97706";
+  toast.style.cssText = "background:#f59e0b;color:#000;font-weight:600;padding:.7rem 1.4rem;border-radius:4px;font-size:.85rem;box-shadow:0 4px 16px rgba(245,158,11,.4);transition:opacity .3s;border:2px solid #d97706";
   toast.textContent = msg;
   container.appendChild(toast);
   setTimeout(() => { toast.style.opacity = "0"; setTimeout(() => toast.remove(), 300); }, duration);
@@ -2695,7 +2695,7 @@ function vincularItensMassa(contratoId) {
   }).join("");
 
   overlay.innerHTML = `
-    <div style="background:var(--s1);border:1px solid var(--bdr);border-radius:14px;padding:1.5rem;max-width:700px;width:95%;max-height:85vh;overflow-y:auto">
+    <div style="background:transparent;border:none;border-radius:0;border-bottom:1px solid rgba(143,197,157,.25);padding:1.5rem;max-width:700px;width:95%;max-height:85vh;overflow-y:auto">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
         <div style="font-size:1.1rem;font-weight:700">Vincular ${indices.length} Item(ns)</div>
         <button class="btn btn-outline btn-sm" onclick="document.getElementById('vincular-massa-overlay').classList.add('hidden')">✕</button>
@@ -2766,12 +2766,12 @@ function editarItensMassa(contratoId) {
     if (!item) return '';
     return `<tr data-edit-idx="${idx}">
       <td class="text-center" style="font-size:.75rem;font-weight:700">${item.num}</td>
-      <td><input type="text" class="edit-descricao" value="${esc(item.descricao || '')}" style="width:100%;min-width:220px;font-size:.72rem;padding:.2rem .3rem;background:var(--s1);border:1px solid var(--bdr);border-radius:4px;color:var(--txt)"></td>
-      <td><input type="text" class="edit-ncm" value="${esc(item.ncm || '')}" placeholder="0000.00.00" style="width:100px;font-size:.72rem;font-family:monospace;padding:.2rem .3rem;background:var(--s1);border:1px solid var(--bdr);border-radius:4px;color:var(--cyan)"></td>
-      <td><input type="text" class="edit-unidade" value="${esc(item.unidade || 'UN')}" style="width:50px;font-size:.72rem;padding:.2rem .3rem;background:var(--s1);border:1px solid var(--bdr);border-radius:4px;color:var(--txt);text-transform:uppercase"></td>
-      <td><input type="number" class="edit-qtd" value="${item.qtdContratada || 0}" min="0" style="width:65px;font-size:.72rem;font-family:monospace;padding:.2rem .3rem;background:var(--s1);border:1px solid var(--bdr);border-radius:4px;color:var(--txt);text-align:right"></td>
-      <td><input type="number" class="edit-preco" value="${item.precoUnitario || 0}" step="0.01" style="width:80px;font-size:.72rem;font-family:monospace;padding:.2rem .3rem;background:var(--s1);border:1px solid var(--bdr);border-radius:4px;color:var(--green);text-align:right"></td>
-      <td><input type="text" class="edit-sku" value="${esc(item.sku || '')}" placeholder="auto" style="width:80px;font-size:.72rem;font-family:monospace;padding:.2rem .3rem;background:var(--s1);border:1px solid var(--bdr);border-radius:4px;color:var(--txt)"></td>
+      <td><input type="text" class="edit-descricao" value="${esc(item.descricao || '')}" style="width:100%;min-width:220px;font-size:.72rem;padding:.2rem .3rem;background:transparent;border:none;border-radius:0;border-bottom:1px solid rgba(143,197,157,.25);color:var(--txt)"></td>
+      <td><input type="text" class="edit-ncm" value="${esc(item.ncm || '')}" placeholder="0000.00.00" style="width:100px;font-size:.72rem;font-family:monospace;padding:.2rem .3rem;background:transparent;border:none;border-radius:0;border-bottom:1px solid rgba(143,197,157,.25);color:var(--cyan)"></td>
+      <td><input type="text" class="edit-unidade" value="${esc(item.unidade || 'UN')}" style="width:50px;font-size:.72rem;padding:.2rem .3rem;background:transparent;border:none;border-radius:0;border-bottom:1px solid rgba(143,197,157,.25);color:var(--txt);text-transform:uppercase"></td>
+      <td><input type="number" class="edit-qtd" value="${item.qtdContratada || 0}" min="0" style="width:65px;font-size:.72rem;font-family:monospace;padding:.2rem .3rem;background:transparent;border:none;border-radius:0;border-bottom:1px solid rgba(143,197,157,.25);color:var(--txt);text-align:right"></td>
+      <td><input type="number" class="edit-preco" value="${item.precoUnitario || 0}" step="0.01" style="width:80px;font-size:.72rem;font-family:monospace;padding:.2rem .3rem;background:transparent;border:none;border-radius:0;border-bottom:1px solid rgba(143,197,157,.25);color:var(--green);text-align:right"></td>
+      <td><input type="text" class="edit-sku" value="${esc(item.sku || '')}" placeholder="auto" style="width:80px;font-size:.72rem;font-family:monospace;padding:.2rem .3rem;background:transparent;border:none;border-radius:0;border-bottom:1px solid rgba(143,197,157,.25);color:var(--txt)"></td>
     </tr>`;
   }).join('');
 
@@ -2783,18 +2783,18 @@ function editarItensMassa(contratoId) {
       </div>
       <div style="display:flex;gap:.4rem;align-items:center">
         <span style="font-size:.72rem;color:var(--dim)">Preencher todos:</span>
-        <input type="text" id="fill-all-desc" placeholder="Descricao" style="width:180px;font-size:.7rem;padding:.2rem .3rem;background:var(--s1);border:1px solid var(--bdr);border-radius:4px">
+        <input type="text" id="fill-all-desc" placeholder="Descricao" style="width:180px;font-size:.7rem;padding:.2rem .3rem;background:transparent;border:none;border-radius:0;border-bottom:1px solid rgba(143,197,157,.25)">
         <button class="btn btn-sm" style="font-size:.65rem;padding:.2rem .4rem;background:rgba(16,185,129,.15);color:var(--green);border:none;font-weight:700;cursor:pointer" id="btn-fill-all-desc" title="Aplicar descricao em todos os itens da lista">Aplicar Descricao</button>
-        <input type="number" id="fill-all-qtd" placeholder="Qtd" style="width:60px;font-size:.7rem;padding:.2rem .3rem;background:var(--s1);border:1px solid var(--bdr);border-radius:4px">
+        <input type="number" id="fill-all-qtd" placeholder="Qtd" style="width:60px;font-size:.7rem;padding:.2rem .3rem;background:transparent;border:none;border-radius:0;border-bottom:1px solid rgba(143,197,157,.25)">
         <button class="btn btn-sm" style="font-size:.65rem;padding:.2rem .4rem;background:rgba(245,158,11,.15);color:var(--yellow);border:none;font-weight:700;cursor:pointer" id="btn-fill-all-qtd" title="Aplicar quantidade em todos os itens">Aplicar Qtd</button>
-        <input type="text" id="fill-all-ncm" placeholder="NCM" style="width:90px;font-size:.7rem;font-family:monospace;padding:.2rem .3rem;background:var(--s1);border:1px solid var(--bdr);border-radius:4px">
+        <input type="text" id="fill-all-ncm" placeholder="NCM" style="width:90px;font-size:.7rem;font-family:monospace;padding:.2rem .3rem;background:transparent;border:none;border-radius:0;border-bottom:1px solid rgba(143,197,157,.25)">
         <button class="btn btn-sm" style="font-size:.65rem;padding:.2rem .4rem;background:rgba(59,130,246,.15);color:var(--blue);border:none;font-weight:700;cursor:pointer" id="btn-fill-all-ncm" title="Aplicar NCM em todos os itens da lista">Aplicar NCM</button>
       </div>
     </div>
 
-    <div style="max-height:55vh;overflow-y:auto;border:1px solid var(--bdr);border-radius:8px">
+    <div style="max-height:55vh;overflow-y:auto;border:1px solid var(--bdr);border-radius:4px">
       <table style="font-size:.78rem;width:100%" id="tabela-edicao-massa">
-        <thead><tr style="position:sticky;top:0;background:var(--s2);z-index:1">
+        <thead><tr style="position:sticky;top:0;background:transparent;z-index:1">
           <th>#</th><th>Descricao</th><th>NCM</th><th>Unid</th><th>Qtd</th><th>Preco</th><th>SKU</th>
         </tr></thead>
         <tbody>${rowsHtml}</tbody>
@@ -3301,7 +3301,7 @@ function abrirEditarProduto(produtoId) {
   }
   overlay.classList.remove("hidden");
   overlay.innerHTML = `
-    <div style="background:var(--s1);border:1px solid var(--bdr);border-radius:14px;padding:1.5rem;max-width:600px;width:92%;max-height:85vh;overflow-y:auto">
+    <div style="background:transparent;border:none;border-radius:0;border-bottom:1px solid rgba(143,197,157,.25);padding:1.5rem;max-width:600px;width:92%;max-height:85vh;overflow-y:auto">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
         <div style="font-size:1.1rem;font-weight:700">Editar Produto</div>
         <button class="btn btn-outline btn-sm" onclick="fecharEditarProduto()">✕</button>
@@ -3314,10 +3314,10 @@ function abrirEditarProduto(produtoId) {
       <div style="margin-bottom:.75rem">
         <label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Tipo de Produto</label>
         <div style="display:flex;gap:.8rem">
-          <label style="font-size:.82rem;display:flex;align-items:center;gap:.4rem;cursor:pointer;padding:.4rem .7rem;background:var(--bg);border:1px solid var(--bdr);border-radius:8px;flex:1">
+          <label style="font-size:.82rem;display:flex;align-items:center;gap:.4rem;cursor:pointer;padding:.4rem .7rem;background:var(--bg);border:1px solid var(--bdr);border-radius:4px;flex:1">
             <input type="radio" name="edit-prod-tipo" value="comum" ${!produto.produto_critico ? 'checked' : ''} onchange="atualizarUnidadesPorTipo('edit')"> Produto Comum
           </label>
-          <label style="font-size:.82rem;display:flex;align-items:center;gap:.4rem;cursor:pointer;padding:.4rem .7rem;background:rgba(234,179,8,.08);border:1px solid rgba(234,179,8,.25);border-radius:8px;flex:1">
+          <label style="font-size:.82rem;display:flex;align-items:center;gap:.4rem;cursor:pointer;padding:.4rem .7rem;background:rgba(234,179,8,.08);border:1px solid rgba(234,179,8,.25);border-radius:4px;flex:1">
             <input type="radio" name="edit-prod-tipo" value="critico" ${produto.produto_critico ? 'checked' : ''} onchange="atualizarUnidadesPorTipo('edit')"> Produto Critico
           </label>
         </div>
@@ -3412,7 +3412,7 @@ function toggleFormDemandaManual() {
   const prodOpts = estoqueIntelProdutos.map(p => `<option value="${esc(p.id)}">${esc(p.nome)} (${esc(p.unidade_base)})</option>`).join("");
 
   overlay.innerHTML = `
-    <div style="background:var(--s1);border:1px solid var(--bdr);border-radius:14px;padding:1.5rem;max-width:500px;width:92%;max-height:85vh;overflow-y:auto">
+    <div style="background:transparent;border:none;border-radius:0;border-bottom:1px solid rgba(143,197,157,.25);padding:1.5rem;max-width:500px;width:92%;max-height:85vh;overflow-y:auto">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
         <div style="font-size:1.1rem;font-weight:700">Nova Demanda Manual</div>
         <button class="btn btn-outline btn-sm" onclick="toggleFormDemandaManual()">✕</button>
@@ -3508,7 +3508,7 @@ function renderModalNovoProduto() {
   `).join("");
 
   overlay.innerHTML = `
-    <div style="background:var(--s1);border:1px solid var(--bdr);border-radius:14px;padding:1.5rem;max-width:620px;width:92%;max-height:85vh;overflow-y:auto">
+    <div style="background:transparent;border:none;border-radius:0;border-bottom:1px solid rgba(143,197,157,.25);padding:1.5rem;max-width:620px;width:92%;max-height:85vh;overflow-y:auto">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
         <div style="font-size:1.1rem;font-weight:700">Novo Produto</div>
         <button class="btn btn-outline btn-sm" onclick="toggleFormNovoProduto()">✕</button>
@@ -3520,10 +3520,10 @@ function renderModalNovoProduto() {
       <div style="margin-bottom:.75rem">
         <label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Tipo de Produto</label>
         <div style="display:flex;gap:.8rem">
-          <label style="font-size:.82rem;display:flex;align-items:center;gap:.4rem;cursor:pointer;padding:.4rem .7rem;background:var(--bg);border:1px solid var(--bdr);border-radius:8px;flex:1">
+          <label style="font-size:.82rem;display:flex;align-items:center;gap:.4rem;cursor:pointer;padding:.4rem .7rem;background:var(--bg);border:1px solid var(--bdr);border-radius:4px;flex:1">
             <input type="radio" name="ei-prod-tipo" value="comum" checked onchange="atualizarUnidadesPorTipo('ei')"> Produto Comum
           </label>
-          <label style="font-size:.82rem;display:flex;align-items:center;gap:.4rem;cursor:pointer;padding:.4rem .7rem;background:rgba(234,179,8,.08);border:1px solid rgba(234,179,8,.25);border-radius:8px;flex:1">
+          <label style="font-size:.82rem;display:flex;align-items:center;gap:.4rem;cursor:pointer;padding:.4rem .7rem;background:rgba(234,179,8,.08);border:1px solid rgba(234,179,8,.25);border-radius:4px;flex:1">
             <input type="radio" name="ei-prod-tipo" value="critico" onchange="atualizarUnidadesPorTipo('ei')"> Produto Critico
           </label>
         </div>

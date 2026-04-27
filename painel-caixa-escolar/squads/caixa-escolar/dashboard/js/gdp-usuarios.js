@@ -116,7 +116,7 @@ function renderFormUsuario(u, draft = {}) {
     return '<label style="display:flex;align-items:center;gap:.5rem;font-size:.82rem;padding:.3rem 0;cursor:pointer"><input type="checkbox" class="usr-contrato-chk" value="' + c.id + '" ' + checked + '> ' + label + '</label>';
   }).join("");
   const contratosSection = contratos.length > 0
-    ? '<div style="max-height:140px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:.5rem .8rem;background:var(--surface)">' + contratosOpts + '</div>'
+    ? '<div style="max-height:140px;overflow-y:auto;border:1px solid var(--border);border-radius:4px;padding:.5rem .8rem;background:var(--surface)">' + contratosOpts + '</div>'
     : '<div style="color:var(--mut);font-size:.82rem">Nenhum contrato importado ainda.</div>';
 
   document.getElementById("modal-usuario-body").innerHTML = `
@@ -237,29 +237,29 @@ function abrirDetalheCliente(id) {
   document.getElementById("modal-usuario-editar-btn").classList.remove("hidden");
   document.getElementById("modal-usuario-body").innerHTML = `
     <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem;margin-bottom:1.25rem">
-      <div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Cliente</div><div style="font-weight:700;font-size:1.1rem">${esc(cliente.nome || '-')}</div></div>
-      <div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">CNPJ</div><div class="font-mono" style="font-weight:700">${esc(cliente.cnpj || '-')}</div></div>
-      <div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Inscricao Estadual</div><div style="font-weight:700">${esc(cliente.ie || 'ISENTO')}</div></div>
-      <div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Contribuinte ICMS</div><div style="font-weight:700">${esc({'1':'1 - Contribuinte ICMS','2':'2 - Contribuinte isento','9':'9 - Nao Contribuinte'}[cliente.contribuinte_icms] || cliente.contribuinte_icms || '-')}</div></div>
-      <div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Email</div><div style="font-weight:700">${esc(cliente.email || '-')}</div></div>
-      <div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Telefone</div><div style="font-weight:700">${esc(cliente.telefone || '-')}</div></div>
+      <div><div style="font-size:.72rem;color:var(--mut);margin-bottom:.3rem">Cliente</div><div style="font-weight:700;font-size:1.1rem">${esc(cliente.nome || '-')}</div></div>
+      <div><div style="font-size:.72rem;color:var(--mut);margin-bottom:.3rem">CNPJ</div><div class="font-mono" style="font-weight:700">${esc(cliente.cnpj || '-')}</div></div>
+      <div><div style="font-size:.72rem;color:var(--mut);margin-bottom:.3rem">Inscricao Estadual</div><div style="font-weight:700">${esc(cliente.ie || 'ISENTO')}</div></div>
+      <div><div style="font-size:.72rem;color:var(--mut);margin-bottom:.3rem">Contribuinte ICMS</div><div style="font-weight:700">${esc({'1':'1 - Contribuinte ICMS','2':'2 - Contribuinte isento','9':'9 - Nao Contribuinte'}[cliente.contribuinte_icms] || cliente.contribuinte_icms || '-')}</div></div>
+      <div><div style="font-size:.72rem;color:var(--mut);margin-bottom:.3rem">Email</div><div style="font-weight:700">${esc(cliente.email || '-')}</div></div>
+      <div><div style="font-size:.72rem;color:var(--mut);margin-bottom:.3rem">Telefone</div><div style="font-weight:700">${esc(cliente.telefone || '-')}</div></div>
     </div>
-    <div style="padding:1rem;border:1px solid var(--bdr);border-radius:12px;background:var(--s1);margin-bottom:1rem">
+    <div style="padding:1rem;border:1px solid var(--bdr);border-radius:4px;background:var(--s1);margin-bottom:1rem">
       <div style="font-size:.78rem;font-weight:700;margin-bottom:.75rem;color:var(--acc,#3b82f6)">Endereco para NF-e</div>
       <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.9rem">
-        <div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.25rem">Logradouro</div><div style="font-weight:700">${esc(cliente.logradouro || '-')}</div></div>
-        <div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.25rem">Numero</div><div style="font-weight:700">${esc(cliente.numero || '-')}</div></div>
-        <div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.25rem">Complemento</div><div style="font-weight:700">${esc(cliente.complemento || '-')}</div></div>
-        <div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.25rem">Bairro</div><div style="font-weight:700">${esc(cliente.bairro || '-')}</div></div>
-        <div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.25rem">CEP</div><div style="font-weight:700">${esc(cliente.cep || '-')}</div></div>
-        <div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.25rem">UF</div><div style="font-weight:700">${esc(cliente.uf || 'MG')}</div></div>
+        <div><div style="font-size:.72rem;color:var(--mut);margin-bottom:.25rem">Logradouro</div><div style="font-weight:700">${esc(cliente.logradouro || '-')}</div></div>
+        <div><div style="font-size:.72rem;color:var(--mut);margin-bottom:.25rem">Numero</div><div style="font-weight:700">${esc(cliente.numero || '-')}</div></div>
+        <div><div style="font-size:.72rem;color:var(--mut);margin-bottom:.25rem">Complemento</div><div style="font-weight:700">${esc(cliente.complemento || '-')}</div></div>
+        <div><div style="font-size:.72rem;color:var(--mut);margin-bottom:.25rem">Bairro</div><div style="font-weight:700">${esc(cliente.bairro || '-')}</div></div>
+        <div><div style="font-size:.72rem;color:var(--mut);margin-bottom:.25rem">CEP</div><div style="font-weight:700">${esc(cliente.cep || '-')}</div></div>
+        <div><div style="font-size:.72rem;color:var(--mut);margin-bottom:.25rem">UF</div><div style="font-weight:700">${esc(cliente.uf || 'MG')}</div></div>
       </div>
     </div>
-    <div style="padding:1rem;border:1px solid var(--bdr);border-radius:12px;background:var(--s1);margin-bottom:1rem">
+    <div style="padding:1rem;border:1px solid var(--bdr);border-radius:4px;background:var(--s1);margin-bottom:1rem">
       <div style="font-size:.78rem;font-weight:700;margin-bottom:.75rem;color:var(--acc,#3b82f6)">Contratos vinculados</div>
       <div style="display:flex;gap:.5rem;flex-wrap:wrap">${vinculados || '<span style="color:var(--mut)">Nenhum contrato vinculado.</span>'}</div>
     </div>
-    <div style="padding:1rem;border:1px solid var(--bdr);border-radius:12px;background:var(--s1)">
+    <div style="padding:1rem;border:1px solid var(--bdr);border-radius:4px;background:var(--s1)">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;margin-bottom:.75rem">
         <div style="font-size:.78rem;font-weight:700;color:var(--acc,#3b82f6)">Ultimas vendas</div>
         <button class="btn btn-outline btn-sm" onclick="consultarUltimasVendasCliente('${cliente.id}')">Ver lista completa</button>

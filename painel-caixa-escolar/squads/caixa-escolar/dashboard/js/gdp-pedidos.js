@@ -502,7 +502,7 @@ function novoPedidoManual() {
       <div style="position:relative">
         <label style="font-size:.8rem;color:var(--mut);display:block;margin-bottom:.3rem">Cliente</label>
         <input type="text" id="pedido-cliente-busca" placeholder="Buscar cliente cadastrado..." value="${esc(clienteDraft.nome || pedidoCloneDraft?.escola || '')}" oninput="buscarClientePedido()" autocomplete="off" style="width:100%">
-        <div id="pedido-cliente-sugestoes" class="hidden" style="position:absolute;top:100%;left:0;right:0;z-index:1030;background:var(--bg);border:1px solid var(--bdr);border-radius:8px;max-height:180px;overflow-y:auto;box-shadow:0 4px 16px rgba(0,0,0,.35)"></div>
+        <div id="pedido-cliente-sugestoes" class="hidden" style="position:absolute;top:100%;left:0;right:0;z-index:1030;background:var(--bg);border:1px solid var(--bdr);border-radius:4px;max-height:180px;overflow-y:auto;box-shadow:0 4px 16px rgba(0,0,0,.35)"></div>
         <input type="hidden" id="pedido-cliente-id" value="${esc(clienteDraft.id || '')}">
       </div>
       <div>
@@ -520,8 +520,8 @@ function novoPedidoManual() {
     </div>
     <div id="pedido-itens-container"></div>
     <div style="margin-top:.8rem"><button class="btn btn-outline btn-sm" onclick="adicionarItemPedidoManual()">+ Adicionar Produto</button></div>
-    <div style="margin-top:1rem;padding:1rem;border:1px solid var(--bdr);border-radius:10px;background:var(--s1)">
-      <div style="font-size:.8rem;color:var(--mut);text-transform:uppercase;margin-bottom:.6rem">Dados de Pagamento</div>
+    <div style="margin-top:1rem;padding:1rem;border:1px solid var(--bdr);border-radius:4px;background:var(--s1)">
+      <div style="font-size:.8rem;color:var(--mut);margin-bottom:.6rem">Dados de Pagamento</div>
       <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.75rem">
         <div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Forma de Recebimento</label><select id="novo-ped-pag-forma"><option value="boleto" ${(pedidoCloneDraft?.pagamento?.forma||'boleto')==='boleto'?'selected':''}>Boleto</option><option value="pix" ${pedidoCloneDraft?.pagamento?.forma==='pix'?'selected':''}>PIX</option><option value="ted" ${pedidoCloneDraft?.pagamento?.forma==='ted'?'selected':''}>TED</option><option value="dinheiro" ${pedidoCloneDraft?.pagamento?.forma==='dinheiro'?'selected':''}>Dinheiro</option></select></div>
         <div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Conta Bancaria</label><select id="novo-ped-pag-conta">${getContasBancariasOptions(pedidoCloneDraft?.pagamento?.contaBancaria?.apelido)}</select></div>
@@ -589,7 +589,7 @@ function renderPedidoItensManual() {
         const subtotal = item.valorTotal != null ? (item.valorTotal || 0) : Math.round(((item.qtd || 0) * (item.precoUnitario || 0)) * 100) / 100;
         totalGeral += subtotal;
         return `<tr>
-          <td style="position:relative"><input type="text" id="ped-item-desc-${idx}" value="${esc(item.descricao)}" placeholder="Buscar produto..." oninput="buscarProdutoPedido(${idx})" onfocus="buscarProdutoPedido(${idx})" autocomplete="off" style="width:100%;min-width:180px"><div id="ped-prod-sug-${idx}" class="hidden" style="position:absolute;top:100%;left:0;right:0;z-index:1030;background:var(--bg);border:1px solid var(--bdr);border-radius:8px;max-height:150px;overflow-y:auto;box-shadow:0 4px 16px rgba(0,0,0,.35)"></div></td>
+          <td style="position:relative"><input type="text" id="ped-item-desc-${idx}" value="${esc(item.descricao)}" placeholder="Buscar produto..." oninput="buscarProdutoPedido(${idx})" onfocus="buscarProdutoPedido(${idx})" autocomplete="off" style="width:100%;min-width:180px"><div id="ped-prod-sug-${idx}" class="hidden" style="position:absolute;top:100%;left:0;right:0;z-index:1030;background:var(--bg);border:1px solid var(--bdr);border-radius:4px;max-height:150px;overflow-y:auto;box-shadow:0 4px 16px rgba(0,0,0,.35)"></div></td>
           <td><input type="text" id="ped-item-sku-${idx}" value="${esc(item.sku)}" style="width:80px" readonly></td>
           <td><input type="text" id="ped-item-un-${idx}" value="${esc(item.unidade)}" style="width:55px;text-align:center" readonly></td>
           <td class="text-center"><input type="number" id="ped-item-qty-${idx}" value="${item.qtd || 0}" min="0" step="any" style="width:70px;text-align:center" onchange="atualizarItemPedidoManual(${idx})"></td>
@@ -1126,8 +1126,8 @@ function verPedidoDetalhe(pedidoId, isClone) {
   html += '<div style="margin-top:.8rem;display:flex;gap:.5rem;align-items:center">';
   html += '<button class="btn btn-sm" style="background:rgba(34,197,94,.15);color:var(--green);border:none;font-weight:700" onclick="toggleAddProdutoDetalhe(\'' + p.id + '\')">+ Adicionar Produto</button>';
   html += '</div>';
-  html += '<div id="add-produto-detalhe-' + p.id + '" class="hidden" style="margin-top:.6rem;padding:.8rem;border:1px solid var(--bdr);border-radius:8px;background:var(--s1)">';
-  html += '<div style="position:relative"><input type="text" id="add-prod-busca-' + p.id + '" placeholder="Buscar produto no contrato ou inteligência..." oninput="buscarProdutoDetalhe(\'' + p.id + '\')" style="width:100%;padding:.5rem .8rem;background:var(--bg);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:.85rem"><div id="add-prod-sug-' + p.id + '" class="hidden" style="position:absolute;top:100%;left:0;right:0;z-index:1030;background:var(--bg);border:1px solid var(--bdr);border-radius:8px;max-height:200px;overflow-y:auto;box-shadow:0 4px 16px rgba(0,0,0,.35)"></div></div>';
+  html += '<div id="add-produto-detalhe-' + p.id + '" class="hidden" style="margin-top:.6rem;padding:.8rem;border:1px solid var(--bdr);border-radius:4px;background:var(--s1)">';
+  html += '<div style="position:relative"><input type="text" id="add-prod-busca-' + p.id + '" placeholder="Buscar produto no contrato ou inteligência..." oninput="buscarProdutoDetalhe(\'' + p.id + '\')" style="width:100%;padding:.5rem .8rem;background:var(--bg);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:.85rem"><div id="add-prod-sug-' + p.id + '" class="hidden" style="position:absolute;top:100%;left:0;right:0;z-index:1030;background:var(--bg);border:1px solid var(--bdr);border-radius:4px;max-height:200px;overflow-y:auto;box-shadow:0 4px 16px rgba(0,0,0,.35)"></div></div>';
   html += '</div>';
 
   // ── Fiscal e Cobranca (reposicionado entre Itens e Pagamento) ──
@@ -1163,7 +1163,7 @@ function verPedidoDetalhe(pedidoId, isClone) {
   html += '<div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;margin-bottom:.6rem">';
   html += '<div><div style="font-size:.82rem;color:var(--mut);font-weight:600;margin-bottom:.25rem">Observações do Pedido</div><div style="font-size:.82rem;color:var(--mut)">Este texto será incluído nas Informações Complementares da Nota Fiscal.</div></div>';
   html += '</div>';
-  html += '<textarea id="pedido-obs-' + p.id + '" style="width:100%;min-height:80px;padding:.6rem .8rem;background:var(--bg);border:1px solid var(--bdr);border-radius:8px;color:var(--txt);font-size:.85rem;resize:vertical;font-family:inherit" placeholder="Observações que serão replicadas na NF...">' + esc(obsAtual) + '</textarea>';
+  html += '<textarea id="pedido-obs-' + p.id + '" style="width:100%;min-height:80px;padding:.6rem .8rem;background:var(--bg);border:1px solid var(--bdr);border-radius:4px;color:var(--txt);font-size:.85rem;resize:vertical;font-family:inherit" placeholder="Observações que serão replicadas na NF...">' + esc(obsAtual) + '</textarea>';
   if (obsContrato && obsAtual !== obsContrato) {
     html += '<div style="margin-top:.5rem;font-size:.78rem;color:var(--mut);padding:.5rem .7rem;background:var(--s2);border-radius:6px"><strong>Obs. do contrato:</strong> ' + esc(obsContrato) + '</div>';
   }
@@ -1488,7 +1488,7 @@ function renderContasPagar() {
       <td style="position:relative;white-space:nowrap">
         <input type="checkbox" class="cp-check" value="${item.id}" onchange="atualizarSelecaoContasPagar()">
         <button style="font-size:1.1rem;background:none;border:none;cursor:pointer;color:var(--mut);padding:0 .2rem;vertical-align:middle" onclick="toggleCpMenu('${item.id}',event)">⋯</button>
-        <div id="cp-menu-${item.id}" class="hidden" style="position:absolute;top:100%;left:0;z-index:1020;background:var(--bg);border:1px solid var(--bdr);border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.35);min-width:160px;padding:.4rem 0">
+        <div id="cp-menu-${item.id}" class="hidden" style="position:absolute;top:100%;left:0;z-index:1020;background:var(--bg);border:1px solid var(--bdr);border-radius:4px;box-shadow:0 4px 16px rgba(0,0,0,.35);min-width:160px;padding:.4rem 0">
           ${item.status !== "paga" ? `<a style="display:block;padding:.45rem 1rem;font-size:.82rem;cursor:pointer;color:var(--fg)" onclick="registrarBaixaContaPagar('${item.id}');closeCpMenus()">Pagar (Baixar)</a>` : ""}
           ${item.status === "paga" ? `<a style="display:block;padding:.45rem 1rem;font-size:.82rem;cursor:pointer;color:var(--yellow,#eab308)" onclick="estornarContaPagar('${item.id}');closeCpMenus()">Estornar</a>` : ""}
           <a style="display:block;padding:.45rem 1rem;font-size:.82rem;cursor:pointer;color:var(--fg)" onclick="clonarContaPagar('${item.id}');closeCpMenus()">Clonar</a>
@@ -1543,7 +1543,7 @@ function renderContasReceber() {
       <td style="position:relative;white-space:nowrap">
         <input type="checkbox" class="cr-check" value="${item.id}" onchange="atualizarSelecaoContasReceber()">
         <button style="font-size:1.1rem;background:none;border:none;cursor:pointer;color:var(--mut);padding:0 .2rem;vertical-align:middle" onclick="toggleCrMenu('${item.id}',event)">⋯</button>
-        <div id="cr-menu-${item.id}" class="hidden" style="position:absolute;top:100%;left:0;z-index:1020;background:var(--bg);border:1px solid var(--bdr);border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.35);min-width:170px;padding:.4rem 0">
+        <div id="cr-menu-${item.id}" class="hidden" style="position:absolute;top:100%;left:0;z-index:1020;background:var(--bg);border:1px solid var(--bdr);border-radius:4px;box-shadow:0 4px 16px rgba(0,0,0,.35);min-width:170px;padding:.4rem 0">
           ${item.status !== "recebida" ? `<a style="display:block;padding:.45rem 1rem;font-size:.82rem;cursor:pointer;color:var(--fg)" onclick="registrarBaixaRecebimento('${item.id}');closeCrMenus()">Receber (Baixar)</a>` : ""}
           ${item.status === "recebida" ? `<a style="display:block;padding:.45rem 1rem;font-size:.82rem;cursor:pointer;color:var(--yellow,#eab308)" onclick="estornarContaReceber('${item.id}');closeCrMenus()">Estornar</a>` : ""}
           <a style="display:block;padding:.45rem 1rem;font-size:.82rem;cursor:pointer;color:var(--fg)" onclick="dispararCobrancaAutomatica('${item.id}');closeCrMenus()">Cobrar</a>
@@ -1655,12 +1655,12 @@ function renderCaixa() {
   if (pendenciasEl) {
     const pendencias = [];
     contasReceber.filter((item) => item.status !== "recebida" && item.conciliacao?.status === "divergencia_api_bancaria").slice(0, 4).forEach((item) => {
-      pendencias.push(`<div style="padding:.75rem;border:1px solid var(--bdr);border-radius:10px;background:var(--s1)"><strong>${esc(item.descricao)}</strong><div style="font-size:.75rem;color:var(--mut);margin-top:.2rem">Receber | ${esc(item.cliente || "-")} | ${brl.format(item.valor || 0)}</div></div>`);
+      pendencias.push(`<div style="padding:.75rem;border:1px solid var(--bdr);border-radius:4px;background:var(--s1)"><strong>${esc(item.descricao)}</strong><div style="font-size:.75rem;color:var(--mut);margin-top:.2rem">Receber | ${esc(item.cliente || "-")} | ${brl.format(item.valor || 0)}</div></div>`);
     });
     caixaExtratoMovimentos.filter((item) => !item.conciliacao?.matched).slice(0, 4).forEach((item) => {
-      pendencias.push(`<div style="padding:.75rem;border:1px solid var(--bdr);border-radius:10px;background:var(--s1)"><strong>${esc(item.descricao || item.historico || "Lancamento bancario")}</strong><div style="font-size:.75rem;color:var(--mut);margin-top:.2rem">Extrato | ${esc(item.data || "")} | ${brl.format(Number(item.valor || 0))}</div></div>`);
+      pendencias.push(`<div style="padding:.75rem;border:1px solid var(--bdr);border-radius:4px;background:var(--s1)"><strong>${esc(item.descricao || item.historico || "Lancamento bancario")}</strong><div style="font-size:.75rem;color:var(--mut);margin-top:.2rem">Extrato | ${esc(item.data || "")} | ${brl.format(Number(item.valor || 0))}</div></div>`);
     });
-    pendenciasEl.innerHTML = pendencias.length ? pendencias.join("") : `<div style="padding:.9rem;border:1px dashed var(--bdr);border-radius:12px;color:var(--mut)">Sem pendencias relevantes de conciliacao.</div>`;
+    pendenciasEl.innerHTML = pendencias.length ? pendencias.join("") : `<div style="padding:.9rem;border:1px dashed var(--bdr);border-radius:4px;color:var(--mut)">Sem pendencias relevantes de conciliacao.</div>`;
   }
 }
 
@@ -1776,7 +1776,7 @@ function renderRelatorios() {
       { label: "Despesas Operacionais", value: -despesasOperacionais, color: "var(--red)" },
       { label: "Total de Saidas", value: -totalSaidas, color: "var(--red)" },
       { label: "Resultado Operacional", value: resultadoOperacional, color: resultadoOperacional >= 0 ? "var(--blue)" : "var(--yellow)" }
-    ].map((row) => `<div style="display:flex;justify-content:space-between;gap:1rem;padding:.7rem .85rem;border:1px solid var(--bdr);border-radius:10px;background:var(--s1)"><span>${row.label}</span><strong style="color:${row.color}">${brl.format(row.value)}</strong></div>`).join("");
+    ].map((row) => `<div style="display:flex;justify-content:space-between;gap:1rem;padding:.7rem .85rem;border:1px solid var(--bdr);border-radius:4px;background:var(--s1)"><span>${row.label}</span><strong style="color:${row.color}">${brl.format(row.value)}</strong></div>`).join("");
   }
   const fluxoEl = document.getElementById("rel-kpi-fluxo");
   const entradasEl = document.getElementById("rel-kpi-entradas");
@@ -1914,7 +1914,7 @@ function renderPedidosStatusTabs(items = pedidos) {
       <button onclick="togglePedidoStatusDropdown(event)" style="display:flex;align-items:center;gap:6px;padding:10px 16px;background:transparent;border:1px solid var(--bdr);border-radius:20px;cursor:pointer;color:var(--txt);font-size:.85rem;font-weight:${anyOverflowActive ? '600' : '400'};opacity:${anyOverflowActive ? '1' : '.7'}">
         mais <span style="font-size:.75rem">···</span>
       </button>
-      <div id="pedidos-status-dropdown" style="display:none;position:absolute;top:100%;right:0;margin-top:4px;background:var(--s1);border:1px solid var(--bdr);border-radius:8px;padding:4px 0;min-width:200px;z-index:20;box-shadow:0 4px 12px rgba(0,0,0,.4)">
+      <div id="pedidos-status-dropdown" style="display:none;position:absolute;top:100%;right:0;margin-top:4px;background:var(--s1);border:1px solid var(--bdr);border-radius:4px;padding:4px 0;min-width:200px;z-index:20;box-shadow:0 4px 12px rgba(0,0,0,.4)">
         ${overflowItems}
       </div>
     </div>`;

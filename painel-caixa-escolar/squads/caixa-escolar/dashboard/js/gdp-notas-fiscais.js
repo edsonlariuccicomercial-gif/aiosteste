@@ -1261,13 +1261,13 @@ function verNotaFiscal(notaId) {
   html += '<h3 style="margin-bottom:1rem">Documentos Fiscais</h3>';
   html += '<div style="font-size:.76rem;color:var(--mut);margin-bottom:.8rem">' + (isReal ? 'NF-e real: numero, chave e protocolo devem refletir o retorno fiscal do fluxo SEFAZ.' : 'Manual externa: use este bloco para registrar numero, chave e DANFE emitidos fora do GDP.') + '</div>';
   if (isReal && nf.status === "autorizada") {
-    html += '<div style="margin-bottom:.8rem;padding:.8rem 1rem;border:1px solid rgba(34,197,94,.35);border-radius:10px;background:rgba(34,197,94,.08);font-size:.8rem;color:var(--txt)">NF-e real autorizada. Este registro nao pode ser excluido no GDP. Para desfazer, use cancelamento fiscal proprio e preserve a rastreabilidade.</div>';
+    html += '<div style="margin-bottom:.8rem;padding:.8rem 1rem;border:1px solid rgba(34,197,94,.35);border-radius:4px;background:rgba(34,197,94,.08);font-size:.8rem;color:var(--txt)">NF-e real autorizada. Este registro nao pode ser excluido no GDP. Para desfazer, use cancelamento fiscal proprio e preserve a rastreabilidade.</div>';
   }
   if (isReal && nf.status === "cancelada") {
-    html += '<div style="margin-bottom:.8rem;padding:.8rem 1rem;border:1px solid rgba(239,68,68,.35);border-radius:10px;background:rgba(239,68,68,.08);font-size:.8rem;color:var(--txt)">NF-e cancelada na SEFAZ. Este registro permanece no GDP por rastreabilidade fiscal e nao pode ser excluido.</div>';
+    html += '<div style="margin-bottom:.8rem;padding:.8rem 1rem;border:1px solid rgba(239,68,68,.35);border-radius:4px;background:rgba(239,68,68,.08);font-size:.8rem;color:var(--txt)">NF-e cancelada na SEFAZ. Este registro permanece no GDP por rastreabilidade fiscal e nao pode ser excluido.</div>';
   }
   if (nf.cancelamento?.status) {
-    html += '<div style="margin-bottom:.8rem;padding:.8rem 1rem;border:1px solid rgba(245,158,11,.35);border-radius:10px;background:rgba(245,158,11,.08);font-size:.8rem;color:var(--txt)">Cancelamento: <strong>' + esc(nf.cancelamento.status) + '</strong> | Motivo: ' + esc(nf.cancelamento.motivo || '-') + ' | Solicitado em: ' + esc(formatDateTimeLocal(nf.cancelamento.solicitadoEm || "")) + '</div>';
+    html += '<div style="margin-bottom:.8rem;padding:.8rem 1rem;border:1px solid rgba(245,158,11,.35);border-radius:4px;background:rgba(245,158,11,.08);font-size:.8rem;color:var(--txt)">Cancelamento: <strong>' + esc(nf.cancelamento.status) + '</strong> | Motivo: ' + esc(nf.cancelamento.motivo || '-') + ' | Solicitado em: ' + esc(formatDateTimeLocal(nf.cancelamento.solicitadoEm || "")) + '</div>';
   }
   html += '<div style="display:grid;grid-template-columns:1.1fr .7fr 1.3fr;gap:.8rem">';
   html += '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Numero da NF</label><input id="nf-numero-manual" type="text" value="' + esc(nf.numero || '') + '" style="width:100%"></div>';
@@ -1277,7 +1277,7 @@ function verNotaFiscal(notaId) {
   html += '</div>';
   // Email section
   const destEmail = nf.cliente?.email || nf.sefaz?.preview?.destinatario?.email || '';
-  html += '<div style="margin-top:1rem;padding:.8rem 1rem;background:var(--bg);border:1px solid var(--bdr);border-radius:8px">';
+  html += '<div style="margin-top:1rem;padding:.8rem 1rem;background:var(--bg);border:1px solid var(--bdr);border-radius:4px">';
   html += '<div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap">';
   html += '<label style="font-size:.72rem;color:var(--mut);white-space:nowrap">Enviar NF por email:</label>';
   html += '<input type="email" id="nf-email-dest-' + nf.id + '" value="' + esc(destEmail) + '" placeholder="email@destino.com" style="flex:1;min-width:200px">';
@@ -1310,7 +1310,7 @@ function verNotaFiscal(notaId) {
   html += '<h3 style="margin-bottom:1rem">Cobranca Vinculada</h3>';
   html += '<div style="display:grid;grid-template-columns:1fr 1fr auto auto;gap:.8rem;align-items:end">';
   html += '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Forma</label><select id="nf-forma-cobranca"><option value="boleto"' + ((nf.cobranca?.forma || 'boleto') === 'boleto' ? ' selected' : '') + '>Boleto</option><option value="pix"' + (nf.cobranca?.forma === 'pix' ? ' selected' : '') + '>Pix</option><option value="ted"' + (nf.cobranca?.forma === 'ted' ? ' selected' : '') + '>TED</option><option value="incluir"' + (nf.cobranca?.forma === 'incluir' ? ' selected' : '') + '>Incluir</option></select></div>';
-  html += '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Status</label><div style="padding:.55rem .75rem;border:1px solid var(--bdr);border-radius:8px;background:var(--s1)">' + esc(nf.cobranca?.status || '-') + '</div></div>';
+  html += '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Status</label><div style="padding:.55rem .75rem;border:1px solid var(--bdr);border-radius:4px;background:var(--s1)">' + esc(nf.cobranca?.status || '-') + '</div></div>';
   html += '<button class="btn btn-outline" onclick="atualizarFormaCobrancaNota(\'' + nf.id + '\', document.getElementById(\'nf-forma-cobranca\').value)">Atualizar Cobranca</button>';
   html += (conta ? '<button class="btn btn-green" onclick="dispararCobrancaAutomatica(\'' + conta.id + '\')">Cobrar Agora</button>' : '<span></span>');
   html += '</div>';

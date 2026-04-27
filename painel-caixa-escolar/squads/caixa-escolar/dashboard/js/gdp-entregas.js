@@ -222,27 +222,27 @@ function verComprovante(idx) {
   let html = `
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem">
       <div>
-        <div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Escola</div>
+        <div style="font-size:.72rem;color:var(--mut);margin-bottom:.3rem">Escola</div>
         <div style="font-weight:700">${esc(p.escola || "-")}</div>
       </div>
       <div>
-        <div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Data da Entrega</div>
+        <div style="font-size:.72rem;color:var(--mut);margin-bottom:.3rem">Data da Entrega</div>
         <div style="font-weight:700">${dataFmt}</div>
       </div>
       <div>
-        <div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Recebedor</div>
+        <div style="font-size:.72rem;color:var(--mut);margin-bottom:.3rem">Recebedor</div>
         <div style="font-weight:700">${esc(p.recebedor || "-")}</div>
       </div>
       <div>
-        <div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Observacoes</div>
+        <div style="font-size:.72rem;color:var(--mut);margin-bottom:.3rem">Observacoes</div>
         <div>${esc(p.obs || "Nenhuma")}</div>
       </div>
       <div>
-        <div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Status da Reserva</div>
+        <div style="font-size:.72rem;color:var(--mut);margin-bottom:.3rem">Status da Reserva</div>
         <div><span class="badge ${reservaStatus.badgeClass}">${esc(reservaStatus.label)}</span></div>
       </div>
       <div>
-        <div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.3rem">Detalhe da Reserva</div>
+        <div style="font-size:.72rem;color:var(--mut);margin-bottom:.3rem">Detalhe da Reserva</div>
         <div>${esc(reservaResumo.produtosResumo || "-")}<br><span style="font-size:.82rem;color:var(--mut)">Qtd base total: ${Number(reservaResumo.totalBase || 0)}</span></div>
       </div>
     </div>
@@ -250,17 +250,17 @@ function verComprovante(idx) {
 
   if (p.foto) {
     html += `<div style="margin-bottom:1.5rem">
-      <div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.5rem">Foto da Entrega</div>
-      <img src="${p.foto}" style="width:100%;max-height:400px;object-fit:contain;border-radius:10px;border:1px solid var(--bdr);background:var(--s1)" alt="Foto da entrega">
+      <div style="font-size:.72rem;color:var(--mut);margin-bottom:.5rem">Foto da Entrega</div>
+      <img src="${p.foto}" style="width:100%;max-height:400px;object-fit:contain;border-radius:4px;border:1px solid var(--bdr);background:var(--s1)" alt="Foto da entrega">
     </div>`;
   } else {
-    html += `<div style="margin-bottom:1.5rem;padding:2rem;text-align:center;color:var(--dim);background:var(--s1);border-radius:10px;border:1px solid var(--bdr)">Sem foto registrada</div>`;
+    html += `<div style="margin-bottom:1.5rem;padding:2rem;text-align:center;color:var(--dim);background:var(--s1);border-radius:4px;border:1px solid var(--bdr)">Sem foto registrada</div>`;
   }
 
   if (p.assinatura) {
     html += `<div style="margin-bottom:1rem">
-      <div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;margin-bottom:.5rem">Assinatura do Recebedor</div>
-      <div style="background:var(--s1);border:1px solid var(--bdr);border-radius:10px;padding:.5rem;text-align:center">
+      <div style="font-size:.72rem;color:var(--mut);margin-bottom:.5rem">Assinatura do Recebedor</div>
+      <div style="background:transparent;border:none;border-radius:0;border-bottom:1px solid rgba(143,197,157,.25);padding:.5rem;text-align:center">
         <img src="${p.assinatura}" style="max-width:100%;max-height:200px" alt="Assinatura">
       </div>
     </div>`;

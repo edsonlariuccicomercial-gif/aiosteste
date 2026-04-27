@@ -714,7 +714,7 @@ function gerarDemandaPedidoRealEstoqueIntel(pedidoId) {
       <div><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase">Comprometido</div><div class="font-mono" style="font-weight:700">${Number(totalComprometido || 0)}</div></div>
     </div>
     <div class="table-wrap" style="margin-bottom:1rem"><table><thead><tr><th>Item do Pedido</th><th>Produto no Estoque</th><th class="text-right">Qtd Base</th></tr></thead><tbody>${convertidosHtml}</tbody></table></div>
-    <div style="border:1px solid rgba(245,158,11,.28);border-radius:12px;padding:.85rem;margin-bottom:1rem;background:rgba(245,158,11,.08)">
+    <div style="border:1px solid rgba(245,158,11,.28);border-radius:4px;padding:.85rem;margin-bottom:1rem;background:rgba(245,158,11,.08)">
       <div style="font-size:.78rem;font-weight:700;margin-bottom:.4rem;color:#fbbf24">Itens que ainda nao vao virar demanda</div>
       <ul style="margin:0;padding-left:1rem;color:var(--mut);font-size:.78rem">${pendentesHtml}</ul>
       ${itensPendentes.length ? '<div style="margin-top:.6rem;font-size:.72rem;color:#fbbf24;border-top:1px solid rgba(245,158,11,.2);padding-top:.5rem">Vincule estes itens na aba <strong>Contratos</strong> &rarr; detalhes do contrato &rarr; botao <strong>Vincular</strong> ao lado de cada item. Ao vincular, a demanda sera gerada automaticamente.</div>' : ''}
@@ -1012,16 +1012,16 @@ function visualizarDemandaEstoqueIntel(pedidoId) {
         <div style="margin-top:.3rem"><span class="badge ${reservaStatus.badgeClass}">${esc(reservaStatus.label)}</span></div>
       </div>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;margin-bottom:1rem;border:1px solid var(--bdr);font-size:.82rem;border-radius:8px;overflow:hidden">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;margin-bottom:1rem;border:1px solid var(--bdr);font-size:.82rem;border-radius:4px;overflow:hidden">
       <div style="padding:.6rem .8rem;border-bottom:1px solid var(--bdr)"><span style="color:var(--mut);font-size:.7rem;text-transform:uppercase">ESCOLA / ÓRGÃO</span><br><strong>${esc(escolaNome)}</strong></div>
       <div style="padding:.6rem .8rem;border-bottom:1px solid var(--bdr);border-left:1px solid var(--bdr)"><span style="color:var(--mut);font-size:.7rem;text-transform:uppercase">CNPJ</span><br><strong>${esc(escolaCnpj || '-')}</strong></div>
       <div style="padding:.6rem .8rem;border-bottom:1px solid var(--bdr)"><span style="color:var(--mut);font-size:.7rem;text-transform:uppercase">QTD. ITENS</span><br><strong>${totalItens} produto(s)</strong></div>
       <div style="padding:.6rem .8rem;border-bottom:1px solid var(--bdr);border-left:1px solid var(--bdr)"><span style="color:var(--mut);font-size:.7rem;text-transform:uppercase">CONTRATO</span><br><strong>${esc(processoLabel)}</strong></div>
     </div>
-    ${obsText ? `<div style="border:1px solid var(--bdr);padding:.7rem .9rem;margin-bottom:1rem;font-size:.82rem;border-radius:8px"><strong>DADOS DO CONTRATO</strong><br>Processo: <strong>${esc(processoLabel)}</strong><br>Observações: ${esc(obsText)}</div>` : ''}
-    <div style="border:1px solid var(--bdr);border-radius:8px;overflow:hidden;margin-bottom:1rem">
+    ${obsText ? `<div style="border:1px solid var(--bdr);padding:.7rem .9rem;margin-bottom:1rem;font-size:.82rem;border-radius:4px"><strong>DADOS DO CONTRATO</strong><br>Processo: <strong>${esc(processoLabel)}</strong><br>Observações: ${esc(obsText)}</div>` : ''}
+    <div style="border:1px solid var(--bdr);border-radius:4px;overflow:hidden;margin-bottom:1rem">
       <table style="width:100%;border-collapse:collapse;font-size:.82rem">
-        <thead><tr style="background:var(--s2)">
+        <thead><tr style="background:transparent">
           <th style="padding:.5rem .8rem;text-align:center;font-size:.72rem;text-transform:uppercase;color:var(--mut)">#</th>
           <th style="padding:.5rem .8rem;text-align:left;font-size:.72rem;text-transform:uppercase;color:var(--mut)">Produto</th>
           <th style="padding:.5rem .8rem;text-align:center;font-size:.72rem;text-transform:uppercase;color:var(--mut)">Qtd</th>

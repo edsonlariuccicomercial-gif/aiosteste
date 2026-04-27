@@ -648,7 +648,7 @@ function renderSyncBanco() {
     const unidMuda = m.best && m.best.unidade && m.best.unidade !== (m.item.unidade || '');
     const mudaAlgo = skuMuda || ncmMuda || unidMuda;
 
-    return `<div style="border:1px solid ${cor};border-radius:10px;padding:.8rem;margin-bottom:.6rem;background:${bgCor}">
+    return `<div style="border:1px solid ${cor};border-radius:4px;padding:.8rem;margin-bottom:.6rem;background:${bgCor}">
       <div style="display:flex;align-items:center;gap:.8rem;margin-bottom:.5rem">
         <input type="checkbox" class="sync-banco-chk" data-idx="${i}" ${m.aceito ? 'checked' : ''} onchange="_syncBancoMatches[${i}].aceito=this.checked" style="width:18px;height:18px">
         <span style="font-size:.7rem;color:${cor};font-weight:700;background:${bgCor};padding:2px 8px;border-radius:99px;border:1px solid ${cor}">${scoreLabel} ${m.best ? m.best.tipo.toUpperCase() : 'SEM MATCH'}</span>
@@ -656,7 +656,7 @@ function renderSyncBanco() {
         ${mudaAlgo ? '<span style="font-size:.65rem;color:var(--warning);font-weight:700">VAI ATUALIZAR</span>' : '<span style="font-size:.65rem;color:var(--dim)">sem alteracao</span>'}
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:.8rem">
-        <div style="padding:.6rem;background:rgba(0,0,0,.2);border-radius:8px">
+        <div style="padding:.6rem;background:rgba(0,0,0,.2);border-radius:4px">
           <div style="font-size:.65rem;color:var(--mut);margin-bottom:.4rem;font-weight:700;text-transform:uppercase">Item do Contrato (atual)</div>
           <div style="font-size:.82rem;font-weight:600;margin-bottom:.3rem">${esc(m.item.descricao)}</div>
           <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.3rem;font-size:.72rem;color:var(--mut)">
@@ -665,7 +665,7 @@ function renderSyncBanco() {
             <span>SKU: <b style="color:${skuMuda ? 'var(--danger)' : 'var(--text)'}">${esc(m.item.sku || '-')}</b></span>
           </div>
         </div>
-        <div style="padding:.6rem;background:rgba(0,0,0,.2);border-radius:8px">
+        <div style="padding:.6rem;background:rgba(0,0,0,.2);border-radius:4px">
           <div style="font-size:.65rem;color:var(--mut);margin-bottom:.4rem;font-weight:700;text-transform:uppercase">Match no Banco de Produtos</div>
           ${m.best ? `
             <div style="font-size:.82rem;font-weight:600;margin-bottom:.3rem">${esc(m.best.descricao)}</div>
@@ -1315,9 +1315,9 @@ function abrirModalSync(contratoId) {
     <div style="margin-bottom:1rem">
       <p style="font-size:.85rem;color:var(--mut)">Sincronizar itens do contrato com o Banco de Produtos ERP (<strong>${bancoProdutos.itens.length}</strong> produtos no banco). Selecione os itens e ajuste os matches manualmente se necessario. Apenas <strong>descricao, SKU e unidade</strong> serao atualizados.</p>
     </div>
-    <div style="max-height:55vh;overflow-y:auto;border:1px solid var(--bdr);border-radius:10px">
+    <div style="max-height:55vh;overflow-y:auto;border:1px solid var(--bdr);border-radius:4px">
       <table style="font-size:.78rem;width:100%;border-collapse:collapse">
-        <thead><tr style="background:var(--s2)"><th style="width:30px;padding:.5rem;text-align:center">✓</th><th style="padding:.5rem">#</th><th style="padding:.5rem">Item Contrato</th><th style="padding:.5rem;min-width:220px">Match Banco</th><th style="padding:.5rem;width:70px;text-align:center">Score</th></tr></thead>
+        <thead><tr style="background:transparent"><th style="width:30px;padding:.5rem;text-align:center">✓</th><th style="padding:.5rem">#</th><th style="padding:.5rem">Item Contrato</th><th style="padding:.5rem;min-width:220px">Match Banco</th><th style="padding:.5rem;width:70px;text-align:center">Score</th></tr></thead>
         <tbody>${matches.map(m => {
           const statusColor = m.synced ? 'var(--green)' : m.match ? (m.score >= 0.7 ? 'var(--green)' : m.score >= 0.5 ? 'var(--yellow)' : 'var(--red)') : 'var(--red)';
           return `<tr style="border-left:3px solid ${statusColor};border-bottom:1px solid rgba(71,85,105,.3)">

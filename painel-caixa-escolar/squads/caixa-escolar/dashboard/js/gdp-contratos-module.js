@@ -1045,7 +1045,7 @@ function renderSheetSelector(sheetNames) {
     <div style="display:flex;gap:.5rem;flex-wrap:wrap">
       ${sheetNames.map((name, i) => {
         const count = parsedListaSheets[name].length;
-        return `<label style="display:flex;align-items:center;gap:.4rem;background:var(--s1);border:1px solid var(--bdr);border-radius:8px;padding:.5rem .8rem;cursor:pointer;font-size:.85rem">
+        return `<label style="display:flex;align-items:center;gap:.4rem;background:var(--s1);border:1px solid var(--bdr);border-radius:4px;padding:.5rem .8rem;cursor:pointer;font-size:.85rem">
           <input type="checkbox" class="sheet-check" value="${esc(name)}" checked onchange="updateListaFromSheets()">
           <strong>${esc(name)}</strong> <span style="color:var(--mut);font-size:.75rem">(${count} itens)</span>
         </label>`;
@@ -2146,7 +2146,7 @@ function getEscolasVinculadasBadges(contratoId) {
   const linked = getClientesVinculadosAoContrato(contratoId);
   if (linked.length === 0) return '<div style="font-size:.7rem;color:var(--dim);margin-top:.3rem;font-style:italic">Nenhuma escola vinculada</div>';
   return '<div style="display:flex;flex-wrap:wrap;gap:.3rem;margin-top:.3rem">' +
-    linked.map(u => '<span style="background:var(--blue);color:#fff;font-size:.65rem;padding:.15rem .5rem;border-radius:10px">' + esc(u.nome.length > 25 ? u.nome.slice(0,23)+'...' : u.nome) + '</span>').join('') +
+    linked.map(u => '<span style="background:var(--blue);color:#fff;font-size:.65rem;padding:.15rem .5rem;border-radius:4px">' + esc(u.nome.length > 25 ? u.nome.slice(0,23)+'...' : u.nome) + '</span>').join('') +
     '</div>';
 }
 
@@ -2186,7 +2186,7 @@ function vincularEscolaContrato(contratoId) {
   document.getElementById("modal-contrato-body").innerHTML = `
     <div style="margin-bottom:1rem;color:var(--mut);font-size:.85rem">Selecione as escolas que devem ter acesso a este contrato no Portal:</div>
     <input type="text" id="busca-vincular-escola" placeholder="Buscar escola..." oninput="filtrarEscolasVinculo()" autocomplete="off" style="width:100%;margin-bottom:.8rem">
-    <div id="lista-escolas-vinculo" style="max-height:300px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:.8rem 1rem;background:var(--surface)">
+    <div id="lista-escolas-vinculo" style="max-height:300px;overflow-y:auto;border:1px solid var(--border);border-radius:4px;padding:.8rem 1rem;background:var(--surface)">
       ${opts}
     </div>
     <div style="margin-top:1.5rem;display:flex;gap:.8rem;justify-content:flex-end">
@@ -2305,7 +2305,7 @@ function abrirCatalogoEscolar(contratoId) {
       <button class="btn btn-sm" style="background:rgba(16,185,129,.15);color:var(--green);border:none;font-weight:700" onclick="adicionarTodosCatalogo('${contratoId}')">🛒 Adicionar Todos</button>
     </div>
     <div style="margin-bottom:.8rem">
-      <input type="text" id="catalogo-busca" placeholder="Buscar produto no catálogo..." oninput="filtrarCatalogo()" style="width:100%;padding:.5rem .8rem;background:var(--s1);border:1px solid var(--bdr);border-radius:8px;color:var(--txt);font-size:.85rem">
+      <input type="text" id="catalogo-busca" placeholder="Buscar produto no catálogo..." oninput="filtrarCatalogo()" style="width:100%;padding:.5rem .8rem;background:var(--s1);border:1px solid var(--bdr);border-radius:4px;color:var(--txt);font-size:.85rem">
     </div>
     <div class="table-wrap" style="max-height:50vh;overflow-y:auto">
       <table style="font-size:.8rem">
@@ -2516,13 +2516,13 @@ function novoContratoManual() {
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
       <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Escola / Órgão</label><input type="text" id="mc-escola" list="mc-clientes-list" value="${esc(draft.escola || '')}" placeholder="Nome da escola" oninput="sugerirClienteContrato(this.value)" style="width:100%"><datalist id="mc-clientes-list">${usuarios.map((u) => `<option value="${esc(u.nome)}"></option>`).join("")}</datalist></div>
       <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Número do Edital</label><input type="text" id="mc-edital" value="${esc(draft.edital || '')}" placeholder="Ex: PE 001/2026" style="width:100%"></div>
-      <div style="grid-column:1/-1;font-size:.78rem;padding:.65rem .8rem;background:var(--s1);border:1px solid var(--bdr);border-radius:8px;color:var(--mut)" id="mc-cliente-info">Selecione um cliente já cadastrado ou digite um nome para localizar.</div>
+      <div style="grid-column:1/-1;font-size:.78rem;padding:.65rem .8rem;background:var(--s1);border:1px solid var(--bdr);border-radius:4px;color:var(--mut)" id="mc-cliente-info">Selecione um cliente já cadastrado ou digite um nome para localizar.</div>
       <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Número do Processo</label><input type="text" id="mc-processo" value="${esc(draft.processo || '')}" placeholder="Ex: 001/2026" style="width:100%"></div>
       <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Vigência</label><input type="text" id="mc-vigencia" value="${esc(draft.vigencia || '')}" placeholder="Ex: 01/01/2026 a 31/12/2026" style="width:100%"></div>
       <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Fornecedor</label><input type="text" id="mc-fornecedor" value="${esc(draft.fornecedor || 'Lariucci & Ribeiro Pereira')}" style="width:100%"></div>
       <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Status</label><select id="mc-status" style="width:100%"><option value="ativo"${(draft.status || 'ativo') === 'ativo' ? ' selected' : ''}>Ativo</option><option value="encerrado"${draft.status === 'encerrado' ? ' selected' : ''}>Encerrado</option></select></div>
       <div style="grid-column:1/-1"><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Objeto</label><input type="text" id="mc-objeto" value="${esc(draft.objeto || '')}" placeholder="Descrição do objeto" style="width:100%"></div>
-      <div style="grid-column:1/-1"><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Observações</label><textarea id="mc-obs" placeholder="Informações adicionais..." style="width:100%;min-height:50px;padding:.5rem .8rem;background:var(--s1);border:1px solid var(--bdr);border-radius:8px;color:var(--txt);font-size:.85rem;resize:vertical">${esc(draft.observacoes || '')}</textarea></div>
+      <div style="grid-column:1/-1"><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Observações</label><textarea id="mc-obs" placeholder="Informações adicionais..." style="width:100%;min-height:50px;padding:.5rem .8rem;background:var(--s1);border:1px solid var(--bdr);border-radius:4px;color:var(--txt);font-size:.85rem;resize:vertical">${esc(draft.observacoes || '')}</textarea></div>
     </div>
     <div style="margin-top:1.5rem;display:flex;gap:.8rem;justify-content:flex-end">
       <button class="btn btn-outline" onclick="fecharModalContrato()">Cancelar</button>
@@ -2766,7 +2766,7 @@ function abrirContrato(id) {
       <div class="kpi" style="margin:0"><div class="kpi-label">Entregue</div><div class="kpi-value blue" style="font-size:1.3rem">${brl.format(totalEntregue)}</div></div>
       <div class="kpi" style="margin:0"><div class="kpi-label">Saldo</div><div class="kpi-value yellow" style="font-size:1.3rem">${brl.format(totalSaldo)}</div></div>
     </div>
-    <div style="background:var(--bg);border-radius:10px;padding:1rem;margin-bottom:1.5rem">
+    <div style="background:var(--bg);border-radius:4px;padding:1rem;margin-bottom:1.5rem">
       <h3 style="font-size:.8rem;text-transform:uppercase;color:var(--mut);letter-spacing:.04em;margin-bottom:.8rem">Dados do Contrato</h3>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:.8rem">
         <div style="grid-column:1/-1"><label style="font-size:.72rem;color:var(--dim);display:block;margin-bottom:.2rem">Caixa Escolar / Escola</label>
@@ -2784,8 +2784,8 @@ function abrirContrato(id) {
         <div><label style="font-size:.72rem;color:var(--dim);display:block;margin-bottom:.2rem">Numero do Processo</label><input type="text" id="ctr-processo-${c.id}" value="${esc(c.processo || '')}" placeholder="Ex: 001/2026" style="width:100%"></div>
         <div><label style="font-size:.72rem;color:var(--dim);display:block;margin-bottom:.2rem">Vigencia</label><input type="text" id="ctr-vigencia-${c.id}" value="${esc(c.vigencia || '')}" placeholder="Ex: 01/01/2026 a 31/12/2026" style="width:100%"></div>
         <div style="grid-column:1/-1"><label style="font-size:.72rem;color:var(--dim);display:block;margin-bottom:.2rem">Objeto</label><input type="text" id="ctr-objeto-${c.id}" value="${esc(c.objeto || '')}" placeholder="Descricao do objeto" style="width:100%"></div>
-        <div style="grid-column:1/-1"><label style="font-size:.72rem;color:var(--dim);display:block;margin-bottom:.2rem">Observacoes (replicadas automaticamente nos pedidos)</label><textarea id="ctr-obs-${c.id}" placeholder="Informacoes adicionais..." style="width:100%;min-height:50px;padding:.5rem .8rem;background:var(--s1);border:1px solid var(--bdr);border-radius:8px;color:var(--txt);font-size:.85rem;resize:vertical">${esc(c.observacoes || '')}</textarea></div>
-        <div style="grid-column:1/-1;margin-top:.4rem"><label style="display:flex;align-items:center;gap:.5rem;font-size:.82rem;cursor:pointer;padding:.4rem .6rem;background:var(--s1);border:1px solid var(--bdr);border-radius:8px"><input type="checkbox" id="ctr-saldo-visivel-${c.id}" ${c.saldoVisivelEscola ? 'checked' : ''}> Permitir que a escola acompanhe o saldo do contrato no Portal Escolar</label></div>
+        <div style="grid-column:1/-1"><label style="font-size:.72rem;color:var(--dim);display:block;margin-bottom:.2rem">Observacoes (replicadas automaticamente nos pedidos)</label><textarea id="ctr-obs-${c.id}" placeholder="Informacoes adicionais..." style="width:100%;min-height:50px;padding:.5rem .8rem;background:var(--s1);border:1px solid var(--bdr);border-radius:4px;color:var(--txt);font-size:.85rem;resize:vertical">${esc(c.observacoes || '')}</textarea></div>
+        <div style="grid-column:1/-1;margin-top:.4rem"><label style="display:flex;align-items:center;gap:.5rem;font-size:.82rem;cursor:pointer;padding:.4rem .6rem;background:var(--s1);border:1px solid var(--bdr);border-radius:4px"><input type="checkbox" id="ctr-saldo-visivel-${c.id}" ${c.saldoVisivelEscola ? 'checked' : ''}> Permitir que a escola acompanhe o saldo do contrato no Portal Escolar</label></div>
       </div>
       <div style="margin-top:.6rem;display:flex;justify-content:space-between;align-items:center">
         <div style="display:flex;gap:.4rem">
@@ -2850,7 +2850,7 @@ function abrirContrato(id) {
         }).join("")}</tbody>
       </table>
     </div>
-    <div id="tiny-result-${c.id}" class="hidden" style="margin-top:1rem;padding:1rem;border-radius:8px;background:var(--s1);border:1px solid var(--bdr);font-size:.85rem"></div>`;
+    <div id="tiny-result-${c.id}" class="hidden" style="margin-top:1rem;padding:1rem;border-radius:4px;background:var(--s1);border:1px solid var(--bdr);font-size:.85rem"></div>`;
 
   document.getElementById("modal-contrato-body").innerHTML = html;
   document.getElementById("modal-contrato").classList.remove("hidden");
