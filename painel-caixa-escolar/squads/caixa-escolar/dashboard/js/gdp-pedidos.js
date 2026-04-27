@@ -1121,12 +1121,23 @@ function verPedidoDetalhe(pedidoId, isClone) {
   if (isClone) {
     html += '<div style="margin-top:1.2rem;display:flex;justify-content:flex-end;gap:.5rem"><button class="btn btn-outline" onclick="cancelarClonePedido()">Cancelar</button><button class="btn btn-green" onclick="salvarClonePedido()">Salvar</button></div>';
   } else {
-    html += '<div style="margin-top:1.2rem;display:flex;justify-content:flex-end;gap:.5rem"><button class="btn btn-outline" onclick="fecharModalPedido()">Cancelar</button><button class="btn btn-green" onclick="salvarPedidoCompleto(\'' + p.id + '\')">Salvar</button></div>';
+    html += '<div style="margin-top:1.2rem;display:flex;justify-content:flex-end;gap:.5rem"><button class="btn btn-outline" onclick="voltarListaPedidos()">Voltar</button><button class="btn btn-green" onclick="salvarPedidoCompleto(\'' + p.id + '\')">Salvar</button></div>';
   }
 
-  document.querySelector("#modal-pedido h2").textContent = isClone ? 'Clone — ' + p.id : 'Pedido ' + p.id;
-  document.getElementById("modal-pedido-body").innerHTML = html;
-  document.getElementById("modal-pedido").classList.remove("hidden");
+  // Renderizar como pagina fullpage (nao modal)
+  const detalhePage = document.getElementById("pedido-detalhe-page");
+  const listagem = document.getElementById("pedidos-listagem");
+  if (detalhePage && listagem) {
+    const titulo = isClone ? 'Clone — ' + p.id : 'Pedido ' + p.id;
+    detalhePage.innerHTML = '<div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;padding-bottom:1rem;border-bottom:1px solid rgba(71,85,105,.15)"><button onclick="voltarListaPedidos()" style="background:transparent;border:none;cursor:pointer;color:var(--mut);font-size:1.1rem;padding:4px 8px" title="Voltar para lista">&#x2190;</button><h2 style="font-size:1.1rem;font-weight:600;margin:0">' + titulo + '</h2></div>' + html;
+    listagem.classList.add("hidden");
+    detalhePage.classList.remove("hidden");
+  } else {
+    // Fallback para modal se elementos nao existirem
+    document.querySelector("#modal-pedido h2").textContent = isClone ? 'Clone — ' + p.id : 'Pedido ' + p.id;
+    document.getElementById("modal-pedido-body").innerHTML = html;
+    document.getElementById("modal-pedido").classList.remove("hidden");
+  }
 }
 
 function salvarPedidoCompleto(pedidoId) {
@@ -1179,6 +1190,17 @@ function fecharModalPedido() {
   pedidoCloneDraft = null;
   pedidoEditId = null;
   document.getElementById("modal-pedido").classList.add("hidden");
+  voltarListaPedidos();
+}
+
+function voltarListaPedidos() {
+  const detalhePage = document.getElementById("pedido-detalhe-page");
+  const listagem = document.getElementById("pedidos-listagem");
+  if (detalhePage && listagem) {
+    detalhePage.classList.add("hidden");
+    detalhePage.innerHTML = "";
+    listagem.classList.remove("hidden");
+  }
 }
 
 function getNotaFiscalOperationalFiscal(nf) {
