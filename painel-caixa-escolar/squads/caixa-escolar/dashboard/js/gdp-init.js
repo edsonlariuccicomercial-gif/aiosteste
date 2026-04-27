@@ -3473,9 +3473,17 @@ function atualizarUnidadesPorTipo(prefix) {
 }
 
 function toggleFormNovoProduto() {
-  let overlay = document.getElementById("novo-prod-overlay");
-  if (overlay && !overlay.classList.contains("hidden")) {
-    overlay.classList.add("hidden");
+  // Verificar se ja esta aberto inline
+  const detalhePage = document.getElementById("produto-detalhe-page");
+  const listagem = document.getElementById("estoque-listagem");
+  if (detalhePage && !detalhePage.classList.contains("hidden")) {
+    // Fechar: voltar para listagem
+    detalhePage.classList.add("hidden");
+    detalhePage.innerHTML = "";
+    if (listagem) listagem.classList.remove("hidden");
+    // Remover overlay antigo se existir
+    const oldOverlay = document.getElementById("novo-prod-overlay");
+    if (oldOverlay) oldOverlay.classList.add("hidden");
     return;
   }
   _novoProdutoEmbs = [{ id: "temp-0", descricao: "", quantidade_base: 1, preco_referencia: 0 }];
@@ -3483,14 +3491,22 @@ function toggleFormNovoProduto() {
 }
 
 function renderModalNovoProduto() {
+  // Renderizar inline na pagina (nao overlay)
+  const detalhePage = document.getElementById("produto-detalhe-page");
+  const listagem = document.getElementById("estoque-listagem");
+  const useInline = detalhePage && listagem;
+
   let overlay = document.getElementById("novo-prod-overlay");
-  if (!overlay) {
-    overlay = document.createElement("div");
-    overlay.id = "novo-prod-overlay";
-    overlay.style.cssText = "position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:1100";
-    document.body.appendChild(overlay);
+  if (!useInline) {
+    // Fallback: overlay fixo
+    if (!overlay) {
+      overlay = document.createElement("div");
+      overlay.id = "novo-prod-overlay";
+      overlay.style.cssText = "position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:1100";
+      document.body.appendChild(overlay);
+    }
+    overlay.classList.remove("hidden");
   }
-  overlay.classList.remove("hidden");
 
   const UNIT_OPTS_COMUM = '<optgroup label="Contagem"><option value="UN" selected>UN — Unidade</option><option value="DZ">DZ — Duzia</option></optgroup><optgroup label="Embalagem"><option value="CX">CX — Caixa</option><option value="PCT">PCT — Pacote</option><option value="FD">FD — Fardo</option><option value="BD">BD — Bandeja</option><option value="PT">PT — Pote</option><option value="SC">SC — Sache/Saco</option></optgroup><optgroup label="Outros"><option value="MÇ">MÇ — Maco</option><option value="RS">RS — Resma</option><option value="RL">RL — Rolo</option><option value="FR">FR — Frasco</option><option value="TB">TB — Tubo</option><option value="GF">GF — Garrafa</option><option value="LA">LA — Lata</option><option value="KG">KG — Quilograma</option><option value="LT">LT — Litro</option><option value="GL">GL — Galao</option></optgroup>';
   const UNIT_OPTS_CRITICO = '<optgroup label="Peso (conversao gramatura)"><option value="g" selected>g — Grama</option><option value="KG">KG — Quilograma</option></optgroup><optgroup label="Volume (conversao ml)"><option value="ml">ml — Mililitro</option><option value="LT">LT — Litro</option><option value="GL">GL — Galao</option></optgroup>';
@@ -3507,11 +3523,11 @@ function renderModalNovoProduto() {
     </div>
   `).join("");
 
-  overlay.innerHTML = `
-    <div style="background:transparent;border:none;border-radius:0;border-bottom:1px solid rgba(143,197,157,.25);padding:1.5rem;max-width:620px;width:92%;max-height:85vh;overflow-y:auto">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
-        <div style="font-size:1.1rem;font-weight:700">Novo Produto</div>
-        <button class="btn btn-outline btn-sm" onclick="toggleFormNovoProduto()">✕</button>
+  const formHtml = `
+    <div style="padding:0;width:100%;max-width:100%">
+      <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;padding-bottom:1rem;border-bottom:1px solid rgba(143,197,157,.25)">
+        <button onclick="toggleFormNovoProduto()" style="background:transparent;border:none;cursor:pointer;color:var(--mut);font-size:1.1rem;padding:4px 8px" title="Voltar">&#x2190;</button>
+        <h2 style="font-size:1.1rem;font-weight:600;margin:0;flex:1">Novo Produto</h2>
       </div>
       <div style="margin-bottom:.75rem">
         <label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Nome do Produto</label>
@@ -3553,6 +3569,15 @@ function renderModalNovoProduto() {
       </div>
     </div>
   `;
+  if (useInline) {
+    detalhePage.innerHTML = formHtml;
+    listagem.classList.add("hidden");
+    detalhePage.classList.remove("hidden");
+    // Esconder overlay antigo se existir
+    if (overlay) overlay.classList.add("hidden");
+  } else {
+    overlay.innerHTML = formHtml;
+  }
   setTimeout(() => document.getElementById("ei-produto-nome")?.focus(), 50);
 }
 
