@@ -1020,15 +1020,22 @@ function verPedidoDetalhe(pedidoId, isClone) {
   const marcadorHtml = p.marcador ? '<span style="background:rgba(139,92,246,.15);color:#8b5cf6;padding:.2rem .6rem;border-radius:999px;font-size:.75rem;font-weight:700;margin-left:.5rem">' + esc(p.marcador) + '</span>' : '';
   const fiscalMissing = validatePedidoForInvoice(p);
 
-  // Botões de ação no detalhe — apenas Imprimir e Rel. Demanda
-  // Ações (Separar, Compra, Finalizar, Cancelar) movidas para barra de seleção (checkbox)
   const isCancelado = p.status === 'cancelado';
-  let html = '<div style="display:flex;justify-content:flex-end;gap:.5rem;flex-wrap:wrap;margin-bottom:1rem">';
+  const nf = getNotaFiscalByPedido(p.id);
+  // Botoes serao inseridos no header da pagina (junto ao titulo)
+  let _headerButtons = '';
   if (isCancelado) {
-    html += '<span class="badge badge-danger" style="align-self:center">Cancelado em ' + fmtDate(p.canceladoEm) + '</span>';
+    _headerButtons += '<span class="badge badge-danger">Cancelado em ' + fmtDate(p.canceladoEm) + '</span>';
   }
-  html += '<button class="btn btn-purple btn-sm" onclick="imprimirPedido(\'' + p.id + '\')">Imprimir</button>';
-  html += '<button class="btn btn-outline btn-sm" onclick="gerarRelatorioDemanda(\'' + p.id + '\')" title="Relatorio: Solicitado / Disponivel / Falta Comprar">📋 Rel. Demanda</button></div>';
+  _headerButtons += '<button class="btn btn-purple btn-sm" onclick="imprimirPedido(\'' + p.id + '\')">Imprimir</button>';
+  _headerButtons += (nf
+    ? '<button class="btn btn-outline btn-sm" onclick="voltarListaPedidos();switchTab(\'notas-fiscais\');setTimeout(function(){verNotaFiscal(\'' + nf.id + '\')},300)">Ver NF</button>'
+    : '<button class="btn btn-outline btn-sm" onclick="gerarNotaFiscalPedido(\'' + p.id + '\')">Gerar Nota Fiscal</button>');
+  _headerButtons += '<button class="btn btn-outline btn-sm" onclick="editarPedido(\'' + p.id + '\')">Editar</button>';
+  _headerButtons += '<button class="btn btn-outline btn-sm" onclick="gerarRelatorioDemanda(\'' + p.id + '\')" title="Relatorio: Solicitado / Disponivel / Falta Comprar">Rel. Demanda</button>';
+
+  let html = '';
+  // ── Dados do pedido (grid superior) ──
   html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:1rem;margin-bottom:1.2rem;padding-bottom:1rem;border-bottom:1px solid rgba(143,197,157,.25)">';
   html += '<div><div style="font-size:.78rem;color:var(--mut);margin-bottom:.3rem">Protocolo</div><div style="font-weight:600;font-family:monospace">' + esc(p.id) + marcadorHtml + '</div></div>';
   html += '<div><div style="font-size:.78rem;color:var(--mut);margin-bottom:.3rem">Escola</div><div style="font-weight:600">' + esc(p.escola) + '</div></div>';
@@ -1041,17 +1048,8 @@ function verPedidoDetalhe(pedidoId, isClone) {
   html += '<div><div style="font-size:.78rem;color:var(--mut);margin-bottom:.3rem">Valor Total</div><div style="font-weight:600;color:var(--green);font-size:1.1rem">' + brl.format(p.valor) + '</div></div>';
   html += '<div></div>';
   html += '</div>';
-  const nf = getNotaFiscalByPedido(p.id);
-  html += '<div style="margin-bottom:1.2rem;padding-bottom:1rem;border-bottom:1px solid rgba(143,197,157,.25)">';
-  html += '<div style="display:flex;justify-content:space-between;gap:1rem;align-items:flex-start;flex-wrap:wrap">';
-  html += '<div><div style="font-size:.82rem;color:var(--mut);font-weight:600;margin-bottom:.3rem">Fiscal e Cobranca</div><div style="font-weight:700">' + esc(getNotaFiscalResumoOperacional(nf)) + '</div><div style="font-size:.8rem;color:var(--mut);margin-top:.3rem">O pedido precisa conter todos os campos fiscais obrigatorios antes da emissao.</div>' + (fiscalMissing.length ? '<div style="margin-top:.55rem;color:var(--yellow);font-size:.78rem"><strong>Pendencias:</strong> ' + esc(fiscalMissing.join(', ')) + '</div>' : '<div style="margin-top:.55rem;color:var(--green);font-size:.78rem"><strong>Base fiscal completa.</strong></div>') + '</div>';
-  html += '<div style="display:flex;gap:.5rem;flex-wrap:wrap">';
-  html += (nf
-    ? '<button class="btn btn-outline" onclick="fecharModalPedido();switchTab(\'notas-fiscais\');setTimeout(function(){verNotaFiscal(\'' + nf.id + '\')},300)">Ver NF</button><button class="btn btn-sm" style="background:rgba(59,130,246,.15);color:var(--blue);border:none;font-weight:700" onclick="reenviarEmailNfPedido(\'' + p.id + '\')">📧 Reenviar E-mail</button>'
-    : '<button class="btn btn-purple" onclick="gerarNotaFiscalPedido(\'' + p.id + '\')">Gerar Nota Fiscal</button>');
-  html += '</div>';
-  html += '</div></div>';
 
+  // ── Cadastro Fiscal do Pedido ──
   html += '<div style="margin-bottom:1.2rem;padding-bottom:1rem;border-bottom:1px solid rgba(143,197,157,.25)">';
   html += '<div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;margin-bottom:.9rem">';
   html += '<div><div style="font-size:.82rem;color:var(--mut);font-weight:600;margin-bottom:.25rem">Cadastro Fiscal do Pedido</div><div style="font-size:.82rem;color:var(--mut)">Revise os campos legais antes de emitir a NF.</div></div>';
@@ -1089,6 +1087,17 @@ function verPedidoDetalhe(pedidoId, isClone) {
   html += '<div id="add-produto-detalhe-' + p.id + '" class="hidden" style="margin-top:.6rem;padding:.8rem;border:1px solid var(--bdr);border-radius:8px;background:var(--s1)">';
   html += '<div style="position:relative"><input type="text" id="add-prod-busca-' + p.id + '" placeholder="Buscar produto no contrato ou inteligência..." oninput="buscarProdutoDetalhe(\'' + p.id + '\')" style="width:100%;padding:.5rem .8rem;background:var(--bg);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:.85rem"><div id="add-prod-sug-' + p.id + '" class="hidden" style="position:absolute;top:100%;left:0;right:0;z-index:1030;background:var(--bg);border:1px solid var(--bdr);border-radius:8px;max-height:200px;overflow-y:auto;box-shadow:0 4px 16px rgba(0,0,0,.35)"></div></div>';
   html += '</div>';
+
+  // ── Fiscal e Cobranca (reposicionado entre Itens e Pagamento) ──
+  html += '<div style="margin-top:1.2rem;margin-bottom:1.2rem;padding-bottom:1rem;border-bottom:1px solid rgba(143,197,157,.25)">';
+  html += '<div style="display:flex;justify-content:space-between;gap:1rem;align-items:flex-start;flex-wrap:wrap">';
+  html += '<div><div style="font-size:.82rem;color:var(--mut);font-weight:600;margin-bottom:.3rem">Fiscal e Cobranca</div><div style="font-weight:600">' + esc(getNotaFiscalResumoOperacional(nf)) + '</div><div style="font-size:.8rem;color:var(--mut);margin-top:.3rem">O pedido precisa conter todos os campos fiscais obrigatorios antes da emissao.</div>' + (fiscalMissing.length ? '<div style="margin-top:.55rem;color:var(--yellow);font-size:.78rem"><strong>Pendencias:</strong> ' + esc(fiscalMissing.join(', ')) + '</div>' : '<div style="margin-top:.55rem;color:var(--green);font-size:.78rem"><strong>Base fiscal completa.</strong></div>') + '</div>';
+  html += '<div style="display:flex;gap:.5rem;flex-wrap:wrap">';
+  html += (nf
+    ? '<button class="btn btn-outline btn-sm" onclick="voltarListaPedidos();switchTab(\'notas-fiscais\');setTimeout(function(){verNotaFiscal(\'' + nf.id + '\')},300)">Ver NF</button><button class="btn btn-sm" style="background:rgba(59,130,246,.15);color:var(--blue);border:none;font-weight:700" onclick="reenviarEmailNfPedido(\'' + p.id + '\')">Reenviar E-mail</button>'
+    : '');
+  html += '</div>';
+  html += '</div></div>';
 
   // ── Seção Dados de Pagamento ──
   const pag = p.pagamento || {};
@@ -1129,7 +1138,7 @@ function verPedidoDetalhe(pedidoId, isClone) {
   const listagem = document.getElementById("pedidos-listagem");
   if (detalhePage && listagem) {
     const titulo = isClone ? 'Clone — ' + p.id : 'Pedido ' + p.id;
-    detalhePage.innerHTML = '<div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;padding-bottom:1rem;border-bottom:1px solid rgba(143,197,157,.25)"><button onclick="voltarListaPedidos()" style="background:transparent;border:none;cursor:pointer;color:var(--mut);font-size:1.1rem;padding:4px 8px" title="Voltar para lista">&#x2190;</button><h2 style="font-size:1.1rem;font-weight:600;margin:0">' + titulo + '</h2></div>' + html;
+    detalhePage.innerHTML = '<div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;padding-bottom:1rem;border-bottom:1px solid rgba(143,197,157,.25)"><button onclick="voltarListaPedidos()" style="background:transparent;border:none;cursor:pointer;color:var(--mut);font-size:1.1rem;padding:4px 8px" title="Voltar para lista">&#x2190;</button><h2 style="font-size:1.1rem;font-weight:600;margin:0;flex:1">' + titulo + '</h2><div style="display:flex;gap:.5rem;flex-wrap:wrap">' + _headerButtons + '</div></div>' + html;
     listagem.classList.add("hidden");
     detalhePage.classList.remove("hidden");
   } else {
