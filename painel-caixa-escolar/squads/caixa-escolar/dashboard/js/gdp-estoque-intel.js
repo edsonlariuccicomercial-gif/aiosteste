@@ -2053,7 +2053,8 @@ function renderEstoque() {
     el.classList.remove("hidden");
   });
   document.querySelectorAll("[data-ei-table]").forEach((el) => {
-    el.style.maxHeight = el.closest("#ei-card-estoque-resumo") ? "320px" : (el.closest("#ei-card-fornecedores") || el.closest("#ei-card-precompra") ? "260px" : "220px");
+    el.style.maxHeight = "none";
+    el.style.overflow = "visible";
   });
   const mainGrid = document.getElementById("ei-grid-principal");
   const secondaryGrid = document.getElementById("ei-grid-secundario");
