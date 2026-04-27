@@ -1781,24 +1781,69 @@ function setPedidoStatusTab(status) {
   renderPedidos();
 }
 
+var _pedidoStatusDropdownOpen = false;
+function togglePedidoStatusDropdown() {
+  _pedidoStatusDropdownOpen = !_pedidoStatusDropdownOpen;
+  var dd = document.getElementById("pedidos-status-dropdown");
+  if (dd) dd.style.display = _pedidoStatusDropdownOpen ? "block" : "none";
+}
+function closePedidoStatusDropdown() {
+  _pedidoStatusDropdownOpen = false;
+  var dd = document.getElementById("pedidos-status-dropdown");
+  if (dd) dd.style.display = "none";
+}
+
 function renderPedidosStatusTabs(items = pedidos) {
   const container = document.getElementById("pedidos-status-tabs");
   if (!container) return;
   const safeItems = Array.isArray(items) ? items : [];
   const brlFmt = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
-  container.innerHTML = PEDIDO_STATUS_TABS.map((tab) => {
+  const MAX_VISIBLE = 6;
+  const visibleTabs = PEDIDO_STATUS_TABS.slice(0, MAX_VISIBLE);
+  const overflowTabs = PEDIDO_STATUS_TABS.slice(MAX_VISIBLE);
+
+  function renderTab(tab) {
     const tabItems = safeItems.filter((item) => normalizePedidoStatus(item.status) === tab.key);
     const count = tabItems.length;
     const cor = PEDIDO_STATUS_COLORS[tab.key] || '#94a3b8';
     const active = pedidoStatusTabAtual === tab.key;
-    return `<button onclick="setPedidoStatusTab('${tab.key}')" style="display:flex;flex-direction:column;align-items:center;gap:2px;padding:10px 20px;background:transparent;border:none;border-bottom:2px solid ${active ? 'var(--green)' : 'transparent'};cursor:pointer;transition:all .2s;opacity:${active ? '1' : '.7'}">
+    return `<button onclick="setPedidoStatusTab('${tab.key}');closePedidoStatusDropdown()" style="display:flex;flex-direction:column;align-items:center;gap:2px;padding:10px 20px;background:transparent;border:none;border-bottom:2px solid ${active ? 'var(--green)' : 'transparent'};cursor:pointer;transition:all .2s;opacity:${active ? '1' : '.7'};white-space:nowrap">
       <span style="display:flex;align-items:center;gap:6px">
         <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${cor}"></span>
         <span style="font-size:.88rem;font-weight:${active ? '600' : '400'};color:var(--txt)">${tab.label}</span>
       </span>
       <span style="font-size:.78rem;color:var(--mut);font-weight:600">${count > 0 ? count.toString().padStart(2,'0') : ''}</span>
     </button>`;
-  }).join("");
+  }
+
+  let html = visibleTabs.map(renderTab).join("");
+
+  if (overflowTabs.length > 0) {
+    const overflowItems = overflowTabs.map(tab => {
+      const tabItems = safeItems.filter((item) => normalizePedidoStatus(item.status) === tab.key);
+      const count = tabItems.length;
+      const cor = PEDIDO_STATUS_COLORS[tab.key] || '#94a3b8';
+      const active = pedidoStatusTabAtual === tab.key;
+      return `<button onclick="setPedidoStatusTab('${tab.key}');closePedidoStatusDropdown()" style="display:flex;align-items:center;gap:8px;padding:8px 16px;background:transparent;border:none;cursor:pointer;width:100%;text-align:left;opacity:${active ? '1' : '.7'}">
+        <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${cor}"></span>
+        <span style="font-size:.85rem;color:var(--txt);flex:1;font-weight:${active ? '600' : '400'}">${tab.label}</span>
+        <span style="font-size:.8rem;color:var(--mut);font-weight:600">${count > 0 ? count.toString().padStart(2,'0') : ''}</span>
+      </button>`;
+    }).join("");
+
+    const anyOverflowActive = overflowTabs.some(t => pedidoStatusTabAtual === t.key);
+    html += `<div style="position:relative;display:inline-flex;align-items:center">
+      <button onclick="togglePedidoStatusDropdown()" style="display:flex;align-items:center;gap:6px;padding:10px 16px;background:transparent;border:1px solid var(--bdr);border-radius:20px;cursor:pointer;color:var(--txt);font-size:.85rem;font-weight:${anyOverflowActive ? '600' : '400'};opacity:${anyOverflowActive ? '1' : '.7'}">
+        mais <span style="font-size:.75rem">···</span>
+      </button>
+      <div id="pedidos-status-dropdown" style="display:none;position:absolute;top:100%;right:0;margin-top:4px;background:var(--s1);border:1px solid var(--bdr);border-radius:8px;padding:4px 0;min-width:200px;z-index:20;box-shadow:0 4px 12px rgba(0,0,0,.4)">
+        ${overflowItems}
+      </div>
+    </div>`;
+  }
+
+  container.innerHTML = html;
+
   // Totais rodapé dentro de <tfoot>
   const activeTabItems = safeItems.filter((item) => normalizePedidoStatus(item.status) === pedidoStatusTabAtual);
   const totalQtd = activeTabItems.length;
