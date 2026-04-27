@@ -1031,7 +1031,6 @@ function verPedidoDetalhe(pedidoId, isClone) {
   _headerButtons += (nf
     ? '<button class="btn btn-outline btn-sm" onclick="voltarListaPedidos();switchTab(\'notas-fiscais\');setTimeout(function(){verNotaFiscal(\'' + nf.id + '\')},300)">Ver NF</button>'
     : '<button class="btn btn-outline btn-sm" onclick="gerarNotaFiscalPedido(\'' + p.id + '\')">Gerar Nota Fiscal</button>');
-  _headerButtons += '<button class="btn btn-outline btn-sm" onclick="editarPedido(\'' + p.id + '\')">Editar</button>';
   _headerButtons += '<button class="btn btn-outline btn-sm" onclick="gerarRelatorioDemanda(\'' + p.id + '\')" title="Relatorio: Solicitado / Disponivel / Falta Comprar">Rel. Demanda</button>';
 
   let html = '';
@@ -1043,8 +1042,8 @@ function verPedidoDetalhe(pedidoId, isClone) {
   html += '<div><div style="font-size:.78rem;color:var(--mut);margin-bottom:.3rem">Status</div><div><span class="badge ' + statusMeta.className + '">' + esc(statusMeta.label) + '</span></div></div>';
   html += '</div>';
   html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:1rem;margin-bottom:1.2rem;padding-bottom:1rem;border-bottom:1px solid rgba(143,197,157,.25)">';
-  html += '<div><div style="font-size:.78rem;color:var(--mut);margin-bottom:.3rem">Data</div><div style="font-weight:600">' + fmtDate(p.dataEntrega || p.data) + '</div></div>';
-  html += '<div><div style="font-size:.78rem;color:var(--mut);margin-bottom:.3rem">Data Prevista</div><div style="display:flex;align-items:center;gap:.4rem"><input type="date" id="detalhe-data-prevista-' + p.id + '" value="' + esc(p.dataPrevista || p.dataEntrega || p.data || '') + '" style="background:transparent;border:1px solid var(--bdr);border-radius:6px;color:var(--txt);padding:.3rem .5rem;font-size:.85rem"></div></div>';
+  html += '<div><div style="font-size:.78rem;color:var(--mut);margin-bottom:.3rem">Data da venda</div><div style="font-weight:600">' + fmtDate(p.dataEntrega || p.data) + '</div></div>';
+  html += '<div><div style="font-size:.78rem;color:var(--mut);margin-bottom:.3rem">Data prevista de entrega</div><div style="display:flex;align-items:center;gap:.4rem"><input type="date" id="detalhe-data-prevista-' + p.id + '" value="' + esc(p.dataPrevista || p.dataEntrega || p.data || '') + '" style="background:transparent;border:1px solid var(--bdr);border-radius:6px;color:var(--txt);padding:.3rem .5rem;font-size:.85rem"></div></div>';
   html += '<div><div style="font-size:.78rem;color:var(--mut);margin-bottom:.3rem">Valor Total</div><div style="font-weight:600;color:var(--green);font-size:1.1rem">' + brl.format(p.valor) + '</div></div>';
   html += '<div></div>';
   html += '</div>';
