@@ -1782,7 +1782,8 @@ function setPedidoStatusTab(status) {
 }
 
 var _pedidoStatusDropdownOpen = false;
-function togglePedidoStatusDropdown() {
+function togglePedidoStatusDropdown(evt) {
+  if (evt) evt.stopPropagation();
   _pedidoStatusDropdownOpen = !_pedidoStatusDropdownOpen;
   var dd = document.getElementById("pedidos-status-dropdown");
   if (dd) dd.style.display = _pedidoStatusDropdownOpen ? "block" : "none";
@@ -1792,6 +1793,7 @@ function closePedidoStatusDropdown() {
   var dd = document.getElementById("pedidos-status-dropdown");
   if (dd) dd.style.display = "none";
 }
+document.addEventListener("click", function() { if (_pedidoStatusDropdownOpen) closePedidoStatusDropdown(); });
 
 function renderPedidosStatusTabs(items = pedidos) {
   const container = document.getElementById("pedidos-status-tabs");
@@ -1833,7 +1835,7 @@ function renderPedidosStatusTabs(items = pedidos) {
 
     const anyOverflowActive = overflowTabs.some(t => pedidoStatusTabAtual === t.key);
     html += `<div style="position:relative;display:inline-flex;align-items:center">
-      <button onclick="togglePedidoStatusDropdown()" style="display:flex;align-items:center;gap:6px;padding:10px 16px;background:transparent;border:1px solid var(--bdr);border-radius:20px;cursor:pointer;color:var(--txt);font-size:.85rem;font-weight:${anyOverflowActive ? '600' : '400'};opacity:${anyOverflowActive ? '1' : '.7'}">
+      <button onclick="togglePedidoStatusDropdown(event)" style="display:flex;align-items:center;gap:6px;padding:10px 16px;background:transparent;border:1px solid var(--bdr);border-radius:20px;cursor:pointer;color:var(--txt);font-size:.85rem;font-weight:${anyOverflowActive ? '600' : '400'};opacity:${anyOverflowActive ? '1' : '.7'}">
         mais <span style="font-size:.75rem">···</span>
       </button>
       <div id="pedidos-status-dropdown" style="display:none;position:absolute;top:100%;right:0;margin-top:4px;background:var(--s1);border:1px solid var(--bdr);border-radius:8px;padding:4px 0;min-width:200px;z-index:20;box-shadow:0 4px 12px rgba(0,0,0,.4)">
