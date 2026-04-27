@@ -614,11 +614,11 @@
 
   <!-- Tab: Contas a Pagar (legacy container — conteúdo movido para financeiro via JS) -->
   <div id="tab-contas-pagar" class="hidden">
-    <div class="hidden" id="cp-form-card" style="position:fixed;inset:0;background:rgba(8,15,31,.88);z-index:1012;padding:1.25rem;overflow-y:auto" onclick="toggleContaPagarForm(false)">
-      <div style="background:var(--bg);border:1px solid var(--bdr);border-radius:18px;min-height:calc(100vh - 2.5rem);display:flex;flex-direction:column" onclick="event.stopPropagation()">
-        <div style="padding:1.2rem 1.5rem;border-bottom:1px solid var(--bdr);display:flex;justify-content:space-between;align-items:center;gap:1rem">
-          <div>
-            <h2 style="margin:0;font-size:1.12rem">Nova Conta a Pagar</h2>
+    <div class="hidden" id="cp-form-card" style="padding:0;overflow-y:auto">
+      <div style="background:transparent;border:none;border-radius:0;display:flex;flex-direction:column">
+        <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;padding-bottom:1rem;border-bottom:1px solid rgba(143,197,157,.25)">
+          <button onclick="toggleContaPagarForm(false)" style="background:transparent;border:none;cursor:pointer;color:var(--mut);font-size:1.1rem;padding:4px 8px" title="Voltar">&#x2190;</button>
+          <h2 style="margin:0;font-size:1.1rem;font-weight:600;flex:1">Nova Conta a Pagar</h2>
             <div style="font-size:.82rem;color:var(--mut);margin-top:.3rem">Preencha os dados da despesa e salve para voltar a tela anterior.</div>
           </div>
           <button class="btn btn-outline btn-sm" onclick="toggleContaPagarForm(false)">Cancelar</button>
@@ -679,7 +679,7 @@
     <div class="empty" id="contas-pagar-empty"><h3>Nenhuma conta a pagar</h3><p>Cadastre despesas operacionais e obrigaes financeiras do GDP.</p></div>
     <!-- Modal Detalhe Conta a Pagar -->
     <div class="hidden" id="cp-detalhe-modal" style="position:fixed;inset:0;background:rgba(8,15,31,.88);z-index:1013;padding:1.25rem;overflow-y:auto" onclick="fecharDetalheCp()">
-      <div style="background:var(--bg);border:1px solid var(--bdr);border-radius:18px;max-width:640px;margin:2rem auto;display:flex;flex-direction:column" onclick="event.stopPropagation()">
+      <div style="background:var(--bg);border:1px solid var(--bdr);border-radius:4px;max-width:640px;margin:2rem auto;display:flex;flex-direction:column" onclick="event.stopPropagation()">
         <div style="padding:1.2rem 1.5rem;border-bottom:1px solid var(--bdr);display:flex;justify-content:space-between;align-items:center">
           <h2 style="margin:0;font-size:1.12rem">Detalhes da Conta a Pagar</h2>
           <div style="display:flex;gap:.5rem">
@@ -751,11 +751,11 @@
         </div>
       </div>
     </div>
-    <div class="hidden" id="cr-form-card" style="position:fixed;inset:0;background:rgba(8,15,31,.88);z-index:1012;padding:1.25rem;overflow-y:auto" onclick="toggleContaReceberForm(false)">
-      <div style="background:var(--bg);border:1px solid var(--bdr);border-radius:18px;min-height:calc(100vh - 2.5rem);display:flex;flex-direction:column" onclick="event.stopPropagation()">
-        <div style="padding:1.2rem 1.5rem;border-bottom:1px solid var(--bdr);display:flex;justify-content:space-between;align-items:center;gap:1rem">
-          <div>
-            <h2 style="margin:0;font-size:1.12rem">Nova Conta a Receber</h2>
+    <div class="hidden" id="cr-form-card" style="padding:0;overflow-y:auto">
+      <div style="background:transparent;border:none;border-radius:0;display:flex;flex-direction:column">
+        <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;padding-bottom:1rem;border-bottom:1px solid rgba(143,197,157,.25)">
+          <button onclick="toggleContaReceberForm(false)" style="background:transparent;border:none;cursor:pointer;color:var(--mut);font-size:1.1rem;padding:4px 8px" title="Voltar">&#x2190;</button>
+          <h2 style="margin:0;font-size:1.1rem;font-weight:600;flex:1">Nova Conta a Receber</h2>
             <div style="font-size:.82rem;color:var(--mut);margin-top:.3rem">Preencha os dados da receita e salve para voltar a tela anterior.</div>
           </div>
           <button class="btn btn-outline btn-sm" onclick="toggleContaReceberForm(false)">Cancelar</button>
@@ -819,7 +819,7 @@
   <div class="empty" id="contas-receber-empty"><h3>Nenhuma conta a receber</h3><p>As cobrancas geradas a partir das notas fiscais aparecerao aqui.</p></div>
     <!-- Modal Detalhe Conta a Receber -->
     <div class="hidden" id="cr-detalhe-modal" style="position:fixed;inset:0;background:rgba(8,15,31,.88);z-index:1013;padding:1.25rem;overflow-y:auto" onclick="fecharDetalheCr()">
-      <div style="background:var(--bg);border:1px solid var(--bdr);border-radius:18px;max-width:640px;margin:2rem auto;display:flex;flex-direction:column" onclick="event.stopPropagation()">
+      <div style="background:var(--bg);border:1px solid var(--bdr);border-radius:4px;max-width:640px;margin:2rem auto;display:flex;flex-direction:column" onclick="event.stopPropagation()">
         <div style="padding:1.2rem 1.5rem;border-bottom:1px solid var(--bdr);display:flex;justify-content:space-between;align-items:center">
           <h2 style="margin:0;font-size:1.12rem">Detalhes da Conta a Receber</h2>
           <div style="display:flex;gap:.5rem">

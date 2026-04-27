@@ -534,9 +534,20 @@ function novoPedidoManual() {
       <button class="btn btn-green" onclick="salvarPedidoManual()">${pedidoEditId ? 'Salvar Pedido' : 'Registrar Pedido'}</button>
     </div>`;
 
-  document.querySelector("#modal-pedido h2").textContent = pedidoEditId ? 'Editar Pedido' : 'Novo Pedido';
-  document.getElementById("modal-pedido-body").innerHTML = html;
-  document.getElementById("modal-pedido").classList.remove("hidden");
+  // Abrir como pagina inteira (nao modal)
+  const titulo = pedidoEditId ? 'Editar Pedido' : 'Novo Pedido';
+  const detalhePage = document.getElementById("pedido-detalhe-page");
+  const listagem = document.getElementById("pedidos-listagem");
+  if (detalhePage && listagem) {
+    const headerHtml = '<div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;padding-bottom:1rem;border-bottom:1px solid rgba(143,197,157,.25)"><button onclick="voltarListaPedidos()" style="background:transparent;border:none;cursor:pointer;color:var(--mut);font-size:1.1rem;padding:4px 8px" title="Voltar">&#x2190;</button><h2 style="font-size:1.1rem;font-weight:600;margin:0;flex:1">' + titulo + '</h2></div>';
+    detalhePage.innerHTML = headerHtml + html;
+    listagem.classList.add("hidden");
+    detalhePage.classList.remove("hidden");
+  } else {
+    document.querySelector("#modal-pedido h2").textContent = titulo;
+    document.getElementById("modal-pedido-body").innerHTML = html;
+    document.getElementById("modal-pedido").classList.remove("hidden");
+  }
   if (pedidoCloneDraft?.contratoId) {
     document.getElementById("pedido-contrato").value = pedidoCloneDraft.contratoId;
   }
