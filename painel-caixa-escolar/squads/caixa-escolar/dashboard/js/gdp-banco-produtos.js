@@ -164,9 +164,69 @@ function importarProdutoUnificado(file) {
   }
 }
 
+function _abrirProdutoInline(titulo) {
+  const detalhePage = document.getElementById("produto-detalhe-page");
+  const listagem = document.getElementById("estoque-listagem");
+  if (detalhePage && listagem) {
+    const headerHtml = '<div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;padding-bottom:1rem;border-bottom:1px solid rgba(143,197,157,.25)"><button onclick="fecharModalProduto()" style="background:transparent;border:none;cursor:pointer;color:var(--mut);font-size:1.1rem;padding:4px 8px" title="Voltar">&#x2190;</button><h2 style="font-size:1.1rem;font-weight:600;margin:0;flex:1">' + titulo + '</h2></div>';
+    // Mostrar o modal-produto como conteudo inline (reusar o form do modal)
+    var modal = document.getElementById("modal-produto");
+    var modalInner = modal.children[0];
+    modal.style.position = 'static';
+    modal.style.inset = 'auto';
+    modal.style.background = 'transparent';
+    modal.style.padding = '0';
+    modal.style.display = 'block';
+    modal.style.zIndex = 'auto';
+    modalInner.style.background = 'transparent';
+    modalInner.style.border = 'none';
+    modalInner.style.width = '100%';
+    modalInner.style.maxWidth = '100%';
+    modalInner.style.padding = '0';
+    modalInner.style.borderRadius = '0';
+    modal.querySelector('h2').style.display = 'none';
+    detalhePage.innerHTML = headerHtml;
+    detalhePage.appendChild(modal);
+    modal.classList.remove("hidden");
+    listagem.classList.add("hidden");
+    detalhePage.classList.remove("hidden");
+  } else {
+    document.getElementById("modal-produto").classList.remove("hidden");
+  }
+}
+
+function _restaurarModalProduto() {
+  var modal = document.getElementById("modal-produto");
+  var detalhePage = document.getElementById("produto-detalhe-page");
+  var listagem = document.getElementById("estoque-listagem");
+  if (modal) {
+    // Restaurar modal ao seu lugar original (antes do body end)
+    document.body.appendChild(modal);
+    modal.style.position = 'fixed';
+    modal.style.inset = '0';
+    modal.style.background = 'rgba(0,0,0,.7)';
+    modal.style.padding = '2rem';
+    modal.style.display = 'flex';
+    modal.style.zIndex = '1001';
+    var modalInner = modal.children[0];
+    if (modalInner) {
+      modalInner.style.background = 'var(--bg)';
+      modalInner.style.border = '1px solid var(--bdr)';
+      modalInner.style.width = '500px';
+      modalInner.style.maxWidth = '95vw';
+      modalInner.style.padding = '1.5rem';
+      modalInner.style.borderRadius = '4px';
+    }
+    var h2 = modal.querySelector('h2');
+    if (h2) h2.style.display = '';
+    modal.classList.add("hidden");
+  }
+  if (detalhePage) { detalhePage.classList.add("hidden"); detalhePage.innerHTML = ""; }
+  if (listagem) listagem.classList.remove("hidden");
+}
+
 function novoProdutoManual() {
   _editProdutoId = null;
-  document.getElementById("modal-produto-titulo").textContent = "Novo Produto";
   document.getElementById("prod-descricao").value = "";
   document.getElementById("prod-sku").value = "";
   document.getElementById("prod-ncm").value = "";
@@ -175,7 +235,7 @@ function novoProdutoManual() {
   if (criticoEl) criticoEl.checked = false;
   const radioComum = document.querySelector('input[name="prod-tipo"][value="comum"]');
   if (radioComum) radioComum.checked = true;
-  document.getElementById("modal-produto").classList.remove("hidden");
+  _abrirProdutoInline("Novo Produto");
 }
 
 function editarProduto(id) {
@@ -183,12 +243,10 @@ function editarProduto(id) {
   const p = bancoProdutos.itens.find(x => x.id === id);
   if (!p) return;
   _editProdutoId = id;
-  document.getElementById("modal-produto-titulo").textContent = "Editar Produto";
   document.getElementById("prod-descricao").value = p.descricao || "";
   document.getElementById("prod-sku").value = p.sku || "";
   document.getElementById("prod-ncm").value = p.ncm || "";
   document.getElementById("prod-unidade").value = p.unidade || "";
-  // FR-004: Produto comum/crítico
   const criticoEl = document.getElementById("prod-critico");
   if (criticoEl) criticoEl.checked = !!p.produto_critico;
   const radioComum = document.querySelector('input[name="prod-tipo"][value="comum"]');
@@ -196,7 +254,7 @@ function editarProduto(id) {
   if (radioComum && radioCritico) {
     if (p.produto_critico) { radioCritico.checked = true; } else { radioComum.checked = true; }
   }
-  document.getElementById("modal-produto").classList.remove("hidden");
+  _abrirProdutoInline("Editar Produto");
 }
 
 function salvarProduto() {
@@ -273,6 +331,7 @@ function excluirProduto(id) {
 
 function fecharModalProduto() {
   document.getElementById("modal-produto").classList.add("hidden");
+  _restaurarModalProduto();
   _editProdutoId = null;
 }
 
