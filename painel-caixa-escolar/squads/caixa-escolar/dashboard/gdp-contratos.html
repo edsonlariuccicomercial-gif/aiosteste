@@ -614,9 +614,9 @@
 
   <!-- Tab: Contas a Pagar (legacy container — conteúdo movido para financeiro via JS) -->
   <div id="tab-contas-pagar" class="hidden">
-    <div class="hidden" id="cp-form-card" style="position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1012;padding:0;overflow-y:auto;display:flex;align-items:flex-start;justify-content:center" onclick="toggleContaPagarForm(false)">
-      <div style="background:var(--bg);border:1px solid var(--bdr);border-radius:4px;width:100%;max-width:100%;min-height:100vh;display:flex;flex-direction:column" onclick="event.stopPropagation()">
-        <div style="display:flex;align-items:center;gap:1rem;padding:1.2rem 1.5rem;border-bottom:1px solid rgba(143,197,157,.25)">
+    <div class="hidden" id="cp-form-card" style="padding:0;overflow-y:auto">
+      <div style="background:transparent;border:none;border-radius:0;display:flex;flex-direction:column">
+        <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;padding-bottom:1rem;border-bottom:1px solid rgba(143,197,157,.25)">
           <button onclick="toggleContaPagarForm(false)" style="background:transparent;border:none;cursor:pointer;color:var(--mut);font-size:1.1rem;padding:4px 8px" title="Voltar">&#x2190;</button>
           <h2 style="margin:0;font-size:1.1rem;font-weight:600;flex:1">Nova Conta a Pagar</h2>
             <div style="font-size:.82rem;color:var(--mut);margin-top:.3rem">Preencha os dados da despesa e salve para voltar a tela anterior.</div>
@@ -751,9 +751,9 @@
         </div>
       </div>
     </div>
-    <div class="hidden" id="cr-form-card" style="position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1012;padding:0;overflow-y:auto;display:flex;align-items:flex-start;justify-content:center" onclick="toggleContaReceberForm(false)">
-      <div style="background:var(--bg);border:1px solid var(--bdr);border-radius:4px;width:100%;max-width:100%;min-height:100vh;display:flex;flex-direction:column" onclick="event.stopPropagation()">
-        <div style="display:flex;align-items:center;gap:1rem;padding:1.2rem 1.5rem;border-bottom:1px solid rgba(143,197,157,.25)">
+    <div class="hidden" id="cr-form-card" style="padding:0;overflow-y:auto">
+      <div style="background:transparent;border:none;border-radius:0;display:flex;flex-direction:column">
+        <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;padding-bottom:1rem;border-bottom:1px solid rgba(143,197,157,.25)">
           <button onclick="toggleContaReceberForm(false)" style="background:transparent;border:none;cursor:pointer;color:var(--mut);font-size:1.1rem;padding:4px 8px" title="Voltar">&#x2190;</button>
           <h2 style="margin:0;font-size:1.1rem;font-weight:600;flex:1">Nova Conta a Receber</h2>
             <div style="font-size:.82rem;color:var(--mut);margin-top:.3rem">Preencha os dados da receita e salve para voltar a tela anterior.</div>
