@@ -81,26 +81,31 @@
     .upload-zone p{color:var(--mut);font-size:.85rem}
     .upload-zone input{display:none}
 
-    /* Tables */
-    .table-wrap{background:var(--s1);border:1px solid var(--bdr);border-radius:12px;overflow:hidden}
-    table{width:100%;border-collapse:collapse}
-    th{background:var(--s2);padding:.7rem 1rem;text-align:left;font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;color:var(--mut);position:sticky;top:0}
-    td{padding:.6rem 1rem;font-size:.85rem;border-top:1px solid rgba(71,85,105,.3)}
-    tr:hover td{background:rgba(59,130,246,.04)}
+    /* Tables — Layout flat (padrao global) */
+    .table-wrap{background:transparent;border:none;border-radius:0;overflow:hidden}
+    table{width:100%;border-collapse:separate;border-spacing:0 2px}
+    th{background:transparent;padding:10px 6px;text-align:left;font-size:.82rem;text-transform:none;letter-spacing:0;font-weight:400;color:var(--mut);position:sticky;top:0;border-bottom:1px solid rgba(143,197,157,.25)}
+    td{padding:9px 6px;font-size:.88rem;border-bottom:1px solid rgba(143,197,157,.13)}
+    tr:hover td{background:rgba(78,201,138,.04)}
+    tfoot td{border-bottom:none;font-size:.82rem;color:var(--mut);padding:8px 6px}
+    tfoot strong{color:var(--txt);font-size:.95rem}
     .text-right{text-align:right}
     .text-center{text-align:center}
     .font-mono{font-family:monospace}
     .nowrap{white-space:nowrap}
 
-    /* Pedidos — Estilo flat (Story 11.1) */
-    #tab-pedidos .table-wrap{background:transparent;border:none;border-radius:0}
-    #tab-pedidos table{border-collapse:separate;border-spacing:0 2px}
-    #tab-pedidos th{background:transparent;padding:10px 6px;font-size:.82rem;text-transform:none;letter-spacing:0;font-weight:400;border-bottom:1px solid rgba(143,197,157,.25)}
-    #tab-pedidos td{padding:9px 6px;font-size:.88rem;border-top:none;border-bottom:1px solid rgba(143,197,157,.13)}
-    #tab-pedidos tr:hover td{background:rgba(78,201,138,.04)}
-    #tab-pedidos tfoot td{border-bottom:none;font-size:.82rem;color:var(--mut);padding:8px 6px}
-    #tab-pedidos tfoot strong{color:var(--txt);font-size:.95rem}
-    #tab-pedidos .section-divider{border-bottom:1px solid rgba(143,197,157,.25);padding-bottom:1rem;margin-bottom:1.2rem}
+    /* Flat tabs — inputs de busca padronizados */
+    #tab-pedidos input[type="text"],#tab-notas-fiscais input[type="text"],#tab-financeiro input[type="text"],#tab-contas-pagar input[type="text"],#tab-contas-receber input[type="text"],#tab-caixa input[type="text"],#tab-estoque input[type="text"],#tab-usuarios input[type="text"],#tab-notas-entrada input[type="text"],#tab-banco-produtos input[type="text"]{height:40px;padding:9px 12px;border-radius:6px;border:1px solid var(--bdr);background:var(--bg);color:var(--txt);font-size:.95rem}
+
+    /* Flat tabs — neutralizar .card dentro das tabs flat */
+    #tab-pedidos .card,#tab-notas-fiscais .card,#tab-financeiro .card,#tab-contas-pagar .card,#tab-contas-receber .card,#tab-caixa .card,#tab-estoque .card,#tab-usuarios .card,#tab-notas-entrada .card,#tab-banco-produtos .card{background:transparent;border:none;border-radius:0;padding:0;margin-bottom:1rem;border-bottom:1px solid rgba(143,197,157,.25);padding-bottom:1rem}
+
+    /* Contratos e Relatorios — manter estilo card */
+    #tab-contratos .table-wrap,#tab-relatorios .table-wrap,#tab-importar .table-wrap,#tab-itens .table-wrap{background:var(--s1);border:1px solid var(--bdr);border-radius:12px}
+    #tab-contratos table,#tab-relatorios table,#tab-importar table,#tab-itens table{border-collapse:collapse;border-spacing:0}
+    #tab-contratos th,#tab-relatorios th,#tab-importar th,#tab-itens th{background:var(--s2);padding:.7rem 1rem;font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;font-weight:600;border-bottom:none}
+    #tab-contratos td,#tab-relatorios td,#tab-importar td,#tab-itens td{padding:.6rem 1rem;font-size:.85rem;border-bottom:none;border-top:1px solid rgba(71,85,105,.3)}
+    #tab-contratos tr:hover td,#tab-relatorios tr:hover td,#tab-importar tr:hover td,#tab-itens tr:hover td{background:rgba(59,130,246,.04)}
 
     /* Progress bar */
     .progress{height:8px;background:var(--s2);border-radius:4px;overflow:hidden}
@@ -476,7 +481,7 @@
       <div style="display:flex;gap:.8rem;align-items:center;flex-wrap:wrap">
         <div style="position:relative;flex:1;max-width:500px">
           <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--mut);font-size:.9rem;pointer-events:none">&#x1F50D;</span>
-          <input type="text" id="busca-pedido" placeholder="Pesquise por cliente, CNPJ ou contrato..." oninput="renderPedidos()" style="width:100%;height:40px;padding:9px 12px 9px 36px;border-radius:6px;border:none;background:var(--bg);color:var(--txt);font-size:.95rem">
+          <input type="text" id="busca-pedido" placeholder="Pesquise por cliente, CNPJ ou contrato..." oninput="renderPedidos()" style="width:100%;height:40px;padding:9px 12px 9px 36px;border-radius:6px;border:1px solid var(--bdr);background:var(--bg);color:var(--txt);font-size:.95rem">
         </div>
         <select id="filtro-contrato-pedido" onchange="renderPedidos()" style="display:none">
           <option value="">Todos os contratos</option>
