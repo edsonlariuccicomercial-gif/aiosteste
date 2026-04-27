@@ -91,17 +91,7 @@ function excluirClientesSelecionados() {
 function novoUsuario() {
   clienteDetalheAtualId = null;
   renderFormUsuario(null);
-  const detalhePage = document.getElementById("cliente-detalhe-page");
-  const listagem = document.getElementById("clientes-listagem");
-  if (detalhePage && listagem) {
-    const headerHtml = '<div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;padding-bottom:1rem;border-bottom:1px solid rgba(143,197,157,.25)"><button onclick="voltarListaClientes()" style="background:transparent;border:none;cursor:pointer;color:var(--mut);font-size:1.1rem;padding:4px 8px" title="Voltar">&#x2190;</button><h2 style="font-size:1.1rem;font-weight:600;margin:0;flex:1">Cadastrar Cliente</h2></div>';
-    detalhePage.innerHTML = headerHtml + document.getElementById("modal-usuario-body").innerHTML;
-    document.getElementById("modal-usuario-body").innerHTML = '';
-    listagem.classList.add("hidden");
-    detalhePage.classList.remove("hidden");
-  } else {
-    document.getElementById("modal-usuario").classList.remove("hidden");
-  }
+  document.getElementById("modal-usuario").classList.remove("hidden");
 }
 
 function editarUsuario(id) {
