@@ -92,6 +92,15 @@
     .font-mono{font-family:monospace}
     .nowrap{white-space:nowrap}
 
+    /* Pedidos — Estilo flat (Story 11.1) */
+    #tab-pedidos .table-wrap{background:transparent;border:none;border-radius:0}
+    #tab-pedidos table{border-collapse:separate;border-spacing:0 2px}
+    #tab-pedidos th{background:transparent;padding:10px 6px;font-size:.82rem;text-transform:none;letter-spacing:0;font-weight:400;border-bottom:1px solid var(--bdr)}
+    #tab-pedidos td{padding:9px 6px;font-size:.88rem;border-top:none;border-bottom:1px solid rgba(71,85,105,.15)}
+    #tab-pedidos tr:hover td{background:rgba(78,201,138,.04)}
+    #tab-pedidos tfoot td{border-bottom:none;font-size:.82rem;color:var(--mut);padding:8px 6px}
+    #tab-pedidos tfoot strong{color:var(--txt);font-size:.95rem}
+
     /* Progress bar */
     .progress{height:8px;background:var(--s2);border-radius:4px;overflow:hidden}
     .progress-fill{height:100%;border-radius:4px;transition:width .5s}
@@ -462,7 +471,10 @@
   <div id="tab-pedidos" class="hidden">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:.5rem">
       <div style="display:flex;gap:.8rem;align-items:center;flex-wrap:wrap">
-        <input type="text" id="busca-pedido" placeholder="Buscar cliente, CNPJ ou contrato..." oninput="renderPedidos()" style="min-width:200px">
+        <div style="position:relative;flex:1;max-width:500px">
+          <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--mut);font-size:.9rem;pointer-events:none">&#x1F50D;</span>
+          <input type="text" id="busca-pedido" placeholder="Pesquise por cliente, CNPJ ou contrato..." oninput="renderPedidos()" style="width:100%;height:40px;padding:9px 12px 9px 36px;border-radius:6px;border:none;background:var(--bg);color:var(--txt);font-size:.95rem">
+        </div>
         <select id="filtro-contrato-pedido" onchange="renderPedidos()" style="display:none">
           <option value="">Todos os contratos</option>
         </select>
@@ -491,6 +503,7 @@
           </tr>
         </thead>
         <tbody id="pedidos-tbody"></tbody>
+        <tfoot id="pedidos-tfoot"></tfoot>
       </table>
     </div>
     <div class="empty" id="pedidos-empty"><h3>Nenhum pedido registrado</h3><p>Os pedidos das escolas aparecerao aqui quando forem recebidos.</p></div>

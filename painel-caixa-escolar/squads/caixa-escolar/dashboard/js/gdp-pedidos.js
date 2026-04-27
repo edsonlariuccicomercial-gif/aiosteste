@@ -1791,20 +1791,30 @@ function renderPedidosStatusTabs(items = pedidos) {
     const count = tabItems.length;
     const cor = PEDIDO_STATUS_COLORS[tab.key] || '#94a3b8';
     const active = pedidoStatusTabAtual === tab.key;
-    return `<button class="btn ${active ? 'btn-green' : 'btn-outline'} btn-sm" onclick="setPedidoStatusTab('${tab.key}')" style="display:flex;align-items:center;gap:.45rem;padding:.4rem .8rem;${active ? '' : 'font-weight:700'}"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${cor}"></span><span style="font-size:.78rem">${tab.label}</span><span style="font-size:.82rem;font-weight:800;opacity:.85">${count.toString().padStart(2,'0')}</span></button>`;
+    return `<button onclick="setPedidoStatusTab('${tab.key}')" style="display:flex;flex-direction:column;align-items:center;gap:2px;padding:10px 20px;background:transparent;border:none;border-bottom:2px solid ${active ? 'var(--green)' : 'transparent'};cursor:pointer;transition:all .2s;opacity:${active ? '1' : '.7'}">
+      <span style="display:flex;align-items:center;gap:6px">
+        <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${cor}"></span>
+        <span style="font-size:.88rem;font-weight:${active ? '600' : '400'};color:var(--txt)">${tab.label}</span>
+      </span>
+      <span style="font-size:.78rem;color:var(--mut);font-weight:600">${count > 0 ? count.toString().padStart(2,'0') : ''}</span>
+    </button>`;
   }).join("");
-  // Totais rodapé — filtrar pela aba de status ativa
+  // Totais rodapé dentro de <tfoot>
   const activeTabItems = safeItems.filter((item) => normalizePedidoStatus(item.status) === pedidoStatusTabAtual);
   const totalQtd = activeTabItems.length;
   const totalValor = activeTabItems.reduce((s, p) => s + (p.valor || p.totalGeral || p.valorTotal || 0), 0);
-  let footer = document.getElementById("pedidos-totais-footer");
-  if (!footer) {
-    footer = document.createElement("div");
-    footer.id = "pedidos-totais-footer";
-    footer.style.cssText = "display:flex;justify-content:flex-end;gap:2rem;padding:.5rem 1rem;font-size:.82rem;color:var(--mut)";
-    container.parentElement.appendChild(footer);
+  const tfoot = document.getElementById("pedidos-tfoot");
+  if (tfoot) {
+    tfoot.innerHTML = `<tr>
+      <td colspan="6"></td>
+      <td class="text-right" style="vertical-align:top"><span style="font-size:.75rem;display:block;color:var(--mut)">quantidade</span><strong>${totalQtd.toString().padStart(2,'0')}</strong></td>
+      <td class="text-right" style="vertical-align:top"><span style="font-size:.75rem;display:block;color:var(--mut)">valor total (R$)</span><strong>${brlFmt.format(totalValor)}</strong></td>
+      <td colspan="2"></td>
+    </tr>`;
   }
-  footer.innerHTML = `<span>quantidade <strong style="color:var(--txt);font-size:.95rem">${totalQtd.toString().padStart(2,'0')}</strong></span><span>valor total (R$) <strong style="color:var(--txt);font-size:.95rem">${brlFmt.format(totalValor)}</strong></span>`;
+  // Remover footer antigo se existir
+  const oldFooter = document.getElementById("pedidos-totais-footer");
+  if (oldFooter) oldFooter.remove();
 }
 
 function getPedidoIntegracoesResumo(pedido) {
