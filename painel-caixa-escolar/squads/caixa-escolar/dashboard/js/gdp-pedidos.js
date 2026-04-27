@@ -1029,20 +1029,20 @@ function verPedidoDetalhe(pedidoId, isClone) {
   }
   html += '<button class="btn btn-purple btn-sm" onclick="imprimirPedido(\'' + p.id + '\')">Imprimir</button>';
   html += '<button class="btn btn-outline btn-sm" onclick="gerarRelatorioDemanda(\'' + p.id + '\')" title="Relatorio: Solicitado / Disponivel / Falta Comprar">📋 Rel. Demanda</button></div>';
-  html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:1rem;margin-bottom:1.2rem;padding-bottom:1rem;border-bottom:1px solid rgba(71,85,105,.15)">';
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:1rem;margin-bottom:1.2rem;padding-bottom:1rem;border-bottom:1px solid rgba(143,197,157,.25)">';
   html += '<div><div style="font-size:.78rem;color:var(--mut);margin-bottom:.3rem">Protocolo</div><div style="font-weight:600;font-family:monospace">' + esc(p.id) + marcadorHtml + '</div></div>';
   html += '<div><div style="font-size:.78rem;color:var(--mut);margin-bottom:.3rem">Escola</div><div style="font-weight:600">' + esc(p.escola) + '</div></div>';
   html += '<div><div style="font-size:.78rem;color:var(--mut);margin-bottom:.3rem">Contrato</div><div style="font-weight:600">' + esc(ctrLabel) + '</div></div>';
   html += '<div><div style="font-size:.78rem;color:var(--mut);margin-bottom:.3rem">Status</div><div><span class="badge ' + statusMeta.className + '">' + esc(statusMeta.label) + '</span></div></div>';
   html += '</div>';
-  html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:1rem;margin-bottom:1.2rem;padding-bottom:1rem;border-bottom:1px solid rgba(71,85,105,.15)">';
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:1rem;margin-bottom:1.2rem;padding-bottom:1rem;border-bottom:1px solid rgba(143,197,157,.25)">';
   html += '<div><div style="font-size:.78rem;color:var(--mut);margin-bottom:.3rem">Data</div><div style="font-weight:600">' + fmtDate(p.dataEntrega || p.data) + '</div></div>';
   html += '<div><div style="font-size:.78rem;color:var(--mut);margin-bottom:.3rem">Data Prevista</div><div style="display:flex;align-items:center;gap:.4rem"><input type="date" id="detalhe-data-prevista-' + p.id + '" value="' + esc(p.dataPrevista || p.dataEntrega || p.data || '') + '" style="background:transparent;border:1px solid var(--bdr);border-radius:6px;color:var(--txt);padding:.3rem .5rem;font-size:.85rem"></div></div>';
   html += '<div><div style="font-size:.78rem;color:var(--mut);margin-bottom:.3rem">Valor Total</div><div style="font-weight:600;color:var(--green);font-size:1.1rem">' + brl.format(p.valor) + '</div></div>';
   html += '<div></div>';
   html += '</div>';
   const nf = getNotaFiscalByPedido(p.id);
-  html += '<div style="margin-bottom:1.2rem;padding-bottom:1rem;border-bottom:1px solid rgba(71,85,105,.15)">';
+  html += '<div style="margin-bottom:1.2rem;padding-bottom:1rem;border-bottom:1px solid rgba(143,197,157,.25)">';
   html += '<div style="display:flex;justify-content:space-between;gap:1rem;align-items:flex-start;flex-wrap:wrap">';
   html += '<div><div style="font-size:.82rem;color:var(--mut);font-weight:600;margin-bottom:.3rem">Fiscal e Cobranca</div><div style="font-weight:700">' + esc(getNotaFiscalResumoOperacional(nf)) + '</div><div style="font-size:.8rem;color:var(--mut);margin-top:.3rem">O pedido precisa conter todos os campos fiscais obrigatorios antes da emissao.</div>' + (fiscalMissing.length ? '<div style="margin-top:.55rem;color:var(--yellow);font-size:.78rem"><strong>Pendencias:</strong> ' + esc(fiscalMissing.join(', ')) + '</div>' : '<div style="margin-top:.55rem;color:var(--green);font-size:.78rem"><strong>Base fiscal completa.</strong></div>') + '</div>';
   html += '<div style="display:flex;gap:.5rem;flex-wrap:wrap">';
@@ -1052,7 +1052,7 @@ function verPedidoDetalhe(pedidoId, isClone) {
   html += '</div>';
   html += '</div></div>';
 
-  html += '<div style="margin-bottom:1.2rem;padding-bottom:1rem;border-bottom:1px solid rgba(71,85,105,.15)">';
+  html += '<div style="margin-bottom:1.2rem;padding-bottom:1rem;border-bottom:1px solid rgba(143,197,157,.25)">';
   html += '<div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;margin-bottom:.9rem">';
   html += '<div><div style="font-size:.82rem;color:var(--mut);font-weight:600;margin-bottom:.25rem">Cadastro Fiscal do Pedido</div><div style="font-size:.82rem;color:var(--mut)">Revise os campos legais antes de emitir a NF.</div></div>';
   html += '<button class="btn btn-outline btn-sm" onclick="savePedidoFiscalData(\'' + p.id + '\')">Salvar Dados Fiscais</button>';
@@ -1077,7 +1077,7 @@ function verPedidoDetalhe(pedidoId, isClone) {
     html += '<thead><tr><th style="padding:10px 6px;text-align:left;font-size:.82rem;color:var(--mut);font-weight:400;border-bottom:1px solid var(--bdr)">Produto</th><th style="padding:10px 6px;text-align:center;font-size:.82rem;color:var(--mut);font-weight:400;border-bottom:1px solid var(--bdr)">Qtd</th><th style="padding:10px 6px;text-align:center;font-size:.82rem;color:var(--mut);font-weight:400;border-bottom:1px solid var(--bdr)">Un.</th><th style="padding:10px 6px;text-align:center;font-size:.82rem;color:var(--mut);font-weight:400;border-bottom:1px solid var(--bdr)">NCM</th><th style="padding:10px 6px;text-align:center;font-size:.82rem;color:var(--mut);font-weight:400;border-bottom:1px solid var(--bdr)">SKU</th><th style="padding:10px 6px;text-align:right;font-size:.82rem;color:var(--mut);font-weight:400;border-bottom:1px solid var(--bdr)">Preco Unit.</th><th style="padding:10px 6px;text-align:right;font-size:.82rem;color:var(--mut);font-weight:400;border-bottom:1px solid var(--bdr)">Subtotal</th><th style="padding:10px 4px;width:40px;border-bottom:1px solid var(--bdr)"></th></tr></thead><tbody>';
     p.itens.forEach((item, idx) => {
       const sub = Math.round(((item.qtd || 0) * (item.precoUnitario || 0)) * 100) / 100;
-      html += '<tr><td style="padding:9px 6px;font-size:.88rem;border-bottom:1px solid rgba(71,85,105,.15)">' + esc(item.descricao || '') + '</td><td style="padding:9px 6px;text-align:center;border-bottom:1px solid rgba(71,85,105,.15)">' + (item.qtd || 0) + '</td><td style="padding:9px 4px;border-bottom:1px solid rgba(71,85,105,.15)"><input id="fiscal-item-un-' + p.id + '-' + idx + '" type="text" value="' + esc(item.unidade || 'UN') + '" style="width:62px;text-align:center"></td><td style="padding:9px 4px;border-bottom:1px solid rgba(71,85,105,.15)"><input id="fiscal-item-ncm-' + p.id + '-' + idx + '" type="text" value="' + esc(item.ncm || '') + '" style="width:110px;text-align:center"></td><td style="padding:9px 4px;border-bottom:1px solid rgba(71,85,105,.15)"><input id="fiscal-item-sku-' + p.id + '-' + idx + '" type="text" value="' + esc(item.sku || '') + '" style="width:90px;text-align:center"></td><td style="padding:9px 4px;text-align:right;border-bottom:1px solid rgba(71,85,105,.15)"><input id="fiscal-item-preco-' + p.id + '-' + idx + '" type="number" step="0.01" min="0" value="' + (item.precoUnitario || 0).toFixed(2) + '" style="width:90px;text-align:right" onchange="recalcSubtotalDetalhe(\'' + p.id + '\',' + idx + ')"></td><td id="fiscal-item-sub-' + p.id + '-' + idx + '" style="padding:9px 6px;text-align:right;color:var(--green);font-weight:600;border-bottom:1px solid rgba(71,85,105,.15)">' + brl.format(sub) + '</td><td style="padding:9px 4px;border-bottom:1px solid rgba(71,85,105,.15)"><button onclick="excluirItemDetalhe(\'' + p.id + '\',' + idx + ')" style="background:none;border:none;cursor:pointer;font-size:.9rem;color:var(--red,#f44)" title="Excluir item">🗑️</button></td></tr>';
+      html += '<tr><td style="padding:9px 6px;font-size:.88rem;border-bottom:1px solid rgba(143,197,157,.25)">' + esc(item.descricao || '') + '</td><td style="padding:9px 6px;text-align:center;border-bottom:1px solid rgba(143,197,157,.25)">' + (item.qtd || 0) + '</td><td style="padding:9px 4px;border-bottom:1px solid rgba(143,197,157,.25)"><input id="fiscal-item-un-' + p.id + '-' + idx + '" type="text" value="' + esc(item.unidade || 'UN') + '" style="width:62px;text-align:center"></td><td style="padding:9px 4px;border-bottom:1px solid rgba(143,197,157,.25)"><input id="fiscal-item-ncm-' + p.id + '-' + idx + '" type="text" value="' + esc(item.ncm || '') + '" style="width:110px;text-align:center"></td><td style="padding:9px 4px;border-bottom:1px solid rgba(143,197,157,.25)"><input id="fiscal-item-sku-' + p.id + '-' + idx + '" type="text" value="' + esc(item.sku || '') + '" style="width:90px;text-align:center"></td><td style="padding:9px 4px;text-align:right;border-bottom:1px solid rgba(143,197,157,.25)"><input id="fiscal-item-preco-' + p.id + '-' + idx + '" type="number" step="0.01" min="0" value="' + (item.precoUnitario || 0).toFixed(2) + '" style="width:90px;text-align:right" onchange="recalcSubtotalDetalhe(\'' + p.id + '\',' + idx + ')"></td><td id="fiscal-item-sub-' + p.id + '-' + idx + '" style="padding:9px 6px;text-align:right;color:var(--green);font-weight:600;border-bottom:1px solid rgba(143,197,157,.25)">' + brl.format(sub) + '</td><td style="padding:9px 4px;border-bottom:1px solid rgba(143,197,157,.25)"><button onclick="excluirItemDetalhe(\'' + p.id + '\',' + idx + ')" style="background:none;border:none;cursor:pointer;font-size:.9rem;color:var(--red,#f44)" title="Excluir item">🗑️</button></td></tr>';
     });
     html += '</tbody></table></div>';
   }
@@ -1093,7 +1093,7 @@ function verPedidoDetalhe(pedidoId, isClone) {
   // ── Seção Dados de Pagamento ──
   const pag = p.pagamento || {};
   const pagPreenchido = pag.forma && pag.vencimento;
-  html += '<div style="margin-top:1.2rem;padding-bottom:1rem;border-bottom:1px solid rgba(71,85,105,.15)">';
+  html += '<div style="margin-top:1.2rem;padding-bottom:1rem;border-bottom:1px solid rgba(143,197,157,.25)">';
   html += '<div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;margin-bottom:.9rem">';
   html += '<div><div style="font-size:.82rem;color:var(--mut);font-weight:600;margin-bottom:.25rem">Dados de Pagamento</div><div style="font-size:.82rem;color:var(--mut)">Preencha antes de gerar a NF para que vencimento e forma de pagamento fluam automaticamente.</div></div>';
   html += '<div style="display:flex;gap:.5rem;align-items:center">' + (pagPreenchido ? '<span class="badge badge-green">Pagamento configurado</span>' : '<span class="badge badge-yellow">Pagamento pendente</span>') + '<button class="btn btn-outline btn-sm" onclick="salvarPedidoPagamento(\'' + p.id + '\')">Salvar Pagamento</button></div>';
@@ -1129,7 +1129,7 @@ function verPedidoDetalhe(pedidoId, isClone) {
   const listagem = document.getElementById("pedidos-listagem");
   if (detalhePage && listagem) {
     const titulo = isClone ? 'Clone — ' + p.id : 'Pedido ' + p.id;
-    detalhePage.innerHTML = '<div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;padding-bottom:1rem;border-bottom:1px solid rgba(71,85,105,.15)"><button onclick="voltarListaPedidos()" style="background:transparent;border:none;cursor:pointer;color:var(--mut);font-size:1.1rem;padding:4px 8px" title="Voltar para lista">&#x2190;</button><h2 style="font-size:1.1rem;font-weight:600;margin:0">' + titulo + '</h2></div>' + html;
+    detalhePage.innerHTML = '<div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;padding-bottom:1rem;border-bottom:1px solid rgba(143,197,157,.25)"><button onclick="voltarListaPedidos()" style="background:transparent;border:none;cursor:pointer;color:var(--mut);font-size:1.1rem;padding:4px 8px" title="Voltar para lista">&#x2190;</button><h2 style="font-size:1.1rem;font-weight:600;margin:0">' + titulo + '</h2></div>' + html;
     listagem.classList.add("hidden");
     detalhePage.classList.remove("hidden");
   } else {
