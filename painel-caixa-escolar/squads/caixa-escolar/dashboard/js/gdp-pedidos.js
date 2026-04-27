@@ -344,54 +344,97 @@ function imprimirPedidosSelecionados() {
   if (sel.length === 0) { showToast("Selecione pedidos para imprimir.", 3000); return; }
   const empresa = JSON.parse(localStorage.getItem("nexedu.empresa") || "{}");
   const nomeEmpresa = empresa.razaoSocial || empresa.nome || "Empresa";
-  const nomeFantasia = empresa.nomeFantasia || empresa.fantasia || "";
   const empresaCnpj = empresa.cnpj || "";
-  const empresaEndereco = [empresa.logradouro, empresa.numero, empresa.bairro, empresa.cidade, empresa.uf, empresa.cep ? 'CEP ' + empresa.cep : ''].filter(Boolean).join(', ') || '';
   const empresaTel = empresa.telefone || '';
-  const empresaEmail = empresa.email || '';
+  const empresaEndereco = [empresa.logradouro, empresa.numero ? 'N\u00ba ' + empresa.numero : '', empresa.bairro, empresa.cidade ? empresa.cidade + (empresa.uf ? ', ' + empresa.uf : '') : '', empresa.cep].filter(Boolean).join(', ') || '';
+  const vendedor = empresa.responsavel || empresa.nomeFantasia || nomeEmpresa;
   let pages = '';
   sel.forEach((id, idx) => {
     const p = pedidos.find(x => x.id === id);
     if (!p) return;
+    ensurePedidoFiscalData(p);
     const c = contratos.find(x => x.id === p.contratoId);
-    const processoLabel = c?.processo || p.contratoId || '-';
     const escolaNome = p.escola || p.cliente?.nome || '-';
     const escolaCnpj = p.cliente?.cnpj || '';
-    const statusLabel = getPedidoStatusMeta(p.status).label || p.status || 'Pendente';
+    const escolaIe = p.cliente?.ie || 'ISENTO';
+    const escolaEndereco = [p.cliente?.logradouro, p.cliente?.numero ? 'N\u00ba ' + p.cliente.numero : '', p.cliente?.bairro, p.cliente?.cep, p.cliente?.cidade ? p.cliente.cidade + (p.cliente.uf ? ', ' + p.cliente.uf : '') : ''].filter(Boolean).join('. ') || '';
+    const escolaTel = p.cliente?.telefone || '';
+    const escolaEmail = p.cliente?.email || '';
+    const contatoStr = [escolaTel ? 'Fone: ' + escolaTel : '', escolaEmail].filter(Boolean).join('<br>');
+    const dataVenda = p.data ? new Date(p.data + 'T12:00:00').toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR');
+    const dataPrevista = p.dataPrevista ? new Date(p.dataPrevista + 'T12:00:00').toLocaleDateString('pt-BR') : '';
+    const nPedidoEcommerce = p.nPedidoExterno || p.id || '';
     const totalItens = (p.itens || []).length;
-    const totalUnidades = (p.itens || []).reduce((s, i) => s + (i.qtd || 0), 0);
-    const dataFormatada = p.data ? new Date(p.data + 'T12:00:00').toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR');
-    const obsText = p.obs || (c ? [c.processo ? 'Processo: ' + c.processo : '', c.objeto || ''].filter(Boolean).join(' - ') : '');
-    const tableRows = (p.itens || []).map((item, i) => {
+    const somaQtd = (p.itens || []).reduce((s, i) => s + (i.qtd || 0), 0);
+    const totalProdutos = (p.itens || []).reduce((s, i) => s + ((i.qtd || 0) * (i.precoUnitario || 0)), 0);
+    const obsText = p.obs || '';
+
+    const tableRows = (p.itens || []).map((item) => {
       const sub = (item.qtd || 0) * (item.precoUnitario || 0);
-      return `<tr><td style="text-align:center;border:1px solid #ddd;padding:8px">${i+1}</td><td style="border:1px solid #ddd;padding:8px">${item.descricao || ''}</td><td style="text-align:center;border:1px solid #ddd;padding:8px">${item.unidade || 'UN'}</td><td style="text-align:center;border:1px solid #ddd;padding:8px">${item.qtd || 0}</td><td style="text-align:right;border:1px solid #ddd;padding:8px">${brl.format(item.precoUnitario || 0)}</td><td style="text-align:right;border:1px solid #ddd;padding:8px;font-weight:700">${brl.format(sub)}</td></tr>`;
+      return '<tr><td style="border-bottom:1px solid #ddd;padding:6px 8px">' + (item.descricao || '') + '</td><td style="border-bottom:1px solid #ddd;padding:6px 8px;text-align:center">' + (item.sku || item.codigoBarras || '') + '</td><td style="border-bottom:1px solid #ddd;padding:6px 8px;text-align:right">' + (item.qtd || 0).toFixed(2).replace('.', ',') + '</td><td style="border-bottom:1px solid #ddd;padding:6px 8px;text-align:center">' + (item.unidade || 'UN') + '</td><td style="border-bottom:1px solid #ddd;padding:6px 8px;text-align:right">' + (item.precoUnitario || 0).toFixed(2).replace('.', ',') + '</td><td style="border-bottom:1px solid #ddd;padding:6px 8px;text-align:right;font-weight:600">' + sub.toFixed(2).replace('.', ',') + '</td></tr>';
     }).join("");
+
     if (idx > 0) pages += '<div style="page-break-before:always"></div>';
     pages += `
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1.5rem">
-        <div><div style="font-size:18px;font-weight:900;letter-spacing:1px">${nomeEmpresa.toUpperCase()}${nomeFantasia ? ' <span style="font-weight:400;font-size:13px">(' + nomeFantasia + ')</span>' : ''}</div><div style="font-size:10px;color:#666;margin-top:4px">${empresaCnpj ? 'CNPJ: ' + empresaCnpj : ''}</div><div style="font-size:10px;color:#666">${empresaEndereco}</div><div style="font-size:10px;color:#666">${[empresaTel ? 'Tel: ' + empresaTel : '', empresaEmail].filter(Boolean).join(' | ')}</div></div>
-        <div style="text-align:right"><div style="font-size:10px;color:#666;text-transform:uppercase">Pedido de Fornecimento</div><div style="font-size:18px;font-weight:900;color:#2563eb">${p.id}</div><div style="font-size:12px;color:#666">${dataFormatada}</div></div>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1.5rem;border-bottom:2px solid #333;padding-bottom:1rem">
+        <div style="font-size:11px;font-weight:700">${nomeEmpresa.toUpperCase()}</div>
+        <div style="text-align:right;font-size:10px;line-height:1.5">${nomeEmpresa.toUpperCase()}<br>${empresaCnpj}<br>${empresaTel ? empresaTel + '<br>' : ''}${empresaEndereco}<br>${empresa.cep || ''}<br>${empresa.codigoIbge || ''}</div>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;margin-bottom:1rem;border:1px solid #ddd;font-size:12px">
-        <div style="padding:8px;border-bottom:1px solid #ddd"><span style="color:#666;font-size:10px;text-transform:uppercase">ESCOLA / ÓRGÃO</span><br><strong>${escolaNome}</strong></div>
-        <div style="padding:8px;border-bottom:1px solid #ddd;border-left:1px solid #ddd"><span style="color:#666;font-size:10px;text-transform:uppercase">CNPJ</span><br><strong>${escolaCnpj || '-'}</strong></div>
-        <div style="padding:8px;border-bottom:1px solid #ddd"><span style="color:#666;font-size:10px;text-transform:uppercase">RESPONSÁVEL</span><br><strong>Cliente</strong></div>
-        <div style="padding:8px;border-bottom:1px solid #ddd;border-left:1px solid #ddd"><span style="color:#666;font-size:10px;text-transform:uppercase">STATUS</span><br><strong>${statusLabel}</strong></div>
-        <div style="padding:8px"><span style="color:#666;font-size:10px;text-transform:uppercase">QTD. ITENS</span><br><strong>${totalItens} produtos (${totalUnidades} unidades)</strong></div>
-        <div style="padding:8px;border-left:1px solid #ddd"><span style="color:#666;font-size:10px;text-transform:uppercase">CONTRATO</span><br><strong>${processoLabel}</strong></div>
+
+      <h2 style="text-align:center;font-size:16px;margin:1.5rem 0">Pedido de Venda N&ordm; ${p.id.replace(/^PED-/, '').replace(/-/g, '')}</h2>
+
+      <div style="display:grid;grid-template-columns:3fr 2fr;gap:0;border:1px solid #999;font-size:11px;margin-bottom:1.5rem">
+        <div style="padding:6px 8px;border-bottom:1px solid #999"><strong>Cliente</strong></div>
+        <div style="padding:6px 8px;border-bottom:1px solid #999;border-left:1px solid #999"><strong>N&ordm; pedido e-commerce</strong></div>
+        <div style="padding:6px 8px;border-bottom:1px solid #999">${escolaNome}<br>${escolaCnpj}${escolaIe ? ', IE: ' + escolaIe : ''}</div>
+        <div style="padding:6px 8px;border-bottom:1px solid #999;border-left:1px solid #999">${nPedidoEcommerce}</div>
+
+        <div style="padding:6px 8px;border-bottom:1px solid #999"><strong>Endere&ccedil;o</strong></div>
+        <div style="padding:6px 8px;border-bottom:1px solid #999;border-left:1px solid #999"><strong>Data</strong></div>
+        <div style="padding:6px 8px;border-bottom:1px solid #999">${escolaEndereco || '-'}</div>
+        <div style="padding:6px 8px;border-bottom:1px solid #999;border-left:1px solid #999">${dataVenda}</div>
+
+        <div style="padding:6px 8px;border-bottom:1px solid #999"><strong>Contato</strong></div>
+        <div style="padding:6px 8px;border-bottom:1px solid #999;border-left:1px solid #999"><strong>Data prevista</strong></div>
+        <div style="padding:6px 8px;border-bottom:1px solid #999">${contatoStr || '-'}</div>
+        <div style="padding:6px 8px;border-bottom:1px solid #999;border-left:1px solid #999">${dataPrevista}</div>
+
+        <div style="padding:6px 8px"><strong>Vendedor(a)</strong></div>
+        <div style="padding:6px 8px;border-left:1px solid #999"></div>
+        <div style="padding:6px 8px">${vendedor}</div>
+        <div style="padding:6px 8px;border-left:1px solid #999"></div>
       </div>
-      ${obsText ? `<div style="border:1px solid #ddd;padding:10px;margin-bottom:1rem;font-size:12px"><strong>DADOS DO CONTRATO</strong><br>Processo: <strong>${processoLabel}</strong><br>Observações: ${obsText}</div>` : ''}
-      <table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:1rem"><thead><tr style="background:#f5f5f5"><th style="border:1px solid #ddd;padding:8px;text-align:center">#</th><th style="border:1px solid #ddd;padding:8px">PRODUTO / DESCRIÇÃO</th><th style="border:1px solid #ddd;padding:8px;text-align:center">UNID.</th><th style="border:1px solid #ddd;padding:8px;text-align:center">QTD</th><th style="border:1px solid #ddd;padding:8px;text-align:right">PREÇO UNIT.</th><th style="border:1px solid #ddd;padding:8px;text-align:right">SUBTOTAL</th></tr></thead><tbody>${tableRows}</tbody></table>
-      <div style="text-align:right;margin-bottom:2rem"><span style="font-size:14px;margin-right:1rem">VALOR TOTAL</span><span style="font-size:24px;font-weight:900;color:#2563eb">${brl.format(p.valor)}</span></div>
-      <div style="display:flex;justify-content:space-around;margin-top:3rem;font-size:11px"><div style="text-align:center;width:40%"><div style="border-top:1px solid #333;padding-top:6px"><strong>Recebedor(a)</strong><br>Nome / Cargo / Matrícula</div></div><div style="text-align:center;width:40%"><div style="border-top:1px solid #333;padding-top:6px"><strong>Entregador</strong><br>${nomeEmpresa}</div></div></div>
-      <div style="text-align:center;margin-top:3rem;font-size:9px;color:#999">Documento gerado automaticamente pelo sistema GDP — Gestão de Pedidos<br>${nomeEmpresa}${empresaCnpj ? ' — CNPJ ' + empresaCnpj : ''}</div>`;
+
+      <table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:.5rem">
+        <thead><tr style="border-bottom:2px solid #999">
+          <th style="padding:6px 8px;text-align:left;font-weight:600">Item</th>
+          <th style="padding:6px 8px;text-align:center;font-weight:600">C&oacute;digo (SKU) / GTIN</th>
+          <th style="padding:6px 8px;text-align:right;font-weight:600">Qtde</th>
+          <th style="padding:6px 8px;text-align:center;font-weight:600">UN</th>
+          <th style="padding:6px 8px;text-align:right;font-weight:600">Pre&ccedil;o un</th>
+          <th style="padding:6px 8px;text-align:right;font-weight:600">Pre&ccedil;o total</th>
+        </tr></thead>
+        <tbody>${tableRows}</tbody>
+      </table>
+
+      <div style="border-top:2px solid #999;padding-top:.5rem;font-size:11px;margin-bottom:1.5rem">
+        <div style="display:flex;justify-content:space-between"><span><strong>N&uacute;mero de itens:</strong> ${totalItens}</span><span style="text-align:right"><strong>Total de produtos</strong> &nbsp; ${totalProdutos.toFixed(2).replace('.', ',')}</span></div>
+        <div style="display:flex;justify-content:space-between"><span><strong>Soma das quantidades:</strong> ${somaQtd.toFixed(2).replace('.', ',')}</span><span style="text-align:right"><strong>Total do pedido</strong> &nbsp; <strong>${(p.valor || totalProdutos).toFixed(2).replace('.', ',')}</strong></span></div>
+      </div>
+
+      ${obsText ? '<div style="border:1px solid #999;padding:10px;margin-bottom:1.5rem;font-size:11px"><strong>Observa&ccedil;&otilde;es</strong><br>' + obsText + '</div>' : ''}
+
+      <div style="display:flex;justify-content:space-around;margin-top:3rem;font-size:10px">
+        <div style="text-align:center;width:40%"><div style="margin-bottom:4px">____/____/________</div><div style="border-top:1px solid #333;padding-top:6px">Data de Recebimento</div></div>
+        <div style="text-align:center;width:40%"><div style="border-top:1px solid #333;padding-top:6px;margin-top:18px">Assinatura do Recebedor</div></div>
+      </div>`;
   });
   const iframe = document.createElement('iframe');
   iframe.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:0;height:0';
   document.body.appendChild(iframe);
   const doc = iframe.contentDocument || iframe.contentWindow.document;
   doc.open();
-  doc.write('<!DOCTYPE html><html><head><title>Pedido de Fornecimento</title><style>body{font-family:Arial,sans-serif;margin:2cm;color:#333}@media print{body{margin:1.5cm}}</style></head><body>' + pages + '</body></html>');
+  doc.write('<!DOCTYPE html><html><head><title>Pedido de Venda</title><style>body{font-family:Arial,sans-serif;margin:2cm;color:#333;font-size:12px}@media print{body{margin:1.5cm}}</style></head><body>' + pages + '</body></html>');
   doc.close();
   iframe.contentWindow.focus();
   iframe.contentWindow.print();
