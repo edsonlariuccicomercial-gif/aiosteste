@@ -2013,31 +2013,22 @@ function renderKPIs() {
 
 // ===== RENDER ALL =====
 function renderAll() {
+  // Re-read from localStorage to capture updates from portal escola
+  // loadData();
   loadBancoProdutos();
   renderGdpSyncIndicator();
   renderContaCategoriaOptions();
   renderContaFormaOptions();
   renderKPIs();
-
-  // Renderizar apenas a tab ativa (performance: evita renderizar 8 tabs de uma vez)
-  const activeBtn = document.querySelector(".sidebar-subitem.active[data-gdp-tab]");
-  const activeTab = activeBtn ? activeBtn.getAttribute("data-gdp-tab") : "contratos";
-
-  const estoqueSubViews = ["estoque", "fornecedores", "notas-entrada", "estoque-op"];
-  if (activeTab === "contratos") { renderContratos(); }
-  else if (activeTab === "pedidos") { renderPedidos(); }
-  else if (activeTab === "notas-fiscais") { renderNotasFiscais(); }
-  else if (activeTab === "financeiro") { renderContasPagar(); renderContasReceber(); renderCaixa(); }
-  else if (activeTab === "relatorios") { renderRelatorios(); }
-  else if (activeTab === "usuarios") { renderUsuarios(); }
-  else if (estoqueSubViews.includes(activeTab)) { renderEstoque(); }
-  else { renderContratos(); }
-
-  // Atualizar contadores das tabs no sidebar (leve — so textContent)
-  document.getElementById("tab-count-contratos").textContent = contratos.length;
-  document.getElementById("tab-count-pedidos").textContent = pedidos.length;
-  const nfCount = document.getElementById("tab-count-notas-fiscais");
-  if (nfCount && typeof notasFiscais !== "undefined") nfCount.textContent = notasFiscais.length;
+  renderContratos();
+  renderPedidos();
+  renderNotasFiscais();
+  renderContasPagar();
+  renderContasReceber();
+  renderCaixa();
+  renderRelatorios();
+  renderEstoque();
+  // Update banco tab count even when not on banco tab
   const bpCount = document.getElementById("tab-count-banco-produtos");
   if (bpCount) bpCount.textContent = bancoProdutos.itens.length;
 }
