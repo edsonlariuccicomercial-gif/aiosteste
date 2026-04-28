@@ -1464,7 +1464,8 @@ function renderContasPagar() {
   if (filtroCategoria) filtered = filtered.filter((item) => item.categoria === filtroCategoria);
   renderContaPagarStatusTabs(filtered);
   filtered = filtered.filter((item) => normalizeContaPagarStatus(item) === contaPagarStatusTabAtual);
-  document.getElementById("tab-count-contas-pagar").textContent = filtered.length;
+  const cpCountEl = document.getElementById("tab-count-contas-pagar");
+  if (cpCountEl) cpCountEl.textContent = filtered.length;
 
   const hoje = new Date().toISOString().slice(0, 10);
   const totalAberto = contasPagar.filter((item) => item.status !== "paga").reduce((sum, item) => sum + Number(item.valor || 0), 0);
@@ -1516,7 +1517,8 @@ function renderContasReceber() {
   if (filtroCategoria) filtered = filtered.filter((item) => item.categoria === filtroCategoria);
   renderContaReceberStatusTabs(filtered);
   filtered = filtered.filter((item) => normalizeContaReceberStatus(item) === contaReceberStatusTabAtual);
-  document.getElementById("tab-count-contas-receber").textContent = filtered.length;
+  const crCountEl = document.getElementById("tab-count-contas-receber");
+  if (crCountEl) crCountEl.textContent = filtered.length;
 
   const hojeCr = new Date().toISOString().slice(0, 10);
   const totalAberto = contasReceber.filter((item) => item.status !== "recebida").reduce((sum, item) => sum + Number(item.valor || 0), 0);
