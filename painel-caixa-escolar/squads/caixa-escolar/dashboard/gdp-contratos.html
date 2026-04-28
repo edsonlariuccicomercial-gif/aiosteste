@@ -1115,19 +1115,6 @@
     </div>
   </div>
 
-  <!-- Modal: Contract Detail -->
-  <div id="modal-contrato" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1000;display:flex;align-items:flex-start;justify-content:center;padding:.5rem;overflow-y:auto" onclick="if(event.target===this)fecharModalContrato()">
-    <div style="background:var(--bg);border:1px solid var(--bdr);border-radius:4px;width:1100px;max-width:99vw;max-height:98vh;display:flex;flex-direction:column;margin-top:.5rem">
-      <div style="padding:.8rem 1.2rem;border-bottom:1px solid var(--bdr);display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
-        <h2 id="modal-contrato-titulo" style="font-size:1rem;margin:0"></h2>
-        <div style="display:flex;gap:.4rem;align-items:center" id="modal-contrato-header-actions">
-          <button class="btn btn-outline btn-sm" onclick="fecharModalContrato()">Cancelar</button>
-        </div>
-      </div>
-      <div style="padding:1rem 1.2rem;overflow-y:auto;flex:1" id="modal-contrato-body"></div>
-    </div>
-  </div>
-
   <!-- Modal: Novo Pedido -->
   <div id="modal-pedido" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1000;display:flex;align-items:flex-start;justify-content:center;padding:2rem;overflow-y:auto">
     <div style="background:var(--bg);border:1px solid var(--bdr);border-radius:4px;width:960px;max-width:95vw;max-height:90vh;overflow-y:auto">
@@ -1592,6 +1579,19 @@
         Produto nao encontrado? Cadastre em <strong>Inteligencia > Produtos</strong> e volte para vincular.
       </div>
     </div>
+  </div>
+</div>
+
+<!-- Modal: Contract Detail (must be outside all tabs to avoid hidden parent) -->
+<div id="modal-contrato" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1000;display:flex;align-items:flex-start;justify-content:center;padding:.5rem;overflow-y:auto" onclick="if(event.target===this)fecharModalContrato()">
+  <div style="background:var(--bg);border:1px solid var(--bdr);border-radius:4px;width:1100px;max-width:99vw;max-height:98vh;display:flex;flex-direction:column;margin-top:.5rem">
+    <div style="padding:.8rem 1.2rem;border-bottom:1px solid var(--bdr);display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
+      <h2 id="modal-contrato-titulo" style="font-size:1rem;margin:0"></h2>
+      <div style="display:flex;gap:.4rem;align-items:center" id="modal-contrato-header-actions">
+        <button class="btn btn-outline btn-sm" onclick="fecharModalContrato()">Cancelar</button>
+      </div>
+    </div>
+    <div style="padding:1rem 1.2rem;overflow-y:auto;flex:1" id="modal-contrato-body"></div>
   </div>
 </div>
 
