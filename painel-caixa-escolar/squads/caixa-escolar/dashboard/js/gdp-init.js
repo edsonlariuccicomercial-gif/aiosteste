@@ -1576,7 +1576,7 @@ function gdpGerarDemandaPedido(pedidoId) {
   } else {
     showToast("Demanda criada: " + itensConvertidos.length + " itens convertidos - " + brl.format(demanda.totalEstimado));
   }
-  fecharModalPedido();
+  fecharPedidoDetalhe();
 }
 
 function gdpVerDemanda(demandaId) {
