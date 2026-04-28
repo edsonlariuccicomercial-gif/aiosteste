@@ -614,29 +614,7 @@
 
   <!-- Tab: Contas a Pagar (legacy container — conteúdo movido para financeiro via JS) -->
   <div id="tab-contas-pagar" class="hidden">
-    <div class="hidden" id="cp-form-card" style="position:fixed;inset:0;background:rgba(8,15,31,.88);z-index:1012;padding:1.25rem;overflow-y:auto" onclick="toggleContaPagarForm(false)">
-      <div style="background:var(--bg);border:1px solid var(--bdr);border-radius:18px;min-height:calc(100vh - 2.5rem);display:flex;flex-direction:column" onclick="event.stopPropagation()">
-        <div style="padding:1.2rem 1.5rem;border-bottom:1px solid var(--bdr);display:flex;justify-content:space-between;align-items:center;gap:1rem">
-          <div>
-            <h2 style="margin:0;font-size:1.12rem">Nova Conta a Pagar</h2>
-            <div style="font-size:.82rem;color:var(--mut);margin-top:.3rem">Preencha os dados da despesa e salve para voltar a tela anterior.</div>
-          </div>
-          <button class="btn btn-outline btn-sm" onclick="toggleContaPagarForm(false)">Cancelar</button>
-        </div>
-        <div style="padding:1.5rem;display:grid;grid-template-columns:repeat(2,minmax(240px,1fr));gap:1rem;flex:1;align-content:start">
-          <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Descricao</label><input type="text" id="cp-descricao" placeholder="Ex: Frete fornecedor"></div>
-          <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Categoria</label><select id="cp-categoria"></select></div>
-          <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Forma</label><select id="cp-forma"></select></div>
-          <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Valor</label><input type="number" id="cp-valor" min="0" step="0.01" placeholder="0,00"></div>
-          <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Data de Emissao</label><input type="date" id="cp-data-emissao"></div>
-          <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Vencimento</label><input type="date" id="cp-vencimento"></div>
-        </div>
-        <div style="padding:1rem 1.5rem;border-top:1px solid var(--bdr);display:flex;justify-content:flex-end;gap:.8rem">
-          <button class="btn btn-outline" onclick="toggleContaPagarForm(false)">Cancelar</button>
-          <button class="btn btn-green" onclick="registrarContaPagar()">Salvar</button>
-        </div>
-      </div>
-    </div>
+    <!-- cp-form-card moved outside tabs to avoid hidden parent issue -->
     <div class="kpi-grid" style="margin-bottom:1rem">
       <div class="kpi"><div class="kpi-label">Contas do Mes</div><div class="kpi-value blue" id="cp-kpi-mes">R$&nbsp;0,00</div><div class="kpi-sub">Total previsto no mes</div></div>
       <div class="kpi"><div class="kpi-label">Pago</div><div class="kpi-value green" id="cp-kpi-pago">R$&nbsp;0,00</div><div class="kpi-sub">Pagamentos realizados no mes</div></div>
@@ -751,30 +729,7 @@
         </div>
       </div>
     </div>
-    <div class="hidden" id="cr-form-card" style="position:fixed;inset:0;background:rgba(8,15,31,.88);z-index:1012;padding:1.25rem;overflow-y:auto" onclick="toggleContaReceberForm(false)">
-      <div style="background:var(--bg);border:1px solid var(--bdr);border-radius:18px;min-height:calc(100vh - 2.5rem);display:flex;flex-direction:column" onclick="event.stopPropagation()">
-        <div style="padding:1.2rem 1.5rem;border-bottom:1px solid var(--bdr);display:flex;justify-content:space-between;align-items:center;gap:1rem">
-          <div>
-            <h2 style="margin:0;font-size:1.12rem">Nova Conta a Receber</h2>
-            <div style="font-size:.82rem;color:var(--mut);margin-top:.3rem">Preencha os dados da receita e salve para voltar a tela anterior.</div>
-          </div>
-          <button class="btn btn-outline btn-sm" onclick="toggleContaReceberForm(false)">Cancelar</button>
-        </div>
-        <div style="padding:1.5rem;display:grid;grid-template-columns:repeat(2,minmax(240px,1fr));gap:1rem;flex:1;align-content:start">
-          <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Descricao</label><input type="text" id="cr-descricao" placeholder="Ex: cobranca avulsa"></div>
-          <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Categoria</label><select id="cr-categoria"></select></div>
-          <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Cliente</label><input type="text" id="cr-cliente" placeholder="Nome cliente"></div>
-          <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Forma</label><select id="cr-forma"></select></div>
-          <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Valor</label><input type="number" id="cr-valor" min="0" step="0.01" placeholder="0,00"></div>
-          <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Data de Emissao</label><input type="date" id="cr-data-emissao"></div>
-          <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Vencimento</label><input type="date" id="cr-vencimento"></div>
-        </div>
-        <div style="padding:1rem 1.5rem;border-top:1px solid var(--bdr);display:flex;justify-content:flex-end;gap:.8rem">
-          <button class="btn btn-outline" onclick="toggleContaReceberForm(false)">Cancelar</button>
-          <button class="btn btn-green" onclick="registrarContaReceber()">Salvar</button>
-        </div>
-      </div>
-    </div>
+    <!-- cr-form-card moved outside tabs to avoid hidden parent issue -->
     <div class="kpi-grid" style="margin-bottom:1rem">
       <div class="kpi"><div class="kpi-label">Faturamento do Mes</div><div class="kpi-value blue" id="cr-kpi-conciliacao">R$&nbsp;0,00</div><div class="kpi-sub">Total faturado no periodo</div></div>
       <div class="kpi"><div class="kpi-label">Recebido</div><div class="kpi-value green" id="cr-kpi-recebido">R$&nbsp;0,00</div><div class="kpi-sub">Recebimentos no mes atual</div></div>
@@ -1578,6 +1533,56 @@
       <div style="margin-top:1rem;padding:.8rem 1rem;border:1px dashed var(--bdr);border-radius:10px;background:var(--s1);font-size:.82rem;color:var(--mut)">
         Produto nao encontrado? Cadastre em <strong>Inteligencia > Produtos</strong> e volte para vincular.
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- Fullscreen forms: CP and CR (must be outside tabs to avoid hidden parent) -->
+<div class="hidden" id="cp-form-card" style="position:fixed;inset:0;background:rgba(8,15,31,.88);z-index:1012;padding:1.25rem;overflow-y:auto" onclick="toggleContaPagarForm(false)">
+  <div style="background:var(--bg);border:1px solid var(--bdr);border-radius:18px;min-height:calc(100vh - 2.5rem);display:flex;flex-direction:column" onclick="event.stopPropagation()">
+    <div style="padding:1.2rem 1.5rem;border-bottom:1px solid var(--bdr);display:flex;justify-content:space-between;align-items:center;gap:1rem">
+      <div>
+        <h2 style="margin:0;font-size:1.12rem">Nova Conta a Pagar</h2>
+        <div style="font-size:.82rem;color:var(--mut);margin-top:.3rem">Preencha os dados da despesa e salve para voltar a tela anterior.</div>
+      </div>
+      <button class="btn btn-outline btn-sm" onclick="toggleContaPagarForm(false)">Cancelar</button>
+    </div>
+    <div style="padding:1.5rem;display:grid;grid-template-columns:repeat(2,minmax(240px,1fr));gap:1rem;flex:1;align-content:start">
+      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Descricao</label><input type="text" id="cp-descricao" placeholder="Ex: Frete fornecedor"></div>
+      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Categoria</label><select id="cp-categoria"></select></div>
+      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Forma</label><select id="cp-forma"></select></div>
+      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Valor</label><input type="number" id="cp-valor" min="0" step="0.01" placeholder="0,00"></div>
+      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Data de Emissao</label><input type="date" id="cp-data-emissao"></div>
+      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Vencimento</label><input type="date" id="cp-vencimento"></div>
+    </div>
+    <div style="padding:1rem 1.5rem;border-top:1px solid var(--bdr);display:flex;justify-content:flex-end;gap:.8rem">
+      <button class="btn btn-outline" onclick="toggleContaPagarForm(false)">Cancelar</button>
+      <button class="btn btn-green" onclick="registrarContaPagar()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<div class="hidden" id="cr-form-card" style="position:fixed;inset:0;background:rgba(8,15,31,.88);z-index:1012;padding:1.25rem;overflow-y:auto" onclick="toggleContaReceberForm(false)">
+  <div style="background:var(--bg);border:1px solid var(--bdr);border-radius:18px;min-height:calc(100vh - 2.5rem);display:flex;flex-direction:column" onclick="event.stopPropagation()">
+    <div style="padding:1.2rem 1.5rem;border-bottom:1px solid var(--bdr);display:flex;justify-content:space-between;align-items:center;gap:1rem">
+      <div>
+        <h2 style="margin:0;font-size:1.12rem">Nova Conta a Receber</h2>
+        <div style="font-size:.82rem;color:var(--mut);margin-top:.3rem">Preencha os dados da receita e salve para voltar a tela anterior.</div>
+      </div>
+      <button class="btn btn-outline btn-sm" onclick="toggleContaReceberForm(false)">Cancelar</button>
+    </div>
+    <div style="padding:1.5rem;display:grid;grid-template-columns:repeat(2,minmax(240px,1fr));gap:1rem;flex:1;align-content:start">
+      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Descricao</label><input type="text" id="cr-descricao" placeholder="Ex: cobranca avulsa"></div>
+      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Categoria</label><select id="cr-categoria"></select></div>
+      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Cliente</label><input type="text" id="cr-cliente" placeholder="Nome cliente"></div>
+      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Forma</label><select id="cr-forma"></select></div>
+      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Valor</label><input type="number" id="cr-valor" min="0" step="0.01" placeholder="0,00"></div>
+      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Data de Emissao</label><input type="date" id="cr-data-emissao"></div>
+      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Vencimento</label><input type="date" id="cr-vencimento"></div>
+    </div>
+    <div style="padding:1rem 1.5rem;border-top:1px solid var(--bdr);display:flex;justify-content:flex-end;gap:.8rem">
+      <button class="btn btn-outline" onclick="toggleContaReceberForm(false)">Cancelar</button>
+      <button class="btn btn-green" onclick="registrarContaReceber()">Salvar</button>
     </div>
   </div>
 </div>
