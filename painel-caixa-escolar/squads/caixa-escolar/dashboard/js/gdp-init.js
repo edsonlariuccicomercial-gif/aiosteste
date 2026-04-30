@@ -2358,7 +2358,12 @@ async function enviarTiny(contratoId) {
     if (finCR && tabCR) { while (tabCR.firstChild) finCR.appendChild(tabCR.firstChild); }
   } catch(e) { console.warn("[GDP] Erro montando financeiro:", e); }
 
-  // Supabase-First: carregar dados das tabelas reais ANTES do localStorage
+  // LOCAL-FIRST: renderizar dados locais imediatamente para UX instantânea
+  loadData();
+  loadUsuarios();
+  renderAll();
+
+  // Supabase-First: carregar dados das tabelas reais (atualiza em background)
   if (window.gdpApi) {
     try {
       const ready = await gdpApi.isReady();
