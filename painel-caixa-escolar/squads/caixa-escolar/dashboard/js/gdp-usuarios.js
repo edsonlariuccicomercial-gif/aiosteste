@@ -9,6 +9,10 @@ function loadUsuarios() {
 }
 function saveUsuarios() {
   localStorage.setItem(USUARIOS_KEY, JSON.stringify(usuarios));
+  // Sync para Supabase via gdpApi (tabela clientes)
+  if (window.gdpApi && window.gdpApi.clientes) {
+    gdpApi.clientes.saveAll(usuarios).catch(e => console.warn('[saveUsuarios] Supabase sync failed:', e));
+  }
   schedulCloudSync();
 }
 
