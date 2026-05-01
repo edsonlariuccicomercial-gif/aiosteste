@@ -814,6 +814,19 @@ function loadData() {
     }
     localStorage.setItem("gdp.migration.embalagens-critico-v2", new Date().toISOString());
   }
+  // Migration v3: garantir que todos os produtos tenham produto_critico e preco_referencia
+  if (!localStorage.getItem("gdp.migration.produto-campos-v3")) {
+    let fixed = 0;
+    estoqueIntelProdutos.forEach(p => {
+      if (!('produto_critico' in p)) { p.produto_critico = false; fixed++; }
+      if (!('preco_referencia' in p)) { p.preco_referencia = 0; fixed++; }
+    });
+    if (fixed > 0) {
+      saveWrappedArray(ESTOQUE_INTEL_PRODUCTS_KEY, estoqueIntelProdutos);
+      console.log("[migration] produto-campos-v3: " + fixed + " campos adicionados (produto_critico/preco_referencia)");
+    }
+    localStorage.setItem("gdp.migration.produto-campos-v3", new Date().toISOString());
+  }
   syncPedidosGDPToEstoqueIntel(true);
   // Story 4.43: load equivalencias/demandas/estoque data layer
   loadGdpEquivalencias();

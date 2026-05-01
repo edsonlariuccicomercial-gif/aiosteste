@@ -2237,14 +2237,9 @@ function renderEstoque() {
     const precoRef = emb ? (emb.preco_referencia || 0) : (produto.preco_referencia || 0);
     return `
     <tr>
-      <td style="position:relative;white-space:nowrap">
+      <td style="white-space:nowrap">
         <input type="checkbox" class="ei-prod-chk" value="${esc(produto.id)}" onchange="atualizarSelecaoProdutos()">
         <button style="font-size:1.1rem;background:none;border:none;cursor:pointer;color:var(--mut);padding:0 .2rem;vertical-align:middle" onclick="toggleProdMenu('${esc(produto.id)}',event)">&#x22EF;</button>
-        <div id="prod-menu-${esc(produto.id)}" class="hidden" style="position:fixed;z-index:1020;background:var(--bg);border:1px solid var(--bdr);border-radius:4px;box-shadow:0 4px 16px rgba(0,0,0,.35);min-width:170px;padding:.4rem 0">
-          <a style="display:block;padding:.45rem 1rem;font-size:.82rem;cursor:pointer;color:var(--fg)" onclick="abrirEditarProduto('${esc(produto.id)}');closeProdMenus()">Editar</a>
-          <a style="display:block;padding:.45rem 1rem;font-size:.82rem;cursor:pointer;color:var(--fg)" onclick="clonarProdutoPorId('${esc(produto.id)}');closeProdMenus()">Clonar</a>
-          <a style="display:block;padding:.45rem 1rem;font-size:.82rem;cursor:pointer;color:var(--red,#f44)" onclick="excluirProdutoEstoqueIntel('${esc(produto.id)}');closeProdMenus()">Excluir</a>
-        </div>
       </td>
       <td class="font-mono" style="font-size:.72rem">${esc(produto.id)}</td>
       <td><button style="background:none;border:none;padding:0;color:var(--text);font-weight:600;cursor:pointer;font-size:.85rem;text-align:left" onclick="abrirEditarProduto('${esc(produto.id)}')">${esc(produto.nome)}</button></td>
@@ -2491,19 +2486,24 @@ function renderGdpComprasIntel() {
 function toggleProdMenu(produtoId, event) {
   if (event) event.stopPropagation();
   closeProdMenus();
-  const menu = document.getElementById("prod-menu-" + produtoId);
-  if (!menu) return;
-  menu.style.position = "fixed";
-  if (event) {
+  const menu = document.createElement("div");
+  menu.id = "prod-menu-active";
+  menu.style.cssText = "position:fixed;z-index:1100;background:var(--bg,#1e293b);border:1px solid var(--bdr,#334155);border-radius:4px;box-shadow:0 4px 16px rgba(0,0,0,.45);min-width:170px;padding:.4rem 0";
+  menu.innerHTML = `
+    <a style="display:block;padding:.45rem 1rem;font-size:.82rem;cursor:pointer;color:var(--fg,#e2e8f0)" onmousedown="abrirEditarProduto('${produtoId}');closeProdMenus()">Editar</a>
+    <a style="display:block;padding:.45rem 1rem;font-size:.82rem;cursor:pointer;color:var(--fg,#e2e8f0)" onmousedown="clonarProdutoPorId('${produtoId}');closeProdMenus()">Clonar</a>
+    <a style="display:block;padding:.45rem 1rem;font-size:.82rem;cursor:pointer;color:#f44" onmousedown="excluirProdutoEstoqueIntel('${produtoId}');closeProdMenus()">Excluir</a>`;
+  if (event && event.target) {
     const rect = event.target.getBoundingClientRect();
     menu.style.left = rect.left + "px";
     menu.style.top = (rect.bottom + 4) + "px";
   }
-  menu.classList.remove("hidden");
+  document.body.appendChild(menu);
 }
 
 function closeProdMenus() {
-  document.querySelectorAll('[id^="prod-menu-"]').forEach(el => el.classList.add("hidden"));
+  const existing = document.getElementById("prod-menu-active");
+  if (existing) existing.remove();
 }
 
 document.addEventListener("click", function() { closeProdMenus(); });
