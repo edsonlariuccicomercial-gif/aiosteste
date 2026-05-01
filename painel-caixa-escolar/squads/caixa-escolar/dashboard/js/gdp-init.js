@@ -2615,10 +2615,10 @@ function abrirEditarProduto(produtoId) {
             <input type="radio" name="edit-prod-tipo" value="critico" ${produto.produto_critico ? 'checked' : ''} onchange="atualizarUnidadesPorTipo('edit')"> Produto Critico
           </label>
         </div>
-        <div style="font-size:.68rem;color:var(--mut);margin-top:.25rem">Produto critico usa conversao de gramatura (unidade base em gramas/ml).</div>
+        <div style="font-size:.68rem;color:var(--mut);margin-top:.25rem">Produto critico permite cadastrar embalagens do mercado para conversao de demanda (ex: contratado 170g, mercado 360g).</div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.75rem">
-        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Unidade Base</label><select id="edit-prod-unidade" style="width:100%">${produto.produto_critico
+        <div><label id="edit-prod-unidade-label" style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">${produto.produto_critico ? 'Unidade Base' : 'Unidade'}</label><select id="edit-prod-unidade" style="width:100%">${produto.produto_critico
           ? ['g','KG','ml','LT','GL'].map(u => '<option value="' + u + '"' + (produto.unidade_base===u?' selected':'') + '>' + u + '</option>').join('')
           : ['UN','DZ','CX','PCT','FD','BD','PT','SC','MÇ','RS','RL','FR','TB','GF','LA','KG','LT','GL'].map(u => '<option value="' + u + '"' + (produto.unidade_base===u?' selected':'') + '>' + u + '</option>').join('')
         }</select></div>
@@ -2631,7 +2631,7 @@ function abrirEditarProduto(produtoId) {
       <div style="margin-bottom:.75rem">
         <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Origem NF-e</label><select id="edit-prod-origem" style="width:100%">${ORIGEM_OPTS.map(o => '<option value="' + o.v + '"' + ((produto.origem||"0")===o.v?' selected':'') + '>' + o.l + '</option>').join("")}</select></div>
       </div>
-      <div style="border-top:1px solid var(--bdr);margin:1rem 0;padding-top:1rem">
+      <div id="edit-prod-embalagens-section" style="border-top:1px solid var(--bdr);margin:1rem 0;padding-top:1rem;${produto.produto_critico ? '' : 'display:none'}">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem">
           <div style="font-size:.85rem;font-weight:700">Embalagens (${embs.length})</div>
           <button class="btn btn-green btn-sm" onclick="adicionarEmbalagemNoProduto('${esc(produto.id)}')">+ Embalagem</button>
@@ -2783,6 +2783,15 @@ function atualizarUnidadesPorTipo(prefix) {
   if (prevVal && sel.querySelector('option[value="' + prevVal + '"]')) {
     sel.value = prevVal;
   }
+  // Toggle seção embalagens: só para produto crítico
+  const embSection = document.getElementById("novo-prod-embalagens-section");
+  if (embSection) embSection.style.display = isCritico ? "" : "none";
+  const editEmbSection = document.getElementById("edit-prod-embalagens-section");
+  if (editEmbSection) editEmbSection.style.display = isCritico ? "" : "none";
+  // Atualizar label do select de unidade
+  const labelId = prefix === "ei" ? "ei-produto-unidade-label" : "edit-prod-unidade-label";
+  const labelEl = document.getElementById(labelId);
+  if (labelEl) labelEl.textContent = isCritico ? "Unidade Base" : "Unidade";
 }
 
 function toggleFormNovoProduto() {
@@ -2856,10 +2865,10 @@ function renderModalNovoProduto() {
             <input type="radio" name="ei-prod-tipo" value="critico" onchange="atualizarUnidadesPorTipo('ei')"> Produto Critico
           </label>
         </div>
-        <div style="font-size:.68rem;color:var(--mut);margin-top:.25rem">Produto critico usa conversao de gramatura (unidade base em gramas/ml).</div>
+        <div style="font-size:.68rem;color:var(--mut);margin-top:.25rem">Produto critico permite cadastrar embalagens do mercado para conversao de demanda (ex: contratado 170g, mercado 360g).</div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.75rem">
-        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Unidade Base</label><select id="ei-produto-unidade" style="width:100%">${UNIT_OPTS_COMUM}</select></div>
+        <div><label id="ei-produto-unidade-label" style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Unidade</label><select id="ei-produto-unidade" style="width:100%">${UNIT_OPTS_COMUM}</select></div>
         <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">SKU / Cod. Barras</label><input type="text" id="ei-produto-sku" placeholder="Auto se vazio" style="width:100%"></div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.75rem">
@@ -2869,7 +2878,7 @@ function renderModalNovoProduto() {
       <div style="margin-bottom:.75rem">
         <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Origem NF-e</label><select id="ei-produto-origem" style="width:100%">${ORI_OPTS}</select></div>
       </div>
-      <div style="border-top:1px solid var(--bdr);margin:1rem 0;padding-top:1rem">
+      <div id="novo-prod-embalagens-section" style="border-top:1px solid var(--bdr);margin:1rem 0;padding-top:1rem;display:none">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem">
           <div style="font-size:.85rem;font-weight:700">Embalagens (${_novoProdutoEmbs.length})</div>
           <button class="btn btn-green btn-sm" onclick="adicionarEmbNovoProduto()">+ Embalagem</button>
