@@ -1073,13 +1073,17 @@ function enrichContratoItemMetadata(contrato, item, idx) {
     else if (match?.ncm) item.ncm = match.ncm;
   }
   if (!item.unidade && match?.unidade) item.unidade = match.unidade;
-  // FR-005: SKU vem SOMENTE de vínculo manual (skuVinculado/produto_vinculado_id).
-  // Sem auto-match, sem auto-geração. Vínculo é decisão humana.
-  if (item.skuVinculado) {
-    item.sku = item.skuVinculado;
-  } else {
-    item.sku = '';
+  // FR-005: SKU vem de vínculo manual (skuVinculado) ou equivalência automática.
+  if (!item.skuVinculado) {
+    const equivSku = getGdpEquivalencia(item.descricao);
+    if (equivSku) {
+      item.skuVinculado = equivSku;
+      // Buscar nome do produto vinculado na Central de Produtos
+      const prodIntel = estoqueIntelProdutos.find(p => p.sku === equivSku);
+      if (prodIntel) item.produtoVinculado = prodIntel.nome;
+    }
   }
+  item.sku = item.skuVinculado || '';
   return item;
 }
 
