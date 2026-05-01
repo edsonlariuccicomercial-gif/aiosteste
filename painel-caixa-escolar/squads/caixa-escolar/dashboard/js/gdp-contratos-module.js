@@ -2578,7 +2578,7 @@ function salvarContratoManual() {
   saveUsuarios();
   pendingContratoDraft = null;
   fecharModalContrato();
-  // renderAll();
+  renderContratos();
   showToast("Contrato " + id + " criado com cliente vinculado. Adicione itens clicando no contrato.");
 }
 
@@ -2606,6 +2606,7 @@ function adicionarItemContrato(contratoId) {
       <button class="btn btn-blue" onclick="salvarItemContrato('${contratoId}',true)">Adicionar + Novo</button>
     </div>
   `;
+  document.getElementById("modal-contrato").classList.remove("hidden");
 }
 
 function salvarItemContrato(contratoId, continuar) {
@@ -2872,6 +2873,11 @@ function abrirContrato(id) {
     listagem.classList.add("hidden");
     detalhePage.classList.remove("hidden");
     detalhePage.scrollTop = 0;
+    // Fechar modal se estava aberto como sub-tela
+    document.getElementById("modal-contrato").classList.add("hidden");
+    // Esconder KPIs globais quando detalhe está aberto
+    const kpiGrid = document.getElementById("kpi-grid");
+    if (kpiGrid) kpiGrid.style.display = "none";
   } else {
     // Fallback: usar modal se containers não existem
     document.getElementById("modal-contrato-body").innerHTML = html;
@@ -2895,6 +2901,9 @@ function fecharContratoDetalhe() {
     detalhePage.classList.add("hidden");
     detalhePage.innerHTML = "";
     listagem.classList.remove("hidden");
+    // Restaurar KPIs globais
+    const kpiGrid = document.getElementById("kpi-grid");
+    if (kpiGrid) kpiGrid.style.display = "";
   }
   // Fallback: also hide modal if it was used
   document.getElementById("modal-contrato").classList.add("hidden");
