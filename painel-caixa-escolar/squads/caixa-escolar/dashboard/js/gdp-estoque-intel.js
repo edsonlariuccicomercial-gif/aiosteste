@@ -2241,7 +2241,7 @@ function renderEstoque() {
       <td><span class="badge badge-blue" style="font-size:.7rem">${esc(produto.origem || '0')}-${esc(ORIGEM_LABELS[produto.origem || '0'] || 'Nacional')}</span></td>
       <td class="font-mono" style="font-size:.78rem">${esc(produto.sku || "—")}</td>
       <td class="font-mono" style="font-size:.78rem">${esc(produto.ncm || "—")}</td>
-      ${(() => { const emb = estoqueIntelEmbalagens.find(e => e.produto_id === produto.id); return emb ? `<td style="font-size:.82rem">${esc(emb.descricao || "—")}</td><td class="text-right font-mono">${emb.quantidade_base || "—"}</td><td class="text-right font-mono">${emb.preco_referencia ? brl.format(emb.preco_referencia) : "—"}</td>` : '<td style="color:var(--mut);font-size:.78rem">—</td><td class="text-right">—</td><td class="text-right">—</td>'; })()}
+      ${(() => { if (!produto.produto_critico) return '<td style="color:var(--mut);font-size:.78rem">—</td><td class="text-right">—</td><td class="text-right">—</td>'; const emb = estoqueIntelEmbalagens.find(e => e.produto_id === produto.id); return emb ? `<td style="font-size:.82rem">${esc(emb.descricao || "—")}</td><td class="text-right font-mono">${emb.quantidade_base || "—"}</td><td class="text-right font-mono">${emb.preco_referencia ? brl.format(emb.preco_referencia) : "—"}</td>` : '<td style="color:var(--mut);font-size:.78rem">—</td><td class="text-right">—</td><td class="text-right">—</td>'; })()}
       <td class="text-right"><button class="btn btn-outline btn-sm" onclick="excluirProdutoEstoqueIntel('${esc(produto.id)}')">Excluir</button></td>
     </tr>
   `).join("") : `<tr><td colspan="11" style="color:var(--mut)">Nenhum produto encontrado para o filtro atual.</td></tr>`;
