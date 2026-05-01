@@ -1423,8 +1423,10 @@ function selecionarVincularGDPIntel(produtoId) {
     const c = contratos.find(x => x.id === _vincularGdpContratoId);
     if (c && c.itens[_vincularGdpItemIdx]) {
       c.itens[_vincularGdpItemIdx].skuVinculado = sku;
+      c.itens[_vincularGdpItemIdx].sku = sku;
       c.itens[_vincularGdpItemIdx].produtoVinculado = produto.nome;
       c.itens[_vincularGdpItemIdx].produto_vinculado_id = produtoId;
+      syncContratoItemToPedidos(c.id, c.itens[_vincularGdpItemIdx]);
       saveContratos();
     }
   }
@@ -1459,7 +1461,9 @@ function selecionarVincularGDP(bpId) {
     const ctr = contratos.find(x => x.id === contratoSave);
     if (ctr && ctr.itens[_vincularGdpItemIdx]) {
       ctr.itens[_vincularGdpItemIdx].skuVinculado = bp.sku;
+      ctr.itens[_vincularGdpItemIdx].sku = bp.sku;
       ctr.itens[_vincularGdpItemIdx].produtoVinculado = bp.nomeComercial || bp.item;
+      syncContratoItemToPedidos(ctr.id, ctr.itens[_vincularGdpItemIdx]);
       saveContratos();
     }
   }
@@ -1513,8 +1517,10 @@ function criarEVincularGDP() {
     const ctr = contratos.find(x => x.id === contratoSave);
     if (ctr && ctr.itens[_vincularGdpItemIdx]) {
       ctr.itens[_vincularGdpItemIdx].skuVinculado = produtoSku;
+      ctr.itens[_vincularGdpItemIdx].sku = produtoSku;
       ctr.itens[_vincularGdpItemIdx].produtoVinculado = nomeComercial;
       if (produtoId) ctr.itens[_vincularGdpItemIdx].produto_vinculado_id = produtoId;
+      syncContratoItemToPedidos(ctr.id, ctr.itens[_vincularGdpItemIdx]);
       saveContratos();
     }
   }

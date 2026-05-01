@@ -55,7 +55,7 @@
 
   // Map localStorage camelCase items to Supabase snake_case columns
   var TABLE_COLS = {
-    contratos: ['id','empresa_id','escola','processo','edital','objeto','status','fornecedor','vigencia','observacoes','data_apuracao','itens','cliente_snapshot','dados_extras','deleted_at','created_at','updated_at'],
+    contratos: ['id','empresa_id','escola','processo','edital','objeto','status','fornecedor','vigencia','observacoes','data_apuracao','itens','cliente_snapshot','escola_cliente_id','dados_extras','deleted_at','created_at','updated_at'],
     pedidos: ['id','empresa_id','contrato_id','escola','data','status','valor','obs','itens','fiscal','cliente','pagamento','marcador','audit','dados_extras','created_at','updated_at'],
     notas_fiscais: ['id','empresa_id','pedido_id','contrato_id','numero','serie','valor','status','tipo_nota','origem','emitida_em','vencimento','cliente','itens','sefaz','cobranca','documentos','parametros','integracoes','xml_autorizado','chave_acesso','protocolo','audit','created_at','updated_at'],
     clientes: ['id','empresa_id','nome','cnpj','ie','uf','cep','sre','email','telefone','endereco','contratos_vinculados','dados_extras','created_at','updated_at'],
@@ -64,12 +64,15 @@
     entregas: ['id','empresa_id','pedido_id','escola','data_entrega','status_entrega','recebedor','obs','foto','assinatura','created_at','updated_at']
   };
   var CAMEL_TO_SNAKE = {
-    contratoId:'contrato_id', pedidoId:'pedido_id', origemId:'origem_id',
+    escolaClienteId:'escola_cliente_id', contratoId:'contrato_id', pedidoId:'pedido_id', origemId:'origem_id',
     tipoNota:'tipo_nota', emitidaEm:'emitida_em', clienteSnapshot:'cliente_snapshot',
     dataApuracao:'data_apuracao', dataEntrega:'data_entrega', statusEntrega:'status_entrega',
     xmlAutorizado:'xml_autorizado', chaveAcesso:'chave_acesso',
     nomeFantasia:'nome_fantasia', razaoSocial:'razao_social'
   };
+  var SNAKE_TO_CAMEL = {};
+  for (var _k in CAMEL_TO_SNAKE) SNAKE_TO_CAMEL[CAMEL_TO_SNAKE[_k]] = _k;
+
   function mapToTable(table, item) {
     var cols = TABLE_COLS[table];
     if (!cols) return item; // unknown table, pass through
@@ -79,6 +82,15 @@
       if (cols.indexOf(mapped) >= 0) row[mapped] = item[key];
     }
     return row;
+  }
+
+  function mapFromTable(item) {
+    if (!item) return item;
+    var obj = {};
+    for (var key in item) {
+      obj[SNAKE_TO_CAMEL[key] || key] = item[key];
+    }
+    return obj;
   }
 
   async function sbFetch(path) {
@@ -142,7 +154,7 @@
     return {
       list: async function () {
         var rows = await sbFetch('/' + table + '?select=*&empresa_id=eq.' + encodeURIComponent(getEmpresaId()));
-        if (rows != null) { _dataSource = 'cloud'; writeLS(entity, rows); return rows; }
+        if (rows != null) { rows = rows.map(mapFromTable); _dataSource = 'cloud'; writeLS(entity, rows); return rows; }
         var ls = readLS(entity);
         if (ls != null) { _dataSource = 'cache'; return ls; }
         _dataSource = 'offline';
@@ -151,7 +163,7 @@
 
       get: async function (id) {
         var rows = await sbFetch('/' + table + '?id=eq.' + encodeURIComponent(id) + '&select=*');
-        if (rows && rows.length) return rows[0];
+        if (rows && rows.length) return mapFromTable(rows[0]);
         var ls = readLS(entity);
         if (ls) for (var i = 0; i < ls.length; i++) { if (ls[i].id === id) return ls[i]; }
         return null;

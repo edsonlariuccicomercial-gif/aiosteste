@@ -2250,7 +2250,11 @@ function abrirCatalogoEscolar(contratoId) {
 
   const totalContratado = (parseFloat(c.valorTotal) || 0) > 0 ? parseFloat(c.valorTotal) : (Array.isArray(c.itens) ? c.itens : []).reduce((s, i) => s + (parseFloat(i.precoUnitario) || 0) * (parseFloat(i.qtdContratada || i.quantidade) || 0), 0);
   const totalEntregue = c.itens.reduce((s, i) => s + (i.precoUnitario || 0) * (i.qtdEntregue || 0), 0);
-  const saldoContrato = totalContratado - totalEntregue;
+  // Incluir pedidos pendentes (não entregues e não cancelados) no cálculo do saldo
+  const totalPendente = pedidosCtr.filter(p => p.status !== 'cancelado').reduce((s, p) => {
+    return s + (p.itens || []).reduce((si, pi) => si + (parseFloat(pi.precoUnitario) || 0) * (parseFloat(pi.qtd || pi.quantidade) || 0), 0);
+  }, 0);
+  const saldoContrato = totalContratado - totalEntregue - totalPendente;
 
   // Load Banco de Produtos for enrichment
   loadBancoProdutos();
@@ -2758,12 +2762,15 @@ function abrirContrato(id) {
 
   const totalContratado = (parseFloat(c.valorTotal) || 0) > 0 ? parseFloat(c.valorTotal) : (Array.isArray(c.itens) ? c.itens : []).reduce((s, i) => s + (parseFloat(i.precoUnitario) || 0) * (parseFloat(i.qtdContratada || i.quantidade) || 0), 0);
   const totalEntregue = c.itens.reduce((s, i) => s + (i.precoUnitario || 0) * (i.qtdEntregue || 0), 0);
-  const totalSaldo = totalContratado - totalEntregue;
+  const _pedPendentes = pedidos.filter(p => p.contratoId === c.id && p.status !== 'entregue' && p.status !== 'cancelado');
+  const totalPendente = _pedPendentes.reduce((s, p) => s + (p.itens || []).reduce((si, pi) => si + (parseFloat(pi.precoUnitario) || 0) * (parseFloat(pi.qtd || pi.quantidade) || 0), 0), 0);
+  const totalSaldo = totalContratado - totalEntregue - totalPendente;
 
   let html = `
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1.5rem">
+    <div style="display:grid;grid-template-columns:repeat(4, 1fr);gap:1rem;margin-bottom:1.5rem">
       <div class="kpi" style="margin:0"><div class="kpi-label">Contratado</div><div class="kpi-value green" style="font-size:1.3rem">${brl.format(totalContratado)}</div></div>
       <div class="kpi" style="margin:0"><div class="kpi-label">Entregue</div><div class="kpi-value blue" style="font-size:1.3rem">${brl.format(totalEntregue)}</div></div>
+      <div class="kpi" style="margin:0"><div class="kpi-label">Pendente</div><div class="kpi-value" style="font-size:1.3rem;color:var(--orange,#f59e0b)">${brl.format(totalPendente)}</div></div>
       <div class="kpi" style="margin:0"><div class="kpi-label">Saldo</div><div class="kpi-value yellow" style="font-size:1.3rem">${brl.format(totalSaldo)}</div></div>
     </div>
     <div style="background:var(--bg);border-radius:4px;padding:1rem;margin-bottom:1.5rem">
@@ -2950,7 +2957,9 @@ function recalcularSaldoContrato(contratoId) {
 
   const totalContratado = (parseFloat(c.valorTotal) || 0) > 0 ? parseFloat(c.valorTotal) : (Array.isArray(c.itens) ? c.itens : []).reduce((s, i) => s + (parseFloat(i.precoUnitario) || 0) * (parseFloat(i.qtdContratada || i.quantidade) || 0), 0);
   const totalEntregue = c.itens.reduce((s, i) => s + (i.precoUnitario || 0) * (i.qtdEntregue || 0), 0);
-  showToast(`Saldo recalculado! Contratado: ${brl.format(totalContratado)} | Entregue: ${brl.format(totalEntregue)} | Saldo: ${brl.format(totalContratado - totalEntregue)}`, 5000);
+  const _rp = pedidos.filter(p => p.contratoId === contratoId && p.status !== 'entregue' && p.status !== 'cancelado');
+  const totalPend = _rp.reduce((s, p) => s + (p.itens || []).reduce((si, pi) => si + (parseFloat(pi.precoUnitario) || 0) * (parseFloat(pi.qtd || pi.quantidade) || 0), 0), 0);
+  showToast(`Saldo recalculado! Contratado: ${brl.format(totalContratado)} | Entregue: ${brl.format(totalEntregue)} | Pendente: ${brl.format(totalPend)} | Saldo: ${brl.format(totalContratado - totalEntregue - totalPend)}`, 5000);
 }
 
 function imprimirContrato(id) {
