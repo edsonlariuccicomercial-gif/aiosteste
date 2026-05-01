@@ -2388,9 +2388,18 @@ async function enviarTiny(contratoId) {
           try {
             const rows = await gdpApi[table].list();
             if (rows && rows.length > 0) {
-              const data = _wrapKeys.has(lsKey) ? { _v: 1, updatedAt: new Date().toISOString(), items: rows } : rows;
+              // Merge: preservar registros locais que não existem no Supabase
+              let localItems = [];
+              try {
+                const raw = JSON.parse(localStorage.getItem(lsKey) || '{}');
+                localItems = _wrapKeys.has(lsKey) ? (raw.items || []) : (Array.isArray(raw) ? raw : []);
+              } catch(_) {}
+              const remoteIds = new Set(rows.map(r => r.id));
+              const localOnly = localItems.filter(item => item.id && !remoteIds.has(item.id));
+              const merged = [...rows, ...localOnly];
+              const data = _wrapKeys.has(lsKey) ? { _v: 1, updatedAt: new Date().toISOString(), items: merged } : merged;
               localStorage.setItem(lsKey, JSON.stringify(data));
-              console.log("[GDP] " + table + ": " + rows.length + " registros do Supabase");
+              console.log("[GDP] " + table + ": " + rows.length + " do Supabase + " + localOnly.length + " locais preservados");
             }
           } catch(e) { console.warn("[GDP] Falha ao carregar " + table + ":", e); }
         }
@@ -2398,8 +2407,14 @@ async function enviarTiny(contratoId) {
         try {
           const clientes = await gdpApi.clientes.list();
           if (clientes && clientes.length > 0) {
-            localStorage.setItem('gdp.usuarios.v1', JSON.stringify(clientes));
-            console.log("[GDP] clientes: " + clientes.length + " registros do Supabase");
+            // Merge: preservar clientes locais que não existem no Supabase
+            let localClientes = [];
+            try { localClientes = JSON.parse(localStorage.getItem('gdp.usuarios.v1') || '[]'); } catch(_) {}
+            const remoteIds = new Set(clientes.map(c => c.id));
+            const localOnly = localClientes.filter(c => c.id && !remoteIds.has(c.id));
+            const merged = [...clientes, ...localOnly];
+            localStorage.setItem('gdp.usuarios.v1', JSON.stringify(merged));
+            console.log("[GDP] clientes: " + clientes.length + " do Supabase + " + localOnly.length + " locais preservados");
           }
         } catch(e) {}
       } else {
