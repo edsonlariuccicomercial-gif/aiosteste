@@ -2234,7 +2234,15 @@ function renderEstoque() {
   const ORIGEM_LABELS = {'0':'Nacional','1':'Import.Direta','2':'Import.MI','3':'Nac.>40%','4':'Nac.PPB','5':'Nac.<=40%','6':'Import.CAMEX','7':'Import.MI CAMEX'};
   produtosTbody.innerHTML = produtosVisiveis.length ? produtosVisiveis.map((produto) => `
     <tr>
-      <td><input type="checkbox" class="ei-prod-chk" value="${esc(produto.id)}" onchange="atualizarSelecaoProdutos()"></td>
+      <td style="position:relative;white-space:nowrap">
+        <input type="checkbox" class="ei-prod-chk" value="${esc(produto.id)}" onchange="atualizarSelecaoProdutos()">
+        <button style="font-size:1.1rem;background:none;border:none;cursor:pointer;color:var(--mut);padding:0 .2rem;vertical-align:middle" onclick="toggleProdMenu('${esc(produto.id)}',event)">&#x22EF;</button>
+        <div id="prod-menu-${esc(produto.id)}" class="hidden" style="position:absolute;top:100%;left:0;z-index:1020;background:var(--bg);border:1px solid var(--bdr);border-radius:4px;box-shadow:0 4px 16px rgba(0,0,0,.35);min-width:170px;padding:.4rem 0">
+          <a style="display:block;padding:.45rem 1rem;font-size:.82rem;cursor:pointer;color:var(--fg)" onclick="abrirEditarProduto('${esc(produto.id)}');closeProdMenus()">Editar</a>
+          <a style="display:block;padding:.45rem 1rem;font-size:.82rem;cursor:pointer;color:var(--fg)" onclick="clonarProdutoPorId('${esc(produto.id)}');closeProdMenus()">Clonar</a>
+          <a style="display:block;padding:.45rem 1rem;font-size:.82rem;cursor:pointer;color:var(--red,#f44)" onclick="excluirProdutoEstoqueIntel('${esc(produto.id)}');closeProdMenus()">Excluir</a>
+        </div>
+      </td>
       <td class="font-mono" style="font-size:.72rem">${esc(produto.id)}</td>
       <td><button style="background:none;border:none;padding:0;color:var(--text);font-weight:600;cursor:pointer;font-size:.85rem;text-align:left" onclick="abrirEditarProduto('${esc(produto.id)}')">${esc(produto.nome)}</button></td>
       <td><span class="badge ${(produto.unidade_base === 'g' || produto.unidade_base === 'ml') ? 'badge-yellow' : 'badge-blue'}">${esc(produto.unidade_base)}</span></td>
@@ -2243,7 +2251,7 @@ function renderEstoque() {
       <td class="font-mono" style="font-size:.78rem">${esc(produto.sku || "—")}</td>
       <td class="font-mono" style="font-size:.78rem">${esc(produto.ncm || "—")}</td>
       ${(() => { if (!produto.produto_critico) return '<td style="color:var(--mut);font-size:.78rem">—</td><td class="text-right">—</td><td class="text-right">—</td>'; const emb = estoqueIntelEmbalagens.find(e => e.produto_id === produto.id); return emb ? `<td style="font-size:.82rem">${esc(emb.descricao || "—")}</td><td class="text-right font-mono">${emb.quantidade_base || "—"}</td><td class="text-right font-mono">${emb.preco_referencia ? brl.format(emb.preco_referencia) : "—"}</td>` : '<td style="color:var(--mut);font-size:.78rem">—</td><td class="text-right">—</td><td class="text-right">—</td>'; })()}
-      <td class="text-right"><button class="btn btn-outline btn-sm" onclick="excluirProdutoEstoqueIntel('${esc(produto.id)}')">Excluir</button></td>
+      <td></td>
     </tr>
   `).join("") : `<tr><td colspan="12" style="color:var(--mut)">Nenhum produto encontrado para o filtro atual.</td></tr>`;
 
@@ -2477,7 +2485,46 @@ function renderGdpComprasIntel() {
   if (totalEl) totalEl.textContent = "Total: " + brl.format(total);
 }
 
-// ===== CHECKBOX + BULK ACTIONS — Central de Produtos =====
+// ===== MENU + CHECKBOX + BULK ACTIONS — Central de Produtos =====
+function toggleProdMenu(produtoId, event) {
+  if (event) event.stopPropagation();
+  closeProdMenus();
+  const menu = document.getElementById("prod-menu-" + produtoId);
+  if (!menu) return;
+  menu.style.position = "fixed";
+  if (event) {
+    const rect = event.target.getBoundingClientRect();
+    menu.style.left = rect.left + "px";
+    menu.style.top = (rect.bottom + 4) + "px";
+  }
+  menu.classList.remove("hidden");
+}
+
+function closeProdMenus() {
+  document.querySelectorAll('[id^="prod-menu-"]').forEach(el => el.classList.add("hidden"));
+}
+
+document.addEventListener("click", function() { closeProdMenus(); });
+
+function clonarProdutoPorId(produtoId) {
+  const original = estoqueIntelProdutos.find(p => p.id === produtoId);
+  if (!original) return;
+  toggleFormNovoProduto();
+  setTimeout(() => {
+    const el = (id) => document.getElementById(id);
+    if (el("ei-produto-nome")) el("ei-produto-nome").value = original.nome + " (copia)";
+    if (el("ei-produto-sku")) el("ei-produto-sku").value = "";
+    const tipoRadio = document.querySelector('input[name="ei-prod-tipo"][value="' + (original.produto_critico ? 'critico' : 'comum') + '"]');
+    if (tipoRadio) { tipoRadio.checked = true; atualizarUnidadesPorTipo('ei'); }
+    setTimeout(() => {
+      if (el("ei-produto-unidade")) el("ei-produto-unidade").value = original.unidade_base || "UN";
+      if (el("ei-produto-ncm")) el("ei-produto-ncm").value = original.ncm || "";
+      if (el("ei-produto-categoria")) el("ei-produto-categoria").value = original.categoria || "";
+      if (el("ei-produto-origem")) el("ei-produto-origem").value = original.origem || "0";
+    }, 50);
+  }, 100);
+}
+
 function toggleSelectAllProdutos(checked) {
   document.querySelectorAll(".ei-prod-chk").forEach(cb => cb.checked = checked);
   atualizarSelecaoProdutos();
@@ -2506,26 +2553,7 @@ function clonarProdutoSelecionado() {
   const ids = getSelectedProdutoIds();
   if (ids.length === 0) { showToast("Selecione um produto para clonar.", 3000); return; }
   if (ids.length > 1) { showToast("Selecione apenas 1 produto para clonar.", 3000); return; }
-  const original = estoqueIntelProdutos.find(p => p.id === ids[0]);
-  if (!original) return;
-  // Abrir formulário de novo produto preenchido com dados do original
-  toggleFormNovoProduto();
-  // Aguardar render e preencher campos
-  setTimeout(() => {
-    const el = (id) => document.getElementById(id);
-    if (el("ei-produto-nome")) el("ei-produto-nome").value = original.nome + " (copia)";
-    if (el("ei-produto-sku")) el("ei-produto-sku").value = "";
-    // Setar tipo
-    const tipoRadio = document.querySelector('input[name="ei-prod-tipo"][value="' + (original.produto_critico ? 'critico' : 'comum') + '"]');
-    if (tipoRadio) { tipoRadio.checked = true; atualizarUnidadesPorTipo('ei'); }
-    // Setar unidade após tipo (para garantir opções corretas)
-    setTimeout(() => {
-      if (el("ei-produto-unidade")) el("ei-produto-unidade").value = original.unidade_base || "UN";
-      if (el("ei-produto-ncm")) el("ei-produto-ncm").value = original.ncm || "";
-      if (el("ei-produto-categoria")) el("ei-produto-categoria").value = original.categoria || "";
-      if (el("ei-produto-origem")) el("ei-produto-origem").value = original.origem || "0";
-    }, 50);
-  }, 100);
+  clonarProdutoPorId(ids[0]);
   desmarcarTodosProdutos();
 }
 
