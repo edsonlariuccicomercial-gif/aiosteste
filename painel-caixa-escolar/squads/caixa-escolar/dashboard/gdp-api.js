@@ -58,7 +58,7 @@
     contratos: ['id','empresa_id','escola','processo','edital','objeto','status','fornecedor','vigencia','observacoes','data_apuracao','itens','cliente_snapshot','escola_cliente_id','dados_extras','deleted_at','created_at','updated_at'],
     pedidos: ['id','empresa_id','contrato_id','escola','data','status','valor','obs','itens','fiscal','cliente','pagamento','marcador','audit','dados_extras','created_at','updated_at'],
     notas_fiscais: ['id','empresa_id','pedido_id','contrato_id','numero','serie','valor','status','tipo_nota','origem','emitida_em','vencimento','cliente','itens','sefaz','cobranca','documentos','parametros','integracoes','xml_autorizado','chave_acesso','protocolo','audit','created_at','updated_at'],
-    clientes: ['id','empresa_id','nome','cnpj','ie','uf','cep','sre','email','telefone','endereco','contratos_vinculados','dados_extras','created_at','updated_at'],
+    clientes: ['id','empresa_id','nome','cnpj','ie','uf','cep','sre','email','telefone','endereco','contratos_vinculados','login','senha','municipio','responsavel','cargo','contribuinte_icms','categoria_catalogo','arp_vinculada','saldo_total','saldo_disponivel','dados_extras','created_at','updated_at'],
     contas_receber: ['id','empresa_id','pedido_id','origem_id','descricao','valor','status','forma','categoria','vencimento','cliente','cobranca','automacao','audit','created_at','updated_at'],
     contas_pagar: ['id','empresa_id','descricao','valor','status','forma','categoria','vencimento','fornecedor','audit','created_at','updated_at'],
     entregas: ['id','empresa_id','pedido_id','escola','data_entrega','status_entrega','recebedor','obs','foto','assinatura','created_at','updated_at']
@@ -68,7 +68,9 @@
     tipoNota:'tipo_nota', emitidaEm:'emitida_em', clienteSnapshot:'cliente_snapshot',
     dataApuracao:'data_apuracao', dataEntrega:'data_entrega', statusEntrega:'status_entrega',
     xmlAutorizado:'xml_autorizado', chaveAcesso:'chave_acesso',
-    nomeFantasia:'nome_fantasia', razaoSocial:'razao_social'
+    nomeFantasia:'nome_fantasia', razaoSocial:'razao_social',
+    categoriaCatalogo:'categoria_catalogo', arpVinculada:'arp_vinculada',
+    saldoTotal:'saldo_total', saldoDisponivel:'saldo_disponivel', contribuinteIcms:'contribuinte_icms'
   };
   var SNAKE_TO_CAMEL = {};
   for (var _k in CAMEL_TO_SNAKE) SNAKE_TO_CAMEL[CAMEL_TO_SNAKE[_k]] = _k;

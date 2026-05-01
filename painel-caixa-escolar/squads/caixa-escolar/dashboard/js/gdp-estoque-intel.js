@@ -2234,6 +2234,7 @@ function renderEstoque() {
   const ORIGEM_LABELS = {'0':'Nacional','1':'Import.Direta','2':'Import.MI','3':'Nac.>40%','4':'Nac.PPB','5':'Nac.<=40%','6':'Import.CAMEX','7':'Import.MI CAMEX'};
   produtosTbody.innerHTML = produtosVisiveis.length ? produtosVisiveis.map((produto) => `
     <tr>
+      <td><input type="checkbox" class="ei-prod-chk" value="${esc(produto.id)}" onchange="atualizarSelecaoProdutos()"></td>
       <td class="font-mono" style="font-size:.72rem">${esc(produto.id)}</td>
       <td><button style="background:none;border:none;padding:0;color:var(--text);font-weight:600;cursor:pointer;font-size:.85rem;text-align:left" onclick="abrirEditarProduto('${esc(produto.id)}')">${esc(produto.nome)}</button></td>
       <td><span class="badge ${(produto.unidade_base === 'g' || produto.unidade_base === 'ml') ? 'badge-yellow' : 'badge-blue'}">${esc(produto.unidade_base)}</span></td>
@@ -2244,7 +2245,7 @@ function renderEstoque() {
       ${(() => { if (!produto.produto_critico) return '<td style="color:var(--mut);font-size:.78rem">—</td><td class="text-right">—</td><td class="text-right">—</td>'; const emb = estoqueIntelEmbalagens.find(e => e.produto_id === produto.id); return emb ? `<td style="font-size:.82rem">${esc(emb.descricao || "—")}</td><td class="text-right font-mono">${emb.quantidade_base || "—"}</td><td class="text-right font-mono">${emb.preco_referencia ? brl.format(emb.preco_referencia) : "—"}</td>` : '<td style="color:var(--mut);font-size:.78rem">—</td><td class="text-right">—</td><td class="text-right">—</td>'; })()}
       <td class="text-right"><button class="btn btn-outline btn-sm" onclick="excluirProdutoEstoqueIntel('${esc(produto.id)}')">Excluir</button></td>
     </tr>
-  `).join("") : `<tr><td colspan="11" style="color:var(--mut)">Nenhum produto encontrado para o filtro atual.</td></tr>`;
+  `).join("") : `<tr><td colspan="12" style="color:var(--mut)">Nenhum produto encontrado para o filtro atual.</td></tr>`;
 
   if (embalagensTbody) embalagensTbody.innerHTML = embalagensFiltradas.length ? embalagensFiltradas.map((emb) => {
     const produto = findEstoqueIntelProduto(emb.produto_id);
@@ -2474,4 +2475,110 @@ function renderGdpComprasIntel() {
   '</tr>').join("");
   const total = gdpListaCompras.reduce((s, c) => s + c.custoTotal, 0);
   if (totalEl) totalEl.textContent = "Total: " + brl.format(total);
+}
+
+// ===== CHECKBOX + BULK ACTIONS — Central de Produtos =====
+function toggleSelectAllProdutos(checked) {
+  document.querySelectorAll(".ei-prod-chk").forEach(cb => cb.checked = checked);
+  atualizarSelecaoProdutos();
+}
+
+function desmarcarTodosProdutos() {
+  document.querySelectorAll(".ei-prod-chk").forEach(cb => cb.checked = false);
+  const selectAll = document.getElementById("ei-prod-select-all");
+  if (selectAll) selectAll.checked = false;
+  atualizarSelecaoProdutos();
+}
+
+function getSelectedProdutoIds() {
+  return [...document.querySelectorAll(".ei-prod-chk:checked")].map(cb => cb.value);
+}
+
+function atualizarSelecaoProdutos() {
+  const ids = getSelectedProdutoIds();
+  const toolbar = document.getElementById("ei-produtos-bulk-toolbar");
+  const countEl = document.getElementById("ei-produtos-sel-count");
+  if (toolbar) toolbar.style.display = ids.length > 0 ? "flex" : "none";
+  if (countEl) countEl.textContent = ids.length + " selecionado" + (ids.length !== 1 ? "s" : "");
+}
+
+function clonarProdutoSelecionado() {
+  const ids = getSelectedProdutoIds();
+  if (ids.length === 0) { showToast("Selecione um produto para clonar.", 3000); return; }
+  if (ids.length > 1) { showToast("Selecione apenas 1 produto para clonar.", 3000); return; }
+  const original = estoqueIntelProdutos.find(p => p.id === ids[0]);
+  if (!original) return;
+  // Abrir formulário de novo produto preenchido com dados do original
+  toggleFormNovoProduto();
+  // Aguardar render e preencher campos
+  setTimeout(() => {
+    const el = (id) => document.getElementById(id);
+    if (el("ei-produto-nome")) el("ei-produto-nome").value = original.nome + " (copia)";
+    if (el("ei-produto-sku")) el("ei-produto-sku").value = "";
+    // Setar tipo
+    const tipoRadio = document.querySelector('input[name="ei-prod-tipo"][value="' + (original.produto_critico ? 'critico' : 'comum') + '"]');
+    if (tipoRadio) { tipoRadio.checked = true; atualizarUnidadesPorTipo('ei'); }
+    // Setar unidade após tipo (para garantir opções corretas)
+    setTimeout(() => {
+      if (el("ei-produto-unidade")) el("ei-produto-unidade").value = original.unidade_base || "UN";
+      if (el("ei-produto-ncm")) el("ei-produto-ncm").value = original.ncm || "";
+      if (el("ei-produto-categoria")) el("ei-produto-categoria").value = original.categoria || "";
+      if (el("ei-produto-origem")) el("ei-produto-origem").value = original.origem || "0";
+    }, 50);
+  }, 100);
+  desmarcarTodosProdutos();
+}
+
+function abrirEditarMassaProdutos() {
+  const ids = getSelectedProdutoIds();
+  if (ids.length === 0) { showToast("Selecione produtos para editar em massa.", 3000); return; }
+  const CAT_OPTS = ["","Hortifruti","Carnes/Proteinas","Graos/Cereais","Laticinios","Frutas","Mercearia","Padaria/Biscoitos","Ovos","Bebidas","Limpeza","Outros"].map(c => '<option value="' + c + '">' + (c || "— Manter atual —") + '</option>').join("");
+  const ORI_OPTS = [{v:"",l:"— Manter atual —"},{v:"0",l:"0 — Nacional"},{v:"1",l:"1 — Import. Direta"},{v:"2",l:"2 — Import. MI"},{v:"3",l:"3 — Nac. >40%"},{v:"4",l:"4 — Nac. PPB"},{v:"5",l:"5 — Nac. <=40%"},{v:"6",l:"6 — Import. CAMEX"},{v:"7",l:"7 — Import. MI CAMEX"}].map(o => '<option value="' + o.v + '">' + o.l + '</option>').join("");
+  const UNIT_OPTS = '<option value="">— Manter atual —</option><option value="UN">UN</option><option value="KG">KG</option><option value="CX">CX</option><option value="PCT">PCT</option><option value="FD">FD</option><option value="LT">LT</option><option value="DZ">DZ</option><option value="BD">BD</option><option value="SC">SC</option><option value="MÇ">MÇ</option><option value="RS">RS</option><option value="RL">RL</option><option value="FR">FR</option><option value="TB">TB</option><option value="GF">GF</option><option value="LA">LA</option><option value="GL">GL</option>';
+
+  let overlay = document.getElementById("bulk-edit-overlay");
+  if (!overlay) {
+    overlay = document.createElement("div");
+    overlay.id = "bulk-edit-overlay";
+    overlay.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1100;display:flex;align-items:center;justify-content:center;padding:2rem";
+    document.body.appendChild(overlay);
+  }
+  overlay.classList.remove("hidden");
+  overlay.innerHTML = `
+    <div style="background:var(--bg);border:1px solid var(--bdr);border-radius:4px;width:500px;max-width:95vw;padding:1.5rem">
+      <h2 style="font-size:1.1rem;margin-bottom:1rem">Editar em Massa — ${ids.length} produto(s)</h2>
+      <div style="font-size:.78rem;color:var(--mut);margin-bottom:1rem">Campos em branco serao mantidos como estao. Apenas campos preenchidos serao alterados.</div>
+      <div style="display:grid;gap:1rem">
+        <div><label style="font-size:.8rem;color:var(--mut);display:block;margin-bottom:.3rem">Unidade</label><select id="bulk-unidade" style="width:100%">${UNIT_OPTS}</select></div>
+        <div><label style="font-size:.8rem;color:var(--mut);display:block;margin-bottom:.3rem">NCM</label><input type="text" id="bulk-ncm" placeholder="Manter atual se vazio" style="width:100%"></div>
+        <div><label style="font-size:.8rem;color:var(--mut);display:block;margin-bottom:.3rem">Categoria</label><select id="bulk-categoria" style="width:100%">${CAT_OPTS}</select></div>
+        <div><label style="font-size:.8rem;color:var(--mut);display:block;margin-bottom:.3rem">Origem</label><select id="bulk-origem" style="width:100%">${ORI_OPTS}</select></div>
+      </div>
+      <div style="margin-top:1.5rem;display:flex;justify-content:flex-end;gap:.8rem">
+        <button class="btn btn-outline" onclick="document.getElementById('bulk-edit-overlay').classList.add('hidden')">Cancelar</button>
+        <button class="btn btn-green" onclick="aplicarEditarMassaProdutos()">Aplicar</button>
+      </div>
+    </div>`;
+}
+
+function aplicarEditarMassaProdutos() {
+  const ids = getSelectedProdutoIds();
+  const unidade = document.getElementById("bulk-unidade")?.value || "";
+  const ncm = document.getElementById("bulk-ncm")?.value?.trim() || "";
+  const categoria = document.getElementById("bulk-categoria")?.value || "";
+  const origem = document.getElementById("bulk-origem")?.value;
+  let alterados = 0;
+  estoqueIntelProdutos.forEach(p => {
+    if (!ids.includes(p.id)) return;
+    if (unidade) p.unidade_base = unidade;
+    if (ncm) p.ncm = ncm;
+    if (categoria) p.categoria = categoria;
+    if (origem !== undefined && origem !== "") p.origem = origem;
+    alterados++;
+  });
+  saveEstoqueIntelProdutos();
+  document.getElementById("bulk-edit-overlay").classList.add("hidden");
+  desmarcarTodosProdutos();
+  renderEstoque();
+  showToast(alterados + " produto(s) atualizado(s) em massa.", 4000);
 }

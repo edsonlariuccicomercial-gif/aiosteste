@@ -977,7 +977,13 @@
           <div><select id="ei-filtro-base" onchange="renderEstoque()"><option value="">Todas as Bases</option><option value="UN">UN</option><option value="g">g</option><option value="KG">KG</option><option value="ml">ml</option><option value="LT">LT</option><option value="MÇ">MÇ</option></select></div>
         </div>
         <div id="ei-form-novo-produto" data-ei-form style="display:none"></div>
-        <div class="table-wrap" data-ei-table><table><thead><tr><th>ID</th><th>Produto</th><th>Base</th><th>Categoria</th><th>Origem</th><th>SKU</th><th>NCM</th><th>Embalagem</th><th class="text-right">Qtd Emb.</th><th class="text-right">Preco Ref.</th><th class="text-right">Acoes</th></tr></thead><tbody id="ei-produtos-tbody"></tbody></table></div>
+        <div id="ei-produtos-bulk-toolbar" style="display:none;margin-bottom:.75rem;padding:.6rem 1rem;background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.25);border-radius:4px;display:none;align-items:center;gap:.8rem;flex-wrap:wrap">
+          <span id="ei-produtos-sel-count" style="font-size:.82rem;font-weight:600">0 selecionados</span>
+          <button class="btn btn-outline btn-sm" onclick="clonarProdutoSelecionado()">Clonar Produto</button>
+          <button class="btn btn-outline btn-sm" onclick="abrirEditarMassaProdutos()">Editar em Massa</button>
+          <button class="btn btn-outline btn-sm" style="margin-left:auto;color:var(--mut)" onclick="desmarcarTodosProdutos()">Limpar Selecao</button>
+        </div>
+        <div class="table-wrap" data-ei-table><table><thead><tr><th style="width:30px"><input type="checkbox" id="ei-prod-select-all" onchange="toggleSelectAllProdutos(this.checked)"></th><th>ID</th><th>Produto</th><th>Base</th><th>Categoria</th><th>Origem</th><th>SKU</th><th>NCM</th><th>Embalagem</th><th class="text-right">Qtd Emb.</th><th class="text-right">Preco Ref.</th><th class="text-right">Acoes</th></tr></thead><tbody id="ei-produtos-tbody"></tbody></table></div>
       </div>
       <!-- Card embalagens oculto (dados mantidos para compatibilidade) -->
       <div class="card hidden" id="ei-card-embalagens" data-ei-section="embalagens">
