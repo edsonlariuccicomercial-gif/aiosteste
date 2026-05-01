@@ -857,7 +857,7 @@ function imprimirDemandaEstoqueIntel(pedidoId) {
   const tableRows = itens.map((item, i) => {
     const produto = findEstoqueIntelProduto(item.produto_id);
     const qtdBase = Number(item.quantidade_base || 0);
-    const unidadeBase = produto?.unidade_base || 'g';
+    const unidadeBase = produto?.unidade_base || 'UN';
     const nomeProd = (produto?.nome || '').toLowerCase();
     const itemOriginal = nomeProd ? pedidoItensOriginais.find(oi => { const desc = (oi.descricao || '').toLowerCase(); return desc.includes(nomeProd) || nomeProd.includes(desc); }) : null;
     const qtdReal = itemOriginal ? Number(itemOriginal.qtd || itemOriginal.quantidade || 0) : '-';
@@ -977,7 +977,7 @@ function visualizarDemandaEstoqueIntel(pedidoId) {
   const itensHtml = itens.map((item, i) => {
     const produto = findEstoqueIntelProduto(item.produto_id);
     const qtdBase = Number(item.quantidade_base || 0);
-    const unidadeBase = produto?.unidade_base || 'g';
+    const unidadeBase = produto?.unidade_base || 'UN';
     // Qtd real: buscar do pedido original por nome do produto
     const nomeProd = (produto?.nome || '').toLowerCase();
     const itemOriginal = nomeProd ? pedidoItensOriginais.find(oi => { const desc = (oi.descricao || '').toLowerCase(); return desc.includes(nomeProd) || nomeProd.includes(desc); }) : null;
@@ -1658,7 +1658,7 @@ function atualizarLabelQtdBaseEmb() {
   const label = document.getElementById("ei-emb-qtd-label");
   if (!sel || !label) return;
   const produto = estoqueIntelProdutos.find(p => p.id === sel.value);
-  const un = produto ? produto.unidade_base : "g";
+  const un = produto ? produto.unidade_base : "UN";
   label.textContent = `Quantidade Base (${un})`;
 }
 
@@ -2236,7 +2236,7 @@ function renderEstoque() {
     <tr>
       <td class="font-mono" style="font-size:.72rem">${esc(produto.id)}</td>
       <td><button style="background:none;border:none;padding:0;color:var(--text);font-weight:600;cursor:pointer;font-size:.85rem;text-align:left" onclick="abrirEditarProduto('${esc(produto.id)}')">${esc(produto.nome)}</button></td>
-      <td><span class="badge badge-blue">${esc(produto.unidade_base)}</span></td>
+      <td><span class="badge ${(produto.unidade_base === 'g' || produto.unidade_base === 'ml') ? 'badge-yellow' : 'badge-blue'}">${esc(produto.unidade_base)}</span></td>
       <td>${produto.categoria ? `<span class="badge badge-green">${esc(produto.categoria)}</span>` : '<span style="color:var(--mut)">—</span>'}</td>
       <td><span class="badge badge-blue" style="font-size:.7rem">${esc(produto.origem || '0')}-${esc(ORIGEM_LABELS[produto.origem || '0'] || 'Nacional')}</span></td>
       <td class="font-mono" style="font-size:.78rem">${esc(produto.sku || "—")}</td>

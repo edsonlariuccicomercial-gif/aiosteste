@@ -455,9 +455,9 @@ function getDefaultContaFormas() { return ["boleto", "pix", "ted"]; }
 function getDefaultEstoqueIntelSeed() {
   return {
     produtos: [
-      { id: "PROD-ARROZ", nome: "Arroz", unidade_base: "g" },
-      { id: "PROD-BOLACHA", nome: "Bolacha agua e sal", unidade_base: "g" },
-      { id: "PROD-SUCO", nome: "Suco integral", unidade_base: "ml" }
+      { id: "PROD-ARROZ", nome: "Arroz", unidade_base: "g", produto_critico: true },
+      { id: "PROD-BOLACHA", nome: "Bolacha agua e sal", unidade_base: "g", produto_critico: true },
+      { id: "PROD-SUCO", nome: "Suco integral", unidade_base: "ml", produto_critico: true }
     ],
     embalagens: [
       { id: "EMB-ARROZ-300", produto_id: "PROD-ARROZ", descricao: "Pacote 300g", codigo_barras: "7890000003001", quantidade_base: 300, preco_referencia: 7.8 },
