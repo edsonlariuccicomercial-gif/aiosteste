@@ -279,25 +279,28 @@
 
   <!-- Tab: Contratos -->
   <div id="tab-contratos">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
-      <div style="display:flex;gap:.8rem;align-items:center">
-        <input type="text" id="busca-contrato" placeholder="Buscar escola ou edital..." oninput="renderContratos()" style="min-width:280px">
-        <select id="filtro-status-contrato" onchange="renderContratos()">
-          <option value="">Todos os status</option>
-          <option value="ativo">Ativo</option>
-          <option value="encerrado">Encerrado</option>
-        </select>
+    <div id="contrato-detalhe-page" class="hidden"></div>
+    <div id="contratos-listagem">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+        <div style="display:flex;gap:.8rem;align-items:center">
+          <input type="text" id="busca-contrato" placeholder="Buscar escola ou edital..." oninput="renderContratos()" style="min-width:280px">
+          <select id="filtro-status-contrato" onchange="renderContratos()">
+            <option value="">Todos os status</option>
+            <option value="ativo">Ativo</option>
+            <option value="encerrado">Encerrado</option>
+          </select>
+        </div>
+        <div style="display:flex;gap:.5rem">
+          <button class="btn btn-blue" onclick="switchTab('importar')">+ Importar Mapa</button>
+          <button class="btn btn-green" onclick="novoContratoManual()">+ Contrato Manual</button>
+        </div>
       </div>
-      <div style="display:flex;gap:.5rem">
-        <button class="btn btn-blue" onclick="switchTab('importar')">+ Importar Mapa</button>
-        <button class="btn btn-green" onclick="novoContratoManual()">+ Contrato Manual</button>
+      <div class="contract-grid" id="contract-grid"></div>
+      <div class="empty" id="contratos-empty">
+        <h3>Nenhum contrato cadastrado</h3>
+        <p>Importe um Mapa de Apuracao para criar o primeiro contrato.</p>
+        <button class="btn btn-outline" style="margin-top:1rem" onclick="novoContratoManual()">Inserir Contrato Manualmente</button>
       </div>
-    </div>
-    <div class="contract-grid" id="contract-grid"></div>
-    <div class="empty" id="contratos-empty">
-      <h3>Nenhum contrato cadastrado</h3>
-      <p>Importe um Mapa de Apuracao para criar o primeiro contrato.</p>
-      <button class="btn btn-outline" style="margin-top:1rem" onclick="novoContratoManual()">Inserir Contrato Manualmente</button>
     </div>
   </div>
 

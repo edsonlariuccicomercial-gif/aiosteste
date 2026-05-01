@@ -2234,6 +2234,8 @@ function salvarVinculoEscolas(contratoId) {
   document.getElementById("modal-contrato").classList.add("hidden");
   renderContratos();
   showToast("Escolas vinculadas ao contrato com sucesso!");
+  // Reabrir detalhe fullpage se estava aberto
+  if (contratoId) abrirContrato(contratoId);
 }
 
 function abrirCatalogoEscolar(contratoId) {
@@ -2753,12 +2755,6 @@ function abrirContrato(id) {
   ensureContratoItensMetadata(c);
 
   _contratoAbertoId = null;
-  document.getElementById("modal-contrato-titulo").textContent = `${c.id} — ${c.escola.length > 50 ? c.escola.slice(0, 48) + "..." : c.escola}`;
-  document.getElementById("modal-contrato-header-actions").innerHTML = `
-    <button class="btn btn-sm btn-red" onclick="excluirContrato('${c.id}')">Excluir</button>
-    <button class="btn btn-sm btn-blue" onclick="salvarDadosContrato('${c.id}')">Salvar</button>
-    <button class="btn btn-outline btn-sm" onclick="fecharModalContrato()">Cancelar</button>
-  `;
 
   const totalContratado = (parseFloat(c.valorTotal) || 0) > 0 ? parseFloat(c.valorTotal) : (Array.isArray(c.itens) ? c.itens : []).reduce((s, i) => s + (parseFloat(i.precoUnitario) || 0) * (parseFloat(i.qtdContratada || i.quantidade) || 0), 0);
   const totalEntregue = c.itens.reduce((s, i) => s + (i.precoUnitario || 0) * (i.qtdEntregue || 0), 0);
@@ -2859,8 +2855,28 @@ function abrirContrato(id) {
     </div>
     <div id="tiny-result-${c.id}" class="hidden" style="margin-top:1rem;padding:1rem;border-radius:4px;background:var(--s1);border:1px solid var(--bdr);font-size:.85rem"></div>`;
 
-  document.getElementById("modal-contrato-body").innerHTML = html;
-  document.getElementById("modal-contrato").classList.remove("hidden");
+  // Fullpage: render inline (same pattern as pedido-detalhe-page)
+  const detalhePage = document.getElementById("contrato-detalhe-page");
+  const listagem = document.getElementById("contratos-listagem");
+  if (detalhePage && listagem) {
+    const headerHtml = `
+      <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem">
+        <button onclick="fecharContratoDetalhe()" style="background:transparent;border:none;cursor:pointer;color:var(--mut);font-size:1.3rem;padding:4px 8px" title="Voltar">&#x2190;</button>
+        <h2 style="font-size:1.1rem;font-weight:600;margin:0;flex:1">Contrato ${esc(c.id)}</h2>
+        <div style="display:flex;gap:.5rem">
+          <button class="btn btn-sm btn-red" onclick="excluirContrato('${c.id}')">Excluir</button>
+          <button class="btn btn-sm btn-blue" onclick="salvarDadosContrato('${c.id}')">Salvar</button>
+        </div>
+      </div>`;
+    detalhePage.innerHTML = headerHtml + html;
+    listagem.classList.add("hidden");
+    detalhePage.classList.remove("hidden");
+    detalhePage.scrollTop = 0;
+  } else {
+    // Fallback: usar modal se containers não existem
+    document.getElementById("modal-contrato-body").innerHTML = html;
+    document.getElementById("modal-contrato").classList.remove("hidden");
+  }
   // Reset checkbox selection count after HTML rebuild
   atualizarSelecaoItens(c.id);
 }
@@ -2868,17 +2884,29 @@ function abrirContrato(id) {
 // Track which contract is currently open so Fechar can return to it
 let _contratoAbertoId = null;
 
-function fecharModalContrato() {
+function fecharContratoDetalhe() {
   if (_contratoAbertoId) {
     abrirContrato(_contratoAbertoId);
     return;
   }
+  const detalhePage = document.getElementById("contrato-detalhe-page");
+  const listagem = document.getElementById("contratos-listagem");
+  if (detalhePage && listagem) {
+    detalhePage.classList.add("hidden");
+    detalhePage.innerHTML = "";
+    listagem.classList.remove("hidden");
+  }
+  // Fallback: also hide modal if it was used
   document.getElementById("modal-contrato").classList.add("hidden");
 }
+// Keep old name as alias for compatibility
+function fecharModalContrato() { fecharContratoDetalhe(); }
 
-// AC6: ESC to close modals
+// AC6: ESC to close contract detail / modals
 document.addEventListener("keydown", function(e) {
   if (e.key === "Escape") {
+    const detalhePage = document.getElementById("contrato-detalhe-page");
+    if (detalhePage && !detalhePage.classList.contains("hidden")) { fecharContratoDetalhe(); return; }
     const modal = document.getElementById("modal-contrato");
     if (modal && !modal.classList.contains("hidden")) { fecharModalContrato(); return; }
   }
