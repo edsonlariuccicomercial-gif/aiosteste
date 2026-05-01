@@ -2634,8 +2634,9 @@ function abrirEditarProduto(produtoId) {
         <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">NCM</label><input type="text" id="edit-prod-ncm" value="${esc(produto.ncm || "")}" list="ncm-datalist" oninput="filtrarNCM(this)" autocomplete="off" style="width:100%"></div>
         <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Categoria</label><select id="edit-prod-categoria" style="width:100%">${CAT_OPTS.map(c => '<option value="' + c + '"' + ((produto.categoria||"")===c?' selected':'') + '>' + (c || "Sem Categoria") + '</option>').join("")}</select></div>
       </div>
-      <div style="margin-bottom:.75rem">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.75rem">
         <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Origem NF-e</label><select id="edit-prod-origem" style="width:100%">${ORIGEM_OPTS.map(o => '<option value="' + o.v + '"' + ((produto.origem||"0")===o.v?' selected':'') + '>' + o.l + '</option>').join("")}</select></div>
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Preco Referencia</label><input type="number" id="edit-prod-preco-ref" value="${produto.preco_referencia || 0}" min="0" step="0.01" style="width:100%"></div>
       </div>
       <div id="edit-prod-embalagens-section" style="border-top:1px solid var(--bdr);margin:1rem 0;padding-top:1rem;${produto.produto_critico ? '' : 'display:none'}">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem">
@@ -2697,6 +2698,7 @@ function salvarEditarProduto(produtoId) {
   produto.origem = document.getElementById("edit-prod-origem")?.value || "0";
   const editTipoEl = document.querySelector('input[name="edit-prod-tipo"]:checked');
   produto.produto_critico = editTipoEl ? editTipoEl.value === "critico" : false;
+  produto.preco_referencia = parseFloat(document.getElementById("edit-prod-preco-ref")?.value) || 0;
   saveEstoqueIntelProdutos();
 
   document.querySelectorAll("#edit-embs-list [data-emb-id]").forEach(row => {
@@ -2881,8 +2883,9 @@ function renderModalNovoProduto() {
         <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">NCM</label><input type="text" id="ei-produto-ncm" placeholder="Digite nome ou codigo..." list="ncm-datalist" oninput="filtrarNCM(this)" autocomplete="off" style="width:100%"><datalist id="ncm-datalist"></datalist></div>
         <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Categoria</label><div style="display:flex;gap:.35rem"><select id="ei-produto-categoria" style="flex:1">${CAT_OPTS}</select><button class="btn btn-outline btn-sm" onclick="adicionarCategoriaCustom()" title="Nova" style="padding:.35rem .5rem">+</button></div></div>
       </div>
-      <div style="margin-bottom:.75rem">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.75rem">
         <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Origem NF-e</label><select id="ei-produto-origem" style="width:100%">${ORI_OPTS}</select></div>
+        <div id="ei-preco-ref-wrap"><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Preco Referencia</label><input type="number" id="ei-produto-preco-ref" placeholder="0.00" min="0" step="0.01" style="width:100%"></div>
       </div>
       <div id="novo-prod-embalagens-section" style="border-top:1px solid var(--bdr);margin:1rem 0;padding-top:1rem;display:none">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem">
@@ -2976,8 +2979,10 @@ function salvarNovoProdutoModal() {
   const prodTipoEl = document.querySelector('input[name="ei-prod-tipo"]:checked');
   const produto_critico = prodTipoEl ? prodTipoEl.value === "critico" : false;
 
+  const preco_referencia = parseFloat(document.getElementById("ei-produto-preco-ref")?.value) || 0;
+
   const prodId = genId("PROD");
-  estoqueIntelProdutos.push({ id: prodId, nome, unidade_base, sku, ncm, categoria, origem, produto_critico });
+  estoqueIntelProdutos.push({ id: prodId, nome, unidade_base, sku, ncm, categoria, origem, produto_critico, preco_referencia });
   saveEstoqueIntelProdutos();
 
   // Salvar embalagens do modal

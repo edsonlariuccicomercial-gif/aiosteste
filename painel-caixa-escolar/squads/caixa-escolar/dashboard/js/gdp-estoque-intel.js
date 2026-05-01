@@ -2232,12 +2232,15 @@ function renderEstoque() {
   const comprasVisiveis = estoqueIntelCompras;
 
   const ORIGEM_LABELS = {'0':'Nacional','1':'Import.Direta','2':'Import.MI','3':'Nac.>40%','4':'Nac.PPB','5':'Nac.<=40%','6':'Import.CAMEX','7':'Import.MI CAMEX'};
-  produtosTbody.innerHTML = produtosVisiveis.length ? produtosVisiveis.map((produto) => `
+  produtosTbody.innerHTML = produtosVisiveis.length ? produtosVisiveis.map((produto) => {
+    const emb = produto.produto_critico ? estoqueIntelEmbalagens.find(e => e.produto_id === produto.id) : null;
+    const precoRef = emb ? (emb.preco_referencia || 0) : (produto.preco_referencia || 0);
+    return `
     <tr>
       <td style="position:relative;white-space:nowrap">
         <input type="checkbox" class="ei-prod-chk" value="${esc(produto.id)}" onchange="atualizarSelecaoProdutos()">
         <button style="font-size:1.1rem;background:none;border:none;cursor:pointer;color:var(--mut);padding:0 .2rem;vertical-align:middle" onclick="toggleProdMenu('${esc(produto.id)}',event)">&#x22EF;</button>
-        <div id="prod-menu-${esc(produto.id)}" class="hidden" style="position:absolute;top:100%;left:0;z-index:1020;background:var(--bg);border:1px solid var(--bdr);border-radius:4px;box-shadow:0 4px 16px rgba(0,0,0,.35);min-width:170px;padding:.4rem 0">
+        <div id="prod-menu-${esc(produto.id)}" class="hidden" style="position:fixed;z-index:1020;background:var(--bg);border:1px solid var(--bdr);border-radius:4px;box-shadow:0 4px 16px rgba(0,0,0,.35);min-width:170px;padding:.4rem 0">
           <a style="display:block;padding:.45rem 1rem;font-size:.82rem;cursor:pointer;color:var(--fg)" onclick="abrirEditarProduto('${esc(produto.id)}');closeProdMenus()">Editar</a>
           <a style="display:block;padding:.45rem 1rem;font-size:.82rem;cursor:pointer;color:var(--fg)" onclick="clonarProdutoPorId('${esc(produto.id)}');closeProdMenus()">Clonar</a>
           <a style="display:block;padding:.45rem 1rem;font-size:.82rem;cursor:pointer;color:var(--red,#f44)" onclick="excluirProdutoEstoqueIntel('${esc(produto.id)}');closeProdMenus()">Excluir</a>
@@ -2250,10 +2253,9 @@ function renderEstoque() {
       <td><span class="badge badge-blue" style="font-size:.7rem">${esc(produto.origem || '0')}-${esc(ORIGEM_LABELS[produto.origem || '0'] || 'Nacional')}</span></td>
       <td class="font-mono" style="font-size:.78rem">${esc(produto.sku || "—")}</td>
       <td class="font-mono" style="font-size:.78rem">${esc(produto.ncm || "—")}</td>
-      ${(() => { if (!produto.produto_critico) return '<td style="color:var(--mut);font-size:.78rem">—</td><td class="text-right">—</td><td class="text-right">—</td>'; const emb = estoqueIntelEmbalagens.find(e => e.produto_id === produto.id); return emb ? `<td style="font-size:.82rem">${esc(emb.descricao || "—")}</td><td class="text-right font-mono">${emb.quantidade_base || "—"}</td><td class="text-right font-mono">${emb.preco_referencia ? brl.format(emb.preco_referencia) : "—"}</td>` : '<td style="color:var(--mut);font-size:.78rem">—</td><td class="text-right">—</td><td class="text-right">—</td>'; })()}
-      <td></td>
-    </tr>
-  `).join("") : `<tr><td colspan="12" style="color:var(--mut)">Nenhum produto encontrado para o filtro atual.</td></tr>`;
+      <td class="text-right font-mono">${precoRef > 0 ? brl.format(precoRef) : '—'}</td>
+    </tr>`;
+  }).join("") : `<tr><td colspan="9" style="color:var(--mut)">Nenhum produto encontrado para o filtro atual.</td></tr>`;
 
   if (embalagensTbody) embalagensTbody.innerHTML = embalagensFiltradas.length ? embalagensFiltradas.map((emb) => {
     const produto = findEstoqueIntelProduto(emb.produto_id);
@@ -2521,6 +2523,7 @@ function clonarProdutoPorId(produtoId) {
       if (el("ei-produto-ncm")) el("ei-produto-ncm").value = original.ncm || "";
       if (el("ei-produto-categoria")) el("ei-produto-categoria").value = original.categoria || "";
       if (el("ei-produto-origem")) el("ei-produto-origem").value = original.origem || "0";
+      if (el("ei-produto-preco-ref")) el("ei-produto-preco-ref").value = original.preco_referencia || 0;
     }, 50);
   }, 100);
 }
