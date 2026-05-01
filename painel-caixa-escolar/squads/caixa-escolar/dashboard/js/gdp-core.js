@@ -787,6 +787,21 @@ function loadData() {
     saveWrappedArray(ESTOQUE_INTEL_SUPPLIERS_KEY, estoqueIntelFornecedores);
     saveWrappedArray(ESTOQUE_INTEL_PURCHASES_KEY, estoqueIntelCompras);
   }
+  // Migration: corrigir unidade_base de produtos comuns (g/ml → unidade do contrato)
+  if (!localStorage.getItem("gdp.migration.unidade-base-critico-v1")) {
+    let migrated = 0;
+    estoqueIntelProdutos.forEach(p => {
+      if (!p.produto_critico && (p.unidade_base === "g" || p.unidade_base === "ml")) {
+        p.unidade_base = "UN";
+        migrated++;
+      }
+    });
+    if (migrated > 0) {
+      saveWrappedArray(ESTOQUE_INTEL_PRODUCTS_KEY, estoqueIntelProdutos);
+      console.log("[migration] unidade-base-critico-v1: " + migrated + " produtos corrigidos (g/ml → UN)");
+    }
+    localStorage.setItem("gdp.migration.unidade-base-critico-v1", new Date().toISOString());
+  }
   syncPedidosGDPToEstoqueIntel(true);
   // Story 4.43: load equivalencias/demandas/estoque data layer
   loadGdpEquivalencias();
