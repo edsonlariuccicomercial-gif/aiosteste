@@ -492,7 +492,8 @@
 // ===== SUPABASE CLOUD SYNC (uses centralized config from supabase-config.js) =====
 const SUPABASE_URL = window.SUPABASE_URL || "https://mvvsjaudhbglxttxaeop.supabase.co";
 const SUPABASE_KEY = window.SUPABASE_KEY || "sb_publishable_uBqL8sLjMGWnZ2aaQ1zwvg_mlQrZUXR";
-const PORTAL_SYNC_KEYS = ["gdp.contratos.v1", "gdp.pedidos.v1", "gdp.escola.pedidos", "gdp.usuarios.v1"];
+// contratos, pedidos, usuarios agora gerenciados pelo gdpApi (tabelas reais) — NÃO sync via sync_data legado
+const PORTAL_SYNC_KEYS = ["gdp.escola.pedidos"];
 const PORTAL_SHARED_SYNC_KEYS = new Set(PORTAL_SYNC_KEYS);
 function unwrapData(raw) { return Array.isArray(raw) ? raw : (raw && raw.items ? raw.items : []); }
 
