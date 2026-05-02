@@ -869,6 +869,31 @@ function loadData() {
     }
     localStorage.setItem("gdp.migration.critico-refinado-v5", new Date().toISOString());
   }
+  // Migration v6: apenas 3 produtos críticos definidos pelo usuário — resetar todos os outros
+  if (!localStorage.getItem("gdp.migration.criticos-exatos-v6")) {
+    const CRITICOS_SKU = new Set(['LICT-0024', 'LICT-0065', 'LICT-0023']);
+    let setCritico = 0, setComum = 0;
+    estoqueIntelProdutos.forEach(p => {
+      if (CRITICOS_SKU.has(p.sku)) {
+        if (!p.produto_critico) { p.produto_critico = true; setCritico++; }
+        if (p.unidade_base === 'UN') p.unidade_base = 'g';
+      } else {
+        if (p.produto_critico) { p.produto_critico = false; setComum++; }
+        if (p.unidade_base === 'g' || p.unidade_base === 'ml') p.unidade_base = 'UN';
+      }
+    });
+    // Remover embalagens de produtos comuns (não-críticos)
+    const criticoIds = new Set(estoqueIntelProdutos.filter(p => p.produto_critico).map(p => p.id));
+    const embAntes = estoqueIntelEmbalagens.length;
+    estoqueIntelEmbalagens = estoqueIntelEmbalagens.filter(e => criticoIds.has(e.produto_id));
+    const embRemovidas = embAntes - estoqueIntelEmbalagens.length;
+    if (setCritico > 0 || setComum > 0 || embRemovidas > 0) {
+      saveWrappedArray(ESTOQUE_INTEL_PRODUCTS_KEY, estoqueIntelProdutos);
+      saveWrappedArray(ESTOQUE_INTEL_PACKAGES_KEY, estoqueIntelEmbalagens);
+      console.log("[migration] criticos-exatos-v6: " + setCritico + " criticos, " + setComum + " comuns, " + embRemovidas + " embalagens removidas");
+    }
+    localStorage.setItem("gdp.migration.criticos-exatos-v6", new Date().toISOString());
+  }
   syncPedidosGDPToEstoqueIntel(true);
   // Story 4.43: load equivalencias/demandas/estoque data layer
   loadGdpEquivalencias();

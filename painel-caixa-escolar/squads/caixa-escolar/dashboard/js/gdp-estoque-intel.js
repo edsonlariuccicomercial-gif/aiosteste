@@ -2138,13 +2138,13 @@ function renderEstoque() {
 
   const resumo = getEstoqueIntelResumo();
   const kpiProdutos = document.getElementById("est-intel-kpi-produtos");
-  const kpiEmbalagens = document.getElementById("est-intel-kpi-embalagens");
-  const kpiPedidos = document.getElementById("est-intel-kpi-pedidos");
+  const kpiComuns = document.getElementById("est-intel-kpi-comuns");
+  const kpiCriticos = document.getElementById("est-intel-kpi-criticos");
   const kpiMov = document.getElementById("est-intel-kpi-mov");
   const demandasGeradasCountEl = document.getElementById("ei-demandas-geradas-count");
   if (kpiProdutos) kpiProdutos.textContent = estoqueIntelProdutos.length;
-  if (kpiEmbalagens) kpiEmbalagens.textContent = estoqueIntelEmbalagens.length;
-  if (kpiPedidos) kpiPedidos.textContent = estoqueIntelPedidos.length;
+  if (kpiComuns) kpiComuns.textContent = estoqueIntelProdutos.filter(p => !p.produto_critico).length;
+  if (kpiCriticos) kpiCriticos.textContent = estoqueIntelProdutos.filter(p => p.produto_critico).length;
   if (kpiMov) kpiMov.textContent = estoqueIntelMovimentacoes.length;
   if (demandasGeradasCountEl) demandasGeradasCountEl.textContent = String(estoqueIntelPedidos.length);
   const estoqueCountEl = document.getElementById("tab-count-estoque");
