@@ -597,26 +597,16 @@ function doLogin() {
   const user = document.getElementById('login-user').value.trim().toLowerCase();
   const pass = document.getElementById('login-pass').value;
 
-  // Buscar nas credenciais do JSON e tambem nos usuarios cadastrados no Contratos (localStorage)
-  let escola = credentials.escolas.find(e => e.login === user && e.senha === pass);
-
-  // Always check localStorage usuarios for dynamic fields (contratos_vinculados, etc.)
+  // PRIORIDADE 1: localStorage/Supabase (dados atualizados pelo sistema)
   let usrLocal = null;
   try {
     const usuarios = JSON.parse(localStorage.getItem('gdp.usuarios.v1') || '[]');
     usrLocal = usuarios.find(u => (u.login || '').toLowerCase() === user && u.senha === pass);
   } catch(_) {}
 
-  if (escola) {
-    // Merge dynamic fields from localStorage into credentials-based escola
-    if (usrLocal) {
-      escola.contratos_vinculados = usrLocal.contratos_vinculados || [];
-      escola.saldo_disponivel = parseFloat(usrLocal.saldo_disponivel) || escola.saldo_disponivel || 0;
-      escola.saldo_total = parseFloat(usrLocal.saldo_total) || escola.saldo_total || 0;
-    } else {
-      escola.contratos_vinculados = escola.contratos_vinculados || [];
-    }
-  } else if (usrLocal) {
+  // PRIORIDADE 2: JSON estático (fallback para escolas não migradas)
+  let escola = null;
+  if (usrLocal) {
     escola = {
       id: usrLocal.login || usrLocal.id,
       nome: usrLocal.nome_completo || usrLocal.nome,
@@ -643,6 +633,13 @@ function doLogin() {
       uf: usrLocal.uf || 'MG',
       ie: usrLocal.ie || 'ISENTO'
     };
+  }
+  // Fallback: JSON estático para escolas não migradas para o sistema de clientes
+  if (!escola && credentials && credentials.escolas) {
+    const credMatch = credentials.escolas.find(e => e.login === user && e.senha === pass);
+    if (credMatch) {
+      escola = { ...credMatch, contratos_vinculados: credMatch.contratos_vinculados || [] };
+    }
   }
   if (!escola) {
     const err = document.getElementById('login-error');
