@@ -1,0 +1,98 @@
+/**
+ * /api/db-migrate — Auto-apply pending database migrations
+ * Uses Supabase service_role key. Safe to call multiple times (IF NOT EXISTS).
+ */
+export default async function handler(req, res) {
+  const SB_URL = process.env.SUPABASE_URL;
+  const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!SB_URL || !SB_KEY) {
+    return res.status(500).json({ error: "Missing SUPABASE env vars" });
+  }
+
+  const headers = {
+    apikey: SB_KEY,
+    Authorization: "Bearer " + SB_KEY,
+    "Content-Type": "application/json",
+    Prefer: "return=minimal",
+  };
+
+  // Step 1: Ensure exec_sql function exists (needed for DDL via REST)
+  const createFn = `
+    CREATE OR REPLACE FUNCTION exec_sql(query text)
+    RETURNS void LANGUAGE plpgsql SECURITY DEFINER AS $$
+    BEGIN EXECUTE query; END; $$;
+  `;
+  try {
+    await fetch(SB_URL + "/rest/v1/rpc/exec_sql", {
+      method: "POST", headers,
+      body: JSON.stringify({ query: "SELECT 1" }),
+    });
+  } catch (_) {}
+
+  // If exec_sql doesn't exist, try creating it via the SQL endpoint
+  const testResp = await fetch(SB_URL + "/rest/v1/rpc/exec_sql", {
+    method: "POST", headers,
+    body: JSON.stringify({ query: "SELECT 1" }),
+  });
+
+  if (!testResp.ok) {
+    // Function doesn't exist — need to create it via Supabase Management API
+    // Try using the database URL directly
+    const projectRef = SB_URL.replace("https://", "").split(".")[0];
+    const mgmtResp = await fetch(
+      `https://api.supabase.com/v1/projects/${projectRef}/database/query`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer " + SB_KEY,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ query: createFn }),
+      }
+    ).catch(() => null);
+
+    if (!mgmtResp || !mgmtResp.ok) {
+      return res.status(200).json({
+        status: "manual_required",
+        message: "Execute este SQL no Supabase SQL Editor para habilitar auto-migrations:",
+        sql: createFn.trim() + "\n\n-- Depois recarregue a pagina que as migrations serao aplicadas automaticamente.",
+      });
+    }
+  }
+
+  // Step 2: Execute migrations via exec_sql
+  const migrations = [
+    "ALTER TABLE contratos ADD COLUMN IF NOT EXISTS escola_cliente_id text",
+    "ALTER TABLE clientes ADD COLUMN IF NOT EXISTS login text",
+    "ALTER TABLE clientes ADD COLUMN IF NOT EXISTS senha text",
+    "ALTER TABLE clientes ADD COLUMN IF NOT EXISTS municipio text",
+    "ALTER TABLE clientes ADD COLUMN IF NOT EXISTS responsavel text",
+    "ALTER TABLE clientes ADD COLUMN IF NOT EXISTS cargo text",
+    "ALTER TABLE clientes ADD COLUMN IF NOT EXISTS contribuinte_icms text DEFAULT '9'",
+    "ALTER TABLE clientes ADD COLUMN IF NOT EXISTS categoria_catalogo text",
+    "ALTER TABLE clientes ADD COLUMN IF NOT EXISTS arp_vinculada text",
+    "ALTER TABLE clientes ADD COLUMN IF NOT EXISTS saldo_total numeric DEFAULT 0",
+    "ALTER TABLE clientes ADD COLUMN IF NOT EXISTS saldo_disponivel numeric DEFAULT 0",
+  ];
+
+  const results = [];
+  for (const sql of migrations) {
+    try {
+      const r = await fetch(SB_URL + "/rest/v1/rpc/exec_sql", {
+        method: "POST", headers,
+        body: JSON.stringify({ query: sql }),
+      });
+      results.push({ col: sql.match(/ADD COLUMN.*?(\w+)\s/)?.[1] || sql.slice(0, 40), ok: r.ok });
+    } catch (e) {
+      results.push({ col: sql.slice(0, 40), ok: false, err: e.message });
+    }
+  }
+
+  const applied = results.filter(r => r.ok).length;
+  return res.status(200).json({
+    status: "done",
+    message: `${applied}/${migrations.length} migrations aplicadas`,
+    results,
+  });
+}

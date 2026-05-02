@@ -2369,6 +2369,14 @@ async function enviarTiny(contratoId) {
   loadUsuarios();
   renderAll();
 
+  // Auto-apply pending DB migrations (one-time, background, non-blocking)
+  if (!sessionStorage.getItem("gdp.db-migrate-done")) {
+    fetch("/api/db-migrate").then(r => r.json()).then(d => {
+      console.log("[GDP] db-migrate:", d.message || d.hint || "done");
+      sessionStorage.setItem("gdp.db-migrate-done", "1");
+    }).catch(() => {});
+  }
+
   // Supabase-First: carregar dados das tabelas reais (atualiza em background)
   if (window.gdpApi) {
     try {
