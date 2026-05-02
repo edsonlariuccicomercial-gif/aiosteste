@@ -830,6 +830,23 @@ function loadData() {
     }
     localStorage.setItem("gdp.migration.produto-campos-v3", new Date().toISOString());
   }
+  // Migration v4: restaurar produto_critico para produtos que TÊM embalagens cadastradas
+  if (!localStorage.getItem("gdp.migration.critico-por-embalagem-v4")) {
+    let restored = 0;
+    const prodIdsComEmb = new Set(estoqueIntelEmbalagens.map(e => e.produto_id));
+    estoqueIntelProdutos.forEach(p => {
+      if (prodIdsComEmb.has(p.id) && !p.produto_critico) {
+        p.produto_critico = true;
+        p.unidade_base = p.unidade_base === 'UN' ? 'g' : p.unidade_base;
+        restored++;
+      }
+    });
+    if (restored > 0) {
+      saveWrappedArray(ESTOQUE_INTEL_PRODUCTS_KEY, estoqueIntelProdutos);
+      console.log("[migration] critico-por-embalagem-v4: " + restored + " produtos restaurados como criticos");
+    }
+    localStorage.setItem("gdp.migration.critico-por-embalagem-v4", new Date().toISOString());
+  }
   syncPedidosGDPToEstoqueIntel(true);
   // Story 4.43: load equivalencias/demandas/estoque data layer
   loadGdpEquivalencias();
