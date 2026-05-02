@@ -276,7 +276,10 @@ async function syncFromCloud() {
   if (!rows || rows.length === 0) return { restored: false, rowCount: 0, source: "local_cache", lastSyncAt: "" };
   let synced = 0;
   let newest = "";
+  // Keys gerenciadas pelo gdpApi (tabelas reais) — ignorar no sync legado
+  const _GDPAPI_KEYS = new Set(['gdp.contratos.v1','gdp.pedidos.v1','gdp.notas-fiscais.v1','gdp.contas-receber.v1','gdp.contas-pagar.v1','gdp.entregas.provas.v1','gdp.usuarios.v1']);
   for (const row of rows) {
+    if (_GDPAPI_KEYS.has(row.key)) continue; // managed by gdpApi, skip legacy sync
     const local = localStorage.getItem(row.key);
     let localData = null;
     try {
