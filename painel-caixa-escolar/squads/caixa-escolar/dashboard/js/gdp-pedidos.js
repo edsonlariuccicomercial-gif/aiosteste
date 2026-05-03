@@ -1629,10 +1629,18 @@ function renderContasReceber() {
 function renderContaPagarStatusTabs(items = contasPagar) {
   const container = document.getElementById("contas-pagar-status-tabs");
   if (!container) return;
+  const safeItems = Array.isArray(items) ? items : [];
   container.innerHTML = CONTAS_PAGAR_STATUS_TABS.map((tab) => {
-    const count = items.filter((item) => normalizeContaPagarStatus(item) === tab.key).length;
+    const count = safeItems.filter((item) => normalizeContaPagarStatus(item) === tab.key).length;
+    const cor = CONTAS_PAGAR_STATUS_COLORS[tab.key] || '#94a3b8';
     const active = contaPagarStatusTabAtual === tab.key;
-    return `<button class="btn ${active ? 'btn-green' : 'btn-outline'} btn-sm" onclick="setContaPagarStatusTab('${tab.key}')">${tab.label} <span style="margin-left:.35rem;opacity:.8">${count}</span></button>`;
+    return `<button onclick="setContaPagarStatusTab('${tab.key}')" style="display:flex;flex-direction:column;align-items:center;gap:2px;padding:10px 20px;background:transparent;border:none;border-bottom:2px solid ${active ? 'var(--green)' : 'transparent'};cursor:pointer;transition:all .2s;opacity:${active ? '1' : '.7'};white-space:nowrap">
+      <span style="display:flex;align-items:center;gap:6px">
+        <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${cor}"></span>
+        <span style="font-size:.88rem;font-weight:${active ? '600' : '400'};color:var(--txt)">${tab.label}</span>
+      </span>
+      <span style="font-size:.78rem;color:var(--mut);font-weight:600">${count > 0 ? count.toString().padStart(2,'0') : ''}</span>
+    </button>`;
   }).join("");
 }
 
@@ -1645,10 +1653,18 @@ function setContaPagarStatusTab(status) {
 function renderContaReceberStatusTabs(items = contasReceber) {
   const container = document.getElementById("contas-receber-status-tabs");
   if (!container) return;
+  const safeItems = Array.isArray(items) ? items : [];
   container.innerHTML = CONTAS_RECEBER_STATUS_TABS.map((tab) => {
-    const count = items.filter((item) => normalizeContaReceberStatus(item) === tab.key).length;
+    const count = safeItems.filter((item) => normalizeContaReceberStatus(item) === tab.key).length;
+    const cor = CONTAS_RECEBER_STATUS_COLORS[tab.key] || '#94a3b8';
     const active = contaReceberStatusTabAtual === tab.key;
-    return `<button class="btn ${active ? 'btn-green' : 'btn-outline'} btn-sm" onclick="setContaReceberStatusTab('${tab.key}')">${tab.label} <span style="margin-left:.35rem;opacity:.8">${count}</span></button>`;
+    return `<button onclick="setContaReceberStatusTab('${tab.key}')" style="display:flex;flex-direction:column;align-items:center;gap:2px;padding:10px 20px;background:transparent;border:none;border-bottom:2px solid ${active ? 'var(--green)' : 'transparent'};cursor:pointer;transition:all .2s;opacity:${active ? '1' : '.7'};white-space:nowrap">
+      <span style="display:flex;align-items:center;gap:6px">
+        <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${cor}"></span>
+        <span style="font-size:.88rem;font-weight:${active ? '600' : '400'};color:var(--txt)">${tab.label}</span>
+      </span>
+      <span style="font-size:.78rem;color:var(--mut);font-weight:600">${count > 0 ? count.toString().padStart(2,'0') : ''}</span>
+    </button>`;
   }).join("");
 }
 
@@ -1887,6 +1903,12 @@ var CONTAS_PAGAR_STATUS_TABS = [
   { key: "atrasada", label: "Atrasadas", className: "badge-red" }
 ];
 var contaPagarStatusTabAtual = "em_aberto";
+var CONTAS_PAGAR_STATUS_COLORS = {
+  emitida: '#3b82f6',
+  em_aberto: '#eab308',
+  paga: '#22c55e',
+  atrasada: '#ef4444'
+};
 var CONTAS_RECEBER_STATUS_TABS = [
   { key: "emitida", label: "Emitidas", className: "badge-blue" },
   { key: "em_aberto", label: "Em Aberto", className: "badge-yellow" },
@@ -1894,6 +1916,12 @@ var CONTAS_RECEBER_STATUS_TABS = [
   { key: "atrasada", label: "Atrasadas", className: "badge-red" }
 ];
 var contaReceberStatusTabAtual = "em_aberto";
+var CONTAS_RECEBER_STATUS_COLORS = {
+  emitida: '#3b82f6',
+  em_aberto: '#eab308',
+  recebida: '#22c55e',
+  atrasada: '#ef4444'
+};
 
 function normalizePedidoStatus(status) {
   const normalized = String(status || "").trim().toLowerCase();

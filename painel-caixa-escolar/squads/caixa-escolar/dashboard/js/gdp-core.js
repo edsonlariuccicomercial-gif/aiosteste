@@ -1350,8 +1350,8 @@ function atualizarResumosVencimento() {
   const hoje = new Date().toISOString().slice(0, 10);
   const _crRaw = JSON.parse(localStorage.getItem("gdp.contas-receber.v1") || "[]");
   const cr = Array.isArray(_crRaw) ? _crRaw : (_crRaw && _crRaw.items ? _crRaw.items : []);
-  const vencendoHoje = cr.filter(c => c.vencimento === hoje && c.status !== "recebido");
-  const vencidas = cr.filter(c => c.vencimento < hoje && c.status !== "recebido");
+  const vencendoHoje = cr.filter(c => c.vencimento === hoje && c.status !== "recebida");
+  const vencidas = cr.filter(c => c.vencimento < hoje && c.status !== "recebida");
   const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
   const el = (id) => document.getElementById(id);
   if (el("cr-vencendo-hoje-valor")) el("cr-vencendo-hoje-valor").textContent = brl.format(vencendoHoje.reduce((s, c) => s + Number(c.valor || 0), 0));
@@ -1366,8 +1366,8 @@ function filtrarContasReceberVencendo(tipo) {
   const cr = Array.isArray(_crRaw2) ? _crRaw2 : (_crRaw2 && _crRaw2.items ? _crRaw2.items : []);
   const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
   const lista = tipo === "hoje"
-    ? cr.filter(c => c.vencimento === hoje && c.status !== "recebido")
-    : cr.filter(c => c.vencimento < hoje && c.status !== "recebido");
+    ? cr.filter(c => c.vencimento === hoje && c.status !== "recebida")
+    : cr.filter(c => c.vencimento < hoje && c.status !== "recebida");
   const tituloEl = document.getElementById("cr-lista-vencimento-titulo");
   if (tituloEl) tituloEl.textContent = tipo === "hoje" ? "Contas Vencendo Hoje" : "Contas Vencidas";
   const tbody = document.getElementById("cr-lista-vencimento-tbody");
