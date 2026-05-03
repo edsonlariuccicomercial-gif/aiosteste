@@ -547,6 +547,11 @@
 
   <!-- Tab: Notas Fiscais -->
   <div id="tab-notas-fiscais" class="hidden">
+    <div class="kpi-grid" id="ei-kpi-grid" style="margin-bottom:1rem">
+      <div class="kpi"><div class="kpi-label">Autorizadas</div><div class="kpi-value green" id="nf-kpi-autorizadas">0</div><div class="kpi-sub">Notas liberadas fiscalmente</div></div>
+      <div class="kpi"><div class="kpi-label">Pendencia Bancaria</div><div class="kpi-value yellow" id="nf-kpi-bancaria">0</div><div class="kpi-sub">Notas aguardando cobranca validada</div></div>
+      <div class="kpi"><div class="kpi-label">Falhas</div><div class="kpi-value red" id="nf-kpi-falhas">0</div><div class="kpi-sub">Fiscal ou banco pedindo acao</div></div>
+    </div>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:.8rem">
       <div style="display:flex;gap:.8rem;align-items:center;flex-wrap:wrap">
         <input type="text" id="busca-nota-fiscal" placeholder="Buscar NF, pedido ou cliente..." oninput="renderNotasFiscais()" style="min-width:240px">
@@ -554,11 +559,6 @@
       <div style="font-size:.82rem;color:var(--mut)">Geradas a partir do pedido e acompanhadas aqui com situacao fiscal e cobranca.</div>
     </div>
     <div id="notas-fiscais-status-tabs" style="display:flex;gap:.6rem;flex-wrap:wrap;margin-bottom:1rem"></div>
-    <div class="kpi-grid" id="ei-kpi-grid" style="margin-bottom:1rem">
-      <div class="kpi"><div class="kpi-label">Autorizadas</div><div class="kpi-value green" id="nf-kpi-autorizadas">0</div><div class="kpi-sub">Notas liberadas fiscalmente</div></div>
-      <div class="kpi"><div class="kpi-label">Pendencia Bancaria</div><div class="kpi-value yellow" id="nf-kpi-bancaria">0</div><div class="kpi-sub">Notas aguardando cobranca validada</div></div>
-      <div class="kpi"><div class="kpi-label">Falhas</div><div class="kpi-value red" id="nf-kpi-falhas">0</div><div class="kpi-sub">Fiscal ou banco pedindo acao</div></div>
-    </div>
     <div class="table-wrap" style="max-height:600px;overflow-y:auto">
       <table>
         <thead>
@@ -996,31 +996,26 @@
     <!-- Lista Compras legacy removida (Épico A - FR-006) -->
     <!-- Notas de Entrada -->
     <div class="card" id="ei-card-notas-entrada" data-ei-section="notas-entrada" style="margin-top:1rem">
-      <h3>Notas de Entrada</h3>
-      <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr auto;gap:.8rem;align-items:end;margin-bottom:1rem">
-        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Fornecedor</label><input type="text" id="ne-fornecedor" placeholder="Razao social do fornecedor"></div>
-        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Numero</label><input type="text" id="ne-numero" placeholder="NF"></div>
-        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Chave</label><input type="text" id="ne-chave" placeholder="44 digitos"></div>
-        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Valor</label><input type="number" id="ne-valor" min="0" step="0.01" placeholder="0,00"></div>
-        <div style="display:flex;gap:.5rem;flex-wrap:wrap">
-          <button class="btn btn-green" onclick="registrarNotaEntradaManual()">Registrar</button>
-          <button class="btn btn-outline" onclick="document.getElementById('import-nota-entrada-xml').click()">Importar XML</button>
-          <button class="btn btn-outline" onclick="consultarNotasEntradaApi()">Consultar API</button>
-        </div>
-      </div>
-      <input type="file" id="import-nota-entrada-xml" accept=".xml,text/xml" style="display:none" onchange="importarNotaEntradaXml(this)">
       <div class="kpi-grid" style="margin-bottom:1rem">
         <div class="kpi"><div class="kpi-label">Notas Capturadas</div><div class="kpi-value blue" id="ne-kpi-total">0</div><div class="kpi-sub">Entradas registradas para o CNPJ</div></div>
         <div class="kpi"><div class="kpi-label">Pendentes API</div><div class="kpi-value yellow" id="ne-kpi-pendentes">0</div><div class="kpi-sub">Consultas aguardando retorno backend</div></div>
         <div class="kpi"><div class="kpi-label">Valor Total</div><div class="kpi-value green" id="ne-kpi-valor">R$ 0</div><div class="kpi-sub">Soma das notas de entrada</div></div>
       </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:.8rem">
+        <h3 style="margin:0">Notas de Entrada</h3>
+        <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+          <button class="btn btn-outline" onclick="document.getElementById('import-nota-entrada-xml').click()">Importar XML</button>
+          <button class="btn btn-outline" onclick="consultarNotasEntradaApi()">Consultar API</button>
+        </div>
+      </div>
+      <input type="file" id="import-nota-entrada-xml" accept=".xml,text/xml" style="display:none" onchange="importarNotaEntradaXml(this)">
       <div class="table-wrap" style="max-height:480px;overflow-y:auto">
         <table>
           <thead><tr><th>Emissao</th><th>Fornecedor</th><th>Numero</th><th>Chave</th><th class="text-right">Valor</th><th>Status</th><th>Origem</th></tr></thead>
           <tbody id="notas-entrada-tbody"></tbody>
         </table>
       </div>
-      <div class="empty hidden" id="notas-entrada-empty"><h3>Nenhuma nota de entrada registrada</h3><p>Use XML, cadastro manual ou consulta API para acompanhar documentos emitidos contra seu CNPJ.</p></div>
+      <div class="empty hidden" id="notas-entrada-empty"><h3>Nenhuma nota de entrada registrada</h3><p>Importe XML ou consulte a API para capturar notas emitidas contra seu CNPJ.</p></div>
     </div>
     <div id="ei-grid-compra" style="display:grid;grid-template-columns:1fr;gap:1rem;align-items:start;margin-top:1rem">
       <div class="card" id="ei-card-fornecedores" data-ei-section="fornecedores">

@@ -1406,8 +1406,9 @@ function abrirVincularGDP(contratoId, itemIdx) {
   _vincularGdpItemIdx = itemIdx;
   _vincularGdpDescricao = c.itens[itemIdx].descricao;
   document.getElementById("vincular-gdp-desc").textContent = _vincularGdpDescricao.slice(0, 80) + (_vincularGdpDescricao.length > 80 ? "..." : "");
-  // Se já tem vínculo, mostrar produto atual
-  const equivSku = getGdpEquivalencia(_vincularGdpDescricao);
+  // Se já tem vínculo, mostrar produto atual — priorizar item.skuVinculado (mesmo chain da tabela)
+  const _item = c.itens[itemIdx];
+  const equivSku = _item.skuVinculado || getGdpEquivalencia(_vincularGdpDescricao);
   const prodVinculado = equivSku ? estoqueIntelProdutos.find(p => p.sku === equivSku || p.id === equivSku) : null;
   const descEl = document.getElementById("vincular-gdp-desc");
   if (descEl) {
