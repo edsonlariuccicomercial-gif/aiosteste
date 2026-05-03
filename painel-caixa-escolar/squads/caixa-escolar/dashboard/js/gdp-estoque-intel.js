@@ -2571,55 +2571,92 @@ function clonarProdutoSelecionado() {
 }
 
 function abrirEditarMassaProdutos() {
-  const ids = getSelectedProdutoIds();
-  if (ids.length === 0) { showToast("Selecione produtos para editar em massa.", 3000); return; }
-  const CAT_OPTS = ["","Hortifruti","Carnes/Proteinas","Graos/Cereais","Laticinios","Frutas","Mercearia","Padaria/Biscoitos","Ovos","Bebidas","Limpeza","Outros"].map(c => '<option value="' + c + '">' + (c || "— Manter atual —") + '</option>').join("");
-  const ORI_OPTS = [{v:"",l:"— Manter atual —"},{v:"0",l:"0 — Nacional"},{v:"1",l:"1 — Import. Direta"},{v:"2",l:"2 — Import. MI"},{v:"3",l:"3 — Nac. >40%"},{v:"4",l:"4 — Nac. PPB"},{v:"5",l:"5 — Nac. <=40%"},{v:"6",l:"6 — Import. CAMEX"},{v:"7",l:"7 — Import. MI CAMEX"}].map(o => '<option value="' + o.v + '">' + o.l + '</option>').join("");
-  const UNIT_OPTS = '<option value="">— Manter atual —</option><option value="UN">UN</option><option value="KG">KG</option><option value="CX">CX</option><option value="PCT">PCT</option><option value="FD">FD</option><option value="LT">LT</option><option value="DZ">DZ</option><option value="BD">BD</option><option value="SC">SC</option><option value="MÇ">MÇ</option><option value="RS">RS</option><option value="RL">RL</option><option value="FR">FR</option><option value="TB">TB</option><option value="GF">GF</option><option value="LA">LA</option><option value="GL">GL</option>';
+  const UNIT_LIST = ["UN","KG","CX","PCT","FD","LT","DZ","BD","SC","MÇ","RS","RL","FR","TB","GF","LA","GL"];
+  const CAT_LIST = ["","Hortifruti","Carnes/Proteinas","Graos/Cereais","Laticinios","Frutas","Mercearia","Padaria/Biscoitos","Ovos","Bebidas","Limpeza","Outros"];
+  const ORI_LIST = [{v:"0",l:"0-Nacional"},{v:"1",l:"1-Import.Dir"},{v:"2",l:"2-Import.MI"},{v:"3",l:"3-Nac.>40%"},{v:"4",l:"4-Nac.PPB"},{v:"5",l:"5-Nac.<=40%"},{v:"6",l:"6-Import.CAMEX"},{v:"7",l:"7-Import.MI CAMEX"}];
+  const unitOpts = UNIT_LIST.map(u => '<option value="' + u + '">' + u + '</option>').join("");
+  const catOpts = CAT_LIST.map(c => '<option value="' + c + '">' + (c || "—") + '</option>').join("");
+  const oriOpts = ORI_LIST.map(o => '<option value="' + o.v + '">' + o.l + '</option>').join("");
+
+  const allProds = estoqueIntelProdutos.slice().sort((a, b) => (a.nome || "").localeCompare(b.nome || ""));
 
   let overlay = document.getElementById("bulk-edit-overlay");
   if (!overlay) {
     overlay = document.createElement("div");
     overlay.id = "bulk-edit-overlay";
-    overlay.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1100;display:flex;align-items:center;justify-content:center;padding:2rem";
+    overlay.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1100;display:flex;align-items:center;justify-content:center;padding:1rem";
     document.body.appendChild(overlay);
   }
   overlay.classList.remove("hidden");
+
+  const rows = allProds.map(p => {
+    const selUnit = UNIT_LIST.map(u => '<option value="' + u + '"' + (u === (p.unidade_base || "UN") ? ' selected' : '') + '>' + u + '</option>').join("");
+    const selCat = CAT_LIST.map(c => '<option value="' + c + '"' + (c === (p.categoria || "") ? ' selected' : '') + '>' + (c || "—") + '</option>').join("");
+    const selOri = ORI_LIST.map(o => '<option value="' + o.v + '"' + (o.v === String(p.origem || "0") ? ' selected' : '') + '>' + o.l + '</option>').join("");
+    return '<tr data-pid="' + p.id + '">' +
+      '<td style="font-size:.78rem;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + (p.nome || "").replace(/"/g,'&quot;') + '">' + (p.nome || "-") + '</td>' +
+      '<td><select class="bk-unit" style="width:70px;padding:.2rem .3rem;font-size:.78rem;background:var(--s1);color:var(--txt);border:1px solid var(--bdr);border-radius:3px">' + selUnit + '</select></td>' +
+      '<td><input class="bk-sku" type="text" value="' + (p.sku || "").replace(/"/g,'&quot;') + '" style="width:90px;padding:.2rem .3rem;font-size:.78rem;background:var(--s1);color:var(--txt);border:1px solid var(--bdr);border-radius:3px" placeholder="SKU"></td>' +
+      '<td><input class="bk-ncm" type="text" value="' + (p.ncm || "").replace(/"/g,'&quot;') + '" style="width:100px;padding:.2rem .3rem;font-size:.78rem;background:var(--s1);color:var(--txt);border:1px solid var(--bdr);border-radius:3px" placeholder="NCM"></td>' +
+      '<td><select class="bk-cat" style="width:120px;padding:.2rem .3rem;font-size:.78rem;background:var(--s1);color:var(--txt);border:1px solid var(--bdr);border-radius:3px">' + selCat + '</select></td>' +
+      '<td><select class="bk-ori" style="width:110px;padding:.2rem .3rem;font-size:.78rem;background:var(--s1);color:var(--txt);border:1px solid var(--bdr);border-radius:3px">' + selOri + '</select></td>' +
+      '</tr>';
+  }).join("");
+
   overlay.innerHTML = `
-    <div style="background:var(--bg);border:1px solid var(--bdr);border-radius:4px;width:500px;max-width:95vw;padding:1.5rem">
-      <h2 style="font-size:1.1rem;margin-bottom:1rem">Editar em Massa — ${ids.length} produto(s)</h2>
-      <div style="font-size:.78rem;color:var(--mut);margin-bottom:1rem">Campos em branco serao mantidos como estao. Apenas campos preenchidos serao alterados.</div>
-      <div style="display:grid;gap:1rem">
-        <div><label style="font-size:.8rem;color:var(--mut);display:block;margin-bottom:.3rem">Unidade</label><select id="bulk-unidade" style="width:100%">${UNIT_OPTS}</select></div>
-        <div><label style="font-size:.8rem;color:var(--mut);display:block;margin-bottom:.3rem">NCM</label><input type="text" id="bulk-ncm" placeholder="Manter atual se vazio" style="width:100%"></div>
-        <div><label style="font-size:.8rem;color:var(--mut);display:block;margin-bottom:.3rem">Categoria</label><select id="bulk-categoria" style="width:100%">${CAT_OPTS}</select></div>
-        <div><label style="font-size:.8rem;color:var(--mut);display:block;margin-bottom:.3rem">Origem</label><select id="bulk-origem" style="width:100%">${ORI_OPTS}</select></div>
+    <div style="background:var(--bg);border:1px solid var(--bdr);border-radius:4px;width:95vw;max-width:1100px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden">
+      <div style="padding:1rem 1.2rem;border-bottom:1px solid var(--bdr);display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
+        <div>
+          <h2 style="font-size:1.1rem;margin:0">Editar Produtos — ${allProds.length} produto(s)</h2>
+          <div style="font-size:.75rem;color:var(--mut);margin-top:.3rem">Edite cada produto individualmente. Alteracoes sao salvas ao clicar em "Salvar Tudo".</div>
+        </div>
+        <div style="display:flex;gap:.6rem">
+          <button class="btn btn-outline btn-sm" onclick="document.getElementById('bulk-edit-overlay').classList.add('hidden')">Cancelar</button>
+          <button class="btn btn-green btn-sm" onclick="aplicarEditarMassaProdutos()">Salvar Tudo</button>
+        </div>
       </div>
-      <div style="margin-top:1.5rem;display:flex;justify-content:flex-end;gap:.8rem">
-        <button class="btn btn-outline" onclick="document.getElementById('bulk-edit-overlay').classList.add('hidden')">Cancelar</button>
-        <button class="btn btn-green" onclick="aplicarEditarMassaProdutos()">Aplicar</button>
+      <div style="overflow:auto;flex:1;padding:0 .5rem .5rem">
+        <table style="width:100%;border-collapse:collapse;font-size:.82rem">
+          <thead style="position:sticky;top:0;z-index:2;background:var(--bg)">
+            <tr style="border-bottom:1px solid var(--bdr)">
+              <th style="text-align:left;padding:.6rem .4rem;font-size:.72rem;color:var(--mut);font-weight:700">Produto</th>
+              <th style="text-align:left;padding:.6rem .4rem;font-size:.72rem;color:var(--mut);font-weight:700">Unid.</th>
+              <th style="text-align:left;padding:.6rem .4rem;font-size:.72rem;color:var(--mut);font-weight:700">SKU</th>
+              <th style="text-align:left;padding:.6rem .4rem;font-size:.72rem;color:var(--mut);font-weight:700">NCM</th>
+              <th style="text-align:left;padding:.6rem .4rem;font-size:.72rem;color:var(--mut);font-weight:700">Categoria</th>
+              <th style="text-align:left;padding:.6rem .4rem;font-size:.72rem;color:var(--mut);font-weight:700">Origem</th>
+            </tr>
+          </thead>
+          <tbody id="bulk-edit-tbody">${rows}</tbody>
+        </table>
       </div>
     </div>`;
 }
 
 function aplicarEditarMassaProdutos() {
-  const ids = getSelectedProdutoIds();
-  const unidade = document.getElementById("bulk-unidade")?.value || "";
-  const ncm = document.getElementById("bulk-ncm")?.value?.trim() || "";
-  const categoria = document.getElementById("bulk-categoria")?.value || "";
-  const origem = document.getElementById("bulk-origem")?.value;
+  const trs = document.querySelectorAll("#bulk-edit-tbody tr[data-pid]");
   let alterados = 0;
-  estoqueIntelProdutos.forEach(p => {
-    if (!ids.includes(p.id)) return;
-    if (unidade) p.unidade_base = unidade;
-    if (ncm) p.ncm = ncm;
-    if (categoria) p.categoria = categoria;
-    if (origem !== undefined && origem !== "") p.origem = origem;
-    alterados++;
+  trs.forEach(tr => {
+    const pid = tr.getAttribute("data-pid");
+    const p = estoqueIntelProdutos.find(x => x.id === pid);
+    if (!p) return;
+    const newUnit = tr.querySelector(".bk-unit")?.value || p.unidade_base;
+    const newSku = tr.querySelector(".bk-sku")?.value?.trim() ?? p.sku;
+    const newNcm = tr.querySelector(".bk-ncm")?.value?.trim() ?? p.ncm;
+    const newCat = tr.querySelector(".bk-cat")?.value ?? p.categoria;
+    const newOri = tr.querySelector(".bk-ori")?.value ?? p.origem;
+    if (newUnit !== p.unidade_base || newSku !== (p.sku || "") || newNcm !== (p.ncm || "") || newCat !== (p.categoria || "") || String(newOri) !== String(p.origem || "0")) {
+      p.unidade_base = newUnit;
+      p.sku = newSku;
+      p.ncm = newNcm;
+      p.categoria = newCat;
+      p.origem = newOri;
+      alterados++;
+    }
   });
   saveEstoqueIntelProdutos();
   document.getElementById("bulk-edit-overlay").classList.add("hidden");
   desmarcarTodosProdutos();
   renderEstoque();
-  showToast(alterados + " produto(s) atualizado(s) em massa.", 4000);
+  showToast(alterados + " produto(s) atualizado(s).", 4000);
 }

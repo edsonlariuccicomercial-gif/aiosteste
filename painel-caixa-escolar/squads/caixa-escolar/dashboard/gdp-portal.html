@@ -1533,19 +1533,43 @@ function switchEscolaTab(tab) {
 
 function renderSaldo() {
   if (!currentUser) return;
-  const used = currentUser.saldo_total - currentUser.saldo_disponivel;
-  document.getElementById('saldo-total-ata').textContent = 'R$ ' + fmt(currentUser.saldo_total);
-  document.getElementById('saldo-utilizado').textContent = 'R$ ' + fmt(used);
-  document.getElementById('saldo-disponivel').textContent = 'R$ ' + fmt(currentUser.saldo_disponivel);
-
-  document.getElementById('saldo-tbody').innerHTML = schoolProducts.map((p, i) => {
-    const qtdContr = p.qtdContratada || 0;
-    const qtdEntr = p.qtdEntregue || 0;
-    const qtdDisp = p.qtdDisponivel || (qtdContr - qtdEntr);
-    const valorContr = p.preco * qtdContr;
-    return '<tr><td>' + (i+1) + '</td><td>' + p.produto + '</td><td>R$ ' + p.preco.toFixed(2).replace('.',',') +
-      '</td><td>' + qtdContr + '</td><td>' + qtdEntr + '</td><td style="font-weight:700;color:' + (qtdDisp > 0 ? 'var(--success)' : 'var(--danger)') + '">' + qtdDisp + '</td></tr>';
-  }).join('');
+  // Re-read contract from localStorage to get updated qtdEntregue (same pattern as renderMeusPedidos)
+  let _freshCtr = selectedContract ? selectedContract.contrato : null;
+  if (_freshCtr) {
+    try {
+      const _freshAll = unwrapData(JSON.parse(localStorage.getItem('gdp.contratos.v1') || '{}'));
+      _freshCtr = _freshAll.find(c => c.id === _freshCtr.id) || _freshCtr;
+    } catch(_) {}
+  }
+  if (_freshCtr && _freshCtr.itens && _freshCtr.itens.length) {
+    const valorContrato = _freshCtr.itens.reduce((s, it) => s + ((it.precoUnitario || 0) * (it.qtdContratada || 0)), 0);
+    const totalEntregue = _freshCtr.itens.reduce((s, it) => s + ((it.precoUnitario || 0) * (it.qtdEntregue || 0)), 0);
+    const saldoDisp = Math.max(0, Math.round((valorContrato - totalEntregue) * 100) / 100);
+    document.getElementById('saldo-total-ata').textContent = 'R$ ' + fmt(valorContrato);
+    document.getElementById('saldo-utilizado').textContent = 'R$ ' + fmt(totalEntregue);
+    document.getElementById('saldo-disponivel').textContent = 'R$ ' + fmt(saldoDisp);
+    document.getElementById('saldo-tbody').innerHTML = _freshCtr.itens.map((it, i) => {
+      const qtdContr = it.qtdContratada || 0;
+      const qtdEntr = it.qtdEntregue || 0;
+      const qtdDisp = qtdContr - qtdEntr;
+      const preco = it.precoUnitario || 0;
+      return '<tr><td>' + (i+1) + '</td><td>' + (it.descricao || '-') + '</td><td>R$ ' + preco.toFixed(2).replace('.',',') +
+        '</td><td>' + qtdContr + '</td><td>' + qtdEntr + '</td><td style="font-weight:700;color:' + (qtdDisp > 0 ? 'var(--success)' : 'var(--danger)') + '">' + qtdDisp + '</td></tr>';
+    }).join('');
+  } else {
+    // Fallback to currentUser data (ARP or legacy)
+    const used = currentUser.saldo_total - currentUser.saldo_disponivel;
+    document.getElementById('saldo-total-ata').textContent = 'R$ ' + fmt(currentUser.saldo_total);
+    document.getElementById('saldo-utilizado').textContent = 'R$ ' + fmt(used);
+    document.getElementById('saldo-disponivel').textContent = 'R$ ' + fmt(currentUser.saldo_disponivel);
+    document.getElementById('saldo-tbody').innerHTML = schoolProducts.map((p, i) => {
+      const qtdContr = p.qtdContratada || 0;
+      const qtdEntr = p.qtdEntregue || 0;
+      const qtdDisp = p.qtdDisponivel || (qtdContr - qtdEntr);
+      return '<tr><td>' + (i+1) + '</td><td>' + p.produto + '</td><td>R$ ' + p.preco.toFixed(2).replace('.',',') +
+        '</td><td>' + qtdContr + '</td><td>' + qtdEntr + '</td><td style="font-weight:700;color:' + (qtdDisp > 0 ? 'var(--success)' : 'var(--danger)') + '">' + qtdDisp + '</td></tr>';
+    }).join('');
+  }
 }
 
 function renderMeusPedidos() {
