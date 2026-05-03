@@ -1874,7 +1874,6 @@ var _selectedNotaFiscalIds = new Set();
 var PEDIDO_STATUS_TABS = [
   { key: "em_aberto", label: "Em Aberto", className: "badge-yellow" },
   { key: "agendado", label: "Agendado", className: "badge-blue" },
-  { key: "comprando", label: "Comprando", className: "badge-blue" },
   { key: "separando", label: "Separando", className: "badge-blue" },
   { key: "preparando_envio", label: "Preparando Envio", className: "badge-yellow" },
   { key: "pronto_para_envio", label: "Pronto para Envio", className: "badge-blue" },
@@ -1933,7 +1932,8 @@ function normalizePedidoStatus(status) {
   if (normalized === "nao_entregue" || normalized === "devolvido") return "nao_entregue";
   // FR-009: novos status de execução
   if (normalized === "finalizado") return "entregue";
-  if (normalized === "separando" || normalized === "comprando") return normalized;
+  if (normalized === "comprando") return "separando";
+  if (normalized === "separando") return normalized;
   return normalized;
 }
 

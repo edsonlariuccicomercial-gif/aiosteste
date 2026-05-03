@@ -2849,6 +2849,15 @@ function toggleFormDemandaManual() {
 function adicionarEmbalagemNoProduto(produtoId) {
   const produto = findEstoqueIntelProduto(produtoId);
   if (!produto) return;
+  // Persistir tipo critico antes de reabrir (evita reset para comum)
+  const tipoEl = document.querySelector('input[name="edit-prod-tipo"]:checked');
+  if (tipoEl && tipoEl.value === "critico" && !produto.produto_critico) {
+    produto.produto_critico = true;
+    // Atualizar unidade base para gramatura se estava em unidade comum
+    const unidadeEl = document.getElementById("edit-prod-unidade");
+    if (unidadeEl) produto.unidade_base = unidadeEl.value;
+    saveEstoqueIntelProdutos();
+  }
   const newId = genId("EMB");
   estoqueIntelEmbalagens.push({ id: newId, produto_id: produtoId, descricao: "", codigo_barras: produto.sku || "", quantidade_base: 1, preco_referencia: 0 });
   saveEstoqueIntelEmbalagens();
