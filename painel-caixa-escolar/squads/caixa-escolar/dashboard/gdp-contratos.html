@@ -662,6 +662,12 @@
 
   <!-- Tab: Contas a Receber -->
   <div id="tab-contas-receber" class="hidden">
+    <div class="kpi-grid" style="margin-bottom:1rem">
+      <div class="kpi"><div class="kpi-label">Faturamento do Mes</div><div class="kpi-value blue" id="cr-kpi-mes">R$&nbsp;0,00</div><div class="kpi-sub">Total previsto no mes</div></div>
+      <div class="kpi"><div class="kpi-label">Recebido</div><div class="kpi-value green" id="cr-kpi-recebido">R$&nbsp;0,00</div><div class="kpi-sub">Recebimentos confirmados</div></div>
+      <div class="kpi"><div class="kpi-label">A Receber</div><div class="kpi-value yellow" id="cr-kpi-aberto">R$&nbsp;0,00</div><div class="kpi-sub">Titulos pendentes</div></div>
+      <div class="kpi"><div class="kpi-label">Em Atraso</div><div class="kpi-value red" id="cr-kpi-atrasadas">0</div><div class="kpi-sub">Contas vencidas</div></div>
+    </div>
     <!-- FR-009: Resumos de vencimento -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
       <div class="card" style="padding:1rem;border-left:4px solid var(--yellow);cursor:pointer" onclick="filtrarContasReceberVencendo('hoje')">
@@ -773,6 +779,12 @@
 
   <!-- Tab: Caixa -->
   <div id="tab-caixa" class="hidden">
+    <div class="kpi-grid" style="margin-bottom:1rem">
+      <div class="kpi"><div class="kpi-label">Saldo do Periodo</div><div class="kpi-value blue" id="caixa-kpi-saldo">R$&nbsp;0,00</div><div class="kpi-sub">Extrato conciliado</div></div>
+      <div class="kpi"><div class="kpi-label">Entradas</div><div class="kpi-value green" id="caixa-kpi-entradas">R$&nbsp;0,00</div><div class="kpi-sub">Creditos no extrato</div></div>
+      <div class="kpi"><div class="kpi-label">Saidas</div><div class="kpi-value red" id="caixa-kpi-saidas">R$&nbsp;0,00</div><div class="kpi-sub">Debitos no extrato</div></div>
+      <div class="kpi"><div class="kpi-label">Divergencias</div><div class="kpi-value yellow" id="caixa-kpi-divergencias">0</div><div class="kpi-sub">Lancamentos sem match</div></div>
+    </div>
     <div class="card" style="padding:1rem">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap">
         <div>
@@ -784,12 +796,6 @@
           <button class="btn btn-blue" onclick="conciliarCaixaViaApi()">Conciliar Extrato Completo</button>
         </div>
       </div>
-    </div>
-    <div class="kpi-grid" style="margin-bottom:1rem">
-      <div class="kpi"><div class="kpi-label">Saldo do Periodo</div><div class="kpi-value blue" id="caixa-kpi-saldo">R$&nbsp;0,00</div><div class="kpi-sub">Extrato conciliado</div></div>
-      <div class="kpi"><div class="kpi-label">Entradas</div><div class="kpi-value green" id="caixa-kpi-entradas">R$&nbsp;0,00</div><div class="kpi-sub">Creditos no extrato</div></div>
-      <div class="kpi"><div class="kpi-label">Saidas</div><div class="kpi-value red" id="caixa-kpi-saidas">R$&nbsp;0,00</div><div class="kpi-sub">Debitos no extrato</div></div>
-      <div class="kpi"><div class="kpi-label">Divergencias</div><div class="kpi-value yellow" id="caixa-kpi-divergencias">0</div><div class="kpi-sub">Lancamentos sem match</div></div>
     </div>
     <div style="display:grid;grid-template-columns:1.15fr .85fr;gap:1rem;align-items:start">
       <div class="card">

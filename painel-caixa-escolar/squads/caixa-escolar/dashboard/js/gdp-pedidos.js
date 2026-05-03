@@ -1577,6 +1577,12 @@ function renderContasReceber() {
   const totalRecebido = contasReceber.filter((item) => item.status === "recebida").reduce((sum, item) => sum + Number(item.valor || 0), 0);
   const pendentesConc = contasReceber.filter((item) => item.conciliacao?.status === "pendente_api_bancaria").length;
   const atrasadasCr = contasReceber.filter((item) => item.status !== "recebida" && item.vencimento && item.vencimento < hojeCr);
+  // KPI: Faturamento do Mês (todas as contas do mês atual)
+  const _mesAtual = hojeCr.slice(0, 7);
+  const totalMes = contasReceber.filter(c => (c.vencimento || '').startsWith(_mesAtual)).reduce((s, c) => s + Number(c.valor || 0), 0);
+  const mesEl = document.getElementById("cr-kpi-mes");
+  if (mesEl) mesEl.textContent = brl.format(totalMes);
+
   const abertoEl = document.getElementById("cr-kpi-aberto");
   const recebidoEl = document.getElementById("cr-kpi-recebido");
   const concEl = document.getElementById("cr-kpi-conciliacao");
