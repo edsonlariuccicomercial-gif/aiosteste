@@ -458,19 +458,14 @@ function getDefaultContaFormas() { return ["boleto", "pix", "ted"]; }
 function getDefaultEstoqueIntelSeed() {
   return {
     produtos: [
-      { id: "PROD-ARROZ", nome: "Arroz", unidade_base: "g", produto_critico: true },
+      { id: "PROD-ARROZ", nome: "Arroz", unidade_base: "UN", produto_critico: false },
       { id: "PROD-BOLACHA", nome: "Bolacha agua e sal", unidade_base: "g", produto_critico: true },
-      { id: "PROD-SUCO", nome: "Suco integral", unidade_base: "ml", produto_critico: true }
+      { id: "PROD-SUCO", nome: "Suco integral", unidade_base: "UN", produto_critico: false }
     ],
-    embalagens: [
-      { id: "EMB-ARROZ-300", produto_id: "PROD-ARROZ", descricao: "Pacote 300g", codigo_barras: "7890000003001", quantidade_base: 300, preco_referencia: 7.8 },
-      { id: "EMB-ARROZ-350", produto_id: "PROD-ARROZ", descricao: "Pacote 350g", codigo_barras: "7890000003506", quantidade_base: 350, preco_referencia: 8.9 },
-      { id: "EMB-ARROZ-360", produto_id: "PROD-ARROZ", descricao: "Pacote 360g", codigo_barras: "7890000003605", quantidade_base: 360, preco_referencia: 9.1 },
-      { id: "EMB-SUCO-1000", produto_id: "PROD-SUCO", descricao: "Garrafa 1000ml", codigo_barras: "7890000010009", quantidade_base: 1000, preco_referencia: 6.2 }
-    ],
+    embalagens: [],
     fornecedores: [
-      { id: "FORN-001", nome: "Fornecedor Alfa", documento: "12345678000190", contato: "compras@alfa.com", status: "ativo", embalagens: [{ embalagem_id: "EMB-ARROZ-350", preco_unitario: 8.9 }, { embalagem_id: "EMB-ARROZ-360", preco_unitario: 9.1 }] },
-      { id: "FORN-002", nome: "Distribuidora Beta", documento: "98765432000155", contato: "vendas@beta.com", status: "ativo", embalagens: [{ embalagem_id: "EMB-ARROZ-300", preco_unitario: 7.8 }, { embalagem_id: "EMB-SUCO-1000", preco_unitario: 6.2 }] }
+      { id: "FORN-001", nome: "Fornecedor Alfa", documento: "12345678000190", contato: "compras@alfa.com", status: "ativo", embalagens: [] },
+      { id: "FORN-002", nome: "Distribuidora Beta", documento: "98765432000155", contato: "vendas@beta.com", status: "ativo", embalagens: [] }
     ],
     pedidos: [],
     pedidoItens: [],
@@ -1353,7 +1348,8 @@ function renderContasReceber() {}
 // FR-009: Resumos de vencimento para Contas a Receber
 function atualizarResumosVencimento() {
   const hoje = new Date().toISOString().slice(0, 10);
-  const cr = JSON.parse(localStorage.getItem("gdp.contas-receber.v1") || "[]");
+  const _crRaw = JSON.parse(localStorage.getItem("gdp.contas-receber.v1") || "[]");
+  const cr = Array.isArray(_crRaw) ? _crRaw : (_crRaw && _crRaw.items ? _crRaw.items : []);
   const vencendoHoje = cr.filter(c => c.vencimento === hoje && c.status !== "recebido");
   const vencidas = cr.filter(c => c.vencimento < hoje && c.status !== "recebido");
   const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
@@ -1366,7 +1362,8 @@ function atualizarResumosVencimento() {
 
 function filtrarContasReceberVencendo(tipo) {
   const hoje = new Date().toISOString().slice(0, 10);
-  const cr = JSON.parse(localStorage.getItem("gdp.contas-receber.v1") || "[]");
+  const _crRaw2 = JSON.parse(localStorage.getItem("gdp.contas-receber.v1") || "[]");
+  const cr = Array.isArray(_crRaw2) ? _crRaw2 : (_crRaw2 && _crRaw2.items ? _crRaw2.items : []);
   const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
   const lista = tipo === "hoje"
     ? cr.filter(c => c.vencimento === hoje && c.status !== "recebido")

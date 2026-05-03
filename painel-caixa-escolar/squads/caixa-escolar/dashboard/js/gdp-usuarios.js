@@ -78,8 +78,10 @@ function atualizarSelecaoClientes() {
     selectAll.checked = all.length > 0 && selected.length === all.length;
     selectAll.indeterminate = selected.length > 0 && selected.length < all.length;
   }
-  if (summary) summary.textContent = `${selected.length} cadastro(s) selecionado(s)`;
+  if (summary) summary.textContent = `${selected.length} cadastro(s)`;
   if (bulk) bulk.classList.toggle("hidden", selected.length === 0);
+  const qtdEl = document.getElementById("clientes-bulk-qtd");
+  if (qtdEl) qtdEl.textContent = String(selected.length).padStart(2, '0');
 }
 
 function excluirClientesSelecionados() {

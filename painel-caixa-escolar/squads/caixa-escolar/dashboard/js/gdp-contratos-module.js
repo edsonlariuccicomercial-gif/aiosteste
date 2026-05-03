@@ -2757,17 +2757,26 @@ function abrirContrato(id) {
 
   _contratoAbertoId = null;
 
+  // Recalcular qtdEntregue dos itens com base nos pedidos reais (garante dados atualizados do portal)
+  const _pedidosCtr = pedidos.filter(p => p.contratoId === c.id && p.status !== 'cancelado');
+  c.itens.forEach(item => { item.qtdEntregue = 0; });
+  _pedidosCtr.forEach(p => {
+    (p.itens || []).forEach(pi => {
+      const normDesc = (pi.descricao || '').toUpperCase().trim();
+      const item = c.itens.find(ci => ci.num === pi.itemNum || (ci.descricao || '').toUpperCase().trim() === normDesc);
+      if (item) item.qtdEntregue += (pi.qtd || 0);
+    });
+  });
+  c.itens.forEach(item => { if (item.qtdEntregue > item.qtdContratada) item.qtdEntregue = item.qtdContratada; });
+
   const totalContratado = (parseFloat(c.valorTotal) || 0) > 0 ? parseFloat(c.valorTotal) : (Array.isArray(c.itens) ? c.itens : []).reduce((s, i) => s + (parseFloat(i.precoUnitario) || 0) * (parseFloat(i.qtdContratada || i.quantidade) || 0), 0);
   const totalEntregue = c.itens.reduce((s, i) => s + (i.precoUnitario || 0) * (i.qtdEntregue || 0), 0);
-  const _pedPendentes = pedidos.filter(p => p.contratoId === c.id && p.status !== 'entregue' && p.status !== 'cancelado');
-  const totalPendente = _pedPendentes.reduce((s, p) => s + (p.itens || []).reduce((si, pi) => si + (parseFloat(pi.precoUnitario) || 0) * (parseFloat(pi.qtd || pi.quantidade) || 0), 0), 0);
-  const totalSaldo = totalContratado - totalEntregue - totalPendente;
+  const totalSaldo = totalContratado - totalEntregue;
 
   let html = `
-    <div style="display:grid;grid-template-columns:repeat(4, 1fr);gap:1rem;margin-bottom:1.5rem">
+    <div style="display:grid;grid-template-columns:repeat(3, 1fr);gap:1rem;margin-bottom:1.5rem">
       <div class="kpi" style="margin:0"><div class="kpi-label">Contratado</div><div class="kpi-value green" style="font-size:1.3rem">${brl.format(totalContratado)}</div></div>
       <div class="kpi" style="margin:0"><div class="kpi-label">Entregue</div><div class="kpi-value blue" style="font-size:1.3rem">${brl.format(totalEntregue)}</div></div>
-      <div class="kpi" style="margin:0"><div class="kpi-label">Pendente</div><div class="kpi-value" style="font-size:1.3rem;color:var(--orange,#f59e0b)">${brl.format(totalPendente)}</div></div>
       <div class="kpi" style="margin:0"><div class="kpi-label">Saldo</div><div class="kpi-value yellow" style="font-size:1.3rem">${brl.format(totalSaldo)}</div></div>
     </div>
     <div style="background:var(--bg);border-radius:4px;padding:1rem;margin-bottom:1.5rem">

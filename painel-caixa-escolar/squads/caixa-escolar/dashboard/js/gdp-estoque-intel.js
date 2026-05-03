@@ -2546,10 +2546,20 @@ function getSelectedProdutoIds() {
 
 function atualizarSelecaoProdutos() {
   const ids = getSelectedProdutoIds();
+  // Hide old inline toolbar — actions moved to page footer
   const toolbar = document.getElementById("ei-produtos-bulk-toolbar");
-  const countEl = document.getElementById("ei-produtos-sel-count");
-  if (toolbar) toolbar.style.display = ids.length > 0 ? "flex" : "none";
-  if (countEl) countEl.textContent = ids.length + " selecionado" + (ids.length !== 1 ? "s" : "");
+  if (toolbar) toolbar.style.display = "none";
+  // Page footer
+  const footer = document.getElementById("produtos-page-footer");
+  const summary = document.getElementById("produtos-bulk-summary");
+  if (footer) footer.classList.toggle("has-selection", ids.length > 0);
+  if (summary) summary.textContent = ids.length + " produto(s)";
+  if (ids.length > 0) {
+    const qtdEl = document.getElementById("produtos-footer-qtd");
+    if (qtdEl) qtdEl.textContent = String(ids.length).padStart(2, '0');
+  } else {
+    if (typeof _updateProdutosFooterTotals === "function") _updateProdutosFooterTotals();
+  }
 }
 
 function clonarProdutoSelecionado() {

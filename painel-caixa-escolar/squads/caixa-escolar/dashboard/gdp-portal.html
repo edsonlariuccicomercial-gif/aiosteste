@@ -1318,7 +1318,7 @@ async function confirmOrder() {
   let olistStatus = "Pedido registrado apenas no GDP";
   let olistId = "";
 
-  // Update saldo
+  // Update saldo — persist to localStorage + Supabase
   currentUser.saldo_disponivel -= total;
   const pct = ((currentUser.saldo_disponivel / currentUser.saldo_total) * 100).toFixed(0);
   // AC12: Only update topbar saldo if visible
@@ -1326,6 +1326,30 @@ async function confirmOrder() {
   if (_topbarSaldo && _topbarSaldo.style.display !== 'none') {
     _topbarSaldo.textContent = `Saldo: R$ ${fmt(currentUser.saldo_disponivel)} (${pct}%)`;
   }
+
+  // Persist saldo in gdp.usuarios.v1 (localStorage) + Supabase clientes table
+  try {
+    const _usuarios = JSON.parse(localStorage.getItem('gdp.usuarios.v1') || '[]');
+    const _usr = _usuarios.find(u => (u.login || '').toLowerCase() === (currentUser.login || '').toLowerCase());
+    if (_usr) {
+      _usr.saldo_disponivel = currentUser.saldo_disponivel;
+      _usr.updated_at = new Date().toISOString();
+      localStorage.setItem('gdp.usuarios.v1', JSON.stringify(_usuarios));
+      // Sync to Supabase clientes table
+      if (_usr.id) {
+        fetch(`${SUPABASE_URL}/rest/v1/clientes?id=eq.${encodeURIComponent(_usr.id)}`, {
+          method: 'PATCH',
+          headers: {
+            'apikey': SUPABASE_KEY,
+            'Authorization': 'Bearer ' + SUPABASE_KEY,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=minimal'
+          },
+          body: JSON.stringify({ saldo_disponivel: currentUser.saldo_disponivel, updated_at: new Date().toISOString() })
+        }).catch(() => {});
+      }
+    }
+  } catch(_) {}
 
   // Show confirmation
   document.getElementById('confirm-protocol').textContent = proto;
@@ -1420,12 +1444,31 @@ async function confirmOrder() {
     body: JSON.stringify({ pedido: pedidoSync })
   }).catch(() => {});
 
-  // Tambem salvar no localStorage de pedidos (formato entregador)
+  // Upsert direto na tabela pedidos do Supabase (fonte primária do gdpApi)
   try {
-    const pedidosLocal = unwrapData(JSON.parse(localStorage.getItem('gdp.pedidos.v1') || '{}'));
+    const _empRaw = JSON.parse(localStorage.getItem('nexedu.empresa') || '{}');
+    const _empresaId = _empRaw.syncUserId || _empRaw.nomeFantasia || _empRaw.nome || _empRaw.cnpj || 'LARIUCCI';
+    const _pedRow = { ...pedidoSync, empresa_id: _empresaId, updated_at: new Date().toISOString() };
+    fetch(`${SUPABASE_URL}/rest/v1/pedidos?on_conflict=id`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': 'Bearer ' + SUPABASE_KEY,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal,resolution=merge-duplicates'
+      },
+      body: JSON.stringify(_pedRow)
+    }).catch(() => {});
+  } catch(_) {}
+
+  // Tambem salvar no localStorage de pedidos (formato entregador) — usar wrapper {_v, items} para compatibilidade com dashboard
+  try {
+    const _pedRaw = JSON.parse(localStorage.getItem('gdp.pedidos.v1') || '{}');
+    const pedidosLocal = unwrapData(_pedRaw);
     if (!pedidosLocal.find(p => p.id === proto)) {
       pedidosLocal.push(pedidoSync);
-      localStorage.setItem('gdp.pedidos.v1', JSON.stringify(pedidosLocal));
+      const wrapped = { _v: 1, updatedAt: new Date().toISOString(), items: pedidosLocal };
+      localStorage.setItem('gdp.pedidos.v1', JSON.stringify(wrapped));
       schedulCloudSync();
     }
   } catch(_) {}
@@ -1648,13 +1691,21 @@ function excluirPedidoPortal(protocol) {
   escolaOrders = escolaOrders.filter(o => o.protocol !== protocol);
   localStorage.setItem('gdp.escola.pedidos', JSON.stringify(escolaOrders));
 
-  // Also remove from gdp.pedidos.v1 (supplier-originated)
+  // Also remove from gdp.pedidos.v1 (supplier-originated) — keep wrapper format
   try {
     let pv1 = unwrapData(JSON.parse(localStorage.getItem('gdp.pedidos.v1') || '{}'));
     pv1 = pv1.filter(p => p.id !== protocol);
-    localStorage.setItem('gdp.pedidos.v1', JSON.stringify(pv1));
+    const wrapped = { _v: 1, updatedAt: new Date().toISOString(), items: pv1 };
+    localStorage.setItem('gdp.pedidos.v1', JSON.stringify(wrapped));
   } catch(_) {}
 
+  // Delete from Supabase pedidos table (prevents reappearing on next sync)
+  fetch(`${SUPABASE_URL}/rest/v1/pedidos?id=eq.${encodeURIComponent(protocol)}`, {
+    method: 'DELETE',
+    headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY }
+  }).catch(() => {});
+
+  schedulCloudSync();
   renderMeusPedidos();
 }
 
@@ -1816,14 +1867,15 @@ function salvarEdicaoPedido(protocol) {
   order.itemCount = newItems.length;
   localStorage.setItem('gdp.escola.pedidos', JSON.stringify(escolaOrders));
 
-  // Update pedidos.v1 too
+  // Update pedidos.v1 too — keep wrapper format
   try {
     const pedidosLocal = unwrapData(JSON.parse(localStorage.getItem('gdp.pedidos.v1') || '{}'));
     const pedSync = pedidosLocal.find(p => p.id === protocol);
     if (pedSync) {
       pedSync.itens = newItems.map(i => ({ itemNum: i.itemNum, descricao: i.name, qtd: i.qty, precoUnitario: i.unitPrice }));
       pedSync.valor = newTotal;
-      localStorage.setItem('gdp.pedidos.v1', JSON.stringify(pedidosLocal));
+      const wrapped = { _v: 1, updatedAt: new Date().toISOString(), items: pedidosLocal };
+      localStorage.setItem('gdp.pedidos.v1', JSON.stringify(wrapped));
     }
   } catch(_) {}
 
@@ -1844,12 +1896,19 @@ function excluirPedido(protocol) {
   escolaOrders = escolaOrders.filter(o => o.protocol !== protocol);
   localStorage.setItem('gdp.escola.pedidos', JSON.stringify(escolaOrders));
 
-  // Remove from pedidos.v1 too
+  // Remove from pedidos.v1 too (keep wrapper format)
   try {
     const pedidosLocal = unwrapData(JSON.parse(localStorage.getItem('gdp.pedidos.v1') || '{}'));
     const filtered = pedidosLocal.filter(p => p.id !== protocol);
-    localStorage.setItem('gdp.pedidos.v1', JSON.stringify(filtered));
+    const wrapped = { _v: 1, updatedAt: new Date().toISOString(), items: filtered };
+    localStorage.setItem('gdp.pedidos.v1', JSON.stringify(wrapped));
   } catch(_) {}
+
+  // Delete from Supabase pedidos table (prevents reappearing on next sync)
+  fetch(`${SUPABASE_URL}/rest/v1/pedidos?id=eq.${encodeURIComponent(protocol)}`, {
+    method: 'DELETE',
+    headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY }
+  }).catch(() => {});
 
   // Recalculate saldo
   try {

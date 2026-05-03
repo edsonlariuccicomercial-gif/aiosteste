@@ -117,7 +117,7 @@ function renderBancoProdutos() {
     const margemClass = (p.custoBase && p.precoReferencia) ? (((p.precoReferencia - p.custoBase) / p.custoBase) >= 0.2 ? 'text-accent' : ((p.precoReferencia - p.custoBase) / p.custoBase) >= 0.1 ? '' : 'text-danger') : '';
     const grupo = p.grupo ? `<span class="badge badge-muted" style="font-size:.65rem">${esc(p.grupo)}</span>` : '';
     return `<tr>
-    <td class="text-center"><input type="checkbox" class="banco-prod-chk" value="${p.id}"></td>
+    <td class="text-center"><input type="checkbox" class="banco-prod-chk" value="${p.id}" onchange="atualizarSelecaoBancoProd()"></td>
     <td class="text-center">${idx + 1}</td>
     <td>${esc(p.descricao)} ${grupo}</td>
     <td class="font-mono">${esc(p.sku || '-')}</td>
@@ -132,6 +132,27 @@ function renderBancoProdutos() {
 
 function toggleSelectAllBancoProd(checked) {
   document.querySelectorAll('.banco-prod-chk').forEach(cb => cb.checked = checked);
+  atualizarSelecaoBancoProd();
+}
+
+function atualizarSelecaoBancoProd() {
+  const all = [...document.querySelectorAll('.banco-prod-chk')];
+  const selected = all.filter(cb => cb.checked);
+  const footer = document.getElementById("produtos-page-footer");
+  const summary = document.getElementById("produtos-bulk-summary");
+  if (footer) footer.classList.toggle("has-selection", selected.length > 0);
+  if (summary) summary.textContent = `${selected.length} produto(s)`;
+  const qtdEl = document.getElementById("produtos-footer-qtd");
+  if (selected.length > 0) {
+    if (qtdEl) qtdEl.textContent = String(selected.length).padStart(2, '0');
+  } else {
+    if (typeof _updateProdutosFooterTotals === "function") _updateProdutosFooterTotals();
+  }
+  const selectAll = document.getElementById("banco-prod-select-all");
+  if (selectAll) {
+    selectAll.checked = all.length > 0 && selected.length === all.length;
+    selectAll.indeterminate = selected.length > 0 && selected.length < all.length;
+  }
 }
 
 function editarProdutoSelecionado() {

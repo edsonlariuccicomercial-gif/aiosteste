@@ -9,6 +9,15 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script>if(window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
   <style>
+    /* Page footer bar — fixed at bottom, respects sidebar */
+    .page-footer{position:fixed;bottom:0;left:220px;right:0;z-index:90;background:var(--s1,#1e293b);border-top:1px solid var(--bdr,#475569);padding:.55rem 2rem;display:flex;align-items:center;justify-content:flex-end;gap:1rem;box-shadow:0 -2px 12px rgba(0,0,0,.25)}
+    .page-footer .footer-actions{display:none;align-items:center;gap:.5rem;flex-wrap:wrap;flex:1}
+    .page-footer.has-selection .footer-actions{display:flex}
+    .page-footer .footer-stats{display:flex;align-items:center;gap:1.5rem}
+    .page-footer .footer-stat{text-align:right}
+    .page-footer .footer-stat-value{font-size:1.05rem;font-weight:800;color:var(--txt,#f1f5f9);line-height:1.2}
+    .page-footer .footer-stat-label{font-size:.62rem;text-transform:uppercase;letter-spacing:.04em;color:var(--dim,#64748b)}
+    @media(max-width:768px){.page-footer{left:0}}
     :root {
       --bg:#0f172a;--s1:#1e293b;--s2:#334155;--s3:#475569;--bdr:#475569;
       --txt:#f1f5f9;--mut:#94a3b8;--dim:#64748b;
@@ -522,20 +531,6 @@
       </table>
     </div>
     <div class="empty" id="pedidos-empty"><h3>Nenhum pedido registrado</h3><p>Os pedidos das escolas aparecerao aqui quando forem recebidos.</p></div>
-    <div id="pedidos-bulk-actions" class="hidden" style="position:sticky;bottom:0;z-index:4;margin-top:1rem;padding:.9rem 1rem;border:1px solid var(--bdr);border-radius:4px;background:var(--s2);display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap">
-      <div id="pedidos-bulk-summary" style="font-size:.82rem;font-weight:700;color:var(--mut)">0 pedido(s) selecionado(s)</div>
-      <div style="display:flex;gap:.5rem;flex-wrap:wrap">
-        <button class="btn btn-sm" style="background:rgba(34,197,94,.15);color:var(--green);border:none;font-weight:700" onclick="executarAcaoPedidosSelecionados('separar')">Separar Estoque</button>
-        <button class="btn btn-sm" style="background:rgba(59,130,246,.15);color:var(--blue);border:none;font-weight:700" onclick="executarAcaoPedidosSelecionados('compra')">Compra Direta</button>
-        <button class="btn btn-sm" style="background:rgba(139,92,246,.15);color:#a855f7;border:none;font-weight:700" onclick="executarAcaoPedidosSelecionados('finalizar')">Finalizar</button>
-        <button class="btn btn-sm" style="background:rgba(239,68,68,.15);color:var(--red);border:none;font-weight:700" onclick="cancelarPedidosSelecionados()">Cancelar</button>
-        <button class="btn btn-outline" onclick="alterarSituacaoSelecionados()">Alterar Situacao</button>
-        <button class="btn btn-outline" onclick="gerarRelatorioDemandaSelecionados()">📋 Rel. Demanda</button>
-        <button class="btn btn-green" onclick="gerarNFSelecionados()">Gerar Notas Fiscais</button>
-        <button class="btn btn-blue" onclick="imprimirPedidosSelecionados()">Imprimir</button>
-        <button class="btn btn-red" onclick="excluirPedidosSelecionados()">Excluir</button>
-      </div>
-    </div>
     <!-- Modal: Alterar Situacao em Lote -->
     <div id="modal-alterar-situacao-bulk" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1000;display:flex;align-items:center;justify-content:center" onclick="if(event.target===this)fecharModalSituacaoBulk()">
       <div style="background:var(--card,#1e293b);border:1px solid var(--bdr);border-radius:16px;padding:1.2rem 1.5rem;max-width:90vw">
@@ -583,13 +578,6 @@
       </table>
     </div>
     <div class="empty" id="notas-fiscais-empty"><h3>Nenhuma nota fiscal gerada</h3><p>Gere a nota fiscal diretamente a partir do pedido.</p></div>
-    <div id="notas-fiscais-bulk-actions" class="hidden" style="position:sticky;bottom:0;z-index:4;margin-top:1rem;padding:.9rem 1rem;border:1px solid var(--bdr);border-radius:4px;background:var(--s2);display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap">
-      <div id="notas-fiscais-bulk-summary" style="font-size:.82rem;font-weight:700;color:var(--mut)">0 nota(s) selecionada(s)</div>
-      <div style="display:flex;gap:.6rem;flex-wrap:wrap">
-        <button class="btn btn-outline" onclick="imprimirDanfesSelecionadas()">Imprimir DANFEs</button>
-        <button class="btn btn-red" onclick="excluirNotasSelecionadas()">Excluir Notas</button>
-      </div>
-    </div>
   </div>
 
   <div id="modal-nota-fiscal" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1001;display:flex;align-items:flex-start;justify-content:center;padding:1rem;overflow-y:auto">
@@ -635,11 +623,6 @@
       </div>
     </div>
     <div id="contas-pagar-status-tabs" style="display:flex;gap:.6rem;flex-wrap:wrap;margin-bottom:1rem"></div>
-    <div id="cp-bulk-actions" class="hidden" style="display:flex;align-items:center;gap:.8rem;padding:.6rem 1rem;background:var(--bg-alt,#1a2236);border:1px solid var(--bdr);border-radius:10px;margin-bottom:.8rem">
-      <span id="cp-bulk-count" style="font-size:.82rem;color:var(--mut)">0 conta(s) selecionada(s)</span>
-      <button class="btn btn-sm btn-green" onclick="bulkBaixarContasPagar()">Pagar (Baixar)</button>
-      <button class="btn btn-sm btn-red" onclick="bulkExcluirContasPagar()">Excluir</button>
-    </div>
     <div class="table-wrap" style="max-height:600px;overflow-y:auto">
       <table>
         <thead>
@@ -750,12 +733,6 @@
       </div>
     </div>
     <div id="contas-receber-status-tabs" style="display:flex;gap:.6rem;flex-wrap:wrap;margin-bottom:1rem"></div>
-    <div id="cr-bulk-actions" class="hidden" style="display:flex;align-items:center;gap:.8rem;padding:.6rem 1rem;background:var(--bg-alt,#1a2236);border:1px solid var(--bdr);border-radius:10px;margin-bottom:.8rem">
-      <span id="cr-bulk-count" style="font-size:.82rem;color:var(--mut)">0 conta(s) selecionada(s)</span>
-      <button class="btn btn-sm btn-green" onclick="bulkReceberContas()">Receber</button>
-      <button class="btn btn-sm btn-outline" onclick="bulkImprimirBoletos()">Imprimir Boletos</button>
-      <button class="btn btn-sm btn-red" onclick="bulkExcluirContasReceber()">Excluir</button>
-    </div>
     <div class="table-wrap" style="max-height:600px;overflow-y:auto">
       <table>
         <thead>
@@ -1190,10 +1167,6 @@
       </table>
     </div>
     <div class="empty hidden" id="usuarios-empty"><h3>Nenhum cliente cadastrado</h3><p>Cadastre clientes para que eles possam acessar o Portal.</p></div>
-    <div id="clientes-bulk-actions" class="hidden" style="position:sticky;bottom:0;z-index:4;margin-top:1rem;padding:.9rem 1rem;border:1px solid var(--bdr);border-radius:4px;background:var(--s2);display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap">
-      <div id="clientes-bulk-summary" style="font-size:.82rem;font-weight:700;color:var(--mut)">0 cadastro(s) selecionado(s)</div>
-      <button class="btn btn-red" onclick="excluirClientesSelecionados()">Excluir Cadastro</button>
-    </div>
     </div><!-- /clientes-listagem -->
   </div>
 
@@ -1622,4 +1595,79 @@
 
 
 
+<!-- Page footers — outside all tabs so position:fixed works regardless of parent visibility -->
+<div id="pedidos-page-footer" class="page-footer" style="display:none">
+  <div class="footer-actions" id="pedidos-bulk-actions">
+    <span id="pedidos-bulk-summary" style="font-size:.82rem;font-weight:700;color:var(--mut)">0 pedido(s)</span>
+    <button class="btn btn-sm" style="background:rgba(34,197,94,.15);color:var(--green);border:none;font-weight:700" onclick="executarAcaoPedidosSelecionados('separar')">Separar</button>
+    <button class="btn btn-sm" style="background:rgba(59,130,246,.15);color:var(--blue);border:none;font-weight:700" onclick="executarAcaoPedidosSelecionados('compra')">Compra Direta</button>
+    <button class="btn btn-sm" style="background:rgba(139,92,246,.15);color:#a855f7;border:none;font-weight:700" onclick="executarAcaoPedidosSelecionados('finalizar')">Finalizar</button>
+    <button class="btn btn-sm" style="background:rgba(239,68,68,.15);color:var(--red);border:none;font-weight:700" onclick="cancelarPedidosSelecionados()">Cancelar</button>
+    <button class="btn btn-outline btn-sm" onclick="alterarSituacaoSelecionados()">Alterar Situacao</button>
+    <button class="btn btn-outline btn-sm" onclick="gerarRelatorioDemandaSelecionados()">Rel. Demanda</button>
+    <button class="btn btn-green btn-sm" onclick="gerarNFSelecionados()">Gerar NF</button>
+    <button class="btn btn-blue btn-sm" onclick="imprimirPedidosSelecionados()">Imprimir</button>
+    <button class="btn btn-red btn-sm" onclick="excluirPedidosSelecionados()">Excluir</button>
+  </div>
+  <div class="footer-stats">
+    <div class="footer-stat"><div class="footer-stat-value" id="pedidos-footer-qtd">00</div><div class="footer-stat-label">quantidade</div></div>
+    <div class="footer-stat"><div class="footer-stat-value" id="pedidos-footer-valor">R$ 0,00</div><div class="footer-stat-label">valor total (R$)</div></div>
+  </div>
+</div>
+<div id="nf-page-footer" class="page-footer" style="display:none">
+  <div class="footer-actions" id="notas-fiscais-bulk-actions">
+    <span id="notas-fiscais-bulk-summary" style="font-size:.82rem;font-weight:700;color:var(--mut)">0 nota(s)</span>
+    <button class="btn btn-outline btn-sm" onclick="imprimirDanfesSelecionadas()">Imprimir DANFEs</button>
+    <button class="btn btn-red btn-sm" onclick="excluirNotasSelecionadas()">Excluir Notas</button>
+  </div>
+  <div class="footer-stats">
+    <div class="footer-stat"><div class="footer-stat-value" id="nf-footer-qtd">00</div><div class="footer-stat-label">quantidade</div></div>
+    <div class="footer-stat"><div class="footer-stat-value" id="nf-footer-valor">R$ 0,00</div><div class="footer-stat-label">valor total (R$)</div></div>
+  </div>
+</div>
+<div id="cp-page-footer" class="page-footer" style="display:none">
+  <div class="footer-actions" id="cp-bulk-actions">
+    <span id="cp-bulk-count" style="font-size:.82rem;font-weight:700;color:var(--mut)">0 conta(s)</span>
+    <button class="btn btn-sm btn-green" onclick="bulkBaixarContasPagar()">Pagar (Baixar)</button>
+    <button class="btn btn-sm btn-red" onclick="bulkExcluirContasPagar()">Excluir</button>
+  </div>
+  <div class="footer-stats">
+    <div class="footer-stat"><div class="footer-stat-value" id="cp-footer-qtd">00</div><div class="footer-stat-label">quantidade</div></div>
+    <div class="footer-stat"><div class="footer-stat-value" id="cp-footer-valor">R$ 0,00</div><div class="footer-stat-label">valor total (R$)</div></div>
+  </div>
+</div>
+<div id="cr-page-footer" class="page-footer" style="display:none">
+  <div class="footer-actions" id="cr-bulk-actions">
+    <span id="cr-bulk-count" style="font-size:.82rem;font-weight:700;color:var(--mut)">0 conta(s)</span>
+    <button class="btn btn-sm btn-green" onclick="bulkReceberContas()">Receber</button>
+    <button class="btn btn-sm btn-outline" onclick="bulkImprimirBoletos()">Imprimir Boletos</button>
+    <button class="btn btn-sm btn-red" onclick="bulkExcluirContasReceber()">Excluir</button>
+  </div>
+  <div class="footer-stats">
+    <div class="footer-stat"><div class="footer-stat-value" id="cr-footer-qtd">00</div><div class="footer-stat-label">quantidade</div></div>
+    <div class="footer-stat"><div class="footer-stat-value" id="cr-footer-valor">R$ 0,00</div><div class="footer-stat-label">valor total (R$)</div></div>
+  </div>
+</div>
+<div id="clientes-page-footer" class="page-footer" style="display:none">
+  <div class="footer-actions" id="clientes-bulk-actions">
+    <span id="clientes-bulk-summary" style="font-size:.82rem;font-weight:700;color:var(--mut)">0 cadastro(s)</span>
+    <button class="btn btn-red btn-sm" onclick="excluirClientesSelecionados()">Excluir Cadastro</button>
+  </div>
+  <div class="footer-stats">
+    <div class="footer-stat"><div class="footer-stat-value" id="clientes-footer-qtd">00</div><div class="footer-stat-label">quantidade</div></div>
+  </div>
+</div>
+<div id="produtos-page-footer" class="page-footer" style="display:none">
+  <div class="footer-actions" id="produtos-bulk-actions">
+    <span id="produtos-bulk-summary" style="font-size:.82rem;font-weight:700;color:var(--mut)">0 produto(s)</span>
+    <button class="btn btn-outline btn-sm" onclick="clonarProdutoSelecionado()">Clonar Produto</button>
+    <button class="btn btn-outline btn-sm" onclick="abrirEditarMassaProdutos()">Editar em Massa</button>
+    <button class="btn btn-outline btn-sm" onclick="editarProdutoSelecionado()">Editar</button>
+    <button class="btn btn-red btn-sm" onclick="excluirProdutosSelecionados()">Excluir</button>
+    <button class="btn btn-outline btn-sm" style="color:var(--mut)" onclick="desmarcarTodosProdutos()">Limpar</button>
+  </div>
+  <div class="footer-stats">
+    <div class="footer-stat"><div class="footer-stat-value" id="produtos-footer-qtd">00</div><div class="footer-stat-label">produtos</div></div>
+  </div>
+</div>
 </body></html>

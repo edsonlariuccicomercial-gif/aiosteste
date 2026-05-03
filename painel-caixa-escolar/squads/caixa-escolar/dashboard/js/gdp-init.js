@@ -59,11 +59,24 @@ function resetTabState() {
     const el = document.getElementById(id);
     if (el) { el.checked = false; el.indeterminate = false; }
   });
-  // AC3: Hide all bulk action bars
-  ["pedidos-bulk-actions","notas-fiscais-bulk-actions","cp-bulk-actions","cr-bulk-actions","clientes-bulk-actions"].forEach(id => {
+  // AC3: Remove selection state from all page footers
+  ["pedidos-page-footer","nf-page-footer","cp-page-footer","cr-page-footer","clientes-page-footer","produtos-page-footer"].forEach(id => {
     const el = document.getElementById(id);
-    if (el) el.classList.add("hidden");
+    if (el) el.classList.remove("has-selection");
   });
+  // Hide all page footers
+  _hideAllPageFooters();
+}
+function _hideAllPageFooters() {
+  ["pedidos-page-footer","nf-page-footer","cp-page-footer","cr-page-footer","clientes-page-footer","produtos-page-footer"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = "none";
+  });
+}
+function _showPageFooter(id) {
+  _hideAllPageFooters();
+  const el = document.getElementById(id);
+  if (el) el.style.display = "flex";
 }
 
 function switchTab(tab) {
@@ -111,14 +124,15 @@ function switchTab(tab) {
     if (typeof setEstoqueIntelView === "function") setEstoqueIntelView(viewMap[tab]);
     // Notas de entrada tem render próprio além do renderEstoque
     if (tab === "notas-entrada" && typeof renderNotasEntrada === "function") renderNotasEntrada();
+    if (tab === "estoque") { _showPageFooter("produtos-page-footer"); _updateProdutosFooterTotals(); }
   } else if (isFinanceiro) {
     // Mostrar tab-financeiro
     const finEl = document.getElementById("tab-financeiro");
     if (finEl) finEl.classList.remove("hidden");
-    // Ativar primeira sub-tab se nenhuma ativa
-    if (!document.querySelector('.fin-tab-btn.active')) {
-      switchFinanceiroTab('caixa');
-    }
+    // Sempre re-executar switchFinanceiroTab para garantir footer correto
+    const activeFinBtn = document.querySelector('.fin-tab-btn.active');
+    const activeFinTab = activeFinBtn ? activeFinBtn.dataset.finTab : 'caixa';
+    switchFinanceiroTab(activeFinTab);
   } else {
     // Tab normal
     const tabEl = document.getElementById(`tab-${tab}`);
@@ -127,10 +141,10 @@ function switchTab(tab) {
 
   if (tab === "contratos") renderContratos();
   if (tab === "itens") renderItens();
-  if (tab === "pedidos") renderPedidos();
-  if (tab === "notas-fiscais") renderNotasFiscais();
+  if (tab === "pedidos") { renderPedidos(); _showPageFooter("pedidos-page-footer"); _updatePedidosFooterTotals(); }
+  if (tab === "notas-fiscais") { renderNotasFiscais(); _showPageFooter("nf-page-footer"); _updateNfFooterTotals(); }
   if (tab === "relatorios") renderRelatorios();
-  if (tab === "usuarios") renderUsuarios();
+  if (tab === "usuarios") { renderUsuarios(); _showPageFooter("clientes-page-footer"); _updateClientesFooterTotals(); }
   if (tab === "financeiro" && typeof atualizarResumosVencimento === "function") atualizarResumosVencimento();
 }
 
@@ -143,14 +157,58 @@ function switchFinanceiroTab(subTab) {
   document.querySelectorAll(".fin-tab-btn").forEach(btn => {
     btn.classList.toggle("active", btn.dataset.finTab === subTab);
   });
-  if (subTab === "caixa" && typeof renderCaixa === "function") renderCaixa();
-  if (subTab === "contas-pagar" && typeof renderContasPagar === "function") renderContasPagar();
+  if (subTab === "caixa") { if (typeof renderCaixa === "function") renderCaixa(); _hideAllPageFooters(); }
+  if (subTab === "contas-pagar") { if (typeof renderContasPagar === "function") renderContasPagar(); _showPageFooter("cp-page-footer"); _updateCpFooterTotals(); }
   if (subTab === "contas-receber") {
     if (typeof renderContasReceber === "function") renderContasReceber();
     if (typeof atualizarResumosVencimento === "function") atualizarResumosVencimento();
+    _showPageFooter("cr-page-footer"); _updateCrFooterTotals();
   }
 }
 
+
+// Page footer totals — filtered by active status tab, selection totals update via checkbox handlers
+function _updatePedidosFooterTotals() {
+  const qtdEl = document.getElementById("pedidos-footer-qtd");
+  const valEl = document.getElementById("pedidos-footer-valor");
+  const tab = typeof pedidoStatusTabAtual !== 'undefined' ? pedidoStatusTabAtual : 'todos';
+  const filtered = tab === 'todos' ? pedidos : pedidos.filter(p => normalizePedidoStatus(p.status) === tab);
+  if (qtdEl) qtdEl.textContent = String(filtered.length).padStart(2, '0');
+  if (valEl) valEl.textContent = brl.format(filtered.reduce((s, p) => s + (parseFloat(p.valor) || 0), 0));
+}
+function _updateNfFooterTotals() {
+  const qtdEl = document.getElementById("nf-footer-qtd");
+  const valEl = document.getElementById("nf-footer-valor");
+  const tab = typeof notaFiscalStatusTabAtual !== 'undefined' ? notaFiscalStatusTabAtual : 'todas';
+  const filtered = tab === 'todas' ? notasFiscais : notasFiscais.filter(nf => normalizeNotaFiscalStatus(nf.status) === tab);
+  if (qtdEl) qtdEl.textContent = String(filtered.length).padStart(2, '0');
+  if (valEl) valEl.textContent = brl.format(filtered.reduce((s, nf) => s + (parseFloat(nf.valor) || 0), 0));
+}
+function _updateCpFooterTotals() {
+  const qtdEl = document.getElementById("cp-footer-qtd");
+  const valEl = document.getElementById("cp-footer-valor");
+  const tab = typeof contaPagarStatusTabAtual !== 'undefined' ? contaPagarStatusTabAtual : 'todas';
+  const filtered = tab === 'todas' ? contasPagar : contasPagar.filter(c => normalizeContaPagarStatus(c) === tab);
+  if (qtdEl) qtdEl.textContent = String(filtered.length).padStart(2, '0');
+  if (valEl) valEl.textContent = brl.format(filtered.reduce((s, c) => s + (parseFloat(c.valor) || 0), 0));
+}
+function _updateCrFooterTotals() {
+  const qtdEl = document.getElementById("cr-footer-qtd");
+  const valEl = document.getElementById("cr-footer-valor");
+  const tab = typeof contaReceberStatusTabAtual !== 'undefined' ? contaReceberStatusTabAtual : 'todas';
+  const filtered = tab === 'todas' ? contasReceber : contasReceber.filter(c => normalizeContaReceberStatus(c) === tab);
+  if (qtdEl) qtdEl.textContent = String(filtered.length).padStart(2, '0');
+  if (valEl) valEl.textContent = brl.format(filtered.reduce((s, c) => s + (parseFloat(c.valor) || 0), 0));
+}
+function _updateClientesFooterTotals() {
+  const qtdEl = document.getElementById("clientes-footer-qtd");
+  if (qtdEl) qtdEl.textContent = String(usuarios.length).padStart(2, '0');
+}
+function _updateProdutosFooterTotals() {
+  const qtdEl = document.getElementById("produtos-footer-qtd");
+  const count = typeof estoqueIntelProdutos !== 'undefined' ? estoqueIntelProdutos.length : 0;
+  if (qtdEl) qtdEl.textContent = String(count).padStart(2, '0');
+}
 
 // [gdp-contratos-module.js loaded above — all contract CRUD functions live there, no duplicates]
 
@@ -230,19 +288,25 @@ function atualizarSelecaoContasReceber() {
   _selectedContaReceberIds.clear();
   document.querySelectorAll(".cr-check:checked").forEach(cb => { _selectedContaReceberIds.add(cb.value); });
   const count = _selectedContaReceberIds.size;
-  const bar = document.getElementById("cr-bulk-actions");
-  if (bar) {
-    bar.classList.toggle("hidden", count === 0);
-    if (count > 0) bar.style.display = "flex";
-    else bar.style.display = "";
-  }
+  const footer = document.getElementById("cr-page-footer");
+  if (footer) footer.classList.toggle("has-selection", count > 0);
   const countEl = document.getElementById("cr-bulk-count");
-  if (countEl) countEl.textContent = `${count} conta(s) selecionada(s)`;
+  if (countEl) countEl.textContent = `${count} conta(s)`;
   const selectAll = document.getElementById("cr-select-all");
   if (selectAll) {
     const total = document.querySelectorAll(".cr-check").length;
     selectAll.checked = count > 0 && count === total;
     selectAll.indeterminate = count > 0 && count < total;
+  }
+  if (count > 0) {
+    const selContas = contasReceber.filter(c => _selectedContaReceberIds.has(c.id));
+    const totalValor = selContas.reduce((s, c) => s + (parseFloat(c.valor) || 0), 0);
+    const qtdEl = document.getElementById("cr-footer-qtd");
+    const valEl = document.getElementById("cr-footer-valor");
+    if (qtdEl) qtdEl.textContent = String(count).padStart(2, '0');
+    if (valEl) valEl.textContent = brl.format(totalValor);
+  } else {
+    _updateCrFooterTotals();
   }
 }
 
@@ -670,19 +734,25 @@ function atualizarSelecaoContasPagar() {
   _selectedContaPagarIds.clear();
   document.querySelectorAll(".cp-check:checked").forEach(cb => { _selectedContaPagarIds.add(cb.value); });
   const count = _selectedContaPagarIds.size;
-  const bar = document.getElementById("cp-bulk-actions");
-  if (bar) {
-    bar.classList.toggle("hidden", count === 0);
-    if (count > 0) bar.style.display = "flex";
-    else bar.style.display = "";
-  }
+  const footer = document.getElementById("cp-page-footer");
+  if (footer) footer.classList.toggle("has-selection", count > 0);
   const countEl = document.getElementById("cp-bulk-count");
-  if (countEl) countEl.textContent = `${count} conta(s) selecionada(s)`;
+  if (countEl) countEl.textContent = `${count} conta(s)`;
   const selectAll = document.getElementById("cp-select-all");
   if (selectAll) {
     const total = document.querySelectorAll(".cp-check").length;
     selectAll.checked = count > 0 && count === total;
     selectAll.indeterminate = count > 0 && count < total;
+  }
+  if (count > 0) {
+    const selContas = contasPagar.filter(c => _selectedContaPagarIds.has(c.id));
+    const totalValor = selContas.reduce((s, c) => s + (parseFloat(c.valor) || 0), 0);
+    const qtdEl = document.getElementById("cp-footer-qtd");
+    const valEl = document.getElementById("cp-footer-valor");
+    if (qtdEl) qtdEl.textContent = String(count).padStart(2, '0');
+    if (valEl) valEl.textContent = brl.format(totalValor);
+  } else {
+    _updateCpFooterTotals();
   }
 }
 
