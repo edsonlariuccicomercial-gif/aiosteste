@@ -1,678 +1,314 @@
-# Arquitetura do Sistema — Painel Caixa Escolar MG
+# Licit-AIX — Arquitetura do Sistema (Documento Definitivo)
 
-> Documento gerado como parte da **Brownfield Discovery Phase 1** pelo agente @architect (Aria).
-> Data: 2026-04-20
+> Gerado em 2026-05-03 | Brownfield Discovery Phase 2 (Completa)
+> Substitui versao anterior de 2026-04-20
+> Fonte de verdade: codigo em producao no commit 098d547
 
 ---
 
 ## 1. Visao Geral
 
-O **Painel Caixa Escolar** (tambem referenciado como **LicitIA MG** e **GDP — Gestao Pos-Licitacao**) e um sistema web para gestao operacional de fornecedores que participam de licitacoes de Caixas Escolares no estado de Minas Gerais.
+**Licit-AIX** e um sistema de inteligencia comercial para fornecedores da educacao publica. Cobre todo o ciclo pos-licitacao: captacao de orcamentos, precificacao, envio de propostas, gestao de contratos, pedidos, notas fiscais, estoque, financeiro, portal escolar e entregas.
 
-### Proposito Principal
+### Modulos
 
-Automatizar e otimizar o ciclo completo de operacao de um fornecedor de Caixas Escolares MG:
+| Modulo | Pagina | Proposito |
+|--------|--------|-----------|
+| **Home** | dashboard-home.html | Painel inicial com acesso rapido |
+| **RADAR** | index.html | Captacao de orcamentos via SGD + varredura automatica |
+| **Intel Precos** | index.html | Inteligencia de precos, banco de produtos, analise competitiva |
+| **GDP** | gdp-contratos.html | Gestao Pos-Licitacao completa |
+| **Portal Escolar** | gdp-portal.html | Acesso das escolas para pedidos e acompanhamento |
+| **Entregador** | gdp-entregador.html | App mobile para motoristas (PWA) |
+| **Estoque Mobile** | gdp-estoque-intel-mobile.html | Inventario via codigo de barras (PWA) |
 
-1. **Monitoramento de orcamentos** — Varredura automatica do SGD (Sistema de Gestao de Despesas) do Governo de MG
-2. **Pre-cotacao inteligente** — Calculo automatico de precos com base em custos, margens e historico
-3. **Envio de propostas** — Submissao de propostas ao SGD via proxy API
-4. **Gestao de contratos** — Controle de contratos ganhos em licitacao
-5. **Gestao de pedidos** — Criacao, acompanhamento e faturamento de pedidos
-6. **Emissao de NF-e** — Geracao, assinatura digital e transmissao de Notas Fiscais Eletronicas via SEFAZ
-7. **Logistica de entregas** — Registro de provas de entrega com foto e assinatura
-8. **Financeiro** — Contas a receber, contas a pagar, cobranca automatizada
-9. **Inteligencia de precos** — Banco de precos com dados do PNCP, historico e simulador de margens
-10. **Sincronizacao com ERP** — Integracao com Olist/Tiny ERP para pedidos
+### Stack Tecnica
 
-### Usuarios
-
-- **Operador/Fornecedor** — Usuario principal que gerencia cotacoes, pedidos e notas fiscais
-- **Entregador** — Acesso via PWA mobile para registrar entregas
-- Sistema e single-tenant (empresa "Lariucci & Ribeiro Pereira" como tenant padrao `LARIUCCI`)
-
----
-
-## 2. Stack Tecnologico
-
-| Camada | Tecnologia | Detalhes |
-|--------|-----------|----------|
-| **Frontend** | HTML/CSS/JavaScript vanilla | SPA-like com modulos JS carregados via `<script>`. Sem framework (React, Vue, etc.) |
-| **CSS** | CSS custom properties (variáveis) | Dark theme, design system proprio com variaveis CSS |
-| **Build** | Nenhum | Sem bundler, sem transpiler. Arquivos servidos diretamente |
-| **Backend API** | Vercel Serverless Functions (Node.js) | Functions na pasta `api/`, max 60s de duracao |
-| **Banco de Dados** | Supabase (PostgreSQL gerenciado) | REST API via PostgREST, RLS habilitado em tabelas criticas |
-| **Armazenamento local** | localStorage / sessionStorage | Cache local extensivo para operacao offline-first |
-| **Autenticacao** | SHA-256 client-side + SGD session cookie | Login local com hash e autenticacao SGD via cookie de sessao |
-| **Hospedagem** | Vercel (Hobby plan) | Deploy automatico, limite de 12 serverless functions |
-| **Certificado Digital** | PFX/PEM via env vars | Para assinatura XML de NF-e (SEFAZ) |
-| **AI/LLM** | OpenAI API (GPT-4o-mini / GPT-4o) | Parse de tabelas de precos e OCR de documentos |
-| **Email** | Resend API | Envio de confirmacoes de pedido e cobrancas |
-| **Assinatura XML** | xml-crypto + node-forge | Assinatura digital XML para NF-e |
-| **PDF** | jsPDF (CDN), pdf.js | Geracao de propostas PDF e leitura de PDFs de fornecedores |
-| **Planilhas** | SheetJS (xlsx) via CDN | Import/export de planilhas Excel |
-| **PWA** | Service Workers + manifests | Apps mobile para entregador e estoque inteligente |
+- **Frontend:** HTML + CSS + Vanilla JS (sem framework)
+- **Backend:** Vercel Serverless Functions (Node.js)
+- **Database:** Supabase (PostgreSQL + RLS)
+- **Storage:** localStorage (offline-first) + Supabase sync
+- **Deploy:** Vercel (painel-caixa-escolar.vercel.app)
 
 ---
 
-## 3. Diagrama de Arquitetura
+## 2. Mapa de Arquivos
 
-```mermaid
-graph TB
-    subgraph "Cliente (Browser)"
-        FE_LICITIA["LicitIA MG Dashboard<br/>(dashboard/app.js — 1733 loc)"]
-        FE_GDP["GDP Contratos<br/>(gdp-contratos.html — 2623 loc app.js)"]
-        FE_ENTREGA["PWA Entregador<br/>(gdp-entregador.html)"]
-        FE_ESTOQUE["PWA Estoque Intel<br/>(gdp-estoque-intel-mobile.html)"]
-        FE_PORTAL["Portal Escolar<br/>(gdp-portal.html)"]
-        FE_GESTAO["GDP Gestao<br/>(gdp-gestao.html)"]
-    end
+### Frontend — Total: ~45.672 linhas
 
-    subgraph "Vercel Serverless Functions"
-        API_PROXY["caixa-proxy.js<br/>(Unified Proxy)"]
-        API_GDP["gdp-integrations.js<br/>(NF-e SEFAZ)"]
-        API_AI["ai-parse-price.js<br/>(OpenAI GPT)"]
-        API_EMAIL["send-order-email.js<br/>(Resend)"]
-        API_OLIST["olist/order.js<br/>(Tiny ERP)"]
-    end
+```
+squads/caixa-escolar/dashboard/
+│
+│── PAGINAS HTML (9 arquivos)
+│   ├── index.html                    # RADAR + Intel Precos (1.317 linhas)
+│   ├── gdp-contratos.html            # GDP principal (1.659 linhas)
+│   ├── gdp-portal.html               # Portal Escolar (2.405 linhas, JS inline)
+│   ├── gdp-entregador.html           # App Entregador (576 linhas)
+│   ├── gdp-estoque-intel-mobile.html # Estoque Mobile (515 linhas)
+│   ├── gdp-dashboard.html            # Dashboard operacional (836 linhas)
+│   ├── gdp-gestao.html               # Gestao (475 linhas)
+│   ├── dashboard-home.html           # Home (522 linhas)
+│   └── login.html                    # Login (142 linhas)
+│
+│── JS MODULO RADAR + INTEL PRECOS (12 arquivos, ~10.410 linhas)
+│   ├── app.js                        # Orquestrador principal (2.889 linhas)
+│   ├── app-sgd-integration.js        # Integracao SGD (1.421 linhas)
+│   ├── app-results.js                # Resultados licitacao (1.113 linhas)
+│   ├── app-import.js                 # Import multi-formato (1.006 linhas)
+│   ├── app-banco.js                  # Banco de Precos UI (825 linhas)
+│   ├── app-config.js                 # Configuracoes (744 linhas)
+│   ├── pricing-intel.js              # Dashboard Intel Precos (737 linhas)
+│   ├── app-state.js                  # Estado global + constantes (420 linhas)
+│   ├── app-utils.js                  # Utilitarios UI (320 linhas)
+│   ├── radar-matcher.js              # Equivalencias produto (243 linhas)
+│   ├── app-sync.js                   # Sync RADAR cloud (156 linhas)
+│   └── app-sgd-client.js             # Cliente SGD browser (97 linhas)
+│
+│── JS MODULO GDP (13 arquivos, ~19.523 linhas)
+│   ├── js/gdp-init.js               # Boot + UI global GDP (3.231 linhas)
+│   ├── js/gdp-contratos-module.js   # Contratos + import mapa (3.188 linhas)
+│   ├── js/gdp-pedidos.js            # Pedidos + Financeiro render (2.758 linhas)
+│   ├── js/gdp-estoque-intel.js      # Estoque inteligente (2.662 linhas)
+│   ├── js/gdp-notas-fiscais.js      # NF-e + regras fiscais (2.294 linhas)
+│   ├── js/gdp-banco-produtos.js     # Central de Produtos (1.824 linhas)
+│   ├── js/gdp-core.js               # Core: storage, sync, state (1.707 linhas)
+│   ├── js/gdp-entregas.js           # Entregas operacionais (667 linhas)
+│   ├── js/gdp-usuarios.js           # Clientes/Usuarios (608 linhas)
+│   ├── gdp-api.js                   # Camada Supabase REST (338 linhas)
+│   ├── js/banco-precos-client.js    # Precos Supabase (287 linhas)
+│   ├── js/supabase-auth.js          # Auth Supabase (166 linhas)
+│   └── js/supabase-config.js        # Config Supabase (15 linhas)
+│
+│── OUTROS
+│   ├── auth.js                      # Auth legacy (33 linhas)
+│   ├── js/gdp-integrations-client.js # Integracoes client (116 linhas)
+│   ├── sw-entregador.js             # Service Worker entregador (37 linhas)
+│   └── sw-estoque-intel.js          # Service Worker estoque (31 linhas)
+```
 
-    subgraph "APIs Externas"
-        SGD["SGD MG<br/>(api.caixaescolar.educacao.mg.gov.br)"]
-        SEFAZ["SEFAZ<br/>(NF-e 4.00)"]
-        PNCP["PNCP<br/>(pncp.gov.br)"]
-        OPENAI["OpenAI API"]
-        RESEND["Resend Email"]
-        OLIST_API["Olist / Tiny ERP"]
-        B2B["Sites B2B<br/>(web scraping)"]
-        ASAAS["Asaas / Efi / Inter / BB<br/>(Cobranca)"]
-        SEFAZ_DIST["SEFAZ DistDFe<br/>(NFs de Entrada)"]
-    end
+### Backend (APIs Serverless)
 
-    subgraph "Persistencia"
-        SUPA["Supabase PostgreSQL<br/>(PostgREST)"]
-        LS["localStorage<br/>(cache offline)"]
-    end
+```
+api/
+├── caixa-proxy.js          # Proxy consolidado (SGD, PNCP, Bank, SEFAZ) — PRINCIPAL
+├── ai-parse-price.js       # Parsing IA de precos (GPT-4o)
+├── ai-ncm.js               # Classificacao NCM por IA
+├── b2b-scrape.js            # Scraping B2B
+├── send-order-email.js      # Email de pedidos
+├── gdp-integrations.js      # Eventos de integracao fiscal/bancaria
+├── db-migrate.js            # Migracoes Supabase
+├── sync-pedidos.js          # Sync pedidos Portal Escolar
+├── sync-entregas.js         # Sync provas entrega
+├── tiny-produtos.js         # Sync Tiny ERP
+└── olist/order.js           # Integracao Olist/Tiny
 
-    FE_LICITIA --> API_PROXY
-    FE_GDP --> API_PROXY
-    FE_GDP --> API_GDP
-    FE_GDP --> API_AI
-    FE_GDP --> API_EMAIL
-    FE_GDP --> API_OLIST
-    FE_GDP --> SUPA
-    FE_LICITIA --> SUPA
-
-    API_PROXY --> SGD
-    API_PROXY --> PNCP
-    API_PROXY --> B2B
-    API_PROXY --> SEFAZ_DIST
-    API_GDP --> SEFAZ
-    API_AI --> OPENAI
-    API_EMAIL --> RESEND
-    API_OLIST --> OLIST_API
-
-    FE_GDP --> LS
-    FE_LICITIA --> LS
-    FE_GDP --> ASAAS
+server-lib/
+├── nfe-sefaz-client.js      # Geracao XML NF-e + SEFAZ SOAP
+├── asaas-charge-client.js   # Gateway Asaas (boleto/PIX)
+├── bank-provider-config.js  # Config provedores bancarios (Inter, Asaas, BB, EFI)
+└── product-utils.js         # Normalizacao produto/NCM
 ```
 
 ---
 
-## 4. Componentes do Sistema
+## 3. Entidades de Dados
 
-### 4.1 Frontend — Dashboards
+### 3.1 Entidades com Supabase (sync cloud)
 
-O frontend e composto por multiplas paginas HTML independentes, cada uma com seu proprio escopo funcional. Nao ha framework SPA — a navegacao entre modulos acontece via sidebar com troca de visibilidade de secoes.
+| Entidade | localStorage | Supabase Table | ID Format | Campos-chave |
+|----------|-------------|----------------|-----------|--------------|
+| **Contrato** | gdp.contratos.v1 | contratos | CTR-YYYYMMDD-XXXX | escola, processo, edital, objeto, status, itens[{num, descricao, unidade, qtdContratada, qtdEntregue, precoUnitario, ncm}], saldoVisivelEscola |
+| **Pedido** | gdp.pedidos.v1 | pedidos | PED-YYYYMMDD-XXXX | contratoId(FK), escola, cliente{nome,cnpj,ie,...}, itens[{itemNum, descricao, qtd, precoUnitario}], valor, status, pagamento{forma, vencimento}, saldoDeduzido |
+| **Nota Fiscal** | gdp.notas-fiscais.v1 | notas_fiscais | NF-XXXXX | pedidoId(FK), numero, serie, valor, status, tipoNota, sefaz{cStat,nProt,chaveAcesso}, cobranca{status,forma,linhaDigitavel}, cliente{}, itens[] |
+| **Conta Receber** | gdp.contas-receber.v1 | contas_receber | CR-XXXXX | origemTipo, origemId(FK), descricao, cliente, valor, vencimento, status, forma, cobranca{}, automacao{} |
+| **Conta Pagar** | gdp.contas-pagar.v1 | contas_pagar | CP-XXXXX | descricao, categoria, forma, valor, vencimento, status |
+| **Cliente** | gdp.usuarios.v1 | clientes | UUID | nome, cnpj, ie, uf, cep, email, telefone, contratos_vinculados[], contribuinte_icms |
+| **Entrega** | gdp.entregas.provas.v1 | entregas | UUID | pedidoId(FK), escola, dataEntrega, recebedor, foto(base64), assinatura(base64) |
 
-#### 4.1.1 LicitIA MG Dashboard (`dashboard/app.js` — 1733 linhas)
+### 3.2 Entidades Locais (localStorage only, sync via sync_data)
 
-Dashboard operacional de monitoramento de cotacoes SGD:
+| Entidade | localStorage | ID Format | Campos-chave |
+|----------|-------------|-----------|--------------|
+| **Produto (Central)** | gdp.estoque-intel.produtos.v1 | PROD-XXXXX | nome, unidade_base, sku, ncm, categoria, origem, produto_critico, preco_referencia |
+| **Embalagem** | gdp.estoque-intel.embalagens.v1 | EMB-XXXXX | produto_id(FK), descricao, codigo_barras, quantidade_base, preco_referencia |
+| **Movimentacao** | gdp.estoque-intel.movimentacoes.v1 | MOV-XXXXX | produto_id(FK), tipo(entrada/saida/ajuste), quantidade, data |
+| **Fornecedor** | gdp.estoque-intel.fornecedores.v1 | FORN-XXXXX | nome, contato, email, embalagens[{embalagem_id, preco}] |
+| **Compra** | gdp.estoque-intel.compras.v1 | COMP-XXXXX | fornecedor_id(FK), data_compra, itens[], valor_total |
+| **Banco Produtos (Legacy)** | gdp.produtos.v1 | PROD-XXXXX | descricao, sku, ncm, unidade, custoBase, precoReferencia, produto_critico |
+| **Equivalencia** | gdp.equivalencias.v1 | N/A | {descricao_normalizada: sku} (objeto key-value) |
 
-- **KPIs**: cotacoes abertas, prazo ate 48h, margem media, receita potencial, pedidos Olist
-- **Filtros taticos**: por SRE, municipio, status, busca por objeto
-- **Priorizacao**: score de oportunidade (prazo + margem + fit estrategico + confianca)
-- **Pre-cotacao**: calculo automatico de precos com exportacao JSON/CSV
-- **Simulador de preco/margem**: custo + frete + opex + impostos + margem alvo
-- **Tendencia semanal** e **alertas operacionais**
-- **Cache com TTL**: `cachedFetch()` com 5min (default) e 15min (heavy)
-- **Paginacao**: 50 itens por pagina
-- **Auto-refresh**: a cada 60 segundos
+### 3.3 Entidades RADAR/Intel (localStorage only)
 
-#### 4.1.2 GDP Contratos (`squads/caixa-escolar/dashboard/` — app.js 2623 linhas)
+| Entidade | localStorage | Campos-chave |
+|----------|-------------|--------------|
+| **Orcamento** | caixaescolar.orcamentos | id, escola, municipio, sre, objeto, itens[], status |
+| **Pre-Orcamento** | caixaescolar.preorcamentos.v1 | {orcId: {status, itens[], margem, frete, enviadoEm}} |
+| **Banco Precos** | caixaescolar.banco.v1 | {itens: [{nome, grupo, custo, margem, marca, fonte}]} |
+| **Resultado** | caixaescolar.resultados.v1 | {orcId: {tipo(ganho/perdido), delta, data}} |
+| **Descartados** | caixaescolar.descartados | Set de IDs |
+| **Itens Mestres** | caixaescolar.itens-mestres | [{id, nome, aliases[], sku}] |
+| **Arquivos** | caixaescolar.arquivos-importados | [{nomeArquivo, fornecedor, tipo, qtdItens, data}] |
 
-Aplicacao principal de gestao pos-licitacao com modulos:
+### 3.4 Relacionamentos
 
-- **Radar SGD** — Varredura de orcamentos, pre-orcamento, envio de propostas
-- **Contratos** — CRUD de contratos com itens, vigencia, cliente vinculado
-- **Pedidos** — Criacao a partir de contratos, itens, valores, marcadores
-- **Notas Fiscais** — Emissao de NF-e real via SEFAZ com assinatura digital XML
-- **Entregas** — Provas de entrega com foto e assinatura (PWA)
-- **Financeiro** — Contas a receber/pagar, extrato caixa, cobranca automatizada
-- **Usuarios/Clientes** — Cadastro de escolas/caixas escolares
-- **Banco de Precos** — Catalogo de produtos com custos, margens, concorrentes
-- **Pricing Intelligence** — Dashboard analitico de precos com alertas
-- **Estoque Inteligente** — Produtos, embalagens, movimentacoes, compras inteligentes
-- **Inteligencia de Dados** — Import de tabelas via OCR (GPT-4o), scraping B2B
+```
+Contrato 1──N Pedido 1──1 NotaFiscal 1──1 ContaReceber
+    │                        │
+    └── N Cliente(escola)    └── SEFAZ(transmissao)
+    
+Produto 1──N Embalagem
+    │           │
+    │           └── N FornecedorOferta
+    │
+    └── N Movimentacao
+    
+Orcamento 1──1 PreOrcamento 1──1 Resultado 1──1 Contrato
+```
 
-Modulos JS separados em `js/`:
-| Modulo | Responsabilidade |
-|--------|-----------------|
-| `gdp-core.js` | Sidebar, constantes, data layer, sync, storage |
-| `gdp-contratos-module.js` | CRUD de contratos |
-| `gdp-pedidos.js` | Gestao de pedidos |
-| `gdp-notas-fiscais.js` | Emissao e gestao de NFs |
-| `gdp-entregas.js` | Provas de entrega |
-| `gdp-usuarios.js` | Cadastro de clientes |
-| `gdp-estoque-intel.js` | Estoque inteligente |
-| `gdp-banco-produtos.js` | Banco de produtos |
-| `gdp-integrations-client.js` | Client-side para NF-e SEFAZ |
-| `banco-precos-client.js` | Banco de precos PNCP |
-| `gdp-init.js` | Bootstrap e inicializacao |
+---
 
-Modulos de apoio no nivel `squads/caixa-escolar/dashboard/`:
-| Arquivo | Funcao |
-|---------|--------|
-| `app-sync.js` | Cloud sync Supabase (sync_data) |
-| `app-sgd-client.js` | Client SGD via proxy |
-| `app-sgd-integration.js` | Envio de propostas ao SGD |
-| `app-state.js` | Gerenciamento de estado |
-| `app-config.js` | Configuracao da empresa |
-| `app-import.js` | Importacao de dados |
-| `app-banco.js` | Banco de precos local |
-| `app-results.js` | Resultados de orcamentos |
-| `app-utils.js` | Utilitarios compartilhados |
-| `auth.js` | Autenticacao SHA-256 |
-| `gdp-api.js` | Data access layer Supabase-first |
-| `pricing-intel.js` | Modulo de inteligencia de precos |
-| `radar-matcher.js` | Matching de orcamentos com banco de precos |
+## 4. Fluxos de Negocio
 
-#### 4.1.3 PWAs Mobile
+### A. Licitacao (RADAR → Contrato)
+```
+1. Varrer SGD → captar orcamentos abertos
+2. Selecionar orcamento → criar Pre-Orcamento
+3. Precificar itens (custo + margem + frete)
+4. Revisar cotacao (validar unidades/precos)
+5. Enviar proposta ao SGD
+6. Aguardar resultado (ganho/perdido)
+7. Se ganho → gerar Contrato GDP com itens e saldo
+```
 
-- **Entregador** (`gdp-entregador.html`) — Service Worker + manifest para instalacao. Registro de entregas com foto e assinatura.
-- **Estoque Intel** (`gdp-estoque-intel-mobile.html`) — Interface mobile para gestao de estoque.
+### B. Pedido → Faturamento
+```
+1. Criar Pedido vinculado ao Contrato
+2. Deduzir saldo do contrato (qtdEntregue += qtdPedido)
+3. Gerar Nota Fiscal (NF-e ou manual)
+4. Transmitir NF-e ao SEFAZ (se real)
+5. Criar Conta a Receber automaticamente
+6. Gerar cobranca bancaria (boleto/PIX via Inter ou Asaas)
+7. Registrar recebimento (baixa)
+```
 
-### 4.2 Backend API — Vercel Serverless Functions
+### C. Portal Escolar
+```
+1. Escola faz login (Supabase Auth)
+2. Seleciona contrato vinculado
+3. Navega catalogo de produtos disponiveis
+4. Monta carrinho respeitando saldo
+5. Submete pedido → sync com fornecedor
+6. Acompanha saldo em tempo real
+```
 
-O backend usa o modelo "proxy unificado" para contornar o limite de 12 functions do Vercel Hobby plan.
+### D. Entrega
+```
+1. Motorista acessa app PWA (gdp-entregador.html)
+2. Ve lista de pedidos para entrega
+3. Registra entrega: foto + assinatura digital
+4. Dados sincronizam quando online
+5. Estoque atualizado automaticamente
+```
 
-#### 4.2.1 `api/caixa-proxy.js` (Unified Proxy — 280 linhas)
-
-Proxy central que roteia por `action` no body da requisicao:
-
-| Action | Funcao | Destino |
-|--------|--------|---------|
-| `login` | Autenticacao SGD | SGD API |
-| `get-user` | Dados do usuario logado | SGD API |
-| `list-budgets` | Listar orcamentos por status | SGD API |
-| `budget-detail` | Detalhes de um orcamento | SGD API |
-| `budget-items` | Itens de um orcamento | SGD API |
-| `send-proposal` | Enviar proposta | SGD API |
-| `b2b-scrape` | Web scraping de sites B2B | URL externa |
-| `sefaz-dist-dfe` | Buscar NFs de entrada | SEFAZ DistDFe |
-| `pncp-search` | Pesquisar contratacoes | PNCP API |
-| `pncp-items` | Itens de contratacao | PNCP API |
-| `pncp-detail` | Detalhes de contratacao | PNCP API |
-
-#### 4.2.2 `api/gdp-integrations.js` (NF-e SEFAZ — 122 linhas)
-
-Integracao fiscal com a SEFAZ para NF-e 4.00:
-
-| Action | Funcao |
-|--------|--------|
-| `nfe-sefaz-config` | Verificar configuracao do certificado |
-| `nfe-sefaz-preview` | Gerar XML assinado sem transmitir |
-| `nfe-sefaz-emitir` | Emissao direta (autoriza + retorna) |
-| `nfe-sefaz-transmitir` | Transmissao em lote |
-| `nfe-sefaz-cancelar` | Evento de cancelamento |
-| `nfe-sefaz-inutilizar` | Inutilizacao de faixa de numeracao |
-| `nfe-sefaz-debug` | Debug de itens recebidos |
-
-O motor fiscal (`server-lib/nfe-sefaz-client.js` — 1260 linhas) implementa:
-- Endpoints SEFAZ para todos os 27 estados (SVAN, SVRS, webservices proprios)
-- Assinatura digital XML com `xml-crypto`
-- Montagem de envelope SOAP
-- Validacao estrutural XSD do payload
-- Suporte multi-UF (nao apenas MG)
-
-#### 4.2.3 `api/ai-parse-price.js` (OpenAI — 137 linhas)
-
-Parsing inteligente de tabelas de precos usando LLM:
-- **Modo texto**: GPT-4o-mini para extrair itens de texto colado
-- **Modo OCR**: GPT-4o para analisar imagens de tabelas
-- **Modo cronograma OCR**: GPT-4o para cronogramas de entrega
-- Retorna array estruturado de itens com preco, marca, unidade, embalagem
-
-#### 4.2.4 `api/send-order-email.js` (Email — 168 linhas)
-
-Envio de emails de confirmacao de pedido via Resend API:
-- Template HTML inline com dados do pedido, NF-e e pagamento
-- Attachments: DANFE PDF, XML da NF-e
-- Suporte a boleto (linha digitavel) e PIX (copia-e-cola)
-- Fallback para modo log quando Resend nao configurado
-
-#### 4.2.5 APIs de Estoque Intel (`api/estoque.js`, `api/produtos.js`, etc.)
-
-APIs para o modulo Estoque Inteligente (dados de sample em memoria):
-
-| Endpoint | Metodo | Funcao |
-|----------|--------|--------|
-| `/api/produtos` | GET | Listar produtos |
-| `/api/estoque` | GET | Posicao de estoque |
-| `/api/embalagens` | GET | Embalagens + sugestao de compra |
-| `/api/pedidos` | POST | Registrar pedido |
-| `/api/compras` | POST | Simular compra inteligente |
-| `/api/fornecedores` | GET | Listar fornecedores com ofertas |
-| `/api/movimentacoes` | POST | Registrar movimentacao |
-| `/api/estoque-intel-erp` | GET | Resumo de integracao ERP |
-
-### 4.3 Banco de Dados — Supabase PostgreSQL
-
-#### 4.3.1 Modelo de Dados
-
-10 tabelas principais definidas em 5 migrations:
-
-| Tabela | Descricao | Chave | Multi-tenant |
-|--------|-----------|-------|-------------|
-| `empresas` | Empresas fornecedoras | `id TEXT` | Raiz do tenant |
-| `clientes` | Escolas / Caixas Escolares | `id TEXT` | `empresa_id` FK |
-| `contratos` | Contratos de licitacao | `id TEXT` | `empresa_id` FK |
-| `pedidos` | Pedidos de entrega | `id TEXT` | `empresa_id` FK |
-| `notas_fiscais` | NF-e emitidas | `id TEXT` | `empresa_id` FK |
-| `contas_receber` | Cobrancas | `id TEXT` | `empresa_id` FK |
-| `contas_pagar` | Despesas | `id TEXT` | `empresa_id` FK |
-| `entregas` | Provas de entrega | `id TEXT` | `empresa_id` FK |
-| `resultados_orcamento` | Resultados ganho/perdido | `id TEXT` | RLS habilitado |
-| `preco_historico` | Historico unificado de precos | `id TEXT` | RLS habilitado |
-
-Tabelas auxiliares:
-| Tabela | Funcao |
-|--------|--------|
-| `nf_counter` | Sequencia de numeracao NF por empresa |
-| `data_snapshots` | Backup point-in-time de tabelas |
-| `audit_log` | Audit trail automatico (INSERT/UPDATE/DELETE) |
-| `sync_data` | Key-value store legado para sync cloud |
-
-#### 4.3.2 Estrategia de Persistencia (Dual-Layer)
-
-O sistema utiliza uma estrategia hibrida de persistencia:
-
-1. **Supabase-first** (`gdp-api.js`): Para operacoes CRUD, o sistema tenta ler/escrever no Supabase via REST API e faz fallback para localStorage
-2. **localStorage cache**: Dados sao sempre salvos localmente para operacao offline
-3. **Cloud sync** (`app-sync.js`): Sincronizacao background via tabela `sync_data` (key-value JSONB)
-4. **Data migration** (`002_migrate_sync_data.sql`): Script de migracao de sync_data para tabelas normalizadas
-
-#### 4.3.3 Indices e Performance
-
-Indices criados para queries frequentes:
-- `empresa_id` em todas as tabelas (filtro de tenant)
-- `status` em contratos, pedidos, NFs, contas
-- `cnpj` em clientes
-- `chave_acesso` em notas_fiscais
-- `sku + sre` em preco_historico (analise de precos por regiao)
-
-### 4.4 Scripts CLI (Operacionais)
-
-35 scripts Node.js para operacoes batch e monitoramento:
-
-#### Operacoes Diarias
-| Script | Funcao |
-|--------|--------|
-| `ops-health-check.js` | Verificacao de saude do sistema |
-| `ops-alert-check.js` | Checagem de alertas operacionais |
-| `ops-status.js` | Status geral das operacoes |
-| `generate-ops-daily-report.js` | Relatorio diario de operacoes |
-| `generate-ops-eod-summary.js` | Resumo de fim de dia |
-| `generate-ops-handoff.js` | Handoff entre turnos |
-| `generate-ops-trend.js` | Tendencias operacionais |
-| `operational-daily-snapshot.js` | Snapshot diario de dados |
-| `export-operational-urgent-csv.js` | Exportar itens urgentes em CSV |
-
-#### Auditorias
-| Script | Funcao |
-|--------|--------|
-| `audit-sku-coverage.js` | Cobertura de SKUs no banco de precos |
-| `audit-territory-coverage.js` | Cobertura territorial (SREs/municipios) |
-| `validate-sku-coverage.js` | Validacao de cobertura de SKUs |
-| `validate-price-history.js` | Validacao de historico de precos |
-
-#### Precos e Cotacoes
-| Script | Funcao |
-|--------|--------|
-| `collect-sgd-orcamentos.js` | Coletar orcamentos do SGD |
-| `build-price-history.js` | Construir historico de precos |
-| `summarize-price-history.js` | Resumir historico por SKU |
-| `fetch-pncp-prices.js` | Buscar precos reais do PNCP |
-| `build-sgd-prequote-payload.js` | Montar payloads de pre-cotacao |
-| `submit-sgd-prequotes.js` | Submeter pre-cotacoes ao SGD |
-
-#### Integracoes
-| Script | Funcao |
-|--------|--------|
-| `sync-sgd-orders-olist.js` | Sincronizar pedidos SGD com Olist |
-| `test-orders-sync-olist.js` | Testar sincronizacao Olist |
-| `olist-adapter.js` | Adaptador para API Olist/Tiny |
-
-#### Discovery (Pesquisa de Mercado)
-| Script | Funcao |
-|--------|--------|
-| `discovery-daily-brief.js` | Briefing diario de discovery |
-| `discovery-summarize-interviews.js` | Resumir entrevistas |
-| `discovery-validate-interviews.js` | Validar entrevistas |
-| `discovery-status.js` | Status do ciclo de discovery |
-| `discovery-plan-sprint.js` | Planejar sprint de discovery |
-| `discovery-next-actions.js` | Proximas acoes |
-| `discovery-go-check.js` | Go/No-Go check |
-| `discovery-end-day-report.js` | Relatorio de fim de dia |
-
-#### Comercial e Onboarding
-| Script | Funcao |
-|--------|--------|
-| `commercial-kit.js` | Gerar kit comercial |
-| `onboarding-start.js` | Iniciar onboarding de nova escola |
-| `executive-status.js` | Status executivo geral |
-| `serve-dashboard.js` | Servidor local para desenvolvimento |
+### E. Financeiro
+```
+1. Caixa: saldo = entradas - saidas
+2. Contas a Pagar: cadastro manual, baixa, atraso automatico
+3. Contas a Receber: auto-gerada da NF, cobranca automatica
+4. Conciliacao: importar extrato bancario, match com titulos
+```
 
 ---
 
 ## 5. Integracoes Externas
 
-### 5.1 SGD — Sistema de Gestao de Despesas (MG)
-
-| Aspecto | Detalhe |
-|---------|---------|
-| **Base URL** | `https://api.caixaescolar.educacao.mg.gov.br` |
-| **Autenticacao** | Login CNPJ/senha, cookie `sessionToken` |
-| **Proxy** | `caixa-proxy.js` na Vercel (contorna CORS) |
-| **Operacoes** | Login, listar orcamentos, detalhar, listar itens, enviar proposta |
-| **Headers** | `x-network-being-managed-id` para selecao de rede |
-
-### 5.2 PNCP — Portal Nacional de Contratacoes Publicas
-
-| Aspecto | Detalhe |
-|---------|---------|
-| **Base URL** | `https://pncp.gov.br/api/consulta/v1` |
-| **Autenticacao** | Nenhuma (API publica) |
-| **Proxy** | `caixa-proxy.js` (actions `pncp-search`, `pncp-items`, `pncp-detail`) |
-| **Uso** | Pesquisa de precos de referencia de atas de registro de preco |
-
-### 5.3 SEFAZ — Secretaria da Fazenda (NF-e 4.00)
-
-| Aspecto | Detalhe |
-|---------|---------|
-| **Protocolo** | SOAP 1.2 sobre HTTPS com certificado digital A1 |
-| **Webservices** | Autorizacao, Inutilizacao, Evento (cancelamento) |
-| **Cobertura** | Todos os 27 UFs (webservice proprio, SVAN ou SVRS) |
-| **Certificado** | PFX em base64 via env var `NFE_CERT_BASE64` |
-| **Assinatura** | xml-crypto (XmlDSig) com node-forge |
-| **Ambiente** | Homologacao/Producao via env var `NFE_SEFAZ_AMBIENTE` |
-
-### 5.4 SEFAZ DistribuicaoDFe (NFs de Entrada)
-
-| Aspecto | Detalhe |
-|---------|---------|
-| **URL** | `https://www1.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx` |
-| **Funcao** | Buscar NFs emitidas contra o CNPJ da empresa |
-| **Proxy** | `caixa-proxy.js` (action `sefaz-dist-dfe`) |
-| **Parser** | Descompressao gzip dos docZip + parse XML |
-
-### 5.5 Olist / Tiny ERP
-
-| Aspecto | Detalhe |
-|---------|---------|
-| **Integracao** | Via `olist-adapter.js` e `api/olist/order.js` |
-| **Funcao** | Sincronizacao de pedidos confirmados para o ERP |
-| **Payload** | Formato Tiny API v2 com cliente, itens, NCM, SKU |
-| **Controle** | Feature flag `GDP_ENABLE_ERP_ORDER_SYNC` |
-| **Retry** | Max 5 tentativas com backoff exponencial (base 20s) |
-
-### 5.6 OpenAI (GPT-4o / GPT-4o-mini)
-
-| Aspecto | Detalhe |
-|---------|---------|
-| **Endpoint** | `api/ai-parse-price.js` |
-| **Modelos** | GPT-4o-mini (texto), GPT-4o (OCR e cronogramas) |
-| **Funcao** | Extrair itens de tabelas de precos em formato estruturado |
-| **API Key** | `OPENAI_API_KEY` em env var |
-| **Limite** | Texto truncado em 15.000 chars, max 4K-16K tokens de resposta |
-
-### 5.7 Resend (Email Transacional)
-
-| Aspecto | Detalhe |
-|---------|---------|
-| **Endpoint** | `api/send-order-email.js` |
-| **Funcao** | Envio de confirmacao de pedido, NF-e e cobranca |
-| **Attachments** | DANFE PDF, XML NF-e |
-| **Fallback** | Modo log quando `EMAIL_PROVIDER` != `resend` |
-
-### 5.8 B2B Web Scraping
-
-| Aspecto | Detalhe |
-|---------|---------|
-| **Proxy** | `caixa-proxy.js` (action `b2b-scrape`) |
-| **Funcao** | Buscar precos de fornecedores em sites B2B |
-| **Sanitizacao** | Remove scripts, styles, nav, footer; trunca em 15.000 chars |
-| **User-Agent** | Simula navegador Chrome |
-
-### 5.9 Provedores Bancarios (Cobranca)
-
-Suporte a multiplos provedores de cobranca via `bank-provider-config.js`:
-
-| Provedor | Suporte |
-|----------|---------|
-| **Asaas** | Boleto, PIX — client implementado em `asaas-charge-client.js` |
-| **Efi (Gerencianet)** | Configurado, client parcial |
-| **Banco Inter** | Configurado, client parcial |
-| **Banco do Brasil** | Configurado, client parcial |
+| Sistema | Proposito | Auth | Status |
+|---------|-----------|------|--------|
+| **SGD (MG)** | Captacao orcamentos educacao publica | CNPJ + senha → sessionToken | Ativo |
+| **SEFAZ** | Transmissao NF-e (SOAP) | Certificado A1 (PEM/PFX) | Ativo (homolog) |
+| **Banco Inter** | Boleto, PIX, extrato | OAuth2 (clientId/secret) | Parcial |
+| **Asaas** | Gateway pagamentos | API Key | Configurado |
+| **Supabase** | Database + Auth + RLS | Anon key (browser) + service key (server) | Ativo |
+| **Tiny ERP** | Sync produtos/pedidos | API Token | Opcional |
+| **Olist** | Marketplace | API Key | Framework pronto |
+| **PNCP** | Busca licitacoes publicas | Sem auth (publico) | Ativo |
+| **OpenAI** | NCM auto, parsing precos | API Key | Opcional |
 
 ---
 
-## 6. Fluxo de Dados
+## 6. Sincronizacao (Offline-First)
 
-### 6.1 Fluxo de Cotacao/Proposta
+### Estrategia
+1. **Leitura:** sempre do localStorage (instantaneo)
+2. **Escrita:** localStorage + fila de sync (debounce 2s)
+3. **Sync:** Supabase REST API (upsert com on_conflict)
+4. **Conflito:** local com mais itens vence (previne perda)
+5. **Keys compartilhadas:** cloud sempre vence
 
-```
-1. Operador abre dashboard
-2. Sistema carrega orcamentos do localStorage (cache)
-3. Operador clica "Varrer SGD"
-4. Frontend → POST /api/caixa-proxy { action: "login" }
-5. Frontend → POST /api/caixa-proxy { action: "list-budgets" }
-6. Orcamentos renderizados com score de oportunidade
-7. Operador monta pre-orcamento (precos do banco + custos + margem)
-8. Operador aprova e envia proposta
-9. Frontend → POST /api/caixa-proxy { action: "send-proposal" }
-10. Resultado salvo no Supabase (resultados_orcamento)
-```
+### Camadas de Sync
+- **Direto Supabase:** contratos, pedidos, notas_fiscais, clientes, contas_*, entregas
+- **Via sync_data:** estoque intel, config, equivalencias, categorias, formas
+- **Local only:** orcamentos SGD, pre-orcamentos (muito grandes para sync)
 
-### 6.2 Fluxo de Pedido → NF-e → Cobranca
-
-```
-1. Contrato ganho cadastrado
-2. Pedido criado a partir do contrato (itens, quantidades, precos)
-3. Pedido confirmado → sincronizado com Olist/Tiny ERP
-4. NF-e gerada:
-   a. Frontend → POST /api/gdp-integrations { action: "nfe-sefaz-preview" }
-   b. Validacao XSD do payload
-   c. Frontend → POST /api/gdp-integrations { action: "nfe-sefaz-emitir" }
-   d. XML assinado digitalmente e transmitido à SEFAZ
-   e. Chave de acesso e protocolo salvos no Supabase
-5. Conta a receber gerada automaticamente
-6. Email de confirmacao enviado via Resend com DANFE + XML
-7. Cobranca criada no provedor bancario (Asaas)
-```
-
-### 6.3 Fluxo de Persistencia (Dual-Layer)
-
-```
-Operacao de escrita:
-1. Dados salvos no localStorage imediatamente
-2. Sync queue agenda upload para Supabase
-3. gdp-api.js tenta UPSERT via PostgREST
-4. Se falha: dados permanecem no localStorage, retry na proxima sync
-
-Operacao de leitura:
-1. gdp-api.js tenta fetch do Supabase (tabela normalizada)
-2. Se falha: leitura do localStorage
-3. Fallback: leitura da tabela sync_data (formato legado key-value)
-```
+### Identidade Multi-tenant
+- User ID resolvido por: syncUserId → nomeFantasia → cnpj → "default"
+- RLS do Supabase filtra por empresa_id
 
 ---
 
-## 7. Modelo de Deploy
+## 7. Debito Tecnico
 
-### Infraestrutura
+### Critico (deve corrigir)
 
-| Componente | Provedor | Plano |
-|-----------|---------|-------|
-| **Hosting + Functions** | Vercel | Hobby (gratuito) |
-| **Database** | Supabase | Free tier |
-| **Email** | Resend | Free tier |
-| **AI** | OpenAI | Pay-per-use |
-| **Cobranca** | Asaas | Sandbox/Producao |
+| # | Problema | Arquivo | Impacto |
+|---|---------|---------|---------|
+| 1 | `excluirContrato()` definida 2x | gdp-contratos-module.js:2506,2961 | Segunda sobrescreve primeira |
+| 2 | `editarBancoItem()` definida 2x com logica diferente | pricing-intel.js:475 + app-banco.js:789 | Comportamento imprevisivel |
+| 3 | 2 funcoes similaridade incompativeis | gdp-banco-produtos.js:656,1350 | Retornos diferentes ({score,tipo} vs number) |
 
-### Vercel Configuration (`vercel.json`)
+### Alto (duplicacao massiva)
 
-- **Rewrites**: `/api/sgd-proxy` e `/api/b2b-scrape` redirecionados para `/api/caixa-proxy`
-- **Redirects**: Raiz (`/`) redireciona para `gdp-contratos.html`
-- **Functions**: `caixa-proxy.js`, `ai-parse-price.js`, `gdp-integrations.js` com max 60s de duracao
-- **Headers**: `Cache-Control: no-cache` para todos os arquivos HTML
+| # | Problema | Arquivo | Linhas duplicadas |
+|---|---------|---------|-------------------|
+| 4 | 14+ pares funcoes CR/CP identicas | gdp-init.js:281-810 | ~600 linhas |
+| 5 | getSyncUserId() repetida em 3+ HTMLs | portal, entregador, mobile | ~60 linhas |
+| 6 | mergeImport/mergeMapaIntoBanco duplicadas | app-import.js | ~250 linhas |
+| 7 | 3 funcoes geracao contrato duplicadas | app-results.js | ~250 linhas |
+| 8 | load/save identicos nunca chamados | app-state.js:295-309 | ~100 linhas |
 
-### Estrutura de Deploy
+### Medio (dead code)
 
-O projeto tem **duas raizes de deploy** que coexistem:
+| # | Problema | Arquivo | Linhas |
+|---|---------|---------|--------|
+| 9 | syncPedidosGDPToEstoqueIntel() dead | gdp-core.js:1338 | 1 |
+| 10 | 11 funcoes stub vazias | gdp-core.js:1339-1404 | 11 |
+| 11 | 4 funcoes teste/demo | gdp-estoque-intel.js:427-536 | ~110 |
+| 12 | 3 noops migrados | app.js:2586-2653 | ~70 |
+| 13 | toggleSimulator dead | pricing-intel.js:295-303 | ~10 |
+| 14 | setTextSafe duplicado | pricing-intel.js:701 + app-utils.js:180 | 6 |
+| 15 | Typo schedulCloudSync | gdp-core.js:376 | 1 |
+| 16 | 6 APIs desabilitadas | api/_disabled/ | Pendente limpeza |
 
-1. **`painel-caixa-escolar/` (raiz)** — Deploy principal no Vercel
-   - `api/` → Serverless functions
-   - `dashboard/` → Dashboard LicitIA MG
-   - `squads/caixa-escolar/dashboard/` → GDP Contratos (app principal)
-
-2. **`squads/caixa-escolar/dashboard/`** — Possui seu proprio `vercel.json` e `package.json`
-   - Pode ter sido um deploy independente em algum momento
-   - Atualmente servido via a raiz principal
-
----
-
-## 8. Seguranca
-
-### 8.1 Autenticacao
-
-| Mecanismo | Implementacao | Localizacao |
-|-----------|--------------|-------------|
-| **Login local** | SHA-256 do password comparado com hash hardcoded | `auth.js` |
-| **Sessao** | Hash armazenado em `sessionStorage` | `auth.js` |
-| **SGD** | Cookie `sessionToken` obtido via proxy | `caixa-proxy.js` |
-
-**Observacao critica**: O hash da senha esta hardcoded no JavaScript client-side (`auth.js` linha 8). A autenticacao e puramente no frontend — nao ha verificacao server-side.
-
-### 8.2 API Keys e Credenciais
-
-| Credencial | Armazenamento | Exposicao |
-|-----------|--------------|-----------|
-| **Supabase URL + anon key** | Hardcoded em `gdp-api.js` | Exposta no client-side (esperado para anon key) |
-| **SGD credentials** | localStorage (`caixaescolar.sgd.credentials`) | Apenas no browser do usuario |
-| **OpenAI API key** | Env var Vercel (`OPENAI_API_KEY`) | Protegida server-side |
-| **Resend API key** | Env var Vercel (`RESEND_API_KEY`) | Protegida server-side |
-| **Certificado NF-e** | Env var Vercel (`NFE_CERT_BASE64`) | Protegida server-side |
-| **Asaas API key** | Env var Vercel (`GDP_BANK_ASAAS_API_KEY`) | Protegida server-side |
-
-### 8.3 CORS
-
-Todas as serverless functions setam `Access-Control-Allow-Origin: *` — sem restricao de origem.
-
-### 8.4 Row Level Security (RLS)
-
-RLS habilitado nas tabelas:
-- `resultados_orcamento` — Policy por `empresa_id` via `app.current_empresa_id`
-- `preco_historico` — Policy por `empresa_id` via `app.current_empresa_id`
-
-As demais tabelas (contratos, pedidos, NFs, etc.) **nao possuem RLS** ativo — a filtragem e feita apenas na aplicacao.
-
-### 8.5 Audit Trail
-
-- Trigger `audit_trigger()` em 7 tabelas registra INSERT/UPDATE/DELETE em `audit_log`
-- Snapshots point-in-time via `snapshot_all()` em `data_snapshots`
+### Estimativa de Limpeza: ~1.460 linhas duplicadas, ~200 linhas dead code
 
 ---
 
-## 9. Padroes de Codigo
+## 8. Metricas
 
-### 9.1 Frontend
-
-- **Vanilla JS** sem frameworks — DOM manipulation direta via `document.getElementById()`
-- **Modulos via IIFE** — `gdp-api.js` usa `(function() { ... })()` para encapsulamento
-- **Variáveis globais** — Estado da aplicacao em variaveis globais (`quotes`, `orcamentos`, `preOrcamentos`)
-- **Nomenclatura** — camelCase para JS, kebab-case para IDs HTML
-- **Formatacao** — `Intl.NumberFormat` para BRL, datas em ISO
-- **Cache** — Pattern de `cachedFetch()` com Map e TTL
-- **Memoizacao** — `memo()` com versioning para invalidacao
-- **localStorage intensivo** — ~30 chaves diferentes para estado, cache e config
-
-### 9.2 Backend
-
-- **Serverless functions** — Export default de handler `(req, res) => {}`
-- **CommonJS** para a maioria; **ESM** (`export default`) para `caixa-proxy.js`, `ai-parse-price.js`, `send-order-email.js`
-- **CORS manual** — `corsHeaders(res)` em cada function
-- **Action pattern** — Proxy unificado com `action` no body JSON
-- **Error handling** — try/catch com `res.status(500).json({ error: ... })`
-
-### 9.3 Banco de Dados
-
-- **TEXT como PK** — IDs sao strings (UUID ou compostos)
-- **JSONB extensivo** — Campos como `itens`, `fiscal`, `sefaz`, `endereco` sao JSONB
-- **Trigger para updated_at** — Automatico em todas as tabelas
-- **Migracao idempotente** — `ON CONFLICT DO NOTHING` em todos os INSERTs de migracao
-- **Nomenclatura** — snake_case no banco, camelCase no JS (com mapeamento em `gdp-api.js`)
-
-### 9.4 Scripts CLI
-
-- **Pattern uniforme** — Leitura de JSON files, processamento, escrita de JSON output
-- **Dados em `dashboard/data/`** — 25+ arquivos JSON como "banco de dados" de arquivos
-- **npm scripts encadeados** — `ops:daily` encadeia 8 scripts sequencialmente
-- **Sem dependencias externas** — Apenas `fs`, `path` e modulos locais
+| Metrica | Valor |
+|---------|-------|
+| Total linhas codigo | ~45.672 |
+| Arquivos JS | 29 + inline em 6 HTMLs |
+| Paginas HTML | 9 |
+| Funcoes declaradas | ~600+ |
+| Variaveis globais | ~150+ |
+| Chaves localStorage | ~50+ |
+| Tabelas Supabase | 7 diretas + sync_data |
+| APIs serverless ativas | 11 |
+| APIs desabilitadas | 6 |
+| Integracoes externas | 9 |
 
 ---
 
-## 10. Limitacoes Conhecidas
-
-### 10.1 Arquitetura
-
-| Limitacao | Impacto | Severidade |
-|-----------|---------|-----------|
-| **Single-tenant hardcoded** | Tenant `LARIUCCI` hardcoded em migrations e fallbacks. Suporte multi-tenant existe no schema mas nao na pratica. | MEDIA |
-| **Frontend monolitico** | `app.js` do GDP com 2623 linhas; estado global compartilhado entre modulos via variaveis globais. | ALTA |
-| **Sem build system** | Nenhum bundler, minifier ou tree-shaking. Todos os scripts carregados sequencialmente. | MEDIA |
-| **Sem testes automatizados** | `npm test` executa apenas um script de teste manual de sync Olist. Sem unit tests, sem CI/CD. | ALTA |
-| **Sem TypeScript** | Todo o codigo em JavaScript vanilla sem tipagem estatica. | MEDIA |
-
-### 10.2 Seguranca
-
-| Limitacao | Impacto | Severidade |
-|-----------|---------|-----------|
-| **Auth client-side only** | Hash da senha exposto no JS. Qualquer pessoa pode acessar o dashboard. | CRITICA |
-| **CORS `*`** | Qualquer dominio pode chamar as APIs. | ALTA |
-| **Supabase anon key exposta** | Esperado, mas sem RLS na maioria das tabelas = acesso total aos dados. | CRITICA |
-| **RLS parcial** | Apenas 2 de 10+ tabelas possuem RLS ativo. | ALTA |
-| **Credenciais SGD em localStorage** | CNPJ e senha do SGD salvos sem criptografia no browser. | MEDIA |
-
-### 10.3 Performance e Escalabilidade
-
-| Limitacao | Impacto | Severidade |
-|-----------|---------|-----------|
-| **Vercel Hobby plan** | Limite de 12 serverless functions (contornado pelo proxy unificado). Limite de 60s por execucao. | MEDIA |
-| **localStorage como DB** | ~30 chaves com dados potencialmente grandes. Limite de ~5-10MB por dominio. | ALTA |
-| **Sem paginacao server-side** | Queries Supabase sem limit em muitos casos (`?limit=9999`). | MEDIA |
-| **JSON files como data store** | 25+ arquivos JSON em `dashboard/data/` servidos como assets estaticos. | MEDIA |
-| **Sem CDN para assets** | CSS e JS servidos diretamente, sem minificacao ou cache busting (apenas query string manual `?v=7`). | BAIXA |
-
-### 10.4 Manutenibilidade
-
-| Limitacao | Impacto | Severidade |
-|-----------|---------|-----------|
-| **Duas raizes de deploy** | `painel-caixa-escolar/` e `squads/caixa-escolar/dashboard/` com codigo duplicado/divergente. | ALTA |
-| **Mix de CommonJS e ESM** | Algumas functions usam `module.exports`, outras `export default`. | BAIXA |
-| **Dados de sample hardcoded** | APIs de estoque intel usam dados mock em `lib/estoque-intel-data.js`. | MEDIA |
-| **Sem versionamento de API** | Endpoints nao possuem prefixo de versao (`/api/v1/`). | BAIXA |
-| **Documentacao inline escassa** | Poucos JSDoc, comentarios minimais. Nomes de funcoes sao a principal documentacao. | MEDIA |
-
----
-
-*Documento gerado por @architect (Aria) — Brownfield Discovery Phase 1*
-*Projeto: Painel Caixa Escolar MG / LicitIA MG / GDP*
+*Documento gerado pela Fase 2 do Brownfield Discovery*
+*@architect (Aria) — 2026-05-03*
