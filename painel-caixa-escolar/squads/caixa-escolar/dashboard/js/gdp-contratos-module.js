@@ -2503,16 +2503,7 @@ async function criarPedidoCatalogo(contratoId) {
   showToast(`Pedido ${pedido.id} criado para operacao interna do GDP — ${itensP.length} iten(s), ${brl.format(valor)}`, 4000);
 }
 
-function excluirContrato(id) {
-  const c = contratos.find(x => x.id === id);
-  if (!c) return;
-  if (!confirm(`Excluir contrato ${c.id} — ${c.escola}?\n\nEsta ação não pode ser desfeita.`)) return;
-  registrarContratoExcluido(c);
-  contratos = contratos.filter(x => x.id !== id);
-  saveContratos();
-  renderAll();
-  showToast(`Contrato ${id} excluído.`);
-}
+// excluirContrato() definida abaixo, junto ao detalhe do contrato (inclui fecharModalContrato)
 
 // ===== CONTRACT DETAIL MODAL =====
 function novoContratoManual() {

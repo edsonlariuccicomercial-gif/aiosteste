@@ -1307,50 +1307,11 @@ function confirmarImportProdutos() {
 }
 
 // ===== SYNC ITENS CONTRATO ↔ BANCO DE PRODUTOS =====
-function normalizarTexto(s) {
-  return (s || '').toLowerCase().trim()
-    .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // remove acentos
-    .replace(/[:\-\/\\.,;!?()[\]{}'"]+/g, ' ')       // pontuacao → espaco
-    .replace(/\s+/g, ' ').trim();                     // colapsar espacos
-}
-
-function calcJaccard(s1, s2) {
-  const w1 = new Set(normalizarTexto(s1).split(' ').filter(Boolean));
-  const w2 = new Set(normalizarTexto(s2).split(' ').filter(Boolean));
-  if (w1.size === 0 && w2.size === 0) return 1;
-  if (w1.size === 0 || w2.size === 0) return 0;
-  let inter = 0;
-  for (const w of w1) if (w2.has(w)) inter++;
-  return inter / (w1.size + w2.size - inter);
-}
-
-function calcLevenshtein(s1, s2) {
-  s1 = normalizarTexto(s1); s2 = normalizarTexto(s2);
-  if (s1 === s2) return 1;
-  const longer = s1.length > s2.length ? s1 : s2;
-  const shorter = s1.length > s2.length ? s2 : s1;
-  if (longer.length === 0) return 1;
-  const costs = [];
-  for (let i = 0; i <= longer.length; i++) {
-    let lastVal = i;
-    for (let j = 0; j <= shorter.length; j++) {
-      if (i === 0) { costs[j] = j; }
-      else if (j > 0) {
-        let newVal = costs[j - 1];
-        if (longer[i - 1] !== shorter[j - 1]) newVal = Math.min(newVal, lastVal, costs[j]) + 1;
-        costs[j - 1] = lastVal;
-        lastVal = newVal;
-      }
-    }
-    if (i > 0) costs[shorter.length] = lastVal;
-  }
-  return (longer.length - costs[shorter.length]) / longer.length;
-}
-
+// Similaridade unificada — usa calcularSimilaridade() (retorna {score:0-100, tipo})
+// Wrapper para callers que esperam numero 0-1:
 function calcSimilaridade(s1, s2) {
-  const jaccard = calcJaccard(s1, s2);
-  const levenshtein = calcLevenshtein(s1, s2);
-  return jaccard * 0.6 + levenshtein * 0.4;
+  const result = calcularSimilaridade(s1, s2);
+  return result.score / 100;
 }
 
 function abrirModalSync(contratoId) {
