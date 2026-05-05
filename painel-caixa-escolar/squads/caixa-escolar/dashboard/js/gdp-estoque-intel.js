@@ -428,7 +428,6 @@ function updateListaComprasStatusSummary() {
 // garantirPedidoExemploDemandaAutomatica, gerarExemploDemandaVisualEstoqueIntel,
 // limparReservasTesteEstoqueIntel, gerarExemploDemandaAutomaticaEstoqueIntel
 // (nenhuma era chamada de HTML ou outros modulos — apenas demo interno)
-}
 
 function resetVisualizacaoCompraEstoqueIntel() {
   const demoId = "PED-DEMO-ESTOQUE-001";
