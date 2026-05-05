@@ -424,149 +424,10 @@ function updateListaComprasStatusSummary() {
   btn.innerHTML = `${esc(label)} <span id="ei-status-filter-icon">${document.getElementById("ei-status-filter-panel")?.classList.contains("hidden") ? "+" : "-"}</span>`;
 }
 
-function garantirPedidoExemploDemandaAutomatica() {
-  const demoId = "PED-DEMO-ESTOQUE-001";
-  const existente = pedidos.find((pedido) => pedido.id === demoId);
-  if (existente) return existente;
-  const pedidoDemo = sanitizePedidoLegacyData({
-    id: demoId,
-    escola: "Escola Exemplo Estoque Intel",
-    cliente: {
-      nome: "Escola Exemplo Estoque Intel",
-      cnpj: "12345678000199"
-    },
-    data: new Date().toISOString().slice(0, 10),
-    dataEntrega: new Date().toISOString().slice(0, 10),
-    dataPrevista: new Date().toISOString().slice(0, 10),
-    status: "recebido",
-    valor: 0,
-    itens: [
-      { itemNum: 1, descricao: "Arroz Pacote 350g", sku: "7890000003506", qtd: 12, precoUnitario: 8.9 },
-      { itemNum: 2, descricao: "Suco integral Garrafa 1000ml", sku: "7890000010009", qtd: 8, precoUnitario: 6.2 }
-    ]
-  });
-  pedidoDemo.valor = pedidoDemo.itens.reduce((sum, item) => sum + Number(item.qtd || 0) * Number(item.precoUnitario || 0), 0);
-  pedidos.unshift(pedidoDemo);
-  savePedidos();
-  return pedidoDemo;
-}
-
-function gerarExemploDemandaVisualEstoqueIntel() {
-  // Seed de exemplo removido — produtos devem ser cadastrados pelo usuario
-  const demoId = "PEDINT-DEMO-VISUAL-001";
-  const existente = estoqueIntelPedidos.find((pedido) => pedido.id === demoId);
-  if (existente) {
-    estoqueIntelCurrentView = "pedidos";
-    renderEstoque();
-    visualizarDemandaEstoqueIntel(demoId);
-    showToast("Exemplo de demanda aberto para visualizacao.", 3500);
-    return;
-  }
-  const produto = estoqueIntelProdutos[0];
-  if (!produto) {
-    showToast("Cadastre ou gere produtos antes de criar o exemplo.", 3500);
-    return;
-  }
-  const quantidadeBase = 1700;
-  const pedido = {
-    id: demoId,
-    data: new Date().toISOString().slice(0, 10),
-    data_prevista: new Date().toISOString().slice(0, 10),
-    status: "emitido",
-    origem_sistema: "manual",
-    cliente: "Reserva interna de exemplo"
-  };
-  const pedidoItem = {
-    id: `PIT-${demoId}`,
-    pedido_id: demoId,
-    produto_id: produto.id,
-    quantidade_base: quantidadeBase,
-    origem_sistema: "manual"
-  };
-  estoqueIntelPedidos.unshift(pedido);
-  estoqueIntelPedidoItens.unshift(pedidoItem);
-  estoqueIntelMovimentacoes.unshift({
-    id: `MOV-${demoId}`,
-    produto_id: produto.id,
-    tipo: "comprometido",
-    operacao: "+",
-    quantidade: quantidadeBase,
-    origem: "pedido",
-    origem_sistema: "manual",
-    data: new Date().toISOString(),
-    referencia_id: demoId
-  });
-  saveEstoqueIntelPedidos();
-  saveEstoqueIntelPedidoItens();
-  saveEstoqueIntelMovimentacoes();
-  estoqueIntelCurrentView = "pedidos";
-  renderEstoque();
-  visualizarDemandaEstoqueIntel(demoId);
-  showToast("Exemplo de demanda criado e aberto para visualizacao.", 4000);
-}
-
-function limparReservasTesteEstoqueIntel() {
-  const idsTeste = new Set(
-    estoqueIntelPedidos
-      .filter((pedido) => pedido.origem_sistema === "manual" && /^PEDINT-DEMO-|^PED-DEMO-ESTOQUE-/.test(String(pedido.id || "")))
-      .map((pedido) => pedido.id)
-  );
-  if (!idsTeste.size) {
-    showToast("Nenhuma reserva de teste encontrada.", 3000);
-    return;
-  }
-  if (!confirm(`Remover ${idsTeste.size} reserva(s) de teste do Estoque Intel?\n\nEssa acao apaga demandas de exemplo, itens, movimentacoes e entregas operacionais ligadas a elas.`)) return;
-  estoqueIntelPedidos = estoqueIntelPedidos.filter((pedido) => !idsTeste.has(pedido.id));
-  estoqueIntelPedidoItens = estoqueIntelPedidoItens.filter((item) => !idsTeste.has(item.pedido_id));
-  estoqueIntelMovimentacoes = estoqueIntelMovimentacoes.filter((mov) => !idsTeste.has(mov.referencia_id));
-  provasEntrega = provasEntrega.filter((item) => !idsTeste.has(item.pedidoId));
-  pedidos = pedidos.filter((pedido) => !idsTeste.has(pedido.id));
-  saveEstoqueIntelPedidos();
-  saveEstoqueIntelPedidoItens();
-  saveEstoqueIntelMovimentacoes();
-  localStorage.setItem(PROOFS_KEY, JSON.stringify(provasEntrega));
-  savePedidos();
-  if (estoqueIntelListaDemandaContextoId && idsTeste.has(estoqueIntelListaDemandaContextoId)) {
-    estoqueIntelListaDemandaContextoId = "";
-  }
-  renderEstoque();
-  showToast(`${idsTeste.size} reserva(s) de teste removida(s).`, 3500);
-}
-
-function gerarExemploDemandaAutomaticaEstoqueIntel() {
-  if (!estoqueIntelProdutos.length) {
-    showToast("Cadastre produtos em Inteligencia > Produtos primeiro.", 3500);
-    return;
-  }
-  const sincronizadosAntes = syncPedidosGDPToEstoqueIntel(true);
-  if (!sincronizadosAntes) {
-    garantirPedidoExemploDemandaAutomatica();
-  }
-  const sincronizados = syncPedidosGDPToEstoqueIntel(false);
-  estoqueIntelCurrentView = "compra";
-  const agruparEl = document.getElementById("ei-lista-agrupar");
-  const compararEl = document.getElementById("ei-lista-comparar-estoque");
-  const mesEl = document.getElementById("ei-lista-mes");
-  const clienteEl = document.getElementById("ei-lista-cliente");
-  const produtoEl = document.getElementById("ei-lista-produto");
-  const fornecedorEl = document.getElementById("ei-lista-fornecedor");
-  const dataDeEl = document.getElementById("ei-lista-data-de");
-  const dataAteEl = document.getElementById("ei-lista-data-ate");
-  if (agruparEl) agruparEl.value = "produto";
-  if (compararEl) compararEl.value = "sim";
-  if (clienteEl) clienteEl.value = "";
-  if (produtoEl) produtoEl.value = "";
-  if (fornecedorEl) fornecedorEl.value = "";
-  if (dataDeEl) dataDeEl.value = "";
-  if (dataAteEl) dataAteEl.value = "";
-  if (mesEl) mesEl.value = new Date().toISOString().slice(0, 7);
-  estoqueIntelListaPeriodoModo = "mes";
-  estoqueIntelListaStatusFiltros = [];
-  updateListaComprasStatusSummary();
-  estoqueIntelListaComprasSelecionadas.clear();
-  renderEstoque();
-  renderListaComprasEstoqueIntel();
-  showToast(`${sincronizados} demanda(s) prontas na lista automatica para demonstracao.`, 4000);
+// [Brownfield Cleanup] Removidas 4 funcoes de demonstracao/teste:
+// garantirPedidoExemploDemandaAutomatica, gerarExemploDemandaVisualEstoqueIntel,
+// limparReservasTesteEstoqueIntel, gerarExemploDemandaAutomaticaEstoqueIntel
+// (nenhuma era chamada de HTML ou outros modulos — apenas demo interno)
 }
 
 function resetVisualizacaoCompraEstoqueIntel() {
@@ -1891,25 +1752,7 @@ function calcularSugestaoCompraEstoqueIntel() {
   renderEstoque();
 }
 
-function seedEstoqueIntelExemplo() {
-  const seed = getDefaultEstoqueIntelSeed();
-  estoqueIntelProdutos = seed.produtos;
-  estoqueIntelEmbalagens = seed.embalagens;
-  estoqueIntelFornecedores = seed.fornecedores;
-  estoqueIntelPedidos = seed.pedidos;
-  estoqueIntelPedidoItens = seed.pedidoItens;
-  estoqueIntelMovimentacoes = seed.movimentacoes;
-  estoqueIntelCompras = seed.compras;
-  saveEstoqueIntelProdutos();
-  saveEstoqueIntelEmbalagens();
-  saveEstoqueIntelFornecedores();
-  saveEstoqueIntelPedidos();
-  saveEstoqueIntelPedidoItens();
-  saveEstoqueIntelMovimentacoes();
-  saveEstoqueIntelCompras();
-  renderEstoque();
-  showToast("Exemplo do Estoque Intel carregado.", 3000);
-}
+// [Brownfield Cleanup] seedEstoqueIntelExemplo() removida — dead code de demo
 
 function limparEstoqueIntel() {
   if (!confirm("Limpar toda a base local do Estoque Intel?")) return;

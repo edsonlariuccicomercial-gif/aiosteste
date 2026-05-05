@@ -697,11 +697,7 @@ if (btnExportRent) {
 }
 
 // ===== UTILITIES =====
-
-function setTextSafe(id, text) {
-  const el = document.getElementById(id);
-  if (el) el.textContent = text;
-}
+// setTextSafe() definida em app-utils.js (carrega antes)
 
 // ===== HOOK INTO TAB SWITCHING =====
 // Listen for tab changes to trigger renders
