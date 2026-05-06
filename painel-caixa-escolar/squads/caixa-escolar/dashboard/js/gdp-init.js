@@ -3048,8 +3048,10 @@ function removerEmbNovoProduto(idx) {
 }
 
 function _capturarCamposNovoProduto() {
+  const tipoEl = document.querySelector('input[name="ei-prod-tipo"]:checked');
   return {
     nome: document.getElementById("ei-produto-nome")?.value || "",
+    tipo: tipoEl ? tipoEl.value : "comum",
     unidade: document.getElementById("ei-produto-unidade")?.value || "UN",
     sku: document.getElementById("ei-produto-sku")?.value || "",
     ncm: document.getElementById("ei-produto-ncm")?.value || "",
@@ -3061,6 +3063,11 @@ function _capturarCamposNovoProduto() {
 function _restaurarCamposNovoProduto(d) {
   const el = (id) => document.getElementById(id);
   if (el("ei-produto-nome")) el("ei-produto-nome").value = d.nome;
+  // Restaurar tipo critico/comum antes de restaurar unidade (atualizarUnidadesPorTipo muda as opções)
+  if (d.tipo) {
+    const tipoRadio = document.querySelector('input[name="ei-prod-tipo"][value="' + d.tipo + '"]');
+    if (tipoRadio) { tipoRadio.checked = true; atualizarUnidadesPorTipo('ei'); }
+  }
   if (el("ei-produto-unidade")) el("ei-produto-unidade").value = d.unidade;
   if (el("ei-produto-sku")) el("ei-produto-sku").value = d.sku;
   if (el("ei-produto-ncm")) el("ei-produto-ncm").value = d.ncm;

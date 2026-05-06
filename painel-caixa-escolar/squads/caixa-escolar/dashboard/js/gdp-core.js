@@ -886,6 +886,18 @@ function loadData() {
     }
     localStorage.setItem("gdp.migration.criticos-exatos-v6", new Date().toISOString());
   }
+  // Migration v7: remover fornecedores-teste FORN-001/FORN-002 que persistiram no localStorage/cloud
+  if (!localStorage.getItem("gdp.migration.remove-forn-teste-v7")) {
+    const TEST_FORN_IDS = new Set(["FORN-001", "FORN-002"]);
+    const antes = estoqueIntelFornecedores.length;
+    estoqueIntelFornecedores = estoqueIntelFornecedores.filter(f => !TEST_FORN_IDS.has(f.id));
+    const removidos = antes - estoqueIntelFornecedores.length;
+    if (removidos > 0) {
+      saveWrappedArray(ESTOQUE_INTEL_SUPPLIERS_KEY, estoqueIntelFornecedores);
+      console.log("[migration] remove-forn-teste-v7: " + removidos + " fornecedores-teste removidos (FORN-001/FORN-002)");
+    }
+    localStorage.setItem("gdp.migration.remove-forn-teste-v7", new Date().toISOString());
+  }
   syncPedidosGDPToEstoqueIntel(true);
   // Story 4.43: load equivalencias/demandas/estoque data layer
   loadGdpEquivalencias();
