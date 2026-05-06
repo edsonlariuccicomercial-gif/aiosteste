@@ -898,6 +898,33 @@ function loadData() {
     }
     localStorage.setItem("gdp.migration.remove-forn-teste-v7", new Date().toISOString());
   }
+  // Migration v8: restaurar produto_critico para produtos que têm embalagens reais (qtd_base > 1)
+  // e limpar embalagens acidentais (qtd=1 + descrição vazia)
+  if (!localStorage.getItem("gdp.migration.restaurar-criticos-v8")) {
+    // 1. Limpar embalagens acidentais (sem descrição e qtd_base <= 1)
+    const embAntes = estoqueIntelEmbalagens.length;
+    estoqueIntelEmbalagens = estoqueIntelEmbalagens.filter(e => {
+      const descVazia = !e.descricao || e.descricao.trim() === "";
+      const qtdTrivial = !e.quantidade_base || Number(e.quantidade_base) <= 1;
+      return !(descVazia && qtdTrivial); // remover se AMBOS vazios
+    });
+    const embLimpas = embAntes - estoqueIntelEmbalagens.length;
+    // 2. Restaurar produto_critico para quem tem embalagens reais
+    const prodIdsComEmbReal = new Set(estoqueIntelEmbalagens.map(e => e.produto_id));
+    let restaurados = 0;
+    estoqueIntelProdutos.forEach(p => {
+      if (prodIdsComEmbReal.has(p.id) && !p.produto_critico) {
+        p.produto_critico = true;
+        restaurados++;
+      }
+    });
+    if (restaurados > 0 || embLimpas > 0) {
+      saveWrappedArray(ESTOQUE_INTEL_PRODUCTS_KEY, estoqueIntelProdutos);
+      saveWrappedArray(ESTOQUE_INTEL_PACKAGES_KEY, estoqueIntelEmbalagens);
+      console.log("[migration] restaurar-criticos-v8: " + restaurados + " produtos restaurados como critico, " + embLimpas + " embalagens acidentais removidas");
+    }
+    localStorage.setItem("gdp.migration.restaurar-criticos-v8", new Date().toISOString());
+  }
   syncPedidosGDPToEstoqueIntel(true);
   // Story 4.43: load equivalencias/demandas/estoque data layer
   loadGdpEquivalencias();
