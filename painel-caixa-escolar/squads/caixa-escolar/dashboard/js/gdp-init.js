@@ -2896,9 +2896,29 @@ function atualizarUnidadesPorTipo(prefix) {
   }
   // Toggle seção embalagens: só para produto crítico
   const embSection = document.getElementById("novo-prod-embalagens-section");
-  if (embSection) embSection.style.display = isCritico ? "" : "none";
+  if (embSection) {
+    embSection.style.display = isCritico ? "" : "none";
+    // Auto-criar 1 embalagem se marcou critico e lista está vazia
+    if (isCritico) {
+      const novoList = document.getElementById("novo-embs-list");
+      if (novoList && !novoList.querySelector("[data-novo-emb]")) {
+        adicionarEmbNovoProduto();
+      }
+    }
+  }
   const editEmbSection = document.getElementById("edit-prod-embalagens-section");
-  if (editEmbSection) editEmbSection.style.display = isCritico ? "" : "none";
+  if (editEmbSection) {
+    editEmbSection.style.display = isCritico ? "" : "none";
+    // Auto-criar 1 embalagem se marcou critico e não tem nenhuma cadastrada
+    if (isCritico) {
+      const editList = document.getElementById("edit-embs-list");
+      if (editList && !editList.querySelector("[data-emb-id]")) {
+        // Obter o produto ID do botão "+ Embalagem" que contém o onclick
+        const addBtn = editEmbSection.querySelector("button[onclick*='adicionarEmbalagemNoProduto']");
+        if (addBtn) addBtn.click();
+      }
+    }
+  }
   // Atualizar label do select de unidade
   const labelId = prefix === "ei" ? "ei-produto-unidade-label" : "edit-prod-unidade-label";
   const labelEl = document.getElementById(labelId);
