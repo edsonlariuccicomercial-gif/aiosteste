@@ -1377,10 +1377,18 @@ function setNotaFiscalStatusTab(status) {
 function renderNotasFiscaisStatusTabs(items = notasFiscais) {
   const container = document.getElementById("notas-fiscais-status-tabs");
   if (!container) return;
+  const safeItems = Array.isArray(items) ? items : [];
   container.innerHTML = NOTA_FISCAL_STATUS_TABS.map((tab) => {
-    const count = tab.key === "todas" ? items.length : items.filter((item) => normalizeNotaFiscalStatus(item.status) === tab.key).length;
+    const count = tab.key === "todas" ? safeItems.length : safeItems.filter((item) => normalizeNotaFiscalStatus(item.status) === tab.key).length;
+    const cor = NOTA_FISCAL_STATUS_COLORS[tab.key] || '#94a3b8';
     const active = notaFiscalStatusTabAtual === tab.key;
-    return `<button class="btn ${active ? 'btn-green' : 'btn-outline'} btn-sm" onclick="setNotaFiscalStatusTab('${tab.key}')">${tab.label} <span style="margin-left:.35rem;opacity:.8">${count}</span></button>`;
+    return `<button onclick="setNotaFiscalStatusTab('${tab.key}')" style="display:flex;flex-direction:column;align-items:center;gap:2px;padding:10px 20px;background:transparent;border:none;border-bottom:2px solid ${active ? 'var(--green)' : 'transparent'};cursor:pointer;transition:all .2s;opacity:${active ? '1' : '.7'};white-space:nowrap">
+      <span style="display:flex;align-items:center;gap:6px">
+        <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${cor}"></span>
+        <span style="font-size:.88rem;font-weight:${active ? '600' : '400'};color:var(--txt)">${tab.label}</span>
+      </span>
+      <span style="font-size:.78rem;color:var(--mut);font-weight:600">${count > 0 ? count.toString().padStart(2,'0') : ''}</span>
+    </button>`;
   }).join("");
 }
 
@@ -1893,6 +1901,13 @@ var NOTA_FISCAL_STATUS_TABS = [
   { key: "cancelada", label: "Canceladas", className: "badge-red" },
   { key: "inutilizada", label: "Inutilizadas", className: "badge-blue" }
 ];
+var NOTA_FISCAL_STATUS_COLORS = {
+  todas: '#3b82f6',
+  pendente: '#f59e0b',
+  emitida: '#22c55e',
+  cancelada: '#ef4444',
+  inutilizada: '#94a3b8'
+};
 var notaFiscalStatusTabAtual = "todas";
 var notaFiscalMenuAtualId = null;
 var CONTAS_PAGAR_STATUS_TABS = [
