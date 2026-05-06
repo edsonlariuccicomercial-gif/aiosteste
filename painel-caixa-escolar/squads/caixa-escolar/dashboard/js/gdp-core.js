@@ -463,10 +463,7 @@ function getDefaultEstoqueIntelSeed() {
       { id: "PROD-SUCO", nome: "Suco integral", unidade_base: "UN", produto_critico: false }
     ],
     embalagens: [],
-    fornecedores: [
-      { id: "FORN-001", nome: "Fornecedor Alfa", documento: "12345678000190", contato: "compras@alfa.com", status: "ativo", embalagens: [] },
-      { id: "FORN-002", nome: "Distribuidora Beta", documento: "98765432000155", contato: "vendas@beta.com", status: "ativo", embalagens: [] }
-    ],
+    fornecedores: [],
     pedidos: [],
     pedidoItens: [],
     movimentacoes: [],

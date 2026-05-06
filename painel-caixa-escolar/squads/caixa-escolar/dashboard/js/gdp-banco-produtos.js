@@ -256,6 +256,10 @@ function novoProdutoManual() {
   if (criticoEl) criticoEl.checked = false;
   const radioComum = document.querySelector('input[name="prod-tipo"][value="comum"]');
   if (radioComum) radioComum.checked = true;
+  const embSection = document.getElementById("prod-embalagem-section");
+  if (embSection) embSection.style.display = "none";
+  const embDescEl = document.getElementById("prod-embalagem-descricao");
+  if (embDescEl) embDescEl.value = "";
   _abrirProdutoInline("Novo Produto");
 }
 
@@ -275,6 +279,10 @@ function editarProduto(id) {
   if (radioComum && radioCritico) {
     if (p.produto_critico) { radioCritico.checked = true; } else { radioComum.checked = true; }
   }
+  const embSection = document.getElementById("prod-embalagem-section");
+  if (embSection) embSection.style.display = p.produto_critico ? "" : "none";
+  const embDescEl = document.getElementById("prod-embalagem-descricao");
+  if (embDescEl) embDescEl.value = p.embalagem_descricao || "";
   _abrirProdutoInline("Editar Produto");
 }
 
@@ -286,6 +294,8 @@ function salvarProduto() {
   // FR-013: Produto crítico (conversão de gramatura)
   const prodCriticoEl = document.getElementById("prod-critico");
   const produtoCritico = prodCriticoEl ? prodCriticoEl.checked : false;
+  const embDescEl = document.getElementById("prod-embalagem-descricao");
+  const embalagemDescricao = (embDescEl ? embDescEl.value : "").trim();
 
   if (!descricao) { showToast("Descricao e obrigatoria.", 3000); return; }
   if (!unidade) { showToast("Unidade e obrigatoria.", 3000); return; }
@@ -312,6 +322,7 @@ function salvarProduto() {
     if (p) {
       p.descricao = descricao; p.sku = sku; p.ncm = ncm; p.unidade = unidade;
       p.produto_critico = produtoCritico;
+      p.embalagem_descricao = produtoCritico ? embalagemDescricao : "";
       p.atualizadoEm = new Date().toISOString();
     }
   } else {
@@ -319,6 +330,7 @@ function salvarProduto() {
       id: 'PROD-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
       descricao, sku, ncm, unidade,
       produto_critico: produtoCritico,
+      embalagem_descricao: produtoCritico ? embalagemDescricao : "",
       criadoEm: new Date().toISOString(),
       atualizadoEm: new Date().toISOString()
     }));

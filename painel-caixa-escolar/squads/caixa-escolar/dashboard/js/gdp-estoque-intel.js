@@ -2420,7 +2420,12 @@ function abrirEditarMassaProdutos() {
   const catOpts = CAT_LIST.map(c => '<option value="' + c + '">' + (c || "—") + '</option>').join("");
   const oriOpts = ORI_LIST.map(o => '<option value="' + o.v + '">' + o.l + '</option>').join("");
 
-  const allProds = estoqueIntelProdutos.slice().sort((a, b) => (a.nome || "").localeCompare(b.nome || ""));
+  // Filtrar apenas produtos selecionados (checkboxes marcados)
+  const selectedIds = getSelectedProdutoIds();
+  const prodsToEdit = selectedIds.length > 0
+    ? estoqueIntelProdutos.filter(p => selectedIds.includes(p.id))
+    : estoqueIntelProdutos.slice();
+  const allProds = prodsToEdit.sort((a, b) => (a.nome || "").localeCompare(b.nome || ""));
 
   let overlay = document.getElementById("bulk-edit-overlay");
   if (!overlay) {

@@ -1258,14 +1258,20 @@
           <label style="font-size:.8rem;color:var(--mut);display:block;margin-bottom:.3rem">Tipo de Produto</label>
           <div style="display:flex;gap:.8rem">
             <label style="font-size:.82rem;display:flex;align-items:center;gap:.4rem;cursor:pointer;padding:.45rem .7rem;background:var(--s1);border:1px solid var(--bdr);border-radius:4px;flex:1">
-              <input type="radio" name="prod-tipo" value="comum" checked onchange="document.getElementById('prod-critico').checked=false"> Produto Comum
+              <input type="radio" name="prod-tipo" value="comum" checked onchange="document.getElementById('prod-critico').checked=false;document.getElementById('prod-embalagem-section').style.display='none'"> Produto Comum
             </label>
             <label style="font-size:.82rem;display:flex;align-items:center;gap:.4rem;cursor:pointer;padding:.45rem .7rem;background:rgba(234,179,8,.08);border:1px solid rgba(234,179,8,.25);border-radius:4px;flex:1">
-              <input type="radio" name="prod-tipo" value="critico" onchange="document.getElementById('prod-critico').checked=true"> Produto Critico
+              <input type="radio" name="prod-tipo" value="critico" onchange="document.getElementById('prod-critico').checked=true;document.getElementById('prod-embalagem-section').style.display=''"> Produto Critico
             </label>
           </div>
           <input type="checkbox" id="prod-critico" style="display:none">
           <div style="font-size:.7rem;color:var(--mut);margin-top:.3rem">Produto critico permite cadastrar embalagens do mercado para conversao de demanda (ex: contratado 170g, mercado so tem 360g — o sistema calcula quantos pacotes comprar).</div>
+        </div>
+        <!-- Seção embalagem: visivel apenas quando tipo=critico -->
+        <div id="prod-embalagem-section" style="display:none;margin-top:.75rem;padding:.75rem;background:rgba(234,179,8,.06);border:1px solid rgba(234,179,8,.2);border-radius:4px">
+          <label style="font-size:.8rem;color:var(--mut);display:block;margin-bottom:.3rem">Descricao da Embalagem</label>
+          <input type="text" id="prod-embalagem-descricao" placeholder="Ex: Pacote 360g, Caixa 1kg, Garrafa 1L" style="width:100%">
+          <div style="font-size:.68rem;color:var(--mut);margin-top:.25rem">Descreva a embalagem disponivel no mercado para conversao de gramatura.</div>
         </div>
       </div>
       <div style="margin-top:1.5rem;display:flex;justify-content:flex-end;gap:.8rem">
