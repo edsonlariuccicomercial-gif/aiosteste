@@ -66,6 +66,18 @@ function resetTabState() {
   });
   // Hide all page footers
   _hideAllPageFooters();
+  // Fechar forms de editar/novo produto se estiverem abertos
+  const detalhePage = document.getElementById("produto-detalhe-page");
+  const listagem = document.getElementById("estoque-listagem");
+  if (detalhePage && !detalhePage.classList.contains("hidden")) {
+    detalhePage.classList.add("hidden");
+    detalhePage.innerHTML = "";
+  }
+  if (listagem && listagem.classList.contains("hidden")) {
+    listagem.classList.remove("hidden");
+  }
+  const novoProdOverlay = document.getElementById("novo-prod-overlay");
+  if (novoProdOverlay) novoProdOverlay.classList.add("hidden");
 }
 function _hideAllPageFooters() {
   ["pedidos-page-footer","nf-page-footer","cp-page-footer","cr-page-footer","clientes-page-footer","produtos-page-footer"].forEach(id => {
