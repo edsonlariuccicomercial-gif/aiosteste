@@ -656,8 +656,8 @@
               <th>Produto</th>
               <th>SKU</th>
               <th>Unidade</th>
-              <th>Custo Base</th>
-              <th>Preço Ref.</th>
+              <th>P. Custo</th>
+              <th>P. Venda</th>
               <th>Margem</th>
               <th>Grupo</th>
               <th>Ações</th>
@@ -1048,6 +1048,38 @@
       <div class="modal-actions">
         <button id="btn-modal-salvar" class="btn btn-accent">Salvar</button>
         <button id="btn-modal-cancelar" class="btn">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== MODAL: Associação de Produtos (Pré-Orçar) ===== -->
+  <div id="modal-associacao" class="modal-overlay" style="display:none;">
+    <div class="modal card" style="max-width:900px;max-height:90vh;display:flex;flex-direction:column;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+        <h2 style="font-size:1rem;margin:0">Associar Produtos — <span id="assoc-escola"></span></h2>
+        <button class="btn btn-sm" onclick="fecharModalAssociacao()">Cancelar</button>
+      </div>
+      <p style="font-size:.78rem;color:var(--muted);margin-bottom:1rem">Associe cada item do orçamento a um produto cadastrado. Itens sem produto ou sem preço de custo não poderão ser orçados.</p>
+      <div class="table-wrap" style="flex:1;overflow-y:auto;max-height:55vh">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Item do Orçamento</th>
+              <th>Qtd</th>
+              <th>Produto Associado</th>
+              <th>P. Custo</th>
+              <th>P. Venda</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-associacao"></tbody>
+        </table>
+      </div>
+      <div id="assoc-alertas" style="margin-top:.8rem;font-size:.78rem"></div>
+      <div style="display:flex;justify-content:flex-end;gap:.6rem;margin-top:1rem;padding-top:.8rem;border-top:1px solid var(--line)">
+        <button class="btn" onclick="fecharModalAssociacao()">Cancelar</button>
+        <button class="btn btn-accent" id="btn-confirmar-associacao" onclick="confirmarAssociacao()" disabled>Confirmar e Criar Pré-Orçamento</button>
       </div>
     </div>
   </div>

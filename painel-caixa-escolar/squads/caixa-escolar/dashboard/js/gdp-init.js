@@ -2791,7 +2791,7 @@ function abrirEditarProduto(produtoId) {
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.75rem">
         <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Origem NF-e</label><select id="edit-prod-origem" style="width:100%">${ORIGEM_OPTS.map(o => '<option value="' + o.v + '"' + ((produto.origem||"0")===o.v?' selected':'') + '>' + o.l + '</option>').join("")}</select></div>
-        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Preco Referencia</label><input type="number" id="edit-prod-preco-ref" value="${produto.preco_referencia || 0}" min="0" step="0.01" style="width:100%"></div>
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Preco de Venda</label><input type="number" id="edit-prod-preco-ref" value="${produto.preco_referencia || 0}" min="0" step="0.01" style="width:100%"></div>
       </div>
       <div id="edit-prod-embalagens-section" style="border-top:1px solid var(--bdr);margin:1rem 0;padding-top:1rem;${produto.produto_critico ? '' : 'display:none'}">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem">
@@ -2803,7 +2803,7 @@ function abrirEditarProduto(produtoId) {
           <div style="display:grid;grid-template-columns:1fr .6fr .6fr auto;gap:.5rem;align-items:end;margin-bottom:.5rem" data-emb-id="${esc(emb.id)}">
             <div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.2rem">Descricao</label><input type="text" class="edit-emb-desc" value="${esc(emb.descricao || "")}" style="width:100%"></div>
             <div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.2rem">Qtd Base</label><input type="number" class="edit-emb-qtd" value="${emb.quantidade_base || 1}" min="1" style="width:100%"></div>
-            <div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.2rem">Preco Ref.</label><input type="number" class="edit-emb-preco" value="${emb.preco_referencia || 0}" min="0" step="0.01" style="width:100%"></div>
+            <div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.2rem">P. Venda</label><input type="number" class="edit-emb-preco" value="${emb.preco_referencia || 0}" min="0" step="0.01" style="width:100%"></div>
             <div><button class="btn btn-outline btn-sm" style="color:var(--red)" onclick="removerEmbalagemDoEdit('${esc(emb.id)}')">X</button></div>
           </div>
         `).join("") : '<div style="font-size:.82rem;color:var(--mut);padding:.5rem 0">Nenhuma embalagem cadastrada.</div>'}
@@ -3032,7 +3032,7 @@ function renderModalNovoProduto() {
     <div style="display:grid;grid-template-columns:1fr .6fr .6fr auto;gap:.5rem;align-items:end;margin-bottom:.5rem" data-novo-emb="${i}">
       <div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.2rem">Descricao</label><input type="text" class="novo-emb-desc" value="${esc(emb.descricao)}" placeholder="Ex: Pacote 5kg" style="width:100%"></div>
       <div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.2rem">Qtd Base</label><input type="number" class="novo-emb-qtd" value="${emb.quantidade_base}" min="1" style="width:100%"></div>
-      <div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.2rem">Preco Ref.</label><input type="number" class="novo-emb-preco" value="${emb.preco_referencia}" min="0" step="0.01" style="width:100%"></div>
+      <div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.2rem">P. Venda</label><input type="number" class="novo-emb-preco" value="${emb.preco_referencia}" min="0" step="0.01" style="width:100%"></div>
       <div><button class="btn btn-outline btn-sm" style="color:var(--red)" onclick="removerEmbNovoProduto(${i})">X</button></div>
     </div>
   `).join("");
@@ -3068,7 +3068,7 @@ function renderModalNovoProduto() {
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.75rem">
         <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Origem NF-e</label><select id="ei-produto-origem" style="width:100%">${ORI_OPTS}</select></div>
-        <div id="ei-preco-ref-wrap"><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Preco Referencia</label><input type="number" id="ei-produto-preco-ref" placeholder="0.00" min="0" step="0.01" style="width:100%"></div>
+        <div id="ei-preco-ref-wrap"><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Preco de Venda</label><input type="number" id="ei-produto-preco-ref" placeholder="0.00" min="0" step="0.01" style="width:100%"></div>
       </div>
       <div id="novo-prod-embalagens-section" style="border-top:1px solid var(--bdr);margin:1rem 0;padding-top:1rem;display:none">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem">
@@ -3212,7 +3212,7 @@ function downloadModeloProdutos() {
   if (typeof XLSX === "undefined") { showToast("XLSX nao carregou.", 3000); return; }
   const wb = XLSX.utils.book_new();
   const wsData = [
-    ["Nome", "Unidade Base", "SKU", "NCM", "Categoria", "Origem (0-7)", "Tipo (comum/critico)", "Embalagem", "Qtd Embalagem", "Preco Referencia"],
+    ["Nome", "Unidade Base", "SKU", "NCM", "Categoria", "Origem (0-7)", "Tipo (comum/critico)", "Embalagem", "Qtd Embalagem", "Preco de Venda"],
     ["Arroz Tipo 1", "KG", "789001", "1006.30.00", "Graos/Cereais", 0, "critico", "Pacote 5kg", 5, 22.50],
     ["Caneta Esferografica", "UN", "789003", "9608.10.00", "Outros", 0, "comum", "Caixa 50un", 50, 35.00],
     ["Feijao Carioca", "KG", "789002", "0713.33.19", "Graos/Cereais", 0, "critico", "Pacote 1kg", 1, 8.90]

@@ -645,94 +645,150 @@ function batchExportCsv() {
 
 // ===== PRÉ-ORÇAMENTO =====
 
-// Gerar novo pré-orçamento
+// Gerar novo pré-orçamento — abre modal de associação primeiro
+let _assocOrcId = null;
+let _assocItens = [];
+
 window.gerarPreOrcamento = function (orcId) {
   const orc = orcamentos.find((o) => o.id === orcId);
+  if (!orc) return;
+  _assocOrcId = orcId;
+  _assocItens = (orc.itens || []).map((item, idx) => {
+    const bp = findBancoItem(item.nome);
+    return { idx, nome: item.nome, quantidade: item.quantidade || 0, unidade: item.unidade || "Un", descricao: item.descricao || "", idBudgetItem: item.idBudgetItem || null, bpId: bp ? (bp.sku || bp.id) : null, bpNome: bp ? bp.item : "", custoBase: bp ? bp.custoBase : 0, precoRef: bp ? bp.precoReferencia : 0, matchStatus: bp ? "associado" : "sem_match" };
+  });
+  renderModalAssociacao(orc);
+};
+
+function renderModalAssociacao(orc) {
+  const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+  document.getElementById("assoc-escola").textContent = orc.escola + " — " + orc.municipio;
+  // Build product options from banco
+  const produtos = (bancoPrecos.itens || []).filter(p => p.item).sort((a, b) => (a.item || "").localeCompare(b.item || ""));
+  const optionsHtml = '<option value="">— Selecione um produto —</option>' + produtos.map(p => `<option value="${p.sku || p.id}" data-custo="${p.custoBase || 0}" data-preco="${p.precoReferencia || 0}">${p.item}${p.sku ? ' [' + p.sku + ']' : ''}</option>`).join("");
+
+  document.getElementById("tbody-associacao").innerHTML = _assocItens.map((item, i) => {
+    const statusBadge = item.bpId && item.custoBase > 0
+      ? '<span style="color:var(--accent);font-weight:700;font-size:.75rem">Associado</span>'
+      : item.bpId
+        ? '<span style="color:var(--warning);font-weight:700;font-size:.75rem">Sem custo</span>'
+        : '<span style="color:var(--danger);font-weight:700;font-size:.75rem">Sem cadastro</span>';
+    return `<tr>
+      <td style="font-size:.78rem;color:var(--muted)">${i + 1}</td>
+      <td style="font-size:.82rem"><strong>${item.nome}</strong><br><span style="font-size:.72rem;color:var(--muted)">${item.descricao}</span></td>
+      <td style="font-size:.82rem;text-align:center">${item.quantidade} ${item.unidade}</td>
+      <td><select class="assoc-select" data-idx="${i}" onchange="atualizarAssociacao(${i}, this.value)" style="width:100%;padding:.4rem;font-size:.78rem;background:var(--bg);border:1px solid var(--line);border-radius:4px;color:var(--text)">${optionsHtml}</select></td>
+      <td class="text-right font-mono" id="assoc-custo-${i}" style="font-size:.82rem">${item.custoBase > 0 ? brl.format(item.custoBase) : '—'}</td>
+      <td class="text-right font-mono" id="assoc-preco-${i}" style="font-size:.82rem">${item.precoRef > 0 ? brl.format(item.precoRef) : '—'}</td>
+      <td id="assoc-status-${i}">${statusBadge}</td>
+    </tr>`;
+  }).join("");
+
+  // Pre-select matched products
+  _assocItens.forEach((item, i) => {
+    if (item.bpId) {
+      const sel = document.querySelector(`.assoc-select[data-idx="${i}"]`);
+      if (sel) { sel.value = item.bpId; }
+    }
+  });
+
+  validarAssociacao();
+  document.getElementById("modal-associacao").style.display = "flex";
+}
+
+window.atualizarAssociacao = function (idx, bpId) {
+  const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+  const bp = bancoPrecos.itens.find(p => (p.sku || p.id) === bpId);
+  _assocItens[idx].bpId = bpId || null;
+  _assocItens[idx].bpNome = bp ? bp.item : "";
+  _assocItens[idx].custoBase = bp ? (bp.custoBase || 0) : 0;
+  _assocItens[idx].precoRef = bp ? (bp.precoReferencia || 0) : 0;
+  _assocItens[idx].matchStatus = bp ? "associado" : "sem_match";
+
+  const custoEl = document.getElementById("assoc-custo-" + idx);
+  const precoEl = document.getElementById("assoc-preco-" + idx);
+  const statusEl = document.getElementById("assoc-status-" + idx);
+  if (custoEl) custoEl.textContent = _assocItens[idx].custoBase > 0 ? brl.format(_assocItens[idx].custoBase) : "—";
+  if (precoEl) precoEl.textContent = _assocItens[idx].precoRef > 0 ? brl.format(_assocItens[idx].precoRef) : "—";
+  if (statusEl) {
+    if (bp && _assocItens[idx].custoBase > 0) {
+      statusEl.innerHTML = '<span style="color:var(--accent);font-weight:700;font-size:.75rem">Associado</span>';
+    } else if (bp) {
+      statusEl.innerHTML = '<span style="color:var(--warning);font-weight:700;font-size:.75rem">Sem custo</span>';
+    } else {
+      statusEl.innerHTML = '<span style="color:var(--danger);font-weight:700;font-size:.75rem">Sem cadastro</span>';
+    }
+  }
+  validarAssociacao();
+};
+
+function validarAssociacao() {
+  const semAssociar = _assocItens.filter(i => !i.bpId).length;
+  const semCusto = _assocItens.filter(i => i.bpId && i.custoBase <= 0).length;
+  const ok = semAssociar === 0 && semCusto === 0;
+  const btn = document.getElementById("btn-confirmar-associacao");
+  if (btn) btn.disabled = !ok;
+
+  const alertas = document.getElementById("assoc-alertas");
+  if (alertas) {
+    let html = "";
+    if (semAssociar > 0) html += `<p style="color:var(--danger)">⚠ ${semAssociar} item(ns) sem produto associado. Selecione um produto ou cadastre na Central de Produtos (GDP).</p>`;
+    if (semCusto > 0) html += `<p style="color:var(--warning)">⚠ ${semCusto} item(ns) com produto associado mas sem preço de custo. Preencha o custo na Central de Produtos.</p>`;
+    if (ok) html = '<p style="color:var(--accent)">Todos os itens associados com preço de custo. Pronto para criar o pré-orçamento.</p>';
+    alertas.innerHTML = html;
+  }
+}
+
+window.fecharModalAssociacao = function () {
+  document.getElementById("modal-associacao").style.display = "none";
+  _assocOrcId = null;
+  _assocItens = [];
+};
+
+window.confirmarAssociacao = function () {
+  if (!_assocOrcId) return;
+  const orc = orcamentos.find(o => o.id === _assocOrcId);
   if (!orc) return;
 
   const margemPadrao = perfil.config ? perfil.config.margemPadrao || 0.30 : 0.30;
   const frete = calcFreteEstimado(orc.municipio);
 
-  const todayStr = new Date().toISOString().slice(0, 10);
-
-  const itens = (orc.itens || []).map((item) => {
-    let bp = findBancoItem(item.nome);
-    let matchStatus = "sem_match";
-    let matchScore = 0;
-
-    if (bp) {
-      // Determinar status do match baseado na qualidade
-      const normItem = normalizedText(item.nome);
-      const normBp = normalizedText(bp.item);
-      if (normItem === normBp) {
-        matchStatus = "exato";
-        matchScore = 1.0;
-      } else if (typeof getEquivalencia === "function" && getEquivalencia(item.nome)) {
-        matchStatus = "exato";
-        matchScore = 1.0;
-      } else {
-        matchStatus = "sugestao";
-        matchScore = typeof calcTokenSimilarity === "function"
-          ? calcTokenSimilarity(normalizedMatchTokens(item.nome), normalizedMatchTokens(bp.item))
-          : 0.5;
-      }
-    }
-
-    // Auto-create banco entry if item doesn't exist
-    if (!bp) {
-      bp = {
-        id: "bp-" + String(Date.now()).slice(-6) + "-" + Math.random().toString(36).slice(2, 5),
-        item: item.nome,
-        grupo: orc.grupo || "Material de Consumo Geral",
-        unidade: item.unidade || "Unidade",
-        custoBase: 0,
-        margemPadrao: margemPadrao,
-        precoReferencia: 0,
-        ultimaCotacao: todayStr,
-        fonte: "",
-        propostas: [],
-        concorrentes: [],
-        custosFornecedor: [],
-      };
-      bancoPrecos.itens.push(bp);
-    }
-
-    let custoUnit = bp.custoBase;
-    // Try fornecedor cost if banco custoBase is 0
+  const itens = _assocItens.map(assocItem => {
+    const bp = bancoPrecos.itens.find(p => (p.sku || p.id) === assocItem.bpId);
+    if (!bp) return null;
+    let custoUnit = bp.custoBase || 0;
     if (custoUnit === 0 && (bp.custosFornecedor || []).length > 0) {
       custoUnit = bp.custosFornecedor[bp.custosFornecedor.length - 1].preco;
     }
     const margem = bp.margemPadrao || margemPadrao;
     const precoUnit = custoUnit > 0 ? Math.round(custoUnit * (1 + margem) * 100) / 100 : 0;
     const concorrentes = bp.concorrentes || [];
-    const menorConc = concorrentes.length > 0 ? Math.min(...concorrentes.map((c) => c.preco)) : 0;
+    const menorConc = concorrentes.length > 0 ? Math.min(...concorrentes.map(c => c.preco)) : 0;
 
     return {
-      nome: item.nome,
+      nome: assocItem.nome,
       marca: bp.marca || "",
-      descricao: item.descricao || "",
-      matchStatus: matchStatus,
-      matchScore: matchScore,
+      descricao: assocItem.descricao || "",
+      matchStatus: "exato",
+      matchScore: 1.0,
       skuBanco: bp.sku || bp.id || null,
-      quantidade: item.quantidade || 0,
-      unidade: item.unidade || "Unidade",
+      quantidade: assocItem.quantidade || 0,
+      unidade: assocItem.unidade || "Unidade",
       custoUnitario: custoUnit,
       margem: margem,
       precoUnitario: precoUnit,
-      precoTotal: Math.round(precoUnit * (item.quantidade || 0) * 100) / 100,
-      idBudgetItem: item.idBudgetItem || null,
+      precoTotal: Math.round(precoUnit * (assocItem.quantidade || 0) * 100) / 100,
+      idBudgetItem: assocItem.idBudgetItem || null,
       menorConcorrente: menorConc,
     };
-  });
-
-  saveBancoLocal(); // Save new banco entries
+  }).filter(Boolean);
 
   const totalGeral = itens.reduce((s, i) => s + i.precoTotal, 0);
-  const margens = itens.filter((i) => i.custoUnitario > 0).map((i) => i.margem);
+  const margens = itens.filter(i => i.custoUnitario > 0).map(i => i.margem);
   const margemMedia = margens.length ? margens.reduce((a, b) => a + b, 0) / margens.length : margemPadrao;
 
-  preOrcamentos[orcId] = {
-    orcamentoId: orcId,
+  preOrcamentos[_assocOrcId] = {
+    orcamentoId: _assocOrcId,
     escola: orc.escola,
     municipio: orc.municipio,
     grupo: orc.grupo,
@@ -745,7 +801,8 @@ window.gerarPreOrcamento = function (orcId) {
   };
 
   savePreOrcamentos();
-  abrirPreOrcamento(orcId);
+  fecharModalAssociacao();
+  abrirPreOrcamento(_assocOrcId);
 };
 
 // Abrir pré-orçamento existente
