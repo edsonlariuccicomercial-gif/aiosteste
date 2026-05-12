@@ -2304,7 +2304,7 @@ function abrirCatalogoEscolar(contratoId) {
   }).join("");
 
   document.getElementById("modal-contrato-titulo").textContent = "📋 Catálogo — " + (c.escola.length > 40 ? c.escola.slice(0,38)+'...' : c.escola);
-  document.getElementById("modal-contrato-header-actions").innerHTML = `<button class="btn btn-outline btn-sm" onclick="abrirContrato('${contratoId}')">← Voltar</button>`;
+  document.getElementById("modal-contrato-header-actions").innerHTML = ``;
   document.getElementById("modal-contrato-body").innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
       <div style="font-size:.85rem"><strong>Contrato:</strong> ${esc(c.id)} | <strong>Saldo disponível:</strong> <span style="color:var(--green);font-weight:700">${brl.format(saldoContrato)}</span></div>
@@ -2367,7 +2367,7 @@ function visualizarVinculos(contratoId) {
   const manuais = c.itens.filter(i => i.skuVinculado).length;
 
   document.getElementById("modal-contrato-titulo").textContent = "🔗 Vínculos — " + (c.escola.length > 40 ? c.escola.slice(0,38)+'...' : c.escola);
-  document.getElementById("modal-contrato-header-actions").innerHTML = `<button class="btn btn-outline btn-sm" onclick="abrirContrato('${contratoId}')">← Voltar</button>`;
+  document.getElementById("modal-contrato-header-actions").innerHTML = ``;
   document.getElementById("modal-contrato-body").innerHTML = `
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1.5rem">
       <div class="kpi" style="margin:0"><div class="kpi-label">Itens Vinculados</div><div class="kpi-value green" style="font-size:1.3rem">${vinculados}/${c.itens.length}</div></div>
@@ -2578,7 +2578,7 @@ function adicionarItemContrato(contratoId) {
   _contratoAbertoId = contratoId; // sub-screen: Fechar returns to detail
   const nextNum = c.itens.length + 1;
   document.getElementById("modal-contrato-titulo").textContent = "Adicionar Item — " + c.id;
-  document.getElementById("modal-contrato-header-actions").innerHTML = `<button class="btn btn-outline btn-sm" onclick="abrirContrato('${contratoId}')">← Voltar</button>`;
+  document.getElementById("modal-contrato-header-actions").innerHTML = ``;
   document.getElementById("modal-contrato-body").innerHTML = `
     <div style="display:grid;grid-template-columns:1fr;gap:1rem">
       <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Descrição do Produto</label><input type="text" id="ai-descricao" placeholder="Ex: Arroz tipo 1, 5kg" style="width:100%" oninput="sugerirNcmAdd()"></div>
@@ -2688,7 +2688,7 @@ function editarItemContrato(contratoId, idx) {
   _contratoAbertoId = contratoId; // sub-screen: Fechar returns to detail
   const item = c.itens[idx];
   document.getElementById("modal-contrato-titulo").textContent = "Editar Item #" + item.num + " — " + c.id;
-  document.getElementById("modal-contrato-header-actions").innerHTML = `<button class="btn btn-outline btn-sm" onclick="abrirContrato('${contratoId}')">← Voltar</button>`;
+  document.getElementById("modal-contrato-header-actions").innerHTML = ``;
   document.getElementById("modal-contrato-body").innerHTML = `
     <div style="display:grid;grid-template-columns:1fr;gap:1rem">
       <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Descrição do Produto</label><input type="text" id="ei-descricao" value="${esc(item.descricao)}" style="width:100%" oninput="sugerirNcmEdit()"></div>
