@@ -2090,9 +2090,10 @@ function renderEstoque() {
       <td><span class="badge badge-blue" style="font-size:.7rem">${esc(produto.origem || '0')}-${esc(ORIGEM_LABELS[produto.origem || '0'] || 'Nacional')}</span></td>
       <td class="font-mono" style="font-size:.78rem">${esc(produto.sku || "—")}</td>
       <td class="font-mono" style="font-size:.78rem">${esc(produto.ncm || "—")}</td>
+      <td class="text-right font-mono">${Number(produto.preco_custo || 0) > 0 ? brl.format(Number(produto.preco_custo)) : '—'}</td>
       <td class="text-right font-mono">${precoRef > 0 ? brl.format(precoRef) : '—'}</td>
     </tr>`;
-  }).join("") : `<tr><td colspan="9" style="color:var(--mut)">Nenhum produto encontrado para o filtro atual.</td></tr>`;
+  }).join("") : `<tr><td colspan="10" style="color:var(--mut)">Nenhum produto encontrado para o filtro atual.</td></tr>`;
 
   if (embalagensTbody) embalagensTbody.innerHTML = embalagensFiltradas.length ? embalagensFiltradas.map((emb) => {
     const produto = findEstoqueIntelProduto(emb.produto_id);

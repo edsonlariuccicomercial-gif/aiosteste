@@ -2791,7 +2791,11 @@ function abrirEditarProduto(produtoId) {
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.75rem">
         <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Origem NF-e</label><select id="edit-prod-origem" style="width:100%">${ORIGEM_OPTS.map(o => '<option value="' + o.v + '"' + ((produto.origem||"0")===o.v?' selected':'') + '>' + o.l + '</option>').join("")}</select></div>
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Preco de Custo</label><input type="number" id="edit-prod-preco-custo" value="${produto.preco_custo || 0}" min="0" step="0.01" style="width:100%"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.75rem">
         <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Preco de Venda</label><input type="number" id="edit-prod-preco-ref" value="${produto.preco_referencia || 0}" min="0" step="0.01" style="width:100%"></div>
+        <div></div>
       </div>
       <div id="edit-prod-embalagens-section" style="border-top:1px solid var(--bdr);margin:1rem 0;padding-top:1rem;${produto.produto_critico ? '' : 'display:none'}">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem">
@@ -2853,6 +2857,7 @@ function salvarEditarProduto(produtoId) {
   produto.origem = document.getElementById("edit-prod-origem")?.value || "0";
   const editTipoEl = document.querySelector('input[name="edit-prod-tipo"]:checked');
   produto.produto_critico = editTipoEl ? editTipoEl.value === "critico" : false;
+  produto.preco_custo = parseFloat(document.getElementById("edit-prod-preco-custo")?.value) || 0;
   produto.preco_referencia = parseFloat(document.getElementById("edit-prod-preco-ref")?.value) || 0;
   saveEstoqueIntelProdutos();
 
@@ -3068,7 +3073,11 @@ function renderModalNovoProduto() {
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.75rem">
         <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Origem NF-e</label><select id="ei-produto-origem" style="width:100%">${ORI_OPTS}</select></div>
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Preco de Custo</label><input type="number" id="ei-produto-preco-custo" placeholder="0.00" min="0" step="0.01" style="width:100%"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.75rem">
         <div id="ei-preco-ref-wrap"><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Preco de Venda</label><input type="number" id="ei-produto-preco-ref" placeholder="0.00" min="0" step="0.01" style="width:100%"></div>
+        <div></div>
       </div>
       <div id="novo-prod-embalagens-section" style="border-top:1px solid var(--bdr);margin:1rem 0;padding-top:1rem;display:none">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem">
@@ -3169,10 +3178,11 @@ function salvarNovoProdutoModal() {
   const prodTipoEl = document.querySelector('input[name="ei-prod-tipo"]:checked');
   const produto_critico = prodTipoEl ? prodTipoEl.value === "critico" : false;
 
+  const preco_custo = parseFloat(document.getElementById("ei-produto-preco-custo")?.value) || 0;
   const preco_referencia = parseFloat(document.getElementById("ei-produto-preco-ref")?.value) || 0;
 
   const prodId = genId("PROD");
-  estoqueIntelProdutos.push({ id: prodId, nome, unidade_base, sku, ncm, categoria, origem, produto_critico, preco_referencia });
+  estoqueIntelProdutos.push({ id: prodId, nome, unidade_base, sku, ncm, categoria, origem, produto_critico, preco_custo, preco_referencia });
   saveEstoqueIntelProdutos();
 
   // Salvar embalagens do modal

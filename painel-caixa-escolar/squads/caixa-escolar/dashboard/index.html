@@ -642,7 +642,7 @@
       <div class="table-head">
         <h2>Central de Produtos</h2>
         <div class="table-head-actions">
-          <span style="font-size:.75rem;color:var(--muted)">Réplica somente leitura — edite no GDP</span>
+          <button class="btn btn-sm btn-accent" onclick="abrirNovoProdutoCentralPrecos()">+ Novo Produto</button>
           <button class="btn btn-sm" onclick="exportarCentralCsv()">Exportar CSV</button>
         </div>
       </div>
@@ -660,6 +660,7 @@
               <th>Origem</th>
               <th>SKU</th>
               <th>NCM</th>
+              <th class="text-right">P. Custo</th>
               <th class="text-right">P. Venda</th>
             </tr>
           </thead>
@@ -1048,6 +1049,34 @@
       <div class="modal-actions">
         <button id="btn-modal-salvar" class="btn btn-accent">Salvar</button>
         <button id="btn-modal-cancelar" class="btn">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== MODAL: Editar/Novo Produto (Central de Preços Intel) ===== -->
+  <div id="modal-produto-central" class="modal-overlay" style="display:none;">
+    <div class="modal card" style="max-width:600px;">
+      <h2 id="modal-prod-central-titulo">Novo Produto</h2>
+      <div style="display:grid;gap:.75rem">
+        <div><label style="font-size:.75rem;color:var(--muted);display:block;margin-bottom:.25rem">Nome do Produto</label><input type="text" id="mpc-nome" style="width:100%" placeholder="Ex: Arroz tipo 1 5kg"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
+          <div><label style="font-size:.75rem;color:var(--muted);display:block;margin-bottom:.25rem">Unidade Base</label><input type="text" id="mpc-unidade" style="width:100%" value="UN" placeholder="UN/KG/PCT"></div>
+          <div><label style="font-size:.75rem;color:var(--muted);display:block;margin-bottom:.25rem">Categoria</label><input type="text" id="mpc-categoria" style="width:100%" placeholder="Ex: Alimentos"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
+          <div><label style="font-size:.75rem;color:var(--muted);display:block;margin-bottom:.25rem">SKU</label><input type="text" id="mpc-sku" style="width:100%" placeholder="auto ou manual"></div>
+          <div><label style="font-size:.75rem;color:var(--muted);display:block;margin-bottom:.25rem">NCM</label><input type="text" id="mpc-ncm" style="width:100%" placeholder="0000.00.00"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.75rem">
+          <div><label style="font-size:.75rem;color:var(--muted);display:block;margin-bottom:.25rem">Origem</label><select id="mpc-origem" style="width:100%"><option value="0">0-Nacional</option><option value="1">1-Import.Direta</option><option value="2">2-Import.MI</option></select></div>
+          <div><label style="font-size:.75rem;color:var(--muted);display:block;margin-bottom:.25rem">P. Custo</label><input type="number" id="mpc-custo" style="width:100%" min="0" step="0.01" value="0"></div>
+          <div><label style="font-size:.75rem;color:var(--muted);display:block;margin-bottom:.25rem">P. Venda</label><input type="number" id="mpc-venda" style="width:100%" min="0" step="0.01" value="0"></div>
+        </div>
+      </div>
+      <input type="hidden" id="mpc-id" value="">
+      <div style="display:flex;justify-content:flex-end;gap:.6rem;margin-top:1rem">
+        <button class="btn" onclick="fecharModalProdutoCentral()">Cancelar</button>
+        <button class="btn btn-accent" onclick="salvarProdutoCentral()">Salvar</button>
       </div>
     </div>
   </div>

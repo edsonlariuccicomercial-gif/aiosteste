@@ -2821,15 +2821,88 @@ window.renderCentralPrecos = function () {
     const preco = parseFloat(p.preco_referencia || p.precoReferencia || 0);
     return '<tr>' +
       '<td style="font-size:.78rem;color:var(--muted)">' + (idx + 1) + '</td>' +
-      '<td><strong>' + escapeHtml(nome) + '</strong></td>' +
+      '<td><button style="background:none;border:none;padding:0;color:var(--text);font-weight:600;cursor:pointer;font-size:.85rem;text-align:left" onclick="editarProdutoCentralPrecos(\'' + escapeHtml(p.id) + '\')">' + escapeHtml(nome) + '</button></td>' +
       '<td>' + escapeHtml(unidade) + '</td>' +
       '<td>' + (categoria !== '-' ? '<span class="badge badge-muted" style="font-size:.65rem">' + escapeHtml(categoria) + '</span>' : '-') + '</td>' +
       '<td style="font-size:.75rem">' + escapeHtml(origem) + '</td>' +
       '<td class="font-mono" style="font-size:.75rem">' + escapeHtml(sku) + '</td>' +
       '<td class="font-mono" style="font-size:.75rem">' + escapeHtml(ncm) + '</td>' +
+      '<td class="text-right font-mono">' + (Number(p.preco_custo || 0) > 0 ? brl.format(Number(p.preco_custo)) : '—') + '</td>' +
       '<td class="text-right font-mono">' + brl.format(preco) + '</td>' +
       '</tr>';
   }).join('');
+};
+
+// Abrir modal novo produto na Central de Preços
+window.abrirNovoProdutoCentralPrecos = function () {
+  document.getElementById("modal-prod-central-titulo").textContent = "Novo Produto";
+  document.getElementById("mpc-id").value = "";
+  document.getElementById("mpc-nome").value = "";
+  document.getElementById("mpc-unidade").value = "UN";
+  document.getElementById("mpc-categoria").value = "";
+  document.getElementById("mpc-sku").value = "";
+  document.getElementById("mpc-ncm").value = "";
+  document.getElementById("mpc-origem").value = "0";
+  document.getElementById("mpc-custo").value = "0";
+  document.getElementById("mpc-venda").value = "0";
+  document.getElementById("modal-produto-central").style.display = "flex";
+};
+
+// Abrir modal editar produto na Central de Preços
+window.editarProdutoCentralPrecos = function (id) {
+  let produtos = [];
+  try { const raw = JSON.parse(localStorage.getItem('gdp.estoque-intel.produtos.v1') || '[]'); produtos = Array.isArray(raw) ? raw : (raw.itens || []); } catch(_) {}
+  const p = produtos.find(x => x.id === id);
+  if (!p) { showToast('Produto não encontrado.'); return; }
+  document.getElementById("modal-prod-central-titulo").textContent = "Editar Produto";
+  document.getElementById("mpc-id").value = p.id;
+  document.getElementById("mpc-nome").value = p.nome || p.descricao || "";
+  document.getElementById("mpc-unidade").value = p.unidade_base || p.unidade || "UN";
+  document.getElementById("mpc-categoria").value = p.categoria || p.grupo || "";
+  document.getElementById("mpc-sku").value = p.sku || "";
+  document.getElementById("mpc-ncm").value = p.ncm || "";
+  document.getElementById("mpc-origem").value = p.origem || "0";
+  document.getElementById("mpc-custo").value = p.preco_custo || 0;
+  document.getElementById("mpc-venda").value = p.preco_referencia || p.precoReferencia || 0;
+  document.getElementById("modal-produto-central").style.display = "flex";
+};
+
+window.fecharModalProdutoCentral = function () {
+  document.getElementById("modal-produto-central").style.display = "none";
+};
+
+// Salvar produto (novo ou edição) — grava em gdp.estoque-intel.produtos.v1
+window.salvarProdutoCentral = function () {
+  const id = document.getElementById("mpc-id").value;
+  const nome = (document.getElementById("mpc-nome").value || "").trim();
+  if (!nome) { showToast("Nome do produto é obrigatório."); return; }
+  let produtos = [];
+  try { const raw = JSON.parse(localStorage.getItem('gdp.estoque-intel.produtos.v1') || '[]'); produtos = Array.isArray(raw) ? raw : (raw.itens || []); } catch(_) {}
+
+  const dados = {
+    nome: nome,
+    unidade_base: document.getElementById("mpc-unidade").value || "UN",
+    categoria: document.getElementById("mpc-categoria").value || "",
+    sku: document.getElementById("mpc-sku").value || "",
+    ncm: document.getElementById("mpc-ncm").value || "",
+    origem: document.getElementById("mpc-origem").value || "0",
+    preco_custo: parseFloat(document.getElementById("mpc-custo").value) || 0,
+    preco_referencia: parseFloat(document.getElementById("mpc-venda").value) || 0
+  };
+
+  if (id) {
+    const p = produtos.find(x => x.id === id);
+    if (p) Object.assign(p, dados);
+  } else {
+    dados.id = "PROD-" + new Date().toISOString().slice(0,10).replace(/-/g,"") + "-" + String(Date.now()).slice(-5);
+    dados.produto_critico = false;
+    produtos.push(dados);
+  }
+
+  localStorage.setItem('gdp.estoque-intel.produtos.v1', JSON.stringify(produtos));
+  fecharModalProdutoCentral();
+  renderCentralPrecos();
+  showToast(id ? "Produto atualizado." : "Produto cadastrado.", 3000);
 };
 
 window.exportarCentralCsv = function () {
