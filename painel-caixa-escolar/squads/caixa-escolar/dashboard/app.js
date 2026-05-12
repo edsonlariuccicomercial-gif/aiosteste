@@ -2821,7 +2821,7 @@ window.renderCentralPrecos = function () {
     const preco = parseFloat(p.preco_referencia || p.precoReferencia || 0);
     return '<tr>' +
       '<td style="font-size:.78rem;color:var(--muted)">' + (idx + 1) + '</td>' +
-      '<td><button style="background:none;border:none;padding:0;color:var(--text);font-weight:600;cursor:pointer;font-size:.85rem;text-align:left" onclick="editarProdutoCentralPrecos(\'' + escapeHtml(p.id) + '\')">' + escapeHtml(nome) + '</button></td>' +
+      '<td><button style="background:none;border:none;padding:0;color:var(--text);font-weight:600;cursor:pointer;font-size:.85rem;text-align:left" onclick="editarProdutoCentralPrecos(\'' + (p.id || '').replace(/'/g, '') + '\')">' + escapeHtml(nome) + '</button></td>' +
       '<td>' + escapeHtml(unidade) + '</td>' +
       '<td>' + (categoria !== '-' ? '<span class="badge badge-muted" style="font-size:.65rem">' + escapeHtml(categoria) + '</span>' : '-') + '</td>' +
       '<td style="font-size:.75rem">' + escapeHtml(origem) + '</td>' +
@@ -2845,6 +2845,8 @@ window.abrirNovoProdutoCentralPrecos = function () {
   document.getElementById("mpc-origem").value = "0";
   document.getElementById("mpc-custo").value = "0";
   document.getElementById("mpc-venda").value = "0";
+  const tipoComum = document.querySelector('input[name="mpc-tipo"][value="comum"]');
+  if (tipoComum) tipoComum.checked = true;
   document.getElementById("modal-produto-central").style.display = "flex";
 };
 
@@ -2864,6 +2866,9 @@ window.editarProdutoCentralPrecos = function (id) {
   document.getElementById("mpc-origem").value = p.origem || "0";
   document.getElementById("mpc-custo").value = p.preco_custo || 0;
   document.getElementById("mpc-venda").value = p.preco_referencia || p.precoReferencia || 0;
+  const tipoVal = (p.produto_critico === true || p.produto_critico === "true") ? "critico" : "comum";
+  const tipoRadio = document.querySelector('input[name="mpc-tipo"][value="' + tipoVal + '"]');
+  if (tipoRadio) tipoRadio.checked = true;
   document.getElementById("modal-produto-central").style.display = "flex";
 };
 
@@ -2887,7 +2892,8 @@ window.salvarProdutoCentral = function () {
     ncm: document.getElementById("mpc-ncm").value || "",
     origem: document.getElementById("mpc-origem").value || "0",
     preco_custo: parseFloat(document.getElementById("mpc-custo").value) || 0,
-    preco_referencia: parseFloat(document.getElementById("mpc-venda").value) || 0
+    preco_referencia: parseFloat(document.getElementById("mpc-venda").value) || 0,
+    produto_critico: (document.querySelector('input[name="mpc-tipo"]:checked') || {}).value === "critico"
   };
 
   if (id) {
@@ -2895,7 +2901,6 @@ window.salvarProdutoCentral = function () {
     if (p) Object.assign(p, dados);
   } else {
     dados.id = "PROD-" + new Date().toISOString().slice(0,10).replace(/-/g,"") + "-" + String(Date.now()).slice(-5);
-    dados.produto_critico = false;
     produtos.push(dados);
   }
 

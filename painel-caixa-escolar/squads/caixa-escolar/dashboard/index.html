@@ -1067,6 +1067,10 @@
           <div><label style="font-size:.75rem;color:var(--muted);display:block;margin-bottom:.25rem">SKU</label><input type="text" id="mpc-sku" style="width:100%" placeholder="auto ou manual"></div>
           <div><label style="font-size:.75rem;color:var(--muted);display:block;margin-bottom:.25rem">NCM</label><input type="text" id="mpc-ncm" style="width:100%" placeholder="0000.00.00"></div>
         </div>
+        <div style="display:flex;gap:1.5rem;align-items:center;margin-bottom:.5rem">
+          <label style="font-size:.78rem;color:var(--muted);display:flex;align-items:center;gap:.4rem;cursor:pointer"><input type="radio" name="mpc-tipo" value="comum" checked> Comum</label>
+          <label style="font-size:.78rem;color:var(--muted);display:flex;align-items:center;gap:.4rem;cursor:pointer"><input type="radio" name="mpc-tipo" value="critico"> Critico (gramatura/ml)</label>
+        </div>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.75rem">
           <div><label style="font-size:.75rem;color:var(--muted);display:block;margin-bottom:.25rem">Origem</label><select id="mpc-origem" style="width:100%"><option value="0">0-Nacional</option><option value="1">1-Import.Direta</option><option value="2">2-Import.MI</option></select></div>
           <div><label style="font-size:.75rem;color:var(--muted);display:block;margin-bottom:.25rem">P. Custo</label><input type="number" id="mpc-custo" style="width:100%" min="0" step="0.01" value="0"></div>
