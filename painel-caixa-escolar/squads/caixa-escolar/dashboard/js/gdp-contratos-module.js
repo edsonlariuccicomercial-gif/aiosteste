@@ -2522,7 +2522,6 @@ function novoContratoManual() {
       <div style="grid-column:1/-1"><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Observações</label><textarea id="mc-obs" placeholder="Informações adicionais..." style="width:100%;min-height:50px;padding:.5rem .8rem;background:var(--s1);border:1px solid var(--bdr);border-radius:4px;color:var(--txt);font-size:.85rem;resize:vertical">${esc(draft.observacoes || '')}</textarea></div>
     </div>
     <div style="margin-top:1.5rem;display:flex;gap:.8rem;justify-content:flex-end">
-      <button class="btn btn-outline" onclick="fecharModalContrato()">Cancelar</button>
       <button class="btn btn-green" onclick="salvarContratoManual()">Criar Contrato</button>
     </div>
   `;

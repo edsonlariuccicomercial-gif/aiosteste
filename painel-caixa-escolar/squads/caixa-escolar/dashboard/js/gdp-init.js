@@ -490,6 +490,19 @@ function excluirContaReceber(contaId) {
   contasReceber = contasReceber.filter((item) => item.id !== contaId);
   saveContasReceber();
 
+  // Persistir delete no Supabase para evitar re-criação no sync
+  if (window.gdpApi && window.gdpApi.contas_receber) {
+    gdpApi.contas_receber.remove(contaId).catch(e => console.warn('[excluirContaReceber] Supabase delete failed:', e));
+  }
+
+  // Rastrear IDs deletados para bloquear re-merge do Supabase
+  try {
+    const delKey = "gdp.contas-receber.deleted.v1";
+    const deleted = JSON.parse(localStorage.getItem(delKey) || "[]");
+    if (!deleted.includes(contaId)) deleted.push(contaId);
+    localStorage.setItem(delKey, JSON.stringify(deleted));
+  } catch(_) {}
+
   if (notaId) {
     const nf = notasFiscais.find((item) => item.id === notaId);
     if (nf?.cobranca) {
@@ -1308,6 +1321,43 @@ async function consultarNotasEntradaApi() {
     }
 
     renderNotasEntrada();
+
+    // Gerar PDF com resumo das notas baixadas
+    if (importados > 0 && typeof jspdf !== 'undefined') {
+      try {
+        const { jsPDF } = jspdf;
+        const pdf = new jsPDF();
+        const hoje = new Date().toLocaleDateString("pt-BR");
+        pdf.setFontSize(14);
+        pdf.text("Notas de Entrada — Consulta SEFAZ", 14, 18);
+        pdf.setFontSize(9);
+        pdf.setTextColor(120);
+        pdf.text(`Gerado em ${hoje} | ${importados} nota(s) importada(s)`, 14, 25);
+        pdf.setTextColor(0);
+        const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+        const tableRows = allDocs.map(d => [
+          (d.emitidaEm || "").slice(0, 10).split("-").reverse().join("/"),
+          (d.fornecedor || "").substring(0, 35),
+          d.nNF || d.numero || "",
+          (d.chave || "").substring(0, 20) + "...",
+          brl.format(d.valor || 0)
+        ]);
+        const totalVal = allDocs.reduce((s, d) => s + (d.valor || 0), 0);
+        tableRows.push(["", "", "", "TOTAL", brl.format(totalVal)]);
+        pdf.autoTable({
+          startY: 30,
+          head: [["Emissão", "Fornecedor", "Número", "Chave", "Valor"]],
+          body: tableRows,
+          styles: { fontSize: 8, cellPadding: 3 },
+          headStyles: { fillColor: [30, 41, 59], textColor: [241, 245, 249] },
+          columnStyles: { 4: { halign: "right" } }
+        });
+        pdf.save(`notas-entrada-sefaz-${new Date().toISOString().slice(0,10)}.pdf`);
+      } catch (pdfErr) {
+        console.warn("[NE] PDF generation failed:", pdfErr);
+      }
+    }
+
     showToast(importados > 0 ? `${importados} nota(s) de entrada importada(s) da SEFAZ.` : "Nenhuma nota nova encontrada.", 4000);
   } catch (err) {
     showToast("Erro na consulta SEFAZ: " + err.message, 5000);
@@ -2467,18 +2517,27 @@ async function enviarTiny(contratoId) {
           try {
             const rows = await gdpApi[table].list();
             if (rows && rows.length > 0) {
+              // Carregar IDs deletados localmente para filtrar do merge
+              let deletedIds = new Set();
+              try {
+                const delKey = lsKey.replace('.v1', '.deleted.v1');
+                const delArr = JSON.parse(localStorage.getItem(delKey) || '[]');
+                deletedIds = new Set(delArr);
+              } catch(_) {}
+              // Filtrar registros deletados do resultado Supabase
+              const filteredRows = deletedIds.size > 0 ? rows.filter(r => !deletedIds.has(r.id)) : rows;
               // Merge: preservar registros locais que não existem no Supabase
               let localItems = [];
               try {
                 const raw = JSON.parse(localStorage.getItem(lsKey) || '{}');
                 localItems = _wrapKeys.has(lsKey) ? (raw.items || []) : (Array.isArray(raw) ? raw : []);
               } catch(_) {}
-              const remoteIds = new Set(rows.map(r => r.id));
-              const localOnly = localItems.filter(item => item.id && !remoteIds.has(item.id));
-              const merged = [...rows, ...localOnly];
+              const remoteIds = new Set(filteredRows.map(r => r.id));
+              const localOnly = localItems.filter(item => item.id && !remoteIds.has(item.id) && !deletedIds.has(item.id));
+              const merged = [...filteredRows, ...localOnly];
               const data = _wrapKeys.has(lsKey) ? { _v: 1, updatedAt: new Date().toISOString(), items: merged } : merged;
               localStorage.setItem(lsKey, JSON.stringify(data));
-              console.log("[GDP] " + table + ": " + rows.length + " do Supabase + " + localOnly.length + " locais preservados");
+              console.log("[GDP] " + table + ": " + filteredRows.length + " do Supabase + " + localOnly.length + " locais preservados" + (deletedIds.size ? " (" + deletedIds.size + " deletados filtrados)" : ""));
             }
           } catch(e) { console.warn("[GDP] Falha ao carregar " + table + ":", e); }
         }
@@ -2979,7 +3038,6 @@ function renderModalNovoProduto() {
   const formHtml = `
     <div style="padding:0;width:100%;max-width:100%">
       <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;padding-bottom:1rem;border-bottom:1px solid rgba(143,197,157,.25)">
-        <button onclick="toggleFormNovoProduto()" style="background:transparent;border:none;cursor:pointer;color:var(--mut);font-size:1.1rem;padding:4px 8px" title="Voltar">&#x2190;</button>
         <h2 style="font-size:1.1rem;font-weight:600;margin:0;flex:1">Novo Produto</h2>
       </div>
       <div style="margin-bottom:.75rem">

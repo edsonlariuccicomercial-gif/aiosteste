@@ -1382,12 +1382,12 @@ function renderNotasFiscaisStatusTabs(items = notasFiscais) {
     const count = tab.key === "todas" ? safeItems.length : safeItems.filter((item) => normalizeNotaFiscalStatus(item.status) === tab.key).length;
     const cor = NOTA_FISCAL_STATUS_COLORS[tab.key] || '#94a3b8';
     const active = notaFiscalStatusTabAtual === tab.key;
-    return `<button onclick="setNotaFiscalStatusTab('${tab.key}')" style="display:flex;flex-direction:column;align-items:center;gap:2px;padding:10px 20px;background:transparent;border:none;border-bottom:2px solid ${active ? 'var(--green)' : 'transparent'};cursor:pointer;transition:all .2s;opacity:${active ? '1' : '.7'};white-space:nowrap">
-      <span style="display:flex;align-items:center;gap:6px">
-        <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${cor}"></span>
-        <span style="font-size:.88rem;font-weight:${active ? '600' : '400'};color:var(--txt)">${tab.label}</span>
+    return `<button onclick="setNotaFiscalStatusTab('${tab.key}')" style="display:inline-flex;flex-direction:column;align-items:center;gap:2px;padding:10px 16px;background:transparent;border:none;border-bottom:2px solid ${active ? 'var(--green)' : 'transparent'};cursor:pointer;transition:all .2s;opacity:${active ? '1' : '.7'};white-space:nowrap">
+      <span style="display:inline-flex;align-items:center;gap:5px;line-height:1">
+        <span style="display:inline-flex;flex-shrink:0;width:8px;height:8px;border-radius:50%;background:${cor}"></span>
+        <span style="font-size:.82rem;font-weight:${active ? '700' : '400'};color:var(--txt)">${tab.label}</span>
       </span>
-      <span style="font-size:.78rem;color:var(--mut);font-weight:600">${count > 0 ? count.toString().padStart(2,'0') : ''}</span>
+      <span style="font-size:.72rem;color:var(--mut);font-weight:600">${count > 0 ? count.toString().padStart(2,'0') : ''}</span>
     </button>`;
   }).join("");
 }
@@ -1991,12 +1991,12 @@ function renderPedidosStatusTabs(items = pedidos) {
     const count = tabItems.length;
     const cor = PEDIDO_STATUS_COLORS[tab.key] || '#94a3b8';
     const active = pedidoStatusTabAtual === tab.key;
-    return `<button onclick="setPedidoStatusTab('${tab.key}');closePedidoStatusDropdown()" style="display:flex;flex-direction:column;align-items:center;gap:2px;padding:10px 20px;background:transparent;border:none;border-bottom:2px solid ${active ? 'var(--green)' : 'transparent'};cursor:pointer;transition:all .2s;opacity:${active ? '1' : '.7'};white-space:nowrap">
-      <span style="display:flex;align-items:center;gap:6px">
-        <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${cor}"></span>
-        <span style="font-size:.88rem;font-weight:${active ? '600' : '400'};color:var(--txt)">${tab.label}</span>
+    return `<button onclick="setPedidoStatusTab('${tab.key}');closePedidoStatusDropdown()" style="display:inline-flex;flex-direction:column;align-items:center;gap:2px;padding:10px 16px;background:transparent;border:none;border-bottom:2px solid ${active ? 'var(--green)' : 'transparent'};cursor:pointer;transition:all .2s;opacity:${active ? '1' : '.7'};white-space:nowrap">
+      <span style="display:inline-flex;align-items:center;gap:5px;line-height:1">
+        <span style="display:inline-flex;flex-shrink:0;width:8px;height:8px;border-radius:50%;background:${cor}"></span>
+        <span style="font-size:.82rem;font-weight:${active ? '700' : '400'};color:var(--txt)">${tab.label}</span>
       </span>
-      <span style="font-size:.78rem;color:var(--mut);font-weight:600">${count > 0 ? count.toString().padStart(2,'0') : ''}</span>
+      <span style="font-size:.72rem;color:var(--mut);font-weight:600">${count > 0 ? count.toString().padStart(2,'0') : ''}</span>
     </button>`;
   }
 
