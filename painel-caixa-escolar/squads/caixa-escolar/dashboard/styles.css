@@ -305,7 +305,7 @@ h1 {
 }
 
 .table-head h2 {
-  font-size: 1.05rem;
+  font-size: 1rem;
   font-weight: 600;
 }
 
@@ -329,7 +329,7 @@ h1 {
   border-radius: 6px;
   color: var(--text);
   padding: 8px 10px;
-  font-size: 0.82rem;
+  font-size: 0.85rem;
   outline: none;
   transition: border-color 0.2s;
 }
@@ -357,18 +357,19 @@ table {
 
 thead th {
   text-align: left;
-  padding: 10px 8px;
+  padding: 10px 6px;
   border-bottom: 1px solid var(--line);
   color: var(--muted);
-  font-weight: 600;
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  font-weight: 400;
+  font-size: 0.82rem;
+  text-transform: none;
+  letter-spacing: 0;
   white-space: nowrap;
 }
 
 tbody td {
-  padding: 10px 8px;
+  padding: 9px 6px;
+  font-size: 0.88rem;
   border-bottom: 1px solid rgba(143, 197, 157, 0.08);
   vertical-align: top;
 }
@@ -391,8 +392,8 @@ tfoot td {
   display: inline-block;
   padding: 3px 10px;
   border-radius: 12px;
-  font-size: 0.72rem;
-  font-weight: 600;
+  font-size: 0.7rem;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.03em;
 }
@@ -441,8 +442,8 @@ tfoot td {
   background: rgba(8, 20, 15, 0.6);
   color: var(--text);
   cursor: pointer;
-  font-size: 0.82rem;
-  font-weight: 500;
+  font-size: 0.85rem;
+  font-weight: 700;
   transition: background 0.2s, border-color 0.2s;
 }
 
@@ -453,7 +454,7 @@ tfoot td {
 
 .btn-sm {
   padding: 5px 12px;
-  font-size: 0.75rem;
+  font-size: 0.8rem;
 }
 
 .btn-accent {
