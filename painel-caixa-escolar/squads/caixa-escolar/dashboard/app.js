@@ -1410,6 +1410,10 @@ window.switchTab = function switchTab(tabId) {
   document.querySelectorAll("#tabs-intel-precos .tab").forEach((t) => {
     t.classList.toggle("active", t.dataset.tab === tabId);
   });
+  // Sync sidebar submenu active state
+  document.querySelectorAll("#submenu-intel-precos .sidebar-sub-item").forEach((s) => {
+    s.classList.toggle("active", s.dataset.subtab === tabId);
+  });
   // Hide all tab-contents except config
   document.querySelectorAll(".tab-content").forEach((tc) => {
     if (tc.id !== "config-panel") tc.classList.remove("active");
@@ -1466,10 +1470,24 @@ function bindEvents() {
   const btnProvisionarBankWebhook = document.getElementById("btn-provisionar-bank-webhook");
   if (btnProvisionarBankWebhook) btnProvisionarBankWebhook.addEventListener("click", provisionBankWebhook);
 
-  // Tab navigation (Intel. Preços sub-tabs)
+  // Tab navigation (Intel. Preços sub-tabs — horizontal, kept for compatibility)
   document.querySelectorAll("#tabs-intel-precos .tab").forEach((tab) => {
     tab.addEventListener("click", () => {
       switchTab(tab.dataset.tab);
+    });
+  });
+
+  // Sidebar submenu navigation (Intel. Preços)
+  document.querySelectorAll("#submenu-intel-precos .sidebar-sub-item").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      // Update submenu active state
+      document.querySelectorAll("#submenu-intel-precos .sidebar-sub-item").forEach(s => s.classList.remove("active"));
+      btn.classList.add("active");
+      // Also sync the hidden horizontal tabs for compatibility
+      document.querySelectorAll("#tabs-intel-precos .tab").forEach(t => {
+        t.classList.toggle("active", t.dataset.tab === btn.dataset.subtab);
+      });
+      switchTab(btn.dataset.subtab);
     });
   });
 

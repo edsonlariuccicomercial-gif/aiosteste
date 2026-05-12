@@ -30,6 +30,12 @@
         <span class="sidebar-icon">💰</span>
         <span class="sidebar-label">INTEL PREÇOS</span>
       </button>
+      <div class="sidebar-submenu" id="submenu-intel-precos">
+        <button class="sidebar-sub-item active" data-subtab="pre-orcamento">Pré-Orçamento</button>
+        <button class="sidebar-sub-item" data-subtab="envio-sgd">Enviados ao SGD</button>
+        <button class="sidebar-sub-item" data-subtab="central-precos">Central de Preços</button>
+        <button class="sidebar-sub-item" data-subtab="historico">Histórico</button>
+      </div>
       <button class="sidebar-item" data-module="gdp" title="Gestão de Pedidos Pós-Licitação">
         <span class="sidebar-icon">📦</span>
         <span class="sidebar-label">GDP</span>
@@ -157,8 +163,8 @@
     </div>
   </section>
 
-  <!-- ===== NAVEGAÇÃO TABS (Intel. Preços) — Epic 10: v2 ===== -->
-  <nav class="tabs" id="tabs-intel-precos" style="display:none;">
+  <!-- ===== NAVEGAÇÃO TABS (Intel. Preços) — movido para sidebar submenu ===== -->
+  <nav class="tabs" id="tabs-intel-precos" style="display:none!important;">
     <button class="tab active" data-tab="pre-orcamento">Pré-Orçamento</button>
     <button class="tab" data-tab="envio-sgd">Enviados ao SGD</button>
     <button class="tab" data-tab="historico">Histórico</button>

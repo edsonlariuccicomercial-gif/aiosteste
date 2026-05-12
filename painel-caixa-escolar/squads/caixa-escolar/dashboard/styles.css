@@ -127,6 +127,42 @@ body::after  { width: 500px; height: 500px; bottom: -150px; right: -100px; backg
   margin-top: auto;
 }
 
+/* ===== SIDEBAR SUBMENU ===== */
+.sidebar-submenu {
+  display: none;
+  flex-direction: column;
+  background: rgba(0,0,0,0.15);
+  overflow: hidden;
+  transition: all 0.25s ease;
+}
+.sidebar-submenu.open {
+  display: flex;
+}
+.sidebar-sub-item {
+  display: block;
+  width: 100%;
+  padding: 8px 16px 8px 42px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 500;
+  text-align: left;
+  transition: background 0.2s, color 0.2s;
+  border-left: 3px solid transparent;
+}
+.sidebar-sub-item:hover {
+  background: rgba(78, 201, 138, 0.06);
+  color: var(--text);
+}
+.sidebar-sub-item.active {
+  color: var(--accent);
+  border-left-color: var(--accent);
+  font-weight: 600;
+  background: rgba(78, 201, 138, 0.08);
+}
+
 /* ===== MAIN AREA ===== */
 .main-area {
   margin-left: 220px;

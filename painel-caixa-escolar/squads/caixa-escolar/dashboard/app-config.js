@@ -39,6 +39,12 @@ window.switchModule = function switchModule(moduleId) {
     item.classList.toggle("active", item.dataset.module === moduleId);
   });
 
+  // Toggle Intel Preços submenu visibility
+  const submenu = document.getElementById("submenu-intel-precos");
+  if (submenu) {
+    submenu.classList.toggle("open", moduleId === "intel-precos");
+  }
+
   // Hide all tab-content sections
   document.querySelectorAll(".tab-content").forEach((tc) => {
     tc.classList.remove("active");
@@ -47,26 +53,25 @@ window.switchModule = function switchModule(moduleId) {
   const tabsIntel = document.getElementById("tabs-intel-precos");
 
   if (moduleId === "radar") {
-    // Show orçamentos directly, hide horizontal tabs
-    if (tabsIntel) tabsIntel.style.display = "none";
     const radarDash = document.getElementById("radar-dashboard");
     if (radarDash) radarDash.style.display = "";
     const ipDash = document.getElementById("intel-precos-dashboard");
     if (ipDash) ipDash.style.display = "none";
     document.getElementById("tab-orcamentos").classList.add("active");
   } else if (moduleId === "intel-precos") {
-    // Show horizontal tabs for Intel. Preços, hide radar dashboard
-    if (tabsIntel) tabsIntel.style.display = "flex";
     const radarDash = document.getElementById("radar-dashboard");
     if (radarDash) radarDash.style.display = "none";
     const ipDash = document.getElementById("intel-precos-dashboard");
     if (ipDash) ipDash.style.display = "";
-    // Activate first tab by default
-    const activeSub = tabsIntel.querySelector(".tab.active");
-    const tabId = activeSub ? activeSub.dataset.tab : "pre-orcamento";
-    switchTab(tabId);
+    // Activate Pré-Orçamento by default
+    switchTab("pre-orcamento");
+    // Sync submenu active state
+    if (submenu) {
+      submenu.querySelectorAll(".sidebar-sub-item").forEach(s => {
+        s.classList.toggle("active", s.dataset.subtab === "pre-orcamento");
+      });
+    }
   } else if (moduleId === "config") {
-    if (tabsIntel) tabsIntel.style.display = "none";
     const radarDash = document.getElementById("radar-dashboard");
     if (radarDash) radarDash.style.display = "none";
     const ipDash = document.getElementById("intel-precos-dashboard");

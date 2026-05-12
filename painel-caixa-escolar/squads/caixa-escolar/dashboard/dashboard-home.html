@@ -9,8 +9,8 @@
     :root{--bg:#0f172a;--bg-soft:#1e293b;--card:#1e293b;--line:#334155;--text:#f1f5f9;--muted:#94a3b8}
     body::before,body::after{display:none}
     /* KPI Cards */
-    .kpi-grid-home{display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;margin-bottom:3rem}
-    .kpi-card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:1.8rem;cursor:pointer;transition:all .3s;position:relative;overflow:hidden}
+    .kpi-grid-home{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:0}
+    .kpi-card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:1.2rem;cursor:pointer;transition:all .3s;position:relative;overflow:hidden}
     .kpi-card:hover{transform:translateY(-4px);box-shadow:0 12px 40px rgba(0,0,0,.3)}
     .kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
     .kpi-card.radar::before{background:linear-gradient(90deg,#06b6d4,#3b82f6)}
@@ -25,8 +25,8 @@
     .kpi-card.gdp .kpi-value-home{color:#8b5cf6}
 
     /* Globe Section */
-    .globe-section{text-align:center;margin-bottom:2rem}
-    .globe-section h2{font-size:1rem;color:var(--muted);margin-bottom:1.5rem;text-transform:uppercase;letter-spacing:.08em}
+    .globe-section{text-align:center;margin-bottom:1rem}
+    .globe-section h2{font-size:.85rem;color:var(--muted);margin-bottom:.8rem;text-transform:uppercase;letter-spacing:.08em}
 
     /* SRE Detail Panel */
     .sre-panel{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--card);border:1px solid var(--line);border-radius:16px;padding:2rem;width:400px;max-width:90vw;z-index:100;box-shadow:0 20px 60px rgba(0,0,0,.5);display:none}
@@ -47,14 +47,19 @@
     .fade-in:nth-child(3){animation-delay:.3s}
     @keyframes fadeUp{to{opacity:1;transform:translateY(0)}}
 
+    /* Viewport fit — no scroll */
+    .main-area{height:100vh;overflow:hidden;display:flex;flex-direction:column}
+    .main-area .topbar{flex-shrink:0}
+    .main-area > div[style]{flex:1;display:flex;flex-direction:column;justify-content:center;overflow:hidden;padding:1rem 2rem!important}
+
     /* Responsive */
     @media(max-width:768px){
       .kpi-grid-home{grid-template-columns:1fr}
-      #globe-wrapper,#globe-canvas{width:280px!important;height:280px!important}
+      #globe-wrapper,#globe-canvas{width:200px!important;height:200px!important}
     }
     @media(min-width:769px) and (max-width:1024px){
       .kpi-grid-home{grid-template-columns:repeat(2,1fr)}
-      #globe-wrapper,#globe-canvas{width:340px!important;height:340px!important}
+      #globe-wrapper,#globe-canvas{width:240px!important;height:240px!important}
     }
   </style>
 </head>
@@ -106,60 +111,18 @@
     </header>
 
     <!-- ===== CONTENT ===== -->
-    <div style="padding:1.5rem 2rem;">
+    <div style="padding:1rem 2rem;">
+
+      <!-- Globe Section — Interactive Canvas (topo) -->
+      <div class="globe-section">
+        <h2>Áreas de Atuação — SREs</h2>
+        <div style="position:relative;width:300px;height:300px;margin:0 auto" id="globe-wrapper">
+          <canvas id="globe-canvas" style="width:300px;height:300px;cursor:grab"></canvas>
+        </div>
+      </div>
 
       <!-- KPI Cards -->
       <div class="kpi-grid-home" id="kpi-grid"></div>
-
-      <!-- FR-015: Resumos financeiros -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:2rem">
-        <!-- FATURAMENTO -->
-        <div style="background:var(--card);border:1px solid var(--line);border-radius:16px;padding:1.5rem">
-          <h3 style="font-size:.75rem;text-transform:uppercase;color:var(--muted);letter-spacing:.06em;margin-bottom:1rem">Faturamento</h3>
-          <div style="display:grid;gap:.8rem">
-            <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:.85rem;color:var(--muted)">Faturamento Mensal</span><strong style="font-size:1.6rem;color:#22c55e" id="dash-fat-mensal">R$ 0</strong></div>
-            <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:.85rem;color:var(--muted)">Faturamento Semanal</span><strong style="font-size:1.1rem;color:#3b82f6" id="dash-fat-semanal">R$ 0</strong></div>
-            <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:.85rem;color:var(--muted)">Crescimento vs anterior</span><strong style="font-size:1rem" id="dash-fat-crescimento">0%</strong></div>
-          </div>
-        </div>
-        <!-- PEDIDOS -->
-        <div style="background:var(--card);border:1px solid var(--line);border-radius:16px;padding:1.5rem">
-          <h3 style="font-size:.75rem;text-transform:uppercase;color:var(--muted);letter-spacing:.06em;margin-bottom:1rem">Pedidos</h3>
-          <div style="display:grid;gap:.8rem">
-            <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:.85rem;color:var(--muted)">Pedidos da Semana</span><strong style="font-size:1.3rem;color:#8b5cf6" id="dash-ped-semana">0</strong></div>
-            <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:.85rem;color:var(--muted)">Volume (qtd total)</span><strong id="dash-ped-volume">0</strong></div>
-            <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:.85rem;color:var(--muted)">Ticket Medio</span><strong style="color:#22c55e" id="dash-ped-ticket">R$ 0</strong></div>
-          </div>
-        </div>
-        <!-- CONTAS A RECEBER -->
-        <div style="background:var(--card);border:1px solid var(--line);border-radius:16px;padding:1.5rem">
-          <h3 style="font-size:.75rem;text-transform:uppercase;color:var(--muted);letter-spacing:.06em;margin-bottom:1rem">Contas a Receber</h3>
-          <div style="display:grid;gap:.8rem">
-            <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:.85rem;color:var(--muted)">Receber Hoje</span><strong style="color:#eab308" id="dash-cr-hoje">R$ 0</strong></div>
-            <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:.85rem;color:var(--muted)">Receber na Semana</span><strong id="dash-cr-semana">R$ 0</strong></div>
-            <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:.85rem;color:var(--muted)">Receber no Mes</span><strong id="dash-cr-mes">R$ 0</strong></div>
-            <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:.85rem;color:var(--muted)">Atrasados</span><strong style="color:#ef4444;font-size:1.1rem" id="dash-cr-atrasados">R$ 0</strong></div>
-          </div>
-        </div>
-        <!-- CONTAS A PAGAR -->
-        <div style="background:var(--card);border:1px solid var(--line);border-radius:16px;padding:1.5rem">
-          <h3 style="font-size:.75rem;text-transform:uppercase;color:var(--muted);letter-spacing:.06em;margin-bottom:1rem">Contas a Pagar</h3>
-          <div style="display:grid;gap:.8rem">
-            <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:.85rem;color:var(--muted)">Pagar Hoje</span><strong style="color:#eab308" id="dash-cp-hoje">R$ 0</strong></div>
-            <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:.85rem;color:var(--muted)">Pagar na Semana</span><strong id="dash-cp-semana">R$ 0</strong></div>
-            <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:.85rem;color:var(--muted)">Pagar no Mes</span><strong id="dash-cp-mes">R$ 0</strong></div>
-            <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:.85rem;color:var(--muted)">Alertas de Vencimento</span><strong style="color:#ef4444" id="dash-cp-alertas">0</strong></div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Globe Section — Interactive Canvas -->
-      <div class="globe-section">
-        <h2>Áreas de Atuação — SREs</h2>
-        <div style="position:relative;width:420px;height:420px;margin:0 auto" id="globe-wrapper">
-          <canvas id="globe-canvas" style="width:420px;height:420px;cursor:grab"></canvas>
-        </div>
-      </div>
 
     </div>
   </div>
