@@ -2782,24 +2782,26 @@ window.aplicarMargemGlobal = function () {
   showToast("Margem " + (margem * 100).toFixed(0) + "% aplicada a " + pre.itens.filter(i => i.custoUnitario > 0).length + " itens.");
 };
 
-// Story 10.3: Central de Preços — render (unificado: GDP Central de Produtos + Banco de Preços)
+// Story 10.3: Central de Preços — réplica exata da Central de Produtos do GDP
+const ORIGEM_LABELS = { '0': '0-Nacional', '1': '1-Import. Direta', '2': '2-Import. Merc. Interno', '3': '3-Nac. >40% Import.', '4': '4-Nac. Proc. Basicos', '5': '5-Nac. <=40% Import.', '6': '6-Import. s/ Similar', '7': '7-Import. MI s/ Similar' };
+
 window.renderCentralPrecos = function () {
-  if (typeof loadBancoProdutos === 'function') loadBancoProdutos();
-  let produtos = (typeof bancoProdutos !== 'undefined' && bancoProdutos.itens && bancoProdutos.itens.length) ? bancoProdutos.itens : [];
-  // Fallback: carregar do localStorage direto se bancoProdutos não disponível (index.html não carrega gdp-banco-produtos.js)
+  // Fonte primária: gdp.estoque-intel.produtos.v1 (mesma do GDP Central de Produtos)
+  let produtos = [];
+  try {
+    const raw = JSON.parse(localStorage.getItem('gdp.estoque-intel.produtos.v1') || '[]');
+    produtos = Array.isArray(raw) ? raw : (raw.itens || raw.items || []);
+  } catch(_) {}
+  // Fallback: gdp.produtos.v1
   if (!produtos.length) {
     try {
       const raw = JSON.parse(localStorage.getItem('gdp.produtos.v1') || '{}');
       produtos = Array.isArray(raw.itens) ? raw.itens : (Array.isArray(raw) ? raw : []);
     } catch(_) {}
   }
-  // Fallback 2: usar bancoPrecos (caixaescolar.banco.v1) mapeando campo 'item' para 'descricao'
-  if (!produtos.length && typeof bancoPrecos !== 'undefined' && bancoPrecos.itens && bancoPrecos.itens.length) {
-    produtos = bancoPrecos.itens.map(b => ({ id: b.id, descricao: b.item || b.descricao || '', sku: b.sku || '', unidade: b.unidade || '', custoBase: b.custoBase || 0, precoReferencia: b.precoReferencia || 0, margemAlvo: b.margemPadrao || 0, margemPadrao: b.margemPadrao || 0, grupo: b.grupo || '' }));
-  }
   const busca = (document.getElementById("filtro-central-texto") || {}).value || "";
   const buscaNorm = busca.toLowerCase().trim();
-  const filtrados = buscaNorm ? produtos.filter(p => ((p.descricao || '') + ' ' + (p.sku || '') + ' ' + (p.grupo || '')).toLowerCase().includes(buscaNorm)) : produtos;
+  const filtrados = buscaNorm ? produtos.filter(p => ((p.nome || p.descricao || '') + ' ' + (p.sku || '') + ' ' + (p.ncm || '') + ' ' + (p.categoria || p.grupo || '')).toLowerCase().includes(buscaNorm)) : produtos;
   const tbody = document.getElementById("tbody-central-precos");
   const empty = document.getElementById("central-empty");
   if (!tbody) return;
@@ -2809,38 +2811,33 @@ window.renderCentralPrecos = function () {
     return;
   }
   if (empty) empty.style.display = 'none';
-  tbody.innerHTML = filtrados.map(p => {
-    const margem = p.margemAlvo || p.margemPadrao || 0;
+  tbody.innerHTML = filtrados.map((p, idx) => {
+    const nome = p.nome || p.descricao || '';
+    const unidade = p.unidade_base || p.unidade || '-';
+    const categoria = p.categoria || p.grupo || '-';
+    const origem = ORIGEM_LABELS[String(p.origem || '0')] || String(p.origem || '0');
+    const sku = p.sku || '-';
+    const ncm = p.ncm || '-';
+    const preco = parseFloat(p.preco_referencia || p.precoReferencia || 0);
     return '<tr>' +
-      '<td><strong>' + escapeHtml(p.descricao || '') + '</strong></td>' +
-      '<td class="font-mono" style="font-size:.75rem;">' + escapeHtml(p.sku || '-') + '</td>' +
-      '<td><span class="badge-unidade ' + (({'KG':'badge-un-kg','UN':'badge-un-un','PCT':'badge-un-pct','LT':'badge-un-lt','CX':'badge-un-cx'})[( p.unidade||'').toUpperCase()] || 'badge-un-default') + '">' + escapeHtml(p.unidade || '-') + '</span></td>' +
-      '<td class="text-right font-mono">' + brl.format(p.custoBase || 0) + '</td>' +
-      '<td class="text-right font-mono">' + brl.format(p.precoReferencia || 0) + '</td>' +
-      '<td class="text-right">' + ((margem * 100).toFixed(0)) + '%</td>' +
-      '<td>' + escapeHtml(p.grupo || '-') + '</td>' +
-      '<td><button class="btn btn-inline btn-sm" onclick="editarProdutoCentral(\'' + escapeHtml(p.id) + '\')" style="font-size:.72rem;">Editar</button></td>' +
+      '<td style="font-size:.78rem;color:var(--muted)">' + (idx + 1) + '</td>' +
+      '<td><strong>' + escapeHtml(nome) + '</strong></td>' +
+      '<td>' + escapeHtml(unidade) + '</td>' +
+      '<td>' + (categoria !== '-' ? '<span class="badge badge-muted" style="font-size:.65rem">' + escapeHtml(categoria) + '</span>' : '-') + '</td>' +
+      '<td style="font-size:.75rem">' + escapeHtml(origem) + '</td>' +
+      '<td class="font-mono" style="font-size:.75rem">' + escapeHtml(sku) + '</td>' +
+      '<td class="font-mono" style="font-size:.75rem">' + escapeHtml(ncm) + '</td>' +
+      '<td class="text-right font-mono">' + brl.format(preco) + '</td>' +
       '</tr>';
   }).join('');
 };
 
-window.abrirNovoProdutoCentral = function () {
-  if (typeof novoProduto === 'function') novoProduto();
-  else if (typeof editarProduto === 'function') editarProduto(null);
-  else showToast('Função de cadastro não disponível nesta página.');
-};
-
-window.editarProdutoCentral = function (id) {
-  if (typeof editarProduto === 'function') editarProduto(id);
-  else showToast('Função de edição não disponível nesta página.');
-};
-
 window.exportarCentralCsv = function () {
-  if (typeof loadBancoProdutos === 'function') loadBancoProdutos();
-  const produtos = (typeof bancoProdutos !== 'undefined' && bancoProdutos.itens) ? bancoProdutos.itens : [];
-  const header = "Produto;SKU;Unidade;Custo Base;Preco Ref;Margem;Grupo";
-  const rows = produtos.map(p => [p.descricao, p.sku, p.unidade, p.custoBase || 0, p.precoReferencia || 0, ((p.margemAlvo || p.margemPadrao || 0) * 100).toFixed(0) + '%', p.grupo || ''].map(v => '"' + String(v || '').replace(/"/g, '""') + '"').join(';'));
-  if (typeof downloadCsv === 'function') downloadCsv('central-precos.csv', [header, ...rows].join('\n'));
+  let produtos = [];
+  try { const raw = JSON.parse(localStorage.getItem('gdp.estoque-intel.produtos.v1') || '[]'); produtos = Array.isArray(raw) ? raw : (raw.itens || []); } catch(_) {}
+  const header = "Produto;Unidade;Categoria;Origem;SKU;NCM;P. Venda";
+  const rows = produtos.map(p => [p.nome || p.descricao, p.unidade_base || p.unidade, p.categoria || p.grupo, p.origem || '0', p.sku, p.ncm, p.preco_referencia || p.precoReferencia || 0].map(v => '"' + String(v || '').replace(/"/g, '""') + '"').join(';'));
+  if (typeof downloadCsv === 'function') downloadCsv('central-produtos.csv', [header, ...rows].join('\n'));
 };
 
 // Story 10.2: Revisão de Unidades — vínculo manual humano, item por item

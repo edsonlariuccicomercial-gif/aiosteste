@@ -640,33 +640,33 @@
   <section id="tab-central-precos" class="tab-content">
     <div class="card">
       <div class="table-head">
-        <h2>Central de Preços</h2>
+        <h2>Central de Produtos</h2>
         <div class="table-head-actions">
-          <button class="btn btn-sm btn-accent" onclick="abrirNovoProdutoCentral()">+ Novo Produto</button>
+          <span style="font-size:.75rem;color:var(--muted)">Réplica somente leitura — edite no GDP</span>
           <button class="btn btn-sm" onclick="exportarCentralCsv()">Exportar CSV</button>
         </div>
       </div>
       <div class="filters" style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.75rem;">
-        <input type="text" id="filtro-central-texto" placeholder="Buscar produto, SKU..." autocomplete="off" style="padding:0.4rem;flex:1;" oninput="renderCentralPrecos()" />
+        <input type="text" id="filtro-central-texto" placeholder="Buscar produto, SKU, NCM..." autocomplete="off" style="padding:0.4rem;flex:1;" oninput="renderCentralPrecos()" />
       </div>
       <div class="table-wrap">
         <table id="tabela-central-precos">
           <thead>
             <tr>
+              <th>#</th>
               <th>Produto</th>
+              <th>Base</th>
+              <th>Categoria</th>
+              <th>Origem</th>
               <th>SKU</th>
-              <th>Unidade</th>
-              <th>P. Custo</th>
-              <th>P. Venda</th>
-              <th>Margem</th>
-              <th>Grupo</th>
-              <th>Ações</th>
+              <th>NCM</th>
+              <th class="text-right">P. Venda</th>
             </tr>
           </thead>
           <tbody id="tbody-central-precos"></tbody>
         </table>
       </div>
-      <p id="central-empty" class="empty-msg" style="display:none;">Nenhum produto cadastrado.</p>
+      <p id="central-empty" class="empty-msg" style="display:none;">Nenhum produto cadastrado. Cadastre na Central de Produtos do módulo GDP.</p>
     </div>
   </section>
 
