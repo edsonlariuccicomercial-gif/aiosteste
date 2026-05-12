@@ -233,15 +233,17 @@ function fmtDate(d) {
 function registrarBaixaRecebimento(contaId) {
   const conta = contasReceber.find((item) => item.id === contaId);
   if (!conta) return;
+  const dataBaixa = promptDataBaixa("Informe a data do recebimento (AAAA-MM-DD):", new Date().toISOString().slice(0, 10));
+  if (!dataBaixa) return;
   conta.status = "recebida";
-  conta.recebidaEm = new Date().toISOString();
+  conta.recebidaEm = dataBaixa + "T12:00:00";
   conta.conciliacao = {
     status: "pendente_api_bancaria",
     referencia: genId("CNCL"),
     updatedAt: new Date().toISOString(),
     updatedBy: getAuditActor()
   };
-  conta.audit = { ...(conta.audit || {}), updatedAt: new Date().toISOString(), updatedBy: getAuditActor(), baixaManualAt: new Date().toISOString() };
+  conta.audit = { ...(conta.audit || {}), updatedAt: new Date().toISOString(), updatedBy: getAuditActor(), baixaManualAt: conta.recebidaEm };
   saveContasReceber();
   queueGdpIntegration("conta_receber", "registrar_recebimento", conta.id, {
     contaReceberId: conta.id,

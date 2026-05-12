@@ -170,7 +170,7 @@
           <option value="descartados">Descartados</option>
           <option value="com-preorcamento">Com pré-orçamento</option>
         </select>
-        <div style="display:flex;gap:.4rem;align-items:center"><input type="date" id="filtro-data-de" title="Data início" style="flex:1;min-width:0" /><span style="color:var(--mut);font-size:.75rem">a</span><input type="date" id="filtro-data-ate" title="Data fim" style="flex:1;min-width:0" /></div>
+        <div style="display:flex;gap:.5rem;align-items:center"><span style="background:#333;color:#fff;border-radius:50%;width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:700;flex-shrink:0">De</span><input type="date" id="filtro-data-de" title="Data início" style="flex:1;min-width:0" /><span style="background:#333;color:#fff;border-radius:50%;width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:700;flex-shrink:0">Até</span><input type="date" id="filtro-data-ate" title="Data fim" style="flex:1;min-width:0" /></div>
         <input type="text" id="filtro-texto" placeholder="Buscar escola, objeto, item..." autocomplete="off" />
       </div>
 
@@ -368,8 +368,8 @@
             <option value="perdido">Perdido</option>
             <option value="todos">Todos (inclui finalizados)</option>
           </select>
-          <input type="date" id="filtro-pre-data-de" title="Data início" style="padding:0.4rem;" />
-          <input type="date" id="filtro-pre-data-ate" title="Data fim" style="padding:0.4rem;" />
+          <div style="display:flex;gap:.5rem;align-items:center"><span style="background:#333;color:#fff;border-radius:50%;width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:700;flex-shrink:0">De</span><input type="date" id="filtro-pre-data-de" title="Data início" style="flex:1;min-width:0" /></div>
+          <div style="display:flex;gap:.5rem;align-items:center"><span style="background:#333;color:#fff;border-radius:50%;width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:700;flex-shrink:0">Até</span><input type="date" id="filtro-pre-data-ate" title="Data fim" style="flex:1;min-width:0" /></div>
           <input type="text" id="filtro-pre-texto" placeholder="Buscar..." autocomplete="off" style="padding:0.4rem;" />
           <button class="btn btn-sm" onclick="limparFiltrosPre()">Limpar</button>
         </div>
@@ -552,8 +552,8 @@
           <option value="ganho">Ganho</option>
           <option value="perdido">Perdido</option>
         </select>
-        <input type="date" id="filtro-sgd-data-de" title="Data início" />
-        <input type="date" id="filtro-sgd-data-ate" title="Data fim" />
+        <div style="display:flex;gap:.5rem;align-items:center"><span style="background:#333;color:#fff;border-radius:50%;width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:700;flex-shrink:0">De</span><input type="date" id="filtro-sgd-data-de" title="Data início" style="flex:1;min-width:0" /></div>
+        <div style="display:flex;gap:.5rem;align-items:center"><span style="background:#333;color:#fff;border-radius:50%;width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:700;flex-shrink:0">Até</span><input type="date" id="filtro-sgd-data-ate" title="Data fim" style="flex:1;min-width:0" /></div>
         <input type="text" id="filtro-sgd-texto" placeholder="Buscar..." autocomplete="off" style="padding:0.4rem;" />
       </div>
 
