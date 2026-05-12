@@ -1482,6 +1482,7 @@ window.switchTab = function switchTab(tabId) {
   if (tabId === "aprovados") renderAprovados();
   if (tabId === "historico") renderHistorico();
   if (tabId === "pre-orcamento" && !activePreOrcamentoId) renderPreOrcamentosLista();
+  if (tabId === "central-precos" && typeof renderCentralPrecos === "function") renderCentralPrecos();
 }
 
 // ===== EVENTS =====
@@ -2781,10 +2782,21 @@ window.aplicarMargemGlobal = function () {
   showToast("Margem " + (margem * 100).toFixed(0) + "% aplicada a " + pre.itens.filter(i => i.custoUnitario > 0).length + " itens.");
 };
 
-// Story 10.3: Central de Preços — render
+// Story 10.3: Central de Preços — render (unificado: GDP Central de Produtos + Banco de Preços)
 window.renderCentralPrecos = function () {
   if (typeof loadBancoProdutos === 'function') loadBancoProdutos();
-  const produtos = (typeof bancoProdutos !== 'undefined' && bancoProdutos.itens) ? bancoProdutos.itens : [];
+  let produtos = (typeof bancoProdutos !== 'undefined' && bancoProdutos.itens && bancoProdutos.itens.length) ? bancoProdutos.itens : [];
+  // Fallback: carregar do localStorage direto se bancoProdutos não disponível (index.html não carrega gdp-banco-produtos.js)
+  if (!produtos.length) {
+    try {
+      const raw = JSON.parse(localStorage.getItem('gdp.produtos.v1') || '{}');
+      produtos = Array.isArray(raw.itens) ? raw.itens : (Array.isArray(raw) ? raw : []);
+    } catch(_) {}
+  }
+  // Fallback 2: usar bancoPrecos (caixaescolar.banco.v1) mapeando campo 'item' para 'descricao'
+  if (!produtos.length && typeof bancoPrecos !== 'undefined' && bancoPrecos.itens && bancoPrecos.itens.length) {
+    produtos = bancoPrecos.itens.map(b => ({ id: b.id, descricao: b.item || b.descricao || '', sku: b.sku || '', unidade: b.unidade || '', custoBase: b.custoBase || 0, precoReferencia: b.precoReferencia || 0, margemAlvo: b.margemPadrao || 0, margemPadrao: b.margemPadrao || 0, grupo: b.grupo || '' }));
+  }
   const busca = (document.getElementById("filtro-central-texto") || {}).value || "";
   const buscaNorm = busca.toLowerCase().trim();
   const filtrados = buscaNorm ? produtos.filter(p => ((p.descricao || '') + ' ' + (p.sku || '') + ' ' + (p.grupo || '')).toLowerCase().includes(buscaNorm)) : produtos;
