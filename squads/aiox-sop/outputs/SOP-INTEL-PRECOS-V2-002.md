@@ -3,9 +3,10 @@
 | Campo | Valor |
 |-------|-------|
 | **ID** | SOP-INTEL-PRECOS-V2-002 |
-| **Versão** | 1.0.0 |
+| **Versão** | 2.0.0 |
 | **Status** | Draft |
 | **Data** | 2026-05-15 |
+| **Atualizado** | 2026-05-15 |
 | **Módulo** | Painel do Fornecedor — Licit-AIX |
 | **Tipo** | Redesign Arquitetural (TO-BE) |
 | **Baseline** | SOP-RADAR-INTEL-PRECOS-001 (AS-IS) |
@@ -16,6 +17,106 @@
 ## 1. Propósito
 
 Redesenhar o módulo Intel Preços com arquitetura de 6 camadas, eliminando bancos de preços fragmentados por fornecedor, implementando central de produtos única, motor de precificação inteligente, e histórico de licitações como componente de decisão estratégica.
+
+Contexto regulatório: fornecedor que vende para o governo via licitações escolares (Caixas Escolares MG), regido pela **Lei 14.133/2021** (Nova Lei de Licitações) e **Decreto 11.462/2023**.
+
+---
+
+## 1.1 Fundamentação Teórica — Metodologias Certificadas
+
+Esta arquitetura é fundamentada em 6 frameworks da literatura de procurement, precificação e gestão de dados:
+
+### A. Should-Cost Analysis (Dept. Defesa EUA / McKinsey)
+
+Decompõe o preço em camadas para determinar o preço justo. McKinsey classifica em 3 níveis que mapeiam diretamente aos nossos cenários:
+
+| Nível McKinsey | Nosso cenário | Definição |
+|----------------|---------------|-----------|
+| **Does-Cost** | Conservador | Quanto pago hoje + margem segura |
+| **Should-Cost** | Sugerido | Quanto deveria custar (mediana de vencedores) |
+| **Could-Cost** | Agressivo | Mínimo teórico viável |
+
+### B. Matriz de Kraljic (HBR, 1983)
+
+Classifica produtos por impacto no lucro × risco de suprimento:
+
+| Quadrante | Exemplo escolar | Estratégia de preço |
+|-----------|----------------|---------------------|
+| **Não-crítico** (baixo risco, baixo impacto) | Clips, borracha | Menor preço, automatizar |
+| **Alavancagem** (baixo risco, alto impacto) | Arroz, feijão, papel A4 | Negociar agressivo, volume |
+| **Gargalo** (alto risco, baixo impacto) | Produto regional específico | Margem conservadora, garantir |
+| **Estratégico** (alto risco, alto impacto) | Kit alimentação especial | Parceria, equilíbrio |
+
+A classificação Kraljic influencia o cenário default do Motor de Precificação.
+
+### C. Total Cost of Ownership — TCO (ISM/CIPS)
+
+Vai além do preço unitário — inclui 7 camadas de custo:
+
+| Camada TCO | Aplicação |
+|------------|-----------|
+| 1. Aquisição | Preço do produto |
+| 2. Operação | Frete, armazenamento |
+| 3. Manutenção | Validade, perecibilidade |
+| 4. Inventário/Financeiro | Prazo de pagamento, custo de capital |
+| 5. Risco | Fornecedor único, não-entrega |
+| 6. ESG | Não aplicável diretamente |
+| 7. Descarte | Não aplicável a revenda |
+
+### D. PIM — Product Information Management (Pimcore/MDM)
+
+Separa dados mestres (fixos) de dados transacionais (dinâmicos):
+
+| Tipo de dado | Onde fica | Exemplo |
+|-------------|-----------|---------|
+| **Dado mestre** (PIM) | Camada 1 — Central de Produtos | Nome, SKU, NCM, categoria |
+| **Dado transacional** | Camada 2 — Custos Fornecedores | Preço, fornecedor, data, validade |
+| **Normalização** | Camada 3 — Normalizador | Aliases, equivalências |
+
+Regra PIM: *"Preços NÃO ficam no cadastro do produto — ficam em tabela separada ligada por produto_id."*
+
+### E. Mark-up Multiplicador (Precificação para Licitações)
+
+Fórmula padrão para fornecedores governamentais:
+
+```
+PREÇO DE VENDA = CUSTO × MARK-UP
+
+Mark-up = 1 / (1 - (Frete% + CI% + Tributos% + Margem%))
+```
+
+| Componente | % típico | Descrição |
+|------------|----------|-----------|
+| Frete | 3-8% | Varia por região/distância |
+| Custos Indiretos | 5-10% | Admin, aluguel, depreciação |
+| Tributos | 4-17% | Depende do regime (Simples/Presumido/Real) |
+| Margem de Lucro | 5-20% | Varia por Kraljic + competitividade |
+
+### F. Lei 14.133/2021 + Decreto 11.462/2023 — Pesquisa de Preços
+
+O governo forma o preço de referência usando "cesta de preços":
+
+| Fonte governamental | Inteligência para o fornecedor |
+|---------------------|-------------------------------|
+| Compras.gov.br (licitações anteriores) | Nosso Histórico (Camada 4) replica essa visão |
+| Painel de Preços (banco federal) | Benchmark externo |
+| Cotações de fornecedores | Nossos preços alimentam a cesta |
+| Contratações similares | Monitorar preços de outras escolas |
+
+**TCU (Acórdão 1712/2025):** O governo deve diversificar fontes. O preço de referência já considera histórico de contratos — nosso Histórico é inteligência espelhada.
+
+**Métodos de cálculo do governo:** média, mediana, ou menor dos valores (mínimo 3 preços). Nosso Motor deve gerar os 3.
+
+### G. Inteligência Competitiva (FedBiz365/Hermix)
+
+Dados internacionais de impacto:
+
+| Insight | Dado |
+|---------|------|
+| Win rate com intelligence | **+47%** vs sem intelligence |
+| Menor preço nem sempre ganha | Só ganha **31%** em best-value |
+| AI economiza | **15h por ciclo** de bid |
+| Rating bom | **2.7×** mais vitórias |
 
 ---
 
@@ -252,6 +353,8 @@ Para cada resultado registrado:
 | ncm | string | Não | Código fiscal 8 dígitos |
 | origem | string | Não | 0-Nacional, 1-8 Importação |
 | produto_critico | boolean | Não | Flag de item crítico |
+| classificacao_kraljic | enum | Não | nao-critico / alavancagem / gargalo / estrategico (Matriz de Kraljic) |
+| ncm_tributacao | string | Não | Classificação fiscal para cálculo de tributos |
 | ativo | boolean | Sim | Soft delete |
 | criadoEm | datetime | Sim | Data de criação |
 | atualizadoEm | datetime | Sim | Última atualização |
@@ -283,6 +386,9 @@ PRODUTO → MÚLTIPLOS CUSTOS → DECISÃO
 | regiao | string | Não | Região de aplicação |
 | origem | string | Sim | "excel", "pdf", "nf", "api", "b2b", "marketplace", "manual" |
 | confiabilidade | number | Não | Score 0-1 (OCR=0.5, NF=1.0, manual=0.9) |
+| frete_estimado | number | Não | Custo de frete por unidade (TCO camada 2) |
+| prazo_pagamento_dias | number | Não | Prazo de pagamento em dias (TCO camada 4) |
+| condicao_pagamento | string | Não | "a_vista", "30d", "60d", "90d" (TCO custo financeiro) |
 | arquivo_id | string | Não | Referência ao arquivo importado |
 
 **Fontes de custo unificadas:**
@@ -358,32 +464,80 @@ PRODUTO → MÚLTIPLOS CUSTOS → DECISÃO
 
 ### 5.9 — PROCESSO 9: Motor de Precificação — Camada 5
 
-**Entrada:**
+**Configuração da Empresa (uma vez):**
+
+| Parâmetro | Tipo | Descrição |
+|-----------|------|-----------|
+| `regime_tributario` | enum | "simples" / "presumido" / "real" |
+| `aliquota_tributos_pct` | number | % de tributos sobre faturamento (ex: 6% Simples) |
+| `custos_indiretos_pct` | number | % de custos indiretos (admin, aluguel) — típico 5-10% |
+| `frete_padrao_pct` | number | % de frete padrão — típico 3-8% |
+| `margem_minima_pct` | number | Margem mínima aceitável — típico 5% |
+| `margem_desejada_pct` | number | Margem target — típico 15-20% |
+
+**Entrada (por item):**
 
 | Dado | Fonte |
 |------|-------|
-| Custo atual | Camada 2 (menor custo válido) |
-| Histórico de preços vencedores | Camada 4 (por produto + região) |
-| Região da escola | SGD (municipio/SRE) |
-| Margem mínima configurada | Perfil do operador |
-| Concorrência conhecida | Camada 4 (empresas que competem na região) |
+| Custo unitário | Camada 2 — menor custo válido do produto |
+| Frete específico | Camada 2 — `frete_estimado` ou `frete_padrao_pct` da config |
+| Classificação Kraljic | Camada 1 — influencia cenário default |
+| Histórico de preços vencedores | Camada 4 — por produto + região |
+| Região da escola | SGD — municipio/SRE |
+| Concorrência conhecida | Camada 4 — empresas que competem na região |
 
-**Saída — 3 cenários:**
+**Fórmula — Mark-up Multiplicador (padrão licitações):**
 
-| Cenário | Cálculo | Uso |
-|---------|---------|-----|
-| **Sugerido** | custo × (1 + margem_historica_media) | Balanceado — máxima chance de lucro |
-| **Agressivo** | mediana(precos_vencedores) × 0.98 | Maximiza chance de ganhar |
-| **Conservador** | custo × (1 + margem_minima × 1.5) | Protege margem |
+```
+Mark-up = 1 / (1 - (Frete% + CI% + Tributos% + Margem%))
+Preço de Venda = Custo × Mark-up
+```
+
+**Exemplo:**
+```
+Custo: R$ 18,00 (arroz 5kg)
+Frete: 5% | CI: 8% | Tributos: 6% (Simples) | Margem: 15%
+Mark-up = 1 / (1 - 0.34) = 1.515
+Preço = R$ 18,00 × 1.515 = R$ 27,27
+```
+
+**Saída — 3 cenários (Should-Cost Analysis / McKinsey):**
+
+| Cenário | Nome técnico | Cálculo | Uso |
+|---------|-------------|---------|-----|
+| **Conservador** | Does-Cost | custo × mark-up(margem=20%) | Protege margem — itens Gargalo/Estratégico |
+| **Sugerido** | Should-Cost | mediana(preços_vencedores) ajustada por mark-up | Balanceado — máxima chance de lucro |
+| **Agressivo** | Could-Cost | custo × mark-up(margem=margem_minima) | Maximiza chance de ganhar — itens Alavancagem |
+
+**Influência Kraljic no cenário default:**
+
+| Classificação | Cenário default | Razão |
+|---------------|----------------|-------|
+| Não-crítico | Agressivo | Baixo risco, competir por preço |
+| Alavancagem | Agressivo | Volume compensa margem baixa |
+| Gargalo | Conservador | Garantir entrega, proteger margem |
+| Estratégico | Sugerido | Equilíbrio entre margem e competitividade |
 
 **Indicadores por cenário:**
 
-| Indicador | Descrição |
-|-----------|-----------|
-| Margem estimada (%) | (preço - custo) / preço × 100 |
-| Probabilidade de ganho (%) | Baseado em histórico: quantas vezes esse preço ganharia |
-| Risco | Baixo (margem > 20%), Médio (10-20%), Alto (< 10%) |
-| Competitivo | Sim/Não — preço está abaixo da mediana histórica? |
+| Indicador | Descrição | Fórmula |
+|-----------|-----------|---------|
+| Margem líquida (%) | Margem real após todos os custos | (preço - custo_total) / preço × 100 |
+| Mark-up aplicado | Multiplicador usado | 1 / (1 - soma%) |
+| Probabilidade de ganho (%) | Baseado em histórico | % das vezes que esse preço teria ganhado |
+| Competitiveness Index | Posição vs mercado | nosso_preço / mediana_vencedores |
+| Risco | Classificação | Baixo (margem>20%), Médio (10-20%), Alto (<10%) |
+| Price-to-Win | Preço estimado para ganhar | Mediana dos preços vencedores na região |
+
+**Métricas de inteligência competitiva (Camada 4 → Camada 5):**
+
+| Métrica | Fórmula | Uso |
+|---------|---------|-----|
+| Win Rate | Ganhos / (Ganhos + Perdidos) | Eficácia geral |
+| Win Rate por SRE | Ganhos_SRE / Total_SRE | Focar nas SREs mais competitivas |
+| Margin Erosion Rate | Δ% margem ao longo do tempo | Detectar perda de competitividade |
+| Supplier Concentration Risk | % custos de 1 fornecedor / total | Risco de dependência |
+| Cost Trend | Δ% custo por fornecedor no tempo | Antecipar aumentos |
 
 ---
 
@@ -474,6 +628,7 @@ Wave 5 (IA):           E9 (depende de tudo)
 | Versão | Data | Autor | Alteração |
 |--------|------|-------|-----------|
 | 1.0.0 | 2026-05-15 | Deming (SOP Factory) | Criação do SOP TO-BE a partir de briefing do operador |
+| 2.0.0 | 2026-05-15 | Deming + Atlas (Analyst) | Incorporação de 6 metodologias certificadas: Should-Cost (McKinsey), Kraljic (HBR), TCO (ISM/CIPS), PIM (Pimcore/MDM), Mark-up Multiplicador, Lei 14.133/2021 + Inteligência Competitiva. Camada 1 com Kraljic, Camada 2 com TCO expandido, Camada 5 reformulada com Mark-up |
 
 ---
 
