@@ -121,15 +121,24 @@ async function boot() {
   ]);
 
   perfil = perfilData || {};
-  // Story 13.1: Load SRE data only for active SREs (not all 47)
+  // Story 13.1: Load SRE data only for active SREs
+  // Only the 3 original SREs have JSON data files; others are populated via SGD API varredura
   const activeSres = getActiveSreConfigs();
+  const sresWithFiles = activeSres.filter(c => ["uberaba", "uberlandia", "passos"].includes(c.id));
+  const sreFileMap = { uberaba: "data/sre-uberaba.json", uberlandia: "data/sre-uberlandia.json", passos: "data/sre-passos.json" };
   const sreResults = await Promise.all(
-    activeSres.map(c => fetchJson(c.arquivo || ("data/sre-" + c.id + ".json")).catch(() => ({ municipios: [] })))
+    sresWithFiles.map(c => fetchJson(sreFileMap[c.id]))
   );
-  allSreData = activeSres.map((c, i) => ({
+  allSreData = sresWithFiles.map((c, i) => ({
     ...c,
     data: sreResults[i] || { municipios: [] }
   }));
+  // Add active SREs without JSON files (they rely on SGD API for school matching)
+  activeSres.forEach(c => {
+    if (!sresWithFiles.find(s => s.id === c.id)) {
+      allSreData.push({ ...c, data: { municipios: [] } });
+    }
+  });
   // Backward compatibility
   sreData = allSreData[0]?.data || {};
 

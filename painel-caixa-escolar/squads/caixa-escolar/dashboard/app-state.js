@@ -3,6 +3,10 @@
    Vanilla JS | Multi-SRE — Fase 3
    =================================================================== */
 
+// ===== LOGGING FALLBACKS (gdp-core.js may not be loaded in index.html) =====
+if (typeof gdpLog === 'undefined') { var gdpLog = console.log.bind(console, '[GDP]'); }
+if (typeof gdpWarn === 'undefined') { var gdpWarn = console.warn.bind(console, '[GDP]'); }
+
 // ===== CONSTANTS =====
 const STORAGE_KEY = "caixaescolar.preorcamentos.v1";
 const BANCO_STORAGE_KEY = "caixaescolar.banco.v1";

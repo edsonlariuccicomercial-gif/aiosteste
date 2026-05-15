@@ -581,7 +581,7 @@ function renderSgd() {
 
   // Botão enviar todos (se tem prontos)
   el.btnSgdEnviarTodos.style.display = ready.length > 0 ? "inline-block" : "none";
-  el.btnSgdBaixarTodos.style.display = sgdItems.length > 0 ? "inline-block" : "none";
+  if (el.btnSgdBaixarTodos) el.btnSgdBaixarTodos.style.display = sgdItems.length > 0 ? "inline-block" : "none";
   if (el.btnSgdBaixarPdfs) el.btnSgdBaixarPdfs.style.display = sgdItems.length > 0 ? "inline-block" : "none";
 
   // Empty
