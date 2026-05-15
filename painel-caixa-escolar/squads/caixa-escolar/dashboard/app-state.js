@@ -375,7 +375,9 @@ function addCustoFornecedor(produtoId, fornecedor, custo, origem, confiabilidade
     prazo_pagamento_dias: ex.prazo_pagamento_dias || null,
     descricao_original: ex.descricao_original || null
   });
-  saveCustosFornecedores();
+  // Note: caller should call saveCustosFornecedores() after batch operations
+  // For single manual adds (from UI), save immediately
+  if (!extras || !extras._batch) saveCustosFornecedores();
 }
 
 // Story 13.2: Migrate old data format to new central+custos structure
@@ -655,11 +657,11 @@ function saveHistoricoLicitacoes(items) {
   schedulCloudSync();
 }
 
-function addHistoricoLicitacao(entry) {
+function addHistoricoLicitacao(entry, _skipSave) {
   const items = loadHistoricoLicitacoes();
   entry.id = entry.id || ("HIST-" + Date.now() + "-" + Math.random().toString(36).substr(2, 5));
   items.push(entry);
-  saveHistoricoLicitacoes(items);
+  if (!_skipSave) saveHistoricoLicitacoes(items);
   return entry;
 }
 const RESULTADOS_STORAGE_KEY = "caixaescolar.resultados.v1";

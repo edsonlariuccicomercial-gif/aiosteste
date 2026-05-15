@@ -885,7 +885,8 @@ function mergeImportIntoBanco() {
       addCustoFornecedor(existingProduto.id, fornecedor, preco, origemTag, sourceConfidence, currentArquivoId, {
         frete_estimado: freteRaw > 0 ? freteRaw : null,
         prazo_pagamento_dias: prazoRaw > 0 ? prazoRaw : null,
-        descricao_original: itemName
+        descricao_original: itemName,
+        _batch: true
       });
       custosNovos++;
     }
@@ -938,6 +939,7 @@ function mergeImportIntoBanco() {
   saveArquivos();
 
   saveCentralProdutos();
+  saveCustosFornecedores(); // batch save once after all adds
   saveMestres();
   saveBancoLocal(); renderBanco();
   if (typeof renderCentralPrecos === 'function') renderCentralPrecos();
@@ -1023,7 +1025,7 @@ function mergeMapaIntoBanco() {
     // Add cost records to custos_fornecedores (Story 13.4)
     if (existingProduto && myPrice > 0) {
       addCustoFornecedor(existingProduto.id, "Meu preco (mapa)", myPrice, origemTag, sourceConfidence, currentArquivoId, {
-        descricao_original: itemName
+        descricao_original: itemName, _batch: true
       });
       custosNovos++;
     }
@@ -1033,7 +1035,7 @@ function mergeMapaIntoBanco() {
       allPrices.forEach((p) => {
         if (!p.isMe && p.preco > 0) {
           addCustoFornecedor(existingProduto.id, p.nome, p.preco, origemTag, sourceConfidence, currentArquivoId, {
-            descricao_original: itemName
+            descricao_original: itemName, _batch: true
           });
           concorrentesAdded++;
         }
@@ -1092,6 +1094,7 @@ function mergeMapaIntoBanco() {
   saveArquivos();
 
   saveCentralProdutos();
+  saveCustosFornecedores(); // batch save once after all adds
   saveMestres();
   saveBancoLocal(); renderBanco();
   if (typeof renderCentralPrecos === 'function') renderCentralPrecos();

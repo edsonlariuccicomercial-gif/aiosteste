@@ -100,6 +100,51 @@ const _SB_RESULTADOS = {
   }
 })();
 
+// Story 13.7: Auto-migrate existing resultados to historico_licitacoes (one-time)
+(function _migrateResultadosToHistorico() {
+  if (localStorage.getItem('intel.historico.migrated.v1') === 'true') return;
+  if (typeof loadHistoricoLicitacoes !== 'function') return;
+  const existing = loadHistoricoLicitacoes();
+  if (existing.length > 0) { localStorage.setItem('intel.historico.migrated.v1', 'true'); return; }
+  const resultados = JSON.parse(localStorage.getItem(RESULTADOS_STORAGE_KEY) || '[]');
+  if (resultados.length === 0) return;
+  const items = [];
+  resultados.forEach(r => {
+    (r.itens || []).forEach(item => {
+      items.push({
+        id: "HIST-" + Date.now() + "-" + Math.random().toString(36).substr(2, 5),
+        escola: r.escola || "", cidade: r.municipio || "", sre: "",
+        produto_id: "", descricao_item: item.nome || "",
+        preco_proposto: item.precoUnitario || r.valorProposto || 0,
+        preco_vencedor: item.precoVencedor || r.valorVencedor || 0,
+        empresa_vencedora: r.resultado === "ganho" ? "LARIUCCI" : (r.fornecedorVencedor || ""),
+        participou: true, ganhou: r.resultado === "ganho",
+        motivo_perda: r.motivoPerda || null,
+        delta_percent: r.deltaTotalPercent || null,
+        data: r.dataResultado || "", orcamento_sgd_id: r.orcamentoId || ""
+      });
+    });
+    // If no itens, create one entry per resultado
+    if (!r.itens || r.itens.length === 0) {
+      items.push({
+        id: "HIST-" + Date.now() + "-" + Math.random().toString(36).substr(2, 5),
+        escola: r.escola || "", cidade: r.municipio || "", sre: "",
+        produto_id: "", descricao_item: r.grupo || "Geral",
+        preco_proposto: r.valorProposto || 0, preco_vencedor: r.valorVencedor || 0,
+        empresa_vencedora: r.resultado === "ganho" ? "LARIUCCI" : (r.fornecedorVencedor || ""),
+        participou: true, ganhou: r.resultado === "ganho",
+        motivo_perda: r.motivoPerda || null, delta_percent: r.deltaTotalPercent || null,
+        data: r.dataResultado || "", orcamento_sgd_id: r.orcamentoId || ""
+      });
+    }
+  });
+  if (items.length > 0) {
+    saveHistoricoLicitacoes(items);
+    gdpLog('[Story 13.7] Migrados ' + items.length + ' registros para historico_licitacoes');
+  }
+  localStorage.setItem('intel.historico.migrated.v1', 'true');
+})();
+
 let currentResultadoOrcamentoId = null;
 let selectedResultado = null;
 
