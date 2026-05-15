@@ -2909,7 +2909,7 @@ window.renderCentralPrecos = function () {
     const custoDisplay = menorCusto > 0 ? brl.format(menorCusto) : (Number(p.preco_custo || 0) > 0 ? brl.format(Number(p.preco_custo)) : '—');
     const preco = parseFloat(p.preco_referencia || p.precoReferencia || 0);
     const numCustos = typeof getCustosForProduto === 'function' ? getCustosForProduto(p.id).length : 0;
-    const custosBadge = numCustos > 0 ? '<span style="font-size:.6rem;color:var(--muted);margin-left:4px;" title="' + numCustos + ' registro(s) de custo">(' + numCustos + ')</span>' : '';
+    const custosBadge = numCustos > 0 ? '<button style="font-size:.6rem;color:#2563eb;margin-left:4px;background:none;border:none;cursor:pointer;text-decoration:underline;padding:0;" onclick="event.stopPropagation();abrirCustosFornecedor(\'' + (p.id || '').replace(/'/g, '') + '\')" title="Ver ' + numCustos + ' registro(s) de custo">(' + numCustos + ')</button>' : '';
     return '<tr>' +
       '<td style="font-size:.78rem;color:var(--muted)">' + (idx + 1) + '</td>' +
       '<td><button style="background:none;border:none;padding:0;color:var(--text);font-weight:600;cursor:pointer;font-size:.85rem;text-align:left" onclick="editarProdutoCentralPrecos(\'' + (p.id || '').replace(/'/g, '') + '\')">' + escapeHtml(nome) + '</button></td>' +
@@ -2943,9 +2943,13 @@ window.abrirNovoProdutoCentralPrecos = function () {
 
 // Abrir modal editar produto na Central de Preços
 window.editarProdutoCentralPrecos = function (id) {
-  let produtos = [];
-  try { const raw = JSON.parse(localStorage.getItem('gdp.estoque-intel.produtos.v1') || '[]'); produtos = Array.isArray(raw) ? raw : (raw.itens || []); } catch(_) {}
-  const p = produtos.find(x => x.id === id);
+  // Story 13.2: Search in centralProdutos (v2) first, fallback to legacy
+  let p = centralProdutos.find(x => x.id === id);
+  if (!p) {
+    let produtos = [];
+    try { const raw = JSON.parse(localStorage.getItem('gdp.estoque-intel.produtos.v1') || '[]'); produtos = Array.isArray(raw) ? raw : (raw.itens || []); } catch(_) {}
+    p = produtos.find(x => x.id === id);
+  }
   if (!p) { showToast('Produto não encontrado.'); return; }
   document.getElementById("modal-prod-central-titulo").textContent = "Editar Produto";
   document.getElementById("mpc-id").value = p.id;
@@ -3140,6 +3144,84 @@ document.querySelectorAll('#tabs-intel-precos .tab').forEach(btn => {
     if (tab === "historico") setTimeout(() => { if (typeof renderAprovados === 'function') renderAprovados(); }, 100);
   });
 });
+
+// ===== Story 13.2 T6: Custos por Fornecedor =====
+let _custosProdutoAtivo = null;
+
+window.abrirCustosFornecedor = function (produtoId) {
+  _custosProdutoAtivo = produtoId;
+  const p = centralProdutos.find(x => x.id === produtoId);
+  const nome = p ? (p.nome || p.descricao || produtoId) : produtoId;
+  document.getElementById("custos-forn-titulo").textContent = "Custos — " + nome;
+  document.getElementById("custos-forn-add").style.display = "none";
+  renderCustosFornecedor(produtoId);
+  document.getElementById("modal-custos-fornecedor").style.display = "flex";
+};
+
+function renderCustosFornecedor(produtoId) {
+  const custos = typeof getCustosForProduto === 'function' ? getCustosForProduto(produtoId) : [];
+  const tbody = document.getElementById("tbody-custos-fornecedor");
+  const resumo = document.getElementById("custos-forn-resumo");
+  if (!tbody) return;
+
+  // Resumo cards
+  const menor = custos.filter(c => c.custo > 0).reduce((m, c) => c.custo < m ? c.custo : m, Infinity);
+  const media = custos.length > 0 ? custos.reduce((s, c) => s + c.custo, 0) / custos.length : 0;
+  const recente = custos.length > 0 ? custos[0] : null;
+  const fornecedores = [...new Set(custos.map(c => c.fornecedor).filter(Boolean))];
+
+  if (resumo) {
+    resumo.innerHTML = [
+      menor < Infinity ? '<div style="background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 14px;"><span style="font-size:.7rem;color:var(--muted);display:block;">Menor Custo</span><strong style="color:#059669;">' + brl.format(menor) + '</strong></div>' : '',
+      media > 0 ? '<div style="background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 14px;"><span style="font-size:.7rem;color:var(--muted);display:block;">Custo Médio</span><strong>' + brl.format(media) + '</strong></div>' : '',
+      '<div style="background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 14px;"><span style="font-size:.7rem;color:var(--muted);display:block;">Registros</span><strong>' + custos.length + '</strong></div>',
+      '<div style="background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 14px;"><span style="font-size:.7rem;color:var(--muted);display:block;">Fornecedores</span><strong>' + fornecedores.length + '</strong></div>',
+    ].join('');
+  }
+
+  if (custos.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:24px;">Nenhum custo registrado. Clique em "+ Adicionar Custo" para começar.</td></tr>';
+    return;
+  }
+
+  const ORIGEM_ICONS = { manual: 'Manual', excel: 'Excel', pdf: 'PDF', 'pdf-ocr': 'PDF/OCR', nf: 'Nota Fiscal', api: 'API', b2b: 'B2B', marketplace: 'Marketplace', migrado: 'Migrado' };
+  const CONF_COLORS = { high: '#059669', medium: '#d97706', low: '#ef4444' };
+
+  tbody.innerHTML = custos.map(c => {
+    const confLevel = c.confiabilidade >= 0.9 ? 'high' : c.confiabilidade >= 0.7 ? 'medium' : 'low';
+    const confColor = CONF_COLORS[confLevel];
+    const confPct = Math.round((c.confiabilidade || 0) * 100);
+    return '<tr>' +
+      '<td>' + escapeHtml(c.fornecedor || '—') + '</td>' +
+      '<td class="text-right font-mono" style="font-weight:600;">' + brl.format(c.custo || 0) + '</td>' +
+      '<td style="font-size:.78rem;">' + escapeHtml(c.data_coleta || '—') + '</td>' +
+      '<td><span class="badge badge-muted" style="font-size:.65rem;">' + (ORIGEM_ICONS[c.origem] || c.origem || '—') + '</span></td>' +
+      '<td style="text-align:center;"><span style="color:' + confColor + ';font-weight:600;font-size:.78rem;">' + confPct + '%</span></td>' +
+      '</tr>';
+  }).join('');
+}
+
+window.abrirAdicionarCusto = function () {
+  document.getElementById("custos-forn-add").style.display = "block";
+  document.getElementById("add-custo-fornecedor").value = "";
+  document.getElementById("add-custo-valor").value = "";
+  document.getElementById("add-custo-origem").value = "manual";
+  document.getElementById("add-custo-fornecedor").focus();
+};
+
+window.salvarNovoCusto = function () {
+  if (!_custosProdutoAtivo) return;
+  const fornecedor = (document.getElementById("add-custo-fornecedor").value || "").trim();
+  const custo = parseFloat(document.getElementById("add-custo-valor").value) || 0;
+  const origem = document.getElementById("add-custo-origem").value || "manual";
+  if (!fornecedor) { showToast("Informe o fornecedor."); return; }
+  if (custo <= 0) { showToast("Informe o custo."); return; }
+  addCustoFornecedor(_custosProdutoAtivo, fornecedor, custo, origem);
+  document.getElementById("custos-forn-add").style.display = "none";
+  renderCustosFornecedor(_custosProdutoAtivo);
+  renderCentralPrecos();
+  showToast("Custo adicionado.");
+};
 
 // ===== Story 13.1: SRE Config UI =====
 window.renderSresConfig = function () {
