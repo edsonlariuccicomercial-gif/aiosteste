@@ -198,7 +198,7 @@ function excluirPedido(pedidoId) {
   savePedidos();
   // Remove from Supabase pedidos table (prevents reappearing on next sync)
   if (window.gdpApi && window.gdpApi.pedidos) {
-    gdpApi.pedidos.remove(pedidoId).catch(e => console.warn('[excluirPedido] Supabase delete failed:', e));
+    gdpApi.pedidos.remove(pedidoId).catch(e => gdpWarn('[excluirPedido] Supabase delete failed:', e));
   }
   renderAll();
   showToast(`Pedido ${pedidoId} excluído.`);
@@ -248,7 +248,7 @@ function excluirPedidosSelecionados() {
   savePedidos();
   // Remove from Supabase pedidos table (prevents reappearing on next sync)
   if (window.gdpApi && window.gdpApi.pedidos) {
-    sel.forEach(id => gdpApi.pedidos.remove(id).catch(e => console.warn('[excluirPedidos] Supabase delete failed:', id, e)));
+    sel.forEach(id => gdpApi.pedidos.remove(id).catch(e => gdpWarn('[excluirPedidos] Supabase delete failed:', id, e)));
   }
   renderAll();
   showToast(`${sel.length} pedido(s) excluído(s)${demandasVinculadas.length ? ` + ${demandasVinculadas.length} demanda(s)` : ""}.`);

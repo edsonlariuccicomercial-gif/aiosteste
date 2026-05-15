@@ -42,7 +42,7 @@ function getSyncUserId() {
   return emp.syncUserId || emp.nomeFantasia || emp.nome || emp.cnpj || "default";
 }
 
-async function cloudSave(key, data) {
+async function cloudSave(key, data, signal) {
   const userId = getSyncUserId();
   try {
     await fetch(`${SUPABASE_URL}/rest/v1/sync_data?on_conflict=user_id,key`, {
@@ -51,9 +51,13 @@ async function cloudSave(key, data) {
         "apikey": SUPABASE_KEY, "Authorization": "Bearer " + SUPABASE_KEY,
         "Content-Type": "application/json", "Prefer": "return=minimal,resolution=merge-duplicates"
       },
-      body: JSON.stringify({ user_id: userId, key, data, updated_at: new Date().toISOString() })
+      body: JSON.stringify({ user_id: userId, key, data, updated_at: new Date().toISOString() }),
+      signal: signal || undefined
     });
-  } catch (e) { console.warn("Cloud save failed:", key, e); }
+  } catch (e) {
+    if (e.name === 'AbortError') return; // Story 12.1 AC3: silently ignore aborted requests
+    gdpWarn("Cloud save failed:", key, e);
+  }
 }
 
 async function cloudLoadAll() {
@@ -71,7 +75,7 @@ async function cloudLoadAll() {
         return rows;
       }
     } catch (e) {
-      console.warn("Cloud load failed:", userId, e);
+      gdpWarn("Cloud load failed:", userId, e);
     }
   }
   return null;
@@ -79,8 +83,9 @@ async function cloudLoadAll() {
 
 function getDataTimestamp(data, fallback = "") {
   const source = data?.updatedAt || data?.updated_at || fallback || "";
-  const time = source ? new Date(source).getTime() : 0;
-  return Number.isFinite(time) ? time : 0;
+  if (!source) return 0;
+  const time = new Date(source).getTime();
+  return (Number.isFinite(time) && time > 0) ? time : 0;
 }
 
 async function syncFromCloud() {
@@ -112,45 +117,61 @@ async function syncFromCloud() {
     const localItems = localData?.items || (Array.isArray(localData) ? localData : null);
     const cloudItems = row.data?.items || (Array.isArray(row.data) ? row.data : null);
     if (localItems && cloudItems && localItems.length > cloudItems.length && cloudItems.length > 0) {
-      console.warn("[Sync] Keeping local for " + row.key + " (local:" + localItems.length + " > cloud:" + cloudItems.length + ")");
+      gdpWarn("[Sync] Keeping local for " + row.key + " (local:" + localItems.length + " > cloud:" + cloudItems.length + ")");
       continue;
     }
 
     if (isSharedKey || cloudTime > localTime || (!localTime && cloudTime === 0)) {
-      localStorage.setItem(row.key, JSON.stringify(row.data));
-      synced++;
+      try {
+        localStorage.setItem(row.key, JSON.stringify(row.data));
+        synced++;
+      } catch (e) {
+        if (e.name === 'QuotaExceededError') gdpWarn("[Sync] localStorage cheio, ignorando:", row.key);
+        else throw e;
+      }
     }
   }
 
   return synced > 0;
 }
 
-async function syncToCloud() {
+async function syncToCloud(signal) {
   const promises = SYNC_KEYS.map(key => {
     const raw = localStorage.getItem(key);
     if (!raw) return Promise.resolve();
     try {
       const data = JSON.parse(raw);
-      // Guard: never push empty/tiny data if cloud has more
-      if (Array.isArray(data) && data.length === 0) return Promise.resolve();
-      if (data && typeof data === 'object' && Array.isArray(data.items) && data.items.length === 0) return Promise.resolve();
-      return cloudSave(key, data);
+      // Guard: skip empty data UNLESS it has a recent updatedAt (legitimate deletion)
+      const hasRecentUpdate = data?.updatedAt && (Date.now() - new Date(data.updatedAt).getTime()) < 300000; // 5 min
+      if (!hasRecentUpdate) {
+        if (Array.isArray(data) && data.length === 0) return Promise.resolve();
+        if (data && typeof data === 'object' && Array.isArray(data.items) && data.items.length === 0) return Promise.resolve();
+      }
+      return cloudSave(key, data, signal);
     } catch(_) { return Promise.resolve(); }
   });
   await Promise.all(promises);
 }
 
-// Auto-sync: save to cloud whenever localStorage changes
+// Story 12.1 AC3: AbortController — only 1 sync active at a time
 let _syncTimeout = null;
+let _syncAbort = null;
 function schedulCloudSync() {
   if (_syncTimeout) clearTimeout(_syncTimeout);
-  _syncTimeout = setTimeout(() => syncToCloud(), 2000);
+  if (_syncAbort) _syncAbort.abort();
+  _syncTimeout = setTimeout(() => {
+    _syncAbort = new AbortController();
+    syncToCloud(_syncAbort.signal).catch(() => {});
+  }, 2000);
 }
 
 // Sync on tab hide/close to minimize data loss window
+let _visibilityAbort = null;
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden') {
     if (_syncTimeout) { clearTimeout(_syncTimeout); _syncTimeout = null; }
-    syncToCloud().catch(() => {});
+    if (_syncAbort) { _syncAbort.abort(); _syncAbort = null; }
+    _visibilityAbort = new AbortController();
+    syncToCloud(_visibilityAbort.signal).catch(() => {});
   }
 });

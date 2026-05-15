@@ -14,10 +14,10 @@ const _SB_PRECO_HIST = {
         headers: Object.assign({}, this.headers(), { Prefer: 'return=minimal' }),
         body: JSON.stringify(rows)
       });
-      if (res.ok) console.log('[Story 6.2] preco_historico:', rows.length, 'registros inseridos');
-      else console.warn('[Story 6.2] preco_historico insert falhou:', res.status);
+      if (res.ok) gdpLog('[Story 6.2] preco_historico:', rows.length, 'registros inseridos');
+      else gdpWarn('[Story 6.2] preco_historico insert falhou:', res.status);
     } catch (e) {
-      console.warn('[Story 6.2] Supabase indisponível:', e.message);
+      gdpWarn('[Story 6.2] Supabase indisponível:', e.message);
     }
   },
   buildNfEntradaRows(notaEntrada, matchedItems) {
@@ -506,7 +506,7 @@ function excluirContaReceber(contaId) {
 
   // Persistir delete no Supabase para evitar re-criação no sync
   if (window.gdpApi && window.gdpApi.contas_receber) {
-    gdpApi.contas_receber.remove(contaId).catch(e => console.warn('[excluirContaReceber] Supabase delete failed:', e));
+    gdpApi.contas_receber.remove(contaId).catch(e => gdpWarn('[excluirContaReceber] Supabase delete failed:', e));
   }
 
   // Rastrear IDs deletados para bloquear re-merge do Supabase
@@ -1368,7 +1368,7 @@ async function consultarNotasEntradaApi() {
         });
         pdf.save(`notas-entrada-sefaz-${new Date().toISOString().slice(0,10)}.pdf`);
       } catch (pdfErr) {
-        console.warn("[NE] PDF generation failed:", pdfErr);
+        gdpWarn("[NE] PDF generation failed:", pdfErr);
       }
     }
 
@@ -1436,23 +1436,43 @@ function renderKPIs() {
   document.getElementById("tab-count-usuarios").textContent = usuarios.length;
 }
 
-// ===== RENDER ALL =====
+// ===== RENDER ALL (Story 12.1 AC1 — debounced + selective) =====
+let _renderAllRaf = null;
+
 function renderAll() {
-  // Re-read from localStorage to capture updates from portal escola
-  // loadData();
+  if (_renderAllRaf) cancelAnimationFrame(_renderAllRaf);
+  _renderAllRaf = requestAnimationFrame(_renderAllImmediate);
+}
+
+function _renderAllImmediate() {
+  _renderAllRaf = null;
   loadBancoProdutos();
   renderGdpSyncIndicator();
   renderContaCategoriaOptions();
   renderContaFormaOptions();
   renderKPIs();
-  renderContratos();
-  renderPedidos();
-  renderNotasFiscais();
-  renderContasPagar();
-  renderContasReceber();
-  renderCaixa();
-  renderRelatorios();
-  renderEstoque();
+
+  // Selective render: only the active tab
+  const activeBtn = document.querySelector('.sidebar-subitem.active[data-gdp-tab]');
+  const activeTab = activeBtn ? activeBtn.dataset.gdpTab : 'contratos';
+
+  switch (activeTab) {
+    case 'contratos': renderContratos(); break;
+    case 'pedidos': renderPedidos(); break;
+    case 'notas-fiscais': renderNotasFiscais(); break;
+    case 'financeiro':
+    case 'contas-pagar': renderContasPagar(); break;
+    case 'contas-receber': renderContasReceber(); break;
+    case 'caixa': renderCaixa(); break;
+    case 'relatorios': renderRelatorios(); break;
+    case 'estoque':
+    case 'fornecedores':
+    case 'notas-entrada':
+    case 'estoque-op': renderEstoque(); break;
+    case 'usuarios': renderUsuarios(); break;
+    default: renderContratos(); break;
+  }
+
   // Update banco tab count even when not on banco tab
   const bpCount = document.getElementById("tab-count-banco-produtos");
   if (bpCount) bpCount.textContent = bancoProdutos.itens.length;
@@ -1949,7 +1969,7 @@ async function autoCadastrarTiny(contratoId) {
       });
       delete c.pendingTinySync;
       saveContratos();
-      console.log(`[ERP Auto-Sync] Contrato ${contratoId}: ${skuCount} SKUs obtidos`);
+      gdpLog(`[ERP Auto-Sync] Contrato ${contratoId}: ${skuCount} SKUs obtidos`);
       showToast(`${skuCount}/${c.itens.length} itens cadastrados no ERP com SKU`, 4000);
     } else {
       c.pendingTinySync = true;
@@ -1959,7 +1979,7 @@ async function autoCadastrarTiny(contratoId) {
   } catch(err) {
     c.pendingTinySync = true;
     saveContratos();
-    console.warn("[ERP Auto-Sync] Falha:", err.message);
+    gdpWarn("[ERP Auto-Sync] Falha:", err.message);
     showToast("ERP offline. Itens serao cadastrados quando disponivel.", 4000);
   }
 }
@@ -1986,7 +2006,7 @@ async function enviarPedidoOlist(pedidoId) {
       const bpMatch = bpItens.find(bp => (bp.descricao || '').toUpperCase().trim() === descNorm);
       if (bpMatch && bpMatch.sku) sku = bpMatch.sku;
     }
-    if (!sku) console.warn("[Olist] SKU vazio para item:", i.descricao);
+    if (!sku) gdpWarn("[Olist] SKU vazio para item:", i.descricao);
     // Resolve unidade: contrato > pedido > banco de produtos > fallback UN
     let unidade = (ctrItem && ctrItem.unidade) || i.unidade || '';
     let ncm = (ctrItem && ctrItem.ncm) || i.ncm || '';
@@ -2497,7 +2517,7 @@ async function enviarTiny(contratoId) {
     if (finCaixa && tabCaixa) { while (tabCaixa.firstChild) finCaixa.appendChild(tabCaixa.firstChild); }
     if (finCP && tabCP) { while (tabCP.firstChild) finCP.appendChild(tabCP.firstChild); }
     if (finCR && tabCR) { while (tabCR.firstChild) finCR.appendChild(tabCR.firstChild); }
-  } catch(e) { console.warn("[GDP] Erro montando financeiro:", e); }
+  } catch(e) { gdpWarn("[GDP] Erro montando financeiro:", e); }
 
   // LOCAL-FIRST: renderizar dados locais imediatamente para UX instantânea
   loadData();
@@ -2507,7 +2527,7 @@ async function enviarTiny(contratoId) {
   // Auto-apply pending DB migrations (one-time, background, non-blocking)
   if (!sessionStorage.getItem("gdp.db-migrate-done")) {
     fetch("/api/db-migrate").then(r => r.json()).then(d => {
-      console.log("[GDP] db-migrate:", d.message || d.hint || "done");
+      gdpLog("[GDP] db-migrate:", d.message || d.hint || "done");
       sessionStorage.setItem("gdp.db-migrate-done", "1");
     }).catch(() => {});
   }
@@ -2517,7 +2537,7 @@ async function enviarTiny(contratoId) {
     try {
       const ready = await gdpApi.isReady();
       if (ready) {
-        console.log("[GDP] Supabase-First: carregando das tabelas reais...");
+        gdpLog("[GDP] Supabase-First: carregando das tabelas reais...");
         const _tableMap = {
           'gdp.contratos.v1': 'contratos',
           'gdp.pedidos.v1': 'pedidos',
@@ -2551,9 +2571,9 @@ async function enviarTiny(contratoId) {
               const merged = [...filteredRows, ...localOnly];
               const data = _wrapKeys.has(lsKey) ? { _v: 1, updatedAt: new Date().toISOString(), items: merged } : merged;
               localStorage.setItem(lsKey, JSON.stringify(data));
-              console.log("[GDP] " + table + ": " + filteredRows.length + " do Supabase + " + localOnly.length + " locais preservados" + (deletedIds.size ? " (" + deletedIds.size + " deletados filtrados)" : ""));
+              gdpLog("[GDP] " + table + ": " + filteredRows.length + " do Supabase + " + localOnly.length + " locais preservados" + (deletedIds.size ? " (" + deletedIds.size + " deletados filtrados)" : ""));
             }
-          } catch(e) { console.warn("[GDP] Falha ao carregar " + table + ":", e); }
+          } catch(e) { gdpWarn("[GDP] Falha ao carregar " + table + ":", e); }
         }
         // Clientes (usuarios)
         try {
@@ -2566,14 +2586,14 @@ async function enviarTiny(contratoId) {
             const localOnly = localClientes.filter(c => c.id && !remoteIds.has(c.id));
             const merged = [...clientes, ...localOnly];
             localStorage.setItem('gdp.usuarios.v1', JSON.stringify(merged));
-            console.log("[GDP] clientes: " + clientes.length + " do Supabase + " + localOnly.length + " locais preservados");
+            gdpLog("[GDP] clientes: " + clientes.length + " do Supabase + " + localOnly.length + " locais preservados");
           }
         } catch(e) {}
       } else {
-        console.log("[GDP] Tabelas Supabase não encontradas, usando localStorage");
+        gdpLog("[GDP] Tabelas Supabase não encontradas, usando localStorage");
       }
     } catch(e) {
-      console.warn("[GDP] Supabase-First falhou, fallback localStorage:", e);
+      gdpWarn("[GDP] Supabase-First falhou, fallback localStorage:", e);
     }
   }
 
@@ -2598,7 +2618,7 @@ async function enviarTiny(contratoId) {
         lastSyncAt: restored.lastSyncAt || new Date().toISOString(),
         userId: getSyncUserId()
       });
-      console.log("[GDP] Dados compartilhados atualizados do cloud.");
+      gdpLog("[GDP] Dados compartilhados atualizados do cloud.");
     } else {
       setGdpSyncState({
         status: "local",
@@ -2608,7 +2628,7 @@ async function enviarTiny(contratoId) {
       });
     }
   } catch (e) {
-    console.warn("[GDP] Restauracao do cloud falhou:", e);
+    gdpWarn("[GDP] Restauracao do cloud falhou:", e);
     setGdpSyncState({
       status: "offline",
       source: "local_cache",

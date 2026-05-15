@@ -230,7 +230,8 @@ async function handleScannedPdfOcr(pdf) {
       canvas.height = viewport.height;
       const ctx = canvas.getContext("2d");
       await page.render({ canvasContext: ctx, viewport }).promise;
-      const { data: { text } } = await worker.recognize(canvas);
+      const { data: { text, confidence } } = await worker.recognize(canvas);
+      if (confidence < 50) gdpWarn(`[OCR] Pagina ${i + 1}: confianca baixa (${Math.round(confidence)}%)`);
       allText += text + "\n";
     }
 
@@ -318,7 +319,8 @@ async function handleImageOcr(file) {
       }
     });
 
-    const { data: { text } } = await worker.recognize(file);
+    const { data: { text, confidence } } = await worker.recognize(file);
+    if (confidence < 50) showToast(`OCR com confianca baixa (${Math.round(confidence)}%). Revise os dados.`, 5000);
     await worker.terminate();
     ocrProgress.style.display = "none";
 
@@ -816,8 +818,14 @@ function mergeImportIntoBanco() {
     const unidade = conv.unidade;
     preco = conv.preco;
 
-    const normName = normalizedText(itemName);
-    const existing = bancoPrecos.itens.find((bp) => normalizedText(bp.item) === normName);
+    // M8 fix: check SKU first (more reliable), then fallback to name normalization
+    const skuRaw = mapping.sku >= 0 ? String(row[mapping.sku] || "").trim() : "";
+    let existing = null;
+    if (skuRaw) existing = bancoPrecos.itens.find((bp) => bp.sku && bp.sku === skuRaw);
+    if (!existing) {
+      const normName = normalizedText(itemName);
+      existing = bancoPrecos.itens.find((bp) => normalizedText(bp.item) === normName);
+    }
 
     if (existing) {
       if (preco > 0) existing.custoBase = preco;
@@ -835,7 +843,7 @@ function mergeImportIntoBanco() {
           if (prev > 0) {
             const varPct = ((curr - prev) / prev) * 100;
             if (Math.abs(varPct) > 20) {
-              console.warn(`[Banco] Variacao ${varPct.toFixed(1)}%: "${existing.item}" (${brl.format(prev)} -> ${brl.format(curr)})`);
+              gdpWarn(`[Banco] Variacao ${varPct.toFixed(1)}%: "${existing.item}" (${brl.format(prev)} -> ${brl.format(curr)})`);
             }
           }
         }
@@ -869,7 +877,7 @@ function mergeImportIntoBanco() {
       } else if (mestreMatch && mestreMatch.score >= 0.5) {
         newItem.mesterId = mestreMatch.mestre.id;
         linkItemToMestre(newItem.item, mestreMatch.mestre.id);
-        console.log(`[Mestre] Match sugerido (${(mestreMatch.score*100).toFixed(0)}%): "${newItem.item}" → "${mestreMatch.mestre.nomeCanonico}"`);
+        gdpLog(`[Mestre] Match sugerido (${(mestreMatch.score*100).toFixed(0)}%): "${newItem.item}" → "${mestreMatch.mestre.nomeCanonico}"`);
       } else {
         const mestre = createMestreFromItem(newItem);
         newItem.mesterId = mestre.id;

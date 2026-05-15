@@ -390,7 +390,12 @@ const SHARED_SYNC_KEYS = new Set([
   "gdp.notas-entrada.v1", "gdp.integracoes.v1", "gdp.estoque.movimentos.v1",
   "gdp.equivalencias.v1",
   "gdp.conversoes.v1", "gdp.demandas.v1",
-  "gdp.estoque.v1", "gdp.lista-compras.v1"
+  "gdp.estoque.v1", "gdp.lista-compras.v1",
+  // Intel Preços — Central de Produtos/Preços sync
+  "gdp.estoque-intel.produtos.v1", "gdp.estoque-intel.embalagens.v1",
+  "gdp.estoque-intel.pedidos.v1", "gdp.estoque-intel.pedido-itens.v1",
+  "gdp.estoque-intel.movimentacoes.v1", "gdp.estoque-intel.fornecedores.v1",
+  "gdp.estoque-intel.compras.v1"
 ]);
 const RESULTADOS_STORAGE_KEY = "caixaescolar.resultados.v1";
 const CONTRATOS_STORAGE_KEY = "caixaescolar.contratos.v1";
@@ -416,5 +421,10 @@ const SYNC_KEYS = [
   "gdp.equivalencias.v1",
   "gdp.conversoes.v1", "gdp.demandas.v1",
   "gdp.estoque.v1", "gdp.lista-compras.v1",
+  // Intel Preços — Central de Produtos/Preços sync
+  "gdp.estoque-intel.produtos.v1", "gdp.estoque-intel.embalagens.v1",
+  "gdp.estoque-intel.pedidos.v1", "gdp.estoque-intel.pedido-itens.v1",
+  "gdp.estoque-intel.movimentacoes.v1", "gdp.estoque-intel.fornecedores.v1",
+  "gdp.estoque-intel.compras.v1",
   "nexedu.config.contas-bancarias", "nexedu.config.fiscal", "nexedu.config.bank-api"
 ];

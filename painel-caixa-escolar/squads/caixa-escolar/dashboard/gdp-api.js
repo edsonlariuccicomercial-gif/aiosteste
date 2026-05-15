@@ -202,11 +202,11 @@
           });
           if (!resp.ok) {
             var err = ''; try { err = await resp.text(); } catch(_){}
-            console.warn('[gdpApi] saveAll failed ' + table + ':', resp.status, err);
+            gdpWarn('[gdpApi] saveAll failed ' + table + ':', resp.status, err);
             mapped.forEach(function (it) { enqueueRetry(table, it, 'id'); });
           }
         } catch (e) {
-          console.warn('[gdpApi] saveAll error ' + table + ':', e);
+          gdpWarn('[gdpApi] saveAll error ' + table + ':', e);
           mapped.forEach(function (it) { enqueueRetry(table, it, 'id'); });
         }
         writeLS(entity, items);
@@ -289,7 +289,7 @@
       }
     } catch (_) { /* skip */ }
 
-    console.log('[gdp-api] Migration complete:', migrated);
+    gdpLog('[gdp-api] Migration complete:', migrated);
     return migrated;
   }
 
@@ -302,11 +302,11 @@
         headers: HEADERS,
         body: JSON.stringify({ p_empresa_id: eid })
       });
-      if (!resp.ok) console.warn('[gdp-api] RLS context failed:', resp.status);
-      else console.log('[gdp-api] RLS context set for:', eid);
+      if (!resp.ok) gdpWarn('[gdp-api] RLS context failed:', resp.status);
+      else gdpLog('[gdp-api] RLS context set for:', eid);
       return resp.ok;
     } catch (e) {
-      console.warn('[gdp-api] RLS context error:', e.message);
+      gdpWarn('[gdp-api] RLS context error:', e.message);
       return false;
     }
   }
@@ -334,5 +334,5 @@
   // Auto-set RLS context on load
   setEmpresaContext();
 
-  console.log('[gdp-api] loaded, empresa_id:', getEmpresaId());
+  gdpLog('[gdp-api] loaded, empresa_id:', getEmpresaId());
 })();

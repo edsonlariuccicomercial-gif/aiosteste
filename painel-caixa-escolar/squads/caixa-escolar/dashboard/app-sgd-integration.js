@@ -264,6 +264,7 @@ async function _executarEnvioSgd(pre) {
   // Read extra fields from the form
   saveSgdFieldsToPreOrcamento(pre);
   savePreOrcamentos();
+  schedulCloudSync();
 
   // Envia via API (local ou direta)
   el.btnEnviarSgd.disabled = true;
@@ -290,6 +291,7 @@ async function _executarEnvioSgd(pre) {
       pre.status = "enviado";
       pre.enviadoEm = new Date().toISOString().slice(0, 10);
       savePreOrcamentos();
+      schedulCloudSync();
       renderAll();
       abrirPreOrcamento(activePreOrcamentoId);
       alert("Proposta enviada ao SGD com sucesso!");
@@ -665,13 +667,8 @@ window.sgdBaixarPayload = function (orcId) {
   const pre = preOrcamentos[orcId];
   if (!pre) return;
   downloadSgdPayload(pre);
-  if (pre.status === "aprovado") {
-    pre.status = "enviado";
-    pre.enviadoEm = new Date().toISOString().slice(0, 10);
-    savePreOrcamentos();
-    renderSgd();
-    renderKPIs();
-  }
+  // C4 fix: download does NOT change status — only API submit changes to "enviado"
+  showToast("JSON baixado. Envie via API ou importe no SGD manualmente.");
 };
 
 window.sgdEnviarUnico = async function (orcId) {
@@ -701,10 +698,11 @@ window.sgdEnviarUnico = async function (orcId) {
       pre.status = "enviado";
       pre.enviadoEm = new Date().toISOString().slice(0, 10);
       savePreOrcamentos();
+      schedulCloudSync();
       renderAll();
       showToast(`Proposta ${orcId} enviada ao SGD!`);
     } else {
-      alert("Erro: " + (result.error || "Falha"));
+      alert("Erro: Falha no envio ao SGD");
     }
   } catch (err) {
     alert("Erro de conexão: " + err.message);
@@ -858,6 +856,7 @@ async function sgdEnviarTodos() {
   }
 
   savePreOrcamentos();
+  schedulCloudSync();
   renderAll();
 
   el.btnSgdEnviarTodos.disabled = false;
@@ -884,16 +883,8 @@ function sgdBaixarTodos() {
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 
-  // Marcar todos aprovados como enviados
-  items.forEach((p) => {
-    if (p.status === "aprovado") {
-      p.status = "enviado";
-      p.enviadoEm = new Date().toISOString().slice(0, 10);
-    }
-  });
-  savePreOrcamentos();
-  renderSgd();
-  renderKPIs();
+  // C4 fix: download does NOT change status — only API submit changes to "enviado"
+  showToast("JSON batch baixado. Envie via API ou importe no SGD manualmente.");
 }
 
 function sgdBaixarTodosPdf() {
@@ -960,9 +951,9 @@ async function varrerSgd() {
       if (!BrowserSgdClient.networkId) {
         try {
           await BrowserSgdClient.getUser();
-          console.log(`[Varrer] networkId via getUser: ${BrowserSgdClient.networkId}`);
+          gdpLog(`[Varrer] networkId via getUser: ${BrowserSgdClient.networkId}`);
         } catch (e) {
-          console.warn(`[Varrer] getUser falhou: ${e.message}, tentando warm-up...`);
+          gdpWarn(`[Varrer] getUser falhou: ${e.message}, tentando warm-up...`);
         }
       }
 
@@ -970,9 +961,9 @@ async function varrerSgd() {
       if (!BrowserSgdClient.networkId) {
         const warmUp = await BrowserSgdClient.listBudgets(1, 1);
         if (!BrowserSgdClient.networkId) {
-          console.warn("[Varrer] networkId ainda null após warm-up. Dados:", warmUp);
+          gdpWarn("[Varrer] networkId ainda null após warm-up. Dados:", warmUp);
         } else {
-          console.log(`[Varrer] networkId via warm-up: ${BrowserSgdClient.networkId}`);
+          gdpLog(`[Varrer] networkId via warm-up: ${BrowserSgdClient.networkId}`);
         }
       }
       sgdAvailable = true;
@@ -1147,7 +1138,7 @@ async function varrerSgd() {
             filtered.push(b);
             const mun = schoolToMunicipio[nameMatch] || "?";
             matched.push({ sgd: escola, county, mun, via: "name-only", idSchool });
-            if (!sreCountyIds.has(county)) console.log(`[Varrer] Novo county descoberto: ${county} → ${mun}`);
+            if (!sreCountyIds.has(county)) gdpLog(`[Varrer] Novo county descoberto: ${county} → ${mun}`);
             // Auto-confirm to whitelist
             if (idSchool) schoolWhitelist[idSchool] = { escola, municipio: mun, sre: nameMatch, confirmedAt: new Date().toISOString().slice(0, 10) };
           }
@@ -1163,19 +1154,19 @@ async function varrerSgd() {
       const countyHits = matched.filter((m) => m.via === "county+name" || m.via === "county-only").length;
       const nameHits = matched.filter((m) => m.via === "name-only").length;
       const disambiguatedHits = matched.filter((m) => m.via === "name-disambiguated").length;
-      console.log(`[Varrer] ${whitelistHits} whitelist, ${countyHits} county, ${nameHits} name-only, ${disambiguatedHits} desambiguados → ${filtered.length} aceitos de ${allBudgets.length} varridos`);
-      console.log(`[Varrer] Whitelist total: ${whitelistSize} escolas confirmadas`);
-      if (rejected.length > 0) console.log(`[Varrer] ${rejected.length} rejeitados:`, rejected);
+      gdpLog(`[Varrer] ${whitelistHits} whitelist, ${countyHits} county, ${nameHits} name-only, ${disambiguatedHits} desambiguados → ${filtered.length} aceitos de ${allBudgets.length} varridos`);
+      gdpLog(`[Varrer] Whitelist total: ${whitelistSize} escolas confirmadas`);
+      if (rejected.length > 0) gdpLog(`[Varrer] ${rejected.length} rejeitados:`, rejected);
       const munsEncontrados = [...new Set(matched.map((m) => m.mun).filter(Boolean).filter(m => m !== "?"))].sort();
       const totalSreMunicipios = allSreData.reduce((sum, sre) => sum + (sre.data?.municipios?.length || 0), 0);
-      console.log(`[Varrer] Municípios (${munsEncontrados.length}/${totalSreMunicipios}):`, munsEncontrados);
+      gdpLog(`[Varrer] Municípios (${munsEncontrados.length}/${totalSreMunicipios}):`, munsEncontrados);
       // SRE breakdown log (Story 4.33)
       const sreCounts = {};
       filtered.forEach(b => {
         const sre = schoolToSre[b._sreMatch] || "Uberaba";
         sreCounts[sre] = (sreCounts[sre] || 0) + 1;
       });
-      console.log(`[Varrer] SREs:`, sreCounts, `→ ${filtered.length} aceitos de ${allBudgets.length} varridos`);
+      gdpLog(`[Varrer] SREs:`, sreCounts, `→ ${filtered.length} aceitos de ${allBudgets.length} varridos`);
 
       btn.innerHTML = `<span class="sgd-spinner"></span>SREs: ${filtered.length} de ${allBudgets.length}. Buscando detalhes...`;
 
@@ -1208,7 +1199,7 @@ async function varrerSgd() {
             if (!Array.isArray(budgetItems)) budgetItems = [];
           }
         } catch (err) {
-          console.warn(`[Varrer] Detalhe budget ${id}: ${err.message}`);
+          gdpWarn(`[Varrer] Detalhe budget ${id}: ${err.message}`);
         }
         BrowserSgdClient.networkId = savedNetworkId;
 
@@ -1220,10 +1211,10 @@ async function varrerSgd() {
           if (resolved) {
             resolvedMunicipio = resolved;
             if (b.idSchool) schoolWhitelist[b.idSchool] = { escola: escolaRaw, municipio: resolved, sre: sreMatchKey, confirmedAt: new Date().toISOString().slice(0, 10) };
-            console.log(`[Varrer] Ambíguo resolvido via detail: ${escolaRaw} → ${resolved}`);
+            gdpLog(`[Varrer] Ambíguo resolvido via detail: ${escolaRaw} → ${resolved}`);
           } else {
             resolvedMunicipio = b._possibleMuns[0] || "?";
-            console.log(`[Varrer] Ambíguo sem resolução detail, usando: ${resolvedMunicipio} (countyName: ${detailCounty || "vazio"})`);
+            gdpLog(`[Varrer] Ambíguo sem resolução detail, usando: ${resolvedMunicipio} (countyName: ${detailCounty || "vazio"})`);
           }
         }
 
@@ -1299,13 +1290,13 @@ async function varrerSgd() {
   // Após varrer SGD, enviar itens ao banco de preços para intake + normalização
   if (typeof BancoPrecos !== "undefined" && BancoPrecos.isEnabled() && orcamentos.length > 0) {
     try {
-      console.log("[BancoPrecos] Enviando itens do SGD ao banco de preços...");
+      gdpLog("[BancoPrecos] Enviando itens do SGD ao banco de preços...");
       const intakeResult = await BancoPrecos.enviarItensIntake(orcamentos);
       if (intakeResult) {
-        console.log(`[BancoPrecos] Intake: ${intakeResult.vinculados} vinculados, ${intakeResult.pendentes} pendentes`);
+        gdpLog(`[BancoPrecos] Intake: ${intakeResult.vinculados} vinculados, ${intakeResult.pendentes} pendentes`);
       }
     } catch (e) {
-      console.warn("[BancoPrecos] Erro no intake:", e.message);
+      gdpWarn("[BancoPrecos] Erro no intake:", e.message);
     }
   }
 }

@@ -2,6 +2,12 @@
 // Infrastructure: sidebar, constants, data layer, cloud sync, state, storage helpers,
 // save/load, sanitizers, normalization, client/escola utils, SKU/item enrichment.
 
+// ===== CONDITIONAL LOGGER (Story 12.1 AC2) =====
+// Em producao: silencioso. Para debug: localStorage.setItem('gdp.debug', 'true')
+const _GDP_DEBUG = localStorage.getItem('gdp.debug') === 'true';
+const gdpLog = _GDP_DEBUG ? console.log.bind(console, '[GDP]') : function() {};
+const gdpWarn = _GDP_DEBUG ? console.warn.bind(console, '[GDP]') : function() {};
+
 // ===== SIDEBAR TOGGLE =====
 document.getElementById("sidebar-toggle").addEventListener("click", () => {
   document.getElementById("sidebar").classList.toggle("open");
@@ -193,7 +199,7 @@ function renderGdpSyncIndicator() {
   metaEl.textContent = details.join(" | ");
 }
 
-async function cloudSave(key, data) {
+async function cloudSave(key, data, signal) {
   const userId = getSyncUserId();
   try {
     // FIX Story 4.17: UPSERT via Supabase on_conflict
@@ -204,12 +210,16 @@ async function cloudSave(key, data) {
         "Content-Type": "application/json",
         "Prefer": "return=minimal,resolution=merge-duplicates"
       },
-      body: JSON.stringify({ user_id: userId, key, data, updated_at: new Date().toISOString() })
+      body: JSON.stringify({ user_id: userId, key, data, updated_at: new Date().toISOString() }),
+      signal: signal || undefined
     });
     if (!resp.ok && resp.status !== 201 && resp.status !== 200) {
-      console.warn(`[CloudSave] ${key} failed: ${resp.status}`, await resp.text().catch(() => ""));
+      gdpWarn(`[CloudSave] ${key} failed: ${resp.status}`, await resp.text().catch(() => ""));
     }
-  } catch (e) { console.warn("Cloud save failed:", key, e); }
+  } catch (e) {
+    if (e.name === 'AbortError') return;
+    gdpWarn("Cloud save failed:", key, e);
+  }
 }
 
 async function cloudLoadAll() {
@@ -227,7 +237,7 @@ async function cloudLoadAll() {
         return rows;
       }
     } catch (e) {
-      console.warn("Cloud load failed:", userId, e);
+      gdpWarn("Cloud load failed:", userId, e);
     }
   }
   return null;
@@ -235,8 +245,9 @@ async function cloudLoadAll() {
 
 function getDataTimestamp(data, fallback = "") {
   const source = data?.updatedAt || data?.updated_at || fallback || "";
-  const time = source ? new Date(source).getTime() : 0;
-  return Number.isFinite(time) ? time : 0;
+  if (!source) return 0;
+  const time = new Date(source).getTime();
+  return (Number.isFinite(time) && time > 0) ? time : 0;
 }
 
 // Story 2.1: merge arrays by ID, preservando a versão com mais .itens por entry
@@ -254,7 +265,7 @@ function mergeArraysPreservingItens(localArr, cloudArr) {
       const localItensCount = Array.isArray(localEntry.itens) ? localEntry.itens.length : 0;
       const cloudItensCount = Array.isArray(cloudEntry.itens) ? cloudEntry.itens.length : 0;
       if (localItensCount > cloudItensCount) {
-        console.log("[Sync Merge] Mantendo local para", localEntry.id, "— local:", localItensCount, "itens, cloud:", cloudItensCount);
+        gdpLog("[Sync Merge] Mantendo local para", localEntry.id, "— local:", localItensCount, "itens, cloud:", cloudItensCount);
         merged.push(localEntry);
       } else {
         merged.push(cloudEntry);
@@ -323,19 +334,19 @@ async function syncFromCloud() {
     const cloudHasMoreDeepContent = cloudDeepItens >= localDeepItens;
 
     if (localHasContent && !cloudHasMoreContent) {
-      console.log("[Sync] Bloqueado: local tem mais entries que cloud para", row.key, "local:", localItems, "cloud:", cloudItems);
+      gdpLog("[Sync] Bloqueado: local tem mais entries que cloud para", row.key, "local:", localItems, "cloud:", cloudItems);
       continue;
     }
 
     // Story 2.1: se cloud tem menos itens nested (produtos em pedidos), NÃO sobrescrever
     if (localDeepItens > 0 && !cloudHasMoreDeepContent) {
-      console.log("[Sync] Bloqueado: local tem mais itens nested que cloud para", row.key, "localDeep:", localDeepItens, "cloudDeep:", cloudDeepItens);
+      gdpLog("[Sync] Bloqueado: local tem mais itens nested que cloud para", row.key, "localDeep:", localDeepItens, "cloudDeep:", cloudDeepItens);
       // Merge: manter pedidos locais que têm mais itens, aceitar rest do cloud
       if (localArr.length > 0 && cloudArr.length > 0 && localData?.items) {
         const merged = mergeArraysPreservingItens(localArr, cloudArr);
         const mergedData = { ...incomingData, items: merged, updatedAt: new Date().toISOString() };
         localStorage.setItem(row.key, JSON.stringify(mergedData));
-        console.log("[Sync] Merge concluído para", row.key, "— preservou itens locais mais completos");
+        gdpLog("[Sync] Merge concluído para", row.key, "— preservou itens locais mais completos");
         synced++;
       }
       continue;
@@ -349,17 +360,20 @@ async function syncFromCloud() {
   return { restored: synced > 0, rowCount: rows.length, source: "cloud", lastSyncAt: newest };
 }
 
-async function syncToCloud() {
+async function syncToCloud(signal) {
   setGdpSyncState({ status: "syncing", source: "cloud", detail: "Publicando alteracoes locais" });
   const promises = GDP_SYNC_KEYS.map(key => {
     const raw = localStorage.getItem(key);
     if (!raw) return Promise.resolve();
     try {
       const data = JSON.parse(raw);
-      // Guard: never push empty data to cloud — prevents overwriting good data
-      if (Array.isArray(data) && data.length === 0) return Promise.resolve();
-      if (data && typeof data === 'object' && Array.isArray(data.items) && data.items.length === 0) return Promise.resolve();
-      return cloudSave(key, data);
+      // Guard: skip empty data UNLESS it has a recent updatedAt (legitimate deletion)
+      const hasRecentUpdate = data?.updatedAt && (Date.now() - new Date(data.updatedAt).getTime()) < 300000;
+      if (!hasRecentUpdate) {
+        if (Array.isArray(data) && data.length === 0) return Promise.resolve();
+        if (data && typeof data === 'object' && Array.isArray(data.items) && data.items.length === 0) return Promise.resolve();
+      }
+      return cloudSave(key, data, signal);
     }
     catch(_) { return Promise.resolve(); }
   });
@@ -373,10 +387,15 @@ async function syncToCloud() {
 }
 
 let _syncTimeout = null;
+let _gdpSyncAbort = null;
 function schedulCloudSync() {
   if (_syncTimeout) clearTimeout(_syncTimeout);
+  if (_gdpSyncAbort) _gdpSyncAbort.abort();
   setGdpSyncState({ status: "pending", source: "cloud", detail: "Aguardando envio automatico" });
-  _syncTimeout = setTimeout(() => syncToCloud(), 2000);
+  _syncTimeout = setTimeout(() => {
+    _gdpSyncAbort = new AbortController();
+    syncToCloud(_gdpSyncAbort.signal).catch(() => {});
+  }, 2000);
 }
 
 async function forcarSyncCompleto() {
@@ -689,7 +708,7 @@ function saveWrappedArray(key, items) {
   // Gravar no Supabase tabela real (fonte primária)
   const table = _LS_TO_TABLE[key];
   if (table && window.gdpApi && window.gdpApi[table]) {
-    window.gdpApi[table].saveAll(items).catch(e => console.warn('[gdpApi] Save failed:', table, e));
+    window.gdpApi[table].saveAll(items).catch(e => gdpWarn('[gdpApi] Save failed:', table, e));
   }
   // Cloud save legado (backup)
   cloudSave(key, wrapped).catch(() => {});
@@ -793,7 +812,7 @@ function loadData() {
     });
     if (migrated > 0) {
       saveWrappedArray(ESTOQUE_INTEL_PRODUCTS_KEY, estoqueIntelProdutos);
-      console.log("[migration] unidade-base-critico-v1: " + migrated + " produtos corrigidos (g/ml → UN)");
+      gdpLog("[migration] unidade-base-critico-v1: " + migrated + " produtos corrigidos (g/ml → UN)");
     }
     localStorage.setItem("gdp.migration.unidade-base-critico-v1", new Date().toISOString());
   }
@@ -805,7 +824,7 @@ function loadData() {
     const removidas = antes - estoqueIntelEmbalagens.length;
     if (removidas > 0) {
       saveWrappedArray(ESTOQUE_INTEL_PACKAGES_KEY, estoqueIntelEmbalagens);
-      console.log("[migration] embalagens-critico-v2: " + removidas + " embalagens de produtos comuns removidas");
+      gdpLog("[migration] embalagens-critico-v2: " + removidas + " embalagens de produtos comuns removidas");
     }
     localStorage.setItem("gdp.migration.embalagens-critico-v2", new Date().toISOString());
   }
@@ -818,7 +837,7 @@ function loadData() {
     });
     if (fixed > 0) {
       saveWrappedArray(ESTOQUE_INTEL_PRODUCTS_KEY, estoqueIntelProdutos);
-      console.log("[migration] produto-campos-v3: " + fixed + " campos adicionados (produto_critico/preco_referencia)");
+      gdpLog("[migration] produto-campos-v3: " + fixed + " campos adicionados (produto_critico/preco_referencia)");
     }
     localStorage.setItem("gdp.migration.produto-campos-v3", new Date().toISOString());
   }
@@ -835,7 +854,7 @@ function loadData() {
     });
     if (restored > 0) {
       saveWrappedArray(ESTOQUE_INTEL_PRODUCTS_KEY, estoqueIntelProdutos);
-      console.log("[migration] critico-por-embalagem-v4: " + restored + " produtos restaurados como criticos");
+      gdpLog("[migration] critico-por-embalagem-v4: " + restored + " produtos restaurados como criticos");
     }
     localStorage.setItem("gdp.migration.critico-por-embalagem-v4", new Date().toISOString());
   }
@@ -857,7 +876,7 @@ function loadData() {
     });
     if (fixCritico > 0 || fixComum > 0) {
       saveWrappedArray(ESTOQUE_INTEL_PRODUCTS_KEY, estoqueIntelProdutos);
-      console.log("[migration] critico-refinado-v5: " + fixCritico + " marcados critico, " + fixComum + " revertidos para comum");
+      gdpLog("[migration] critico-refinado-v5: " + fixCritico + " marcados critico, " + fixComum + " revertidos para comum");
     }
     localStorage.setItem("gdp.migration.critico-refinado-v5", new Date().toISOString());
   }
@@ -882,7 +901,7 @@ function loadData() {
     if (setCritico > 0 || setComum > 0 || embRemovidas > 0) {
       saveWrappedArray(ESTOQUE_INTEL_PRODUCTS_KEY, estoqueIntelProdutos);
       saveWrappedArray(ESTOQUE_INTEL_PACKAGES_KEY, estoqueIntelEmbalagens);
-      console.log("[migration] criticos-exatos-v6: " + setCritico + " criticos, " + setComum + " comuns, " + embRemovidas + " embalagens removidas");
+      gdpLog("[migration] criticos-exatos-v6: " + setCritico + " criticos, " + setComum + " comuns, " + embRemovidas + " embalagens removidas");
     }
     localStorage.setItem("gdp.migration.criticos-exatos-v6", new Date().toISOString());
   }
@@ -894,7 +913,7 @@ function loadData() {
     const removidos = antes - estoqueIntelFornecedores.length;
     if (removidos > 0) {
       saveWrappedArray(ESTOQUE_INTEL_SUPPLIERS_KEY, estoqueIntelFornecedores);
-      console.log("[migration] remove-forn-teste-v7: " + removidos + " fornecedores-teste removidos (FORN-001/FORN-002)");
+      gdpLog("[migration] remove-forn-teste-v7: " + removidos + " fornecedores-teste removidos (FORN-001/FORN-002)");
     }
     localStorage.setItem("gdp.migration.remove-forn-teste-v7", new Date().toISOString());
   }
@@ -921,7 +940,7 @@ function loadData() {
     if (restaurados > 0 || embLimpas > 0) {
       saveWrappedArray(ESTOQUE_INTEL_PRODUCTS_KEY, estoqueIntelProdutos);
       saveWrappedArray(ESTOQUE_INTEL_PACKAGES_KEY, estoqueIntelEmbalagens);
-      console.log("[migration] restaurar-criticos-v8: " + restaurados + " produtos restaurados como critico, " + embLimpas + " embalagens acidentais removidas");
+      gdpLog("[migration] restaurar-criticos-v8: " + restaurados + " produtos restaurados como critico, " + embLimpas + " embalagens acidentais removidas");
     }
     localStorage.setItem("gdp.migration.restaurar-criticos-v8", new Date().toISOString());
   }

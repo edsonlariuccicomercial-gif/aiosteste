@@ -514,7 +514,7 @@ async function syncNfCounterFromCloud() {
     const rows = await resp.json();
     if (rows.length && rows[0].counter) {
       localStorage.setItem("gdp.nf-counter", String(rows[0].counter));
-      console.log("[NF-e] Counter sincronizado do DB:", rows[0].counter);
+      gdpLog("[NF-e] Counter sincronizado do DB:", rows[0].counter);
     }
   } catch(_) {}
 }
@@ -803,7 +803,7 @@ async function gerarNotaFiscalPedido(pedidoId) {
     }
     const detalhesItens = (pedido.itens || []).map((i, idx) => `  ${idx+1}. ${i.descricao} — ${i.qtd} x R$${Number(i.precoUnitario||0).toFixed(2)}`).join("\n");
     if (!confirm("Gerar NF-e REAL com " + qtdItens + " item(ns) para " + (pedido.escola || "cliente") + "?\n\nValor Total: " + brl.format(pedido.valor || 0) + "\n\nItens:\n" + detalhesItens + "\n\nConfirma transmissao a SEFAZ?")) return;
-    console.log("[NF-e] Gerando nota com", qtdItens, "itens. Pedido:", pedido.id);
+    gdpLog("[NF-e] Gerando nota com", qtdItens, "itens. Pedido:", pedido.id);
     console.table((pedido.itens||[]).map((i,idx) => ({ "#": idx+1, descricao: i.descricao, qtd: i.qtd, preco: i.precoUnitario, ncm: i.ncm })));
 
     try {
@@ -976,7 +976,7 @@ async function autorizarNotaFiscal(notaId) {
       xml_autorizado: nf.sefaz?.xmlAutorizado || nf.sefaz?.autorizacaoPreview || '',
       cobranca: nf.cobranca,
       audit: nf.audit
-    }).catch(e => console.warn('[NF] Supabase save failed:', e));
+    }).catch(e => gdpWarn('[NF] Supabase save failed:', e));
   }
 
   const pedido = pedidos.find((item) => item.id === nf.pedidoId);
@@ -1063,7 +1063,7 @@ async function transmitirHomologacaoNota(notaId) {
         signal: AbortSignal.timeout(30000),
       });
     } catch (localErr) {
-      console.warn("[NF-e] Vercel indisponível, tentando servidor local...");
+      gdpWarn("[NF-e] Vercel indisponível, tentando servidor local...");
       resp = await fetch("http://localhost:8082/api/nfe/emitir", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1182,7 +1182,7 @@ async function transmitirHomologacaoNota(notaId) {
         xml_autorizado: nf.sefaz?.transmissao?.xml || nf.sefaz?.xmlAutorizado || nf.sefaz?.autorizacaoPreview || '',
         cobranca: nf.cobranca,
         audit: nf.audit
-      }).catch(e => console.warn('[NF] Supabase save failed:', e));
+      }).catch(e => gdpWarn('[NF] Supabase save failed:', e));
     }
 
     renderAll();
@@ -1368,7 +1368,7 @@ async function enviarEmailNotaFiscal(notaId) {
       danfePdfBase64 = await gerarDanfePdfBase64(nf);
     }
   } catch (pdfErr) {
-    console.warn("[Email NF] Falha PDF:", pdfErr.message);
+    gdpWarn("[Email NF] Falha PDF:", pdfErr.message);
   }
   const payload = {
     to,
@@ -2099,10 +2099,10 @@ async function dispararEmailNotaEBoletoAutomatico(notaId, contaId, options = {})
   try {
     if (typeof html2pdf !== "undefined") {
       danfePdfBase64 = await gerarDanfePdfBase64(nf);
-      console.log("[Email NF] PDF gerado:", danfePdfBase64.length, "bytes base64");
+      gdpLog("[Email NF] PDF gerado:", danfePdfBase64.length, "bytes base64");
     }
   } catch (pdfErr) {
-    console.warn("[Email NF] Falha ao gerar PDF, enviando sem anexo:", pdfErr.message);
+    gdpWarn("[Email NF] Falha ao gerar PDF, enviando sem anexo:", pdfErr.message);
   }
   const emailPayload = {
     schoolName: nf.cliente?.nome || "",
@@ -2146,12 +2146,12 @@ async function dispararEmailNotaEBoletoAutomatico(notaId, contaId, options = {})
         if (resp.ok && !data.error) {
           successCount++;
           lastId = data.id || "";
-          console.log("[Email NF] OK para:", addr, "ID:", data.id || "-");
+          gdpLog("[Email NF] OK para:", addr, "ID:", data.id || "-");
         } else {
-          console.warn("[Email NF] Falha para", addr, ":", data.error || resp.status);
+          gdpWarn("[Email NF] Falha para", addr, ":", data.error || resp.status);
         }
       } catch (singleErr) {
-        console.warn("[Email NF] Erro para", addr, ":", singleErr.message);
+        gdpWarn("[Email NF] Erro para", addr, ":", singleErr.message);
       }
     }
     if (successCount === 0) throw new Error("Nenhum email enviado com sucesso");
@@ -2169,7 +2169,7 @@ async function dispararEmailNotaEBoletoAutomatico(notaId, contaId, options = {})
         emailDisparadoAt: new Date().toISOString()
       });
     }
-    console.log("[Email NF] Enviado:", successCount + "/" + recipients.length);
+    gdpLog("[Email NF] Enviado:", successCount + "/" + recipients.length);
     showToast("Email NF enviado (" + successCount + "/" + recipients.length + " destinatarios)", 4000);
     return true;
   } catch (err) {

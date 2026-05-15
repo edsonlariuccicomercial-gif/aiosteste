@@ -34,11 +34,12 @@
   }
 
   async function sbUpsert(rows) {
-    await fetch(REST + '/radar_equivalencias', {
+    var res = await fetch(REST + '/radar_equivalencias', {
       method: 'POST',
       headers: Object.assign({}, HEADERS, { Prefer: 'return=minimal,resolution=merge-duplicates' }),
       body: JSON.stringify(rows)
     });
+    if (!res.ok) throw new Error('Supabase upsert ' + res.status);
   }
 
   function loadLS() {
@@ -66,18 +67,24 @@
     return inter / Math.max(setA.size, setB.size);
   }
 
+  var _initPromise = null;
   async function init() {
+    if (_initPromise) return _initPromise;
+    _initPromise = _doInit();
+    return _initPromise;
+  }
+  async function _doInit() {
     try {
       var rows = await sbFetch('/radar_equivalencias?select=*&empresa_id=eq.' + encodeURIComponent(empresaId()));
       if (rows && rows.length > 0) {
         rows.forEach(function (r) { _cache[r.chave_normalizada] = r; });
         saveLS();
         _cacheReady = true;
-        console.log('[RadarMatcher] loaded', rows.length, 'equivalencias from Supabase');
+        gdpLog('[RadarMatcher] loaded', rows.length, 'equivalencias from Supabase');
         return;
       }
     } catch (e) {
-      console.warn('[RadarMatcher] Supabase load failed, using localStorage', e.message);
+      gdpWarn('[RadarMatcher] Supabase load failed, using localStorage', e.message);
     }
     // Fallback to localStorage
     _cache = loadLS();
@@ -85,7 +92,7 @@
       await seedFromContratos();
     }
     _cacheReady = true;
-    console.log('[RadarMatcher] ready,', Object.keys(_cache).length, 'entries');
+    gdpLog('[RadarMatcher] ready,', Object.keys(_cache).length, 'entries');
   }
 
   async function seedFromContratos() {
@@ -108,7 +115,7 @@
         var key = normalizeProductName(item.descricao || item.nome || '');
         if (!key) return;
         // Find banco item to enrich
-        var bp = (typeof bancoPrecos !== 'undefined' && bancoPrecos.itens)
+        var bp = (typeof bancoPrecos !== 'undefined' && bancoPrecos && Array.isArray(bancoPrecos.itens))
           ? bancoPrecos.itens.find(function (b) { return b.id === sku || b.sku === sku; })
           : null;
         _cache[key] = {
@@ -130,7 +137,7 @@
       saveLS();
       // Persist to Supabase in background
       try { await sbUpsert(Object.values(_cache)); } catch (_) { /* retry later */ }
-      console.log('[RadarMatcher] seeded', count, 'entries from contratos');
+      gdpLog('[RadarMatcher] seeded', count, 'entries from contratos');
     }
   }
 
@@ -143,6 +150,7 @@
     if (_cache[key]) {
       var entry = _cache[key];
       entry.vezes_usado = (entry.vezes_usado || 0) + 1;
+      saveLS();
       var bp = findBancoItem(entry.sku);
       var status = entry.confirmado ? 'confirmado' : 'pendente_revisao';
       return buildResult(status, 1.0, entry, bp);
@@ -160,7 +168,7 @@
     }
 
     // Layer 3: Fuzzy match in bancoPrecos.itens >= 0.5
-    if (typeof bancoPrecos !== 'undefined' && bancoPrecos.itens) {
+    if (typeof bancoPrecos !== 'undefined' && bancoPrecos && Array.isArray(bancoPrecos.itens)) {
       var bestBp = null, bestBpScore = 0;
       bancoPrecos.itens.forEach(function (b) {
         var sc = tokenSimilarity(key, b.item);
@@ -180,7 +188,7 @@
     return noMatch;
   }
   function findBancoItem(sku) {
-    if (!sku || typeof bancoPrecos === 'undefined' || !bancoPrecos.itens) return null;
+    if (!sku || typeof bancoPrecos === 'undefined' || !bancoPrecos || !Array.isArray(bancoPrecos.itens)) return null;
     return bancoPrecos.itens.find(function (b) { return b.id === sku || b.sku === sku; }) || null;
   }
 
@@ -212,7 +220,8 @@
     };
     _cache[key] = entry;
     saveLS();
-    try { await sbUpsert([entry]); } catch (e) { console.warn('[RadarMatcher] confirm save failed', e.message); }
+    if (typeof schedulCloudSync === 'function') schedulCloudSync();
+    try { await sbUpsert([entry]); } catch (e) { gdpWarn('[RadarMatcher] confirm save failed', e.message); }
   }
 
   async function reject(itemName) {
@@ -220,11 +229,12 @@
     if (!key) return;
     delete _cache[key];
     saveLS();
+    if (typeof schedulCloudSync === 'function') schedulCloudSync();
     try {
       await fetch(REST + '/radar_equivalencias?chave_normalizada=eq.' + encodeURIComponent(key) + '&empresa_id=eq.' + encodeURIComponent(empresaId()), {
         method: 'DELETE', headers: HEADERS
       });
-    } catch (e) { console.warn('[RadarMatcher] reject delete failed', e.message); }
+    } catch (e) { gdpWarn('[RadarMatcher] reject delete failed', e.message); }
   }
 
   window.RadarMatcher = {
@@ -239,5 +249,5 @@
     isReady: function () { return _cacheReady; }
   };
 
-  console.log('[RadarMatcher] module loaded');
+  gdpLog('[RadarMatcher] module loaded');
 })();

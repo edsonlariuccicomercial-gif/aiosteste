@@ -38,7 +38,7 @@ const BancoPrecos = (() => {
   async function apiCall(method, path, body) {
     const cfg = getConfig();
     if (!cfg.enabled || !cfg.apiKey) {
-      console.warn("[BancoPrecos] Desabilitado ou sem API key");
+      gdpWarn("[BancoPrecos] Desabilitado ou sem API key");
       return null;
     }
 
@@ -95,10 +95,10 @@ const BancoPrecos = (() => {
 
     if (itens.length === 0) return null;
 
-    console.log(`[BancoPrecos] Enviando ${itens.length} itens ao intake...`);
+    gdpLog(`[BancoPrecos] Enviando ${itens.length} itens ao intake...`);
     const result = await apiCall("POST", "/api/v2/intake", { itens });
     if (result) {
-      console.log(`[BancoPrecos] Intake: ${result.vinculados} vinculados, ${result.pendentes} pendentes, ${result.rejeitados} rejeitados`);
+      gdpLog(`[BancoPrecos] Intake: ${result.vinculados} vinculados, ${result.pendentes} pendentes, ${result.rejeitados} rejeitados`);
     }
     return result;
   }

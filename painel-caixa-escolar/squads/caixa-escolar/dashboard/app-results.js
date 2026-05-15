@@ -33,9 +33,9 @@ const _SB_RESULTADOS = {
         headers: Object.assign({}, this.headers(), { Prefer: 'return=minimal,resolution=merge-duplicates' }),
         body: JSON.stringify([row])
       });
-      console.log('[Story 6.1] Resultado salvo em Supabase:', resultado.id);
+      gdpLog('[Story 6.1] Resultado salvo em Supabase:', resultado.id);
     } catch (e) {
-      console.warn('[Story 6.1] Fallback localStorage — Supabase indisponível:', e.message);
+      gdpWarn('[Story 6.1] Fallback localStorage — Supabase indisponível:', e.message);
     }
   },
   async loadAll() {
@@ -47,7 +47,7 @@ const _SB_RESULTADOS = {
       if (!res.ok) throw new Error('HTTP ' + res.status);
       return await res.json();
     } catch (e) {
-      console.warn('[Story 6.1] Supabase indisponível, usando localStorage:', e.message);
+      gdpWarn('[Story 6.1] Supabase indisponível, usando localStorage:', e.message);
       return null;
     }
   },
@@ -55,10 +55,17 @@ const _SB_RESULTADOS = {
     if (localStorage.getItem('resultados.migrated.v1') === 'true') return;
     const local = JSON.parse(localStorage.getItem(RESULTADOS_STORAGE_KEY) || '[]');
     if (local.length === 0) { localStorage.setItem('resultados.migrated.v1', 'true'); return; }
-    console.log('[Story 6.1] Migrando', local.length, 'resultados para Supabase...');
-    for (const r of local) { await this.upsert(r); }
+    gdpLog('[Story 6.1] Migrando', local.length, 'resultados para Supabase...');
+    // Story 12.1 AC4: batch parallel migration (10 at a time)
+    const BATCH = 10;
+    let ok = 0;
+    for (let i = 0; i < local.length; i += BATCH) {
+      const batch = local.slice(i, i + BATCH);
+      const results = await Promise.allSettled(batch.map(r => this.upsert(r)));
+      ok += results.filter(r => r.status === 'fulfilled').length;
+    }
     localStorage.setItem('resultados.migrated.v1', 'true');
-    console.log('[Story 6.1] Migração concluída.');
+    gdpLog('[Story 6.1] Migração concluída:', ok + '/' + local.length, 'com sucesso.');
   }
 };
 
@@ -86,10 +93,10 @@ const _SB_RESULTADOS = {
       }
       const merged = Array.from(localMap.values());
       localStorage.setItem(RESULTADOS_STORAGE_KEY, JSON.stringify(merged));
-      console.log('[Story 6.1] Resultados sincronizados:', merged.length, 'registros');
+      gdpLog('[Story 6.1] Resultados sincronizados:', merged.length, 'registros');
     }
   } catch (e) {
-    console.warn('[Story 6.1] Boot resultados — usando localStorage:', e.message);
+    gdpWarn('[Story 6.1] Boot resultados — usando localStorage:', e.message);
   }
 })();
 
@@ -160,8 +167,8 @@ window.salvarResultado = function () {
     contrato: { gerado: false, contratoId: null },
   };
 
-  // Delta se perdeu
-  if (resultado.resultado === "perdido" && resultado.valorVencedor) {
+  // Delta de competitividade (ganho ou perdido)
+  if (resultado.valorVencedor && resultado.valorVencedor > 0) {
     resultado.deltaTotalPercent = parseFloat(((resultado.valorProposto - resultado.valorVencedor) / resultado.valorVencedor * 100).toFixed(1));
   }
 
@@ -173,9 +180,16 @@ window.salvarResultado = function () {
   // Story 6.1: Dual-write para Supabase
   _SB_RESULTADOS.upsert(resultado);
 
+  // H16 fix: validate pre-orçamento was actually sent before registering result
+  if (pre.status !== "enviado" && pre.status !== "ganho" && pre.status !== "perdido") {
+    showToast("Apenas pré-orçamentos enviados podem receber resultado.", 3000);
+    return;
+  }
+
   // Atualizar status do pré-orçamento
   pre.status = selectedResultado === "ganho" ? "ganho" : "perdido";
   savePreOrcamentos();
+  schedulCloudSync();
 
   // Se ganhou e checkbox marcado → gerar contrato local (CX Escolar)
   let geradoLocal = false;
@@ -199,7 +213,7 @@ window.salvarResultado = function () {
       geradoGdp = true;
       contratoGdpId = contratoGdp.id;
     } else {
-      console.warn('[GDP] Contrato GDP não foi criado — retornou null');
+      gdpWarn('[GDP] Contrato GDP não foi criado — retornou null');
     }
   }
 
@@ -406,7 +420,7 @@ function gerarContratoDeResultado(resultado, pre) {
     dataContrato: new Date().toISOString().split("T")[0],
     dataLimiteEntrega: pre.dtGoodsDelivery ? pre.dtGoodsDelivery.split("T")[0] : null,
     valorTotal: pre.totalGeral,
-    itens: pre.itens.map(item => ({
+    itens: (pre.itens || []).map(item => ({
       nome: item.nome, marca: item.marca, unidade: item.unidade || "Un",
       quantidade: item.quantidade, precoUnitario: item.precoUnitario,
       precoTotal: item.precoTotal, entregue: 0, pendente: item.quantidade,
@@ -481,12 +495,12 @@ function criarContratoGdp(orcId, preOrcamento, numContrato) {
       };
       usuarios.push(cliente);
       localStorage.setItem(USUARIOS_KEY, JSON.stringify(usuarios));
-      console.log(`[GDP] Cliente criado automaticamente: ${escolaNome}`);
+      gdpLog(`[GDP] Cliente criado automaticamente: ${escolaNome}`);
     }
     escolaClienteId = cliente.id;
     if (!Array.isArray(cliente.contratos_vinculados)) cliente.contratos_vinculados = [];
   } catch (e) {
-    console.warn("[GDP] Erro ao vincular cliente:", e);
+    gdpWarn("[GDP] Erro ao vincular cliente:", e);
   }
 
   const contrato = {
@@ -542,6 +556,7 @@ function criarContratoGdp(orcId, preOrcamento, numContrato) {
   // Save in GDP wrapped format
   const wrapped = { _v: 1, updatedAt: now.toISOString(), items: contratos };
   localStorage.setItem(GDP_CONTRATOS_KEY, JSON.stringify(wrapped));
+  schedulCloudSync();
 
   // Story 9.1: Salvar contrato diretamente no Supabase (fonte de verdade)
   // index.html não carrega gdp-core.js/gdp-api.js, então usamos _SB_RESULTADOS.URL/KEY
@@ -572,11 +587,11 @@ function criarContratoGdp(orcId, preOrcamento, numContrato) {
       headers: Object.assign({}, _SB_RESULTADOS.headers(), { Prefer: 'return=minimal,resolution=merge-duplicates' }),
       body: JSON.stringify(sbContrato)
     }).then(res => {
-      if (res.ok) console.log('[GDP] Contrato salvo no Supabase:', contrato.id);
-      else res.text().then(t => console.warn('[GDP] Supabase save failed:', res.status, t));
-    }).catch(e => console.warn('[GDP] Supabase save error:', e.message));
+      if (res.ok) gdpLog('[GDP] Contrato salvo no Supabase:', contrato.id);
+      else res.text().then(t => gdpWarn('[GDP] Supabase save failed:', res.status, t));
+    }).catch(e => gdpWarn('[GDP] Supabase save error:', e.message));
   } catch (e) {
-    console.warn('[GDP] Supabase direct save failed:', e.message);
+    gdpWarn('[GDP] Supabase direct save failed:', e.message);
   }
 
   // Trigger cloud sync (backup legado)
@@ -598,7 +613,7 @@ function criarContratoGdp(orcId, preOrcamento, numContrato) {
     if (rows.length > 0) _SB_PRECO_HIST.insert(rows);
   }
 
-  console.log(`[GDP] Contrato criado: ${contrato.id} — ${contrato.escola} — ${brl.format(contrato.valorTotal)}`);
+  gdpLog(`[GDP] Contrato criado: ${contrato.id} — ${contrato.escola} — ${brl.format(contrato.valorTotal)}`);
   return contrato;
 }
 
@@ -607,7 +622,7 @@ function criarContratoGdpComCentral(orcId, preOrcamento, numContrato) {
   try {
     // FR-003: Enriquecer itens com dados da Central de Preços antes de criar contrato
     if (typeof loadBancoProdutos === 'function') loadBancoProdutos();
-    const central = (typeof bancoProdutos !== 'undefined' && bancoProdutos.itens) ? bancoProdutos.itens : [];
+    const central = (typeof bancoProdutos !== 'undefined' && bancoProdutos && Array.isArray(bancoProdutos.itens)) ? bancoProdutos.itens : [];
 
     if (central.length > 0 && preOrcamento && preOrcamento.itens) {
       const normalize = (s) => (s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
@@ -799,7 +814,7 @@ window.gerarContratoUnificado = function() {
   renderPreOrcamentosLista();
   renderOrcamentos();
   showToast(`Contrato unificado criado: ${todosItens.length} itens de ${pres.length} processos — ${brl.format(valorTotal)}`);
-  console.log(`[GDP] Contrato unificado: ${contrato.numero} — ${todosItens.length} itens — ${brl.format(valorTotal)}`);
+  gdpLog(`[GDP] Contrato unificado: ${contrato.numero} — ${todosItens.length} itens — ${brl.format(valorTotal)}`);
 };
 
 function alimentarBancoComResultado(resultado) {

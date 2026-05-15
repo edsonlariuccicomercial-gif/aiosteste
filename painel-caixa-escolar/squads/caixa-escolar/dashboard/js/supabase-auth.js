@@ -162,5 +162,5 @@
     DASHBOARD_PAGE: DASHBOARD_PAGE
   };
 
-  console.log('[gdp-auth] module loaded');
+  gdpLog('[gdp-auth] module loaded');
 })();

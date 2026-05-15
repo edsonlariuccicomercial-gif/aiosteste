@@ -5,7 +5,7 @@ async function fetchJson(path) {
     if (!r.ok) throw new Error(r.status);
     return await r.json();
   } catch (e) {
-    console.warn("Falha ao carregar " + path, e);
+    gdpWarn("Falha ao carregar " + path, e);
     return null;
   }
 }
@@ -69,7 +69,7 @@ async function boot() {
   if (storedVersion !== DATA_VERSION) {
     localStorage.removeItem("caixaescolar.orcamentos");
     localStorage.setItem("caixaescolar.data-version", DATA_VERSION);
-    console.log("[Boot] Wiped old orcamentos data (version upgrade to " + DATA_VERSION + "). Run Varrer SGD to reload.");
+    gdpLog("[Boot] Wiped old orcamentos data (version upgrade to " + DATA_VERSION + "). Run Varrer SGD to reload.");
   }
 
   const localOrc = localStorage.getItem("caixaescolar.orcamentos");
@@ -141,7 +141,7 @@ async function boot() {
   // 6. Cloud sync — PULL first, THEN push (never overwrite cloud with stale local)
   syncFromCloud().then(synced => {
     if (synced) {
-      console.log("[Boot] Cloud data synced to localStorage");
+      gdpLog("[Boot] Cloud data synced to localStorage");
       loadPreOrcamentos();
       loadBancoLocal();
       // Reload orcamentos from freshly-synced localStorage
@@ -151,8 +151,8 @@ async function boot() {
     }
     // Only push AFTER pull completes — prevents overwriting cloud with empty data
     return syncToCloud();
-  }).then(() => console.log("[Boot] Local data pushed to cloud"))
-    .catch(e => console.warn("[Boot] Cloud sync failed:", e));
+  }).then(() => gdpLog("[Boot] Local data pushed to cloud"))
+    .catch(e => gdpWarn("[Boot] Cloud sync failed:", e));
 }
 
 // ===== FILTERS =====
@@ -545,24 +545,36 @@ function batchPreOrcar() {
     const todayStr = new Date().toISOString().slice(0, 10);
 
     const itens = (orc.itens || []).map((item) => {
-      let bp = findBancoItem(item.nome);
+      let bp = null;
       let matchStatus = "sem_match";
       let matchScore = 0;
 
-      if (bp) {
-        const normItem = normalizedText(item.nome);
-        const normBp = normalizedText(bp.item);
-        if (normItem === normBp) {
-          matchStatus = "exato";
-          matchScore = 1.0;
-        } else if (typeof getEquivalencia === "function" && getEquivalencia(item.nome)) {
-          matchStatus = "exato";
-          matchScore = 1.0;
-        } else {
-          matchStatus = "sugestao";
-          matchScore = typeof calcTokenSimilarity === "function"
-            ? calcTokenSimilarity(normalizedMatchTokens(item.nome), normalizedMatchTokens(bp.item))
-            : 0.5;
+      // H6 fix: use RadarMatcher cache first (confirmed matches)
+      if (typeof RadarMatcher !== 'undefined' && RadarMatcher.isReady()) {
+        const rmResult = RadarMatcher.match(item.nome);
+        if (rmResult && rmResult.sku && rmResult.status !== 'sem_match') {
+          bp = findBancoItem(rmResult.sku) || findBancoItem(item.nome);
+          matchStatus = rmResult.status === 'confirmado' ? 'exato' : 'sugestao';
+          matchScore = rmResult.score;
+        }
+      }
+
+      // Fallback: direct banco lookup
+      if (!bp) {
+        bp = findBancoItem(item.nome);
+        if (bp) {
+          const normItem = normalizedText(item.nome);
+          const normBp = normalizedText(bp.item);
+          if (normItem === normBp) {
+            matchStatus = "exato";
+            matchScore = 1.0;
+          } else if (typeof getEquivalencia === "function" && getEquivalencia(item.nome)) {
+            matchStatus = "exato";
+            matchScore = 1.0;
+          } else {
+            matchStatus = "sugestao";
+            matchScore = 0.5;
+          }
         }
       }
 
@@ -1034,12 +1046,14 @@ function renderPreOrcamentoItens() {
     const equivProd = equivSku ? getProdutoBySku(equivSku) : null;
     let equivHint = "";
     // Match status from RadarMatcher (FR-001: human approval gate)
+    // M4 fix: if RadarMatcher loaded but not yet ready, trigger init (non-blocking for render)
+    if (typeof RadarMatcher !== 'undefined' && !RadarMatcher.isReady()) { RadarMatcher.init(); }
     const matchResult = (typeof RadarMatcher !== 'undefined' && RadarMatcher.isReady()) ? RadarMatcher.match(item.nome) : null;
     const matchStatus = matchResult ? matchResult.status : 'sem_match';
     let matchBadge = "";
-    if (matchStatus === 'pendente_revisao') {
+    if (matchStatus === 'pendente_revisao' && matchResult.sku) {
       const safeNome = escapeHtml(item.nome).replace(/'/g, "\\'");
-      const safeSku = escapeHtml(matchResult.sku || '').replace(/'/g, "\\'");
+      const safeSku = escapeHtml(matchResult.sku).replace(/'/g, "\\'");
       const safeBanco = escapeHtml(matchResult.nomeBanco || '').replace(/'/g, "\\'");
       matchBadge = `<br><span class="badge badge-match-pendente" title="Match pendente de revisao humana">Pendente</span>
         <button class="btn btn-inline btn-sm" onclick="confirmarMatchPreOrc('${safeNome}','${safeSku}','${safeBanco}')" style="font-size:0.65rem;padding:1px 6px;color:#059669;border:1px solid #059669;border-radius:4px;margin-left:4px;">Confirmar</button>
@@ -1167,15 +1181,15 @@ window.updatePreItem = function (idx, field, value) {
 };
 
 // FR-001: Confirmar/Rejeitar match no pré-orçamento (aprovação humana)
-window.confirmarMatchPreOrc = function (itemName, sku, nomeBanco) {
+window.confirmarMatchPreOrc = async function (itemName, sku, nomeBanco) {
   if (typeof RadarMatcher !== 'undefined') {
-    RadarMatcher.confirm(itemName, sku, nomeBanco);
+    await RadarMatcher.confirm(itemName, sku, nomeBanco);
     renderPreOrcamentoItens();
   }
 };
-window.rejeitarMatchPreOrc = function (itemName) {
+window.rejeitarMatchPreOrc = async function (itemName) {
   if (typeof RadarMatcher !== 'undefined') {
-    RadarMatcher.reject(itemName);
+    await RadarMatcher.reject(itemName);
     renderPreOrcamentoItens();
   }
 };
@@ -1955,7 +1969,7 @@ window.pesquisarPrecoPNCP = async function(idx) {
   const pre = preOrcamentos[activePreOrcamentoId];
   if (!pre || !pre.itens[idx]) return;
   const item = pre.itens[idx];
-  console.log("[PNCP] Buscando:", simplificarTermoPNCP(item.nome));
+  gdpLog("[PNCP] Buscando:", simplificarTermoPNCP(item.nome));
   showToast("Buscando no PNCP: " + item.nome + "...");
 
   const resultado = await consultarPNCP(item.nome, item.idBudgetItem);
@@ -2041,11 +2055,11 @@ async function consultarPNCP(itemNome, itemId) {
 
   try {
     const termoSimplificado = simplificarTermoPNCP(itemNome);
-    console.log("[PNCP] Termo original:", itemNome, "-> Simplificado:", termoSimplificado);
+    gdpLog("[PNCP] Termo original:", itemNome, "-> Simplificado:", termoSimplificado);
 
     const searchUrl = "/api/caixa-proxy";
     const searchBody = { action: "search", termo: termoSimplificado, uf: "MG" };
-    console.log("[PNCP] request:", { url: searchUrl, body: searchBody });
+    gdpLog("[PNCP] request:", { url: searchUrl, body: searchBody });
 
     const resp = await fetch(searchUrl, {
       method: "POST",
@@ -2054,7 +2068,7 @@ async function consultarPNCP(itemNome, itemId) {
       signal: controller.signal,
     });
 
-    console.log("[PNCP] response status:", resp.status);
+    gdpLog("[PNCP] response status:", resp.status);
 
     if (!resp.ok) {
       const errText = await resp.text().catch(() => "");
@@ -2064,10 +2078,10 @@ async function consultarPNCP(itemNome, itemId) {
 
     const data = await resp.json();
     const resultados = data.data || data || [];
-    console.log("[PNCP] resultados:", Array.isArray(resultados) ? resultados.length : 0);
+    gdpLog("[PNCP] resultados:", Array.isArray(resultados) ? resultados.length : 0);
 
     if (!Array.isArray(resultados) || resultados.length === 0) {
-      console.log("[PNCP] nenhum resultado encontrado para:", termoSimplificado);
+      gdpLog("[PNCP] nenhum resultado encontrado para:", termoSimplificado);
       return null;
     }
 
@@ -2080,7 +2094,7 @@ async function consultarPNCP(itemNome, itemId) {
         const seq = contratacao.sequencialCompra;
         if (!cnpj || !ano || !seq) continue;
 
-        console.log("[PNCP] Buscando itens:", cnpj, ano, seq);
+        gdpLog("[PNCP] Buscando itens:", cnpj, ano, seq);
 
         const itemsResp = await fetch("/api/caixa-proxy", {
           method: "POST",
@@ -2090,13 +2104,13 @@ async function consultarPNCP(itemNome, itemId) {
         });
 
         if (!itemsResp.ok) {
-          console.warn("[PNCP] itens HTTP error:", itemsResp.status, "para", cnpj, ano, seq);
+          gdpWarn("[PNCP] itens HTTP error:", itemsResp.status, "para", cnpj, ano, seq);
           continue;
         }
 
         const itemsData = await itemsResp.json();
         const itensArray = Array.isArray(itemsData) ? itemsData : (itemsData.data || []);
-        console.log("[PNCP] itens retornados:", itensArray.length, "para", cnpj, ano, seq);
+        gdpLog("[PNCP] itens retornados:", itensArray.length, "para", cnpj, ano, seq);
 
         const keywords = simplificarTermoPNCP(itemNome).toLowerCase().split(" ");
         itensArray.forEach(i => {
@@ -2112,16 +2126,16 @@ async function consultarPNCP(itemNome, itemId) {
         });
       } catch (subErr) {
         if (subErr.name === "AbortError") throw subErr; // re-throw timeout
-        console.warn("[PNCP] erro ao buscar itens de contratacao:", subErr.message);
+        gdpWarn("[PNCP] erro ao buscar itens de contratacao:", subErr.message);
       }
     }
 
     if (precos.length === 0) {
-      console.log("[PNCP] nenhum preco encontrado apos filtrar itens");
+      gdpLog("[PNCP] nenhum preco encontrado apos filtrar itens");
       return null;
     }
 
-    console.log("[PNCP] precos encontrados:", precos.length);
+    gdpLog("[PNCP] precos encontrados:", precos.length);
 
     const valores = precos.map(p => p.preco);
     valores.sort((a, b) => a - b);
@@ -2873,7 +2887,8 @@ window.editarProdutoCentralPrecos = function (id) {
 };
 
 window.fecharModalProdutoCentral = function () {
-  document.getElementById("modal-produto-central").style.display = "none";
+  const modal = document.getElementById("modal-produto-central");
+  if (modal) modal.style.display = "none";
 };
 
 // Salvar produto (novo ou edição) — grava em gdp.estoque-intel.produtos.v1
@@ -2900,11 +2915,13 @@ window.salvarProdutoCentral = function () {
     const p = produtos.find(x => x.id === id);
     if (p) Object.assign(p, dados);
   } else {
-    dados.id = "PROD-" + new Date().toISOString().slice(0,10).replace(/-/g,"") + "-" + String(Date.now()).slice(-5);
+    dados.id = "PROD-" + Date.now() + "-" + Math.random().toString(36).substr(2, 6);
     produtos.push(dados);
   }
 
-  localStorage.setItem('gdp.estoque-intel.produtos.v1', JSON.stringify(produtos));
+  const wrapped = { _v: 1, updatedAt: new Date().toISOString(), items: produtos };
+  localStorage.setItem('gdp.estoque-intel.produtos.v1', JSON.stringify(wrapped));
+  schedulCloudSync();
   fecharModalProdutoCentral();
   renderCentralPrecos();
   showToast(id ? "Produto atualizado." : "Produto cadastrado.", 3000);
@@ -2914,7 +2931,7 @@ window.exportarCentralCsv = function () {
   let produtos = [];
   try { const raw = JSON.parse(localStorage.getItem('gdp.estoque-intel.produtos.v1') || '[]'); produtos = Array.isArray(raw) ? raw : (raw.itens || []); } catch(_) {}
   const header = "Produto;Unidade;Categoria;Origem;SKU;NCM;P. Venda";
-  const rows = produtos.map(p => [p.nome || p.descricao, p.unidade_base || p.unidade, p.categoria || p.grupo, p.origem || '0', p.sku, p.ncm, p.preco_referencia || p.precoReferencia || 0].map(v => '"' + String(v || '').replace(/"/g, '""') + '"').join(';'));
+  const rows = produtos.map(p => [p.nome || p.descricao, p.unidade_base || p.unidade, p.categoria || p.grupo, p.origem || '0', p.sku, p.ncm, Number(p.preco_referencia || p.precoReferencia || 0).toFixed(2)].map(v => '"' + String(v || '').replace(/"/g, '""').replace(/;/g, ',') + '"').join(';'));
   if (typeof downloadCsv === 'function') downloadCsv('central-produtos.csv', [header, ...rows].join('\n'));
 };
 

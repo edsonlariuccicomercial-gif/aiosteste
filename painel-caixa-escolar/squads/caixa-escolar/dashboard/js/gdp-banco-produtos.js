@@ -358,6 +358,7 @@ function excluirProduto(id) {
   if (!confirm(`Excluir produto "${p.descricao}"?`)) return;
   bancoProdutos.itens = bancoProdutos.itens.filter(x => x.id !== id);
   saveBancoProdutos();
+  if (typeof schedulCloudSync === 'function') schedulCloudSync();
   renderBancoProdutos();
   showToast("Produto excluido.");
 }
@@ -475,7 +476,7 @@ function migrarBancoPrecoParaCentral() {
 
   saveBancoProdutos();
   localStorage.setItem(MIGRATION_FLAG, new Date().toISOString());
-  console.log(`[Central] Migração concluída: ${migrated} novos, ${skipped} enriquecidos de ${bancoData.itens.length} itens do Banco de Preços`);
+  gdpLog(`[Central] Migração concluída: ${migrated} novos, ${skipped} enriquecidos de ${bancoData.itens.length} itens do Banco de Preços`);
   return { migrated, enriched: skipped, total: bancoData.itens.length };
 }
 
@@ -803,7 +804,7 @@ function trocarMatchSyncBanco(idx, altIdx) {
   m.escolhido = m.best;
   m.aceito = true;
 
-  console.log(`[SyncBanco] Troca #${m.item.num}: "${m.item.descricao}" → novo match: "${m.best.descricao}" SKU:${m.best.sku} NCM:${m.best.ncm} Unid:${m.best.unidade}`);
+  gdpLog(`[SyncBanco] Troca #${m.item.num}: "${m.item.descricao}" → novo match: "${m.best.descricao}" SKU:${m.best.sku} NCM:${m.best.ncm} Unid:${m.best.unidade}`);
 
   renderSyncBanco();
 }
@@ -874,7 +875,7 @@ async function aplicarSyncBanco() {
     if (!m.aceito || !m.best) return;
     // FIX: Buscar item por num (não por índice, que pode mudar)
     const item = c.itens.find(it => it.num === m.item.num) || c.itens[m.idx];
-    if (!item) { console.warn("[SyncBanco] Item nao encontrado:", m.item.num); return; }
+    if (!item) { gdpWarn("[SyncBanco] Item nao encontrado:", m.item.num); return; }
 
     const antes = { sku: item.sku, ncm: item.ncm, unidade: item.unidade };
 
@@ -885,22 +886,22 @@ async function aplicarSyncBanco() {
     synced++;
 
     changes.push(`#${item.num} SKU:${antes.sku}→${item.sku} NCM:${antes.ncm}→${item.ncm} Unid:${antes.unidade}→${item.unidade}`);
-    console.log(`[SyncBanco] #${item.num} "${item.descricao}" ← banco "${m.best.descricao}" | SKU: ${antes.sku}→${item.sku} | NCM: ${antes.ncm}→${item.ncm} | Unid: ${antes.unidade}→${item.unidade}`);
+    gdpLog(`[SyncBanco] #${item.num} "${item.descricao}" ← banco "${m.best.descricao}" | SKU: ${antes.sku}→${item.sku} | NCM: ${antes.ncm}→${item.ncm} | Unid: ${antes.unidade}→${item.unidade}`);
   });
 
   if (synced > 0) {
     // FIX: Salvar diretamente no localStorage com timestamp futuro para GARANTIR que local vence o cloud
     const wrapped = { _v: 1, updatedAt: new Date().toISOString(), items: contratos };
     localStorage.setItem(CONTRACTS_KEY, JSON.stringify(wrapped));
-    console.log(`[SyncBanco] Gravado direto no localStorage. ${synced} itens. updatedAt: ${wrapped.updatedAt}`);
+    gdpLog(`[SyncBanco] Gravado direto no localStorage. ${synced} itens. updatedAt: ${wrapped.updatedAt}`);
 
     // FIX: Cloud sync BLOQUEANTE — aguarda completar antes de liberar UI
     if (_syncTimeout) { clearTimeout(_syncTimeout); _syncTimeout = null; }
     try {
       await syncToCloud();
-      console.log("[SyncBanco] Cloud sync completado com sucesso.");
+      gdpLog("[SyncBanco] Cloud sync completado com sucesso.");
     } catch(e) {
-      console.warn("[SyncBanco] Cloud sync falhou:", e.message, "— dados estao salvos localmente.");
+      gdpWarn("[SyncBanco] Cloud sync falhou:", e.message, "— dados estao salvos localmente.");
     }
 
     // FIX: Verificar que localStorage ainda tem os dados corretos após cloud sync
@@ -908,7 +909,7 @@ async function aplicarSyncBanco() {
     const verifyContract = (verify?.items || []).find(x => x.id === contratoId);
     if (verifyContract) {
       const verifyItem = verifyContract.itens.find(it => changes.length > 0);
-      console.log("[SyncBanco] Verificacao pos-sync: contrato encontrado no localStorage ✓");
+      gdpLog("[SyncBanco] Verificacao pos-sync: contrato encontrado no localStorage ✓");
     } else {
       console.error("[SyncBanco] ALERTA: contrato NAO encontrado no localStorage apos sync! Regravando...");
       localStorage.setItem(CONTRACTS_KEY, JSON.stringify(wrapped));
@@ -925,7 +926,7 @@ async function aplicarSyncBanco() {
   renderAll();
   abrirContrato(contratoId);
   showToast(`${synced} item(ns) sincronizados com o Banco de Produtos!`, 4000);
-  if (changes.length > 0) console.log("[SyncBanco] Resumo:\n" + changes.join("\n"));
+  if (changes.length > 0) gdpLog("[SyncBanco] Resumo:\n" + changes.join("\n"));
 }
 
 function fecharSyncBanco() {
