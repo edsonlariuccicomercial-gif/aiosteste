@@ -1441,17 +1441,35 @@ window.renderIntelDashboard = function () {
     return;
   }
 
-  // Populate filters
+  // Live-enrich: fill missing SRE from orcamentos (always up to date after new varreduras)
+  try {
+    const _orcs = JSON.parse(localStorage.getItem('caixaescolar.orcamentos') || '[]');
+    const _sreMap = {};
+    _orcs.forEach(o => { if (o.escola && o.sre) _sreMap[o.escola] = o.sre; });
+    let enriched = 0;
+    historico.forEach(h => {
+      if (!h.sre && h.escola && _sreMap[h.escola]) { h.sre = _sreMap[h.escola]; enriched++; }
+    });
+    if (enriched > 0) saveHistoricoLicitacoes(historico);
+  } catch(_) {}
+
+  // Populate filters (rebuild every time to pick up new SREs after varredura)
   const sreSel = document.getElementById("intel-filtro-sre");
   const prodSel = document.getElementById("intel-filtro-produto");
   const sres = [...new Set(historico.map(h => h.sre).filter(Boolean))].sort();
   const produtos = [...new Set(historico.map(h => h.descricao_item).filter(Boolean))].sort();
 
-  if (sreSel && sreSel.options.length <= 1) {
+  if (sreSel) {
+    const curSre = sreSel.value;
+    sreSel.innerHTML = '<option value="all">Todas SREs</option>';
     sres.forEach(s => { const o = document.createElement("option"); o.value = s; o.textContent = s; sreSel.appendChild(o); });
+    sreSel.value = curSre; // preserve selection
   }
-  if (prodSel && prodSel.options.length <= 1) {
+  if (prodSel) {
+    const curProd = prodSel.value;
+    prodSel.innerHTML = '<option value="all">Todos Produtos</option>';
     produtos.slice(0, 100).forEach(p => { const o = document.createElement("option"); o.value = p; o.textContent = p.substring(0, 40); prodSel.appendChild(o); });
+    prodSel.value = curProd;
   }
 
   // Apply filters
