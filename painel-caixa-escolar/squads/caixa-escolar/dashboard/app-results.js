@@ -100,20 +100,32 @@ const _SB_RESULTADOS = {
   }
 })();
 
-// Story 13.7: Auto-migrate existing resultados to historico_licitacoes (one-time)
+// Story 13.7: Auto-migrate existing resultados to historico_licitacoes
+// Runs on every boot — re-migrates if version bumps (to pick up SRE enrichment etc.)
 (function _migrateResultadosToHistorico() {
-  if (localStorage.getItem('intel.historico.migrated.v1') === 'true') return;
+  const MIGRATION_VERSION = '2'; // bump to force re-migration
+  if (localStorage.getItem('intel.historico.migrated.v1') === MIGRATION_VERSION) return;
   if (typeof loadHistoricoLicitacoes !== 'function') return;
-  const existing = loadHistoricoLicitacoes();
-  if (existing.length > 0) { localStorage.setItem('intel.historico.migrated.v1', 'true'); return; }
+
   const resultados = JSON.parse(localStorage.getItem(RESULTADOS_STORAGE_KEY) || '[]');
-  if (resultados.length === 0) return;
+  if (resultados.length === 0) { localStorage.setItem('intel.historico.migrated.v1', MIGRATION_VERSION); return; }
+
+  // Build escola→SRE lookup from orcamentos (most reliable source of SRE)
+  const escolaSreMap = {};
+  try {
+    const orcs = JSON.parse(localStorage.getItem('caixaescolar.orcamentos') || '[]');
+    orcs.forEach(o => { if (o.escola && o.sre) escolaSreMap[o.escola] = o.sre; });
+  } catch(_) {}
+
   const items = [];
   resultados.forEach(r => {
+    const sre = escolaSreMap[r.escola] || r.sre || "";
+    const cidade = r.municipio || "";
+
     (r.itens || []).forEach(item => {
       items.push({
         id: "HIST-" + Date.now() + "-" + Math.random().toString(36).substr(2, 5),
-        escola: r.escola || "", cidade: r.municipio || "", sre: "",
+        escola: r.escola || "", cidade, sre,
         produto_id: "", descricao_item: item.nome || "",
         preco_proposto: item.precoUnitario || r.valorProposto || 0,
         preco_vencedor: item.precoVencedor || r.valorVencedor || 0,
@@ -124,11 +136,10 @@ const _SB_RESULTADOS = {
         data: r.dataResultado || "", orcamento_sgd_id: r.orcamentoId || ""
       });
     });
-    // If no itens, create one entry per resultado
     if (!r.itens || r.itens.length === 0) {
       items.push({
         id: "HIST-" + Date.now() + "-" + Math.random().toString(36).substr(2, 5),
-        escola: r.escola || "", cidade: r.municipio || "", sre: "",
+        escola: r.escola || "", cidade, sre,
         produto_id: "", descricao_item: r.grupo || "Geral",
         preco_proposto: r.valorProposto || 0, preco_vencedor: r.valorVencedor || 0,
         empresa_vencedora: r.resultado === "ganho" ? "LARIUCCI" : (r.fornecedorVencedor || ""),
@@ -140,9 +151,10 @@ const _SB_RESULTADOS = {
   });
   if (items.length > 0) {
     saveHistoricoLicitacoes(items);
-    gdpLog('[Story 13.7] Migrados ' + items.length + ' registros para historico_licitacoes');
+    const withSre = items.filter(i => i.sre).length;
+    gdpLog('[Story 13.7] Migrados ' + items.length + ' registros (' + withSre + ' com SRE) para historico_licitacoes');
   }
-  localStorage.setItem('intel.historico.migrated.v1', 'true');
+  localStorage.setItem('intel.historico.migrated.v1', MIGRATION_VERSION);
 })();
 
 let currentResultadoOrcamentoId = null;
@@ -266,10 +278,18 @@ window.salvarResultado = function () {
   alimentarBancoComResultado(resultado);
 
   // Story 13.7 AC2: Feed historico_licitacoes from manual result
+  // Resolve SRE: pre may not have it, but the linked orcamento does
+  const _sreForHist = pre.sre || (function() {
+    try {
+      const _orcs = JSON.parse(localStorage.getItem('caixaescolar.orcamentos') || '[]');
+      const _orc = _orcs.find(o => o.escola === resultado.escola && o.sre);
+      return _orc ? _orc.sre : "";
+    } catch(_) { return ""; }
+  })();
   if (typeof addHistoricoLicitacao === 'function') {
     (resultado.itens || []).forEach(item => {
       addHistoricoLicitacao({
-        escola: resultado.escola, cidade: resultado.municipio || "", sre: pre.sre || "",
+        escola: resultado.escola, cidade: resultado.municipio || "", sre: _sreForHist,
         produto_id: "", descricao_item: item.nome || "",
         preco_proposto: item.precoUnitario || 0,
         preco_vencedor: item.precoVencedor || resultado.valorVencedor || 0,
