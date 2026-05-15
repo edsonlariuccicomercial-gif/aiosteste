@@ -1261,21 +1261,41 @@ function renderHistorico() {
   setTextSafe("hk-faturamento", brl.format(totalGanho));
   setTextSafe("hk-delta", deltaMedia ? deltaMedia + "%" : "—");
 
-  // Render active sub-tab
+  // Render active sub-tab (detect which one is selected)
   const activeBtn = document.querySelector("#sub-tabs-historico .rent-tab.active");
-  const activeTab = activeBtn ? (activeBtn.textContent.includes("Ganho") ? "ganhos" : activeBtn.textContent.includes("Perdido") ? "perdidos" : "analise") : "ganhos";
-  renderHistoricoContent(activeTab, ganhos, perdidos, resultados);
+  const btnText = activeBtn ? activeBtn.textContent.trim() : "";
+  let activeTab = "contratos"; // default
+  if (btnText.includes("Ganho")) activeTab = "ganhos";
+  else if (btnText.includes("Perdido")) activeTab = "perdidos";
+  else if (btnText.includes("Anális")) activeTab = "analise";
+  else if (btnText.includes("Rentab")) activeTab = "rentabilidade";
+  else if (btnText.includes("Intelig")) activeTab = "inteligencia";
+  else if (btnText.includes("Contrat")) activeTab = "contratos";
+
+  // Show/hide using switchHistoricoTab to keep consistent
+  switchHistoricoTab(activeTab);
 }
 
 window.switchHistoricoTab = function (tab) {
+  // 1. Update tab button active state
   document.querySelectorAll("#sub-tabs-historico .rent-tab").forEach(t => t.classList.remove("active"));
   const activeBtn = document.querySelector(`#sub-tabs-historico .rent-tab[onclick*="${tab}"]`);
   if (activeBtn) activeBtn.classList.add("active");
-  ["ganhos", "perdidos", "analise", "contratos", "rentabilidade", "inteligencia"].forEach(t => {
+
+  // 2. Hide ALL hist- containers, then show the active one
+  const allTabs = ["ganhos", "perdidos", "analise", "contratos", "rentabilidade", "inteligencia"];
+  allTabs.forEach(t => {
     const el = document.getElementById("hist-" + t);
-    if (el) el.style.display = t === tab ? "block" : "none";
+    if (el) { el.style.display = "none"; el.classList.remove("active"); }
   });
+  const activeEl = document.getElementById("hist-" + tab);
+  if (activeEl) { activeEl.style.display = "block"; activeEl.classList.add("active"); }
+
+  // 3. Render content for the active tab
   if (tab === "inteligencia") { renderIntelDashboard(); return; }
+  if (tab === "contratos") { if (typeof renderAprovados === 'function') renderAprovados(); return; }
+  if (tab === "rentabilidade") return;
+
   // Story 4.40: apply same filters as renderHistorico
   let resultados = JSON.parse(localStorage.getItem(RESULTADOS_STORAGE_KEY) || "[]");
   const fHistEscola = document.getElementById("filtro-hist-escola");
