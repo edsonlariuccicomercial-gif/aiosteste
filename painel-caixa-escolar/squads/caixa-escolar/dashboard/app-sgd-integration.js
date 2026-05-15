@@ -608,16 +608,14 @@ function renderSgd() {
       const pdfBtn = `<button class="btn btn-inline" onclick="gerarPdfProposta('${p.orcamentoId}')" title="Baixar PDF da proposta">PDF</button>`;
       let actions = "";
       if (p.status === "aprovado") {
-        actions = `<button class="btn btn-inline btn-sgd" onclick="sgdEnviarUnico('${p.orcamentoId}')">Enviar</button>
-          <button class="btn btn-inline" onclick="sgdBaixarPayload('${p.orcamentoId}')">Payload</button> ${pdfBtn}`;
+        actions = `<button class="btn btn-inline btn-sgd" onclick="sgdEnviarUnico('${p.orcamentoId}')">Enviar</button> ${pdfBtn}`;
       } else if (p.status === "enviado") {
-        actions = `<button class="btn btn-inline btn-accent" onclick="abrirModalResultado('${p.orcamentoId}')">Resultado</button>
-          <button class="btn btn-inline" onclick="sgdBaixarPayload('${p.orcamentoId}')">Payload</button> ${pdfBtn}`;
+        actions = `<button class="btn btn-inline btn-accent" onclick="abrirModalResultado('${p.orcamentoId}')">Resultado</button> ${pdfBtn}`;
       } else if (p.status === "ganho") {
         actions = `<button class="btn btn-inline" onclick="abrirPreOrcamento('${p.orcamentoId}')">Ver Itens</button>
           <button class="btn btn-inline btn-accent" onclick="gerarDemanda('${p.orcamentoId}')">Gerar Demanda</button> ${pdfBtn}`;
       } else {
-        actions = `<button class="btn btn-inline" onclick="sgdBaixarPayload('${p.orcamentoId}')">Payload</button> ${pdfBtn}`;
+        actions = pdfBtn;
       }
 
       // Resumo dos itens
@@ -927,8 +925,27 @@ async function varrerSgd() {
   const btn = document.getElementById("btn-varrer-sgd") || el.btnCollectSgd;
   if (!btn) return;
 
+  // Story 13.1: Cache check — skip if scanned in last 24h with same SREs (unless forced)
+  const forceRescan = btn.dataset.force === "true";
+  if (!forceRescan) {
+    try {
+      const cache = JSON.parse(localStorage.getItem("radar.cache.lastScan") || "{}");
+      const currentSres = (typeof getSresAtivas === 'function' ? getSresAtivas() : []).join(",");
+      const CACHE_TTL = 24 * 60 * 60 * 1000; // 24h
+      if (cache.ts && (Date.now() - cache.ts) < CACHE_TTL && cache.sres === currentSres && orcamentos.length > 0) {
+        const hoursAgo = Math.round((Date.now() - cache.ts) / 3600000);
+        if (!confirm(`Varredura realizada há ${hoursAgo}h com as mesmas SREs (${orcamentos.length} orçamentos). Varrer novamente?`)) {
+          return;
+        }
+      }
+    } catch(_) {}
+  }
+  btn.dataset.force = "";
+
   btn.disabled = true;
-  btn.innerHTML = '<span class="sgd-spinner"></span>Varrendo SGD...';
+  const activeSres = typeof getActiveSreConfigs === 'function' ? getActiveSreConfigs() : [];
+  const totalSres = activeSres.length || 1;
+  btn.innerHTML = `<span class="sgd-spinner"></span>Varrendo SGD (${totalSres} SREs)...`;
 
   try {
     if (sgdLocalServer) {
@@ -1262,6 +1279,9 @@ async function varrerSgd() {
     }
 
     renderAll();
+
+    // Story 13.1: Save cache timestamp
+    localStorage.setItem("radar.cache.lastScan", JSON.stringify({ ts: Date.now(), sres: (typeof getSresAtivas === 'function' ? getSresAtivas() : []).join(",") }));
 
     const now = new Date();
     const dd = String(now.getDate()).padStart(2, "0");

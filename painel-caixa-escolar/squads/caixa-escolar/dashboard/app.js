@@ -85,6 +85,11 @@ async function boot() {
   // Load banco from localStorage if available
   loadBancoLocal();
 
+  // Story 13.2: Load Central de Produtos v2 + migrate old data
+  loadCentralProdutos();
+  loadCustosFornecedores();
+  migrarParaCentralV2();
+
   // 2. Bind events + render with local data immediately
   populateFilters();
   bindEvents();
@@ -109,16 +114,19 @@ async function boot() {
   if (btnVarrer) btnVarrer.style.display = "inline-block";
 
   // 4. Background: load JSON data + cloud sync (non-blocking)
-  const [orcData, bancoData, perfilData, ...sreResults] = await Promise.all([
+  const [orcData, bancoData, perfilData] = await Promise.all([
     fetchJson("data/orcamentos.json"),
     fetchJson("data/banco-precos.json"),
     fetchJson("data/perfil.json"),
-    ...SRE_CONFIGS.map(c => fetchJson(c.arquivo)),
   ]);
 
   perfil = perfilData || {};
-  // Load all SRE data (Story 4.33)
-  allSreData = SRE_CONFIGS.map((c, i) => ({
+  // Story 13.1: Load SRE data only for active SREs (not all 47)
+  const activeSres = getActiveSreConfigs();
+  const sreResults = await Promise.all(
+    activeSres.map(c => fetchJson(c.arquivo || ("data/sre-" + c.id + ".json")).catch(() => ({ municipios: [] })))
+  );
+  allSreData = activeSres.map((c, i) => ({
     ...c,
     data: sreResults[i] || { municipios: [] }
   }));
@@ -530,21 +538,63 @@ function toggleSelectAll() {
   updateBatchBar();
 }
 
-function batchPreOrcar() {
+// Story 13.3: Prompt to create product inline when batch has no match
+function _promptCriarProdutoBatch(itemNome, unidade, categoria) {
+  return new Promise((resolve) => {
+    const modal = document.getElementById("modal-criar-produto-batch");
+    if (!modal) { resolve(null); return; }
+    document.getElementById("batch-prod-nome").value = itemNome;
+    document.getElementById("batch-prod-unidade").value = unidade || "UN";
+    document.getElementById("batch-prod-categoria").value = categoria || "Geral";
+    document.getElementById("batch-criar-info").textContent = "Item SGD sem produto associado. Crie o produto ou pule.";
+    modal.style.display = "flex";
+
+    const btnSalvar = document.getElementById("batch-prod-salvar");
+    const btnPular = document.getElementById("batch-prod-pular");
+    const cleanup = () => { modal.style.display = "none"; btnSalvar.onclick = null; btnPular.onclick = null; };
+
+    btnSalvar.onclick = () => {
+      const nome = (document.getElementById("batch-prod-nome").value || "").trim();
+      if (!nome) { showToast("Nome obrigatorio."); return; }
+      const prod = {
+        id: "PROD-" + Date.now() + "-" + Math.random().toString(36).substr(2, 6),
+        nome: nome,
+        item: nome,
+        unidade_base: document.getElementById("batch-prod-unidade").value || "UN",
+        categoria: document.getElementById("batch-prod-categoria").value || "Geral",
+        origem: "batch-pre-orcamento",
+        ativo: true,
+        criadoEm: new Date().toISOString(),
+        custoBase: 0, margemPadrao: 0.30, precoReferencia: 0,
+        custosFornecedor: [], concorrentes: [], propostas: []
+      };
+      // Save to banco
+      bancoPrecos.itens.push(prod);
+      saveBancoLocal();
+      cleanup();
+      resolve(prod);
+    };
+    btnPular.onclick = () => { cleanup(); resolve(null); };
+  });
+}
+
+async function batchPreOrcar() {
   if (selectedOrcIds.size === 0) return;
   const ids = [...selectedOrcIds];
   let count = 0;
+  let produtosCriados = 0;
 
-  ids.forEach((orcId) => {
+  for (const orcId of ids) {
     const orc = orcamentos.find((o) => o.id === orcId);
-    if (!orc || isGrupoExcluido(orc.grupo) || preOrcamentos[orcId]) return;
+    if (!orc || isGrupoExcluido(orc.grupo) || preOrcamentos[orcId]) continue;
 
     const margemPadrao = perfil.config ? perfil.config.margemPadrao || 0.30 : 0.30;
     const frete = calcFreteEstimado(orc.municipio);
 
     const todayStr = new Date().toISOString().slice(0, 10);
 
-    const itens = (orc.itens || []).map((item) => {
+    const itens = [];
+    for (const item of (orc.itens || [])) {
       let bp = null;
       let matchStatus = "sem_match";
       let matchScore = 0;
@@ -578,17 +628,27 @@ function batchPreOrcar() {
         }
       }
 
+      // Story 13.3: If no match, prompt user to create product inline
       if (!bp) {
-        bp = {
-          id: "bp-" + String(Date.now()).slice(-6) + "-" + Math.random().toString(36).slice(2, 5),
-          item: item.nome,
-          grupo: orc.grupo || "Material de Consumo Geral",
-          unidade: item.unidade || "Unidade",
-          custoBase: 0, margemPadrao: margemPadrao, precoReferencia: 0,
-          ultimaCotacao: todayStr, fonte: "",
-          propostas: [], concorrentes: [], custosFornecedor: [],
-        };
-        bancoPrecos.itens.push(bp);
+        const criado = await _promptCriarProdutoBatch(item.nome, item.unidade, orc.grupo);
+        if (criado) {
+          bp = criado;
+          matchStatus = "criado_inline";
+          matchScore = 1.0;
+          produtosCriados++;
+        } else {
+          // User skipped — create silent placeholder
+          bp = {
+            id: "bp-" + String(Date.now()).slice(-6) + "-" + Math.random().toString(36).slice(2, 5),
+            item: item.nome,
+            grupo: orc.grupo || "Material de Consumo Geral",
+            unidade: item.unidade || "Unidade",
+            custoBase: 0, margemPadrao: margemPadrao, precoReferencia: 0,
+            ultimaCotacao: todayStr, fonte: "",
+            propostas: [], concorrentes: [], custosFornecedor: [],
+          };
+          bancoPrecos.itens.push(bp);
+        }
       }
       let custoUnit = bp.custoBase;
       if (custoUnit === 0 && (bp.custosFornecedor || []).length > 0) {
@@ -599,7 +659,7 @@ function batchPreOrcar() {
       const concorrentes = bp.concorrentes || [];
       const menorConc = concorrentes.length > 0 ? Math.min(...concorrentes.map((c) => c.preco)) : 0;
 
-      return {
+      itens.push({
         nome: item.nome,
         marca: bp.marca || "",
         descricao: item.descricao || "",
@@ -613,8 +673,8 @@ function batchPreOrcar() {
         precoUnitario: precoUnit,
         precoTotal: Math.round(precoUnit * (item.quantidade || 0) * 100) / 100,
         menorConcorrente: menorConc,
-      };
-    });
+      });
+    } // end for-of items
 
     const totalGeral = itens.reduce((s, i) => s + i.precoTotal, 0);
     const margens = itens.filter((i) => i.custoUnitario > 0).map((i) => i.margem);
@@ -633,13 +693,14 @@ function batchPreOrcar() {
       margemMedia: margemMedia,
     };
     count++;
-  });
+  } // end for-of orcIds
 
   saveBancoLocal();
   savePreOrcamentos();
   selectedOrcIds.clear();
   renderAll();
-  alert(`${count} pré-orçamento${count > 1 ? "s" : ""} gerado${count > 1 ? "s" : ""}.`);
+  const resumo = produtosCriados > 0 ? ` (${produtosCriados} produto(s) criado(s) inline)` : "";
+  alert(`${count} pré-orçamento${count > 1 ? "s" : ""} gerado${count > 1 ? "s" : ""}.${resumo}`);
 }
 
 function batchExportCsv() {
@@ -2800,13 +2861,14 @@ window.aplicarMargemGlobal = function () {
 const ORIGEM_LABELS = { '0': '0-Nacional', '1': '1-Import. Direta', '2': '2-Import. Merc. Interno', '3': '3-Nac. >40% Import.', '4': '4-Nac. Proc. Basicos', '5': '5-Nac. <=40% Import.', '6': '6-Import. s/ Similar', '7': '7-Import. MI s/ Similar' };
 
 window.renderCentralPrecos = function () {
-  // Fonte primária: gdp.estoque-intel.produtos.v1 (mesma do GDP Central de Produtos)
-  let produtos = [];
-  try {
-    const raw = JSON.parse(localStorage.getItem('gdp.estoque-intel.produtos.v1') || '[]');
-    produtos = Array.isArray(raw) ? raw : (raw.itens || raw.items || []);
-  } catch(_) {}
-  // Fallback: gdp.produtos.v1
+  // Story 13.2: Primary source is now centralProdutos (v2), fallback to legacy
+  let produtos = centralProdutos.length > 0 ? centralProdutos : [];
+  if (!produtos.length) {
+    try {
+      const raw = JSON.parse(localStorage.getItem('gdp.estoque-intel.produtos.v1') || '[]');
+      produtos = Array.isArray(raw) ? raw : (raw.itens || raw.items || []);
+    } catch(_) {}
+  }
   if (!produtos.length) {
     try {
       const raw = JSON.parse(localStorage.getItem('gdp.produtos.v1') || '{}');
@@ -2832,7 +2894,13 @@ window.renderCentralPrecos = function () {
     const origem = ORIGEM_LABELS[String(p.origem || '0')] || String(p.origem || '0');
     const sku = p.sku || '-';
     const ncm = p.ncm || '-';
+    // Story 13.2: Show menor custo + custo mais recente from custos_fornecedores
+    const menorCusto = typeof getMenorCusto === 'function' ? getMenorCusto(p.id) : 0;
+    const custoRecente = typeof getCustoMaisRecente === 'function' ? getCustoMaisRecente(p.id) : 0;
+    const custoDisplay = menorCusto > 0 ? brl.format(menorCusto) : (Number(p.preco_custo || 0) > 0 ? brl.format(Number(p.preco_custo)) : '—');
     const preco = parseFloat(p.preco_referencia || p.precoReferencia || 0);
+    const numCustos = typeof getCustosForProduto === 'function' ? getCustosForProduto(p.id).length : 0;
+    const custosBadge = numCustos > 0 ? '<span style="font-size:.6rem;color:var(--muted);margin-left:4px;" title="' + numCustos + ' registro(s) de custo">(' + numCustos + ')</span>' : '';
     return '<tr>' +
       '<td style="font-size:.78rem;color:var(--muted)">' + (idx + 1) + '</td>' +
       '<td><button style="background:none;border:none;padding:0;color:var(--text);font-weight:600;cursor:pointer;font-size:.85rem;text-align:left" onclick="editarProdutoCentralPrecos(\'' + (p.id || '').replace(/'/g, '') + '\')">' + escapeHtml(nome) + '</button></td>' +
@@ -2841,7 +2909,7 @@ window.renderCentralPrecos = function () {
       '<td style="font-size:.75rem">' + escapeHtml(origem) + '</td>' +
       '<td class="font-mono" style="font-size:.75rem">' + escapeHtml(sku) + '</td>' +
       '<td class="font-mono" style="font-size:.75rem">' + escapeHtml(ncm) + '</td>' +
-      '<td class="text-right font-mono">' + (Number(p.preco_custo || 0) > 0 ? brl.format(Number(p.preco_custo)) : '—') + '</td>' +
+      '<td class="text-right font-mono">' + custoDisplay + custosBadge + '</td>' +
       '<td class="text-right font-mono">' + brl.format(preco) + '</td>' +
       '</tr>';
   }).join('');
@@ -3062,6 +3130,52 @@ document.querySelectorAll('#tabs-intel-precos .tab').forEach(btn => {
     if (tab === "revisao-unidades") setTimeout(renderRevisaoUnidades, 100);
     if (tab === "historico") setTimeout(() => { if (typeof renderAprovados === 'function') renderAprovados(); }, 100);
   });
+});
+
+// ===== Story 13.1: SRE Config UI =====
+window.renderSresConfig = function () {
+  const grid = document.getElementById("sres-grid");
+  const countEl = document.getElementById("sres-count");
+  if (!grid) return;
+  const ativas = getSresAtivas();
+  grid.innerHTML = SRE_CONFIGS.map(s => {
+    const checked = ativas.includes(s.id) ? "checked" : "";
+    return `<label style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--bg);border:1px solid var(--line);border-radius:6px;cursor:pointer;font-size:.85rem;">
+      <input type="checkbox" class="sre-check" value="${s.id}" ${checked}>
+      <span><strong>${s.nome}</strong> <span style="color:var(--muted);font-size:.75rem;">${s.regiao}</span></span>
+    </label>`;
+  }).join("");
+  if (countEl) countEl.textContent = ativas.length + " de " + SRE_CONFIGS.length + " SREs selecionadas";
+};
+
+window.aplicarPerfilSre = function (perfil) {
+  const ids = SRE_PERFIS[perfil] || SRE_DEFAULT_ATIVAS;
+  document.querySelectorAll(".sre-check").forEach(cb => {
+    cb.checked = ids.includes(cb.value);
+  });
+  const countEl = document.getElementById("sres-count");
+  if (countEl) countEl.textContent = ids.length + " de " + SRE_CONFIGS.length + " SREs selecionadas";
+};
+
+window.selecionarTodasSres = function (selecionar) {
+  document.querySelectorAll(".sre-check").forEach(cb => { cb.checked = selecionar; });
+  const total = selecionar ? SRE_CONFIGS.length : 0;
+  const countEl = document.getElementById("sres-count");
+  if (countEl) countEl.textContent = total + " de " + SRE_CONFIGS.length + " SREs selecionadas";
+};
+
+window.salvarSresConfig = function () {
+  const selecionadas = [...document.querySelectorAll(".sre-check:checked")].map(cb => cb.value);
+  if (selecionadas.length === 0) { showToast("Selecione ao menos 1 SRE."); return; }
+  setSresAtivas(selecionadas);
+  showToast(selecionadas.length + " SREs configuradas. Próxima varredura usará estas SREs.");
+};
+
+// Render SRE config when tab is activated
+document.addEventListener("click", function (e) {
+  if (e.target.matches('[data-config-tab="sres"]')) {
+    setTimeout(renderSresConfig, 50);
+  }
 });
 
 // ===== INIT =====

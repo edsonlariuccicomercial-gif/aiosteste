@@ -10,13 +10,86 @@ const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" 
 const pct = (v) => (v * 100).toFixed(0) + "%";
 const today = new Date(new Date().toISOString().slice(0, 10) + "T00:00:00");
 
-// ===== MULTI-SRE CONFIG (Story 4.33) =====
+// ===== MULTI-SRE CONFIG (Story 13.1 — 47 SREs MG) =====
 const SRE_CONFIGS = [
-  { id: "uberaba", nome: "Uberaba", arquivo: "data/sre-uberaba.json" },
-  { id: "uberlandia", nome: "Uberlandia", arquivo: "data/sre-uberlandia.json" },
-  { id: "passos", nome: "Passos", arquivo: "data/sre-passos.json" },
+  { id: "almenara", nome: "Almenara", regiao: "Norte" },
+  { id: "aracuai", nome: "Araçuaí", regiao: "Norte" },
+  { id: "barbacena", nome: "Barbacena", regiao: "Central" },
+  { id: "campo-belo", nome: "Campo Belo", regiao: "Oeste" },
+  { id: "carangola", nome: "Carangola", regiao: "Leste" },
+  { id: "caratinga", nome: "Caratinga", regiao: "Leste" },
+  { id: "caxambu", nome: "Caxambu", regiao: "Sul" },
+  { id: "conselheiro-lafaiete", nome: "Conselheiro Lafaiete", regiao: "Central" },
+  { id: "coronel-fabriciano", nome: "Coronel Fabriciano", regiao: "Leste" },
+  { id: "curvelo", nome: "Curvelo", regiao: "Central" },
+  { id: "diamantina", nome: "Diamantina", regiao: "Norte" },
+  { id: "divinopolis", nome: "Divinópolis", regiao: "Oeste" },
+  { id: "governador-valadares", nome: "Governador Valadares", regiao: "Leste" },
+  { id: "guanhaes", nome: "Guanhães", regiao: "Leste" },
+  { id: "itajuba", nome: "Itajubá", regiao: "Sul" },
+  { id: "ituiutaba", nome: "Ituiutaba", regiao: "Triângulo" },
+  { id: "janauba", nome: "Janaúba", regiao: "Norte" },
+  { id: "januaria", nome: "Januária", regiao: "Norte" },
+  { id: "juiz-de-fora", nome: "Juiz de Fora", regiao: "Zona da Mata" },
+  { id: "leopoldina", nome: "Leopoldina", regiao: "Zona da Mata" },
+  { id: "manhuacu", nome: "Manhuaçu", regiao: "Leste" },
+  { id: "metropolitana-a", nome: "Metropolitana A (BH)", regiao: "Metropolitana" },
+  { id: "metropolitana-b", nome: "Metropolitana B (BH)", regiao: "Metropolitana" },
+  { id: "metropolitana-c", nome: "Metropolitana C (BH)", regiao: "Metropolitana" },
+  { id: "monte-carmelo", nome: "Monte Carmelo", regiao: "Triângulo" },
+  { id: "montes-claros", nome: "Montes Claros", regiao: "Norte" },
+  { id: "muriae", nome: "Muriaé", regiao: "Zona da Mata" },
+  { id: "nova-era", nome: "Nova Era", regiao: "Central" },
+  { id: "ouro-preto", nome: "Ouro Preto", regiao: "Central" },
+  { id: "para-de-minas", nome: "Pará de Minas", regiao: "Central" },
+  { id: "paracatu", nome: "Paracatu", regiao: "Noroeste" },
+  { id: "passos", nome: "Passos", regiao: "Sul" },
+  { id: "patos-de-minas", nome: "Patos de Minas", regiao: "Alto Paranaíba" },
+  { id: "patrocinio", nome: "Patrocínio", regiao: "Alto Paranaíba" },
+  { id: "pirapora", nome: "Pirapora", regiao: "Norte" },
+  { id: "pocos-de-caldas", nome: "Poços de Caldas", regiao: "Sul" },
+  { id: "ponte-nova", nome: "Ponte Nova", regiao: "Zona da Mata" },
+  { id: "pouso-alegre", nome: "Pouso Alegre", regiao: "Sul" },
+  { id: "sao-joao-del-rei", nome: "São João del Rei", regiao: "Central" },
+  { id: "sao-sebastiao-do-paraiso", nome: "São Sebastião do Paraíso", regiao: "Sul" },
+  { id: "sete-lagoas", nome: "Sete Lagoas", regiao: "Central" },
+  { id: "teofilo-otoni", nome: "Teófilo Otoni", regiao: "Norte" },
+  { id: "uba", nome: "Ubá", regiao: "Zona da Mata" },
+  { id: "uberaba", nome: "Uberaba", regiao: "Triângulo" },
+  { id: "uberlandia", nome: "Uberlândia", regiao: "Triângulo" },
+  { id: "unai", nome: "Unaí", regiao: "Noroeste" },
+  { id: "varginha", nome: "Varginha", regiao: "Sul" },
 ];
+const SRE_DEFAULT_ATIVAS = ["uberaba", "uberlandia", "passos"]; // backward compat
+const SRE_PERFIS = {
+  rapido: ["uberaba", "uberlandia", "passos"],
+  regional: ["uberaba", "uberlandia", "passos", "ituiutaba", "patos-de-minas", "patrocinio", "monte-carmelo", "campo-belo", "divinopolis", "varginha"],
+  completo: SRE_CONFIGS.map(s => s.id)
+};
 let allSreData = []; // loaded SRE data objects
+
+// Story 13.1: Get active SREs from empresa config or default
+function getSresAtivas() {
+  try {
+    const emp = JSON.parse(localStorage.getItem("nexedu.empresa") || "{}");
+    if (Array.isArray(emp.sresAtivas) && emp.sresAtivas.length > 0) return emp.sresAtivas;
+  } catch(_) {}
+  return SRE_DEFAULT_ATIVAS;
+}
+
+function setSresAtivas(ids) {
+  try {
+    const emp = JSON.parse(localStorage.getItem("nexedu.empresa") || "{}");
+    emp.sresAtivas = ids;
+    localStorage.setItem("nexedu.empresa", JSON.stringify(emp));
+    schedulCloudSync();
+  } catch(_) {}
+}
+
+function getActiveSreConfigs() {
+  const ativas = getSresAtivas();
+  return SRE_CONFIGS.filter(s => ativas.includes(s.id));
+}
 
 // ===== STATE =====
 let orcamentos = [];
@@ -228,6 +301,164 @@ function mergeMestres(keepId, absorbId) {
   saveBancoLocal();
 }
 
+// ===== CENTRAL DE PRODUTOS v2 + CUSTOS FORNECEDORES (Story 13.2) =====
+const CENTRAL_PRODUTOS_KEY = "intel.central-produtos.v2";
+const CUSTOS_FORNECEDORES_KEY = "intel.custos-fornecedores.v1";
+let centralProdutos = []; // Array of product objects (base fixa)
+let custosFornecedores = []; // Array of cost records (valores dinâmicos)
+
+function loadCentralProdutos() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(CENTRAL_PRODUTOS_KEY) || '{}');
+    centralProdutos = raw.items || (Array.isArray(raw) ? raw : []);
+  } catch(_) { centralProdutos = []; }
+}
+
+function saveCentralProdutos() {
+  const wrapped = { _v: 1, updatedAt: new Date().toISOString(), items: centralProdutos };
+  localStorage.setItem(CENTRAL_PRODUTOS_KEY, JSON.stringify(wrapped));
+  schedulCloudSync();
+}
+
+function loadCustosFornecedores() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(CUSTOS_FORNECEDORES_KEY) || '{}');
+    custosFornecedores = raw.items || (Array.isArray(raw) ? raw : []);
+  } catch(_) { custosFornecedores = []; }
+}
+
+function saveCustosFornecedores() {
+  const wrapped = { _v: 1, updatedAt: new Date().toISOString(), items: custosFornecedores };
+  localStorage.setItem(CUSTOS_FORNECEDORES_KEY, JSON.stringify(wrapped));
+  schedulCloudSync();
+}
+
+// Get costs for a product, sorted by date (newest first)
+function getCustosForProduto(produtoId) {
+  return custosFornecedores
+    .filter(c => c.produto_id === produtoId)
+    .sort((a, b) => (b.data_coleta || "").localeCompare(a.data_coleta || ""));
+}
+
+// Get the best (lowest) current cost for a product
+function getMenorCusto(produtoId) {
+  const custos = getCustosForProduto(produtoId).filter(c => c.custo > 0);
+  return custos.length > 0 ? Math.min(...custos.map(c => c.custo)) : 0;
+}
+
+// Get most recent cost for a product
+function getCustoMaisRecente(produtoId) {
+  const custos = getCustosForProduto(produtoId);
+  return custos.length > 0 ? custos[0].custo : 0;
+}
+
+// Add a cost record
+function addCustoFornecedor(produtoId, fornecedor, custo, origem, confiabilidade, arquivoId) {
+  const CONFIABILIDADE_MAP = { nf: 1.0, excel: 0.95, manual: 0.90, b2b: 0.85, pdf: 0.85, 'pdf-ocr': 0.50, api: 0.90, marketplace: 0.85 };
+  custosFornecedores.push({
+    id: "CUSTO-" + Date.now() + "-" + Math.random().toString(36).substr(2, 5),
+    produto_id: produtoId,
+    fornecedor: fornecedor || "",
+    custo: custo,
+    data_coleta: new Date().toISOString().slice(0, 10),
+    validade: null,
+    regiao: "",
+    origem: origem || "manual",
+    confiabilidade: confiabilidade || CONFIABILIDADE_MAP[origem] || 0.90,
+    arquivo_id: arquivoId || null
+  });
+  saveCustosFornecedores();
+}
+
+// Story 13.2: Migrate old data format to new central+custos structure
+function migrarParaCentralV2() {
+  if (centralProdutos.length > 0) return; // already migrated
+
+  // Source 1: gdp.estoque-intel.produtos.v1
+  let oldProdutos = [];
+  try {
+    const raw = JSON.parse(localStorage.getItem('gdp.estoque-intel.produtos.v1') || '[]');
+    oldProdutos = Array.isArray(raw) ? raw : (raw.items || raw.itens || []);
+  } catch(_) {}
+
+  // Source 2: caixaescolar.banco.v1
+  let oldBanco = [];
+  try {
+    const raw = JSON.parse(localStorage.getItem('caixaescolar.banco.v1') || '{}');
+    oldBanco = raw.itens || (Array.isArray(raw) ? raw : []);
+  } catch(_) {}
+
+  const migrated = new Set();
+
+  // Migrate estoque-intel produtos
+  oldProdutos.forEach(p => {
+    const id = p.id || ("PROD-" + Date.now() + "-" + Math.random().toString(36).substr(2, 6));
+    centralProdutos.push({
+      id: id,
+      nome: p.nome || p.descricao || "",
+      unidade_base: p.unidade_base || p.unidade || "UN",
+      categoria: p.categoria || p.grupo || "",
+      sku: p.sku || "",
+      ncm: p.ncm || "",
+      origem: p.origem || "0",
+      produto_critico: p.produto_critico || false,
+      ativo: true,
+      criadoEm: p.criadoEm || new Date().toISOString(),
+      atualizadoEm: new Date().toISOString()
+    });
+    // Migrate embedded costs
+    if (p.preco_custo > 0 || p.custoBase > 0) {
+      addCustoFornecedor(id, "migrado", p.preco_custo || p.custoBase || 0, "manual", 0.90, null);
+    }
+    migrated.add((p.nome || p.descricao || "").toLowerCase());
+  });
+
+  // Migrate banco items (skip duplicates by name)
+  oldBanco.forEach(b => {
+    const nome = (b.item || b.nome || "").toLowerCase();
+    if (!nome || migrated.has(nome)) return;
+    const id = b.id || b.sku || ("PROD-" + Date.now() + "-" + Math.random().toString(36).substr(2, 6));
+    centralProdutos.push({
+      id: id,
+      nome: b.item || b.nome || "",
+      unidade_base: b.unidade || "UN",
+      categoria: b.grupo || "",
+      sku: b.sku || "",
+      ncm: b.ncm || "",
+      origem: "0",
+      produto_critico: false,
+      ativo: true,
+      criadoEm: new Date().toISOString(),
+      atualizadoEm: new Date().toISOString()
+    });
+    // Migrate custosFornecedor array
+    (b.custosFornecedor || []).forEach(cf => {
+      custosFornecedores.push({
+        id: "CUSTO-" + Date.now() + "-" + Math.random().toString(36).substr(2, 5),
+        produto_id: id,
+        fornecedor: cf.fornecedor || "",
+        custo: cf.preco || 0,
+        data_coleta: cf.data || new Date().toISOString().slice(0, 10),
+        validade: null,
+        regiao: "",
+        origem: cf.origem || "manual",
+        confiabilidade: cf.confianca || 0.90,
+        arquivo_id: cf.arquivoId || null
+      });
+    });
+    if (b.custoBase > 0 && (!b.custosFornecedor || b.custosFornecedor.length === 0)) {
+      addCustoFornecedor(id, "migrado", b.custoBase, "manual", 0.90, null);
+    }
+    migrated.add(nome);
+  });
+
+  if (centralProdutos.length > 0) {
+    saveCentralProdutos();
+    saveCustosFornecedores();
+    gdpLog(`[Migração v2] ${centralProdutos.length} produtos, ${custosFornecedores.length} custos migrados`);
+  }
+}
+
 // ===== ARQUIVOS IMPORTADOS (Story 4.27) =====
 const ARQUIVOS_KEY = "caixaescolar.arquivos-importados";
 let arquivosImportados = [];
@@ -391,7 +622,9 @@ const SHARED_SYNC_KEYS = new Set([
   "gdp.equivalencias.v1",
   "gdp.conversoes.v1", "gdp.demandas.v1",
   "gdp.estoque.v1", "gdp.lista-compras.v1",
-  // Intel Preços — Central de Produtos/Preços sync
+  // Intel Preços v2 — Central + Custos
+  "intel.central-produtos.v2", "intel.custos-fornecedores.v1",
+  // Intel Preços — legacy sync
   "gdp.estoque-intel.produtos.v1", "gdp.estoque-intel.embalagens.v1",
   "gdp.estoque-intel.pedidos.v1", "gdp.estoque-intel.pedido-itens.v1",
   "gdp.estoque-intel.movimentacoes.v1", "gdp.estoque-intel.fornecedores.v1",
@@ -421,7 +654,9 @@ const SYNC_KEYS = [
   "gdp.equivalencias.v1",
   "gdp.conversoes.v1", "gdp.demandas.v1",
   "gdp.estoque.v1", "gdp.lista-compras.v1",
-  // Intel Preços — Central de Produtos/Preços sync
+  // Intel Preços v2 — Central + Custos
+  "intel.central-produtos.v2", "intel.custos-fornecedores.v1",
+  // Intel Preços — legacy sync
   "gdp.estoque-intel.produtos.v1", "gdp.estoque-intel.embalagens.v1",
   "gdp.estoque-intel.pedidos.v1", "gdp.estoque-intel.pedido-itens.v1",
   "gdp.estoque-intel.movimentacoes.v1", "gdp.estoque-intel.fornecedores.v1",
