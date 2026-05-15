@@ -519,6 +519,8 @@
           <!-- Story 13.3: Baixar Payloads removed (no operational use) -->
           <button id="btn-sgd-baixar-pdfs" class="btn btn-sm" style="display:none;">Baixar PDFs</button>
           <button id="btn-sgd-imprimir" class="btn btn-sm" onclick="imprimirSgd()">Imprimir</button>
+          <!-- Story 13.6: Batch result scan -->
+          <button id="btn-varrer-resultados" class="btn btn-sm btn-accent" onclick="varrerResultadosSgd()" title="Varrer resultados pendentes de todas as propostas enviadas">Atualizar Resultados</button>
         </div>
       </div>
 
@@ -620,6 +622,9 @@
         <button class="rent-tab" onclick="switchHistoricoTab('perdidos')">Perdidos</button>
         <button class="rent-tab" onclick="switchHistoricoTab('analise')">Análise</button>
         <button class="rent-tab" onclick="switchHistoricoTab('rentabilidade')">Rentabilidade</button>
+        <button class="rent-tab" onclick="switchHistoricoTab('inteligencia')">Inteligência</button>
+        <!-- Story 13.6: Import retroactive history -->
+        <button class="btn btn-sm" onclick="abrirImportHistorico()" style="margin-left:auto;" title="Importar CSV/Excel com resultados passados (141+ propostas)">Importar Histórico</button>
       </div>
       <!-- Contratos (ex-Aprovados) -->
       <div id="hist-contratos" class="rent-content active">
@@ -632,6 +637,27 @@
       <!-- Rentabilidade integrada (ex-aba separada) -->
       <div id="hist-rentabilidade" class="rent-content" style="display:none;">
         <div id="rentabilidade-inline"></div>
+      </div>
+      <!-- Story 13.7: Inteligência Competitiva Dashboard -->
+      <div id="hist-inteligencia" class="rent-content" style="display:none;">
+        <div style="display:flex;gap:.5rem;margin-bottom:1rem;flex-wrap:wrap;">
+          <select id="intel-filtro-sre" style="font-size:.8rem;padding:4px 8px;">
+            <option value="all">Todas SREs</option>
+          </select>
+          <select id="intel-filtro-produto" style="font-size:.8rem;padding:4px 8px;">
+            <option value="all">Todos Produtos</option>
+          </select>
+          <input type="date" id="intel-filtro-de" style="font-size:.8rem;padding:4px 8px;" />
+          <input type="date" id="intel-filtro-ate" style="font-size:.8rem;padding:4px 8px;" />
+          <button class="btn btn-sm" onclick="renderIntelDashboard()">Filtrar</button>
+        </div>
+        <div id="intel-kpis" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.75rem;margin-bottom:1.5rem;"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+          <div id="intel-win-rate-sre"></div>
+          <div id="intel-top-concorrentes"></div>
+        </div>
+        <div id="intel-price-to-win" style="margin-top:1rem;"></div>
+        <div id="intel-tendencia" style="margin-top:1rem;"></div>
       </div>
     </div>
   </section>
@@ -737,6 +763,11 @@
         </div>
         <div class="modal-actions" style="margin-top:16px;">
           <button id="btn-cfg-salvar" class="btn btn-accent">Salvar Dados</button>
+        </div>
+        <!-- Story 13.8: Motor de Precificação Config -->
+        <div style="margin-top:2rem;border-top:1px solid var(--line);padding-top:1.5rem;">
+          <h3 style="font-size:.9rem;margin-bottom:1rem;">Motor de Precificação (Mark-up)</h3>
+          <div id="config-empresa-markup"></div>
         </div>
       </div>
       <!-- Cadastro de Usuários -->
@@ -1088,6 +1119,17 @@
           <label style="font-size:.78rem;color:var(--muted);display:flex;align-items:center;gap:.4rem;cursor:pointer"><input type="radio" name="mpc-tipo" value="comum" checked> Comum</label>
           <label style="font-size:.78rem;color:var(--muted);display:flex;align-items:center;gap:.4rem;cursor:pointer"><input type="radio" name="mpc-tipo" value="critico"> Critico (gramatura/ml)</label>
         </div>
+        <!-- Story 13.5: Kraljic Classification -->
+        <div><label style="font-size:.75rem;color:var(--muted);display:block;margin-bottom:.25rem">Classificação Kraljic
+            <span style="font-size:.65rem;color:var(--muted);cursor:help;" title="Não-crítico: baixo risco + baixo impacto financeiro&#10;Alavancagem: baixo risco + alto impacto — foco em negociação&#10;Gargalo: alto risco + baixo impacto — garantir fornecimento&#10;Estratégico: alto risco + alto impacto — parceria estratégica">(?)</span>
+          </label>
+          <select id="mpc-kraljic" style="width:100%">
+            <option value="nao-critico">Não-crítico (baixo risco, baixo impacto)</option>
+            <option value="alavancagem" selected>Alavancagem (baixo risco, alto impacto)</option>
+            <option value="gargalo">Gargalo (alto risco, baixo impacto)</option>
+            <option value="estrategico">Estratégico (alto risco, alto impacto)</option>
+          </select>
+        </div>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.75rem">
           <div><label style="font-size:.75rem;color:var(--muted);display:block;margin-bottom:.25rem">Origem</label><select id="mpc-origem" style="width:100%"><option value="0">0-Nacional</option><option value="1">1-Import.Direta</option><option value="2">2-Import.MI</option></select></div>
           <div><label style="font-size:.75rem;color:var(--muted);display:block;margin-bottom:.25rem">P. Custo</label><input type="number" id="mpc-custo" style="width:100%" min="0" step="0.01" value="0"></div>
@@ -1433,5 +1475,6 @@
   <script src="radar-matcher.js?v=1"></script>
   <script src="app.js?v=26"></script>
   <script src="pricing-intel.js?v=1"></script>
+  <script src="pricing-engine.js?v=1"></script>
 </body>
 </html>

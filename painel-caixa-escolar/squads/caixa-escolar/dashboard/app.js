@@ -2896,6 +2896,14 @@ window.renderCentralPrecos = function () {
     return;
   }
   if (empty) empty.style.display = 'none';
+  // Story 13.5: Kraljic badge colors
+  const KRALJIC_BADGES = {
+    'nao-critico': { label: 'Não-crítico', color: '#94a3b8' },
+    'alavancagem': { label: 'Alavancagem', color: '#059669' },
+    'gargalo': { label: 'Gargalo', color: '#d97706' },
+    'estrategico': { label: 'Estratégico', color: '#2563eb' }
+  };
+
   tbody.innerHTML = filtrados.map((p, idx) => {
     const nome = p.nome || p.descricao || '';
     const unidade = p.unidade_base || p.unidade || '-';
@@ -2910,11 +2918,16 @@ window.renderCentralPrecos = function () {
     const preco = parseFloat(p.preco_referencia || p.precoReferencia || 0);
     const numCustos = typeof getCustosForProduto === 'function' ? getCustosForProduto(p.id).length : 0;
     const custosBadge = numCustos > 0 ? '<button style="font-size:.6rem;color:#2563eb;margin-left:4px;background:none;border:none;cursor:pointer;text-decoration:underline;padding:0;" onclick="event.stopPropagation();abrirCustosFornecedor(\'' + (p.id || '').replace(/'/g, '') + '\')" title="Ver ' + numCustos + ' registro(s) de custo">(' + numCustos + ')</button>' : '';
+    // Story 13.5: Kraljic badge
+    const kraljicKey = p.classificacao_kraljic || 'alavancagem';
+    const kraljicInfo = KRALJIC_BADGES[kraljicKey] || KRALJIC_BADGES['alavancagem'];
+    const kraljicBadge = '<span style="background:' + kraljicInfo.color + ';color:#fff;font-size:.55rem;padding:1px 5px;border-radius:3px;font-weight:600;white-space:nowrap;">' + kraljicInfo.label + '</span>';
     return '<tr>' +
       '<td style="font-size:.78rem;color:var(--muted)">' + (idx + 1) + '</td>' +
       '<td><button style="background:none;border:none;padding:0;color:var(--text);font-weight:600;cursor:pointer;font-size:.85rem;text-align:left" onclick="editarProdutoCentralPrecos(\'' + (p.id || '').replace(/'/g, '') + '\')">' + escapeHtml(nome) + '</button></td>' +
       '<td>' + escapeHtml(unidade) + '</td>' +
       '<td>' + (categoria !== '-' ? '<span class="badge badge-muted" style="font-size:.65rem">' + escapeHtml(categoria) + '</span>' : '-') + '</td>' +
+      '<td>' + kraljicBadge + '</td>' +
       '<td style="font-size:.75rem">' + escapeHtml(origem) + '</td>' +
       '<td class="font-mono" style="font-size:.75rem">' + escapeHtml(sku) + '</td>' +
       '<td class="font-mono" style="font-size:.75rem">' + escapeHtml(ncm) + '</td>' +
@@ -2938,6 +2951,9 @@ window.abrirNovoProdutoCentralPrecos = function () {
   document.getElementById("mpc-venda").value = "0";
   const tipoComum = document.querySelector('input[name="mpc-tipo"][value="comum"]');
   if (tipoComum) tipoComum.checked = true;
+  // Story 13.5: Default Kraljic = alavancagem
+  const kraljicSel = document.getElementById("mpc-kraljic");
+  if (kraljicSel) kraljicSel.value = "alavancagem";
   document.getElementById("modal-produto-central").style.display = "flex";
 };
 
@@ -2964,6 +2980,9 @@ window.editarProdutoCentralPrecos = function (id) {
   const tipoVal = (p.produto_critico === true || p.produto_critico === "true") ? "critico" : "comum";
   const tipoRadio = document.querySelector('input[name="mpc-tipo"][value="' + tipoVal + '"]');
   if (tipoRadio) tipoRadio.checked = true;
+  // Story 13.5: Kraljic dropdown
+  const kraljicSel = document.getElementById("mpc-kraljic");
+  if (kraljicSel) kraljicSel.value = p.classificacao_kraljic || "alavancagem";
   document.getElementById("modal-produto-central").style.display = "flex";
 };
 
@@ -2989,20 +3008,29 @@ window.salvarProdutoCentral = function () {
     origem: document.getElementById("mpc-origem").value || "0",
     preco_custo: parseFloat(document.getElementById("mpc-custo").value) || 0,
     preco_referencia: parseFloat(document.getElementById("mpc-venda").value) || 0,
-    produto_critico: (document.querySelector('input[name="mpc-tipo"]:checked') || {}).value === "critico"
+    produto_critico: (document.querySelector('input[name="mpc-tipo"]:checked') || {}).value === "critico",
+    classificacao_kraljic: (document.getElementById("mpc-kraljic") || {}).value || "alavancagem"
   };
 
   if (id) {
     const p = produtos.find(x => x.id === id);
     if (p) Object.assign(p, dados);
+    // Story 13.5: Also update in centralProdutos (v2)
+    const cp = centralProdutos.find(x => x.id === id);
+    if (cp) { Object.assign(cp, dados); cp.atualizadoEm = new Date().toISOString(); }
   } else {
     dados.id = "PROD-" + Date.now() + "-" + Math.random().toString(36).substr(2, 6);
+    dados.ativo = true;
+    dados.criadoEm = new Date().toISOString();
+    dados.atualizadoEm = new Date().toISOString();
     produtos.push(dados);
+    // Also add to centralProdutos (v2)
+    centralProdutos.push(dados);
   }
 
   const wrapped = { _v: 1, updatedAt: new Date().toISOString(), items: produtos };
   localStorage.setItem('gdp.estoque-intel.produtos.v1', JSON.stringify(wrapped));
-  schedulCloudSync();
+  saveCentralProdutos();
   fecharModalProdutoCentral();
   renderCentralPrecos();
   showToast(id ? "Produto atualizado." : "Produto cadastrado.", 3000);
@@ -3191,11 +3219,19 @@ function renderCustosFornecedor(produtoId) {
     const confLevel = c.confiabilidade >= 0.9 ? 'high' : c.confiabilidade >= 0.7 ? 'medium' : 'low';
     const confColor = CONF_COLORS[confLevel];
     const confPct = Math.round((c.confiabilidade || 0) * 100);
+    // Story 13.4 AC10: origin badge with color coding
+    const ORIGEM_COLORS = { manual: '#6366f1', excel: '#059669', pdf: '#2563eb', 'pdf-ocr': '#d97706', nf: '#059669', api: '#8b5cf6', b2b: '#0891b2', marketplace: '#ec4899', migrado: '#94a3b8' };
+    const origemColor = ORIGEM_COLORS[c.origem] || '#94a3b8';
+    // TCO extras (Story 13.4)
+    const extras = [];
+    if (c.frete_estimado > 0) extras.push('Frete: ' + brl.format(c.frete_estimado));
+    if (c.prazo_pagamento_dias > 0) extras.push('Prazo: ' + c.prazo_pagamento_dias + 'd');
+    const extrasHtml = extras.length > 0 ? '<div style="font-size:.65rem;color:var(--muted);">' + extras.join(' | ') + '</div>' : '';
     return '<tr>' +
-      '<td>' + escapeHtml(c.fornecedor || '—') + '</td>' +
+      '<td>' + escapeHtml(c.fornecedor || '—') + extrasHtml + '</td>' +
       '<td class="text-right font-mono" style="font-weight:600;">' + brl.format(c.custo || 0) + '</td>' +
       '<td style="font-size:.78rem;">' + escapeHtml(c.data_coleta || '—') + '</td>' +
-      '<td><span class="badge badge-muted" style="font-size:.65rem;">' + (ORIGEM_ICONS[c.origem] || c.origem || '—') + '</span></td>' +
+      '<td><span style="background:' + origemColor + ';color:#fff;font-size:.6rem;padding:2px 6px;border-radius:4px;font-weight:600;">' + (ORIGEM_ICONS[c.origem] || c.origem || '—') + '</span></td>' +
       '<td style="text-align:center;"><span style="color:' + confColor + ';font-weight:600;font-size:.78rem;">' + confPct + '%</span></td>' +
       '</tr>';
   }).join('');
@@ -3266,6 +3302,10 @@ window.salvarSresConfig = function () {
 document.addEventListener("click", function (e) {
   if (e.target.matches('[data-config-tab="sres"]')) {
     setTimeout(renderSresConfig, 50);
+  }
+  // Story 13.8: Render pricing engine config when empresa tab is activated
+  if (e.target.matches('[data-config-tab="empresa"]')) {
+    setTimeout(() => { if (typeof renderConfigEmpresa === 'function') renderConfigEmpresa(); }, 50);
   }
 });
 

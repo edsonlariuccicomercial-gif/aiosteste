@@ -141,50 +141,136 @@
     }
   }
 
+  // Story 13.5: Configurable regex rules for N3 matching layer
+  var REGEX_RULES = [
+    // Alimentos
+    { pattern: /arroz\s*(tipo\s*1|agulhinha|parbo)/i, categoria: "Alimentos" },
+    { pattern: /feij[aã]o\s*(carioca|preto|fradinho|branco)/i, categoria: "Alimentos" },
+    { pattern: /a[cç][uú]car\s*(cristal|refinado|demerara)/i, categoria: "Alimentos" },
+    { pattern: /[oó]leo\s*(soja|canola|girassol|milho)/i, categoria: "Alimentos" },
+    { pattern: /macarr[aã]o\s*(espaguete|parafuso|penne|padre\s*nosso)/i, categoria: "Alimentos" },
+    { pattern: /farinha\s*(trigo|mandioca|milho|rosca)/i, categoria: "Alimentos" },
+    { pattern: /leite\s*(integral|desnatado|semi|p[oó]\s*integral|p[oó]|uht)/i, categoria: "Alimentos" },
+    { pattern: /caf[eé]\s*(torrado|moido|soluvel|em\s*po)/i, categoria: "Alimentos" },
+    { pattern: /sal\s*(refinado|grosso|iodado)/i, categoria: "Alimentos" },
+    { pattern: /extrato\s*(tomate|molho)/i, categoria: "Alimentos" },
+    // Limpeza
+    { pattern: /papel\s*(higi[eê]nico|toalha|rol[aã]o)/i, categoria: "Limpeza" },
+    { pattern: /detergente\s*(l[ií]quido|neutro|coco)/i, categoria: "Limpeza" },
+    { pattern: /desinfetante|agua\s*sanitaria|cloro/i, categoria: "Limpeza" },
+    { pattern: /sabao\s*(em\s*po|liquido|barra|pedra)/i, categoria: "Limpeza" },
+    { pattern: /esponja|palha\s*de\s*aco|pano\s*de\s*(ch[aã]o|prato)/i, categoria: "Limpeza" },
+    { pattern: /saco\s*(lixo|de\s*lixo)/i, categoria: "Limpeza" },
+    // Material Escolar
+    { pattern: /caderno\s*(\d+|espiral|brochura|capa\s*dura)/i, categoria: "Material Escolar" },
+    { pattern: /l[aá]pis\s*(preto|cor|grafite|hb)/i, categoria: "Material Escolar" },
+    { pattern: /caneta\s*(esferogr|azul|preta|vermelha)/i, categoria: "Material Escolar" },
+    { pattern: /borracha\s*(branca|bicolor|escolar)/i, categoria: "Material Escolar" },
+    { pattern: /cola\s*(branca|bast[aã]o|instant|l[ií]quida)/i, categoria: "Material Escolar" },
+    { pattern: /papel\s*(sulfite|a4|chamequinho|oficio)/i, categoria: "Material Escolar" },
+  ];
+
+  function matchRegexRules(itemName) {
+    var norm = String(itemName || '');
+    for (var i = 0; i < REGEX_RULES.length; i++) {
+      if (REGEX_RULES[i].pattern.test(norm)) {
+        // Find a product in centralProdutos (v2) or bancoPrecos that matches the regex
+        var rule = REGEX_RULES[i];
+        // Search centralProdutos first
+        if (typeof centralProdutos !== 'undefined' && Array.isArray(centralProdutos)) {
+          for (var j = 0; j < centralProdutos.length; j++) {
+            var cp = centralProdutos[j];
+            if (rule.pattern.test(cp.nome || cp.descricao || '')) {
+              return { produto_id: cp.id, nome: cp.nome || cp.descricao || '', categoria: rule.categoria, ruleIdx: i };
+            }
+          }
+        }
+        // Fallback: search bancoPrecos
+        if (typeof bancoPrecos !== 'undefined' && bancoPrecos && Array.isArray(bancoPrecos.itens)) {
+          for (var k = 0; k < bancoPrecos.itens.length; k++) {
+            var bp = bancoPrecos.itens[k];
+            if (rule.pattern.test(bp.item || '')) {
+              return { produto_id: bp.id, nome: bp.item || '', categoria: rule.categoria, ruleIdx: i, sku: bp.id };
+            }
+          }
+        }
+        // Regex matched but no product found — return partial match for category suggestion
+        return { produto_id: null, nome: null, categoria: rule.categoria, ruleIdx: i };
+      }
+    }
+    return null;
+  }
+
   function match(itemName) {
     var key = normalizeProductName(itemName);
-    var noMatch = { status: 'sem_match', score: 0, sku: null, nomeBanco: null, custoBase: 0, margem: 0, precoSugerido: 0 };
+    var noMatch = { status: 'sem_match', score: 0, sku: null, nomeBanco: null, custoBase: 0, margem: 0, precoSugerido: 0, match_layer: null };
     if (!key) return noMatch;
 
-    // Layer 1: Exact dictionary match — requires human confirmation
+    // Layer N1: Exact dictionary match (confirmed equivalencia) — score 1.0
     if (_cache[key]) {
       var entry = _cache[key];
       entry.vezes_usado = (entry.vezes_usado || 0) + 1;
       saveLS();
       var bp = findBancoItem(entry.sku);
       var status = entry.confirmado ? 'confirmado' : 'pendente_revisao';
-      return buildResult(status, 1.0, entry, bp);
+      var r1 = buildResult(status, 1.0, entry, bp);
+      r1.match_layer = 'N1';
+      return r1;
     }
 
-    // Layer 2: Seed from contratos — token similarity >= 0.6
+    // Layer N2: Token similarity >= 0.7 (Story 13.5: raised from 0.6)
     var bestSeed = null, bestSeedScore = 0;
     Object.keys(_cache).forEach(function (k) {
       var sc = tokenSimilarity(key, k);
-      if (sc >= 0.6 && sc > bestSeedScore) { bestSeedScore = sc; bestSeed = _cache[k]; }
+      if (sc >= 0.7 && sc > bestSeedScore) { bestSeedScore = sc; bestSeed = _cache[k]; }
     });
     if (bestSeed) {
       var bp2 = findBancoItem(bestSeed.sku);
-      return buildResult('pendente_revisao', bestSeedScore, bestSeed, bp2);
+      var r2 = buildResult('pendente_revisao', bestSeedScore, bestSeed, bp2);
+      r2.match_layer = 'N2';
+      return r2;
     }
 
-    // Layer 3: Fuzzy match in bancoPrecos.itens >= 0.5
+    // Also check bancoPrecos with raised threshold 0.7
     if (typeof bancoPrecos !== 'undefined' && bancoPrecos && Array.isArray(bancoPrecos.itens)) {
       var bestBp = null, bestBpScore = 0;
       bancoPrecos.itens.forEach(function (b) {
         var sc = tokenSimilarity(key, b.item);
-        if (sc >= 0.5 && sc > bestBpScore) { bestBpScore = sc; bestBp = b; }
+        if (sc >= 0.7 && sc > bestBpScore) { bestBpScore = sc; bestBp = b; }
       });
       if (bestBp) {
-        return {
+        var r2b = {
           status: 'pendente_revisao', score: bestBpScore,
           sku: bestBp.id, nomeBanco: bestBp.item,
           custoBase: bestBp.custoBase || 0,
           margem: bestBp.margemPadrao || 0,
-          precoSugerido: (bestBp.custoBase || 0) * (1 + (bestBp.margemPadrao || 0.30))
+          precoSugerido: (bestBp.custoBase || 0) * (1 + (bestBp.margemPadrao || 0.30)),
+          match_layer: 'N2'
         };
+        return r2b;
       }
     }
 
+    // Layer N3: Regex rules (Story 13.5) — pattern-based matching
+    var regexMatch = matchRegexRules(itemName);
+    if (regexMatch && regexMatch.produto_id) {
+      var bpRegex = findBancoItem(regexMatch.sku || regexMatch.produto_id);
+      return {
+        status: 'pendente_revisao', score: 0.65,
+        sku: regexMatch.sku || regexMatch.produto_id, nomeBanco: regexMatch.nome,
+        custoBase: bpRegex ? (bpRegex.custoBase || 0) : 0,
+        margem: bpRegex ? (bpRegex.margemPadrao || 0) : 0,
+        precoSugerido: bpRegex ? (bpRegex.custoBase || 0) * (1 + (bpRegex.margemPadrao || 0.30)) : 0,
+        match_layer: 'N3',
+        categoria_sugerida: regexMatch.categoria
+      };
+    }
+
+    // Layer N4: No match — fallback (create produto inline, handled by caller)
+    noMatch.match_layer = 'N4';
+    if (regexMatch && regexMatch.categoria) {
+      noMatch.categoria_sugerida = regexMatch.categoria;
+    }
     return noMatch;
   }
   function findBancoItem(sku) {
@@ -244,9 +330,11 @@
     reject: reject,
     normalizeProductName: normalizeProductName,
     tokenSimilarity: tokenSimilarity,
+    matchRegexRules: matchRegexRules,
     seedFromContratos: seedFromContratos,
     getCache: function () { return _cache; },
-    isReady: function () { return _cacheReady; }
+    isReady: function () { return _cacheReady; },
+    REGEX_RULES: REGEX_RULES
   };
 
   gdpLog('[RadarMatcher] module loaded');

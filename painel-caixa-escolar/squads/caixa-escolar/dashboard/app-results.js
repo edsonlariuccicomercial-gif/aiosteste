@@ -220,6 +220,23 @@ window.salvarResultado = function () {
   // Alimentar banco de preços
   alimentarBancoComResultado(resultado);
 
+  // Story 13.7 AC2: Feed historico_licitacoes from manual result
+  if (typeof addHistoricoLicitacao === 'function') {
+    (resultado.itens || []).forEach(item => {
+      addHistoricoLicitacao({
+        escola: resultado.escola, cidade: resultado.municipio || "", sre: pre.sre || "",
+        produto_id: "", descricao_item: item.nome || "",
+        preco_proposto: item.precoUnitario || 0,
+        preco_vencedor: item.precoVencedor || resultado.valorVencedor || 0,
+        empresa_vencedora: resultado.resultado === "ganho" ? "LARIUCCI" : (resultado.fornecedorVencedor || ""),
+        participou: true, ganhou: resultado.resultado === "ganho",
+        motivo_perda: resultado.motivoPerda || null,
+        delta_percent: resultado.deltaTotalPercent || null,
+        data: resultado.dataResultado, orcamento_sgd_id: resultado.orcamentoId
+      });
+    });
+  }
+
   // Story 8.9: Persistir resultado no preco_historico (G4 — Série Histórica)
   if (typeof _SB_PRECO_HIST !== 'undefined' && resultado.itens) {
     const empId = (typeof getEmpresaId === 'function') ? getEmpresaId() : 'LARIUCCI';
@@ -1009,6 +1026,208 @@ window.registrarEntrega = function (contratoId) {
   showToast("Entrega registrada!");
 };
 
+// ===== Story 13.6: VARREDURA BATCH DE RESULTADOS SGD =====
+window.varrerResultadosSgd = async function () {
+  const btn = document.getElementById("btn-varrer-resultados");
+  if (btn) { btn.disabled = true; btn.textContent = "Varrendo..."; }
+
+  try {
+    // Get all pre-orcamentos with status "enviado" (pending result)
+    const pendentes = Object.entries(preOrcamentos).filter(([_, pre]) => pre.status === "enviado");
+    if (pendentes.length === 0) {
+      showToast("Nenhum pré-orçamento pendente de resultado.", 3000);
+      if (btn) { btn.disabled = false; btn.textContent = "Atualizar Resultados"; }
+      return;
+    }
+
+    await BrowserSgdClient.login();
+    if (!BrowserSgdClient.networkId) await BrowserSgdClient.listBudgets(1, 1);
+
+    let ganhos = 0, perdidos = 0, semResultado = 0, erros = 0;
+
+    for (const [orcId, pre] of pendentes) {
+      try {
+        let idSub = pre.idSubprogram;
+        let idSch = pre.idSchool;
+        let idBud = pre.idBudget;
+
+        if (!idSub || !idSch || !idBud) {
+          // Try from orcamentos
+          const orc = orcamentos.find(o => o.id === orcId || String(o.idBudget) === String(orcId));
+          if (orc) { idSub = idSub || orc.idSubprogram; idSch = idSch || orc.idSchool; idBud = idBud || orc.idBudget; }
+        }
+
+        if (!idSub || !idSch || !idBud) { semResultado++; continue; }
+
+        const detail = await BrowserSgdClient.getBudgetDetail(idSub, idSch, idBud);
+        const sgdStatus = detail.supplierStatus || detail.flSupplierStatus || "";
+
+        if (sgdStatus === "APRO" || sgdStatus === "Aprovado") {
+          pre.status = "ganho"; pre.statusSgd = "APRO"; pre.resultadoEm = new Date().toISOString().slice(0, 10);
+          ganhos++;
+          // AC3: Auto-register result
+          const resultado = {
+            id: "res-auto-" + Date.now() + "-" + Math.random().toString(36).substr(2, 4),
+            orcamentoId: orcId, escola: pre.escola, municipio: pre.municipio,
+            grupo: pre.grupo || "Geral", resultado: "ganho",
+            dataResultado: pre.resultadoEm, valorProposto: pre.totalGeral,
+            itens: (pre.itens || []).map(i => ({ nome: i.nome, precoUnitario: i.precoUnitario, ganhou: true })),
+            contrato: { gerado: false }
+          };
+          const resultados = JSON.parse(localStorage.getItem(RESULTADOS_STORAGE_KEY) || "[]");
+          resultados.push(resultado);
+          localStorage.setItem(RESULTADOS_STORAGE_KEY, JSON.stringify(resultados));
+          _SB_RESULTADOS.upsert(resultado);
+        } else if (sgdStatus === "RECU" || sgdStatus === "Recusado") {
+          pre.status = "perdido"; pre.statusSgd = "RECU"; pre.resultadoEm = new Date().toISOString().slice(0, 10);
+          perdidos++;
+          // AC4: Get winner info from detail
+          const valorVencedor = detail.vlWinnerValue || detail.valorVencedor || null;
+          const fornecedorVencedor = detail.nmWinnerSupplier || detail.fornecedorVencedor || "";
+          const delta = (pre.totalGeral && valorVencedor && valorVencedor > 0)
+            ? parseFloat(((pre.totalGeral - valorVencedor) / valorVencedor * 100).toFixed(1)) : null;
+          const resultado = {
+            id: "res-auto-" + Date.now() + "-" + Math.random().toString(36).substr(2, 4),
+            orcamentoId: orcId, escola: pre.escola, municipio: pre.municipio,
+            grupo: pre.grupo || "Geral", resultado: "perdido",
+            dataResultado: pre.resultadoEm, valorProposto: pre.totalGeral,
+            valorVencedor: valorVencedor, fornecedorVencedor: fornecedorVencedor,
+            deltaTotalPercent: delta, motivoPerda: "preco",
+            itens: (pre.itens || []).map(i => ({ nome: i.nome, precoUnitario: i.precoUnitario, ganhou: false })),
+            contrato: { gerado: false }
+          };
+          const resultados = JSON.parse(localStorage.getItem(RESULTADOS_STORAGE_KEY) || "[]");
+          resultados.push(resultado);
+          localStorage.setItem(RESULTADOS_STORAGE_KEY, JSON.stringify(resultados));
+          _SB_RESULTADOS.upsert(resultado);
+          alimentarBancoComResultado(resultado);
+        } else {
+          semResultado++;
+        }
+      } catch (e) {
+        erros++;
+        gdpWarn("[Varredura] Erro em " + orcId + ":", e.message);
+      }
+    }
+
+    savePreOrcamentos();
+    schedulCloudSync();
+    renderSgd(); renderKPIs(); renderOrcamentos();
+    showToast(`Varredura concluída: ${ganhos} ganhos, ${perdidos} perdidos, ${semResultado} aguardando${erros > 0 ? ", " + erros + " erros" : ""}.`, 5000);
+  } catch (e) {
+    showToast("Erro na varredura: " + e.message, 4000);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = "Atualizar Resultados"; }
+  }
+};
+
+// ===== Story 13.6: IMPORTAÇÃO RETROATIVA DE HISTÓRICO =====
+window.abrirImportHistorico = function () {
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = ".csv,.xlsx,.xls";
+  input.onchange = async function () {
+    if (!input.files.length) return;
+    const file = input.files[0];
+    const ext = file.name.split(".").pop().toLowerCase();
+
+    try {
+      let rows = [], headers = [];
+      if (ext === "csv") {
+        const text = await file.text();
+        const lines = text.split("\n").map(l => l.trim()).filter(l => l);
+        headers = lines[0].split(/[;\t,]/).map(h => h.trim());
+        rows = lines.slice(1).map(l => l.split(/[;\t,]/).map(c => c.trim()));
+      } else {
+        const ab = await file.arrayBuffer();
+        const wb = XLSX.read(ab, { type: "array" });
+        const json = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1 });
+        if (json.length < 2) { showToast("Arquivo vazio.", 3000); return; }
+        headers = json[0].map(h => String(h || "").trim());
+        rows = json.slice(1).filter(r => r.some(c => c != null && c !== ""));
+      }
+
+      // Auto-map columns
+      const norm = headers.map(h => (h || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ""));
+      const map = {
+        escola: norm.findIndex(h => /escola|entidade/.test(h)),
+        produto: norm.findIndex(h => /produto|item|descricao/.test(h)),
+        precoProposto: norm.findIndex(h => /preco.*proposto|nosso.*preco|valor.*proposto/.test(h)),
+        precoVencedor: norm.findIndex(h => /preco.*vencedor|valor.*vencedor/.test(h)),
+        fornecedorVencedor: norm.findIndex(h => /fornecedor.*vencedor|vencedor/.test(h)),
+        resultado: norm.findIndex(h => /resultado|status|ganho|perdido/.test(h)),
+        data: norm.findIndex(h => /data|date/.test(h)),
+      };
+
+      let importados = 0, erros = 0;
+      const resultados = JSON.parse(localStorage.getItem(RESULTADOS_STORAGE_KEY) || "[]");
+      const historico = JSON.parse(localStorage.getItem("intel.historico-licitacoes.v1") || '{"items":[]}');
+      const histItems = historico.items || [];
+
+      rows.forEach(row => {
+        try {
+          const escola = map.escola >= 0 ? String(row[map.escola] || "").trim() : "";
+          const produto = map.produto >= 0 ? String(row[map.produto] || "").trim() : "";
+          const ppRaw = map.precoProposto >= 0 ? row[map.precoProposto] : 0;
+          const pvRaw = map.precoVencedor >= 0 ? row[map.precoVencedor] : 0;
+          const forn = map.fornecedorVencedor >= 0 ? String(row[map.fornecedorVencedor] || "").trim() : "";
+          const resRaw = map.resultado >= 0 ? String(row[map.resultado] || "").trim().toLowerCase() : "";
+          const dataRaw = map.data >= 0 ? String(row[map.data] || "").trim() : new Date().toISOString().slice(0, 10);
+
+          if (!escola && !produto) return;
+
+          const precoProposto = typeof ppRaw === 'number' ? ppRaw : parseFloat(String(ppRaw).replace(/[^\d,.\-]/g, "").replace(",", ".")) || 0;
+          const precoVencedor = typeof pvRaw === 'number' ? pvRaw : parseFloat(String(pvRaw).replace(/[^\d,.\-]/g, "").replace(",", ".")) || 0;
+          const resultado = /ganh|won|aprovad|sim|yes|1/.test(resRaw) ? "ganho" : "perdido";
+          const delta = (precoProposto > 0 && precoVencedor > 0) ? parseFloat(((precoProposto - precoVencedor) / precoVencedor * 100).toFixed(1)) : null;
+
+          // Parse date
+          let dataStr = dataRaw;
+          if (/\d{2}\/\d{2}\/\d{4}/.test(dataRaw)) {
+            const [d, m, y] = dataRaw.split("/");
+            dataStr = y + "-" + m + "-" + d;
+          }
+
+          // AC9: Feed resultados
+          const resId = "res-retro-" + Date.now() + "-" + Math.random().toString(36).substr(2, 4);
+          resultados.push({
+            id: resId, orcamentoId: "retro-" + importados, escola,
+            municipio: "", grupo: "Retroativo", resultado,
+            dataResultado: dataStr, valorProposto: precoProposto, valorVencedor: precoVencedor,
+            fornecedorVencedor: forn, deltaTotalPercent: delta,
+            motivoPerda: resultado === "perdido" ? "preco" : null,
+            observacoes: "Importado retroativamente",
+            itens: produto ? [{ nome: produto, precoUnitario: precoProposto, precoVencedor, ganhou: resultado === "ganho" }] : [],
+            contrato: { gerado: false }
+          });
+
+          // AC9: Feed historico_licitacoes too
+          histItems.push({
+            id: "HIST-" + Date.now() + "-" + Math.random().toString(36).substr(2, 5),
+            escola, cidade: "", sre: "", produto_id: "",
+            descricao_item: produto, preco_proposto: precoProposto,
+            preco_vencedor: precoVencedor, empresa_vencedora: resultado === "ganho" ? "LARIUCCI" : forn,
+            participou: true, ganhou: resultado === "ganho",
+            motivo_perda: resultado === "perdido" ? "preco" : null,
+            delta_percent: delta, data: dataStr, orcamento_sgd_id: ""
+          });
+
+          importados++;
+        } catch (_) { erros++; }
+      });
+
+      localStorage.setItem(RESULTADOS_STORAGE_KEY, JSON.stringify(resultados));
+      localStorage.setItem("intel.historico-licitacoes.v1", JSON.stringify({ _v: 1, updatedAt: new Date().toISOString(), items: histItems }));
+      schedulCloudSync();
+      renderHistorico(); renderKPIs();
+      showToast(`Histórico importado: ${importados} registros${erros > 0 ? " (" + erros + " erros)" : ""}.`, 5000);
+    } catch (e) {
+      showToast("Erro ao importar: " + e.message, 4000);
+    }
+  };
+  input.click();
+};
+
 // ===== F4: ABA HISTÓRICO GANHOS/PERDIDOS =====
 function renderHistorico() {
   let resultados = JSON.parse(localStorage.getItem(RESULTADOS_STORAGE_KEY) || "[]");
@@ -1050,11 +1269,13 @@ function renderHistorico() {
 
 window.switchHistoricoTab = function (tab) {
   document.querySelectorAll("#sub-tabs-historico .rent-tab").forEach(t => t.classList.remove("active"));
-  document.querySelector(`#sub-tabs-historico .rent-tab[onclick*="${tab}"]`).classList.add("active");
-  ["ganhos", "perdidos", "analise"].forEach(t => {
+  const activeBtn = document.querySelector(`#sub-tabs-historico .rent-tab[onclick*="${tab}"]`);
+  if (activeBtn) activeBtn.classList.add("active");
+  ["ganhos", "perdidos", "analise", "contratos", "rentabilidade", "inteligencia"].forEach(t => {
     const el = document.getElementById("hist-" + t);
     if (el) el.style.display = t === tab ? "block" : "none";
   });
+  if (tab === "inteligencia") { renderIntelDashboard(); return; }
   // Story 4.40: apply same filters as renderHistorico
   let resultados = JSON.parse(localStorage.getItem(RESULTADOS_STORAGE_KEY) || "[]");
   const fHistEscola = document.getElementById("filtro-hist-escola");
@@ -1126,3 +1347,187 @@ function renderHistoricoContent(tab, ganhos, perdidos, todos) {
     container.innerHTML = html;
   }
 }
+
+// ===== Story 13.7: INTELIGÊNCIA COMPETITIVA DASHBOARD =====
+window.renderIntelDashboard = function () {
+  const historico = loadHistoricoLicitacoes();
+  if (historico.length === 0) {
+    document.getElementById("intel-kpis").innerHTML = '<p style="grid-column:1/-1;color:var(--muted);text-align:center;padding:2rem;">Nenhum dado no histórico de licitações. Importe resultados ou registre manualmente.</p>';
+    return;
+  }
+
+  // Populate filters
+  const sreSel = document.getElementById("intel-filtro-sre");
+  const prodSel = document.getElementById("intel-filtro-produto");
+  const sres = [...new Set(historico.map(h => h.sre).filter(Boolean))].sort();
+  const produtos = [...new Set(historico.map(h => h.descricao_item).filter(Boolean))].sort();
+
+  if (sreSel && sreSel.options.length <= 1) {
+    sres.forEach(s => { const o = document.createElement("option"); o.value = s; o.textContent = s; sreSel.appendChild(o); });
+  }
+  if (prodSel && prodSel.options.length <= 1) {
+    produtos.slice(0, 100).forEach(p => { const o = document.createElement("option"); o.value = p; o.textContent = p.substring(0, 40); prodSel.appendChild(o); });
+  }
+
+  // Apply filters
+  let filtered = historico;
+  const fSre = sreSel ? sreSel.value : "all";
+  const fProd = prodSel ? prodSel.value : "all";
+  const fDe = document.getElementById("intel-filtro-de")?.value || "";
+  const fAte = document.getElementById("intel-filtro-ate")?.value || "";
+
+  if (fSre !== "all") filtered = filtered.filter(h => h.sre === fSre);
+  if (fProd !== "all") filtered = filtered.filter(h => h.descricao_item === fProd);
+  if (fDe) filtered = filtered.filter(h => (h.data || "") >= fDe);
+  if (fAte) filtered = filtered.filter(h => (h.data || "") <= fAte);
+
+  // KPI Calculations
+  const participacoes = filtered.filter(h => h.participou !== false);
+  const ganhos = participacoes.filter(h => h.ganhou === true);
+  const perdidos = participacoes.filter(h => h.ganhou === false);
+  const winRate = participacoes.length > 0 ? ((ganhos.length / participacoes.length) * 100).toFixed(1) : 0;
+
+  // Price-to-Win: median of preco_vencedor
+  const precosVencedores = filtered.map(h => h.preco_vencedor).filter(v => v > 0).sort((a, b) => a - b);
+  const medianaPtW = precosVencedores.length > 0
+    ? (precosVencedores.length % 2 === 0
+      ? (precosVencedores[precosVencedores.length / 2 - 1] + precosVencedores[precosVencedores.length / 2]) / 2
+      : precosVencedores[Math.floor(precosVencedores.length / 2)])
+    : 0;
+
+  // Competitiveness Index
+  const precosPropostos = filtered.map(h => h.preco_proposto).filter(v => v > 0);
+  const mediaPropostos = precosPropostos.length > 0 ? precosPropostos.reduce((s, v) => s + v, 0) / precosPropostos.length : 0;
+  const competIdx = medianaPtW > 0 ? (mediaPropostos / medianaPtW).toFixed(2) : "—";
+
+  // Margin Erosion Rate (quarter-over-quarter)
+  const sortedByDate = [...filtered].filter(h => h.data).sort((a, b) => a.data.localeCompare(b.data));
+  let marginErosion = "—";
+  if (sortedByDate.length >= 4) {
+    const mid = Math.floor(sortedByDate.length / 2);
+    const first = sortedByDate.slice(0, mid).filter(h => h.preco_proposto > 0 && h.preco_vencedor > 0);
+    const second = sortedByDate.slice(mid).filter(h => h.preco_proposto > 0 && h.preco_vencedor > 0);
+    if (first.length > 0 && second.length > 0) {
+      const avgMargin1 = first.reduce((s, h) => s + ((h.preco_proposto - h.preco_vencedor) / h.preco_proposto * 100), 0) / first.length;
+      const avgMargin2 = second.reduce((s, h) => s + ((h.preco_proposto - h.preco_vencedor) / h.preco_proposto * 100), 0) / second.length;
+      marginErosion = (avgMargin2 - avgMargin1).toFixed(1) + "%";
+    }
+  }
+
+  // Render KPIs (AC3-AC7)
+  const kpiCard = (label, value, color) => `<div style="background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:12px;">
+    <span style="font-size:.7rem;color:var(--muted);display:block;">${label}</span>
+    <strong style="font-size:1.2rem;color:${color || 'var(--text)'}">${value}</strong>
+  </div>`;
+
+  document.getElementById("intel-kpis").innerHTML = [
+    kpiCard("Win Rate", winRate + "%", parseFloat(winRate) >= 50 ? '#059669' : '#ef4444'),
+    kpiCard("Participações", participacoes.length, ''),
+    kpiCard("Ganhos / Perdidos", ganhos.length + " / " + perdidos.length, ''),
+    kpiCard("Price-to-Win (mediana)", medianaPtW > 0 ? brl.format(medianaPtW) : "—", '#2563eb'),
+    kpiCard("Competitiveness Index", competIdx, parseFloat(competIdx) <= 1.0 ? '#059669' : '#d97706'),
+    kpiCard("Margin Erosion", marginErosion, ''),
+  ].join('');
+
+  // AC4: Win Rate por SRE
+  const bySre = {};
+  participacoes.forEach(h => {
+    const sre = h.sre || "Sem SRE";
+    if (!bySre[sre]) bySre[sre] = { ganhos: 0, total: 0 };
+    bySre[sre].total++;
+    if (h.ganhou) bySre[sre].ganhos++;
+  });
+
+  const sreEntries = Object.entries(bySre).sort((a, b) => (b[1].ganhos / b[1].total) - (a[1].ganhos / a[1].total));
+  document.getElementById("intel-win-rate-sre").innerHTML = `
+    <h4 style="font-size:.85rem;margin-bottom:.5rem;">Win Rate por SRE</h4>
+    <div class="table-wrap"><table><thead><tr><th>SRE</th><th>Ganhos</th><th>Total</th><th>Win Rate</th></tr></thead>
+    <tbody>${sreEntries.map(([sre, d]) => {
+      const wr = ((d.ganhos / d.total) * 100).toFixed(0);
+      return `<tr><td>${escapeHtml(sre)}</td><td class="text-accent">${d.ganhos}</td><td>${d.total}</td>
+        <td><span style="color:${wr >= 50 ? '#059669' : '#ef4444'};font-weight:600;">${wr}%</span></td></tr>`;
+    }).join('')}</tbody></table></div>`;
+
+  // AC6: Top 5 concorrentes
+  const concCount = {};
+  filtered.filter(h => h.empresa_vencedora && h.ganhou === false).forEach(h => {
+    const nome = h.empresa_vencedora;
+    if (!concCount[nome]) concCount[nome] = 0;
+    concCount[nome]++;
+  });
+  const top5 = Object.entries(concCount).sort((a, b) => b[1] - a[1]).slice(0, 5);
+
+  document.getElementById("intel-top-concorrentes").innerHTML = `
+    <h4 style="font-size:.85rem;margin-bottom:.5rem;">Top 5 Concorrentes</h4>
+    <div class="table-wrap"><table><thead><tr><th>Concorrente</th><th>Vitórias</th></tr></thead>
+    <tbody>${top5.length > 0 ? top5.map(([nome, count], i) => {
+      return `<tr><td>${i + 1}. ${escapeHtml(nome)}</td><td style="font-weight:600;">${count}</td></tr>`;
+    }).join('') : '<tr><td colspan="2" style="color:var(--muted);text-align:center;">Sem dados</td></tr>'}</tbody></table></div>`;
+
+  // AC5: Price-to-Win por produto
+  const byProduct = {};
+  filtered.forEach(h => {
+    const prod = h.descricao_item || "Desconhecido";
+    if (!byProduct[prod]) byProduct[prod] = [];
+    if (h.preco_vencedor > 0) byProduct[prod].push(h.preco_vencedor);
+  });
+
+  const p2wEntries = Object.entries(byProduct)
+    .filter(([_, prices]) => prices.length >= 2)
+    .map(([prod, prices]) => {
+      const sorted = prices.sort((a, b) => a - b);
+      const mediana = sorted.length % 2 === 0
+        ? (sorted[sorted.length / 2 - 1] + sorted[sorted.length / 2]) / 2
+        : sorted[Math.floor(sorted.length / 2)];
+      return { prod, mediana, count: prices.length };
+    })
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 15);
+
+  document.getElementById("intel-price-to-win").innerHTML = `
+    <h4 style="font-size:.85rem;margin-bottom:.5rem;">Price-to-Win por Produto (mediana vencedores)</h4>
+    <div class="table-wrap"><table><thead><tr><th>Produto</th><th>Mediana Vencedor</th><th>Registros</th></tr></thead>
+    <tbody>${p2wEntries.length > 0 ? p2wEntries.map(e => {
+      return `<tr><td style="font-size:.8rem;max-width:200px;">${escapeHtml(e.prod)}</td>
+        <td class="font-mono text-right" style="font-weight:600;">${brl.format(e.mediana)}</td>
+        <td>${e.count}</td></tr>`;
+    }).join('') : '<tr><td colspan="3" style="color:var(--muted);text-align:center;">Necessário >= 2 registros por produto</td></tr>'}</tbody></table></div>`;
+
+  // AC8: Tendência preço vencedor (últimos 12 meses)
+  const now = new Date();
+  const months = [];
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    months.push(d.toISOString().slice(0, 7)); // "2025-03"
+  }
+
+  const byMonth = {};
+  months.forEach(m => byMonth[m] = []);
+  filtered.filter(h => h.preco_vencedor > 0 && h.data).forEach(h => {
+    const m = h.data.slice(0, 7);
+    if (byMonth[m]) byMonth[m].push(h.preco_vencedor);
+  });
+
+  const monthData = months.map(m => {
+    const prices = byMonth[m];
+    const avg = prices.length > 0 ? prices.reduce((s, v) => s + v, 0) / prices.length : 0;
+    return { month: m, avg, count: prices.length };
+  });
+
+  const maxAvg = Math.max(...monthData.map(d => d.avg).filter(v => v > 0), 1);
+  const barHeight = 100;
+
+  document.getElementById("intel-tendencia").innerHTML = `
+    <h4 style="font-size:.85rem;margin-bottom:.5rem;">Tendência Preço Vencedor (12 meses)</h4>
+    <div style="display:flex;align-items:flex-end;gap:4px;height:${barHeight + 30}px;overflow-x:auto;padding:0 4px;">
+    ${monthData.map(d => {
+      const h = d.avg > 0 ? Math.max(4, (d.avg / maxAvg) * barHeight) : 0;
+      const label = d.month.slice(5); // "03"
+      return `<div style="display:flex;flex-direction:column;align-items:center;min-width:36px;">
+        <span style="font-size:.55rem;color:var(--muted);">${d.avg > 0 ? brl.format(d.avg) : ''}</span>
+        <div style="width:24px;height:${h}px;background:${d.avg > 0 ? '#2563eb' : '#e2e8f0'};border-radius:3px 3px 0 0;margin-top:auto;"></div>
+        <span style="font-size:.6rem;color:var(--muted);margin-top:2px;">${label}</span>
+      </div>`;
+    }).join('')}
+    </div>`;
+};

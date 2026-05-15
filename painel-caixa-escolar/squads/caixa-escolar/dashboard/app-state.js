@@ -357,8 +357,9 @@ function getCustoMaisRecente(produtoId) {
 }
 
 // Add a cost record
-function addCustoFornecedor(produtoId, fornecedor, custo, origem, confiabilidade, arquivoId) {
+function addCustoFornecedor(produtoId, fornecedor, custo, origem, confiabilidade, arquivoId, extras) {
   const CONFIABILIDADE_MAP = { nf: 1.0, excel: 0.95, manual: 0.90, b2b: 0.85, pdf: 0.85, 'pdf-ocr': 0.50, api: 0.90, marketplace: 0.85 };
+  const ex = extras || {};
   custosFornecedores.push({
     id: "CUSTO-" + Date.now() + "-" + Math.random().toString(36).substr(2, 5),
     produto_id: produtoId,
@@ -366,10 +367,13 @@ function addCustoFornecedor(produtoId, fornecedor, custo, origem, confiabilidade
     custo: custo,
     data_coleta: new Date().toISOString().slice(0, 10),
     validade: null,
-    regiao: "",
+    regiao: ex.regiao || "",
     origem: origem || "manual",
     confiabilidade: confiabilidade || CONFIABILIDADE_MAP[origem] || 0.90,
-    arquivo_id: arquivoId || null
+    arquivo_id: arquivoId || null,
+    frete_estimado: ex.frete_estimado || null,
+    prazo_pagamento_dias: ex.prazo_pagamento_dias || null,
+    descricao_original: ex.descricao_original || null
   });
   saveCustosFornecedores();
 }
@@ -626,14 +630,38 @@ const SHARED_SYNC_KEYS = new Set([
   "gdp.equivalencias.v1",
   "gdp.conversoes.v1", "gdp.demandas.v1",
   "gdp.estoque.v1", "gdp.lista-compras.v1",
-  // Intel Preços v2 — Central + Custos
-  "intel.central-produtos.v2", "intel.custos-fornecedores.v1",
+  // Intel Preços v2 — Central + Custos + Histórico
+  "intel.central-produtos.v2", "intel.custos-fornecedores.v1", "intel.historico-licitacoes.v1",
   // Intel Preços — legacy sync
   "gdp.estoque-intel.produtos.v1", "gdp.estoque-intel.embalagens.v1",
   "gdp.estoque-intel.pedidos.v1", "gdp.estoque-intel.pedido-itens.v1",
   "gdp.estoque-intel.movimentacoes.v1", "gdp.estoque-intel.fornecedores.v1",
   "gdp.estoque-intel.compras.v1"
 ]);
+
+// ===== HISTORICO LICITACOES (Story 13.7) =====
+const HISTORICO_LICIT_KEY = "intel.historico-licitacoes.v1";
+
+function loadHistoricoLicitacoes() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(HISTORICO_LICIT_KEY) || '{}');
+    return raw.items || (Array.isArray(raw) ? raw : []);
+  } catch(_) { return []; }
+}
+
+function saveHistoricoLicitacoes(items) {
+  const wrapped = { _v: 1, updatedAt: new Date().toISOString(), items: items };
+  localStorage.setItem(HISTORICO_LICIT_KEY, JSON.stringify(wrapped));
+  schedulCloudSync();
+}
+
+function addHistoricoLicitacao(entry) {
+  const items = loadHistoricoLicitacoes();
+  entry.id = entry.id || ("HIST-" + Date.now() + "-" + Math.random().toString(36).substr(2, 5));
+  items.push(entry);
+  saveHistoricoLicitacoes(items);
+  return entry;
+}
 const RESULTADOS_STORAGE_KEY = "caixaescolar.resultados.v1";
 const CONTRATOS_STORAGE_KEY = "caixaescolar.contratos.v1";
 const PNCP_CACHE_KEY = "caixaescolar.pncp.cache";
@@ -658,8 +686,8 @@ const SYNC_KEYS = [
   "gdp.equivalencias.v1",
   "gdp.conversoes.v1", "gdp.demandas.v1",
   "gdp.estoque.v1", "gdp.lista-compras.v1",
-  // Intel Preços v2 — Central + Custos
-  "intel.central-produtos.v2", "intel.custos-fornecedores.v1",
+  // Intel Preços v2 — Central + Custos + Histórico
+  "intel.central-produtos.v2", "intel.custos-fornecedores.v1", "intel.historico-licitacoes.v1",
   // Intel Preços — legacy sync
   "gdp.estoque-intel.produtos.v1", "gdp.estoque-intel.embalagens.v1",
   "gdp.estoque-intel.pedidos.v1", "gdp.estoque-intel.pedido-itens.v1",

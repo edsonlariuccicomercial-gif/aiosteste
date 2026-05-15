@@ -679,7 +679,7 @@ function previewMapaApuracao() {
 
 // --- Auto-detect column mapping ---
 function autoDetectColumns(headers) {
-  const mapping = { item: -1, preco: -1, unidade: -1, fornecedor: -1, quantidade: -1 };
+  const mapping = { item: -1, preco: -1, unidade: -1, fornecedor: -1, quantidade: -1, frete: -1, prazo_pagamento: -1 };
   const norms = headers.map((h) => normalizedText(h));
 
   norms.forEach((h, i) => {
@@ -688,6 +688,8 @@ function autoDetectColumns(headers) {
     if (mapping.unidade < 0 && /\b(unidade|un\b|und|medida|embalagem|emb)\b/.test(h)) mapping.unidade = i;
     if (mapping.fornecedor < 0 && /\b(fornecedor|fonte|marca|empresa|fabricante)\b/.test(h)) mapping.fornecedor = i;
     if (mapping.quantidade < 0 && /\b(qtd|qtde|quant|quantidade)\b/.test(h)) mapping.quantidade = i;
+    if (mapping.frete < 0 && /\b(frete|transporte|entrega)\b/.test(h)) mapping.frete = i;
+    if (mapping.prazo_pagamento < 0 && /\b(prazo|pagamento|prazo.?pag|dias)\b/.test(h)) mapping.prazo_pagamento = i;
   });
 
   if (mapping.item < 0 && headers.length >= 2) {
@@ -729,8 +731,8 @@ function previewImportData() {
   const colOpts = headers.map((h, i) => `<option value="${i}">${escapeHtml(h)}</option>`).join("");
   const noOpt = '<option value="-1">— Ignorar —</option>';
 
-  el.importMapping.innerHTML = ["item", "preco", "unidade", "fornecedor"].map((key) => {
-    const labels = { item: "Item / Produto", preco: "Preco / Custo", unidade: "Unidade", fornecedor: "Fornecedor" };
+  el.importMapping.innerHTML = ["item", "preco", "unidade", "fornecedor", "frete", "prazo_pagamento"].map((key) => {
+    const labels = { item: "Item / Produto", preco: "Preco / Custo", unidade: "Unidade", fornecedor: "Fornecedor", frete: "Frete Estimado (opcional)", prazo_pagamento: "Prazo Pagamento dias (opcional)" };
     const sel = mapping[key];
     const opts = noOpt + colOpts;
     return `<label>${labels[key]}
@@ -777,7 +779,30 @@ function parsePriceValue(val) {
   return parseFloat(s) || 0;
 }
 
-// --- Merge into Banco de Precos ---
+// --- Determine import origin tag from file extension / format badge ---
+function _detectImportOrigem() {
+  const badge = document.getElementById("import-format-badge");
+  const fmt = badge ? badge.textContent.toLowerCase() : "";
+  if (fmt.includes("ocr")) return "pdf-ocr";
+  if (fmt.includes("pdf")) return "pdf";
+  if (fmt.includes("docx")) return "excel";
+  if (fmt.includes("imagem")) return "pdf-ocr";
+  return "excel";
+}
+
+// --- Extract fornecedor from filename when column not mapped ---
+function _fornecedorFromFilename() {
+  const fname = document.getElementById("import-filename")?.textContent || "";
+  if (!fname) return "";
+  // Try to extract company name from patterns like "Tabela_FornecedorABC.xlsx" or "precos - Empresa X.pdf"
+  const cleaned = fname.replace(/\.(xlsx?|csv|pdf|docx?|jpe?g|png)$/i, "").replace(/[_\-\.]/g, " ").trim();
+  // If filename has a clear separator, take the second part
+  const parts = cleaned.split(/\s*[-–—|]\s*/);
+  if (parts.length >= 2) return parts[parts.length - 1].trim();
+  return "";
+}
+
+// --- Merge into Banco de Precos (Story 13.4: writes to custos_fornecedores) ---
 function mergeImportIntoBanco() {
   if (importData.isMapa) {
     mergeMapaIntoBanco();
@@ -787,14 +812,18 @@ function mergeImportIntoBanco() {
   const { rows, mapping } = importData;
   if (mapping.item < 0) { alert("Selecione a coluna de Item / Produto."); return; }
 
+  // Detect import origin (excel, pdf, pdf-ocr)
+  const origemTag = _detectImportOrigem();
+  const CONFIABILIDADE_MAP = { nf: 1.0, excel: 0.95, manual: 0.90, b2b: 0.85, pdf: 0.85, 'pdf-ocr': 0.50, api: 0.90 };
+  const sourceConfidence = CONFIABILIDADE_MAP[origemTag] || 0.90;
+
   // Register import file (Story 4.27)
   const importFilename = document.getElementById("import-filename")?.textContent || "import";
-  const currentArquivo = registrarArquivo(importFilename, "", "excel", 0);
+  const currentArquivo = registrarArquivo(importFilename, "", origemTag, 0);
   const currentArquivoId = currentArquivo.id;
-  const sourceConfidence = currentArquivo.confianca;
 
   const valoresTotal = document.getElementById("chk-valores-totais")?.checked || false;
-  let updated = 0, added = 0, converted = 0;
+  let custosNovos = 0, produtosExistentes = 0, produtosNovos = 0, converted = 0;
   const todayStr = new Date().toISOString().slice(0, 10);
 
   rows.forEach((row) => {
@@ -804,7 +833,12 @@ function mergeImportIntoBanco() {
 
     let preco = mapping.preco >= 0 ? parsePriceValue(row[mapping.preco]) : 0;
     const unidadeRaw = mapping.unidade >= 0 ? String(row[mapping.unidade] || "").trim() : "";
-    const fornecedor = mapping.fornecedor >= 0 ? String(row[mapping.fornecedor] || "").trim() : "";
+    let fornecedor = mapping.fornecedor >= 0 ? String(row[mapping.fornecedor] || "").trim() : "";
+    if (!fornecedor) fornecedor = _fornecedorFromFilename(); // AC6: from filename
+
+    // Optional TCO fields (Story 13.4 AC7, AC8)
+    const freteRaw = mapping.frete >= 0 ? parsePriceValue(row[mapping.frete]) : null;
+    const prazoRaw = mapping.prazo_pagamento >= 0 ? parseInt(String(row[mapping.prazo_pagamento] || "").replace(/\D/g, ""), 10) : null;
 
     // If values are totals, divide by quantity
     if (valoresTotal && mapping.quantidade >= 0 && preco > 0) {
@@ -818,49 +852,67 @@ function mergeImportIntoBanco() {
     const unidade = conv.unidade;
     preco = conv.preco;
 
-    // M8 fix: check SKU first (more reliable), then fallback to name normalization
-    const skuRaw = mapping.sku >= 0 ? String(row[mapping.sku] || "").trim() : "";
-    let existing = null;
-    if (skuRaw) existing = bancoPrecos.itens.find((bp) => bp.sku && bp.sku === skuRaw);
-    if (!existing) {
-      const normName = normalizedText(itemName);
-      existing = bancoPrecos.itens.find((bp) => normalizedText(bp.item) === normName);
+    // Story 13.4: Find product in centralProdutos (v2), NOT in bancoPrecos
+    const normName = normalizedText(itemName);
+    let existingProduto = centralProdutos.find((p) => normalizedText(p.nome || p.descricao || "") === normName);
+
+    if (existingProduto) {
+      // AC4: Existing product NOT overwritten — only new cost record added
+      produtosExistentes++;
+    } else {
+      // AC5: Create new product in centralProdutos
+      const newProdId = "PROD-" + Date.now() + "-" + Math.random().toString(36).substr(2, 6);
+      existingProduto = {
+        id: newProdId,
+        nome: itemName,
+        unidade_base: unidade || "Unidade",
+        categoria: "",
+        sku: "",
+        ncm: "",
+        origem: "0",
+        produto_critico: false,
+        classificacao_kraljic: "alavancagem",
+        ativo: true,
+        criadoEm: new Date().toISOString(),
+        atualizadoEm: new Date().toISOString()
+      };
+      centralProdutos.push(existingProduto);
+      produtosNovos++;
     }
 
-    if (existing) {
-      if (preco > 0) existing.custoBase = preco;
-      if (unidade) existing.unidade = unidade;
-      if (fornecedor) existing.fonte = fornecedor;
-      existing.precoReferencia = Math.round(existing.custoBase * (1 + existing.margemPadrao) * 100) / 100;
-      existing.ultimaCotacao = todayStr;
+    // AC1/AC2/AC3: Always add new cost record (never overwrite)
+    if (preco > 0) {
+      addCustoFornecedor(existingProduto.id, fornecedor, preco, origemTag, sourceConfidence, currentArquivoId, {
+        frete_estimado: freteRaw > 0 ? freteRaw : null,
+        prazo_pagamento_dias: prazoRaw > 0 ? prazoRaw : null,
+        descricao_original: itemName
+      });
+      custosNovos++;
+    }
+
+    // Legacy backward compat: also update bancoPrecos for existing flows
+    const existingBanco = bancoPrecos.itens.find((bp) => normalizedText(bp.item) === normName);
+    if (existingBanco) {
+      // Do NOT overwrite custoBase (AC4) — just update metadata
+      if (unidade) existingBanco.unidade = unidade;
+      if (fornecedor) existingBanco.fonte = fornecedor;
+      existingBanco.ultimaCotacao = todayStr;
       if (preco > 0 && fornecedor) {
-        if (!existing.custosFornecedor) existing.custosFornecedor = [];
-        existing.custosFornecedor.push({ fornecedor, preco, data: todayStr, arquivoId: currentArquivoId, descricaoOriginal: itemName, confianca: sourceConfidence });
-        // Detect variation > 20% (Story 4.27)
-        if (existing.custosFornecedor.length >= 2) {
-          const prev = existing.custosFornecedor[existing.custosFornecedor.length - 2].preco;
-          const curr = existing.custosFornecedor[existing.custosFornecedor.length - 1].preco;
-          if (prev > 0) {
-            const varPct = ((curr - prev) / prev) * 100;
-            if (Math.abs(varPct) > 20) {
-              gdpWarn(`[Banco] Variacao ${varPct.toFixed(1)}%: "${existing.item}" (${brl.format(prev)} -> ${brl.format(curr)})`);
-            }
-          }
-        }
+        if (!existingBanco.custosFornecedor) existingBanco.custosFornecedor = [];
+        existingBanco.custosFornecedor.push({ fornecedor, preco, data: todayStr, arquivoId: currentArquivoId, descricaoOriginal: itemName, confianca: sourceConfidence });
       }
-      // Link to Item Mestre (Story 4.26)
-      if (!existing.mesterId) {
-        const mestreMatch = findBestMestre(existing.item);
+      if (!existingBanco.mesterId) {
+        const mestreMatch = findBestMestre(existingBanco.item);
         if (mestreMatch && mestreMatch.score >= 0.5) {
-          existing.mesterId = mestreMatch.mestre.id;
-          linkItemToMestre(existing.item, mestreMatch.mestre.id);
+          existingBanco.mesterId = mestreMatch.mestre.id;
+          linkItemToMestre(existingBanco.item, mestreMatch.mestre.id);
         } else {
-          const mestre = createMestreFromItem(existing);
-          existing.mesterId = mestre.id;
+          const mestre = createMestreFromItem(existingBanco);
+          existingBanco.mesterId = mestre.id;
         }
       }
-      updated++;
     } else {
+      // Also create in legacy bancoPrecos for backward compat
       const margemPadrao = 0.30;
       const newId = "bp-" + String(Date.now()).slice(-6) + String(Math.random()).slice(2, 5);
       const newItem = {
@@ -869,49 +921,53 @@ function mergeImportIntoBanco() {
         ultimaCotacao: todayStr, fonte: fornecedor, propostas: [], concorrentes: [],
         custosFornecedor: fornecedor && preco > 0 ? [{ fornecedor, preco, data: todayStr, arquivoId: currentArquivoId, descricaoOriginal: itemName, confianca: sourceConfidence }] : [],
       };
-      // Link to Item Mestre (Story 4.26)
       const mestreMatch = findBestMestre(newItem.item);
-      if (mestreMatch && mestreMatch.score >= 0.8) {
+      if (mestreMatch && mestreMatch.score >= 0.5) {
         newItem.mesterId = mestreMatch.mestre.id;
         linkItemToMestre(newItem.item, mestreMatch.mestre.id);
-      } else if (mestreMatch && mestreMatch.score >= 0.5) {
-        newItem.mesterId = mestreMatch.mestre.id;
-        linkItemToMestre(newItem.item, mestreMatch.mestre.id);
-        gdpLog(`[Mestre] Match sugerido (${(mestreMatch.score*100).toFixed(0)}%): "${newItem.item}" → "${mestreMatch.mestre.nomeCanonico}"`);
       } else {
         const mestre = createMestreFromItem(newItem);
         newItem.mesterId = mestre.id;
       }
       bancoPrecos.itens.push(newItem);
-      added++;
     }
   });
 
   // Update arquivo registry with count (Story 4.27)
-  currentArquivo.qtdItens = updated + added;
+  currentArquivo.qtdItens = custosNovos;
   saveArquivos();
 
+  saveCentralProdutos();
   saveMestres();
   saveBancoLocal(); renderBanco();
-  let msg = `${updated} atualizados, ${added} novos.`;
+  if (typeof renderCentralPrecos === 'function') renderCentralPrecos();
+
+  // AC9: Show stats with custos novos vs produtos existentes
+  let msg = `<strong>${custosNovos} custos novos</strong> adicionados em custos_fornecedores.`;
+  msg += ` ${produtosExistentes} produtos existentes, ${produtosNovos} novos criados.`;
   if (converted > 0) msg += ` ${converted} convertidos (caixa/fardo → unidade).`;
+  msg += `<br><span style="font-size:.7rem;color:var(--muted);">Origem: ${origemTag} | Confiabilidade: ${Math.round(sourceConfidence * 100)}%</span>`;
   el.importStats.innerHTML = msg; el.importStats.style.display = "block";
   setTimeout(() => { closeImportModal(); }, 3000);
 }
 
-// --- Merge Mapa de Apuracao into Banco ---
+// --- Merge Mapa de Apuracao into Banco (Story 13.4: writes to custos_fornecedores) ---
 function mergeMapaIntoBanco() {
   const { rows, licitantes, myCompanyIdx, wonItems, nameCol, itemCol, qtdCol, unCol } = importData;
   const valoresTotal = document.getElementById("chk-valores-totais")?.checked || importData.valoresTotal;
   const todayStr = new Date().toISOString().slice(0, 10);
 
+  // Detect origin
+  const origemTag = _detectImportOrigem();
+  const CONFIABILIDADE_MAP = { nf: 1.0, excel: 0.95, manual: 0.90, b2b: 0.85, pdf: 0.85, 'pdf-ocr': 0.50, api: 0.90 };
+  const sourceConfidence = CONFIABILIDADE_MAP[origemTag] || 0.90;
+
   // Register import file (Story 4.27)
   const importFilename = document.getElementById("import-filename")?.textContent || "mapa-import";
-  const currentArquivo = registrarArquivo(importFilename, "", "excel", 0);
+  const currentArquivo = registrarArquivo(importFilename, "", origemTag, 0);
   const currentArquivoId = currentArquivo.id;
-  const sourceConfidence = currentArquivo.confianca;
 
-  let added = 0, updated = 0, concorrentesAdded = 0;
+  let custosNovos = 0, produtosExistentes = 0, produtosNovos = 0, concorrentesAdded = 0;
   const importAll = wonItems.size === 0; // If no classification, import all
 
   rows.forEach((row) => {
@@ -938,45 +994,80 @@ function mergeMapaIntoBanco() {
       return { nome: l.name, preco: unit, isMe: li === myCompanyIdx };
     }).filter((p) => p.preco > 0);
 
+    // Story 13.4: Find product in centralProdutos (v2)
     const normName = normalizedText(itemName);
-    const existing = bancoPrecos.itens.find((bp) => normalizedText(bp.item) === normName);
+    let existingProduto = centralProdutos.find((p) => normalizedText(p.nome || p.descricao || "") === normName);
 
-    if (existing) {
-      // Update with my price if won
-      if (isWon && myPrice > 0) {
-        existing.custoBase = myPrice;
-        existing.precoReferencia = Math.round(myPrice * (1 + existing.margemPadrao) * 100) / 100;
-        existing.ultimaCotacao = todayStr;
-      }
-      // Add competitor prices
-      if (!existing.concorrentes) existing.concorrentes = [];
+    if (existingProduto) {
+      produtosExistentes++;
+    } else if (isWon || importAll) {
+      const newProdId = "PROD-" + Date.now() + "-" + Math.random().toString(36).substr(2, 6);
+      existingProduto = {
+        id: newProdId,
+        nome: itemName,
+        unidade_base: unidade || "Unidade",
+        categoria: "",
+        sku: "",
+        ncm: "",
+        origem: "0",
+        produto_critico: false,
+        classificacao_kraljic: "alavancagem",
+        ativo: true,
+        criadoEm: new Date().toISOString(),
+        atualizadoEm: new Date().toISOString()
+      };
+      centralProdutos.push(existingProduto);
+      produtosNovos++;
+    }
+
+    // Add cost records to custos_fornecedores (Story 13.4)
+    if (existingProduto && myPrice > 0) {
+      addCustoFornecedor(existingProduto.id, "Meu preco (mapa)", myPrice, origemTag, sourceConfidence, currentArquivoId, {
+        descricao_original: itemName
+      });
+      custosNovos++;
+    }
+
+    // Add competitor prices as cost records too
+    if (existingProduto) {
       allPrices.forEach((p) => {
         if (!p.isMe && p.preco > 0) {
-          existing.concorrentes.push({ nome: p.nome, preco: p.preco, data: todayStr, edital: "Mapa Import" });
+          addCustoFornecedor(existingProduto.id, p.nome, p.preco, origemTag, sourceConfidence, currentArquivoId, {
+            descricao_original: itemName
+          });
           concorrentesAdded++;
         }
       });
-      // Link to Item Mestre (Story 4.26)
-      if (!existing.mesterId) {
-        const mestreMatch = findBestMestre(existing.item);
+    }
+
+    // Legacy backward compat: also update bancoPrecos
+    const existingBanco = bancoPrecos.itens.find((bp) => normalizedText(bp.item) === normName);
+
+    if (existingBanco) {
+      // Do NOT overwrite custoBase (AC4)
+      existingBanco.ultimaCotacao = todayStr;
+      if (!existingBanco.concorrentes) existingBanco.concorrentes = [];
+      allPrices.forEach((p) => {
+        if (!p.isMe && p.preco > 0) {
+          existingBanco.concorrentes.push({ nome: p.nome, preco: p.preco, data: todayStr, edital: "Mapa Import" });
+        }
+      });
+      if (!existingBanco.mesterId) {
+        const mestreMatch = findBestMestre(existingBanco.item);
         if (mestreMatch && mestreMatch.score >= 0.5) {
-          existing.mesterId = mestreMatch.mestre.id;
-          linkItemToMestre(existing.item, mestreMatch.mestre.id);
+          existingBanco.mesterId = mestreMatch.mestre.id;
+          linkItemToMestre(existingBanco.item, mestreMatch.mestre.id);
         } else {
-          const mestre = createMestreFromItem(existing);
-          existing.mesterId = mestre.id;
+          const mestre = createMestreFromItem(existingBanco);
+          existingBanco.mesterId = mestre.id;
         }
       }
-      updated++;
     } else if (isWon || importAll) {
-      // Create new item
       const margemPadrao = 0.30;
       const custoBase = myPrice || 0;
       const newId = "bp-" + String(Date.now()).slice(-6) + String(Math.random()).slice(2, 5);
       const competitorPrices = allPrices.filter((p) => !p.isMe && p.preco > 0)
         .map((p) => ({ nome: p.nome, preco: p.preco, data: todayStr, edital: "Mapa Import" }));
-      concorrentesAdded += competitorPrices.length;
-
       const newItem = {
         id: newId, item: itemName, grupo: "Mapa Apuracao", unidade: unidade || "Unidade",
         custoBase, margemPadrao, precoReferencia: Math.round(custoBase * (1 + margemPadrao) * 100) / 100,
@@ -984,7 +1075,6 @@ function mergeMapaIntoBanco() {
         propostas: [], concorrentes: competitorPrices,
         custosFornecedor: myPrice > 0 ? [{ fornecedor: "Meu preco (mapa)", preco: myPrice, data: todayStr, arquivoId: currentArquivoId, descricaoOriginal: itemName, confianca: sourceConfidence }] : [],
       };
-      // Link to Item Mestre (Story 4.26)
       const mestreMatch = findBestMestre(newItem.item);
       if (mestreMatch && mestreMatch.score >= 0.5) {
         newItem.mesterId = mestreMatch.mestre.id;
@@ -994,21 +1084,24 @@ function mergeMapaIntoBanco() {
         newItem.mesterId = mestre.id;
       }
       bancoPrecos.itens.push(newItem);
-      added++;
     }
   });
 
   // Update arquivo registry with count (Story 4.27)
-  currentArquivo.qtdItens = updated + added;
+  currentArquivo.qtdItens = custosNovos + concorrentesAdded;
   saveArquivos();
 
+  saveCentralProdutos();
   saveMestres();
   saveBancoLocal(); renderBanco();
+  if (typeof renderCentralPrecos === 'function') renderCentralPrecos();
 
-  const wonCount = wonItems.size || rows.length;
-  let msg = `Mapa importado! ${added} novos, ${updated} atualizados.`;
+  // AC9: Show stats with custos novos vs produtos existentes
+  let msg = `<strong>Mapa importado!</strong> ${custosNovos} custos novos adicionados.`;
+  msg += ` ${produtosExistentes} produtos existentes, ${produtosNovos} novos criados.`;
   if (wonItems.size > 0) msg += ` ${wonItems.size} itens ganhos.`;
   msg += ` ${concorrentesAdded} precos de concorrentes registrados.`;
+  msg += `<br><span style="font-size:.7rem;color:var(--muted);">Origem: ${origemTag} | Confiabilidade: ${Math.round(sourceConfidence * 100)}%</span>`;
   el.importStats.innerHTML = msg; el.importStats.style.display = "block";
   setTimeout(() => { closeImportModal(); }, 4000);
 }
