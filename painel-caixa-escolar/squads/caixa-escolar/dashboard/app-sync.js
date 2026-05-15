@@ -135,10 +135,29 @@ async function syncFromCloud() {
   return synced > 0;
 }
 
+// Dirty tracking: only sync keys that changed since last sync
+const _syncHashes = {};
+function _quickHash(str) {
+  let h = 0;
+  for (let i = 0; i < str.length; i++) h = ((h << 5) - h + str.charCodeAt(i)) | 0;
+  return h;
+}
+
+// Max payload per key (500KB) — larger keys already have dedicated Supabase tables
+const SYNC_MAX_BYTES = 500 * 1024;
+
 async function syncToCloud(signal) {
   const promises = SYNC_KEYS.map(key => {
     const raw = localStorage.getItem(key);
     if (!raw) return Promise.resolve();
+
+    // Skip keys that exceed max size (orcamentos ~1.5MB, notas-fiscais ~1.4MB already have dedicated tables)
+    if (raw.length > SYNC_MAX_BYTES) return Promise.resolve();
+
+    // Skip keys that haven't changed since last sync
+    const hash = _quickHash(raw);
+    if (_syncHashes[key] === hash) return Promise.resolve();
+
     try {
       const data = JSON.parse(raw);
       // Guard: skip empty data UNLESS it has a recent updatedAt (legitimate deletion)
@@ -147,6 +166,7 @@ async function syncToCloud(signal) {
         if (Array.isArray(data) && data.length === 0) return Promise.resolve();
         if (data && typeof data === 'object' && Array.isArray(data.items) && data.items.length === 0) return Promise.resolve();
       }
+      _syncHashes[key] = hash;
       return cloudSave(key, data, signal);
     } catch(_) { return Promise.resolve(); }
   });
