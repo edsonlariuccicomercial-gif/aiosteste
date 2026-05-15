@@ -39,7 +39,9 @@ function parseUnitConversion(unidadeStr, precoOriginal) {
 // ===== MULTI-FORMAT IMPORT (PDF, DOCX, Excel, JPEG/OCR, Mapa de Apuracao) =====
 let importData = { rows: [], headers: [], mapping: {} };
 
-function openImportDialog() {
+async function openImportDialog() {
+  // Lazy load import libs (PDF, DOCX, OCR) on first use
+  if (typeof loadImportLibs === 'function') await loadImportLibs();
   el.importFileInput.value = "";
   el.importFileInput.click();
 }

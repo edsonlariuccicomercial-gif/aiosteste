@@ -483,9 +483,12 @@ function renderPdfProposta(doc, pre, orcId) {
   }
 }
 
-window.gerarPdfProposta = function (orcId) {
+window.gerarPdfProposta = async function (orcId) {
   const pre = preOrcamentos[orcId];
   if (!pre) return;
+
+  // Lazy load jsPDF on first use
+  if (typeof loadExportLibs === 'function') await loadExportLibs();
 
   if (!window.jspdf || !window.jspdf.jsPDF) {
     showToast("Erro: biblioteca jsPDF não carregou. Verifique sua conexão.");
