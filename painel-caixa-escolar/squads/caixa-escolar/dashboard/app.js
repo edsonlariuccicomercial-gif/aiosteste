@@ -3131,22 +3131,7 @@ window.confirmarUnidade = function (preId, idx, valor) {
   showToast("Unidade confirmada: " + valor);
 };
 
-// Story 10.5: switchHistoricoTab atualizado para incluir contratos e rentabilidade
-const _origSwitchHistoricoTab = typeof switchHistoricoTab === 'function' ? switchHistoricoTab : null;
-window.switchHistoricoTab = function (tab) {
-  ['contratos', 'ganhos', 'perdidos', 'analise', 'rentabilidade'].forEach(t => {
-    const el = document.getElementById('hist-' + t);
-    if (el) el.style.display = t === tab ? 'block' : 'none';
-  });
-  document.querySelectorAll('#sub-tabs-historico .rent-tab').forEach(btn => {
-    btn.classList.toggle('active', btn.textContent.toLowerCase().includes(tab.substring(0, 4)));
-  });
-  if (tab === 'contratos' && typeof renderAprovados === 'function') renderAprovados();
-  if (tab === 'ganhos' || tab === 'perdidos' || tab === 'analise') {
-    if (typeof renderHistoricoContent === 'function') renderHistoricoContent(tab);
-  }
-  if (tab === 'rentabilidade' && typeof renderRentabilidade === 'function') renderRentabilidade();
-};
+// Story 10.5 → Story 13.7: switchHistoricoTab now defined in app-results.js (handles all 6 tabs including inteligencia)
 
 // Show margem-global-bar + revisão unidades when pre-orcamento form is visible
 const _origRenderPreOrcItens = typeof renderPreOrcamentoItens === 'function' ? renderPreOrcamentoItens : null;
