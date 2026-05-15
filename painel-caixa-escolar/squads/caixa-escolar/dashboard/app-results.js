@@ -103,7 +103,7 @@ const _SB_RESULTADOS = {
 // Story 13.7: Auto-migrate existing resultados to historico_licitacoes
 // Runs on every boot — re-migrates if version bumps (to pick up SRE enrichment etc.)
 (function _migrateResultadosToHistorico() {
-  const MIGRATION_VERSION = '2'; // bump to force re-migration
+  const MIGRATION_VERSION = '3'; // bump to force re-migration (v3: SRE from orcamentos)
   if (localStorage.getItem('intel.historico.migrated.v1') === MIGRATION_VERSION) return;
   if (typeof loadHistoricoLicitacoes !== 'function') return;
 
