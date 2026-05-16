@@ -3432,48 +3432,32 @@ window.downloadNfPdf = function(nfId) {
   const nf = notasEntrada.find(n => n.id === nfId);
   if (!nf) { showToast("Nota não encontrada.", 3000); return; }
 
-  // Check if jsPDF is available
-  if (typeof jspdf === 'undefined' && typeof jsPDF === 'undefined') {
-    // Fallback: generate printable HTML and trigger browser print
-    const html = _gerarHtmlNf(nf);
-    const win = window.open("", "_blank");
-    win.document.write(html);
-    win.document.close();
-    win.print();
+  const htmlContent = _gerarHtmlNf(nf);
+
+  // Use html2pdf (already loaded in gdp-contratos.html)
+  if (typeof html2pdf !== 'undefined') {
+    const container = document.createElement("div");
+    container.innerHTML = htmlContent;
+    container.style.position = "absolute";
+    container.style.left = "-9999px";
+    document.body.appendChild(container);
+
+    html2pdf().set({
+      margin: 10,
+      filename: `NF-${nf.numero || nfId}-${(nf.fornecedor || "").slice(0, 20).replace(/\s+/g, "_")}.pdf`,
+      html2canvas: { scale: 2 },
+      jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
+    }).from(container).save().then(() => {
+      document.body.removeChild(container);
+    });
     return;
   }
 
-  const { jsPDF } = typeof jspdf !== 'undefined' ? jspdf : { jsPDF: window.jsPDF };
-  const doc = new jsPDF();
-  const brlFmt = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
-
-  doc.setFontSize(14);
-  doc.text("NOTA FISCAL DE ENTRADA", 14, 20);
-  doc.setFontSize(10);
-  doc.text(`Fornecedor: ${nf.fornecedor || "-"}`, 14, 30);
-  doc.text(`CNPJ Emitente: ${nf.cnpjEmitente || "-"}`, 14, 36);
-  doc.text(`Número: ${nf.numero || "-"}`, 14, 42);
-  doc.text(`Chave: ${nf.chave || "-"}`, 14, 48);
-  doc.text(`Data Emissão: ${nf.emitidaEm ? new Date(nf.emitidaEm).toLocaleDateString("pt-BR") : "-"}`, 14, 54);
-  doc.text(`Valor Total: ${brlFmt.format(Number(nf.valor || 0))}`, 14, 60);
-
-  // Items table
-  if (nf.itens && nf.itens.length > 0) {
-    doc.setFontSize(11);
-    doc.text("ITENS", 14, 72);
-    doc.setFontSize(8);
-    let y = 80;
-    doc.text("# | Descrição | NCM | Qtd | Unid | V.Unit | V.Total", 14, y);
-    y += 6;
-    nf.itens.forEach((item, i) => {
-      if (y > 270) { doc.addPage(); y = 20; }
-      const line = `${i + 1} | ${(item.descricao || "").slice(0, 40)} | ${item.ncm || "-"} | ${item.quantidade || 0} | ${item.unidade || "UN"} | ${brlFmt.format(item.valorUnitario || 0)} | ${brlFmt.format(item.valorTotal || 0)}`;
-      doc.text(line, 14, y);
-      y += 5;
-    });
-  }
-
-  doc.save(`NF-${nf.numero || nfId}-${(nf.fornecedor || "").slice(0, 20)}.pdf`);
+  // Fallback: open printable HTML in new tab
+  const win = window.open("", "_blank");
+  win.document.write(htmlContent);
+  win.document.close();
+  setTimeout(() => win.print(), 500);
 };
 
 function _gerarHtmlNf(nf) {

@@ -4,10 +4,10 @@
   <title>GDP Contratos — Gestao Pos-Licitacao</title>
   <link rel="stylesheet" href="css/design-tokens.css">
   <link rel="stylesheet" href="styles.css?v=8">
-  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
-  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-  <script>if(window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
+  <script defer src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <script defer src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script>document.addEventListener('DOMContentLoaded',function(){if(window.pdfjsLib)pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';});</script>
   <style>
     /* Page footer bar — fixed at bottom, respects sidebar */
     .page-footer{position:fixed;bottom:0;left:220px;right:0;z-index:90;background:var(--s1,#1e293b);border-top:1px solid var(--bdr,#475569);padding:.55rem 2rem;display:flex;align-items:center;justify-content:flex-end;gap:1rem;box-shadow:0 -2px 12px rgba(0,0,0,.25)}
@@ -1010,7 +1010,7 @@
       <input type="file" id="import-nota-entrada-xml" accept=".xml,text/xml" style="display:none" onchange="importarNotaEntradaXml(this)">
       <div class="table-wrap" style="max-height:480px;overflow-y:auto">
         <table>
-          <thead><tr><th>Emissao</th><th>Fornecedor</th><th>Numero</th><th>Chave</th><th class="text-right">Valor</th><th>Status</th><th>Origem</th></tr></thead>
+          <thead><tr><th>Emissao</th><th>Fornecedor</th><th>Numero</th><th>Chave</th><th class="text-right">Valor</th><th>Status</th><th>Origem</th><th>Ações</th></tr></thead>
           <tbody id="notas-entrada-tbody"></tbody>
         </table>
       </div>
