@@ -3392,65 +3392,84 @@ window.importarNfParaCentral = function(nfId) {
     return;
   }
 
+  // Use bancoProdutos (gdp-banco-produtos.js) — the real Central de Produtos
+  if (typeof bancoProdutos === 'undefined' || !bancoProdutos) {
+    showToast("Central de Produtos não carregada. Recarregue a página.", 4000);
+    return;
+  }
+  if (typeof loadBancoProdutos === 'function' && (!bancoProdutos.itens || bancoProdutos.itens.length === 0)) {
+    loadBancoProdutos();
+  }
+
   let importados = 0, atualizados = 0, ignorados = 0;
-  const central = bancoPrecos.itens || [];
+  const central = bancoProdutos.itens || [];
+  const todayStr = new Date().toISOString().slice(0, 10);
 
   nf.itens.forEach(item => {
-    // Match by NCM+name or exact name
-    const existing = central.find(p =>
-      (item.ncm && p.ncm === item.ncm && normalizedText(p.item).includes(normalizedText(item.descricao).split(' ')[0])) ||
-      normalizedText(p.item) === normalizedText(item.descricao)
-    );
+    const descNorm = (item.descricao || "").toLowerCase().trim();
+    // Match: exact description OR same NCM + same description
+    const existing = central.find(p => {
+      const pDesc = (p.descricao || p.item || "").toLowerCase().trim();
+      if (!pDesc || !descNorm) return false;
+      if (pDesc === descNorm) return true;
+      if (item.ncm && p.ncm === item.ncm && pDesc === descNorm) return true;
+      return false;
+    });
 
     if (existing) {
       // Product exists — update cost
       const oldCusto = existing.custoBase;
       existing.custoBase = item.valorUnitario || item.precoUnitario || existing.custoBase;
-      existing.precoReferencia = existing.custoBase * (1 + (existing.margemPadrao || 0.30));
+      existing.precoReferencia = existing.custoBase * (1 + (existing.margemAlvo || 0.30));
       if (!existing.custosFornecedor) existing.custosFornecedor = [];
       existing.custosFornecedor.push({
         fornecedor: nf.fornecedor || "NF Entrada",
         preco: existing.custoBase,
-        data: new Date().toISOString().slice(0, 10),
+        data: todayStr,
         tipo: "nf_entrada"
       });
+      existing.atualizadoEm = new Date().toISOString();
       if (existing.custoBase !== oldCusto) atualizados++;
       else ignorados++;
     } else {
-      // New product — create in Central
-      const todayStr = new Date().toISOString().slice(0, 10);
+      // New product — create in Central de Produtos
       const newProd = {
-        id: "bp-" + String(Date.now()).slice(-6) + "-" + Math.random().toString(36).slice(2, 5),
-        sku: item.ncm ? "NCM-" + item.ncm : "",
-        item: item.descricao || item.codigo || "Sem descrição",
+        id: genId("PROD"),
+        descricao: item.descricao || item.codigo || "Sem descrição",
+        sku: item.codigo || (item.ncm ? "NCM-" + item.ncm : ""),
         ncm: item.ncm || "",
         unidade: item.unidade || "UN",
+        marca: "",
         grupo: "Importado NF",
         custoBase: item.valorUnitario || item.precoUnitario || 0,
-        margemPadrao: 0.30,
         precoReferencia: (item.valorUnitario || 0) * 1.30,
-        ultimaCotacao: todayStr,
+        margemAlvo: 0.30,
         fonte: "NF #" + (nf.numero || nfId),
-        propostas: [],
-        concorrentes: [],
         custosFornecedor: [{
           fornecedor: nf.fornecedor || "NF Entrada",
-          preco: item.valorUnitario || 0,
+          preco: item.valorUnitario || item.precoUnitario || 0,
           data: todayStr,
           tipo: "nf_entrada"
-        }]
+        }],
+        concorrentes: [],
+        propostas: [],
+        historicoResultados: [],
+        criadoEm: new Date().toISOString(),
+        atualizadoEm: new Date().toISOString()
       };
-      bancoPrecos.itens.push(newProd);
+      bancoProdutos.itens.push(newProd);
       importados++;
     }
   });
 
-  saveBancoLocal();
+  saveBancoProdutos();
   const msg = [];
   if (importados > 0) msg.push(`${importados} importado(s)`);
   if (atualizados > 0) msg.push(`${atualizados} atualizado(s)`);
   if (ignorados > 0) msg.push(`${ignorados} sem alteração`);
   showToast(`Central de Produtos: ${msg.join(", ")}`, 5000);
+  // Refresh Central tab if visible
+  if (typeof renderBancoProdutos === 'function') renderBancoProdutos();
 };
 
 // Toggle expand/collapse NF item rows
@@ -3470,22 +3489,35 @@ window.downloadNfPdf = function(nfId) {
   if (typeof html2pdf !== 'undefined') {
     const container = document.createElement("div");
     container.innerHTML = htmlContent;
-    container.style.position = "absolute";
-    container.style.left = "-9999px";
+    // Must be visible and on-screen for html2canvas to capture
+    container.style.position = "fixed";
+    container.style.top = "0";
+    container.style.left = "0";
+    container.style.width = "210mm";
+    container.style.zIndex = "-1";
+    container.style.opacity = "0";
+    container.style.pointerEvents = "none";
     document.body.appendChild(container);
 
     html2pdf().set({
-      margin: 10,
+      margin: [10, 10, 10, 10],
       filename: `NF-${nf.numero || nfId}-${(nf.fornecedor || "").slice(0, 20).replace(/\s+/g, "_")}.pdf`,
-      html2canvas: { scale: 2 },
+      html2canvas: { scale: 2, useCORS: true, logging: false },
       jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
     }).from(container).save().then(() => {
       document.body.removeChild(container);
+    }).catch(() => {
+      document.body.removeChild(container);
+      // Fallback if html2pdf fails
+      const win = window.open("", "_blank");
+      win.document.write(htmlContent);
+      win.document.close();
+      setTimeout(() => win.print(), 500);
     });
     return;
   }
 
-  // Fallback: open printable HTML in new tab
+  // Fallback: open printable HTML in new tab for printing
   const win = window.open("", "_blank");
   win.document.write(htmlContent);
   win.document.close();
