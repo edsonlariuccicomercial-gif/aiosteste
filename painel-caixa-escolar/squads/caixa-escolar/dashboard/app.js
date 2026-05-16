@@ -776,7 +776,7 @@ function renderModalAssociacao(orc) {
       ? '<span style="color:var(--accent);font-weight:700;font-size:.75rem">Associado</span>'
       : item.bpId
         ? '<span style="color:var(--warning);font-weight:700;font-size:.75rem">Sem custo</span>'
-        : '<span style="color:var(--danger);font-weight:700;font-size:.75rem">Sem cadastro</span>';
+        : `<span style="color:var(--danger);font-weight:700;font-size:.75rem">Sem cadastro</span><br><button class="btn btn-inline" style="font-size:.7rem;padding:2px 6px;margin-top:3px;background:var(--accent);color:#000;border:none;border-radius:4px;cursor:pointer" onclick="cadastrarProdutoInlineItem(${i})">+ Cadastrar</button>`;
     return `<tr>
       <td style="font-size:.78rem;color:var(--muted)">${i + 1}</td>
       <td style="font-size:.82rem"><strong>${item.nome}</strong><br><span style="font-size:.72rem;color:var(--muted)">${item.descricao}</span></td>
@@ -843,7 +843,27 @@ function validarAssociacao() {
   }
 }
 
-// Story 10.8: Cadastrar produto inline from association modal
+// Story 10.8: Cadastrar produto inline — single item by index
+window.cadastrarProdutoInlineItem = async function(idx) {
+  const item = _assocItens[idx];
+  if (!item) return;
+  if (item.bpId) return showToast("Item já associado.", 2000);
+
+  const orc = orcamentos.find(o => o.id === _assocOrcId);
+  const grupo = orc ? (orc.grupo || "Material de Consumo Geral") : "Material de Consumo Geral";
+  const criado = await _promptCriarProdutoBatch(item.nome, item.unidade, grupo);
+  if (criado) {
+    item.bpId = criado.sku || criado.id;
+    item.bpNome = criado.item;
+    item.custoBase = criado.custoBase || 0;
+    item.precoRef = criado.precoReferencia || 0;
+    item.matchStatus = "criado_inline";
+    showToast(`Produto "${criado.item}" cadastrado e vinculado.`, 3000);
+    if (orc) renderModalAssociacao(orc);
+  }
+};
+
+// Story 10.8: Cadastrar produto inline from association modal (batch all unmatched)
 window.cadastrarProdutoInlineFromAssoc = async function() {
   const semAssoc = _assocItens.filter(i => !i.bpId);
   if (semAssoc.length === 0) return showToast("Todos os itens já estão associados.", 2000);
