@@ -1197,6 +1197,88 @@ function importarNotaEntradaXml(input) {
         });
       }
 
+      // Extract full DANFE data from XML
+      const emitEndereco = emitNode?.getElementsByTagName("enderEmit")[0];
+      const destNode = doc.getElementsByTagName("dest")[0];
+      const destEndereco = destNode?.getElementsByTagName("enderDest")[0];
+      const icmsTotal = doc.getElementsByTagName("ICMSTot")[0];
+      const transpNode = doc.getElementsByTagName("transp")[0];
+      const protNode = doc.getElementsByTagName("protNFe")[0] || doc.getElementsByTagName("infProt")[0];
+      const infAdic = doc.getElementsByTagName("infAdic")[0];
+      const eText = (node, tag) => node?.getElementsByTagName(tag)[0]?.textContent?.trim() || "";
+
+      const danfeData = {
+        // Emitente
+        emitNome: emit,
+        emitCnpj: cnpjEmit,
+        emitIE: eText(emitNode, "IE"),
+        emitIM: eText(emitNode, "IM"),
+        emitEndereco: eText(emitEndereco, "xLgr") + (eText(emitEndereco, "nro") ? ", " + eText(emitEndereco, "nro") : ""),
+        emitBairro: eText(emitEndereco, "xBairro"),
+        emitCep: eText(emitEndereco, "CEP"),
+        emitMunicipio: eText(emitEndereco, "xMun"),
+        emitUf: eText(emitEndereco, "UF"),
+        emitFone: eText(emitEndereco, "fone"),
+        // Destinatario
+        destNome: eText(destNode, "xNome"),
+        destCnpj: eText(destNode, "CNPJ") || eText(destNode, "CPF"),
+        destIE: eText(destNode, "IE"),
+        destEndereco: eText(destEndereco, "xLgr") + (eText(destEndereco, "nro") ? ", " + eText(destEndereco, "nro") : ""),
+        destBairro: eText(destEndereco, "xBairro"),
+        destCep: eText(destEndereco, "CEP"),
+        destMunicipio: eText(destEndereco, "xMun"),
+        destUf: eText(destEndereco, "UF"),
+        destFone: eText(destEndereco, "fone"),
+        // NF
+        natOp: text("natOp"),
+        serie: text("serie"),
+        nNF,
+        dhEmi,
+        dhSaiEnt: text("dhSaiEnt") || text("dSaiEnt") || "",
+        hSaiEnt: text("hSaiEnt") || "",
+        tpNF: text("tpNF"), // 0=entrada, 1=saida
+        chave,
+        nProt: eText(protNode, "nProt") || text("nProt"),
+        dhRecbto: eText(protNode, "dhRecbto") || "",
+        // Impostos
+        vBC: eText(icmsTotal, "vBC"),
+        vICMS: eText(icmsTotal, "vICMS"),
+        vBCST: eText(icmsTotal, "vBCST"),
+        vST: eText(icmsTotal, "vST"),
+        vImp: eText(icmsTotal, "vImp") || "",
+        vProd: eText(icmsTotal, "vProd"),
+        vFrete: eText(icmsTotal, "vFrete"),
+        vSeg: eText(icmsTotal, "vSeg"),
+        vDesc: eText(icmsTotal, "vDesc"),
+        vOutro: eText(icmsTotal, "vOutro"),
+        vIPI: eText(icmsTotal, "vIPI"),
+        vNF: String(vNF),
+        vTotTrib: eText(icmsTotal, "vTotTrib"),
+        vICMSUFDest: eText(icmsTotal, "vICMSUFDest"),
+        vICMSUFRemet: eText(icmsTotal, "vICMSUFRemet"),
+        vFCPUFDest: eText(icmsTotal, "vFCPUFDest"),
+        // Transporte
+        modFrete: eText(transpNode, "modFrete"),
+        transpNome: eText(transpNode, "xNome"),
+        // Info adicional
+        infCpl: eText(infAdic, "infCpl"),
+        infAdFisco: eText(infAdic, "infAdFisco"),
+      };
+
+      // Extract per-item tax data
+      itensNF.forEach((item, i) => {
+        const det = detNodes[i];
+        if (!det) return;
+        const icmsNode = det.getElementsByTagName("ICMS")[0];
+        const icmsInner = icmsNode ? icmsNode.children[0] : null;
+        item.orig = icmsInner ? eText(icmsInner, "orig") : "";
+        item.cst = icmsInner ? (eText(icmsInner, "CST") || eText(icmsInner, "CSOSN")) : "";
+        item.vBC_item = icmsInner ? eText(icmsInner, "vBC") : "";
+        item.pICMS = icmsInner ? eText(icmsInner, "pICMS") : "";
+        item.vICMS_item = icmsInner ? eText(icmsInner, "vICMS") : "";
+        item.vIPI_item = eText(det.getElementsByTagName("IPI")[0] || {}, "vIPI") || "";
+      });
+
       notasEntrada.unshift({
         id: genId("NE"),
         fornecedor: emit,
@@ -1209,6 +1291,8 @@ function importarNotaEntradaXml(input) {
         emitidaEm: dhEmi,
         itens: itensNF,
         totalItens: itensNF.length,
+        danfe: danfeData,
+        xmlRaw: xml,
         createdAt: new Date().toISOString(),
         audit: { createdAt: new Date().toISOString(), createdBy: getAuditActor(), updatedAt: new Date().toISOString(), updatedBy: getAuditActor() }
       });
@@ -3520,23 +3604,143 @@ window.downloadNfPdf = function(nfId) {
   win.document.close();
 };
 
-// Generate just the body content (no <html>/<head> wrapper)
+// Generate DANFE HTML body (official NF-e layout)
 function _gerarHtmlNfBody(nf) {
-  const brlFmt = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
-  let html = `<h2>NOTA FISCAL DE ENTRADA</h2>`;
-  html += `<p><strong>Fornecedor:</strong> ${nf.fornecedor || "-"} &nbsp;|&nbsp; <strong>CNPJ:</strong> ${nf.cnpjEmitente || "-"}</p>`;
-  html += `<p><strong>Numero:</strong> ${nf.numero || "-"} &nbsp;|&nbsp; <strong>Chave:</strong> <span style="font-size:11px">${nf.chave || "-"}</span></p>`;
-  html += `<p><strong>Emissao:</strong> ${nf.emitidaEm ? new Date(nf.emitidaEm).toLocaleDateString("pt-BR") : "-"} &nbsp;|&nbsp; <strong>Valor Total:</strong> ${brlFmt.format(Number(nf.valor || 0))}</p>`;
-  html += `<p><strong>Origem:</strong> ${nf.origem || "-"} &nbsp;|&nbsp; <strong>Status:</strong> ${nf.status || "-"}</p>`;
-  if (nf.itens && nf.itens.length > 0) {
-    html += `<table><thead><tr><th>#</th><th>Descricao</th><th>NCM</th><th>Qtd</th><th>Unid</th><th class="text-right">V.Unit</th><th class="text-right">V.Total</th></tr></thead><tbody>`;
-    nf.itens.forEach((item, i) => {
-      html += `<tr><td>${i + 1}</td><td>${item.descricao || "-"}</td><td>${item.ncm || "-"}</td><td>${item.quantidade || 0}</td><td>${item.unidade || "UN"}</td><td class="text-right">${brlFmt.format(item.valorUnitario || item.precoUnitario || 0)}</td><td class="text-right">${brlFmt.format(item.valorTotal || 0)}</td></tr>`;
-    });
-    html += `</tbody></table>`;
-  } else {
-    html += `<p style="margin-top:1rem;color:#888">Nota sem detalhamento de itens.</p>`;
-  }
+  const d = nf.danfe || {};
+  const fmt = (v) => { const n = Number(v || 0); return n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); };
+  const fmtCnpj = (c) => { c = (c||"").replace(/\D/g,""); if (c.length===14) return c.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/,"$1.$2.$3/$4-$5"); return c; };
+  const fmtCep = (c) => { c = (c||"").replace(/\D/g,""); if (c.length===8) return c.replace(/^(\d{5})(\d{3})$/,"$1-$2"); return c; };
+  const fmtData = (v) => { if (!v) return ""; try { return new Date(v).toLocaleDateString("pt-BR"); } catch(_) { return v; } };
+  const fmtHora = (v) => { if (!v) return ""; try { const dt = new Date(v); return dt.toLocaleTimeString("pt-BR"); } catch(_) { return v; } };
+  const tpNF = d.tpNF === "0" ? "0 - ENTRADA" : d.tpNF === "1" ? "1 - SAÍDA" : "";
+  const chave = (nf.chave || "").replace(/(\d{4})/g, "$1 ").trim();
+  const nProt = d.nProt || "";
+  const dhProt = d.dhRecbto ? fmtData(d.dhRecbto) + " " + fmtHora(d.dhRecbto) : "";
+  const modFrete = {"0":"0-Por conta do Emit","1":"1-Por conta do Dest","2":"2-Por conta de Terceiros","9":"9-Sem Frete"}[d.modFrete] || d.modFrete || "";
+  const c = "border:1px solid #000;padding:2px 4px;font-size:7.5pt;line-height:1.3";
+  const lbl = "font-size:6pt;color:#444;display:block;margin-bottom:1px";
+  const val = "font-size:8pt;font-weight:600";
+
+  let html = `<div style="width:100%;font-family:Arial,sans-serif;color:#000">`;
+
+  // === RECIBO ===
+  html += `<table style="width:100%;border-collapse:collapse;margin-bottom:2px"><tr>
+    <td style="${c};width:75%"><span style="${lbl}">RECEBEMOS DE ${d.emitNome || nf.fornecedor || ""} OS PRODUTOS E/OU SERVIÇOS CONSTANTES DA NOTA FISCAL ELETRÔNICA INDICADA ABAIXO. EMISSÃO: ${fmtData(nf.emitidaEm)} VALOR TOTAL: R$ ${fmt(nf.valor)} DESTINATÁRIO: ${d.destNome || ""} - ${d.destEndereco || ""} ${d.destBairro || ""} ${d.destMunicipio || ""}-${d.destUf || ""}</span>
+    <div style="margin-top:4px"><span style="${lbl}">DATA DE RECEBIMENTO</span><div style="height:14px;border-top:1px solid #000"></div></div></td>
+    <td style="${c};text-align:center;vertical-align:top"><strong style="font-size:11pt">NF-e</strong><br><span style="font-size:9pt">N°. ${(nf.numero||"").replace(/^0+/,"").replace(/(\d{3})(?=\d)/g,"$1.")}</span><br><span style="font-size:8pt">Série ${d.serie || "001"}</span></td>
+  </tr></table>`;
+
+  // === EMITENTE + DANFE + CHAVE ===
+  html += `<table style="width:100%;border-collapse:collapse;margin-bottom:2px"><tr>
+    <td style="${c};width:40%;vertical-align:top">
+      <span style="${lbl}">IDENTIFICAÇÃO DO EMITENTE</span>
+      <div style="text-align:center;padding:6px 0">
+        <strong style="font-size:10pt">${d.emitNome || nf.fornecedor || ""}</strong><br>
+        <span style="font-size:7.5pt">${d.emitEndereco || ""}<br>${d.emitBairro || ""} - ${fmtCep(d.emitCep)}<br>${d.emitMunicipio || ""} - ${d.emitUf || ""} Fone: ${d.emitFone || ""}</span>
+      </div>
+    </td>
+    <td style="${c};width:22%;text-align:center;vertical-align:top">
+      <strong style="font-size:10pt">DANFE</strong><br>
+      <span style="font-size:6.5pt">Documento Auxiliar da Nota<br>Fiscal Eletrônica</span><br>
+      <div style="margin:4px 0"><span style="${val}">${tpNF}</span></div>
+      <span style="font-size:8pt"><strong>N°. ${(nf.numero||"").replace(/^0+/,"").replace(/(\d{3})(?=\d)/g,"$1.")}</strong><br>Série ${d.serie || "001"}</span>
+    </td>
+    <td style="${c};width:38%;vertical-align:top;font-size:7pt">
+      <span style="${lbl}">CHAVE DE ACESSO</span>
+      <div style="font-family:monospace;font-size:7.5pt;word-break:break-all;margin:4px 0">${chave}</div>
+      <span style="font-size:6pt">Consulta de autenticidade no portal nacional da NF-e<br>www.nfe.fazenda.gov.br/portal ou no site da Sefaz Autorizadora</span>
+      <div style="margin-top:4px;border-top:1px solid #000;padding-top:2px">
+        <span style="${lbl}">PROTOCOLO DE AUTORIZAÇÃO DE USO</span>
+        <span style="font-size:7.5pt">${nProt} ${dhProt ? "- " + dhProt : ""}</span>
+      </div>
+    </td>
+  </tr></table>`;
+
+  // === NATUREZA + INSCRIÇÃO ===
+  html += `<table style="width:100%;border-collapse:collapse;margin-bottom:2px"><tr>
+    <td style="${c};width:60%"><span style="${lbl}">NATUREZA DA OPERAÇÃO</span><span style="${val}">${d.natOp || ""}</span></td>
+    <td style="${c}"><span style="${lbl}">INSCRIÇÃO ESTADUAL</span><span style="${val}">${d.emitIE || ""}</span></td>
+    <td style="${c}"><span style="${lbl}">CNPJ / CPF</span><span style="${val}">${fmtCnpj(d.emitCnpj || nf.cnpjEmitente)}</span></td>
+  </tr></table>`;
+
+  // === DESTINATÁRIO ===
+  html += `<div style="${c};margin-bottom:2px;padding:1px"><strong style="font-size:7pt">DESTINATÁRIO / REMETENTE</strong></div>`;
+  html += `<table style="width:100%;border-collapse:collapse;margin-bottom:2px">
+    <tr>
+      <td style="${c};width:50%"><span style="${lbl}">NOME / RAZÃO SOCIAL</span><span style="${val}">${d.destNome || ""}</span></td>
+      <td style="${c}"><span style="${lbl}">CNPJ / CPF</span><span style="${val}">${fmtCnpj(d.destCnpj)}</span></td>
+      <td style="${c}"><span style="${lbl}">DATA DA EMISSÃO</span><span style="${val}">${fmtData(nf.emitidaEm)}</span></td>
+    </tr><tr>
+      <td style="${c}"><span style="${lbl}">ENDEREÇO</span><strong style="font-size:8pt">${d.destEndereco || ""}</strong></td>
+      <td style="${c}"><span style="${lbl}">BAIRRO / DISTRITO</span><strong style="font-size:8pt">${d.destBairro || ""}</strong></td>
+      <td style="${c}"><span style="${lbl}">CEP</span><span style="${val}">${fmtCep(d.destCep)}</span></td>
+    </tr><tr>
+      <td style="${c}"><span style="${lbl}">MUNICÍPIO</span><strong style="font-size:8pt">${d.destMunicipio || ""}</strong></td>
+      <td style="${c}"><span style="${lbl}">UF</span><span style="${val}">${d.destUf || ""}</span> &nbsp;&nbsp; <span style="${lbl};display:inline">FONE</span><span style="${val}">${d.destFone || ""}</span></td>
+      <td style="${c}"><span style="${lbl}">INSCRIÇÃO ESTADUAL</span><span style="${val}">${d.destIE || ""}</span></td>
+    </tr>
+  </table>`;
+
+  // === CÁLCULO DO IMPOSTO ===
+  html += `<div style="${c};margin-bottom:2px;padding:1px"><strong style="font-size:7pt">CÁLCULO DO IMPOSTO</strong></div>`;
+  html += `<table style="width:100%;border-collapse:collapse;margin-bottom:2px">
+    <tr>
+      <td style="${c}"><span style="${lbl}">BASE DE CÁLC. DO ICMS</span><span style="${val}">${fmt(d.vBC)}</span></td>
+      <td style="${c}"><span style="${lbl}">VALOR DO ICMS</span><span style="${val}">${fmt(d.vICMS)}</span></td>
+      <td style="${c}"><span style="${lbl}">BASE DE CÁLC. ICMS S.T.</span><span style="${val}">${fmt(d.vBCST)}</span></td>
+      <td style="${c}"><span style="${lbl}">VALOR DO ICMS SUBST.</span><span style="${val}">${fmt(d.vST)}</span></td>
+      <td style="${c}"><span style="${lbl}">V. IMP. IMPORTAÇÃO</span><span style="${val}">${fmt(d.vImp)}</span></td>
+      <td style="${c}"><span style="${lbl}">V. TOTAL PRODUTOS</span><span style="${val}">${fmt(d.vProd)}</span></td>
+    </tr><tr>
+      <td style="${c}"><span style="${lbl}">VALOR DO FRETE</span><span style="${val}">${fmt(d.vFrete)}</span></td>
+      <td style="${c}"><span style="${lbl}">VALOR DO SEGURO</span><span style="${val}">${fmt(d.vSeg)}</span></td>
+      <td style="${c}"><span style="${lbl}">DESCONTO</span><span style="${val}">${fmt(d.vDesc)}</span></td>
+      <td style="${c}"><span style="${lbl}">OUTRAS DESPESAS</span><span style="${val}">${fmt(d.vOutro)}</span></td>
+      <td style="${c}"><span style="${lbl}">VALOR TOTAL IPI</span><span style="${val}">${fmt(d.vIPI)}</span></td>
+      <td style="${c}"><span style="${lbl}">V. TOTAL DA NOTA</span><strong style="font-size:9pt">${fmt(d.vNF || nf.valor)}</strong></td>
+    </tr>
+  </table>`;
+
+  // === TRANSPORTADOR ===
+  html += `<div style="${c};margin-bottom:2px;padding:1px"><strong style="font-size:7pt">TRANSPORTADOR / VOLUMES TRANSPORTADOS</strong></div>`;
+  html += `<table style="width:100%;border-collapse:collapse;margin-bottom:2px"><tr>
+    <td style="${c};width:40%"><span style="${lbl}">NOME / RAZÃO SOCIAL</span><span style="${val}">${d.transpNome || ""}</span></td>
+    <td style="${c}"><span style="${lbl}">FRETE</span><span style="${val}">${modFrete}</span></td>
+    <td style="${c}" colspan="2">&nbsp;</td>
+  </tr></table>`;
+
+  // === DADOS DOS PRODUTOS ===
+  html += `<div style="${c};margin-bottom:2px;padding:1px"><strong style="font-size:7pt">DADOS DOS PRODUTOS / SERVIÇOS</strong></div>`;
+  html += `<table style="width:100%;border-collapse:collapse;margin-bottom:2px;font-size:7pt">
+    <tr style="background:#eee">
+      <th style="${c}">CÓDIGO</th><th style="${c}">DESCRIÇÃO DO PRODUTO / SERVIÇO</th><th style="${c}">NCM/SH</th><th style="${c}">O/CST</th><th style="${c}">CFOP</th><th style="${c}">UN</th><th style="${c}">QUANT</th><th style="${c}">VALOR UNIT</th><th style="${c}">VALOR TOTAL</th><th style="${c}">V.DESC</th><th style="${c}">B.CÁLC ICMS</th><th style="${c}">VALOR ICMS</th>
+    </tr>`;
+  (nf.itens || []).forEach(item => {
+    html += `<tr>
+      <td style="${c}">${item.codigo || ""}</td>
+      <td style="${c}">${item.descricao || ""}</td>
+      <td style="${c}">${item.ncm || ""}</td>
+      <td style="${c}">${(item.orig||"") + "/" + (item.cst||"")}</td>
+      <td style="${c}">${item.cfop || ""}</td>
+      <td style="${c}">${item.unidade || ""}</td>
+      <td style="${c};text-align:right">${fmt(item.quantidade)}</td>
+      <td style="${c};text-align:right">${fmt(item.valorUnitario || item.precoUnitario)}</td>
+      <td style="${c};text-align:right">${fmt(item.valorTotal)}</td>
+      <td style="${c};text-align:right">0,00</td>
+      <td style="${c};text-align:right">${fmt(item.vBC_item)}</td>
+      <td style="${c};text-align:right">${fmt(item.vICMS_item)}</td>
+    </tr>`;
+  });
+  html += `</table>`;
+
+  // === DADOS ADICIONAIS ===
+  html += `<div style="${c};margin-bottom:2px;padding:1px"><strong style="font-size:7pt">DADOS ADICIONAIS</strong></div>`;
+  html += `<table style="width:100%;border-collapse:collapse"><tr>
+    <td style="${c};width:65%;vertical-align:top;min-height:60px"><span style="${lbl}">INFORMAÇÕES COMPLEMENTARES</span><span style="font-size:7pt">${d.infCpl || ""}</span></td>
+    <td style="${c};vertical-align:top"><span style="${lbl}">RESERVADO AO FISCO</span><span style="font-size:7pt">${d.infAdFisco || ""}</span></td>
+  </tr></table>`;
+
+  html += `</div>`;
   return html;
 }
 
