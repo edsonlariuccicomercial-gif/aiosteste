@@ -3576,24 +3576,24 @@ window.downloadNfPdf = function(nfId) {
 
   win.document.write(`<!DOCTYPE html><html><head>
     <title>NF ${nf.numero || ""}</title>
-    <style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:5mm;margin:0;color:#000;width:200mm;max-width:200mm;overflow:hidden}table{width:100%;border-collapse:collapse;table-layout:fixed}th,td{border:1px solid #000;font-size:6.5pt;text-align:left;overflow:hidden;word-wrap:break-word}.text-right{text-align:right}</style>
+    <style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:0;margin:0;color:#000}table{width:100%;border-collapse:collapse}th,td{border:1px solid #000;font-size:7pt;text-align:left;word-wrap:break-word}.text-right{text-align:right}</style>
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"><\/script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"><\/script>
   </head><body>
-    <div id="nf-content" style="width:190mm;max-width:190mm;padding:0;margin:0;overflow:hidden">${htmlBody}</div>
-    <p id="pdf-status" style="color:#666;margin-top:1rem;font-size:13px;">Gerando PDF...</p>
+    <div id="nf-content" style="width:720px;padding:10px;margin:0 auto">${htmlBody}</div>
+    <p id="pdf-status" style="color:#666;margin-top:1rem;font-size:13px;text-align:center">Gerando PDF...</p>
     <script>
       function gerarPdf() {
         if (typeof html2pdf === 'undefined' || typeof JsBarcode === 'undefined') { setTimeout(gerarPdf, 200); return; }
         // Generate barcode
         var barcodeEl = document.getElementById('danfe-barcode');
-        if (barcodeEl) { try { JsBarcode(barcodeEl, '${(nf.chave || "").replace(/\D/g, "")}', { format: 'CODE128', width: 1, height: 40, displayValue: false, margin: 0 }); } catch(e) {} }
+        if (barcodeEl) { try { JsBarcode(barcodeEl, '${(nf.chave || "").replace(/\D/g, "")}', { format: 'CODE128', width: 1.2, height: 45, displayValue: false, margin: 0 }); } catch(e) {} }
         var el = document.getElementById('nf-content');
         document.getElementById('pdf-status').textContent = 'Convertendo para PDF...';
         html2pdf().set({
-          margin: [5, 5, 5, 5],
+          margin: [8, 5, 8, 5],
           filename: ${JSON.stringify(filename)},
-          html2canvas: { scale: 2, windowWidth: 756 },
+          html2canvas: { scale: 2, useCORS: true, windowWidth: 740 },
           jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
         }).from(el).save().then(function() {
           document.getElementById('pdf-status').textContent = 'PDF baixado! Fechando...';
@@ -3625,7 +3625,7 @@ function _gerarHtmlNfBody(nf) {
   const lbl = "font-size:5.5pt;color:#444;display:block;margin-bottom:0";
   const val = "font-size:7.5pt;font-weight:600";
 
-  let html = `<div style="width:100%;font-family:Arial,sans-serif;color:#000">`;
+  let html = `<div style="width:100%;font-family:Arial,sans-serif;color:#000;font-size:7pt">`;
 
   // === RECIBO ===
   html += `<table style="width:100%;border-collapse:collapse;margin-bottom:2px"><tr>
@@ -3716,12 +3716,11 @@ function _gerarHtmlNfBody(nf) {
 
   // === DADOS DOS PRODUTOS ===
   html += `<div style="${c};padding:1px"><strong style="font-size:6.5pt">DADOS DOS PRODUTOS / SERVIÇOS</strong></div>`;
-  const ch = c + ";font-size:6pt;text-align:center;padding:1px 2px";
+  const ch = c + ";font-size:6pt;text-align:center;padding:1px 2px;white-space:nowrap";
   const cd = c + ";font-size:6.5pt;padding:1px 2px";
-  html += `<table style="width:100%;border-collapse:collapse;table-layout:fixed">
-    <colgroup><col style="width:8%"><col style="width:28%"><col style="width:10%"><col style="width:6%"><col style="width:5%"><col style="width:4%"><col style="width:7%"><col style="width:8%"><col style="width:9%"><col style="width:6%"><col style="width:9%"></colgroup>
+  html += `<table style="width:100%;border-collapse:collapse">
     <tr style="background:#eee">
-      <th style="${ch}">CÓDIGO</th><th style="${ch}">DESCRIÇÃO DO PRODUTO / SERVIÇO</th><th style="${ch}">NCM/SH</th><th style="${ch}">O/CST</th><th style="${ch}">CFOP</th><th style="${ch}">UN</th><th style="${ch}">QUANT</th><th style="${ch}">VALOR UNIT</th><th style="${ch}">VALOR TOTAL</th><th style="${ch}">V.DESC</th><th style="${ch}">B.CÁLC ICMS</th>
+      <th style="${ch}">CÓDIGO</th><th style="${ch};white-space:normal">DESCRIÇÃO DO PRODUTO / SERVIÇO</th><th style="${ch}">NCM/SH</th><th style="${ch}">O/CST</th><th style="${ch}">CFOP</th><th style="${ch}">UN</th><th style="${ch}">QUANT</th><th style="${ch}">VALOR UNIT</th><th style="${ch}">VALOR TOTAL</th><th style="${ch}">V.DESC</th><th style="${ch}">B.CÁLC ICMS</th>
     </tr>`;
   (nf.itens || []).forEach(item => {
     html += `<tr>
