@@ -1054,21 +1054,47 @@ function renderNotasEntrada() {
   }
 
   empty.classList.add("hidden");
-  tbody.innerHTML = items.map((item) => `
-    <tr>
+  tbody.innerHTML = items.map((item) => {
+    const hasItens = item.itens && item.itens.length > 0;
+    const itensCount = hasItens ? item.itens.length : 0;
+    let row = `<tr style="cursor:${hasItens ? 'pointer' : 'default'}" ${hasItens ? `onclick="toggleNfItens('${item.id}')"` : ''}>
       <td>${esc(item.emitidaEm ? formatDateTimeLocal(item.emitidaEm) : "-")}</td>
       <td>${esc(item.fornecedor || "-")}</td>
       <td>${esc(item.numero || "-")}</td>
       <td style="font-size:.72rem" class="font-mono">${esc(item.chave || "-")}</td>
       <td class="text-right font-mono">${brl.format(Number(item.valor || 0))}</td>
       <td><span class="badge ${item.status === "registrada" ? "badge-green" : item.status === "consulta_pendente" ? "badge-yellow" : "badge-blue"}">${esc(item.status || "-")}</span></td>
-      <td style="font-size:.76rem;color:var(--mut)">${esc(item.origem || "-")}</td>
-      <td style="white-space:nowrap">
-        ${item.itens && item.itens.length > 0 ? `<button class="btn btn-outline btn-sm" onclick="importarNfParaCentral('${item.id}')" title="Importar produtos para Central">📥</button>` : ''}
-        <button class="btn btn-outline btn-sm" onclick="downloadNfPdf('${item.id}')" title="Download PDF">📄</button>
+      <td>${itensCount > 0 ? `<span class="badge badge-blue">${itensCount} itens</span>` : '<span style="color:var(--mut)">—</span>'}</td>
+      <td style="white-space:nowrap" onclick="event.stopPropagation()">
+        ${hasItens ? `<button class="btn btn-outline btn-sm" onclick="importarNfParaCentral('${item.id}')" title="Importar todos para Central de Produtos">📥 Importar</button>` : ''}
+        <button class="btn btn-outline btn-sm" onclick="downloadNfPdf('${item.id}')" title="Download PDF da NF">📄 PDF</button>
       </td>
-    </tr>
-  `).join("");
+    </tr>`;
+    // Expandable row with item details
+    if (hasItens) {
+      row += `<tr id="nf-itens-${item.id}" style="display:none"><td colspan="8" style="padding:0;background:var(--bg)">
+        <div style="padding:.75rem 1rem;border-left:3px solid var(--primary,#3b82f6)">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem">
+            <strong style="font-size:.8rem">Itens da NF #${esc(item.numero || "")}</strong>
+            <button class="btn btn-outline btn-sm" onclick="importarNfParaCentral('${item.id}')">📥 Importar todos para Central</button>
+          </div>
+          <table style="width:100%;border-collapse:collapse;font-size:.8rem">
+            <thead><tr style="background:rgba(59,130,246,.08)"><th style="padding:4px 8px">#</th><th style="padding:4px 8px">Descrição</th><th style="padding:4px 8px">NCM</th><th style="padding:4px 8px">Qtd</th><th style="padding:4px 8px">Unid</th><th style="padding:4px 8px;text-align:right">V.Unit</th><th style="padding:4px 8px;text-align:right">V.Total</th></tr></thead>
+            <tbody>${item.itens.map((it, idx) => `<tr>
+              <td style="padding:3px 8px">${idx + 1}</td>
+              <td style="padding:3px 8px">${esc(it.descricao || it.nome || "-")}</td>
+              <td style="padding:3px 8px;font-size:.72rem">${esc(it.ncm || "-")}</td>
+              <td style="padding:3px 8px">${it.quantidade || 0}</td>
+              <td style="padding:3px 8px">${esc(it.unidade || "UN")}</td>
+              <td style="padding:3px 8px;text-align:right">${brl.format(it.valorUnitario || it.precoUnitario || 0)}</td>
+              <td style="padding:3px 8px;text-align:right">${brl.format(it.valorTotal || 0)}</td>
+            </tr>`).join("")}</tbody>
+          </table>
+        </div>
+      </td></tr>`;
+    }
+    return row;
+  }).join("");
 }
 
 function registrarNotaEntradaManual() {
@@ -3425,6 +3451,12 @@ window.importarNfParaCentral = function(nfId) {
   if (atualizados > 0) msg.push(`${atualizados} atualizado(s)`);
   if (ignorados > 0) msg.push(`${ignorados} sem alteração`);
   showToast(`Central de Produtos: ${msg.join(", ")}`, 5000);
+};
+
+// Toggle expand/collapse NF item rows
+window.toggleNfItens = function(nfId) {
+  const row = document.getElementById("nf-itens-" + nfId);
+  if (row) row.style.display = row.style.display === "none" ? "table-row" : "none";
 };
 
 // ===== Story 8.13: Download PDF da NF de Entrada =====
