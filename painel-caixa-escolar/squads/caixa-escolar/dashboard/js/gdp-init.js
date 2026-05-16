@@ -3576,20 +3576,24 @@ window.downloadNfPdf = function(nfId) {
 
   win.document.write(`<!DOCTYPE html><html><head>
     <title>NF ${nf.numero || ""}</title>
-    <style>body{font-family:Arial,sans-serif;padding:2rem;color:#222}table{width:100%;border-collapse:collapse;margin-top:1rem}th,td{border:1px solid #ccc;padding:6px 10px;font-size:13px;text-align:left}th{background:#f0f0f0;font-weight:600}h2{margin-bottom:.5rem}p{margin:4px 0;font-size:14px}.text-right{text-align:right}</style>
+    <style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:0;margin:0;color:#000;width:190mm}table{width:100%;border-collapse:collapse}th,td{border:1px solid #000;font-size:7pt;text-align:left}h2{margin-bottom:.5rem}.text-right{text-align:right}</style>
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"><\/script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"><\/script>
   </head><body>
-    <div id="nf-content">${htmlBody}</div>
+    <div id="nf-content" style="width:190mm;padding:0;margin:0">${htmlBody}</div>
     <p id="pdf-status" style="color:#666;margin-top:1rem;font-size:13px;">Gerando PDF...</p>
     <script>
       function gerarPdf() {
-        if (typeof html2pdf === 'undefined') { setTimeout(gerarPdf, 200); return; }
+        if (typeof html2pdf === 'undefined' || typeof JsBarcode === 'undefined') { setTimeout(gerarPdf, 200); return; }
+        // Generate barcode
+        var barcodeEl = document.getElementById('danfe-barcode');
+        if (barcodeEl) { try { JsBarcode(barcodeEl, '${(nf.chave || "").replace(/\D/g, "")}', { format: 'CODE128', width: 1, height: 40, displayValue: false, margin: 0 }); } catch(e) {} }
         var el = document.getElementById('nf-content');
         document.getElementById('pdf-status').textContent = 'Convertendo para PDF...';
         html2pdf().set({
-          margin: [10, 10, 10, 10],
+          margin: [5, 5, 5, 5],
           filename: ${JSON.stringify(filename)},
-          html2canvas: { scale: 2 },
+          html2canvas: { scale: 2, width: 718 },
           jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
         }).from(el).save().then(function() {
           document.getElementById('pdf-status').textContent = 'PDF baixado! Fechando...';
@@ -3617,9 +3621,9 @@ function _gerarHtmlNfBody(nf) {
   const nProt = d.nProt || "";
   const dhProt = d.dhRecbto ? fmtData(d.dhRecbto) + " " + fmtHora(d.dhRecbto) : "";
   const modFrete = {"0":"0-Por conta do Emit","1":"1-Por conta do Dest","2":"2-Por conta de Terceiros","9":"9-Sem Frete"}[d.modFrete] || d.modFrete || "";
-  const c = "border:1px solid #000;padding:2px 4px;font-size:7.5pt;line-height:1.3";
-  const lbl = "font-size:6pt;color:#444;display:block;margin-bottom:1px";
-  const val = "font-size:8pt;font-weight:600";
+  const c = "border:1px solid #000;padding:1px 3px;font-size:7pt;line-height:1.2";
+  const lbl = "font-size:5.5pt;color:#444;display:block;margin-bottom:0";
+  const val = "font-size:7.5pt;font-weight:600";
 
   let html = `<div style="width:100%;font-family:Arial,sans-serif;color:#000">`;
 
@@ -3646,12 +3650,13 @@ function _gerarHtmlNfBody(nf) {
       <span style="font-size:8pt"><strong>N°. ${(nf.numero||"").replace(/^0+/,"").replace(/(\d{3})(?=\d)/g,"$1.")}</strong><br>Série ${d.serie || "001"}</span>
     </td>
     <td style="${c};width:38%;vertical-align:top;font-size:7pt">
+      <div style="text-align:center;margin-bottom:2px"><svg id="danfe-barcode"></svg></div>
       <span style="${lbl}">CHAVE DE ACESSO</span>
-      <div style="font-family:monospace;font-size:7.5pt;word-break:break-all;margin:4px 0">${chave}</div>
-      <span style="font-size:6pt">Consulta de autenticidade no portal nacional da NF-e<br>www.nfe.fazenda.gov.br/portal ou no site da Sefaz Autorizadora</span>
-      <div style="margin-top:4px;border-top:1px solid #000;padding-top:2px">
+      <div style="font-family:monospace;font-size:7pt;word-break:break-all;margin:2px 0">${chave}</div>
+      <span style="font-size:5.5pt">Consulta de autenticidade no portal nacional da NF-e<br>www.nfe.fazenda.gov.br/portal ou no site da Sefaz Autorizadora</span>
+      <div style="margin-top:3px;border-top:1px solid #000;padding-top:2px">
         <span style="${lbl}">PROTOCOLO DE AUTORIZAÇÃO DE USO</span>
-        <span style="font-size:7.5pt">${nProt} ${dhProt ? "- " + dhProt : ""}</span>
+        <span style="font-size:7pt">${nProt} ${dhProt ? "- " + dhProt : ""}</span>
       </div>
     </td>
   </tr></table>`;
