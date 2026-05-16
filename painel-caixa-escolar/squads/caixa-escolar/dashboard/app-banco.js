@@ -780,7 +780,7 @@ window.excluirSelecionadosBanco = function () {
   const checks = document.querySelectorAll(".banco-item-check:checked");
   const ids = Array.from(checks).map(c => c.dataset.id);
   if (ids.length === 0) return;
-  if (!confirm(`Excluir ${ids.length} item(ns) do banco de preços?`)) return;
+  if (!confirm(`Excluir ${ids.length} item(ns) da Central de Produtos?`)) return;
   bancoPrecos.itens = bancoPrecos.itens.filter(i => !ids.includes(i.id));
   saveBancoLocal();
   renderBanco();
@@ -792,7 +792,7 @@ window.editarBancoItem = function (id) {
 };
 
 window.removerBancoItem = function (id) {
-  if (!confirm("Remover este item do banco de preços?")) return;
+  if (!confirm("Remover este item da Central de Produtos?")) return;
   bancoPrecos.itens = bancoPrecos.itens.filter((i) => i.id !== id);
   saveBancoLocal();
   renderBanco();
@@ -816,10 +816,10 @@ function limparBanco() {
     renderBanco();
     alert(`${importados} itens importados removidos.`);
   } else if (opcao === "2") {
-    if (!confirm("Tem certeza? Isso apagará TODOS os itens do banco de preços.")) return;
+    if (!confirm("Tem certeza? Isso apagará TODOS os itens da Central de Produtos.")) return;
     bancoPrecos = { updatedAt: "", itens: [] };
     saveBancoLocal();
     renderBanco();
-    alert("Banco de preços limpo.");
+    alert("Central de Produtos limpa.");
   }
 }

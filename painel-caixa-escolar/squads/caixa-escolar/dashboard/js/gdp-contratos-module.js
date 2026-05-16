@@ -799,7 +799,7 @@ function alimentarBancoConcorrentes(mapa, meuNome) {
 
   banco.updatedAt = todayStr;
   localStorage.setItem(BANCO_KEY, JSON.stringify(banco));
-  showToast(`Inteligencia: ${updated} itens com precos de concorrentes registrados no Banco de Precos.`, 5000);
+  showToast(`Inteligência: ${updated} itens com preços de concorrentes registrados na Central de Produtos.`, 5000);
 }
 
 // ===== IMPORT MODE SWITCHER =====

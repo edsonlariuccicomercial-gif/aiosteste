@@ -1063,6 +1063,10 @@ function renderNotasEntrada() {
       <td class="text-right font-mono">${brl.format(Number(item.valor || 0))}</td>
       <td><span class="badge ${item.status === "registrada" ? "badge-green" : item.status === "consulta_pendente" ? "badge-yellow" : "badge-blue"}">${esc(item.status || "-")}</span></td>
       <td style="font-size:.76rem;color:var(--mut)">${esc(item.origem || "-")}</td>
+      <td style="white-space:nowrap">
+        ${item.itens && item.itens.length > 0 ? `<button class="btn btn-outline btn-sm" onclick="importarNfParaCentral('${item.id}')" title="Importar produtos para Central">📥</button>` : ''}
+        <button class="btn btn-outline btn-sm" onclick="downloadNfPdf('${item.id}')" title="Download PDF">📄</button>
+      </td>
     </tr>
   `).join("");
 }
@@ -3352,4 +3356,140 @@ function processarImportacaoProdutos(rows) {
   saveEstoqueIntelEmbalagens();
   renderEstoque();
   showToast(`${importados} produto(s) importado(s) com sucesso!`, 4000);
+}
+
+// ===== Story 8.13: Importar produtos da NF de Entrada para Central de Produtos =====
+window.importarNfParaCentral = function(nfId) {
+  const nf = notasEntrada.find(n => n.id === nfId);
+  if (!nf || !nf.itens || nf.itens.length === 0) {
+    showToast("Nota sem itens para importar.", 3000);
+    return;
+  }
+
+  let importados = 0, atualizados = 0, ignorados = 0;
+  const central = bancoPrecos.itens || [];
+
+  nf.itens.forEach(item => {
+    // Match by NCM+name or exact name
+    const existing = central.find(p =>
+      (item.ncm && p.ncm === item.ncm && normalizedText(p.item).includes(normalizedText(item.descricao).split(' ')[0])) ||
+      normalizedText(p.item) === normalizedText(item.descricao)
+    );
+
+    if (existing) {
+      // Product exists — update cost
+      const oldCusto = existing.custoBase;
+      existing.custoBase = item.valorUnitario || item.precoUnitario || existing.custoBase;
+      existing.precoReferencia = existing.custoBase * (1 + (existing.margemPadrao || 0.30));
+      if (!existing.custosFornecedor) existing.custosFornecedor = [];
+      existing.custosFornecedor.push({
+        fornecedor: nf.fornecedor || "NF Entrada",
+        preco: existing.custoBase,
+        data: new Date().toISOString().slice(0, 10),
+        tipo: "nf_entrada"
+      });
+      if (existing.custoBase !== oldCusto) atualizados++;
+      else ignorados++;
+    } else {
+      // New product — create in Central
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const newProd = {
+        id: "bp-" + String(Date.now()).slice(-6) + "-" + Math.random().toString(36).slice(2, 5),
+        sku: item.ncm ? "NCM-" + item.ncm : "",
+        item: item.descricao || item.codigo || "Sem descrição",
+        ncm: item.ncm || "",
+        unidade: item.unidade || "UN",
+        grupo: "Importado NF",
+        custoBase: item.valorUnitario || item.precoUnitario || 0,
+        margemPadrao: 0.30,
+        precoReferencia: (item.valorUnitario || 0) * 1.30,
+        ultimaCotacao: todayStr,
+        fonte: "NF #" + (nf.numero || nfId),
+        propostas: [],
+        concorrentes: [],
+        custosFornecedor: [{
+          fornecedor: nf.fornecedor || "NF Entrada",
+          preco: item.valorUnitario || 0,
+          data: todayStr,
+          tipo: "nf_entrada"
+        }]
+      };
+      bancoPrecos.itens.push(newProd);
+      importados++;
+    }
+  });
+
+  saveBancoLocal();
+  const msg = [];
+  if (importados > 0) msg.push(`${importados} importado(s)`);
+  if (atualizados > 0) msg.push(`${atualizados} atualizado(s)`);
+  if (ignorados > 0) msg.push(`${ignorados} sem alteração`);
+  showToast(`Central de Produtos: ${msg.join(", ")}`, 5000);
+};
+
+// ===== Story 8.13: Download PDF da NF de Entrada =====
+window.downloadNfPdf = function(nfId) {
+  const nf = notasEntrada.find(n => n.id === nfId);
+  if (!nf) { showToast("Nota não encontrada.", 3000); return; }
+
+  // Check if jsPDF is available
+  if (typeof jspdf === 'undefined' && typeof jsPDF === 'undefined') {
+    // Fallback: generate printable HTML and trigger browser print
+    const html = _gerarHtmlNf(nf);
+    const win = window.open("", "_blank");
+    win.document.write(html);
+    win.document.close();
+    win.print();
+    return;
+  }
+
+  const { jsPDF } = typeof jspdf !== 'undefined' ? jspdf : { jsPDF: window.jsPDF };
+  const doc = new jsPDF();
+  const brlFmt = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+
+  doc.setFontSize(14);
+  doc.text("NOTA FISCAL DE ENTRADA", 14, 20);
+  doc.setFontSize(10);
+  doc.text(`Fornecedor: ${nf.fornecedor || "-"}`, 14, 30);
+  doc.text(`CNPJ Emitente: ${nf.cnpjEmitente || "-"}`, 14, 36);
+  doc.text(`Número: ${nf.numero || "-"}`, 14, 42);
+  doc.text(`Chave: ${nf.chave || "-"}`, 14, 48);
+  doc.text(`Data Emissão: ${nf.emitidaEm ? new Date(nf.emitidaEm).toLocaleDateString("pt-BR") : "-"}`, 14, 54);
+  doc.text(`Valor Total: ${brlFmt.format(Number(nf.valor || 0))}`, 14, 60);
+
+  // Items table
+  if (nf.itens && nf.itens.length > 0) {
+    doc.setFontSize(11);
+    doc.text("ITENS", 14, 72);
+    doc.setFontSize(8);
+    let y = 80;
+    doc.text("# | Descrição | NCM | Qtd | Unid | V.Unit | V.Total", 14, y);
+    y += 6;
+    nf.itens.forEach((item, i) => {
+      if (y > 270) { doc.addPage(); y = 20; }
+      const line = `${i + 1} | ${(item.descricao || "").slice(0, 40)} | ${item.ncm || "-"} | ${item.quantidade || 0} | ${item.unidade || "UN"} | ${brlFmt.format(item.valorUnitario || 0)} | ${brlFmt.format(item.valorTotal || 0)}`;
+      doc.text(line, 14, y);
+      y += 5;
+    });
+  }
+
+  doc.save(`NF-${nf.numero || nfId}-${(nf.fornecedor || "").slice(0, 20)}.pdf`);
+};
+
+function _gerarHtmlNf(nf) {
+  const brlFmt = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+  let html = `<!DOCTYPE html><html><head><title>NF ${nf.numero || ""}</title><style>body{font-family:sans-serif;padding:2rem}table{width:100%;border-collapse:collapse;margin-top:1rem}th,td{border:1px solid #ccc;padding:.4rem .6rem;font-size:.85rem;text-align:left}th{background:#f5f5f5}</style></head><body>`;
+  html += `<h2>NOTA FISCAL DE ENTRADA</h2>`;
+  html += `<p><strong>Fornecedor:</strong> ${nf.fornecedor || "-"} | <strong>CNPJ:</strong> ${nf.cnpjEmitente || "-"}</p>`;
+  html += `<p><strong>Número:</strong> ${nf.numero || "-"} | <strong>Chave:</strong> ${nf.chave || "-"}</p>`;
+  html += `<p><strong>Emissão:</strong> ${nf.emitidaEm ? new Date(nf.emitidaEm).toLocaleDateString("pt-BR") : "-"} | <strong>Valor:</strong> ${brlFmt.format(Number(nf.valor || 0))}</p>`;
+  if (nf.itens && nf.itens.length > 0) {
+    html += `<table><thead><tr><th>#</th><th>Descrição</th><th>NCM</th><th>Qtd</th><th>Unid</th><th>V.Unit</th><th>V.Total</th></tr></thead><tbody>`;
+    nf.itens.forEach((item, i) => {
+      html += `<tr><td>${i + 1}</td><td>${item.descricao || "-"}</td><td>${item.ncm || "-"}</td><td>${item.quantidade || 0}</td><td>${item.unidade || "UN"}</td><td>${brlFmt.format(item.valorUnitario || 0)}</td><td>${brlFmt.format(item.valorTotal || 0)}</td></tr>`;
+    });
+    html += `</tbody></table>`;
+  }
+  html += `</body></html>`;
+  return html;
 }

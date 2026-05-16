@@ -55,7 +55,7 @@
       <div class="sidebar-submenu" id="submenu-intel-precos">
         <button class="sidebar-sub-item active" data-subtab="pre-orcamento">Pré-Orçamento</button>
         <button class="sidebar-sub-item" data-subtab="envio-sgd">Enviados ao SGD</button>
-        <button class="sidebar-sub-item" data-subtab="central-precos">Central de Preços</button>
+        <button class="sidebar-sub-item" data-subtab="central-precos">Central de Produtos</button>
         <button class="sidebar-sub-item" data-subtab="historico">Histórico</button>
       </div>
       <button class="sidebar-item" data-module="gdp" title="Gestão de Pedidos Pós-Licitação">
@@ -156,7 +156,7 @@
     <button class="tab active" data-tab="pre-orcamento">Pré-Orçamento</button>
     <button class="tab" data-tab="envio-sgd">Enviados ao SGD</button>
     <button class="tab" data-tab="historico">Histórico</button>
-    <button class="tab" data-tab="central-precos">Central de Preços</button>
+    <button class="tab" data-tab="central-precos">Central de Produtos</button>
   </nav>
 
   <!-- ===== TAB: ORÇAMENTOS ===== -->
@@ -418,7 +418,7 @@
     </div>
   </section>
 
-  <!-- FR-003: Banco de Preços tab removed — replaced by Central de Preços -->
+  <!-- FR-003: Banco de Preços tab removed — replaced by Central de Produtos -->
 
 
   <!-- Epic 10: Rentabilidade movida para sub-tab dentro do Histórico -->
@@ -684,7 +684,7 @@
     </div>
   </section>
 
-  <!-- Epic 10: Central de Preços (Story 10.3) — atalho para mesma fonte -->
+  <!-- Epic 10: Central de Produtos (Story 10.3) — atalho para mesma fonte -->
   <section id="tab-central-precos" class="tab-content">
     <div class="card">
       <div class="table-head">
@@ -971,7 +971,7 @@
           <label style="display:flex;align-items:center;gap:12px;padding:12px;background:var(--bg);border:1px solid var(--line);border-radius:8px;cursor:pointer;">
             <input type="checkbox" id="mod-intel" checked onchange="salvarModulos()">
             <span>💰</span>
-            <div><strong>INTEL PREÇOS</strong><br><span style="font-size:.8rem;color:var(--muted);">Central de Preços, Pré-Orçamento, Rentabilidade</span></div>
+            <div><strong>INTEL PREÇOS</strong><br><span style="font-size:.8rem;color:var(--muted);">Central de Produtos, Pré-Orçamento, Rentabilidade</span></div>
           </label>
           <label style="display:flex;align-items:center;gap:12px;padding:12px;background:var(--bg);border:1px solid var(--line);border-radius:8px;cursor:pointer;">
             <input type="checkbox" id="mod-gdp" checked onchange="salvarModulos()">
@@ -1124,7 +1124,7 @@
     </div>
   </div>
 
-  <!-- ===== MODAL: Editar/Novo Produto (Central de Preços Intel) ===== -->
+  <!-- ===== MODAL: Editar/Novo Produto (Central de Produtos Intel) ===== -->
   <div id="modal-produto-central" class="modal-overlay" style="display:none;">
     <div class="modal card" style="max-width:600px;">
       <h2 id="modal-prod-central-titulo">Novo Produto</h2>

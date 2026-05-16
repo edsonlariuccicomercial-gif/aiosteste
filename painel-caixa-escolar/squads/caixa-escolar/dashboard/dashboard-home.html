@@ -143,11 +143,23 @@
   <script>
 // ===== CONFIG =====
 const MODULOS_KEY = "nexedu.modulos.acesso";
-const SRE_CONFIG = [
-  { id: "uberaba", nome: "SRE Uberaba", cor: "#3b82f6", x: 55, y: 45, escolas: 0, oportunidades: 0 },
-  { id: "uberlandia", nome: "SRE Uberlândia", cor: "#f59e0b", x: 40, y: 55, escolas: 0, oportunidades: 0 },
-  { id: "passos", nome: "SRE Passos", cor: "#ef4444", x: 65, y: 60, escolas: 0, oportunidades: 0 },
-];
+// Story 8.14: Dynamic SRE_CONFIG from user's active SREs (not hardcoded)
+const SRE_COLORS = ["#3b82f6","#f59e0b","#ef4444","#22c55e","#a855f7","#06b6d4","#ec4899","#f97316","#14b8a6","#8b5cf6","#6366f1","#84cc16"];
+const SRE_CONFIG = (function() {
+  let sresAtivas = [];
+  try {
+    const emp = JSON.parse(localStorage.getItem("nexedu.empresa") || "{}");
+    if (Array.isArray(emp.sresAtivas) && emp.sresAtivas.length > 0) sresAtivas = emp.sresAtivas;
+  } catch(_) {}
+  if (sresAtivas.length === 0) sresAtivas = ["uberaba", "uberlandia", "passos"];
+  // Lookup full names from SRE_CONFIGS if available (loaded from app-state.js via index.html)
+  const ALL_SRES = typeof SRE_CONFIGS !== 'undefined' ? SRE_CONFIGS : [];
+  return sresAtivas.map((id, i) => {
+    const cfg = ALL_SRES.find(s => s.id === id);
+    const nome = cfg ? "SRE " + cfg.nome : "SRE " + id.charAt(0).toUpperCase() + id.slice(1).replace(/-/g, " ");
+    return { id, nome, cor: SRE_COLORS[i % SRE_COLORS.length], x: 30 + (i * 8) % 50, y: 35 + (i * 7) % 40, escolas: 0, oportunidades: 0 };
+  });
+})();
 
 // ===== SIDEBAR TOGGLE =====
 const sidebar = document.getElementById("sidebar");
@@ -254,17 +266,27 @@ function carregarKPIs() {
 
   grid.innerHTML = cards || '<p style="text-align:center;color:var(--muted);grid-column:1/-1">Nenhum módulo liberado. Configure o acesso em Configurações.</p>';
 
-  // Update SRE data from orcamentos
+  // Story 8.14: Update SRE data from orcamentos — match by sre field OR escola name
   try {
     const orcs = JSON.parse(localStorage.getItem("caixaescolar.orcamentos") || "[]");
-    const pre = JSON.parse(localStorage.getItem("caixaescolar.preorcamentos.v1") || "{}");
     SRE_CONFIG.forEach(sre => {
-      const sreNome = sre.id.charAt(0).toUpperCase() + sre.id.slice(1); // "Uberaba", "Uberlandia", "Passos"
-      const sreOrcs = orcs.filter(o => (o.sre || "").toLowerCase() === sre.id);
+      const sreOrcs = orcs.filter(o => {
+        const orcSre = (o.sre || "").toLowerCase().replace(/\s+/g, "-");
+        return orcSre === sre.id || orcSre.includes(sre.id);
+      });
       sre.oportunidades = sreOrcs.length;
       const escolasSre = new Set(sreOrcs.map(o => o.escola).filter(Boolean));
       sre.escolas = escolasSre.size;
     });
+    // Distribute unmatched budgets to "all active SREs" count
+    const matchedIds = new Set(SRE_CONFIG.flatMap(sre =>
+      orcs.filter(o => (o.sre || "").toLowerCase().replace(/\s+/g, "-") === sre.id).map(o => o.id)
+    ));
+    const unmatched = orcs.filter(o => !matchedIds.has(o.id) && o.status === "aberto");
+    if (unmatched.length > 0 && SRE_CONFIG.length > 0) {
+      // Add unmatched to total oportunidades displayed in KPI (already counted above)
+      gdpLog && gdpLog(`[Home] ${unmatched.length} orçamentos sem SRE específica (aceitos via SGD network)`);
+    }
   } catch(_) {}
 }
 

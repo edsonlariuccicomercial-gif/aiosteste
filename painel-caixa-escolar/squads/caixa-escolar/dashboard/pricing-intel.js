@@ -8,7 +8,7 @@
 function renderPricingDashboard() {
   const itens = bancoPrecos.itens || [];
   if (itens.length === 0) {
-    document.getElementById("chart-top-cotados").innerHTML = '<p class="text-muted" style="font-size:0.82rem;">Sem dados na central de preços.</p>';
+    document.getElementById("chart-top-cotados").innerHTML = '<p class="text-muted" style="font-size:0.82rem;">Sem dados na Central de Produtos.</p>';
     return;
   }
 

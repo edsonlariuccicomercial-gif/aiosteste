@@ -1162,6 +1162,19 @@ async function varrerSgd() {
             // Auto-confirm to whitelist
             if (idSchool) schoolWhitelist[idSchool] = { escola, municipio: mun, sre: nameMatch, confirmedAt: new Date().toISOString().slice(0, 10) };
           }
+          return;
+        }
+
+        // TIER 4 (Story 8.14): Accept ALL budgets from SGD when user has SREs beyond the 3 originals.
+        // The SGD API only returns budgets the supplier is eligible for — if it comes back, it's valid.
+        // This ensures SREs without local JSON school data are not silently filtered out.
+        const hasExtendedSres = activeSres.length > 3;
+        if (hasExtendedSres) {
+          b._sreMatch = sreNorm(escola);
+          b._sreVia = "sgd-network";
+          filtered.push(b);
+          matched.push({ sgd: escola, county, mun: b.countyName || b.txCountyName || "?", via: "sgd-network-accept", idSchool });
+          if (idSchool) schoolWhitelist[idSchool] = { escola, municipio: b.countyName || b.txCountyName || "?", sre: sreNorm(escola), confirmedAt: new Date().toISOString().slice(0, 10) };
         }
       });
 
@@ -1241,7 +1254,7 @@ async function varrerSgd() {
         const orc = {
           id, idBudget: b.idBudget, ano: detail.year || b.year || new Date().getFullYear(),
           escola: escolaRaw, municipio: resolvedMunicipio,
-          sre: schoolToSre[sreMatchKey] || (sreCountyMap[b.idCounty] ? "Uberaba" : "Desconhecida"),
+          sre: schoolToSre[sreMatchKey] || (sreCountyMap[b.idCounty] ? "Uberaba" : (b.countyName || b.txCountyName || detail.countyName || "Desconhecida")),
           grupo: detail.expenseGroupDescription || "",
           subPrograma: detail.subprogramName || "",
           objeto: (detail.initiativeDescription || "").replace(/\n/g, " ").replace(/\s+/g, " ").trim(),

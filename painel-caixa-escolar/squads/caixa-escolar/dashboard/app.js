@@ -736,8 +736,30 @@ window.gerarPreOrcamento = function (orcId) {
   if (!orc) return;
   _assocOrcId = orcId;
   _assocItens = (orc.itens || []).map((item, idx) => {
-    const bp = findBancoItem(item.nome);
-    return { idx, nome: item.nome, quantidade: item.quantidade || 0, unidade: item.unidade || "Un", descricao: item.descricao || "", idBudgetItem: item.idBudgetItem || null, bpId: bp ? (bp.sku || bp.id) : null, bpNome: bp ? bp.item : "", custoBase: bp ? bp.custoBase : 0, precoRef: bp ? bp.precoReferencia : 0, matchStatus: bp ? "associado" : "sem_match" };
+    let bp = null;
+    let matchStatus = "sem_match";
+    let matchScore = 0;
+
+    // Story 10.8: Use RadarMatcher first (same as batchPreOrcar for consistency)
+    if (typeof RadarMatcher !== 'undefined' && RadarMatcher.isReady()) {
+      const rmResult = RadarMatcher.match(item.nome);
+      if (rmResult && rmResult.sku && rmResult.status !== 'sem_match') {
+        bp = findBancoItem(rmResult.sku) || findBancoItem(item.nome);
+        matchStatus = rmResult.status === 'confirmado' ? 'exato' : 'sugestao';
+        matchScore = rmResult.score;
+      }
+    }
+
+    // Fallback: direct banco lookup
+    if (!bp) {
+      bp = findBancoItem(item.nome);
+      if (bp) {
+        matchStatus = "associado";
+        matchScore = 1.0;
+      }
+    }
+
+    return { idx, nome: item.nome, quantidade: item.quantidade || 0, unidade: item.unidade || "Un", descricao: item.descricao || "", idBudgetItem: item.idBudgetItem || null, bpId: bp ? (bp.sku || bp.id) : null, bpNome: bp ? bp.item : "", custoBase: bp ? bp.custoBase : 0, precoRef: bp ? bp.precoReferencia : 0, matchStatus: matchStatus };
   });
   renderModalAssociacao(orc);
 };
@@ -814,12 +836,40 @@ function validarAssociacao() {
   const alertas = document.getElementById("assoc-alertas");
   if (alertas) {
     let html = "";
-    if (semAssociar > 0) html += `<p style="color:var(--danger)">⚠ ${semAssociar} item(ns) sem produto associado. Selecione um produto ou cadastre na Central de Produtos (GDP).</p>`;
+    if (semAssociar > 0) html += `<p style="color:var(--danger)">⚠ ${semAssociar} item(ns) sem produto associado. Selecione um produto ou <button class="btn btn-inline" style="font-size:.75rem;padding:2px 8px;margin-left:4px" onclick="cadastrarProdutoInlineFromAssoc()">Cadastrar Produto</button></p>`;
     if (semCusto > 0) html += `<p style="color:var(--warning)">⚠ ${semCusto} item(ns) com produto associado mas sem preço de custo. Preencha o custo na Central de Produtos.</p>`;
     if (ok) html = '<p style="color:var(--accent)">Todos os itens associados com preço de custo. Pronto para criar o pré-orçamento.</p>';
     alertas.innerHTML = html;
   }
 }
+
+// Story 10.8: Cadastrar produto inline from association modal
+window.cadastrarProdutoInlineFromAssoc = async function() {
+  const semAssoc = _assocItens.filter(i => !i.bpId);
+  if (semAssoc.length === 0) return showToast("Todos os itens já estão associados.", 2000);
+
+  let criados = 0;
+  for (const item of semAssoc) {
+    const orc = orcamentos.find(o => o.id === _assocOrcId);
+    const grupo = orc ? (orc.grupo || "Material de Consumo Geral") : "Material de Consumo Geral";
+    const criado = await _promptCriarProdutoBatch(item.nome, item.unidade, grupo);
+    if (criado) {
+      item.bpId = criado.sku || criado.id;
+      item.bpNome = criado.item;
+      item.custoBase = criado.custoBase || 0;
+      item.precoRef = criado.precoReferencia || 0;
+      item.matchStatus = "criado_inline";
+      criados++;
+    }
+  }
+
+  if (criados > 0) {
+    showToast(`${criados} produto(s) cadastrado(s) e associado(s).`, 3000);
+    // Re-render the modal to update selects and statuses
+    const orc = orcamentos.find(o => o.id === _assocOrcId);
+    if (orc) renderModalAssociacao(orc);
+  }
+};
 
 window.fecharModalAssociacao = function () {
   document.getElementById("modal-associacao").style.display = "none";
@@ -1058,7 +1108,7 @@ function renderPreOrcamentoItens() {
       const diffClass = diff > 0.30 ? "pncp-alert" : "pncp-ok";
       pncpHint = `<span class="pncp-tooltip ${diffClass}" title="Ref. Banco: ${brl.format(bp.precoReferencia)} (custo: ${brl.format(bp.custoBase)})">Ref: ${brl.format(bp.precoReferencia)}</span>`;
     } else if (!bp || bp.custoBase === 0) {
-      pncpHint = `<span class="pncp-tooltip" style="color:#f59e0b;font-size:0.7rem" title="Item sem referência na central de preços. Preencha o custo e ele será salvo automaticamente.">&#9888; Sem ref.</span>`;
+      pncpHint = `<span class="pncp-tooltip" style="color:#f59e0b;font-size:0.7rem" title="Item sem referência na Central de Produtos. Preencha o custo e ele será salvo automaticamente.">&#9888; Sem ref.</span>`;
     }
 
     // Competitor intelligence hint — always pull fresh from banco
@@ -1105,7 +1155,7 @@ function renderPreOrcamentoItens() {
           <div id="search-menu-${idx}" class="search-menu" style="display:none;position:absolute;background:#fff;border:1px solid #ddd;border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,0.15);z-index:100;padding:4px 0;min-width:180px;">
             <a href="#" onclick="pesquisarPrecoPNCP(${idx});return false;" style="display:block;padding:6px 12px;text-decoration:none;color:#333;font-size:0.8rem;">📋 PNCP (Preço de Referência)</a>
             <a href="#" onclick="pesquisarPrecoGoogle(${idx});return false;" style="display:block;padding:6px 12px;text-decoration:none;color:#333;font-size:0.8rem;">🔎 Google Shopping</a>
-            <a href="#" onclick="pesquisarPrecoBanco(${idx});return false;" style="display:block;padding:6px 12px;text-decoration:none;color:#333;font-size:0.8rem;">💰 Central de Preços</a>
+            <a href="#" onclick="pesquisarPrecoBanco(${idx});return false;" style="display:block;padding:6px 12px;text-decoration:none;color:#333;font-size:0.8rem;">💰 Central de Produtos</a>
             <a href="#" onclick="pesquisarPrecoMercadoLivre(${idx});return false;" style="display:block;padding:6px 12px;text-decoration:none;color:#333;font-size:0.8rem;">🛒 Mercado Livre</a>
           </div>
         </div>`
@@ -2086,7 +2136,7 @@ window.pesquisarPrecoBanco = function(idx) {
   const bp = findBancoItem(item.nome);
   if (bp) {
     const stats = calcHistoricoStats(bp.custosFornecedor);
-    let msg = `Banco de Preços: ${item.nome}\n\n`;
+    let msg = `Central de Produtos: ${item.nome}\n\n`;
     msg += `Custo base: ${brl.format(bp.custoBase)}\n`;
     msg += `Preço referência: ${brl.format(bp.precoReferencia)}\n`;
     if (bp.marca) msg += `Marca: ${bp.marca}\n`;
@@ -2108,7 +2158,7 @@ window.pesquisarPrecoBanco = function(idx) {
       showToast("Preço do banco aplicado: " + brl.format(bp.custoBase));
     }
   } else {
-    showToast("Item não encontrado no Banco de Preços.");
+    showToast("Item não encontrado na Central de Produtos.");
   }
 };
 
@@ -2866,7 +2916,7 @@ window.aplicarMargemGlobal = function () {
   showToast("Margem " + (margem * 100).toFixed(0) + "% aplicada a " + pre.itens.filter(i => i.custoUnitario > 0).length + " itens.");
 };
 
-// Story 10.3: Central de Preços — réplica exata da Central de Produtos do GDP
+// Story 10.3/10.7: Central de Produtos (renomeado de "Central de Preços")
 const ORIGEM_LABELS = { '0': '0-Nacional', '1': '1-Import. Direta', '2': '2-Import. Merc. Interno', '3': '3-Nac. >40% Import.', '4': '4-Nac. Proc. Basicos', '5': '5-Nac. <=40% Import.', '6': '6-Import. s/ Similar', '7': '7-Import. MI s/ Similar' };
 
 window.renderCentralPrecos = function () {
@@ -2937,7 +2987,7 @@ window.renderCentralPrecos = function () {
   }).join('');
 };
 
-// Abrir modal novo produto na Central de Preços
+// Abrir modal novo produto na Central de Produtos
 window.abrirNovoProdutoCentralPrecos = function () {
   document.getElementById("modal-prod-central-titulo").textContent = "Novo Produto";
   document.getElementById("mpc-id").value = "";
@@ -2957,7 +3007,7 @@ window.abrirNovoProdutoCentralPrecos = function () {
   document.getElementById("modal-produto-central").style.display = "flex";
 };
 
-// Abrir modal editar produto na Central de Preços
+// Abrir modal editar produto na Central de Produtos
 window.editarProdutoCentralPrecos = function (id) {
   // Story 13.2: Search in centralProdutos (v2) first, fallback to legacy
   let p = centralProdutos.find(x => x.id === id);
