@@ -3483,46 +3483,62 @@ window.downloadNfPdf = function(nfId) {
   const nf = notasEntrada.find(n => n.id === nfId);
   if (!nf) { showToast("Nota não encontrada.", 3000); return; }
 
-  const htmlContent = _gerarHtmlNf(nf);
+  const filename = `NF-${nf.numero || nfId}-${(nf.fornecedor || "").slice(0, 20).replace(/\s+/g, "_")}.pdf`;
+  const htmlBody = _gerarHtmlNfBody(nf);
 
-  // Use html2pdf (already loaded in gdp-contratos.html)
-  if (typeof html2pdf !== 'undefined') {
-    const container = document.createElement("div");
-    container.innerHTML = htmlContent;
-    // Must be visible and on-screen for html2canvas to capture
-    container.style.position = "fixed";
-    container.style.top = "0";
-    container.style.left = "0";
-    container.style.width = "210mm";
-    container.style.zIndex = "-1";
-    container.style.opacity = "0";
-    container.style.pointerEvents = "none";
-    document.body.appendChild(container);
+  // Open a new window, render the HTML visibly, then html2pdf captures it
+  const win = window.open("", "_blank", "width=800,height=600");
+  if (!win) { showToast("Popup bloqueado. Permita popups para baixar o PDF.", 4000); return; }
 
-    html2pdf().set({
-      margin: [10, 10, 10, 10],
-      filename: `NF-${nf.numero || nfId}-${(nf.fornecedor || "").slice(0, 20).replace(/\s+/g, "_")}.pdf`,
-      html2canvas: { scale: 2, useCORS: true, logging: false },
-      jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
-    }).from(container).save().then(() => {
-      document.body.removeChild(container);
-    }).catch(() => {
-      document.body.removeChild(container);
-      // Fallback if html2pdf fails
-      const win = window.open("", "_blank");
-      win.document.write(htmlContent);
-      win.document.close();
-      setTimeout(() => win.print(), 500);
-    });
-    return;
-  }
-
-  // Fallback: open printable HTML in new tab for printing
-  const win = window.open("", "_blank");
-  win.document.write(htmlContent);
+  win.document.write(`<!DOCTYPE html><html><head>
+    <title>NF ${nf.numero || ""}</title>
+    <style>body{font-family:Arial,sans-serif;padding:2rem;color:#222}table{width:100%;border-collapse:collapse;margin-top:1rem}th,td{border:1px solid #ccc;padding:6px 10px;font-size:13px;text-align:left}th{background:#f0f0f0;font-weight:600}h2{margin-bottom:.5rem}p{margin:4px 0;font-size:14px}.text-right{text-align:right}</style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"><\/script>
+  </head><body>
+    <div id="nf-content">${htmlBody}</div>
+    <p id="pdf-status" style="color:#666;margin-top:1rem;font-size:13px;">Gerando PDF...</p>
+    <script>
+      function gerarPdf() {
+        if (typeof html2pdf === 'undefined') { setTimeout(gerarPdf, 200); return; }
+        var el = document.getElementById('nf-content');
+        document.getElementById('pdf-status').textContent = 'Convertendo para PDF...';
+        html2pdf().set({
+          margin: [10, 10, 10, 10],
+          filename: ${JSON.stringify(filename)},
+          html2canvas: { scale: 2 },
+          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        }).from(el).save().then(function() {
+          document.getElementById('pdf-status').textContent = 'PDF baixado! Fechando...';
+          setTimeout(function() { window.close(); }, 1500);
+        }).catch(function(e) {
+          document.getElementById('pdf-status').textContent = 'Erro: ' + e.message + '. Use Ctrl+P para imprimir.';
+        });
+      }
+      setTimeout(gerarPdf, 500);
+    <\/script>
+  </body></html>`);
   win.document.close();
-  setTimeout(() => win.print(), 500);
 };
+
+// Generate just the body content (no <html>/<head> wrapper)
+function _gerarHtmlNfBody(nf) {
+  const brlFmt = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+  let html = `<h2>NOTA FISCAL DE ENTRADA</h2>`;
+  html += `<p><strong>Fornecedor:</strong> ${nf.fornecedor || "-"} &nbsp;|&nbsp; <strong>CNPJ:</strong> ${nf.cnpjEmitente || "-"}</p>`;
+  html += `<p><strong>Numero:</strong> ${nf.numero || "-"} &nbsp;|&nbsp; <strong>Chave:</strong> <span style="font-size:11px">${nf.chave || "-"}</span></p>`;
+  html += `<p><strong>Emissao:</strong> ${nf.emitidaEm ? new Date(nf.emitidaEm).toLocaleDateString("pt-BR") : "-"} &nbsp;|&nbsp; <strong>Valor Total:</strong> ${brlFmt.format(Number(nf.valor || 0))}</p>`;
+  html += `<p><strong>Origem:</strong> ${nf.origem || "-"} &nbsp;|&nbsp; <strong>Status:</strong> ${nf.status || "-"}</p>`;
+  if (nf.itens && nf.itens.length > 0) {
+    html += `<table><thead><tr><th>#</th><th>Descricao</th><th>NCM</th><th>Qtd</th><th>Unid</th><th class="text-right">V.Unit</th><th class="text-right">V.Total</th></tr></thead><tbody>`;
+    nf.itens.forEach((item, i) => {
+      html += `<tr><td>${i + 1}</td><td>${item.descricao || "-"}</td><td>${item.ncm || "-"}</td><td>${item.quantidade || 0}</td><td>${item.unidade || "UN"}</td><td class="text-right">${brlFmt.format(item.valorUnitario || item.precoUnitario || 0)}</td><td class="text-right">${brlFmt.format(item.valorTotal || 0)}</td></tr>`;
+    });
+    html += `</tbody></table>`;
+  } else {
+    html += `<p style="margin-top:1rem;color:#888">Nota sem detalhamento de itens.</p>`;
+  }
+  return html;
+}
 
 function _gerarHtmlNf(nf) {
   const brlFmt = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
