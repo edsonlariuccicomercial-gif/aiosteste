@@ -1456,7 +1456,9 @@ window.renderIntelDashboard = function () {
   // Populate filters (rebuild every time to pick up new SREs after varredura)
   const sreSel = document.getElementById("intel-filtro-sre");
   const prodSel = document.getElementById("intel-filtro-produto");
-  const sres = [...new Set(historico.map(h => h.sre).filter(Boolean))].sort();
+  // Merge SREs from historico AND from orcamentos (so new SREs appear immediately after varredura)
+  const _orcSres = (() => { try { return JSON.parse(localStorage.getItem('caixaescolar.orcamentos') || '[]').map(o => o.sre).filter(Boolean); } catch(_) { return []; } })();
+  const sres = [...new Set([...historico.map(h => h.sre).filter(Boolean), ..._orcSres])].sort();
   const produtos = [...new Set(historico.map(h => h.descricao_item).filter(Boolean))].sort();
 
   if (sreSel) {
