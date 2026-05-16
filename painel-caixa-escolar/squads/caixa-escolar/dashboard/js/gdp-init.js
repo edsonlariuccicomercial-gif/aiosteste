@@ -1205,7 +1205,7 @@ function importarNotaEntradaXml(input) {
       const transpNode = doc.getElementsByTagName("transp")[0];
       const protNode = doc.getElementsByTagName("protNFe")[0] || doc.getElementsByTagName("infProt")[0];
       const infAdic = doc.getElementsByTagName("infAdic")[0];
-      const eText = (node, tag) => node?.getElementsByTagName(tag)[0]?.textContent?.trim() || "";
+      const eText = (node, tag) => { try { return node?.getElementsByTagName?.(tag)?.[0]?.textContent?.trim() || ""; } catch(_) { return ""; } };
 
       const danfeData = {
         // Emitente
