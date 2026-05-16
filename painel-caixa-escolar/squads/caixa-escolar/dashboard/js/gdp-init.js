@@ -3576,11 +3576,11 @@ window.downloadNfPdf = function(nfId) {
 
   win.document.write(`<!DOCTYPE html><html><head>
     <title>NF ${nf.numero || ""}</title>
-    <style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:0;margin:0;color:#000;width:190mm}table{width:100%;border-collapse:collapse}th,td{border:1px solid #000;font-size:7pt;text-align:left}h2{margin-bottom:.5rem}.text-right{text-align:right}</style>
+    <style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:5mm;margin:0;color:#000;width:200mm;max-width:200mm;overflow:hidden}table{width:100%;border-collapse:collapse;table-layout:fixed}th,td{border:1px solid #000;font-size:6.5pt;text-align:left;overflow:hidden;word-wrap:break-word}.text-right{text-align:right}</style>
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"><\/script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"><\/script>
   </head><body>
-    <div id="nf-content" style="width:190mm;padding:0;margin:0">${htmlBody}</div>
+    <div id="nf-content" style="width:190mm;max-width:190mm;padding:0;margin:0;overflow:hidden">${htmlBody}</div>
     <p id="pdf-status" style="color:#666;margin-top:1rem;font-size:13px;">Gerando PDF...</p>
     <script>
       function gerarPdf() {
@@ -3593,7 +3593,7 @@ window.downloadNfPdf = function(nfId) {
         html2pdf().set({
           margin: [5, 5, 5, 5],
           filename: ${JSON.stringify(filename)},
-          html2canvas: { scale: 2, width: 718 },
+          html2canvas: { scale: 2, windowWidth: 756 },
           jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
         }).from(el).save().then(function() {
           document.getElementById('pdf-status').textContent = 'PDF baixado! Fechando...';
@@ -3715,34 +3715,36 @@ function _gerarHtmlNfBody(nf) {
   </tr></table>`;
 
   // === DADOS DOS PRODUTOS ===
-  html += `<div style="${c};margin-bottom:2px;padding:1px"><strong style="font-size:7pt">DADOS DOS PRODUTOS / SERVIÇOS</strong></div>`;
-  html += `<table style="width:100%;border-collapse:collapse;margin-bottom:2px;font-size:7pt">
+  html += `<div style="${c};padding:1px"><strong style="font-size:6.5pt">DADOS DOS PRODUTOS / SERVIÇOS</strong></div>`;
+  const ch = c + ";font-size:6pt;text-align:center;padding:1px 2px";
+  const cd = c + ";font-size:6.5pt;padding:1px 2px";
+  html += `<table style="width:100%;border-collapse:collapse;table-layout:fixed">
+    <colgroup><col style="width:8%"><col style="width:28%"><col style="width:10%"><col style="width:6%"><col style="width:5%"><col style="width:4%"><col style="width:7%"><col style="width:8%"><col style="width:9%"><col style="width:6%"><col style="width:9%"></colgroup>
     <tr style="background:#eee">
-      <th style="${c}">CÓDIGO</th><th style="${c}">DESCRIÇÃO DO PRODUTO / SERVIÇO</th><th style="${c}">NCM/SH</th><th style="${c}">O/CST</th><th style="${c}">CFOP</th><th style="${c}">UN</th><th style="${c}">QUANT</th><th style="${c}">VALOR UNIT</th><th style="${c}">VALOR TOTAL</th><th style="${c}">V.DESC</th><th style="${c}">B.CÁLC ICMS</th><th style="${c}">VALOR ICMS</th>
+      <th style="${ch}">CÓDIGO</th><th style="${ch}">DESCRIÇÃO DO PRODUTO / SERVIÇO</th><th style="${ch}">NCM/SH</th><th style="${ch}">O/CST</th><th style="${ch}">CFOP</th><th style="${ch}">UN</th><th style="${ch}">QUANT</th><th style="${ch}">VALOR UNIT</th><th style="${ch}">VALOR TOTAL</th><th style="${ch}">V.DESC</th><th style="${ch}">B.CÁLC ICMS</th>
     </tr>`;
   (nf.itens || []).forEach(item => {
     html += `<tr>
-      <td style="${c}">${item.codigo || ""}</td>
-      <td style="${c}">${item.descricao || ""}</td>
-      <td style="${c}">${item.ncm || ""}</td>
-      <td style="${c}">${(item.orig||"") + "/" + (item.cst||"")}</td>
-      <td style="${c}">${item.cfop || ""}</td>
-      <td style="${c}">${item.unidade || ""}</td>
-      <td style="${c};text-align:right">${fmt(item.quantidade)}</td>
-      <td style="${c};text-align:right">${fmt(item.valorUnitario || item.precoUnitario)}</td>
-      <td style="${c};text-align:right">${fmt(item.valorTotal)}</td>
-      <td style="${c};text-align:right">0,00</td>
-      <td style="${c};text-align:right">${fmt(item.vBC_item)}</td>
-      <td style="${c};text-align:right">${fmt(item.vICMS_item)}</td>
+      <td style="${cd}">${item.codigo || ""}</td>
+      <td style="${cd}">${item.descricao || ""}</td>
+      <td style="${cd}">${item.ncm || ""}</td>
+      <td style="${cd}">${(item.orig||"") + "/" + (item.cst||"")}</td>
+      <td style="${cd}">${item.cfop || ""}</td>
+      <td style="${cd}">${item.unidade || ""}</td>
+      <td style="${cd};text-align:right">${fmt(item.quantidade)}</td>
+      <td style="${cd};text-align:right">${fmt(item.valorUnitario || item.precoUnitario)}</td>
+      <td style="${cd};text-align:right">${fmt(item.valorTotal)}</td>
+      <td style="${cd};text-align:right">0,00</td>
+      <td style="${cd};text-align:right">${fmt(item.vBC_item)}</td>
     </tr>`;
   });
   html += `</table>`;
 
   // === DADOS ADICIONAIS ===
-  html += `<div style="${c};margin-bottom:2px;padding:1px"><strong style="font-size:7pt">DADOS ADICIONAIS</strong></div>`;
+  html += `<div style="${c};margin-top:8px;padding:1px"><strong style="font-size:6.5pt">DADOS ADICIONAIS</strong></div>`;
   html += `<table style="width:100%;border-collapse:collapse"><tr>
-    <td style="${c};width:65%;vertical-align:top;min-height:60px"><span style="${lbl}">INFORMAÇÕES COMPLEMENTARES</span><span style="font-size:7pt">${d.infCpl || ""}</span></td>
-    <td style="${c};vertical-align:top"><span style="${lbl}">RESERVADO AO FISCO</span><span style="font-size:7pt">${d.infAdFisco || ""}</span></td>
+    <td style="${c};width:65%;vertical-align:top;min-height:80px;padding:3px 4px"><span style="${lbl}">INFORMAÇÕES COMPLEMENTARES</span><br><span style="font-size:6.5pt;line-height:1.4">${(d.infCpl || "").replace(/&lt;br\s*\/?&gt;/gi, "<br>")}</span></td>
+    <td style="${c};vertical-align:top;padding:3px 4px"><span style="${lbl}">RESERVADO AO FISCO</span><span style="font-size:6.5pt">${d.infAdFisco || ""}</span></td>
   </tr></table>`;
 
   html += `</div>`;
