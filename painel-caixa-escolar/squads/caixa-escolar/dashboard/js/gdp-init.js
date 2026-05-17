@@ -1068,6 +1068,7 @@ function renderNotasEntrada() {
       <td style="white-space:nowrap" onclick="event.stopPropagation()">
         ${hasItens ? `<button class="btn btn-outline btn-sm" onclick="importarNfParaCentral('${item.id}')" title="Importar todos para Central de Produtos">📥 Importar</button>` : ''}
         <button class="btn btn-outline btn-sm" onclick="downloadNfPdf('${item.id}')" title="Download PDF da NF">📄 PDF</button>
+        <button class="btn btn-outline btn-sm" onclick="excluirNotaEntrada('${item.id}')" title="Excluir nota" style="color:#ef4444">🗑</button>
       </td>
     </tr>`;
     // Expandable row with item details
@@ -3556,6 +3557,17 @@ window.importarNfParaCentral = function(nfId) {
   if (typeof renderBancoProdutos === 'function') renderBancoProdutos();
 };
 
+// Excluir nota de entrada
+window.excluirNotaEntrada = function(nfId) {
+  const nf = notasEntrada.find(n => n.id === nfId);
+  if (!nf) return;
+  if (!confirm(`Excluir nota #${nf.numero || nfId} de ${nf.fornecedor || "?"}?`)) return;
+  notasEntrada = notasEntrada.filter(n => n.id !== nfId);
+  saveNotasEntrada();
+  renderNotasEntrada();
+  showToast("Nota excluída.", 3000);
+};
+
 // Toggle expand/collapse NF item rows
 window.toggleNfItens = function(nfId) {
   const row = document.getElementById("nf-itens-" + nfId);
@@ -3569,43 +3581,49 @@ window.downloadNfPdf = function(nfId) {
 
   const filename = `NF-${nf.numero || nfId}-${(nf.fornecedor || "").slice(0, 20).replace(/\s+/g, "_")}.pdf`;
   const htmlBody = _gerarHtmlNfBody(nf);
+  showToast("Gerando PDF...", 3000);
 
-  // Open a new window, render the HTML visibly, then html2pdf captures it
-  const win = window.open("", "_blank", "width=800,height=600");
-  if (!win) { showToast("Popup bloqueado. Permita popups para baixar o PDF.", 4000); return; }
+  // Use hidden iframe to avoid visible popup flash
+  const iframe = document.createElement("iframe");
+  iframe.style.cssText = "position:fixed;left:-9999px;top:0;width:800px;height:600px;border:none;opacity:0;pointer-events:none";
+  document.body.appendChild(iframe);
 
-  win.document.write(`<!DOCTYPE html><html><head>
-    <title>NF ${nf.numero || ""}</title>
+  const doc = iframe.contentDocument || iframe.contentWindow.document;
+  doc.open();
+  doc.write(`<!DOCTYPE html><html><head>
     <style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:0;margin:0;color:#000}table{width:100%;border-collapse:collapse}th,td{border:1px solid #000;font-size:7pt;text-align:left;word-wrap:break-word}.text-right{text-align:right}</style>
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"><\/script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"><\/script>
   </head><body>
     <div id="nf-content" style="width:720px;padding:10px;margin:0 auto">${htmlBody}</div>
-    <p id="pdf-status" style="color:#666;margin-top:1rem;font-size:13px;text-align:center">Gerando PDF...</p>
     <script>
       function gerarPdf() {
         if (typeof html2pdf === 'undefined' || typeof JsBarcode === 'undefined') { setTimeout(gerarPdf, 200); return; }
-        // Generate barcode
         var barcodeEl = document.getElementById('danfe-barcode');
         if (barcodeEl) { try { JsBarcode(barcodeEl, '${(nf.chave || "").replace(/\D/g, "")}', { format: 'CODE128', width: 1.2, height: 45, displayValue: false, margin: 0 }); } catch(e) {} }
         var el = document.getElementById('nf-content');
-        document.getElementById('pdf-status').textContent = 'Convertendo para PDF...';
         html2pdf().set({
           margin: [8, 5, 8, 5],
           filename: ${JSON.stringify(filename)},
           html2canvas: { scale: 2, useCORS: true, windowWidth: 740 },
           jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
         }).from(el).save().then(function() {
-          document.getElementById('pdf-status').textContent = 'PDF baixado! Fechando...';
-          setTimeout(function() { window.close(); }, 1500);
-        }).catch(function(e) {
-          document.getElementById('pdf-status').textContent = 'Erro: ' + e.message + '. Use Ctrl+P para imprimir.';
+          parent.postMessage('pdf-done', '*');
+        }).catch(function() {
+          parent.postMessage('pdf-done', '*');
         });
       }
       setTimeout(gerarPdf, 500);
     <\/script>
   </body></html>`);
-  win.document.close();
+  doc.close();
+
+  // Cleanup iframe after PDF is downloaded
+  const cleanup = () => { try { document.body.removeChild(iframe); } catch(_) {} };
+  window.addEventListener("message", function handler(e) {
+    if (e.data === "pdf-done") { window.removeEventListener("message", handler); setTimeout(cleanup, 500); }
+  });
+  setTimeout(cleanup, 30000); // safety cleanup after 30s
 };
 
 // Generate DANFE HTML body (official NF-e layout)
