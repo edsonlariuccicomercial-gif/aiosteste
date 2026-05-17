@@ -667,7 +667,7 @@
         <article class="pricing-kpi-card"><p>Conversão</p><strong id="hk-taxa">0%</strong></article>
         <article class="pricing-kpi-card"><p>Faturamento</p><strong id="hk-faturamento" class="text-accent">R$ 0</strong></article>
       </div>
-      <div class="filters" style="display:grid;grid-template-columns:repeat(2,minmax(80px,150px)) 1fr auto;gap:0.5rem;margin-bottom:0.75rem;align-items:center">
+      <div class="filters" style="display:grid;grid-template-columns:repeat(2,minmax(80px,150px)) 1fr;gap:0.5rem;margin-bottom:0.75rem;align-items:center">
         <select id="filtro-hist-escola"><option value="all">Escolas</option></select>
         <select id="filtro-aprov-status">
           <option value="all">Status</option>
@@ -678,7 +678,6 @@
         </select>
         <input type="text" id="filtro-aprov-texto" placeholder="Buscar escola, contrato, item..." autocomplete="off" style="padding:0.4rem;" />
         <input type="text" id="filtro-hist-texto" placeholder="" autocomplete="off" style="display:none;" />
-        <button class="btn btn-sm" onclick="limparFiltrosHist()">Limpar</button>
       </div>
       <div class="rent-tabs" id="sub-tabs-historico">
         <button class="rent-tab active" onclick="switchHistoricoTab('contratos')">Contratos</button>
