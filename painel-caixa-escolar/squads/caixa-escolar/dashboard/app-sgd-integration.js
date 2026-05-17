@@ -962,7 +962,27 @@ async function varrerSgd() {
 
       const orcData = await fetchJson("data/orcamentos.json");
       orcamentos = Array.isArray(orcData) ? orcData : [];
-      showToast(result.novos > 0 ? `${result.novos} novo(s) orçamento(s)!` : "Nenhum orçamento novo.");
+
+      // Post-process: resolve SRE names from SRE_CONFIGS for budgets with county-based SRE
+      const _sreNorm = (s) => (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").toUpperCase().trim();
+      const _activeSres = typeof getActiveSreConfigs === 'function' ? getActiveSreConfigs() : [];
+      orcamentos.forEach(o => {
+        if (!o.sre || o.sre === "Desconhecida" || o.sre === o.municipio) {
+          // Try to match SRE from municipio or countyName against SRE_CONFIGS
+          const mNorm = _sreNorm(o.municipio || o.sre || "");
+          const match = _activeSres.find(s => {
+            const sNorm = _sreNorm(s.nome || "");
+            return mNorm === sNorm || mNorm.includes(sNorm) || sNorm.includes(mNorm);
+          });
+          if (match) o.sre = match.nome;
+        }
+      });
+      localStorage.setItem("caixaescolar.orcamentos", JSON.stringify(orcamentos));
+
+      const sreBreak = {};
+      orcamentos.forEach(o => { sreBreak[o.sre || "?"] = (sreBreak[o.sre || "?"] || 0) + 1; });
+      const sreMsg = Object.entries(sreBreak).map(([k,v]) => `${k}: ${v}`).join(", ");
+      showToast(result.novos > 0 ? `${result.novos} novo(s) orçamento(s)! (${sreMsg})` : `Nenhum orçamento novo. (${sreMsg})`);
     } else {
       // Mode 2: Direct browser API calls (cloud mode)
       await BrowserSgdClient.login();
