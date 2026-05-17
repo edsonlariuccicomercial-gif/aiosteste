@@ -393,11 +393,11 @@
       <!-- Lista de pré-orçamentos existentes — Epic 10 -->
       <div id="preorcamentos-lista" style="display:none;">
         <h3>Pré-orçamentos salvos</h3>
-        <div class="filters" style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.75rem;">
-          <select id="filtro-pre-escola"><option value="all">Todas as escolas</option></select>
-          <select id="filtro-pre-cidade"><option value="all">Todas as cidades</option></select>
+        <div class="filters" style="display:grid;grid-template-columns:repeat(4,minmax(80px,150px)) 1fr auto;gap:0.5rem;margin-bottom:0.75rem;align-items:center">
+          <select id="filtro-pre-escola"><option value="all">Escolas</option></select>
+          <select id="filtro-pre-cidade"><option value="all">Municípios</option></select>
           <select id="filtro-pre-status">
-            <option value="all">Ativos (pendente/aprovado)</option>
+            <option value="all">Status</option>
             <option value="pendente">Pendente</option>
             <option value="aprovado">Aprovado</option>
             <option value="enviado">Enviado ao SGD</option>
@@ -405,9 +405,23 @@
             <option value="perdido">Perdido</option>
             <option value="todos">Todos (inclui finalizados)</option>
           </select>
-          <div style="display:flex;gap:.5rem;align-items:center"><span style="background:#333;color:#fff;border-radius:50%;width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:700;flex-shrink:0">De</span><input type="date" id="filtro-pre-data-de" title="Data início" style="flex:1;min-width:0" /></div>
-          <div style="display:flex;gap:.5rem;align-items:center"><span style="background:#333;color:#fff;border-radius:50%;width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:700;flex-shrink:0">Até</span><input type="date" id="filtro-pre-data-ate" title="Data fim" style="flex:1;min-width:0" /></div>
-          <input type="text" id="filtro-pre-texto" placeholder="Buscar..." autocomplete="off" style="padding:0.4rem;" />
+          <div style="position:relative" id="periodo-pre-container">
+            <div id="periodo-pre-trigger" style="display:flex;align-items:center;gap:6px;padding:7px 10px;border:1px solid var(--bdr,#ccc);border-radius:6px;cursor:pointer;font-size:.85rem;color:var(--muted,#888);background:var(--bg,#fff);min-height:36px;user-select:none" onclick="togglePeriodoPreDropdown()">
+              <span id="periodo-pre-label">Período</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-left:auto;flex-shrink:0"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            </div>
+            <div id="periodo-pre-dropdown" style="display:none;position:absolute;top:calc(100% + 4px);left:0;z-index:100;background:var(--bg,#fff);border:1px solid var(--bdr,#ccc);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.15);padding:12px;min-width:220px">
+              <label style="font-size:.75rem;color:var(--muted,#888);display:block;margin-bottom:4px">Data inicial</label>
+              <input type="date" id="filtro-pre-data-de" style="width:100%;padding:8px;border:1px solid var(--bdr,#ccc);border-radius:6px;font-size:.85rem;margin-bottom:10px" />
+              <label style="font-size:.75rem;color:var(--muted,#888);display:block;margin-bottom:4px">Data final</label>
+              <input type="date" id="filtro-pre-data-ate" style="width:100%;padding:8px;border:1px solid var(--bdr,#ccc);border-radius:6px;font-size:.85rem;margin-bottom:8px" />
+              <div style="display:flex;gap:6px">
+                <button class="btn btn-sm" onclick="limparPeriodoPre()" style="flex:1">Limpar</button>
+                <button class="btn btn-sm btn-accent" onclick="aplicarPeriodoPre()" style="flex:1">Aplicar</button>
+              </div>
+            </div>
+          </div>
+          <input type="text" id="filtro-pre-texto" placeholder="Buscar escola, objeto, item..." autocomplete="off" style="padding:0.4rem;" />
           <button class="btn btn-sm" onclick="limparFiltrosPre()">Limpar</button>
         </div>
         <div class="table-wrap">

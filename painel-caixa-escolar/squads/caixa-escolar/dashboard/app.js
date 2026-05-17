@@ -1831,11 +1831,11 @@ function bindEvents() {
 
   // Periodo dropdown: close on outside click
   document.addEventListener("click", function(e) {
-    const container = document.getElementById("periodo-container");
-    const dropdown = document.getElementById("periodo-dropdown");
-    if (container && dropdown && !container.contains(e.target)) {
-      dropdown.style.display = "none";
-    }
+    [["periodo-container","periodo-dropdown"],["periodo-pre-container","periodo-pre-dropdown"]].forEach(([cId,dId]) => {
+      const container = document.getElementById(cId);
+      const dropdown = document.getElementById(dId);
+      if (container && dropdown && !container.contains(e.target)) dropdown.style.display = "none";
+    });
   });
 
   // Story 4.40: Date filters for SGD
@@ -3393,6 +3393,39 @@ window.aplicarPeriodo = function() {
   }
   document.getElementById("periodo-dropdown").style.display = "none";
   renderOrcamentos();
+};
+
+// === PERIODO PRE-ORCAMENTO ===
+window.togglePeriodoPreDropdown = function() {
+  const dd = document.getElementById("periodo-pre-dropdown");
+  if (dd) dd.style.display = dd.style.display === "none" ? "block" : "none";
+};
+
+window.aplicarPeriodoPre = function() {
+  const de = document.getElementById("filtro-pre-data-de")?.value || "";
+  const ate = document.getElementById("filtro-pre-data-ate")?.value || "";
+  const label = document.getElementById("periodo-pre-label");
+  if (de || ate) {
+    const fmtD = (v) => { if (!v) return ""; const p = v.split("-"); return p[2] + "/" + p[1]; };
+    label.textContent = (fmtD(de) || "...") + " — " + (fmtD(ate) || "...");
+    label.style.color = "var(--text,#222)";
+  } else {
+    label.textContent = "Período";
+    label.style.color = "var(--muted,#888)";
+  }
+  document.getElementById("periodo-pre-dropdown").style.display = "none";
+  if (typeof renderPreOrcamentosLista === 'function') renderPreOrcamentosLista();
+};
+
+window.limparPeriodoPre = function() {
+  const de = document.getElementById("filtro-pre-data-de");
+  const ate = document.getElementById("filtro-pre-data-ate");
+  if (de) de.value = "";
+  if (ate) ate.value = "";
+  const label = document.getElementById("periodo-pre-label");
+  if (label) { label.textContent = "Período"; label.style.color = "var(--muted,#888)"; }
+  document.getElementById("periodo-pre-dropdown").style.display = "none";
+  if (typeof renderPreOrcamentosLista === 'function') renderPreOrcamentosLista();
 };
 
 window.limparPeriodo = function() {
