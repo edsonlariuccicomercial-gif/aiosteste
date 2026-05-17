@@ -1829,6 +1829,15 @@ function bindEvents() {
     if (elem) elem.addEventListener("change", renderOrcamentos);
   });
 
+  // Periodo dropdown: close on outside click
+  document.addEventListener("click", function(e) {
+    const container = document.getElementById("periodo-container");
+    const dropdown = document.getElementById("periodo-dropdown");
+    if (container && dropdown && !container.contains(e.target)) {
+      dropdown.style.display = "none";
+    }
+  });
+
   // Story 4.40: Date filters for SGD
   ["filtro-sgd-data-de", "filtro-sgd-data-ate"].forEach(id => {
     const elem = document.getElementById(id);
@@ -3363,6 +3372,39 @@ document.addEventListener("click", function (e) {
     setTimeout(() => { if (typeof renderConfigEmpresa === 'function') renderConfigEmpresa(); }, 50);
   }
 });
+
+// ===== PERIODO DROPDOWN =====
+window.togglePeriodoDropdown = function() {
+  const dd = document.getElementById("periodo-dropdown");
+  if (dd) dd.style.display = dd.style.display === "none" ? "block" : "none";
+};
+
+window.aplicarPeriodo = function() {
+  const de = document.getElementById("filtro-data-de")?.value || "";
+  const ate = document.getElementById("filtro-data-ate")?.value || "";
+  const label = document.getElementById("periodo-label");
+  if (de || ate) {
+    const fmtD = (v) => { if (!v) return ""; const p = v.split("-"); return p[2] + "/" + p[1]; };
+    label.textContent = (fmtD(de) || "...") + " — " + (fmtD(ate) || "...");
+    label.style.color = "var(--text,#222)";
+  } else {
+    label.textContent = "Período";
+    label.style.color = "var(--muted,#888)";
+  }
+  document.getElementById("periodo-dropdown").style.display = "none";
+  renderOrcamentos();
+};
+
+window.limparPeriodo = function() {
+  const de = document.getElementById("filtro-data-de");
+  const ate = document.getElementById("filtro-data-ate");
+  if (de) de.value = "";
+  if (ate) ate.value = "";
+  const label = document.getElementById("periodo-label");
+  if (label) { label.textContent = "Período"; label.style.color = "var(--muted,#888)"; }
+  document.getElementById("periodo-dropdown").style.display = "none";
+  renderOrcamentos();
+};
 
 // ===== INIT =====
 boot();

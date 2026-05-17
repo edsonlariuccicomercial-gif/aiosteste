@@ -174,16 +174,16 @@
       <!-- Filtros -->
       <div class="filters filters-8col">
         <select id="filtro-sre">
-          <option value="all">Todas as SREs</option>
+          <option value="all">SREs</option>
         </select>
         <select id="filtro-escola">
-          <option value="all">Todas as escolas</option>
+          <option value="all">Escolas</option>
         </select>
         <select id="filtro-municipio">
-          <option value="all">Todos os municípios</option>
+          <option value="all">Municípios</option>
         </select>
         <select id="filtro-grupo">
-          <option value="all">Todos os grupos</option>
+          <option value="all">Grupos</option>
         </select>
         <select id="filtro-status">
           <option value="all">Todos os status</option>
@@ -192,8 +192,22 @@
           <option value="descartados">Descartados</option>
           <option value="com-preorcamento">Com pré-orçamento</option>
         </select>
-        <div style="display:flex;gap:.4rem;align-items:center"><span style="background:#333;color:#fff;border-radius:50%;min-width:24px;height:24px;display:inline-flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:700;flex-shrink:0">De</span><input type="date" id="filtro-data-de" title="Data início" style="flex:1;min-width:0" /></div>
-        <div style="display:flex;gap:.4rem;align-items:center"><span style="background:#333;color:#fff;border-radius:50%;min-width:24px;height:24px;display:inline-flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:700;flex-shrink:0">Até</span><input type="date" id="filtro-data-ate" title="Data fim" style="flex:1;min-width:0" /></div>
+        <div style="position:relative" id="periodo-container">
+          <div id="periodo-trigger" style="display:flex;align-items:center;gap:6px;padding:7px 10px;border:1px solid var(--bdr,#ccc);border-radius:6px;cursor:pointer;font-size:.85rem;color:var(--muted,#888);background:var(--bg,#fff);min-height:36px;user-select:none" onclick="togglePeriodoDropdown()">
+            <span id="periodo-label">Período</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-left:auto;flex-shrink:0"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          </div>
+          <div id="periodo-dropdown" style="display:none;position:absolute;top:calc(100% + 4px);left:0;z-index:100;background:var(--bg,#fff);border:1px solid var(--bdr,#ccc);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.15);padding:12px;min-width:220px">
+            <label style="font-size:.75rem;color:var(--muted,#888);display:block;margin-bottom:4px">Data inicial</label>
+            <input type="date" id="filtro-data-de" style="width:100%;padding:8px;border:1px solid var(--bdr,#ccc);border-radius:6px;font-size:.85rem;margin-bottom:10px" />
+            <label style="font-size:.75rem;color:var(--muted,#888);display:block;margin-bottom:4px">Data final</label>
+            <input type="date" id="filtro-data-ate" style="width:100%;padding:8px;border:1px solid var(--bdr,#ccc);border-radius:6px;font-size:.85rem;margin-bottom:8px" />
+            <div style="display:flex;gap:6px">
+              <button class="btn btn-sm" onclick="limparPeriodo()" style="flex:1">Limpar</button>
+              <button class="btn btn-sm btn-accent" onclick="aplicarPeriodo()" style="flex:1">Aplicar</button>
+            </div>
+          </div>
+        </div>
         <input type="text" id="filtro-texto" placeholder="Buscar escola, objeto, item..." autocomplete="off" />
       </div>
 
