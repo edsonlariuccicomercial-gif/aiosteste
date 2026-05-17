@@ -393,7 +393,7 @@
       <!-- Lista de pré-orçamentos existentes — Epic 10 -->
       <div id="preorcamentos-lista" style="display:none;">
         <h3>Pré-orçamentos salvos</h3>
-        <div class="filters" style="display:grid;grid-template-columns:repeat(4,minmax(80px,150px)) 1fr auto;gap:0.5rem;margin-bottom:0.75rem;align-items:center">
+        <div class="filters" style="display:grid;grid-template-columns:repeat(4,minmax(80px,150px)) 1fr;gap:0.5rem;margin-bottom:0.75rem;align-items:center">
           <select id="filtro-pre-escola"><option value="all">Escolas</option></select>
           <select id="filtro-pre-cidade"><option value="all">Municípios</option></select>
           <select id="filtro-pre-status">
@@ -423,7 +423,6 @@
             </div>
           </div>
           <input type="text" id="filtro-pre-texto" placeholder="Buscar escola, objeto, item..." autocomplete="off" style="padding:0.4rem;" />
-          <button class="btn btn-sm" onclick="limparFiltrosPre()">Limpar</button>
         </div>
         <div class="table-wrap">
           <table id="tabela-preorcamentos-lista">
@@ -434,9 +433,9 @@
                 <th>Escola</th>
                 <th>Cidade</th>
                 <th>Itens</th>
-                <th>Status</th>
                 <th>Total</th>
                 <th>Data</th>
+                <th>Status</th>
                 <th>Ação</th>
               </tr>
             </thead>

@@ -1515,9 +1515,9 @@ function renderPreOrcamentosLista() {
         <td>${escapeHtml(p.escola)}</td>
         <td style="font-size:.8rem;color:var(--mut);">${escapeHtml(p.municipio || '-')}</td>
         <td title="${iTooltip}" style="font-size:0.8rem;max-width:200px;">${iSummary}</td>
-        <td><span class="badge ${badgeClass}">${p.status}</span></td>
         <td class="text-right font-mono">${brl.format(p.totalGeral || 0)}</td>
         <td class="nowrap">${(() => { const dias = orc ? daysTo(orc.prazo) : 999; return dias < 0 ? '<span style="color:#ef4444;font-weight:700">VENCIDO</span>' : dias <= 2 ? '<span style="color:#dc2626;font-weight:800;background:#fee2e2;padding:2px 6px;border-radius:4px">' + (dias === 0 ? 'HOJE' : dias === 1 ? 'AMANHÃ' : dias + 'd') + '</span>' : dias <= 5 ? '<span style="color:#b45309;font-weight:600">' + dias + ' dias</span>' : formatDate(orc?.prazo || p.criadoEm); })()}</td>
+        <td><span class="badge ${badgeClass}">${p.status}</span></td>
         <td>
           <button class="btn btn-inline" onclick="abrirPreOrcamento('${p.orcamentoId}')">Ver</button>
           ${(p.status === "ganho" || p.status === "perdido" || p.status === "enviado") ? `<button class="btn btn-inline" onclick="editarResultadoPreOrcamento('${p.orcamentoId}')" title="Alterar resultado">Editar Resultado</button>` : ""}
