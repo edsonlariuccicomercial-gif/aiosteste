@@ -1010,7 +1010,7 @@ function renderAprovados() {
     html += `<div style="margin-bottom:16px;padding:12px;border:1px solid var(--line);border-radius:8px;">
       <h4 style="margin-bottom:8px;">${escapeHtml(escola)} <span class="badge badge-muted">${ctrs.length} contrato(s)</span></h4>
       <div class="table-wrap"><table>
-        <thead><tr><th>Contrato</th><th>Itens</th><th>Data</th><th>Valor</th><th>Entrega</th><th>Status</th><th>Ações</th></tr></thead>
+        <thead><tr><th>Contrato</th><th>Itens</th><th>Valor</th><th>Entrega</th><th>Data</th><th>Status</th><th>Ações</th></tr></thead>
         <tbody>${ctrs.map(c => {
           const totalItens = c.itens ? c.itens.reduce((s, i) => s + (i.quantidade || 0), 0) : 0;
           const entregueItens = c.itens ? c.itens.reduce((s, i) => s + (i.entregue || 0), 0) : 0;
@@ -1018,9 +1018,9 @@ function renderAprovados() {
           return `<tr>
             <td><strong>${escapeHtml(c.contratoId)}</strong></td>
             <td style="font-size:0.8rem;max-width:180px;" title="${escapeHtml((c.itens||[]).map(i=>i.nome).join(', '))}">${escapeHtml(cItemsSummary)}</td>
-            <td>${formatDate(c.dataContrato)}</td>
             <td class="text-right font-mono">${brl.format(c.valorTotal || 0)}</td>
             <td>${entregueItens}/${totalItens}</td>
+            <td>${formatDate(c.dataContrato)}</td>
             <td><span class="badge ${statusBadge(c.status)}">${c.status}</span></td>
             <td><button class="btn btn-inline" onclick="verContrato('${c.contratoId}')">Detalhes</button>
               <button class="btn btn-inline btn-accent" onclick="registrarEntrega('${c.contratoId}')">Entrega</button></td>
