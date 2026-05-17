@@ -703,16 +703,30 @@
       </div>
       <!-- Story 13.7: Inteligência Competitiva Dashboard -->
       <div id="hist-inteligencia" class="rent-content" style="display:none;">
-        <div style="display:flex;gap:.5rem;margin-bottom:1rem;flex-wrap:wrap;">
-          <select id="intel-filtro-sre" style="font-size:.8rem;padding:4px 8px;">
-            <option value="all">Todas SREs</option>
+        <div style="display:grid;grid-template-columns:repeat(3,minmax(80px,150px)) 1fr;gap:.5rem;margin-bottom:1rem;align-items:center">
+          <select id="intel-filtro-sre" onchange="renderIntelDashboard()">
+            <option value="all">SREs</option>
           </select>
-          <select id="intel-filtro-produto" style="font-size:.8rem;padding:4px 8px;">
-            <option value="all">Todos Produtos</option>
+          <select id="intel-filtro-produto" onchange="renderIntelDashboard()">
+            <option value="all">Produtos</option>
           </select>
-          <input type="date" id="intel-filtro-de" style="font-size:.8rem;padding:4px 8px;" />
-          <input type="date" id="intel-filtro-ate" style="font-size:.8rem;padding:4px 8px;" />
-          <button class="btn btn-sm" onclick="renderIntelDashboard()">Filtrar</button>
+          <div style="position:relative" id="periodo-intel-container">
+            <div id="periodo-intel-trigger" style="display:flex;align-items:center;gap:6px;padding:7px 10px;border:1px solid var(--bdr,#ccc);border-radius:6px;cursor:pointer;font-size:.85rem;color:var(--muted,#888);background:var(--bg,#fff);min-height:36px;user-select:none" onclick="togglePeriodoIntelDropdown()">
+              <span id="periodo-intel-label">Período</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-left:auto;flex-shrink:0"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            </div>
+            <div id="periodo-intel-dropdown" style="display:none;position:absolute;top:calc(100% + 4px);left:0;z-index:100;background:var(--bg,#fff);border:1px solid var(--bdr,#ccc);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.15);padding:12px;min-width:220px">
+              <label style="font-size:.75rem;color:var(--muted,#888);display:block;margin-bottom:4px">Data inicial</label>
+              <input type="date" id="intel-filtro-de" style="width:100%;padding:8px;border:1px solid var(--bdr,#ccc);border-radius:6px;font-size:.85rem;margin-bottom:10px" />
+              <label style="font-size:.75rem;color:var(--muted,#888);display:block;margin-bottom:4px">Data final</label>
+              <input type="date" id="intel-filtro-ate" style="width:100%;padding:8px;border:1px solid var(--bdr,#ccc);border-radius:6px;font-size:.85rem;margin-bottom:8px" />
+              <div style="display:flex;gap:6px">
+                <button class="btn btn-sm" onclick="limparPeriodoIntel()" style="flex:1">Limpar</button>
+                <button class="btn btn-sm btn-accent" onclick="aplicarPeriodoIntel()" style="flex:1">Aplicar</button>
+              </div>
+            </div>
+          </div>
+          <div></div>
         </div>
         <div id="intel-kpis" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.75rem;margin-bottom:1.5rem;"></div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">

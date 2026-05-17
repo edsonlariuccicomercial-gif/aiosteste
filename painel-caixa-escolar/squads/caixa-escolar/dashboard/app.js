@@ -1831,7 +1831,7 @@ function bindEvents() {
 
   // Periodo dropdown: close on outside click
   document.addEventListener("click", function(e) {
-    [["periodo-container","periodo-dropdown"],["periodo-pre-container","periodo-pre-dropdown"],["periodo-sgd-container","periodo-sgd-dropdown"]].forEach(([cId,dId]) => {
+    [["periodo-container","periodo-dropdown"],["periodo-pre-container","periodo-pre-dropdown"],["periodo-sgd-container","periodo-sgd-dropdown"],["periodo-intel-container","periodo-intel-dropdown"]].forEach(([cId,dId]) => {
       const container = document.getElementById(cId);
       const dropdown = document.getElementById(dId);
       if (container && dropdown && !container.contains(e.target)) dropdown.style.display = "none";
@@ -3459,6 +3459,39 @@ window.limparPeriodoSgd = function() {
   if (label) { label.textContent = "Período"; label.style.color = "var(--muted,#888)"; }
   document.getElementById("periodo-sgd-dropdown").style.display = "none";
   if (typeof renderSgd === 'function') renderSgd();
+};
+
+// === PERIODO INTELIGENCIA ===
+window.togglePeriodoIntelDropdown = function() {
+  const dd = document.getElementById("periodo-intel-dropdown");
+  if (dd) dd.style.display = dd.style.display === "none" ? "block" : "none";
+};
+
+window.aplicarPeriodoIntel = function() {
+  const de = document.getElementById("intel-filtro-de")?.value || "";
+  const ate = document.getElementById("intel-filtro-ate")?.value || "";
+  const label = document.getElementById("periodo-intel-label");
+  if (de || ate) {
+    const fmtD = (v) => { if (!v) return ""; const p = v.split("-"); return p[2] + "/" + p[1]; };
+    label.textContent = (fmtD(de) || "...") + " — " + (fmtD(ate) || "...");
+    label.style.color = "var(--text,#222)";
+  } else {
+    label.textContent = "Período";
+    label.style.color = "var(--muted,#888)";
+  }
+  document.getElementById("periodo-intel-dropdown").style.display = "none";
+  if (typeof renderIntelDashboard === 'function') renderIntelDashboard();
+};
+
+window.limparPeriodoIntel = function() {
+  const de = document.getElementById("intel-filtro-de");
+  const ate = document.getElementById("intel-filtro-ate");
+  if (de) de.value = "";
+  if (ate) ate.value = "";
+  const label = document.getElementById("periodo-intel-label");
+  if (label) { label.textContent = "Período"; label.style.color = "var(--muted,#888)"; }
+  document.getElementById("periodo-intel-dropdown").style.display = "none";
+  if (typeof renderIntelDashboard === 'function') renderIntelDashboard();
 };
 
 window.limparPeriodo = function() {
