@@ -1478,9 +1478,9 @@ function renderPreOrcamentosLista() {
   let filtered = items;
   if (fPreEscolaVal !== "all") filtered = filtered.filter(p => p.escola === fPreEscolaVal);
   if (fPreCidadeVal !== "all") filtered = filtered.filter(p => p.municipio === fPreCidadeVal);
-  if (fPreStatus === "all") {
+  if (fPreStatus === "ativos") {
     filtered = filtered.filter(p => !["enviado", "ganho", "perdido"].includes(p.status));
-  } else if (fPreStatus !== "todos") {
+  } else if (fPreStatus !== "all" && fPreStatus !== "todos") {
     filtered = filtered.filter(p => p.status === fPreStatus);
   }
   if (fPreTexto) filtered = filtered.filter(p => normalizedText([p.escola, p.municipio, p.orcamentoId, ...(p.itens || []).map(i => i.nome)].join(" ")).includes(fPreTexto));
