@@ -61,12 +61,15 @@ const BrowserSgdClient = {
     if (!this.cookie) await this.login();
   },
 
+  allNetworks: [],
+
   async getUser() {
     await this.ensureAuth();
     const user = await this.proxy({ action: "get-user", cookie: this.cookie });
     if (user.idNetwork) this.networkId = user.idNetwork;
     if (user.networks && user.networks.length > 0) {
-      this.networkId = user.networks[0].idNetwork || user.networks[0].id;
+      this.allNetworks = user.networks.map(n => ({ id: n.idNetwork || n.id, name: n.txNetwork || n.name || "" }));
+      this.networkId = this.allNetworks[0].id;
     }
     return user;
   },

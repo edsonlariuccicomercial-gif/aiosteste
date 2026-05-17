@@ -1097,19 +1097,34 @@ async function varrerSgd() {
         return null;
       }
 
-      // Step 1a: Fetch ABERTOS (NAEN) — varredura normal de oportunidades
+      // Step 1a: Fetch ABERTOS (NAEN) — varredura de TODOS os networks (SREs)
       const allBudgets = [];
-      let page = 1;
       const PAGE_SIZE = 100;
-      while (true) {
-        const data = await BrowserSgdClient.listBudgets(page, PAGE_SIZE);
-        const items = data.data || [];
-        if (items.length === 0) break;
-        allBudgets.push(...items);
-        const total = data.meta ? data.meta.totalItems : 0;
-        if (allBudgets.length >= total) break;
-        page++;
-        btn.innerHTML = `<span class="sgd-spinner"></span>Listando... ${allBudgets.length}/${total}`;
+      const networks = BrowserSgdClient.allNetworks && BrowserSgdClient.allNetworks.length > 0
+        ? BrowserSgdClient.allNetworks
+        : [{ id: BrowserSgdClient.networkId, name: "Default" }];
+      gdpLog(`[Varrer] ${networks.length} network(s) para varrer:`, networks.map(n => n.name || n.id).join(", "));
+
+      for (let ni = 0; ni < networks.length; ni++) {
+        const net = networks[ni];
+        BrowserSgdClient.networkId = net.id;
+        btn.innerHTML = `<span class="sgd-spinner"></span>Varrendo rede ${ni + 1}/${networks.length} (${net.name || net.id})...`;
+        let page = 1;
+        let netBudgets = 0;
+        while (true) {
+          const data = await BrowserSgdClient.listBudgets(page, PAGE_SIZE);
+          const items = data.data || [];
+          if (items.length === 0) break;
+          // Tag each budget with its network info
+          items.forEach(b => { b.idNetwork = b.idNetwork || net.id; b._networkName = net.name || ""; });
+          allBudgets.push(...items);
+          netBudgets += items.length;
+          const total = data.meta ? data.meta.totalItems : 0;
+          if (netBudgets >= total) break;
+          page++;
+          btn.innerHTML = `<span class="sgd-spinner"></span>Rede ${ni + 1}/${networks.length}: ${netBudgets}/${total}...`;
+        }
+        gdpLog(`[Varrer] Rede ${net.name || net.id}: ${netBudgets} budgets`);
       }
 
       // Checar status das enviadas: use o botão "Checar SGD" individual em cada proposta
