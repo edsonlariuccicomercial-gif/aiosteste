@@ -1090,7 +1090,7 @@ input[type="checkbox"]:hover {
 /* ===== SGD TAB ===== */
 .sgd-kpis {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: var(--gap);
   margin-bottom: 16px;
 }
