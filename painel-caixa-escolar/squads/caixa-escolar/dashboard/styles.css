@@ -829,7 +829,7 @@ tfoot td {
   grid-template-columns: repeat(6, minmax(0, 1fr));
 }
 .filters-8col {
-  grid-template-columns: repeat(8, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(80px, 150px)) 1fr;
 }
 
 /* ===== BADGE FORA DO ESCOPO ===== */
