@@ -9,7 +9,7 @@
     :root{--bg:#0f172a;--bg-soft:#1e293b;--card:#1e293b;--line:#334155;--text:#f1f5f9;--muted:#94a3b8}
     body::before,body::after{display:none}
     /* KPI Cards */
-    .home-layout{display:grid;grid-template-columns:auto 1fr;gap:2rem;align-items:center}
+    .home-layout{display:grid;grid-template-columns:1fr 1fr;gap:2rem;align-items:center}
     .kpi-grid-home{display:grid;grid-template-columns:1fr;gap:1rem;margin-bottom:0}
     .kpi-card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:1.2rem;cursor:pointer;transition:all .3s;position:relative;overflow:hidden}
     .kpi-card:hover{transform:translateY(-4px);box-shadow:0 12px 40px rgba(0,0,0,.3)}
@@ -118,8 +118,8 @@
         <!-- Globe Section — esquerda -->
         <div class="globe-section">
           <h2>Áreas de Atuação — SREs</h2>
-          <div style="position:relative;width:300px;height:300px;margin:0 auto" id="globe-wrapper">
-            <canvas id="globe-canvas" style="width:300px;height:300px;cursor:grab"></canvas>
+          <div style="position:relative;width:420px;height:420px;margin:0 auto" id="globe-wrapper">
+            <canvas id="globe-canvas" style="width:420px;height:420px;cursor:grab"></canvas>
           </div>
         </div>
 
