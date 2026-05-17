@@ -1463,13 +1463,13 @@ window.renderIntelDashboard = function () {
 
   if (sreSel) {
     const curSre = sreSel.value;
-    sreSel.innerHTML = '<option value="all">Todas SREs</option>';
+    sreSel.innerHTML = '<option value="all">SREs</option>';
     sres.forEach(s => { const o = document.createElement("option"); o.value = s; o.textContent = s; sreSel.appendChild(o); });
     sreSel.value = curSre; // preserve selection
   }
   if (prodSel) {
     const curProd = prodSel.value;
-    prodSel.innerHTML = '<option value="all">Todos Produtos</option>';
+    prodSel.innerHTML = '<option value="all">Produtos</option>';
     produtos.slice(0, 100).forEach(p => { const o = document.createElement("option"); o.value = p; o.textContent = p.substring(0, 40); prodSel.appendChild(o); });
     prodSel.value = curProd;
   }

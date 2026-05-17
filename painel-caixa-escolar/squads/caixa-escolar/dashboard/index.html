@@ -703,7 +703,7 @@
       </div>
       <!-- Story 13.7: Inteligência Competitiva Dashboard -->
       <div id="hist-inteligencia" class="rent-content" style="display:none;">
-        <div style="display:grid;grid-template-columns:repeat(3,minmax(80px,150px)) 1fr;gap:.5rem;margin-bottom:1rem;align-items:center">
+        <div class="filters" style="display:grid;grid-template-columns:repeat(3,minmax(80px,150px));gap:.5rem;margin-bottom:1rem;align-items:center">
           <select id="intel-filtro-sre" onchange="renderIntelDashboard()">
             <option value="all">SREs</option>
           </select>
@@ -726,7 +726,6 @@
               </div>
             </div>
           </div>
-          <div></div>
         </div>
         <div id="intel-kpis" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.75rem;margin-bottom:1.5rem;"></div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
