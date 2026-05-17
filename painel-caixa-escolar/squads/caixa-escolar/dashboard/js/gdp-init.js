@@ -60,7 +60,7 @@ function resetTabState() {
     if (el) { el.checked = false; el.indeterminate = false; }
   });
   // AC3: Remove selection state from all page footers
-  ["pedidos-page-footer","nf-page-footer","cp-page-footer","cr-page-footer","clientes-page-footer","produtos-page-footer"].forEach(id => {
+  ["pedidos-page-footer","nf-page-footer","cp-page-footer","cr-page-footer","clientes-page-footer","produtos-page-footer","ne-page-footer"].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.classList.remove("has-selection");
   });
@@ -80,7 +80,7 @@ function resetTabState() {
   if (novoProdOverlay) novoProdOverlay.classList.add("hidden");
 }
 function _hideAllPageFooters() {
-  ["pedidos-page-footer","nf-page-footer","cp-page-footer","cr-page-footer","clientes-page-footer","produtos-page-footer"].forEach(id => {
+  ["pedidos-page-footer","nf-page-footer","cp-page-footer","cr-page-footer","clientes-page-footer","produtos-page-footer","ne-page-footer"].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = "none";
   });
@@ -135,7 +135,7 @@ function switchTab(tab) {
     // setEstoqueIntelView já chama renderEstoque() internamente
     if (typeof setEstoqueIntelView === "function") setEstoqueIntelView(viewMap[tab]);
     // Notas de entrada tem render próprio além do renderEstoque
-    if (tab === "notas-entrada" && typeof renderNotasEntrada === "function") renderNotasEntrada();
+    if (tab === "notas-entrada" && typeof renderNotasEntrada === "function") { renderNotasEntrada(); _showPageFooter("ne-page-footer"); _updateNeFooterTotals(); }
     if (tab === "estoque") { _showPageFooter("produtos-page-footer"); _updateProdutosFooterTotals(); }
   } else if (isFinanceiro) {
     // Mostrar tab-financeiro
@@ -1058,6 +1058,7 @@ function renderNotasEntrada() {
     const hasItens = item.itens && item.itens.length > 0;
     const itensCount = hasItens ? item.itens.length : 0;
     let row = `<tr style="cursor:${hasItens ? 'pointer' : 'default'}" ${hasItens ? `onclick="toggleNfItens('${item.id}')"` : ''}>
+      <td onclick="event.stopPropagation()"><input type="checkbox" class="ne-check" value="${item.id}" onchange="atualizarSelecaoNotasEntrada()"></td>
       <td>${esc(item.emitidaEm ? formatDateTimeLocal(item.emitidaEm) : "-")}</td>
       <td>${esc(item.fornecedor || "-")}</td>
       <td>${esc(item.numero || "-")}</td>
@@ -1068,12 +1069,11 @@ function renderNotasEntrada() {
       <td style="white-space:nowrap" onclick="event.stopPropagation()">
         ${hasItens ? `<button class="btn btn-outline btn-sm" onclick="importarNfParaCentral('${item.id}')" title="Importar todos para Central de Produtos">📥 Importar</button>` : ''}
         <button class="btn btn-outline btn-sm" onclick="downloadNfPdf('${item.id}')" title="Download PDF da NF">📄 PDF</button>
-        <button class="btn btn-outline btn-sm" onclick="excluirNotaEntrada('${item.id}')" title="Excluir nota" style="color:#ef4444">🗑</button>
       </td>
     </tr>`;
     // Expandable row with item details
     if (hasItens) {
-      row += `<tr id="nf-itens-${item.id}" style="display:none"><td colspan="8" style="padding:0;background:var(--bg)">
+      row += `<tr id="nf-itens-${item.id}" style="display:none"><td colspan="9" style="padding:0;background:var(--bg)">
         <div style="padding:.75rem 1rem;border-left:3px solid var(--primary,#3b82f6)">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem">
             <strong style="font-size:.8rem">Itens da NF #${esc(item.numero || "")}</strong>
@@ -3557,16 +3557,58 @@ window.importarNfParaCentral = function(nfId) {
   if (typeof renderBancoProdutos === 'function') renderBancoProdutos();
 };
 
-// Excluir nota de entrada
-window.excluirNotaEntrada = function(nfId) {
-  const nf = notasEntrada.find(n => n.id === nfId);
-  if (!nf) return;
-  if (!confirm(`Excluir nota #${nf.numero || nfId} de ${nf.fornecedor || "?"}?`)) return;
-  notasEntrada = notasEntrada.filter(n => n.id !== nfId);
+// Selecionar todas as notas de entrada
+window.toggleAllNotasEntrada = function(checked) {
+  document.querySelectorAll(".ne-check").forEach(cb => { cb.checked = checked; });
+  atualizarSelecaoNotasEntrada();
+};
+
+// Atualizar selecao de notas de entrada (checkboxes → footer)
+window.atualizarSelecaoNotasEntrada = function() {
+  const all = [...document.querySelectorAll(".ne-check")];
+  const selected = all.filter(cb => cb.checked);
+  const summary = document.getElementById("ne-bulk-summary");
+  const footer = document.getElementById("ne-page-footer");
+  const header = document.getElementById("ne-select-all");
+  if (summary) summary.textContent = `${selected.length} nota(s)`;
+  if (footer) footer.classList.toggle("has-selection", selected.length > 0);
+  if (header) {
+    header.checked = all.length > 0 && selected.length === all.length;
+    header.indeterminate = selected.length > 0 && selected.length < all.length;
+  }
+  if (selected.length > 0) {
+    const selIds = new Set(selected.map(cb => cb.value));
+    const selNfs = notasEntrada.filter(n => selIds.has(n.id));
+    const totalValor = selNfs.reduce((s, n) => s + (Number(n.valor) || 0), 0);
+    const qtdEl = document.getElementById("ne-footer-qtd");
+    const valEl = document.getElementById("ne-footer-valor");
+    if (qtdEl) qtdEl.textContent = String(selected.length).padStart(2, '0');
+    if (valEl) valEl.textContent = brl.format(totalValor);
+  } else {
+    _updateNeFooterTotals();
+  }
+};
+
+// Excluir notas de entrada selecionadas
+window.excluirNotasEntradaSelecionadas = function() {
+  const selected = [...document.querySelectorAll(".ne-check:checked")].map(cb => cb.value);
+  if (selected.length === 0) { showToast("Selecione ao menos uma nota.", 3000); return; }
+  if (!confirm(`Excluir ${selected.length} nota(s) de entrada?`)) return;
+  const selSet = new Set(selected);
+  notasEntrada = notasEntrada.filter(n => !selSet.has(n.id));
   saveNotasEntrada();
   renderNotasEntrada();
-  showToast("Nota excluída.", 3000);
+  atualizarSelecaoNotasEntrada();
+  showToast(`${selected.length} nota(s) excluída(s).`, 3000);
 };
+
+// Atualizar totais do footer NE
+function _updateNeFooterTotals() {
+  const qtdEl = document.getElementById("ne-footer-qtd");
+  const valEl = document.getElementById("ne-footer-valor");
+  if (qtdEl) qtdEl.textContent = String(notasEntrada.length).padStart(2, '0');
+  if (valEl) valEl.textContent = brl.format(notasEntrada.reduce((s, n) => s + (Number(n.valor) || 0), 0));
+}
 
 // Toggle expand/collapse NF item rows
 window.toggleNfItens = function(nfId) {

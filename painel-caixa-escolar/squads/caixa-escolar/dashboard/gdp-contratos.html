@@ -1010,7 +1010,7 @@
       <input type="file" id="import-nota-entrada-xml" accept=".xml,text/xml" style="display:none" onchange="importarNotaEntradaXml(this)">
       <div class="table-wrap" style="max-height:480px;overflow-y:auto">
         <table>
-          <thead><tr><th>Emissao</th><th>Fornecedor</th><th>Numero</th><th>Chave</th><th class="text-right">Valor</th><th>Status</th><th>Itens</th><th>Ações</th></tr></thead>
+          <thead><tr><th style="width:30px"><input type="checkbox" id="ne-select-all" onchange="toggleAllNotasEntrada(this.checked)" title="Selecionar todas"></th><th>Emissao</th><th>Fornecedor</th><th>Numero</th><th>Chave</th><th class="text-right">Valor</th><th>Status</th><th>Itens</th><th>Ações</th></tr></thead>
           <tbody id="notas-entrada-tbody"></tbody>
         </table>
       </div>
@@ -1660,6 +1660,16 @@
   </div>
   <div class="footer-stats">
     <div class="footer-stat"><div class="footer-stat-value" id="produtos-footer-qtd">00</div><div class="footer-stat-label">produtos</div></div>
+  </div>
+</div>
+<div id="ne-page-footer" class="page-footer" style="display:none">
+  <div class="footer-actions" id="ne-bulk-actions">
+    <span id="ne-bulk-summary" style="font-size:.82rem;font-weight:700;color:var(--mut)">0 nota(s)</span>
+    <button class="btn btn-red btn-sm" onclick="excluirNotasEntradaSelecionadas()">Excluir Notas</button>
+  </div>
+  <div class="footer-stats">
+    <div class="footer-stat"><div class="footer-stat-value" id="ne-footer-qtd">00</div><div class="footer-stat-label">quantidade</div></div>
+    <div class="footer-stat"><div class="footer-stat-value" id="ne-footer-valor">R$ 0,00</div><div class="footer-stat-label">valor total (R$)</div></div>
   </div>
 </div>
 </body></html>
