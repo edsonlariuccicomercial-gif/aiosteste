@@ -9,7 +9,8 @@
     :root{--bg:#0f172a;--bg-soft:#1e293b;--card:#1e293b;--line:#334155;--text:#f1f5f9;--muted:#94a3b8}
     body::before,body::after{display:none}
     /* KPI Cards */
-    .kpi-grid-home{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:0}
+    .home-layout{display:grid;grid-template-columns:auto 1fr;gap:2rem;align-items:center}
+    .kpi-grid-home{display:grid;grid-template-columns:1fr;gap:1rem;margin-bottom:0}
     .kpi-card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:1.2rem;cursor:pointer;transition:all .3s;position:relative;overflow:hidden}
     .kpi-card:hover{transform:translateY(-4px);box-shadow:0 12px 40px rgba(0,0,0,.3)}
     .kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
@@ -25,7 +26,7 @@
     .kpi-card.gdp .kpi-value-home{color:#8b5cf6}
 
     /* Globe Section */
-    .globe-section{text-align:center;margin-bottom:1rem}
+    .globe-section{text-align:center;margin-bottom:0}
     .globe-section h2{font-size:.85rem;color:var(--muted);margin-bottom:.8rem;text-transform:uppercase;letter-spacing:.08em}
 
     /* SRE Detail Panel */
@@ -54,11 +55,11 @@
 
     /* Responsive */
     @media(max-width:768px){
+      .home-layout{grid-template-columns:1fr}
       .kpi-grid-home{grid-template-columns:1fr}
       #globe-wrapper,#globe-canvas{width:200px!important;height:200px!important}
     }
     @media(min-width:769px) and (max-width:1024px){
-      .kpi-grid-home{grid-template-columns:repeat(2,1fr)}
       #globe-wrapper,#globe-canvas{width:240px!important;height:240px!important}
     }
   </style>
@@ -113,16 +114,18 @@
     <!-- ===== CONTENT ===== -->
     <div style="padding:1rem 2rem;">
 
-      <!-- Globe Section — Interactive Canvas (topo) -->
-      <div class="globe-section">
-        <h2>Áreas de Atuação — SREs</h2>
-        <div style="position:relative;width:300px;height:300px;margin:0 auto" id="globe-wrapper">
-          <canvas id="globe-canvas" style="width:300px;height:300px;cursor:grab"></canvas>
+      <div class="home-layout">
+        <!-- Globe Section — esquerda -->
+        <div class="globe-section">
+          <h2>Áreas de Atuação — SREs</h2>
+          <div style="position:relative;width:300px;height:300px;margin:0 auto" id="globe-wrapper">
+            <canvas id="globe-canvas" style="width:300px;height:300px;cursor:grab"></canvas>
+          </div>
         </div>
-      </div>
 
-      <!-- KPI Cards -->
-      <div class="kpi-grid-home" id="kpi-grid"></div>
+        <!-- KPI Cards — coluna vertical a direita -->
+        <div class="kpi-grid-home" id="kpi-grid"></div>
+      </div>
 
     </div>
   </div>
