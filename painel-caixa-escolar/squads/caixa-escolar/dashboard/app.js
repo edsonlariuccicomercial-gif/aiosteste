@@ -1831,7 +1831,7 @@ function bindEvents() {
 
   // Periodo dropdown: close on outside click
   document.addEventListener("click", function(e) {
-    [["periodo-container","periodo-dropdown"],["periodo-pre-container","periodo-pre-dropdown"]].forEach(([cId,dId]) => {
+    [["periodo-container","periodo-dropdown"],["periodo-pre-container","periodo-pre-dropdown"],["periodo-sgd-container","periodo-sgd-dropdown"]].forEach(([cId,dId]) => {
       const container = document.getElementById(cId);
       const dropdown = document.getElementById(dId);
       if (container && dropdown && !container.contains(e.target)) dropdown.style.display = "none";
@@ -3426,6 +3426,39 @@ window.limparPeriodoPre = function() {
   if (label) { label.textContent = "Período"; label.style.color = "var(--muted,#888)"; }
   document.getElementById("periodo-pre-dropdown").style.display = "none";
   if (typeof renderPreOrcamentosLista === 'function') renderPreOrcamentosLista();
+};
+
+// === PERIODO SGD ===
+window.togglePeriodoSgdDropdown = function() {
+  const dd = document.getElementById("periodo-sgd-dropdown");
+  if (dd) dd.style.display = dd.style.display === "none" ? "block" : "none";
+};
+
+window.aplicarPeriodoSgd = function() {
+  const de = document.getElementById("filtro-sgd-data-de")?.value || "";
+  const ate = document.getElementById("filtro-sgd-data-ate")?.value || "";
+  const label = document.getElementById("periodo-sgd-label");
+  if (de || ate) {
+    const fmtD = (v) => { if (!v) return ""; const p = v.split("-"); return p[2] + "/" + p[1]; };
+    label.textContent = (fmtD(de) || "...") + " — " + (fmtD(ate) || "...");
+    label.style.color = "var(--text,#222)";
+  } else {
+    label.textContent = "Período";
+    label.style.color = "var(--muted,#888)";
+  }
+  document.getElementById("periodo-sgd-dropdown").style.display = "none";
+  if (typeof renderSgd === 'function') renderSgd();
+};
+
+window.limparPeriodoSgd = function() {
+  const de = document.getElementById("filtro-sgd-data-de");
+  const ate = document.getElementById("filtro-sgd-data-ate");
+  if (de) de.value = "";
+  if (ate) ate.value = "";
+  const label = document.getElementById("periodo-sgd-label");
+  if (label) { label.textContent = "Período"; label.style.color = "var(--muted,#888)"; }
+  document.getElementById("periodo-sgd-dropdown").style.display = "none";
+  if (typeof renderSgd === 'function') renderSgd();
 };
 
 window.limparPeriodo = function() {

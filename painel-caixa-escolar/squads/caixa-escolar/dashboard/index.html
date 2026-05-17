@@ -595,19 +595,33 @@
       </div>
 
       <!-- Filtros SGD -->
-      <div class="filters" style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.75rem;">
-        <select id="filtro-sgd-escola"><option value="all">Todas as escolas</option></select>
-        <select id="filtro-sgd-municipio"><option value="all">Todos os municípios</option></select>
+      <div class="filters" style="display:grid;grid-template-columns:repeat(4,minmax(80px,150px)) 1fr;gap:0.5rem;margin-bottom:0.75rem;align-items:center">
+        <select id="filtro-sgd-escola"><option value="all">Escolas</option></select>
+        <select id="filtro-sgd-municipio"><option value="all">Municípios</option></select>
         <select id="filtro-sgd-status">
-          <option value="all">Todos os status</option>
+          <option value="all">Status</option>
           <option value="aprovado">Pronto</option>
           <option value="enviado">Enviado</option>
           <option value="ganho">Ganho</option>
           <option value="perdido">Perdido</option>
         </select>
-        <div style="display:flex;gap:.5rem;align-items:center"><span style="background:#333;color:#fff;border-radius:50%;width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:700;flex-shrink:0">De</span><input type="date" id="filtro-sgd-data-de" title="Data início" style="flex:1;min-width:0" /></div>
-        <div style="display:flex;gap:.5rem;align-items:center"><span style="background:#333;color:#fff;border-radius:50%;width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:700;flex-shrink:0">Até</span><input type="date" id="filtro-sgd-data-ate" title="Data fim" style="flex:1;min-width:0" /></div>
-        <input type="text" id="filtro-sgd-texto" placeholder="Buscar..." autocomplete="off" style="padding:0.4rem;" />
+        <div style="position:relative" id="periodo-sgd-container">
+          <div id="periodo-sgd-trigger" style="display:flex;align-items:center;gap:6px;padding:7px 10px;border:1px solid var(--bdr,#ccc);border-radius:6px;cursor:pointer;font-size:.85rem;color:var(--muted,#888);background:var(--bg,#fff);min-height:36px;user-select:none" onclick="togglePeriodoSgdDropdown()">
+            <span id="periodo-sgd-label">Período</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-left:auto;flex-shrink:0"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          </div>
+          <div id="periodo-sgd-dropdown" style="display:none;position:absolute;top:calc(100% + 4px);left:0;z-index:100;background:var(--bg,#fff);border:1px solid var(--bdr,#ccc);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.15);padding:12px;min-width:220px">
+            <label style="font-size:.75rem;color:var(--muted,#888);display:block;margin-bottom:4px">Data inicial</label>
+            <input type="date" id="filtro-sgd-data-de" style="width:100%;padding:8px;border:1px solid var(--bdr,#ccc);border-radius:6px;font-size:.85rem;margin-bottom:10px" />
+            <label style="font-size:.75rem;color:var(--muted,#888);display:block;margin-bottom:4px">Data final</label>
+            <input type="date" id="filtro-sgd-data-ate" style="width:100%;padding:8px;border:1px solid var(--bdr,#ccc);border-radius:6px;font-size:.85rem;margin-bottom:8px" />
+            <div style="display:flex;gap:6px">
+              <button class="btn btn-sm" onclick="limparPeriodoSgd()" style="flex:1">Limpar</button>
+              <button class="btn btn-sm btn-accent" onclick="aplicarPeriodoSgd()" style="flex:1">Aplicar</button>
+            </div>
+          </div>
+        </div>
+        <input type="text" id="filtro-sgd-texto" placeholder="Buscar escola, objeto, item..." autocomplete="off" style="padding:0.4rem;" />
       </div>
 
       <!-- Tabela SGD -->
@@ -653,10 +667,10 @@
         <article class="pricing-kpi-card"><p>Conversão</p><strong id="hk-taxa">0%</strong></article>
         <article class="pricing-kpi-card"><p>Faturamento</p><strong id="hk-faturamento" class="text-accent">R$ 0</strong></article>
       </div>
-      <div class="filters" style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.75rem;">
-        <select id="filtro-hist-escola"><option value="all">Todas as escolas</option></select>
+      <div class="filters" style="display:grid;grid-template-columns:repeat(2,minmax(80px,150px)) 1fr auto;gap:0.5rem;margin-bottom:0.75rem;align-items:center">
+        <select id="filtro-hist-escola"><option value="all">Escolas</option></select>
         <select id="filtro-aprov-status">
-          <option value="all">Todos os status</option>
+          <option value="all">Status</option>
           <option value="ativo">Contratos Ativos</option>
           <option value="ganho">Ganhos</option>
           <option value="perdido">Perdidos</option>
