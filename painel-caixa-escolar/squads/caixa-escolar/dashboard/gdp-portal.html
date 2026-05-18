@@ -1896,7 +1896,7 @@ function salvarEdicaoPedido(protocol) {
     const pedidosLocal = unwrapData(JSON.parse(localStorage.getItem('gdp.pedidos.v1') || '{}'));
     const pedSync = pedidosLocal.find(p => p.id === protocol);
     if (pedSync) {
-      pedSync.itens = newItems.map(i => ({ itemNum: i.itemNum, descricao: i.name, qtd: i.qty, precoUnitario: i.unitPrice }));
+      pedSync.itens = newItems.map(i => ({ itemNum: i.itemNum, descricao: i.name, qtd: i.qty, precoUnitario: i.unitPrice, unidade: i.unidade || 'UN', sku: i.sku || '', ncm: i.ncm || '' }));
       pedSync.valor = newTotal;
       const wrapped = { _v: 1, updatedAt: new Date().toISOString(), items: pedidosLocal };
       localStorage.setItem('gdp.pedidos.v1', JSON.stringify(wrapped));
