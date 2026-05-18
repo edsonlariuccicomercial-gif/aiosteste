@@ -953,9 +953,11 @@ async function varrerSgd() {
   try {
     if (sgdLocalServer) {
       // Mode 1: Use local Express server
+      const activeSreIds = typeof getSresAtivas === 'function' ? getSresAtivas() : [];
       const r = await fetch("/api/sgd/scan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sresAtivas: activeSreIds }),
       });
       const result = await r.json();
       if (!r.ok || !result.success) throw new Error(result.error || "Falha na varredura");
@@ -1009,93 +1011,24 @@ async function varrerSgd() {
       sgdAvailable = true;
       updateModeIndicator(false);
 
-      // Build school lookup from ALL configured SREs (Story 4.33)
+      // Authoritative SRE↔Município mapping (loaded from sre-municipios.json at boot)
       const sreNorm = (s) => (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").toUpperCase().trim();
-      const sreSchoolsList = [];
-      const schoolToMunicipio = {};
-      const schoolToMunicipios = {}; // array — para nomes duplicados entre cidades
-      const schoolToSre = {}; // maps school → SRE name
-
-      allSreData.forEach(sre => {
-        if (sre.data && sre.data.municipios) {
-          sre.data.municipios.forEach((m) => {
-            (m.escolas || []).forEach((e) => {
-              const n = sreNorm(e);
-              sreSchoolsList.push(n);
-              schoolToMunicipio[n] = m.nome;
-              schoolToSre[n] = sre.nome; // track which SRE
-              if (!schoolToMunicipios[n]) schoolToMunicipios[n] = [];
-              if (!schoolToMunicipios[n].includes(m.nome)) schoolToMunicipios[n].push(m.nome);
-            });
-          });
-        }
-      });
-
-      // Confirmed SRE Uberaba municipality IDs (SGD API idCounty field)
-      // Confirmed via varredura logs — only counties that map consistently to ONE municipality
-      const sreCountyMap = {
-        2623: "Uberaba", 2857: "Uberaba",
-        2568: "Araxa", 2494: "Sacramento", 2158: "Iturama",
-        2805: "Pirajuba", 2480: "Santa Juliana",
-        2631: "Frutal", 2242: "Frutal",
-        2422: "Campos Altos", 2646: "Tapira", 2309: "Delta",
-        2245: "Fronteira", 2344: "Conquista", 2731: "Agua Comprida",
-        2360: "Comendador Gomes",
-      };
-      const sreCountyIds = new Set(Object.keys(sreCountyMap).map(Number));
-
-      // Word-boundary checking to prevent partial matches (e.g., "EE BRASIL" must NOT match "EE BRASILIANO BRAZ")
-      function containsWholeMatch(haystack, needle) {
-        const idx = haystack.indexOf(needle);
-        if (idx === -1) return false;
-        const endIdx = idx + needle.length;
-        if (endIdx < haystack.length && /[A-Z0-9]/.test(haystack[endIdx])) return false;
-        if (idx > 0 && /[A-Z0-9]/.test(haystack[idx - 1])) return false;
-        return true;
+      const sreMunData = window._sreMunicipios || {};
+      const municipioToSre = sreMunData.municipioToSre || {};
+      const normMunicipioToSre = {};
+      for (const [mun, sre] of Object.entries(municipioToSre)) {
+        normMunicipioToSre[sreNorm(mun)] = sre;
       }
-
-      // Strip prepositions (DE, DA, DO, DOS, DAS) for fuzzy name comparison
-      // e.g. "VICENTE MACEDO" matches "VICENTE DE MACEDO"
-      const stripPrepositions = (s) => s.replace(/\b(DE|DA|DO|DOS|DAS)\b/g, "").replace(/\s+/g, " ").trim();
-
-      function findSreMatch(sgdSchoolName) {
-        const norm = sreNorm(sgdSchoolName);
-        if (sreSchoolsList.includes(norm)) return norm;
-        for (const sre of sreSchoolsList) {
-          if (containsWholeMatch(norm, sre)) return sre;
+      function resolveSre(countyName) {
+        if (!countyName) return "Desconhecida";
+        const norm = sreNorm(countyName);
+        if (normMunicipioToSre[norm]) return normMunicipioToSre[norm];
+        for (const [key, sre] of Object.entries(normMunicipioToSre)) {
+          if (norm.includes(key) || key.includes(norm)) return sre;
         }
-        for (const sre of sreSchoolsList) {
-          const expanded = sre.replace(/^EE\s+/, "ESCOLA ESTADUAL ");
-          if (containsWholeMatch(norm, expanded)) return sre;
-        }
-        const sgdCore = norm
-          .replace(/^CAIXA ESCOLAR\s*(DA|DE|DO)?\s*/i, "")
-          .replace(/^ASSOCIACAO\s*(DA|DE|DO)?\s*/i, "")
-          .replace(/^CE\s+/, "")
-          .trim();
-        if (sgdCore && sreSchoolsList.includes(sgdCore)) return sgdCore;
-        // Last resort: strip "EE " from SRE names and check if contained in sgdCore
-        // e.g. sgdCore="ROTARY DE ARAXA" contains sreCore="ROTARY" (from "EE ROTARY")
-        if (sgdCore) {
-          for (const sre of sreSchoolsList) {
-            const sreCore = sre.replace(/^EE\s+/, "").trim();
-            if (sreCore && containsWholeMatch(sgdCore, sreCore)) return sre;
-          }
-        }
-        // Preposition-tolerant match: "VICENTE MACEDO" ↔ "VICENTE DE MACEDO"
-        const normStripped = stripPrepositions(norm);
-        for (const sre of sreSchoolsList) {
-          if (stripPrepositions(sre) === normStripped) return sre;
-        }
-        if (sgdCore) {
-          const sgdCoreStripped = stripPrepositions(sgdCore);
-          for (const sre of sreSchoolsList) {
-            const sreCore = sre.replace(/^EE\s+/, "").trim();
-            if (sreCore && stripPrepositions(sreCore) === sgdCoreStripped) return sre;
-          }
-        }
-        return null;
+        return "Desconhecida";
       }
+      gdpLog(`[Varrer] Authoritative SRE mapping loaded: ${Object.keys(municipioToSre).length} municípios`);
 
       // Step 1a: Fetch ABERTOS (NAEN) — varredura de TODOS os networks (SREs)
       const allBudgets = [];
@@ -1127,138 +1060,16 @@ async function varrerSgd() {
         gdpLog(`[Varrer] Rede ${net.name || net.id}: ${netBudgets} budgets`);
       }
 
-      // Checar status das enviadas: use o botão "Checar SGD" individual em cada proposta
-
-      // Step 2: Filter using confirmed idSchool whitelist + county/name fallback
-      // Whitelist persists in localStorage — once a school is confirmed, it never needs re-matching
-      const WHITELIST_KEY = "caixaescolar.schoolWhitelist";
-      const schoolWhitelist = JSON.parse(localStorage.getItem(WHITELIST_KEY) || "{}");
-      const matched = [];
-      const rejected = [];
-      const filtered = [];
-
-      allBudgets.forEach((b) => {
-        const escola = b.schoolName || b.txSchoolName || "";
-        const county = b.idCounty;
-        const idSchool = b.idSchool;
-
-        // TIER 1: idSchool already confirmed in whitelist — instant match, zero ambiguity
-        if (idSchool && schoolWhitelist[idSchool]) {
-          let wlSre = schoolWhitelist[idSchool].sre || sreNorm(escola);
-          // Fix stale whitelist entries where SRE was saved as municipality name instead of SRE name
-          const wlSreNorm = sreNorm(wlSre);
-          const isValidSre = schoolToSre[wlSreNorm] || activeSres.some(s => sreNorm(s.nome || "") === wlSreNorm);
-          if (!isValidSre && schoolWhitelist[idSchool].municipio) {
-            // Try to resolve the correct SRE from the municipality
-            const mNorm = sreNorm(schoolWhitelist[idSchool].municipio);
-            const resolved = activeSres.find(s => sreNorm(s.nome || "") === mNorm || mNorm.includes(sreNorm(s.nome || "")));
-            if (resolved) { wlSre = resolved.nome; schoolWhitelist[idSchool].sre = wlSre; }
-          }
-          b._sreMatch = wlSre;
-          b._sreResolved = wlSre;
-          filtered.push(b);
-          matched.push({ sgd: escola, county, mun: schoolWhitelist[idSchool].municipio, via: "whitelist", idSchool });
-          return;
-        }
-
-        // TIER 2: County is confirmed SRE Uberaba
-        if (sreCountyIds.has(county)) {
-          const nameMatch = findSreMatch(escola);
-          b._sreMatch = nameMatch || sreNorm(escola);
-          filtered.push(b);
-          const mun = nameMatch ? schoolToMunicipio[nameMatch] || sreCountyMap[county] : sreCountyMap[county];
-          matched.push({ sgd: escola, county, mun, via: nameMatch ? "county+name" : "county-only", idSchool });
-          // Auto-confirm to whitelist
-          if (idSchool) schoolWhitelist[idSchool] = { escola, municipio: mun, sre: b._sreMatch, confirmedAt: new Date().toISOString().slice(0, 10) };
-          return;
-        }
-
-        // TIER 3: Name match — ONLY unique names (not ambiguous across municipalities)
-        const nameMatch = findSreMatch(escola);
-        if (nameMatch) {
-          const possibleMuns = schoolToMunicipios[nameMatch] || [];
-          if (possibleMuns.length > 1) {
-            // Try to disambiguate using city name embedded in SGD schoolName
-            // e.g. "CAIXA ESCOLAR ROTARY DE ARAXÁ" → contains "ARAXA" → resolves to Araxa
-            const sgdNorm = sreNorm(escola);
-            const countyNorm = sreNorm(b.countyName || b.txCountyName || "");
-            const disambiguated = possibleMuns.find(m => {
-              const mNorm = sreNorm(m);
-              return sgdNorm.includes(mNorm) || countyNorm === mNorm;
-            });
-            if (disambiguated) {
-              b._sreMatch = nameMatch;
-              filtered.push(b);
-              matched.push({ sgd: escola, county, mun: disambiguated, via: "name-disambiguated", idSchool });
-              if (idSchool) schoolWhitelist[idSchool] = { escola, municipio: disambiguated, sre: nameMatch, confirmedAt: new Date().toISOString().slice(0, 10) };
-            } else {
-              // Accept ambiguous schools provisionally — resolve in Step 3 using detail.countyName
-              b._sreMatch = nameMatch;
-              b._ambiguous = true;
-              b._possibleMuns = possibleMuns;
-              filtered.push(b);
-              matched.push({ sgd: escola, county, mun: "?", via: "ambiguous-pending", idSchool });
-            }
-          } else {
-            b._sreMatch = nameMatch;
-            filtered.push(b);
-            const mun = schoolToMunicipio[nameMatch] || "?";
-            matched.push({ sgd: escola, county, mun, via: "name-only", idSchool });
-            if (!sreCountyIds.has(county)) gdpLog(`[Varrer] Novo county descoberto: ${county} → ${mun}`);
-            // Auto-confirm to whitelist
-            if (idSchool) schoolWhitelist[idSchool] = { escola, municipio: mun, sre: nameMatch, confirmedAt: new Date().toISOString().slice(0, 10) };
-          }
-          return;
-        }
-
-        // TIER 4 (Story 8.14): Accept ALL budgets from SGD when user has SREs beyond the 3 originals.
-        // The SGD API only returns budgets the supplier is eligible for — if it comes back, it's valid.
-        // This ensures SREs without local JSON school data are not silently filtered out.
-        const hasExtendedSres = activeSres.length > 3;
-        if (hasExtendedSres) {
-          // Resolve SRE name from countyName by matching against SRE_CONFIGS
-          const countyRaw = b.countyName || b.txCountyName || "";
-          const countyNormT4 = sreNorm(countyRaw);
-          let resolvedSreT4 = "";
-          if (typeof SRE_CONFIGS !== 'undefined') {
-            const sreMatch = activeSres.find(s => {
-              const sNorm = sreNorm(s.nome || "");
-              return countyNormT4 === sNorm || countyNormT4.includes(sNorm) || sNorm.includes(countyNormT4);
-            });
-            if (sreMatch) resolvedSreT4 = sreMatch.nome;
-          }
-          if (!resolvedSreT4) resolvedSreT4 = countyRaw || "Desconhecida";
-          b._sreMatch = sreNorm(escola);
-          b._sreVia = "sgd-network";
-          b._sreResolved = resolvedSreT4;
-          filtered.push(b);
-          matched.push({ sgd: escola, county, mun: countyRaw || "?", via: "sgd-network-accept", sre: resolvedSreT4, idSchool });
-          if (idSchool) schoolWhitelist[idSchool] = { escola, municipio: countyRaw || "?", sre: resolvedSreT4, confirmedAt: new Date().toISOString().slice(0, 10) };
-        }
-      });
-
-      // Save updated whitelist
-      localStorage.setItem(WHITELIST_KEY, JSON.stringify(schoolWhitelist));
-      const whitelistSize = Object.keys(schoolWhitelist).length;
-
-      // Debug logs
-      const whitelistHits = matched.filter((m) => m.via === "whitelist").length;
-      const countyHits = matched.filter((m) => m.via === "county+name" || m.via === "county-only").length;
-      const nameHits = matched.filter((m) => m.via === "name-only").length;
-      const disambiguatedHits = matched.filter((m) => m.via === "name-disambiguated").length;
-      gdpLog(`[Varrer] ${whitelistHits} whitelist, ${countyHits} county, ${nameHits} name-only, ${disambiguatedHits} desambiguados → ${filtered.length} aceitos de ${allBudgets.length} varridos`);
-      gdpLog(`[Varrer] Whitelist total: ${whitelistSize} escolas confirmadas`);
-      if (rejected.length > 0) gdpLog(`[Varrer] ${rejected.length} rejeitados:`, rejected);
-      const munsEncontrados = [...new Set(matched.map((m) => m.mun).filter(Boolean).filter(m => m !== "?"))].sort();
-      const totalSreMunicipios = allSreData.reduce((sum, sre) => sum + (sre.data?.municipios?.length || 0), 0);
-      gdpLog(`[Varrer] Municípios (${munsEncontrados.length}/${totalSreMunicipios}):`, munsEncontrados);
-      // SRE breakdown log (Story 4.33)
+      // Step 2: Accept ALL budgets, resolve SRE via authoritative municipality mapping
+      const filtered = allBudgets;
       const sreCounts = {};
       filtered.forEach(b => {
-        const sre = schoolToSre[b._sreMatch] || "Uberaba";
-        sreCounts[sre] = (sreCounts[sre] || 0) + 1;
+        const countyName = b.countyName || b.txCountyName || "";
+        b._municipio = countyName;
+        b._sre = resolveSre(countyName);
+        sreCounts[b._sre] = (sreCounts[b._sre] || 0) + 1;
       });
-      gdpLog(`[Varrer] SREs:`, sreCounts, `→ ${filtered.length} aceitos de ${allBudgets.length} varridos`);
+      gdpLog(`[Varrer] ${filtered.length} budgets aceitos. SREs:`, sreCounts);
 
       btn.innerHTML = `<span class="sgd-spinner"></span>SREs: ${filtered.length} de ${allBudgets.length}. Buscando detalhes...`;
 
@@ -1272,8 +1083,8 @@ async function varrerSgd() {
         if (!id) continue;
 
         const escolaRaw = b.schoolName || b.txSchoolName || "";
-        const sreMatchKey = b._sreMatch || findSreMatch(escolaRaw) || sreNorm(escolaRaw);
-        const municipio = schoolToMunicipio[sreMatchKey] || sreCountyMap[b.idCounty] || "";
+        let municipio = b._municipio || "";
+        let sre = b._sre || "Desconhecida";
 
         // Use this budget's own networkId (each SRE has different networkId)
         const budgetNetworkId = b.idNetwork || BrowserSgdClient.networkId;
@@ -1295,25 +1106,16 @@ async function varrerSgd() {
         }
         BrowserSgdClient.networkId = savedNetworkId;
 
-        // Resolve ambiguous schools using detail countyName
-        let resolvedMunicipio = municipio;
-        if (b._ambiguous && b._possibleMuns) {
-          const detailCounty = sreNorm(detail.countyName || detail.txCountyName || "");
-          const resolved = b._possibleMuns.find(m => sreNorm(m) === detailCounty);
-          if (resolved) {
-            resolvedMunicipio = resolved;
-            if (b.idSchool) schoolWhitelist[b.idSchool] = { escola: escolaRaw, municipio: resolved, sre: sreMatchKey, confirmedAt: new Date().toISOString().slice(0, 10) };
-            gdpLog(`[Varrer] Ambíguo resolvido via detail: ${escolaRaw} → ${resolved}`);
-          } else {
-            resolvedMunicipio = b._possibleMuns[0] || "?";
-            gdpLog(`[Varrer] Ambíguo sem resolução detail, usando: ${resolvedMunicipio} (countyName: ${detailCounty || "vazio"})`);
-          }
+        // Use detail countyName for more precise municipality + SRE
+        if (detail.countyName || detail.txCountyName) {
+          municipio = detail.countyName || detail.txCountyName;
+          sre = resolveSre(municipio);
         }
 
         const orc = {
           id, idBudget: b.idBudget, ano: detail.year || b.year || new Date().getFullYear(),
-          escola: escolaRaw, municipio: resolvedMunicipio,
-          sre: schoolToSre[sreMatchKey] || b._sreResolved || (sreCountyMap[b.idCounty] ? "Uberaba" : (b.countyName || b.txCountyName || detail.countyName || "Desconhecida")),
+          escola: escolaRaw, municipio: municipio,
+          sre: sre,
           grupo: detail.expenseGroupDescription || "",
           subPrograma: detail.subprogramName || "",
           objeto: (detail.initiativeDescription || "").replace(/\n/g, " ").replace(/\s+/g, " ").trim(),

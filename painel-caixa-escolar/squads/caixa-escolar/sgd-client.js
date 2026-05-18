@@ -12,6 +12,7 @@ class SgdClient {
     this.cookie = null;
     this.cookieExpiry = 0;
     this.networkId = null;
+    this.allNetworks = []; // all supplier networks (one per SRE)
   }
 
   // ===== AUTH =====
@@ -74,7 +75,11 @@ class SgdClient {
     // Extract networkId from user profile if available
     if (user.idNetwork) this.networkId = user.idNetwork;
     if (user.networks && user.networks.length > 0) {
-      this.networkId = user.networks[0].idNetwork || user.networks[0].id;
+      this.allNetworks = user.networks.map(n => ({
+        id: n.idNetwork || n.id,
+        name: n.txName || n.name || "",
+      }));
+      this.networkId = this.allNetworks[0].id;
     }
     return user;
   }
@@ -139,20 +144,39 @@ class SgdClient {
 
   async scanAllBudgets(statusFilter = "NAEN") {
     await this.ensureAuth();
+
+    // If we have multiple networks, iterate ALL of them
+    const networks = this.allNetworks.length > 0
+      ? this.allNetworks
+      : [{ id: this.networkId, name: "Default" }];
+
     const allBudgets = [];
-    let page = 1;
     const limit = 50;
 
-    while (true) {
-      const data = await this.listBudgets({ status: statusFilter }, page, limit);
-      const items = data.data || data.items || data.rows || [];
-      if (items.length === 0) break;
+    for (const net of networks) {
+      this.networkId = net.id;
+      let page = 1;
+      let netCount = 0;
 
-      allBudgets.push(...items);
+      while (true) {
+        const data = await this.listBudgets({ status: statusFilter }, page, limit);
+        const items = data.data || data.items || data.rows || [];
+        if (items.length === 0) break;
 
-      const total = data.total || data.totalItems || data.count || 0;
-      if (allBudgets.length >= total || items.length < limit) break;
-      page++;
+        // Tag each budget with its network
+        items.forEach(b => {
+          b.idNetwork = b.idNetwork || net.id;
+          b._networkName = net.name || "";
+        });
+        allBudgets.push(...items);
+        netCount += items.length;
+
+        const total = data.total || data.totalItems || data.count || 0;
+        if (netCount >= total || items.length < limit) break;
+        page++;
+      }
+
+      console.log(`[SGD] Network "${net.name || net.id}": ${netCount} budgets`);
     }
 
     return allBudgets;

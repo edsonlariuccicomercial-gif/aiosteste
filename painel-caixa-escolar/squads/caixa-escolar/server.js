@@ -173,9 +173,10 @@ app.post("/api/sgd/submit", async (req, res) => {
 
 // ===== POST /api/sgd/scan =====
 // Full scan of SGD budgets — fetches all pages, enriches with local data
-app.post("/api/sgd/scan", async (_req, res) => {
+app.post("/api/sgd/scan", async (req, res) => {
   try {
-    const result = await executeSgdScan();
+    const sresAtivas = req.body && Array.isArray(req.body.sresAtivas) ? req.body.sresAtivas : null;
+    const result = await executeSgdScan(sresAtivas);
     res.json({ success: true, ...result });
   } catch (err) {
     console.error("[SGD Scan Error]", err.message);
@@ -183,7 +184,7 @@ app.post("/api/sgd/scan", async (_req, res) => {
   }
 });
 
-async function executeSgdScan() {
+async function executeSgdScan(sresAtivas) {
   const client = getSgdClient();
   if (!client) {
     throw new Error("Credenciais SGD nao configuradas (.env SGD_CNPJ + SGD_PASS)");
@@ -191,132 +192,49 @@ async function executeSgdScan() {
 
   await client.login();
 
-  // Get user info for context + resolve networkId
+  // Get user info for context + resolve networkId + allNetworks
   let userInfo = {};
   try { userInfo = await client.getUser(); } catch (_) { /* optional */ }
   // Fallback: if networkId not found in user, first listBudgets call will set it
 
-  // Scan all budgets with status "Não Enviada" (NAEN)
+  // Scan all budgets with status "Não Enviada" (NAEN) — iterates ALL networks
   const budgets = await client.scanAllBudgets("NAEN");
-  console.log(`[SGD Scan] Found ${budgets.length} budgets with status NAEN`);
+  console.log(`[SGD Scan] Found ${budgets.length} budgets with status NAEN across ${client.allNetworks.length || 1} network(s)`);
 
   // Load existing orcamentos for merge
   const orcamentosPath = path.join(DATA_DIR, "orcamentos.json");
   const existingOrcamentos = readJson(orcamentosPath) || [];
   const existingMap = new Map(existingOrcamentos.map((o) => [o.id, o]));
 
-  // Load SRE data for filtering + enrichment (only SRE Uberaba for now)
-  const sreData = readJson(path.join(DATA_DIR, "sre-uberaba.json")) || {};
+  // Load authoritative SRE↔Município mapping (source: SEE-MG official)
+  const sreMunicipiosData = readJson(path.join(DATA_DIR, "sre-municipios.json")) || {};
+  const municipioToSre = sreMunicipiosData.municipioToSre || {};
+
+  // Build normalized lookup: "CARNEIRINHO" → "Uberaba"
   const sreNorm = (s) => (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").toUpperCase().trim();
-  const sreSchoolsList = [];
-  const schoolToMunicipio = {};
-  const schoolToMunicipios = {}; // array — para nomes duplicados entre cidades
-  if (sreData.municipios) {
-    sreData.municipios.forEach((m) => {
-      (m.escolas || []).forEach((e) => {
-        const n = sreNorm(e);
-        sreSchoolsList.push(n);
-        schoolToMunicipio[n] = m.nome || m.name;
-        if (!schoolToMunicipios[n]) schoolToMunicipios[n] = [];
-        if (!schoolToMunicipios[n].includes(m.nome || m.name)) schoolToMunicipios[n].push(m.nome || m.name);
-      });
-    });
+  const normMunicipioToSre = {};
+  for (const [mun, sre] of Object.entries(municipioToSre)) {
+    normMunicipioToSre[sreNorm(mun)] = sre;
   }
-  const sreSchools = new Set(sreSchoolsList);
+  console.log(`[SGD Scan] Loaded authoritative SRE mapping: ${Object.keys(municipioToSre).length} municípios → ${Object.keys(sreMunicipiosData.sreToMunicipios || {}).length} SREs`);
 
-  // Word-boundary checking to prevent partial matches
-  function containsWholeMatch(haystack, needle) {
-    const idx = haystack.indexOf(needle);
-    if (idx === -1) return false;
-    const endIdx = idx + needle.length;
-    if (endIdx < haystack.length && /[A-Z0-9]/.test(haystack[endIdx])) return false;
-    if (idx > 0 && /[A-Z0-9]/.test(haystack[idx - 1])) return false;
-    return true;
+  // Resolve SRE from municipality name (SGD countyName)
+  function resolveSre(countyName) {
+    if (!countyName) return "Desconhecida";
+    const norm = sreNorm(countyName);
+    if (normMunicipioToSre[norm]) return normMunicipioToSre[norm];
+    // Fuzzy: try partial match (e.g. "Belo Horizonte" → Metropolitana C)
+    for (const [key, sre] of Object.entries(normMunicipioToSre)) {
+      if (norm.includes(key) || key.includes(norm)) return sre;
+    }
+    return "Desconhecida";
   }
 
-  // Strip prepositions (DE, DA, DO, DOS, DAS) for fuzzy name comparison
-  const stripPrepositions = (s) => s.replace(/\b(DE|DA|DO|DOS|DAS)\b/g, "").replace(/\s+/g, " ").trim();
-
-  function findSreMatch(sgdSchoolName) {
-    const norm = sreNorm(sgdSchoolName);
-    if (sreSchools.has(norm)) return norm;
-    for (const sre of sreSchoolsList) {
-      if (containsWholeMatch(norm, sre)) return sre;
-    }
-    for (const sre of sreSchoolsList) {
-      const expanded = sre.replace(/^EE\s+/, "ESCOLA ESTADUAL ");
-      if (containsWholeMatch(norm, expanded)) return sre;
-    }
-    const sgdCore = norm
-      .replace(/^CAIXA ESCOLAR\s*(DA|DE|DO)?\s*/i, "")
-      .replace(/^ASSOCIACAO\s*(DA|DE|DO)?\s*/i, "")
-      .replace(/^CE\s+/, "")
-      .trim();
-    if (sgdCore && sreSchools.has(sgdCore)) return sgdCore;
-    // Last resort: strip "EE " from SRE names and check if contained in sgdCore
-    if (sgdCore) {
-      for (const sre of sreSchoolsList) {
-        const sreCore = sre.replace(/^EE\s+/, "").trim();
-        if (sreCore && containsWholeMatch(sgdCore, sreCore)) return sre;
-      }
-    }
-    // Preposition-tolerant match: "VICENTE MACEDO" ↔ "VICENTE DE MACEDO"
-    const normStripped = stripPrepositions(norm);
-    for (const sre of sreSchoolsList) {
-      if (stripPrepositions(sre) === normStripped) return sre;
-    }
-    if (sgdCore) {
-      const sgdCoreStripped = stripPrepositions(sgdCore);
-      for (const sre of sreSchoolsList) {
-        const sreCore = sre.replace(/^EE\s+/, "").trim();
-        if (sreCore && stripPrepositions(sreCore) === sgdCoreStripped) return sre;
-      }
-    }
-    return null;
-  }
-
-  // Confirmed SRE Uberaba municipality IDs (SGD API idCounty field)
-  const sreCountyMap = {
-    2623: "Uberaba", 2857: "Uberaba",
-    2568: "Araxa", 2494: "Sacramento", 2158: "Iturama",
-    2805: "Pirajuba", 2480: "Santa Juliana",
-    2631: "Frutal", 2242: "Frutal",
-    2422: "Campos Altos", 2646: "Tapira", 2309: "Delta",
-    2245: "Fronteira", 2344: "Conquista", 2731: "Agua Comprida",
-    2360: "Comendador Gomes",
-  };
-  const sreCountyIds = new Set(Object.keys(sreCountyMap).map(Number));
-
-  // Accept ALL budgets from SGD — the API only returns budgets the supplier is eligible for.
-  // Enrich with SRE name/municipality using local data when available, fallback to SGD countyName.
+  // Enrich ALL budgets using countyName → SRE mapping (definitive)
   const filtered = budgets.map((b) => {
-    const escola = b.schoolName || b.txSchoolName || "";
-    const county = b.idCounty;
     const countyName = b.countyName || b.txCountyName || "";
-
-    // Try local match first (SRE Uberaba data)
-    if (sreCountyIds.has(county)) {
-      const nameMatch = findSreMatch(escola);
-      b._sreMatch = nameMatch || sreNorm(escola);
-      b._municipio = nameMatch ? schoolToMunicipio[nameMatch] || sreCountyMap[county] : sreCountyMap[county];
-      b._sre = "Uberaba";
-      return b;
-    }
-
-    const nameMatch = findSreMatch(escola);
-    if (nameMatch) {
-      const possibleMuns = schoolToMunicipios[nameMatch] || [];
-      b._sreMatch = nameMatch;
-      b._municipio = possibleMuns.length === 1 ? schoolToMunicipio[nameMatch] || "" : possibleMuns[0] || "";
-      b._sre = "Uberaba";
-      if (possibleMuns.length > 1) { b._ambiguous = true; b._possibleMuns = possibleMuns; }
-      return b;
-    }
-
-    // No local match — use SGD countyName as municipality, resolve SRE later on client
-    b._sreMatch = sreNorm(escola);
     b._municipio = countyName;
-    b._sre = countyName || "Desconhecida";
+    b._sre = resolveSre(countyName);
     return b;
   });
   console.log(`[SGD Scan] Accepted ${filtered.length} budgets (from ${budgets.length} total)`);
@@ -330,8 +248,7 @@ async function executeSgdScan() {
 
     // API list fields: schoolName, year, dtProposalSubmission, expenseGroupId, idCounty
     const escola = b.schoolName || b.txSchoolName || "";
-    const escolaNorm = sreNorm(escola);
-    const municipio = b._municipio || schoolToMunicipio[b._sreMatch || escolaNorm] || "";
+    const municipio = b._municipio || "";
 
     const orcamento = {
       id: id,
@@ -339,7 +256,7 @@ async function executeSgdScan() {
       ano: b.year || new Date().getFullYear(),
       escola: escola,
       municipio: municipio,
-      sre: b._sre || b.countyName || b.txCountyName || "Desconhecida",
+      sre: b._sre || "Desconhecida",
       grupo: "",
       subPrograma: "",
       objeto: "",
@@ -378,14 +295,11 @@ async function executeSgdScan() {
         console.warn(`[SGD Scan] Could not fetch detail for budget ${id}: ${err.message}`);
       }
 
-      // Resolve ambiguous schools using detail countyName
-      if (b._ambiguous && b._possibleMuns) {
-        const detailCounty = sreNorm(detail.countyName || detail.txCountyName || "");
-        const resolved = b._possibleMuns.find(m => sreNorm(m) === detailCounty);
-        if (resolved) {
-          orcamento.municipio = resolved;
-          console.log(`[SGD Scan] Ambíguo resolvido via detail: ${escola} → ${resolved}`);
-        }
+      // Use detail countyName for more precise municipality if available
+      if (detail.countyName || detail.txCountyName) {
+        const detailCounty = detail.countyName || detail.txCountyName;
+        orcamento.municipio = detailCounty;
+        orcamento.sre = resolveSre(detailCounty);
       }
 
       try {
@@ -425,18 +339,23 @@ async function executeSgdScan() {
   writeJson(orcamentosPath, existingOrcamentos);
 
   // Save scan log
+  const sreBreakdown = {};
+  existingOrcamentos.forEach(o => { sreBreakdown[o.sre || "?"] = (sreBreakdown[o.sre || "?"] || 0) + 1; });
   const scanLog = {
     lastScan: new Date().toISOString(),
     novos,
     atualizados,
     total: existingOrcamentos.length,
     budgetsScanned: budgets.length,
-    sreUberaba: filtered.length,
+    networksScanned: client.allNetworks.length || 1,
+    sreBreakdown,
+    sresAtivas: sresAtivas || "all",
     user: userInfo.txName || userInfo.name || "",
   };
   writeJson(path.join(DATA_DIR, "sgd-scan-log.json"), scanLog);
 
-  console.log(`[SGD Scan] Done: ${novos} novos, ${atualizados} atualizados, ${existingOrcamentos.length} total (SRE Uberaba: ${filtered.length} de ${budgets.length})`);
+  const sreMsg = Object.entries(sreBreakdown).map(([k, v]) => `${k}: ${v}`).join(", ");
+  console.log(`[SGD Scan] Done: ${novos} novos, ${atualizados} atualizados, ${existingOrcamentos.length} total (${sreMsg})`);
   return scanLog;
 }
 

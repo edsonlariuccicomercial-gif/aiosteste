@@ -10,6 +10,7 @@ const el = {
   filtroEscola: document.getElementById("filtro-escola"),
   filtroMunicipio: document.getElementById("filtro-municipio"),
   filtroGrupo: document.getElementById("filtro-grupo"),
+  filtroObjeto: document.getElementById("filtro-objeto"),
   filtroStatus: document.getElementById("filtro-status"),
   filtroTexto: document.getElementById("filtro-texto"),
   tbodyOrcamentos: document.getElementById("tbody-orcamentos"),

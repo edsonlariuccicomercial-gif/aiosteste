@@ -114,11 +114,15 @@ async function boot() {
   if (btnVarrer) btnVarrer.style.display = "inline-block";
 
   // 4. Background: load JSON data + cloud sync (non-blocking)
-  const [orcData, bancoData, perfilData] = await Promise.all([
+  const [orcData, bancoData, perfilData, sreMunicipiosData] = await Promise.all([
     fetchJson("data/orcamentos.json"),
     fetchJson("data/banco-precos.json"),
     fetchJson("data/perfil.json"),
+    fetchJson("data/sre-municipios.json"),
   ]);
+
+  // Store authoritative SRE↔Município mapping globally
+  window._sreMunicipios = sreMunicipiosData || {};
 
   perfil = perfilData || {};
   // Story 13.1: Load SRE data only for active SREs
@@ -179,9 +183,10 @@ function populateFilters() {
   const prevEscola = el.filtroEscola.value;
   const prevMun = el.filtroMunicipio.value;
   const prevGrupo = el.filtroGrupo.value;
+  const prevObjeto = el.filtroObjeto ? el.filtroObjeto.value : "all";
 
   // Clear existing options (keep first "all" option)
-  [el.filtroSre, el.filtroEscola, el.filtroMunicipio, el.filtroGrupo].filter(Boolean).forEach((sel) => {
+  [el.filtroSre, el.filtroEscola, el.filtroMunicipio, el.filtroGrupo, el.filtroObjeto].filter(Boolean).forEach((sel) => {
     while (sel.options.length > 1) sel.remove(1);
   });
 
@@ -211,6 +216,16 @@ function populateFilters() {
   grupos.forEach((g) => {
     el.filtroGrupo.appendChild(new Option(g, g));
   });
+
+  // Objetos — extract unique objeto values, truncate long labels for dropdown
+  if (el.filtroObjeto) {
+    const objetos = [...new Set(orcamentos.map((o) => (o.objetoCustom || o.objeto || "").trim()).filter(Boolean))].sort();
+    objetos.forEach((obj) => {
+      const label = obj.length > 60 ? obj.slice(0, 57) + "..." : obj;
+      el.filtroObjeto.appendChild(new Option(label, obj));
+    });
+    if (objetos.includes(prevObjeto)) el.filtroObjeto.value = prevObjeto;
+  }
 
   // Restore selections if still valid
   if (escolas.includes(prevEscola)) el.filtroEscola.value = prevEscola;
@@ -243,6 +258,7 @@ function filteredOrcamentos() {
   const escola = el.filtroEscola.value;
   const mun = el.filtroMunicipio.value;
   const grupo = el.filtroGrupo.value;
+  const objeto = el.filtroObjeto ? el.filtroObjeto.value : "all";
   const status = el.filtroStatus.value;
   const query = normalizedText(el.filtroTexto.value.trim());
 
@@ -251,6 +267,7 @@ function filteredOrcamentos() {
     .filter((o) => escola === "all" || o.escola === escola)
     .filter((o) => mun === "all" || o.municipio === mun)
     .filter((o) => grupo === "all" || o.grupo === grupo)
+    .filter((o) => objeto === "all" || (o.objetoCustom || o.objeto || "") === objeto)
     .filter((o) => {
       if (status === "com-preorcamento") return !!(preOrcamentos && preOrcamentos[o.id]);
       if (status === "descartados") return isDescartado(o.id);
@@ -1708,6 +1725,7 @@ function bindEvents() {
   el.filtroEscola.addEventListener("change", renderOrcamentos);
   el.filtroMunicipio.addEventListener("change", renderOrcamentos);
   el.filtroGrupo.addEventListener("change", renderOrcamentos);
+  if (el.filtroObjeto) el.filtroObjeto.addEventListener("change", renderOrcamentos);
   el.filtroStatus.addEventListener("change", renderOrcamentos);
   el.filtroTexto.addEventListener("input", renderOrcamentos);
 
