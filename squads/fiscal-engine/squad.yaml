@@ -1,0 +1,153 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# SQUAD: Fiscal Engine
+# Plataforma fiscal independente — NF-e + NFC-e direto SEFAZ
+# ═══════════════════════════════════════════════════════════════════════════════
+
+name: fiscal-engine
+title: "Fiscal Engine"
+version: "2.0.0"
+author: "Process Forge"
+description: >
+  Squad especialista em construcao de plataforma fiscal independente.
+  Microsservico API REST multi-tenant para emissao de NF-e (modelo 55)
+  e NFC-e (modelo 65) direto na SEFAZ, sem intermediarios.
+  Modelo Focus NFe/Webmania proprio, com custo zero por nota emitida.
+  Atualizado para Reforma Tributaria do Consumo (LC 214/2025):
+  IVA Dual (IBS + CBS + IS), Grupo UB no XML (NT 2025.002),
+  Split Payment (NT 2026.001), cronograma de transicao 2026-2033.
+
+slash_prefix: "fiscal"
+pattern_prefix: "FE"
+target_user: "Desenvolvedores que precisam de modulo fiscal plugavel em qualquer sistema"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# USE CASES
+# ─────────────────────────────────────────────────────────────────────────────
+use_cases:
+  - id: UC1
+    name: "Construir Engine Fiscal do Zero"
+    description: "Pipeline completo: API + XML + assinatura + transmissao + testes"
+  - id: UC2
+    name: "Adicionar Modelo Fiscal"
+    description: "Adicionar NFC-e, NFS-e ou outro modelo a engine existente"
+  - id: UC3
+    name: "Integrar Engine em Sistema"
+    description: "Plugar a engine fiscal em um sistema existente via API"
+  - id: UC4
+    name: "Expandir UF"
+    description: "Adicionar suporte a novo estado (endpoints, regras tributarias)"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TIER SYSTEM
+# ─────────────────────────────────────────────────────────────────────────────
+tiers:
+  orchestrator:
+    - fiscal-chief
+  tier_1:
+    - api-architect
+    - sefaz-engineer
+    - fiscal-qa
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TASKS
+# ─────────────────────────────────────────────────────────────────────────────
+tasks:
+  - setup-project
+  - design-api
+  - build-xml-engine
+  - build-crypto-signer
+  - build-sefaz-transmitter
+  - build-events
+  - validate-homologacao
+
+# ─────────────────────────────────────────────────────────────────────────────
+# WORKFLOWS
+# ─────────────────────────────────────────────────────────────────────────────
+workflows:
+  - wf-fiscal-engine
+
+# ─────────────────────────────────────────────────────────────────────────────
+# QUALITY GATES
+# ─────────────────────────────────────────────────────────────────────────────
+quality_gates:
+  - id: QG-FE-001
+    name: "API Contract Ready"
+    phase: 1
+    transition: "Fundacao -> Engine Core"
+    blocking: true
+    criteria: "Endpoints definidos, modelos validados, auth multi-tenant implementado"
+    veto: "Zero endpoints ou auth ausente"
+
+  - id: QG-FE-002
+    name: "XML Schema Compliant"
+    phase: 2
+    transition: "Engine Core -> Transmissao"
+    blocking: true
+    criteria: "XML valida contra schema SEFAZ 4.00, assinatura XML-DSig funcional"
+    veto: "XML invalido ou assinatura falha"
+
+  - id: QG-FE-003
+    name: "SEFAZ Homologacao Pass"
+    phase: 4
+    transition: "Validacao -> Producao"
+    blocking: true
+    criteria: "NF-e autorizada + cancelamento OK + CC-e OK em homologacao MG"
+    veto: "Qualquer operacao core falha em homologacao"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PIPELINE
+# ─────────────────────────────────────────────────────────────────────────────
+pipeline:
+  estimated_time: "12-24 horas"
+  resumable: true
+  state_file: ".state.json"
+  phases:
+    - phase: 1
+      name: "Fundacao"
+      tasks: [setup-project, design-api]
+      agent: api-architect
+      blocking: true
+      duration: "2-4h"
+    - phase: 2
+      name: "Engine Core"
+      tasks: [build-xml-engine, build-crypto-signer]
+      agent: sefaz-engineer
+      blocking: true
+      duration: "4-8h"
+    - phase: 3
+      name: "Transmissao + Eventos"
+      tasks: [build-sefaz-transmitter, build-events]
+      agent: sefaz-engineer
+      blocking: true
+      duration: "3-6h"
+    - phase: 4
+      name: "Validacao"
+      tasks: [validate-homologacao]
+      agent: fiscal-qa
+      blocking: true
+      duration: "2-4h"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# OUTPUT STRUCTURE
+# ─────────────────────────────────────────────────────────────────────────────
+output:
+  base_path: "packages/fiscal-engine/"
+  directories:
+    - "src/api/"
+    - "src/core/"
+    - "src/models/"
+    - "src/sefaz/"
+    - "src/utils/"
+    - "tests/"
+    - "docs/"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# DEPENDENCIES
+# ─────────────────────────────────────────────────────────────────────────────
+dependencies:
+  required:
+    - "node-forge"       # Leitura PFX, extracao PEM
+    - "xml-crypto"       # Assinatura XML-DSig
+  optional:
+    - "fast-xml-parser"  # Parsing XML resposta SEFAZ
+    - "pdfkit"           # Geracao DANFE (futuro)

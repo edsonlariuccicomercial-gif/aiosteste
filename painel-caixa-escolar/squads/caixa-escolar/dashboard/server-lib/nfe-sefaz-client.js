@@ -14,6 +14,13 @@ const MUNICIPIO_CODE = {
   "BELO HORIZONTE|MG": "3106200",
   "CONQUISTA|MG": "3118304"
 };
+// Reforma Tributária LC 214/2025 — NT 2025.002 Grupo UB (IBS/CBS)
+// Alíquotas por ano: 2026 = fase de testes (informacional, offset PIS/Cofins)
+const RTC_ALIQUOTAS = {
+  2026: { CBS: 0.9, IBSUF: 0.1, IBSMun: 0.0 },
+  // Future years will have different rates per LC 214/2025 transition schedule
+};
+
 // Story 2.2 AC-3: Multi-UF — endpoints SEFAZ para todos os estados
 // Referência: NT 2019.001 v1.60 — Tabela de WebServices NF-e 4.00
 // SVAN = Sefaz Virtual do Ambiente Nacional, SVRS = Sefaz Virtual do RS
@@ -23,6 +30,8 @@ const SVAN_INUT = { homologacao: "https://hom.sefazvirtual.fazenda.gov.br/NFeInu
 const SVRS_INUT = { homologacao: "https://nfe-homologacao.svrs.rs.gov.br/ws/NfeInutilizacao/NFeInutilizacao4.asmx", producao: "https://nfe.svrs.rs.gov.br/ws/NfeInutilizacao/NFeInutilizacao4.asmx" };
 const SVAN_EVT = { homologacao: "https://hom.sefazvirtual.fazenda.gov.br/NFeRecepcaoEvento4/NFeRecepcaoEvento4.asmx", producao: "https://www.sefazvirtual.fazenda.gov.br/NFeRecepcaoEvento4/NFeRecepcaoEvento4.asmx" };
 const SVRS_EVT = { homologacao: "https://nfe-homologacao.svrs.rs.gov.br/ws/NfeRecepcaoEvento/NFeRecepcaoEvento4.asmx", producao: "https://nfe.svrs.rs.gov.br/ws/NfeRecepcaoEvento/NFeRecepcaoEvento4.asmx" };
+const SVAN_CONS = { homologacao: "https://hom.sefazvirtual.fazenda.gov.br/NFeConsultaProtocolo4/NFeConsultaProtocolo4.asmx", producao: "https://www.sefazvirtual.fazenda.gov.br/NFeConsultaProtocolo4/NFeConsultaProtocolo4.asmx" };
+const SVRS_CONS = { homologacao: "https://nfe-homologacao.svrs.rs.gov.br/ws/NfeConsulta/NFeConsultaProtocolo4.asmx", producao: "https://nfe.svrs.rs.gov.br/ws/NfeConsulta/NFeConsultaProtocolo4.asmx" };
 
 const SEFAZ_AUTORIZACAO = {
   // Estados com webservice próprio
@@ -74,6 +83,22 @@ const SEFAZ_EVENTO = {
   AC: SVRS_EVT, AL: SVRS_EVT, AP: SVRS_EVT, CE: SVRS_EVT, DF: SVRS_EVT,
   ES: SVRS_EVT, PB: SVRS_EVT, RJ: SVRS_EVT, RN: SVRS_EVT, RO: SVRS_EVT,
   RR: SVRS_EVT, SC: SVRS_EVT, SE: SVRS_EVT, TO: SVRS_EVT
+};
+const SEFAZ_CONSULTA = {
+  AM: { homologacao: "https://homnfe.sefaz.am.gov.br/services2/services/NfeConsulta4", producao: "https://nfe.sefaz.am.gov.br/services2/services/NfeConsulta4" },
+  BA: { homologacao: "https://hnfe.sefaz.ba.gov.br/webservices/NFeConsultaProtocolo4/NFeConsultaProtocolo4.asmx", producao: "https://nfe.sefaz.ba.gov.br/webservices/NFeConsultaProtocolo4/NFeConsultaProtocolo4.asmx" },
+  GO: { homologacao: "https://homolog.sefaz.go.gov.br/nfe/services/NFeConsultaProtocolo4", producao: "https://nfe.sefaz.go.gov.br/nfe/services/NFeConsultaProtocolo4" },
+  MG: { homologacao: "https://hnfe.fazenda.mg.gov.br/nfe2/services/NFeConsultaProtocolo4", producao: "https://nfe.fazenda.mg.gov.br/nfe2/services/NFeConsultaProtocolo4" },
+  MS: { homologacao: "https://hom.nfe.sefaz.ms.gov.br/ws/NFeConsultaProtocolo4", producao: "https://nfe.sefaz.ms.gov.br/ws/NFeConsultaProtocolo4" },
+  MT: { homologacao: "https://homologacao.sefaz.mt.gov.br/nfews/v2/services/NfeConsulta4", producao: "https://nfe.sefaz.mt.gov.br/nfews/v2/services/NfeConsulta4" },
+  PE: { homologacao: "https://nfehomolog.sefaz.pe.gov.br/nfe-service/services/NFeConsultaProtocolo4", producao: "https://nfe.sefaz.pe.gov.br/nfe-service/services/NFeConsultaProtocolo4" },
+  PR: { homologacao: "https://homologacao.nfe.sefa.pr.gov.br/nfe/NFeConsultaProtocolo4", producao: "https://nfe.sefa.pr.gov.br/nfe/NFeConsultaProtocolo4" },
+  RS: { homologacao: "https://nfe-homologacao.sefazrs.rs.gov.br/ws/NfeConsulta/NFeConsultaProtocolo4.asmx", producao: "https://nfe.sefazrs.rs.gov.br/ws/NfeConsulta/NFeConsultaProtocolo4.asmx" },
+  SP: { homologacao: "https://homologacao.nfe.fazenda.sp.gov.br/ws/nfeconsultaprotocolo4.asmx", producao: "https://nfe.fazenda.sp.gov.br/ws/nfeconsultaprotocolo4.asmx" },
+  MA: SVAN_CONS, PA: SVAN_CONS, PI: SVAN_CONS,
+  AC: SVRS_CONS, AL: SVRS_CONS, AP: SVRS_CONS, CE: SVRS_CONS, DF: SVRS_CONS,
+  ES: SVRS_CONS, PB: SVRS_CONS, RJ: SVRS_CONS, RN: SVRS_CONS, RO: SVRS_CONS,
+  RR: SVRS_CONS, SC: SVRS_CONS, SE: SVRS_CONS, TO: SVRS_CONS
 };
 
 function getSefazConfig() {
@@ -332,6 +357,8 @@ function summarizePemInput(certPem, keyPem) {
     subject: "",
     validFrom: "",
     validTo: "",
+    daysUntilExpiry: null,
+    expired: false,
     message: ""
   };
   if (!certPem || !keyPem) {
@@ -343,11 +370,79 @@ function summarizePemInput(certPem, keyPem) {
     result.subject = cert.subject;
     result.validFrom = cert.validFrom;
     result.validTo = cert.validTo;
-    result.message = "PEM carregado para pre-assinatura local.";
+    const now = new Date();
+    const notAfter = new Date(cert.validTo);
+    const notBefore = new Date(cert.validFrom);
+    const msPerDay = 86400000;
+    result.daysUntilExpiry = Math.floor((notAfter.getTime() - now.getTime()) / msPerDay);
+    result.expired = now < notBefore || now > notAfter;
+    result.message = result.expired
+      ? "ATENCAO: Certificado PEM expirado ou ainda nao valido."
+      : "PEM carregado para pre-assinatura local.";
   } catch (err) {
     result.certStatus = "invalido";
     result.message = err.message;
   }
+  return result;
+}
+
+function validateCertificateA1(certPem, cnpjEmitente) {
+  const result = {
+    valid: true,
+    errors: [],
+    expiresAt: "",
+    cnpjCert: "",
+    daysUntilExpiry: 0
+  };
+
+  if (!certPem) {
+    result.valid = false;
+    result.errors.push("Certificado PEM nao fornecido.");
+    return result;
+  }
+
+  try {
+    const cert = new crypto.X509Certificate(certPem);
+    const now = new Date();
+    const notBefore = new Date(cert.validFrom);
+    const notAfter = new Date(cert.validTo);
+    const msPerDay = 86400000;
+
+    result.expiresAt = cert.validTo;
+    result.daysUntilExpiry = Math.floor((notAfter.getTime() - now.getTime()) / msPerDay);
+
+    // Check not-yet-valid
+    if (now < notBefore) {
+      result.valid = false;
+      result.errors.push("Certificado A1 ainda nao e valido (validFrom: " + cert.validFrom + ").");
+    }
+
+    // Check expired
+    if (now > notAfter) {
+      result.valid = false;
+      result.errors.push("Certificado A1 expirado em " + cert.validTo + ".");
+    }
+
+    // Extract CNPJ from subject CN field (digits only)
+    const subjectStr = String(cert.subject || "");
+    const cnMatch = subjectStr.match(/CN=([^\n]+)/);
+    const cnValue = cnMatch ? cnMatch[1] : "";
+    const cnpjCert = cnValue.replace(/\D/g, "").slice(0, 14);
+    result.cnpjCert = cnpjCert;
+
+    // Validate CNPJ match
+    if (cnpjEmitente) {
+      const cnpjExpected = String(cnpjEmitente).replace(/\D/g, "");
+      if (cnpjCert && cnpjExpected && cnpjCert !== cnpjExpected) {
+        result.valid = false;
+        result.errors.push("CNPJ do certificado (" + cnpjCert + ") nao confere com o CNPJ do emitente (" + cnpjExpected + ").");
+      }
+    }
+  } catch (err) {
+    result.valid = false;
+    result.errors.push("Erro ao parsear certificado A1: " + err.message);
+  }
+
   return result;
 }
 
@@ -371,13 +466,46 @@ function optionalXml(tag, value, transform = (input) => input) {
   return normalized ? `<${tag}>${normalized}</${tag}>` : "";
 }
 
-function buildIcmsXml(payload, item) {
-  const crt = String(payload.emitente?.crt || "3");
-  if (crt === "1" || crt === "4") {
-    return `<ICMS><ICMSSN102><orig>0</orig><CSOSN>102</CSOSN></ICMSSN102></ICMS>`;
+// Valida CRT (Codigo de Regime Tributario) conforme NT 2019.001
+// CRT 1 = Simples Nacional, CRT 2 = Simples com excesso sublimite,
+// CRT 3 = Regime Normal, CRT 4 = MEI (Simples Nacional - MEI)
+function validateCrt(crt) {
+  const c = String(crt || "").trim();
+  const regimes = {
+    "1": { regime: "simples_nacional", description: "Simples Nacional" },
+    "2": { regime: "simples_excesso", description: "Simples Nacional - excesso de sublimite de receita bruta" },
+    "3": { regime: "regime_normal", description: "Regime Normal (Lucro Presumido/Real)" },
+    "4": { regime: "mei", description: "Simples Nacional - Microempreendedor Individual (MEI)" }
+  };
+  if (regimes[c]) {
+    return { valid: true, regime: regimes[c].regime, description: regimes[c].description };
   }
+  return { valid: false, regime: "", description: "CRT invalido — valores aceitos: 1, 2, 3, 4" };
+}
 
-  return `<ICMS><ICMS00><orig>0</orig><CST>00</CST><modBC>3</modBC><vBC>${brNumber(item.valorTotal, 2)}</vBC><pICMS>0.00</pICMS><vICMS>0.00</vICMS></ICMS00></ICMS>`;
+function buildIcmsXml(payload, item) {
+  const crt = String(payload.emitente?.crt || "1");
+  switch (crt) {
+    // CRT 1: Simples Nacional — CSOSN 102 (sem permissao de credito ICMS)
+    case "1":
+      return `<ICMS><ICMSSN102><orig>0</orig><CSOSN>102</CSOSN></ICMSSN102></ICMS>`;
+
+    // CRT 2: Simples Nacional com excesso sublimite — CSOSN 900 (tributacao conforme RPA)
+    case "2":
+      return `<ICMS><ICMSSN900><orig>0</orig><CSOSN>900</CSOSN><modBC>3</modBC><vBC>${brNumber(item.valorTotal, 2)}</vBC><pICMS>0.00</pICMS><vICMS>0.00</vICMS></ICMSSN900></ICMS>`;
+
+    // CRT 3: Regime Normal — CST 00 (tributacao integral, pICMS 0 como placeholder)
+    case "3":
+      return `<ICMS><ICMS00><orig>0</orig><CST>00</CST><modBC>3</modBC><vBC>${brNumber(item.valorTotal, 2)}</vBC><pICMS>0.00</pICMS><vICMS>0.00</vICMS></ICMS00></ICMS>`;
+
+    // CRT 4: MEI — mesma logica do Simples Nacional (CSOSN 102)
+    case "4":
+      return `<ICMS><ICMSSN102><orig>0</orig><CSOSN>102</CSOSN></ICMSSN102></ICMS>`;
+
+    // Fallback seguro: ICMS00 com CST 00 (valores zerados)
+    default:
+      return `<ICMS><ICMS00><orig>0</orig><CST>00</CST><modBC>3</modBC><vBC>${brNumber(item.valorTotal, 2)}</vBC><pICMS>0.00</pICMS><vICMS>0.00</vICMS></ICMS00></ICMS>`;
+  }
 }
 
 function getDestIcmsIndicator(destinatario, payload) {
@@ -408,6 +536,10 @@ function buildNfePayloadFromPedido(pedido, overrides = {}) {
   const cliente = pedido?.cliente || {};
   const ambiente = overrides.ambiente || cfg.ambiente;
   const itens = Array.isArray(pedido?.itens) ? pedido.itens : [];
+  // Normaliza CRT para string e valida; default "1" (Simples Nacional) se ausente/invalido
+  const rawCrt = String(cfg.crt || "1").trim();
+  const crtValidation = validateCrt(rawCrt);
+  const crt = crtValidation.valid ? rawCrt : "1";
   return {
     ambiente,
     emitente: {
@@ -415,7 +547,7 @@ function buildNfePayloadFromPedido(pedido, overrides = {}) {
       razaoSocial: cfg.razaoSocial,
       nomeFantasia: cfg.nomeFantasia,
       ie: cfg.ie,
-      crt: cfg.crt,
+      crt: crt,
       uf: cfg.uf,
       endereco: {
         logradouro: cfg.emitenteEndereco.logradouro,
@@ -462,13 +594,41 @@ function buildNfePayloadFromPedido(pedido, overrides = {}) {
       unidade: (item.unidade || "UN").replace(/[^!-\x7E]/g, "").slice(0, 6) || "UN",
       quantidade: Number(item.qtd || 0),
       valorUnitario: Number(item.precoUnitario || 0),
-      valorTotal: Number((Number(item.qtd || 0) * Number(item.precoUnitario || 0)).toFixed(2))
+      valorTotal: Number((Number(item.qtd || 0) * Number(item.precoUnitario || 0)).toFixed(2)),
+      // Reforma Tributaria: pass-through IBS/CBS overrides from pedido
+      ibsCbsCST: item.ibsCbsCST || undefined,
+      ibsCbsClassTrib: item.ibsCbsClassTrib || undefined,
+      forceIbsCbs: item.forceIbsCbs || undefined
     })),
     totais: {
       valorProdutos: Number(pedido?.valor || 0),
       valorNota: Number(pedido?.valor || 0)
     }
   };
+}
+
+// Reforma Tributária NT 2025.002 — Grupo UB (IBSCBS) por item
+// Gera XML do grupo IBSCBS para inclusão dentro de <imposto>
+// item: objeto do item da NF-e (valorTotal, ibsCbsCST, ibsCbsClassTrib)
+// emitente: objeto do emitente (crt)
+// anoRef: ano fiscal para lookup de alíquotas (default: ano corrente)
+function buildIbsCbsXml(item, emitente, anoRef) {
+  const ano = anoRef || new Date().getFullYear();
+  const aliquotas = RTC_ALIQUOTAS[ano];
+  if (!aliquotas) return "";
+  const crt = String(emitente?.crt || "3");
+  // 2026: somente CRT 3 (Regime Normal) ou se forceIbsCbs estiver ativo
+  if (crt !== "3" && !item.forceIbsCbs) return "";
+  const cst = item.ibsCbsCST || "00";
+  const cClassTrib = item.ibsCbsClassTrib || "0000000";
+  const vBC = Number(item.valorTotal || 0);
+  const pIBSUF = aliquotas.IBSUF;
+  const pIBSMun = aliquotas.IBSMun;
+  const pCBS = aliquotas.CBS;
+  const vIBSUF = vBC * pIBSUF / 100;
+  const vIBSMun = vBC * pIBSMun / 100;
+  const vCBS = vBC * pCBS / 100;
+  return `<IBSCBS><CST>${cst}</CST><cClassTrib>${cClassTrib}</cClassTrib><vBC>${brNumber(vBC, 2)}</vBC><IBSUF><pIBSUF>${brNumber(pIBSUF, 2)}</pIBSUF><vIBSUF>${brNumber(vIBSUF, 2)}</vIBSUF></IBSUF><IBSMun><pIBSMun>${brNumber(pIBSMun, 2)}</pIBSMun><vIBSMun>${brNumber(vIBSMun, 2)}</vIBSMun></IBSMun><CBS><pCBS>${brNumber(pCBS, 2)}</pCBS><vCBS>${brNumber(vCBS, 2)}</vCBS></CBS></IBSCBS>`;
 }
 
 function buildNfeXml(payload) {
@@ -479,7 +639,21 @@ function buildNfeXml(payload) {
   const emitCidade = payload.emitente?.endereco?.cidade || "Belo Horizonte";
   const emitUf = payload.emitente?.endereco?.uf || payload.emitente?.uf || "MG";
   const emitMunicipioCode = getMunicipioCode(emitCidade, emitUf, "3106200");
-  const itensXml = payload.itens.map((item, idx) => `
+  // Reforma Tributaria NT 2025.002: compute IBSCBS per item and collect totals for W03
+  const ibsCbsTotals = { vTotIBSUF: 0, vTotIBSMun: 0, vTotCBS: 0 };
+  const itensXml = payload.itens.map((item, idx) => {
+    const ibsCbsXml = buildIbsCbsXml(item, payload.emitente);
+    if (ibsCbsXml) {
+      const anoRef = new Date().getFullYear();
+      const aliq = RTC_ALIQUOTAS[anoRef];
+      if (aliq) {
+        const vBC = Number(item.valorTotal || 0);
+        ibsCbsTotals.vTotIBSUF += vBC * aliq.IBSUF / 100;
+        ibsCbsTotals.vTotIBSMun += vBC * aliq.IBSMun / 100;
+        ibsCbsTotals.vTotCBS += vBC * aliq.CBS / 100;
+      }
+    }
+    return `
     <det nItem="${idx + 1}">
       <prod>
         <cProd>${xmlEscape(item.codigo)}</cProd>
@@ -500,9 +674,13 @@ function buildNfeXml(payload) {
       <imposto>
         ${buildIcmsXml(payload, item)}
         <PIS><PISOutr><CST>99</CST><vBC>0.00</vBC><pPIS>0.00</pPIS><vPIS>0.00</vPIS></PISOutr></PIS>
-        <COFINS><COFINSOutr><CST>99</CST><vBC>0.00</vBC><pCOFINS>0.00</pCOFINS><vCOFINS>0.00</vCOFINS></COFINSOutr></COFINS>
-      </imposto>
-    </det>`).join("");
+        <COFINS><COFINSOutr><CST>99</CST><vBC>0.00</vBC><pCOFINS>0.00</pCOFINS><vCOFINS>0.00</vCOFINS></COFINSOutr></COFINS>${ibsCbsXml ? `
+        ${ibsCbsXml}` : ""}
+      </imposto>${ibsCbsXml ? `
+      <VB><vItem>${brNumber(item.valorTotal, 2)}</vItem></VB>` : ""}
+    </det>`;
+  }).join("");
+  const hasIbsCbs = ibsCbsTotals.vTotIBSUF > 0 || ibsCbsTotals.vTotCBS > 0;
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <NFe xmlns="http://www.portalfiscal.inf.br/nfe">
@@ -591,7 +769,13 @@ function buildNfeXml(payload) {
         <vNF>${brNumber(payload.totais.valorNota, 2)}</vNF>
         <vTotTrib>0.00</vTotTrib>
       </ICMSTot>
-    </total>
+${hasIbsCbs ? `      <IBSCBSTot>
+        <vTotIBSUF>${brNumber(ibsCbsTotals.vTotIBSUF, 2)}</vTotIBSUF>
+        <vTotIBSMun>${brNumber(ibsCbsTotals.vTotIBSMun, 2)}</vTotIBSMun>
+        <vTotCBS>${brNumber(ibsCbsTotals.vTotCBS, 2)}</vTotCBS>
+        <vTotIS>0.00</vTotIS>
+      </IBSCBSTot>
+` : ""}    </total>
     <transp><modFrete>9</modFrete></transp>
     <pag><detPag><tPag>15</tPag><vPag>${brNumber(payload.totais.valorNota, 2)}</vPag></detPag></pag>
     ${optionalXml("infAdic", payload.identificacao.pedidoId, (value) => `<infCpl>${xmlEscape(`Pedido GDP ${value}`)}</infCpl>`)}
@@ -807,6 +991,12 @@ function getSefazAutorizacaoUrl(uf, ambiente) {
 
 function getSefazEventoUrl(uf, ambiente) {
   const byUf = SEFAZ_EVENTO[String(uf || "MG").toUpperCase()];
+  if (!byUf) return "";
+  return byUf[ambiente === "producao" ? "producao" : "homologacao"] || "";
+}
+
+function getSefazConsultaUrl(uf, ambiente) {
+  const byUf = SEFAZ_CONSULTA[String(uf || "MG").toUpperCase()];
   if (!byUf) return "";
   return byUf[ambiente === "producao" ? "producao" : "homologacao"] || "";
 }
@@ -1032,25 +1222,33 @@ async function transmitirAutorizacaoPreview(payload, options = {}) {
 async function emitirNfeDireta(payload) {
   const cfg = getSefazConfig();
   const { missing } = validateSefazConfig(cfg);
+  if (missing.length) {
+    return {
+      ok: false,
+      mode: "config_missing",
+      error: `Configuracao NF-e incompleta: ${missing.join(", ")}`
+    };
+  }
+
+  // Validate A1 certificate before any XML generation (graceful if PEM absent)
+  if (cfg.certificadoPem) {
+    const certValidation = validateCertificateA1(cfg.certificadoPem, cfg.cnpjEmitente);
+    if (!certValidation.valid) {
+      return {
+        ok: false,
+        mode: "certificate_invalid",
+        error: "Certificado A1 invalido: " + certValidation.errors.join("; "),
+        certValidation
+      };
+    }
+  }
+
   const certificate = summarizeCertificateInput(cfg.certificadoBase64);
   const xmlPreview = buildNfeXml(payload);
   const signaturePreview = buildSignaturePreview(xmlPreview.xml, cfg);
   const xmlDsigPreview = buildXmlDsigPreview(xmlPreview.xml, cfg);
   const lotePreview = buildLoteXml(xmlDsigPreview.signedXml || xmlPreview.xml);
   const autorizacaoPreview = buildAutorizacaoRequestPreview(payload, lotePreview);
-  if (missing.length) {
-    return {
-      ok: false,
-      mode: "config_missing",
-      error: `Configuracao NF-e incompleta: ${missing.join(", ")}`,
-      certificate,
-      xmlPreview,
-      signaturePreview,
-      xmlDsigPreview,
-      lotePreview,
-      autorizacaoPreview
-    };
-  }
 
   const transmitResult = await transmitirAutorizacaoPreview(payload, { force: true });
   return {
@@ -1206,6 +1404,11 @@ function validateNfePayload(payload) {
   }
   if (!payload?.emitente?.razaoSocial) errors.push("Emitente: Razao Social obrigatoria");
   if (!payload?.emitente?.ie) errors.push("Emitente: IE obrigatoria");
+  // CRT — deve ser 1, 2, 3 ou 4
+  const crtCheck = validateCrt(payload?.emitente?.crt);
+  if (!crtCheck.valid) {
+    errors.push("Emitente: CRT invalido (deve ser 1, 2, 3 ou 4)");
+  }
   // Destinatário
   const destDoc = sanitizeDigits(payload?.destinatario?.cnpj || "");
   if (destDoc.length !== 14 && destDoc.length !== 11) {
@@ -1232,6 +1435,104 @@ function validateNfePayload(payload) {
   return { valid: errors.length === 0, errors };
 }
 
+// NFeConsultaProtocolo4 — consulta situacao de NF-e pela chave de acesso
+function parseConsultaResponse(xmlText) {
+  const xml = String(xmlText || "");
+  const findTag = (tag) => {
+    const match = xml.match(new RegExp(`<${tag}>([\\s\\S]*?)<\\/${tag}>`));
+    return match ? match[1].trim() : "";
+  };
+  const findTags = (tag) => [...xml.matchAll(new RegExp(`<${tag}>([\\s\\S]*?)<\\/${tag}>`, "g"))].map((match) => match[1].trim());
+  const cStats = findTags("cStat");
+  const motivos = findTags("xMotivo");
+  const protocolos = findTags("nProt");
+  const chaves = findTags("chNFe");
+  const recebimentos = findTags("dhRecbto");
+  const cStat = cStats[cStats.length - 1] || cStats[0] || "";
+  const xMotivo = motivos[motivos.length - 1] || motivos[0] || "";
+  const nProt = protocolos[protocolos.length - 1] || "";
+  const chNFe = chaves[chaves.length - 1] || "";
+  const dhRecbto = recebimentos[recebimentos.length - 1] || "";
+  return {
+    cStat,
+    xMotivo,
+    nProt,
+    chNFe,
+    dhRecbto,
+    cUF: findTag("cUF"),
+    autorizado: cStat === "100",
+    cancelado: cStat === "101",
+    denegado: cStat === "110" || cStat === "301" || cStat === "302",
+    rawXml: xml
+  };
+}
+
+async function consultarProtocolo(chaveAcesso, options = {}) {
+  const cfg = getSefazConfig();
+  const chave = sanitizeDigits(chaveAcesso);
+  if (chave.length !== 44) {
+    return { ok: false, mode: "invalid_key", message: "Chave de acesso deve ter 44 digitos — recebido: " + chave.length };
+  }
+
+  // Extrair UF da chave (posicoes 0-1 = codigo UF IBGE)
+  const ufCode = chave.substring(0, 2);
+  const ufCodeToUf = {};
+  Object.entries(UF_CODE).forEach(([uf, code]) => { ufCodeToUf[code] = uf; });
+  const uf = ufCodeToUf[ufCode];
+  if (!uf) {
+    return { ok: false, mode: "unknown_uf", message: "Codigo UF nao reconhecido na chave: " + ufCode };
+  }
+
+  const ambiente = options.ambiente || cfg.ambiente;
+  const tpAmb = ambiente === "producao" ? "1" : "2";
+  const url = getSefazConsultaUrl(uf, ambiente);
+  if (!url) {
+    return { ok: false, mode: "endpoint_missing", message: "Endpoint de consulta nao mapeado para " + uf + "/" + ambiente };
+  }
+
+  const soapEnvelope = `<?xml version="1.0" encoding="utf-8"?><soap12:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap12="http://www.w3.org/2003/05/soap-envelope"><soap12:Body><nfeDadosMsg xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeConsultaProtocolo4"><consSitNFe versao="4.00" xmlns="http://www.portalfiscal.inf.br/nfe"><tpAmb>${tpAmb}</tpAmb><xServ>CONSULTAR</xServ><chNFe>${chave}</chNFe></consSitNFe></nfeDadosMsg></soap12:Body></soap12:Envelope>`;
+
+  const certificateBuffer = getCertificateBuffer(cfg.certificadoBase64);
+  try {
+    const resp = await postSoapXml(url, {
+      headers: {
+        "Content-Type": "application/soap+xml; charset=utf-8; action=\"http://www.portalfiscal.inf.br/nfe/wsdl/NFeConsultaProtocolo4/nfeConsultaNF\"",
+        SOAPAction: "http://www.portalfiscal.inf.br/nfe/wsdl/NFeConsultaProtocolo4/nfeConsultaNF"
+      },
+      body: soapEnvelope,
+      pfx: certificateBuffer.length ? certificateBuffer : undefined,
+      passphrase: cfg.certificadoSenha || undefined,
+      cert: cfg.certificadoPem || undefined,
+      key: cfg.chavePrivadaPem || undefined
+    });
+    const parsed = parseConsultaResponse(resp.body);
+    return {
+      ok: resp.statusCode >= 200 && resp.statusCode < 300,
+      mode: "sefaz_consulta_response",
+      httpStatus: resp.statusCode,
+      parsed,
+      chaveAcesso: chave,
+      uf,
+      ambiente
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      mode: "sefaz_consulta_fetch_error",
+      message: err?.message || "Falha ao conectar com a SEFAZ para consulta.",
+      errorName: err?.name || "",
+      cause: err?.cause ? {
+        message: err.cause.message || "",
+        code: err.cause.code || "",
+        name: err.cause.name || ""
+      } : null,
+      chaveAcesso: chave,
+      uf,
+      ambiente
+    };
+  }
+}
+
 module.exports = {
   getSefazConfig,
   validateSefazConfig,
@@ -1239,6 +1540,7 @@ module.exports = {
   buildNfeXml,
   summarizeCertificateInput,
   summarizePemInput,
+  validateCertificateA1,
   buildSignaturePreview,
   buildXmlDsigPreview,
   buildEventoDsigPreview,
@@ -1250,11 +1552,17 @@ module.exports = {
   buildCancelamentoXml,
   buildCancelamentoRequestPreview,
   getSefazEventoUrl,
+  getSefazConsultaUrl,
   parseSefazAutorizacaoResponse,
   parseSefazEventoResponse,
+  parseConsultaResponse,
   transmitirAutorizacaoPreview,
   emitirNfeDireta,
   transmitirCancelamentoEvento,
   inutilizarFaixa,
-  validateNfePayload
+  consultarProtocolo,
+  validateNfePayload,
+  validateCrt,
+  buildIbsCbsXml,
+  RTC_ALIQUOTAS
 };

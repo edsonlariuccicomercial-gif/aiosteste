@@ -110,6 +110,16 @@ module.exports = async function handler(req, res) {
       return res.status(result.ok ? 200 : 502).json({ ok: result.ok, action, result });
     }
 
+    // Consulta protocolo NF-e (situação pela chave de acesso)
+    if (action === "nfe-sefaz-consulta" && nfeSefaz.consultarProtocolo) {
+      const { chaveAcesso } = body;
+      if (!chaveAcesso || String(chaveAcesso).replace(/\D/g, "").length !== 44) {
+        return res.status(400).json({ ok: false, error: "chaveAcesso deve ter 44 digitos" });
+      }
+      const result = await nfeSefaz.consultarProtocolo(chaveAcesso);
+      return res.status(result.ok ? 200 : 502).json({ ok: result.ok, action, result });
+    }
+
     // Inutilização de faixa
     if (action === "nfe-sefaz-inutilizar" && nfeSefaz.inutilizarFaixa) {
       const { ano, serie, nfInicio, nfFim, justificativa } = body;
