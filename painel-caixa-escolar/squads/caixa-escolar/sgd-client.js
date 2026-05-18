@@ -52,12 +52,14 @@ class SgdClient {
     }
   }
 
-  headers() {
+  headers(opts = {}) {
     const h = {
       "Content-Type": "application/json",
       Cookie: this.cookie,
     };
-    if (this.networkId) {
+    // SGD API returns all networks when this header is omitted.
+    // Only include for detail/items/proposal endpoints that require it.
+    if (!opts.skipNetwork && this.networkId) {
       h["x-network-being-managed-id"] = String(this.networkId);
     }
     return h;
@@ -96,10 +98,11 @@ class SgdClient {
     if (filters.year) params.set("filter.year", `$eq:${filters.year}`);
 
     const url = `${BASE_URL}/budget-proposal/summary-by-supplier-profile?${params}`;
-    const res = await fetch(url, { headers: this.headers() });
+    // Omit x-network-being-managed-id — SGD returns ALL networks in one call without it
+    const res = await fetch(url, { headers: this.headers({ skipNetwork: true }) });
     if (!res.ok) throw new Error(`SGD listBudgets failed (${res.status})`);
     const data = await res.json();
-    // Extract networkId from first budget if not already set
+    // Extract networkId from first budget for detail calls later
     if (!this.networkId && data.data && data.data.length > 0 && data.data[0].idNetwork) {
       this.networkId = data.data[0].idNetwork;
     }
@@ -145,40 +148,25 @@ class SgdClient {
   async scanAllBudgets(statusFilter = "NAEN") {
     await this.ensureAuth();
 
-    // If we have multiple networks, iterate ALL of them
-    const networks = this.allNetworks.length > 0
-      ? this.allNetworks
-      : [{ id: this.networkId, name: "Default" }];
-
+    // Single pass — omitting x-network-being-managed-id returns ALL networks at once
     const allBudgets = [];
-    const limit = 50;
+    const limit = 200; // larger pages = fewer round trips
+    let page = 1;
 
-    for (const net of networks) {
-      this.networkId = net.id;
-      let page = 1;
-      let netCount = 0;
+    while (true) {
+      const data = await this.listBudgets({ status: statusFilter }, page, limit);
+      const items = data.data || data.items || data.rows || [];
+      if (items.length === 0) break;
 
-      while (true) {
-        const data = await this.listBudgets({ status: statusFilter }, page, limit);
-        const items = data.data || data.items || data.rows || [];
-        if (items.length === 0) break;
+      allBudgets.push(...items);
 
-        // Tag each budget with its network
-        items.forEach(b => {
-          b.idNetwork = b.idNetwork || net.id;
-          b._networkName = net.name || "";
-        });
-        allBudgets.push(...items);
-        netCount += items.length;
-
-        const total = data.total || data.totalItems || data.count || 0;
-        if (netCount >= total || items.length < limit) break;
-        page++;
-      }
-
-      console.log(`[SGD] Network "${net.name || net.id}": ${netCount} budgets`);
+      const total = data.meta ? data.meta.totalItems : (data.total || data.totalItems || 0);
+      if (allBudgets.length >= total || items.length < limit) break;
+      page++;
+      console.log(`[SGD] Scan page ${page}: ${allBudgets.length}/${total}...`);
     }
 
+    console.log(`[SGD] Scan complete: ${allBudgets.length} budgets (${statusFilter})`);
     return allBudgets;
   }
 }
