@@ -2144,32 +2144,38 @@ function renderContratos() {
     </div>`;
   }
 
-  if (escolaKeys.length === 1 && filtered.length <= 3) {
-    // Few contracts — render flat (no grouping needed)
-    grid.innerHTML = filtered.map(renderCard).join("");
-  } else {
-    // Group by escola with collapsible folders
-    grid.innerHTML = escolaKeys.map(escola => {
-      const cList = porEscola[escola];
-      const totalValor = cList.reduce((s, c) => {
-        const itens = Array.isArray(c.itens) ? c.itens : [];
-        return s + ((parseFloat(c.valorTotal) || 0) > 0 ? parseFloat(c.valorTotal) : itens.reduce((t, i) => t + (parseFloat(i.precoUnitario) || 0) * (parseFloat(i.qtdContratada || i.quantidade) || 0), 0));
-      }, 0);
-      const ativos = cList.filter(c => c.status === 'ativo').length;
-      return `<div class="escola-folder" style="grid-column:1/-1;margin-bottom:.5rem">
-        <div onclick="this.nextElementSibling.classList.toggle('hidden');this.querySelector('.fold-icon').textContent=this.nextElementSibling.classList.contains('hidden')?'▶':'▼'" style="display:flex;align-items:center;gap:.6rem;padding:.6rem 1rem;background:var(--s1);border:1px solid var(--bdr);border-radius:8px;cursor:pointer;user-select:none">
-          <span class="fold-icon" style="font-size:.7rem;color:var(--dim)">▼</span>
-          <span style="font-weight:700;font-size:.9rem">${esc(escola)}</span>
-          <span style="font-size:.75rem;color:var(--dim)">${cList.length} contrato${cList.length > 1 ? 's' : ''}</span>
-          <span style="font-size:.75rem;color:var(--green);font-weight:600;margin-left:auto">${brl.format(totalValor)}</span>
-          <span class="badge ${ativos > 0 ? 'badge-green' : 'badge-red'}" style="font-size:.65rem">${ativos} ativo${ativos !== 1 ? 's' : ''}</span>
-        </div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:.75rem;padding:.5rem 0 0 1.5rem">
-          ${cList.map(renderCard).join("")}
-        </div>
-      </div>`;
-    }).join("");
-  }
+  // Render escola folders as cards (same visual style as contract cards)
+  grid.innerHTML = escolaKeys.map(escola => {
+    const cList = porEscola[escola];
+    const totalValor = cList.reduce((s, c) => {
+      const itens = Array.isArray(c.itens) ? c.itens : [];
+      return s + ((parseFloat(c.valorTotal) || 0) > 0 ? parseFloat(c.valorTotal) : itens.reduce((t, i) => t + (parseFloat(i.precoUnitario) || 0) * (parseFloat(i.qtdContratada || i.quantidade) || 0), 0));
+    }, 0);
+    const ativos = cList.filter(c => c.status === 'ativo').length;
+    const totalExec = cList.reduce((s, c) => {
+      const itens = Array.isArray(c.itens) ? c.itens : [];
+      return s + itens.reduce((t, i) => t + (parseFloat(i.precoUnitario) || 0) * (parseFloat(i.qtdEntregue) || 0), 0);
+    }, 0);
+    const pctGeral = totalValor > 0 ? (totalExec / totalValor * 100) : 0;
+    const foldId = "escola-fold-" + escola.replace(/\W/g, "-").slice(0, 30);
+
+    return `<div class="contract-card" style="grid-column:1/-1;cursor:pointer" onclick="document.getElementById('${foldId}').classList.toggle('hidden');this.querySelector('.fold-icon').textContent=document.getElementById('${foldId}').classList.contains('hidden')?'▶':'▼'">
+      <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:.5rem">
+        <span style="font-size:.8rem;color:var(--dim);display:flex;align-items:center;gap:.4rem"><span class="fold-icon">▼</span> Escola</span>
+        <span class="badge ${ativos > 0 ? 'badge-green' : 'badge-red'}">${ativos} ativo${ativos !== 1 ? 's' : ''}</span>
+      </div>
+      <h3 style="margin-bottom:.4rem">${esc(escola.length > 55 ? escola.slice(0, 53) + "..." : escola)}</h3>
+      <div class="meta">${cList.length} contrato${cList.length > 1 ? 's' : ''}</div>
+      <div style="display:flex;justify-content:space-between;font-size:.8rem;margin-bottom:.5rem;margin-top:.5rem">
+        <span style="color:var(--green);font-weight:700">${brl.format(totalValor)}</span>
+        <span style="color:var(--mut)">${pctGeral.toFixed(0)}% executado</span>
+      </div>
+      <div class="progress"><div class="progress-fill ${pctGeral >= 80 ? 'green' : pctGeral >= 40 ? 'yellow' : 'blue'}" style="width:${pctGeral}%"></div></div>
+    </div>
+    <div id="${foldId}" style="grid-column:1/-1;display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:.75rem;margin-bottom:.5rem">
+      ${cList.map(renderCard).join("")}
+    </div>`;
+  }).join("");
 }
 
 function getEscolasVinculadasBadges(contratoId) {
