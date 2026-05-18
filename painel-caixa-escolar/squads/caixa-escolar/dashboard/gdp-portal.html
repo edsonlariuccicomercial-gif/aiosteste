@@ -808,6 +808,79 @@ function showContractSelection() {
   document.getElementById('cart-float').style.display = 'none';
 }
 
+// ─── PARSE UNIT FROM PRODUCT NAME ───
+// Extracts measurement unit from ARP product names that lack a 'unidade' field.
+// E.g. "Açafrao 500 gr - Pachá" → "GR", "Batata Inglesa" → "KG" (produce default)
+function parseUnidadeFromName(nome) {
+  if (!nome) return 'UN';
+  const n = nome.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+  // 1. Look for explicit unit patterns: number + unit abbreviation
+  // Weight
+  const weightMatch = n.match(/(\d+[.,]?\d*)\s*(kg|kgs|quilo|quilos|g|gr|grs|gramas|mg)\b/);
+  if (weightMatch) {
+    const u = weightMatch[2];
+    if (['kg','kgs','quilo','quilos'].includes(u)) return 'KG';
+    if (['g','gr','grs','gramas'].includes(u)) return 'GR';
+    if (u === 'mg') return 'MG';
+  }
+  // Volume
+  const volMatch = n.match(/(\d+[.,]?\d*)\s*(ml|mililitro|mililitros|l|lt|litro|litros)\b/);
+  if (volMatch) {
+    const u = volMatch[2];
+    if (['ml','mililitro','mililitros'].includes(u)) return 'ML';
+    if (['l','lt','litro','litros'].includes(u)) return 'LT';
+  }
+  // Count/packaging
+  const cntMatch = n.match(/(\d+[.,]?\d*)\s*(un|unid|unidade|unidades|pc|pcs|peca|pecas)\b/);
+  if (cntMatch) return 'UN';
+  const pkgMatch = n.match(/(\d+[.,]?\d*)\s*(cx|caixa|pct|pacote|bd|bandeja|dz|duzia|mc|maco)\b/);
+  if (pkgMatch) {
+    const u = pkgMatch[2];
+    if (['cx','caixa'].includes(u)) return 'CX';
+    if (['pct','pacote'].includes(u)) return 'PCT';
+    if (['bd','bandeja'].includes(u)) return 'BD';
+    if (['dz','duzia'].includes(u)) return 'DZ';
+    if (['mc','maco'].includes(u)) return 'MC';
+  }
+
+  // 1b. Standalone unit — no digit prefix: "Amido de milho KG" or "(Kg)"
+  const standaloneMatch = n.match(/(?:\b|\()(kg|gr|ml|lt|un)(?:\b|\))\s*(?:-.*)?$/);
+  if (standaloneMatch) {
+    const u = standaloneMatch[1];
+    if (u === 'kg') return 'KG';
+    if (u === 'gr') return 'GR';
+    if (u === 'ml') return 'ML';
+    if (u === 'lt') return 'LT';
+    if (u === 'un') return 'UN';
+  }
+
+  // 2. Smart defaults by category keywords (no unit pattern found)
+  // Fresh produce → KG
+  const produceKw = ['batata','cebola','alho','tomate','cenoura','maca','banana','laranja','manga',
+    'abobora','beterraba','repolho','abobrinha','pimentao','pepino','inhame','mandioca','jilo',
+    'alface','couve','melancia','melao','mamao','abacaxi','limao','chuchu','quiabo','vagem',
+    'jirimum','berinjela','nabo','rabanete','agriao','rucula','espinafre','brocolis','maxixe'];
+  if (produceKw.some(kw => n.includes(kw))) return 'KG';
+
+  // Meats and cheese → KG
+  const meatCheeseKw = ['carne','frango','file','tilapia','mussarela','mucarela','queijo',
+    'presunto','linguica','salsicha','pernil','costela','alcatra','patinho','acem',
+    'picanha','cupim','acougue','bife','sobrecoxa','coxa','asa','peito de frango'];
+  if (meatCheeseKw.some(kw => n.includes(kw))) return 'KG';
+
+  // Grains, legumes, staples → KG
+  const grainsKw = ['feijao','arroz','farinha','fuba','acucar','sal ','amido','aveia','lentilha',
+    'ervilha','grao de bico','milho','trigo','tapioca','canjica','cuscuz','soja'];
+  if (grainsKw.some(kw => n.includes(kw))) return 'KG';
+
+  // Polpa/frozen → KG
+  if (n.includes('polpa')) return 'KG';
+
+  // Everything else → UN
+  return 'UN';
+}
+
 function selectContract(type, idx) {
   // Close fullscreen overlay if open
   const fsOverlay = document.getElementById('contract-fullscreen-overlay');
@@ -819,9 +892,12 @@ function selectContract(type, idx) {
   const contracts = getSchoolContracts();
 
   if (type === 'arp') {
-    // Use ARP catalog products
+    // Use ARP catalog products — enrich with parsed unit from product name
     const arpEscola = arpData.escolas.find(e => e.nome === currentUser.categoria_catalogo);
-    schoolProducts = arpEscola ? arpEscola.produtos : [];
+    schoolProducts = arpEscola ? arpEscola.produtos.map(p => ({
+      ...p,
+      unidade: parseUnidadeFromName(p.produto)
+    })) : [];
     selectedContract = { type: 'arp', label: currentUser.categoria_catalogo || 'Catálogo ARP' };
   } else {
     // Use contract items as products
