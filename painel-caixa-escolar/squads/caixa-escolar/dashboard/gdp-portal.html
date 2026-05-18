@@ -935,7 +935,8 @@ function selectContract(type, idx) {
 
       const produto = intelMatch ? (intelMatch.nome || item.descricao) : item.descricao;
       const sku = intelMatch ? (intelMatch.sku || linkedSku) : linkedSku;
-      const unidade = intelMatch ? (intelMatch.unidade_base || item.unidade || 'UN') : (item.unidade || 'UN');
+      const rawUnidade = intelMatch ? (intelMatch.unidade_base || item.unidade || '') : (item.unidade || '');
+      const unidade = (rawUnidade && rawUnidade.toUpperCase() !== 'UN' && rawUnidade.toUpperCase() !== 'UNIDADE') ? rawUnidade : parseUnidadeFromName(produto || item.descricao);
 
       return {
         item: item.num,
