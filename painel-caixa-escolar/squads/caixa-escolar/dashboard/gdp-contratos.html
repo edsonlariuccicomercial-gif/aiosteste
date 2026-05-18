@@ -596,10 +596,28 @@
       <button class="fin-tab-btn active" data-fin-tab="caixa" onclick="switchFinanceiroTab('caixa')" style="padding:.5rem 1.2rem;border:none;border-radius:4px 8px 0 0;cursor:pointer;font-weight:700;font-size:.85rem;background:var(--s1);color:var(--txt);transition:all .2s">Caixa</button>
       <button class="fin-tab-btn" data-fin-tab="contas-pagar" onclick="switchFinanceiroTab('contas-pagar')" style="padding:.5rem 1.2rem;border:none;border-radius:4px 8px 0 0;cursor:pointer;font-weight:700;font-size:.85rem;background:transparent;color:var(--mut);transition:all .2s">Contas a Pagar</button>
       <button class="fin-tab-btn" data-fin-tab="contas-receber" onclick="switchFinanceiroTab('contas-receber')" style="padding:.5rem 1.2rem;border:none;border-radius:4px 8px 0 0;cursor:pointer;font-weight:700;font-size:.85rem;background:transparent;color:var(--mut);transition:all .2s">Contas a Receber</button>
+      <button class="fin-tab-btn" data-fin-tab="conciliacao" onclick="switchFinanceiroTab('conciliacao')" style="padding:.5rem 1.2rem;border:none;border-radius:4px 8px 0 0;cursor:pointer;font-weight:700;font-size:.85rem;background:transparent;color:var(--mut);transition:all .2s">Conciliacao Bancaria</button>
     </div>
     <div id="fin-content-caixa"></div>
     <div id="fin-content-contas-pagar" class="hidden"></div>
     <div id="fin-content-contas-receber" class="hidden"></div>
+    <div id="fin-content-conciliacao" class="hidden">
+      <div class="card">
+        <h3>Conciliacao Bancaria</h3>
+        <p style="color:var(--mut);font-size:.85rem;margin-bottom:1rem">Importe extratos bancarios para conciliar com contas a pagar/receber.</p>
+        <div style="display:flex;gap:.6rem;flex-wrap:wrap;margin-bottom:1rem">
+          <label class="btn btn-sm btn-blue" style="cursor:pointer"><input type="file" accept=".ofx,.OFX" style="display:none" onchange="importarExtratoBancario(this.files[0],'ofx')"> Importar OFX</label>
+          <label class="btn btn-sm btn-blue" style="cursor:pointer"><input type="file" accept=".pdf,.PDF" style="display:none" onchange="importarExtratoBancario(this.files[0],'pdf')"> Importar PDF</label>
+          <label class="btn btn-sm" style="cursor:pointer"><input type="file" accept=".csv,.CSV" style="display:none" onchange="importarExtratoBancario(this.files[0],'csv')"> Importar CSV</label>
+        </div>
+        <div id="conciliacao-status" style="font-size:.85rem;color:var(--mut);margin-bottom:1rem"></div>
+        <table style="width:100%">
+          <thead><tr><th>Data</th><th>Descricao</th><th class="text-right">Valor</th><th>Tipo</th><th>Conciliado</th></tr></thead>
+          <tbody id="conciliacao-tbody"></tbody>
+        </table>
+        <div id="conciliacao-empty" style="text-align:center;padding:2rem;color:var(--mut)">Nenhum extrato importado. Importe um arquivo OFX, PDF ou CSV.</div>
+      </div>
+    </div>
   </div>
   <style>.fin-tab-btn.active{background:var(--s1)!important;color:var(--txt)!important;border-bottom:2px solid var(--blue)}</style>
 

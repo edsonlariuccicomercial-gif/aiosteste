@@ -1760,3 +1760,116 @@ async function classificarNcmIA(contratoId) {
   const classified = semNcm.filter(i => i.ncm && i.ncm.length >= 8).length;
   showToast(`IA classificou ${classified}/${semNcm.length} itens!`, 4000);
 }
+
+// ===== CONCILIACAO BANCARIA =====
+const CONCILIACAO_KEY = "gdp.conciliacao.v1";
+
+function loadConciliacao() {
+  try { return JSON.parse(localStorage.getItem(CONCILIACAO_KEY) || "[]"); } catch(_) { return []; }
+}
+
+function saveConciliacao(items) {
+  localStorage.setItem(CONCILIACAO_KEY, JSON.stringify(items));
+}
+
+function renderConciliacao() {
+  const items = loadConciliacao();
+  const tbody = document.getElementById("conciliacao-tbody");
+  const empty = document.getElementById("conciliacao-empty");
+  if (!tbody) return;
+  if (items.length === 0) { tbody.innerHTML = ""; if (empty) empty.style.display = ""; return; }
+  if (empty) empty.style.display = "none";
+  tbody.innerHTML = items.map((t, i) => {
+    const val = parseFloat(t.valor) || 0;
+    const cor = val >= 0 ? "var(--green,#22c55e)" : "var(--red,#ef4444)";
+    return `<tr>
+      <td style="font-size:.85rem">${t.data || "-"}</td>
+      <td style="font-size:.85rem">${esc(t.descricao || "")}</td>
+      <td class="text-right font-mono" style="color:${cor};font-weight:600">${brl.format(val)}</td>
+      <td style="font-size:.8rem">${val >= 0 ? "Crédito" : "Débito"}</td>
+      <td><input type="checkbox" ${t.conciliado ? "checked" : ""} onchange="toggleConciliado(${i})"></td>
+    </tr>`;
+  }).join("");
+}
+
+window.toggleConciliado = function(idx) {
+  const items = loadConciliacao();
+  if (items[idx]) { items[idx].conciliado = !items[idx].conciliado; saveConciliacao(items); }
+};
+
+window.importarExtratoBancario = async function(file, tipo) {
+  if (!file) return;
+  const status = document.getElementById("conciliacao-status");
+  if (status) status.textContent = "Processando " + file.name + "...";
+
+  try {
+    const text = await file.text();
+    let transacoes = [];
+
+    if (tipo === "ofx") {
+      // Parse OFX/QFX format
+      const stmtTrns = text.match(/<STMTTRN>([\s\S]*?)<\/STMTTRN>/gi) || [];
+      stmtTrns.forEach(block => {
+        const tag = (t) => (block.match(new RegExp("<" + t + ">([^<\\n]+)")) || [])[1] || "";
+        const dtRaw = tag("DTPOSTED").slice(0, 8);
+        const data = dtRaw ? dtRaw.slice(0, 4) + "-" + dtRaw.slice(4, 6) + "-" + dtRaw.slice(6, 8) : "";
+        transacoes.push({
+          data: data,
+          descricao: tag("MEMO") || tag("NAME") || "",
+          valor: parseFloat(tag("TRNAMT")) || 0,
+          tipo: tag("TRNTYPE") || "",
+          conciliado: false
+        });
+      });
+    } else if (tipo === "csv") {
+      // Simple CSV: data;descricao;valor
+      const lines = text.split("\n").filter(l => l.trim());
+      lines.slice(1).forEach(line => {
+        const cols = line.split(/[;,]/);
+        if (cols.length >= 3) {
+          transacoes.push({
+            data: (cols[0] || "").trim(),
+            descricao: (cols[1] || "").trim(),
+            valor: parseFloat((cols[2] || "0").replace(",", ".")) || 0,
+            conciliado: false
+          });
+        }
+      });
+    } else if (tipo === "pdf") {
+      // PDF text extraction — basic line parsing
+      // For proper PDF parsing we'd need a library; for now extract readable text
+      if (status) status.textContent = "PDF importado. Extraindo texto (suporte basico)...";
+      // Try to parse any readable text lines that look like transactions
+      const lines = text.split("\n").filter(l => /\d{2}[\/-]\d{2}/.test(l) && /\d+[,\.]\d{2}/.test(l));
+      lines.forEach(line => {
+        const dateMatch = line.match(/(\d{2}[\/-]\d{2}[\/-]\d{2,4})/);
+        const valMatch = line.match(/([-]?\d+[.,]\d{2})\s*$/);
+        if (dateMatch && valMatch) {
+          transacoes.push({
+            data: dateMatch[1],
+            descricao: line.replace(dateMatch[0], "").replace(valMatch[0], "").trim().slice(0, 80),
+            valor: parseFloat(valMatch[1].replace(".", "").replace(",", ".")) || 0,
+            conciliado: false
+          });
+        }
+      });
+    }
+
+    if (transacoes.length === 0) {
+      if (status) status.textContent = "Nenhuma transacao encontrada no arquivo.";
+      showToast("Nenhuma transacao encontrada.");
+      return;
+    }
+
+    // Merge with existing
+    const existing = loadConciliacao();
+    const merged = [...existing, ...transacoes];
+    saveConciliacao(merged);
+    renderConciliacao();
+    if (status) status.textContent = `${transacoes.length} transacao(es) importadas de ${file.name}.`;
+    showToast(`${transacoes.length} transacoes importadas!`);
+  } catch(err) {
+    if (status) status.textContent = "Erro: " + err.message;
+    showToast("Erro ao importar: " + err.message, 4000);
+  }
+};

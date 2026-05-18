@@ -2109,7 +2109,17 @@ function renderContratos() {
   }
   empty.classList.add("hidden");
 
-  grid.innerHTML = filtered.map(c => {
+  // Group by escola (pasta mãe)
+  const porEscola = {};
+  filtered.forEach(c => {
+    const key = c.escola || "Sem escola";
+    if (!porEscola[key]) porEscola[key] = [];
+    porEscola[key].push(c);
+  });
+
+  const escolaKeys = Object.keys(porEscola).sort();
+
+  function renderCard(c) {
     const itens = Array.isArray(c.itens) ? c.itens : [];
     const calcTotal = itens.reduce((s, i) => s + (parseFloat(i.precoUnitario) || 0) * (parseFloat(i.qtdContratada || i.quantidade) || 0), 0);
     const totalContratado = (parseFloat(c.valorTotal) || 0) > 0 ? parseFloat(c.valorTotal) : calcTotal;
@@ -2121,25 +2131,45 @@ function renderContratos() {
     return `<div class="contract-card" onclick="abrirContrato('${c.id}')">
       <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:.5rem">
         <span class="font-mono" style="font-size:.75rem;color:var(--dim)">${c.id}</span>
-        <span class="badge ${badgeClass}" onclick="toggleStatusContrato('${c.id}')" style="cursor:pointer" title="Clique para alternar status">${c.status}</span>
+        <span class="badge ${badgeClass}" onclick="event.stopPropagation();toggleStatusContrato('${c.id}')" style="cursor:pointer" title="Clique para alternar status">${c.status}</span>
       </div>
-      <h3>${esc(c.escola.length > 60 ? c.escola.slice(0, 58) + "..." : c.escola)}</h3>
-      <div class="meta">${c.processo ? 'Proc. ' + esc(c.processo) + ' | ' : ''}${c.edital ? 'Edital ' + esc(c.edital) + ' | ' : ''}${c.itens.length} itens | ${esc(c.fornecedor)}</div>
-      ${c.observacoes ? '<div style="font-size:.75rem;color:var(--cyan);margin-bottom:.5rem;max-height:2.4em;overflow:hidden;text-overflow:ellipsis" title="' + esc(c.observacoes) + '">📝 ' + esc(c.observacoes.length > 80 ? c.observacoes.slice(0,78)+'...' : c.observacoes) + '</div>' : ''}
+      <div class="meta">${c.processo ? 'Proc. ' + esc(c.processo) + ' | ' : ''}${c.edital ? 'Edital ' + esc(c.edital) + ' | ' : ''}${c.itens.length} itens</div>
+      ${c.observacoes ? '<div style="font-size:.75rem;color:var(--cyan);margin-bottom:.5rem;max-height:2em;overflow:hidden;text-overflow:ellipsis" title="' + esc(c.observacoes) + '">📝 ' + esc(c.observacoes.length > 60 ? c.observacoes.slice(0,58)+'...' : c.observacoes) + '</div>' : ''}
       <div style="display:flex;justify-content:space-between;font-size:.8rem;margin-bottom:.5rem">
         <span style="color:var(--green);font-weight:700">${brl.format(totalContratado)}</span>
-        <span style="color:var(--mut)">${itensPendentes} pendentes</span>
+        <span style="color:var(--mut)">${itensPendentes} pend.</span>
       </div>
       <div class="progress"><div class="progress-fill ${pctExec >= 80 ? 'green' : pctExec >= 40 ? 'yellow' : 'blue'}" style="width:${pctExec}%"></div></div>
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:.3rem">
-        <span style="font-size:.7rem;color:var(--dim)">${pctExec.toFixed(0)}% executado</span>
-        <div style="display:flex;gap:.4rem">
-          <button class="btn btn-sm btn-blue" onclick="vincularEscolaContrato('${c.id}')" style="font-size:.7rem;padding:.2rem .6rem" title="Vincular escola a este contrato"><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${temEscolaVinculada(c.id) ? 'var(--green)' : 'var(--red)'};margin-right:4px"></span>Vincular Escola</button>
-        </div>
-      </div>
-      ${getEscolasVinculadasBadges(c.id)}
+      <span style="font-size:.68rem;color:var(--dim)">${pctExec.toFixed(0)}% exec.</span>
     </div>`;
-  }).join("");
+  }
+
+  if (escolaKeys.length === 1 && filtered.length <= 3) {
+    // Few contracts — render flat (no grouping needed)
+    grid.innerHTML = filtered.map(renderCard).join("");
+  } else {
+    // Group by escola with collapsible folders
+    grid.innerHTML = escolaKeys.map(escola => {
+      const cList = porEscola[escola];
+      const totalValor = cList.reduce((s, c) => {
+        const itens = Array.isArray(c.itens) ? c.itens : [];
+        return s + ((parseFloat(c.valorTotal) || 0) > 0 ? parseFloat(c.valorTotal) : itens.reduce((t, i) => t + (parseFloat(i.precoUnitario) || 0) * (parseFloat(i.qtdContratada || i.quantidade) || 0), 0));
+      }, 0);
+      const ativos = cList.filter(c => c.status === 'ativo').length;
+      return `<div class="escola-folder" style="grid-column:1/-1;margin-bottom:.5rem">
+        <div onclick="this.nextElementSibling.classList.toggle('hidden');this.querySelector('.fold-icon').textContent=this.nextElementSibling.classList.contains('hidden')?'▶':'▼'" style="display:flex;align-items:center;gap:.6rem;padding:.6rem 1rem;background:var(--s1);border:1px solid var(--bdr);border-radius:8px;cursor:pointer;user-select:none">
+          <span class="fold-icon" style="font-size:.7rem;color:var(--dim)">▼</span>
+          <span style="font-weight:700;font-size:.9rem">${esc(escola)}</span>
+          <span style="font-size:.75rem;color:var(--dim)">${cList.length} contrato${cList.length > 1 ? 's' : ''}</span>
+          <span style="font-size:.75rem;color:var(--green);font-weight:600;margin-left:auto">${brl.format(totalValor)}</span>
+          <span class="badge ${ativos > 0 ? 'badge-green' : 'badge-red'}" style="font-size:.65rem">${ativos} ativo${ativos !== 1 ? 's' : ''}</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:.75rem;padding:.5rem 0 0 1.5rem">
+          ${cList.map(renderCard).join("")}
+        </div>
+      </div>`;
+    }).join("");
+  }
 }
 
 function getEscolasVinculadasBadges(contratoId) {

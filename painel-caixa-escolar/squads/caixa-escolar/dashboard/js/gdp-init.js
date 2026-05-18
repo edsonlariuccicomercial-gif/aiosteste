@@ -162,7 +162,7 @@ function switchTab(tab) {
 
 // Financeiro sub-tab switching
 function switchFinanceiroTab(subTab) {
-  ["caixa","contas-pagar","contas-receber"].forEach(t => {
+  ["caixa","contas-pagar","contas-receber","conciliacao"].forEach(t => {
     const el = document.getElementById(`fin-content-${t}`);
     if (el) el.classList.toggle("hidden", t !== subTab);
   });
@@ -176,6 +176,7 @@ function switchFinanceiroTab(subTab) {
     if (typeof atualizarResumosVencimento === "function") atualizarResumosVencimento();
     _showPageFooter("cr-page-footer"); _updateCrFooterTotals();
   }
+  if (subTab === "conciliacao") { if (typeof renderConciliacao === "function") renderConciliacao(); _hideAllPageFooters(); }
 }
 
 

@@ -639,12 +639,32 @@ function _promptCriarProdutoBatch(itemNome, unidade, categoria) {
 async function batchPreOrcar() {
   if (selectedOrcIds.size === 0) return;
   const ids = [...selectedOrcIds];
+
+  // If only 1 selected, use the association modal (same as individual Pré-Orçar button)
+  if (ids.length === 1) {
+    gerarPreOrcamento(ids[0]);
+    return;
+  }
+
+  // For multiple: check each for unmatched items and route to association modal
   let count = 0;
   let produtosCriados = 0;
 
   for (const orcId of ids) {
     const orc = orcamentos.find((o) => o.id === orcId);
     if (!orc || isGrupoExcluido(orc.grupo) || preOrcamentos[orcId]) continue;
+
+    // Check if any items have no match — if so, open association modal for this one
+    const hasUnmatched = (orc.itens || []).some(item => {
+      const nomeCompleto = [item.nome, item.descricao].filter(Boolean).join(" ").trim();
+      const bp = findBancoItem(nomeCompleto) || findBancoItem(item.nome);
+      return !bp;
+    });
+    if (hasUnmatched) {
+      gerarPreOrcamento(orcId);
+      showToast(`Orçamento ${orcId} tem itens sem associação. Associe os produtos primeiro.`);
+      return; // Stop batch — user needs to handle this one first
+    }
 
     const margemPadrao = perfil.config ? perfil.config.margemPadrao || 0.30 : 0.30;
     const frete = calcFreteEstimado(orc.municipio);
@@ -3055,16 +3075,11 @@ window.renderCentralPrecos = function () {
     const preco = parseFloat(p.preco_referencia || p.precoReferencia || 0);
     const numCustos = typeof getCustosForProduto === 'function' ? getCustosForProduto(p.id).length : 0;
     const custosBadge = numCustos > 0 ? '<button style="font-size:.6rem;color:#2563eb;margin-left:4px;background:none;border:none;cursor:pointer;text-decoration:underline;padding:0;" onclick="event.stopPropagation();abrirCustosFornecedor(\'' + (p.id || '').replace(/'/g, '') + '\')" title="Ver ' + numCustos + ' registro(s) de custo">(' + numCustos + ')</button>' : '';
-    // Story 13.5: Kraljic badge
-    const kraljicKey = p.classificacao_kraljic || 'alavancagem';
-    const kraljicInfo = KRALJIC_BADGES[kraljicKey] || KRALJIC_BADGES['alavancagem'];
-    const kraljicBadge = '<span style="background:' + kraljicInfo.color + ';color:#fff;font-size:.55rem;padding:1px 5px;border-radius:3px;font-weight:600;white-space:nowrap;">' + kraljicInfo.label + '</span>';
     return '<tr>' +
       '<td style="font-size:.78rem;color:var(--muted)">' + (idx + 1) + '</td>' +
       '<td><button style="background:none;border:none;padding:0;color:var(--text);font-weight:600;cursor:pointer;font-size:.85rem;text-align:left" onclick="editarProdutoCentralPrecos(\'' + (p.id || '').replace(/'/g, '') + '\')">' + escapeHtml(nome) + '</button></td>' +
       '<td>' + escapeHtml(unidade) + '</td>' +
       '<td>' + (categoria !== '-' ? '<span class="badge badge-muted" style="font-size:.65rem">' + escapeHtml(categoria) + '</span>' : '-') + '</td>' +
-      '<td>' + kraljicBadge + '</td>' +
       '<td style="font-size:.75rem">' + escapeHtml(origem) + '</td>' +
       '<td class="font-mono" style="font-size:.75rem">' + escapeHtml(sku) + '</td>' +
       '<td class="font-mono" style="font-size:.75rem">' + escapeHtml(ncm) + '</td>' +
@@ -3088,9 +3103,7 @@ window.abrirNovoProdutoCentralPrecos = function () {
   document.getElementById("mpc-venda").value = "0";
   const tipoComum = document.querySelector('input[name="mpc-tipo"][value="comum"]');
   if (tipoComum) tipoComum.checked = true;
-  // Story 13.5: Default Kraljic = alavancagem
-  const kraljicSel = document.getElementById("mpc-kraljic");
-  if (kraljicSel) kraljicSel.value = "alavancagem";
+  // Kraljic removed
   document.getElementById("modal-produto-central").style.display = "flex";
 };
 
@@ -3112,14 +3125,14 @@ window.editarProdutoCentralPrecos = function (id) {
   document.getElementById("mpc-sku").value = p.sku || "";
   document.getElementById("mpc-ncm").value = p.ncm || "";
   document.getElementById("mpc-origem").value = p.origem || "0";
+  const fornEl = document.getElementById("mpc-fornecedor");
+  if (fornEl) fornEl.value = p.fornecedor || "";
   document.getElementById("mpc-custo").value = p.preco_custo || 0;
   document.getElementById("mpc-venda").value = p.preco_referencia || p.precoReferencia || 0;
   const tipoVal = (p.produto_critico === true || p.produto_critico === "true") ? "critico" : "comum";
   const tipoRadio = document.querySelector('input[name="mpc-tipo"][value="' + tipoVal + '"]');
   if (tipoRadio) tipoRadio.checked = true;
-  // Story 13.5: Kraljic dropdown
-  const kraljicSel = document.getElementById("mpc-kraljic");
-  if (kraljicSel) kraljicSel.value = p.classificacao_kraljic || "alavancagem";
+  // Kraljic removed
   document.getElementById("modal-produto-central").style.display = "flex";
 };
 
@@ -3143,10 +3156,11 @@ window.salvarProdutoCentral = function () {
     sku: document.getElementById("mpc-sku").value || "",
     ncm: document.getElementById("mpc-ncm").value || "",
     origem: document.getElementById("mpc-origem").value || "0",
+    fornecedor: (document.getElementById("mpc-fornecedor") || {}).value || "",
     preco_custo: parseFloat(document.getElementById("mpc-custo").value) || 0,
     preco_referencia: parseFloat(document.getElementById("mpc-venda").value) || 0,
     produto_critico: (document.querySelector('input[name="mpc-tipo"]:checked') || {}).value === "critico",
-    classificacao_kraljic: (document.getElementById("mpc-kraljic") || {}).value || "alavancagem"
+    classificacao_kraljic: "alavancagem" // deprecated — kept for backward compat
   };
 
   if (id) {
