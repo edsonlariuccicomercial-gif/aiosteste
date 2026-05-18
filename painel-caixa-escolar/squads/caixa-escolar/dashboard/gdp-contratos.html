@@ -611,10 +611,21 @@
           <label class="btn btn-sm" style="cursor:pointer"><input type="file" accept=".csv,.CSV" style="display:none" onchange="importarExtratoBancario(this.files[0],'csv')"> Importar CSV</label>
         </div>
         <div id="conciliacao-status" style="font-size:.85rem;color:var(--mut);margin-bottom:1rem"></div>
-        <table style="width:100%">
-          <thead><tr><th>Data</th><th>Descricao</th><th class="text-right">Valor</th><th>Tipo</th><th>Conciliado</th></tr></thead>
+        <div id="conciliacao-resumo" style="display:flex;gap:1.5rem;margin-bottom:1rem;flex-wrap:wrap"></div>
+        <div style="overflow-x:auto">
+        <table style="width:100%;font-size:.85rem">
+          <thead><tr>
+            <th style="width:80px">Data</th>
+            <th>Descricao Original</th>
+            <th style="width:160px">Historico / Complemento</th>
+            <th style="width:150px">Categoria DRE</th>
+            <th class="text-right" style="width:100px">Valor</th>
+            <th style="width:60px">Tipo</th>
+            <th style="width:80px">Status</th>
+          </tr></thead>
           <tbody id="conciliacao-tbody"></tbody>
         </table>
+        </div>
         <div id="conciliacao-empty" style="text-align:center;padding:2rem;color:var(--mut)">Nenhum extrato importado. Importe um arquivo OFX, PDF ou CSV.</div>
       </div>
     </div>

@@ -1772,29 +1772,90 @@ function saveConciliacao(items) {
   localStorage.setItem(CONCILIACAO_KEY, JSON.stringify(items));
 }
 
+// Categorias DRE para classificação de lançamentos
+const CATEGORIAS_DRE = [
+  { grupo: "RECEITAS", items: ["Receita de Vendas", "Receita de Servicos", "Receita Financeira", "Outras Receitas"] },
+  { grupo: "CUSTOS", items: ["Custo Mercadoria Vendida", "Custo Materia-Prima", "Custo Frete/Logistica"] },
+  { grupo: "DESPESAS OPERACIONAIS", items: ["Aluguel", "Energia/Agua", "Telefone/Internet", "Salarios/Encargos", "Contabilidade", "Material Escritorio", "Material Limpeza", "Combustivel", "Manutencao", "Marketing/Publicidade", "Impostos/Taxas", "Seguros", "Software/Tecnologia"] },
+  { grupo: "DESPESAS FINANCEIRAS", items: ["Juros", "Tarifas Bancarias", "IOF", "Multas"] },
+  { grupo: "INVESTIMENTOS", items: ["Equipamentos", "Veiculos", "Imoveis", "Outros Investimentos"] },
+  { grupo: "OUTROS", items: ["Transferencia", "Saque", "Deposito", "Nao Classificado"] }
+];
+
+function _buildDreOptions(selected) {
+  let html = '<option value="">— Classificar —</option>';
+  CATEGORIAS_DRE.forEach(g => {
+    html += `<optgroup label="${g.grupo}">`;
+    g.items.forEach(item => { html += `<option value="${item}" ${selected === item ? 'selected' : ''}>${item}</option>`; });
+    html += '</optgroup>';
+  });
+  return html;
+}
+
 function renderConciliacao() {
   const items = loadConciliacao();
   const tbody = document.getElementById("conciliacao-tbody");
   const empty = document.getElementById("conciliacao-empty");
+  const resumo = document.getElementById("conciliacao-resumo");
   if (!tbody) return;
-  if (items.length === 0) { tbody.innerHTML = ""; if (empty) empty.style.display = ""; return; }
+  if (items.length === 0) { tbody.innerHTML = ""; if (empty) empty.style.display = ""; if (resumo) resumo.innerHTML = ""; return; }
   if (empty) empty.style.display = "none";
+
+  // Resumo KPIs
+  const totalCredito = items.filter(t => (parseFloat(t.valor) || 0) >= 0).reduce((s, t) => s + (parseFloat(t.valor) || 0), 0);
+  const totalDebito = items.filter(t => (parseFloat(t.valor) || 0) < 0).reduce((s, t) => s + Math.abs(parseFloat(t.valor) || 0), 0);
+  const conciliados = items.filter(t => t.conciliado).length;
+  const pendentes = items.length - conciliados;
+  if (resumo) {
+    resumo.innerHTML = `
+      <div style="text-align:center"><div style="font-size:.7rem;color:var(--mut)">ENTRADAS</div><div style="font-weight:700;color:var(--green,#22c55e)">${brl.format(totalCredito)}</div></div>
+      <div style="text-align:center"><div style="font-size:.7rem;color:var(--mut)">SAIDAS</div><div style="font-weight:700;color:var(--red,#ef4444)">${brl.format(totalDebito)}</div></div>
+      <div style="text-align:center"><div style="font-size:.7rem;color:var(--mut)">SALDO</div><div style="font-weight:700">${brl.format(totalCredito - totalDebito)}</div></div>
+      <div style="text-align:center"><div style="font-size:.7rem;color:var(--mut)">CONCILIADOS</div><div style="font-weight:700;color:var(--blue,#3b82f6)">${conciliados}/${items.length}</div></div>
+      <div style="text-align:center"><div style="font-size:.7rem;color:var(--mut)">PENDENTES</div><div style="font-weight:700;color:${pendentes > 0 ? 'var(--yellow,#f59e0b)' : 'var(--green,#22c55e)'}">${pendentes}</div></div>
+    `;
+  }
+
   tbody.innerHTML = items.map((t, i) => {
     const val = parseFloat(t.valor) || 0;
     const cor = val >= 0 ? "var(--green,#22c55e)" : "var(--red,#ef4444)";
-    return `<tr>
-      <td style="font-size:.85rem">${t.data || "-"}</td>
-      <td style="font-size:.85rem">${esc(t.descricao || "")}</td>
-      <td class="text-right font-mono" style="color:${cor};font-weight:600">${brl.format(val)}</td>
-      <td style="font-size:.8rem">${val >= 0 ? "Crédito" : "Débito"}</td>
-      <td><input type="checkbox" ${t.conciliado ? "checked" : ""} onchange="toggleConciliado(${i})"></td>
+    const statusLabel = t.conciliado ? '<span style="color:var(--green,#22c55e);font-weight:700;font-size:.75rem">Conciliado</span>' : '<button class="btn btn-sm btn-blue" style="font-size:.7rem;padding:.15rem .5rem" onclick="conciliarLancamento(' + i + ')">Conciliar</button>';
+    return `<tr style="${t.conciliado ? 'opacity:.6' : ''}">
+      <td>${t.data || "-"}</td>
+      <td style="font-size:.8rem;max-width:200px;overflow:hidden;text-overflow:ellipsis" title="${esc(t.descricao || '')}">${esc(t.descricao || "")}</td>
+      <td><input type="text" value="${esc(t.historico || '')}" placeholder="Complemento..." style="width:100%;padding:.25rem .4rem;font-size:.8rem;background:var(--bg,#0f172a);border:1px solid var(--bdr,#334155);border-radius:4px;color:var(--txt,#f1f5f9)" onchange="atualizarHistorico(${i},this.value)"></td>
+      <td><select style="width:100%;padding:.25rem;font-size:.75rem;background:var(--bg,#0f172a);border:1px solid var(--bdr,#334155);border-radius:4px;color:var(--txt,#f1f5f9)" onchange="atualizarCategoriaDre(${i},this.value)">${_buildDreOptions(t.categoriaDre || '')}</select></td>
+      <td class="text-right font-mono" style="color:${cor};font-weight:600;white-space:nowrap">${brl.format(val)}</td>
+      <td style="font-size:.75rem">${val >= 0 ? "Crédito" : "Débito"}</td>
+      <td>${statusLabel}</td>
     </tr>`;
   }).join("");
 }
 
+window.conciliarLancamento = function(idx) {
+  const items = loadConciliacao();
+  if (items[idx]) {
+    items[idx].conciliado = true;
+    items[idx].conciliadoEm = new Date().toISOString().slice(0, 10);
+    saveConciliacao(items);
+    renderConciliacao();
+    showToast("Lançamento conciliado.");
+  }
+};
+
 window.toggleConciliado = function(idx) {
   const items = loadConciliacao();
-  if (items[idx]) { items[idx].conciliado = !items[idx].conciliado; saveConciliacao(items); }
+  if (items[idx]) { items[idx].conciliado = !items[idx].conciliado; saveConciliacao(items); renderConciliacao(); }
+};
+
+window.atualizarHistorico = function(idx, valor) {
+  const items = loadConciliacao();
+  if (items[idx]) { items[idx].historico = valor; saveConciliacao(items); }
+};
+
+window.atualizarCategoriaDre = function(idx, valor) {
+  const items = loadConciliacao();
+  if (items[idx]) { items[idx].categoriaDre = valor; saveConciliacao(items); }
 };
 
 window.importarExtratoBancario = async function(file, tipo) {
