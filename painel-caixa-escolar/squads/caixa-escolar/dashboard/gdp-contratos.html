@@ -807,28 +807,19 @@
       <div class="kpi"><div class="kpi-label">Saidas</div><div class="kpi-value red" id="caixa-kpi-saidas">R$&nbsp;0,00</div><div class="kpi-sub">Debitos no extrato</div></div>
       <div class="kpi"><div class="kpi-label">Divergencias</div><div class="kpi-value yellow" id="caixa-kpi-divergencias">0</div><div class="kpi-sub">Lancamentos sem match</div></div>
     </div>
-    <div class="card" style="padding:1rem">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap">
-        <div>
-          <h2 style="margin-bottom:.35rem">Conciliacao Bancaria — API Inter</h2>
-          <div style="font-size:.82rem;color:var(--mut)">Concilia automaticamente o extrato do Banco Inter com os titulos do sistema. Configure <code>INTER_CLIENT_ID</code> e <code>INTER_CLIENT_SECRET</code> nas variaveis de ambiente do Vercel.</div>
-        </div>
-        <div style="display:flex;gap:.5rem;flex-wrap:wrap">
-          <button class="btn btn-outline" onclick="sincronizarExtratoCaixaViaApi()">Sincronizar Extrato via API</button>
-          <button class="btn btn-blue" onclick="conciliarCaixaViaApi()">Conciliar Extrato Completo</button>
-        </div>
-      </div>
-    </div>
     <div style="display:grid;grid-template-columns:1.15fr .85fr;gap:1rem;align-items:start">
       <div class="card">
-        <h3 style="margin-bottom:.75rem">Extrato Bancario Completo</h3>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem">
+          <h3>Extrato Conciliado</h3>
+          <button class="btn btn-sm btn-blue" onclick="switchFinanceiroTab('conciliacao')" style="font-size:.75rem">Ir para Conciliacao Bancaria →</button>
+        </div>
         <div class="table-wrap" style="max-height:460px;overflow-y:auto">
           <table>
-            <thead><tr><th>Data</th><th>Descricao</th><th>Origem</th><th>Status</th><th class="text-right">Valor</th></tr></thead>
+            <thead><tr><th>Data</th><th>Descricao</th><th>Categoria</th><th>Status</th><th class="text-right">Valor</th></tr></thead>
             <tbody id="caixa-extrato-tbody"></tbody>
           </table>
         </div>
-        <div class="empty hidden" id="caixa-extrato-empty"><h3>Sem movimentos no extrato</h3><p>Sincronize o extrato bancario pela API para iniciar a conciliacao.</p></div>
+        <div class="empty hidden" id="caixa-extrato-empty"><h3>Sem movimentos</h3><p>Importe extratos na aba <strong>Conciliacao Bancaria</strong> para visualizar o caixa.</p></div>
       </div>
       <div style="display:flex;flex-direction:column;gap:1rem">
         <div class="card">

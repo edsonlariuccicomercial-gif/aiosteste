@@ -1677,22 +1677,17 @@ function setContaReceberStatusTab(status) {
 }
 
 function getCaixaResumo() {
-  const entradas = caixaExtratoMovimentos.filter((item) => Number(item.valor || 0) > 0).reduce((sum, item) => sum + Number(item.valor || 0), 0);
-  const saidas = caixaExtratoMovimentos.filter((item) => Number(item.valor || 0) < 0).reduce((sum, item) => sum + Math.abs(Number(item.valor || 0)), 0);
-  const divergencias = caixaExtratoMovimentos.filter((item) => !item.conciliacao?.matched).length;
-  const conciliados = caixaExtratoMovimentos.filter((item) => item.conciliacao?.matched).length;
-  return {
-    entradas,
-    saidas,
-    saldo: entradas - saidas,
-    divergencias,
-    conciliados
-  };
+  // Sync from conciliacao bancaria (single source of truth)
+  const concItems = typeof loadConciliacao === 'function' ? loadConciliacao() : [];
+  const items = concItems.length > 0 ? concItems : caixaExtratoMovimentos;
+  const entradas = items.filter((item) => Number(item.valor || 0) > 0).reduce((sum, item) => sum + Number(item.valor || 0), 0);
+  const saidas = items.filter((item) => Number(item.valor || 0) < 0).reduce((sum, item) => sum + Math.abs(Number(item.valor || 0)), 0);
+  const conciliados = items.filter((item) => item.conciliado || item.conciliacao?.matched).length;
+  const pendentes = items.length - conciliados;
+  return { entradas, saidas, saldo: entradas - saidas, divergencias: pendentes, conciliados, total: items.length, items };
 }
 
 function renderCaixa() {
-  const tbody = document.getElementById("caixa-extrato-tbody");
-  const empty = document.getElementById("caixa-extrato-empty");
   const resumo = getCaixaResumo();
   const saldoEl = document.getElementById("caixa-kpi-saldo");
   const entradasEl = document.getElementById("caixa-kpi-entradas");
@@ -1702,45 +1697,48 @@ function renderCaixa() {
   if (entradasEl) entradasEl.textContent = brl.format(resumo.entradas);
   if (saidasEl) saidasEl.textContent = brl.format(resumo.saidas);
   if (divergenciasEl) divergenciasEl.textContent = resumo.divergencias;
+
+  const tbody = document.getElementById("caixa-extrato-tbody");
+  const empty = document.getElementById("caixa-extrato-empty");
   if (!tbody) return;
-  if (!caixaExtratoMovimentos.length) {
+
+  if (resumo.items.length === 0) {
     tbody.innerHTML = "";
     if (empty) empty.classList.remove("hidden");
   } else {
     if (empty) empty.classList.add("hidden");
-    tbody.innerHTML = caixaExtratoMovimentos
+    tbody.innerHTML = resumo.items
       .slice()
       .sort((a, b) => String(b.data || "").localeCompare(String(a.data || "")))
       .map((item) => {
-        const matched = !!item.conciliacao?.matched;
-        return `<tr>
+        const conciliado = item.conciliado || item.conciliacao?.matched;
+        const cat = item.categoriaDre || "";
+        return `<tr style="${conciliado ? '' : 'opacity:.7'}">
           <td class="nowrap">${esc(item.data || "")}</td>
-          <td>${esc(item.descricao || item.historico || "-")}</td>
-          <td>${esc(item.origem || item.provider || "api_bancaria")}</td>
-          <td><span class="badge ${matched ? "badge-green" : "badge-yellow"}">${matched ? "Conciliado" : "Pendente"}</span><div style="font-size:.72rem;color:var(--mut);margin-top:.2rem">${esc(item.conciliacao?.referencia || item.id || "")}</div></td>
+          <td>${esc(item.historico || item.descricao || "-")}</td>
+          <td style="font-size:.75rem">${cat ? '<span class="badge badge-muted" style="font-size:.6rem">' + esc(cat) + '</span>' : '<span style="color:var(--mut);font-size:.7rem">Sem categoria</span>'}</td>
+          <td><span class="badge ${conciliado ? "badge-green" : "badge-yellow"}">${conciliado ? "Conciliado" : "Pendente"}</span></td>
           <td class="text-right font-mono" style="color:${Number(item.valor || 0) >= 0 ? "var(--green)" : "var(--red)"}">${brl.format(Number(item.valor || 0))}</td>
         </tr>`;
       }).join("");
   }
+
   const resumoEl = document.getElementById("caixa-resumo-conciliacao");
   if (resumoEl) {
     resumoEl.innerHTML = [
       `<div style="display:flex;justify-content:space-between;gap:1rem"><span>Lancamentos conciliados</span><strong>${resumo.conciliados}</strong></div>`,
-      `<div style="display:flex;justify-content:space-between;gap:1rem"><span>Lancamentos divergentes</span><strong>${resumo.divergencias}</strong></div>`,
+      `<div style="display:flex;justify-content:space-between;gap:1rem"><span>Lancamentos pendentes</span><strong>${resumo.divergencias}</strong></div>`,
       `<div style="display:flex;justify-content:space-between;gap:1rem"><span>Contas a receber em aberto</span><strong>${contasReceber.filter((item) => item.status !== "recebida").length}</strong></div>`,
       `<div style="display:flex;justify-content:space-between;gap:1rem"><span>Contas a pagar em aberto</span><strong>${contasPagar.filter((item) => item.status !== "paga").length}</strong></div>`
     ].join("");
   }
+
   const pendenciasEl = document.getElementById("caixa-pendencias-lista");
   if (pendenciasEl) {
-    const pendencias = [];
-    contasReceber.filter((item) => item.status !== "recebida" && item.conciliacao?.status === "divergencia_api_bancaria").slice(0, 4).forEach((item) => {
-      pendencias.push(`<div style="padding:.75rem;border:1px solid var(--bdr);border-radius:4px;background:var(--s1)"><strong>${esc(item.descricao)}</strong><div style="font-size:.75rem;color:var(--mut);margin-top:.2rem">Receber | ${esc(item.cliente || "-")} | ${brl.format(item.valor || 0)}</div></div>`);
-    });
-    caixaExtratoMovimentos.filter((item) => !item.conciliacao?.matched).slice(0, 4).forEach((item) => {
-      pendencias.push(`<div style="padding:.75rem;border:1px solid var(--bdr);border-radius:4px;background:var(--s1)"><strong>${esc(item.descricao || item.historico || "Lancamento bancario")}</strong><div style="font-size:.75rem;color:var(--mut);margin-top:.2rem">Extrato | ${esc(item.data || "")} | ${brl.format(Number(item.valor || 0))}</div></div>`);
-    });
-    pendenciasEl.innerHTML = pendencias.length ? pendencias.join("") : `<div style="padding:.9rem;border:1px dashed var(--bdr);border-radius:4px;color:var(--mut)">Sem pendencias relevantes de conciliacao.</div>`;
+    const pendencias = resumo.items.filter(item => !item.conciliado && !item.conciliacao?.matched).slice(0, 6).map(item =>
+      `<div style="padding:.75rem;border:1px solid var(--bdr);border-radius:4px;background:var(--s1)"><strong>${esc(item.historico || item.descricao || "Lancamento")}</strong><div style="font-size:.75rem;color:var(--mut);margin-top:.2rem">${esc(item.data || "")} | ${brl.format(Number(item.valor || 0))}${item.categoriaDre ? ' | ' + esc(item.categoriaDre) : ''}</div></div>`
+    );
+    pendenciasEl.innerHTML = pendencias.length ? pendencias.join("") : `<div style="padding:.9rem;border:1px dashed var(--bdr);border-radius:4px;color:var(--mut)">Sem pendencias. Importe extratos na aba Conciliacao Bancaria.</div>`;
   }
 }
 
