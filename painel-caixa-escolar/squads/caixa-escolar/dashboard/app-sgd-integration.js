@@ -501,6 +501,43 @@ window.gerarPdfProposta = async function (orcId) {
   doc.save("proposta-" + (pre.orcamentoId || orcId) + ".pdf");
 };
 
+// ===== PDF HELPERS (sem dependência de autoTable) =====
+function _pdfTable(doc, x, y, headers, rows, opts) {
+  const o = opts || {};
+  const colW = o.colWidths || headers.map(() => (o.tableWidth || 180) / headers.length);
+  const rowH = o.rowHeight || 5;
+  const fs = o.fontSize || 7.5;
+  const pageH = doc.internal.pageSize.getHeight();
+
+  function drawRow(cells, startY, isBold, bgColor, textColors) {
+    if (startY > pageH - 20) { doc.addPage(); startY = 20; }
+    let cx = x;
+    if (bgColor) { doc.setFillColor(...bgColor); doc.rect(cx, startY - rowH + 1.5, colW.reduce((a, b) => a + b, 0), rowH, "F"); }
+    doc.setFontSize(fs);
+    cells.forEach((cell, i) => {
+      const align = o.aligns && o.aligns[i] ? o.aligns[i] : "left";
+      doc.setFont(undefined, isBold ? "bold" : "normal");
+      if (textColors && textColors[i]) doc.setTextColor(...textColors[i]);
+      else doc.setTextColor(isBold && bgColor ? 255 : 50, isBold && bgColor ? 255 : 50, isBold && bgColor ? 255 : 50);
+      const tx = align === "right" ? cx + colW[i] - 1 : align === "center" ? cx + colW[i] / 2 : cx + 1;
+      doc.text(String(cell || "").substring(0, 35), tx, startY, { align: align === "right" ? "right" : align === "center" ? "center" : "left" });
+      cx += colW[i];
+    });
+    return startY + rowH;
+  }
+
+  // Header
+  y = drawRow(headers, y, true, o.headerColor || [41, 98, 255]);
+  // Body
+  rows.forEach((row, ri) => {
+    const tc = o.rowTextColors ? o.rowTextColors[ri] : null;
+    y = drawRow(row, y, false, ri % 2 === 0 ? null : [245, 245, 250], tc);
+  });
+  // Footer
+  if (o.footer) y = drawRow(o.footer, y, true, [235, 235, 245]);
+  return y;
+}
+
 // ===== IMPRIMIR PRÉVIA DA PROPOSTA =====
 window.imprimirPreviaProposta = async function() {
   if (!activePreOrcamentoId) return showToast("Nenhum pré-orçamento aberto.");
@@ -512,13 +549,74 @@ window.imprimirPreviaProposta = async function() {
 
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-  renderPdfProposta(doc, pre, activePreOrcamentoId);
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const margin = 15;
+  const contentW = pageW - margin * 2;
 
-  // Open in new tab for print preview instead of download
+  const empresa = JSON.parse(localStorage.getItem("nexedu.empresa") || "{}");
+  const razao = empresa.razaoSocial || empresa.nome || "Fornecedor";
+  const cnpj = empresa.cnpj || "";
+  const orc = orcamentos.find(o => o.id === pre.orcamentoId);
+  const itens = pre.itens || [];
+
+  // Header
+  doc.setFontSize(10); doc.setTextColor(100);
+  doc.text(razao, margin, 15);
+  if (cnpj) doc.text("CNPJ: " + cnpj, margin, 20);
+  doc.text(new Date().toLocaleDateString("pt-BR"), pageW - margin, 15, { align: "right" });
+  doc.setDrawColor(200); doc.line(margin, 24, pageW - margin, 24);
+
+  doc.setFontSize(16); doc.setTextColor(30);
+  doc.text("Proposta Comercial", pageW / 2, 33, { align: "center" });
+  doc.setFontSize(9); doc.setTextColor(100);
+  doc.text("Orcamento #" + (pre.orcamentoId || activePreOrcamentoId), pageW / 2, 39, { align: "center" });
+
+  // School info
+  let y = 47;
+  doc.setFontSize(10); doc.setFont(undefined, "bold"); doc.setTextColor(30);
+  doc.text("Dados da Escola", margin, y); y += 6;
+  doc.setFont(undefined, "normal"); doc.setFontSize(9); doc.setTextColor(60);
+  if (pre.escola) { doc.text("Escola: " + pre.escola, margin, y); y += 4.5; }
+  if (pre.municipio) { doc.text("Municipio: " + pre.municipio, margin, y); y += 4.5; }
+  if (orc && orc.sre) { doc.text("SRE: " + orc.sre, margin, y); y += 4.5; }
+  if (orc && orc.objeto) {
+    const objLines = doc.splitTextToSize("Objeto: " + orc.objeto, contentW);
+    doc.text(objLines, margin, y); y += objLines.length * 4.5;
+  }
+  y += 4;
+
+  // Items table
+  doc.setFontSize(10); doc.setFont(undefined, "bold"); doc.setTextColor(30);
+  doc.text("Itens da Proposta (" + itens.length + ")", margin, y); y += 6;
+
+  const colWidths = [8, 55, 18, 14, 14, 25, 25, 21];
+  y = _pdfTable(doc, margin, y,
+    ["#", "Item", "Unidade", "Qtd", "Marca", "Preco Unit.", "Preco Total", "Garantia"],
+    itens.map((it, i) => [
+      i + 1, (it.nome || "").substring(0, 35), it.unidade || "UN", it.quantidade || 0,
+      (it.marca || "-").substring(0, 10), brl.format(it.precoUnitario || 0),
+      brl.format(it.precoTotal || 0), (it.garantia || "-").substring(0, 15)
+    ]),
+    { colWidths, aligns: ["center", "left", "center", "center", "left", "right", "right", "left"], tableWidth: contentW,
+      footer: ["", "TOTAL", "", "", "", "", brl.format(pre.totalGeral || 0), ""] }
+  );
+
+  // Prazos
+  y += 6;
+  doc.setFontSize(9); doc.setFont(undefined, "normal"); doc.setTextColor(80);
+  if (orc && orc.prazo) { doc.text("Prazo envio proposta: " + orc.prazo.split("-").reverse().join("/"), margin, y); y += 4.5; }
+  if (orc && orc.prazoEntrega) { doc.text("Prazo entrega: " + orc.prazoEntrega.split("-").reverse().join("/"), margin, y); y += 4.5; }
+
+  // Footer
+  doc.setDrawColor(200); doc.line(margin, pageH - 20, pageW - margin, pageH - 20);
+  doc.setFontSize(8); doc.setTextColor(130);
+  doc.text("Documento gerado pelo Licit-AIX em " + new Date().toLocaleDateString("pt-BR"), margin, pageH - 15);
+  if (razao) doc.text(razao + (cnpj ? " | CNPJ: " + cnpj : ""), margin, pageH - 11);
+
   const pdfBlob = doc.output("blob");
-  const url = URL.createObjectURL(pdfBlob);
-  window.open(url, "_blank");
-  showToast("Prévia da proposta aberta para impressão.");
+  window.open(URL.createObjectURL(pdfBlob), "_blank");
+  showToast("Prévia da proposta aberta.");
 };
 
 // ===== RELATÓRIO DETALHADO COM ANÁLISE DE LUCRO =====
@@ -543,9 +641,9 @@ window.gerarRelatorioDetalhado = async function() {
   const orc = orcamentos.find(o => o.id === pre.orcamentoId);
   const itens = pre.itens || [];
 
-  // === Cálculos financeiros ===
+  // Financial calculations
   let custoTotal = 0, receitaTotal = 0, lucroTotal = 0;
-  const itensFin = itens.map((item, idx) => {
+  const itensFin = itens.map((item) => {
     const qty = item.quantidade || 0;
     const custoUnit = item.custoUnitario || 0;
     const precoUnit = item.precoUnitario || 0;
@@ -553,147 +651,112 @@ window.gerarRelatorioDetalhado = async function() {
     const receitaItem = precoUnit * qty;
     const lucroItem = receitaItem - custoItem;
     const margemPct = custoItem > 0 ? ((lucroItem / custoItem) * 100) : 0;
-    custoTotal += custoItem;
-    receitaTotal += receitaItem;
-    lucroTotal += lucroItem;
-    return { ...item, idx, qty, custoUnit, precoUnit, custoItem, receitaItem, lucroItem, margemPct };
+    custoTotal += custoItem; receitaTotal += receitaItem; lucroTotal += lucroItem;
+    return { ...item, qty, custoUnit, precoUnit, custoItem, receitaItem, lucroItem, margemPct };
   });
   const frete = pre.freteEstimado || 0;
-  const lucroPosFreteTotal = lucroTotal - frete;
-  const margemLiquida = receitaTotal > 0 ? (lucroPosFreteTotal / receitaTotal) * 100 : 0;
+  const lucroLiquido = lucroTotal - frete;
+  const margemLiquida = receitaTotal > 0 ? (lucroLiquido / receitaTotal) * 100 : 0;
   const markupMedio = custoTotal > 0 ? ((receitaTotal - custoTotal) / custoTotal) * 100 : 0;
 
-  // === CABEÇALHO ===
-  doc.setFontSize(10);
-  doc.setTextColor(100);
+  // Header
+  doc.setFontSize(10); doc.setTextColor(100);
   doc.text(razao, margin, 15);
   if (cnpj) doc.text("CNPJ: " + cnpj, margin, 20);
   doc.text(new Date().toLocaleDateString("pt-BR"), pageW - margin, 15, { align: "right" });
-  doc.setDrawColor(130, 80, 255);
-  doc.setLineWidth(0.5);
+  doc.setDrawColor(130, 80, 255); doc.setLineWidth(0.5);
   doc.line(margin, 24, pageW - margin, 24);
 
-  // === TÍTULO ===
-  doc.setFontSize(16);
-  doc.setTextColor(100, 50, 200);
+  doc.setFontSize(15); doc.setTextColor(100, 50, 200);
   doc.text("Relatorio de Proposta — Analise de Lucro", pageW / 2, 33, { align: "center" });
-  doc.setFontSize(9);
-  doc.setTextColor(100);
+  doc.setFontSize(9); doc.setTextColor(100);
   doc.text("Orcamento #" + (pre.orcamentoId || activePreOrcamentoId), pageW / 2, 39, { align: "center" });
 
-  // === DADOS DA ESCOLA ===
+  // Process info
   let y = 47;
-  doc.setFontSize(11); doc.setTextColor(30); doc.setFont(undefined, "bold");
-  doc.text("Dados do Processo", margin, y); y += 6;
+  doc.setFontSize(10); doc.setFont(undefined, "bold"); doc.setTextColor(30);
+  doc.text("Dados do Processo", margin, y); y += 5;
   doc.setFont(undefined, "normal"); doc.setFontSize(9); doc.setTextColor(60);
   if (pre.escola) { doc.text("Escola: " + pre.escola, margin, y); y += 4.5; }
   if (pre.municipio) { doc.text("Municipio: " + pre.municipio, margin, y); y += 4.5; }
   if (orc && orc.sre) { doc.text("SRE: " + orc.sre, margin, y); y += 4.5; }
   if (orc && orc.grupo) { doc.text("Grupo: " + orc.grupo, margin, y); y += 4.5; }
-  if (orc && orc.prazo) { doc.text("Prazo proposta: " + orc.prazo.split("-").reverse().join("/"), margin, y); y += 4.5; }
-  if (pre.criadoEm) { doc.text("Criado em: " + pre.criadoEm.split("-").reverse().join("/"), margin, y); y += 4.5; }
   doc.text("Status: " + (pre.status || "pendente").toUpperCase(), margin, y); y += 6;
 
-  // === RESUMO FINANCEIRO (destaque) ===
+  // Financial summary box
   doc.setFillColor(245, 245, 255);
-  doc.roundedRect(margin, y, contentW, 32, 3, 3, "F");
+  doc.roundedRect(margin, y, contentW, 30, 3, 3, "F");
   doc.setFontSize(11); doc.setFont(undefined, "bold"); doc.setTextColor(80, 40, 180);
   doc.text("Resumo Financeiro", margin + 4, y + 7);
-  doc.setFontSize(9); doc.setFont(undefined, "normal"); doc.setTextColor(50);
-  const col1 = margin + 4, col2 = margin + contentW / 3, col3 = margin + (contentW / 3) * 2;
-  doc.text("Custo Total:", col1, y + 14); doc.setFont(undefined, "bold"); doc.text(brl.format(custoTotal), col1, y + 19); doc.setFont(undefined, "normal");
-  doc.text("Receita Total:", col2, y + 14); doc.setFont(undefined, "bold"); doc.setTextColor(30, 120, 50); doc.text(brl.format(receitaTotal), col2, y + 19); doc.setFont(undefined, "normal"); doc.setTextColor(50);
-  doc.text("Lucro Bruto:", col3, y + 14); doc.setFont(undefined, "bold"); doc.setTextColor(lucroPosFreteTotal >= 0 ? [20, 140, 60] : [200, 30, 30]); doc.text(brl.format(lucroTotal), col3, y + 19);
-  doc.setFont(undefined, "normal"); doc.setTextColor(50);
-  doc.text("Frete estimado: " + brl.format(frete), col1, y + 26);
-  doc.setFont(undefined, "bold"); doc.setTextColor(lucroPosFreteTotal >= 0 ? [20, 140, 60] : [200, 30, 30]);
-  doc.text("Lucro Liquido: " + brl.format(lucroPosFreteTotal), col2, y + 26);
+
+  const c1 = margin + 4, c2 = margin + contentW / 3, c3 = margin + (contentW * 2 / 3);
+  doc.setFontSize(8); doc.setFont(undefined, "normal"); doc.setTextColor(80);
+  doc.text("Custo Total", c1, y + 13); doc.text("Receita Total", c2, y + 13); doc.text("Lucro Bruto", c3, y + 13);
+  doc.setFontSize(10); doc.setFont(undefined, "bold");
+  doc.setTextColor(60); doc.text(brl.format(custoTotal), c1, y + 18);
+  doc.setTextColor(20, 120, 50); doc.text(brl.format(receitaTotal), c2, y + 18);
+  doc.setTextColor(lucroTotal >= 0 ? 0x14 : 0xc8, lucroTotal >= 0 ? 0xb8 : 0x1e, lucroTotal >= 0 ? 0x3c : 0x1e);
+  doc.text(brl.format(lucroTotal), c3, y + 18);
+
+  doc.setFontSize(8); doc.setFont(undefined, "normal"); doc.setTextColor(80);
+  doc.text("Frete: " + brl.format(frete), c1, y + 24);
+  doc.setFont(undefined, "bold");
+  doc.setTextColor(lucroLiquido >= 0 ? 0x14 : 0xc8, lucroLiquido >= 0 ? 0xb8 : 0x1e, lucroLiquido >= 0 ? 0x3c : 0x1e);
+  doc.text("Liq.: " + brl.format(lucroLiquido), c2, y + 24);
   doc.setTextColor(80, 40, 180);
-  doc.text("Margem Liquida: " + margemLiquida.toFixed(1) + "% | Markup: " + markupMedio.toFixed(1) + "%", col3, y + 26);
-  y += 38;
+  doc.text("Margem: " + margemLiquida.toFixed(1) + "%  |  Markup: " + markupMedio.toFixed(1) + "%", c3, y + 24);
+  y += 36;
 
-  // === TABELA DE ITENS COM ANÁLISE ===
-  doc.setFont(undefined, "bold"); doc.setFontSize(11); doc.setTextColor(30);
-  doc.text("Analise por Item (" + itens.length + " itens)", margin, y); y += 5;
+  // Items analysis table
+  doc.setFont(undefined, "bold"); doc.setFontSize(10); doc.setTextColor(30);
+  doc.text("Analise por Item (" + itens.length + ")", margin, y); y += 5;
 
-  doc.autoTable({
-    startY: y,
-    head: [["#", "Item", "Qtd", "Custo Unit.", "Preco Unit.", "Custo Total", "Receita", "Lucro", "Margem"]],
-    body: itensFin.map((it, i) => [
-      i + 1,
-      (it.nome || "").substring(0, 30),
-      it.qty,
-      brl.format(it.custoUnit),
-      brl.format(it.precoUnit),
-      brl.format(it.custoItem),
-      brl.format(it.receitaItem),
-      brl.format(it.lucroItem),
-      it.margemPct.toFixed(1) + "%"
+  const colW = [8, 40, 10, 20, 20, 22, 22, 20, 18];
+  const rowColors = itensFin.map(it => {
+    const mc = it.margemPct < 0 ? [200, 30, 30] : it.margemPct < 15 ? [200, 150, 30] : [20, 140, 60];
+    const lc = it.lucroItem < 0 ? [200, 30, 30] : null;
+    const colors = [null, null, null, null, null, null, null, lc, mc];
+    return colors;
+  });
+
+  y = _pdfTable(doc, margin, y,
+    ["#", "Item", "Qtd", "Custo U.", "Preco U.", "Custo Tot.", "Receita", "Lucro", "Margem"],
+    itensFin.map((it, i) => [
+      i + 1, (it.nome || "").substring(0, 28), it.qty,
+      brl.format(it.custoUnit), brl.format(it.precoUnit),
+      brl.format(it.custoItem), brl.format(it.receitaItem),
+      brl.format(it.lucroItem), it.margemPct.toFixed(1) + "%"
     ]),
-    foot: [["", "TOTAL", "", "", "", brl.format(custoTotal), brl.format(receitaTotal), brl.format(lucroTotal), markupMedio.toFixed(1) + "%"]],
-    margin: { left: margin, right: margin },
-    styles: { fontSize: 7, cellPadding: 1.5 },
-    headStyles: { fillColor: [100, 50, 200], textColor: 255, fontStyle: "bold", fontSize: 7 },
-    footStyles: { fillColor: [240, 240, 250], textColor: [50, 50, 50], fontStyle: "bold", fontSize: 7.5 },
-    columnStyles: {
-      0: { cellWidth: 8, halign: "center" },
-      1: { cellWidth: "auto" },
-      2: { cellWidth: 12, halign: "center" },
-      3: { cellWidth: 20, halign: "right" },
-      4: { cellWidth: 20, halign: "right" },
-      5: { cellWidth: 22, halign: "right" },
-      6: { cellWidth: 22, halign: "right" },
-      7: { cellWidth: 20, halign: "right" },
-      8: { cellWidth: 16, halign: "right" },
-    },
-    tableWidth: contentW,
-    didParseCell: function(data) {
-      // Highlight negative margin in red
-      if (data.section === 'body' && data.column.index === 8) {
-        const val = parseFloat(data.cell.raw);
-        if (val < 0) data.cell.styles.textColor = [200, 30, 30];
-        else if (val < 15) data.cell.styles.textColor = [200, 150, 30];
-        else data.cell.styles.textColor = [20, 140, 60];
-      }
-      if (data.section === 'body' && data.column.index === 7) {
-        const val = parseFloat(data.cell.raw.replace(/[^\d,.-]/g, "").replace(",", "."));
-        if (val < 0) data.cell.styles.textColor = [200, 30, 30];
-      }
-    }
-  });
-  y = doc.lastAutoTable.finalY + 6;
+    { colWidths: colW, aligns: ["center","left","center","right","right","right","right","right","right"],
+      tableWidth: contentW, headerColor: [100, 50, 200], rowTextColors: rowColors,
+      footer: ["", "TOTAL", "", "", "", brl.format(custoTotal), brl.format(receitaTotal), brl.format(lucroTotal), markupMedio.toFixed(1) + "%"] }
+  );
 
-  // === TOP 3 MAIS LUCRATIVOS / MENOS LUCRATIVOS ===
-  if (y > pageH - 60) { doc.addPage(); y = 20; }
+  // Top 3 / Bottom 3
+  y += 5;
+  if (y > pageH - 50) { doc.addPage(); y = 20; }
   const sorted = [...itensFin].sort((a, b) => b.lucroItem - a.lucroItem);
-  const top3 = sorted.slice(0, 3);
-  const bottom3 = sorted.slice(-3).reverse();
 
-  doc.setFont(undefined, "bold"); doc.setFontSize(10); doc.setTextColor(20, 140, 60);
-  doc.text("Top 3 Mais Lucrativos", margin, y); y += 5;
+  doc.setFont(undefined, "bold"); doc.setFontSize(9); doc.setTextColor(20, 140, 60);
+  doc.text("Top 3 Mais Lucrativos", margin, y); y += 4;
   doc.setFont(undefined, "normal"); doc.setFontSize(8); doc.setTextColor(60);
-  top3.forEach(it => {
-    doc.text("  " + (it.nome || "").substring(0, 40) + " — Lucro: " + brl.format(it.lucroItem) + " (" + it.margemPct.toFixed(1) + "%)", margin, y);
-    y += 4;
+  sorted.slice(0, 3).forEach(it => {
+    doc.text("  " + (it.nome || "").substring(0, 40) + " — " + brl.format(it.lucroItem) + " (" + it.margemPct.toFixed(1) + "%)", margin, y); y += 3.5;
   });
-  y += 4;
+  y += 3;
 
-  doc.setFont(undefined, "bold"); doc.setFontSize(10); doc.setTextColor(200, 100, 30);
-  doc.text("Top 3 Menor Margem", margin, y); y += 5;
-  doc.setFont(undefined, "normal"); doc.setFontSize(8); doc.setTextColor(60);
-  bottom3.forEach(it => {
-    const color = it.lucroItem < 0 ? [200, 30, 30] : [60, 60, 60];
-    doc.setTextColor(...color);
-    doc.text("  " + (it.nome || "").substring(0, 40) + " — Lucro: " + brl.format(it.lucroItem) + " (" + it.margemPct.toFixed(1) + "%)", margin, y);
-    y += 4;
+  doc.setFont(undefined, "bold"); doc.setTextColor(200, 100, 30);
+  doc.text("Top 3 Menor Margem", margin, y); y += 4;
+  doc.setFont(undefined, "normal"); doc.setFontSize(8);
+  sorted.slice(-3).reverse().forEach(it => {
+    doc.setTextColor(it.lucroItem < 0 ? 200 : 60, it.lucroItem < 0 ? 30 : 60, it.lucroItem < 0 ? 30 : 60);
+    doc.text("  " + (it.nome || "").substring(0, 40) + " — " + brl.format(it.lucroItem) + " (" + it.margemPct.toFixed(1) + "%)", margin, y); y += 3.5;
   });
 
-  // === RODAPÉ ===
-  doc.setDrawColor(200);
-  doc.line(margin, pageH - 20, pageW - margin, pageH - 20);
-  doc.setFontSize(7.5); doc.setTextColor(130);
-  doc.text("Relatorio gerado pelo Licit-AIX em " + new Date().toLocaleString("pt-BR"), margin, pageH - 15);
-  doc.text("CONFIDENCIAL — Uso interno do fornecedor", margin, pageH - 11);
+  // Footer
+  doc.setDrawColor(200); doc.line(margin, pageH - 18, pageW - margin, pageH - 18);
+  doc.setFontSize(7); doc.setTextColor(130);
+  doc.text("Relatorio gerado pelo Licit-AIX em " + new Date().toLocaleString("pt-BR") + " — CONFIDENCIAL", margin, pageH - 13);
 
   doc.save("relatorio-lucro-" + (pre.orcamentoId || activePreOrcamentoId) + ".pdf");
   showToast("Relatório de lucro gerado.");
