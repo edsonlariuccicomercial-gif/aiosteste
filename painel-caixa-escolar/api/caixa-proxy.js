@@ -101,7 +101,8 @@ async function handleListBudgets({ cookie, networkId, page, limit, supplierStatu
     params.set("filter.supplierStatus", "$eq:" + st);
     params.set("page", String(page || 1));
     params.set("limit", String(limit || 50));
-    const r = await fetch(`${SGD_API}/budget-proposal/summary-by-supplier-profile?${params}`, { headers: buildHeaders(cookie, networkId) });
+    // Omit x-network-being-managed-id for listing — SGD returns ALL networks without it
+    const r = await fetch(`${SGD_API}/budget-proposal/summary-by-supplier-profile?${params}`, { headers: buildHeaders(cookie, null) });
     if (!r.ok) continue;
     const data = await r.json();
     const items = (data.data || []).map(item => ({ ...item, supplierStatus: st }));

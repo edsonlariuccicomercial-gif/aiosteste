@@ -76,7 +76,8 @@ const BrowserSgdClient = {
 
   async listBudgets(page = 1, limit = 50, supplierStatus = null) {
     await this.ensureAuth();
-    const payload = { action: "list-budgets", cookie: this.cookie, networkId: this.networkId, page, limit };
+    // Omit networkId — SGD returns ALL networks in one call without it
+    const payload = { action: "list-budgets", cookie: this.cookie, page, limit };
     if (supplierStatus) payload.supplierStatus = supplierStatus;
     const data = await this.proxy(payload);
     if (!this.networkId && data.data && data.data[0]) this.networkId = data.data[0].idNetwork;

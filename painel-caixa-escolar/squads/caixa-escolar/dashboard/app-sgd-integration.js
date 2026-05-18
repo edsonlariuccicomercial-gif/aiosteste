@@ -1030,52 +1030,59 @@ async function varrerSgd() {
       }
       gdpLog(`[Varrer] Authoritative SRE mapping loaded: ${Object.keys(municipioToSre).length} municípios`);
 
-      // Step 1a: Fetch ABERTOS (NAEN) — varredura de TODOS os networks (SREs)
+      // Step 1a: Fetch ABERTOS (NAEN) — single pass, no network header = all networks at once
       const allBudgets = [];
-      const PAGE_SIZE = 100;
-      const networks = BrowserSgdClient.allNetworks && BrowserSgdClient.allNetworks.length > 0
-        ? BrowserSgdClient.allNetworks
-        : [{ id: BrowserSgdClient.networkId, name: "Default" }];
-      gdpLog(`[Varrer] ${networks.length} network(s) para varrer:`, networks.map(n => n.name || n.id).join(", "));
+      const PAGE_SIZE = 200;
+      let page = 1;
+      btn.innerHTML = `<span class="sgd-spinner"></span>Varrendo SGD...`;
 
-      for (let ni = 0; ni < networks.length; ni++) {
-        const net = networks[ni];
-        BrowserSgdClient.networkId = net.id;
-        btn.innerHTML = `<span class="sgd-spinner"></span>Varrendo rede ${ni + 1}/${networks.length} (${net.name || net.id})...`;
-        let page = 1;
-        let netBudgets = 0;
-        while (true) {
-          const data = await BrowserSgdClient.listBudgets(page, PAGE_SIZE);
-          const items = data.data || [];
-          if (items.length === 0) break;
-          // Tag each budget with its network info
-          items.forEach(b => { b.idNetwork = b.idNetwork || net.id; b._networkName = net.name || ""; });
-          allBudgets.push(...items);
-          netBudgets += items.length;
-          const total = data.meta ? data.meta.totalItems : 0;
-          if (netBudgets >= total) break;
-          page++;
-          btn.innerHTML = `<span class="sgd-spinner"></span>Rede ${ni + 1}/${networks.length}: ${netBudgets}/${total}...`;
-        }
-        gdpLog(`[Varrer] Rede ${net.name || net.id}: ${netBudgets} budgets`);
+      while (true) {
+        const data = await BrowserSgdClient.listBudgets(page, PAGE_SIZE, "NAEN");
+        const items = data.data || [];
+        if (items.length === 0) break;
+        allBudgets.push(...items);
+        const total = data.meta ? data.meta.totalItems : 0;
+        if (allBudgets.length >= total || items.length < PAGE_SIZE) break;
+        page++;
+        btn.innerHTML = `<span class="sgd-spinner"></span>Varrendo ${allBudgets.length}/${total}...`;
       }
+      gdpLog(`[Varrer] ${allBudgets.length} budgets NAEN em ${page} página(s)`);
 
-      // Step 2: Accept ALL budgets, resolve SRE via authoritative municipality mapping
-      const filtered = allBudgets;
+      // Step 2: Resolve SRE, filter by sresAtivas
+      const activeSreIds = typeof getSresAtivas === 'function' ? getSresAtivas() : [];
+      const activeSreNames = new Set();
+      if (activeSreIds.length > 0 && sreMunData.sreToMunicipios) {
+        // Map IDs like "uberaba" to names like "Uberaba"
+        for (const [sreName] of Object.entries(sreMunData.sreToMunicipios)) {
+          const id = sreName.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, "-");
+          if (activeSreIds.includes(id)) activeSreNames.add(sreNorm(sreName));
+        }
+      }
+      const hasSreFilter = activeSreNames.size > 0;
+
       const sreCounts = {};
-      filtered.forEach(b => {
+      allBudgets.forEach(b => {
         const countyName = b.countyName || b.txCountyName || "";
         b._municipio = countyName;
         b._sre = resolveSre(countyName);
         sreCounts[b._sre] = (sreCounts[b._sre] || 0) + 1;
       });
-      gdpLog(`[Varrer] ${filtered.length} budgets aceitos. SREs:`, sreCounts);
 
-      btn.innerHTML = `<span class="sgd-spinner"></span>SREs: ${filtered.length} de ${allBudgets.length}. Buscando detalhes...`;
+      const filtered = hasSreFilter
+        ? allBudgets.filter(b => activeSreNames.has(sreNorm(b._sre)))
+        : allBudgets;
+      gdpLog(`[Varrer] ${filtered.length} budgets após filtro SRE (de ${allBudgets.length}). SREs:`, sreCounts);
 
-      // Step 3: Fetch detail + items for each SRE budget (sequential — networkId is shared state)
+      // Build existing orcamentos map for skip logic
+      const existingMap = {};
+      orcamentos.forEach(o => { existingMap[o.id] = o; });
+
+      btn.innerHTML = `<span class="sgd-spinner"></span>${filtered.length} orçamentos. Buscando detalhes novos...`;
+
+      // Step 3: Build orcamentos — use listing data for most fields, only fetch detail for NEW budgets
       const scanResults = [];
       let novos = 0;
+      let skipped = 0;
 
       for (let i = 0; i < filtered.length; i++) {
         const b = filtered[i];
@@ -1086,12 +1093,22 @@ async function varrerSgd() {
         let municipio = b._municipio || "";
         let sre = b._sre || "Desconhecida";
 
-        // Use this budget's own networkId (each SRE has different networkId)
+        // Skip detail fetch for existing budgets that already have objeto+itens
+        const existing = existingMap[id];
+        if (existing && existing.objeto && existing.itens && existing.itens.length > 0) {
+          // Just update SRE/municipio from authoritative mapping
+          existing.sre = sre;
+          existing.municipio = municipio;
+          scanResults.push(existing);
+          skipped++;
+          continue;
+        }
+
+        // Use this budget's own networkId for detail/items calls
         const budgetNetworkId = b.idNetwork || BrowserSgdClient.networkId;
         const savedNetworkId = BrowserSgdClient.networkId;
         BrowserSgdClient.networkId = budgetNetworkId;
 
-        // Fetch budget detail (for initiativeDescription/objeto, idAxis, dates)
         let detail = {};
         let budgetItems = [];
         try {
@@ -1106,7 +1123,6 @@ async function varrerSgd() {
         }
         BrowserSgdClient.networkId = savedNetworkId;
 
-        // Use detail countyName for more precise municipality + SRE
         if (detail.countyName || detail.txCountyName) {
           municipio = detail.countyName || detail.txCountyName;
           sre = resolveSre(municipio);
@@ -1116,13 +1132,12 @@ async function varrerSgd() {
           id, idBudget: b.idBudget, ano: detail.year || b.year || new Date().getFullYear(),
           escola: escolaRaw, municipio: municipio,
           sre: sre,
-          grupo: detail.expenseGroupDescription || "",
+          grupo: detail.expenseGroupDescription || b.expenseGroupDescription || "",
           subPrograma: detail.subprogramName || "",
           objeto: (detail.initiativeDescription || "").replace(/\n/g, " ").replace(/\s+/g, " ").trim(),
           prazo: (b.dtProposalSubmission || detail.dtProposalSubmission || "").slice(0, 10),
           prazoEntrega: (detail.dtDelivery || "").slice(0, 10),
           valorEstimado: detail.estimatedValue ? parseFloat(detail.estimatedValue) : null,
-          // Status mapeado do SGD: NAEN=aberto, ENVI=enviado, APRO=aprovado, RECU=recusado
           status: ({ NAEN: "aberto", ENVI: "enviado", APRO: "aprovado", RECU: "recusado" })[b.supplierStatus] || "aberto",
           statusSgd: b.supplierStatus || "NAEN",
           participantes: detail.inNaturalPersonAllowed ? "PJ/PF" : "PJ",
@@ -1151,8 +1166,11 @@ async function varrerSgd() {
       // Replace orcamentos with fresh scan data
       orcamentos = scanResults;
       localStorage.setItem("caixaescolar.orcamentos", JSON.stringify(orcamentos));
-      const sreBreakdown = Object.entries(sreCounts).map(([k,v]) => `${k}: ${v}`).join(", ");
-      showToast(`${novos} orçamento(s) carregados (${sreBreakdown}) de ${allBudgets.length} total SGD.`);
+      const filteredSreCounts = {};
+      scanResults.forEach(o => { filteredSreCounts[o.sre] = (filteredSreCounts[o.sre] || 0) + 1; });
+      const sreBreakdown = Object.entries(filteredSreCounts).map(([k,v]) => `${k}: ${v}`).join(", ");
+      gdpLog(`[Varrer] Done: ${novos} novos, ${skipped} existentes, ${scanResults.length} total`);
+      showToast(`${scanResults.length} orçamentos (${novos} novos). ${sreBreakdown}`);
     }
 
     renderAll();
