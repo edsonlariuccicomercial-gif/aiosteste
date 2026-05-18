@@ -625,26 +625,29 @@ async function batchPreOrcar() {
       let matchStatus = "sem_match";
       let matchScore = 0;
 
+      // Use full description for matching: nome + descricao
+      const nomeCompleto = [item.nome, item.descricao].filter(Boolean).join(" ").trim();
+
       // H6 fix: use RadarMatcher cache first (confirmed matches)
       if (typeof RadarMatcher !== 'undefined' && RadarMatcher.isReady()) {
-        const rmResult = RadarMatcher.match(item.nome);
+        const rmResult = RadarMatcher.match(nomeCompleto) || RadarMatcher.match(item.nome);
         if (rmResult && rmResult.sku && rmResult.status !== 'sem_match') {
-          bp = findBancoItem(rmResult.sku) || findBancoItem(item.nome);
+          bp = findBancoItem(rmResult.sku) || findBancoItem(nomeCompleto);
           matchStatus = rmResult.status === 'confirmado' ? 'exato' : 'sugestao';
           matchScore = rmResult.score;
         }
       }
 
-      // Fallback: direct banco lookup
+      // Fallback: direct banco lookup using full description
       if (!bp) {
-        bp = findBancoItem(item.nome);
+        bp = findBancoItem(nomeCompleto) || findBancoItem(item.nome);
         if (bp) {
-          const normItem = normalizedText(item.nome);
+          const normItem = normalizedText(nomeCompleto);
           const normBp = normalizedText(bp.item);
-          if (normItem === normBp) {
+          if (normItem === normBp || normalizedText(item.nome) === normBp) {
             matchStatus = "exato";
             matchScore = 1.0;
-          } else if (typeof getEquivalencia === "function" && getEquivalencia(item.nome)) {
+          } else if (typeof getEquivalencia === "function" && (getEquivalencia(nomeCompleto) || getEquivalencia(item.nome))) {
             matchStatus = "exato";
             matchScore = 1.0;
           } else {
@@ -654,9 +657,9 @@ async function batchPreOrcar() {
         }
       }
 
-      // Story 13.3: If no match, prompt user to create product inline
+      // Story 13.3: If no match, prompt user to create product inline (with full description)
       if (!bp) {
-        const criado = await _promptCriarProdutoBatch(item.nome, item.unidade, orc.grupo);
+        const criado = await _promptCriarProdutoBatch(nomeCompleto, item.unidade, orc.grupo);
         if (criado) {
           bp = criado;
           matchStatus = "criado_inline";
@@ -666,7 +669,7 @@ async function batchPreOrcar() {
           // User skipped — create silent placeholder
           bp = {
             id: "bp-" + String(Date.now()).slice(-6) + "-" + Math.random().toString(36).slice(2, 5),
-            item: item.nome,
+            item: nomeCompleto,
             grupo: orc.grupo || "Material de Consumo Geral",
             unidade: item.unidade || "Unidade",
             custoBase: 0, margemPadrao: margemPadrao, precoReferencia: 0,
@@ -757,26 +760,29 @@ window.gerarPreOrcamento = function (orcId) {
     let matchStatus = "sem_match";
     let matchScore = 0;
 
+    // Use full description for matching: nome + descricao (ex: "Papel higiênico rolão fardo com 8 rolos")
+    const nomeCompleto = [item.nome, item.descricao].filter(Boolean).join(" ").trim();
+
     // Story 10.8: Use RadarMatcher first (same as batchPreOrcar for consistency)
     if (typeof RadarMatcher !== 'undefined' && RadarMatcher.isReady()) {
-      const rmResult = RadarMatcher.match(item.nome);
+      const rmResult = RadarMatcher.match(nomeCompleto) || RadarMatcher.match(item.nome);
       if (rmResult && rmResult.sku && rmResult.status !== 'sem_match') {
-        bp = findBancoItem(rmResult.sku) || findBancoItem(item.nome);
+        bp = findBancoItem(rmResult.sku) || findBancoItem(nomeCompleto);
         matchStatus = rmResult.status === 'confirmado' ? 'exato' : 'sugestao';
         matchScore = rmResult.score;
       }
     }
 
-    // Fallback: direct banco lookup
+    // Fallback: direct banco lookup using full description
     if (!bp) {
-      bp = findBancoItem(item.nome);
+      bp = findBancoItem(nomeCompleto) || findBancoItem(item.nome);
       if (bp) {
         matchStatus = "associado";
         matchScore = 1.0;
       }
     }
 
-    return { idx, nome: item.nome, quantidade: item.quantidade || 0, unidade: item.unidade || "Un", descricao: item.descricao || "", idBudgetItem: item.idBudgetItem || null, bpId: bp ? (bp.sku || bp.id) : null, bpNome: bp ? bp.item : "", custoBase: bp ? bp.custoBase : 0, precoRef: bp ? bp.precoReferencia : 0, matchStatus: matchStatus };
+    return { idx, nome: item.nome, quantidade: item.quantidade || 0, unidade: item.unidade || "Un", descricao: item.descricao || "", nomeCompleto: nomeCompleto, idBudgetItem: item.idBudgetItem || null, bpId: bp ? (bp.sku || bp.id) : null, bpNome: bp ? bp.item : "", custoBase: bp ? bp.custoBase : 0, precoRef: bp ? bp.precoReferencia : 0, matchStatus: matchStatus };
   });
   renderModalAssociacao(orc);
 };
@@ -868,7 +874,9 @@ window.cadastrarProdutoInlineItem = async function(idx) {
 
   const orc = orcamentos.find(o => o.id === _assocOrcId);
   const grupo = orc ? (orc.grupo || "Material de Consumo Geral") : "Material de Consumo Geral";
-  const criado = await _promptCriarProdutoBatch(item.nome, item.unidade, grupo);
+  // Use full description for product name: "Papel higiênico rolão fardo com 8 rolos"
+  const nomeCompleto = item.nomeCompleto || [item.nome, item.descricao].filter(Boolean).join(" - ").trim();
+  const criado = await _promptCriarProdutoBatch(nomeCompleto, item.unidade, grupo);
   if (criado) {
     item.bpId = criado.sku || criado.id;
     item.bpNome = criado.item;
