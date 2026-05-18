@@ -149,8 +149,9 @@ class SgdClient {
     await this.ensureAuth();
 
     // Single pass — omitting x-network-being-managed-id returns ALL networks at once
+    // SGD caps at 100 items per page regardless of requested limit
     const allBudgets = [];
-    const limit = 200; // larger pages = fewer round trips
+    const limit = 100;
     let page = 1;
 
     while (true) {
@@ -161,7 +162,7 @@ class SgdClient {
       allBudgets.push(...items);
 
       const total = data.meta ? data.meta.totalItems : (data.total || data.totalItems || 0);
-      if (allBudgets.length >= total || items.length < limit) break;
+      if (allBudgets.length >= total) break;
       page++;
       console.log(`[SGD] Scan page ${page}: ${allBudgets.length}/${total}...`);
     }

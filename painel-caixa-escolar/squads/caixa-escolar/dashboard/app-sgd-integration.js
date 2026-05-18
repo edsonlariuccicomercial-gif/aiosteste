@@ -1031,8 +1031,9 @@ async function varrerSgd() {
       gdpLog(`[Varrer] Authoritative SRE mapping loaded: ${Object.keys(municipioToSre).length} municípios`);
 
       // Step 1a: Fetch ABERTOS (NAEN) — single pass, no network header = all networks at once
+      // SGD caps at 100 items per page regardless of requested limit
       const allBudgets = [];
-      const PAGE_SIZE = 200;
+      const PAGE_SIZE = 100;
       let page = 1;
       btn.innerHTML = `<span class="sgd-spinner"></span>Varrendo SGD...`;
 
@@ -1042,9 +1043,9 @@ async function varrerSgd() {
         if (items.length === 0) break;
         allBudgets.push(...items);
         const total = data.meta ? data.meta.totalItems : 0;
-        if (allBudgets.length >= total || items.length < PAGE_SIZE) break;
-        page++;
         btn.innerHTML = `<span class="sgd-spinner"></span>Varrendo ${allBudgets.length}/${total}...`;
+        if (allBudgets.length >= total) break;
+        page++;
       }
       gdpLog(`[Varrer] ${allBudgets.length} budgets NAEN em ${page} página(s)`);
 
