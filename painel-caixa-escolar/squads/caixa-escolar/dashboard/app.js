@@ -572,7 +572,22 @@ function _promptCriarProdutoBatch(itemNome, unidade, categoria) {
     document.getElementById("batch-prod-nome").value = itemNome;
     document.getElementById("batch-prod-unidade").value = unidade || "UN";
     document.getElementById("batch-prod-categoria").value = categoria || "Geral";
-    document.getElementById("batch-criar-info").textContent = "Item SGD sem produto associado. Crie o produto ou pule.";
+    document.getElementById("batch-criar-info").textContent = "Item SGD sem produto associado. Preencha os dados e salve, ou pule.";
+    // Clear optional fields
+    const descEl = document.getElementById("batch-prod-descricao");
+    const skuEl = document.getElementById("batch-prod-sku");
+    const custoEl = document.getElementById("batch-prod-custo");
+    const fornEl = document.getElementById("batch-prod-fornecedor");
+    const ncmEl = document.getElementById("batch-prod-ncm");
+    const marcaEl = document.getElementById("batch-prod-marca");
+    const margemEl = document.getElementById("batch-prod-margem");
+    if (descEl) descEl.value = "";
+    if (skuEl) skuEl.value = "";
+    if (custoEl) custoEl.value = "";
+    if (fornEl) fornEl.value = "";
+    if (ncmEl) ncmEl.value = "";
+    if (marcaEl) marcaEl.value = "";
+    if (margemEl) margemEl.value = "30";
     modal.style.display = "flex";
 
     const btnSalvar = document.getElementById("batch-prod-salvar");
@@ -582,17 +597,34 @@ function _promptCriarProdutoBatch(itemNome, unidade, categoria) {
     btnSalvar.onclick = () => {
       const nome = (document.getElementById("batch-prod-nome").value || "").trim();
       if (!nome) { showToast("Nome obrigatorio."); return; }
+      const custo = parseFloat(custoEl ? custoEl.value : 0) || 0;
+      const margem = parseFloat(margemEl ? margemEl.value : 30) / 100 || 0.30;
+      const fornecedor = fornEl ? fornEl.value.trim() : "";
       const prod = {
         id: "PROD-" + Date.now() + "-" + Math.random().toString(36).substr(2, 6),
+        sku: skuEl ? skuEl.value.trim() : "",
         nome: nome,
         item: nome,
+        descricao: descEl ? descEl.value.trim() : "",
         unidade_base: document.getElementById("batch-prod-unidade").value || "UN",
         categoria: document.getElementById("batch-prod-categoria").value || "Geral",
-        origem: "batch-pre-orcamento",
+        ncm: ncmEl ? ncmEl.value.trim() : "",
+        marca: marcaEl ? marcaEl.value.trim() : "",
+        fornecedor: fornecedor,
+        origem: "cadastro-associacao",
         ativo: true,
         criadoEm: new Date().toISOString(),
-        custoBase: 0, margemPadrao: 0.30, precoReferencia: 0,
-        custosFornecedor: [], concorrentes: [], propostas: []
+        custoBase: custo,
+        margemPadrao: margem,
+        precoReferencia: custo > 0 ? Math.round(custo * (1 + margem) * 100) / 100 : 0,
+        custosFornecedor: fornecedor && custo > 0 ? [{
+          fornecedor: fornecedor,
+          preco: custo,
+          data: new Date().toISOString().slice(0, 10),
+          origem: "manual",
+          confianca: 0.90
+        }] : [],
+        concorrentes: [], propostas: []
       };
       // Save to banco
       bancoPrecos.itens.push(prod);
