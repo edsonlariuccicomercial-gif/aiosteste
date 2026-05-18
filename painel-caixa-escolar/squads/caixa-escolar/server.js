@@ -231,20 +231,52 @@ async function executeSgdScan(sresAtivas) {
   }
 
   // Enrich ALL budgets using countyName → SRE mapping (definitive)
-  const filtered = budgets.map((b) => {
+  // Then filter by sresAtivas if provided
+  const sreNormLookup = {};
+  if (Array.isArray(sresAtivas) && sresAtivas.length > 0) {
+    // Build normalized SRE name set from sresAtivas IDs (e.g. "uberaba" → "Uberaba")
+    const SRE_ID_TO_NAME = {};
+    for (const [mun, sre] of Object.entries(municipioToSre)) {
+      const id = sre.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, "-");
+      SRE_ID_TO_NAME[id] = sre;
+    }
+    sresAtivas.forEach(id => { sreNormLookup[sreNorm(SRE_ID_TO_NAME[id] || id)] = true; });
+  }
+  const hasSreFilter = Object.keys(sreNormLookup).length > 0;
+
+  const enriched = budgets.map((b) => {
     const countyName = b.countyName || b.txCountyName || "";
     b._municipio = countyName;
     b._sre = resolveSre(countyName);
     return b;
   });
-  console.log(`[SGD Scan] Accepted ${filtered.length} budgets (from ${budgets.length} total)`);
+
+  // Filter: only keep budgets from selected SREs (if filter active)
+  const filtered = hasSreFilter
+    ? enriched.filter(b => sreNormLookup[sreNorm(b._sre)])
+    : enriched;
+
+  console.log(`[SGD Scan] ${filtered.length} budgets after SRE filter (from ${budgets.length} total, filter: ${hasSreFilter ? sresAtivas.join(",") : "none"})`);
 
   let novos = 0;
   let atualizados = 0;
+  let skipped = 0;
 
   for (const b of filtered) {
     const id = String(b.idBudget || b.id || "");
     if (!id) continue;
+
+    // Skip detail fetch for existing budgets (already have objeto/itens)
+    // Only fetch details for NEW budgets not yet in our database
+    const existing = existingMap.get(id);
+    if (existing && existing.objeto && existing.itens && existing.itens.length > 0) {
+      // Update SRE/municipio from authoritative mapping (may have been wrong before)
+      existing.sre = b._sre || existing.sre;
+      existing.municipio = b._municipio || existing.municipio;
+      atualizados++;
+      skipped++;
+      continue;
+    }
 
     // API list fields: schoolName, year, dtProposalSubmission, expenseGroupId, idCounty
     const escola = b.schoolName || b.txSchoolName || "";
@@ -355,7 +387,7 @@ async function executeSgdScan(sresAtivas) {
   writeJson(path.join(DATA_DIR, "sgd-scan-log.json"), scanLog);
 
   const sreMsg = Object.entries(sreBreakdown).map(([k, v]) => `${k}: ${v}`).join(", ");
-  console.log(`[SGD Scan] Done: ${novos} novos, ${atualizados} atualizados, ${existingOrcamentos.length} total (${sreMsg})`);
+  console.log(`[SGD Scan] Done: ${novos} novos, ${atualizados} atualizados (${skipped} skipped), ${existingOrcamentos.length} total (${sreMsg})`);
   return scanLog;
 }
 
