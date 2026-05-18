@@ -501,6 +501,204 @@ window.gerarPdfProposta = async function (orcId) {
   doc.save("proposta-" + (pre.orcamentoId || orcId) + ".pdf");
 };
 
+// ===== IMPRIMIR PRÉVIA DA PROPOSTA =====
+window.imprimirPreviaProposta = async function() {
+  if (!activePreOrcamentoId) return showToast("Nenhum pré-orçamento aberto.");
+  const pre = preOrcamentos[activePreOrcamentoId];
+  if (!pre) return;
+
+  if (typeof loadExportLibs === 'function') await loadExportLibs();
+  if (!window.jspdf || !window.jspdf.jsPDF) return showToast("Erro: jsPDF não carregou.");
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  renderPdfProposta(doc, pre, activePreOrcamentoId);
+
+  // Open in new tab for print preview instead of download
+  const pdfBlob = doc.output("blob");
+  const url = URL.createObjectURL(pdfBlob);
+  window.open(url, "_blank");
+  showToast("Prévia da proposta aberta para impressão.");
+};
+
+// ===== RELATÓRIO DETALHADO COM ANÁLISE DE LUCRO =====
+window.gerarRelatorioDetalhado = async function() {
+  if (!activePreOrcamentoId) return showToast("Nenhum pré-orçamento aberto.");
+  const pre = preOrcamentos[activePreOrcamentoId];
+  if (!pre) return;
+
+  if (typeof loadExportLibs === 'function') await loadExportLibs();
+  if (!window.jspdf || !window.jspdf.jsPDF) return showToast("Erro: jsPDF não carregou.");
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const margin = 15;
+  const contentW = pageW - margin * 2;
+
+  const empresa = JSON.parse(localStorage.getItem("nexedu.empresa") || "{}");
+  const razao = empresa.razaoSocial || empresa.nome || "Fornecedor";
+  const cnpj = empresa.cnpj || "";
+  const orc = orcamentos.find(o => o.id === pre.orcamentoId);
+  const itens = pre.itens || [];
+
+  // === Cálculos financeiros ===
+  let custoTotal = 0, receitaTotal = 0, lucroTotal = 0;
+  const itensFin = itens.map((item, idx) => {
+    const qty = item.quantidade || 0;
+    const custoUnit = item.custoUnitario || 0;
+    const precoUnit = item.precoUnitario || 0;
+    const custoItem = custoUnit * qty;
+    const receitaItem = precoUnit * qty;
+    const lucroItem = receitaItem - custoItem;
+    const margemPct = custoItem > 0 ? ((lucroItem / custoItem) * 100) : 0;
+    custoTotal += custoItem;
+    receitaTotal += receitaItem;
+    lucroTotal += lucroItem;
+    return { ...item, idx, qty, custoUnit, precoUnit, custoItem, receitaItem, lucroItem, margemPct };
+  });
+  const frete = pre.freteEstimado || 0;
+  const lucroPosFreteTotal = lucroTotal - frete;
+  const margemLiquida = receitaTotal > 0 ? (lucroPosFreteTotal / receitaTotal) * 100 : 0;
+  const markupMedio = custoTotal > 0 ? ((receitaTotal - custoTotal) / custoTotal) * 100 : 0;
+
+  // === CABEÇALHO ===
+  doc.setFontSize(10);
+  doc.setTextColor(100);
+  doc.text(razao, margin, 15);
+  if (cnpj) doc.text("CNPJ: " + cnpj, margin, 20);
+  doc.text(new Date().toLocaleDateString("pt-BR"), pageW - margin, 15, { align: "right" });
+  doc.setDrawColor(130, 80, 255);
+  doc.setLineWidth(0.5);
+  doc.line(margin, 24, pageW - margin, 24);
+
+  // === TÍTULO ===
+  doc.setFontSize(16);
+  doc.setTextColor(100, 50, 200);
+  doc.text("Relatorio de Proposta — Analise de Lucro", pageW / 2, 33, { align: "center" });
+  doc.setFontSize(9);
+  doc.setTextColor(100);
+  doc.text("Orcamento #" + (pre.orcamentoId || activePreOrcamentoId), pageW / 2, 39, { align: "center" });
+
+  // === DADOS DA ESCOLA ===
+  let y = 47;
+  doc.setFontSize(11); doc.setTextColor(30); doc.setFont(undefined, "bold");
+  doc.text("Dados do Processo", margin, y); y += 6;
+  doc.setFont(undefined, "normal"); doc.setFontSize(9); doc.setTextColor(60);
+  if (pre.escola) { doc.text("Escola: " + pre.escola, margin, y); y += 4.5; }
+  if (pre.municipio) { doc.text("Municipio: " + pre.municipio, margin, y); y += 4.5; }
+  if (orc && orc.sre) { doc.text("SRE: " + orc.sre, margin, y); y += 4.5; }
+  if (orc && orc.grupo) { doc.text("Grupo: " + orc.grupo, margin, y); y += 4.5; }
+  if (orc && orc.prazo) { doc.text("Prazo proposta: " + orc.prazo.split("-").reverse().join("/"), margin, y); y += 4.5; }
+  if (pre.criadoEm) { doc.text("Criado em: " + pre.criadoEm.split("-").reverse().join("/"), margin, y); y += 4.5; }
+  doc.text("Status: " + (pre.status || "pendente").toUpperCase(), margin, y); y += 6;
+
+  // === RESUMO FINANCEIRO (destaque) ===
+  doc.setFillColor(245, 245, 255);
+  doc.roundedRect(margin, y, contentW, 32, 3, 3, "F");
+  doc.setFontSize(11); doc.setFont(undefined, "bold"); doc.setTextColor(80, 40, 180);
+  doc.text("Resumo Financeiro", margin + 4, y + 7);
+  doc.setFontSize(9); doc.setFont(undefined, "normal"); doc.setTextColor(50);
+  const col1 = margin + 4, col2 = margin + contentW / 3, col3 = margin + (contentW / 3) * 2;
+  doc.text("Custo Total:", col1, y + 14); doc.setFont(undefined, "bold"); doc.text(brl.format(custoTotal), col1, y + 19); doc.setFont(undefined, "normal");
+  doc.text("Receita Total:", col2, y + 14); doc.setFont(undefined, "bold"); doc.setTextColor(30, 120, 50); doc.text(brl.format(receitaTotal), col2, y + 19); doc.setFont(undefined, "normal"); doc.setTextColor(50);
+  doc.text("Lucro Bruto:", col3, y + 14); doc.setFont(undefined, "bold"); doc.setTextColor(lucroPosFreteTotal >= 0 ? [20, 140, 60] : [200, 30, 30]); doc.text(brl.format(lucroTotal), col3, y + 19);
+  doc.setFont(undefined, "normal"); doc.setTextColor(50);
+  doc.text("Frete estimado: " + brl.format(frete), col1, y + 26);
+  doc.setFont(undefined, "bold"); doc.setTextColor(lucroPosFreteTotal >= 0 ? [20, 140, 60] : [200, 30, 30]);
+  doc.text("Lucro Liquido: " + brl.format(lucroPosFreteTotal), col2, y + 26);
+  doc.setTextColor(80, 40, 180);
+  doc.text("Margem Liquida: " + margemLiquida.toFixed(1) + "% | Markup: " + markupMedio.toFixed(1) + "%", col3, y + 26);
+  y += 38;
+
+  // === TABELA DE ITENS COM ANÁLISE ===
+  doc.setFont(undefined, "bold"); doc.setFontSize(11); doc.setTextColor(30);
+  doc.text("Analise por Item (" + itens.length + " itens)", margin, y); y += 5;
+
+  doc.autoTable({
+    startY: y,
+    head: [["#", "Item", "Qtd", "Custo Unit.", "Preco Unit.", "Custo Total", "Receita", "Lucro", "Margem"]],
+    body: itensFin.map((it, i) => [
+      i + 1,
+      (it.nome || "").substring(0, 30),
+      it.qty,
+      brl.format(it.custoUnit),
+      brl.format(it.precoUnit),
+      brl.format(it.custoItem),
+      brl.format(it.receitaItem),
+      brl.format(it.lucroItem),
+      it.margemPct.toFixed(1) + "%"
+    ]),
+    foot: [["", "TOTAL", "", "", "", brl.format(custoTotal), brl.format(receitaTotal), brl.format(lucroTotal), markupMedio.toFixed(1) + "%"]],
+    margin: { left: margin, right: margin },
+    styles: { fontSize: 7, cellPadding: 1.5 },
+    headStyles: { fillColor: [100, 50, 200], textColor: 255, fontStyle: "bold", fontSize: 7 },
+    footStyles: { fillColor: [240, 240, 250], textColor: [50, 50, 50], fontStyle: "bold", fontSize: 7.5 },
+    columnStyles: {
+      0: { cellWidth: 8, halign: "center" },
+      1: { cellWidth: "auto" },
+      2: { cellWidth: 12, halign: "center" },
+      3: { cellWidth: 20, halign: "right" },
+      4: { cellWidth: 20, halign: "right" },
+      5: { cellWidth: 22, halign: "right" },
+      6: { cellWidth: 22, halign: "right" },
+      7: { cellWidth: 20, halign: "right" },
+      8: { cellWidth: 16, halign: "right" },
+    },
+    tableWidth: contentW,
+    didParseCell: function(data) {
+      // Highlight negative margin in red
+      if (data.section === 'body' && data.column.index === 8) {
+        const val = parseFloat(data.cell.raw);
+        if (val < 0) data.cell.styles.textColor = [200, 30, 30];
+        else if (val < 15) data.cell.styles.textColor = [200, 150, 30];
+        else data.cell.styles.textColor = [20, 140, 60];
+      }
+      if (data.section === 'body' && data.column.index === 7) {
+        const val = parseFloat(data.cell.raw.replace(/[^\d,.-]/g, "").replace(",", "."));
+        if (val < 0) data.cell.styles.textColor = [200, 30, 30];
+      }
+    }
+  });
+  y = doc.lastAutoTable.finalY + 6;
+
+  // === TOP 3 MAIS LUCRATIVOS / MENOS LUCRATIVOS ===
+  if (y > pageH - 60) { doc.addPage(); y = 20; }
+  const sorted = [...itensFin].sort((a, b) => b.lucroItem - a.lucroItem);
+  const top3 = sorted.slice(0, 3);
+  const bottom3 = sorted.slice(-3).reverse();
+
+  doc.setFont(undefined, "bold"); doc.setFontSize(10); doc.setTextColor(20, 140, 60);
+  doc.text("Top 3 Mais Lucrativos", margin, y); y += 5;
+  doc.setFont(undefined, "normal"); doc.setFontSize(8); doc.setTextColor(60);
+  top3.forEach(it => {
+    doc.text("  " + (it.nome || "").substring(0, 40) + " — Lucro: " + brl.format(it.lucroItem) + " (" + it.margemPct.toFixed(1) + "%)", margin, y);
+    y += 4;
+  });
+  y += 4;
+
+  doc.setFont(undefined, "bold"); doc.setFontSize(10); doc.setTextColor(200, 100, 30);
+  doc.text("Top 3 Menor Margem", margin, y); y += 5;
+  doc.setFont(undefined, "normal"); doc.setFontSize(8); doc.setTextColor(60);
+  bottom3.forEach(it => {
+    const color = it.lucroItem < 0 ? [200, 30, 30] : [60, 60, 60];
+    doc.setTextColor(...color);
+    doc.text("  " + (it.nome || "").substring(0, 40) + " — Lucro: " + brl.format(it.lucroItem) + " (" + it.margemPct.toFixed(1) + "%)", margin, y);
+    y += 4;
+  });
+
+  // === RODAPÉ ===
+  doc.setDrawColor(200);
+  doc.line(margin, pageH - 20, pageW - margin, pageH - 20);
+  doc.setFontSize(7.5); doc.setTextColor(130);
+  doc.text("Relatorio gerado pelo Licit-AIX em " + new Date().toLocaleString("pt-BR"), margin, pageH - 15);
+  doc.text("CONFIDENCIAL — Uso interno do fornecedor", margin, pageH - 11);
+
+  doc.save("relatorio-lucro-" + (pre.orcamentoId || activePreOrcamentoId) + ".pdf");
+  showToast("Relatório de lucro gerado.");
+};
+
 // ===== SGD TAB =====
 window.imprimirSgd = function() {
   const tabela = document.getElementById("tabela-sgd");
