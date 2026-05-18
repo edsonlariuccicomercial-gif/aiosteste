@@ -1299,7 +1299,7 @@ async function confirmOrder() {
     const prod = schoolProducts.find(p => p.produto === name);
     if (prod) {
       total += prod.preco * qty;
-      orderItems.push({ sku: prod.sku || '', description: name, name, qty, unitPrice: prod.preco, itemNum: prod.item });
+      orderItems.push({ sku: prod.sku || '', description: name, name, qty, unitPrice: prod.preco, itemNum: prod.item, unidade: prod.unidade || 'UN', ncm: prod.ncm || '' });
     }
   });
 
@@ -1418,7 +1418,7 @@ async function confirmOrder() {
     contratoId: _ctrId,
     escola: currentUser.nome_completo,
     data: now.toISOString().slice(0,10),
-    itens: orderItems.map(i => ({ itemNum: i.itemNum, descricao: i.name, qtd: i.qty, precoUnitario: i.unitPrice })),
+    itens: orderItems.map(i => ({ itemNum: i.itemNum, descricao: i.name, qtd: i.qty, precoUnitario: i.unitPrice, unidade: i.unidade || 'UN', sku: i.sku || '', ncm: i.ncm || '' })),
     valor: total,
     status: 'recebido',
     marcador: 'Licit-AIX',
