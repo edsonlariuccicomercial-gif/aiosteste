@@ -497,10 +497,10 @@ function peekProximoNumeroNf() {
       nfConfig.updatedAt = new Date().toISOString();
       localStorage.setItem("nexedu.config.notas-fiscais", JSON.stringify(nfConfig));
     }
-    // Pular números já usados
+    // Pular números já usados por NFs AUTORIZADAS (rascunhos/rejeitadas podem reusar)
     try {
       const nfs = unwrapData(JSON.parse(localStorage.getItem("gdp.notas-fiscais.v1") || "[]"));
-      const usados = new Set(nfs.map(nf => parseInt(nf.numero) || 0));
+      const usados = new Set(nfs.filter(nf => nf.status === "autorizada").map(nf => parseInt(nf.numero) || 0));
       let tentativas = 0;
       while (usados.has(num) && tentativas < 100) { num++; tentativas++; }
     } catch(_) {}
@@ -515,18 +515,18 @@ function peekProximoNumeroNf() {
 async function consumirProximoNumeroNf() {
   const empresaId = typeof gdpApi !== 'undefined' ? gdpApi.getEmpresaId() : getEmpresaId();
   let num = parseInt(peekProximoNumeroNf(), 10);
-  // Verificar se o número já foi usado — se sim, pular para o próximo livre
+  // Verificar se o número já foi usado por NF AUTORIZADA — se sim, pular
   try {
     const nfs = unwrapData(JSON.parse(localStorage.getItem("gdp.notas-fiscais.v1") || "[]"));
-    const usados = new Set(nfs.map(nf => parseInt(nf.numero) || 0));
+    const usados = new Set(nfs.filter(nf => nf.status === "autorizada").map(nf => parseInt(nf.numero) || 0));
     let tentativas = 0;
     while (usados.has(num) && tentativas < 100) { num++; tentativas++; }
   } catch(_) {}
-  // Calcular próximo livre após este
+  // Calcular próximo livre após este (só pula autorizadas)
   let proximo = num + 1;
   try {
     const nfs = unwrapData(JSON.parse(localStorage.getItem("gdp.notas-fiscais.v1") || "[]"));
-    const usados = new Set(nfs.map(nf => parseInt(nf.numero) || 0));
+    const usados = new Set(nfs.filter(nf => nf.status === "autorizada").map(nf => parseInt(nf.numero) || 0));
     while (usados.has(proximo)) proximo++;
   } catch(_) {}
   // Salvar
