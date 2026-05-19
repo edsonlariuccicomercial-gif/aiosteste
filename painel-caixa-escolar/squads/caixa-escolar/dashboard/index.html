@@ -931,7 +931,7 @@
               <p style="font-size:.75rem;color:var(--muted);margin:4px 0 8px">PNG ou JPG, max 200KB. Aparece no cabecalho da nota fiscal.</p>
               <div style="display:flex;align-items:center;gap:12px">
                 <img id="nf-logo-preview" src="" alt="" style="max-height:60px;max-width:120px;border:1px solid var(--line);border-radius:4px;display:none" />
-                <input type="file" id="nf-logo-upload" accept="image/png,image/jpeg" style="font-size:.8rem" />
+                <input type="file" id="nf-logo-upload" accept="image/png,image/jpeg" style="font-size:.8rem" onchange="handleLogoUpload(this)" />
                 <button type="button" class="btn btn-outline" id="nf-logo-remove" style="font-size:.75rem;display:none" onclick="removeLogoNf()">Remover</button>
               </div>
             </div>
