@@ -1619,9 +1619,9 @@ function abrirVincularGDP(contratoId, itemIdx) {
   const buscaEl = document.getElementById("vincular-gdp-busca");
   if (buscaEl) buscaEl.value = prodVinculado ? prodVinculado.nome : "";
   renderVincularGDPResultados(prodVinculado ? prodVinculado.nome : "");
-  // Auto-preencher nome sugerido no formulário de cadastro rápido
+  // Auto-preencher nome resumido sugerido no formulário de cadastro rápido
   const novoNomeEl = document.getElementById("vincular-gdp-novo-nome");
-  if (novoNomeEl) novoNomeEl.value = _vincularGdpDescricao || "";
+  if (novoNomeEl) novoNomeEl.value = gdpResumirDescricao(_vincularGdpDescricao) || _vincularGdpDescricao || "";
   const modal = document.getElementById("modal-vincular-gdp");
   if (modal) { modal.classList.remove("hidden"); modal.style.display = "flex"; }
 }
@@ -1632,6 +1632,24 @@ function fecharVincularGDP() {
   _vincularGdpContratoId = "";
   _vincularGdpItemIdx = -1;
   _vincularGdpDescricao = "";
+}
+
+// Resumir descrição longa do contrato em nome curto para produto
+// Ex: "Açucar refinado especial tipo exportação pacote 5 kg marca Delta" → "Açucar 5 Kg Delta"
+function gdpResumirDescricao(desc) {
+  if (!desc) return "";
+  // Extrair peso/volume (ex: "5 kg", "500 gr", "900 ml", "1 litro")
+  const pesoMatch = desc.match(/(\d+[.,]?\d*)\s*(kg|kgs|gr|grs|g|ml|lt|l|litro|litros|un|unid)\b/i);
+  const peso = pesoMatch ? pesoMatch[0].trim() : "";
+  // Extrair marca (última palavra após " - " ou última palavra capitalizada)
+  const marcaMatch = desc.match(/[-–]\s*([A-ZÀ-Ú][a-zà-ú]+(?:\s+[A-ZÀ-Ú][a-zà-ú]+)*)$/);
+  const marca = marcaMatch ? marcaMatch[1].trim() : "";
+  // Palavras descartáveis
+  const stopWords = new Set(["de","do","da","dos","das","tipo","especial","refinado","refinada","pacote","embalagem","saco","com","para","marca","tradicional","comum","padrao","qualidade","premium","extra","primeira","1a"]);
+  // Pegar as primeiras 2-3 palavras significativas
+  const words = desc.split(/[\s,]+/).filter(w => w.length > 1 && !stopWords.has(w.toLowerCase()) && !w.match(/^\d/));
+  const nome = words.slice(0, 2).join(" ");
+  return [nome, peso, marca].filter(Boolean).join(" ").trim() || desc.slice(0, 30);
 }
 
 function gdpGerarSkuSugerido(nome) {
