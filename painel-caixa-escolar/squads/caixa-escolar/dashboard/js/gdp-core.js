@@ -1248,9 +1248,11 @@ function syncContratoItemToPedidos(contratoId, itemAtualizado) {
       const sameItem = String(itemPedido.itemNum || "") === String(itemAtualizado.num || "")
         || ((itemPedido.descricao || "").toUpperCase().trim() === (itemAtualizado.descricao || "").toUpperCase().trim());
       if (!sameItem) return;
-      itemPedido.descricao = itemAtualizado.descricao || itemPedido.descricao || "";
-      itemPedido.ncm = itemAtualizado.ncm || itemPedido.ncm || "";
-      itemPedido.sku = itemAtualizado.sku || itemPedido.sku || "";
+      // Usar nome do produto vinculado na central de produtos (se existir), senão descrição do contrato
+      const prodVinculado = itemAtualizado.skuVinculado ? estoqueIntelProdutos.find(p => p.sku === itemAtualizado.skuVinculado || p.id === itemAtualizado.produto_vinculado_id) : null;
+      itemPedido.descricao = prodVinculado?.nome || itemAtualizado.produtoVinculado || itemAtualizado.descricao || itemPedido.descricao || "";
+      itemPedido.ncm = prodVinculado?.ncm || itemAtualizado.ncm || itemPedido.ncm || "";
+      itemPedido.sku = itemAtualizado.skuVinculado || itemAtualizado.sku || itemPedido.sku || "";
       // Preserve pedido's original unidade (e.g. KG from ARP parseUnidadeFromName) — only override if contract has explicit value
       itemPedido.unidade = itemPedido.unidade || itemAtualizado.unidade || "UN";
       if (!itemPedido.precoUnitario) itemPedido.precoUnitario = Number(itemAtualizado.precoUnitario || 0);

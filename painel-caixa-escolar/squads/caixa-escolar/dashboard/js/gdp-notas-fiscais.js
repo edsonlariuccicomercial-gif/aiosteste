@@ -141,15 +141,18 @@ function ensurePedidoFiscalData(pedido) {
       sku: item.sku || item.codigoBarras || ""
     };
     const contratoItem = pedido.contratoId ? getContratoItemForPedidoItem(pedido.contratoId, baseItem) : null;
+    // Buscar produto vinculado na central de produtos (descrição da central tem prioridade)
+    const _vinculadoSku = contratoItem?.skuVinculado || baseItem.skuVinculado;
+    const _vinculadoId = contratoItem?.produto_vinculado_id;
+    const _prodVinc = _vinculadoSku ? (typeof estoqueIntelProdutos !== 'undefined' ? estoqueIntelProdutos.find(p => p.sku === _vinculadoSku || p.id === _vinculadoId) : null) : null;
     return {
       ...baseItem,
-      // FR-004/FR-006: NF-e descrição SEMPRE do contrato (imutável), SKU do produto vinculado
-      descricao: contratoItem?.descricao || baseItem.descricao || `Item ${idx + 1}`,
+      // Descrição: produto vinculado (central) > pedido original > contrato
+      descricao: _prodVinc?.nome || baseItem.descricao || contratoItem?.descricao || `Item ${idx + 1}`,
       precoUnitario: Number(baseItem.precoUnitario || contratoItem?.precoUnitario || 0),
-      unidade: baseItem.unidade || contratoItem?.unidade || "UN",
-      ncm: baseItem.ncm || contratoItem?.ncm || "",
-      // FR-006: SKU vem do produto vinculado (manual), sem auto-match
-      sku: baseItem.skuVinculado || contratoItem?.skuVinculado || baseItem.sku || contratoItem?.sku || ""
+      unidade: baseItem.unidade || _prodVinc?.unidade_base || contratoItem?.unidade || "UN",
+      ncm: baseItem.ncm || _prodVinc?.ncm || contratoItem?.ncm || "",
+      sku: _vinculadoSku || baseItem.sku || contratoItem?.sku || ""
     };
   });
   return pedido;
