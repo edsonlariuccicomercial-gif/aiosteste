@@ -660,13 +660,13 @@ function doLogin() {
   currentUser = escola;
   selectedContract = null;
 
-  // Story 14.1: Set consistent empresa_id from escola.id (fixed credential-based identity)
+  // Story 14.1: Set consistent empresa_id — LARIUCCI is the business entity for ALL schools
+  // Schools are filtered by 'escola' field, not empresa_id
   try {
     const emp = JSON.parse(localStorage.getItem('nexedu.empresa') || '{}');
-    emp.syncUserId = escola.id;
-    emp.nome = escola.nome;
-    emp.nomeFantasia = escola.nome;
-    emp.cnpj = escola.cnpj || emp.cnpj || '';
+    emp.syncUserId = 'LARIUCCI';
+    if (!emp.nome) emp.nome = 'LARIUCCI';
+    if (!emp.nomeFantasia) emp.nomeFantasia = 'LARIUCCI';
     localStorage.setItem('nexedu.empresa', JSON.stringify(emp));
   } catch(_) {}
 

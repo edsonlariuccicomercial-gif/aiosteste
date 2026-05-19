@@ -223,29 +223,43 @@ async function cloudSave(key, data, signal) {
 }
 
 async function cloudLoadAll() {
-  // Story 14.3: parallel fetch for all user candidates instead of sequential
+  // Story 14.1/14.3: try primary syncUserId first, only fallback if empty
   const headers = { "apikey": SUPABASE_KEY, "Authorization": "Bearer " + SUPABASE_KEY };
-  const candidates = getGdpSyncUserCandidates();
+  const primary = getSyncUserId();
 
-  const results = await Promise.all(candidates.map(async (userId) => {
+  // Fast path: try primary identity first (avoids N unnecessary requests)
+  try {
+    const resp = await fetch(
+      `${SUPABASE_URL}/rest/v1/sync_data?user_id=eq.${encodeURIComponent(primary)}&select=key,data,updated_at`,
+      { headers }
+    );
+    if (resp.ok) {
+      const rows = await resp.json();
+      if (Array.isArray(rows) && rows.length > 0) {
+        persistResolvedGdpSyncUser(primary);
+        return rows;
+      }
+    }
+  } catch (e) {
+    gdpWarn("Cloud load failed (primary):", primary, e);
+  }
+
+  // Slow fallback: try remaining candidates sequentially
+  for (const userId of getGdpSyncUserCandidates()) {
+    if (userId === primary) continue;
     try {
       const resp = await fetch(
         `${SUPABASE_URL}/rest/v1/sync_data?user_id=eq.${encodeURIComponent(userId)}&select=key,data,updated_at`,
         { headers }
       );
-      if (!resp.ok) return { userId, rows: [] };
+      if (!resp.ok) continue;
       const rows = await resp.json();
-      return { userId, rows: Array.isArray(rows) ? rows : [] };
+      if (Array.isArray(rows) && rows.length > 0) {
+        persistResolvedGdpSyncUser(userId);
+        return rows;
+      }
     } catch (e) {
       gdpWarn("Cloud load failed:", userId, e);
-      return { userId, rows: [] };
-    }
-  }));
-
-  for (const result of results) {
-    if (result.rows.length > 0) {
-      persistResolvedGdpSyncUser(result.userId);
-      return result.rows;
     }
   }
   return null;
