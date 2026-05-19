@@ -1721,7 +1721,7 @@ function cadastrarEVincularGDP() {
   if (!nome) { showToast("Informe o nome do produto.", 3000); return; }
   const unidade_base = document.getElementById("vincular-gdp-novo-unidade")?.value || "UN";
   const skuManual = (document.getElementById("vincular-gdp-novo-sku")?.value || "").trim();
-  const sku = skuManual || gdpGerarSkuSugerido(nome);
+  const sku = skuManual || (typeof gerarProximoSKU === 'function' ? gerarProximoSKU() : gdpGerarSkuSugerido(nome));
   const ncm = (document.getElementById("vincular-gdp-novo-ncm")?.value || "").trim();
   const categoria = document.getElementById("vincular-gdp-novo-categoria")?.value || "";
   const origem = document.getElementById("vincular-gdp-novo-origem")?.value || "0";
