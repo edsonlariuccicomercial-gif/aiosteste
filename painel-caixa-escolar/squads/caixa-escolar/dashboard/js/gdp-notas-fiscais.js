@@ -1301,7 +1301,7 @@ function verNotaFiscal(notaId) {
   html += '</div></div>';
 
   html += '<div class="card" style="padding:1rem;margin-bottom:1rem">';
-  html += '<h3 style="margin-bottom:1rem">Documentos Fiscais</h3>';
+  html += '<h3 style="margin-bottom:1rem">Documentos Fiscais <span style="font-size:.85rem;color:var(--green);font-weight:700;margin-left:.5rem">NF ' + esc(nf.numero || 'PENDENTE') + ' / Série ' + esc(nf.serie || '1') + '</span></h3>';
   html += '<div style="font-size:.76rem;color:var(--mut);margin-bottom:.8rem">' + (isReal ? 'NF-e real: numero, chave e protocolo devem refletir o retorno fiscal do fluxo SEFAZ.' : 'Manual externa: use este bloco para registrar numero, chave e DANFE emitidos fora do GDP.') + '</div>';
   if (isReal && nf.status === "autorizada") {
     html += '<div style="margin-bottom:.8rem;padding:.8rem 1rem;border:1px solid rgba(34,197,94,.35);border-radius:4px;background:rgba(34,197,94,.08);font-size:.8rem;color:var(--txt)">NF-e real autorizada. Este registro nao pode ser excluido no GDP. Para desfazer, use cancelamento fiscal proprio e preserve a rastreabilidade.</div>';
