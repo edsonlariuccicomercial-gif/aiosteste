@@ -468,10 +468,31 @@ async function sincronizarCobrancaProvider(contaId) {
   await emitirOuSincronizarCobrancaReal(contaId, { silent: false });
 }
 
-// Sequencial de NF controlado atomicamente via PostgreSQL RPC (Story 7.3 — TD-017 fix)
-// Usa SELECT ... FOR UPDATE no banco para garantir unicidade mesmo com concorrência
+// Story 14.5: Numeração NF-e — respeita config do usuário como fonte primária.
+// Prioridade: 1) proximoNumero da config → 2) Supabase RPC atômico → 3) fallback local.
 async function getProximoNumeroNf() {
   const empresaId = typeof gdpApi !== 'undefined' ? gdpApi.getEmpresaId() : getEmpresaId();
+
+  // 1. PRIORIDADE: número configurado pelo usuário em "Configurações gerais de nota fiscal"
+  try {
+    const nfConfig = JSON.parse(localStorage.getItem("nexedu.config.notas-fiscais") || "{}");
+    const configuredNum = parseInt(nfConfig.proximoNumero, 10);
+    if (configuredNum > 0) {
+      // Usar o número configurado e incrementar para a próxima emissão
+      nfConfig.proximoNumero = String(configuredNum + 1);
+      nfConfig.updatedAt = new Date().toISOString();
+      localStorage.setItem("nexedu.config.notas-fiscais", JSON.stringify(nfConfig));
+      localStorage.setItem("gdp.nf-counter", String(configuredNum));
+      // Sync Supabase nf_counter (fire-and-forget)
+      if (typeof gdpApi !== 'undefined') {
+        gdpApi.nf_counter.save({ empresa_id: empresaId, ultimo_numero: configuredNum }).catch(function() {});
+      }
+      console.log("[NF-e] Usando numero configurado pelo usuario:", configuredNum);
+      return String(configuredNum);
+    }
+  } catch(_) {}
+
+  // 2. FALLBACK: Supabase RPC atômico (quando proximoNumero não configurado)
   try {
     const resp = await fetch(SUPABASE_URL + "/rest/v1/rpc/next_nf_number", {
       method: "POST",
@@ -484,12 +505,11 @@ async function getProximoNumeroNf() {
     });
     if (!resp.ok) throw new Error("RPC failed: " + resp.status);
     const nextNumber = await resp.json();
-    // Sync localStorage for offline display/fallback
     localStorage.setItem("gdp.nf-counter", String(nextNumber));
     return String(nextNumber);
   } catch (err) {
     console.error("[NF-e] Falha ao obter numero atomico, usando fallback local:", err.message);
-    // Fallback: increment locally (last resort, still has race condition risk)
+    // 3. ÚLTIMO RECURSO: increment locally
     const KEY = "gdp.nf-counter";
     let counter = parseInt(localStorage.getItem(KEY) || "0", 10);
     try {
