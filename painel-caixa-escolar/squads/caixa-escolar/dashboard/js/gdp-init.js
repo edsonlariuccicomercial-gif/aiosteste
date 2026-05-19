@@ -1715,48 +1715,73 @@ function renderVincularGDPResultados(query) {
 // Fecha o modal de vincular, abre o form completo, e após salvar auto-vincula
 var _vincularPendente = null;
 function abrirCadastroProdutoViaVincular() {
-  // Guardar contexto do vínculo pendente
   _vincularPendente = { contratoId: _vincularGdpContratoId, itemIdx: _vincularGdpItemIdx, descricao: _vincularGdpDescricao };
   fecharVincularGDP();
-  // Mudar para aba estoque e abrir form de novo produto
-  switchTab('estoque');
-  setEstoqueIntelView('produtos');
-  setTimeout(function() {
-    toggleFormNovoProduto();
-    // Preencher nome com descrição resumida do item do contrato
-    setTimeout(function() {
-      const nomeEl = document.getElementById('ei-produto-nome');
-      if (nomeEl && _vincularPendente.descricao) {
-        nomeEl.value = gdpResumirDescricao(_vincularPendente.descricao) || _vincularPendente.descricao;
-      }
-    }, 100);
-  }, 200);
+
+  // Criar overlay flutuante sobre o contrato (não muda de aba)
+  let overlay = document.getElementById('vincular-cadastro-overlay');
+  if (overlay) overlay.remove();
+  overlay = document.createElement('div');
+  overlay.id = 'vincular-cadastro-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1100;display:flex;align-items:flex-start;justify-content:center;padding:1.5rem;overflow-y:auto';
+  overlay.onclick = function(e) { if (e.target === overlay) { overlay.remove(); _vincularPendente = null; } };
+
+  // Reutilizar renderModalNovoProduto internamente
+  _novoProdutoEmbs = [{ id: 'temp-0', descricao: '', quantidade_base: 1, preco_referencia: 0 }];
+
+  const UNIT_OPTS = '<optgroup label="Contagem"><option value="UN" selected>UN</option><option value="DZ">DZ</option></optgroup><optgroup label="Embalagem"><option value="CX">CX</option><option value="PCT">PCT</option><option value="FD">FD</option><option value="BD">BD</option><option value="SC">SC</option></optgroup><optgroup label="Peso/Volume"><option value="KG">KG</option><option value="LT">LT</option><option value="GL">GL</option></optgroup>';
+  const CAT_OPTS = ["","Hortifruti","Carnes/Proteinas","Graos/Cereais","Laticinios","Frutas","Mercearia","Padaria/Biscoitos","Ovos","Bebidas","Limpeza","Outros"].map(c => '<option value="'+c+'">'+(c||"Sem Categoria")+'</option>').join("");
+  const ORI_OPTS = [{v:"0",l:"0 — Nacional"},{v:"1",l:"1 — Import. Direta"},{v:"2",l:"2 — Import. Merc."}].map(o => '<option value="'+o.v+'">'+o.l+'</option>').join("");
+  const nomeResumido = gdpResumirDescricao(_vincularPendente.descricao) || _vincularPendente.descricao || '';
+
+  overlay.innerHTML = '<div style="background:var(--bg);border:1px solid var(--bdr);border-radius:10px;width:560px;max-width:96vw;max-height:88vh;overflow-y:auto;padding:1.2rem 1.5rem" onclick="event.stopPropagation()">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem"><h2 style="font-size:1rem;margin:0">Cadastrar Produto</h2><button class="btn btn-outline btn-sm" onclick="document.getElementById(\'vincular-cadastro-overlay\').remove()">Fechar</button></div>'
+    + '<div style="font-size:.78rem;color:var(--mut);margin-bottom:.8rem">Item do contrato: <strong>' + esc(_vincularPendente.descricao || '') + '</strong></div>'
+    + '<div style="margin-bottom:.6rem"><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.2rem">Nome do Produto</label><input type="text" id="vc-nome" value="' + esc(nomeResumido) + '" style="width:100%"></div>'
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-bottom:.6rem">'
+    + '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.2rem">Unidade</label><select id="vc-unidade" style="width:100%">' + UNIT_OPTS + '</select></div>'
+    + '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.2rem">SKU</label><input type="text" id="vc-sku" placeholder="Auto (LICT-XXXX)" style="width:100%"></div></div>'
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-bottom:.6rem">'
+    + '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.2rem">NCM</label><input type="text" id="vc-ncm" placeholder="Ex: 10063021" style="width:100%"></div>'
+    + '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.2rem">Categoria</label><select id="vc-categoria" style="width:100%">' + CAT_OPTS + '</select></div></div>'
+    + '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.5rem;margin-bottom:.6rem">'
+    + '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.2rem">Origem</label><select id="vc-origem" style="width:100%">' + ORI_OPTS + '</select></div>'
+    + '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.2rem">Preco Custo</label><input type="number" id="vc-custo" step="0.01" min="0" placeholder="0.00" style="width:100%"></div>'
+    + '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.2rem">Preco Venda</label><input type="number" id="vc-venda" step="0.01" min="0" placeholder="0.00" style="width:100%"></div></div>'
+    + '<button class="btn btn-green" onclick="salvarProdutoViaVincular()" style="width:100%;font-weight:700;margin-top:.5rem">Salvar e Vincular ao Contrato</button>'
+    + '</div>';
+
+  document.body.appendChild(overlay);
+  setTimeout(function() { document.getElementById('vc-nome')?.focus(); }, 100);
 }
 
-// Override salvarNovoProdutoModal para auto-vincular se veio do fluxo de vincular
-var _originalSalvarNovoProdutoModal = null;
-function patchSalvarParaAutoVincular() {
-  if (_originalSalvarNovoProdutoModal) return; // já patcheado
-  if (typeof salvarNovoProdutoModal !== 'function') return;
-  _originalSalvarNovoProdutoModal = salvarNovoProdutoModal;
-  salvarNovoProdutoModal = function() {
-    _originalSalvarNovoProdutoModal();
-    // Se tem vínculo pendente, vincular o último produto cadastrado
-    if (_vincularPendente && _vincularPendente.contratoId) {
-      const ultimoProd = estoqueIntelProdutos[estoqueIntelProdutos.length - 1];
-      if (ultimoProd) {
-        _vincularGdpContratoId = _vincularPendente.contratoId;
-        _vincularGdpItemIdx = _vincularPendente.itemIdx;
-        _vincularGdpDescricao = _vincularPendente.descricao;
-        selecionarVincularGDPIntel(ultimoProd.id);
-        showToast('Produto cadastrado e vinculado automaticamente!', 3000);
-      }
-      _vincularPendente = null;
-    }
-  };
+function salvarProdutoViaVincular() {
+  const nome = (document.getElementById('vc-nome')?.value || '').trim();
+  if (!nome) { showToast('Informe o nome do produto.', 3000); return; }
+  const unidade_base = document.getElementById('vc-unidade')?.value || 'UN';
+  const skuManual = (document.getElementById('vc-sku')?.value || '').trim();
+  const sku = skuManual || (typeof gerarProximoSKU === 'function' ? gerarProximoSKU() : 'LICT-0000');
+  const ncm = (document.getElementById('vc-ncm')?.value || '').trim();
+  const categoria = document.getElementById('vc-categoria')?.value || '';
+  const origem = document.getElementById('vc-origem')?.value || '0';
+  const preco_custo = parseFloat(document.getElementById('vc-custo')?.value) || 0;
+  const preco_referencia = parseFloat(document.getElementById('vc-venda')?.value) || 0;
+  const prodId = genId('PROD');
+  estoqueIntelProdutos.push({ id: prodId, nome, unidade_base, sku, ncm, categoria, origem, preco_custo, preco_referencia });
+  saveEstoqueIntelProdutos();
+  // Fechar overlay
+  const overlay = document.getElementById('vincular-cadastro-overlay');
+  if (overlay) overlay.remove();
+  // Auto-vincular
+  if (_vincularPendente && _vincularPendente.contratoId) {
+    _vincularGdpContratoId = _vincularPendente.contratoId;
+    _vincularGdpItemIdx = _vincularPendente.itemIdx;
+    _vincularGdpDescricao = _vincularPendente.descricao;
+    selecionarVincularGDPIntel(prodId);
+    showToast('Produto "' + nome + '" cadastrado e vinculado! SKU: ' + sku, 3500);
+  }
+  _vincularPendente = null;
 }
-// Patch ao carregar
-setTimeout(patchSalvarParaAutoVincular, 1000);
 
 function selecionarVincularGDPIntel(produtoId) {
   const produto = estoqueIntelProdutos.find(p => p.id === produtoId);
