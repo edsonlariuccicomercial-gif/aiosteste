@@ -1534,13 +1534,13 @@ table.it td{border:1px solid #999;padding:1px 3px;font-size:7pt}
 .rec-nfe{width:110px;text-align:center;padding:6px 4px}
 /* Header 3 colunas: logo+emit | danfe | chave */
 .hdr{display:flex;border-bottom:1px solid #000}
-.hdr-logo{width:100px;border-right:1px solid #000;display:flex;align-items:center;justify-content:center;padding:4px;min-height:70px}
-.hdr-logo img{max-height:65px;max-width:90px}
-.hdr-emit{flex:2;border-right:1px solid #000;padding:4px 8px;display:flex;flex-direction:column;justify-content:center}
-.hdr-emit .nome{font-size:10pt;font-weight:700}
-.hdr-emit .end{font-size:7pt;line-height:1.4}
-.hdr-danfe{width:130px;text-align:center;padding:4px;border-right:1px solid #000}
-.hdr-chave{flex:1;padding:4px 6px}
+.hdr-logo{width:70px;border-right:1px solid #000;display:flex;align-items:center;justify-content:center;padding:3px;min-height:70px}
+.hdr-logo img{max-height:60px;max-width:64px}
+.hdr-emit{flex:3;border-right:1px solid #000;padding:4px 8px;display:flex;flex-direction:column;justify-content:center}
+.hdr-emit .nome{font-size:10pt;font-weight:700;white-space:nowrap}
+.hdr-emit .end{font-size:7pt;line-height:1.4;white-space:nowrap}
+.hdr-danfe{width:120px;text-align:center;padding:4px;border-right:1px solid #000}
+.hdr-chave{width:200px;padding:4px 6px}
 </style>
 <div class="danfe-wrap">
 <!-- RECIBO DE ENTREGA -->
@@ -1795,11 +1795,11 @@ table.it td.desc{max-width:160px;overflow:hidden;text-overflow:ellipsis;white-sp
 .rec-nf .ser{font-size:7pt}
 /* Header */
 .hdr{display:flex;border-bottom:1px solid #000}
-.hdr-logo{width:100px;border-right:1px solid #000;display:flex;align-items:center;justify-content:center;padding:4px;min-height:70px}
-.hdr-emit{flex:2;padding:4px 8px;border-right:1px solid #000;display:flex;flex-direction:column;justify-content:center}
-.hdr-emit .nome{font-size:11pt;font-weight:700}
-.hdr-emit .end{font-size:7pt;line-height:1.4}
-.hdr-danfe{width:140px;text-align:center;padding:2px 4px;border-right:1px solid #000}
+.hdr-logo{width:70px;border-right:1px solid #000;display:flex;align-items:center;justify-content:center;padding:3px;min-height:70px}
+.hdr-emit{flex:3;padding:4px 8px;border-right:1px solid #000;display:flex;flex-direction:column;justify-content:center}
+.hdr-emit .nome{font-size:11pt;font-weight:700;white-space:nowrap}
+.hdr-emit .end{font-size:7pt;line-height:1.4;white-space:nowrap}
+.hdr-danfe{width:120px;text-align:center;padding:2px 4px;border-right:1px solid #000}
 .hdr-danfe h1{font-size:16pt;font-weight:900;letter-spacing:1px;margin:0}
 .hdr-danfe .sub{font-size:6pt;line-height:1.2}
 .hdr-danfe .tp-row{font-size:7pt;margin-top:2px}
@@ -1807,7 +1807,7 @@ table.it td.desc{max-width:160px;overflow:hidden;text-overflow:ellipsis;white-sp
 .hdr-danfe .nf-num{font-size:10pt;font-weight:900;margin-top:2px}
 .hdr-danfe .nf-ser{font-size:7pt}
 .hdr-danfe .nf-fol{font-size:6pt;font-style:italic}
-.hdr-chave{flex:1;padding:2px 4px}
+.hdr-chave{width:200px;padding:2px 4px}
 .hdr-chave .bc{text-align:center;min-height:32px}
 .hdr-chave .lbl{font-size:5pt;text-align:center;text-transform:uppercase;margin-top:1px}
 .hdr-chave .val{font-size:6.5pt;font-weight:700;text-align:center;letter-spacing:.4px;word-break:break-all}
