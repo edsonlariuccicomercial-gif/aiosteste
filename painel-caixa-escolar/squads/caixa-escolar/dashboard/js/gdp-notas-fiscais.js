@@ -824,8 +824,9 @@ async function gerarNotaFiscalPedido(pedidoId) {
       console.error("[NF-e] Itens invalidos:", itensInvalidos);
       return;
     }
-    const detalhesItens = (pedido.itens || []).map((i, idx) => `  ${idx+1}. ${i.descricao} — ${i.qtd} x R$${Number(i.precoUnitario||0).toFixed(2)}`).join("\n");
-    if (!confirm("Gerar NF-e REAL com " + qtdItens + " item(ns) para " + (pedido.escola || "cliente") + "?\n\nValor Total: " + brl.format(pedido.valor || 0) + "\n\nItens:\n" + detalhesItens + "\n\nConfirma transmissao a SEFAZ?")) return;
+    const detalhesItens = (pedido.itens || []).map((i, idx) => `  ${idx+1}. ${i.descricao} — ${i.qtd} x R$${Number(i.precoUnitario||0).toFixed(2)} (NCM: ${i.ncm || 'N/A'})`).join("\n");
+    const nfNumeroPreview = peekProximoNumeroNf();
+    if (!confirm("GERAR NF-e REAL\n\n" + "NUMERO DA NOTA: " + nfNumeroPreview + "\n" + "Serie: " + (invoice.serie || "1") + "\n" + "Cliente: " + (pedido.escola || "cliente") + "\n" + "Valor Total: " + brl.format(pedido.valor || 0) + "\n\n" + qtdItens + " item(ns):\n" + detalhesItens + "\n\nConfirma transmissao a SEFAZ?")) return;
     gdpLog("[NF-e] Gerando nota com", qtdItens, "itens. Pedido:", pedido.id);
     console.table((pedido.itens||[]).map((i,idx) => ({ "#": idx+1, descricao: i.descricao, qtd: i.qtd, preco: i.precoUnitario, ncm: i.ncm })));
 
@@ -1083,6 +1084,11 @@ async function transmitirHomologacaoNota(notaId) {
     nf.numero = await consumirProximoNumeroNf();
   }
   const novoNumero = nf.numero;
+
+  // Pré-conferência antes de transmitir
+  const itensResumo = (nf.itens || []).map((i, idx) => `  ${idx+1}. ${i.descricao} (NCM: ${i.ncm || 'N/A'})`).join("\n");
+  if (!confirm("TRANSMITIR NF-e A SEFAZ\n\nNUMERO DA NOTA: " + novoNumero + "\nSerie: " + (nf.serie || "1") + "\nCliente: " + (nf.cliente?.nome || pedido.escola || "-") + "\nValor: " + brl.format(nf.valor || pedido.valor || 0) + "\n\n" + (nf.itens||[]).length + " item(ns):\n" + itensResumo + "\n\nConfirma transmissao?")) return;
+
   const nfObs = nf.documentos?.observacao || "";
 
   setIntegrationState(nf, "sefaz", { status: "transmissao_em_preparo", lastAction: "nfe_sefaz_transmitir" });
