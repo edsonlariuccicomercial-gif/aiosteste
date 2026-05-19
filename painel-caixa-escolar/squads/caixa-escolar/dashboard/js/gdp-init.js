@@ -1619,9 +1619,11 @@ function abrirVincularGDP(contratoId, itemIdx) {
   const buscaEl = document.getElementById("vincular-gdp-busca");
   if (buscaEl) buscaEl.value = prodVinculado ? prodVinculado.nome : "";
   renderVincularGDPResultados(prodVinculado ? prodVinculado.nome : "");
-  // Auto-preencher nome resumido sugerido no formulário de cadastro rápido
+  // Limpar e preencher formulário de cadastro rápido
   const novoNomeEl = document.getElementById("vincular-gdp-novo-nome");
   if (novoNomeEl) novoNomeEl.value = gdpResumirDescricao(_vincularGdpDescricao) || _vincularGdpDescricao || "";
+  ["vincular-gdp-novo-sku","vincular-gdp-novo-ncm","vincular-gdp-novo-preco-custo","vincular-gdp-novo-preco-venda"].forEach(id => { const el = document.getElementById(id); if (el) el.value = ""; });
+  ["vincular-gdp-novo-unidade","vincular-gdp-novo-categoria","vincular-gdp-novo-origem"].forEach(id => { const el = document.getElementById(id); if (el) el.selectedIndex = 0; });
   const modal = document.getElementById("modal-vincular-gdp");
   if (modal) { modal.classList.remove("hidden"); modal.style.display = "flex"; }
 }
