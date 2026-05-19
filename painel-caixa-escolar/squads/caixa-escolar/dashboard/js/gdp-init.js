@@ -1619,11 +1619,7 @@ function abrirVincularGDP(contratoId, itemIdx) {
   const buscaEl = document.getElementById("vincular-gdp-busca");
   if (buscaEl) buscaEl.value = prodVinculado ? prodVinculado.nome : "";
   renderVincularGDPResultados(prodVinculado ? prodVinculado.nome : "");
-  // Limpar e preencher formulário de cadastro rápido
-  const novoNomeEl = document.getElementById("vincular-gdp-novo-nome");
-  if (novoNomeEl) novoNomeEl.value = gdpResumirDescricao(_vincularGdpDescricao) || _vincularGdpDescricao || "";
-  ["vincular-gdp-novo-sku","vincular-gdp-novo-ncm","vincular-gdp-novo-preco-custo","vincular-gdp-novo-preco-venda"].forEach(id => { const el = document.getElementById(id); if (el) el.value = ""; });
-  ["vincular-gdp-novo-unidade","vincular-gdp-novo-categoria","vincular-gdp-novo-origem"].forEach(id => { const el = document.getElementById(id); if (el) el.selectedIndex = 0; });
+  // (Formulário de cadastro rápido removido — agora usa o form padrão da central de produtos)
   const modal = document.getElementById("modal-vincular-gdp");
   if (modal) { modal.classList.remove("hidden"); modal.style.display = "flex"; }
 }
@@ -1715,24 +1711,52 @@ function renderVincularGDPResultados(query) {
     </tr>`}).join("") + '</tbody></table>';
 }
 
-// Cadastrar novo produto direto no modal de vincular (formulário completo) e vincular automaticamente
-function cadastrarEVincularGDP() {
-  const nome = (document.getElementById("vincular-gdp-novo-nome")?.value || "").trim();
-  if (!nome) { showToast("Informe o nome do produto.", 3000); return; }
-  const unidade_base = document.getElementById("vincular-gdp-novo-unidade")?.value || "UN";
-  const skuManual = (document.getElementById("vincular-gdp-novo-sku")?.value || "").trim();
-  const sku = skuManual || (typeof gerarProximoSKU === 'function' ? gerarProximoSKU() : gdpGerarSkuSugerido(nome));
-  const ncm = (document.getElementById("vincular-gdp-novo-ncm")?.value || "").trim();
-  const categoria = document.getElementById("vincular-gdp-novo-categoria")?.value || "";
-  const origem = document.getElementById("vincular-gdp-novo-origem")?.value || "0";
-  const preco_custo = parseFloat(document.getElementById("vincular-gdp-novo-preco-custo")?.value) || 0;
-  const preco_referencia = parseFloat(document.getElementById("vincular-gdp-novo-preco-venda")?.value) || 0;
-  const prodId = genId("PROD");
-  estoqueIntelProdutos.push({ id: prodId, nome, unidade_base, sku, ncm, categoria, origem, preco_custo, preco_referencia });
-  saveEstoqueIntelProdutos();
-  // Vincular automaticamente ao item do contrato
-  selecionarVincularGDPIntel(prodId);
+// Abrir formulário padrão de cadastro de produto (central de preços) via modal de vincular
+// Fecha o modal de vincular, abre o form completo, e após salvar auto-vincula
+var _vincularPendente = null;
+function abrirCadastroProdutoViaVincular() {
+  // Guardar contexto do vínculo pendente
+  _vincularPendente = { contratoId: _vincularGdpContratoId, itemIdx: _vincularGdpItemIdx, descricao: _vincularGdpDescricao };
+  fecharVincularGDP();
+  // Mudar para aba estoque e abrir form de novo produto
+  switchTab('estoque');
+  setEstoqueIntelView('produtos');
+  setTimeout(function() {
+    toggleFormNovoProduto();
+    // Preencher nome com descrição resumida do item do contrato
+    setTimeout(function() {
+      const nomeEl = document.getElementById('ei-produto-nome');
+      if (nomeEl && _vincularPendente.descricao) {
+        nomeEl.value = gdpResumirDescricao(_vincularPendente.descricao) || _vincularPendente.descricao;
+      }
+    }, 100);
+  }, 200);
 }
+
+// Override salvarNovoProdutoModal para auto-vincular se veio do fluxo de vincular
+var _originalSalvarNovoProdutoModal = null;
+function patchSalvarParaAutoVincular() {
+  if (_originalSalvarNovoProdutoModal) return; // já patcheado
+  if (typeof salvarNovoProdutoModal !== 'function') return;
+  _originalSalvarNovoProdutoModal = salvarNovoProdutoModal;
+  salvarNovoProdutoModal = function() {
+    _originalSalvarNovoProdutoModal();
+    // Se tem vínculo pendente, vincular o último produto cadastrado
+    if (_vincularPendente && _vincularPendente.contratoId) {
+      const ultimoProd = estoqueIntelProdutos[estoqueIntelProdutos.length - 1];
+      if (ultimoProd) {
+        _vincularGdpContratoId = _vincularPendente.contratoId;
+        _vincularGdpItemIdx = _vincularPendente.itemIdx;
+        _vincularGdpDescricao = _vincularPendente.descricao;
+        selecionarVincularGDPIntel(ultimoProd.id);
+        showToast('Produto cadastrado e vinculado automaticamente!', 3000);
+      }
+      _vincularPendente = null;
+    }
+  };
+}
+// Patch ao carregar
+setTimeout(patchSalvarParaAutoVincular, 1000);
 
 function selecionarVincularGDPIntel(produtoId) {
   const produto = estoqueIntelProdutos.find(p => p.id === produtoId);

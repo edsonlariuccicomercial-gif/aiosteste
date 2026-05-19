@@ -1533,26 +1533,10 @@
         <input type="text" id="vincular-gdp-busca" placeholder="Buscar produto cadastrado..." oninput="renderVincularGDPResultados(this.value)" style="width:100%">
       </div>
       <div id="vincular-gdp-resultados" style="max-height:350px;overflow-y:auto"></div>
-      <div id="vincular-gdp-cadastrar" style="margin-top:1rem;padding:1rem;border:1px dashed var(--bdr);border-radius:10px;background:var(--s1)">
-        <div style="font-size:.85rem;font-weight:600;margin-bottom:.8rem">Cadastrar novo produto</div>
-        <div style="margin-bottom:.6rem">
-          <label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.2rem">Nome do Produto</label>
-          <input type="text" id="vincular-gdp-novo-nome" placeholder="Ex: Arroz 5kg" style="width:100%">
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-bottom:.6rem">
-          <div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.2rem">Unidade</label><select id="vincular-gdp-novo-unidade" style="width:100%"><option value="UN">UN</option><option value="KG">KG</option><option value="GR">GR</option><option value="LT">LT</option><option value="ML">ML</option><option value="CX">CX</option><option value="PCT">PCT</option><option value="BD">BD</option><option value="DZ">DZ</option><option value="MC">MC</option></select></div>
-          <div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.2rem">SKU / Cod. Barras</label><input type="text" id="vincular-gdp-novo-sku" placeholder="Auto se vazio" style="width:100%"></div>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-bottom:.6rem">
-          <div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.2rem">NCM</label><input type="text" id="vincular-gdp-novo-ncm" placeholder="Ex: 10063021" style="width:100%"></div>
-          <div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.2rem">Categoria</label><select id="vincular-gdp-novo-categoria" style="width:100%"><option value="">Selecione...</option><option value="Alimentos">Alimentos</option><option value="Bebidas">Bebidas</option><option value="Carnes">Carnes</option><option value="Frios">Frios</option><option value="Hortifruti">Hortifruti</option><option value="Laticinios">Laticinios</option><option value="Limpeza">Limpeza</option><option value="Mercearia">Mercearia</option><option value="Padaria">Padaria</option></select></div>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.5rem;margin-bottom:.6rem">
-          <div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.2rem">Origem NF-e</label><select id="vincular-gdp-novo-origem" style="width:100%"><option value="0">0 - Nacional</option><option value="1">1 - Importacao Direta</option><option value="2">2 - Adquirido Mercado</option></select></div>
-          <div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.2rem">Preco Custo (R$)</label><input type="number" id="vincular-gdp-novo-preco-custo" placeholder="0.00" min="0" step="0.01" style="width:100%"></div>
-          <div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.2rem">Preco Venda (R$)</label><input type="number" id="vincular-gdp-novo-preco-venda" placeholder="0.00" min="0" step="0.01" style="width:100%"></div>
-        </div>
-        <button class="btn btn-green" onclick="cadastrarEVincularGDP()" style="font-weight:700;width:100%">Cadastrar e Vincular</button>
+      <div style="margin-top:1rem;padding:.8rem 1rem;border:1px dashed var(--bdr);border-radius:10px;background:var(--s1);text-align:center">
+        <div style="font-size:.82rem;color:var(--mut);margin-bottom:.5rem">Produto nao encontrado?</div>
+        <button class="btn btn-green" onclick="abrirCadastroProdutoViaVincular()" style="font-weight:700">+ Cadastrar Novo Produto</button>
+        <div style="font-size:.72rem;color:var(--dim);margin-top:.4rem">Abre o cadastro completo com o nome do item ja preenchido</div>
       </div>
     </div>
   </div>
