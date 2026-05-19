@@ -489,6 +489,11 @@
 
 <script src="js/supabase-config.js"></script>
 <script>
+if (typeof gdpLog === 'undefined') { var gdpLog = console.log.bind(console, '[GDP]'); }
+if (typeof gdpWarn === 'undefined') { var gdpWarn = console.warn.bind(console, '[GDP]'); }
+</script>
+<script src="gdp-api.js"></script>
+<script>
 // ===== SUPABASE CLOUD SYNC (uses centralized config from supabase-config.js) =====
 const SUPABASE_URL = window.SUPABASE_URL || "https://mvvsjaudhbglxttxaeop.supabase.co";
 const SUPABASE_KEY = window.SUPABASE_KEY || "sb_publishable_uBqL8sLjMGWnZ2aaQ1zwvg_mlQrZUXR";
@@ -662,6 +667,18 @@ function doLogin() {
   document.getElementById('topbar-escola').textContent = currentUser.nome;
   document.getElementById('topbar-saldo').style.display = 'none';
   document.getElementById('topbar-saldo').textContent = '';
+
+  // Load fresh data from Supabase (fire-and-forget, don't block login)
+  if (window.gdpApi) {
+    Promise.all([
+      gdpApi.contratos.list(),
+      gdpApi.pedidos.list(),
+      gdpApi.clientes.list()
+    ]).then(function() {
+      console.log('[portal] Refreshed from Supabase after login');
+      if (currentUser) showContractSelection();
+    }).catch(function(e) { console.warn('[portal] Supabase refresh failed:', e); });
+  }
 
   showContractSelection();
 }
@@ -1413,7 +1430,9 @@ async function confirmOrder() {
       _usr.updated_at = new Date().toISOString();
       localStorage.setItem('gdp.usuarios.v1', JSON.stringify(_usuarios));
       // Sync to Supabase clientes table
-      if (_usr.id) {
+      if (window.gdpApi) {
+        gdpApi.clientes.save(_usr).catch(function() {});
+      } else if (_usr.id) {
         fetch(`${SUPABASE_URL}/rest/v1/clientes?id=eq.${encodeURIComponent(_usr.id)}`, {
           method: 'PATCH',
           headers: {
@@ -1521,34 +1540,10 @@ async function confirmOrder() {
     body: JSON.stringify({ pedido: pedidoSync })
   }).catch(() => {});
 
-  // Upsert direto na tabela pedidos do Supabase (fonte primária do gdpApi)
-  try {
-    const _empRaw = JSON.parse(localStorage.getItem('nexedu.empresa') || '{}');
-    const _empresaId = _empRaw.syncUserId || _empRaw.nomeFantasia || _empRaw.nome || _empRaw.cnpj || 'LARIUCCI';
-    const _pedRow = { ...pedidoSync, empresa_id: _empresaId, updated_at: new Date().toISOString() };
-    fetch(`${SUPABASE_URL}/rest/v1/pedidos?on_conflict=id`, {
-      method: 'POST',
-      headers: {
-        'apikey': SUPABASE_KEY,
-        'Authorization': 'Bearer ' + SUPABASE_KEY,
-        'Content-Type': 'application/json',
-        'Prefer': 'return=minimal,resolution=merge-duplicates'
-      },
-      body: JSON.stringify(_pedRow)
-    }).catch(() => {});
-  } catch(_) {}
-
-  // Tambem salvar no localStorage de pedidos (formato entregador) — usar wrapper {_v, items} para compatibilidade com dashboard
-  try {
-    const _pedRaw = JSON.parse(localStorage.getItem('gdp.pedidos.v1') || '{}');
-    const pedidosLocal = unwrapData(_pedRaw);
-    if (!pedidosLocal.find(p => p.id === proto)) {
-      pedidosLocal.push(pedidoSync);
-      const wrapped = { _v: 1, updatedAt: new Date().toISOString(), items: pedidosLocal };
-      localStorage.setItem('gdp.pedidos.v1', JSON.stringify(wrapped));
-      schedulCloudSync();
-    }
-  } catch(_) {}
+  // Persist to Supabase via gdpApi (handles offline retry + localStorage mirror)
+  if (window.gdpApi) {
+    gdpApi.pedidos.save(pedidoSync).catch(function(e) { console.warn('[portal] pedidos upsert failed:', e); });
+  }
 
   // Deduzir saldo do contrato e atualizar schoolProducts em memória
   try {
@@ -1801,10 +1796,14 @@ function excluirPedidoPortal(protocol) {
   } catch(_) {}
 
   // Delete from Supabase pedidos table (prevents reappearing on next sync)
-  fetch(`${SUPABASE_URL}/rest/v1/pedidos?id=eq.${encodeURIComponent(protocol)}`, {
-    method: 'DELETE',
-    headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY }
-  }).catch(() => {});
+  if (window.gdpApi) {
+    gdpApi.pedidos.remove(protocol).catch(function() {});
+  } else {
+    fetch(`${SUPABASE_URL}/rest/v1/pedidos?id=eq.${encodeURIComponent(protocol)}`, {
+      method: 'DELETE',
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY }
+    }).catch(() => {});
+  }
 
   schedulCloudSync();
   renderMeusPedidos();
@@ -1980,6 +1979,11 @@ function salvarEdicaoPedido(protocol) {
     }
   } catch(_) {}
 
+  // Sync updated pedido to Supabase
+  if (window.gdpApi) {
+    gdpApi.pedidos.save({ id: protocol, itens: newItems.map(function(i) { return { itemNum: i.itemNum, descricao: i.name, qtd: i.qty, precoUnitario: i.unitPrice, unidade: i.unidade || 'UN', sku: i.sku || '', ncm: i.ncm || '' }; }), valor: newTotal }).catch(function() {});
+  }
+
   schedulCloudSync();
   fecharModalPedido();
   renderMeusPedidos();
@@ -2006,10 +2010,14 @@ function excluirPedido(protocol) {
   } catch(_) {}
 
   // Delete from Supabase pedidos table (prevents reappearing on next sync)
-  fetch(`${SUPABASE_URL}/rest/v1/pedidos?id=eq.${encodeURIComponent(protocol)}`, {
-    method: 'DELETE',
-    headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY }
-  }).catch(() => {});
+  if (window.gdpApi) {
+    gdpApi.pedidos.remove(protocol).catch(function() {});
+  } else {
+    fetch(`${SUPABASE_URL}/rest/v1/pedidos?id=eq.${encodeURIComponent(protocol)}`, {
+      method: 'DELETE',
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY }
+    }).catch(() => {});
+  }
 
   // Recalculate saldo
   try {
@@ -2472,6 +2480,16 @@ ${ctrSection}
 // Init — sync from cloud then load, then push local to cloud
 (async function() {
   try { await syncFromCloud(); } catch(_) {}
+  // Pre-load Supabase tables into localStorage cache (gdpApi mirrors to LS)
+  if (window.gdpApi) {
+    try {
+      await Promise.race([
+        Promise.all([gdpApi.contratos.list(), gdpApi.pedidos.list(), gdpApi.clientes.list()]),
+        new Promise(function(_, rej) { setTimeout(rej, 5000); })
+      ]);
+      console.log('[portal] Supabase data pre-loaded');
+    } catch(_) { console.warn('[portal] Pre-load timeout, using cache'); }
+  }
   escolaOrders = JSON.parse(localStorage.getItem('gdp.escola.pedidos') || '[]');
   init();
   try { await syncToCloud(); } catch(_) {}
