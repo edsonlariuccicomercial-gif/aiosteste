@@ -1682,6 +1682,18 @@ function salvarNcmItem(contratoId, itemIdx, value) {
   syncContratoItemToPedidos(contratoId, c.itens[itemIdx]);
 }
 
+// Story 14.9: Editar preço do item do contrato com reflexo nos pedidos e portal
+function salvarPrecoItemContrato(contratoId, itemIdx, value) {
+  const c = contratos.find(x => x.id === contratoId);
+  if (!c || !c.itens[itemIdx]) return;
+  const novoPreco = Math.round((parseFloat(value) || 0) * 100) / 100;
+  c.itens[itemIdx].precoUnitario = novoPreco;
+  saveContratos();
+  // Propagar para pedidos vinculados (mesma lógica do syncContratoItemToPedidos)
+  syncContratoItemToPedidos(contratoId, c.itens[itemIdx]);
+  if (typeof showToast === 'function') showToast('Preco atualizado: R$ ' + novoPreco.toFixed(2).replace('.', ','), 2000);
+}
+
 function buscarNcmItem(contratoId, itemIdx) {
   const c = contratos.find(x => x.id === contratoId);
   if (!c || !c.itens[itemIdx]) return;

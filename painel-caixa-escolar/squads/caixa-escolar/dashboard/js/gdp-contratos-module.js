@@ -2897,7 +2897,7 @@ function abrirContrato(id) {
             <td class="text-right font-mono">${item.qtdEntregue}</td>
             <td class="text-right font-mono" style="font-weight:700;color:${saldo > 0 ? 'var(--yellow)' : 'var(--green)'}">${saldo}</td>
             <td style="min-width:50px"><div class="progress"><div class="progress-fill ${pct >= 80 ? 'green' : pct >= 40 ? 'yellow' : 'blue'}" style="width:${pct}%"></div></div><span style="font-size:.6rem;color:var(--dim)">${pct.toFixed(0)}%</span></td>
-            <td class="text-right font-mono">${brl.format(item.precoUnitario)}</td>
+            <td class="text-right"><input type="number" step="0.01" min="0" value="${(item.precoUnitario || 0).toFixed(2)}" style="width:80px;text-align:right;font-size:.8rem;font-family:monospace;padding:.15rem .3rem;background:var(--s1);border:1px solid var(--bdr);border-radius:4px;color:var(--green)" onchange="salvarPrecoItemContrato('${c.id}',${idx},this.value)"></td>
             <td class="text-center" style="white-space:nowrap">
               <button class="btn btn-sm" style="font-size:.75rem;padding:.2rem .4rem;background:rgba(59,130,246,.15);color:var(--blue);border:none;cursor:pointer" onclick="editarItemContrato('${c.id}',${idx})" title="Editar item">✏️</button>
               <button class="btn btn-sm" style="font-size:.72rem;padding:.15rem .38rem;background:rgba(239,68,68,.15);color:var(--red);border:none;cursor:pointer" onclick="excluirItemContrato('${c.id}',${idx})" title="Excluir item">🗑️</button>
