@@ -692,6 +692,31 @@ function doLogin() {
 
   showContractSelection();
 
+  // Re-sync any pending pedidos that failed to save in previous sessions
+  try {
+    const pending = JSON.parse(localStorage.getItem('gdp.escola.pedidos.pending') || '[]');
+    if (pending.length > 0) {
+      console.log('[portal] Re-syncing', pending.length, 'pending pedidos...');
+      const remaining = [];
+      (async function() {
+        for (const p of pending) {
+          try {
+            if (window.gdpApi) { await gdpApi.pedidos.save(p); }
+            else {
+              const row = { id: p.id, empresa_id: 'LARIUCCI', contrato_id: p.contratoId, escola: p.escola, data: p.data, itens: p.itens, valor: p.valor, status: p.status, marcador: p.marcador, obs: p.obs, cliente: p.cliente, updated_at: new Date().toISOString() };
+              const resp = await fetch(SUPABASE_URL + '/rest/v1/pedidos?on_conflict=id', { method: 'POST', headers: { apikey: SUPABASE_KEY, Authorization: 'Bearer ' + SUPABASE_KEY, 'Content-Type': 'application/json', Prefer: 'return=minimal,resolution=merge-duplicates' }, body: JSON.stringify(row) });
+              if (!resp.ok) throw new Error('HTTP ' + resp.status);
+            }
+            console.log('[portal] Pending pedido synced:', p.id);
+          } catch(e) { remaining.push(p); }
+        }
+        localStorage.setItem('gdp.escola.pedidos.pending', JSON.stringify(remaining));
+        if (remaining.length === 0) console.log('[portal] All pending pedidos synced!');
+        else console.warn('[portal]', remaining.length, 'pedidos still pending');
+      })();
+    }
+  } catch(_) {}
+
   // Story 14.2: Start polling for cross-machine sync (every 30s)
   if (window._portalPoll) clearInterval(window._portalPoll);
   window._portalPoll = setInterval(function() {
@@ -1577,10 +1602,39 @@ async function confirmOrder() {
     body: JSON.stringify({ pedido: pedidoSync })
   }).catch(() => {});
 
-  // Persist to Supabase via gdpApi (handles offline retry + localStorage mirror)
-  if (window.gdpApi) {
-    gdpApi.pedidos.save(pedidoSync).catch(function(e) { console.warn('[portal] pedidos upsert failed:', e); });
+  // Persist to Supabase via gdpApi — with retry guarantee (no silent failures)
+  async function savePedidoWithRetry(data, attempts) {
+    for (let i = 0; i < (attempts || 3); i++) {
+      try {
+        if (window.gdpApi) {
+          await gdpApi.pedidos.save(data);
+        } else {
+          // Fallback: direct Supabase upsert if gdpApi not loaded
+          const row = { id: data.id, empresa_id: 'LARIUCCI', contrato_id: data.contratoId, escola: data.escola, data: data.data, itens: data.itens, valor: data.valor, status: data.status, marcador: data.marcador, obs: data.obs, cliente: data.cliente, updated_at: new Date().toISOString() };
+          const resp = await fetch(SUPABASE_URL + '/rest/v1/pedidos?on_conflict=id', { method: 'POST', headers: { apikey: SUPABASE_KEY, Authorization: 'Bearer ' + SUPABASE_KEY, 'Content-Type': 'application/json', Prefer: 'return=minimal,resolution=merge-duplicates' }, body: JSON.stringify(row) });
+          if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        }
+        console.log('[portal] Pedido salvo no Supabase:', data.id);
+        // Mark as synced in escola orders
+        try {
+          const eo = JSON.parse(localStorage.getItem('gdp.escola.pedidos') || '[]');
+          const match = eo.find(o => o.protocol === data.id);
+          if (match) { match._synced = true; localStorage.setItem('gdp.escola.pedidos', JSON.stringify(eo)); }
+        } catch(_) {}
+        return;
+      } catch(e) {
+        console.warn('[portal] Pedido save attempt ' + (i+1) + ' failed:', data.id, e);
+        if (i < 2) await new Promise(r => setTimeout(r, 2000 * (i + 1))); // backoff: 2s, 4s
+      }
+    }
+    console.error('[portal] PEDIDO NÃO SINCRONIZADO após 3 tentativas:', data.id);
+    // Store in pending queue for re-sync on next boot
+    try {
+      const pending = JSON.parse(localStorage.getItem('gdp.escola.pedidos.pending') || '[]');
+      if (!pending.find(p => p.id === data.id)) { pending.push(data); localStorage.setItem('gdp.escola.pedidos.pending', JSON.stringify(pending)); }
+    } catch(_) {}
   }
+  savePedidoWithRetry(pedidoSync, 3);
 
   // Deduzir saldo do contrato e atualizar schoolProducts em memória
   try {
