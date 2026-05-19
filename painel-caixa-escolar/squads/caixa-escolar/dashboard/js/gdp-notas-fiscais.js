@@ -1058,6 +1058,18 @@ async function transmitirHomologacaoNota(notaId) {
     return;
   }
 
+  // Sincronizar itens do pedido para a NF (pega NCM/descrição atualizados)
+  if (pedido.itens && pedido.itens.length) {
+    pedido.itens.forEach((pi, idx) => {
+      if (nf.itens[idx]) {
+        if (pi.ncm) nf.itens[idx].ncm = pi.ncm;
+        if (pi.descricao) nf.itens[idx].descricao = pi.descricao;
+        if (pi.unidade) nf.itens[idx].unidade = pi.unidade;
+        if (pi.sku) nf.itens[idx].sku = pi.sku;
+      }
+    });
+  }
+
   // Reutilizar número existente da NF (já atribuído na geração). Só gerar novo se não tem.
   if (!nf.numero || nf.numero === "0") {
     nf.numero = await getProximoNumeroNf();
@@ -1359,7 +1371,7 @@ function verNotaFiscal(notaId) {
   html += '</div>';
 
   html += '<div class="table-wrap"><table><thead><tr><th>Produto</th><th class="text-center">Qtd</th><th class="text-center">Un.</th><th class="text-center">NCM</th><th class="text-right">Unit.</th><th class="text-right">Subtotal</th></tr></thead><tbody>';
-  html += (nf.itens || []).map((item) => '<tr><td>' + esc(item.descricao || '') + '</td><td class="text-center">' + (item.qtd || 0) + '</td><td class="text-center">' + esc(item.unidade || '-') + '</td><td class="text-center">' + esc(item.ncm || '-') + '</td><td class="text-right">' + brl.format(item.precoUnitario || 0) + '</td><td class="text-right">' + brl.format((item.qtd || 0) * (item.precoUnitario || 0)) + '</td></tr>').join('');
+  html += (nf.itens || []).map((item, idx) => '<tr><td>' + esc(item.descricao || '') + '</td><td class="text-center">' + (item.qtd || 0) + '</td><td class="text-center">' + esc(item.unidade || '-') + '</td><td class="text-center"><input type="text" id="nf-item-ncm-' + nf.id + '-' + idx + '" value="' + esc(item.ncm || '') + '" style="width:90px;text-align:center;font-family:monospace;font-size:.78rem;padding:.2rem .3rem;background:var(--s1);border:1px solid var(--bdr);border-radius:4px;color:var(--cyan)" onchange="salvarNcmItemNf(\'' + nf.id + '\',' + idx + ',this.value)"></td><td class="text-right">' + brl.format(item.precoUnitario || 0) + '</td><td class="text-right">' + brl.format((item.qtd || 0) * (item.precoUnitario || 0)) + '</td></tr>').join('');
   html += '</tbody></table></div>';
 
   document.getElementById("modal-nota-fiscal-titulo").textContent = `${getNotaFiscalTipoLabel(nf)} ${nf.numero || nf.id} — ${nf.cliente?.nome || ''}`;
@@ -1668,6 +1680,18 @@ async function reenviarEmailNfPedido(pedidoId) {
   const conta = contasReceber.find(c => c.notaFiscalId === nf.id || c.pedidoId === pedidoId) || null;
   showToast('Gerando PDF e enviando e-mail da NF ' + (nf.numero || nf.id) + '...', 3000);
   await dispararEmailNotaEBoletoAutomatico(nf.id, conta?.id || null, { manual: true });
+}
+
+// Editar NCM de item direto na tela da NF
+function salvarNcmItemNf(notaId, idx, valor) {
+  const nf = notasFiscais.find(n => n.id === notaId);
+  if (!nf || !nf.itens[idx]) return;
+  nf.itens[idx].ncm = valor.trim();
+  saveNotasFiscais();
+  // Sync NCM de volta pro pedido vinculado
+  const ped = pedidos.find(p => p.id === nf.pedidoId);
+  if (ped && ped.itens[idx]) { ped.itens[idx].ncm = valor.trim(); savePedidos(); }
+  showToast('NCM atualizado: ' + valor.trim(), 2000);
 }
 
 function salvarDadosNotaFiscal(notaId) {
