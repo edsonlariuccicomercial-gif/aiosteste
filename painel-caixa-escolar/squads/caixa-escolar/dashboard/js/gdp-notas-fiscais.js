@@ -1540,7 +1540,7 @@ table.it td{border:1px solid #999;padding:1px 3px;font-size:7pt}
 .hdr-emit .nome{font-size:10pt;font-weight:700;white-space:nowrap}
 .hdr-emit .end{font-size:7pt;line-height:1.4;white-space:nowrap}
 .hdr-danfe{width:120px;text-align:center;padding:4px;border-right:1px solid #000}
-.hdr-chave{width:200px;padding:4px 6px}
+.hdr-chave{flex:2;padding:4px 6px;overflow:hidden}
 </style>
 <div class="danfe-wrap">
 <!-- RECIBO DE ENTREGA -->
@@ -1807,7 +1807,7 @@ table.it td.desc{max-width:160px;overflow:hidden;text-overflow:ellipsis;white-sp
 .hdr-danfe .nf-num{font-size:10pt;font-weight:900;margin-top:2px}
 .hdr-danfe .nf-ser{font-size:7pt}
 .hdr-danfe .nf-fol{font-size:6pt;font-style:italic}
-.hdr-chave{width:200px;padding:2px 4px}
+.hdr-chave{flex:2;padding:2px 4px;overflow:hidden}
 .hdr-chave .bc{text-align:center;min-height:32px}
 .hdr-chave .lbl{font-size:5pt;text-align:center;text-transform:uppercase;margin-top:1px}
 .hdr-chave .val{font-size:6.5pt;font-weight:700;text-align:center;letter-spacing:.4px;word-break:break-all}
