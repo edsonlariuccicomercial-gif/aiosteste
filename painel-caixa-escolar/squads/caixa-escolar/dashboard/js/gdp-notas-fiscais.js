@@ -479,7 +479,8 @@ async function sincronizarCobrancaProvider(contaId) {
 
 // Story 14.5: Numeração NF-e — respeita config do usuário como fonte primária.
 // Prioridade: 1) proximoNumero da config → 2) Supabase RPC atômico → 3) fallback local.
-// Retorna o próximo número SEM incrementar (para preview/geração de NF)
+// Retorna o próximo número livre SEM incrementar (para preview/exibição)
+// Pula números já usados por NFs existentes
 function peekProximoNumeroNf() {
   try {
     const nfConfig = JSON.parse(localStorage.getItem("nexedu.config.notas-fiscais") || "{}");
@@ -492,11 +493,17 @@ function peekProximoNumeroNf() {
       } catch(_) {}
       const localCounter = parseInt(localStorage.getItem("gdp.nf-counter") || "0", 10);
       num = Math.max(maxExistente, localCounter) + 1;
-      // Salvar auto-detectado
       nfConfig.proximoNumero = String(num);
       nfConfig.updatedAt = new Date().toISOString();
       localStorage.setItem("nexedu.config.notas-fiscais", JSON.stringify(nfConfig));
     }
+    // Pular números já usados
+    try {
+      const nfs = unwrapData(JSON.parse(localStorage.getItem("gdp.notas-fiscais.v1") || "[]"));
+      const usados = new Set(nfs.map(nf => parseInt(nf.numero) || 0));
+      let tentativas = 0;
+      while (usados.has(num) && tentativas < 100) { num++; tentativas++; }
+    } catch(_) {}
     return String(num);
   } catch(_) {
     return String(Date.now()).slice(-6);
@@ -504,20 +511,35 @@ function peekProximoNumeroNf() {
 }
 
 // Retorna o próximo número E incrementa (SOMENTE para transmissão efetiva à SEFAZ)
+// Pula números já usados por NFs existentes
 async function consumirProximoNumeroNf() {
   const empresaId = typeof gdpApi !== 'undefined' ? gdpApi.getEmpresaId() : getEmpresaId();
-  const num = parseInt(peekProximoNumeroNf(), 10);
-  // Incrementar para a próxima
+  let num = parseInt(peekProximoNumeroNf(), 10);
+  // Verificar se o número já foi usado — se sim, pular para o próximo livre
+  try {
+    const nfs = unwrapData(JSON.parse(localStorage.getItem("gdp.notas-fiscais.v1") || "[]"));
+    const usados = new Set(nfs.map(nf => parseInt(nf.numero) || 0));
+    let tentativas = 0;
+    while (usados.has(num) && tentativas < 100) { num++; tentativas++; }
+  } catch(_) {}
+  // Calcular próximo livre após este
+  let proximo = num + 1;
+  try {
+    const nfs = unwrapData(JSON.parse(localStorage.getItem("gdp.notas-fiscais.v1") || "[]"));
+    const usados = new Set(nfs.map(nf => parseInt(nf.numero) || 0));
+    while (usados.has(proximo)) proximo++;
+  } catch(_) {}
+  // Salvar
   try {
     const nfConfig = JSON.parse(localStorage.getItem("nexedu.config.notas-fiscais") || "{}");
-    nfConfig.proximoNumero = String(num + 1);
+    nfConfig.proximoNumero = String(proximo);
     nfConfig.updatedAt = new Date().toISOString();
     localStorage.setItem("nexedu.config.notas-fiscais", JSON.stringify(nfConfig));
     localStorage.setItem("gdp.nf-counter", String(num));
     if (typeof gdpApi !== 'undefined') {
       gdpApi.nf_counter.save({ empresa_id: empresaId, ultimo_numero: num }).catch(function() {});
     }
-    console.log("[NF-e] Numero CONSUMIDO:", num, "| Proximo:", num + 1);
+    console.log("[NF-e] Numero CONSUMIDO:", num, "| Proximo livre:", proximo);
   } catch(_) {}
   return String(num);
 }
