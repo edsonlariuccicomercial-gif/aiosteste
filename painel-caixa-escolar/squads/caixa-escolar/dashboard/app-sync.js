@@ -39,6 +39,7 @@ function persistResolvedSyncUser(userId) {
 
 function getSyncUserId() {
   const emp = ensureEmpresaContext();
+  // Story 14.1: prioritize fixed syncUserId set at login (from escola.id or "LARIUCCI")
   return emp.syncUserId || emp.nomeFantasia || emp.nome || emp.cnpj || "default";
 }
 
@@ -61,21 +62,30 @@ async function cloudSave(key, data, signal) {
 }
 
 async function cloudLoadAll() {
+  // Story 14.3: parallel fetch for all user candidates instead of sequential
   const headers = { "apikey": SUPABASE_KEY, "Authorization": "Bearer " + SUPABASE_KEY };
-  for (const userId of getSyncUserCandidates()) {
+  const candidates = getSyncUserCandidates();
+
+  const results = await Promise.all(candidates.map(async (userId) => {
     try {
       const resp = await fetch(
         `${SUPABASE_URL}/rest/v1/sync_data?user_id=eq.${encodeURIComponent(userId)}&select=key,data,updated_at`,
         { headers }
       );
-      if (!resp.ok) continue;
+      if (!resp.ok) return { userId, rows: [] };
       const rows = await resp.json();
-      if (Array.isArray(rows) && rows.length > 0) {
-        persistResolvedSyncUser(userId);
-        return rows;
-      }
+      return { userId, rows: Array.isArray(rows) ? rows : [] };
     } catch (e) {
       gdpWarn("Cloud load failed:", userId, e);
+      return { userId, rows: [] };
+    }
+  }));
+
+  // Return first candidate that has data (preserves priority order)
+  for (const result of results) {
+    if (result.rows.length > 0) {
+      persistResolvedSyncUser(result.userId);
+      return result.rows;
     }
   }
   return null;
@@ -195,3 +205,96 @@ document.addEventListener('visibilitychange', () => {
     syncToCloud(_visibilityAbort.signal).catch(() => {});
   }
 });
+
+// ─── Story 14.2: Polling-based cross-machine sync ───
+let _pollInterval = null;
+let _lastPollTs = null;
+let _pollStatus = 'disconnected'; // 'connected' | 'syncing' | 'disconnected'
+
+function _updateSyncIndicator(status) {
+  _pollStatus = status;
+  const el = document.getElementById('sync-status-indicator');
+  if (!el) return;
+  const map = { connected: '🟢', syncing: '🟡', disconnected: '🔴' };
+  el.textContent = map[status] || '⚪';
+  el.title = status === 'connected' ? 'Sincronizado' : status === 'syncing' ? 'Sincronizando...' : 'Desconectado';
+}
+
+async function pollForChanges() {
+  if (!navigator.onLine) { _updateSyncIndicator('disconnected'); return; }
+  _updateSyncIndicator('syncing');
+  try {
+    const empresaId = getSyncUserId();
+    const tables = ['pedidos', 'contratos'];
+    let hasChanges = false;
+
+    for (const table of tables) {
+      let url = `${SUPABASE_URL}/rest/v1/${table}?empresa_id=eq.${encodeURIComponent(empresaId)}&select=*&order=updated_at.desc&limit=100`;
+      if (_lastPollTs) {
+        url += `&updated_at=gt.${encodeURIComponent(_lastPollTs)}`;
+      }
+      const resp = await fetch(url, { headers: { apikey: SUPABASE_KEY, Authorization: 'Bearer ' + SUPABASE_KEY } });
+      if (!resp.ok) continue;
+      const rows = await resp.json();
+      if (!rows.length) continue;
+      hasChanges = true;
+
+      // Update localStorage cache via gdp-api entity structure
+      const entity = window.gdpApi?._ENTITIES?.[table];
+      if (entity) {
+        const lsKey = entity.lsKey;
+        let existing = [];
+        try {
+          const raw = JSON.parse(localStorage.getItem(lsKey) || 'null');
+          if (raw && raw.items) existing = raw.items;
+          else if (Array.isArray(raw)) existing = raw;
+        } catch (_) {}
+
+        for (const row of rows) {
+          const idx = existing.findIndex(e => e.id === row.id);
+          if (idx >= 0) existing[idx] = row;
+          else existing.push(row);
+          // Track newest timestamp
+          if (row.updated_at && (!_lastPollTs || row.updated_at > _lastPollTs)) {
+            _lastPollTs = row.updated_at;
+          }
+        }
+        const wrapped = entity.wrapped
+          ? { _v: 1, updatedAt: new Date().toISOString(), items: existing }
+          : existing;
+        localStorage.setItem(lsKey, JSON.stringify(wrapped));
+      }
+    }
+
+    if (hasChanges && typeof window.renderAll === 'function') {
+      window.renderAll();
+    }
+    _updateSyncIndicator('connected');
+  } catch (e) {
+    gdpWarn('[poll] Error:', e);
+    _updateSyncIndicator('disconnected');
+  }
+}
+
+function startPolling(intervalMs) {
+  stopPolling();
+  _lastPollTs = new Date().toISOString();
+  pollForChanges();
+  _pollInterval = setInterval(pollForChanges, intervalMs || 30000);
+}
+
+function stopPolling() {
+  if (_pollInterval) { clearInterval(_pollInterval); _pollInterval = null; }
+}
+
+// Auto-start polling when page is visible, stop when hidden
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && !_pollInterval) {
+    startPolling(30000);
+  } else if (document.visibilityState === 'hidden') {
+    stopPolling();
+  }
+});
+
+// Export for use by other modules
+window._gdpSync = { startPolling, stopPolling, pollForChanges, getSyncStatus: () => _pollStatus };

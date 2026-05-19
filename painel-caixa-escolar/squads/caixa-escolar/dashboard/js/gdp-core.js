@@ -223,21 +223,29 @@ async function cloudSave(key, data, signal) {
 }
 
 async function cloudLoadAll() {
+  // Story 14.3: parallel fetch for all user candidates instead of sequential
   const headers = { "apikey": SUPABASE_KEY, "Authorization": "Bearer " + SUPABASE_KEY };
-  for (const userId of getGdpSyncUserCandidates()) {
+  const candidates = getGdpSyncUserCandidates();
+
+  const results = await Promise.all(candidates.map(async (userId) => {
     try {
       const resp = await fetch(
         `${SUPABASE_URL}/rest/v1/sync_data?user_id=eq.${encodeURIComponent(userId)}&select=key,data,updated_at`,
         { headers }
       );
-      if (!resp.ok) continue;
+      if (!resp.ok) return { userId, rows: [] };
       const rows = await resp.json();
-      if (Array.isArray(rows) && rows.length > 0) {
-        persistResolvedGdpSyncUser(userId);
-        return rows;
-      }
+      return { userId, rows: Array.isArray(rows) ? rows : [] };
     } catch (e) {
       gdpWarn("Cloud load failed:", userId, e);
+      return { userId, rows: [] };
+    }
+  }));
+
+  for (const result of results) {
+    if (result.rows.length > 0) {
+      persistResolvedGdpSyncUser(result.userId);
+      return result.rows;
     }
   }
   return null;

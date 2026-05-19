@@ -121,12 +121,23 @@
       try {
         // Try Supabase Auth first
         await window.gdpAuth.signIn(email, pass);
+        // Story 14.1: ensure syncUserId is set for Supabase-authenticated admin
+        try {
+          const emp = JSON.parse(localStorage.getItem('nexedu.empresa') || '{}');
+          if (!emp.syncUserId) { emp.syncUserId = 'LARIUCCI'; localStorage.setItem('nexedu.empresa', JSON.stringify(emp)); }
+        } catch(_) {}
         window.location.href = DASHBOARD_URL;
       } catch (authErr) {
         // Fallback to legacy auth (transition period)
         const hash = await sha256(pass);
         if (email === LEGACY_AUTH.user && hash === LEGACY_AUTH.passHash) {
           sessionStorage.setItem(LEGACY_AUTH.sessionKey, LEGACY_AUTH.passHash);
+          // Story 14.1: Set consistent empresa_id for admin/gestor login
+          try {
+            const emp = JSON.parse(localStorage.getItem('nexedu.empresa') || '{}');
+            emp.syncUserId = 'LARIUCCI';
+            localStorage.setItem('nexedu.empresa', JSON.stringify(emp));
+          } catch(_) {}
           window.location.href = DASHBOARD_URL;
         } else {
           errEl.textContent = authErr.message || "Email ou senha inválidos.";

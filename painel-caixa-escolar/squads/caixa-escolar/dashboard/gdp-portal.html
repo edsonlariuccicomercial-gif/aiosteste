@@ -660,6 +660,16 @@ function doLogin() {
   currentUser = escola;
   selectedContract = null;
 
+  // Story 14.1: Set consistent empresa_id from escola.id (fixed credential-based identity)
+  try {
+    const emp = JSON.parse(localStorage.getItem('nexedu.empresa') || '{}');
+    emp.syncUserId = escola.id;
+    emp.nome = escola.nome;
+    emp.nomeFantasia = escola.nome;
+    emp.cnpj = escola.cnpj || emp.cnpj || '';
+    localStorage.setItem('nexedu.empresa', JSON.stringify(emp));
+  } catch(_) {}
+
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
 
@@ -681,12 +691,24 @@ function doLogin() {
   }
 
   showContractSelection();
+
+  // Story 14.2: Start polling for cross-machine sync (every 30s)
+  if (window._portalPoll) clearInterval(window._portalPoll);
+  window._portalPoll = setInterval(function() {
+    if (!window.gdpApi || !currentUser) return;
+    Promise.all([gdpApi.pedidos.list(), gdpApi.contratos.list()]).then(function() {
+      if (currentUser && selectedContract) {
+        renderPedidosList();
+      }
+    }).catch(function() {});
+  }, 30000);
 }
 
 function logout() {
   currentUser = null;
   cart = {};
   selectedContract = null;
+  if (window._portalPoll) { clearInterval(window._portalPoll); window._portalPoll = null; }
   // Replace history entry so browser back button won't go to supplier dashboard
   window.history.replaceState(null, '', 'gdp-portal.html');
   document.getElementById('app').style.display = 'none';

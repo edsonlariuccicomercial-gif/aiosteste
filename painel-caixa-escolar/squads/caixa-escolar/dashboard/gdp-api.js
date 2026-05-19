@@ -27,6 +27,7 @@
     nf_counter:     { lsKey: 'gdp.nf-counter.v1',      table: 'nf_counter',     wrapped: false }
   };
 
+  // Story 14.1: empresa_id must match syncUserId set at login (from escola.id or "LARIUCCI")
   function getEmpresaId() {
     try {
       var emp = JSON.parse(localStorage.getItem('nexedu.empresa') || '{}');

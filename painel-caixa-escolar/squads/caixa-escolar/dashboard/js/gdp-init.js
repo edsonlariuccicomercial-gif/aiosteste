@@ -2775,6 +2775,11 @@ async function enviarTiny(contratoId) {
       renderBancoProdutos();
     }
   });
+
+  // Story 14.2: Start cross-machine polling (30s interval)
+  if (window._gdpSync) {
+    window._gdpSync.startPolling(30000);
+  }
 })();
 
 // [gdp-pedidos.js loaded above — Lista de Compras, Status Tabs, Selection, Menu]
