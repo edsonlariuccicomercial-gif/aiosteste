@@ -1459,6 +1459,8 @@ function renderNotasFiscais() {
       (nf.cliente?.nome || "").toLowerCase().includes(busca)
     );
   }
+  // Ordenar por número decrescente (maior primeiro)
+  filtered = filtered.slice().sort((a, b) => (parseInt(b.numero) || 0) - (parseInt(a.numero) || 0));
   renderNotasFiscaisStatusTabs(filtered);
   if (notaFiscalStatusTabAtual !== "todas") {
     filtered = filtered.filter((nf) => normalizeNotaFiscalStatus(nf.status) === notaFiscalStatusTabAtual);
