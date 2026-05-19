@@ -1533,8 +1533,14 @@
         <input type="text" id="vincular-gdp-busca" placeholder="Buscar produto cadastrado..." oninput="renderVincularGDPResultados(this.value)" style="width:100%">
       </div>
       <div id="vincular-gdp-resultados" style="max-height:350px;overflow-y:auto"></div>
-      <div style="margin-top:1rem;padding:.8rem 1rem;border:1px dashed var(--bdr);border-radius:10px;background:var(--s1);font-size:.82rem;color:var(--mut)">
-        Produto nao encontrado? Cadastre em <strong>Inteligencia > Produtos</strong> e volte para vincular.
+      <div id="vincular-gdp-cadastrar" style="margin-top:1rem;padding:1rem;border:1px dashed var(--bdr);border-radius:10px;background:var(--s1)">
+        <div style="font-size:.85rem;font-weight:600;margin-bottom:.6rem">Cadastrar novo produto</div>
+        <div style="display:grid;grid-template-columns:1fr 80px 120px;gap:.5rem;margin-bottom:.5rem">
+          <input type="text" id="vincular-gdp-novo-nome" placeholder="Nome do produto" style="width:100%">
+          <select id="vincular-gdp-novo-unidade"><option value="UN">UN</option><option value="KG">KG</option><option value="GR">GR</option><option value="LT">LT</option><option value="ML">ML</option><option value="CX">CX</option><option value="PCT">PCT</option></select>
+          <input type="text" id="vincular-gdp-novo-ncm" placeholder="NCM" style="width:100%">
+        </div>
+        <button class="btn btn-green btn-sm" onclick="cadastrarEVincularGDP()" style="font-weight:700">Cadastrar e Vincular</button>
       </div>
     </div>
   </div>

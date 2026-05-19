@@ -1619,6 +1619,9 @@ function abrirVincularGDP(contratoId, itemIdx) {
   const buscaEl = document.getElementById("vincular-gdp-busca");
   if (buscaEl) buscaEl.value = prodVinculado ? prodVinculado.nome : "";
   renderVincularGDPResultados(prodVinculado ? prodVinculado.nome : "");
+  // Auto-preencher nome sugerido no formulário de cadastro rápido
+  const novoNomeEl = document.getElementById("vincular-gdp-novo-nome");
+  if (novoNomeEl) novoNomeEl.value = _vincularGdpDescricao || "";
   const modal = document.getElementById("modal-vincular-gdp");
   if (modal) { modal.classList.remove("hidden"); modal.style.display = "flex"; }
 }
@@ -1680,6 +1683,20 @@ function renderVincularGDPResultados(query) {
       <td class="font-mono" style="font-size:.7rem">${esc(p.sku || "-")}</td>
       <td class="text-center">${isVinculado ? '<span style="font-size:.72rem;color:var(--green);font-weight:700">Atual</span>' : '<button class="btn btn-sm btn-green" style="font-size:.72rem;padding:.15rem .4rem" onclick="selecionarVincularGDPIntel(\'' + esc(p.id) + '\')">Vincular</button>'}</td>
     </tr>`}).join("") + '</tbody></table>';
+}
+
+// Cadastrar novo produto direto no modal de vincular e vincular automaticamente
+function cadastrarEVincularGDP() {
+  const nome = (document.getElementById("vincular-gdp-novo-nome")?.value || "").trim();
+  if (!nome) { showToast("Informe o nome do produto.", 3000); return; }
+  const unidade_base = document.getElementById("vincular-gdp-novo-unidade")?.value || "UN";
+  const ncm = (document.getElementById("vincular-gdp-novo-ncm")?.value || "").trim();
+  const sku = gdpGerarSkuSugerido(nome);
+  const prodId = genId("PROD");
+  estoqueIntelProdutos.push({ id: prodId, nome, unidade_base, sku, ncm, categoria: "", origem: "0" });
+  saveEstoqueIntelProdutos();
+  // Vincular automaticamente ao item do contrato
+  selecionarVincularGDPIntel(prodId);
 }
 
 function selecionarVincularGDPIntel(produtoId) {
