@@ -479,44 +479,52 @@ async function sincronizarCobrancaProvider(contaId) {
 
 // Story 14.5: Numeração NF-e — respeita config do usuário como fonte primária.
 // Prioridade: 1) proximoNumero da config → 2) Supabase RPC atômico → 3) fallback local.
-async function getProximoNumeroNf() {
-  const empresaId = typeof gdpApi !== 'undefined' ? gdpApi.getEmpresaId() : getEmpresaId();
-
-  // 1. Se proximoNumero não configurado, auto-setar baseado no max das NFs existentes
+// Retorna o próximo número SEM incrementar (para preview/geração de NF)
+function peekProximoNumeroNf() {
   try {
     const nfConfig = JSON.parse(localStorage.getItem("nexedu.config.notas-fiscais") || "{}");
-    let configuredNum = parseInt(nfConfig.proximoNumero, 10);
-    if (!configuredNum || configuredNum <= 0) {
-      // Auto-detectar: pegar maior número de NF existente + 1
+    let num = parseInt(nfConfig.proximoNumero, 10);
+    if (!num || num <= 0) {
       let maxExistente = 0;
       try {
         const nfs = unwrapData(JSON.parse(localStorage.getItem("gdp.notas-fiscais.v1") || "[]"));
         maxExistente = nfs.reduce((max, nf) => Math.max(max, parseInt(nf.numero) || 0), 0);
       } catch(_) {}
       const localCounter = parseInt(localStorage.getItem("gdp.nf-counter") || "0", 10);
-      configuredNum = Math.max(maxExistente, localCounter) + 1;
-      nfConfig.proximoNumero = String(configuredNum);
+      num = Math.max(maxExistente, localCounter) + 1;
+      // Salvar auto-detectado
+      nfConfig.proximoNumero = String(num);
       nfConfig.updatedAt = new Date().toISOString();
       localStorage.setItem("nexedu.config.notas-fiscais", JSON.stringify(nfConfig));
-      console.log("[NF-e] proximoNumero auto-detectado:", configuredNum, "(max existente:", maxExistente, ")");
     }
-
-    // Usar o número e incrementar para a próxima emissão
-    nfConfig.proximoNumero = String(configuredNum + 1);
-    nfConfig.updatedAt = new Date().toISOString();
-    localStorage.setItem("nexedu.config.notas-fiscais", JSON.stringify(nfConfig));
-    localStorage.setItem("gdp.nf-counter", String(configuredNum));
-    // Sync Supabase nf_counter (fire-and-forget)
-    if (typeof gdpApi !== 'undefined') {
-      gdpApi.nf_counter.save({ empresa_id: empresaId, ultimo_numero: configuredNum }).catch(function() {});
-    }
-    console.log("[NF-e] Numero NF:", configuredNum, "| Proximo:", configuredNum + 1);
-    return String(configuredNum);
-  } catch (err) {
-    console.error("[NF-e] Erro ao obter numero:", err.message);
-    // Fallback absoluto: timestamp-based
+    return String(num);
+  } catch(_) {
     return String(Date.now()).slice(-6);
   }
+}
+
+// Retorna o próximo número E incrementa (SOMENTE para transmissão efetiva à SEFAZ)
+async function consumirProximoNumeroNf() {
+  const empresaId = typeof gdpApi !== 'undefined' ? gdpApi.getEmpresaId() : getEmpresaId();
+  const num = parseInt(peekProximoNumeroNf(), 10);
+  // Incrementar para a próxima
+  try {
+    const nfConfig = JSON.parse(localStorage.getItem("nexedu.config.notas-fiscais") || "{}");
+    nfConfig.proximoNumero = String(num + 1);
+    nfConfig.updatedAt = new Date().toISOString();
+    localStorage.setItem("nexedu.config.notas-fiscais", JSON.stringify(nfConfig));
+    localStorage.setItem("gdp.nf-counter", String(num));
+    if (typeof gdpApi !== 'undefined') {
+      gdpApi.nf_counter.save({ empresa_id: empresaId, ultimo_numero: num }).catch(function() {});
+    }
+    console.log("[NF-e] Numero CONSUMIDO:", num, "| Proximo:", num + 1);
+  } catch(_) {}
+  return String(num);
+}
+
+// getProximoNumeroNf CONSOME o número (usado na geração de nova NF)
+async function getProximoNumeroNf() {
+  return consumirProximoNumeroNf();
 }
 
 // Sync counter from DB to localStorage on boot (for display purposes only)
@@ -1070,9 +1078,9 @@ async function transmitirHomologacaoNota(notaId) {
     });
   }
 
-  // Reutilizar número existente da NF (já atribuído na geração). Só gerar novo se não tem.
+  // Consumir número: se NF já tem número, usa ele. Senão, consome o próximo.
   if (!nf.numero || nf.numero === "0") {
-    nf.numero = await getProximoNumeroNf();
+    nf.numero = await consumirProximoNumeroNf();
   }
   const novoNumero = nf.numero;
   const nfObs = nf.documentos?.observacao || "";
