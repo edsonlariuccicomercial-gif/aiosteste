@@ -1534,8 +1534,8 @@ table.it td{border:1px solid #999;padding:1px 3px;font-size:7pt}
 .rec-nfe{width:110px;text-align:center;padding:6px 4px}
 /* Header 3 colunas: logo+emit | danfe | chave */
 .hdr{display:flex;border-bottom:1px solid #000}
-.hdr-logo{width:70px;border-right:1px solid #000;display:flex;align-items:center;justify-content:center;padding:3px;min-height:70px}
-.hdr-logo img{max-height:60px;max-width:64px}
+.hdr-logo{width:95px;border-right:1px solid #000;display:flex;align-items:center;justify-content:center;padding:4px;min-height:75px}
+.hdr-logo img{max-height:68px;max-width:85px}
 .hdr-emit{flex:3;border-right:1px solid #000;padding:4px 8px;display:flex;flex-direction:column;justify-content:center}
 .hdr-emit .nome{font-size:10pt;font-weight:700;white-space:nowrap}
 .hdr-emit .end{font-size:7pt;line-height:1.4;white-space:nowrap}
