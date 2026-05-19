@@ -1058,9 +1058,11 @@ async function transmitirHomologacaoNota(notaId) {
     return;
   }
 
-  // Gerar novo número para retransmissão (evita duplicidade 539)
-  const novoNumero = await getProximoNumeroNf();
-  nf.numero = novoNumero;
+  // Reutilizar número existente da NF (já atribuído na geração). Só gerar novo se não tem.
+  if (!nf.numero || nf.numero === "0") {
+    nf.numero = await getProximoNumeroNf();
+  }
+  const novoNumero = nf.numero;
   const nfObs = nf.documentos?.observacao || "";
 
   setIntegrationState(nf, "sefaz", { status: "transmissao_em_preparo", lastAction: "nfe_sefaz_transmitir" });

@@ -1250,9 +1250,17 @@ function salvarPedidoCompleto(pedidoId) {
   savePedidoFiscalData(pedidoId);
   // Salvar pagamento
   salvarPedidoPagamento(pedidoId);
-  // Recalcular preços dos itens
+  // Ler todos os campos editáveis dos itens (qty, unidade, NCM, SKU, preço)
   (p.itens || []).forEach((item, idx) => {
+    const qtdEl = document.getElementById('fiscal-item-qtd-' + pedidoId + '-' + idx);
+    const unEl = document.getElementById('fiscal-item-un-' + pedidoId + '-' + idx);
+    const ncmEl = document.getElementById('fiscal-item-ncm-' + pedidoId + '-' + idx);
+    const skuEl = document.getElementById('fiscal-item-sku-' + pedidoId + '-' + idx);
     const precoEl = document.getElementById('fiscal-item-preco-' + pedidoId + '-' + idx);
+    if (qtdEl) item.qtd = parseFloat(qtdEl.value) || 0;
+    if (unEl) item.unidade = unEl.value.trim() || item.unidade || 'UN';
+    if (ncmEl) item.ncm = ncmEl.value.trim();
+    if (skuEl) item.sku = skuEl.value.trim();
     if (precoEl) item.precoUnitario = Math.round(parseFloat(precoEl.value || 0) * 100) / 100;
   });
   const novoTotal = p.itens.reduce((sum, it) => sum + Math.round(((it.qtd || 0) * (it.precoUnitario || 0)) * 100) / 100, 0);
