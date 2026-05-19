@@ -1,0 +1,23 @@
+handoff:
+  from_agent: analyst
+  to_agent: dev
+  story_context:
+    story_id: "14.1, 14.2, 14.3"
+    story_path: "docs/stories/14.1.story.md"
+    story_status: "Draft — aguardando validação @pm, depois implementar"
+    current_task: "Implementar stories 14.1 → 14.2 → 14.3 (em sequência)"
+    branch: master
+  decisions:
+    - "14.1 PRIMEIRO: corrigir identidade sync — sem isso, realtime não funciona"
+    - "Criar resolveEmpresaId(login) compartilhada entre auth.js, app-sync.js, gdp-api.js"
+    - "escolas-credentials.json já tem campo 'id' — usar como empresa_id canônico"
+    - "14.2: Supabase Realtime + polling 60s como fallback"
+    - "14.3: Adicionar limit/offset em gdp-api.js .list(), paginação nas tabelas"
+  files_modified:
+    - "docs/stories/14.1.story.md"
+    - "docs/stories/14.2.story.md"
+    - "docs/stories/14.3.story.md"
+  blockers:
+    - "Aguardar @pm validar stories antes de implementar"
+  next_action: "Após @pm aprovar, iniciar 14.1 — refatorar auth.js + getSyncUserId() + getEmpresaId()"
+  consumed: true

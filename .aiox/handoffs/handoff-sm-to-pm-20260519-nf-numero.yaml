@@ -1,0 +1,19 @@
+handoff:
+  from_agent: sm
+  to_agent: pm
+  story_context:
+    story_id: "14.5"
+    story_path: "docs/stories/14.5.story.md"
+    story_status: "Draft — aguardando validação @pm"
+    current_task: "Validar story 14.5 — numeração NF-e"
+    branch: master
+  decisions:
+    - "Story 14.5 criada com 6 ACs e 5 tasks"
+    - "Fix cirúrgico em 1 arquivo: gdp-notas-fiscais.js getProximoNumeroNf()"
+    - "Prioridade P0 — numeração errada gera rejeição SEFAZ e multa"
+    - "Análise original do @fiscal-chief confirmou o dead-end na UI"
+  files_modified:
+    - "docs/stories/14.5.story.md"
+  blockers: []
+  next_action: "Validar story 14.5 — checklist de aprovação. Após GO, delegar para @dev."
+  consumed: true

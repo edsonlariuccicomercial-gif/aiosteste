@@ -1,0 +1,21 @@
+handoff:
+  from_agent: analyst
+  to_agent: devops
+  story_context:
+    story_id: "14.4"
+    story_path: "docs/stories/14.4.story.md"
+    story_status: "Draft — bloqueada por 14.1, 14.2, 14.3"
+    current_task: "Deploy produção após @dev completar stories 14.1-14.3"
+    branch: master
+  decisions:
+    - "Deploy via projeto painel-caixa-escolar (não dashboard)"
+    - "Preview deploy antes de produção para validação"
+    - "Rollback plan obrigatório: npx vercel rollback"
+    - "Validar WebSocket/Realtime funciona em Vercel (serverless)"
+    - "Smoke test: 2 máquinas, mesmo login, sync em < 5s"
+  files_modified:
+    - "docs/stories/14.4.story.md"
+  blockers:
+    - "Aguardar @dev completar 14.1, 14.2, 14.3"
+  next_action: "Quando @dev terminar, executar story 14.4 — preview deploy → validação → prod deploy"
+  consumed: true

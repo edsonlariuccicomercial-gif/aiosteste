@@ -1,0 +1,33 @@
+handoff:
+  from_agent: "analyst"
+  to_agent: "devops"
+  story_context:
+    story_id: "migration-aios-to-aiox"
+    story_path: "N/A - operational task"
+    story_status: "audit-complete"
+    current_task: "AIOS Free → AIOX Pro migration"
+    branch: "master"
+  decisions:
+    - "AIOX Pro (v5.0.4) is already active in .aiox-core/ and .claude/commands/AIOX/"
+    - "AIOS Free (v4.31.1) directories are legacy and safe to remove"
+    - ".claude/commands/AIOS/ only contains aios-master.md, already replaced by AIOX/aiox-master.md"
+    - "No active code references AIOS paths — all configs point to AIOX"
+  files_modified: []
+  blockers: []
+  next_action: "Delete 5 legacy AIOS directories"
+  migration_plan:
+    delete:
+      - path: ".aios-core/"
+        reason: "Old AIOS free framework core (v4.x)"
+      - path: ".aios/"
+        reason: "Old AIOS runtime (PDF + HTML artifacts)"
+      - path: "painel-caixa-escolar/.aios-core/"
+        reason: "Old AIOS copy in subproject"
+      - path: "painel-caixa-escolar/.aios/"
+        reason: "Old AIOS runtime in subproject"
+      - path: ".claude/commands/AIOS/"
+        reason: "Old AIOS agent commands, replaced by .claude/commands/AIOX/"
+  consumed: true
+  executed_at: "2026-05-16"
+  executed_by: "devops"
+  result: "SUCCESS — 5 directories deleted, backup at .claude-backup-migration-aios/"

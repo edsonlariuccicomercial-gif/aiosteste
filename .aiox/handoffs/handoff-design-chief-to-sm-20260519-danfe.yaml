@@ -1,0 +1,50 @@
+handoff:
+  from_agent: design-chief
+  to_agent: sm
+  story_context:
+    story_id: "Novo — DANFE layout + logomarca"
+    story_path: "pendente criação"
+    story_status: "Análise completa — precisa de story"
+    current_task: "Criar story para redesign DANFE baseado no modelo PDF do usuário"
+    branch: master
+  decisions:
+    - "Modelo de referência: C:/Users/Hearthz Gaming/Desktop/danf modelo.pdf (NF 001.426)"
+    - "DANFE atual em gdp-notas-fiscais.js tem 2 funções: gerarDanfeHtmlCompleto() linha 1471 e abrirDanfeNotaFiscal() linha 1562"
+    - "Diferença principal: modelo tem espaço para LOGOMARCA no header (à esquerda), código atual não tem"
+    - "Modelo tem recibo de entrega no topo com campos DATA RECEBIMENTO + ASSINATURA + NF-e/Série"
+    - "Precisa adicionar campo de upload de logomarca nas configurações gerais de NF"
+    - "Logo deve ser salva em localStorage como base64 e inserida no HTML da DANFE"
+  files_modified: []
+  blockers: []
+  next_action: |
+    Criar story cobrindo:
+
+    AC1: Header da DANFE deve seguir o modelo PDF — 3 colunas:
+         Col 1: LOGOMARCA + nome emitente + endereço + fone/email
+         Col 2: DANFE título + entrada/saída + número + série + folha
+         Col 3: CHAVE DE ACESSO + código de barras + consulta portal
+
+    AC2: Recibo de entrega no topo (como no modelo):
+         "RECEBEMOS DE [emitente] OS PRODUTOS CONSTANTES DA NOTA FISCAL INDICADA AO LADO"
+         Campos: DATA DE RECEBIMENTO | IDENTIFICAÇÃO E ASSINATURA DO RECEBEDOR | NF-e Nº/Série
+
+    AC3: Campo de upload de logomarca nas configurações gerais de nota fiscal
+         - Aceitar PNG/JPG até 200KB
+         - Salvar como base64 em nexedu.config.notas-fiscais.logomarcaBase64
+         - Preview da logo na tela de config
+
+    AC4: Logomarca exibida no header da DANFE (col 1, acima do nome do emitente)
+         - Se não tiver logo, mostrar apenas texto (como hoje)
+
+    AC5: Layout de colunas de produtos idêntico ao modelo:
+         CÓDIGO | DESCRIÇÃO | NCM/SH | CST | CFOP | UNID. | QUANT. | VLR.UNIT | VLR.TOTAL | BC ICMS | VLR.ICMS | VLR.IPI | %ICMS | %IPI
+
+    AC6: Ambas as funções DANFE atualizadas (gerarDanfeHtmlCompleto e abrirDanfeNotaFiscal)
+
+    Arquivos afetados:
+    - js/gdp-notas-fiscais.js — redesign gerarDanfeHtmlCompleto() e abrirDanfeNotaFiscal()
+    - app-config.js — adicionar load/save de logomarcaBase64
+    - index.html — adicionar campo upload de logomarca na seção de config NF
+
+    Modelo de referência: Desktop/danf modelo.pdf (NF 001.426, Edson de Sousa Goncalves)
+  consumed: true

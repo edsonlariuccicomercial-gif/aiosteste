@@ -1,0 +1,26 @@
+handoff:
+  from_agent: analyst
+  to_agent: dev
+  story_context:
+    story_id: "EPIC-14 (bugfix adicional)"
+    story_path: "docs/stories/EPIC-14-SYNC-PERFORMANCE.md"
+    story_status: "Bugfix - unidades KG→UN + SKU vazio em ARP"
+    current_task: "Corrigir 2 bugs: unidade perdida e SKU faltante em produtos ARP"
+    branch: master
+  decisions:
+    - "empresa_id = LARIUCCI para todos (escola e gestor) - JÁ CORRIGIDO"
+    - "Bug 1: gdp-core.js:1254 sobrescreve unidade com 'UN' quando enriquecimento de contrato falha"
+    - "Bug 2: gdp-portal.html:936-939 não enriquece SKU para produtos ARP (falta lookup estoque-intel)"
+    - "Padrão de enrichment para replicar: gdp-portal.html:958-979 (contratos normais)"
+  files_modified: []
+  blockers: []
+  next_action: |
+    FIX 1 (gdp-core.js:1254): Mudar prioridade do fallback de unidade.
+    ATUAL:  itemPedido.unidade = itemAtualizado.unidade || itemPedido.unidade || "UN"
+    CORRETO: itemPedido.unidade = itemPedido.unidade || itemAtualizado.unidade || "UN"
+    (preservar unidade original do pedido, não sobrescrever com dado do contrato)
+
+    FIX 2 (gdp-portal.html:936-939): Adicionar enrichment de SKU para ARP.
+    Replicar o padrão das linhas 958-979 (estoque-intel lookup) dentro do bloco ARP.
+    Carregar _intelProdutos, match por nome, preencher sku e unidade_base.
+  consumed: true

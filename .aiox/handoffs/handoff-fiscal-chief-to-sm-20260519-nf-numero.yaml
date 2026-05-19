@@ -1,0 +1,30 @@
+handoff:
+  from_agent: fiscal-chief
+  to_agent: sm
+  story_context:
+    story_id: "Novo — NF-e numeração"
+    story_path: "pendente criação"
+    story_status: "Análise completa — precisa de story"
+    current_task: "Criar story para fix de numeração NF-e"
+    branch: master
+  decisions:
+    - "Bug: campo proximoNumero configurado na UI é ignorado pelo fluxo de emissão"
+    - "getProximoNumeroNf() em gdp-notas-fiscais.js:473-505 busca de Supabase RPC ou fallback local"
+    - "Nunca lê nexedu.config.notas-fiscais.proximoNumero do localStorage"
+    - "Fix: getProximoNumeroNf() deve priorizar proximoNumero da config, incrementar após uso"
+    - "Após usar, sincronizar com nf_counter no Supabase para consistência"
+  files_modified: []
+  blockers: []
+  next_action: |
+    Criar story para EPIC-14 ou novo epic cobrindo:
+    - AC1: Quando usuario configura proximoNumero nas config gerais de NF, esse numero deve ser usado na proxima emissao
+    - AC2: Apos emissao, proximoNumero auto-incrementa na config
+    - AC3: nf_counter no Supabase sincronizado com o numero usado
+    - AC4: Se proximoNumero nao configurado, fallback para Supabase RPC (comportamento atual)
+
+    Arquivos afetados:
+    - js/gdp-notas-fiscais.js (getProximoNumeroNf, linhas 473-505) — fix principal
+    - app-config.js (saveNotaFiscalConfig, linhas 372-390) — ja salva corretamente, sem mudanca
+
+    Fluxo: @sm criar story → @pm validar → @dev implementar → @devops deployar
+  consumed: true

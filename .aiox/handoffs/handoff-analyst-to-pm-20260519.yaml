@@ -1,0 +1,24 @@
+handoff:
+  from_agent: analyst
+  to_agent: pm
+  story_context:
+    story_id: "EPIC-14"
+    story_path: "docs/stories/EPIC-14-SYNC-PERFORMANCE.md"
+    story_status: "Draft — aguardando validação @pm"
+    current_task: "Validar Epic 14 e 4 stories (14.1-14.4)"
+    branch: master
+  decisions:
+    - "Dois problemas: sync cross-machine quebrado + lentidão por falta de paginação"
+    - "Causa raiz sync: getSyncUserId() e getEmpresaId() usam localStorage variável entre máquinas"
+    - "Causa raiz perf: loadData() carrega todo dataset sem limit, render sem paginação"
+    - "4 stories criadas: identidade fix, realtime, paginação, deploy"
+    - "Prioridade: 14.1 e 14.2 são P0-Critical (bloqueiam uso multi-máquina)"
+  files_modified:
+    - "docs/stories/EPIC-14-SYNC-PERFORMANCE.md"
+    - "docs/stories/14.1.story.md"
+    - "docs/stories/14.2.story.md"
+    - "docs/stories/14.3.story.md"
+    - "docs/stories/14.4.story.md"
+  blockers: []
+  next_action: "Validar Epic 14 — checklist no EPIC-14-SYNC-PERFORMANCE.md. Aprovar ou pedir ajustes nas stories."
+  consumed: true
