@@ -473,54 +473,40 @@ async function sincronizarCobrancaProvider(contaId) {
 async function getProximoNumeroNf() {
   const empresaId = typeof gdpApi !== 'undefined' ? gdpApi.getEmpresaId() : getEmpresaId();
 
-  // 1. PRIORIDADE: número configurado pelo usuário em "Configurações gerais de nota fiscal"
+  // 1. Se proximoNumero não configurado, auto-setar baseado no max das NFs existentes
   try {
     const nfConfig = JSON.parse(localStorage.getItem("nexedu.config.notas-fiscais") || "{}");
-    const configuredNum = parseInt(nfConfig.proximoNumero, 10);
-    if (configuredNum > 0) {
-      // Usar o número configurado e incrementar para a próxima emissão
-      nfConfig.proximoNumero = String(configuredNum + 1);
+    let configuredNum = parseInt(nfConfig.proximoNumero, 10);
+    if (!configuredNum || configuredNum <= 0) {
+      // Auto-detectar: pegar maior número de NF existente + 1
+      let maxExistente = 0;
+      try {
+        const nfs = unwrapData(JSON.parse(localStorage.getItem("gdp.notas-fiscais.v1") || "[]"));
+        maxExistente = nfs.reduce((max, nf) => Math.max(max, parseInt(nf.numero) || 0), 0);
+      } catch(_) {}
+      const localCounter = parseInt(localStorage.getItem("gdp.nf-counter") || "0", 10);
+      configuredNum = Math.max(maxExistente, localCounter) + 1;
+      nfConfig.proximoNumero = String(configuredNum);
       nfConfig.updatedAt = new Date().toISOString();
       localStorage.setItem("nexedu.config.notas-fiscais", JSON.stringify(nfConfig));
-      localStorage.setItem("gdp.nf-counter", String(configuredNum));
-      // Sync Supabase nf_counter (fire-and-forget)
-      if (typeof gdpApi !== 'undefined') {
-        gdpApi.nf_counter.save({ empresa_id: empresaId, ultimo_numero: configuredNum }).catch(function() {});
-      }
-      console.log("[NF-e] Usando numero configurado pelo usuario:", configuredNum);
-      return String(configuredNum);
+      console.log("[NF-e] proximoNumero auto-detectado:", configuredNum, "(max existente:", maxExistente, ")");
     }
-  } catch(_) {}
 
-  // 2. FALLBACK: Supabase RPC atômico (quando proximoNumero não configurado)
-  try {
-    const resp = await fetch(SUPABASE_URL + "/rest/v1/rpc/next_nf_number", {
-      method: "POST",
-      headers: {
-        "apikey": SUPABASE_KEY,
-        "Authorization": "Bearer " + SUPABASE_KEY,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({ p_empresa_id: empresaId })
-    });
-    if (!resp.ok) throw new Error("RPC failed: " + resp.status);
-    const nextNumber = await resp.json();
-    localStorage.setItem("gdp.nf-counter", String(nextNumber));
-    return String(nextNumber);
+    // Usar o número e incrementar para a próxima emissão
+    nfConfig.proximoNumero = String(configuredNum + 1);
+    nfConfig.updatedAt = new Date().toISOString();
+    localStorage.setItem("nexedu.config.notas-fiscais", JSON.stringify(nfConfig));
+    localStorage.setItem("gdp.nf-counter", String(configuredNum));
+    // Sync Supabase nf_counter (fire-and-forget)
+    if (typeof gdpApi !== 'undefined') {
+      gdpApi.nf_counter.save({ empresa_id: empresaId, ultimo_numero: configuredNum }).catch(function() {});
+    }
+    console.log("[NF-e] Numero NF:", configuredNum, "| Proximo:", configuredNum + 1);
+    return String(configuredNum);
   } catch (err) {
-    console.error("[NF-e] Falha ao obter numero atomico, usando fallback local:", err.message);
-    // 3. ÚLTIMO RECURSO: increment locally
-    const KEY = "gdp.nf-counter";
-    let counter = parseInt(localStorage.getItem(KEY) || "0", 10);
-    try {
-      const nfs = unwrapData(JSON.parse(localStorage.getItem("gdp.notas-fiscais.v1") || "[]"));
-      const maxUsado = nfs.reduce((max, nf) => Math.max(max, parseInt(nf.numero) || 0), 0);
-      if (maxUsado > counter) counter = maxUsado;
-    } catch(_) {}
-    if (counter < 1208) counter = 1208;
-    counter++;
-    localStorage.setItem(KEY, String(counter));
-    return String(counter);
+    console.error("[NF-e] Erro ao obter numero:", err.message);
+    // Fallback absoluto: timestamp-based
+    return String(Date.now()).slice(-6);
   }
 }
 
