@@ -1468,6 +1468,7 @@ async function gerarDanfePdfBase64(nf) {
   }
 }
 
+// Story 14.6: DANFE redesenhada seguindo modelo PDF (NF 001.426) com logomarca
 function gerarDanfeHtmlCompleto(nf) {
   if (!nf) return "";
   const emit = nf.sefaz?.preview?.emitente || {};
@@ -1478,7 +1479,7 @@ function gerarDanfeHtmlCompleto(nf) {
   const chaveFormatada = chave.replace(/(.{4})/g, "$1 ").trim();
   const prot = nf.sefaz?.protocolo || "";
   const protDt = nf.sefaz?.transmissao?.parsed?.dhRecbto || nf.audit?.authorizedAt || "";
-  const protFormatado = prot ? prot + (protDt ? "  -  " + protDt : "") : "-";
+  const protFormatado = prot ? prot + (protDt ? " - " + protDt : "") : "-";
   const isCancelada = nf.status === "cancelada";
   const cancelStamp = nf.cancelamento?.retornoEvento?.dhRegEvento || nf.cancelamento?.atualizadoEm || "";
   const totalProd = (nf.itens || []).reduce((s, i) => s + (Number(i.qtd || 0) * Number(i.precoUnitario || 0)), 0);
@@ -1487,13 +1488,16 @@ function gerarDanfeHtmlCompleto(nf) {
   const dtParts = dtEmissao.split(" ");
   const f2 = (v) => Number(v || 0).toFixed(2).replace(".", ",");
   const f4 = (v) => Number(v || 0).toFixed(4).replace(".", ",");
-  const numNf = String(nf.numero || "0").padStart(9, "0");
-  const numFmt = numNf.replace(/^(\d{3})(\d{3})(\d{3})$/, "$1.$2.$3");
+  const numNf = String(nf.numero || "0").padStart(6, "0");
+  const numFmt = numNf.replace(/^(\d{3})(\d{3})$/, "$1.$2");
   const destNome = dest.nome || dest.razaoSocial || nf.cliente?.nome || "-";
   const destEnd = [dEnd.logradouro, dEnd.numero].filter(Boolean).join(", ");
   const destCidade = dEnd.cidade || dEnd.municipio || "";
   const emEndFull = [emEnd.logradouro, emEnd.numero].filter(Boolean).join(", ");
   const destEmail = dest.email || nf.cliente?.email || "";
+  // Logomarca from config
+  let logoHtml = "";
+  try { const cfg = JSON.parse(localStorage.getItem("nexedu.config.notas-fiscais") || "{}"); if (cfg.logomarcaBase64) logoHtml = '<img src="' + cfg.logomarcaBase64 + '" style="max-height:50px;max-width:100px;margin-bottom:3px" />'; } catch(_) {}
   const infCplParts = [];
   if (nf.pedidoId) infCplParts.push("Inf. Contribuinte: Pedido GDP " + nf.pedidoId);
   if (destEmail) infCplParts.push("Email do Destinatário: " + destEmail);
@@ -1501,26 +1505,31 @@ function gerarDanfeHtmlCompleto(nf) {
   infCplParts.push("Valor Aproximado dos Tributos : R$ 0,00");
   const rows = (nf.itens || []).map((item, idx) => {
     const vt = Number(item.qtd || 0) * Number(item.precoUnitario || 0);
-    return "<tr><td class='c'>" + esc(item.sku || String(idx+1).padStart(3,"0")) + "</td><td>" + esc(item.descricao || "") + "</td><td class='c'>" + esc(item.ncm || "") + "</td><td class='c'>" + esc(item.cst || "0/102") + "</td><td class='c'>" + esc(item.cfop || "5102") + "</td><td class='c'>" + esc(item.unidade || "UN") + "</td><td class='r'>" + f4(item.qtd) + "</td><td class='r'>" + f4(item.precoUnitario) + "</td><td class='r'>" + f2(vt) + "</td><td class='r'>0,00</td><td class='r'>0,00</td><td class='r'>0,00</td><td class='r'>0,00</td><td class='r'>0,00</td><td class='r'>0,00</td></tr>";
+    return "<tr><td class='c'>" + esc(item.sku || String(idx+1).padStart(3,"0")) + "</td><td>" + esc(item.descricao || "") + "</td><td class='c'>" + esc(item.ncm || "") + "</td><td class='c'>" + esc(item.cst || "0102") + "</td><td class='c'>" + esc(item.cfop || "5.102") + "</td><td class='c'>" + esc(item.unidade || "UN") + "</td><td class='r'>" + f2(item.qtd) + "</td><td class='r'>" + f2(item.precoUnitario) + "</td><td class='r'>" + f2(vt) + "</td><td class='r'>0,00</td><td class='r'>0,00</td><td class='r'>0,00</td><td class='r'>0,00</td><td class='r'>0,00</td></tr>";
   }).join("");
-  return `<style>*{margin:0;padding:0;box-sizing:border-box}body,div,table{font-family:Arial,sans-serif;font-size:7.5pt;color:#000}.bx{border:1px solid #000}.row{display:flex;border-bottom:1px solid #000}.cell{border-right:1px solid #000;padding:0 3px;flex:1;min-height:16px;overflow:hidden}.cell:last-child{border-right:none}.cell label{font-size:5pt;text-transform:uppercase;display:block}.cell .v{font-size:8pt;font-weight:700}.cell .v-lg{font-size:9pt;font-weight:900}.cell .v-sm{font-size:7pt;font-weight:700}.stit{font-weight:700;font-size:5.5pt;padding:0 3px;text-transform:uppercase;border-bottom:1px solid #000}table.it{width:100%;border-collapse:collapse}table.it th{border:1px solid #000;padding:0 2px;font-size:4.5pt;text-transform:uppercase;font-weight:700}table.it td{border-right:1px solid #aaa;border-bottom:1px solid #aaa;padding:0 2px;font-size:6pt}.c{text-align:center}.r{text-align:right}.hdr{display:flex;border-bottom:1px solid #000}.hdr-emit{flex:2;padding:3px 5px;border-right:1px solid #000;text-align:center}.hdr-danfe{width:120px;text-align:center;padding:2px 3px;border-right:1px solid #000}.hdr-chave{flex:1;padding:2px 3px}</style>
+  return `<style>*{margin:0;padding:0;box-sizing:border-box}body,div,table{font-family:Arial,sans-serif;font-size:7.5pt;color:#000}.bx{border:1px solid #000}.row{display:flex;border-bottom:1px solid #000}.cell{border-right:1px solid #000;padding:1px 3px;flex:1;min-height:16px;overflow:hidden}.cell:last-child{border-right:none}.cell label{font-size:5pt;text-transform:uppercase;display:block;color:#333}.cell .v{font-size:8pt;font-weight:700}.cell .v-lg{font-size:9pt;font-weight:900}.cell .v-sm{font-size:7pt;font-weight:700}.stit{font-weight:700;font-size:5.5pt;padding:1px 3px;text-transform:uppercase;border-bottom:1px solid #000;background:#f5f5f5}table.it{width:100%;border-collapse:collapse}table.it th{border:1px solid #000;padding:1px 2px;font-size:5pt;text-transform:uppercase;font-weight:700;background:#f5f5f5}table.it td{border:1px solid #ccc;padding:1px 2px;font-size:6.5pt}.c{text-align:center}.r{text-align:right}
+.rec{border:1px solid #000;display:flex;margin-bottom:2px}.rec-body{flex:3;border-right:1px solid #000;padding:3px 5px;font-size:6pt}.rec-flds{display:flex;border-top:1px solid #000}.rec-flds .rf{flex:1;padding:1px 3px;border-right:1px solid #000;min-height:20px}.rec-flds .rf:last-child{border-right:none}.rec-flds .rf label{font-size:5pt;text-transform:uppercase}.rec-nf{width:120px;text-align:center;padding:4px;font-size:7pt}
+.hdr{display:flex;border-bottom:1px solid #000}.hdr-emit{flex:2;padding:4px 6px;border-right:1px solid #000;text-align:center}.hdr-danfe{width:130px;text-align:center;padding:3px 4px;border-right:1px solid #000}.hdr-chave{flex:1;padding:3px 4px}</style>
+<div class="rec"><div class="rec-body"><div>RECEBEMOS DE <strong>${esc(emit.razaoSocial || "-")}</strong> OS PRODUTOS CONSTANTES DA NOTA FISCAL INDICADA AO LADO</div><div class="rec-flds"><div class="rf"><label>DATA DE RECEBIMENTO</label></div><div class="rf" style="flex:2"><label>IDENTIFICAÇÃO E ASSINATURA DO RECEBEDOR</label></div></div></div><div class="rec-nf"><div style="font-size:10pt;font-weight:900">NF-e</div><div style="font-size:9pt;font-weight:900">N° ${esc(numFmt)}</div><div>Série ${String(nf.serie||"1")}</div></div></div>
 <div class="bx">
-<div class="hdr"><div class="hdr-emit"><div style="font-size:5pt;text-transform:uppercase">IDENTIFICAÇÃO DO EMITENTE</div><div style="font-size:10pt;font-weight:700">${esc(emit.razaoSocial || "-")}</div><div style="font-size:6.5pt">${esc(emEndFull)}${emEnd.complemento ? ", " + esc(emEnd.complemento) : ""}</div><div style="font-size:6.5pt">${esc(emEnd.bairro || "")} - ${esc(emEnd.cep || "")} - ${esc(emEnd.cidade || "")}/${esc(emEnd.uf || "")} Fone: ${esc(emEnd.telefone || "")}</div></div><div class="hdr-danfe"><div style="font-size:14pt;font-weight:900">DANFE</div><div style="font-size:5.5pt">Documento Auxiliar da Nota<br>Fiscal Eletrônica</div><div style="font-size:6.5pt;margin-top:2px">0-ENTRADA 1-SAÍDA <span style="border:1px solid #000;padding:0 4px;font-weight:900">1</span></div><div style="font-size:9pt;font-weight:900;margin-top:2px">N°. ${esc(numFmt)}</div><div style="font-size:6.5pt">Série ${String(nf.serie||"1").padStart(3,"0")}</div></div><div class="hdr-chave"><div style="font-size:5pt;text-align:center;text-transform:uppercase">CHAVE DE ACESSO</div><div style="font-size:6pt;font-weight:700;text-align:center;word-break:break-all">${esc(chaveFormatada || "-")}</div><div style="font-size:5pt;text-align:center;margin-top:2px">www.nfe.fazenda.gov.br/portal</div></div></div>
-<div class="row"><div class="cell" style="flex:1"><label>NATUREZA DA OPERAÇÃO</label><div class="v-lg">VENDA DE MERCADORIA</div></div><div class="cell" style="flex:1"><label>PROTOCOLO DE AUTORIZAÇÃO DE USO</label><div class="v">${esc(protFormatado)}</div></div></div>
-<div class="row"><div class="cell"><label>INSCRIÇÃO ESTADUAL</label><div class="v-sm">${esc(emit.ie || "")}</div></div><div class="cell"><label>INSCRIÇÃO MUNICIPAL</label><div class="v-sm"></div></div><div class="cell"><label>INSC. EST. SUBST. TRIBUT.</label><div class="v-sm"></div></div><div class="cell"><label>CNPJ / CPF</label><div class="v">${esc(emit.cnpj || "")}</div></div></div>
+<div class="hdr"><div class="hdr-emit">${logoHtml}<div style="font-size:10pt;font-weight:700">${esc(emit.razaoSocial || "-")}</div><div style="font-size:6.5pt">${esc(emEndFull)}${emEnd.complemento ? ", " + esc(emEnd.complemento) : ""}, ${esc(emEnd.bairro || "")}, ${esc(emEnd.cidade || "")} - ${esc(emEnd.uf || "")} - ${esc(emEnd.cep || "")}</div><div style="font-size:6.5pt">Fone ${esc(emEnd.telefone || "")}${emit.email ? " " + esc(emit.email) : ""}</div></div><div class="hdr-danfe"><div style="font-size:16pt;font-weight:900">DANFE</div><div style="font-size:5.5pt;line-height:1.3">Documento Auxiliar<br>da Nota Fiscal<br>Eletrônica</div><div style="font-size:7pt;margin-top:3px">0-Entrada 1-Saída</div><div style="display:inline-block;border:1px solid #000;padding:0 6px;font-size:11pt;font-weight:900;margin:2px 0">1</div><div style="font-size:10pt;font-weight:900;margin-top:2px">N° ${esc(numFmt)}</div><div style="font-size:7pt">SÉRIE: ${String(nf.serie||"1")} FOLHA: 1</div></div><div class="hdr-chave"><div style="font-size:5pt;text-align:center;text-transform:uppercase">CHAVE DE ACESSO</div><div style="font-size:6.5pt;font-weight:700;text-align:center;word-break:break-all;margin:3px 0">${esc(chaveFormatada || "-")}</div><div style="font-size:5pt;text-align:center">Consulta de autenticidade no portal nacional da NF-e<br>www.nfe.fazenda.gov.br/portal<br>ou no site da Sefaz autorizadora</div></div></div>
+<div class="row"><div class="cell" style="flex:2"><label>NATUREZA DA OPERAÇÃO</label><div class="v">Venda de mercadorias</div></div><div class="cell"><label>INSCRIÇÃO ESTADUAL</label><div class="v-sm">${esc(emit.ie || "")}</div></div></div>
+<div class="row"><div class="cell"><label>INSC. ESTADUAL DO SUBST. TRIB.</label><div class="v-sm"></div></div><div class="cell" style="flex:2"><label>PROTOCOLO DE AUTORIZAÇÃO DE USO</label><div class="v-sm">${esc(protFormatado)}</div></div><div class="cell"><label>CNPJ</label><div class="v">${esc(emit.cnpj || "")}</div></div></div>
 <div class="stit">DESTINATÁRIO / REMETENTE</div>
-<div class="row"><div class="cell" style="flex:3"><label>NOME / RAZÃO SOCIAL</label><div class="v">${esc(destNome)}</div></div><div class="cell"><label>CNPJ / CPF</label><div class="v-sm">${esc(dest.cnpj || "")}</div></div><div class="cell"><label>DATA DA EMISSÃO</label><div class="v-sm">${dtParts[0] || "-"}</div></div></div>
-<div class="row"><div class="cell" style="flex:3"><label>ENDEREÇO</label><div class="v-sm">${esc(destEnd)}</div></div><div class="cell"><label>BAIRRO</label><div class="v-sm">${esc(dEnd.bairro || "")}</div></div><div class="cell"><label>CEP</label><div class="v-sm">${esc(dEnd.cep || "")}</div></div></div>
-<div class="row"><div class="cell" style="flex:2"><label>MUNICÍPIO</label><div class="v-sm">${esc(destCidade)}</div></div><div class="cell" style="width:24px;flex:none"><label>UF</label><div class="v-sm">${esc(dEnd.uf || "")}</div></div><div class="cell"><label>FONE</label><div class="v-sm">${esc(dest.telefone || "")}</div></div><div class="cell"><label>IE</label><div class="v-sm">${esc(dest.ie || "")}</div></div></div>
+<div class="row"><div class="cell" style="flex:3"><label>NOME / RAZÃO SOCIAL</label><div class="v">${esc(destNome)}</div></div><div class="cell"><label>CNPJ/CPF</label><div class="v-sm">${esc(dest.cnpj || "")}</div></div><div class="cell"><label>DATA EMISSÃO</label><div class="v-sm">${dtParts[0] || "-"}</div></div></div>
+<div class="row"><div class="cell" style="flex:2"><label>ENDEREÇO</label><div class="v-sm">${esc(destEnd)}</div></div><div class="cell"><label>BAIRRO</label><div class="v-sm">${esc(dEnd.bairro || "")}</div></div><div class="cell"><label>FONE/FAX</label><div class="v-sm">${esc(dest.telefone || "")}</div></div><div class="cell" style="width:24px;flex:none"><label>UF</label><div class="v-sm">${esc(dEnd.uf || "")}</div></div></div>
+<div class="row"><div class="cell" style="flex:2"><label>MUNICÍPIO</label><div class="v-sm">${esc(destCidade)}</div></div><div class="cell"><label>CEP</label><div class="v-sm">${esc(dEnd.cep || "")}</div></div><div class="cell"><label>INSCR. ESTADUAL</label><div class="v-sm">${esc(dest.ie || "")}</div></div><div class="cell"><label>DATA SAÍDA</label><div class="v-sm">${dtParts[0] || "-"}</div></div></div>
+<div class="stit">FATURA / DUPLICATA</div>
+<div class="row"><div class="cell"><label>NÚMERO</label><div class="v-sm"></div></div><div class="cell"><label>VENCIMENTO</label><div class="v-sm"></div></div><div class="cell"><label>VALOR</label><div class="v-sm"></div></div><div class="cell"><label>NÚMERO</label><div class="v-sm"></div></div><div class="cell"><label>VENCIMENTO</label><div class="v-sm"></div></div><div class="cell"><label>VALOR</label><div class="v-sm"></div></div></div>
 <div class="stit">CÁLCULO DO IMPOSTO</div>
 <div class="row"><div class="cell"><label>BASE CÁLC. ICMS</label><div class="v-sm">0,00</div></div><div class="cell"><label>VALOR ICMS</label><div class="v-sm">0,00</div></div><div class="cell"><label>BASE ICMS S.T.</label><div class="v-sm">0,00</div></div><div class="cell"><label>VALOR ICMS SUBST.</label><div class="v-sm">0,00</div></div><div class="cell"><label>V. IMP. IMPORT.</label><div class="v-sm">0,00</div></div><div class="cell"><label>V. TOTAL PRODUTOS</label><div class="v">${f2(totalProd)}</div></div></div>
 <div class="row"><div class="cell"><label>FRETE</label><div class="v-sm">0,00</div></div><div class="cell"><label>SEGURO</label><div class="v-sm">0,00</div></div><div class="cell"><label>DESCONTO</label><div class="v-sm">0,00</div></div><div class="cell"><label>OUTRAS</label><div class="v-sm">0,00</div></div><div class="cell"><label>VALOR IPI</label><div class="v-sm">0,00</div></div><div class="cell"><label>V. TOTAL DA NOTA</label><div class="v">${f2(totalNota)}</div></div></div>
 <div class="stit">TRANSPORTADOR / VOLUMES TRANSPORTADOS</div>
 <div class="row"><div class="cell" style="flex:2"><label>NOME / RAZÃO SOCIAL</label><div class="v-sm"></div></div><div class="cell"><label>FRETE</label><div class="v-sm">9-Sem Transporte</div></div><div class="cell"><label>PLACA</label><div class="v-sm"></div></div><div class="cell" style="width:24px;flex:none"><label>UF</label><div class="v-sm"></div></div><div class="cell"><label>CNPJ / CPF</label><div class="v-sm"></div></div></div>
 <div class="stit">DADOS DOS PRODUTOS / SERVIÇOS</div>
-<table class="it"><thead><tr><th>CÓDIGO</th><th style="min-width:80px">DESCRIÇÃO</th><th>NCM/SH</th><th>O/CSOSN</th><th>CFOP</th><th>UN</th><th>QUANT</th><th>VL.UNIT</th><th>VL.TOTAL</th><th>DESC</th><th>B.CÁLC</th><th>VL.ICMS</th><th>VL.IPI</th><th>AL.ICMS</th><th>AL.IPI</th></tr></thead><tbody>${rows}</tbody></table>
+<table class="it"><thead><tr><th>CÓDIGO</th><th style="min-width:100px">DESCRIÇÃO DOS PRODUTOS / SERVIÇOS</th><th>NCM/SH</th><th>CST</th><th>CFOP</th><th>UNID.</th><th>QUANT.</th><th>VLR. UNIT.</th><th>VLR. TOTAL</th><th>BC ICMS</th><th>VLR.ICMS</th><th>VLR.IPI</th><th>%ICMS</th><th>%IPI</th></tr></thead><tbody>${rows}</tbody></table>
 <div class="stit">DADOS ADICIONAIS</div>
-<div class="row" style="min-height:30px"><div class="cell" style="flex:2"><label>INFORMAÇÕES COMPLEMENTARES</label><div style="font-size:6pt;padding-top:1px">${isCancelada ? '<strong style="color:red">CANCELADA</strong> ' + esc(cancelStamp) + "<br>" : ""}${infCplParts.join("<br>")}</div></div><div class="cell"><label>RESERVADO AO FISCO</label></div></div>
+<div class="row" style="min-height:40px"><div class="cell" style="flex:2"><label>INFORMAÇÕES COMPLEMENTARES</label><div style="font-size:6pt;padding-top:1px">${isCancelada ? '<strong style="color:red">CANCELADA</strong> ' + esc(cancelStamp) + "<br>" : ""}${infCplParts.join("<br>")}</div></div><div class="cell"><label>RESERVADO AO FISCO</label></div></div>
 </div>
 <div style="font-size:5.5pt;margin-top:2px">Impresso em ${new Date().toLocaleDateString("pt-BR")} as ${new Date().toLocaleTimeString("pt-BR")}</div>`;
 }
@@ -1582,14 +1591,17 @@ function abrirDanfeNotaFiscal(notaId) {
   const dtParts = dtEmissao.split(" ");
   const f2 = (v) => Number(v || 0).toFixed(2).replace(".", ",");
   const f4 = (v) => Number(v || 0).toFixed(4).replace(".", ",");
-  const numNf = String(nf.numero || "0").padStart(9, "0");
-  const numFmt = numNf.replace(/^(\d{3})(\d{3})(\d{3})$/, "$1.$2.$3");
+  const numNf = String(nf.numero || "0").padStart(6, "0");
+  const numFmt = numNf.replace(/^(\d{3})(\d{3})$/, "$1.$2");
   const destNome = dest.nome || dest.razaoSocial || nf.cliente?.nome || "-";
   const destEnd = [dEnd.logradouro, dEnd.numero].filter(Boolean).join(", ");
   const destCidade = dEnd.cidade || dEnd.municipio || "";
   const emEndFull = [emEnd.logradouro, emEnd.numero].filter(Boolean).join(", ");
   const destEmail = dest.email || nf.cliente?.email || "";
-  const reciboTxt = `RECEBEMOS DE ${emit.razaoSocial || "-"} OS PRODUTOS E/OU SERVIÇOS CONSTANTES DA NOTA FISCAL ELETRÔNICA INDICADA ABAIXO. EMISSÃO: ${dtParts[0] || "-"} VALOR TOTAL: R$ ${f2(totalNota)} DESTINATÁRIO: ${destNome} - ${destEnd} ${dEnd.bairro || ""} ${destCidade}-${dEnd.uf || ""}`;
+  // Story 14.6: Logomarca from config
+  let logoHtml = "";
+  try { const cfg = JSON.parse(localStorage.getItem("nexedu.config.notas-fiscais") || "{}"); if (cfg.logomarcaBase64) logoHtml = '<img src="' + cfg.logomarcaBase64 + '" style="max-height:55px;max-width:110px;margin-bottom:4px" />'; } catch(_) {}
+  const reciboTxt = `RECEBEMOS DE ${emit.razaoSocial || "-"} OS PRODUTOS CONSTANTES DA NOTA FISCAL INDICADA AO LADO`;
   const infCplParts = [];
   if (nf.pedidoId) infCplParts.push("Inf. Contribuinte: Pedido GDP " + nf.pedidoId);
   if (destEmail) infCplParts.push("Email do Destinatário: " + destEmail);
@@ -1690,12 +1702,10 @@ ${isCancelada ? '<div class="cancel-stamp">CANCELADA</div>' : ''}
 <div class="bx">
   <div class="hdr">
     <div class="hdr-emit">
-      <div class="ident">IDENTIFICAÇÃO DO EMITENTE</div>
+      ${logoHtml}
       <div class="nome">${esc(emit.razaoSocial || "-")}</div>
-      <div class="end">${esc(emEndFull)}${emEnd.complemento ? ", " + esc(emEnd.complemento) : ""}</div>
-      <div class="end">${esc(emEnd.bairro || "")} - ${esc(emEnd.cep || "")}</div>
-      <div class="end">${esc(emEnd.cidade || "")} - ${esc(emEnd.uf || "")} Fone/Fax: ${esc(emEnd.telefone || emit.telefone || "")}</div>
-      <div class="end">${esc(emit.email || "")}</div>
+      <div class="end">${esc(emEndFull)}${emEnd.complemento ? ", " + esc(emEnd.complemento) : ""}, ${esc(emEnd.bairro || "")}, ${esc(emEnd.cidade || "")} - ${esc(emEnd.uf || "")} - ${esc(emEnd.cep || "")}</div>
+      <div class="end">Fone ${esc(emEnd.telefone || emit.telefone || "")} ${esc(emit.email || "")}</div>
     </div>
     <div class="hdr-danfe">
       <h1>DANFE</h1>
@@ -1744,6 +1754,16 @@ ${isCancelada ? '<div class="cancel-stamp">CANCELADA</div>' : ''}
     <div class="cell"><label>FONE / FAX</label><div class="v-sm">${esc(dest.telefone || "")}</div></div>
     <div class="cell"><label>INSCRIÇÃO ESTADUAL</label><div class="v-sm">${esc(dest.ie || "")}</div></div>
     <div class="cell"><label>HORA DA SAÍDA/ENTRADA</label><div class="v-sm">${dtParts[1] || ""}</div></div>
+  </div>
+  <!-- FATURA / DUPLICATA -->
+  <div class="stit">FATURA / DUPLICATA</div>
+  <div class="row">
+    <div class="cell"><label>NÚMERO</label><div class="v-sm"></div></div>
+    <div class="cell"><label>VENCIMENTO</label><div class="v-sm"></div></div>
+    <div class="cell"><label>VALOR</label><div class="v-sm"></div></div>
+    <div class="cell"><label>NÚMERO</label><div class="v-sm"></div></div>
+    <div class="cell"><label>VENCIMENTO</label><div class="v-sm"></div></div>
+    <div class="cell"><label>VALOR</label><div class="v-sm"></div></div>
   </div>
   <!-- CÁLCULO DO IMPOSTO -->
   <div class="stit">CÁLCULO DO IMPOSTO</div>

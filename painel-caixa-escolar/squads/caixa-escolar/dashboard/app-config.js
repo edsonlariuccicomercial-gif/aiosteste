@@ -367,6 +367,52 @@ function loadNotaFiscalConfig() {
   setChecked("nf-destacar-pix", config.destacarPix);
   setChecked("nf-gerar-conta-receber", config.gerarContaReceber !== false);
   setChecked("nf-bloquear-sem-estoque", config.bloquearSemEstoque);
+
+  // Story 14.6: Load logomarca preview
+  const logoPreview = document.getElementById("nf-logo-preview");
+  const logoRemoveBtn = document.getElementById("nf-logo-remove");
+  if (config.logomarcaBase64 && logoPreview) {
+    logoPreview.src = config.logomarcaBase64;
+    logoPreview.style.display = "block";
+    if (logoRemoveBtn) logoRemoveBtn.style.display = "inline-block";
+  }
+  // Logo upload handler
+  const logoInput = document.getElementById("nf-logo-upload");
+  if (logoInput) {
+    logoInput.addEventListener("change", function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      if (file.size > 200 * 1024) { if (typeof showToast === "function") showToast("Logo deve ter no maximo 200KB."); logoInput.value = ""; return; }
+      if (!file.type.match(/^image\/(png|jpeg)$/)) { if (typeof showToast === "function") showToast("Apenas PNG ou JPG."); logoInput.value = ""; return; }
+      const reader = new FileReader();
+      reader.onload = function(ev) {
+        const base64 = ev.target.result;
+        const cfg = JSON.parse(localStorage.getItem(NF_CONFIG_STORAGE_KEY) || "{}");
+        cfg.logomarcaBase64 = base64;
+        cfg.updatedAt = new Date().toISOString();
+        localStorage.setItem(NF_CONFIG_STORAGE_KEY, JSON.stringify(cfg));
+        if (logoPreview) { logoPreview.src = base64; logoPreview.style.display = "block"; }
+        if (logoRemoveBtn) logoRemoveBtn.style.display = "inline-block";
+        if (typeof showToast === "function") showToast("Logomarca salva.");
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+}
+
+// Story 14.6: Remove logomarca
+function removeLogoNf() {
+  const cfg = JSON.parse(localStorage.getItem(NF_CONFIG_STORAGE_KEY) || "{}");
+  delete cfg.logomarcaBase64;
+  cfg.updatedAt = new Date().toISOString();
+  localStorage.setItem(NF_CONFIG_STORAGE_KEY, JSON.stringify(cfg));
+  const preview = document.getElementById("nf-logo-preview");
+  const removeBtn = document.getElementById("nf-logo-remove");
+  const input = document.getElementById("nf-logo-upload");
+  if (preview) { preview.src = ""; preview.style.display = "none"; }
+  if (removeBtn) removeBtn.style.display = "none";
+  if (input) input.value = "";
+  if (typeof showToast === "function") showToast("Logomarca removida.");
 }
 
 function saveNotaFiscalConfig() {
@@ -385,6 +431,8 @@ function saveNotaFiscalConfig() {
     bloquearSemEstoque: Boolean(document.getElementById("nf-bloquear-sem-estoque")?.checked),
     updatedAt: new Date().toISOString()
   };
+  // Preserve logomarcaBase64 (managed by upload handler, not form fields)
+  try { const prev = JSON.parse(localStorage.getItem(NF_CONFIG_STORAGE_KEY) || "{}"); if (prev.logomarcaBase64) config.logomarcaBase64 = prev.logomarcaBase64; } catch(_) {}
   localStorage.setItem(NF_CONFIG_STORAGE_KEY, JSON.stringify(config));
   if (typeof showToast === "function") showToast("Configuracoes fiscais salvas.");
 }
