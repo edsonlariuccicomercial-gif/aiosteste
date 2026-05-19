@@ -1634,22 +1634,32 @@ function fecharVincularGDP() {
   _vincularGdpDescricao = "";
 }
 
-// Resumir descrição longa do contrato em nome curto para produto
-// Ex: "Açucar refinado especial tipo exportação pacote 5 kg marca Delta" → "Açucar 5 Kg Delta"
+// Resumir descrição do contrato — moderado, mantém identidade do produto
+// Ex: "Açucar refinado especial tipo exportação pacote 5 kg marca Delta" → "Açucar refinado 5 kg - Delta"
+// Ex: "Biscoito doce (rosquinha tradicional de coco) 500 gr" → "Biscoito doce rosquinha coco 500 gr"
 function gdpResumirDescricao(desc) {
   if (!desc) return "";
-  // Extrair peso/volume (ex: "5 kg", "500 gr", "900 ml", "1 litro")
-  const pesoMatch = desc.match(/(\d+[.,]?\d*)\s*(kg|kgs|gr|grs|g|ml|lt|l|litro|litros|un|unid)\b/i);
+  // Remover parênteses mas manter conteúdo
+  let clean = desc.replace(/[()]/g, " ").replace(/\s+/g, " ").trim();
+  // Extrair peso/volume
+  const pesoMatch = clean.match(/(\d+[.,]?\d*)\s*(kg|kgs|gr|grs|g|ml|lt|l|litro|litros)\b/i);
   const peso = pesoMatch ? pesoMatch[0].trim() : "";
-  // Extrair marca (última palavra após " - " ou última palavra capitalizada)
-  const marcaMatch = desc.match(/[-–]\s*([A-ZÀ-Ú][a-zà-ú]+(?:\s+[A-ZÀ-Ú][a-zà-ú]+)*)$/);
+  // Extrair marca (após " - " ou " – ")
+  const marcaMatch = clean.match(/[-–]\s*(.+)$/);
   const marca = marcaMatch ? marcaMatch[1].trim() : "";
-  // Palavras descartáveis
-  const stopWords = new Set(["de","do","da","dos","das","tipo","especial","refinado","refinada","pacote","embalagem","saco","com","para","marca","tradicional","comum","padrao","qualidade","premium","extra","primeira","1a"]);
-  // Pegar as primeiras 2-3 palavras significativas
-  const words = desc.split(/[\s,]+/).filter(w => w.length > 1 && !stopWords.has(w.toLowerCase()) && !w.match(/^\d/));
-  const nome = words.slice(0, 2).join(" ");
-  return [nome, peso, marca].filter(Boolean).join(" ").trim() || desc.slice(0, 30);
+  // Remover peso e marca da string para processar o nome
+  let nome = clean;
+  if (marcaMatch) nome = nome.replace(marcaMatch[0], "");
+  if (pesoMatch) nome = nome.replace(pesoMatch[0], "");
+  // Apenas remover palavras muito genéricas
+  const stopWords = new Set(["tipo","especial","pacote","embalagem","saco","marca","para","com"]);
+  const words = nome.split(/[\s,]+/).filter(w => w.length > 1 && !stopWords.has(w.toLowerCase()));
+  const nomeResumo = words.slice(0, 4).join(" ");
+  // Remontar: nome + peso + marca
+  const parts = [nomeResumo];
+  if (peso) parts.push(peso);
+  if (marca) parts.push("- " + marca);
+  return parts.join(" ").replace(/\s+/g, " ").trim() || desc.slice(0, 50);
 }
 
 function gdpGerarSkuSugerido(nome) {
