@@ -1251,7 +1251,8 @@ function syncContratoItemToPedidos(contratoId, itemAtualizado) {
       itemPedido.descricao = itemAtualizado.descricao || itemPedido.descricao || "";
       itemPedido.ncm = itemAtualizado.ncm || itemPedido.ncm || "";
       itemPedido.sku = itemAtualizado.sku || itemPedido.sku || "";
-      itemPedido.unidade = itemAtualizado.unidade || itemPedido.unidade || "UN";
+      // Preserve pedido's original unidade (e.g. KG from ARP parseUnidadeFromName) — only override if contract has explicit value
+      itemPedido.unidade = itemPedido.unidade || itemAtualizado.unidade || "UN";
       if (!itemPedido.precoUnitario) itemPedido.precoUnitario = Number(itemAtualizado.precoUnitario || 0);
       touched = true;
     });

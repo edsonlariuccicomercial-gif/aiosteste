@@ -931,12 +931,27 @@ function selectContract(type, idx) {
   const contracts = getSchoolContracts();
 
   if (type === 'arp') {
-    // Use ARP catalog products — enrich with parsed unit from product name
+    // Use ARP catalog products — enrich with parsed unit + SKU from estoque-intel
     const arpEscola = arpData.escolas.find(e => e.nome === currentUser.categoria_catalogo);
-    schoolProducts = arpEscola ? arpEscola.produtos.map(p => ({
-      ...p,
-      unidade: parseUnidadeFromName(p.produto)
-    })) : [];
+
+    // Load Estoque Intel for SKU enrichment (same pattern as contract products lines 957-978)
+    let _intelProdutos = [];
+    try { const raw = JSON.parse(localStorage.getItem('gdp.estoque-intel.produtos.v1') || '{}'); _intelProdutos = raw.items || raw || []; } catch(_) {}
+
+    schoolProducts = arpEscola ? arpEscola.produtos.map(p => {
+      const descNorm = (p.produto || '').toUpperCase().trim();
+      // Match estoque-intel by exact name, then fuzzy (first 3 words)
+      let intelMatch = _intelProdutos.find(ip => (ip.nome || '').toUpperCase().trim() === descNorm);
+      if (!intelMatch) {
+        const words = descNorm.split(/\s+/).slice(0, 3).join(' ');
+        if (words.length > 5) intelMatch = _intelProdutos.find(ip => (ip.nome || '').toUpperCase().trim().startsWith(words));
+      }
+      const sku = intelMatch ? (intelMatch.sku || '') : '';
+      const rawUnidade = intelMatch ? (intelMatch.unidade_base || '') : '';
+      const unidade = (rawUnidade && rawUnidade.toUpperCase() !== 'UN' && rawUnidade.toUpperCase() !== 'UNIDADE')
+        ? rawUnidade : parseUnidadeFromName(p.produto);
+      return { ...p, sku, unidade, ncm: intelMatch ? (intelMatch.ncm || '') : '' };
+    }) : [];
     selectedContract = { type: 'arp', label: currentUser.categoria_catalogo || 'Catálogo ARP' };
   } else {
     // Use contract items as products
