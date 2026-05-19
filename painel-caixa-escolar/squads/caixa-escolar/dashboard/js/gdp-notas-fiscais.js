@@ -1513,15 +1513,15 @@ body,div,table{font-family:Arial,sans-serif;font-size:7.5pt;color:#000}
 .danfe-wrap{max-width:210mm}
 .bx{border:1px solid #000}
 .row{display:flex;border-bottom:1px solid #000}
-.cell{border-right:1px solid #000;padding:1px 4px;flex:1;min-height:18px;overflow:hidden}
+.cell{border-right:1px solid #000;padding:3px 5px;flex:1;min-height:24px;overflow:hidden}
 .cell:last-child{border-right:none}
-.cell label{font-size:5.5pt;text-transform:uppercase;display:block;color:#000;line-height:1.2}
-.cell .v{font-size:8.5pt;font-weight:700}
-.cell .v-sm{font-size:7pt;font-weight:700}
-.stit{font-weight:700;font-size:6pt;padding:1px 4px;text-transform:uppercase;border-bottom:1px solid #000;background:#eee}
+.cell label{font-size:6pt;text-transform:uppercase;display:block;color:#000;line-height:1.3;margin-bottom:1px}
+.cell .v{font-size:9pt;font-weight:700}
+.cell .v-sm{font-size:8pt;font-weight:700}
+.stit{font-weight:700;font-size:6.5pt;padding:2px 5px;text-transform:uppercase;border-bottom:1px solid #000;background:#eee}
 table.it{width:100%;border-collapse:collapse}
-table.it th{border:1px solid #000;padding:1px 3px;font-size:5pt;text-transform:uppercase;font-weight:700;background:#eee}
-table.it td{border:1px solid #999;padding:1px 3px;font-size:7pt}
+table.it th{border:1px solid #000;padding:2px 4px;font-size:6pt;text-transform:uppercase;font-weight:700;background:#eee}
+table.it td{border:1px solid #999;padding:2px 4px;font-size:7.5pt}
 .c{text-align:center}.r{text-align:right}
 /* Recibo */
 .rec{border:1px solid #000;display:flex;margin-bottom:3px}
@@ -1766,16 +1766,16 @@ body{font-family:Arial,Helvetica,sans-serif;font-size:7.5pt;color:#000;padding:6
 .bx{border:1px solid #000}
 .row{display:flex;border-bottom:1px solid #000}
 .row:last-child{border-bottom:none}
-.cell{border-right:1px solid #000;padding:0 3px;flex:1;min-height:18px;overflow:hidden}
+.cell{border-right:1px solid #000;padding:3px 5px;flex:1;min-height:24px;overflow:hidden}
 .cell:last-child{border-right:none}
-.cell label{font-size:5pt;color:#000;text-transform:uppercase;display:block;line-height:1}
-.cell .v{font-size:8pt;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cell label{font-size:6pt;color:#000;text-transform:uppercase;display:block;line-height:1.3;margin-bottom:1px}
+.cell .v{font-size:9pt;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cell .v-lg{font-size:10pt;font-weight:900}
-.cell .v-sm{font-size:7pt;font-weight:700;white-space:nowrap}
-.stit{font-weight:700;font-size:5.5pt;padding:0 3px;text-transform:uppercase;border-bottom:1px solid #000}
+.cell .v-sm{font-size:8pt;font-weight:700;white-space:nowrap}
+.stit{font-weight:700;font-size:6.5pt;padding:2px 5px;text-transform:uppercase;border-bottom:1px solid #000;background:#eee}
 table.it{width:100%;border-collapse:collapse}
-table.it th{border:1px solid #000;padding:0 2px;font-size:5pt;text-transform:uppercase;font-weight:700}
-table.it td{border-right:1px solid #aaa;border-bottom:1px solid #aaa;padding:0 2px;font-size:6.5pt;line-height:1.4}
+table.it th{border:1px solid #000;padding:2px 4px;font-size:6pt;text-transform:uppercase;font-weight:700;background:#eee}
+table.it td{border:1px solid #999;padding:2px 4px;font-size:7.5pt;line-height:1.4}
 table.it td:first-child{border-left:1px solid #aaa}
 table.it td.desc{max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .c{text-align:center}.r{text-align:right}.mono{font-family:monospace;font-size:6pt}
