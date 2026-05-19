@@ -158,13 +158,13 @@ function renderFormUsuario(u, draft = {}) {
     <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--brd,#475569)">
       <div style="font-size:.8rem;font-weight:700;margin-bottom:.8rem;color:var(--acc,#3b82f6)">Endereco (para NF-e)</div>
       <div style="display:grid;grid-template-columns:2fr 1fr;gap:1rem">
-        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Logradouro</label><input type="text" id="usr-logradouro" value="${esc(dataBase?.logradouro||'')}" placeholder="Rua, Av, Pca..." style="width:100%"></div>
-        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Numero</label><input type="text" id="usr-numero" value="${esc(dataBase?.numero||'')}" placeholder="S/N" style="width:100%"></div>
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Logradouro</label><input type="text" id="usr-logradouro" value="${esc(dataBase?.logradouro||dataBase?.endereco?.logradouro||'')}" placeholder="Rua, Av, Pca..." style="width:100%"></div>
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Numero</label><input type="text" id="usr-numero" value="${esc(dataBase?.numero||dataBase?.endereco?.numero||'')}" placeholder="S/N" style="width:100%"></div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-top:.5rem">
-        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Complemento</label><input type="text" id="usr-complemento" value="${esc(dataBase?.complemento||'')}" style="width:100%"></div>
-        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Bairro</label><input type="text" id="usr-bairro" value="${esc(dataBase?.bairro||'')}" style="width:100%"></div>
-        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">CEP</label><input type="text" id="usr-cep" value="${esc(dataBase?.cep||'')}" placeholder="00000-000" style="width:100%"></div>
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Complemento</label><input type="text" id="usr-complemento" value="${esc(dataBase?.complemento||dataBase?.endereco?.complemento||'')}" style="width:100%"></div>
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Bairro</label><input type="text" id="usr-bairro" value="${esc(dataBase?.bairro||dataBase?.endereco?.bairro||'')}" style="width:100%"></div>
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">CEP</label><input type="text" id="usr-cep" value="${esc(dataBase?.cep||dataBase?.endereco?.cep||'')}" placeholder="00000-000" style="width:100%"></div>
       </div>
       <div style="display:grid;grid-template-columns:2fr 1fr;gap:1rem;margin-top:.5rem">
         <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Municipio</label><input type="text" id="usr-municipio" value="${esc(dataBase?.municipio||'')}" style="width:100%"></div>
@@ -193,21 +193,30 @@ function salvarUsuario(editId) {
   const login = document.getElementById("usr-login").value.trim();
   if (!nome || !login) { showToast("Nome e Login sao obrigatorios.", 3000); return; }
 
+  const _logr = document.getElementById("usr-logradouro").value.trim();
+  const _num = document.getElementById("usr-numero").value.trim();
+  const _compl = document.getElementById("usr-complemento").value.trim();
+  const _bairro = document.getElementById("usr-bairro").value.trim();
+  const _cep = document.getElementById("usr-cep").value.trim();
+  const _mun = document.getElementById("usr-municipio").value.trim();
+  const _uf = document.getElementById("usr-uf").value.trim() || "MG";
   const data = {
     nome: nome,
     cnpj: document.getElementById("usr-cnpj").value.trim(),
-    municipio: document.getElementById("usr-municipio").value.trim(),
+    municipio: _mun,
     contribuinte_icms: document.getElementById("usr-contribuinte-icms").value,
     responsavel: document.getElementById("usr-responsavel").value.trim(),
     cargo: document.getElementById("usr-cargo").value.trim(),
     email: document.getElementById("usr-email").value.trim(),
     telefone: document.getElementById("usr-telefone").value.trim(),
-    logradouro: document.getElementById("usr-logradouro").value.trim(),
-    numero: document.getElementById("usr-numero").value.trim(),
-    complemento: document.getElementById("usr-complemento").value.trim(),
-    bairro: document.getElementById("usr-bairro").value.trim(),
-    cep: document.getElementById("usr-cep").value.trim(),
-    uf: document.getElementById("usr-uf").value.trim() || "MG",
+    logradouro: _logr,
+    numero: _num,
+    complemento: _compl,
+    bairro: _bairro,
+    cep: _cep,
+    uf: _uf,
+    // Persistir endereço como objeto no campo 'endereco' (aceito pelo Supabase TABLE_COLS)
+    endereco: { logradouro: _logr, numero: _num, complemento: _compl, bairro: _bairro, cep: _cep, cidade: _mun, uf: _uf },
     ie: document.getElementById("usr-ie").value.trim() || "ISENTO",
     login: login,
     senha: document.getElementById("usr-senha").value.trim() || 'escola2025',

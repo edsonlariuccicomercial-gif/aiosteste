@@ -115,12 +115,18 @@ function ensurePedidoFiscalData(pedido) {
   c.ie = clienteContrato?.ie || snapshotContrato?.ie || c.ie || "ISENTO";
   c.email = clienteContrato?.email || snapshotContrato?.email || c.email || "";
   c.telefone = clienteContrato?.telefone || snapshotContrato?.telefone || c.telefone || "";
-  c.logradouro = clienteContrato?.logradouro || snapshotContrato?.logradouro || c.logradouro || "";
-  c.numero = clienteContrato?.numero || snapshotContrato?.numero || c.numero || "";
-  c.complemento = clienteContrato?.complemento || snapshotContrato?.complemento || c.complemento || "";
-  c.bairro = clienteContrato?.bairro || snapshotContrato?.bairro || c.bairro || "";
-  c.cep = clienteContrato?.cep || snapshotContrato?.cep || c.cep || "";
-  c.cidade = clienteContrato?.municipio || snapshotContrato?.cidade || c.cidade || "";
+  // Extrair endereço: pode estar em campos diretos OU dentro de endereco{}
+  const _s = (v) => (typeof v === 'string' && v) ? v : "";
+  const _addr = (obj) => (obj && typeof obj.endereco === 'object' && obj.endereco) || {};
+  const ccAddr = _addr(clienteContrato);
+  const snAddr = _addr(snapshotContrato);
+  const cAddr = _addr(c);
+  c.logradouro = _s(clienteContrato?.logradouro) || _s(ccAddr.logradouro) || _s(snapshotContrato?.logradouro) || _s(snAddr.logradouro) || _s(c.logradouro) || _s(cAddr.logradouro) || "";
+  c.numero = _s(clienteContrato?.numero) || _s(ccAddr.numero) || _s(snapshotContrato?.numero) || _s(snAddr.numero) || _s(c.numero) || _s(cAddr.numero) || "";
+  c.complemento = _s(clienteContrato?.complemento) || _s(ccAddr.complemento) || _s(snapshotContrato?.complemento) || _s(snAddr.complemento) || _s(c.complemento) || _s(cAddr.complemento) || "";
+  c.bairro = _s(clienteContrato?.bairro) || _s(ccAddr.bairro) || _s(snapshotContrato?.bairro) || _s(snAddr.bairro) || _s(c.bairro) || _s(cAddr.bairro) || "";
+  c.cep = _s(clienteContrato?.cep) || _s(ccAddr.cep) || _s(snapshotContrato?.cep) || _s(snAddr.cep) || _s(c.cep) || _s(cAddr.cep) || "";
+  c.cidade = _s(clienteContrato?.municipio) || _s(ccAddr.cidade) || _s(snapshotContrato?.cidade) || _s(snAddr.cidade) || _s(c.cidade) || _s(cAddr.cidade) || "";
   c.uf = clienteContrato?.uf || snapshotContrato?.uf || c.uf || "MG";
   c.indicador_contribuinte = clienteContrato?.indicador_contribuinte || snapshotContrato?.indicador_contribuinte || c.indicador_contribuinte || "9";
   pedido.itens = (pedido.itens || []).map((item, idx) => {

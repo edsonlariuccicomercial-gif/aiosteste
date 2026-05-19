@@ -837,6 +837,16 @@ function salvarPedidoManual() {
   const usuario = clienteId ? usuarios.find(u => u.id === clienteId) : null;
   let clientePayload;
   if (usuario) {
+    // Extrair logradouro: pode ser string, objeto com .logradouro, ou undefined
+    const _addr = usuario.endereco || {};
+    const _logr = (typeof usuario.logradouro === 'string' && usuario.logradouro) ? usuario.logradouro
+      : (typeof _addr === 'object' && _addr.logradouro) ? _addr.logradouro
+      : (typeof _addr === 'string') ? _addr : "";
+    const _num = usuario.numero || _addr.numero || "";
+    const _bairro = usuario.bairro || _addr.bairro || "";
+    const _compl = usuario.complemento || _addr.complemento || "";
+    const _cidade = usuario.municipio || usuario.cidade || _addr.cidade || _addr.municipio || "";
+    const _cep = usuario.cep || _addr.cep || "";
     clientePayload = {
       id: usuario.id,
       nome: usuario.nome || clienteNomeBusca,
@@ -844,12 +854,12 @@ function salvarPedidoManual() {
       ie: usuario.ie || "ISENTO",
       email: usuario.email || "",
       telefone: usuario.telefone || "",
-      logradouro: usuario.logradouro || "",
-      numero: usuario.numero || "",
-      complemento: usuario.complemento || "",
-      bairro: usuario.bairro || "",
-      cep: usuario.cep || "",
-      cidade: usuario.municipio || "",
+      logradouro: _logr,
+      numero: _num,
+      complemento: _compl,
+      bairro: _bairro,
+      cep: _cep,
+      cidade: _cidade,
       uf: usuario.uf || "MG",
       indicador_contribuinte: usuario.contribuinte_icms || "9"
     };
