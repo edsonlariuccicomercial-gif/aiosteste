@@ -1648,6 +1648,285 @@ window.excluirPreLote = function() {
   showToast(`${checked.length} pré-orçamento(s) excluído(s).`);
 };
 
+// ===== ANÁLISE POR PRODUTO (Radar + Intel Preços, leitura isolada) =====
+let ultimaAnaliseProduto = [];
+
+function normalizarTermoProduto(value) {
+  return normalizedText(value)
+    .replace(/\btonner\b/g, "toner")
+    .replace(/\btoners\b/g, "toner")
+    .replace(/\bcompativel\b/g, "compatível")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function parseAnaliseTermos(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return [];
+  const parts = raw.includes(",")
+    ? raw.split(",")
+    : raw.split(/\s+/);
+  return parts.map(normalizarTermoProduto).filter(Boolean);
+}
+
+function textoItensOrcamento(orc) {
+  const itens = Array.isArray(orc?.itens) ? orc.itens : [];
+  if (!itens.length) return String(orc?.objetoCustom || orc?.objeto || "");
+  return itens.map((item) => [
+    item.nome,
+    item.descricao,
+    item.especificacao,
+    item.marca,
+    item.unidade,
+    item.quantidade
+  ].filter(Boolean).join(" ")).join(" | ");
+}
+
+function itemRowsOrcamento(orc) {
+  const itens = Array.isArray(orc?.itens) ? orc.itens : [];
+  if (!itens.length) {
+    return [{
+      nome: orc?.objetoCustom || orc?.objeto || "Objeto não detalhado",
+      descricao: orc?.objetoCustom || orc?.objeto || "",
+      quantidade: "",
+      unidade: ""
+    }];
+  }
+  return itens;
+}
+
+function termosPresentes(textoNormalizado, termos) {
+  return termos.every((termo) => textoNormalizado.includes(termo));
+}
+
+function algumTermoPresente(textoNormalizado, termos) {
+  return termos.some((termo) => textoNormalizado.includes(termo));
+}
+
+function riscosProduto(texto, orc) {
+  const n = normalizarTermoProduto(texto);
+  const riscos = [];
+  if (orc?.prazo && daysTo(orc.prazo) <= 0) riscos.push("prazo vencido/hoje");
+  if (n.includes("marca de referência") || n.includes("marca:") || n.includes("somente a marca")) riscos.push("marca exigida");
+  if (n.includes("sede no município") || n.includes("sede no municipio")) riscos.push("sede local");
+  if (n.includes("visita técnica") || n.includes("visita tecnica")) riscos.push("visita técnica");
+  if (n.includes("instalação") || n.includes("instalacao")) riscos.push("instalação");
+  if (n.includes("original")) riscos.push("original/compatível");
+  return riscos;
+}
+
+function melhorTrechoItem(orc, termos) {
+  const itens = itemRowsOrcamento(orc);
+  const scored = itens.map((item) => {
+    const text = [item.nome, item.descricao, item.especificacao, item.marca, item.unidade, item.quantidade]
+      .filter(Boolean).join(" ");
+    const n = normalizarTermoProduto(text);
+    const score = termos.reduce((acc, termo) => acc + (n.includes(termo) ? 1 : 0), 0);
+    return { item, text, score };
+  }).sort((a, b) => b.score - a.score);
+  const best = scored[0];
+  if (!best) return "";
+  const qtd = best.item.quantidade ? ` | qtd ${best.item.quantidade}${best.item.unidade ? " " + best.item.unidade : ""}` : "";
+  return `${best.text}${qtd}`.replace(/\s+/g, " ").trim();
+}
+
+function historicoProduto(termos) {
+  const historico = typeof loadHistoricoLicitacoes === "function" ? loadHistoricoLicitacoes() : [];
+  const candidatos = [];
+
+  historico.forEach((h) => {
+    const desc = normalizarTermoProduto([h.descricao_item, h.produto_id, h.objeto].filter(Boolean).join(" "));
+    if (!termosPresentes(desc, termos)) return;
+    const valor = Number(h.preco_vencedor || h.preco_proposto || 0);
+    if (valor <= 0) return;
+    candidatos.push({
+      valor,
+      data: h.data || h.data_resultado || "",
+      escola: h.escola || "",
+      ganhou: h.ganhou === true || h.empresa_vencedora === "LARIUCCI"
+    });
+  });
+
+  Object.values(preOrcamentos || {}).forEach((pre) => {
+    if (!["ganho", "aprovado", "enviado"].includes(pre.status)) return;
+    (pre.itens || []).forEach((item) => {
+      const desc = normalizarTermoProduto([item.nome, item.marca].filter(Boolean).join(" "));
+      if (!termosPresentes(desc, termos)) return;
+      const valor = Number(item.precoUnitario || 0);
+      if (valor <= 0) return;
+      candidatos.push({
+        valor,
+        data: pre.resultadoEm || pre.aprovadoEm || pre.criadoEm || "",
+        escola: pre.escola || "",
+        ganhou: pre.status === "ganho"
+      });
+    });
+  });
+
+  if (!candidatos.length) return null;
+  const valores = candidatos.map((c) => c.valor).sort((a, b) => a - b);
+  const avg = valores.reduce((s, v) => s + v, 0) / valores.length;
+  const ultimo = candidatos.slice().sort((a, b) => String(b.data).localeCompare(String(a.data)))[0];
+  return {
+    count: candidatos.length,
+    min: valores[0],
+    avg,
+    max: valores[valores.length - 1],
+    ultimo
+  };
+}
+
+function formatHistoricoProduto(hist) {
+  if (!hist) return '<span class="text-muted">sem histórico</span>';
+  return `<strong>${brl.format(hist.avg)}</strong><br><small>${hist.count} ref. | min ${brl.format(hist.min)} | max ${brl.format(hist.max)}</small>`;
+}
+
+function analisarProduto() {
+  const termos = parseAnaliseTermos(document.getElementById("analise-produto-termos")?.value || "");
+  const exclusoes = parseAnaliseTermos(document.getElementById("analise-produto-exclusoes")?.value || "");
+  const sre = document.getElementById("analise-produto-sre")?.value || "all";
+  const prioridade = document.getElementById("analise-produto-prioridade")?.value || "all";
+  const tbody = document.getElementById("tbody-analise-produto");
+  const empty = document.getElementById("analise-produto-empty");
+  const kpis = document.getElementById("analise-produto-kpis");
+  if (!tbody || !empty || !kpis) return;
+
+  if (!termos.length) {
+    ultimaAnaliseProduto = [];
+    tbody.innerHTML = "";
+    kpis.innerHTML = "";
+    empty.style.display = "block";
+    empty.textContent = "Informe termos e clique em Analisar.";
+    return;
+  }
+
+  const hist = historicoProduto(termos);
+  const resultados = [];
+  (orcamentos || []).forEach((orc) => {
+    if (sre !== "all" && orc.sre !== sre) return;
+    if (orc.status !== "aberto") return;
+    if (isDescartado(orc.id) || preOrcamentos[orc.id]) return;
+    const fullText = normalizarTermoProduto([orc.escola, orc.municipio, orc.grupo, orc.objeto, textoItensOrcamento(orc)].join(" "));
+    if (!termosPresentes(fullText, termos)) return;
+    if (exclusoes.length && algumTermoPresente(fullText, exclusoes)) return;
+
+    const itemText = melhorTrechoItem(orc, termos);
+    const itemNorm = normalizarTermoProduto(itemText);
+    const forte = termosPresentes(itemNorm, termos);
+    const risks = riscosProduto(itemText || fullText, orc);
+    const record = {
+      prioridade: forte ? "forte" : "revisar",
+      orc,
+      itemText,
+      historico: hist,
+      riscos: risks
+    };
+    if (prioridade === "all" || record.prioridade === prioridade) resultados.push(record);
+  });
+
+  resultados.sort((a, b) => {
+    if (a.prioridade !== b.prioridade) return a.prioridade === "forte" ? -1 : 1;
+    return daysTo(a.orc.prazo) - daysTo(b.orc.prazo);
+  });
+
+  ultimaAnaliseProduto = resultados;
+  renderAnaliseProduto(resultados, termos, hist);
+}
+
+function renderAnaliseProduto(resultados, termos, hist) {
+  const tbody = document.getElementById("tbody-analise-produto");
+  const empty = document.getElementById("analise-produto-empty");
+  const kpis = document.getElementById("analise-produto-kpis");
+  if (!tbody || !empty || !kpis) return;
+
+  const fortes = resultados.filter(r => r.prioridade === "forte").length;
+  const revisar = resultados.length - fortes;
+  const urgentes = resultados.filter(r => daysTo(r.orc.prazo) <= 2).length;
+  kpis.innerHTML = `
+    <span><strong>${resultados.length}</strong> achados</span>
+    <span><strong>${fortes}</strong> fortes</span>
+    <span><strong>${revisar}</strong> revisar</span>
+    <span><strong>${urgentes}</strong> urgentes</span>
+    <span><strong>${hist ? hist.count : 0}</strong> refs. históricas</span>
+  `;
+
+  if (!resultados.length) {
+    tbody.innerHTML = "";
+    empty.style.display = "block";
+    empty.textContent = `Nenhuma oportunidade aberta encontrada para: ${termos.join(", ")}.`;
+    return;
+  }
+
+  empty.style.display = "none";
+  tbody.innerHTML = resultados.map((r) => {
+    const orc = r.orc;
+    const dias = daysTo(orc.prazo);
+    const badge = r.prioridade === "forte"
+      ? '<span class="badge badge-aprovado">Forte</span>'
+      : '<span class="badge badge-pendente">Revisar</span>';
+    const prazo = dias <= 0
+      ? '<span style="color:#ef4444;font-weight:700">HOJE/VENC.</span>'
+      : dias <= 2
+        ? `<span style="color:#dc2626;font-weight:800">${dias}d</span>`
+        : formatDate(orc.prazo);
+    const riscos = r.riscos.length ? r.riscos.join(", ") : "sem alerta";
+    return `<tr>
+      <td>${badge}</td>
+      <td class="font-mono text-muted">${escapeHtml(orc.id)}</td>
+      <td>${escapeHtml(orc.escola)}<br><small>${escapeHtml(orc.municipio || "-")} | ${escapeHtml(orc.sre || "-")}</small></td>
+      <td class="nowrap">${prazo}</td>
+      <td style="font-size:.8rem;max-width:360px;">${escapeHtml(r.itemText || orc.objeto || "-")}</td>
+      <td>${formatHistoricoProduto(r.historico)}</td>
+      <td style="font-size:.78rem;">${escapeHtml(riscos)}</td>
+      <td class="nowrap">
+        <button class="btn btn-inline" onclick="gerarPreOrcamento('${escapeHtml(orc.id)}')">Pré-Orçar</button>
+      </td>
+    </tr>`;
+  }).join("");
+}
+
+function exportarAnaliseProduto() {
+  if (!ultimaAnaliseProduto.length) {
+    showToast("Nenhuma análise por produto para exportar.");
+    return;
+  }
+  const header = "Prioridade;Orcamento;Escola;Municipio;SRE;Prazo;Item;HistoricoMedio;Riscos";
+  const rows = ultimaAnaliseProduto.map((r) => [
+    r.prioridade,
+    r.orc.id,
+    r.orc.escola,
+    r.orc.municipio,
+    r.orc.sre,
+    r.orc.prazo,
+    r.itemText || r.orc.objeto || "",
+    r.historico ? r.historico.avg.toFixed(2) : "",
+    r.riscos.join(", ")
+  ].map((v) => `"${String(v || "").replace(/"/g, '""')}"`).join(";"));
+  downloadCsv("analise-produto.csv", [header, ...rows].join("\n"));
+}
+
+function preencherPresetAnaliseProduto(tipo) {
+  const termos = document.getElementById("analise-produto-termos");
+  const exclusoes = document.getElementById("analise-produto-exclusoes");
+  if (!termos || !exclusoes) return;
+  if (tipo === "toner") {
+    termos.value = "toner, compatível";
+    exclusoes.value = "impressora, manutenção, recarga, locação";
+  } else if (tipo === "celular") {
+    termos.value = "celular";
+    exclusoes.value = "telefonia, plano, chip, internet, película";
+  }
+  analisarProduto();
+}
+
+function populateAnaliseProdutoSres() {
+  const sel = document.getElementById("analise-produto-sre");
+  if (!sel || sel.options.length > 1) return;
+  [...new Set((orcamentos || []).map(o => o.sre).filter(Boolean))].sort().forEach((sre) => {
+    sel.appendChild(new Option(sre, sre));
+  });
+}
+
 // Banco de Precos CRUD (openBancoModal, closeBancoModal, salvarBancoItem,
 // updateBancoSelectionUI, excluirSelecionadosBanco, editarBancoItem,
 // removerBancoItem, limparBanco) moved to app-banco.js
@@ -1712,6 +1991,10 @@ window.switchTab = function switchTab(tabId) {
   if (tabId === "envio-sgd") renderSgd();
   if (tabId === "aprovados") renderAprovados();
   if (tabId === "historico") renderHistorico();
+  if (tabId === "analise-produto") {
+    populateAnaliseProdutoSres();
+    if (ultimaAnaliseProduto.length) renderAnaliseProduto(ultimaAnaliseProduto, [], ultimaAnaliseProduto[0]?.historico || null);
+  }
   if (tabId === "pre-orcamento" && !activePreOrcamentoId) renderPreOrcamentosLista();
   if (tabId === "central-precos" && typeof renderCentralPrecos === "function") renderCentralPrecos();
 }
@@ -1788,6 +2071,20 @@ function bindEvents() {
   if (el.filtroObjeto) el.filtroObjeto.addEventListener("change", renderOrcamentos);
   el.filtroStatus.addEventListener("change", renderOrcamentos);
   el.filtroTexto.addEventListener("input", renderOrcamentos);
+
+  const btnAnaliseProduto = document.getElementById("btn-analise-produto-rodar");
+  if (btnAnaliseProduto) btnAnaliseProduto.addEventListener("click", analisarProduto);
+  const btnAnaliseToner = document.getElementById("btn-analise-produto-exemplo-toner");
+  if (btnAnaliseToner) btnAnaliseToner.addEventListener("click", () => preencherPresetAnaliseProduto("toner"));
+  const btnAnaliseCelular = document.getElementById("btn-analise-produto-exemplo-celular");
+  if (btnAnaliseCelular) btnAnaliseCelular.addEventListener("click", () => preencherPresetAnaliseProduto("celular"));
+  const btnAnaliseExportar = document.getElementById("btn-analise-produto-exportar");
+  if (btnAnaliseExportar) btnAnaliseExportar.addEventListener("click", exportarAnaliseProduto);
+  ["analise-produto-termos", "analise-produto-exclusoes", "analise-produto-sre", "analise-produto-prioridade"].forEach((id) => {
+    const node = document.getElementById(id);
+    if (!node) return;
+    node.addEventListener(id.includes("termos") || id.includes("exclusoes") ? "input" : "change", debounce(analisarProduto, 250));
+  });
 
   // Filtros banco (FR-003: elementos removidos, null-safe)
   if (el.filtroBancoGrupo) el.filtroBancoGrupo.addEventListener("change", renderBanco);

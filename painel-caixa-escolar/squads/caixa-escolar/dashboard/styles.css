@@ -1698,3 +1698,36 @@ input[type="checkbox"]:hover {
 .sync-busca-results { max-height: 120px; overflow-y: auto; margin-top: 4px; }
 .sync-busca-results div { padding: 4px 8px; font-size: .78rem; cursor: pointer; border-radius: 4px; }
 .sync-busca-results div:hover { background: rgba(59,130,246,.15); }
+
+/* ===== Agente Comercial: Análise por Produto ===== */
+.analise-produto-filtros {
+  grid-template-columns: minmax(180px, 1.4fr) minmax(180px, 1.4fr) minmax(140px, .8fr) minmax(130px, .7fr) auto;
+  align-items: center;
+}
+.analise-produto-kpis {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0 12px;
+}
+.analise-produto-kpis span {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px 10px;
+  background: var(--s1);
+  color: var(--muted);
+  font-size: .82rem;
+}
+.analise-produto-kpis strong {
+  color: var(--text);
+  font-size: .92rem;
+}
+#tabela-analise-produto td {
+  vertical-align: top;
+}
+
+@media (max-width: 960px) {
+  .analise-produto-filtros {
+    grid-template-columns: 1fr;
+  }
+}

@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Licit-AIX — Painel do Fornecedor</title>
-  <link rel="stylesheet" href="styles.css?v=8" />
+  <link rel="stylesheet" href="styles.css?v=9" />
   <!-- XLSX loaded eagerly (needed for SGD data parsing at boot) -->
   <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
   <!-- Perf: heavy libs loaded lazily on demand (saves ~1.4MB on boot) -->
@@ -53,6 +53,7 @@
         <span class="sidebar-label">INTEL PREÇOS</span>
       </button>
       <div class="sidebar-submenu" id="submenu-intel-precos">
+        <button class="sidebar-sub-item" data-subtab="analise-produto">Análise por Produto</button>
         <button class="sidebar-sub-item active" data-subtab="pre-orcamento">Pré-Orçamento</button>
         <button class="sidebar-sub-item" data-subtab="envio-sgd">Enviados ao SGD</button>
         <button class="sidebar-sub-item" data-subtab="central-precos">Central de Produtos</button>
@@ -153,6 +154,7 @@
 
   <!-- ===== NAVEGAÇÃO TABS (Intel. Preços) — movido para sidebar submenu ===== -->
   <nav class="tabs" id="tabs-intel-precos" style="display:none!important;">
+    <button class="tab" data-tab="analise-produto">Análise por Produto</button>
     <button class="tab active" data-tab="pre-orcamento">Pré-Orçamento</button>
     <button class="tab" data-tab="envio-sgd">Enviados ao SGD</button>
     <button class="tab" data-tab="historico">Histórico</button>
@@ -243,6 +245,57 @@
         </table>
       </div>
       <p id="orcamentos-empty" class="empty-msg" style="display:none;">Nenhum orçamento encontrado.</p>
+    </div>
+  </section>
+
+  <!-- ===== TAB: ANÁLISE POR PRODUTO ===== -->
+  <section id="tab-analise-produto" class="tab-content">
+    <div class="card">
+      <div class="table-head">
+        <div>
+          <h2>Análise por Produto</h2>
+          <p class="muted" style="margin-top:4px;font-size:.82rem;">Radar inteligente em modo leitura: encontra oportunidades por itens, remove ruído e cruza com histórico de preços.</p>
+        </div>
+        <div class="table-head-actions">
+          <button id="btn-analise-produto-exemplo-toner" class="btn btn-sm">Toner compatível</button>
+          <button id="btn-analise-produto-exemplo-celular" class="btn btn-sm">Caixa celular</button>
+          <button id="btn-analise-produto-exportar" class="btn btn-sm">Exportar CSV</button>
+        </div>
+      </div>
+
+      <div class="filters filters-8col analise-produto-filtros">
+        <input type="text" id="analise-produto-termos" placeholder="Termos obrigatórios: toner, compatível" autocomplete="off" />
+        <input type="text" id="analise-produto-exclusoes" placeholder="Excluir: impressora, manutenção, recarga" autocomplete="off" />
+        <select id="analise-produto-sre">
+          <option value="all">Todas SREs</option>
+        </select>
+        <select id="analise-produto-prioridade">
+          <option value="all">Todas prioridades</option>
+          <option value="forte">Forte</option>
+          <option value="revisar">Revisar</option>
+        </select>
+        <button id="btn-analise-produto-rodar" class="btn btn-accent" type="button">Analisar</button>
+      </div>
+
+      <div id="analise-produto-kpis" class="analise-produto-kpis"></div>
+      <div id="analise-produto-empty" class="empty-msg" style="display:none;">Informe termos e clique em Analisar.</div>
+      <div class="table-wrap">
+        <table id="tabela-analise-produto">
+          <thead>
+            <tr>
+              <th>Prioridade</th>
+              <th>Orçamento</th>
+              <th>Escola / Cidade</th>
+              <th>Prazo</th>
+              <th>Item encontrado</th>
+              <th>Histórico</th>
+              <th>Risco</th>
+              <th>Ação</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-analise-produto"></tbody>
+        </table>
+      </div>
     </div>
   </section>
 
@@ -1557,14 +1610,14 @@
   <script src="app-state.js?v=2"></script>
   <script src="app-sync.js?v=1"></script>
   <script src="app-sgd-client.js?v=1"></script>
-  <script src="app-utils.js?v=1"></script>
+  <script src="app-utils.js?v=2"></script>
   <script src="app-config.js?v=1"></script>
   <script src="app-banco.js?v=1"></script>
   <script src="app-import.js?v=2"></script>
   <script src="app-sgd-integration.js?v=1"></script>
   <script src="app-results.js?v=2"></script>
   <script src="radar-matcher.js?v=2"></script>
-  <script src="app.js?v=27"></script>
+  <script src="app.js?v=28"></script>
   <script src="pricing-intel.js?v=1"></script>
   <script src="pricing-engine.js?v=1"></script>
 </body>

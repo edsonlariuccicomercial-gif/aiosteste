@@ -106,6 +106,14 @@ function normalizedText(v) {
   return String(v || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
 
+function debounce(fn, delay) {
+  let timer;
+  return function (...args) {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn.apply(this, args), delay);
+  };
+}
+
 // ===== MATCHING: Sinônimos e Noise Words (SOP-RADAR-001) =====
 const SINONIMOS = {
   carioquinha: "carioca",
