@@ -1650,6 +1650,7 @@ window.excluirPreLote = function() {
 
 // ===== ANÁLISE POR PRODUTO (Radar + Intel Preços, leitura isolada) =====
 let ultimaAnaliseProduto = [];
+let ultimaSyncGanhos = { adicionados: 0, totalGanhos: 0 };
 
 function normalizarTermoProduto(value) {
   return normalizedText(value)
@@ -1747,22 +1748,6 @@ function historicoProduto(termos) {
     });
   });
 
-  Object.values(preOrcamentos || {}).forEach((pre) => {
-    if (!["ganho", "aprovado", "enviado"].includes(pre.status)) return;
-    (pre.itens || []).forEach((item) => {
-      const desc = normalizarTermoProduto([item.nome, item.marca].filter(Boolean).join(" "));
-      if (!termosPresentes(desc, termos)) return;
-      const valor = Number(item.precoUnitario || 0);
-      if (valor <= 0) return;
-      candidatos.push({
-        valor,
-        data: pre.resultadoEm || pre.aprovadoEm || pre.criadoEm || "",
-        escola: pre.escola || "",
-        ganhou: pre.status === "ganho"
-      });
-    });
-  });
-
   if (!candidatos.length) return null;
   const valores = candidatos.map((c) => c.valor).sort((a, b) => a - b);
   const avg = valores.reduce((s, v) => s + v, 0) / valores.length;
@@ -1781,7 +1766,91 @@ function formatHistoricoProduto(hist) {
   return `<strong>${brl.format(hist.avg)}</strong><br><small>${hist.count} ref. | min ${brl.format(hist.min)} | max ${brl.format(hist.max)}</small>`;
 }
 
+function estrategiaHistoricoProduto(hist) {
+  if (!hist || hist.count === 0) {
+    return { label: "Sem base real", detalhe: "precisa cotar fornecedor", confianca: "baixa", alvo: 0 };
+  }
+  const alvo = Math.round(hist.avg * 0.98 * 100) / 100;
+  const teto = Math.round(hist.max * 1.03 * 100) / 100;
+  const confianca = hist.count >= 5 ? "alta" : hist.count >= 2 ? "média" : "baixa";
+  return {
+    label: `Alvo ${brl.format(alvo)}`,
+    detalhe: `teto ${brl.format(teto)} | confiança ${confianca}`,
+    confianca,
+    alvo,
+    teto
+  };
+}
+
+function formatEstrategiaProduto(hist, riscos) {
+  const est = estrategiaHistoricoProduto(hist);
+  const riscoPreco = riscos.includes("original/compatível") ? "validar original x compatível" : "";
+  return `<strong>${escapeHtml(est.label)}</strong><br><small>${escapeHtml([est.detalhe, riscoPreco].filter(Boolean).join(" | "))}</small>`;
+}
+
+function chaveHistoricoGanho(entry) {
+  return [
+    entry.fonte || "manual",
+    entry.orcamento_sgd_id || "",
+    normalizarTermoProduto(entry.descricao_item || ""),
+    Number(entry.preco_proposto || entry.preco_vencedor || 0).toFixed(4)
+  ].join("|");
+}
+
+function sincronizarGanhosNoHistorico(options = {}) {
+  if (typeof loadHistoricoLicitacoes !== "function" || typeof saveHistoricoLicitacoes !== "function") {
+    return { adicionados: 0, totalGanhos: 0, totalHistorico: 0 };
+  }
+  const historico = loadHistoricoLicitacoes();
+  const existentes = new Set(historico.map(chaveHistoricoGanho));
+  const novos = [];
+  const ganhos = Object.values(preOrcamentos || {}).filter((pre) => pre && pre.status === "ganho");
+
+  ganhos.forEach((pre) => {
+    (pre.itens || []).forEach((item, idx) => {
+      const preco = Number(item.precoUnitario || 0);
+      if (!preco || preco <= 0) return;
+      const entry = {
+        id: `HIST-GANHO-${pre.orcamentoId || pre.id || Date.now()}-${idx}`,
+        fonte: "pre_orcamento_ganho",
+        escola: pre.escola || "",
+        cidade: pre.municipio || "",
+        municipio: pre.municipio || "",
+        sre: pre.sre || "",
+        grupo: pre.grupo || "",
+        produto_id: item.skuBanco || item.produtoId || "",
+        descricao_item: [item.nome, item.descricao, item.marca].filter(Boolean).join(" "),
+        quantidade: Number(item.quantidade || 0),
+        unidade: item.unidade || "",
+        custo_unitario: Number(item.custoUnitario || 0),
+        preco_proposto: preco,
+        preco_vencedor: preco,
+        empresa_vencedora: "LARIUCCI",
+        participou: true,
+        ganhou: true,
+        margem_percentual: Number(item.margem || pre.margemMedia || 0),
+        data: pre.resultadoEm || pre.aprovadoEm || pre.criadoEm || "",
+        orcamento_sgd_id: pre.orcamentoId || pre.id || ""
+      };
+      const key = chaveHistoricoGanho(entry);
+      if (existentes.has(key)) return;
+      existentes.add(key);
+      novos.push(entry);
+    });
+  });
+
+  if (novos.length) saveHistoricoLicitacoes([...historico, ...novos]);
+  ultimaSyncGanhos = { adicionados: novos.length, totalGanhos: ganhos.length };
+  if (options.toast !== false) {
+    showToast(novos.length
+      ? `${novos.length} item(ns) de ganhos reais adicionados ao histórico.`
+      : `Histórico já estava atualizado com ${ganhos.length} ganho(s).`);
+  }
+  return { adicionados: novos.length, totalGanhos: ganhos.length, totalHistorico: historico.length + novos.length };
+}
+
 function analisarProduto() {
+  sincronizarGanhosNoHistorico({ toast: false });
   const termos = parseAnaliseTermos(document.getElementById("analise-produto-termos")?.value || "");
   const exclusoes = parseAnaliseTermos(document.getElementById("analise-produto-exclusoes")?.value || "");
   const sre = document.getElementById("analise-produto-sre")?.value || "all";
@@ -1848,6 +1917,7 @@ function renderAnaliseProduto(resultados, termos, hist) {
     <span><strong>${revisar}</strong> revisar</span>
     <span><strong>${urgentes}</strong> urgentes</span>
     <span><strong>${hist ? hist.count : 0}</strong> refs. históricas</span>
+    <span><strong>${ultimaSyncGanhos.totalGanhos || 0}</strong> ganhos reais</span>
   `;
 
   if (!resultados.length) {
@@ -1877,6 +1947,7 @@ function renderAnaliseProduto(resultados, termos, hist) {
       <td class="nowrap">${prazo}</td>
       <td style="font-size:.8rem;max-width:360px;">${escapeHtml(r.itemText || orc.objeto || "-")}</td>
       <td>${formatHistoricoProduto(r.historico)}</td>
+      <td>${formatEstrategiaProduto(r.historico, r.riscos)}</td>
       <td style="font-size:.78rem;">${escapeHtml(riscos)}</td>
       <td class="nowrap">
         <button class="btn btn-inline" onclick="gerarPreOrcamento('${escapeHtml(orc.id)}')">Pré-Orçar</button>
@@ -1890,7 +1961,7 @@ function exportarAnaliseProduto() {
     showToast("Nenhuma análise por produto para exportar.");
     return;
   }
-  const header = "Prioridade;Orcamento;Escola;Municipio;SRE;Prazo;Item;HistoricoMedio;Riscos";
+  const header = "Prioridade;Orcamento;Escola;Municipio;SRE;Prazo;Item;HistoricoMedio;PrecoAlvo;PrecoTeto;Confianca;Riscos";
   const rows = ultimaAnaliseProduto.map((r) => [
     r.prioridade,
     r.orc.id,
@@ -1900,6 +1971,9 @@ function exportarAnaliseProduto() {
     r.orc.prazo,
     r.itemText || r.orc.objeto || "",
     r.historico ? r.historico.avg.toFixed(2) : "",
+    estrategiaHistoricoProduto(r.historico).alvo ? estrategiaHistoricoProduto(r.historico).alvo.toFixed(2) : "",
+    estrategiaHistoricoProduto(r.historico).teto ? estrategiaHistoricoProduto(r.historico).teto.toFixed(2) : "",
+    estrategiaHistoricoProduto(r.historico).confianca,
     r.riscos.join(", ")
   ].map((v) => `"${String(v || "").replace(/"/g, '""')}"`).join(";"));
   downloadCsv("analise-produto.csv", [header, ...rows].join("\n"));
@@ -2080,6 +2154,12 @@ function bindEvents() {
   if (btnAnaliseCelular) btnAnaliseCelular.addEventListener("click", () => preencherPresetAnaliseProduto("celular"));
   const btnAnaliseExportar = document.getElementById("btn-analise-produto-exportar");
   if (btnAnaliseExportar) btnAnaliseExportar.addEventListener("click", exportarAnaliseProduto);
+  const btnAnaliseSyncGanhos = document.getElementById("btn-analise-produto-sync-ganhos");
+  if (btnAnaliseSyncGanhos) btnAnaliseSyncGanhos.addEventListener("click", () => {
+    sincronizarGanhosNoHistorico({ toast: true });
+    analisarProduto();
+    if (typeof renderIntelDashboard === "function") renderIntelDashboard();
+  });
   ["analise-produto-termos", "analise-produto-exclusoes", "analise-produto-sre", "analise-produto-prioridade"].forEach((id) => {
     const node = document.getElementById(id);
     if (!node) return;
