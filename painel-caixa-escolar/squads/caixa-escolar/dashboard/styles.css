@@ -47,6 +47,205 @@ body::before, body::after {
 body::before { width: 600px; height: 600px; top: -200px; left: -150px; background: #1a6b45; }
 body::after  { width: 500px; height: 500px; bottom: -150px; right: -100px; background: #0e4d32; }
 
+/* ===== COMMERCIAL AGENTS ===== */
+.agents-fab {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 135;
+  border: 1px solid rgba(78, 201, 138, .45);
+  background: #183329;
+  color: var(--text);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 16px 44px rgba(0, 0, 0, .35);
+}
+
+.agents-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: min(440px, 100vw);
+  height: 100vh;
+  z-index: 140;
+  display: flex;
+  flex-direction: column;
+  background: rgba(13, 20, 18, .98);
+  border-left: 1px solid var(--line);
+  box-shadow: -20px 0 60px rgba(0, 0, 0, .45);
+  transform: translateX(104%);
+  transition: transform .22s ease;
+}
+
+.agents-panel.open { transform: translateX(0); }
+
+.agents-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.agents-head strong { display: block; font-size: 1rem; }
+.agents-head span { display: block; color: var(--muted); font-size: .78rem; margin-top: 2px; }
+
+.agents-close {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 1.35rem;
+  line-height: 1;
+}
+
+.agents-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  padding: 12px 12px 0;
+}
+
+.agents-tabs button,
+.agents-quick button,
+.agents-input button {
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, .03);
+  color: var(--muted);
+  border-radius: 8px;
+  padding: 8px 9px;
+  font-size: .76rem;
+  cursor: pointer;
+}
+
+.agents-tabs button.active,
+.agents-quick button:hover,
+.agents-input button {
+  background: var(--accent-dim);
+  color: var(--accent);
+  border-color: rgba(78, 201, 138, .4);
+}
+
+.agents-role {
+  padding: 10px 16px;
+  color: var(--muted);
+  font-size: .82rem;
+  border-bottom: 1px solid rgba(143, 197, 157, .12);
+}
+
+.agents-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  padding: 12px 16px;
+}
+
+.agents-summary div {
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, .03);
+  border-radius: 8px;
+  padding: 9px;
+  min-width: 0;
+}
+
+.agents-summary span {
+  display: block;
+  color: var(--muted);
+  font-size: .68rem;
+  margin-bottom: 4px;
+}
+
+.agents-summary strong {
+  display: block;
+  font-size: .8rem;
+  overflow-wrap: anywhere;
+}
+
+.agents-decision-pronto { color: var(--accent); }
+.agents-decision-revisar { color: var(--warning); }
+.agents-decision-bloquear,
+.agents-decision-sem-contexto { color: var(--danger); }
+
+.agents-quick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  padding: 0 16px 12px;
+  border-bottom: 1px solid rgba(143, 197, 157, .12);
+}
+
+.agents-chat {
+  flex: 1;
+  overflow: auto;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.agents-msg {
+  max-width: 92%;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px;
+  background: rgba(255, 255, 255, .035);
+}
+
+.agents-msg.user {
+  align-self: flex-end;
+  background: rgba(78, 201, 138, .10);
+}
+
+.agents-msg span {
+  display: block;
+  color: var(--muted);
+  font-size: .68rem;
+  margin-bottom: 5px;
+}
+
+.agents-msg p {
+  color: var(--text);
+  font-size: .84rem;
+  line-height: 1.42;
+}
+
+.agents-empty {
+  margin: auto;
+  color: var(--muted);
+  text-align: center;
+  font-size: .84rem;
+  line-height: 1.45;
+  max-width: 300px;
+}
+
+.agents-input {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  padding: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.agents-input input {
+  min-width: 0;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, .04);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 10px;
+}
+
+@media (max-width: 640px) {
+  .agents-tabs { grid-template-columns: repeat(2, 1fr); }
+  .agents-summary { grid-template-columns: 1fr; }
+}
+
 /* ===== SIDEBAR ===== */
 .sidebar {
   position: fixed;

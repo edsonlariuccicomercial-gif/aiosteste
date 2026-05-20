@@ -624,7 +624,7 @@ const SUPABASE_KEY = window.SUPABASE_KEY || "sb_publishable_uBqL8sLjMGWnZ2aaQ1zw
 const SHARED_SYNC_KEYS = new Set([
   "caixaescolar.banco.v1", "caixaescolar.preorcamentos.v1", "caixaescolar.resultados.v1",
   "caixaescolar.contratos.v1", "caixaescolar.orcamentos", "caixaescolar.descartados",
-  "caixaescolar.itens-mestres", "caixaescolar.arquivos-importados",
+  "caixaescolar.itens-mestres", "caixaescolar.arquivos-importados", "caixaescolar.agentes.v1",
   // gdp.contratos.v1, gdp.pedidos.v1, gdp.notas-fiscais.v1, gdp.contas-receber.v1,
   // gdp.contas-pagar.v1, gdp.entregas.provas.v1, gdp.usuarios.v1
   // — removed: these entities now have dedicated Supabase tables
@@ -681,6 +681,7 @@ const SYNC_KEYS = [
   "nexedu.empresa", "caixaescolar.banco.v1", "caixaescolar.preorcamentos.v1",
   "caixaescolar.resultados.v1", "caixaescolar.contratos.v1", "caixaescolar.orcamentos",
   "caixaescolar.descartados", "caixaescolar.itens-mestres", "caixaescolar.arquivos-importados",
+  "caixaescolar.agentes.v1",
   // gdp.contratos.v1, gdp.pedidos.v1, gdp.notas-fiscais.v1, gdp.contas-receber.v1,
   // gdp.contas-pagar.v1, gdp.entregas.provas.v1, gdp.usuarios.v1
   // — removed: these entities now have dedicated Supabase tables
