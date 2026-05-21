@@ -65,6 +65,8 @@ function renderPedidos() {
       <td>${integracoes.html}</td>
     </tr>`;
   }).join("");
+  // Story 4.52 AC-2: update footer with filtered data
+  if (typeof _updatePedidosFooterTotals === 'function') _updatePedidosFooterTotals(filtered);
 }
 
 async function transmitirPedido(pedidoId) {
@@ -1537,6 +1539,9 @@ function renderNotasFiscais() {
   if (bancariaEl) bancariaEl.textContent = pendenciaBancaria;
   if (falhasEl) falhasEl.textContent = falhas;
 
+  // Story 4.52 AC-1: update footer with filtered data
+  if (typeof _updateNfFooterTotals === 'function') _updateNfFooterTotals(filtered);
+
   if (!filtered.length) {
     tbody.innerHTML = "";
     empty.classList.remove("hidden");
@@ -1616,6 +1621,8 @@ function renderContasPagar() {
       <td style="font-size:.76rem;color:var(--mut)">${esc(formatAuditStamp(item.audit, item.pagaEm, item.audit?.updatedBy))}</td>
     </tr>
   `).join("");
+  // Story 4.52 AC-3: update footer with filtered data
+  if (typeof _updateCpFooterTotals === 'function') _updateCpFooterTotals(filtered);
 }
 
 function renderContasReceber() {
@@ -1683,6 +1690,8 @@ function renderContasReceber() {
       <td style="font-size:.76rem;color:var(--mut)">${esc(formatAuditStamp(item.audit, item.recebidaEm, item.audit?.updatedBy))}</td>
     </tr>
   `).join("");
+  // Story 4.52 AC-4: update footer with filtered data
+  if (typeof _updateCrFooterTotals === 'function') _updateCrFooterTotals(filtered);
 }
 
 function renderContaPagarStatusTabs(items = contasPagar) {

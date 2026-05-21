@@ -180,36 +180,32 @@ function switchFinanceiroTab(subTab) {
 }
 
 
-// Page footer totals — filtered by active status tab, selection totals update via checkbox handlers
-function _updatePedidosFooterTotals() {
+// Story 4.52: Page footer totals — accept optional filtered items to reflect search/period/category filters
+function _updatePedidosFooterTotals(items) {
   const qtdEl = document.getElementById("pedidos-footer-qtd");
   const valEl = document.getElementById("pedidos-footer-valor");
-  const tab = typeof pedidoStatusTabAtual !== 'undefined' ? pedidoStatusTabAtual : 'todos';
-  const filtered = tab === 'todos' ? pedidos : pedidos.filter(p => normalizePedidoStatus(p.status) === tab);
+  const filtered = items || ((() => { const tab = typeof pedidoStatusTabAtual !== 'undefined' ? pedidoStatusTabAtual : 'todos'; return tab === 'todos' ? pedidos : pedidos.filter(p => normalizePedidoStatus(p.status) === tab); })());
   if (qtdEl) qtdEl.textContent = String(filtered.length).padStart(2, '0');
   if (valEl) valEl.textContent = brl.format(filtered.reduce((s, p) => s + (parseFloat(p.valor) || 0), 0));
 }
-function _updateNfFooterTotals() {
+function _updateNfFooterTotals(items) {
   const qtdEl = document.getElementById("nf-footer-qtd");
   const valEl = document.getElementById("nf-footer-valor");
-  const tab = typeof notaFiscalStatusTabAtual !== 'undefined' ? notaFiscalStatusTabAtual : 'todas';
-  const filtered = tab === 'todas' ? notasFiscais : notasFiscais.filter(nf => normalizeNotaFiscalStatus(nf.status) === tab);
+  const filtered = items || ((() => { const tab = typeof notaFiscalStatusTabAtual !== 'undefined' ? notaFiscalStatusTabAtual : 'todas'; return tab === 'todas' ? notasFiscais : notasFiscais.filter(nf => normalizeNotaFiscalStatus(nf.status) === tab); })());
   if (qtdEl) qtdEl.textContent = String(filtered.length).padStart(2, '0');
   if (valEl) valEl.textContent = brl.format(filtered.reduce((s, nf) => s + (parseFloat(nf.valor) || 0), 0));
 }
-function _updateCpFooterTotals() {
+function _updateCpFooterTotals(items) {
   const qtdEl = document.getElementById("cp-footer-qtd");
   const valEl = document.getElementById("cp-footer-valor");
-  const tab = typeof contaPagarStatusTabAtual !== 'undefined' ? contaPagarStatusTabAtual : 'todas';
-  const filtered = tab === 'todas' ? contasPagar : contasPagar.filter(c => normalizeContaPagarStatus(c) === tab);
+  const filtered = items || ((() => { const tab = typeof contaPagarStatusTabAtual !== 'undefined' ? contaPagarStatusTabAtual : 'todas'; return tab === 'todas' ? contasPagar : contasPagar.filter(c => normalizeContaPagarStatus(c) === tab); })());
   if (qtdEl) qtdEl.textContent = String(filtered.length).padStart(2, '0');
   if (valEl) valEl.textContent = brl.format(filtered.reduce((s, c) => s + (parseFloat(c.valor) || 0), 0));
 }
-function _updateCrFooterTotals() {
+function _updateCrFooterTotals(items) {
   const qtdEl = document.getElementById("cr-footer-qtd");
   const valEl = document.getElementById("cr-footer-valor");
-  const tab = typeof contaReceberStatusTabAtual !== 'undefined' ? contaReceberStatusTabAtual : 'todas';
-  const filtered = tab === 'todas' ? contasReceber : contasReceber.filter(c => normalizeContaReceberStatus(c) === tab);
+  const filtered = items || ((() => { const tab = typeof contaReceberStatusTabAtual !== 'undefined' ? contaReceberStatusTabAtual : 'todas'; return tab === 'todas' ? contasReceber : contasReceber.filter(c => normalizeContaReceberStatus(c) === tab); })());
   if (qtdEl) qtdEl.textContent = String(filtered.length).padStart(2, '0');
   if (valEl) valEl.textContent = brl.format(filtered.reduce((s, c) => s + (parseFloat(c.valor) || 0), 0));
 }
@@ -217,9 +213,9 @@ function _updateClientesFooterTotals() {
   const qtdEl = document.getElementById("clientes-footer-qtd");
   if (qtdEl) qtdEl.textContent = String(usuarios.length).padStart(2, '0');
 }
-function _updateProdutosFooterTotals() {
+function _updateProdutosFooterTotals(items) {
   const qtdEl = document.getElementById("produtos-footer-qtd");
-  const count = typeof estoqueIntelProdutos !== 'undefined' ? estoqueIntelProdutos.length : 0;
+  const count = items ? items.length : (typeof estoqueIntelProdutos !== 'undefined' ? estoqueIntelProdutos.length : 0);
   if (qtdEl) qtdEl.textContent = String(count).padStart(2, '0');
 }
 

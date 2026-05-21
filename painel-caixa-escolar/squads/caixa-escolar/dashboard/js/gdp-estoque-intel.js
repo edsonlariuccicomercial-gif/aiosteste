@@ -2091,6 +2091,8 @@ function renderEstoque() {
   });
 
   const produtosVisiveis = produtosFiltrados;
+  // Story 4.52 AC-5: update footer with filtered product count
+  if (typeof _updateProdutosFooterTotals === 'function') _updateProdutosFooterTotals(produtosFiltrados);
   const pedidosVisiveis = pedidosFiltrados;
   const resumoVisivel = resumoFiltrado;
   const movVisiveis = movFiltrados;
