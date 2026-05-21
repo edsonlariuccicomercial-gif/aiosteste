@@ -200,9 +200,13 @@ function canTransmitNotaFiscal(nf) {
 function validatePedidoForInvoice(pedido, tipoNota = "nfe_real") {
   const data = ensurePedidoFiscalData(pedido);
   const missing = [];
-  const clienteVinculado = pedido.contratoId ? getClientePrincipalDoContrato(pedido.contratoId) : null;
-  const snapshotContrato = pedido.contratoId ? getClienteFiscalSnapshotDoContrato(pedido.contratoId) : null;
-  if (tipoNota === "nfe_real" && !clienteVinculado && !(snapshotContrato?.nome || snapshotContrato?.cnpj)) missing.push("cliente vinculado ao contrato");
+  // Fix: só exigir cliente vinculado ao contrato se o pedido NÃO tiver dados fiscais do cliente preenchidos
+  // Se data.cliente já tem nome+cnpj, não precisa do vínculo formal com o contrato
+  if (tipoNota === "nfe_real" && !data.cliente.nome && !data.cliente.cnpj) {
+    const clienteVinculado = pedido.contratoId ? getClientePrincipalDoContrato(pedido.contratoId) : null;
+    const snapshotContrato = pedido.contratoId ? getClienteFiscalSnapshotDoContrato(pedido.contratoId) : null;
+    if (!clienteVinculado && !(snapshotContrato?.nome || snapshotContrato?.cnpj)) missing.push("cliente vinculado ao contrato");
+  }
   if (!data.cliente.nome) missing.push("nome do cliente");
   if (tipoNota === "nfe_real" && !data.cliente.cnpj) missing.push("documento fiscal do cliente");
   if (tipoNota === "nfe_real" && !data.cliente.logradouro) missing.push("logradouro");
