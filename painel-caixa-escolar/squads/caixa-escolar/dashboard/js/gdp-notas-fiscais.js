@@ -1126,8 +1126,9 @@ async function autorizarNotaFiscal(notaId) {
 }
 
 async function transmitirHomologacaoNota(notaId) {
+  try {
   const nf = notasFiscais.find((item) => item.id === notaId);
-  if (!nf) return;
+  if (!nf) { showToast("NF não encontrada: " + notaId, 3500); return; }
   if (!isNotaFiscalReal(nf)) {
     showToast("Transmissao SEFAZ disponivel apenas para NF-e real.", 3500);
     return;
@@ -1316,6 +1317,7 @@ async function transmitirHomologacaoNota(notaId) {
     renderAll();
     showToast(`Falha na transmissao SEFAZ: ${err.message}`, 4500);
   }
+  } catch(outerErr) { console.error("[NF-e] Erro inesperado em transmitirHomologacaoNota:", outerErr); showToast("Erro inesperado: " + outerErr.message, 5000); }
 }
 
 function atualizarFormaCobrancaNota(notaId, forma) {
