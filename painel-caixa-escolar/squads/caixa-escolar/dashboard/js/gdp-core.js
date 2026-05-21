@@ -2003,7 +2003,7 @@ window.excluirExtratosSelecionados = function() {
   showToast(selected.length + ' extrato(s) excluído(s).');
 };
 
-// Story 4.51 AC-C3: reopen saved extrato
+// Story 4.53 AC-3: reopen extrato with pending items highlighted
 window.reabrirExtrato = function(idx) {
   const extratos = loadExtratos();
   const ext = extratos[idx];
@@ -2015,9 +2015,25 @@ window.reabrirExtrato = function(idx) {
   } else {
     showToast('Extrato totalmente conciliado (' + items.length + '/' + items.length + ').', 3000);
   }
-  // Scroll to conciliação table
+  // Highlight pending rows in the conciliação table
   const tbody = document.getElementById('conciliacao-tbody');
-  if (tbody) tbody.scrollIntoView({ behavior: 'smooth' });
+  if (tbody) {
+    const rows = tbody.querySelectorAll('tr');
+    rows.forEach((row, i) => {
+      if (items[i] && !items[i].conciliado) {
+        row.style.background = 'rgba(245,158,11,.12)';
+        row.style.borderLeft = '3px solid var(--yellow, #f59e0b)';
+      } else {
+        row.style.background = '';
+        row.style.borderLeft = '';
+      }
+    });
+    // Scroll to first pending row
+    const firstPending = items.findIndex(i => !i.conciliado);
+    if (firstPending >= 0 && rows[firstPending]) {
+      rows[firstPending].scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }
 };
 
 window.atualizarHistorico = function(idx, valor) {

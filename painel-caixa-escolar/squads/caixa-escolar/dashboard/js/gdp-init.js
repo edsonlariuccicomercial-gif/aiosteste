@@ -3318,7 +3318,7 @@ function renderModalNovoProduto() {
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.75rem">
         <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">NCM</label><input type="text" id="ei-produto-ncm" placeholder="Digite nome ou codigo..." list="ncm-datalist" oninput="filtrarNCM(this)" autocomplete="off" style="width:100%"><datalist id="ncm-datalist"></datalist></div>
-        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Categoria</label><div style="display:flex;gap:.35rem"><select id="ei-produto-categoria" style="flex:1">${CAT_OPTS}</select><button class="btn btn-outline btn-sm" onclick="adicionarCategoriaCustom()" title="Nova" style="padding:.35rem .5rem">+</button></div></div>
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Categoria</label><div style="display:flex;gap:.35rem"><select id="ei-produto-categoria" style="flex:1">${CAT_OPTS}</select><button class="btn btn-outline btn-sm" onclick="adicionarCategoriaCustom()" title="Nova categoria" style="padding:.35rem .5rem">+</button><button class="btn btn-outline btn-sm" onclick="abrirGerenciadorCategorias()" title="Gerenciar categorias" style="padding:.35rem .5rem;font-size:.7rem">⚙</button></div></div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.75rem;margin-bottom:.75rem">
         <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Origem NF-e</label><select id="ei-produto-origem" style="width:100%">${ORI_OPTS}</select></div>
@@ -3508,6 +3508,29 @@ window.excluirCategoria = function(name) {
   }
   showToast("Categoria excluída: " + name, 2500);
   if (typeof renderProdutos === 'function') renderProdutos();
+};
+
+// Story 4.53 AC-2: UI para gerenciar categorias custom
+window.abrirGerenciadorCategorias = function() {
+  const customs = _loadCategoriasCustom();
+  if (!customs.length) { showToast("Nenhuma categoria customizada. Use o botão + para criar.", 3000); return; }
+  const listHtml = customs.map(c =>
+    '<div style="display:flex;align-items:center;gap:.5rem;padding:.4rem .6rem;border-bottom:1px solid var(--bdr)">'
+    + '<span style="flex:1;font-size:.85rem">' + c + '</span>'
+    + '<button class="btn btn-outline btn-sm" onclick="editarCategoria(\'' + c.replace(/'/g, "\\'") + '\');abrirGerenciadorCategorias()" style="padding:.2rem .4rem;font-size:.7rem" title="Renomear">✏️</button>'
+    + '<button class="btn btn-outline btn-sm" onclick="excluirCategoria(\'' + c.replace(/'/g, "\\'") + '\');abrirGerenciadorCategorias()" style="padding:.2rem .4rem;font-size:.7rem;color:var(--red)" title="Excluir">🗑️</button>'
+    + '</div>'
+  ).join('');
+  const overlay = document.getElementById('vincular-cadastro-overlay') || document.createElement('div');
+  overlay.id = 'cat-manager-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+  overlay.innerHTML = '<div style="background:var(--bg);border:1px solid var(--bdr);border-radius:10px;width:380px;max-width:90vw;padding:1.2rem 1.5rem" onclick="event.stopPropagation()">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem"><h3 style="margin:0;font-size:.95rem">Gerenciar Categorias</h3><button class="btn btn-outline btn-sm" onclick="document.getElementById(\'cat-manager-overlay\').remove()">Fechar</button></div>'
+    + '<div style="max-height:300px;overflow-y:auto;border:1px solid var(--bdr);border-radius:6px">' + listHtml + '</div>'
+    + '<div style="margin-top:.8rem;font-size:.72rem;color:var(--mut)">Categorias padrão (Hortifruti, Carnes, etc.) não podem ser editadas.</div>'
+    + '</div>';
+  document.body.appendChild(overlay);
 };
 
 // === Download Modelo Excel ===

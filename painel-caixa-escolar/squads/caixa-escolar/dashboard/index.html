@@ -988,6 +988,11 @@
               <label>Chave PIX<input type="text" id="bank-pix" placeholder="email, telefone, CNPJ ou chave" /></label>
               <label>Uso principal<select id="bank-uso"><option value="cobranca">Cobranca</option><option value="recebimento">Recebimento</option><option value="conciliacao">Conciliacao</option><option value="reserva">Reserva</option></select></label>
             </div>
+            <!-- Story 4.53 AC-1: Saldo inicial da conta bancária -->
+            <div class="form-grid" style="margin-top:12px;border-top:1px solid var(--line);padding-top:12px">
+              <label>Saldo Inicial (R$)<input type="number" id="bank-saldo-inicial" step="0.01" min="0" placeholder="0.00" /></label>
+              <label>Data do Saldo<input type="date" id="bank-saldo-data" /></label>
+            </div>
             <div class="config-inline-toggles">
               <label><input type="checkbox" id="bank-padrao" /> Definir como conta padrao</label>
               <label><input type="checkbox" id="bank-ativa" checked /> Conta ativa</label>
