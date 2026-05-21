@@ -1398,7 +1398,7 @@ function getNotaFiscalStatusMeta(status) {
 function setNotaFiscalStatusTab(status) {
   notaFiscalStatusTabAtual = status;
   renderNotasFiscais();
-  if (typeof _updateNfFooterTotals === "function") _updateNfFooterTotals();
+  // Story 4.52: removed redundant _updateNfFooterTotals() — renderNotasFiscais() already calls it with filtered data
 }
 
 function renderNotasFiscaisStatusTabs(items = notasFiscais) {
@@ -1457,9 +1457,8 @@ function atualizarSelecaoNotasFiscais() {
     const valEl = document.getElementById("nf-footer-valor");
     if (qtdEl) qtdEl.textContent = String(selected.length).padStart(2, '0');
     if (valEl) valEl.textContent = brl.format(totalValor);
-  } else {
-    if (typeof _updateNfFooterTotals === "function") _updateNfFooterTotals();
   }
+  // Story 4.52: when no selection, footer stays as set by renderNotasFiscais(filtered) — no override needed
 }
 
 function abrirMenuNotaFiscal(id) {
@@ -1713,7 +1712,6 @@ function renderContaPagarStatusTabs(items = contasPagar) {
 function setContaPagarStatusTab(status) {
   contaPagarStatusTabAtual = status;
   renderContasPagar();
-  if (typeof _updateCpFooterTotals === "function") _updateCpFooterTotals();
 }
 
 function renderContaReceberStatusTabs(items = contasReceber) {
@@ -1735,7 +1733,6 @@ function renderContaReceberStatusTabs(items = contasReceber) {
 function setContaReceberStatusTab(status) {
   contaReceberStatusTabAtual = status;
   renderContasReceber();
-  if (typeof _updateCrFooterTotals === "function") _updateCrFooterTotals();
 }
 
 function getCaixaResumo() {
@@ -2050,7 +2047,6 @@ function getPedidoStatusMeta(status) {
 function setPedidoStatusTab(status) {
   pedidoStatusTabAtual = status;
   renderPedidos();
-  if (typeof _updatePedidosFooterTotals === "function") _updatePedidosFooterTotals();
 }
 
 var _pedidoStatusDropdownOpen = false;
@@ -2233,8 +2229,7 @@ function atualizarSelecaoPedidos() {
     if (badge) badge.style.display = "none";
     if (btn) { btn.disabled = true; btn.style.opacity = ".5"; btn.title = "Selecione ao menos 1 protocolo"; }
     if (footer) footer.classList.remove("has-selection");
-    // Restore list totals
-    if (typeof _updatePedidosFooterTotals === "function") _updatePedidosFooterTotals();
+    // Story 4.52: footer stays as set by renderPedidos(filtered) — no override
   }
   // Sync header checkbox
   const allChecks = document.querySelectorAll(".pedido-check");

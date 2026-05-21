@@ -136,7 +136,7 @@ function switchTab(tab) {
     if (typeof setEstoqueIntelView === "function") setEstoqueIntelView(viewMap[tab]);
     // Notas de entrada tem render próprio além do renderEstoque
     if (tab === "notas-entrada" && typeof renderNotasEntrada === "function") { renderNotasEntrada(); _showPageFooter("ne-page-footer"); _updateNeFooterTotals(); }
-    if (tab === "estoque") { _showPageFooter("produtos-page-footer"); _updateProdutosFooterTotals(); }
+    if (tab === "estoque") { _showPageFooter("produtos-page-footer"); }
   } else if (isFinanceiro) {
     // Mostrar tab-financeiro
     const finEl = document.getElementById("tab-financeiro");
@@ -153,8 +153,9 @@ function switchTab(tab) {
 
   if (tab === "contratos") renderContratos();
   if (tab === "itens") renderItens();
-  if (tab === "pedidos") { renderPedidos(); _showPageFooter("pedidos-page-footer"); _updatePedidosFooterTotals(); }
-  if (tab === "notas-fiscais") { renderNotasFiscais(); _showPageFooter("nf-page-footer"); _updateNfFooterTotals(); }
+  // Story 4.52: render functions now call footer updates internally with filtered data
+  if (tab === "pedidos") { renderPedidos(); _showPageFooter("pedidos-page-footer"); }
+  if (tab === "notas-fiscais") { renderNotasFiscais(); _showPageFooter("nf-page-footer"); }
   if (tab === "relatorios") renderRelatorios();
   if (tab === "usuarios") { renderUsuarios(); _showPageFooter("clientes-page-footer"); _updateClientesFooterTotals(); }
   if (tab === "financeiro" && typeof atualizarResumosVencimento === "function") atualizarResumosVencimento();
@@ -170,11 +171,12 @@ function switchFinanceiroTab(subTab) {
     btn.classList.toggle("active", btn.dataset.finTab === subTab);
   });
   if (subTab === "caixa") { if (typeof renderCaixa === "function") renderCaixa(); _hideAllPageFooters(); }
-  if (subTab === "contas-pagar") { if (typeof renderContasPagar === "function") renderContasPagar(); _showPageFooter("cp-page-footer"); _updateCpFooterTotals(); }
+  // Story 4.52: render functions now call footer updates internally with filtered data
+  if (subTab === "contas-pagar") { if (typeof renderContasPagar === "function") renderContasPagar(); _showPageFooter("cp-page-footer"); }
   if (subTab === "contas-receber") {
     if (typeof renderContasReceber === "function") renderContasReceber();
     if (typeof atualizarResumosVencimento === "function") atualizarResumosVencimento();
-    _showPageFooter("cr-page-footer"); _updateCrFooterTotals();
+    _showPageFooter("cr-page-footer");
   }
   if (subTab === "conciliacao") { if (typeof renderConciliacao === "function") renderConciliacao(); _hideAllPageFooters(); }
 }
@@ -316,9 +318,8 @@ function atualizarSelecaoContasReceber() {
     const valEl = document.getElementById("cr-footer-valor");
     if (qtdEl) qtdEl.textContent = String(count).padStart(2, '0');
     if (valEl) valEl.textContent = brl.format(totalValor);
-  } else {
-    _updateCrFooterTotals();
   }
+  // Story 4.52: when no selection, footer stays as set by renderContasReceber(filtered)
 }
 
 function bulkReceberContas() {
@@ -775,9 +776,8 @@ function atualizarSelecaoContasPagar() {
     const valEl = document.getElementById("cp-footer-valor");
     if (qtdEl) qtdEl.textContent = String(count).padStart(2, '0');
     if (valEl) valEl.textContent = brl.format(totalValor);
-  } else {
-    _updateCpFooterTotals();
   }
+  // Story 4.52: when no selection, footer stays as set by renderContasPagar(filtered)
 }
 
 function bulkBaixarContasPagar() {
