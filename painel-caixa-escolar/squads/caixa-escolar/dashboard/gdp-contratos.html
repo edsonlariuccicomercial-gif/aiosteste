@@ -503,7 +503,9 @@
         <select id="filtro-contrato-pedido" onchange="renderPedidos()" style="display:none">
           <option value="">Todos os contratos</option>
         </select>
-        <input type="date" id="filtro-data-pedido" onchange="renderPedidos()">
+        <select id="filtro-periodo-pedido" onchange="renderPedidos()" style="height:40px;padding:4px 10px;border-radius:6px;border:1px solid var(--bdr);background:var(--bg);color:var(--txt);font-size:.85rem"><option value="todos">Todos</option><option value="hoje">Hoje</option><option value="semana">Esta Semana</option><option value="mes">Este Mes</option><option value="intervalo">Intervalo</option></select>
+        <input type="date" id="filtro-pedido-de" class="hidden" onchange="renderPedidos()" style="height:40px;padding:4px 8px;border-radius:6px;border:1px solid var(--bdr);background:var(--bg);color:var(--txt);font-size:.82rem">
+        <input type="date" id="filtro-pedido-ate" class="hidden" onchange="renderPedidos()" style="height:40px;padding:4px 8px;border-radius:6px;border:1px solid var(--bdr);background:var(--bg);color:var(--txt);font-size:.82rem">
       </div>
       <div style="display:flex;gap:.5rem;align-items:center">
         <span id="pedidos-sel-count" style="font-size:.8rem;color:var(--cyan);font-weight:600;display:none"></span>
@@ -657,6 +659,9 @@
       <div style="display:flex;gap:.8rem;align-items:center;flex-wrap:wrap">
         <input type="text" id="cp-busca" placeholder="Buscar descricao..." oninput="renderContasPagar()" style="min-width:220px">
         <select id="cp-filtro-categoria" onchange="renderContasPagar()"></select>
+        <select id="cp-filtro-periodo" onchange="renderContasPagar()" style="height:40px;padding:4px 10px;border-radius:6px;border:1px solid var(--bdr);background:var(--bg);color:var(--txt);font-size:.85rem"><option value="todos">Todos</option><option value="hoje">Hoje</option><option value="semana">Esta Semana</option><option value="mes">Este Mes</option><option value="intervalo">Intervalo</option></select>
+        <input type="date" id="cp-filtro-de" class="hidden" onchange="renderContasPagar()" style="height:40px;padding:4px 8px;border-radius:6px;border:1px solid var(--bdr);background:var(--bg);color:var(--txt);font-size:.82rem">
+        <input type="date" id="cp-filtro-ate" class="hidden" onchange="renderContasPagar()" style="height:40px;padding:4px 8px;border-radius:6px;border:1px solid var(--bdr);background:var(--bg);color:var(--txt);font-size:.82rem">
       </div>
       <div style="display:flex;gap:.6rem;align-items:center;flex-wrap:wrap">
         <button class="btn btn-outline" onclick="imprimirRelatorioContasPagar()">Imprimir Relatorio</button>
@@ -766,6 +771,9 @@
       <div style="display:flex;gap:.8rem;align-items:center;flex-wrap:wrap">
         <input type="text" id="cr-busca" placeholder="Buscar descricao ou cliente..." oninput="renderContasReceber()" style="min-width:240px">
         <select id="cr-filtro-categoria" onchange="renderContasReceber()"></select>
+        <select id="cr-filtro-periodo" onchange="renderContasReceber()" style="height:40px;padding:4px 10px;border-radius:6px;border:1px solid var(--bdr);background:var(--bg);color:var(--txt);font-size:.85rem"><option value="todos">Todos</option><option value="hoje">Hoje</option><option value="semana">Esta Semana</option><option value="mes">Este Mes</option><option value="intervalo">Intervalo</option></select>
+        <input type="date" id="cr-filtro-de" class="hidden" onchange="renderContasReceber()" style="height:40px;padding:4px 8px;border-radius:6px;border:1px solid var(--bdr);background:var(--bg);color:var(--txt);font-size:.82rem">
+        <input type="date" id="cr-filtro-ate" class="hidden" onchange="renderContasReceber()" style="height:40px;padding:4px 8px;border-radius:6px;border:1px solid var(--bdr);background:var(--bg);color:var(--txt);font-size:.82rem">
       </div>
       <div style="display:flex;gap:.6rem;align-items:center;flex-wrap:wrap">
         <button class="btn btn-outline" onclick="imprimirRelatorioContasReceber()">Imprimir Relatorio</button>

@@ -1,6 +1,33 @@
 // gdp-pedidos.js — Extracted from gdp-contratos.html
 // Pedidos, Notas Fiscais, Contas Pagar/Receber, Caixa, Relatorios, Lista de Compras
 
+// Story 4.54: shared period filter helper — reusable across all list views
+function _applyPeriodFilter(items, selectId, deId, ateId, dateField) {
+  const sel = document.getElementById(selectId);
+  const deInput = document.getElementById(deId);
+  const ateInput = document.getElementById(ateId);
+  if (!sel) return items;
+  const periodo = sel.value || "todos";
+  if (deInput) deInput.classList.toggle("hidden", periodo !== "intervalo");
+  if (ateInput) ateInput.classList.toggle("hidden", periodo !== "intervalo");
+  if (periodo === "todos") return items;
+  const hoje = new Date(); hoje.setHours(0,0,0,0);
+  let de, ate;
+  if (periodo === "hoje") { de = ate = hoje; }
+  else if (periodo === "semana") { de = new Date(hoje); de.setDate(de.getDate() - de.getDay()); ate = hoje; }
+  else if (periodo === "mes") { de = new Date(hoje.getFullYear(), hoje.getMonth(), 1); ate = hoje; }
+  else if (periodo === "intervalo") { de = deInput?.value ? new Date(deInput.value + 'T00:00:00') : null; ate = ateInput?.value ? new Date(ateInput.value + 'T23:59:59') : null; }
+  if (!de && !ate) return items;
+  return items.filter(function(item) {
+    var val = item[dateField] || item.data || item.dataEntrega || item.emitidaEm || item.created_at;
+    if (!val) return true;
+    var d = new Date(val); d.setHours(0,0,0,0);
+    if (de && d < de) return false;
+    if (ate) { var ateEnd = new Date(ate); ateEnd.setHours(23,59,59); if (d > ateEnd) return false; }
+    return true;
+  });
+}
+
 // ===== RENDER PEDIDOS =====
 function renderPedidos() {
   // Populate contract filter
@@ -17,7 +44,6 @@ function renderPedidos() {
   if (prevContrato) selContrato.value = prevContrato;
 
   const busca = (document.getElementById("busca-pedido")?.value || "").toLowerCase();
-  const filtroData = document.getElementById("filtro-data-pedido")?.value || "";
   const filtroContrato = selContrato.value;
 
   let filtered = pedidos;
@@ -28,7 +54,8 @@ function renderPedidos() {
       || String(pedidoFiscal.cliente?.cnpj || "").toLowerCase().includes(busca)
       || (p.contratoId || "").toLowerCase().includes(busca);
   });
-  if (filtroData) filtered = filtered.filter(p => (p.data || "").includes(filtroData));
+  // Story 4.54 AC-3: period filter replaces old date input
+  filtered = _applyPeriodFilter(filtered, 'filtro-periodo-pedido', 'filtro-pedido-de', 'filtro-pedido-ate', 'data');
   if (filtroContrato) filtered = filtered.filter(p => p.contratoId === filtroContrato);
   renderPedidosStatusTabs(filtered);
   filtered = filtered.filter(p => normalizePedidoStatus(p.status) === pedidoStatusTabAtual);
@@ -1577,6 +1604,8 @@ function renderContasPagar() {
   let filtered = contasPagar;
   if (busca) filtered = filtered.filter((item) => (item.descricao || "").toLowerCase().includes(busca));
   if (filtroCategoria) filtered = filtered.filter((item) => item.categoria === filtroCategoria);
+  // Story 4.54 AC-1: period filter
+  filtered = _applyPeriodFilter(filtered, 'cp-filtro-periodo', 'cp-filtro-de', 'cp-filtro-ate', 'vencimento');
   renderContaPagarStatusTabs(filtered);
   filtered = filtered.filter((item) => normalizeContaPagarStatus(item) === contaPagarStatusTabAtual);
   const cpCountEl = document.getElementById("tab-count-contas-pagar");
@@ -1632,6 +1661,8 @@ function renderContasReceber() {
   let filtered = contasReceber;
   if (busca) filtered = filtered.filter((item) => ((item.descricao || "") + " " + (item.cliente || "")).toLowerCase().includes(busca));
   if (filtroCategoria) filtered = filtered.filter((item) => item.categoria === filtroCategoria);
+  // Story 4.54 AC-2: period filter
+  filtered = _applyPeriodFilter(filtered, 'cr-filtro-periodo', 'cr-filtro-de', 'cr-filtro-ate', 'vencimento');
   renderContaReceberStatusTabs(filtered);
   filtered = filtered.filter((item) => normalizeContaReceberStatus(item) === contaReceberStatusTabAtual);
   const crCountEl = document.getElementById("tab-count-contas-receber");

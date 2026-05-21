@@ -1944,16 +1944,21 @@ function renderConciliacao() {
   if (extratosEl) {
     const extratos = loadExtratos();
     if (extratos.length) {
-      extratosEl.innerHTML = '<div style="margin-bottom:.5rem;font-size:.82rem;font-weight:600;color:var(--mut)">Extratos Importados</div>'
-        + '<table style="width:100%;font-size:.85rem;margin-bottom:.5rem"><thead><tr>'
-        + '<th style="width:30px"><input type="checkbox" id="ext-select-all" onchange="toggleAllExtratos(this.checked)"></th>'
-        + '<th>Data</th><th>Arquivo</th><th>Conta financeira</th><th>Conciliados/Total</th></tr></thead><tbody>'
-        + extratos.map((ext, i) => '<tr style="cursor:pointer" onclick="reabrirExtrato(' + i + ')">'
-          + '<td onclick="event.stopPropagation()"><input type="checkbox" class="ext-check" value="' + i + '"></td>'
-          + '<td>' + (ext.data || '-') + '</td>'
-          + '<td style="color:var(--blue);font-weight:600">' + (ext.arquivo || '-') + '</td>'
-          + '<td>' + (ext.contaFinanceira || '-') + '</td>'
-          + '<td>(' + (ext.conciliados || 0) + '/' + (ext.total || 0) + ')</td></tr>'
+      // Story 4.54 AC-4: layout conforme modelo — tabela dark com colunas ordenáveis
+      extratosEl.innerHTML = '<table style="width:100%;font-size:.85rem;margin-bottom:.5rem;border-collapse:collapse;background:var(--s1,#1e293b);border-radius:6px;overflow:hidden">'
+        + '<thead><tr style="border-bottom:1px solid var(--bdr,#334155)">'
+        + '<th style="width:30px;padding:10px 12px;text-align:left;font-size:.78rem;color:var(--mut,#94a3b8);font-weight:600"><input type="checkbox" id="ext-select-all" onchange="toggleAllExtratos(this.checked)"></th>'
+        + '<th style="padding:10px 12px;text-align:left;font-size:.78rem;color:var(--mut,#94a3b8);font-weight:600;cursor:pointer">Data ⇅</th>'
+        + '<th style="padding:10px 12px;text-align:left;font-size:.78rem;color:var(--mut,#94a3b8);font-weight:600;cursor:pointer">Arquivo ⇅</th>'
+        + '<th style="padding:10px 12px;text-align:left;font-size:.78rem;color:var(--mut,#94a3b8);font-weight:600;cursor:pointer">Conta financeira ⇅</th>'
+        + '<th style="padding:10px 12px;text-align:left;font-size:.78rem;color:var(--mut,#94a3b8);font-weight:600">Conciliados/Total</th>'
+        + '</tr></thead><tbody>'
+        + extratos.map((ext, i) => '<tr style="cursor:pointer;border-bottom:1px solid rgba(51,65,85,.4)" onclick="reabrirExtrato(' + i + ')">'
+          + '<td style="padding:10px 12px" onclick="event.stopPropagation()"><input type="checkbox" class="ext-check" value="' + i + '"></td>'
+          + '<td style="padding:10px 12px;color:var(--txt,#f1f5f9)">' + (ext.data || '-') + '</td>'
+          + '<td style="padding:10px 12px;color:var(--txt,#f1f5f9);font-weight:500">' + (ext.arquivo || '-') + '</td>'
+          + '<td style="padding:10px 12px;color:var(--txt,#f1f5f9);font-weight:700">' + (ext.contaFinanceira || '-') + '</td>'
+          + '<td style="padding:10px 12px;color:var(--txt,#f1f5f9)">(' + (ext.conciliados || 0) + '/' + (ext.total || 0) + ')</td></tr>'
         ).join('') + '</tbody></table>'
         + '<button class="btn btn-sm btn-red" id="btn-excluir-extratos" style="display:none;margin-bottom:.5rem" onclick="excluirExtratosSelecionados()">Excluir selecionados</button>';
       // Toggle delete button when checkboxes change
