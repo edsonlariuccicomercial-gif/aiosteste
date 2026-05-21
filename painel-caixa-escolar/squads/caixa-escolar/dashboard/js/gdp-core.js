@@ -762,6 +762,8 @@ function loadData() {
   } catch(_) { pedidos = []; }
   try { provasEntrega = JSON.parse(localStorage.getItem(PROOFS_KEY)) || []; } catch(_) { provasEntrega = []; }
   try { notasFiscais = unwrapData(JSON.parse(localStorage.getItem(INVOICES_KEY))); } catch(_) { notasFiscais = []; }
+  // Auto-cleanup: re-save NFs to strip heavy data from authorized NFs (prevents localStorage quota exceeded)
+  if (notasFiscais.length > 0) { try { saveNotasFiscais(); } catch(_) {} }
   try { notasEntrada = unwrapData(JSON.parse(localStorage.getItem(ENTRY_INVOICES_KEY))); } catch(_) { notasEntrada = []; }
   try { contasPagar = unwrapData(JSON.parse(localStorage.getItem(PAYABLES_KEY))); } catch(_) { contasPagar = []; }
   try { contasReceber = unwrapData(JSON.parse(localStorage.getItem(RECEIVABLES_KEY))); } catch(_) { contasReceber = []; }
@@ -1000,7 +1002,45 @@ function savePedidos() {
   saveWrappedArray(ORDERS_KEY, pedidos);
   syncPedidosGDPToEstoqueIntel(true);
 }
-function saveNotasFiscais() { saveWrappedArray(INVOICES_KEY, notasFiscais); }
+function saveNotasFiscais() {
+  // Limpar dados pesados (XML, previews) de NFs autorizadas antes de salvar no localStorage
+  // Esses dados já foram persistidos no Supabase — no localStorage só precisamos dos metadados
+  const lightNfs = notasFiscais.map(function(nf) {
+    if (nf.status !== "autorizada") return nf;
+    var light = Object.assign({}, nf);
+    if (light.sefaz) {
+      light.sefaz = Object.assign({}, light.sefaz);
+      delete light.sefaz.xmlPreview;
+      delete light.sefaz.xmlDsigPreview;
+      delete light.sefaz.lotePreview;
+      delete light.sefaz.autorizacaoPreview;
+      if (light.sefaz.transmissao) {
+        light.sefaz.transmissao = {
+          httpStatus: light.sefaz.transmissao.httpStatus,
+          parsed: light.sefaz.transmissao.parsed
+          // Remove: xml, rawResponse (pesados)
+        };
+      }
+    }
+    delete light.xml_autorizado;
+    return light;
+  });
+  try {
+    saveWrappedArray(INVOICES_KEY, lightNfs);
+  } catch(e) {
+    if (e.name === 'QuotaExceededError') {
+      console.warn("[NF] localStorage cheio — tentando salvar versão ultra-light");
+      // Fallback: remover TODOS os sefaz.transmissao de autorizadas
+      var ultraLight = lightNfs.map(function(nf) {
+        if (nf.status !== "autorizada") return nf;
+        var ul = Object.assign({}, nf);
+        if (ul.sefaz) { ul.sefaz = { status: ul.sefaz.status, protocolo: ul.sefaz.protocolo, chaveAcesso: ul.sefaz.chaveAcesso, lote: ul.sefaz.lote }; }
+        return ul;
+      });
+      saveWrappedArray(INVOICES_KEY, ultraLight);
+    } else { throw e; }
+  }
+}
 
 // Utilitário: limpar TODAS as notas e resetar counter
 window.limparNotasRejeitadas = function() {
