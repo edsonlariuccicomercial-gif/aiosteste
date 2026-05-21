@@ -1172,6 +1172,7 @@ async function transmitirHomologacaoNota(notaId) {
 
   setIntegrationState(nf, "sefaz", { status: "transmissao_em_preparo", lastAction: "nfe_sefaz_transmitir" });
   saveNotasFiscais();
+  showToast("Transmitindo NF " + novoNumero + " para SEFAZ...", 8000);
   renderAll();
 
   try {
