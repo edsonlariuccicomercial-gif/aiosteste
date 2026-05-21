@@ -5,32 +5,52 @@
     "Katun", "By Qualy", "Qualy", "Profit", "Evolut", "Maxprint", "Printec",
     "Resolution", "Premium", "Lotus", "CET", "Masterprint", "Elgin"
   ];
+  const DEFAULT_BRIEFING = {
+    focus: "Toner compativel, papelaria e oportunidades com margem defensavel",
+    smallDealLimit: 1000,
+    smallDealMargin: 40,
+    regularMargin: 35,
+    freightCautionLimit: 600,
+    preferredBrands: "By Qualy, Profit, Katun, Evolut, Maxprint",
+    notes: "Nao enviar sem revisar prazo, marca e compatibilidade do item.",
+  };
+  const persisted = loadState();
 
   const state = {
     open: false,
     activeAgent: "revisor",
-    history: loadState().history || [],
+    briefingOpen: false,
+    history: persisted.history || [],
+    briefing: normalizeBriefing(persisted.briefing),
   };
 
   const agents = {
     radar: {
       name: "Radar",
-      role: "Prioriza oportunidades por prazo, valor, produto e risco.",
-      quick: ["Fila de hoje", "Oportunidades toner", "Riscos do radar"],
+      handle: "@radar",
+      role: "Garimpa a fila do SGD e separa onde vale gastar energia comercial.",
+      stance: "Olha prazo, objeto, ruido e chance de venda antes de pedir cotacao.",
+      quick: ["Fila de hoje", "Oportunidades toner", "Meu briefing"],
     },
     compatibilidade: {
-      name: "Compatibilidade",
-      role: "Confere modelo, original/compativel, marcas citadas e unidade.",
-      quick: ["Revisar marcas", "Itens originais", "Aplicar marca sugerida"],
+      name: "Conferente",
+      handle: "@conferente",
+      role: "Protege a proposta contra erro de modelo, marca, original e unidade.",
+      stance: "Prefere travar um envio duvidoso a entregar item errado para a escola.",
+      quick: ["Revisar marcas", "Pendencias", "Aplicar marca sugerida"],
     },
     precos: {
-      name: "Precos",
-      role: "Calcula margem, custo, preco sugerido e alerta de frete.",
+      name: "Precificador",
+      handle: "@precificador",
+      role: "Defende margem e frete sem perder a oportunidade boa.",
+      stance: "Usa as regras comerciais do briefing e avisa quando o preco esta fragil.",
       quick: ["Aplicar margem inteligente", "Resumo de margem", "Preco seguro"],
     },
     revisor: {
-      name: "Revisor",
-      role: "Diz se pode enviar, revisar ou descartar antes do SGD.",
+      name: "Mesa Comercial",
+      handle: "@mesa",
+      role: "Fecha o parecer: seguir, revisar ou segurar antes do SGD.",
+      stance: "Junta Radar, Conferente e Precificador em uma recomendacao objetiva.",
       quick: ["Posso enviar?", "Pendencias", "Registrar parecer"],
     },
   };
@@ -44,10 +64,20 @@
       version: 1,
       updatedAt: new Date().toISOString(),
       history: state.history.slice(-120),
+      briefing: state.briefing,
       ...extra,
     };
     localStorage.setItem(AGENTS_KEY, JSON.stringify(payload));
     if (typeof schedulCloudSync === "function") schedulCloudSync();
+  }
+
+  function normalizeBriefing(saved) {
+    const briefing = { ...DEFAULT_BRIEFING, ...(saved || {}) };
+    ["smallDealLimit", "smallDealMargin", "regularMargin", "freightCautionLimit"].forEach((key) => {
+      const n = Number(briefing[key]);
+      briefing[key] = Number.isFinite(n) && n > 0 ? n : DEFAULT_BRIEFING[key];
+    });
+    return briefing;
   }
 
   function esc(v) {
@@ -62,6 +92,10 @@
 
   function norm(v) {
     return String(v || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  }
+
+  function csvList(v) {
+    return String(v || "").split(",").map((item) => item.trim()).filter(Boolean);
   }
 
   function getActivePre() {
@@ -95,6 +129,7 @@
         actions: ["Varrer SGD ou abrir uma oportunidade do Radar."],
         brands: [],
         margin: 0,
+        targetMargin: state.briefing.smallDealMargin / 100,
       };
     }
 
@@ -127,8 +162,14 @@
     const semQtd = itens.filter((i) => !Number(i.quantidade));
     if (semPreco.length) risks.push(semPreco.length + " item(ns) sem preco unitario.");
     if (semQtd.length) risks.push(semQtd.length + " item(ns) sem quantidade valida.");
-    if (total < 600) risks.push("Contrato pequeno: frete pode consumir margem.");
-    if (margin < 0.25) risks.push("Margem abaixo de 25%; revisar preco.");
+    if (total < state.briefing.freightCautionLimit) {
+      risks.push(`Contrato abaixo de ${money(state.briefing.freightCautionLimit)}: frete pode consumir margem.`);
+    }
+    const targetMargin = total <= state.briefing.smallDealLimit ? state.briefing.smallDealMargin / 100 : state.briefing.regularMargin / 100;
+    if (margin > 0 && margin < targetMargin) {
+      risks.push(`Margem estimada abaixo da regra do briefing (${Math.round(targetMargin * 100)}%).`);
+      actions.push("Rever custo, frete e margem antes de fechar.");
+    }
     if (!itens.length) risks.push("Nenhum item no pre-orcamento.");
 
     const decision = risks.some((r) => r.includes("Bloquear") || r.includes("sem preco") || r.includes("sem quantidade"))
@@ -146,6 +187,7 @@
       brands,
       suggestedBrand: pickBrand(brands),
       margin,
+      targetMargin,
       total,
       itens: itens.length,
       escola: pre.escola || (orc && orc.escola) || "Escola nao identificada",
@@ -169,7 +211,7 @@
 
   function pickBrand(brands) {
     if (!brands || !brands.length) return "";
-    const preferred = ["By Qualy", "Profit", "Katun", "Evolut", "Maxprint", "Printec", "Resolution"];
+    const preferred = csvList(state.briefing.preferredBrands);
     return preferred.find((b) => brands.map(norm).includes(norm(b))) || brands[0];
   }
 
@@ -182,7 +224,8 @@
       `Radar atual: ${open.length} oportunidades abertas.`,
       `Toner/compatíveis encontrados: ${toner.length}.`,
       `Vencendo hoje/amanhã: ${dueToday.length}.`,
-      "Proxima acao: rodar compatibilidade e preco nos itens A antes de enviar.",
+      `Foco do briefing: ${state.briefing.focus}.`,
+      "Minha leitura: priorize os prazos curtos e leve os itens promissores para Conferente e Precificador.",
     ];
   }
 
@@ -190,7 +233,9 @@
     const pre = getActivePre();
     if (!pre || !pre.itens) return "Abra um pre-orcamento antes de aplicar margem.";
     const totalCost = pre.itens.reduce((s, i) => s + (Number(i.custoUnitario || i.custo || 0) * Number(i.quantidade || 0)), 0);
-    const margin = totalCost <= 1000 ? 0.40 : 0.35;
+    const margin = totalCost <= state.briefing.smallDealLimit
+      ? state.briefing.smallDealMargin / 100
+      : state.briefing.regularMargin / 100;
     pre.itens.forEach((i) => {
       const cost = Number(i.custoUnitario || i.custo || 0);
       const qty = Number(i.quantidade || 0);
@@ -235,13 +280,14 @@
     if (prompt.includes("margem inteligente") || prompt.includes("aplicar margem")) return applySmartMargin();
     if (prompt.includes("aplicar marca") || prompt.includes("marca sugerida")) return applySuggestedBrand();
     if (prompt.includes("fila") || prompt.includes("radar") || prompt.includes("oportunidade")) return analyzeRadar().join("\n");
+    if (prompt.includes("briefing") || prompt.includes("memoria") || prompt.includes("regra")) return briefingAnswer();
     if (prompt.includes("marca")) {
       return a.brands.length
         ? `Marcas encontradas: ${a.brands.join(", ")}.\nSugestao: usar ${a.suggestedBrand} quando estiver disponivel no fornecedor. Garantia deve ficar em campo separado.`
         : "Nao encontrei marca obrigatoria ou de referencia no texto do orcamento ativo.";
     }
     if (prompt.includes("preco") || prompt.includes("margem")) {
-      return `Total: ${money(a.total)}.\nMargem estimada: ${Math.round(a.margin * 100)}%.\nRegra sugerida: contratos pequenos com 40%; maiores com 35%, ajustando frete por municipio.`;
+      return `Estou olhando ${money(a.total)} nesse pre-orcamento.\nMargem estimada: ${Math.round(a.margin * 100)}%. Alvo do briefing: ${Math.round(a.targetMargin * 100)}%.\nRegra ativa: ate ${money(state.briefing.smallDealLimit)} usa ${state.briefing.smallDealMargin}%; acima disso usa ${state.briefing.regularMargin}%.`;
     }
     if (prompt.includes("registrar parecer")) {
       const note = { id: "AG-" + Date.now(), at: new Date().toISOString(), agent: state.activeAgent, orcamentoId: pre && pre.orcamentoId, analysis: a };
@@ -249,7 +295,34 @@
       saveState();
       return `Parecer registrado para ${pre ? pre.orcamentoId : "orcamento ativo"}: ${a.title}`;
     }
-    return `${a.title}\nEscola: ${a.escola}${a.municipio ? " — " + a.municipio : ""}\nTotal: ${money(a.total)} | Itens: ${a.itens} | Margem: ${Math.round(a.margin * 100)}%\nRiscos: ${a.risks.length ? a.risks.join("; ") : "sem risco critico"}\nAcoes: ${a.actions.join("; ")}`;
+    return recommendationFor(state.activeAgent, a);
+  }
+
+  function briefingAnswer() {
+    return [
+      `Foco comercial: ${state.briefing.focus}.`,
+      `Margens: ${state.briefing.smallDealMargin}% ate ${money(state.briefing.smallDealLimit)}; ${state.briefing.regularMargin}% acima disso.`,
+      `Frete: acender alerta abaixo de ${money(state.briefing.freightCautionLimit)}.`,
+      `Marcas preferidas: ${csvList(state.briefing.preferredBrands).join(", ") || "nenhuma priorizada"}.`,
+      `Nota da mesa: ${state.briefing.notes}`,
+    ].join("\n");
+  }
+
+  function recommendationFor(agentId, a) {
+    if (!a.total && a.decision === "sem-contexto") return a.title;
+    const location = `${a.escola}${a.municipio ? " - " + a.municipio : ""}`;
+    const riskText = a.risks.length ? a.risks.join("; ") : "nao vi bloqueio critico no texto ativo";
+    const actionText = a.actions.join("; ");
+    if (agentId === "radar") {
+      return `Eu colocaria ${location} na fila com status ${a.title.toLowerCase()}\nValor em jogo: ${money(a.total)} em ${a.itens} item(ns).\nSinal do Radar: ${riskText}.\nProximo passo: ${actionText}`;
+    }
+    if (agentId === "compatibilidade") {
+      return `Conferi o recorte do item para ${location}.\nMarca/modelo: ${a.brands.length ? "texto cita " + a.brands.join(", ") : "sem marca de referencia encontrada"}.\nPonto de atencao: ${riskText}.\nEu so liberaria depois de: ${actionText}`;
+    }
+    if (agentId === "precos") {
+      return `Preco sob leitura para ${location}.\nTotal: ${money(a.total)}. Margem estimada: ${Math.round(a.margin * 100)}%; alvo do briefing: ${Math.round(a.targetMargin * 100)}%.\nMinha trava agora: ${riskText}.\nAjuste sugerido: ${actionText}`;
+    }
+    return `${a.title}\nMinha leitura para ${location}: ${money(a.total)} em ${a.itens} item(ns), com margem estimada de ${Math.round(a.margin * 100)}%.\nO que pesa na decisao: ${riskText}.\nAntes do SGD: ${actionText}`;
   }
 
   function addMessage(role, text) {
@@ -278,10 +351,29 @@
             <strong>Agentes Comerciais</strong>
             <span id="agents-context">Radar + Intel Precos</span>
           </div>
-          <button class="agents-close" id="agents-close-btn" type="button" title="Fechar">×</button>
+          <div class="agents-head-actions">
+            <button class="agents-head-btn" id="agents-briefing-btn" type="button" title="Configurar briefing">Briefing</button>
+            <button class="agents-close" id="agents-close-btn" type="button" title="Fechar">x</button>
+          </div>
         </div>
         <div class="agents-tabs" id="agents-tabs"></div>
-        <div class="agents-role" id="agents-role"></div>
+        <div class="agents-profile">
+          <div class="agents-role" id="agents-role"></div>
+          <div class="agents-stance" id="agents-stance"></div>
+        </div>
+        <form class="agents-briefing" id="agents-briefing" hidden>
+          <label>Foco comercial<input name="focus" type="text" /></label>
+          <div class="agents-briefing-grid">
+            <label>Limite pequeno<input name="smallDealLimit" type="number" min="1" step="50" /></label>
+            <label>Margem pequeno<input name="smallDealMargin" type="number" min="1" step="1" /></label>
+            <label>Margem maior<input name="regularMargin" type="number" min="1" step="1" /></label>
+            <label>Alerta frete<input name="freightCautionLimit" type="number" min="1" step="50" /></label>
+          </div>
+          <label>Marcas preferidas<input name="preferredBrands" type="text" /></label>
+          <label>Nota da mesa<textarea name="notes" rows="2"></textarea></label>
+          <button type="submit">Salvar briefing</button>
+        </form>
+        <div class="agents-memory" id="agents-memory"></div>
         <div class="agents-summary" id="agents-summary"></div>
         <div class="agents-quick" id="agents-quick"></div>
         <div class="agents-chat" id="agents-chat"></div>
@@ -293,6 +385,8 @@
     document.body.appendChild(root);
     document.getElementById("agents-open-btn").addEventListener("click", () => togglePanel(true));
     document.getElementById("agents-close-btn").addEventListener("click", () => togglePanel(false));
+    document.getElementById("agents-briefing-btn").addEventListener("click", () => toggleBriefing());
+    document.getElementById("agents-briefing").addEventListener("submit", saveBriefing);
     document.getElementById("agents-form").addEventListener("submit", (ev) => {
       ev.preventDefault();
       const input = document.getElementById("agents-input");
@@ -320,9 +414,11 @@
       renderAgents();
     }));
     const active = agents[state.activeAgent];
-    document.getElementById("agents-role").textContent = active.role;
+    document.getElementById("agents-role").innerHTML = `<strong>${esc(active.handle)}</strong> ${esc(active.role)}`;
+    document.getElementById("agents-stance").textContent = active.stance;
     const analysis = analyzePre(getActivePre());
     document.getElementById("agents-context").textContent = analysis.escola || "Sem orcamento ativo";
+    renderMemory();
     document.getElementById("agents-summary").innerHTML = `
       <div><span>Decisao</span><strong class="agents-decision-${analysis.decision}">${esc(analysis.title)}</strong></div>
       <div><span>Confianca</span><strong>${analysis.score}%</strong></div>
@@ -330,6 +426,46 @@
     document.getElementById("agents-quick").innerHTML = active.quick.map((q) => `<button type="button">${esc(q)}</button>`).join("");
     document.querySelectorAll("#agents-quick button").forEach((btn) => btn.addEventListener("click", () => ask(btn.textContent)));
     renderMessages();
+  }
+
+  function toggleBriefing(force) {
+    state.briefingOpen = typeof force === "boolean" ? force : !state.briefingOpen;
+    const form = document.getElementById("agents-briefing");
+    if (!form) return;
+    fillBriefingForm(form);
+    form.hidden = !state.briefingOpen;
+    document.getElementById("agents-briefing-btn").classList.toggle("active", state.briefingOpen);
+  }
+
+  function fillBriefingForm(form) {
+    Object.entries(state.briefing).forEach(([key, value]) => {
+      if (form.elements[key]) form.elements[key].value = value;
+    });
+  }
+
+  function saveBriefing(ev) {
+    ev.preventDefault();
+    const form = ev.currentTarget;
+    const next = {};
+    Object.keys(DEFAULT_BRIEFING).forEach((key) => {
+      next[key] = form.elements[key] ? form.elements[key].value.trim() : state.briefing[key];
+    });
+    state.briefing = normalizeBriefing(next);
+    saveState();
+    toggleBriefing(false);
+    addMessage("agent", "Briefing salvo. Vou usar essas margens, alertas e preferencias nos proximos pareceres.");
+    renderAgents();
+  }
+
+  function renderMemory() {
+    const box = document.getElementById("agents-memory");
+    if (!box) return;
+    const chips = [
+      `Foco: ${state.briefing.focus}`,
+      `Margem: ${state.briefing.smallDealMargin}% / ${state.briefing.regularMargin}%`,
+      `Frete alerta: ${money(state.briefing.freightCautionLimit)}`,
+    ];
+    box.innerHTML = chips.map((chip) => `<span>${esc(chip)}</span>`).join("");
   }
 
   function renderMessages() {

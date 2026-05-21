@@ -52,7 +52,7 @@ body::after  { width: 500px; height: 500px; bottom: -150px; right: -100px; backg
   position: fixed;
   right: 18px;
   bottom: 18px;
-  z-index: 135;
+  z-index: 1010;
   border: 1px solid rgba(78, 201, 138, .45);
   background: #183329;
   color: var(--text);
@@ -69,7 +69,7 @@ body::after  { width: 500px; height: 500px; bottom: -150px; right: -100px; backg
   right: 0;
   width: min(440px, 100vw);
   height: 100vh;
-  z-index: 140;
+  z-index: 1020;
   display: flex;
   flex-direction: column;
   background: rgba(13, 20, 18, .98);
@@ -92,6 +92,29 @@ body::after  { width: 500px; height: 500px; bottom: -150px; right: -100px; backg
 
 .agents-head strong { display: block; font-size: 1rem; }
 .agents-head span { display: block; color: var(--muted); font-size: .78rem; margin-top: 2px; }
+
+.agents-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.agents-head-btn {
+  min-height: 32px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, .03);
+  color: var(--muted);
+  cursor: pointer;
+  padding: 0 10px;
+  font-size: .76rem;
+}
+
+.agents-head-btn.active {
+  border-color: rgba(78, 201, 138, .4);
+  background: var(--accent-dim);
+  color: var(--accent);
+}
 
 .agents-close {
   width: 32px;
@@ -132,11 +155,98 @@ body::after  { width: 500px; height: 500px; bottom: -150px; right: -100px; backg
   border-color: rgba(78, 201, 138, .4);
 }
 
-.agents-role {
+.agents-profile {
   padding: 10px 16px;
-  color: var(--muted);
-  font-size: .82rem;
   border-bottom: 1px solid rgba(143, 197, 157, .12);
+}
+
+.agents-role {
+  color: var(--text);
+  font-size: .82rem;
+  line-height: 1.42;
+}
+
+.agents-role strong {
+  color: var(--accent);
+  display: inline;
+  font-size: .78rem;
+  margin-right: 4px;
+}
+
+.agents-stance {
+  color: var(--muted);
+  font-size: .76rem;
+  line-height: 1.42;
+  margin-top: 5px;
+}
+
+.agents-briefing {
+  display: grid;
+  gap: 8px;
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(143, 197, 157, .12);
+  background: rgba(255, 255, 255, .02);
+}
+
+.agents-briefing[hidden] { display: none; }
+
+.agents-briefing-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.agents-briefing label {
+  display: grid;
+  gap: 4px;
+  color: var(--muted);
+  font-size: .68rem;
+}
+
+.agents-briefing input,
+.agents-briefing textarea {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, .04);
+  color: var(--text);
+  padding: 8px;
+  resize: vertical;
+  font: inherit;
+  font-size: .78rem;
+}
+
+.agents-briefing button {
+  justify-self: start;
+  border: 1px solid rgba(78, 201, 138, .4);
+  border-radius: 8px;
+  background: var(--accent-dim);
+  color: var(--accent);
+  cursor: pointer;
+  padding: 8px 10px;
+  font-size: .76rem;
+}
+
+.agents-memory {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 10px 16px 0;
+}
+
+.agents-memory span {
+  flex: none;
+  max-width: 250px;
+  border: 1px solid rgba(143, 197, 157, .16);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, .03);
+  color: var(--muted);
+  font-size: .68rem;
+  overflow: hidden;
+  padding: 6px 8px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .agents-summary {
@@ -244,6 +354,7 @@ body::after  { width: 500px; height: 500px; bottom: -150px; right: -100px; backg
 @media (max-width: 640px) {
   .agents-tabs { grid-template-columns: repeat(2, 1fr); }
   .agents-summary { grid-template-columns: 1fr; }
+  .agents-briefing-grid { grid-template-columns: 1fr; }
 }
 
 /* ===== SIDEBAR ===== */
