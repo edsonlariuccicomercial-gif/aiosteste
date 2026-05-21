@@ -870,6 +870,11 @@ async function gerarNotaFiscalPedido(pedidoId) {
 
   const invoice = buildInvoiceFromOrder(pedido, tipoNota);
   if (!invoice) return;
+  // Fix: atribuir número sequencial na criação (não esperar transmissão)
+  // Isso garante que NFs em lote recebam números únicos imediatamente
+  if (tipoNota === "nfe_real" && !invoice.numero) {
+    invoice.numero = await consumirProximoNumeroNf();
+  }
   notasFiscais.push(invoice);
   saveNotasFiscais();
 
