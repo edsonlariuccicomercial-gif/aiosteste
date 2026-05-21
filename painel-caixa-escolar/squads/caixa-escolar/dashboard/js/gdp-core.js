@@ -1691,9 +1691,41 @@ function salvarPrecoItemContrato(contratoId, itemIdx, value) {
   const novoPreco = Math.round((parseFloat(value) || 0) * 100) / 100;
   c.itens[itemIdx].precoUnitario = novoPreco;
   saveContratos();
-  // Propagar para pedidos vinculados (mesma lógica do syncContratoItemToPedidos)
   syncContratoItemToPedidos(contratoId, c.itens[itemIdx]);
   if (typeof showToast === 'function') showToast('Preco atualizado: R$ ' + novoPreco.toFixed(2).replace('.', ','), 2000);
+}
+
+// Editar campos inline dos itens do contrato
+function salvarQtdItemContrato(contratoId, itemIdx, value) {
+  const c = contratos.find(x => x.id === contratoId);
+  if (!c || !c.itens[itemIdx]) return;
+  c.itens[itemIdx].qtdContratada = parseInt(value) || 0;
+  if (c.itens[itemIdx].quantidade !== undefined) c.itens[itemIdx].quantidade = c.itens[itemIdx].qtdContratada;
+  saveContratos();
+  syncContratoItemToPedidos(contratoId, c.itens[itemIdx]);
+}
+
+function salvarDescricaoItemContrato(contratoId, itemIdx, value) {
+  const c = contratos.find(x => x.id === contratoId);
+  if (!c || !c.itens[itemIdx]) return;
+  c.itens[itemIdx].descricao = value.trim();
+  saveContratos();
+  syncContratoItemToPedidos(contratoId, c.itens[itemIdx]);
+}
+
+function salvarUnidadeItemContrato(contratoId, itemIdx, value) {
+  const c = contratos.find(x => x.id === contratoId);
+  if (!c || !c.itens[itemIdx]) return;
+  c.itens[itemIdx].unidade = value.trim();
+  saveContratos();
+  syncContratoItemToPedidos(contratoId, c.itens[itemIdx]);
+}
+
+function salvarSkuItemContrato(contratoId, itemIdx, value) {
+  const c = contratos.find(x => x.id === contratoId);
+  if (!c || !c.itens[itemIdx]) return;
+  c.itens[itemIdx].sku = value.trim();
+  saveContratos();
 }
 
 function buscarNcmItem(contratoId, itemIdx) {
@@ -1800,6 +1832,8 @@ async function classificarNcmIA(contratoId) {
 
 // ===== CONCILIACAO BANCARIA =====
 const CONCILIACAO_KEY = "gdp.conciliacao.v1";
+// Story 4.51 AC-C1: persistent extrato registry
+const EXTRATOS_KEY = "gdp.extratos.v1";
 
 function loadConciliacao() {
   try { return JSON.parse(localStorage.getItem(CONCILIACAO_KEY) || "[]"); } catch(_) { return []; }
@@ -1807,6 +1841,41 @@ function loadConciliacao() {
 
 function saveConciliacao(items) {
   localStorage.setItem(CONCILIACAO_KEY, JSON.stringify(items));
+}
+
+// Story 4.51 AC-C1/C2/C3: extrato management
+function loadExtratos() {
+  try { return JSON.parse(localStorage.getItem(EXTRATOS_KEY) || "[]"); } catch(_) { return []; }
+}
+
+function saveExtratos(list) {
+  localStorage.setItem(EXTRATOS_KEY, JSON.stringify(list));
+  if (typeof cloudSave === 'function') cloudSave(EXTRATOS_KEY, list);
+}
+
+function registrarExtrato(filename, contaFinanceira, items) {
+  const extratos = loadExtratos();
+  const conciliados = items.filter(i => i.conciliado).length;
+  extratos.push({
+    id: 'ext-' + Date.now(),
+    data: new Date().toISOString().slice(0, 10),
+    arquivo: filename,
+    contaFinanceira: contaFinanceira || 'Conta Principal',
+    conciliados: conciliados,
+    total: items.length,
+    criadoEm: new Date().toISOString()
+  });
+  saveExtratos(extratos);
+}
+
+function atualizarExtratoStats() {
+  const extratos = loadExtratos();
+  if (!extratos.length) return;
+  const items = loadConciliacao();
+  const ultimo = extratos[extratos.length - 1];
+  ultimo.conciliados = items.filter(i => i.conciliado).length;
+  ultimo.total = items.length;
+  saveExtratos(extratos);
 }
 
 // Categorias DRE para classificação de lançamentos
@@ -1830,6 +1899,38 @@ function _buildDreOptions(selected) {
 }
 
 function renderConciliacao() {
+  // Story 4.51 AC-C1/C2/C3: render saved extratos list
+  const extratosEl = document.getElementById("extratos-lista");
+  if (extratosEl) {
+    const extratos = loadExtratos();
+    if (extratos.length) {
+      extratosEl.innerHTML = '<div style="margin-bottom:.5rem;font-size:.82rem;font-weight:600;color:var(--mut)">Extratos Importados</div>'
+        + '<table style="width:100%;font-size:.85rem;margin-bottom:.5rem"><thead><tr>'
+        + '<th style="width:30px"><input type="checkbox" id="ext-select-all" onchange="toggleAllExtratos(this.checked)"></th>'
+        + '<th>Data</th><th>Arquivo</th><th>Conta financeira</th><th>Conciliados/Total</th></tr></thead><tbody>'
+        + extratos.map((ext, i) => '<tr style="cursor:pointer" onclick="reabrirExtrato(' + i + ')">'
+          + '<td onclick="event.stopPropagation()"><input type="checkbox" class="ext-check" value="' + i + '"></td>'
+          + '<td>' + (ext.data || '-') + '</td>'
+          + '<td style="color:var(--blue);font-weight:600">' + (ext.arquivo || '-') + '</td>'
+          + '<td>' + (ext.contaFinanceira || '-') + '</td>'
+          + '<td>(' + (ext.conciliados || 0) + '/' + (ext.total || 0) + ')</td></tr>'
+        ).join('') + '</tbody></table>'
+        + '<button class="btn btn-sm btn-red" id="btn-excluir-extratos" style="display:none;margin-bottom:.5rem" onclick="excluirExtratosSelecionados()">Excluir selecionados</button>';
+      // Toggle delete button when checkboxes change
+      setTimeout(() => {
+        document.querySelectorAll('.ext-check').forEach(cb => {
+          cb.addEventListener('change', () => {
+            const any = document.querySelectorAll('.ext-check:checked').length > 0;
+            const btn = document.getElementById('btn-excluir-extratos');
+            if (btn) btn.style.display = any ? '' : 'none';
+          });
+        });
+      }, 50);
+    } else {
+      extratosEl.innerHTML = '';
+    }
+  }
+
   const items = loadConciliacao();
   const tbody = document.getElementById("conciliacao-tbody");
   const empty = document.getElementById("conciliacao-empty");
@@ -1882,7 +1983,41 @@ window.conciliarLancamento = function(idx) {
 
 window.toggleConciliado = function(idx) {
   const items = loadConciliacao();
-  if (items[idx]) { items[idx].conciliado = !items[idx].conciliado; saveConciliacao(items); renderConciliacao(); }
+  if (items[idx]) { items[idx].conciliado = !items[idx].conciliado; saveConciliacao(items); atualizarExtratoStats(); renderConciliacao(); }
+};
+
+// Story 4.51 AC-C2: delete selected extratos
+window.toggleAllExtratos = function(checked) {
+  document.querySelectorAll('.ext-check').forEach(cb => { cb.checked = checked; cb.dispatchEvent(new Event('change')); });
+};
+
+window.excluirExtratosSelecionados = function() {
+  const selected = [...document.querySelectorAll('.ext-check:checked')].map(cb => parseInt(cb.value));
+  if (!selected.length) return;
+  if (!confirm('Excluir ' + selected.length + ' extrato(s) e seus dados de conciliação?')) return;
+  const extratos = loadExtratos();
+  const remaining = extratos.filter((_, i) => !selected.includes(i));
+  saveExtratos(remaining);
+  if (remaining.length === 0) { saveConciliacao([]); }
+  renderConciliacao();
+  showToast(selected.length + ' extrato(s) excluído(s).');
+};
+
+// Story 4.51 AC-C3: reopen saved extrato
+window.reabrirExtrato = function(idx) {
+  const extratos = loadExtratos();
+  const ext = extratos[idx];
+  if (!ext) return;
+  const items = loadConciliacao();
+  const pendentes = items.filter(i => !i.conciliado).length;
+  if (pendentes > 0) {
+    showToast('Extrato reaberto — ' + pendentes + ' lançamentos pendentes de conciliação.', 4000);
+  } else {
+    showToast('Extrato totalmente conciliado (' + items.length + '/' + items.length + ').', 3000);
+  }
+  // Scroll to conciliação table
+  const tbody = document.getElementById('conciliacao-tbody');
+  if (tbody) tbody.scrollIntoView({ behavior: 'smooth' });
 };
 
 window.atualizarHistorico = function(idx, valor) {
@@ -1963,6 +2098,15 @@ window.importarExtratoBancario = async function(file, tipo) {
     const existing = loadConciliacao();
     const merged = [...existing, ...transacoes];
     saveConciliacao(merged);
+    // Story 4.51 AC-C1: register imported extrato
+    const contaBancaria = (() => {
+      try {
+        const contas = JSON.parse(localStorage.getItem("nexedu.config.contas-bancarias") || "[]");
+        const padrao = contas.find(c => c.padrao && c.ativa) || contas[0];
+        return padrao ? (padrao.banco || padrao.apelido || 'Conta Principal') : 'Conta Principal';
+      } catch(_) { return 'Conta Principal'; }
+    })();
+    registrarExtrato(file.name, contaBancaria, merged);
     renderConciliacao();
     if (status) status.textContent = `${transacoes.length} transacao(es) importadas de ${file.name}.`;
     showToast(`${transacoes.length} transacoes importadas!`);

@@ -131,6 +131,27 @@
     return null;
   }
 
+  // --- Story 4.51 AC-A4: track deleted IDs to prevent sync restoration ---
+  var _DELETE_KEYS = {
+    contratos: 'gdp.contratos.deleted.v1',
+    pedidos: 'gdp.pedidos.deleted.v1',
+    notas_fiscais: 'gdp.notas-fiscais.deleted.v1',
+    contas_receber: 'gdp.contas-receber.deleted.v1',
+    contas_pagar: 'gdp.contas-pagar.deleted.v1',
+    entregas: 'gdp.entregas.deleted.v1'
+  };
+
+  function _trackDeletedId(entityName, id) {
+    var key = _DELETE_KEYS[entityName];
+    if (!key) return;
+    try {
+      var deleted = JSON.parse(localStorage.getItem(key) || '[]');
+      if (!Array.isArray(deleted)) deleted = [];
+      if (deleted.indexOf(id) < 0) deleted.push(id);
+      localStorage.setItem(key, JSON.stringify(deleted));
+    } catch (_) {}
+  }
+
   // --- retry queue for offline writes ---
   var _retryQueue = [];
 
@@ -157,7 +178,22 @@
     return {
       list: async function () {
         var rows = await sbFetch('/' + table + '?select=*&empresa_id=eq.' + encodeURIComponent(getEmpresaId()));
-        if (rows != null) { rows = rows.map(mapFromTable); _dataSource = 'cloud'; writeLS(entity, rows); return rows; }
+        if (rows != null) {
+          rows = rows.map(mapFromTable);
+          // Story 4.51 AC-A4: filter out locally-deleted items
+          var delKey = _DELETE_KEYS[name];
+          if (delKey) {
+            try {
+              var deletedIds = JSON.parse(localStorage.getItem(delKey) || '[]');
+              if (deletedIds.length > 0) {
+                var delSet = {};
+                for (var d = 0; d < deletedIds.length; d++) delSet[deletedIds[d]] = true;
+                rows = rows.filter(function (r) { return !delSet[r.id]; });
+              }
+            } catch (_) {}
+          }
+          _dataSource = 'cloud'; writeLS(entity, rows); return rows;
+        }
         var ls = readLS(entity);
         if (ls != null) { _dataSource = 'cache'; return ls; }
         _dataSource = 'offline';
@@ -215,6 +251,8 @@
       },
 
       remove: async function (id) {
+        // Story 4.51 AC-A4: track deleted ID to prevent sync from restoring it
+        _trackDeletedId(name, id);
         await sbDelete(table, id);
         var ls = readLS(entity) || [];
         writeLS(entity, ls.filter(function (it) { return it.id !== id; }));

@@ -477,61 +477,71 @@ async function sincronizarCobrancaProvider(contaId) {
   await emitirOuSincronizarCobrancaReal(contaId, { silent: false });
 }
 
-// Story 14.5: Numeração NF-e — respeita config do usuário como fonte primária.
-// Prioridade: 1) proximoNumero da config → 2) Supabase RPC atômico → 3) fallback local.
-// Retorna o próximo número livre SEM incrementar (para preview/exibição)
-// Pula números já usados por NFs existentes
+// ============================================================
+// Numeração NF-e — SOLUÇÃO DEFINITIVA
+// ============================================================
+// Lógica: encontra o PRIMEIRO NÚMERO LIVRE a partir de um mínimo.
+// "Livre" = não usado por NF com status "autorizada".
+// Rascunhos, rejeitadas, canceladas NÃO bloqueiam número.
+// Isso preenche lacunas automaticamente (ex: 1434, 1437).
+// ============================================================
+
+// Retorna Set de números já usados por NFs AUTORIZADAS
+function _getNumerosAutorizados() {
+  try {
+    const nfs = unwrapData(JSON.parse(localStorage.getItem("gdp.notas-fiscais.v1") || "[]"));
+    return new Set(nfs.filter(function(nf) { return nf.status === "autorizada"; }).map(function(nf) { return parseInt(nf.numero) || 0; }));
+  } catch(_) { return new Set(); }
+}
+
+// Retorna o piso mínimo para busca de número livre
+function _getNumeroMinimo() {
+  var nfConfig = JSON.parse(localStorage.getItem("nexedu.config.notas-fiscais") || "{}");
+  var configNum = parseInt(nfConfig.proximoNumero, 10);
+  if (configNum && configNum > 0) return configNum;
+  // Fallback: max existente + 1 ou counter local
+  var maxExistente = 0;
+  try {
+    var nfs = unwrapData(JSON.parse(localStorage.getItem("gdp.notas-fiscais.v1") || "[]"));
+    maxExistente = nfs.reduce(function(max, nf) { return Math.max(max, parseInt(nf.numero) || 0); }, 0);
+  } catch(_) {}
+  var localCounter = parseInt(localStorage.getItem("gdp.nf-counter") || "0", 10);
+  return Math.max(maxExistente, localCounter) + 1;
+}
+
+// Encontra o primeiro número livre >= minimo que não está em usados
+function _encontrarPrimeiroLivre(minimo, usados) {
+  var num = minimo;
+  var tentativas = 0;
+  while (usados.has(num) && tentativas < 500) { num++; tentativas++; }
+  return num;
+}
+
+// PEEK: retorna o próximo número livre SEM consumir (para preview/exibição)
 function peekProximoNumeroNf() {
   try {
-    const nfConfig = JSON.parse(localStorage.getItem("nexedu.config.notas-fiscais") || "{}");
-    let num = parseInt(nfConfig.proximoNumero, 10);
-    if (!num || num <= 0) {
-      let maxExistente = 0;
-      try {
-        const nfs = unwrapData(JSON.parse(localStorage.getItem("gdp.notas-fiscais.v1") || "[]"));
-        maxExistente = nfs.reduce((max, nf) => Math.max(max, parseInt(nf.numero) || 0), 0);
-      } catch(_) {}
-      const localCounter = parseInt(localStorage.getItem("gdp.nf-counter") || "0", 10);
-      num = Math.max(maxExistente, localCounter) + 1;
-      nfConfig.proximoNumero = String(num);
-      nfConfig.updatedAt = new Date().toISOString();
-      localStorage.setItem("nexedu.config.notas-fiscais", JSON.stringify(nfConfig));
-    }
-    // Pular números já usados por NFs AUTORIZADAS (rascunhos/rejeitadas podem reusar)
-    try {
-      const nfs = unwrapData(JSON.parse(localStorage.getItem("gdp.notas-fiscais.v1") || "[]"));
-      const usados = new Set(nfs.filter(nf => nf.status === "autorizada").map(nf => parseInt(nf.numero) || 0));
-      let tentativas = 0;
-      while (usados.has(num) && tentativas < 100) { num++; tentativas++; }
-    } catch(_) {}
-    return String(num);
+    var minimo = _getNumeroMinimo();
+    var usados = _getNumerosAutorizados();
+    return String(_encontrarPrimeiroLivre(minimo, usados));
   } catch(_) {
     return String(Date.now()).slice(-6);
   }
 }
 
-// Retorna o próximo número E incrementa (SOMENTE para transmissão efetiva à SEFAZ)
-// Pula números já usados por NFs existentes
+// CONSUMIR: retorna o número E incrementa (SOMENTE para transmissão efetiva à SEFAZ)
 async function consumirProximoNumeroNf() {
-  const empresaId = typeof gdpApi !== 'undefined' ? gdpApi.getEmpresaId() : getEmpresaId();
-  let num = parseInt(peekProximoNumeroNf(), 10);
-  // Verificar se o número já foi usado por NF AUTORIZADA — se sim, pular
+  var empresaId = typeof gdpApi !== 'undefined' ? gdpApi.getEmpresaId() : getEmpresaId();
+  var usados = _getNumerosAutorizados();
+  var minimo = _getNumeroMinimo();
+  var num = _encontrarPrimeiroLivre(minimo, usados);
+
+  // Calcular próximo livre APÓS este (adiciona o atual como "usado" para a busca)
+  usados.add(num);
+  var proximo = _encontrarPrimeiroLivre(num + 1, usados);
+
+  // Salvar próximo no config
   try {
-    const nfs = unwrapData(JSON.parse(localStorage.getItem("gdp.notas-fiscais.v1") || "[]"));
-    const usados = new Set(nfs.filter(nf => nf.status === "autorizada").map(nf => parseInt(nf.numero) || 0));
-    let tentativas = 0;
-    while (usados.has(num) && tentativas < 100) { num++; tentativas++; }
-  } catch(_) {}
-  // Calcular próximo livre após este (só pula autorizadas)
-  let proximo = num + 1;
-  try {
-    const nfs = unwrapData(JSON.parse(localStorage.getItem("gdp.notas-fiscais.v1") || "[]"));
-    const usados = new Set(nfs.filter(nf => nf.status === "autorizada").map(nf => parseInt(nf.numero) || 0));
-    while (usados.has(proximo)) proximo++;
-  } catch(_) {}
-  // Salvar
-  try {
-    const nfConfig = JSON.parse(localStorage.getItem("nexedu.config.notas-fiscais") || "{}");
+    var nfConfig = JSON.parse(localStorage.getItem("nexedu.config.notas-fiscais") || "{}");
     nfConfig.proximoNumero = String(proximo);
     nfConfig.updatedAt = new Date().toISOString();
     localStorage.setItem("nexedu.config.notas-fiscais", JSON.stringify(nfConfig));
@@ -544,22 +554,54 @@ async function consumirProximoNumeroNf() {
   return String(num);
 }
 
-// getProximoNumeroNf CONSOME o número (usado na geração de nova NF)
+// getProximoNumeroNf CONSOME o número — uso RESTRITO a transmissão SEFAZ.
+// NÃO usar para preview/exibição — use peekProximoNumeroNf() para isso.
 async function getProximoNumeroNf() {
   return consumirProximoNumeroNf();
 }
 
+// Utilitário: forçar próximo número (para preencher lacunas ou corrigir sequência)
+// Uso: setProximoNumeroNf(1434) — a próxima NF sairá com 1434 (se livre)
+function setProximoNumeroNf(numero) {
+  var n = parseInt(numero, 10);
+  if (!n || n <= 0) { console.error("[NF-e] Numero invalido:", numero); return; }
+  var nfConfig = JSON.parse(localStorage.getItem("nexedu.config.notas-fiscais") || "{}");
+  nfConfig.proximoNumero = String(n);
+  nfConfig.updatedAt = new Date().toISOString();
+  localStorage.setItem("nexedu.config.notas-fiscais", JSON.stringify(nfConfig));
+  localStorage.setItem("gdp.nf-counter", String(n - 1));
+  var usados = _getNumerosAutorizados();
+  var efetivo = _encontrarPrimeiroLivre(n, usados);
+  console.log("[NF-e] proximoNumero FORCADO para", n, "| Efetivo (primeiro livre):", efetivo);
+  if (typeof showToast === "function") showToast("Proximo numero NF-e configurado: " + efetivo, 4000);
+  return efetivo;
+}
+
 // Sync counter from DB to localStorage on boot (for display purposes only)
+// Lê tanto 'counter' quanto 'ultimo_numero' para compatibilidade
 async function syncNfCounterFromCloud() {
   try {
-    const empresaId = typeof gdpApi !== 'undefined' ? gdpApi.getEmpresaId() : getEmpresaId();
-    const resp = await fetch(SUPABASE_URL + "/rest/v1/nf_counter?empresa_id=eq." + encodeURIComponent(empresaId) + "&select=counter", {
+    if (typeof gdpApi !== 'undefined' && gdpApi.nf_counter) {
+      const row = await gdpApi.nf_counter.get();
+      const valor = row ? (row.ultimo_numero || row.counter || 0) : 0;
+      if (valor) {
+        localStorage.setItem("gdp.nf-counter", String(valor));
+        gdpLog("[NF-e] Counter sincronizado do DB:", valor);
+      }
+      return;
+    }
+    // Fallback: fetch direto
+    const empresaId = typeof getEmpresaId === 'function' ? getEmpresaId() : '';
+    const resp = await fetch(SUPABASE_URL + "/rest/v1/nf_counter?empresa_id=eq." + encodeURIComponent(empresaId) + "&select=*", {
       headers: { "apikey": SUPABASE_KEY, "Authorization": "Bearer " + SUPABASE_KEY }
     });
     const rows = await resp.json();
-    if (rows.length && rows[0].counter) {
-      localStorage.setItem("gdp.nf-counter", String(rows[0].counter));
-      gdpLog("[NF-e] Counter sincronizado do DB:", rows[0].counter);
+    if (rows.length) {
+      const valor = rows[0].ultimo_numero || rows[0].counter || 0;
+      if (valor) {
+        localStorage.setItem("gdp.nf-counter", String(valor));
+        gdpLog("[NF-e] Counter sincronizado do DB:", valor);
+      }
     }
   } catch(_) {}
 }
@@ -854,8 +896,10 @@ async function gerarNotaFiscalPedido(pedidoId) {
 
     try {
       // Tentar API Vercel primeiro, fallback para servidor local
+      // IMPORTANTE: NÃO consumir número aqui — peek apenas para preview/validação.
+      // O número será consumido SOMENTE em transmitirHomologacaoNota().
       let resp;
-      const nfeNumero = await getProximoNumeroNf();
+      const nfeNumero = peekProximoNumeroNf();
       const nfeObs = invoice.documentos?.observacao || "";
       const nfeOverrides = { numero: nfeNumero, observacao: nfeObs };
       try {
@@ -1101,15 +1145,18 @@ async function transmitirHomologacaoNota(notaId) {
     });
   }
 
-  // Consumir número: se NF já tem número, usa ele. Senão, consome o próximo.
+  // Pré-conferência ANTES de consumir — mostra preview do número que SAIRÁ
+  const previewNumero = nf.numero && nf.numero !== "0" ? nf.numero : peekProximoNumeroNf();
+  const itensResumo = (nf.itens || []).map((i, idx) => `  ${idx+1}. ${i.descricao} (NCM: ${i.ncm || 'N/A'})`).join("\n");
+  if (!confirm("TRANSMITIR NF-e A SEFAZ\n\nNUMERO DA NOTA: " + previewNumero + "\nSerie: " + (nf.serie || "1") + "\nCliente: " + (nf.cliente?.nome || pedido.escola || "-") + "\nValor: " + brl.format(nf.valor || pedido.valor || 0) + "\n\n" + (nf.itens||[]).length + " item(ns):\n" + itensResumo + "\n\nConfirma transmissao?")) return;
+
+  // Consumir número SOMENTE após confirmação do usuário — single point of consumption
   if (!nf.numero || nf.numero === "0") {
     nf.numero = await consumirProximoNumeroNf();
   }
   const novoNumero = nf.numero;
-
-  // Pré-conferência antes de transmitir
-  const itensResumo = (nf.itens || []).map((i, idx) => `  ${idx+1}. ${i.descricao} (NCM: ${i.ncm || 'N/A'})`).join("\n");
-  if (!confirm("TRANSMITIR NF-e A SEFAZ\n\nNUMERO DA NOTA: " + novoNumero + "\nSerie: " + (nf.serie || "1") + "\nCliente: " + (nf.cliente?.nome || pedido.escola || "-") + "\nValor: " + brl.format(nf.valor || pedido.valor || 0) + "\n\n" + (nf.itens||[]).length + " item(ns):\n" + itensResumo + "\n\nConfirma transmissao?")) return;
+  // Persistir imediatamente para não perder o número em caso de falha
+  saveNotasFiscais();
 
   const nfObs = nf.documentos?.observacao || "";
 
@@ -1350,9 +1397,19 @@ function verNotaFiscal(notaId) {
   html += '<button class="btn btn-sm" style="background:rgba(59,130,246,.15);color:var(--blue);border:none;font-weight:700;white-space:nowrap" onclick="enviarEmailNotaFiscal(\'' + nf.id + '\')">📧 Enviar Email</button>';
   html += '</div></div>';
 
-  html += '<div style="display:flex;gap:.6rem;flex-wrap:wrap;margin-top:1rem">';
+  html += '<div style="display:flex;gap:.6rem;flex-wrap:wrap;margin-top:1rem;align-items:center">';
   html += '<button class="btn btn-outline" onclick="salvarDadosNotaFiscal(\'' + nf.id + '\')">' + (isReal ? 'Salvar Metadados da NF' : 'Salvar Dados da NF') + '</button>';
   html += '<button class="btn btn-outline" onclick="abrirDanfeNotaFiscal(\'' + nf.id + '\')">Visualizar DANFE</button>';
+  // Story 4.51 AC-F1: Transmitir SEFAZ moved here from Cobrança Vinculada card
+  if (isReal) {
+    const _btnNumPreviewF1 = nf.numero && nf.numero !== "0" ? nf.numero : peekProximoNumeroNf();
+    html += canTransmitNotaFiscal(nf)
+      ? '<button class="btn btn-green" onclick="transmitirHomologacaoNota(\'' + nf.id + '\')">Transmitir SEFAZ <span style="font-size:.78rem;opacity:.8">(NF ' + esc(_btnNumPreviewF1) + ')</span></button>'
+      : '<button class="btn btn-outline" disabled title="NF com estado fiscal final">Transmitir SEFAZ</button>';
+    if (canTransmitNotaFiscal(nf) && (!nf.numero || nf.numero === "0")) {
+      html += '<span style="font-size:.72rem;color:var(--yellow);margin-left:.3rem">numero sera atribuido ao transmitir</span>';
+    }
+  }
   if (canRequestCancelNotaFiscal(nf)) {
     html += '<button class="btn btn-outline" onclick="solicitarCancelamentoNotaFiscal(\'' + nf.id + '\')">Solicitar Cancelamento</button>';
   }
@@ -1381,13 +1438,7 @@ function verNotaFiscal(notaId) {
   html += (conta ? '<button class="btn btn-green" onclick="dispararCobrancaAutomatica(\'' + conta.id + '\')">Cobrar Agora</button>' : '<span></span>');
   html += '</div>';
 
-  if (isReal) {
-    html += '<div style="display:flex;gap:.6rem;flex-wrap:wrap;margin-bottom:1rem">';
-    html += canTransmitNotaFiscal(nf)
-      ? '<button class="btn btn-outline" onclick="transmitirHomologacaoNota(\'' + nf.id + '\')">Transmitir SEFAZ</button>'
-      : '<button class="btn btn-outline" disabled title="NF com estado fiscal final">Transmitir SEFAZ</button>';
-    html += '</div>';
-  }
+  // Story 4.51 AC-F1: Transmitir SEFAZ button moved to Documentos Fiscais card above
   if (conta) {
     html += '<div style="margin-top:1rem;font-size:.82rem;color:var(--mut)">Conta vinculada: <strong style="color:var(--txt)">' + esc(conta.descricao) + '</strong> | Status: <strong style="color:var(--txt)">' + esc(conta.status) + '</strong></div>';
     html += '<div style="margin-top:.35rem;font-size:.82rem;color:var(--mut)">Provider: <strong style="color:var(--txt)">' + esc(conta.integracoes?.bancaria?.provider || nf.integracoes?.bancaria?.provider || '-') + '</strong> | Charge ID: <strong style="color:var(--txt)">' + esc(conta.cobranca?.providerChargeId || conta.integracoes?.bancaria?.providerChargeId || '-') + '</strong></div>';
@@ -1411,7 +1462,7 @@ function verNotaFiscal(notaId) {
   html += (nf.itens || []).map((item, idx) => '<tr><td>' + esc(item.descricao || '') + '</td><td class="text-center">' + (item.qtd || 0) + '</td><td class="text-center">' + esc(item.unidade || '-') + '</td><td class="text-center"><input type="text" id="nf-item-ncm-' + nf.id + '-' + idx + '" value="' + esc(item.ncm || '') + '" style="width:90px;text-align:center;font-family:monospace;font-size:.78rem;padding:.2rem .3rem;background:var(--s1);border:1px solid var(--bdr);border-radius:4px;color:var(--cyan)" onchange="salvarNcmItemNf(\'' + nf.id + '\',' + idx + ',this.value)"></td><td class="text-right">' + brl.format(item.precoUnitario || 0) + '</td><td class="text-right">' + brl.format((item.qtd || 0) * (item.precoUnitario || 0)) + '</td></tr>').join('');
   html += '</tbody></table></div>';
 
-  document.getElementById("modal-nota-fiscal-titulo").textContent = `${getNotaFiscalTipoLabel(nf)} ${nf.numero || nf.id} — ${nf.cliente?.nome || ''}`;
+  document.getElementById("modal-nota-fiscal-titulo").textContent = `${getNotaFiscalTipoLabel(nf)} ${nf.numero || ('\u2192 ' + peekProximoNumeroNf())} — ${nf.cliente?.nome || ''}`;
   document.getElementById("modal-nota-fiscal-body").innerHTML = html;
   document.getElementById("modal-nota-fiscal").classList.remove("hidden");
 }
@@ -1835,7 +1886,7 @@ table.it{width:100%;border-collapse:collapse}
 table.it th{border:1px solid #000;padding:2px 4px;font-size:6pt;text-transform:uppercase;font-weight:700;background:#eee}
 table.it td{border:1px solid #999;padding:2px 4px;font-size:7.5pt;line-height:1.4}
 table.it td:first-child{border-left:1px solid #aaa}
-table.it td.desc{max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+table.it td.desc{max-width:280px;white-space:normal;word-wrap:break-word;overflow-wrap:break-word}
 .c{text-align:center}.r{text-align:right}.mono{font-family:monospace;font-size:6pt}
 .cancel-stamp{position:absolute;top:40%;left:50%;transform:translate(-50%,-50%) rotate(-30deg);font-size:64pt;color:rgba(220,38,38,.18);font-weight:900;pointer-events:none;z-index:10;letter-spacing:6px}
 .wrap{position:relative}

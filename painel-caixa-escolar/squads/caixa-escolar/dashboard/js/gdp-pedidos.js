@@ -55,8 +55,8 @@ function renderPedidos() {
     return `<tr>
       <td class="text-center"><input type="checkbox" class="pedido-check" value="${p.id}" onchange="atualizarSelecaoPedidos()"${_selectedPedidoIds.has(p.id) ? ' checked' : ''}></td>
       <td class="text-center"><button class="btn btn-outline btn-sm" onclick="abrirMenuPedido('${p.id}')" title="Abrir menu do pedido" style="min-width:auto;padding:.2rem .5rem;font-weight:700">...</button></td>
-      <td><button onclick="verPedidoDetalhe('${p.id}')" style="background:none;border:none;padding:0;color:var(--blue);font-weight:700;cursor:pointer;font-family:monospace">${esc(p.id)}</button></td>
-      <td>${esc(clienteNome.length > 30 ? clienteNome.slice(0, 28) + "..." : clienteNome)}</td>
+      <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><button onclick="verPedidoDetalhe('${p.id}')" style="background:none;border:none;padding:0;color:var(--blue);font-weight:700;cursor:pointer;font-family:monospace" title="${esc(p.id)}">${esc(p.id)}</button></td>
+      <td>${esc(clienteNome)}</td>
       <td class="font-mono">${esc(clienteCnpj)}</td>
       <td class="nowrap">${fmtDate(p.dataEntrega || p.data)}</td>
       <td class="nowrap">${fmtDate(p.dataPrevista || p.dataEntrega)}</td>
@@ -1193,12 +1193,12 @@ function verPedidoDetalhe(pedidoId, isClone) {
   html += '<div style="margin-top:1.2rem;padding-bottom:1rem;border-bottom:1px solid rgba(143,197,157,.25)">';
   html += '<div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;margin-bottom:.9rem">';
   html += '<div><div style="font-size:.82rem;color:var(--mut);font-weight:600;margin-bottom:.25rem">Dados de Pagamento</div><div style="font-size:.82rem;color:var(--mut)">Preencha antes de gerar a NF para que vencimento e forma de pagamento fluam automaticamente.</div></div>';
-  html += '<div style="display:flex;gap:.5rem;align-items:center">' + (pagPreenchido ? '<span class="badge badge-green">Pagamento configurado</span>' : '<span class="badge badge-yellow">Pagamento pendente</span>') + '<button class="btn btn-outline btn-sm" onclick="salvarPedidoPagamento(\'' + p.id + '\')">Salvar Pagamento</button></div>';
+  html += '<div style="display:flex;gap:.5rem;align-items:center">' + (pagPreenchido ? '<span class="badge badge-green">Pagamento configurado</span>' : '<span class="badge badge-yellow">Pagamento pendente</span>') + '</div>';
   html += '</div>';
   html += '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.75rem">';
   html += '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Forma de Recebimento</label><select id="pag-forma-' + p.id + '"><option value="boleto"' + (pag.forma === "boleto" ? " selected" : "") + '>Boleto</option><option value="pix"' + (pag.forma === "pix" ? " selected" : "") + '>PIX</option><option value="ted"' + (pag.forma === "ted" ? " selected" : "") + '>TED</option><option value="dinheiro"' + (pag.forma === "dinheiro" ? " selected" : "") + '>Dinheiro</option></select></div>';
   html += '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Conta Bancaria</label><select id="pag-conta-' + p.id + '">' + getContasBancariasOptions(pag.contaBancaria?.apelido) + '</select></div>';
-  html += '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Condicao de Pagamento (prazo)</label><select id="pag-prazo-' + p.id + '" onchange="recalcularVencimentoPedido(\'' + p.id + '\')"><option value="0"' + (pag.condicao === "0" ? " selected" : "") + '>A vista</option><option value="15"' + (pag.condicao === "15" ? " selected" : "") + '>15 dias</option><option value="28"' + (!pag.condicao || pag.condicao === "28" ? " selected" : "") + '>28 dias</option><option value="30"' + (pag.condicao === "30" ? " selected" : "") + '>30 dias</option><option value="45"' + (pag.condicao === "45" ? " selected" : "") + '>45 dias</option><option value="60"' + (pag.condicao === "60" ? " selected" : "") + '>60 dias</option><option value="90"' + (pag.condicao === "90" ? " selected" : "") + '>90 dias</option></select></div>';
+  html += '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Condicao de Pagamento (prazo)</label><select id="pag-prazo-' + p.id + '" onchange="recalcularVencimentoPedido(\'' + p.id + '\')"><option value="0"' + (pag.condicao === "0" ? " selected" : "") + '>A vista</option><option value="5"' + (pag.condicao === "5" ? " selected" : "") + '>5 dias</option><option value="15"' + (pag.condicao === "15" ? " selected" : "") + '>15 dias</option><option value="28"' + (!pag.condicao || pag.condicao === "28" ? " selected" : "") + '>28 dias</option><option value="30"' + (pag.condicao === "30" ? " selected" : "") + '>30 dias</option><option value="45"' + (pag.condicao === "45" ? " selected" : "") + '>45 dias</option><option value="60"' + (pag.condicao === "60" ? " selected" : "") + '>60 dias</option><option value="90"' + (pag.condicao === "90" ? " selected" : "") + '>90 dias</option></select></div>';
   html += '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Data de Vencimento</label><input type="date" id="pag-vencimento-' + p.id + '" value="' + (pag.vencimento || calcularVencimentoPagamento(p.data || p.dataEntrega, pag.condicao || "28")) + '"></div>';
   html += '</div></div>';
 
@@ -1270,6 +1270,10 @@ function salvarPedidoCompleto(pedidoId) {
   p.totalGeral = novoTotal;
   p.valorTotal = novoTotal;
   savePedidos();
+  // Story 4.51 AC-E3: sync edited pedido to Supabase so Portal Escolar sees changes
+  if (window.gdpApi && window.gdpApi.pedidos) {
+    gdpApi.pedidos.save(p).catch(e => gdpWarn('[salvarPedidoCompleto] Supabase sync failed:', e));
+  }
   renderPedidos();
   showToast('Pedido salvo com sucesso!', 3000);
   fecharPedidoDetalhe();
@@ -1479,6 +1483,32 @@ function renderNotasFiscais() {
       (nf.cliente?.nome || "").toLowerCase().includes(busca)
     );
   }
+  // Story 4.51 AC-D1: period filter
+  const periodoSel = document.getElementById("nf-filtro-periodo");
+  const deInput = document.getElementById("nf-filtro-de");
+  const ateInput = document.getElementById("nf-filtro-ate");
+  if (periodoSel && deInput && ateInput) {
+    const isIntervalo = periodoSel.value === "intervalo";
+    deInput.classList.toggle("hidden", !isIntervalo);
+    ateInput.classList.toggle("hidden", !isIntervalo);
+    const periodo = periodoSel.value;
+    if (periodo !== "todos") {
+      const hoje = new Date(); hoje.setHours(0,0,0,0);
+      let de, ate;
+      if (periodo === "hoje") { de = ate = hoje; }
+      else if (periodo === "semana") { de = new Date(hoje); de.setDate(de.getDate() - de.getDay()); ate = hoje; }
+      else if (periodo === "mes") { de = new Date(hoje.getFullYear(), hoje.getMonth(), 1); ate = hoje; }
+      else if (periodo === "intervalo") { de = deInput.value ? new Date(deInput.value + 'T00:00:00') : null; ate = ateInput.value ? new Date(ateInput.value + 'T23:59:59') : null; }
+      if (de || ate) {
+        filtered = filtered.filter(nf => {
+          const d = new Date(nf.emitidaEm || nf.created_at || 0); d.setHours(0,0,0,0);
+          if (de && d < de) return false;
+          if (ate) { const ateEnd = new Date(ate); ateEnd.setHours(23,59,59); if (d > ateEnd) return false; }
+          return true;
+        });
+      }
+    }
+  }
   // Ordenar por número decrescente (maior primeiro)
   filtered = filtered.slice().sort((a, b) => (parseInt(b.numero) || 0) - (parseInt(a.numero) || 0));
   renderNotasFiscaisStatusTabs(filtered);
@@ -1519,7 +1549,7 @@ function renderNotasFiscais() {
     <tr>
       <td class="text-center"><input type="checkbox" class="nota-fiscal-check" value="${nf.id}" onchange="atualizarSelecaoNotasFiscais()"></td>
       <td class="text-center"><button class="btn btn-outline btn-sm" onclick="abrirMenuNotaFiscal('${nf.id}')" style="min-width:auto;padding:.2rem .5rem;font-weight:700">...</button></td>
-      <td><button onclick="verNotaFiscal('${nf.id}')" style="background:none;border:none;padding:0;color:var(--blue);font-weight:700;cursor:pointer;text-align:left"><strong>${esc(nf.numero || "PENDENTE")}</strong></button><br><span style="font-size:.72rem;color:var(--mut)">${esc(nf.serie || "1")}</span><br><span class="nf-type-chip ${getNotaFiscalTipoClass(nf)}">${esc(getNotaFiscalTipoLabel(nf))}</span></td>
+      <td><button onclick="verNotaFiscal('${nf.id}')" style="background:none;border:none;padding:0;color:var(--blue);font-weight:700;cursor:pointer;text-align:left"><strong>${nf.numero ? esc(nf.numero) : '<span style="color:var(--yellow)">\u2192 ' + esc(typeof peekProximoNumeroNf === 'function' ? peekProximoNumeroNf() : '?') + '</span>'}</strong></button>${!nf.numero ? '<br><span style="font-size:.68rem;color:var(--yellow)">(pr\u00f3ximo)</span>' : ''}<br><span style="font-size:.72rem;color:var(--mut)">${esc(nf.serie || "1")}</span><br><span class="nf-type-chip ${getNotaFiscalTipoClass(nf)}">${esc(getNotaFiscalTipoLabel(nf))}</span></td>
       <td class="font-mono">${esc(nf.pedidoId || "")}</td>
       <td>${esc(nf.cliente?.nome || "-")}</td>
       <td>${formatDateTimeLocal(nf.emitidaEm)}</td>
@@ -1721,18 +1751,64 @@ function renderCaixa() {
   if (saidasEl) saidasEl.textContent = brl.format(resumo.saidas);
   if (divergenciasEl) divergenciasEl.textContent = resumo.divergencias;
 
+  // Story 4.51 AC-B5: show bank account name
+  const contaLabel = document.getElementById("caixa-conta-bancaria-label");
+  if (contaLabel) {
+    try {
+      const contas = JSON.parse(localStorage.getItem("nexedu.config.contas-bancarias") || "[]");
+      const padrao = contas.find(c => c.padrao && c.ativa) || contas.find(c => c.ativa) || contas[0];
+      contaLabel.textContent = padrao ? ('Conta: ' + (padrao.banco || '') + (padrao.apelido ? ' (' + padrao.apelido + ')' : '') + (padrao.agencia ? ' — Ag. ' + padrao.agencia : '') + (padrao.conta ? ' / Cc. ' + padrao.conta : '')) : '';
+    } catch(_) { contaLabel.textContent = ''; }
+  }
+
+  // Story 4.51 AC-B4: toggle date range inputs
+  const periodoSel = document.getElementById("caixa-filtro-periodo");
+  const deInput = document.getElementById("caixa-filtro-de");
+  const ateInput = document.getElementById("caixa-filtro-ate");
+  if (periodoSel && deInput && ateInput) {
+    const isIntervalo = periodoSel.value === "intervalo";
+    deInput.classList.toggle("hidden", !isIntervalo);
+    ateInput.classList.toggle("hidden", !isIntervalo);
+  }
+
+  // Story 4.51 AC-B3/B4: apply client search + period filter
+  const buscaCliente = (document.getElementById("caixa-busca-cliente")?.value || "").toLowerCase().trim();
+  const periodo = periodoSel?.value || "todos";
+  let items = resumo.items.slice().sort((a, b) => String(b.data || "").localeCompare(String(a.data || "")));
+
+  if (buscaCliente) {
+    items = items.filter(item => {
+      const desc = (item.historico || item.descricao || "").toLowerCase();
+      return desc.includes(buscaCliente);
+    });
+  }
+  if (periodo !== "todos") {
+    const hoje = new Date(); hoje.setHours(0,0,0,0);
+    let de, ate;
+    if (periodo === "hoje") { de = ate = hoje; }
+    else if (periodo === "semana") { de = new Date(hoje); de.setDate(de.getDate() - de.getDay()); ate = hoje; }
+    else if (periodo === "mes") { de = new Date(hoje.getFullYear(), hoje.getMonth(), 1); ate = hoje; }
+    else if (periodo === "intervalo") { de = deInput?.value ? new Date(deInput.value + 'T00:00:00') : null; ate = ateInput?.value ? new Date(ateInput.value + 'T23:59:59') : null; }
+    if (de || ate) {
+      items = items.filter(item => {
+        const d = new Date(item.data); d.setHours(0,0,0,0);
+        if (de && d < de) return false;
+        if (ate) { const ateEnd = new Date(ate); ateEnd.setHours(23,59,59); if (d > ateEnd) return false; }
+        return true;
+      });
+    }
+  }
+
   const tbody = document.getElementById("caixa-extrato-tbody");
   const empty = document.getElementById("caixa-extrato-empty");
   if (!tbody) return;
 
-  if (resumo.items.length === 0) {
+  if (items.length === 0) {
     tbody.innerHTML = "";
     if (empty) empty.classList.remove("hidden");
   } else {
     if (empty) empty.classList.add("hidden");
-    tbody.innerHTML = resumo.items
-      .slice()
-      .sort((a, b) => String(b.data || "").localeCompare(String(a.data || "")))
+    tbody.innerHTML = items
       .map((item) => {
         const conciliado = item.conciliado || item.conciliacao?.matched;
         const cat = item.categoriaDre || "";
@@ -1744,16 +1820,6 @@ function renderCaixa() {
           <td class="text-right font-mono" style="color:${Number(item.valor || 0) >= 0 ? "var(--green)" : "var(--red)"}">${brl.format(Number(item.valor || 0))}</td>
         </tr>`;
       }).join("");
-  }
-
-  const resumoEl = document.getElementById("caixa-resumo-conciliacao");
-  if (resumoEl) {
-    resumoEl.innerHTML = [
-      `<div style="display:flex;justify-content:space-between;gap:1rem"><span>Lancamentos conciliados</span><strong>${resumo.conciliados}</strong></div>`,
-      `<div style="display:flex;justify-content:space-between;gap:1rem"><span>Lancamentos pendentes</span><strong>${resumo.divergencias}</strong></div>`,
-      `<div style="display:flex;justify-content:space-between;gap:1rem"><span>Contas a receber em aberto</span><strong>${contasReceber.filter((item) => item.status !== "recebida").length}</strong></div>`,
-      `<div style="display:flex;justify-content:space-between;gap:1rem"><span>Contas a pagar em aberto</span><strong>${contasPagar.filter((item) => item.status !== "paga").length}</strong></div>`
-    ].join("");
   }
 
   const pendenciasEl = document.getElementById("caixa-pendencias-lista");
@@ -2680,15 +2746,16 @@ function exportarListaPDF() {
 }
 
 // FR-010: Relatório de demanda — Solicitado / Disponível / Falta Comprar
-// Helper: extrair peso/volume da descrição do item (ex: "Biscoito 170 gr" → 170, "Feijao 500 gr" → 500)
+// Helper: extrair peso/volume da descrição do item (ex: "Biscoito 170 gr" → 170, "Extrato 1,02 Kg" → 1020)
+// Story 4.51 AC-I2: fix regex to handle decimals with comma/dot (e.g., "1,02 Kg" → 1020g, not 2000g)
 function _extrairPesoDescricao(descricao) {
-  const match = (descricao || '').match(/(\d+)\s*(g|gr|kg|ml|l)\b/i);
+  const match = (descricao || '').match(/(\d+(?:[.,]\d+)?)\s*(g|gr|kg|ml|l)\b/i);
   if (!match) return 0;
-  const valor = Number(match[1]);
+  const valor = Number(match[1].replace(',', '.'));
   const unid = match[2].toLowerCase();
-  if (unid === 'kg') return valor * 1000;
-  if (unid === 'l') return valor * 1000;
-  return valor; // g, gr, ml
+  if (unid === 'kg') return Math.round(valor * 1000);
+  if (unid === 'l') return Math.round(valor * 1000);
+  return Math.round(valor); // g, gr, ml
 }
 
 // Helper: calcular conversão de embalagens para produtos críticos

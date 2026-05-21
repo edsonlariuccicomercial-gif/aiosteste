@@ -264,6 +264,7 @@
 
       <!-- Formulário de pré-orçamento -->
       <div id="preorcamento-form" style="display:none;">
+        <div id="rascunho-banner" style="display:none;padding:.6rem 1rem;background:rgba(244,185,66,.1);border:1px solid rgba(244,185,66,.3);border-radius:8px;margin-bottom:.75rem"></div>
         <div id="analise-competitiva-container"></div>
         <div class="preorcamento-info">
           <div class="info-row">
@@ -395,6 +396,16 @@
         </div>
       </div>
 
+      <!-- Story 15.2: Pré-Orçamentos Pendentes — Associação editável -->
+      <div id="intel-pendentes-section" style="margin-bottom:1.5rem;">
+        <details open>
+          <summary style="cursor:pointer;font-size:1rem;font-weight:700;padding:.5rem 0;display:flex;align-items:center;gap:.5rem">
+            Pré-Orçamentos Pendentes <span id="intel-pendentes-badge" class="badge badge-rascunho" style="font-size:.72rem">0</span>
+          </summary>
+          <div id="intel-pendentes" style="display:flex;flex-direction:column;gap:.75rem;margin-top:.5rem"></div>
+        </details>
+      </div>
+
       <!-- Lista de pré-orçamentos existentes — Epic 10 -->
       <div id="preorcamentos-lista" style="display:none;">
         <h3>Pré-orçamentos salvos</h3>
@@ -403,6 +414,7 @@
           <select id="filtro-pre-cidade"><option value="all">Municípios</option></select>
           <select id="filtro-pre-status">
             <option value="all">Status</option>
+            <option value="rascunho">Rascunho (associar)</option>
             <option value="ativos">Ativos (pendente/aprovado)</option>
             <option value="pendente">Pendente</option>
             <option value="aprovado">Aprovado</option>
@@ -791,6 +803,7 @@
         <button class="config-tab" data-config-tab="usuarios">Cadastro de Usuários</button>
         <button class="config-tab" data-config-tab="notas-fiscais">Notas Fiscais</button>
         <button class="config-tab" data-config-tab="contas-bancarias">Contas Bancarias</button>
+        <button class="config-tab" data-config-tab="precificacao">Precificação</button>
         <button class="config-tab" data-config-tab="modulos">Módulos</button>
         <button class="config-tab" data-config-tab="sres">SREs Varredura</button>
       </nav>
@@ -845,11 +858,11 @@
         <div class="modal-actions" style="margin-top:16px;">
           <button id="btn-cfg-salvar" class="btn btn-accent">Salvar Dados</button>
         </div>
-        <!-- Story 13.8: Motor de Precificação Config -->
-        <div style="margin-top:2rem;border-top:1px solid var(--line);padding-top:1.5rem;">
-          <h3 style="font-size:.9rem;margin-bottom:1rem;">Motor de Precificação (Mark-up)</h3>
-          <div id="config-empresa-markup"></div>
-        </div>
+      </div>
+      <!-- Story 4.51 AC-K1: Motor de Precificação moved to its own config section -->
+      <div id="config-precificacao" class="config-content">
+        <h3 style="font-size:.9rem;margin-bottom:1rem;">Motor de Precificação (Mark-up)</h3>
+        <div id="config-empresa-markup"></div>
       </div>
       <!-- Cadastro de Usuários -->
       <div id="config-usuarios" class="config-content">

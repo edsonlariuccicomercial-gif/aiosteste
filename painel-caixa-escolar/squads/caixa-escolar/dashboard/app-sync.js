@@ -146,7 +146,32 @@ async function syncFromCloud() {
 
     if (isSharedKey || cloudTime > localTime || (!localTime && cloudTime === 0)) {
       try {
-        localStorage.setItem(row.key, JSON.stringify(row.data));
+        // Story 4.51 AC-A4: filter out locally-deleted items before writing to localStorage
+        let dataToWrite = row.data;
+        const delKeyMap = {
+          'gdp.contratos.v1': 'gdp.contratos.deleted.v1',
+          'gdp.pedidos.v1': 'gdp.pedidos.deleted.v1',
+          'gdp.notas-fiscais.v1': 'gdp.notas-fiscais.deleted.v1',
+          'gdp.contas-receber.v1': 'gdp.contas-receber.deleted.v1',
+          'gdp.contas-pagar.v1': 'gdp.contas-pagar.deleted.v1',
+          'gdp.entregas.provas.v1': 'gdp.entregas.deleted.v1',
+          'gdp.notas-entrada.v1': 'gdp.notas-entrada.deleted.v1',
+          'gdp.estoque-intel.fornecedores.v1': 'gdp.estoque-intel.fornecedores.deleted.v1'
+        };
+        const delKey = delKeyMap[row.key];
+        if (delKey) {
+          let deletedIds;
+          try { deletedIds = new Set(JSON.parse(localStorage.getItem(delKey) || '[]')); } catch (_) { deletedIds = new Set(); }
+          if (deletedIds.size > 0) {
+            const items = dataToWrite?.items || (Array.isArray(dataToWrite) ? dataToWrite : null);
+            if (items) {
+              const filtered = items.filter(it => !deletedIds.has(it.id));
+              if (dataToWrite?.items) dataToWrite = { ...dataToWrite, items: filtered };
+              else dataToWrite = filtered;
+            }
+          }
+        }
+        localStorage.setItem(row.key, JSON.stringify(dataToWrite));
         synced++;
       } catch (e) {
         if (e.name === 'QuotaExceededError') gdpWarn("[Sync] localStorage cheio, ignorando:", row.key);
@@ -233,6 +258,21 @@ function _updateSyncIndicator(status) {
   el.title = status === 'connected' ? 'Sincronizado' : status === 'syncing' ? 'Sincronizando...' : 'Desconectado';
 }
 
+// Story 4.51 AC-A4: helper to read deleted IDs tracked locally
+function _getDeletedIds(table) {
+  const delKeyMap = {
+    contratos: 'gdp.contratos.deleted.v1',
+    pedidos: 'gdp.pedidos.deleted.v1',
+    notas_fiscais: 'gdp.notas-fiscais.deleted.v1',
+    contas_receber: 'gdp.contas-receber.deleted.v1',
+    contas_pagar: 'gdp.contas-pagar.deleted.v1',
+    entregas: 'gdp.entregas.deleted.v1'
+  };
+  const key = delKeyMap[table];
+  if (!key) return new Set();
+  try { return new Set(JSON.parse(localStorage.getItem(key) || '[]')); } catch (_) { return new Set(); }
+}
+
 async function pollForChanges() {
   if (!navigator.onLine) { _updateSyncIndicator('disconnected'); return; }
   _updateSyncIndicator('syncing');
@@ -246,11 +286,18 @@ async function pollForChanges() {
       if (_lastPollTs) {
         url += `&updated_at=gt.${encodeURIComponent(_lastPollTs)}`;
       }
+      // Story 4.51 AC-A4: exclude soft-deleted rows (contratos has deleted_at)
+      if (table === 'contratos') {
+        url += '&deleted_at=is.null';
+      }
       const resp = await fetch(url, { headers: { apikey: SUPABASE_KEY, Authorization: 'Bearer ' + SUPABASE_KEY } });
       if (!resp.ok) continue;
       const rows = await resp.json();
       if (!rows.length) continue;
       hasChanges = true;
+
+      // Story 4.51 AC-A4: get locally-deleted IDs to prevent restore
+      const deletedIds = _getDeletedIds(table);
 
       // Update localStorage cache via gdp-api entity structure
       const entity = window.gdpApi?._ENTITIES?.[table];
@@ -264,6 +311,9 @@ async function pollForChanges() {
         } catch (_) {}
 
         for (const row of rows) {
+          // Story 4.51 AC-A4: skip rows that were deleted locally
+          if (deletedIds.has(row.id)) continue;
+
           const idx = existing.findIndex(e => e.id === row.id);
           if (idx >= 0) existing[idx] = row;
           else existing.push(row);

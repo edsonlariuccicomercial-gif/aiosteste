@@ -184,7 +184,7 @@ function renderUsuarios() {
       <td>${u.usuario || ""}</td>
       <td>${u.perfil || "Operador"}</td>
       <td><span class="badge badge-${u.ativo !== false ? "aprovado" : "vencido"}">${u.ativo !== false ? "Ativo" : "Inativo"}</span></td>
-      <td><button class="btn btn-inline btn-danger" onclick="removeUsuario(${idx})">Remover</button></td>
+      <td><button class="btn btn-inline" onclick="editarUsuario(${idx})" style="margin-right:.3rem">Editar</button><button class="btn btn-inline btn-danger" onclick="removeUsuario(${idx})">Remover</button></td>
     `;
     tbody.appendChild(tr);
   });
@@ -214,6 +214,23 @@ window.addUsuario = function addUsuario() {
   });
   const selPerfil = document.getElementById("usr-perfil");
   if (selPerfil) selPerfil.value = "Operador";
+};
+
+// Story 4.51 AC-K2: edit user
+window.editarUsuario = function editarUsuario(idx) {
+  const usuarios = JSON.parse(localStorage.getItem(USUARIOS_STORAGE_KEY) || "[]");
+  const u = usuarios[idx];
+  if (!u) return;
+  document.getElementById("usr-nome").value = u.nome || "";
+  document.getElementById("usr-email").value = u.email || "";
+  document.getElementById("usr-usuario").value = u.usuario || "";
+  document.getElementById("usr-senha").value = "";
+  const selPerfil = document.getElementById("usr-perfil");
+  if (selPerfil) selPerfil.value = u.perfil || "Operador";
+  // Remove old entry, save will re-add
+  usuarios.splice(idx, 1);
+  localStorage.setItem(USUARIOS_STORAGE_KEY, JSON.stringify(usuarios));
+  renderUsuarios();
 };
 
 window.removeUsuario = function removeUsuario(idx) {

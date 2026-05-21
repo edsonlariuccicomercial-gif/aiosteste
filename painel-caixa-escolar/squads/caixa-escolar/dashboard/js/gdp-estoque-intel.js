@@ -1240,6 +1240,20 @@ function excluirFornecedorEstoqueIntel(fornecedorId) {
   if (!confirm(`Excluir o fornecedor "${fornecedor.nome}" e todas as ofertas sem compra vinculada?`)) return;
   estoqueIntelFornecedores = estoqueIntelFornecedores.filter((item) => item.id !== fornecedorId);
   saveEstoqueIntelFornecedores();
+
+  // Story 4.51 AC-A2: track deleted ID to prevent sync restoration
+  try {
+    const delKey = "gdp.estoque-intel.fornecedores.deleted.v1";
+    const deleted = JSON.parse(localStorage.getItem(delKey) || "[]");
+    if (!deleted.includes(fornecedorId)) deleted.push(fornecedorId);
+    localStorage.setItem(delKey, JSON.stringify(deleted));
+  } catch(_) {}
+
+  // Story 4.51 AC-A2: update sync_data in cloud
+  if (typeof cloudSave === 'function') {
+    cloudSave("gdp.estoque-intel.fornecedores.v1", { _v: 1, updatedAt: new Date().toISOString(), items: estoqueIntelFornecedores });
+  }
+
   renderEstoque();
   showToast("Fornecedor excluido do Estoque Intel.", 3000);
 }
@@ -1881,6 +1895,16 @@ function renderEstoque() {
 
   const busca = (document.getElementById("ei-busca")?.value || "").trim().toLowerCase();
   const filtroBase = document.getElementById("ei-filtro-base")?.value || "";
+  // Story 4.51 AC-G1: category and type filters
+  const filtroCategoria = document.getElementById("ei-filtro-categoria")?.value || "";
+  const filtroTipo = document.getElementById("ei-filtro-tipo")?.value || "";
+  // Populate category dropdown dynamically
+  const catSelect = document.getElementById("ei-filtro-categoria");
+  if (catSelect) {
+    const currentVal = catSelect.value;
+    const allCats = [...new Set(estoqueIntelProdutos.map(p => p.categoria || "").filter(Boolean))].sort();
+    catSelect.innerHTML = '<option value="">Todas Categorias</option>' + allCats.map(c => '<option value="' + c + '"' + (c === currentVal ? ' selected' : '') + '>' + c + '</option>').join("");
+  }
   document.querySelectorAll("[data-ei-section]").forEach((el) => {
     const section = el.getAttribute("data-ei-section");
     const shouldShowCadastro = estoqueIntelCurrentView === "produtos" && section === "produtos";
@@ -1995,7 +2019,10 @@ function renderEstoque() {
   const produtosFiltrados = estoqueIntelProdutos.filter((produto) => {
     const matchBusca = !busca || `${produto.id} ${produto.nome} ${produto.unidade_base}`.toLowerCase().includes(busca);
     const matchBase = !filtroBase || produto.unidade_base === filtroBase;
-    return matchBusca && matchBase;
+    // Story 4.51 AC-G1: category and type filters
+    const matchCategoria = !filtroCategoria || (produto.categoria || "") === filtroCategoria;
+    const matchTipo = !filtroTipo || (filtroTipo === "critico" ? produto.produto_critico : !produto.produto_critico);
+    return matchBusca && matchBase && matchCategoria && matchTipo;
   });
   const produtoIdsFiltrados = new Set(produtosFiltrados.map((produto) => produto.id));
   const embalagensFiltradas = estoqueIntelEmbalagens.filter((emb) => {

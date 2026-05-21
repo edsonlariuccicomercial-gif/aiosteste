@@ -281,8 +281,8 @@
 
   <!-- KPIs -->
   <div class="kpi-grid" id="kpi-grid">
-    <div class="kpi"><div class="kpi-label">Contratos Ativos</div><div class="kpi-value blue" id="kpi-contratos">0</div><div class="kpi-sub">Em vigencia</div></div>
-    <div class="kpi"><div class="kpi-label">Itens Contratados</div><div class="kpi-value purple" id="kpi-itens">0</div><div class="kpi-sub">Total de itens ganhos</div></div>
+    <div class="kpi"><div class="kpi-label">Clientes Ativos</div><div class="kpi-value blue" id="kpi-contratos">0</div><div class="kpi-sub">Com contrato vigente</div></div>
+    <div class="kpi"><div class="kpi-label">Contratos Ativos</div><div class="kpi-value purple" id="kpi-itens">0</div><div class="kpi-sub">Em vigencia</div></div>
     <div class="kpi"><div class="kpi-label">Valor Total Contratado</div><div class="kpi-value green" id="kpi-valor">R$&nbsp;0,00</div><div class="kpi-sub">Soma de todos os contratos</div></div>
     <span id="kpi-pendentes" style="display:none">0</span>
   </div>
@@ -554,8 +554,17 @@
       <div class="kpi"><div class="kpi-label">Falhas</div><div class="kpi-value red" id="nf-kpi-falhas">0</div><div class="kpi-sub">Fiscal ou banco pedindo acao</div></div>
     </div>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:.8rem">
-      <div style="display:flex;gap:.8rem;align-items:center;flex-wrap:wrap">
+      <div style="display:flex;gap:.6rem;align-items:center;flex-wrap:wrap">
         <input type="text" id="busca-nota-fiscal" placeholder="Buscar NF, pedido ou cliente..." oninput="renderNotasFiscais()" style="min-width:240px">
+        <select id="nf-filtro-periodo" onchange="renderNotasFiscais()" style="height:40px;padding:4px 10px;border-radius:6px;border:1px solid var(--bdr);background:var(--bg);color:var(--txt);font-size:.85rem">
+          <option value="todos">Todos</option>
+          <option value="hoje">Hoje</option>
+          <option value="semana">Esta Semana</option>
+          <option value="mes">Este Mes</option>
+          <option value="intervalo">Intervalo</option>
+        </select>
+        <input type="date" id="nf-filtro-de" class="hidden" onchange="renderNotasFiscais()" style="height:40px;padding:4px 8px;border-radius:6px;border:1px solid var(--bdr);background:var(--bg);color:var(--txt);font-size:.82rem">
+        <input type="date" id="nf-filtro-ate" class="hidden" onchange="renderNotasFiscais()" style="height:40px;padding:4px 8px;border-radius:6px;border:1px solid var(--bdr);background:var(--bg);color:var(--txt);font-size:.82rem">
       </div>
       <div style="font-size:.82rem;color:var(--mut)">Geradas a partir do pedido e acompanhadas aqui com situacao fiscal e cobranca.</div>
     </div>
@@ -611,6 +620,8 @@
           <label class="btn btn-sm btn-blue" style="cursor:pointer"><input type="file" accept=".pdf,.PDF" style="display:none" onchange="importarExtratoBancario(this.files[0],'pdf')"> Importar PDF</label>
           <label class="btn btn-sm" style="cursor:pointer"><input type="file" accept=".csv,.CSV" style="display:none" onchange="importarExtratoBancario(this.files[0],'csv')"> Importar CSV</label>
         </div>
+        <!-- Story 4.51 AC-C1/C2: lista de extratos importados -->
+        <div id="extratos-lista" style="margin-bottom:1rem"></div>
         <div id="conciliacao-status" style="font-size:.85rem;color:var(--mut);margin-bottom:1rem"></div>
         <div id="conciliacao-resumo" style="display:flex;gap:1.5rem;margin-bottom:1rem;flex-wrap:wrap"></div>
         <div style="overflow-x:auto">
@@ -808,30 +819,34 @@
       <div class="kpi"><div class="kpi-label">Saidas</div><div class="kpi-value red" id="caixa-kpi-saidas">R$&nbsp;0,00</div><div class="kpi-sub">Debitos no extrato</div></div>
       <div class="kpi"><div class="kpi-label">Divergencias</div><div class="kpi-value yellow" id="caixa-kpi-divergencias">0</div><div class="kpi-sub">Lancamentos sem match</div></div>
     </div>
-    <div style="display:grid;grid-template-columns:1.15fr .85fr;gap:1rem;align-items:start">
-      <div class="card">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem">
-          <h3>Extrato Conciliado</h3>
-          <button class="btn btn-sm btn-blue" onclick="switchFinanceiroTab('conciliacao')" style="font-size:.75rem">Ir para Conciliacao Bancaria →</button>
-        </div>
-        <div class="table-wrap" style="max-height:460px;overflow-y:auto">
-          <table>
-            <thead><tr><th>Data</th><th>Descricao</th><th>Categoria</th><th>Status</th><th class="text-right">Valor</th></tr></thead>
-            <tbody id="caixa-extrato-tbody"></tbody>
-          </table>
-        </div>
-        <div class="empty hidden" id="caixa-extrato-empty"><h3>Sem movimentos</h3><p>Importe extratos na aba <strong>Conciliacao Bancaria</strong> para visualizar o caixa.</p></div>
+    <!-- Story 4.51 AC-B3/B4: Busca por cliente + filtro por periodo -->
+    <div style="display:flex;gap:.6rem;align-items:center;margin-bottom:.75rem;flex-wrap:wrap">
+      <input type="text" id="caixa-busca-cliente" placeholder="Buscar por cliente..." oninput="renderCaixa()" style="flex:1;min-width:200px;height:36px;padding:6px 12px;border-radius:6px;border:1px solid var(--bdr);background:var(--bg);color:var(--txt);font-size:.9rem">
+      <select id="caixa-filtro-periodo" onchange="renderCaixa()" style="height:36px;padding:4px 10px;border-radius:6px;border:1px solid var(--bdr);background:var(--bg);color:var(--txt);font-size:.85rem">
+        <option value="todos">Todos</option>
+        <option value="hoje">Hoje</option>
+        <option value="semana">Esta Semana</option>
+        <option value="mes">Este Mes</option>
+        <option value="intervalo">Intervalo</option>
+      </select>
+      <input type="date" id="caixa-filtro-de" class="hidden" onchange="renderCaixa()" style="height:36px;padding:4px 8px;border-radius:6px;border:1px solid var(--bdr);background:var(--bg);color:var(--txt);font-size:.82rem">
+      <input type="date" id="caixa-filtro-ate" class="hidden" onchange="renderCaixa()" style="height:36px;padding:4px 8px;border-radius:6px;border:1px solid var(--bdr);background:var(--bg);color:var(--txt);font-size:.82rem">
+    </div>
+    <!-- Story 4.51 AC-B5: Nome da conta bancaria -->
+    <div id="caixa-conta-bancaria-label" style="font-size:.82rem;color:var(--mut);margin-bottom:.75rem;font-weight:600"></div>
+    <div class="card">
+      <h3 style="margin-bottom:.75rem">Extrato Conciliado</h3>
+      <div class="table-wrap" style="max-height:460px;overflow-y:auto">
+        <table>
+          <thead><tr><th>Data</th><th>Descricao</th><th>Categoria</th><th>Status</th><th class="text-right">Valor</th></tr></thead>
+          <tbody id="caixa-extrato-tbody"></tbody>
+        </table>
       </div>
-      <div style="display:flex;flex-direction:column;gap:1rem">
-        <div class="card">
-          <h3 style="margin-bottom:.75rem">Resumo da Conciliacao</h3>
-          <div id="caixa-resumo-conciliacao" style="display:grid;gap:.6rem;font-size:.84rem"></div>
-        </div>
-        <div class="card">
-          <h3 style="margin-bottom:.75rem">Pendencias Operacionais</h3>
-          <div id="caixa-pendencias-lista" style="display:grid;gap:.55rem;font-size:.82rem"></div>
-        </div>
-      </div>
+      <div class="empty hidden" id="caixa-extrato-empty"><h3>Sem movimentos</h3><p>Importe extratos na aba <strong>Conciliacao Bancaria</strong> para visualizar o caixa.</p></div>
+    </div>
+    <div class="card" style="margin-top:1rem">
+      <h3 style="margin-bottom:.75rem">Pendencias Operacionais</h3>
+      <div id="caixa-pendencias-lista" style="display:grid;gap:.55rem;font-size:.82rem"></div>
     </div>
   </div>
 
@@ -969,8 +984,10 @@
             <button class="btn btn-outline btn-sm" onclick="imprimirListaProdutosEstoqueIntel()">Imprimir</button>
           </div>
         </div>
-        <div style="display:grid;grid-template-columns:1fr auto;gap:.75rem;align-items:end;margin-bottom:.75rem">
+        <div style="display:grid;grid-template-columns:1fr auto auto auto;gap:.75rem;align-items:end;margin-bottom:.75rem">
           <div><input type="text" id="ei-busca" placeholder="Buscar produto, embalagem ou codigo de barras..." oninput="renderEstoque()" style="width:100%"></div>
+          <div><select id="ei-filtro-categoria" onchange="renderEstoque()" style="min-width:130px"><option value="">Todas Categorias</option></select></div>
+          <div><select id="ei-filtro-tipo" onchange="renderEstoque()"><option value="">Todos</option><option value="comum">Comum</option><option value="critico">Critico</option></select></div>
           <div><select id="ei-filtro-base" onchange="renderEstoque()"><option value="">Todas as Bases</option><option value="UN">UN</option><option value="g">g</option><option value="KG">KG</option><option value="ml">ml</option><option value="LT">LT</option><option value="MÇ">MÇ</option></select></div>
         </div>
         <div id="ei-form-novo-produto" data-ei-form style="display:none"></div>

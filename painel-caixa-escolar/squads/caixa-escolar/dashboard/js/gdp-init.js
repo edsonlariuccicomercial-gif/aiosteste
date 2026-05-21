@@ -1527,8 +1527,10 @@ function renderKPIs() {
   const totalValor = ativos.reduce((s, c) => s + ((parseFloat(c.valorTotal) || 0) > 0 ? parseFloat(c.valorTotal) : (Array.isArray(c.itens) ? c.itens : []).reduce((s2, i) => s2 + (parseFloat(i.precoUnitario) || 0) * (parseFloat(i.qtdContratada || i.quantidade) || 0), 0)), 0);
   const pendentes = ativos.reduce((s, c) => s + c.itens.filter(i => i.qtdEntregue < i.qtdContratada).length, 0);
 
-  document.getElementById("kpi-contratos").textContent = ativos.length;
-  document.getElementById("kpi-itens").textContent = totalItens;
+  // Story 4.51 AC-H1/H2: Card 1 = Clientes Ativos (unique), Card 2 = Contratos Ativos
+  const clientesUnicos = new Set(ativos.map(c => (c.escola || c.cliente?.nome || c.id).toLowerCase().trim()));
+  document.getElementById("kpi-contratos").textContent = clientesUnicos.size;
+  document.getElementById("kpi-itens").textContent = ativos.length;
   document.getElementById("kpi-valor").textContent = brl.format(totalValor);
   document.getElementById("kpi-pendentes").textContent = pendentes;
   document.getElementById("tab-count-contratos").textContent = contratos.length;
@@ -1730,7 +1732,7 @@ function abrirCadastroProdutoViaVincular() {
   _novoProdutoEmbs = [{ id: 'temp-0', descricao: '', quantidade_base: 1, preco_referencia: 0 }];
 
   const UNIT_OPTS = '<optgroup label="Contagem"><option value="UN" selected>UN</option><option value="DZ">DZ</option></optgroup><optgroup label="Embalagem"><option value="CX">CX</option><option value="PCT">PCT</option><option value="FD">FD</option><option value="BD">BD</option><option value="SC">SC</option></optgroup><optgroup label="Peso/Volume"><option value="KG">KG</option><option value="LT">LT</option><option value="GL">GL</option></optgroup>';
-  const CAT_OPTS = ["","Hortifruti","Carnes/Proteinas","Graos/Cereais","Laticinios","Frutas","Mercearia","Padaria/Biscoitos","Ovos","Bebidas","Limpeza","Outros"].map(c => '<option value="'+c+'">'+(c||"Sem Categoria")+'</option>').join("");
+  const CAT_OPTS = ["","Hortifruti","Carnes/Proteinas","Graos/Cereais","Laticinios","Frutas","Mercearia","Padaria/Biscoitos","Ovos","Bebidas","Limpeza","Outros",..._loadCategoriasCustom()].map(c => '<option value="'+c+'">'+(c||"Sem Categoria")+'</option>').join("");
   const ORI_OPTS = [{v:"0",l:"0 — Nacional"},{v:"1",l:"1 — Import. Direta"},{v:"2",l:"2 — Import. Merc."}].map(o => '<option value="'+o.v+'">'+o.l+'</option>').join("");
   const nomeResumido = gdpResumirDescricao(_vincularPendente.descricao) || _vincularPendente.descricao || '';
 
@@ -3000,7 +3002,7 @@ function abrirEditarProduto(produtoId) {
     {v:"3",l:"3 — Nac. >40% Import."},{v:"4",l:"4 — Nac. Proc. Basicos"},{v:"5",l:"5 — Nac. <=40% Import."},
     {v:"6",l:"6 — Import. s/ Similar"},{v:"7",l:"7 — Import. MI s/ Similar"}
   ];
-  const CAT_OPTS = ["","Hortifruti","Carnes/Proteinas","Graos/Cereais","Laticinios","Frutas","Mercearia","Padaria/Biscoitos","Ovos","Bebidas","Polpas/Frutas","Limpeza","Outros"];
+  const CAT_OPTS = ["","Hortifruti","Carnes/Proteinas","Graos/Cereais","Laticinios","Frutas","Mercearia","Padaria/Biscoitos","Ovos","Bebidas","Polpas/Frutas","Limpeza","Outros",..._loadCategoriasCustom()];
   const UNIT_OPTS = ["UN","DZ","g","KG","ml","LT","GL","CX","PCT","FD","BD","PT","SC","MÇ","RS","RL","FR","TB","GF","LA"];
 
   const detalhePage = document.getElementById("produto-detalhe-page");
@@ -3450,6 +3452,19 @@ function salvarNovoProdutoModal() {
 }
 
 // === Categoria Custom ===
+// Story 4.51 AC-G2: persist custom categories to localStorage
+const CATEGORIAS_CUSTOM_KEY = "gdp.categorias-produto.custom.v1";
+
+function _loadCategoriasCustom() {
+  try { return JSON.parse(localStorage.getItem(CATEGORIAS_CUSTOM_KEY) || "[]"); } catch(_) { return []; }
+}
+
+function _saveCategoriasCustom(cats) {
+  localStorage.setItem(CATEGORIAS_CUSTOM_KEY, JSON.stringify(cats));
+  // Story 4.51 AC-G2: also sync to cloud
+  if (typeof cloudSave === 'function') cloudSave(CATEGORIAS_CUSTOM_KEY, cats);
+}
+
 function adicionarCategoriaCustom() {
   const nome = prompt("Nome da nova categoria:");
   if (!nome || !nome.trim()) return;
@@ -3462,8 +3477,42 @@ function adicionarCategoriaCustom() {
   opt.textContent = nome.trim();
   sel.insertBefore(opt, sel.lastElementChild);
   sel.value = nome.trim();
+  // Story 4.51 AC-G2: persist to localStorage
+  const customs = _loadCategoriasCustom();
+  if (!customs.includes(nome.trim())) { customs.push(nome.trim()); _saveCategoriasCustom(customs); }
   showToast("Categoria adicionada: " + nome.trim(), 2500);
 }
+
+// Story 4.51 AC-G3: edit and delete categories
+window.editarCategoria = function(oldName) {
+  const newName = prompt("Novo nome para a categoria:", oldName);
+  if (!newName || !newName.trim() || newName.trim() === oldName) return;
+  // Update in custom list
+  const customs = _loadCategoriasCustom();
+  const idx = customs.indexOf(oldName);
+  if (idx >= 0) { customs[idx] = newName.trim(); _saveCategoriasCustom(customs); }
+  // Update all products with old category
+  if (typeof estoqueIntelProdutos !== 'undefined') {
+    estoqueIntelProdutos.filter(p => p.categoria === oldName).forEach(p => { p.categoria = newName.trim(); });
+    if (typeof saveEstoqueIntelProdutos === 'function') saveEstoqueIntelProdutos();
+  }
+  showToast("Categoria renomeada: " + newName.trim(), 2500);
+  if (typeof renderProdutos === 'function') renderProdutos();
+};
+
+window.excluirCategoria = function(name) {
+  if (!confirm('Excluir a categoria "' + name + '"? Produtos vinculados ficarão sem categoria.')) return;
+  const customs = _loadCategoriasCustom();
+  const idx = customs.indexOf(name);
+  if (idx >= 0) { customs.splice(idx, 1); _saveCategoriasCustom(customs); }
+  // Clear category from products
+  if (typeof estoqueIntelProdutos !== 'undefined') {
+    estoqueIntelProdutos.filter(p => p.categoria === name).forEach(p => { p.categoria = ""; });
+    if (typeof saveEstoqueIntelProdutos === 'function') saveEstoqueIntelProdutos();
+  }
+  showToast("Categoria excluída: " + name, 2500);
+  if (typeof renderProdutos === 'function') renderProdutos();
+};
 
 // === Download Modelo Excel ===
 function downloadModeloProdutos() {
@@ -3704,6 +3753,20 @@ window.excluirNotasEntradaSelecionadas = function() {
   const selSet = new Set(selected);
   notasEntrada = notasEntrada.filter(n => !selSet.has(n.id));
   saveNotasEntrada();
+
+  // Story 4.51 AC-A1: track deleted IDs to prevent sync restoration
+  try {
+    const delKey = "gdp.notas-entrada.deleted.v1";
+    const deleted = JSON.parse(localStorage.getItem(delKey) || "[]");
+    selected.forEach(id => { if (!deleted.includes(id)) deleted.push(id); });
+    localStorage.setItem(delKey, JSON.stringify(deleted));
+  } catch(_) {}
+
+  // Story 4.51 AC-A1: also update sync_data in cloud to remove deleted items
+  if (typeof cloudSave === 'function') {
+    cloudSave("gdp.notas-entrada.v1", { _v: 1, updatedAt: new Date().toISOString(), items: notasEntrada });
+  }
+
   renderNotasEntrada();
   atualizarSelecaoNotasEntrada();
   showToast(`${selected.length} nota(s) excluída(s).`, 3000);

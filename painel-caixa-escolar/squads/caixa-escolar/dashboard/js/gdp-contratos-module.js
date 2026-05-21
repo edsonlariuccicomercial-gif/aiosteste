@@ -2700,6 +2700,8 @@ function adicionarAoBancoProdutos(item) {
     descricao: item.descricao,
     unidade: item.unidade || 'Un',
     precoUnitario: item.precoUnitario || 0,
+    // Story 4.51 AC-I1: persist custoBase when adding product from contract shortcut
+    custoBase: item.custoBase || item.precoUnitario || 0,
     ncm: item.ncm || '',
     sku: item.sku || existingSku || '',
     addedAt: new Date().toISOString()
@@ -2742,6 +2744,8 @@ function editarItemContrato(contratoId, idx) {
   const item = c.itens[idx];
   document.getElementById("modal-contrato-titulo").textContent = "Editar Item #" + item.num + " — " + c.id;
   document.getElementById("modal-contrato-header-actions").innerHTML = ``;
+  // Story 4.51 AC-H3: show the modal (was missing — modal content was set but never displayed)
+  document.getElementById("modal-contrato").classList.remove("hidden");
   document.getElementById("modal-contrato-body").innerHTML = `
     <div style="display:grid;grid-template-columns:1fr;gap:1rem">
       <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Descrição do Produto</label><input type="text" id="ei-descricao" value="${esc(item.descricao)}" style="width:100%" oninput="sugerirNcmEdit()"></div>
@@ -2796,6 +2800,10 @@ function excluirItemContrato(contratoId, idx) {
 function abrirContrato(id) {
   const c = contratos.find(x => x.id === id);
   if (!c) return;
+  // Story 4.51 AC-H6: hydrate saldoVisivelEscola from dados_extras (Supabase source)
+  if (c.dados_extras?.saldoVisivelEscola !== undefined && c.saldoVisivelEscola === undefined) {
+    c.saldoVisivelEscola = c.dados_extras.saldoVisivelEscola;
+  }
   ensureContratoItensMetadata(c);
 
   _contratoAbertoId = null;
@@ -2880,7 +2888,7 @@ function abrirContrato(id) {
           return `<tr>
             <td class="text-center"><input type="checkbox" class="item-check-${c.id}" data-idx="${idx}" onchange="atualizarSelecaoItens('${c.id}')"></td>
             <td class="text-center">${item.num}</td>
-            <td style="max-width:320px;white-space:normal;word-break:break-word;line-height:1.3"><span title="${item.sku ? 'SKU disponível para pedido/NF' : 'SKU pendente de geração interna'}" style="font-size:.6rem;margin-right:.3rem">${item.sku ? '🟢' : '🟡'}</span>${esc(item.descricao)}</td>
+            <td style="max-width:320px;white-space:normal;word-break:break-word;line-height:1.3"><input type="text" value="${esc(item.descricao)}" onchange="salvarDescricaoItemContrato('${c.id}',${idx},this.value)" style="width:100%;font-size:.78rem;padding:.15rem .3rem;background:var(--s1);border:1px solid var(--bdr);border-radius:4px;color:var(--txt)"></td>
             <td style="min-width:130px">${equivSku
               ? '<div style="display:flex;align-items:center;gap:.3rem"><span style="color:var(--green);font-size:.74rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px" title="' + esc(equivNome + ' (' + equivSku + ')') + '">&#10003; ' + esc(equivNome.length > 18 ? equivNome.slice(0,16) + '..' : equivNome) + '</span><button style="background:none;border:none;cursor:pointer;font-size:.68rem;color:var(--blue);padding:0" onclick="abrirVincularGDP(\'' + c.id + '\',' + idx + ')" title="Alterar vinculo">&#9998;</button></div>'
               : '<button class="btn btn-sm" style="font-size:.72rem;padding:.15rem .4rem;background:rgba(139,92,246,.15);color:var(--purple);border:none;cursor:pointer" onclick="abrirVincularGDP(\'' + c.id + '\',' + idx + ')" title="Vincular produto cadastrado">Vincular</button>'
@@ -2891,9 +2899,9 @@ function abrirContrato(id) {
                 <button style="background:none;border:none;cursor:pointer;font-size:.7rem;color:var(--blue);padding:0" onclick="buscarNcmItem('${c.id}',${idx})" title="Buscar NCM automaticamente">🔍</button>
               </div>
             </td>
-            <td style="font-size:.72rem;font-family:monospace;color:var(--dim)">${esc(item.sku || '-')}</td>
-            <td class="nowrap">${esc(item.unidade)}</td>
-            <td class="text-right font-mono">${item.qtdContratada}</td>
+            <td><input type="text" value="${esc(item.sku || '')}" onchange="salvarSkuItemContrato('${c.id}',${idx},this.value)" style="width:70px;font-size:.72rem;font-family:monospace;padding:.15rem .3rem;background:var(--s1);border:1px solid var(--bdr);border-radius:4px;color:var(--dim)"></td>
+            <td><select onchange="salvarUnidadeItemContrato('${c.id}',${idx},this.value)" style="padding:.15rem .2rem;font-size:.75rem;background:var(--s1);border:1px solid var(--bdr);border-radius:4px;color:var(--txt)">${['UN','KG','L','CX','PCT','M','M2','FD','GL','ROL','RS','BD','SC','MT','FR'].map(u => '<option value="' + u + '"' + (item.unidade === u ? ' selected' : '') + '>' + u + '</option>').join('')}</select></td>
+            <td class="text-right"><input type="number" min="0" step="1" value="${item.qtdContratada}" onchange="salvarQtdItemContrato('${c.id}',${idx},this.value)" style="width:60px;text-align:right;font-size:.8rem;font-family:monospace;padding:.15rem .3rem;background:var(--s1);border:1px solid var(--bdr);border-radius:4px;color:var(--txt)"></td>
             <td class="text-right font-mono">${item.qtdEntregue}</td>
             <td class="text-right font-mono" style="font-weight:700;color:${saldo > 0 ? 'var(--yellow)' : 'var(--green)'}">${saldo}</td>
             <td style="min-width:50px"><div class="progress"><div class="progress-fill ${pct >= 80 ? 'green' : pct >= 40 ? 'yellow' : 'blue'}" style="width:${pct}%"></div></div><span style="font-size:.6rem;color:var(--dim)">${pct.toFixed(0)}%</span></td>
@@ -2912,16 +2920,19 @@ function abrirContrato(id) {
   const detalhePage = document.getElementById("contrato-detalhe-page");
   const listagem = document.getElementById("contratos-listagem");
   if (detalhePage && listagem) {
+    // Story 4.51 AC-H4: header only has title, buttons moved to bottom
     const headerHtml = `
       <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem">
-        <button onclick="fecharContratoDetalhe()" style="background:transparent;border:none;cursor:pointer;color:var(--mut);font-size:1.3rem;padding:4px 8px" title="Voltar">&#x2190;</button>
         <h2 style="font-size:1.1rem;font-weight:600;margin:0;flex:1">Contrato ${esc(c.id)}</h2>
-        <div style="display:flex;gap:.5rem">
-          <button class="btn btn-sm btn-red" onclick="excluirContrato('${c.id}')">Excluir</button>
-          <button class="btn btn-sm btn-blue" onclick="salvarDadosContrato('${c.id}')">Salvar</button>
-        </div>
       </div>`;
-    detalhePage.innerHTML = headerHtml + html;
+    const footerHtml = `
+      <div style="display:flex;align-items:center;gap:1rem;margin-top:2rem;padding-top:1rem;border-top:1px solid var(--bdr)">
+        <button onclick="fecharContratoDetalhe()" style="background:transparent;border:none;cursor:pointer;color:var(--mut);font-size:1.1rem;padding:4px 12px;display:flex;align-items:center;gap:.4rem" title="Voltar">&#x2190; Voltar</button>
+        <div style="flex:1"></div>
+        <button class="btn btn-sm btn-red" onclick="excluirContrato('${c.id}')">Excluir</button>
+        <button class="btn btn-sm btn-blue" onclick="salvarDadosContrato('${c.id}')">Salvar</button>
+      </div>`;
+    detalhePage.innerHTML = headerHtml + html + footerHtml;
     listagem.classList.add("hidden");
     detalhePage.classList.remove("hidden");
     detalhePage.scrollTop = 0;
@@ -3148,7 +3159,13 @@ async function salvarDadosContrato(id) {
   c.objeto = (document.getElementById(`ctr-objeto-${id}`)?.value || "").trim();
   c.observacoes = (document.getElementById(`ctr-obs-${id}`)?.value || "").trim();
   c.saldoVisivelEscola = document.getElementById(`ctr-saldo-visivel-${id}`)?.checked || false;
+  // Story 4.51 AC-H6: persist saldoVisivelEscola in dados_extras for Supabase
+  c.dados_extras = { ...(c.dados_extras || {}), saldoVisivelEscola: c.saldoVisivelEscola };
   saveContratos();
+  // Story 4.51 AC-H6: also save to Supabase contratos table directly
+  if (window.gdpApi && window.gdpApi.contratos) {
+    gdpApi.contratos.save(c).catch(e => gdpWarn('[salvarDadosContrato] Supabase save failed:', e));
+  }
   // Force immediate cloud push
   if (_syncTimeout) { clearTimeout(_syncTimeout); _syncTimeout = null; }
   try { await syncToCloud(); } catch(_) {}
