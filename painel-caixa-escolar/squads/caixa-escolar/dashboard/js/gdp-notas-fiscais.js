@@ -2328,10 +2328,31 @@ function excluirNotaFiscal(notaId) {
   notasFiscais = notasFiscais.filter((item) => item.id !== notaId);
   saveNotasFiscais();
 
+  // FIX DEFINITIVO: deletar do Supabase E registrar ID deletado para impedir restauração
+  if (window.gdpApi && window.gdpApi.notas_fiscais) {
+    gdpApi.notas_fiscais.remove(notaId).catch(e => gdpWarn('[excluirNotaFiscal] Supabase delete failed:', e));
+  }
+  try {
+    const delKey = "gdp.notas-fiscais.deleted.v1";
+    const deleted = JSON.parse(localStorage.getItem(delKey) || "[]");
+    if (!deleted.includes(notaId)) deleted.push(notaId);
+    localStorage.setItem(delKey, JSON.stringify(deleted));
+  } catch(_) {}
+
   const conta = getContaReceberByNota(notaId);
   if (conta) {
     contasReceber = contasReceber.filter((item) => item.id !== conta.id);
     saveContasReceber();
+    // FIX: deletar conta a receber vinculada do Supabase também
+    if (window.gdpApi && window.gdpApi.contas_receber) {
+      gdpApi.contas_receber.remove(conta.id).catch(e => gdpWarn('[excluirNotaFiscal] CR Supabase delete failed:', e));
+    }
+    try {
+      const delKeyCr = "gdp.contas-receber.deleted.v1";
+      const deletedCr = JSON.parse(localStorage.getItem(delKeyCr) || "[]");
+      if (!deletedCr.includes(conta.id)) deletedCr.push(conta.id);
+      localStorage.setItem(delKeyCr, JSON.stringify(deletedCr));
+    } catch(_) {}
   }
 
   const pedido = pedidos.find((item) => item.id === nf.pedidoId);

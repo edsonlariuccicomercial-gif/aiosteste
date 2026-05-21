@@ -767,6 +767,28 @@ function loadData() {
   try { notasEntrada = unwrapData(JSON.parse(localStorage.getItem(ENTRY_INVOICES_KEY))); } catch(_) { notasEntrada = []; }
   try { contasPagar = unwrapData(JSON.parse(localStorage.getItem(PAYABLES_KEY))); } catch(_) { contasPagar = []; }
   try { contasReceber = unwrapData(JSON.parse(localStorage.getItem(RECEIVABLES_KEY))); } catch(_) { contasReceber = []; }
+
+  // FIX DEFINITIVO: filtrar itens deletados de TODAS as entidades no boot
+  // Isso garante que mesmo que o Supabase ou sync_data restaure itens, eles são removidos imediatamente
+  var _delFilterMap = {
+    'gdp.notas-fiscais.deleted.v1': function() { var before = notasFiscais.length; notasFiscais = notasFiscais.filter(function(x) { return !_delIds.has(x.id); }); return before - notasFiscais.length; },
+    'gdp.contas-receber.deleted.v1': function() { var before = contasReceber.length; contasReceber = contasReceber.filter(function(x) { return !_delIds.has(x.id); }); return before - contasReceber.length; },
+    'gdp.contas-pagar.deleted.v1': function() { var before = contasPagar.length; contasPagar = contasPagar.filter(function(x) { return !_delIds.has(x.id); }); return before - contasPagar.length; },
+    'gdp.notas-entrada.deleted.v1': function() { var before = notasEntrada.length; notasEntrada = notasEntrada.filter(function(x) { return !_delIds.has(x.id); }); return before - notasEntrada.length; },
+    'gdp.contratos.deleted.v1': function() { var before = contratos.length; contratos = contratos.filter(function(x) { return !_delIds.has(x.id); }); return before - contratos.length; },
+    'gdp.pedidos.deleted.v1': function() { var before = pedidos.length; pedidos = pedidos.filter(function(x) { return !_delIds.has(x.id); }); return before - pedidos.length; }
+  };
+  var _delIds;
+  for (var _delKey in _delFilterMap) {
+    try {
+      var _delArr = JSON.parse(localStorage.getItem(_delKey) || '[]');
+      if (_delArr.length > 0) {
+        _delIds = new Set(_delArr);
+        var removed = _delFilterMap[_delKey]();
+        if (removed > 0) gdpLog('[boot] Filtered ' + removed + ' deleted items from ' + _delKey);
+      }
+    } catch(_) {}
+  }
   try { contaPagarCategorias = unwrapData(JSON.parse(localStorage.getItem(PAYABLE_CATEGORIES_KEY))); } catch(_) { contaPagarCategorias = []; }
   try { contaReceberCategorias = unwrapData(JSON.parse(localStorage.getItem(RECEIVABLE_CATEGORIES_KEY))); } catch(_) { contaReceberCategorias = []; }
   try { contaPagarFormas = unwrapData(JSON.parse(localStorage.getItem(PAYABLE_METHODS_KEY))); } catch(_) { contaPagarFormas = []; }
@@ -779,6 +801,11 @@ function loadData() {
   try { estoqueIntelPedidoItens = unwrapData(JSON.parse(localStorage.getItem(ESTOQUE_INTEL_ORDER_ITEMS_KEY))); } catch(_) { estoqueIntelPedidoItens = []; }
   try { estoqueIntelMovimentacoes = unwrapData(JSON.parse(localStorage.getItem(ESTOQUE_INTEL_MOVES_KEY))); } catch(_) { estoqueIntelMovimentacoes = []; }
   try { estoqueIntelFornecedores = unwrapData(JSON.parse(localStorage.getItem(ESTOQUE_INTEL_SUPPLIERS_KEY))); } catch(_) { estoqueIntelFornecedores = []; }
+  // FIX: filtrar fornecedores deletados
+  try {
+    var _delFornArr = JSON.parse(localStorage.getItem('gdp.estoque-intel.fornecedores.deleted.v1') || '[]');
+    if (_delFornArr.length > 0) { var _delFornSet = new Set(_delFornArr); var _bforn = estoqueIntelFornecedores.length; estoqueIntelFornecedores = estoqueIntelFornecedores.filter(function(x) { return !_delFornSet.has(x.id); }); if (_bforn > estoqueIntelFornecedores.length) gdpLog('[boot] Filtered ' + (_bforn - estoqueIntelFornecedores.length) + ' deleted fornecedores'); }
+  } catch(_) {}
   try { estoqueIntelCompras = unwrapData(JSON.parse(localStorage.getItem(ESTOQUE_INTEL_PURCHASES_KEY))); } catch(_) { estoqueIntelCompras = []; }
   try { integracoesGdp = unwrapData(JSON.parse(localStorage.getItem(INTEGRATIONS_KEY))); } catch(_) { integracoesGdp = []; }
   contasPagar = contasPagar.map((item) => {
