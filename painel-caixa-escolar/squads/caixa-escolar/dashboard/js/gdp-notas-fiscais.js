@@ -1170,6 +1170,16 @@ async function transmitirHomologacaoNota(notaId) {
 
   const nfObs = nf.documentos?.observacao || "";
 
+  // Limpar chave/protocolo de previews anteriores para evitar conflito na SEFAZ
+  // A API vai gerar nova chave de acesso consistente com o número atual
+  if (!nf.sefaz.protocolo) {
+    nf.sefaz.chaveAcesso = "";
+  }
+  delete nf.sefaz.xmlPreview;
+  delete nf.sefaz.xmlDsigPreview;
+  delete nf.sefaz.lotePreview;
+  delete nf.sefaz.autorizacaoPreview;
+
   setIntegrationState(nf, "sefaz", { status: "transmissao_em_preparo", lastAction: "nfe_sefaz_transmitir" });
   saveNotasFiscais();
   showToast("Transmitindo NF " + novoNumero + " para SEFAZ...", 8000);
