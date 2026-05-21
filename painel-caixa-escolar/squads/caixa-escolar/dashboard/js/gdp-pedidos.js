@@ -2,28 +2,39 @@
 // Pedidos, Notas Fiscais, Contas Pagar/Receber, Caixa, Relatorios, Lista de Compras
 
 // Story 4.54: shared period filter helper — reusable across all list views
+// Fix: parse dates as LOCAL (not UTC) to avoid timezone mismatch (BR = UTC-3)
+function _parseLocalDate(val) {
+  if (!val) return null;
+  var s = String(val).slice(0, 10); // "2026-05-21"
+  var parts = s.split('-');
+  if (parts.length === 3) return new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+  return new Date(val);
+}
+
 function _applyPeriodFilter(items, selectId, deId, ateId, dateField) {
-  const sel = document.getElementById(selectId);
-  const deInput = document.getElementById(deId);
-  const ateInput = document.getElementById(ateId);
+  var sel = document.getElementById(selectId);
+  var deInput = document.getElementById(deId);
+  var ateInput = document.getElementById(ateId);
   if (!sel) return items;
-  const periodo = sel.value || "todos";
+  var periodo = sel.value || "todos";
   if (deInput) deInput.classList.toggle("hidden", periodo !== "intervalo");
   if (ateInput) ateInput.classList.toggle("hidden", periodo !== "intervalo");
   if (periodo === "todos") return items;
-  const hoje = new Date(); hoje.setHours(0,0,0,0);
-  let de, ate;
+  var hoje = new Date(); hoje.setHours(0,0,0,0);
+  var de, ate;
   if (periodo === "hoje") { de = ate = hoje; }
   else if (periodo === "semana") { de = new Date(hoje); de.setDate(de.getDate() - de.getDay()); ate = hoje; }
   else if (periodo === "mes") { de = new Date(hoje.getFullYear(), hoje.getMonth(), 1); ate = hoje; }
-  else if (periodo === "intervalo") { de = deInput?.value ? new Date(deInput.value + 'T00:00:00') : null; ate = ateInput?.value ? new Date(ateInput.value + 'T23:59:59') : null; }
+  else if (periodo === "intervalo") { de = deInput?.value ? _parseLocalDate(deInput.value) : null; ate = ateInput?.value ? _parseLocalDate(ateInput.value) : null; }
   if (!de && !ate) return items;
   return items.filter(function(item) {
     var val = item[dateField] || item.data || item.dataEntrega || item.emitidaEm || item.created_at;
     if (!val) return true;
-    var d = new Date(val); d.setHours(0,0,0,0);
+    var d = _parseLocalDate(val);
+    if (!d || isNaN(d.getTime())) return true;
+    d.setHours(0,0,0,0);
     if (de && d < de) return false;
-    if (ate) { var ateEnd = new Date(ate); ateEnd.setHours(23,59,59); if (d > ateEnd) return false; }
+    if (ate) { var ateEnd = new Date(ate); ateEnd.setHours(23,59,59,999); if (d > ateEnd) return false; }
     return true;
   });
 }
@@ -1529,9 +1540,9 @@ function renderNotasFiscais() {
       else if (periodo === "intervalo") { de = deInput.value ? new Date(deInput.value + 'T00:00:00') : null; ate = ateInput.value ? new Date(ateInput.value + 'T23:59:59') : null; }
       if (de || ate) {
         filtered = filtered.filter(nf => {
-          const d = new Date(nf.emitidaEm || nf.created_at || 0); d.setHours(0,0,0,0);
+          const d = _parseLocalDate(nf.emitidaEm || nf.created_at); if (!d) return true; d.setHours(0,0,0,0);
           if (de && d < de) return false;
-          if (ate) { const ateEnd = new Date(ate); ateEnd.setHours(23,59,59); if (d > ateEnd) return false; }
+          if (ate) { const ateEnd = new Date(ate); ateEnd.setHours(23,59,59,999); if (d > ateEnd) return false; }
           return true;
         });
       }
@@ -1828,7 +1839,7 @@ function renderCaixa() {
     else if (periodo === "intervalo") { de = deInput?.value ? new Date(deInput.value + 'T00:00:00') : null; ate = ateInput?.value ? new Date(ateInput.value + 'T23:59:59') : null; }
     if (de || ate) {
       items = items.filter(item => {
-        const d = new Date(item.data); d.setHours(0,0,0,0);
+        const d = _parseLocalDate(item.data); if (!d) return true; d.setHours(0,0,0,0);
         if (de && d < de) return false;
         if (ate) { const ateEnd = new Date(ate); ateEnd.setHours(23,59,59); if (d > ateEnd) return false; }
         return true;
