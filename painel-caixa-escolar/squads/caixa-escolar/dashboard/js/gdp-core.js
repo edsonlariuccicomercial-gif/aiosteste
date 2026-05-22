@@ -808,6 +808,26 @@ function loadData() {
   } catch(_) {}
   try { estoqueIntelCompras = unwrapData(JSON.parse(localStorage.getItem(ESTOQUE_INTEL_PURCHASES_KEY))); } catch(_) { estoqueIntelCompras = []; }
   try { integracoesGdp = unwrapData(JSON.parse(localStorage.getItem(INTEGRATIONS_KEY))); } catch(_) { integracoesGdp = []; }
+
+  // Story 4.57 AC-1: migrar itens de conciliação sem extratoId UMA VEZ no boot
+  try {
+    var _concItems = loadConciliacao();
+    var _bootExtratos = loadExtratos();
+    var _orphans = _concItems.filter(function(i) { return !i.extratoId; });
+    if (_orphans.length > 0 && _bootExtratos.length > 0) {
+      var _targetExt = _bootExtratos[0];
+      _orphans.forEach(function(i) { i.extratoId = _targetExt.id; });
+      saveConciliacao(_concItems);
+      _bootExtratos.forEach(function(ext) {
+        var extItems = _concItems.filter(function(i) { return i.extratoId === ext.id; });
+        ext.conciliados = extItems.filter(function(i) { return i.conciliado; }).length;
+        ext.total = extItems.length;
+      });
+      saveExtratos(_bootExtratos);
+      gdpLog('[boot] Migrated ' + _orphans.length + ' orphan conciliacao items to extrato ' + _targetExt.id);
+    }
+  } catch(_) {}
+
   contasPagar = contasPagar.map((item) => {
     const categoria = normalizeContaCategoriaRegistro("pagar", item?.categoria);
     const forma = normalizeContaFormaRegistro(item?.forma);
@@ -1942,13 +1962,7 @@ function atualizarExtratoStats() {
   const extratos = loadExtratos();
   if (!extratos.length) return;
   const items = loadConciliacao();
-  // Story 4.56: migrar itens órfãos antes de calcular stats
-  const orphans = items.filter(i => !i.extratoId);
-  if (orphans.length > 0) {
-    const target = extratos.find(ext => items.filter(i => i.extratoId === ext.id).length === 0) || extratos[0];
-    orphans.forEach(i => { i.extratoId = target.id; });
-    saveConciliacao(items);
-  }
+  // Story 4.57: apenas recalcular stats, migração já feita no boot
   extratos.forEach(ext => {
     const extItems = items.filter(i => i.extratoId === ext.id);
     ext.conciliados = extItems.filter(i => i.conciliado).length;
@@ -1986,23 +2000,7 @@ function renderConciliacao() {
   const empty = document.getElementById("conciliacao-empty");
   const resumo = document.getElementById("conciliacao-resumo");
 
-  // Story 4.56 AC-1: migrar itens antigos sem extratoId para o extrato correspondente
-  const orphanItems = allItems.filter(i => !i.extratoId);
-  if (orphanItems.length > 0 && extratos.length > 0) {
-    // Vincular órfãos ao primeiro extrato que não tem itens vinculados,
-    // ou ao primeiro extrato se todos já têm itens
-    let targetExt = extratos.find(ext => allItems.filter(i => i.extratoId === ext.id).length === 0) || extratos[0];
-    orphanItems.forEach(item => { item.extratoId = targetExt.id; });
-    saveConciliacao(allItems);
-  }
-
-  // Atualizar stats de cada extrato com dados reais
-  extratos.forEach(ext => {
-    const extItems = allItems.filter(i => i.extratoId === ext.id);
-    ext.conciliados = extItems.filter(i => i.conciliado).length;
-    ext.total = extItems.length;
-  });
-  saveExtratos(extratos);
+  // Story 4.57: renderConciliacao é READ-ONLY — migração roda no boot, stats em atualizarExtratoStats()
 
   // Render tabela de extratos
   if (extratosEl) {

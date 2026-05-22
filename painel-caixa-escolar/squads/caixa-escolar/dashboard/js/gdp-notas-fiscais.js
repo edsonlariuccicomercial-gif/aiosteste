@@ -1217,6 +1217,9 @@ async function transmitirHomologacaoNota(notaId) {
     if (!resp.ok || !data.ok) throw new Error(result.message || data.error || `HTTP ${resp.status}`);
 
     nf.sefaz.transmissao = result;
+    // Story 4.57 AC-2: preservar preview (emitente/destinatario) após transmissão
+    if (result.preview && !nf.sefaz.preview) nf.sefaz.preview = result.preview;
+    if (result.preview) nf.sefaz.preview = { ...(nf.sefaz.preview || {}), ...result.preview };
     nf.sefaz.status = result.parsed?.autorizado ? "autorizada" : (result.parsed?.cStat ? "rejeitada" : "transmitida");
     nf.sefaz.protocolo = result.parsed?.prot || nf.sefaz?.protocolo || "";
     nf.sefaz.chaveAcesso = result.parsed?.chNFe || nf.sefaz?.chaveAcesso || "";
@@ -1596,13 +1599,12 @@ async function gerarDanfePdfBase64(nf) {
 // Story 14.6: DANFE fiel ao modelo PDF (NF 001.426) com logomarca dedicada
 function gerarDanfeHtmlCompleto(nf) {
   if (!nf) return "";
-  // Story 4.56 AC-3: priorizar dados autorizados (transmissao/retorno), fallback para preview
+  // Story 4.57 AC-2: DANFE usa preview (emitente/destinatario) — transmissao.parsed SÓ tem protocolo
   const sefazData = nf.sefaz || {};
   const previewData = sefazData.preview || {};
-  const transmissaoData = sefazData.transmissao?.parsed || sefazData.retorno || {};
-  const emit = transmissaoData.emitente || previewData.emitente || {};
+  const emit = previewData.emitente || {};
   const emEnd = emit.endereco || {};
-  const dest = transmissaoData.destinatario || previewData.destinatario || {};
+  const dest = previewData.destinatario || nf.cliente || {};
   const dEnd = dest.endereco || {};
   const chave = sefazData.chaveAcesso || "";
   const chaveFormatada = chave.replace(/(.{4})/g, "$1 ").trim();
