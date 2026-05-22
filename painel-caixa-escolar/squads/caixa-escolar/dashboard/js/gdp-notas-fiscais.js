@@ -1603,8 +1603,9 @@ async function gerarDanfePdfBase64(nf) {
     // html2pdf opera sobre o body do iframe (documento isolado, fundo branco)
     const opt = {
       margin: [4, 4, 4, 4],
+      pagebreak: { mode: ['avoid-all', 'css', 'legacy'] },
       image: { type: "jpeg", quality: 0.95 },
-      html2canvas: { scale: 2, useCORS: true, logging: false, backgroundColor: "#ffffff" },
+      html2canvas: { scale: 2, useCORS: true, logging: false, backgroundColor: "#ffffff", allowTaint: true },
       jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
     };
     const worker = html2pdf().set(opt).from(iDoc.body);
@@ -1697,7 +1698,7 @@ function gerarDanfeHtmlCompleto(nf) {
 body,div,table{font-family:Arial,sans-serif;font-size:7.5pt;color:#000}
 .danfe-wrap{max-width:210mm}
 .bx{border:1px solid #000}
-.row{display:flex;border-bottom:1px solid #000}
+.row{display:flex;border-bottom:1px solid #000;page-break-inside:avoid}
 .cell{border-right:1px solid #000;padding:3px 5px;flex:1;min-height:24px;overflow:hidden}
 .cell:last-child{border-right:none}
 .cell label{font-size:6pt;text-transform:uppercase;display:block;color:#000;line-height:1.3;margin-bottom:1px}
@@ -1706,7 +1707,7 @@ body,div,table{font-family:Arial,sans-serif;font-size:7.5pt;color:#000}
 .stit{font-weight:700;font-size:6.5pt;padding:2px 5px;text-transform:uppercase;border-bottom:1px solid #000;background:#eee}
 table.it{width:100%;border-collapse:collapse}
 table.it th{border:1px solid #000;padding:2px 4px;font-size:6pt;text-transform:uppercase;font-weight:700;background:#eee}
-table.it td{border:1px solid #999;padding:2px 4px;font-size:7.5pt}
+table.it td{border:1px solid #999;padding:2px 4px;font-size:7.5pt;page-break-inside:avoid}
 .c{text-align:center}.r{text-align:right}
 /* Recibo */
 .rec{border:1px solid #000;display:flex;margin-bottom:3px}
@@ -1961,7 +1962,7 @@ function abrirDanfeNotaFiscal(notaId) {
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:Arial,Helvetica,sans-serif;font-size:7.5pt;color:#000;padding:6mm;max-width:210mm;margin:0 auto}
 .bx{border:1px solid #000}
-.row{display:flex;border-bottom:1px solid #000}
+.row{display:flex;border-bottom:1px solid #000;page-break-inside:avoid}
 .row:last-child{border-bottom:none}
 .cell{border-right:1px solid #000;padding:3px 5px;flex:1;min-height:24px;overflow:hidden}
 .cell:last-child{border-right:none}
