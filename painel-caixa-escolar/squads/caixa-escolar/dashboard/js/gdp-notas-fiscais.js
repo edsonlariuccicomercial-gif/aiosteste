@@ -1580,11 +1580,13 @@ async function enviarEmailNotaFiscal(notaId) {
 async function gerarDanfePdfBase64(nf) {
   const danfeHtml = gerarDanfeHtmlCompleto(nf);
   const container = document.createElement("div");
-  container.style.cssText = "position:absolute;left:-9999px;top:0;width:210mm;background:#fff";
+  // Story 4.59: html2canvas não captura offscreen (left:-9999px) — usar fixed visível com z-index:-1
+  container.style.cssText = "position:fixed;left:0;top:0;width:210mm;background:#fff;z-index:-1;pointer-events:none";
   container.innerHTML = danfeHtml;
   document.body.appendChild(container);
   try {
-    const opt = { margin: [6, 6, 6, 6], filename: "DANFE_" + (nf.numero || nf.id) + ".pdf", image: { type: "jpeg", quality: 0.95 }, html2canvas: { scale: 2, useCORS: true }, jsPDF: { unit: "mm", format: "a4", orientation: "portrait" } };
+    await new Promise(r => setTimeout(r, 300)); // aguardar render completo
+    const opt = { margin: [6, 6, 6, 6], filename: "DANFE_" + (nf.numero || nf.id) + ".pdf", image: { type: "jpeg", quality: 0.95 }, html2canvas: { scale: 2, useCORS: true, scrollY: 0, scrollX: 0, windowWidth: 794 }, jsPDF: { unit: "mm", format: "a4", orientation: "portrait" } };
     const pdfBlob = await html2pdf().set(opt).from(container).outputPdf("blob");
     const reader = new FileReader();
     return new Promise((resolve) => {
