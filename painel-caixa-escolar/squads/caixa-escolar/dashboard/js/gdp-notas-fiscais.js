@@ -1582,37 +1582,46 @@ async function enviarEmailNotaFiscal(notaId) {
 }
 
 async function gerarDanfePdfBase64(nf) {
-  // Story 4.59: gerar PDF via html2pdf usando div com fundo branco sobreposto
-  // html2canvas precisa de elemento visível na viewport — NÃO funciona offscreen
+  // Story 4.59: gerar PDF idêntico ao visualizado no sistema
+  // Usa iframe isolado com documento branco próprio (sem interferência do tema dark)
   const danfeHtml = gerarDanfeHtmlCompleto(nf);
   if (typeof html2pdf === "undefined") return "";
-  // Overlay branco cobrindo tudo para o html2canvas capturar corretamente
-  const overlay = document.createElement("div");
-  overlay.style.cssText = "position:fixed;left:0;top:0;width:100vw;height:100vh;z-index:99998;background:#fff;overflow:hidden;opacity:0;pointer-events:none";
-  const container = document.createElement("div");
-  container.style.cssText = "width:210mm;background:#fff;padding:0;margin:0";
-  container.innerHTML = danfeHtml;
-  overlay.appendChild(container);
-  document.body.appendChild(overlay);
-  // Tornar visível para captura (opacity:0 pode falhar em html2canvas)
-  await new Promise(r => setTimeout(r, 100));
-  overlay.style.opacity = "1";
-  await new Promise(r => setTimeout(r, 600));
+
+  const iframe = document.createElement("iframe");
+  iframe.style.cssText = "position:fixed;left:0;top:0;width:794px;height:1123px;border:none;opacity:0;pointer-events:none;z-index:-1";
+  document.body.appendChild(iframe);
+
   try {
-    const opt = { margin: [6, 6, 6, 6], image: { type: "jpeg", quality: 0.92 }, html2canvas: { scale: 2, useCORS: true, logging: false, backgroundColor: "#ffffff" }, jsPDF: { unit: "mm", format: "a4", orientation: "portrait" } };
-    const pdfBlob = await html2pdf().set(opt).from(container).outputPdf("blob");
+    const iDoc = iframe.contentDocument || iframe.contentWindow.document;
+    iDoc.open();
+    iDoc.write('<!DOCTYPE html><html><head><meta charset="utf-8"><style>*{margin:0;padding:0;box-sizing:border-box}body{background:#fff;color:#000;font-family:Arial,sans-serif;padding:6mm}</style></head><body>' + danfeHtml + '</body></html>');
+    iDoc.close();
+
+    // Aguardar render completo
+    await new Promise(r => setTimeout(r, 800));
+
+    // html2pdf opera sobre o body do iframe (documento isolado, fundo branco)
+    const opt = {
+      margin: [4, 4, 4, 4],
+      image: { type: "jpeg", quality: 0.95 },
+      html2canvas: { scale: 2, useCORS: true, logging: false, backgroundColor: "#ffffff" },
+      jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
+    };
+    const worker = html2pdf().set(opt).from(iDoc.body);
+    const pdfBlob = await worker.outputPdf("blob");
     const reader = new FileReader();
     const base64 = await new Promise((resolve) => {
       reader.onloadend = () => resolve(reader.result.split(",")[1]);
       reader.readAsDataURL(pdfBlob);
     });
-    gdpLog("[DANFE PDF] Gerado:", Math.round(base64.length * 0.75 / 1024), "KB");
+
+    if (typeof gdpLog === "function") gdpLog("[DANFE PDF] Gerado:", Math.round(base64.length * 0.75 / 1024), "KB");
     return base64;
   } catch (e) {
-    gdpWarn("[DANFE PDF] Falha:", e.message);
+    if (typeof gdpWarn === "function") gdpWarn("[DANFE PDF] Falha:", e.message);
     return "";
   } finally {
-    document.body.removeChild(overlay);
+    document.body.removeChild(iframe);
   }
 }
 
