@@ -1533,6 +1533,7 @@ async function enviarEmailNotaFiscal(notaId) {
       protocolo: nf.sefaz?.protocolo || '',
       valor: nf.valor || totalProd,
       chaveAcesso: nf.sefaz?.chaveAcesso || '',
+      danfePdf: danfePdfBase64,
       danfeHtml: gerarDanfeHtmlCompleto(nf),
       emitente: nf.sefaz?.preview?.emitente || {},
       destinatario: nf.sefaz?.preview?.destinatario || nf.cliente || {},
@@ -1581,9 +1582,31 @@ async function enviarEmailNotaFiscal(notaId) {
 }
 
 async function gerarDanfePdfBase64(nf) {
-  // Story 4.59: PDF é gerado server-side no send-order-email (Puppeteer)
-  // Client-side apenas retorna string vazia — o servidor gera o PDF real a partir do danfeHtml
-  return "";
+  // Story 4.59: usar IFRAME para html2canvas (div offscreen gera PDF vazio)
+  const danfeHtml = gerarDanfeHtmlCompleto(nf);
+  if (typeof html2pdf === "undefined") return "";
+  const iframe = document.createElement("iframe");
+  iframe.style.cssText = "position:fixed;left:0;top:0;width:794px;height:1123px;z-index:99999;border:none;background:#fff";
+  document.body.appendChild(iframe);
+  try {
+    const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+    iframeDoc.open();
+    iframeDoc.write('<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="margin:0;padding:6mm;background:#fff">' + danfeHtml + '</body></html>');
+    iframeDoc.close();
+    await new Promise(r => setTimeout(r, 800));
+    const opt = { margin: [6, 6, 6, 6], image: { type: "jpeg", quality: 0.92 }, html2canvas: { scale: 2, useCORS: true, logging: false }, jsPDF: { unit: "mm", format: "a4", orientation: "portrait" } };
+    const pdfBlob = await html2pdf().set(opt).from(iframeDoc.body).outputPdf("blob");
+    const reader = new FileReader();
+    return new Promise((resolve) => {
+      reader.onloadend = () => resolve(reader.result.split(",")[1]);
+      reader.readAsDataURL(pdfBlob);
+    });
+  } catch (e) {
+    gdpWarn("[DANFE PDF] iframe method failed:", e.message);
+    return "";
+  } finally {
+    document.body.removeChild(iframe);
+  }
 }
 
 // Story 14.6: DANFE fiel ao modelo PDF (NF 001.426) com logomarca dedicada

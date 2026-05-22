@@ -240,10 +240,20 @@ export default async function handler(req, res) {
     const apiKey = process.env.RESEND_API_KEY;
     if (!apiKey) return res.status(500).json({ error: "RESEND_API_KEY nao configurado" });
 
-    // Build attachments — Story 4.59: PDF via jsPDF server-side + HTML fallback
+    // Build attachments — Story 4.59: PDF client-side (iframe) > jsPDF fallback
     const attachments = [];
-    // Gerar PDF real via jsPDF no servidor
-    if (nfe) {
+    let pdfAttached = false;
+    // Prioridade 1: PDF gerado no browser do usuario via iframe + html2pdf (layout fiel)
+    if (nfe?.danfePdf && nfe.danfePdf.length > 5000) {
+      attachments.push({
+        filename: `DANFE_NF_${nfe.numero || 'sem-numero'}.pdf`,
+        content: nfe.danfePdf
+      });
+      pdfAttached = true;
+      console.log('[Email] DANFE PDF client-side:', Math.round(nfe.danfePdf.length * 0.75 / 1024), 'KB');
+    }
+    // Prioridade 2: Se client-side falhou, gerar via jsPDF no servidor
+    if (!pdfAttached && nfe) {
       try {
         const pdfBase64 = generateDanfePdf(nfe, body);
         if (pdfBase64 && pdfBase64.length > 1000) {
@@ -251,19 +261,11 @@ export default async function handler(req, res) {
             filename: `DANFE_NF_${nfe.numero || 'sem-numero'}.pdf`,
             content: pdfBase64
           });
-          console.log('[Email] DANFE PDF gerado:', Math.round(pdfBase64.length * 0.75 / 1024), 'KB');
+          console.log('[Email] DANFE PDF server-side (jsPDF fallback):', Math.round(pdfBase64.length * 0.75 / 1024), 'KB');
         }
       } catch (pdfErr) {
-        console.error('[Email] Falha ao gerar PDF:', pdfErr.message);
+        console.error('[Email] jsPDF fallback falhou:', pdfErr.message);
       }
-    }
-    // HTML como segundo anexo (layout fiel ao original)
-    if (nfe?.danfeHtml) {
-      const danfeFullHtml = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>DANFE NF ' + (nfe.numero || '') + '</title></head><body style="margin:0;padding:10mm;background:#fff">' + nfe.danfeHtml + '</body></html>';
-      attachments.push({
-        filename: `DANFE_NF_${nfe.numero || 'sem-numero'}.html`,
-        content: Buffer.from(danfeFullHtml, 'utf-8').toString('base64')
-      });
     }
     if (nfe?.xml) {
       attachments.push({
