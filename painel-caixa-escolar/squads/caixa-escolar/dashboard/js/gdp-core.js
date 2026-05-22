@@ -1977,12 +1977,20 @@ const CONCILIACAO_KEY = "gdp.conciliacao.v1";
 const EXTRATOS_KEY = "gdp.extratos.v1";
 
 function loadConciliacao() {
-  try { return JSON.parse(localStorage.getItem(CONCILIACAO_KEY) || "[]"); } catch(_) { return []; }
+  try {
+    var raw = JSON.parse(localStorage.getItem(CONCILIACAO_KEY) || "[]");
+    // Story 4.62: suporta formato wrapped { items: [] } e array puro
+    if (raw && raw.items && Array.isArray(raw.items)) return raw.items;
+    if (Array.isArray(raw)) return raw;
+    return [];
+  } catch(_) { return []; }
 }
 
 function saveConciliacao(items) {
-  localStorage.setItem(CONCILIACAO_KEY, JSON.stringify(items));
-  if (typeof cloudSave === 'function') cloudSave(CONCILIACAO_KEY, items);
+  // Story 4.62: salvar no formato wrapped para que syncToCloud reconheça exclusões (updatedAt)
+  var wrapped = { _v: 1, updatedAt: new Date().toISOString(), items: items || [] };
+  localStorage.setItem(CONCILIACAO_KEY, JSON.stringify(wrapped));
+  if (typeof cloudSave === 'function') cloudSave(CONCILIACAO_KEY, wrapped);
 }
 
 // Story 4.51 AC-C1/C2/C3: extrato management

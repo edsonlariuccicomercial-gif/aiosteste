@@ -973,9 +973,8 @@ function selectContract(type, idx) {
       }
       const sku = intelMatch ? (intelMatch.sku || '') : '';
       const rawUnidade = intelMatch ? (intelMatch.unidade_base || '') : '';
-      // Story 4.61: respeitar unidade cadastrada na Central de Produtos (mesmo UN)
-      // Só usar parseUnidadeFromName quando NÃO tem unidade cadastrada
-      const unidade = rawUnidade ? rawUnidade : parseUnidadeFromName(p.produto);
+      // Story 4.62: NUNCA inferir unidade pelo nome — usar cadastro ou default UN
+      const unidade = rawUnidade || 'UN';
       return { ...p, sku, unidade, ncm: intelMatch ? (intelMatch.ncm || '') : '' };
     }) : [];
     selectedContract = { type: 'arp', label: currentUser.categoria_catalogo || 'Catálogo ARP' };
@@ -1016,8 +1015,8 @@ function selectContract(type, idx) {
       const produto = intelMatch ? (intelMatch.nome || item.descricao) : item.descricao;
       const sku = intelMatch ? (intelMatch.sku || linkedSku) : linkedSku;
       const rawUnidade = intelMatch ? (intelMatch.unidade_base || item.unidade || '') : (item.unidade || '');
-      // Story 4.61: respeitar unidade cadastrada (mesmo UN) — só inferir se não tem unidade
-      const unidade = rawUnidade ? rawUnidade : parseUnidadeFromName(produto || item.descricao);
+      // Story 4.62: NUNCA inferir unidade pelo nome — usar cadastro ou default UN
+      const unidade = rawUnidade || 'UN';
 
       return {
         item: item.num,
