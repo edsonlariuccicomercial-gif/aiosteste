@@ -1580,27 +1580,35 @@ async function enviarEmailNotaFiscal(notaId) {
 
 async function gerarDanfePdfBase64(nf) {
   const danfeHtml = gerarDanfeHtmlCompleto(nf);
+  // Story 4.59: gerar PDF no servidor via Puppeteer (html2canvas falha no browser)
+  try {
+    const resp = await fetch('/api/generate-danfe-pdf', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ danfeHtml })
+    });
+    if (resp.ok) {
+      const data = await resp.json();
+      if (data.pdfBase64 && data.pdfBase64.length > 5000) {
+        gdpLog('[DANFE PDF] Server-side gerado:', data.sizeKB, 'KB');
+        return data.pdfBase64;
+      }
+    }
+  } catch (e) {
+    gdpWarn('[DANFE PDF] Server-side falhou, tentando client-side:', e.message);
+  }
+  // Fallback: html2pdf client-side (pode gerar vazio em alguns browsers)
+  if (typeof html2pdf === "undefined") return "";
   const container = document.createElement("div");
-  // Story 4.59: html2canvas requer elemento VISÍVEL na viewport
-  // Container fica visível brevemente durante captura, depois é removido
-  container.style.cssText = "position:fixed;left:0;top:0;width:210mm;height:auto;background:#fff;z-index:99999;overflow:visible";
+  container.style.cssText = "position:fixed;left:0;top:0;width:210mm;background:#fff;z-index:99999;overflow:visible";
   container.innerHTML = danfeHtml;
   document.body.appendChild(container);
   try {
-    await new Promise(r => setTimeout(r, 500)); // aguardar render completo dos estilos
-    const opt = {
-      margin: [6, 6, 6, 6],
-      filename: "DANFE_" + (nf.numero || nf.id) + ".pdf",
-      image: { type: "jpeg", quality: 0.95 },
-      html2canvas: { scale: 2, useCORS: true, scrollY: -window.scrollY, windowWidth: container.scrollWidth || 794 },
-      jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
-    };
+    await new Promise(r => setTimeout(r, 500));
+    const opt = { margin: [6, 6, 6, 6], image: { type: "jpeg", quality: 0.95 }, html2canvas: { scale: 2, useCORS: true }, jsPDF: { unit: "mm", format: "a4", orientation: "portrait" } };
     const pdfBlob = await html2pdf().set(opt).from(container).outputPdf("blob");
     const reader = new FileReader();
-    return new Promise((resolve) => {
-      reader.onloadend = () => resolve(reader.result.split(",")[1]);
-      reader.readAsDataURL(pdfBlob);
-    });
+    return new Promise((resolve) => { reader.onloadend = () => resolve(reader.result.split(",")[1]); reader.readAsDataURL(pdfBlob); });
   } finally {
     document.body.removeChild(container);
   }
