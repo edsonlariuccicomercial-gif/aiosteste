@@ -1533,8 +1533,10 @@ async function enviarEmailNotaFiscal(notaId) {
       protocolo: nf.sefaz?.protocolo || '',
       valor: nf.valor || totalProd,
       chaveAcesso: nf.sefaz?.chaveAcesso || '',
-      danfePdf: danfePdfBase64,
       danfeHtml: gerarDanfeHtmlCompleto(nf),
+      emitente: nf.sefaz?.preview?.emitente || {},
+      destinatario: nf.sefaz?.preview?.destinatario || nf.cliente || {},
+      itensNf: (nf.itens || []).map(i => ({ desc: i.descricao, ncm: i.ncm, cst: i.cst, cfop: i.cfop, un: i.unidade, qtd: i.qtd, vUnit: i.precoUnitario })),
       xml: nf.sefaz?.xmlDsigPreview?.signedXml || nf.sefaz?.xmlPreview?.xml || ''
     }
   };
@@ -2477,8 +2479,10 @@ async function dispararEmailNotaEBoletoAutomatico(notaId, contaId, options = {})
       protocolo: nf.sefaz?.protocolo || "",
       valor: nf.valor || totalProd,
       chaveAcesso: nf.sefaz?.chaveAcesso || "",
-      danfePdf: danfePdfBase64,
-      danfeHtml: gerarDanfeHtmlCompleto(nf)
+      danfeHtml: gerarDanfeHtmlCompleto(nf),
+      emitente: nf.sefaz?.preview?.emitente || {},
+      destinatario: nf.sefaz?.preview?.destinatario || nf.cliente || {},
+      itensNf: (nf.itens || []).map(function(i) { return { desc: i.descricao, ncm: i.ncm, cst: i.cst, cfop: i.cfop, un: i.unidade, qtd: i.qtd, vUnit: i.precoUnitario }; })
     },
     pagamento: conta ? {
       forma: conta.forma || "boleto",

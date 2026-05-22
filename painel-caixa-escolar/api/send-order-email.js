@@ -1,3 +1,128 @@
+import { jsPDF } from 'jspdf';
+
+function generateDanfePdf(nfe, body) {
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  const w = 210, m = 8;
+  let y = m;
+  const f2 = (v) => Number(v || 0).toFixed(2).replace('.', ',');
+  const brl = (v) => 'R$ ' + f2(v);
+  const emit = nfe.emitente || {};
+  const dest = nfe.destinatario || {};
+  const emEnd = emit.endereco || {};
+  const dEnd = dest.endereco || {};
+
+  // Header DANFE
+  doc.setFontSize(14); doc.setFont('helvetica', 'bold');
+  doc.text('DANFE', w / 2, y + 5, { align: 'center' });
+  doc.setFontSize(7); doc.setFont('helvetica', 'normal');
+  doc.text('Documento Auxiliar da Nota Fiscal Eletronica', w / 2, y + 9, { align: 'center' });
+  doc.text('0-Entrada  1-Saida', w / 2, y + 12, { align: 'center' });
+
+  // Box NF number
+  doc.setFontSize(11); doc.setFont('helvetica', 'bold');
+  doc.text('NF-e N. ' + String(nfe.numero || '').padStart(6, '0'), w - m, y + 5, { align: 'right' });
+  doc.setFontSize(8); doc.setFont('helvetica', 'normal');
+  doc.text('Serie: ' + (nfe.serie || '1'), w - m, y + 9, { align: 'right' });
+  y += 16;
+
+  // Chave de acesso
+  doc.setDrawColor(0); doc.rect(m, y, w - 2 * m, 10);
+  doc.setFontSize(6); doc.text('CHAVE DE ACESSO', m + 2, y + 3);
+  doc.setFontSize(8); doc.setFont('helvetica', 'bold');
+  const chave = (nfe.chaveAcesso || '').replace(/(.{4})/g, '$1 ').trim();
+  doc.text(chave || '-', m + 2, y + 8);
+  y += 12;
+
+  // Protocolo
+  doc.setFont('helvetica', 'normal'); doc.rect(m, y, w - 2 * m, 10);
+  doc.setFontSize(6); doc.text('PROTOCOLO DE AUTORIZACAO', m + 2, y + 3);
+  doc.setFontSize(8); doc.setFont('helvetica', 'bold');
+  doc.text((nfe.protocolo || '-'), m + 2, y + 8);
+  y += 12;
+
+  // Emitente
+  doc.setFont('helvetica', 'normal'); doc.rect(m, y, w - 2 * m, 18);
+  doc.setFontSize(6); doc.text('EMITENTE', m + 2, y + 3);
+  doc.setFontSize(9); doc.setFont('helvetica', 'bold');
+  doc.text(emit.razaoSocial || emit.nome || '-', m + 2, y + 7);
+  doc.setFontSize(7); doc.setFont('helvetica', 'normal');
+  doc.text('CNPJ: ' + (emit.cnpj || '-') + '   IE: ' + (emit.ie || '-'), m + 2, y + 11);
+  const emEndStr = [emEnd.logradouro, emEnd.numero, emEnd.bairro].filter(Boolean).join(', ');
+  doc.text(emEndStr || '', m + 2, y + 14);
+  doc.text([emEnd.cidade, emEnd.uf, emEnd.cep].filter(Boolean).join(' - ') + (emEnd.telefone ? '  Fone: ' + emEnd.telefone : ''), m + 2, y + 17);
+  y += 20;
+
+  // Destinatario
+  doc.rect(m, y, w - 2 * m, 14);
+  doc.setFontSize(6); doc.text('DESTINATARIO / REMETENTE', m + 2, y + 3);
+  doc.setFontSize(8); doc.setFont('helvetica', 'bold');
+  doc.text(dest.nome || dest.razaoSocial || body.schoolName || '-', m + 2, y + 7);
+  doc.setFontSize(7); doc.setFont('helvetica', 'normal');
+  doc.text('CNPJ: ' + (dest.cnpj || body.cnpj || '-'), m + 2, y + 10);
+  const dEndStr = [dEnd.logradouro, dEnd.numero, dEnd.bairro, dEnd.cidade, dEnd.uf].filter(Boolean).join(', ');
+  doc.text(dEndStr || '', m + 2, y + 13);
+  y += 16;
+
+  // Info
+  doc.rect(m, y, w - 2 * m, 10);
+  doc.setFontSize(6);
+  doc.text('NATUREZA DA OPERACAO', m + 2, y + 3);
+  doc.setFontSize(8); doc.text('Venda de mercadorias', m + 2, y + 7);
+  const halfW = (w - 2 * m) / 2;
+  doc.text('DATA EMISSAO: ' + (body.date || '-'), m + halfW + 2, y + 3);
+  doc.text('VALOR TOTAL: ' + brl(nfe.valor || body.total), m + halfW + 2, y + 7);
+  y += 12;
+
+  // Items table header
+  doc.setFillColor(230, 230, 230);
+  doc.rect(m, y, w - 2 * m, 6, 'F');
+  doc.setFontSize(6); doc.setFont('helvetica', 'bold');
+  const cols = [
+    { label: 'CODIGO', x: m + 2, w: 18 },
+    { label: 'DESCRICAO', x: m + 20, w: 60 },
+    { label: 'NCM', x: m + 80, w: 16 },
+    { label: 'UN', x: m + 96, w: 10 },
+    { label: 'QTD', x: m + 106, w: 15 },
+    { label: 'V.UNIT', x: m + 121, w: 20 },
+    { label: 'V.TOTAL', x: m + 141, w: 20 }
+  ];
+  cols.forEach(c => doc.text(c.label, c.x, y + 4));
+  y += 7;
+
+  // Items rows
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5);
+  const itens = nfe.itensNf || body.items || [];
+  itens.forEach((item, idx) => {
+    if (y > 270) { doc.addPage(); y = m; }
+    const desc = item.desc || item.description || item.name || '';
+    const vTotal = (Number(item.qtd || item.qty || 0) * Number(item.vUnit || item.unitPrice || 0));
+    doc.text(String(idx + 1).padStart(3, '0'), m + 2, y + 3);
+    doc.text(desc.substring(0, 45), m + 20, y + 3);
+    doc.text(item.ncm || '', m + 80, y + 3);
+    doc.text(item.un || item.unit || 'UN', m + 96, y + 3);
+    doc.text(f2(item.qtd || item.qty), m + 106, y + 3);
+    doc.text(f2(item.vUnit || item.unitPrice), m + 121, y + 3);
+    doc.text(f2(vTotal), m + 141, y + 3);
+    doc.line(m, y + 4.5, w - m, y + 4.5);
+    y += 5.5;
+  });
+
+  // Total
+  y += 2;
+  doc.setFillColor(230, 230, 230);
+  doc.rect(m, y, w - 2 * m, 8, 'F');
+  doc.setFontSize(9); doc.setFont('helvetica', 'bold');
+  doc.text('VALOR TOTAL DA NOTA: ' + brl(nfe.valor || body.total), m + 2, y + 5.5);
+  y += 10;
+
+  // Footer
+  doc.setFontSize(6); doc.setFont('helvetica', 'normal');
+  doc.text('Consulte em: www.nfe.fazenda.gov.br/portal', m, y + 3);
+  doc.text('Documento gerado pelo sistema GDP — Lariucci & Ribeiro Pereira', m, y + 6);
+
+  return Buffer.from(doc.output('arraybuffer')).toString('base64');
+}
+
 function corsHeaders(req, res) {
   const origin = req.headers?.origin || '';
   res.setHeader("Access-Control-Allow-Origin", origin || "*");
@@ -115,20 +240,29 @@ export default async function handler(req, res) {
     const apiKey = process.env.RESEND_API_KEY;
     if (!apiKey) return res.status(500).json({ error: "RESEND_API_KEY nao configurado" });
 
-    // Build attachments
+    // Build attachments — Story 4.59: PDF via jsPDF server-side + HTML fallback
     const attachments = [];
-    // Story 4.59: Anexar DANFE como HTML (abre em qualquer browser, imprime com Ctrl+P)
+    // Gerar PDF real via jsPDF no servidor
+    if (nfe) {
+      try {
+        const pdfBase64 = generateDanfePdf(nfe, body);
+        if (pdfBase64 && pdfBase64.length > 1000) {
+          attachments.push({
+            filename: `DANFE_NF_${nfe.numero || 'sem-numero'}.pdf`,
+            content: pdfBase64
+          });
+          console.log('[Email] DANFE PDF gerado:', Math.round(pdfBase64.length * 0.75 / 1024), 'KB');
+        }
+      } catch (pdfErr) {
+        console.error('[Email] Falha ao gerar PDF:', pdfErr.message);
+      }
+    }
+    // HTML como segundo anexo (layout fiel ao original)
     if (nfe?.danfeHtml) {
       const danfeFullHtml = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>DANFE NF ' + (nfe.numero || '') + '</title></head><body style="margin:0;padding:10mm;background:#fff">' + nfe.danfeHtml + '</body></html>';
       attachments.push({
         filename: `DANFE_NF_${nfe.numero || 'sem-numero'}.html`,
         content: Buffer.from(danfeFullHtml, 'utf-8').toString('base64')
-      });
-    }
-    if (nfe?.danfePdf && nfe.danfePdf.length > 5000) {
-      attachments.push({
-        filename: `DANFE_${nfe.numero || 'sem-numero'}.pdf`,
-        content: nfe.danfePdf
       });
     }
     if (nfe?.xml) {

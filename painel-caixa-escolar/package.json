@@ -67,6 +67,7 @@
   "type": "commonjs",
   "dependencies": {
     "@xmldom/xmldom": "^0.8.11",
+    "jspdf": "^4.2.1",
     "node-forge": "^1.4.0",
     "xml-crypto": "^6.1.2"
   },
