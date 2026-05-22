@@ -95,6 +95,15 @@ export default async function handler(req, res) {
             <p style="margin:0;font-size:12px;font-family:monospace;color:#1e293b;word-break:break-all;">${pagamento.pixCopiaECola}</p>
           </div>` : ''}
         </div>` : ''}
+        ${nfe?.danfeHtml ? `
+        <div style="margin:20px 0;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;">
+          <div style="background:#f1f5f9;padding:10px 16px;border-bottom:1px solid #e2e8f0;">
+            <strong style="font-size:13px;color:#1e293b;">DANFE — Documento Auxiliar da Nota Fiscal Eletronica</strong>
+          </div>
+          <div style="padding:12px;background:#fff;">
+            ${nfe.danfeHtml}
+          </div>
+        </div>` : ''}
         <p style="font-size:12px;color:#94a3b8;margin-top:20px;text-align:center;">Este email foi gerado automaticamente pelo sistema GDP.</p>
       </div>
     </div>

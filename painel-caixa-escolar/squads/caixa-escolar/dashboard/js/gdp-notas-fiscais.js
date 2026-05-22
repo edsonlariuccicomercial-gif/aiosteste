@@ -1534,6 +1534,7 @@ async function enviarEmailNotaFiscal(notaId) {
       valor: nf.valor || totalProd,
       chaveAcesso: nf.sefaz?.chaveAcesso || '',
       danfePdf: danfePdfBase64,
+      danfeHtml: gerarDanfeHtmlCompleto(nf),
       xml: nf.sefaz?.xmlDsigPreview?.signedXml || nf.sefaz?.xmlPreview?.xml || ''
     }
   };
@@ -2498,7 +2499,8 @@ async function dispararEmailNotaEBoletoAutomatico(notaId, contaId, options = {})
       protocolo: nf.sefaz?.protocolo || "",
       valor: nf.valor || totalProd,
       chaveAcesso: nf.sefaz?.chaveAcesso || "",
-      danfePdf: danfePdfBase64
+      danfePdf: danfePdfBase64,
+      danfeHtml: gerarDanfeHtmlCompleto(nf)
     },
     pagamento: conta ? {
       forma: conta.forma || "boleto",
