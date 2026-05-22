@@ -94,7 +94,7 @@ function renderPedidos() {
       <td class="text-center"><input type="checkbox" class="pedido-check" value="${p.id}" onchange="atualizarSelecaoPedidos()"${_selectedPedidoIds.has(p.id) ? ' checked' : ''}></td>
       <td class="text-center"><button class="btn btn-outline btn-sm" onclick="abrirMenuPedido('${p.id}')" title="Abrir menu do pedido" style="min-width:auto;padding:.2rem .5rem;font-weight:700">...</button></td>
       <td style="font-size:.7rem;color:var(--dim);font-family:monospace;white-space:nowrap" title="${esc(p.id)}">#${esc((p.id || '').split('-').pop())}</td>
-      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><button onclick="verPedidoDetalhe('${p.id}')" style="background:none;border:none;padding:0;color:var(--blue);font-weight:700;cursor:pointer" title="${esc(p.id)}">${esc(clienteNome)}</button></td>
+      <td><button onclick="verPedidoDetalhe('${p.id}')" style="background:none;border:none;padding:0;color:var(--blue);font-weight:700;cursor:pointer;text-align:left;white-space:normal;word-wrap:break-word;line-height:1.3" title="${esc(p.id)}">${esc(clienteNome)}</button></td>
       <td class="font-mono">${esc(clienteCnpj)}</td>
       <td class="nowrap">${fmtDate(p.dataEntrega || p.data)}</td>
       <td class="nowrap">${fmtDate(p.dataPrevista || p.dataEntrega)}</td>
