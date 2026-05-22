@@ -638,7 +638,9 @@ const SHARED_SYNC_KEYS = new Set([
   "gdp.estoque-intel.produtos.v1", "gdp.estoque-intel.embalagens.v1",
   "gdp.estoque-intel.pedidos.v1", "gdp.estoque-intel.pedido-itens.v1",
   "gdp.estoque-intel.movimentacoes.v1", "gdp.estoque-intel.fornecedores.v1",
-  "gdp.estoque-intel.compras.v1"
+  "gdp.estoque-intel.compras.v1",
+  // Story 4.61: conciliação e extratos bancários
+  "gdp.conciliacao.v1", "gdp.extratos.v1"
 ]);
 
 // ===== HISTORICO LICITACOES (Story 13.7) =====
@@ -695,5 +697,7 @@ const SYNC_KEYS = [
   "gdp.estoque-intel.pedidos.v1", "gdp.estoque-intel.pedido-itens.v1",
   "gdp.estoque-intel.movimentacoes.v1", "gdp.estoque-intel.fornecedores.v1",
   "gdp.estoque-intel.compras.v1",
-  "nexedu.config.contas-bancarias", "nexedu.config.fiscal", "nexedu.config.bank-api"
+  "nexedu.config.contas-bancarias", "nexedu.config.fiscal", "nexedu.config.bank-api",
+  // Story 4.61: conciliação e extratos bancários
+  "gdp.conciliacao.v1", "gdp.extratos.v1"
 ];

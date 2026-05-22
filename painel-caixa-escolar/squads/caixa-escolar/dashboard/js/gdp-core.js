@@ -1353,7 +1353,14 @@ function enrichContratoItemMetadata(contrato, item, idx) {
     if (local?.ncm) item.ncm = local.ncm;
     else if (match?.ncm) item.ncm = match.ncm;
   }
-  if (!item.unidade && match?.unidade) item.unidade = match.unidade;
+  // Story 4.61: respeitar unidade do produto vinculado na Central de Produtos
+  // NÃO sobrescrever com unidade do Banco de Preços (que pode ter sido inferida incorretamente)
+  if (!item.unidade) {
+    const prodVinc = estoqueIntelProdutos.find(p => p.id === item.produtoVinculadoId || p.nome === item.descricao);
+    if (prodVinc?.unidade_base) item.unidade = prodVinc.unidade_base;
+    else if (match?.unidade) item.unidade = match.unidade;
+    else item.unidade = "UN";
+  }
   // FR-005: SKU vem de vínculo manual (skuVinculado) ou equivalência automática.
   if (!item.skuVinculado) {
     const equivSku = getGdpEquivalencia(item.descricao);
