@@ -1599,11 +1599,36 @@ async function gerarDanfePdfBase64(nf) {
 // Story 14.6: DANFE fiel ao modelo PDF (NF 001.426) com logomarca dedicada
 function gerarDanfeHtmlCompleto(nf) {
   if (!nf) return "";
-  // Story 4.57 AC-2: DANFE usa preview (emitente/destinatario) — transmissao.parsed SÓ tem protocolo
+  // Story 4.58 AC-2: DANFE usa preview, fallback para nexedu.empresa + nf.cliente
   const sefazData = nf.sefaz || {};
   const previewData = sefazData.preview || {};
-  const emit = previewData.emitente || {};
+  // Emitente: preview > fallback nexedu.empresa (localStorage)
+  let emit = previewData.emitente || {};
+  if (!emit.razaoSocial) {
+    try {
+      const empresa = JSON.parse(localStorage.getItem('nexedu.empresa') || '{}');
+      if (empresa.razaoSocial || empresa.nome) {
+        emit = {
+          razaoSocial: empresa.razaoSocial || empresa.nome || '',
+          cnpj: empresa.cnpj || '',
+          ie: empresa.ie || '',
+          email: empresa.email || '',
+          endereco: {
+            logradouro: empresa.logradouro || empresa.endereco || '',
+            numero: empresa.numero || '',
+            bairro: empresa.bairro || '',
+            complemento: empresa.complemento || '',
+            cidade: empresa.cidade || empresa.municipio || '',
+            uf: empresa.uf || '',
+            cep: empresa.cep || '',
+            telefone: empresa.telefone || empresa.fone || ''
+          }
+        };
+      }
+    } catch(_) {}
+  }
   const emEnd = emit.endereco || {};
+  // Destinatário: preview > nf.cliente
   const dest = previewData.destinatario || nf.cliente || {};
   const dEnd = dest.endereco || {};
   const chave = sefazData.chaveAcesso || "";

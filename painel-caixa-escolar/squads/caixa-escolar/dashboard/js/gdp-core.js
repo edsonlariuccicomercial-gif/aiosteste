@@ -809,10 +809,39 @@ function loadData() {
   try { estoqueIntelCompras = unwrapData(JSON.parse(localStorage.getItem(ESTOQUE_INTEL_PURCHASES_KEY))); } catch(_) { estoqueIntelCompras = []; }
   try { integracoesGdp = unwrapData(JSON.parse(localStorage.getItem(INTEGRATIONS_KEY))); } catch(_) { integracoesGdp = []; }
 
-  // Story 4.57 AC-1: migrar itens de conciliação sem extratoId UMA VEZ no boot
+  // Story 4.58 AC-1: reconstruir extrato + migrar itens sem extratoId no boot
   try {
     var _concItems = loadConciliacao();
     var _bootExtratos = loadExtratos();
+
+    // Se há itens de conciliação mas ZERO extratos → reconstruir extrato perdido
+    if (_concItems.length > 0 && _bootExtratos.length === 0) {
+      var _contaBancaria = 'Conta Principal';
+      try {
+        var _contas = JSON.parse(localStorage.getItem('nexedu.config.contas-bancarias') || '[]');
+        var _padrao = _contas.find(function(c) { return c.padrao && c.ativa; }) || _contas[0];
+        if (_padrao) _contaBancaria = (_padrao.banco || '') + (_padrao.apelido ? ' (' + _padrao.apelido + ')' : '') || 'Conta Principal';
+      } catch(_) {}
+      var _conciliados = _concItems.filter(function(i) { return i.conciliado; }).length;
+      var _recoveredId = 'ext-recovered-' + Date.now();
+      var _oldestDate = _concItems.reduce(function(min, i) { return i.data && i.data < min ? i.data : min; }, _concItems[0].data || new Date().toISOString().slice(0, 10));
+      _bootExtratos.push({
+        id: _recoveredId,
+        data: _oldestDate,
+        arquivo: 'Extrato recuperado (conciliacao existente)',
+        contaFinanceira: _contaBancaria,
+        conciliados: _conciliados,
+        total: _concItems.length,
+        isOpen: false,
+        criadoEm: new Date().toISOString()
+      });
+      _concItems.forEach(function(i) { if (!i.extratoId) i.extratoId = _recoveredId; });
+      saveConciliacao(_concItems);
+      saveExtratos(_bootExtratos);
+      gdpLog('[boot] Recovered extrato from ' + _concItems.length + ' existing conciliacao items (' + _conciliados + ' conciliados)');
+    }
+
+    // Migrar itens órfãos (sem extratoId) para extrato existente
     var _orphans = _concItems.filter(function(i) { return !i.extratoId; });
     if (_orphans.length > 0 && _bootExtratos.length > 0) {
       var _targetExt = _bootExtratos[0];
