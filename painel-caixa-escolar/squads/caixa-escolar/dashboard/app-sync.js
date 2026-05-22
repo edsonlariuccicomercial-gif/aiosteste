@@ -278,7 +278,8 @@ async function pollForChanges() {
   _updateSyncIndicator('syncing');
   try {
     const empresaId = getSyncUserId();
-    const tables = ['pedidos', 'contratos'];
+    // Story 4.61: sync ALL business tables, not just pedidos/contratos
+    const tables = ['pedidos', 'contratos', 'notas_fiscais', 'contas_receber', 'contas_pagar', 'entregas'];
     let hasChanges = false;
 
     for (const table of tables) {
@@ -286,8 +287,8 @@ async function pollForChanges() {
       if (_lastPollTs) {
         url += `&updated_at=gt.${encodeURIComponent(_lastPollTs)}`;
       }
-      // Story 4.51 AC-A4: exclude soft-deleted rows (contratos has deleted_at)
-      if (table === 'contratos') {
+      // Exclude soft-deleted rows for tables that support it
+      if (['contratos', 'notas_fiscais', 'contas_receber', 'contas_pagar'].includes(table)) {
         url += '&deleted_at=is.null';
       }
       const resp = await fetch(url, { headers: { apikey: SUPABASE_KEY, Authorization: 'Bearer ' + SUPABASE_KEY } });

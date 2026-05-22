@@ -31,7 +31,9 @@
   function getEmpresaId() {
     try {
       var emp = JSON.parse(localStorage.getItem('nexedu.empresa') || '{}');
-      return emp.syncUserId || emp.nomeFantasia || emp.nome || emp.cnpj || 'LARIUCCI';
+      var id = emp.syncUserId || emp.nomeFantasia || emp.nome || emp.cnpj || 'LARIUCCI';
+      if (id === 'LARIUCCI' && !emp.syncUserId) console.warn('[Sync] empresa_id usando fallback LARIUCCI — verifique nexedu.empresa.syncUserId');
+      return id;
     } catch (_) { return 'LARIUCCI'; }
   }
 
