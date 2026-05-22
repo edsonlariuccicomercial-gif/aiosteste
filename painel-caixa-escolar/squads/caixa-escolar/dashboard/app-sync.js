@@ -283,8 +283,19 @@ async function pollForChanges() {
     let hasChanges = false;
 
     for (const table of tables) {
-      let url = `${SUPABASE_URL}/rest/v1/${table}?empresa_id=eq.${encodeURIComponent(empresaId)}&select=*&order=updated_at.desc&limit=100`;
-      if (_lastPollTs) {
+      // Story 4.61: se localStorage está vazio para esta entidade, fazer full load (sem filtro de data)
+      const entity = window.gdpApi?._ENTITIES?.[table];
+      let localEmpty = false;
+      if (entity) {
+        try {
+          const raw = JSON.parse(localStorage.getItem(entity.lsKey) || 'null');
+          const items = raw?.items || (Array.isArray(raw) ? raw : []);
+          localEmpty = items.length === 0;
+        } catch(_) { localEmpty = true; }
+      }
+
+      let url = `${SUPABASE_URL}/rest/v1/${table}?empresa_id=eq.${encodeURIComponent(empresaId)}&select=*&order=updated_at.desc&limit=500`;
+      if (_lastPollTs && !localEmpty) {
         url += `&updated_at=gt.${encodeURIComponent(_lastPollTs)}`;
       }
       // Exclude soft-deleted rows for tables that support it
@@ -301,7 +312,6 @@ async function pollForChanges() {
       const deletedIds = _getDeletedIds(table);
 
       // Update localStorage cache via gdp-api entity structure
-      const entity = window.gdpApi?._ENTITIES?.[table];
       if (entity) {
         const lsKey = entity.lsKey;
         let existing = [];
