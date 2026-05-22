@@ -1923,25 +1923,33 @@ function saveExtratos(list) {
 function registrarExtrato(filename, contaFinanceira, items) {
   const extratos = loadExtratos();
   const conciliados = items.filter(i => i.conciliado).length;
+  const extId = 'ext-' + Date.now();
   extratos.push({
-    id: 'ext-' + Date.now(),
+    id: extId,
     data: new Date().toISOString().slice(0, 10),
     arquivo: filename,
     contaFinanceira: contaFinanceira || 'Conta Principal',
     conciliados: conciliados,
     total: items.length,
+    isOpen: false, // Story 4.55 AC-2: extrato inicia colapsado
     criadoEm: new Date().toISOString()
   });
   saveExtratos(extratos);
+  return extId;
 }
 
 function atualizarExtratoStats() {
   const extratos = loadExtratos();
   if (!extratos.length) return;
   const items = loadConciliacao();
-  const ultimo = extratos[extratos.length - 1];
-  ultimo.conciliados = items.filter(i => i.conciliado).length;
-  ultimo.total = items.length;
+  // Story 4.55: atualizar stats de cada extrato individualmente pelo extratoId
+  extratos.forEach(ext => {
+    const extItems = items.filter(i => i.extratoId === ext.id);
+    if (extItems.length > 0) {
+      ext.conciliados = extItems.filter(i => i.conciliado).length;
+      ext.total = extItems.length;
+    }
+  });
   saveExtratos(extratos);
 }
 
@@ -1966,12 +1974,28 @@ function _buildDreOptions(selected) {
 }
 
 function renderConciliacao() {
-  // Story 4.51 AC-C1/C2/C3: render saved extratos list
+  // Story 4.55 AC-2: render extratos colapsados, detalhe só quando aberto
   const extratosEl = document.getElementById("extratos-lista");
+  const extratos = loadExtratos();
+  const allItems = loadConciliacao();
+  const tbody = document.getElementById("conciliacao-tbody");
+  const empty = document.getElementById("conciliacao-empty");
+  const resumo = document.getElementById("conciliacao-resumo");
+
+  // Atualizar stats de cada extrato com dados reais
+  extratos.forEach(ext => {
+    const extItems = allItems.filter(i => i.extratoId === ext.id);
+    if (extItems.length > 0) {
+      ext.conciliados = extItems.filter(i => i.conciliado).length;
+      ext.total = extItems.length;
+    }
+  });
+  saveExtratos(extratos);
+
+  // Render tabela de extratos
   if (extratosEl) {
-    const extratos = loadExtratos();
     if (extratos.length) {
-      // Story 4.54 AC-4: layout conforme modelo — tabela dark com colunas ordenáveis
+      const openIdx = extratos.findIndex(e => e.isOpen);
       extratosEl.innerHTML = '<table style="width:100%;font-size:.85rem;margin-bottom:.5rem;border-collapse:collapse;background:var(--s1,#1e293b);border-radius:6px;overflow:hidden">'
         + '<thead><tr style="border-bottom:1px solid var(--bdr,#334155)">'
         + '<th style="width:30px;padding:10px 12px;text-align:left;font-size:.78rem;color:var(--mut,#94a3b8);font-weight:600"><input type="checkbox" id="ext-select-all" onchange="toggleAllExtratos(this.checked)"></th>'
@@ -1980,15 +2004,18 @@ function renderConciliacao() {
         + '<th style="padding:10px 12px;text-align:left;font-size:.78rem;color:var(--mut,#94a3b8);font-weight:600;cursor:pointer">Conta financeira ⇅</th>'
         + '<th style="padding:10px 12px;text-align:left;font-size:.78rem;color:var(--mut,#94a3b8);font-weight:600">Conciliados/Total</th>'
         + '</tr></thead><tbody>'
-        + extratos.map((ext, i) => '<tr style="cursor:pointer;border-bottom:1px solid rgba(51,65,85,.4)" onclick="reabrirExtrato(' + i + ')">'
-          + '<td style="padding:10px 12px" onclick="event.stopPropagation()"><input type="checkbox" class="ext-check" value="' + i + '"></td>'
-          + '<td style="padding:10px 12px;color:var(--txt,#f1f5f9)">' + (ext.data || '-') + '</td>'
-          + '<td style="padding:10px 12px;color:var(--txt,#f1f5f9);font-weight:500">' + (ext.arquivo || '-') + '</td>'
-          + '<td style="padding:10px 12px;color:var(--txt,#f1f5f9);font-weight:700">' + (ext.contaFinanceira || '-') + '</td>'
-          + '<td style="padding:10px 12px;color:var(--txt,#f1f5f9)">(' + (ext.conciliados || 0) + '/' + (ext.total || 0) + ')</td></tr>'
-        ).join('') + '</tbody></table>'
+        + extratos.map((ext, i) => {
+          const isOpen = ext.isOpen === true;
+          const rowBg = isOpen ? 'background:rgba(59,130,246,.12);' : '';
+          const arrow = isOpen ? '▼' : '▶';
+          return '<tr style="cursor:pointer;border-bottom:1px solid rgba(51,65,85,.4);' + rowBg + '" onclick="reabrirExtrato(' + i + ')">'
+            + '<td style="padding:10px 12px" onclick="event.stopPropagation()"><input type="checkbox" class="ext-check" value="' + i + '"></td>'
+            + '<td style="padding:10px 12px;color:var(--txt,#f1f5f9)">' + (ext.data || '-') + '</td>'
+            + '<td style="padding:10px 12px;color:var(--txt,#f1f5f9);font-weight:500">' + arrow + ' ' + (ext.arquivo || '-') + '</td>'
+            + '<td style="padding:10px 12px;color:var(--txt,#f1f5f9);font-weight:700">' + (ext.contaFinanceira || '-') + '</td>'
+            + '<td style="padding:10px 12px;color:var(--txt,#f1f5f9)">(' + (ext.conciliados || 0) + '/' + (ext.total || 0) + ')</td></tr>';
+        }).join('') + '</tbody></table>'
         + '<button class="btn btn-sm btn-red" id="btn-excluir-extratos" style="display:none;margin-bottom:.5rem" onclick="excluirExtratosSelecionados()">Excluir selecionados</button>';
-      // Toggle delete button when checkboxes change
       setTimeout(() => {
         document.querySelectorAll('.ext-check').forEach(cb => {
           cb.addEventListener('change', () => {
@@ -2003,15 +2030,24 @@ function renderConciliacao() {
     }
   }
 
-  const items = loadConciliacao();
-  const tbody = document.getElementById("conciliacao-tbody");
-  const empty = document.getElementById("conciliacao-empty");
-  const resumo = document.getElementById("conciliacao-resumo");
   if (!tbody) return;
+
+  // Story 4.55 AC-2: só mostrar detalhes se algum extrato estiver aberto
+  const openExtrato = extratos.find(e => e.isOpen === true);
+  if (!openExtrato) {
+    // Nenhum extrato aberto — esconder tabela de detalhes e resumo
+    tbody.innerHTML = "";
+    if (empty) empty.style.display = allItems.length === 0 ? "" : "none";
+    if (resumo) resumo.innerHTML = "";
+    return;
+  }
+
+  // Filtrar items do extrato aberto
+  const items = allItems.filter(i => i.extratoId === openExtrato.id);
   if (items.length === 0) { tbody.innerHTML = ""; if (empty) empty.style.display = ""; if (resumo) resumo.innerHTML = ""; return; }
   if (empty) empty.style.display = "none";
 
-  // Resumo KPIs
+  // Resumo KPIs do extrato aberto
   const totalCredito = items.filter(t => (parseFloat(t.valor) || 0) >= 0).reduce((s, t) => s + (parseFloat(t.valor) || 0), 0);
   const totalDebito = items.filter(t => (parseFloat(t.valor) || 0) < 0).reduce((s, t) => s + Math.abs(parseFloat(t.valor) || 0), 0);
   const conciliados = items.filter(t => t.conciliado).length;
@@ -2026,15 +2062,21 @@ function renderConciliacao() {
     `;
   }
 
-  tbody.innerHTML = items.map((t, i) => {
+  // Mapear indices globais para o conciliarLancamento funcionar
+  const globalIndices = allItems.map((item, gi) => items.includes(item) ? gi : -1).filter(gi => gi >= 0);
+
+  tbody.innerHTML = items.map((t, localIdx) => {
+    const gi = globalIndices[localIdx];
     const val = parseFloat(t.valor) || 0;
     const cor = val >= 0 ? "var(--green,#22c55e)" : "var(--red,#ef4444)";
-    const statusLabel = t.conciliado ? '<span style="color:var(--green,#22c55e);font-weight:700;font-size:.75rem">Conciliado</span>' : '<button class="btn btn-sm btn-blue" style="font-size:.7rem;padding:.15rem .5rem" onclick="conciliarLancamento(' + i + ')">Conciliar</button>';
-    return `<tr style="${t.conciliado ? 'opacity:.6' : ''}">
+    const isPendente = !t.conciliado;
+    const pendenteMark = isPendente ? 'border-left:3px solid var(--yellow,#f59e0b);background:rgba(245,158,11,.06);' : 'opacity:.6;';
+    const statusLabel = t.conciliado ? '<span style="color:var(--green,#22c55e);font-weight:700;font-size:.75rem">Conciliado</span>' : '<button class="btn btn-sm btn-blue" style="font-size:.7rem;padding:.15rem .5rem" onclick="conciliarLancamento(' + gi + ')">Conciliar</button>';
+    return `<tr style="${pendenteMark}">
       <td>${t.data || "-"}</td>
       <td style="font-size:.8rem;max-width:200px;overflow:hidden;text-overflow:ellipsis" title="${esc(t.descricao || '')}">${esc(t.descricao || "")}</td>
-      <td><input type="text" value="${esc(t.historico || '')}" placeholder="Complemento..." style="width:100%;padding:.25rem .4rem;font-size:.8rem;background:var(--bg,#0f172a);border:1px solid var(--bdr,#334155);border-radius:4px;color:var(--txt,#f1f5f9)" onchange="atualizarHistorico(${i},this.value)"></td>
-      <td><select style="width:100%;padding:.25rem;font-size:.75rem;background:var(--bg,#0f172a);border:1px solid var(--bdr,#334155);border-radius:4px;color:var(--txt,#f1f5f9)" onchange="atualizarCategoriaDre(${i},this.value)">${_buildDreOptions(t.categoriaDre || '')}</select></td>
+      <td><input type="text" value="${esc(t.historico || '')}" placeholder="Complemento..." style="width:100%;padding:.25rem .4rem;font-size:.8rem;background:var(--bg,#0f172a);border:1px solid var(--bdr,#334155);border-radius:4px;color:var(--txt,#f1f5f9)" onchange="atualizarHistorico(${gi},this.value)"></td>
+      <td><select style="width:100%;padding:.25rem;font-size:.75rem;background:var(--bg,#0f172a);border:1px solid var(--bdr,#334155);border-radius:4px;color:var(--txt,#f1f5f9)" onchange="atualizarCategoriaDre(${gi},this.value)">${_buildDreOptions(t.categoriaDre || '')}</select></td>
       <td class="text-right font-mono" style="color:${cor};font-weight:600;white-space:nowrap">${brl.format(val)}</td>
       <td style="font-size:.75rem">${val >= 0 ? "Crédito" : "Débito"}</td>
       <td>${statusLabel}</td>
@@ -2075,37 +2117,29 @@ window.excluirExtratosSelecionados = function() {
   showToast(selected.length + ' extrato(s) excluído(s).');
 };
 
-// Story 4.53 AC-3: reopen extrato with pending items highlighted
+// Story 4.55 AC-2: toggle extrato aberto/fechado com state tracking
 window.reabrirExtrato = function(idx) {
   const extratos = loadExtratos();
   const ext = extratos[idx];
   if (!ext) return;
-  const items = loadConciliacao();
-  const pendentes = items.filter(i => !i.conciliado).length;
-  if (pendentes > 0) {
-    showToast('Extrato reaberto — ' + pendentes + ' lançamentos pendentes de conciliação.', 4000);
-  } else {
-    showToast('Extrato totalmente conciliado (' + items.length + '/' + items.length + ').', 3000);
-  }
-  // Highlight pending rows in the conciliação table
-  const tbody = document.getElementById('conciliacao-tbody');
-  if (tbody) {
-    const rows = tbody.querySelectorAll('tr');
-    rows.forEach((row, i) => {
-      if (items[i] && !items[i].conciliado) {
-        row.style.background = 'rgba(245,158,11,.12)';
-        row.style.borderLeft = '3px solid var(--yellow, #f59e0b)';
-      } else {
-        row.style.background = '';
-        row.style.borderLeft = '';
-      }
-    });
-    // Scroll to first pending row
-    const firstPending = items.findIndex(i => !i.conciliado);
-    if (firstPending >= 0 && rows[firstPending]) {
-      rows[firstPending].scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+  // Toggle: se já está aberto, fechar; senão abrir e fechar os outros
+  const wasOpen = ext.isOpen === true;
+  extratos.forEach(e => { e.isOpen = false; }); // fechar todos
+  if (!wasOpen) {
+    ext.isOpen = true;
+    // Notificar pendentes
+    const allItems = loadConciliacao();
+    const extItems = allItems.filter(i => i.extratoId === ext.id);
+    const pendentes = extItems.filter(i => !i.conciliado).length;
+    if (pendentes > 0) {
+      showToast('Extrato reaberto — ' + pendentes + ' lançamento(s) pendente(s) de conciliação.', 4000);
+    } else {
+      showToast('Extrato totalmente conciliado (' + extItems.length + '/' + extItems.length + ').', 3000);
     }
   }
+  saveExtratos(extratos);
+  renderConciliacao();
 };
 
 window.atualizarHistorico = function(idx, valor) {
@@ -2184,9 +2218,7 @@ window.importarExtratoBancario = async function(file, tipo) {
 
     // Merge with existing
     const existing = loadConciliacao();
-    const merged = [...existing, ...transacoes];
-    saveConciliacao(merged);
-    // Story 4.51 AC-C1: register imported extrato
+    // Story 4.55 AC-2: gerar extratoId antes para vincular items
     const contaBancaria = (() => {
       try {
         const contas = JSON.parse(localStorage.getItem("nexedu.config.contas-bancarias") || "[]");
@@ -2194,7 +2226,11 @@ window.importarExtratoBancario = async function(file, tipo) {
         return padrao ? (padrao.banco || padrao.apelido || 'Conta Principal') : 'Conta Principal';
       } catch(_) { return 'Conta Principal'; }
     })();
-    registrarExtrato(file.name, contaBancaria, merged);
+    const extId = registrarExtrato(file.name, contaBancaria, transacoes);
+    // Vincular cada transação ao extratoId para filtrar na abertura
+    transacoes.forEach(t => { t.extratoId = extId; });
+    const merged = [...existing, ...transacoes];
+    saveConciliacao(merged);
     renderConciliacao();
     if (status) status.textContent = `${transacoes.length} transacao(es) importadas de ${file.name}.`;
     showToast(`${transacoes.length} transacoes importadas!`);

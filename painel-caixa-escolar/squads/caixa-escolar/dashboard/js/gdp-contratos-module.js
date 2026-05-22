@@ -2085,6 +2085,71 @@ function importarCronograma() {
   });
 })();
 
+// ===== Story 4.55 AC-3: Seleção bulk de contratos =====
+var _selectedContratoIds = new Set();
+
+function _updateContratoBulkBar() {
+  let bar = document.getElementById('contrato-bulk-bar');
+  if (_selectedContratoIds.size === 0) {
+    if (bar) bar.style.display = 'none';
+    return;
+  }
+  if (!bar) {
+    bar = document.createElement('div');
+    bar.id = 'contrato-bulk-bar';
+    bar.style.cssText = 'position:sticky;top:0;z-index:50;background:var(--s1,#1e293b);border:1px solid var(--blue,#3b82f6);border-radius:6px;padding:.6rem 1rem;margin-bottom:.8rem;display:flex;align-items:center;gap:.8rem;flex-wrap:wrap';
+    const grid = document.getElementById('contract-grid');
+    if (grid && grid.parentNode) grid.parentNode.insertBefore(bar, grid);
+  }
+  bar.style.display = 'flex';
+  bar.innerHTML = '<span style="font-size:.85rem;font-weight:600;color:var(--txt)">' + _selectedContratoIds.size + ' contrato(s) selecionado(s)</span>'
+    + '<button class="btn btn-sm btn-green" onclick="bulkStatusContratos(\'ativo\')">Marcar como Ativo</button>'
+    + '<button class="btn btn-sm btn-red" onclick="bulkStatusContratos(\'encerrado\')">Marcar como Encerrado</button>'
+    + '<button class="btn btn-sm" onclick="limparSelecaoContratos()">Limpar</button>';
+}
+
+window.toggleContratoCheck = function(contId, checked, event) {
+  if (event) event.stopPropagation();
+  if (checked) _selectedContratoIds.add(contId);
+  else _selectedContratoIds.delete(contId);
+  // Visual: borda no card
+  const cards = document.querySelectorAll('.contract-card[data-contrato-id]');
+  cards.forEach(card => {
+    if (_selectedContratoIds.has(card.dataset.contratoId)) {
+      card.style.borderColor = 'var(--blue,#3b82f6)';
+      card.style.background = 'rgba(59,130,246,.08)';
+    } else {
+      card.style.borderColor = '';
+      card.style.background = '';
+    }
+  });
+  _updateContratoBulkBar();
+};
+
+window.bulkStatusContratos = function(novoStatus) {
+  if (!_selectedContratoIds.size) return;
+  if (!confirm('Alterar ' + _selectedContratoIds.size + ' contrato(s) para "' + novoStatus + '"?')) return;
+  _selectedContratoIds.forEach(id => {
+    const c = contratos.find(x => x.id === id);
+    if (c) c.status = novoStatus;
+  });
+  saveContratos();
+  _selectedContratoIds.clear();
+  _updateContratoBulkBar();
+  renderAll();
+  showToast('Contratos atualizados para ' + novoStatus + '.');
+};
+
+window.limparSelecaoContratos = function() {
+  _selectedContratoIds.clear();
+  _updateContratoBulkBar();
+  document.querySelectorAll('.contrato-check').forEach(cb => { cb.checked = false; });
+  document.querySelectorAll('.contract-card[data-contrato-id]').forEach(card => {
+    card.style.borderColor = '';
+    card.style.background = '';
+  });
+};
+
 // ===== RENDER CONTRATOS =====
 function renderContratos() {
   const busca = (document.getElementById("busca-contrato").value || "").toLowerCase();
@@ -2128,9 +2193,13 @@ function renderContratos() {
     const itensPendentes = itens.filter(i => (parseFloat(i.qtdEntregue) || 0) < (parseFloat(i.qtdContratada || i.quantidade) || 0)).length;
     const badgeClass = c.status === "ativo" ? "badge-green" : "badge-red";
 
-    return `<div class="contract-card" onclick="abrirContrato('${c.id}')">
+    const isChecked = _selectedContratoIds.has(c.id);
+    return `<div class="contract-card" data-contrato-id="${c.id}" onclick="abrirContrato('${c.id}')" style="${isChecked ? 'border-color:var(--blue,#3b82f6);background:rgba(59,130,246,.08)' : ''}">
       <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:.5rem">
-        <span class="font-mono" style="font-size:.75rem;color:var(--dim)">${c.id}</span>
+        <div style="display:flex;align-items:center;gap:.4rem">
+          <input type="checkbox" class="contrato-check" ${isChecked ? 'checked' : ''} onclick="toggleContratoCheck('${c.id}',this.checked,event)" style="cursor:pointer">
+          <span class="font-mono" style="font-size:.75rem;color:var(--dim)">${c.id}</span>
+        </div>
         <span class="badge ${badgeClass}" onclick="event.stopPropagation();toggleStatusContrato('${c.id}')" style="cursor:pointer" title="Clique para alternar status">${c.status}</span>
       </div>
       <div class="meta">${c.processo ? 'Proc. ' + esc(c.processo) + ' | ' : ''}${c.edital ? 'Edital ' + esc(c.edital) + ' | ' : ''}${c.itens.length} itens</div>

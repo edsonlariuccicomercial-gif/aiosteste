@@ -352,11 +352,35 @@ function bulkImprimirBoletos() {
 function bulkExcluirContasReceber() {
   if (!_selectedContaReceberIds.size) return;
   if (!confirm(`Excluir ${_selectedContaReceberIds.size} conta(s) a receber selecionada(s)?`)) return;
+
+  // Story 4.55 AC-1: sincronizar exclusão bulk com Supabase + rastrear IDs deletados
+  // (replica a lógica de excluirContaReceber individual que já funciona)
+  const delKey = "gdp.contas-receber.deleted.v1";
+  let deleted = [];
+  try { deleted = JSON.parse(localStorage.getItem(delKey) || "[]"); } catch(_) {}
+
+  for (const contaId of _selectedContaReceberIds) {
+    // Persistir delete no Supabase para evitar re-criação no sync
+    if (window.gdpApi && window.gdpApi.contas_receber) {
+      gdpApi.contas_receber.remove(contaId).catch(e => gdpWarn('[bulkExcluirCR] Supabase delete failed:', e));
+    }
+    // Rastrear ID deletado para bloquear re-merge do Supabase
+    if (!deleted.includes(contaId)) deleted.push(contaId);
+  }
+
+  try { localStorage.setItem(delKey, JSON.stringify(deleted)); } catch(_) {}
+
+  // Limpar integrações vinculadas
+  const idsToDelete = new Set(_selectedContaReceberIds);
+  integracoesGdp = (integracoesGdp || []).filter(item => !(item.entityType === "conta_receber" && idsToDelete.has(item.entityId)));
+  saveIntegracoesGdp();
+
+  const count = _selectedContaReceberIds.size;
   contasReceber = contasReceber.filter(c => !_selectedContaReceberIds.has(c.id));
   saveContasReceber();
   _selectedContaReceberIds.clear();
   renderContasReceber();
-  showToast("Contas excluidas.", 3000);
+  showToast(`${count} conta(s) a receber excluída(s).`, 3000);
 }
 
 function toggleCrMenu(contaId, event) {
