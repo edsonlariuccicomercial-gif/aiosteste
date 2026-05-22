@@ -1,3 +1,25 @@
+import chromium from '@sparticuz/chromium';
+import puppeteer from 'puppeteer-core';
+
+async function generatePdfFromHtml(danfeHtml) {
+  let browser = null;
+  try {
+    browser = await puppeteer.launch({
+      args: chromium.args,
+      defaultViewport: { width: 794, height: 1123 },
+      executablePath: await chromium.executablePath(),
+      headless: chromium.headless
+    });
+    const page = await browser.newPage();
+    const fullHtml = '<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="margin:0;padding:10mm;background:#fff">' + danfeHtml + '</body></html>';
+    await page.setContent(fullHtml, { waitUntil: 'networkidle0' });
+    const pdfBuffer = await page.pdf({ format: 'A4', printBackground: true, margin: { top: '6mm', right: '6mm', bottom: '6mm', left: '6mm' } });
+    return pdfBuffer.toString('base64');
+  } finally {
+    if (browser) await browser.close();
+  }
+}
+
 function corsHeaders(req, res) {
   const origin = req.headers?.origin || '';
   res.setHeader("Access-Control-Allow-Origin", origin || "*");
@@ -115,24 +137,28 @@ export default async function handler(req, res) {
     const apiKey = process.env.RESEND_API_KEY;
     if (!apiKey) return res.status(500).json({ error: "RESEND_API_KEY nao configurado" });
 
-    // Build attachments
+    // Build attachments — generate real PDF server-side via Puppeteer
     const attachments = [];
-    if (nfe?.danfePdf) {
+    let pdfBase64 = nfe?.danfePdf || '';
+    // Story 4.59: Se tem danfeHtml, gerar PDF real no servidor (Puppeteer)
+    if (nfe?.danfeHtml) {
+      try {
+        pdfBase64 = await generatePdfFromHtml(nfe.danfeHtml);
+        console.log('[Email] DANFE PDF gerado server-side:', Math.round(pdfBase64.length * 0.75 / 1024), 'KB');
+      } catch (pdfErr) {
+        console.error('[Email] Falha ao gerar PDF server-side:', pdfErr.message);
+      }
+    }
+    if (pdfBase64 && pdfBase64.length > 5000) {
       attachments.push({
         filename: `DANFE_${nfe.numero || 'sem-numero'}.pdf`,
-        content: nfe.danfePdf
+        content: pdfBase64
       });
     }
     if (nfe?.xml) {
       attachments.push({
         filename: `NFe_${nfe.numero || 'sem-numero'}.xml`,
         content: Buffer.from(nfe.xml, 'utf-8').toString('base64')
-      });
-    }
-    if (!nfe?.danfePdf && nfe?.danfeHtml) {
-      attachments.push({
-        filename: `DANFE_${nfe.numero || 'sem-numero'}.html`,
-        content: Buffer.from(nfe.danfeHtml, 'utf-8').toString('base64')
       });
     }
 
