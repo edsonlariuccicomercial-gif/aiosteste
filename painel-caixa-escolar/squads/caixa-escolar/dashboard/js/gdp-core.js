@@ -427,6 +427,7 @@ async function forcarSyncCompleto() {
     showToast("Sync: limpando cache e baixando dados do cloud...", 2000);
     // Limpar conciliação/extratos locais para garantir versão do cloud
     localStorage.removeItem("gdp.conciliacao.v1");
+    localStorage.removeItem("gdp.conciliacao.deleted.v1");
     localStorage.removeItem("gdp.extratos.v1");
     localStorage.removeItem("gdp.notas-entrada.v1");
     localStorage.removeItem("gdp.estoque-intel.fornecedores.v1");
@@ -1987,8 +1988,11 @@ function loadConciliacao() {
 }
 
 function saveConciliacao(items) {
+  // Story 4.64: garantir que cada item tenha ID para delete tracking
+  var arr = items || [];
+  arr.forEach(function(it) { if (!it.id) it.id = 'conc-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8); });
   // Story 4.62: salvar no formato wrapped para que syncToCloud reconheça exclusões (updatedAt)
-  var wrapped = { _v: 1, updatedAt: new Date().toISOString(), items: items || [] };
+  var wrapped = { _v: 1, updatedAt: new Date().toISOString(), items: arr };
   localStorage.setItem(CONCILIACAO_KEY, JSON.stringify(wrapped));
   if (typeof cloudSave === 'function') cloudSave(CONCILIACAO_KEY, wrapped);
 }

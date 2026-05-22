@@ -1937,12 +1937,27 @@ window.excluirCaixaLancamentos = function() {
   const concItems = typeof loadConciliacao === 'function' ? loadConciliacao() : [];
   const indices = new Set();
   _selectedCaixaIds.forEach(id => { const idx = parseInt(id.replace('cx-', '')); if (!isNaN(idx)) indices.add(idx); });
+  // Story 4.64: rastrear IDs deletados para impedir sync restaurar
+  const deletedItems = concItems.filter((_, i) => indices.has(i));
+  const delIds = deletedItems.map(it => it.id).filter(Boolean);
+  if (delIds.length > 0 && window.gdpApi && typeof window.gdpApi._trackDeletedId === 'function') {
+    delIds.forEach(id => window.gdpApi._trackDeletedId('conciliacao', id));
+  } else if (delIds.length > 0) {
+    try {
+      var dk = 'gdp.conciliacao.deleted.v1';
+      var existing = JSON.parse(localStorage.getItem(dk) || '[]');
+      if (!Array.isArray(existing)) existing = [];
+      delIds.forEach(function(id) { if (existing.indexOf(id) < 0) existing.push(id); });
+      localStorage.setItem(dk, JSON.stringify(existing));
+    } catch(_) {}
+  }
   const remaining = concItems.filter((_, i) => !indices.has(i));
   if (typeof saveConciliacao === 'function') saveConciliacao(remaining);
   if (typeof atualizarExtratoStats === 'function') atualizarExtratoStats();
+  var count = _selectedCaixaIds.size;
   _selectedCaixaIds.clear();
   renderCaixa();
-  showToast(_selectedCaixaIds.size > 0 ? 'Excluídos.' : 'Lançamentos excluídos.');
+  showToast(count + ' lançamento(s) excluído(s).');
 };
 
 async function sincronizarExtratoCaixaViaApi() {

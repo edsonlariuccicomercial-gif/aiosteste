@@ -140,7 +140,8 @@
     notas_fiscais: 'gdp.notas-fiscais.deleted.v1',
     contas_receber: 'gdp.contas-receber.deleted.v1',
     contas_pagar: 'gdp.contas-pagar.deleted.v1',
-    entregas: 'gdp.entregas.deleted.v1'
+    entregas: 'gdp.entregas.deleted.v1',
+    conciliacao: 'gdp.conciliacao.deleted.v1'
   };
 
   function _trackDeletedId(entityName, id) {

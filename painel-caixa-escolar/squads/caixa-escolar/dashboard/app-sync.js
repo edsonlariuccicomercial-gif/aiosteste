@@ -147,7 +147,12 @@ async function syncFromCloud(options) {
       }
     }
 
-    if (force || isSharedKey || cloudTime > localTime || (!localTime && cloudTime === 0)) {
+    // Story 4.64: conciliacao usa timestamp (nao isSharedKey) para respeitar exclusoes locais
+    const useTimestamp = row.key === 'gdp.conciliacao.v1' || row.key === 'gdp.extratos.v1';
+    const shouldSync = useTimestamp
+      ? (force || cloudTime > localTime || (!localTime && cloudTime === 0))
+      : (force || isSharedKey || cloudTime > localTime || (!localTime && cloudTime === 0));
+    if (shouldSync) {
       try {
         // Story 4.51 AC-A4: filter out locally-deleted items before writing to localStorage
         let dataToWrite = row.data;
@@ -159,7 +164,8 @@ async function syncFromCloud(options) {
           'gdp.contas-pagar.v1': 'gdp.contas-pagar.deleted.v1',
           'gdp.entregas.provas.v1': 'gdp.entregas.deleted.v1',
           'gdp.notas-entrada.v1': 'gdp.notas-entrada.deleted.v1',
-          'gdp.estoque-intel.fornecedores.v1': 'gdp.estoque-intel.fornecedores.deleted.v1'
+          'gdp.estoque-intel.fornecedores.v1': 'gdp.estoque-intel.fornecedores.deleted.v1',
+          'gdp.conciliacao.v1': 'gdp.conciliacao.deleted.v1'
         };
         const delKey = delKeyMap[row.key];
         if (delKey) {
