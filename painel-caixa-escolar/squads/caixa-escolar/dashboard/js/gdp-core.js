@@ -422,9 +422,14 @@ function schedulCloudSync() {
 
 async function forcarSyncCompleto() {
   try {
-    // Story 4.61: PULL forçado do cloud → sobrescreve local → recarrega tudo
-    setGdpSyncState({ status: "syncing", detail: "Baixando dados do cloud..." });
-    showToast("Sync: baixando dados do cloud...", 2000);
+    // Story 4.61: limpar dados locais que podem estar obsoletos antes de puxar do cloud
+    setGdpSyncState({ status: "syncing", detail: "Limpando cache local..." });
+    showToast("Sync: limpando cache e baixando dados do cloud...", 2000);
+    // Limpar conciliação/extratos locais para garantir versão do cloud
+    localStorage.removeItem("gdp.conciliacao.v1");
+    localStorage.removeItem("gdp.extratos.v1");
+    localStorage.removeItem("gdp.notas-entrada.v1");
+    localStorage.removeItem("gdp.estoque-intel.fornecedores.v1");
     const result = await syncFromCloud({ force: true });
 
     // Também fazer full load das tabelas dedicadas do Supabase (pedidos, contratos, etc.)
