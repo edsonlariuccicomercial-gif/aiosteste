@@ -973,7 +973,8 @@ async function gerarNotaFiscalPedido(pedidoId) {
     status: "titulo_local",
     lastAction: "criar_titulo_local"
   });
-  await dispararEmailNotaEBoletoAutomatico(invoice.id, receivable.id);
+  // Story 4.56 AC-3: NÃO enviar email na criação do rascunho — apenas após autorização SEFAZ
+  // dispararEmailNotaEBoletoAutomatico() será chamado após transmissão autorizada
 
   registerStockExitFromInvoice(invoice);
 
@@ -1492,6 +1493,11 @@ function verNotaFiscal(notaId) {
 async function enviarEmailNotaFiscal(notaId) {
   const nf = notasFiscais.find(n => n.id === notaId);
   if (!nf) return;
+  // Story 4.56 AC-3: só enviar email se NF autorizada pela SEFAZ
+  if (nf.status !== "autorizada") {
+    showToast("Email só pode ser enviado após autorização da SEFAZ. Status atual: " + (nf.status || "rascunho"), 4000);
+    return;
+  }
   const emailInput = document.getElementById('nf-email-dest-' + notaId);
   const to = (emailInput?.value || '').trim();
   if (!to || !to.includes('@')) { showToast('Informe um email válido.', 3000); return; }
@@ -1590,14 +1596,18 @@ async function gerarDanfePdfBase64(nf) {
 // Story 14.6: DANFE fiel ao modelo PDF (NF 001.426) com logomarca dedicada
 function gerarDanfeHtmlCompleto(nf) {
   if (!nf) return "";
-  const emit = nf.sefaz?.preview?.emitente || {};
+  // Story 4.56 AC-3: priorizar dados autorizados (transmissao/retorno), fallback para preview
+  const sefazData = nf.sefaz || {};
+  const previewData = sefazData.preview || {};
+  const transmissaoData = sefazData.transmissao?.parsed || sefazData.retorno || {};
+  const emit = transmissaoData.emitente || previewData.emitente || {};
   const emEnd = emit.endereco || {};
-  const dest = nf.sefaz?.preview?.destinatario || {};
+  const dest = transmissaoData.destinatario || previewData.destinatario || {};
   const dEnd = dest.endereco || {};
-  const chave = nf.sefaz?.chaveAcesso || "";
+  const chave = sefazData.chaveAcesso || "";
   const chaveFormatada = chave.replace(/(.{4})/g, "$1 ").trim();
-  const prot = nf.sefaz?.protocolo || "";
-  const protDt = nf.sefaz?.transmissao?.parsed?.dhRecbto || nf.audit?.authorizedAt || "";
+  const prot = sefazData.protocolo || "";
+  const protDt = sefazData.transmissao?.parsed?.dhRecbto || nf.audit?.authorizedAt || "";
   const protFormatado = prot ? prot + (protDt ? " - " + protDt : "") : "-";
   const isCancelada = nf.status === "cancelada";
   const cancelStamp = nf.cancelamento?.retornoEvento?.dhRegEvento || nf.cancelamento?.atualizadoEm || "";
@@ -2413,6 +2423,11 @@ async function dispararCobrancaAutomatica(contaId) {
 async function dispararEmailNotaEBoletoAutomatico(notaId, contaId, options = {}) {
   const nf = notasFiscais.find((item) => item.id === notaId);
   if (!nf) return false;
+  // Story 4.56 AC-3: só disparar email automaticamente se NF autorizada
+  if (nf.status !== "autorizada") {
+    gdpLog("[Email NF] Disparo bloqueado — NF não autorizada. Status:", nf.status);
+    return false;
+  }
   const conta = contasReceber.find((item) => item.id === contaId) || null;
   const email = (nf.cliente?.email || "").trim();
   const supplierEmail = "edsonlariucci.comercial@gmail.com";

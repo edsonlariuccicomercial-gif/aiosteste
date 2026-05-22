@@ -1942,13 +1942,17 @@ function atualizarExtratoStats() {
   const extratos = loadExtratos();
   if (!extratos.length) return;
   const items = loadConciliacao();
-  // Story 4.55: atualizar stats de cada extrato individualmente pelo extratoId
+  // Story 4.56: migrar itens órfãos antes de calcular stats
+  const orphans = items.filter(i => !i.extratoId);
+  if (orphans.length > 0) {
+    const target = extratos.find(ext => items.filter(i => i.extratoId === ext.id).length === 0) || extratos[0];
+    orphans.forEach(i => { i.extratoId = target.id; });
+    saveConciliacao(items);
+  }
   extratos.forEach(ext => {
     const extItems = items.filter(i => i.extratoId === ext.id);
-    if (extItems.length > 0) {
-      ext.conciliados = extItems.filter(i => i.conciliado).length;
-      ext.total = extItems.length;
-    }
+    ext.conciliados = extItems.filter(i => i.conciliado).length;
+    ext.total = extItems.length;
   });
   saveExtratos(extratos);
 }
@@ -1982,13 +1986,21 @@ function renderConciliacao() {
   const empty = document.getElementById("conciliacao-empty");
   const resumo = document.getElementById("conciliacao-resumo");
 
+  // Story 4.56 AC-1: migrar itens antigos sem extratoId para o extrato correspondente
+  const orphanItems = allItems.filter(i => !i.extratoId);
+  if (orphanItems.length > 0 && extratos.length > 0) {
+    // Vincular órfãos ao primeiro extrato que não tem itens vinculados,
+    // ou ao primeiro extrato se todos já têm itens
+    let targetExt = extratos.find(ext => allItems.filter(i => i.extratoId === ext.id).length === 0) || extratos[0];
+    orphanItems.forEach(item => { item.extratoId = targetExt.id; });
+    saveConciliacao(allItems);
+  }
+
   // Atualizar stats de cada extrato com dados reais
   extratos.forEach(ext => {
     const extItems = allItems.filter(i => i.extratoId === ext.id);
-    if (extItems.length > 0) {
-      ext.conciliados = extItems.filter(i => i.conciliado).length;
-      ext.total = extItems.length;
-    }
+    ext.conciliados = extItems.filter(i => i.conciliado).length;
+    ext.total = extItems.length;
   });
   saveExtratos(extratos);
 

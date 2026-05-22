@@ -2085,34 +2085,14 @@ function importarCronograma() {
   });
 })();
 
-// ===== Story 4.55 AC-3: Seleção bulk de contratos =====
+// ===== Story 4.55 AC-3 / 4.56 AC-2: Checkbox em contratos (sem barra bulk) =====
 var _selectedContratoIds = new Set();
-
-function _updateContratoBulkBar() {
-  let bar = document.getElementById('contrato-bulk-bar');
-  if (_selectedContratoIds.size === 0) {
-    if (bar) bar.style.display = 'none';
-    return;
-  }
-  if (!bar) {
-    bar = document.createElement('div');
-    bar.id = 'contrato-bulk-bar';
-    bar.style.cssText = 'position:sticky;top:0;z-index:50;background:var(--s1,#1e293b);border:1px solid var(--blue,#3b82f6);border-radius:6px;padding:.6rem 1rem;margin-bottom:.8rem;display:flex;align-items:center;gap:.8rem;flex-wrap:wrap';
-    const grid = document.getElementById('contract-grid');
-    if (grid && grid.parentNode) grid.parentNode.insertBefore(bar, grid);
-  }
-  bar.style.display = 'flex';
-  bar.innerHTML = '<span style="font-size:.85rem;font-weight:600;color:var(--txt)">' + _selectedContratoIds.size + ' contrato(s) selecionado(s)</span>'
-    + '<button class="btn btn-sm btn-green" onclick="bulkStatusContratos(\'ativo\')">Marcar como Ativo</button>'
-    + '<button class="btn btn-sm btn-red" onclick="bulkStatusContratos(\'encerrado\')">Marcar como Encerrado</button>'
-    + '<button class="btn btn-sm" onclick="limparSelecaoContratos()">Limpar</button>';
-}
 
 window.toggleContratoCheck = function(contId, checked, event) {
   if (event) event.stopPropagation();
   if (checked) _selectedContratoIds.add(contId);
   else _selectedContratoIds.delete(contId);
-  // Visual: borda no card
+  // Visual: borda no card selecionado
   const cards = document.querySelectorAll('.contract-card[data-contrato-id]');
   cards.forEach(card => {
     if (_selectedContratoIds.has(card.dataset.contratoId)) {
@@ -2122,31 +2102,6 @@ window.toggleContratoCheck = function(contId, checked, event) {
       card.style.borderColor = '';
       card.style.background = '';
     }
-  });
-  _updateContratoBulkBar();
-};
-
-window.bulkStatusContratos = function(novoStatus) {
-  if (!_selectedContratoIds.size) return;
-  if (!confirm('Alterar ' + _selectedContratoIds.size + ' contrato(s) para "' + novoStatus + '"?')) return;
-  _selectedContratoIds.forEach(id => {
-    const c = contratos.find(x => x.id === id);
-    if (c) c.status = novoStatus;
-  });
-  saveContratos();
-  _selectedContratoIds.clear();
-  _updateContratoBulkBar();
-  renderAll();
-  showToast('Contratos atualizados para ' + novoStatus + '.');
-};
-
-window.limparSelecaoContratos = function() {
-  _selectedContratoIds.clear();
-  _updateContratoBulkBar();
-  document.querySelectorAll('.contrato-check').forEach(cb => { cb.checked = false; });
-  document.querySelectorAll('.contract-card[data-contrato-id]').forEach(card => {
-    card.style.borderColor = '';
-    card.style.background = '';
   });
 };
 
