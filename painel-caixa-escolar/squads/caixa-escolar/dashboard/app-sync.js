@@ -180,6 +180,10 @@ async function syncFromCloud(options) {
             }
           }
         }
+        // Story 4.64: convert legacy array to wrapped format for conciliacao/extratos
+        if ((row.key === 'gdp.conciliacao.v1' || row.key === 'gdp.extratos.v1') && Array.isArray(dataToWrite)) {
+          dataToWrite = { _v: 1, updatedAt: row.updated_at || new Date().toISOString(), items: dataToWrite };
+        }
         localStorage.setItem(row.key, JSON.stringify(dataToWrite));
         synced++;
       } catch (e) {
@@ -217,6 +221,11 @@ async function syncToCloud(signal) {
 
     try {
       const data = JSON.parse(raw);
+      // Story 4.64: never upload conciliacao/extratos in legacy array format (no wrapper)
+      // Only wrapped format {_v, updatedAt, items} is authoritative
+      if ((key === 'gdp.conciliacao.v1' || key === 'gdp.extratos.v1') && Array.isArray(data)) {
+        return Promise.resolve();
+      }
       // Guard: skip empty data UNLESS it has a recent updatedAt (legitimate deletion)
       const hasRecentUpdate = data?.updatedAt && (Date.now() - new Date(data.updatedAt).getTime()) < 300000; // 5 min
       if (!hasRecentUpdate) {

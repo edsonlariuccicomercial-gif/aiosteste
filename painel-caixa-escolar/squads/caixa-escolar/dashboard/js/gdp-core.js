@@ -389,6 +389,10 @@ async function syncToCloud(signal) {
     if (!raw) return Promise.resolve();
     try {
       const data = JSON.parse(raw);
+      // Story 4.64: never upload conciliacao/extratos in legacy array format
+      if ((key === 'gdp.conciliacao.v1' || key === 'gdp.extratos.v1') && Array.isArray(data)) {
+        return Promise.resolve();
+      }
       // Guard: skip empty data UNLESS it has a recent updatedAt (legitimate deletion)
       const hasRecentUpdate = data?.updatedAt && (Date.now() - new Date(data.updatedAt).getTime()) < 300000;
       if (!hasRecentUpdate) {
