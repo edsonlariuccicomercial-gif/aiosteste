@@ -422,21 +422,33 @@ function schedulCloudSync() {
 
 async function forcarSyncCompleto() {
   try {
-    // PULL first, THEN push — prevents overwriting cloud with stale local data
+    // Story 4.61: PULL forçado do cloud → sobrescreve local → recarrega tudo
     setGdpSyncState({ status: "syncing", detail: "Baixando dados do cloud..." });
     showToast("Sync: baixando dados do cloud...", 2000);
-    // Story 4.61: force=true ignora proteção "local > cloud" e sobrescreve local com cloud
     const result = await syncFromCloud({ force: true });
-    if (result.restored) {
-      loadData();
-      renderAll();
-      showToast("Sync completo! " + result.rowCount + " chaves sincronizadas. Recarregue em outras maquinas.", 5000);
-    } else {
-      showToast("Sync completo — tudo ja estava atualizado.", 3000);
+
+    // Também fazer full load das tabelas dedicadas do Supabase (pedidos, contratos, etc.)
+    if (window.gdpApi) {
+      const tables = ['contratos', 'pedidos', 'notas_fiscais', 'contas_receber', 'contas_pagar', 'entregas'];
+      for (const table of tables) {
+        try {
+          if (window.gdpApi[table] && window.gdpApi[table].list) {
+            const rows = await window.gdpApi[table].list();
+            if (Array.isArray(rows)) {
+              gdpLog('[ForceSync] ' + table + ': ' + rows.length + ' rows from Supabase');
+            }
+          }
+        } catch(_) {}
+      }
     }
-    // Push AFTER pull
-    setGdpSyncState({ status: "syncing", detail: "Enviando dados locais para cloud..." });
-    await syncToCloud();
+
+    loadData();
+    renderAll();
+    if (result.restored) {
+      showToast("Sync completo! " + result.rowCount + " chaves sincronizadas.", 5000);
+    } else {
+      showToast("Sync completo — dados atualizados.", 3000);
+    }
     setGdpSyncState({ status: "cloud", detail: "Sync manual concluido" });
   } catch (e) {
     setGdpSyncState({ status: "offline", detail: "Falha no sync: " + e.message });
