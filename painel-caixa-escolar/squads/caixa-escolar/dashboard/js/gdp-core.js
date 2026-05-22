@@ -425,7 +425,8 @@ async function forcarSyncCompleto() {
     // PULL first, THEN push — prevents overwriting cloud with stale local data
     setGdpSyncState({ status: "syncing", detail: "Baixando dados do cloud..." });
     showToast("Sync: baixando dados do cloud...", 2000);
-    const result = await syncFromCloud();
+    // Story 4.61: force=true ignora proteção "local > cloud" e sobrescreve local com cloud
+    const result = await syncFromCloud({ force: true });
     if (result.restored) {
       loadData();
       renderAll();

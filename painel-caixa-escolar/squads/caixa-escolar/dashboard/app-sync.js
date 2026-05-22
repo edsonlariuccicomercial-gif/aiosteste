@@ -111,7 +111,8 @@ function getDataTimestamp(data, fallback = "") {
   return (Number.isFinite(time) && time > 0) ? time : 0;
 }
 
-async function syncFromCloud() {
+async function syncFromCloud(options) {
+  var force = options && options.force;
   const rows = await cloudLoadAll();
   if (!rows || rows.length === 0) return false;
   let synced = 0;
@@ -136,15 +137,17 @@ async function syncFromCloud() {
     const localTime = getDataTimestamp(localData);
     const isSharedKey = SHARED_SYNC_KEYS.has(row.key);
 
-    // Merge protection: if local has MORE items than cloud, keep local (prevents data loss)
-    const localItems = localData?.items || (Array.isArray(localData) ? localData : null);
-    const cloudItems = row.data?.items || (Array.isArray(row.data) ? row.data : null);
-    if (localItems && cloudItems && localItems.length > cloudItems.length && cloudItems.length > 0) {
-      gdpWarn("[Sync] Keeping local for " + row.key + " (local:" + localItems.length + " > cloud:" + cloudItems.length + ")");
-      continue;
+    // Story 4.61: merge protection DESATIVADA quando force=true (Forçar Sync)
+    if (!force) {
+      const localItems = localData?.items || (Array.isArray(localData) ? localData : null);
+      const cloudItems = row.data?.items || (Array.isArray(row.data) ? row.data : null);
+      if (localItems && cloudItems && localItems.length > cloudItems.length && cloudItems.length > 0) {
+        gdpWarn("[Sync] Keeping local for " + row.key + " (local:" + localItems.length + " > cloud:" + cloudItems.length + ")");
+        continue;
+      }
     }
 
-    if (isSharedKey || cloudTime > localTime || (!localTime && cloudTime === 0)) {
+    if (force || isSharedKey || cloudTime > localTime || (!localTime && cloudTime === 0)) {
       try {
         // Story 4.51 AC-A4: filter out locally-deleted items before writing to localStorage
         let dataToWrite = row.data;
@@ -180,7 +183,7 @@ async function syncFromCloud() {
     }
   }
 
-  return synced > 0;
+  return { restored: synced > 0, rowCount: synced };
 }
 
 // Dirty tracking: only sync keys that changed since last sync
