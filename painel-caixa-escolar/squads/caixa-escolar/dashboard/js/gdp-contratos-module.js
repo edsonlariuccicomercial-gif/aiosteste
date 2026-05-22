@@ -2085,26 +2085,6 @@ function importarCronograma() {
   });
 })();
 
-// ===== Story 4.55 AC-3 / 4.56 AC-2: Checkbox em contratos (sem barra bulk) =====
-var _selectedContratoIds = new Set();
-
-window.toggleContratoCheck = function(contId, checked, event) {
-  if (event) event.stopPropagation();
-  if (checked) _selectedContratoIds.add(contId);
-  else _selectedContratoIds.delete(contId);
-  // Visual: borda no card selecionado
-  const cards = document.querySelectorAll('.contract-card[data-contrato-id]');
-  cards.forEach(card => {
-    if (_selectedContratoIds.has(card.dataset.contratoId)) {
-      card.style.borderColor = 'var(--blue,#3b82f6)';
-      card.style.background = 'rgba(59,130,246,.08)';
-    } else {
-      card.style.borderColor = '';
-      card.style.background = '';
-    }
-  });
-};
-
 // ===== RENDER CONTRATOS =====
 function renderContratos() {
   const busca = (document.getElementById("busca-contrato").value || "").toLowerCase();
@@ -2148,13 +2128,9 @@ function renderContratos() {
     const itensPendentes = itens.filter(i => (parseFloat(i.qtdEntregue) || 0) < (parseFloat(i.qtdContratada || i.quantidade) || 0)).length;
     const badgeClass = c.status === "ativo" ? "badge-green" : "badge-red";
 
-    const isChecked = _selectedContratoIds.has(c.id);
-    return `<div class="contract-card" data-contrato-id="${c.id}" onclick="abrirContrato('${c.id}')" style="${isChecked ? 'border-color:var(--blue,#3b82f6);background:rgba(59,130,246,.08)' : ''}">
+    return `<div class="contract-card" onclick="abrirContrato('${c.id}')">
       <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:.5rem">
-        <div style="display:flex;align-items:center;gap:.4rem">
-          <input type="checkbox" class="contrato-check" ${isChecked ? 'checked' : ''} onclick="toggleContratoCheck('${c.id}',this.checked,event)" style="cursor:pointer">
-          <span class="font-mono" style="font-size:.75rem;color:var(--dim)">${c.id}</span>
-        </div>
+        <span class="font-mono" style="font-size:.75rem;color:var(--dim)">${c.id}</span>
         <span class="badge ${badgeClass}" onclick="event.stopPropagation();toggleStatusContrato('${c.id}')" style="cursor:pointer" title="Clique para alternar status">${c.status}</span>
       </div>
       <div class="meta">${c.processo ? 'Proc. ' + esc(c.processo) + ' | ' : ''}${c.edital ? 'Edital ' + esc(c.edital) + ' | ' : ''}${c.itens.length} itens</div>

@@ -2471,7 +2471,7 @@ function abrirEditarMassaProdutos() {
     const selCat = CAT_LIST.map(c => '<option value="' + c + '"' + (c === (p.categoria || "") ? ' selected' : '') + '>' + (c || "—") + '</option>').join("");
     const selOri = ORI_LIST.map(o => '<option value="' + o.v + '"' + (o.v === String(p.origem || "0") ? ' selected' : '') + '>' + o.l + '</option>').join("");
     return '<tr data-pid="' + p.id + '">' +
-      '<td style="font-size:.78rem;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + (p.nome || "").replace(/"/g,'&quot;') + '">' + (p.nome || "-") + '</td>' +
+      '<td><input class="bk-nome" type="text" value="' + (p.nome || "").replace(/"/g,'&quot;') + '" style="width:200px;padding:.2rem .3rem;font-size:.78rem;background:var(--s1);color:var(--txt);border:1px solid var(--bdr);border-radius:3px" placeholder="Nome do Produto"></td>' +
       '<td><select class="bk-unit" style="width:70px;padding:.2rem .3rem;font-size:.78rem;background:var(--s1);color:var(--txt);border:1px solid var(--bdr);border-radius:3px">' + selUnit + '</select></td>' +
       '<td><input class="bk-sku" type="text" value="' + (p.sku || "").replace(/"/g,'&quot;') + '" style="width:90px;padding:.2rem .3rem;font-size:.78rem;background:var(--s1);color:var(--txt);border:1px solid var(--bdr);border-radius:3px" placeholder="SKU"></td>' +
       '<td><input class="bk-ncm" type="text" value="' + (p.ncm || "").replace(/"/g,'&quot;') + '" style="width:100px;padding:.2rem .3rem;font-size:.78rem;background:var(--s1);color:var(--txt);border:1px solid var(--bdr);border-radius:3px" placeholder="NCM"></td>' +
@@ -2517,12 +2517,14 @@ function aplicarEditarMassaProdutos() {
     const pid = tr.getAttribute("data-pid");
     const p = estoqueIntelProdutos.find(x => x.id === pid);
     if (!p) return;
+    const newNome = tr.querySelector(".bk-nome")?.value?.trim() ?? p.nome;
     const newUnit = tr.querySelector(".bk-unit")?.value || p.unidade_base;
     const newSku = tr.querySelector(".bk-sku")?.value?.trim() ?? p.sku;
     const newNcm = tr.querySelector(".bk-ncm")?.value?.trim() ?? p.ncm;
     const newCat = tr.querySelector(".bk-cat")?.value ?? p.categoria;
     const newOri = tr.querySelector(".bk-ori")?.value ?? p.origem;
-    if (newUnit !== p.unidade_base || newSku !== (p.sku || "") || newNcm !== (p.ncm || "") || newCat !== (p.categoria || "") || String(newOri) !== String(p.origem || "0")) {
+    if (newNome !== (p.nome || "") || newUnit !== p.unidade_base || newSku !== (p.sku || "") || newNcm !== (p.ncm || "") || newCat !== (p.categoria || "") || String(newOri) !== String(p.origem || "0")) {
+      p.nome = newNome;
       p.unidade_base = newUnit;
       p.sku = newSku;
       p.ncm = newNcm;

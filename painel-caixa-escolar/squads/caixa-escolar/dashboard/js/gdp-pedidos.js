@@ -93,8 +93,8 @@ function renderPedidos() {
     return `<tr>
       <td class="text-center"><input type="checkbox" class="pedido-check" value="${p.id}" onchange="atualizarSelecaoPedidos()"${_selectedPedidoIds.has(p.id) ? ' checked' : ''}></td>
       <td class="text-center"><button class="btn btn-outline btn-sm" onclick="abrirMenuPedido('${p.id}')" title="Abrir menu do pedido" style="min-width:auto;padding:.2rem .5rem;font-weight:700">...</button></td>
-      <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><button onclick="verPedidoDetalhe('${p.id}')" style="background:none;border:none;padding:0;color:var(--blue);font-weight:700;cursor:pointer;font-family:monospace" title="${esc(p.id)}">${esc(p.id)}</button></td>
-      <td>${esc(clienteNome)}</td>
+      <td style="font-size:.7rem;color:var(--dim);font-family:monospace;white-space:nowrap" title="${esc(p.id)}">#${esc((p.id || '').split('-').pop())}</td>
+      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><button onclick="verPedidoDetalhe('${p.id}')" style="background:none;border:none;padding:0;color:var(--blue);font-weight:700;cursor:pointer" title="${esc(p.id)}">${esc(clienteNome)}</button></td>
       <td class="font-mono">${esc(clienteCnpj)}</td>
       <td class="nowrap">${fmtDate(p.dataEntrega || p.data)}</td>
       <td class="nowrap">${fmtDate(p.dataPrevista || p.dataEntrega)}</td>
@@ -1777,6 +1777,9 @@ function setContaReceberStatusTab(status) {
   renderContasReceber();
 }
 
+// Story 4.60 AC-1: seleção de lançamentos no Caixa
+var _selectedCaixaIds = new Set();
+
 function getCaixaResumo() {
   // Sync from conciliacao bancaria (single source of truth)
   const concItems = typeof loadConciliacao === 'function' ? loadConciliacao() : [];
@@ -1785,7 +1788,14 @@ function getCaixaResumo() {
   const saidas = items.filter((item) => Number(item.valor || 0) < 0).reduce((sum, item) => sum + Math.abs(Number(item.valor || 0)), 0);
   const conciliados = items.filter((item) => item.conciliado || item.conciliacao?.matched).length;
   const pendentes = items.length - conciliados;
-  return { entradas, saidas, saldo: entradas - saidas, divergencias: pendentes, conciliados, total: items.length, items };
+  // Story 4.60 AC-5: somar saldo inicial da conta bancária
+  let saldoInicial = 0;
+  try {
+    const contas = JSON.parse(localStorage.getItem("nexedu.config.contas-bancarias") || "[]");
+    const padrao = contas.find(c => c.padrao && c.ativa) || contas.find(c => c.ativa) || contas[0];
+    if (padrao && padrao.saldo_inicial) saldoInicial = parseFloat(padrao.saldo_inicial) || 0;
+  } catch(_) {}
+  return { entradas, saidas, saldo: saldoInicial + entradas - saidas, saldoInicial, divergencias: pendentes, conciliados, total: items.length, items };
 }
 
 function renderCaixa() {
@@ -1857,10 +1867,12 @@ function renderCaixa() {
   } else {
     if (empty) empty.classList.add("hidden");
     tbody.innerHTML = items
-      .map((item) => {
+      .map((item, idx) => {
         const conciliado = item.conciliado || item.conciliacao?.matched;
         const cat = item.categoriaDre || "";
+        const itemId = item.id || ('cx-' + idx);
         return `<tr style="${conciliado ? '' : 'opacity:.7'}">
+          <td class="text-center"><input type="checkbox" class="caixa-check" value="${itemId}" data-idx="${idx}" onchange="atualizarSelecaoCaixa()"${_selectedCaixaIds.has(itemId) ? ' checked' : ''}></td>
           <td class="nowrap">${esc(item.data || "")}</td>
           <td>${esc(item.historico || item.descricao || "-")}</td>
           <td style="font-size:.75rem">${cat ? '<span class="badge badge-muted" style="font-size:.6rem">' + esc(cat) + '</span>' : '<span style="color:var(--mut);font-size:.7rem">Sem categoria</span>'}</td>
@@ -1877,7 +1889,61 @@ function renderCaixa() {
     );
     pendenciasEl.innerHTML = pendencias.length ? pendencias.join("") : `<div style="padding:.9rem;border:1px dashed var(--bdr);border-radius:4px;color:var(--mut)">Sem pendencias. Importe extratos na aba Conciliacao Bancaria.</div>`;
   }
+
+  // Story 4.60 AC-1: atualizar footer do caixa
+  _updateCaixaFooter(items);
 }
+
+// Story 4.60 AC-1: funções de seleção e exclusão do Caixa
+window.atualizarSelecaoCaixa = function() {
+  _selectedCaixaIds.clear();
+  document.querySelectorAll('.caixa-check:checked').forEach(cb => _selectedCaixaIds.add(cb.value));
+  _updateCaixaFooter();
+};
+
+function _updateCaixaFooter(items) {
+  let footer = document.getElementById('caixa-page-footer');
+  if (!footer) {
+    footer = document.createElement('div');
+    footer.id = 'caixa-page-footer';
+    footer.className = 'page-footer';
+    footer.style.cssText = 'display:none;position:sticky;bottom:0;background:var(--s1);border-top:1px solid var(--bdr);padding:.6rem 1rem;z-index:50';
+    const finContent = document.getElementById('fin-content-caixa');
+    if (finContent) finContent.appendChild(footer);
+  }
+  if (_selectedCaixaIds.size === 0) {
+    footer.style.display = 'none';
+    return;
+  }
+  footer.style.display = 'flex';
+  footer.style.alignItems = 'center';
+  footer.style.gap = '.8rem';
+  footer.style.flexWrap = 'wrap';
+  const concItems = typeof loadConciliacao === 'function' ? loadConciliacao() : [];
+  const allItems = concItems.length > 0 ? concItems : (items || []);
+  let totalValor = 0;
+  _selectedCaixaIds.forEach(id => {
+    const idx = parseInt(id.replace('cx-', ''));
+    if (!isNaN(idx) && allItems[idx]) totalValor += Number(allItems[idx].valor || 0);
+  });
+  footer.innerHTML = '<span style="font-size:.85rem;font-weight:600;color:var(--txt)">' + _selectedCaixaIds.size + ' lançamento(s)</span>'
+    + '<span style="font-size:.85rem;color:var(--green);font-weight:700">' + brl.format(totalValor) + '</span>'
+    + '<button class="btn btn-sm btn-red" onclick="excluirCaixaLancamentos()">Excluir</button>';
+}
+
+window.excluirCaixaLancamentos = function() {
+  if (!_selectedCaixaIds.size) return;
+  if (!confirm('Excluir ' + _selectedCaixaIds.size + ' lançamento(s) do extrato?')) return;
+  const concItems = typeof loadConciliacao === 'function' ? loadConciliacao() : [];
+  const indices = new Set();
+  _selectedCaixaIds.forEach(id => { const idx = parseInt(id.replace('cx-', '')); if (!isNaN(idx)) indices.add(idx); });
+  const remaining = concItems.filter((_, i) => !indices.has(i));
+  if (typeof saveConciliacao === 'function') saveConciliacao(remaining);
+  if (typeof atualizarExtratoStats === 'function') atualizarExtratoStats();
+  _selectedCaixaIds.clear();
+  renderCaixa();
+  showToast(_selectedCaixaIds.size > 0 ? 'Excluídos.' : 'Lançamentos excluídos.');
+};
 
 async function sincronizarExtratoCaixaViaApi() {
   try {
