@@ -686,7 +686,7 @@ function saveBankAccount() {
     pix: document.getElementById("bank-pix")?.value.trim() || "",
     uso: document.getElementById("bank-uso")?.value || "cobranca",
     // Story 4.53 AC-1: saldo inicial
-    saldo_inicial: parseFloat(document.getElementById("bank-saldo-inicial")?.value) || 0,
+    saldo_inicial: parseFloat((document.getElementById("bank-saldo-inicial")?.value || "0").replace(",", ".")) || 0,
     saldo_inicial_data: document.getElementById("bank-saldo-data")?.value || "",
     padrao: Boolean(document.getElementById("bank-padrao")?.checked),
     ativa: Boolean(document.getElementById("bank-ativa")?.checked),
@@ -753,7 +753,7 @@ function renderBankAccounts() {
           <span>Conta: ${account.conta || "-"}</span>
           <span>Uso: ${account.uso || "-"}</span>
           <span>PIX: ${account.pix || "-"}</span>
-          ${account.saldo_inicial ? '<span>Saldo inicial: R$ ' + Number(account.saldo_inicial).toFixed(2) + (account.saldo_inicial_data ? ' (' + account.saldo_inicial_data + ')' : '') + '</span>' : ''}
+          ${account.saldo_inicial ? '<span>Saldo inicial: R$ ' + Number(account.saldo_inicial).toFixed(2).replace(".", ",") + (account.saldo_inicial_data ? ' (' + account.saldo_inicial_data + ')' : '') + '</span>' : ''}
         </div>
         <div class="config-account-actions">
           <button class="btn btn-sm" onclick="editBankAccount('${account.id}')">Editar</button>
@@ -783,7 +783,7 @@ window.editBankAccount = function editBankAccount(id) {
   setValue("bank-pix", account.pix);
   setValue("bank-uso", account.uso, "cobranca");
   // Story 4.53 AC-1: fill saldo inicial fields when editing
-  setValue("bank-saldo-inicial", account.saldo_inicial || "");
+  setValue("bank-saldo-inicial", account.saldo_inicial ? String(account.saldo_inicial).replace(".", ",") : "");
   setValue("bank-saldo-data", account.saldo_inicial_data || "");
   const padrao = document.getElementById("bank-padrao");
   if (padrao) padrao.checked = Boolean(account.padrao);
