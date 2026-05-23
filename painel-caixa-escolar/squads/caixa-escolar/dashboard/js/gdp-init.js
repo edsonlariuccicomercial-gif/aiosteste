@@ -2807,7 +2807,16 @@ async function enviarTiny(contratoId) {
               } catch(_) {}
               const remoteIds = new Set(filteredRows.map(r => r.id));
               const localOnly = localItems.filter(item => item.id && !remoteIds.has(item.id) && !deletedIds.has(item.id));
-              const merged = [...filteredRows, ...localOnly];
+              // Story 4.65: dirty window — se local foi salvo recentemente, preservar dados locais sobre remotos
+              const localById = {};
+              localItems.forEach(item => { if (item.id) localById[item.id] = item; });
+              const msSinceLocalSave = typeof getLastLocalSave === 'function' ? (Date.now() - getLastLocalSave(lsKey)) : Infinity;
+              const preferLocal = msSinceLocalSave < 5000;
+              const mergedRemote = filteredRows.map(r => {
+                if (preferLocal && localById[r.id]) return localById[r.id];
+                return r;
+              });
+              const merged = [...mergedRemote, ...localOnly];
               const data = _wrapKeys.has(lsKey) ? { _v: 1, updatedAt: new Date().toISOString(), items: merged } : merged;
               localStorage.setItem(lsKey, JSON.stringify(data));
               gdpLog("[GDP] " + table + ": " + filteredRows.length + " do Supabase + " + localOnly.length + " locais preservados" + (deletedIds.size ? " (" + deletedIds.size + " deletados filtrados)" : ""));

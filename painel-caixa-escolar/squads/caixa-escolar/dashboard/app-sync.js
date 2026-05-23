@@ -147,6 +147,15 @@ async function syncFromCloud(options) {
       }
     }
 
+    // Story 4.65: dirty window protection — skip overwrite if local was saved recently (5s)
+    if (!force && typeof getLastLocalSave === 'function') {
+      const msSinceLocalSave = Date.now() - getLastLocalSave(row.key);
+      if (msSinceLocalSave < 5000) {
+        gdpLog("[Sync] SKIP overwrite for", row.key, "- local save", msSinceLocalSave, "ms ago (dirty window)");
+        continue;
+      }
+    }
+
     // Story 4.64: conciliacao usa timestamp (nao isSharedKey) para respeitar exclusoes locais
     const useTimestamp = row.key === 'gdp.conciliacao.v1' || row.key === 'gdp.extratos.v1';
     const shouldSync = useTimestamp

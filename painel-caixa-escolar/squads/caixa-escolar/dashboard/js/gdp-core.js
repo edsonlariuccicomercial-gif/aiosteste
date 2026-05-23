@@ -374,6 +374,13 @@ async function syncFromCloud() {
       continue;
     }
 
+    // Story 4.65: dirty window protection — skip overwrite if local was saved recently (5s)
+    const msSinceLocalSave = Date.now() - getLastLocalSave(row.key);
+    if (msSinceLocalSave < 5000) {
+      gdpLog("[Sync] SKIP overwrite for", row.key, "- local save", msSinceLocalSave, "ms ago (dirty window)");
+      continue;
+    }
+
     if ((isSharedKey && cloudHasMoreContent && cloudHasMoreDeepContent) || (cloudTime > localTime && cloudHasMoreDeepContent) || (!localTime && cloudTime === 0)) {
       localStorage.setItem(row.key, JSON.stringify(incomingData));
       synced++;
@@ -747,9 +754,15 @@ const _LS_TO_TABLE = {
   'gdp.entregas.provas.v1': 'entregas'
 };
 
+// Story 4.65: dirty window protection — track last local save timestamp per key
+const _lastLocalSave = {};
+function getLastLocalSave(key) { return _lastLocalSave[key] || 0; }
+
 function saveWrappedArray(key, items) {
   const wrapped = { _v: 1, updatedAt: new Date().toISOString(), items };
   localStorage.setItem(key, JSON.stringify(wrapped));
+  // Story 4.65: registrar timestamp do save local para dirty window protection
+  _lastLocalSave[key] = Date.now();
   // Gravar no Supabase tabela real (fonte primária)
   const table = _LS_TO_TABLE[key];
   if (table && window.gdpApi && window.gdpApi[table]) {
