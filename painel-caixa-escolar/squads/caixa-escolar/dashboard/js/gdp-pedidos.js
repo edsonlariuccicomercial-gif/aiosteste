@@ -1613,7 +1613,8 @@ function renderContasPagar() {
   const busca = (document.getElementById("cp-busca")?.value || "").toLowerCase();
   const filtroCategoria = document.getElementById("cp-filtro-categoria")?.value || "";
   let filtered = contasPagar;
-  if (busca) filtered = filtered.filter((item) => (item.descricao || "").toLowerCase().includes(busca));
+  // Story 4.66: busca por descricao + cliente + valor
+  if (busca) filtered = filtered.filter((item) => ((item.descricao || "") + " " + (item.cliente || "") + " " + (item.valor || "")).toLowerCase().includes(busca));
   if (filtroCategoria) filtered = filtered.filter((item) => item.categoria === filtroCategoria);
   // Story 4.54 AC-1: period filter
   filtered = _applyPeriodFilter(filtered, 'cp-filtro-periodo', 'cp-filtro-de', 'cp-filtro-ate', 'vencimento');
@@ -1670,7 +1671,8 @@ function renderContasReceber() {
   const busca = (document.getElementById("cr-busca")?.value || "").toLowerCase();
   const filtroCategoria = document.getElementById("cr-filtro-categoria")?.value || "";
   let filtered = contasReceber;
-  if (busca) filtered = filtered.filter((item) => ((item.descricao || "") + " " + (item.cliente || "")).toLowerCase().includes(busca));
+  // Story 4.66: busca por descricao + cliente + valor
+  if (busca) filtered = filtered.filter((item) => ((item.descricao || "") + " " + (item.cliente || "") + " " + (item.valor || "")).toLowerCase().includes(busca));
   if (filtroCategoria) filtered = filtered.filter((item) => item.categoria === filtroCategoria);
   // Story 4.54 AC-2: period filter
   filtered = _applyPeriodFilter(filtered, 'cr-filtro-periodo', 'cr-filtro-de', 'cr-filtro-ate', 'vencimento');

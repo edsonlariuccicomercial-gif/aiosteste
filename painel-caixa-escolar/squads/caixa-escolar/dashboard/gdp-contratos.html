@@ -778,6 +778,7 @@
       <div style="display:flex;gap:.6rem;align-items:center;flex-wrap:wrap">
         <button class="btn btn-outline" onclick="imprimirRelatorioContasReceber()">Imprimir Relatorio</button>
         <button class="btn btn-green" onclick="toggleContaReceberForm()">+ Incluir Conta a Receber</button>
+        <button class="btn btn-outline" onclick="toggleImportCrModal(true)">📥 Importar Planilha</button>
       </div>
     </div>
     <div id="contas-receber-status-tabs" style="display:flex;gap:.25rem;flex-wrap:nowrap;align-items:center;margin-bottom:1rem"></div>
@@ -1592,8 +1593,8 @@
   </div>
 </div>
 
-<div class="hidden" id="cr-form-card" style="position:fixed;inset:0;background:rgba(8,15,31,.88);z-index:1012;padding:1.25rem;overflow-y:auto" onclick="toggleContaReceberForm(false)">
-  <div style="background:var(--bg);border:1px solid var(--bdr);border-radius:18px;min-height:calc(100vh - 2.5rem);display:flex;flex-direction:column" onclick="event.stopPropagation()">
+<div class="hidden" id="cr-form-card" style="position:fixed;inset:0;background:rgba(8,15,31,.88);z-index:1012;display:flex;align-items:center;justify-content:center;padding:1rem" onclick="toggleContaReceberForm(false)">
+  <div style="background:var(--bg);border:1px solid var(--bdr);border-radius:12px;width:560px;max-width:95vw;max-height:90vh;display:flex;flex-direction:column;overflow-y:auto" onclick="event.stopPropagation()">
     <div style="padding:1.2rem 1.5rem;border-bottom:1px solid var(--bdr);display:flex;justify-content:space-between;align-items:center;gap:1rem">
       <div>
         <h2 style="margin:0;font-size:1.12rem">Nova Conta a Receber</h2>
@@ -1629,6 +1630,203 @@
     <div style="padding:1rem 1.2rem;overflow-y:auto;flex:1" id="modal-contrato-body"></div>
   </div>
 </div>
+
+<!-- Story 4.66: Modal importacao planilha Contas a Receber -->
+<div class="hidden" id="cr-import-modal" style="position:fixed;inset:0;background:rgba(8,15,31,.88);z-index:1020;display:flex;align-items:center;justify-content:center;padding:1rem" onclick="toggleImportCrModal(false)">
+  <div style="background:var(--bg);border:1px solid var(--bdr);border-radius:12px;width:640px;max-width:95vw;max-height:90vh;display:flex;flex-direction:column;overflow-y:auto" onclick="event.stopPropagation()">
+    <div style="padding:1rem 1.5rem;border-bottom:1px solid var(--bdr);display:flex;justify-content:space-between;align-items:center">
+      <h2 style="margin:0;font-size:1.1rem">Importar Planilha — Contas a Receber</h2>
+      <button class="btn btn-outline btn-sm" onclick="toggleImportCrModal(false)">Fechar</button>
+    </div>
+    <div style="padding:1.5rem">
+      <div id="cr-import-dropzone" style="border:2px dashed var(--bdr);border-radius:10px;padding:2.5rem 1.5rem;text-align:center;cursor:pointer;transition:border-color .2s" onclick="document.getElementById('cr-import-file').click()">
+        <div style="font-size:2.5rem;margin-bottom:.5rem">📄</div>
+        <div style="font-weight:600;margin-bottom:.3rem">Arraste a planilha aqui ou clique para selecionar</div>
+        <div style="font-size:.8rem;color:var(--mut)">Aceita .xls, .xlsx e .csv</div>
+        <input type="file" id="cr-import-file" accept=".xls,.xlsx,.csv" style="display:none" onchange="handleCrImportFile(this.files[0])">
+      </div>
+      <div id="cr-import-preview" class="hidden" style="margin-top:1rem">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.8rem">
+          <div id="cr-import-summary" style="font-size:.85rem;font-weight:600"></div>
+          <button class="btn btn-outline btn-sm" onclick="resetCrImport()">Trocar arquivo</button>
+        </div>
+        <div style="max-height:250px;overflow-y:auto;border:1px solid var(--bdr);border-radius:6px">
+          <table style="font-size:.8rem;width:100%">
+            <thead><tr id="cr-import-thead"></tr></thead>
+            <tbody id="cr-import-tbody"></tbody>
+          </table>
+        </div>
+        <div style="margin-top:1rem;display:flex;justify-content:flex-end;gap:.8rem">
+          <button class="btn btn-outline" onclick="toggleImportCrModal(false)">Cancelar</button>
+          <button class="btn btn-green" id="cr-import-confirm-btn" onclick="confirmarImportCr()">Importar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<script>
+// Story 4.66: Importacao Excel Contas a Receber
+var _crImportData = [];
+
+function toggleImportCrModal(open) {
+  var m = document.getElementById('cr-import-modal');
+  if (!m) return;
+  m.classList.toggle('hidden', !open);
+  if (open) resetCrImport();
+}
+
+function resetCrImport() {
+  _crImportData = [];
+  document.getElementById('cr-import-file').value = '';
+  document.getElementById('cr-import-preview').classList.add('hidden');
+  document.getElementById('cr-import-dropzone').style.display = '';
+}
+
+// Drag & drop
+(function() {
+  var dz = document.getElementById('cr-import-dropzone');
+  if (!dz) return;
+  ['dragenter','dragover'].forEach(function(ev) {
+    dz.addEventListener(ev, function(e) { e.preventDefault(); e.stopPropagation(); dz.style.borderColor = 'var(--green)'; });
+  });
+  ['dragleave','drop'].forEach(function(ev) {
+    dz.addEventListener(ev, function(e) { e.preventDefault(); e.stopPropagation(); dz.style.borderColor = 'var(--bdr)'; });
+  });
+  dz.addEventListener('drop', function(e) {
+    var f = e.dataTransfer.files[0];
+    if (f) handleCrImportFile(f);
+  });
+})();
+
+function handleCrImportFile(file) {
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      var data = new Uint8Array(e.target.result);
+      var wb = XLSX.read(data, { type: 'array', cellDates: false });
+      var ws = wb.Sheets[wb.SheetNames[0]];
+      var rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+      if (!rows.length) { showToast('Planilha vazia.', 3000); return; }
+      _crImportData = mapCrImportRows(rows);
+      renderCrImportPreview(_crImportData);
+    } catch (err) {
+      showToast('Erro ao ler planilha: ' + err.message, 5000);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function _fuzzyMatch(header, targets) {
+  var h = (header || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+  for (var i = 0; i < targets.length; i++) {
+    if (h.indexOf(targets[i]) >= 0) return true;
+  }
+  return false;
+}
+
+function _detectColumns(keys) {
+  var map = {};
+  for (var i = 0; i < keys.length; i++) {
+    var k = keys[i];
+    if (_fuzzyMatch(k, ['cliente', 'client', 'razao'])) map.cliente = k;
+    else if (_fuzzyMatch(k, ['vencimento', 'venc', 'due'])) map.vencimento = k;
+    else if (_fuzzyMatch(k, ['emissao', 'emiss', 'data emis'])) map.dataEmissao = k;
+    else if (_fuzzyMatch(k, ['valor', 'value', 'total'])) map.valor = k;
+    else if (_fuzzyMatch(k, ['situacao', 'status', 'sit'])) map.status = k;
+    else if (_fuzzyMatch(k, ['historico', 'descricao', 'descr', 'hist', 'obs'])) map.descricao = k;
+    else if (_fuzzyMatch(k, ['forma', 'pagamento', 'recebimento', 'payment'])) map.forma = k;
+    else if (_fuzzyMatch(k, ['meio', 'banco', 'bank'])) map.meio = k;
+  }
+  return map;
+}
+
+function _parseDate(val) {
+  if (!val) return '';
+  if (typeof val === 'number') {
+    var d = new Date((val - 25569) * 86400000);
+    return d.toISOString().split('T')[0];
+  }
+  var s = String(val).trim();
+  var m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  if (m) return m[3] + '-' + m[2].padStart(2, '0') + '-' + m[1].padStart(2, '0');
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+  return s;
+}
+
+function _mapStatus(val) {
+  var v = (val || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+  if (v.indexOf('recebid') >= 0 || v.indexOf('pag') >= 0) return 'recebida';
+  return 'emitida';
+}
+
+function _mapForma(val) {
+  var v = (val || '').toLowerCase().trim();
+  if (v.indexOf('boleto') >= 0) return 'boleto';
+  if (v.indexOf('pix') >= 0) return 'pix';
+  if (v.indexOf('cheque') >= 0) return 'cheque';
+  if (v.indexOf('ted') >= 0) return 'ted';
+  if (v.indexOf('transf') >= 0) return 'transferencia';
+  if (v.indexOf('deposit') >= 0) return 'deposito';
+  return v || 'outros';
+}
+
+function mapCrImportRows(rows) {
+  var keys = Object.keys(rows[0]);
+  var col = _detectColumns(keys);
+  return rows.map(function(r) {
+    return {
+      id: 'CR-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7),
+      origemTipo: 'importacao',
+      origemId: '',
+      cliente: r[col.cliente] || '',
+      descricao: r[col.descricao] || '',
+      categoria: '',
+      forma: _mapForma(r[col.forma]),
+      valor: parseFloat(String(r[col.valor] || '0').replace(',', '.')) || 0,
+      dataEmissao: _parseDate(r[col.dataEmissao]),
+      vencimento: _parseDate(r[col.vencimento]),
+      status: _mapStatus(r[col.status]),
+      meioRecebimento: r[col.meio] || '',
+      automacao: { whatsapp: false, email: false, ultimoDisparo: '' },
+      cobranca: { status: '', linhaDigitavel: '', pixCopiaECola: '' },
+      audit: { createdAt: new Date().toISOString(), createdBy: 'importacao-excel', updatedAt: new Date().toISOString(), updatedBy: 'importacao-excel' }
+    };
+  });
+}
+
+function renderCrImportPreview(items) {
+  document.getElementById('cr-import-dropzone').style.display = 'none';
+  document.getElementById('cr-import-preview').classList.remove('hidden');
+  var total = items.reduce(function(s, i) { return s + i.valor; }, 0);
+  document.getElementById('cr-import-summary').textContent = items.length + ' lancamentos encontrados — Total: R$ ' + total.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+  var thead = document.getElementById('cr-import-thead');
+  thead.innerHTML = '<th>Cliente</th><th>Descricao</th><th>Vencimento</th><th>Valor</th><th>Status</th><th>Forma</th>';
+  var tbody = document.getElementById('cr-import-tbody');
+  var html = '';
+  var show = items.slice(0, 8);
+  for (var i = 0; i < show.length; i++) {
+    var it = show[i];
+    html += '<tr><td>' + (it.cliente || '-') + '</td><td title="' + (it.descricao || '') + '">' + (it.descricao || '-').slice(0, 40) + '</td><td>' + (it.vencimento || '-') + '</td><td style="text-align:right">R$ ' + it.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) + '</td><td>' + it.status + '</td><td>' + it.forma + '</td></tr>';
+  }
+  if (items.length > 8) html += '<tr><td colspan="6" style="text-align:center;color:var(--mut)">... e mais ' + (items.length - 8) + ' lancamentos</td></tr>';
+  tbody.innerHTML = html;
+  document.getElementById('cr-import-confirm-btn').textContent = 'Importar ' + items.length + ' lancamentos';
+}
+
+function confirmarImportCr() {
+  if (!_crImportData.length) return;
+  contasReceber = contasReceber.concat(_crImportData);
+  if (typeof saveContasReceber === 'function') saveContasReceber();
+  else if (typeof saveWrappedArray === 'function') saveWrappedArray('gdp.contas-receber.v1', contasReceber);
+  renderContasReceber();
+  toggleImportCrModal(false);
+  showToast(_crImportData.length + ' lancamentos importados com sucesso!', 5000);
+  _crImportData = [];
+}
+</script>
 
 <script src="./js/gdp-integrations-client.js?v=2"></script>
 <script src="./js/gdp-core.js?v=2"></script>
