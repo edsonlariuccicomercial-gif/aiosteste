@@ -324,9 +324,37 @@ async function syncFromCloud() {
     if (!row.data) continue;
 
     // Filtrar contratos deletados ao receber do cloud
-    const incomingData = row.key === CONTRACTS_KEY
+    let incomingData = row.key === CONTRACTS_KEY
       ? { ...(row.data), items: applyDeletedContractsFilter(unwrapData(row.data)) }
       : row.data;
+
+    // Story 4.65: convert legacy array to wrapped format for conciliacao/extratos
+    // (mirror of app-sync.js:184-186 protection — Story 4.64 invariant #2)
+    if ((row.key === 'gdp.conciliacao.v1' || row.key === 'gdp.extratos.v1') && Array.isArray(incomingData)) {
+      incomingData = { _v: 1, updatedAt: row.updated_at || new Date().toISOString(), items: incomingData };
+    }
+
+    // Story 4.65: filter out locally-deleted items before writing
+    // (mirror of app-sync.js:159-182 protection — Story 4.64 invariant #6)
+    const _delKeyMap = {
+      'gdp.conciliacao.v1': 'gdp.conciliacao.deleted.v1',
+      'gdp.extratos.v1': 'gdp.extratos.deleted.v1',
+      'gdp.notas-entrada.v1': 'gdp.notas-entrada.deleted.v1',
+      'gdp.estoque-intel.fornecedores.v1': 'gdp.estoque-intel.fornecedores.deleted.v1'
+    };
+    const _delKey = _delKeyMap[row.key];
+    if (_delKey) {
+      let deletedIds;
+      try { deletedIds = new Set(JSON.parse(localStorage.getItem(_delKey) || '[]')); } catch (_) { deletedIds = new Set(); }
+      if (deletedIds.size > 0) {
+        const items = incomingData?.items || (Array.isArray(incomingData) ? incomingData : null);
+        if (items) {
+          const filtered = items.filter(it => !deletedIds.has(it.id));
+          if (incomingData?.items) incomingData = { ...incomingData, items: filtered };
+          else incomingData = filtered;
+        }
+      }
+    }
 
     // Cloud wins ONLY if local is empty OR cloud data is newer
     if (!localData) {
@@ -381,7 +409,13 @@ async function syncFromCloud() {
       continue;
     }
 
-    if ((isSharedKey && cloudHasMoreContent && cloudHasMoreDeepContent) || (cloudTime > localTime && cloudHasMoreDeepContent) || (!localTime && cloudTime === 0)) {
+    // Story 4.65: conciliacao/extratos usam timestamp (nao isSharedKey) para respeitar exclusoes locais
+    // (mirror of app-sync.js:150-154 protection — Story 4.64 invariant #3)
+    const useTimestampOnly = row.key === 'gdp.conciliacao.v1' || row.key === 'gdp.extratos.v1';
+    const shouldWrite = useTimestampOnly
+      ? (cloudTime > localTime || (!localTime && cloudTime === 0))
+      : ((isSharedKey && cloudHasMoreContent && cloudHasMoreDeepContent) || (cloudTime > localTime && cloudHasMoreDeepContent) || (!localTime && cloudTime === 0));
+    if (shouldWrite) {
       localStorage.setItem(row.key, JSON.stringify(incomingData));
       synced++;
     }
