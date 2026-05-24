@@ -1673,8 +1673,8 @@ function enviarLembreteVencendoHoje(canal) { showToast("Integração " + canal +
 function enviarCobrancaVencidas(canal) { showToast("Cobrança via " + canal + " com boleto reemitido será configurada com API Inter. Em breve!", 3000); }
 function enviarLembreteConta(contaId, canal) { showToast("Envio de lembrete via " + canal + " para conta " + contaId + " em breve!", 3000); }
 function renderRelatorios() {}
-function renderUsuarios() {}
-function renderBancoProdutos() {}
+// renderUsuarios definido em gdp-usuarios.js
+// renderBancoProdutos definido em gdp-banco-produtos.js
 
 // ===== NCM LOOKUP (movido de gdp-entregas.js — compartilhado por vários módulos) =====
 const TINY_NCM_MAP = [
