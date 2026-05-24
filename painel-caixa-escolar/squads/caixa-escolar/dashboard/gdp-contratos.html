@@ -781,8 +781,8 @@
       </div>
       <div style="display:flex;gap:.6rem;align-items:center;flex-wrap:wrap">
         <button class="btn btn-outline" onclick="imprimirRelatorioContasReceber()">Imprimir Relatorio</button>
-        <button class="btn btn-green" onclick="toggleContaReceberForm()">+ Incluir Conta a Receber</button>
         <button class="btn btn-outline" onclick="toggleImportCrModal(true)">📥 Importar Planilha</button>
+        <button class="btn btn-green" onclick="toggleContaReceberForm()">+ Incluir Conta a Receber</button>
       </div>
     </div>
     <div id="contas-receber-status-tabs" style="display:flex;gap:.25rem;flex-wrap:nowrap;align-items:center;margin-bottom:1rem"></div>
@@ -1577,14 +1577,13 @@
 </div>
 
 <!-- Fullscreen forms: CP and CR (must be outside tabs to avoid hidden parent) -->
-<div class="hidden" id="cp-form-card" style="position:fixed;inset:0;background:rgba(8,15,31,.88);z-index:1012;padding:1.25rem;overflow-y:auto" onclick="toggleContaPagarForm(false)">
-  <div style="background:var(--bg);border:1px solid var(--bdr);border-radius:18px;min-height:calc(100vh - 2.5rem);display:flex;flex-direction:column" onclick="event.stopPropagation()">
+<div class="hidden" id="cp-form-card" style="position:fixed;inset:0;background:rgba(8,15,31,.88);z-index:1012;display:flex;align-items:center;justify-content:center;padding:1rem" onclick="toggleContaPagarForm(false)">
+  <div style="background:var(--bg);border:1px solid var(--bdr);border-radius:12px;width:560px;max-width:95vw;max-height:90vh;display:flex;flex-direction:column;overflow-y:auto" onclick="event.stopPropagation()">
     <div style="padding:1.2rem 1.5rem;border-bottom:1px solid var(--bdr);display:flex;justify-content:space-between;align-items:center;gap:1rem">
       <div>
         <h2 style="margin:0;font-size:1.12rem">Nova Conta a Pagar</h2>
         <div style="font-size:.82rem;color:var(--mut);margin-top:.3rem">Preencha os dados da despesa e salve para voltar a tela anterior.</div>
       </div>
-      <button class="btn btn-outline btn-sm" onclick="toggleContaPagarForm(false)">Cancelar</button>
     </div>
     <div style="padding:1.5rem;display:grid;grid-template-columns:repeat(2,minmax(240px,1fr));gap:1rem;flex:1;align-content:start">
       <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Descricao</label><input type="text" id="cp-descricao" placeholder="Ex: Frete fornecedor"></div>
@@ -1608,7 +1607,6 @@
         <h2 style="margin:0;font-size:1.12rem">Nova Conta a Receber</h2>
         <div style="font-size:.82rem;color:var(--mut);margin-top:.3rem">Preencha os dados da receita e salve para voltar a tela anterior.</div>
       </div>
-      <button class="btn btn-outline btn-sm" onclick="toggleContaReceberForm(false)">Cancelar</button>
     </div>
     <div style="padding:1.5rem;display:grid;grid-template-columns:repeat(2,minmax(240px,1fr));gap:1rem;flex:1;align-content:start">
       <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Descricao</label><input type="text" id="cr-descricao" placeholder="Ex: cobranca avulsa"></div>
