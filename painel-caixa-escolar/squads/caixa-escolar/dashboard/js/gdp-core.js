@@ -471,8 +471,8 @@ async function forcarSyncCompleto() {
     setGdpSyncState({ status: "syncing", detail: "Limpando cache local..." });
     showToast("Sync: limpando cache e baixando dados do cloud...", 2000);
     // Limpar conciliação/extratos locais para garantir versão do cloud
+    // Story 4.69: NUNCA apagar chaves .deleted — elas impedem restauração de itens excluídos
     localStorage.removeItem("gdp.conciliacao.v1");
-    localStorage.removeItem("gdp.conciliacao.deleted.v1");
     localStorage.removeItem("gdp.extratos.v1");
     localStorage.removeItem("gdp.notas-entrada.v1");
     localStorage.removeItem("gdp.estoque-intel.fornecedores.v1");

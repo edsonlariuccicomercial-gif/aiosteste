@@ -174,7 +174,8 @@ async function syncFromCloud(options) {
           'gdp.entregas.provas.v1': 'gdp.entregas.deleted.v1',
           'gdp.notas-entrada.v1': 'gdp.notas-entrada.deleted.v1',
           'gdp.estoque-intel.fornecedores.v1': 'gdp.estoque-intel.fornecedores.deleted.v1',
-          'gdp.conciliacao.v1': 'gdp.conciliacao.deleted.v1'
+          'gdp.conciliacao.v1': 'gdp.conciliacao.deleted.v1',
+          'gdp.extratos.v1': 'gdp.extratos.deleted.v1'
         };
         const delKey = delKeyMap[row.key];
         if (delKey) {
