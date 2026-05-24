@@ -2340,6 +2340,7 @@ window.conciliarLancamento = function(idx) {
     items[idx].conciliado = true;
     items[idx].conciliadoEm = new Date().toISOString().slice(0, 10);
     saveConciliacao(items);
+    atualizarExtratoStats();
     renderConciliacao();
     showToast("Lançamento conciliado.");
   }
