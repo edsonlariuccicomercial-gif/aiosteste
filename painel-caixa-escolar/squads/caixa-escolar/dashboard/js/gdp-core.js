@@ -2207,7 +2207,26 @@ function renderConciliacao() {
     const cor = val >= 0 ? "var(--green,#22c55e)" : "var(--red,#ef4444)";
     const isPendente = !t.conciliado;
     const pendenteMark = isPendente ? 'border-left:3px solid var(--yellow,#f59e0b);background:rgba(245,158,11,.06);' : 'opacity:.6;';
-    const statusLabel = t.conciliado ? '<span style="color:var(--green,#22c55e);font-weight:700;font-size:.75rem">Conciliado</span>' : '<button class="btn btn-sm btn-blue" style="font-size:.7rem;padding:.15rem .5rem" onclick="conciliarLancamento(' + gi + ')">Conciliar</button>';
+    let statusLabel;
+    if (t.conciliado) {
+      const vinc = t.vinculadoA;
+      const vincLabel = vinc ? ' <span style="font-size:.65rem;color:var(--mut)">(' + (vinc.tipo === 'cp' ? 'CP' : 'CR') + ')</span>' : '';
+      statusLabel = '<span style="color:var(--green,#22c55e);font-weight:700;font-size:.75rem">Conciliado' + vincLabel + '</span>';
+    } else {
+      const sugestoes = buscarSugestoesConciliacao(t);
+      if (sugestoes.length > 0) {
+        const s = sugestoes[0];
+        const tipoLabel = s.tipo === 'cp' ? 'CP' : 'CR';
+        const descShort = (s.descricao || '').slice(0, 25) + ((s.descricao || '').length > 25 ? '...' : '');
+        const vencFmt = s.vencimento ? fmtDate(s.vencimento) : '';
+        statusLabel = '<div style="font-size:.72rem;line-height:1.3">'
+          + '<button class="btn btn-sm btn-green" style="font-size:.68rem;padding:.15rem .5rem;margin-bottom:.2rem" onclick="conciliarComBaixa(' + gi + ',\'' + s.contaId + '\',\'' + s.tipo + '\')">' + tipoLabel + ': ' + esc(descShort) + '</button>'
+          + '<div style="color:var(--mut);font-size:.65rem">' + esc(vencFmt) + ' | ' + brl.format(s.valor) + (sugestoes.length > 1 ? ' (+' + (sugestoes.length - 1) + ')' : '') + '</div>'
+          + '</div>';
+      } else {
+        statusLabel = '<button class="btn btn-sm btn-blue" style="font-size:.7rem;padding:.15rem .5rem" onclick="conciliarLancamento(' + gi + ')">Conciliar</button>';
+      }
+    }
     return `<tr style="${pendenteMark}">
       <td>${t.data || "-"}</td>
       <td style="font-size:.8rem;max-width:200px;overflow:hidden;text-overflow:ellipsis" title="${esc(t.descricao || '')}">${esc(t.descricao || "")}</td>
@@ -2219,6 +2238,100 @@ function renderConciliacao() {
     </tr>`;
   }).join("");
 }
+
+// === Auto-conciliacao: buscar sugestoes de CP/CR para transacao do extrato ===
+function buscarSugestoesConciliacao(transacao) {
+  const val = parseFloat(transacao.valor) || 0;
+  const absVal = Math.abs(val);
+  const sugestoes = [];
+
+  if (val < 0) {
+    // Debito no extrato -> buscar em Contas a Pagar pendentes
+    contasPagar.forEach(cp => {
+      if (cp.status === 'paga') return;
+      const cpVal = parseFloat(cp.valor) || 0;
+      if (Math.abs(cpVal - absVal) < 0.01) {
+        sugestoes.push({
+          tipo: 'cp',
+          contaId: cp.id,
+          descricao: cp.descricao || '',
+          cliente: cp.cliente || '',
+          vencimento: cp.vencimento || '',
+          valor: cpVal,
+          categoria: cp.categoria || ''
+        });
+      }
+    });
+  } else {
+    // Credito no extrato -> buscar em Contas a Receber pendentes
+    contasReceber.forEach(cr => {
+      if (cr.status === 'recebida') return;
+      const crVal = parseFloat(cr.valor) || 0;
+      if (Math.abs(crVal - absVal) < 0.01) {
+        sugestoes.push({
+          tipo: 'cr',
+          contaId: cr.id,
+          descricao: cr.descricao || '',
+          cliente: cr.cliente || '',
+          vencimento: cr.vencimento || '',
+          valor: crVal,
+          categoria: cr.categoria || ''
+        });
+      }
+    });
+  }
+
+  // Ordenar por proximidade de data (vencimento mais proximo da data do extrato)
+  if (transacao.data && sugestoes.length > 1) {
+    const extDate = new Date(transacao.data).getTime();
+    sugestoes.sort((a, b) => {
+      const da = Math.abs(new Date(a.vencimento).getTime() - extDate);
+      const db = Math.abs(new Date(b.vencimento).getTime() - extDate);
+      return da - db;
+    });
+  }
+
+  return sugestoes;
+}
+
+// === Auto-conciliacao: conciliar extrato + baixar CP/CR automaticamente ===
+window.conciliarComBaixa = function(idx, contaId, tipo) {
+  const items = loadConciliacao();
+  if (!items[idx]) return;
+
+  // 1. Marcar lancamento como conciliado e vincular a conta
+  items[idx].conciliado = true;
+  items[idx].conciliadoEm = new Date().toISOString().slice(0, 10);
+  items[idx].vinculadoA = { tipo: tipo, contaId: contaId };
+  saveConciliacao(items);
+
+  // 2. Baixar a conta automaticamente
+  const dataBaixa = items[idx].data || new Date().toISOString().slice(0, 10);
+
+  if (tipo === 'cp') {
+    const conta = contasPagar.find(c => c.id === contaId);
+    if (conta && conta.status !== 'paga') {
+      conta.status = 'paga';
+      conta.pagaEm = dataBaixa + 'T12:00:00';
+      conta.audit = { ...(conta.audit || {}), updatedAt: new Date().toISOString(), updatedBy: getAuditActor(), baixaAutoConciliacao: true, extratoRef: items[idx].extratoId };
+      saveContasPagar();
+    }
+  } else if (tipo === 'cr') {
+    const conta = contasReceber.find(c => c.id === contaId);
+    if (conta && conta.status !== 'recebida') {
+      conta.status = 'recebida';
+      conta.recebidaEm = dataBaixa + 'T12:00:00';
+      conta.conciliacao = { status: 'conciliado_extrato', referencia: genId('CNCL'), updatedAt: new Date().toISOString(), updatedBy: getAuditActor() };
+      conta.audit = { ...(conta.audit || {}), updatedAt: new Date().toISOString(), updatedBy: getAuditActor(), baixaAutoConciliacao: true, extratoRef: items[idx].extratoId };
+      saveContasReceber();
+    }
+  }
+
+  atualizarExtratoStats();
+  renderConciliacao();
+  const label = tipo === 'cp' ? 'Conta a Pagar' : 'Conta a Receber';
+  showToast('Conciliado e baixado: ' + label + ' vinculada automaticamente.', 4000);
+};
 
 window.conciliarLancamento = function(idx) {
   const items = loadConciliacao();
