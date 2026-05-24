@@ -2363,15 +2363,38 @@ window.excluirExtratosSelecionados = function() {
   const extratos = loadExtratos();
   const deletedExtIds = new Set(selected.map(i => extratos[i]?.id).filter(Boolean));
   const remaining = extratos.filter((_, i) => !selected.includes(i));
+
+  // Story 4.69: delete tracking para extratos — impede sync de restaurar
+  try {
+    var dkExt = 'gdp.extratos.deleted.v1';
+    var existingExt = JSON.parse(localStorage.getItem(dkExt) || '[]');
+    if (!Array.isArray(existingExt)) existingExt = [];
+    deletedExtIds.forEach(function(id) { if (existingExt.indexOf(id) < 0) existingExt.push(id); });
+    localStorage.setItem(dkExt, JSON.stringify(existingExt));
+  } catch(_) {}
+
   saveExtratos(remaining);
+
   // Story 4.69: remover apenas itens NAO conciliados dos extratos excluídos
-  // Itens conciliados permanecem no Caixa
   if (deletedExtIds.size > 0) {
     const allItems = loadConciliacao();
+    const removedIds = [];
     const kept = allItems.filter(item => {
-      if (!deletedExtIds.has(item.extratoId)) return true; // não é do extrato excluído — manter
-      return item.conciliado === true; // do extrato excluído — manter SÓ se conciliado
+      if (!deletedExtIds.has(item.extratoId)) return true;
+      if (item.conciliado === true) return true;
+      if (item.id) removedIds.push(item.id);
+      return false;
     });
+    // Delete tracking para itens de conciliação removidos
+    if (removedIds.length > 0) {
+      try {
+        var dkConc = 'gdp.conciliacao.deleted.v1';
+        var existingConc = JSON.parse(localStorage.getItem(dkConc) || '[]');
+        if (!Array.isArray(existingConc)) existingConc = [];
+        removedIds.forEach(function(id) { if (existingConc.indexOf(id) < 0) existingConc.push(id); });
+        localStorage.setItem(dkConc, JSON.stringify(existingConc));
+      } catch(_) {}
+    }
     saveConciliacao(kept);
   }
   renderConciliacao();
