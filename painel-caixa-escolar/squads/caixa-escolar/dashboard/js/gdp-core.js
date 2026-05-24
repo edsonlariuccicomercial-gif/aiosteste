@@ -2361,9 +2361,16 @@ window.excluirExtratosSelecionados = function() {
   if (!selected.length) return;
   if (!confirm('Excluir ' + selected.length + ' extrato(s) e seus dados de conciliação?')) return;
   const extratos = loadExtratos();
+  // Coletar IDs dos extratos que serão excluídos
+  const deletedExtIds = new Set(selected.map(i => extratos[i]?.id).filter(Boolean));
   const remaining = extratos.filter((_, i) => !selected.includes(i));
   saveExtratos(remaining);
-  if (remaining.length === 0) { saveConciliacao([]); }
+  // Story 4.68: remover APENAS os itens de conciliação dos extratos excluídos (nunca apagar tudo)
+  if (deletedExtIds.size > 0) {
+    const allItems = loadConciliacao();
+    const kept = allItems.filter(item => !deletedExtIds.has(item.extratoId));
+    saveConciliacao(kept);
+  }
   renderConciliacao();
   showToast(selected.length + ' extrato(s) excluído(s).');
 };
