@@ -667,6 +667,7 @@
       </div>
       <div style="display:flex;gap:.6rem;align-items:center;flex-wrap:wrap">
         <button class="btn btn-outline" onclick="imprimirRelatorioContasPagar()">Imprimir Relatorio</button>
+        <button class="btn btn-outline" onclick="toggleImportCpModal(true)">📥 Importar Planilha</button>
         <button class="btn btn-green" onclick="toggleContaPagarForm()">+ Incluir Conta a Pagar</button>
       </div>
     </div>
@@ -992,8 +993,7 @@
           <div style="display:flex;gap:.5rem;flex-wrap:wrap">
             <button class="btn btn-green btn-sm" onclick="toggleFormNovoProduto()">+ Novo Produto</button>
             <button class="btn btn-outline btn-sm" onclick="autoPreencherSKUeNCM()">Auto SKU/NCM</button>
-            <button class="btn btn-outline btn-sm" onclick="downloadModeloProdutos()">Baixar Modelo</button>
-            <button class="btn btn-blue btn-sm" onclick="importarProdutosExcel()">Importar Excel</button>
+            <button class="btn btn-outline btn-sm" onclick="toggleImportProdModal(true)">📥 Importar Planilha</button>
             <button class="btn btn-outline btn-sm" onclick="imprimirListaProdutosEstoqueIntel()">Imprimir</button>
           </div>
         </div>
@@ -1075,6 +1075,7 @@
             <h3 style="margin-bottom:.35rem">Fornecedores e Precos Negociados</h3>
             <div style="font-size:.8rem;color:var(--mut)">Cadastro separado da compra inteligente, com lista completa de fornecedores e ofertas negociadas.</div>
           </div>
+          <button class="btn btn-outline btn-sm" onclick="toggleImportFornModal(true)">📥 Importar Planilha</button>
           <button class="btn btn-outline btn-sm" onclick="imprimirListaFornecedoresEstoqueIntel()">Imprimir Lista</button>
         </div>
         <div data-ei-form style="border:1px solid var(--bdr);border-radius:4px;padding:.9rem;margin-bottom:1rem">
@@ -1832,7 +1833,284 @@ function confirmarImportCr() {
   showToast(_crImportData.length + ' lancamentos importados com sucesso!', 5000);
   _crImportData = [];
 }
+
+// ===== Story 4.70 Bloco A: Importacao padrao CP, Fornecedores, Produtos =====
+
+// --- CONTAS A PAGAR ---
+var _cpImportData = [];
+function toggleImportCpModal(open) { var m=document.getElementById('cp-import-modal'); if(!m) return; m.classList.toggle('hidden',!open); if(open) { _cpImportData=[]; document.getElementById('cp-import-file').value=''; document.getElementById('cp-import-preview').classList.add('hidden'); document.getElementById('cp-import-dropzone-inner').style.display=''; } }
+function handleCpImportFile(file) {
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      var data = new Uint8Array(e.target.result);
+      var wb = XLSX.read(data, {type:'array',cellDates:false});
+      var ws = wb.Sheets[wb.SheetNames[0]];
+      var rows = XLSX.utils.sheet_to_json(ws, {defval:''});
+      if (!rows.length) { showToast('Planilha vazia.',3000); return; }
+      var keys = Object.keys(rows[0]);
+      var col = {};
+      for (var i=0;i<keys.length;i++) {
+        var k=keys[i];
+        if (_fuzzyMatch(k,['descricao','descr','historico','hist'])) col.descricao=k;
+        else if (_fuzzyMatch(k,['categoria','categ','tipo'])) col.categoria=k;
+        else if (_fuzzyMatch(k,['forma','pagamento'])) col.forma=k;
+        else if (_fuzzyMatch(k,['valor','value','total'])) col.valor=k;
+        else if (_fuzzyMatch(k,['vencimento','venc','due'])) col.vencimento=k;
+        else if (_fuzzyMatch(k,['situacao','status','sit'])) col.status=k;
+        else if (_fuzzyMatch(k,['fornecedor','fornec','cliente'])) col.fornecedor=k;
+      }
+      _cpImportData = rows.map(function(r) {
+        var st = (r[col.status]||'').toLowerCase();
+        return {
+          id:'CP-'+Date.now()+'-'+Math.random().toString(36).slice(2,7),
+          descricao:r[col.descricao]||'', categoria:r[col.categoria]||'fornecedor',
+          forma:_mapForma(r[col.forma]), valor:parseFloat(String(r[col.valor]||'0').replace(',','.'))||0,
+          vencimento:_parseDate(r[col.vencimento]), status:st.indexOf('pag')>=0?'paga':'pendente',
+          cliente:r[col.fornecedor]||'',
+          audit:{createdAt:new Date().toISOString(),createdBy:'importacao-excel',updatedAt:new Date().toISOString(),updatedBy:'importacao-excel'}
+        };
+      });
+      // Preview
+      document.getElementById('cp-import-dropzone-inner').style.display='none';
+      document.getElementById('cp-import-preview').classList.remove('hidden');
+      var total=_cpImportData.reduce(function(s,i){return s+i.valor;},0);
+      document.getElementById('cp-import-summary').textContent=_cpImportData.length+' lancamentos — Total: R$ '+total.toLocaleString('pt-BR',{minimumFractionDigits:2});
+      var tbody=document.getElementById('cp-import-tbody');
+      var html='';var show=_cpImportData.slice(0,8);
+      for(var j=0;j<show.length;j++){var it=show[j];html+='<tr><td>'+(it.descricao||'-').slice(0,35)+'</td><td>'+(it.cliente||'-')+'</td><td>'+(it.vencimento||'-')+'</td><td style="text-align:right">R$ '+it.valor.toLocaleString('pt-BR',{minimumFractionDigits:2})+'</td><td>'+it.status+'</td></tr>';}
+      if(_cpImportData.length>8) html+='<tr><td colspan="5" style="text-align:center;color:var(--mut)">... e mais '+(_cpImportData.length-8)+' lancamentos</td></tr>';
+      tbody.innerHTML=html;
+      document.getElementById('cp-import-confirm-btn').textContent='Importar '+_cpImportData.length+' lancamentos';
+    } catch(err) { showToast('Erro ao ler planilha: '+err.message,5000); }
+  };
+  reader.readAsArrayBuffer(file);
+}
+function confirmarImportCp() {
+  if(!_cpImportData.length) return;
+  contasPagar=contasPagar.concat(_cpImportData);
+  if(typeof saveContasPagar==='function') saveContasPagar();
+  renderContasPagar(); toggleImportCpModal(false);
+  showToast(_cpImportData.length+' contas a pagar importadas!',5000); _cpImportData=[];
+}
+
+// --- FORNECEDORES ---
+var _fornImportData = [];
+function toggleImportFornModal(open) { var m=document.getElementById('forn-import-modal'); if(!m) return; m.classList.toggle('hidden',!open); if(open) { _fornImportData=[]; document.getElementById('forn-import-file').value=''; document.getElementById('forn-import-preview').classList.add('hidden'); document.getElementById('forn-import-dropzone-inner').style.display=''; } }
+function handleFornImportFile(file) {
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      var data = new Uint8Array(e.target.result);
+      var wb = XLSX.read(data, {type:'array',cellDates:false});
+      var ws = wb.Sheets[wb.SheetNames[0]];
+      var rows = XLSX.utils.sheet_to_json(ws, {defval:''});
+      if (!rows.length) { showToast('Planilha vazia.',3000); return; }
+      var keys = Object.keys(rows[0]);
+      var col = {};
+      for (var i=0;i<keys.length;i++) {
+        var k=keys[i];
+        if (_fuzzyMatch(k,['nome','razao','fornecedor','empresa'])) col.nome=k;
+        else if (_fuzzyMatch(k,['cnpj','cpf','documento','doc'])) col.doc=k;
+        else if (_fuzzyMatch(k,['telefone','tel','fone','celular'])) col.telefone=k;
+        else if (_fuzzyMatch(k,['email','e-mail'])) col.email=k;
+        else if (_fuzzyMatch(k,['cidade','city','municipio'])) col.cidade=k;
+        else if (_fuzzyMatch(k,['uf','estado','state'])) col.uf=k;
+        else if (_fuzzyMatch(k,['status','situacao'])) col.status=k;
+      }
+      _fornImportData = rows.map(function(r) {
+        return {
+          id:'FORN-'+Date.now()+'-'+Math.random().toString(36).slice(2,7),
+          nome:r[col.nome]||'', documento:r[col.doc]||'', telefone:r[col.telefone]||'',
+          email:r[col.email]||'', cidade:r[col.cidade]||'', uf:r[col.uf]||'',
+          status:r[col.status]||'ativo',
+          audit:{createdAt:new Date().toISOString(),createdBy:'importacao-excel'}
+        };
+      });
+      document.getElementById('forn-import-dropzone-inner').style.display='none';
+      document.getElementById('forn-import-preview').classList.remove('hidden');
+      document.getElementById('forn-import-summary').textContent=_fornImportData.length+' fornecedores encontrados';
+      var tbody=document.getElementById('forn-import-tbody');
+      var html='';var show=_fornImportData.slice(0,8);
+      for(var j=0;j<show.length;j++){var it=show[j];html+='<tr><td>'+(it.nome||'-')+'</td><td>'+(it.documento||'-')+'</td><td>'+(it.telefone||'-')+'</td><td>'+(it.email||'-')+'</td><td>'+(it.cidade||'-')+'</td></tr>';}
+      if(_fornImportData.length>8) html+='<tr><td colspan="5" style="text-align:center;color:var(--mut)">... e mais '+(_fornImportData.length-8)+' fornecedores</td></tr>';
+      tbody.innerHTML=html;
+      document.getElementById('forn-import-confirm-btn').textContent='Importar '+_fornImportData.length+' fornecedores';
+    } catch(err) { showToast('Erro ao ler planilha: '+err.message,5000); }
+  };
+  reader.readAsArrayBuffer(file);
+}
+function confirmarImportForn() {
+  if(!_fornImportData.length) return;
+  if(typeof estoqueIntelFornecedores!=='undefined') { estoqueIntelFornecedores=estoqueIntelFornecedores.concat(_fornImportData); if(typeof saveEstoqueIntelFornecedores==='function') saveEstoqueIntelFornecedores(); }
+  if(typeof renderEstoque==='function') renderEstoque();
+  toggleImportFornModal(false);
+  showToast(_fornImportData.length+' fornecedores importados!',5000); _fornImportData=[];
+}
+
+// --- PRODUTOS (substitui importacao antiga) ---
+var _prodImportData = [];
+function toggleImportProdModal(open) { var m=document.getElementById('prod-import-modal'); if(!m) return; m.classList.toggle('hidden',!open); if(open) { _prodImportData=[]; document.getElementById('prod-import-file').value=''; document.getElementById('prod-import-preview').classList.add('hidden'); document.getElementById('prod-import-dropzone-inner').style.display=''; } }
+function handleProdImportFile(file) {
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      var data = new Uint8Array(e.target.result);
+      var wb = XLSX.read(data, {type:'array',cellDates:false});
+      var ws = wb.Sheets[wb.SheetNames[0]];
+      var rows = XLSX.utils.sheet_to_json(ws, {defval:''});
+      if (!rows.length) { showToast('Planilha vazia.',3000); return; }
+      var keys = Object.keys(rows[0]);
+      var col = {};
+      for (var i=0;i<keys.length;i++) {
+        var k=keys[i];
+        if (_fuzzyMatch(k,['nome','descricao','produto','item'])) col.descricao=k;
+        else if (_fuzzyMatch(k,['unidade','un','und'])) col.unidade=k;
+        else if (_fuzzyMatch(k,['sku','codigo','cod'])) col.sku=k;
+        else if (_fuzzyMatch(k,['ncm'])) col.ncm=k;
+        else if (_fuzzyMatch(k,['categoria','categ','grupo'])) col.categoria=k;
+        else if (_fuzzyMatch(k,['preco','price','venda'])) col.preco=k;
+        else if (_fuzzyMatch(k,['custo','cost'])) col.custo=k;
+      }
+      _prodImportData = rows.map(function(r) {
+        return {
+          id:'PROD-'+Date.now()+'-'+Math.random().toString(36).slice(2,7),
+          descricao:r[col.descricao]||'', unidade:r[col.unidade]||'UN',
+          sku:r[col.sku]||'', ncm:r[col.ncm]||'',
+          categoria:r[col.categoria]||'', grupo:r[col.categoria]||'',
+          precoReferencia:parseFloat(String(r[col.preco]||'0').replace(',','.'))||0,
+          custoBase:parseFloat(String(r[col.custo]||'0').replace(',','.'))||0,
+          origem:'0', tipo:'revenda'
+        };
+      });
+      document.getElementById('prod-import-dropzone-inner').style.display='none';
+      document.getElementById('prod-import-preview').classList.remove('hidden');
+      document.getElementById('prod-import-summary').textContent=_prodImportData.length+' produtos encontrados';
+      var tbody=document.getElementById('prod-import-tbody');
+      var html='';var show=_prodImportData.slice(0,8);
+      for(var j=0;j<show.length;j++){var it=show[j];html+='<tr><td>'+(it.descricao||'-')+'</td><td>'+(it.unidade||'-')+'</td><td>'+(it.sku||'-')+'</td><td>'+(it.ncm||'-')+'</td><td style="text-align:right">'+(it.precoReferencia?'R$ '+it.precoReferencia.toLocaleString('pt-BR',{minimumFractionDigits:2}):'-')+'</td></tr>';}
+      if(_prodImportData.length>8) html+='<tr><td colspan="5" style="text-align:center;color:var(--mut)">... e mais '+(_prodImportData.length-8)+' produtos</td></tr>';
+      tbody.innerHTML=html;
+      document.getElementById('prod-import-confirm-btn').textContent='Importar '+_prodImportData.length+' produtos';
+    } catch(err) { showToast('Erro ao ler planilha: '+err.message,5000); }
+  };
+  reader.readAsArrayBuffer(file);
+}
+function confirmarImportProd() {
+  if(!_prodImportData.length) return;
+  loadBancoProdutos();
+  bancoProdutos.itens=bancoProdutos.itens.concat(_prodImportData);
+  saveBancoProdutos(); renderBancoProdutos();
+  toggleImportProdModal(false);
+  showToast(_prodImportData.length+' produtos importados!',5000); _prodImportData=[];
+}
+
+// Drag & drop para todos os modais de importação
+['cp','forn','prod'].forEach(function(prefix) {
+  var dz = document.getElementById(prefix+'-import-dropzone-inner');
+  if (!dz) return;
+  ['dragenter','dragover'].forEach(function(ev) { dz.addEventListener(ev, function(e) { e.preventDefault(); e.stopPropagation(); dz.style.borderColor='var(--green)'; }); });
+  ['dragleave','drop'].forEach(function(ev) { dz.addEventListener(ev, function(e) { e.preventDefault(); e.stopPropagation(); dz.style.borderColor='var(--bdr)'; }); });
+  dz.addEventListener('drop', function(e) {
+    var f = e.dataTransfer.files[0];
+    if (f) { if(prefix==='cp') handleCpImportFile(f); else if(prefix==='forn') handleFornImportFile(f); else handleProdImportFile(f); }
+  });
+});
 </script>
+
+<!-- Modais de importacao CP, Fornecedores, Produtos -->
+<div class="hidden" id="cp-import-modal" style="position:fixed;inset:0;background:rgba(8,15,31,.88);z-index:1020;display:flex;align-items:center;justify-content:center;padding:1rem" onclick="toggleImportCpModal(false)">
+  <div style="background:var(--bg);border:1px solid var(--bdr);border-radius:12px;width:640px;max-width:95vw;max-height:90vh;display:flex;flex-direction:column;overflow-y:auto" onclick="event.stopPropagation()">
+    <div style="padding:1rem 1.5rem;border-bottom:1px solid var(--bdr);display:flex;justify-content:space-between;align-items:center">
+      <h2 style="margin:0;font-size:1.1rem">Importar Planilha — Contas a Pagar</h2>
+      <button class="btn btn-outline btn-sm" onclick="toggleImportCpModal(false)">Fechar</button>
+    </div>
+    <div style="padding:1.5rem">
+      <div id="cp-import-dropzone-inner" style="border:2px dashed var(--bdr);border-radius:10px;padding:2.5rem 1.5rem;text-align:center;cursor:pointer;transition:border-color .2s" onclick="document.getElementById('cp-import-file').click()">
+        <div style="font-size:2.5rem;margin-bottom:.5rem">📄</div>
+        <div style="font-weight:600;margin-bottom:.3rem">Arraste a planilha aqui ou clique para selecionar</div>
+        <div style="font-size:.8rem;color:var(--mut)">Aceita .xls, .xlsx e .csv</div>
+        <input type="file" id="cp-import-file" accept=".xls,.xlsx,.csv" style="display:none" onchange="handleCpImportFile(this.files[0])">
+      </div>
+      <div id="cp-import-preview" class="hidden" style="margin-top:1rem">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.8rem">
+          <div id="cp-import-summary" style="font-size:.85rem;font-weight:600"></div>
+          <button class="btn btn-outline btn-sm" onclick="toggleImportCpModal(true)">Trocar arquivo</button>
+        </div>
+        <div style="max-height:250px;overflow-y:auto;border:1px solid var(--bdr);border-radius:6px">
+          <table style="font-size:.8rem;width:100%"><thead><tr><th>Descricao</th><th>Fornecedor</th><th>Vencimento</th><th>Valor</th><th>Status</th></tr></thead><tbody id="cp-import-tbody"></tbody></table>
+        </div>
+        <div style="margin-top:1rem;display:flex;justify-content:flex-end;gap:.8rem">
+          <button class="btn btn-outline" onclick="toggleImportCpModal(false)">Cancelar</button>
+          <button class="btn btn-green" id="cp-import-confirm-btn" onclick="confirmarImportCp()">Importar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="hidden" id="forn-import-modal" style="position:fixed;inset:0;background:rgba(8,15,31,.88);z-index:1020;display:flex;align-items:center;justify-content:center;padding:1rem" onclick="toggleImportFornModal(false)">
+  <div style="background:var(--bg);border:1px solid var(--bdr);border-radius:12px;width:640px;max-width:95vw;max-height:90vh;display:flex;flex-direction:column;overflow-y:auto" onclick="event.stopPropagation()">
+    <div style="padding:1rem 1.5rem;border-bottom:1px solid var(--bdr);display:flex;justify-content:space-between;align-items:center">
+      <h2 style="margin:0;font-size:1.1rem">Importar Planilha — Fornecedores</h2>
+      <button class="btn btn-outline btn-sm" onclick="toggleImportFornModal(false)">Fechar</button>
+    </div>
+    <div style="padding:1.5rem">
+      <div id="forn-import-dropzone-inner" style="border:2px dashed var(--bdr);border-radius:10px;padding:2.5rem 1.5rem;text-align:center;cursor:pointer;transition:border-color .2s" onclick="document.getElementById('forn-import-file').click()">
+        <div style="font-size:2.5rem;margin-bottom:.5rem">📄</div>
+        <div style="font-weight:600;margin-bottom:.3rem">Arraste a planilha aqui ou clique para selecionar</div>
+        <div style="font-size:.8rem;color:var(--mut)">Aceita .xls, .xlsx e .csv</div>
+        <input type="file" id="forn-import-file" accept=".xls,.xlsx,.csv" style="display:none" onchange="handleFornImportFile(this.files[0])">
+      </div>
+      <div id="forn-import-preview" class="hidden" style="margin-top:1rem">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.8rem">
+          <div id="forn-import-summary" style="font-size:.85rem;font-weight:600"></div>
+          <button class="btn btn-outline btn-sm" onclick="toggleImportFornModal(true)">Trocar arquivo</button>
+        </div>
+        <div style="max-height:250px;overflow-y:auto;border:1px solid var(--bdr);border-radius:6px">
+          <table style="font-size:.8rem;width:100%"><thead><tr><th>Nome</th><th>CNPJ</th><th>Telefone</th><th>Email</th><th>Cidade</th></tr></thead><tbody id="forn-import-tbody"></tbody></table>
+        </div>
+        <div style="margin-top:1rem;display:flex;justify-content:flex-end;gap:.8rem">
+          <button class="btn btn-outline" onclick="toggleImportFornModal(false)">Cancelar</button>
+          <button class="btn btn-green" id="forn-import-confirm-btn" onclick="confirmarImportForn()">Importar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="hidden" id="prod-import-modal" style="position:fixed;inset:0;background:rgba(8,15,31,.88);z-index:1020;display:flex;align-items:center;justify-content:center;padding:1rem" onclick="toggleImportProdModal(false)">
+  <div style="background:var(--bg);border:1px solid var(--bdr);border-radius:12px;width:640px;max-width:95vw;max-height:90vh;display:flex;flex-direction:column;overflow-y:auto" onclick="event.stopPropagation()">
+    <div style="padding:1rem 1.5rem;border-bottom:1px solid var(--bdr);display:flex;justify-content:space-between;align-items:center">
+      <h2 style="margin:0;font-size:1.1rem">Importar Planilha — Produtos</h2>
+      <button class="btn btn-outline btn-sm" onclick="toggleImportProdModal(false)">Fechar</button>
+    </div>
+    <div style="padding:1.5rem">
+      <div id="prod-import-dropzone-inner" style="border:2px dashed var(--bdr);border-radius:10px;padding:2.5rem 1.5rem;text-align:center;cursor:pointer;transition:border-color .2s" onclick="document.getElementById('prod-import-file').click()">
+        <div style="font-size:2.5rem;margin-bottom:.5rem">📄</div>
+        <div style="font-weight:600;margin-bottom:.3rem">Arraste a planilha aqui ou clique para selecionar</div>
+        <div style="font-size:.8rem;color:var(--mut)">Aceita .xls, .xlsx e .csv</div>
+        <input type="file" id="prod-import-file" accept=".xls,.xlsx,.csv" style="display:none" onchange="handleProdImportFile(this.files[0])">
+      </div>
+      <div id="prod-import-preview" class="hidden" style="margin-top:1rem">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.8rem">
+          <div id="prod-import-summary" style="font-size:.85rem;font-weight:600"></div>
+          <button class="btn btn-outline btn-sm" onclick="toggleImportProdModal(true)">Trocar arquivo</button>
+        </div>
+        <div style="max-height:250px;overflow-y:auto;border:1px solid var(--bdr);border-radius:6px">
+          <table style="font-size:.8rem;width:100%"><thead><tr><th>Produto</th><th>Unidade</th><th>SKU</th><th>NCM</th><th>Preco</th></tr></thead><tbody id="prod-import-tbody"></tbody></table>
+        </div>
+        <div style="margin-top:1rem;display:flex;justify-content:flex-end;gap:.8rem">
+          <button class="btn btn-outline" onclick="toggleImportProdModal(false)">Cancelar</button>
+          <button class="btn btn-green" id="prod-import-confirm-btn" onclick="confirmarImportProd()">Importar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 
 <script src="./js/gdp-pagination.js?v=5"></script>
 <script src="./js/gdp-integrations-client.js?v=5"></script>
@@ -1923,6 +2201,41 @@ function confirmarImportCr() {
   <div class="footer-stats">
     <div class="footer-stat"><div class="footer-stat-value" id="ne-footer-qtd">00</div><div class="footer-stat-label">quantidade</div></div>
     <div class="footer-stat"><div class="footer-stat-value" id="ne-footer-valor">R$ 0,00</div><div class="footer-stat-label">valor total (R$)</div></div>
+  </div>
+</div>
+<!-- Story 4.70 Bloco B: rodapés faltantes -->
+<div id="fornecedores-page-footer" class="page-footer" style="display:none">
+  <div class="footer-actions" id="fornecedores-bulk-actions">
+    <span id="fornecedores-bulk-summary" style="font-size:.82rem;font-weight:700;color:var(--mut)">0 fornecedor(es)</span>
+    <button class="btn btn-red btn-sm" onclick="excluirFornecedoresSelecionados()">Excluir</button>
+  </div>
+  <div class="footer-stats">
+    <div class="footer-stat"><div class="footer-stat-value" id="fornecedores-footer-qtd">00</div><div class="footer-stat-label">quantidade</div></div>
+  </div>
+</div>
+<div id="contratos-page-footer" class="page-footer" style="display:none">
+  <div class="footer-actions" id="contratos-bulk-actions">
+    <span id="contratos-bulk-summary" style="font-size:.82rem;font-weight:700;color:var(--mut)">0 contrato(s)</span>
+  </div>
+  <div class="footer-stats">
+    <div class="footer-stat"><div class="footer-stat-value" id="contratos-footer-qtd">00</div><div class="footer-stat-label">contratos</div></div>
+    <div class="footer-stat"><div class="footer-stat-value" id="contratos-footer-valor">R$ 0,00</div><div class="footer-stat-label">valor total (R$)</div></div>
+  </div>
+</div>
+<div id="estoque-page-footer" class="page-footer" style="display:none">
+  <div class="footer-actions" id="estoque-bulk-actions">
+    <span id="estoque-bulk-summary" style="font-size:.82rem;font-weight:700;color:var(--mut)">0 item(ns)</span>
+  </div>
+  <div class="footer-stats">
+    <div class="footer-stat"><div class="footer-stat-value" id="estoque-footer-qtd">00</div><div class="footer-stat-label">itens</div></div>
+    <div class="footer-stat"><div class="footer-stat-value" id="estoque-footer-valor">R$ 0,00</div><div class="footer-stat-label">valor estoque (R$)</div></div>
+  </div>
+</div>
+<div id="financeiro-page-footer" class="page-footer" style="display:none">
+  <div class="footer-stats">
+    <div class="footer-stat"><div class="footer-stat-value" id="financeiro-footer-saldo">R$ 0,00</div><div class="footer-stat-label">saldo</div></div>
+    <div class="footer-stat"><div class="footer-stat-value" id="financeiro-footer-entradas">R$ 0,00</div><div class="footer-stat-label">entradas</div></div>
+    <div class="footer-stat"><div class="footer-stat-value" id="financeiro-footer-saidas">R$ 0,00</div><div class="footer-stat-label">saidas</div></div>
   </div>
 </div>
 </body></html>
