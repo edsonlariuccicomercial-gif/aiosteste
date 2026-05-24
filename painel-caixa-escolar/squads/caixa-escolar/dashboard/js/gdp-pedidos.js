@@ -1623,7 +1623,7 @@ function renderContasPagar() {
   filtered = _applyPeriodFilter(filtered, 'cp-filtro-periodo', 'cp-filtro-de', 'cp-filtro-ate', 'vencimento');
   renderContaPagarStatusTabs(filtered);
   // Story 4.68: quando usuario busca, mostrar resultados de todas as abas de status
-  if (!busca) filtered = filtered.filter((item) => normalizeContaPagarStatus(item) === contaPagarStatusTabAtual);
+  if (!busca && contaPagarStatusTabAtual !== 'todas') filtered = filtered.filter((item) => normalizeContaPagarStatus(item) === contaPagarStatusTabAtual);
   const cpCountEl = document.getElementById("tab-count-contas-pagar");
   if (cpCountEl) cpCountEl.textContent = filtered.length;
 
@@ -1685,7 +1685,7 @@ function renderContasReceber() {
   filtered = _applyPeriodFilter(filtered, 'cr-filtro-periodo', 'cr-filtro-de', 'cr-filtro-ate', 'vencimento');
   renderContaReceberStatusTabs(filtered);
   // Story 4.68: quando usuario busca, mostrar resultados de todas as abas de status
-  if (!busca) filtered = filtered.filter((item) => normalizeContaReceberStatus(item) === contaReceberStatusTabAtual);
+  if (!busca && contaReceberStatusTabAtual !== 'todas') filtered = filtered.filter((item) => normalizeContaReceberStatus(item) === contaReceberStatusTabAtual);
   const crCountEl = document.getElementById("tab-count-contas-receber");
   if (crCountEl) crCountEl.textContent = filtered.length;
 
@@ -2132,26 +2132,30 @@ var NOTA_FISCAL_STATUS_COLORS = {
 var notaFiscalStatusTabAtual = "todas";
 var notaFiscalMenuAtualId = null;
 var CONTAS_PAGAR_STATUS_TABS = [
+  { key: "todas", label: "Todas", className: "badge-gray" },
   { key: "emitida", label: "Emitidas", className: "badge-blue" },
   { key: "em_aberto", label: "Em Aberto", className: "badge-yellow" },
   { key: "paga", label: "Pagas", className: "badge-green" },
   { key: "atrasada", label: "Atrasadas", className: "badge-red" }
 ];
-var contaPagarStatusTabAtual = "em_aberto";
+var contaPagarStatusTabAtual = "todas";
 var CONTAS_PAGAR_STATUS_COLORS = {
+  todas: '#94a3b8',
   emitida: '#3b82f6',
   em_aberto: '#eab308',
   paga: '#22c55e',
   atrasada: '#ef4444'
 };
 var CONTAS_RECEBER_STATUS_TABS = [
+  { key: "todas", label: "Todas", className: "badge-gray" },
   { key: "emitida", label: "Emitidas", className: "badge-blue" },
   { key: "em_aberto", label: "Em Aberto", className: "badge-yellow" },
   { key: "recebida", label: "Recebidas", className: "badge-green" },
   { key: "atrasada", label: "Atrasadas", className: "badge-red" }
 ];
-var contaReceberStatusTabAtual = "em_aberto";
+var contaReceberStatusTabAtual = "todas";
 var CONTAS_RECEBER_STATUS_COLORS = {
+  todas: '#94a3b8',
   emitida: '#3b82f6',
   em_aberto: '#eab308',
   recebida: '#22c55e',
