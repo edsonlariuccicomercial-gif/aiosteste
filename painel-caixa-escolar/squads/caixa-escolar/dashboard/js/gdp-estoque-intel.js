@@ -2125,7 +2125,7 @@ function renderEstoque() {
       <td class="text-right font-mono">${precoRef > 0 ? brl.format(precoRef) : '—'}</td>
     </tr>`;
   }).join("") : `<tr><td colspan="10" style="color:var(--mut)">Nenhum produto encontrado para o filtro atual.</td></tr>`;
-  if (typeof gdpRenderPageControls === 'function') gdpRenderPageControls('ei-produtos-pagination', pagedEiProd.total, pagedEiProd.page, pagedEiProd.pageSize, renderEstoque, 'ei-produtos');
+  if (typeof gdpRenderPageControls === 'function') gdpRenderPageControls('produtos-pagination', pagedEiProd.total, pagedEiProd.page, pagedEiProd.pageSize, renderEstoque, 'ei-produtos');
 
   if (embalagensTbody) embalagensTbody.innerHTML = embalagensFiltradas.length ? embalagensFiltradas.map((emb) => {
     const produto = findEstoqueIntelProduto(emb.produto_id);
