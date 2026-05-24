@@ -538,7 +538,7 @@
       </table>
     </div>
     <div class="empty" id="pedidos-empty"><h3>Nenhum pedido registrado</h3><p>Os pedidos das escolas aparecerao aqui quando forem recebidos.</p></div>
-    <div id="pedidos-pagination"></div>
+    <!-- pagination moved to footer -->
     <!-- Modal: Alterar Situacao em Lote -->
     <div id="modal-alterar-situacao-bulk" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1000;display:flex;align-items:center;justify-content:center" onclick="if(event.target===this)fecharModalSituacaoBulk()">
       <div style="background:var(--card,#1e293b);border:1px solid var(--bdr);border-radius:16px;padding:1.2rem 1.5rem;max-width:90vw">
@@ -595,7 +595,7 @@
       </table>
     </div>
     <div class="empty" id="notas-fiscais-empty"><h3>Nenhuma nota fiscal gerada</h3><p>Gere a nota fiscal diretamente a partir do pedido.</p></div>
-    <div id="nf-pagination"></div>
+    <!-- pagination moved to footer -->
   </div>
 
   <div id="modal-nota-fiscal" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1001;display:flex;align-items:flex-start;justify-content:center;padding:1rem;overflow-y:auto">
@@ -694,7 +694,7 @@
       </table>
     </div>
     <div class="empty" id="contas-pagar-empty"><h3>Nenhuma conta a pagar</h3><p>Cadastre despesas operacionais e obrigaes financeiras do GDP.</p></div>
-    <div id="cp-pagination"></div>
+    <!-- pagination moved to footer -->
     <!-- Modal Detalhe Conta a Pagar -->
     <div class="hidden" id="cp-detalhe-modal" style="position:fixed;inset:0;background:rgba(8,15,31,.88);z-index:1013;padding:1.25rem;overflow-y:auto" onclick="fecharDetalheCp()">
       <div style="background:var(--bg);border:1px solid var(--bdr);border-radius:18px;max-width:640px;margin:2rem auto;display:flex;flex-direction:column" onclick="event.stopPropagation()">
@@ -809,7 +809,7 @@
       </table>
     </div>
   <div class="empty" id="contas-receber-empty"><h3>Nenhuma conta a receber</h3><p>As cobrancas geradas a partir das notas fiscais aparecerao aqui.</p></div>
-  <div id="cr-pagination"></div>
+  <!-- pagination moved to footer -->
     <!-- Modal Detalhe Conta a Receber -->
     <div class="hidden" id="cr-detalhe-modal" style="position:fixed;inset:0;background:rgba(8,15,31,.88);z-index:1013;padding:1.25rem;overflow-y:auto" onclick="fecharDetalheCr()">
       <div style="background:var(--bg);border:1px solid var(--bdr);border-radius:18px;max-width:640px;margin:2rem auto;display:flex;flex-direction:column" onclick="event.stopPropagation()">
@@ -1071,7 +1071,7 @@
         </table>
       </div>
       <div class="empty hidden" id="notas-entrada-empty"><h3>Nenhuma nota de entrada registrada</h3><p>Importe XML ou consulte a API para capturar notas emitidas contra seu CNPJ.</p></div>
-      <div id="ne-pagination"></div>
+      <!-- pagination moved to footer -->
     </div>
     <div id="ei-grid-compra" style="display:grid;grid-template-columns:1fr;gap:1rem;align-items:start;margin-top:1rem">
       <div class="card" id="ei-card-fornecedores" data-ei-section="fornecedores">
@@ -1219,7 +1219,6 @@
       </table>
     </div>
     <div class="empty hidden" id="usuarios-empty"><h3>Nenhum cliente cadastrado</h3><p>Cadastre clientes para que eles possam acessar o Portal.</p></div>
-    <div id="clientes-pagination"></div>
     </div><!-- /clientes-listagem -->
   </div>
 
@@ -1278,7 +1277,7 @@
       </table>
     </div>
     <div class="empty hidden" id="banco-produtos-empty"><h3>Nenhum produto cadastrado</h3><p>Adicione produtos manualmente ou importe via Excel/PDF.</p></div>
-    <div id="produtos-pagination"></div>
+    <!-- pagination moved to footer -->
   </div>
 
   <!-- Modal: Produto -->
@@ -2144,6 +2143,7 @@ function confirmarImportProd() {
     <div class="footer-stat"><div class="footer-stat-value" id="pedidos-footer-qtd">00</div><div class="footer-stat-label">quantidade</div></div>
     <div class="footer-stat"><div class="footer-stat-value" id="pedidos-footer-valor">R$ 0,00</div><div class="footer-stat-label">valor total (R$)</div></div>
   </div>
+  <div id="pedidos-pagination" style="flex:1"></div>
 </div>
 <div id="nf-page-footer" class="page-footer" style="display:none">
   <div class="footer-actions" id="notas-fiscais-bulk-actions">
@@ -2155,6 +2155,7 @@ function confirmarImportProd() {
     <div class="footer-stat"><div class="footer-stat-value" id="nf-footer-qtd">00</div><div class="footer-stat-label">quantidade</div></div>
     <div class="footer-stat"><div class="footer-stat-value" id="nf-footer-valor">R$ 0,00</div><div class="footer-stat-label">valor total (R$)</div></div>
   </div>
+  <div id="nf-pagination" style="flex:1"></div>
 </div>
 <div id="cp-page-footer" class="page-footer" style="display:none">
   <div class="footer-actions" id="cp-bulk-actions">
@@ -2166,6 +2167,7 @@ function confirmarImportProd() {
     <div class="footer-stat"><div class="footer-stat-value" id="cp-footer-qtd">00</div><div class="footer-stat-label">quantidade</div></div>
     <div class="footer-stat"><div class="footer-stat-value" id="cp-footer-valor">R$ 0,00</div><div class="footer-stat-label">valor total (R$)</div></div>
   </div>
+  <div id="cp-pagination" style="flex:1"></div>
 </div>
 <div id="cr-page-footer" class="page-footer" style="display:none">
   <div class="footer-actions" id="cr-bulk-actions">
@@ -2178,6 +2180,7 @@ function confirmarImportProd() {
     <div class="footer-stat"><div class="footer-stat-value" id="cr-footer-qtd">00</div><div class="footer-stat-label">quantidade</div></div>
     <div class="footer-stat"><div class="footer-stat-value" id="cr-footer-valor">R$ 0,00</div><div class="footer-stat-label">valor total (R$)</div></div>
   </div>
+  <div id="cr-pagination" style="flex:1"></div>
 </div>
 <div id="clientes-page-footer" class="page-footer" style="display:none">
   <div class="footer-actions" id="clientes-bulk-actions">
@@ -2187,6 +2190,7 @@ function confirmarImportProd() {
   <div class="footer-stats">
     <div class="footer-stat"><div class="footer-stat-value" id="clientes-footer-qtd">00</div><div class="footer-stat-label">quantidade</div></div>
   </div>
+  <div id="clientes-pagination" style="flex:1"></div>
 </div>
 <div id="produtos-page-footer" class="page-footer" style="display:none">
   <div class="footer-actions" id="produtos-bulk-actions">
@@ -2196,6 +2200,7 @@ function confirmarImportProd() {
   <div class="footer-stats">
     <div class="footer-stat"><div class="footer-stat-value" id="produtos-footer-qtd">00</div><div class="footer-stat-label">produtos</div></div>
   </div>
+  <div id="produtos-pagination" style="flex:1"></div>
 </div>
 <div id="ne-page-footer" class="page-footer" style="display:none">
   <div class="footer-actions" id="ne-bulk-actions">
@@ -2206,6 +2211,7 @@ function confirmarImportProd() {
     <div class="footer-stat"><div class="footer-stat-value" id="ne-footer-qtd">00</div><div class="footer-stat-label">quantidade</div></div>
     <div class="footer-stat"><div class="footer-stat-value" id="ne-footer-valor">R$ 0,00</div><div class="footer-stat-label">valor total (R$)</div></div>
   </div>
+  <div id="ne-pagination" style="flex:1"></div>
 </div>
 <!-- Story 4.70 Bloco B: rodapés faltantes -->
 <div id="fornecedores-page-footer" class="page-footer" style="display:none">
