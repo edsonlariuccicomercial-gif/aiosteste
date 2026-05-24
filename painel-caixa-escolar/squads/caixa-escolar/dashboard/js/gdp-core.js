@@ -2050,12 +2050,20 @@ function saveConciliacao(items) {
 
 // Story 4.51 AC-C1/C2/C3: extrato management
 function loadExtratos() {
-  try { return JSON.parse(localStorage.getItem(EXTRATOS_KEY) || "[]"); } catch(_) { return []; }
+  try {
+    var raw = JSON.parse(localStorage.getItem(EXTRATOS_KEY) || "[]");
+    if (raw && raw.items && Array.isArray(raw.items)) return raw.items;
+    if (Array.isArray(raw)) return raw;
+    return [];
+  } catch(_) { return []; }
 }
 
 function saveExtratos(list) {
-  localStorage.setItem(EXTRATOS_KEY, JSON.stringify(list));
-  if (typeof cloudSave === 'function') cloudSave(EXTRATOS_KEY, list);
+  var arr = list || [];
+  arr.forEach(function(it) { if (!it.id) it.id = 'ext-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8); });
+  var wrapped = { _v: 1, updatedAt: new Date().toISOString(), items: arr };
+  localStorage.setItem(EXTRATOS_KEY, JSON.stringify(wrapped));
+  if (typeof cloudSave === 'function') cloudSave(EXTRATOS_KEY, wrapped);
 }
 
 function registrarExtrato(filename, contaFinanceira, items) {
