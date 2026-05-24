@@ -2103,7 +2103,9 @@ function renderEstoque() {
   const comprasVisiveis = estoqueIntelCompras;
 
   const ORIGEM_LABELS = {'0':'Nacional','1':'Import.Direta','2':'Import.MI','3':'Nac.>40%','4':'Nac.PPB','5':'Nac.<=40%','6':'Import.CAMEX','7':'Import.MI CAMEX'};
-  produtosTbody.innerHTML = produtosVisiveis.length ? produtosVisiveis.map((produto) => {
+  // Story 4.70: paginação Central de Produtos
+  var pagedEiProd = typeof gdpPaginate === 'function' ? gdpPaginate(produtosVisiveis, 'ei-produtos') : { items: produtosVisiveis, total: produtosVisiveis.length, page: 1, pageSize: 50, totalPages: 1 };
+  produtosTbody.innerHTML = pagedEiProd.items.length ? pagedEiProd.items.map((produto) => {
     const emb = produto.produto_critico ? estoqueIntelEmbalagens.find(e => e.produto_id === produto.id) : null;
     const precoRef = emb ? (emb.preco_referencia || 0) : (produto.preco_referencia || 0);
     return `
@@ -2123,6 +2125,7 @@ function renderEstoque() {
       <td class="text-right font-mono">${precoRef > 0 ? brl.format(precoRef) : '—'}</td>
     </tr>`;
   }).join("") : `<tr><td colspan="10" style="color:var(--mut)">Nenhum produto encontrado para o filtro atual.</td></tr>`;
+  if (typeof gdpRenderPageControls === 'function') gdpRenderPageControls('ei-produtos-pagination', pagedEiProd.total, pagedEiProd.page, pagedEiProd.pageSize, renderEstoque, 'ei-produtos');
 
   if (embalagensTbody) embalagensTbody.innerHTML = embalagensFiltradas.length ? embalagensFiltradas.map((emb) => {
     const produto = findEstoqueIntelProduto(emb.produto_id);
