@@ -50,7 +50,9 @@ function renderUsuarios() {
   }
   empty.classList.add("hidden");
 
-  tbody.innerHTML = filtered.map(u => `<tr>
+  // Story 4.70: paginação
+  var pagedCli = typeof gdpPaginate === 'function' ? gdpPaginate(filtered, 'clientes') : { items: filtered, total: filtered.length, page: 1, pageSize: 50, totalPages: 1 };
+  tbody.innerHTML = pagedCli.items.map(u => `<tr>
     <td class="text-center"><input type="checkbox" class="cliente-chk" value="${u.id}" onchange="atualizarSelecaoClientes()"></td>
     <td class="text-center"><button class="btn btn-outline btn-sm" onclick="abrirMenuCliente('${u.id}')" title="Abrir menu do cliente" style="min-width:auto;padding:.2rem .5rem;font-weight:700">...</button></td>
     <td><button onclick="abrirDetalheCliente('${u.id}')" style="background:none;border:none;padding:0;color:var(--blue);font-weight:700;cursor:pointer;text-align:left">${esc(u.nome)}</button></td>
@@ -60,6 +62,7 @@ function renderUsuarios() {
     <td style="font-size:.8rem">${esc(u.telefone)}</td>
     <td class="font-mono">${esc(u.login)}</td>
   </tr>`).join("");
+  if (typeof gdpRenderPageControls === 'function') gdpRenderPageControls('clientes-pagination', pagedCli.total, pagedCli.page, pagedCli.pageSize, renderUsuarios, 'clientes');
   atualizarSelecaoClientes();
 }
 

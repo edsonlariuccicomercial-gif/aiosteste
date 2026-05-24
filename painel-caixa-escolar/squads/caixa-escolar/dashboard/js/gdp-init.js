@@ -1113,7 +1113,9 @@ function renderNotasEntrada() {
   }
 
   empty.classList.add("hidden");
-  tbody.innerHTML = items.map((item) => {
+  // Story 4.70: paginação
+  var pagedNe = typeof gdpPaginate === 'function' ? gdpPaginate(items, 'notas-entrada') : { items: items, total: items.length, page: 1, pageSize: 50, totalPages: 1 };
+  tbody.innerHTML = pagedNe.items.map((item) => {
     const hasItens = item.itens && item.itens.length > 0;
     const itensCount = hasItens ? item.itens.length : 0;
     let row = `<tr style="cursor:${hasItens ? 'pointer' : 'default'}" ${hasItens ? `onclick="toggleNfItens('${item.id}')"` : ''}>
@@ -1155,6 +1157,7 @@ function renderNotasEntrada() {
     }
     return row;
   }).join("");
+  if (typeof gdpRenderPageControls === 'function') gdpRenderPageControls('ne-pagination', pagedNe.total, pagedNe.page, pagedNe.pageSize, renderNotasEntrada, 'notas-entrada');
 }
 
 function registrarNotaEntradaManual() {
