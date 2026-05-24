@@ -2375,16 +2375,19 @@ window.excluirExtratosSelecionados = function() {
 
   saveExtratos(remaining);
 
-  // Story 4.69: remover apenas itens NAO conciliados dos extratos excluídos
-  if (deletedExtIds.size > 0) {
-    const allItems = loadConciliacao();
-    const removedIds = [];
-    const kept = allItems.filter(item => {
-      if (!deletedExtIds.has(item.extratoId)) return true;
-      if (item.conciliado === true) return true;
-      if (item.id) removedIds.push(item.id);
-      return false;
-    });
+  // Story 4.69: remover TODOS os itens NAO conciliados cujo extrato não existe mais
+  const remainingExtIds = new Set(remaining.map(e => e.id));
+  const allItems = loadConciliacao();
+  const removedIds = [];
+  const kept = allItems.filter(item => {
+    if (item.conciliado === true) return true; // conciliado — sempre manter
+    // Não conciliado: manter SÓ se tem extrato ativo correspondente
+    if (item.extratoId && remainingExtIds.has(item.extratoId)) return true;
+    // Sem extrato ou extrato excluído — remover (fantasma)
+    if (item.id) removedIds.push(item.id);
+    return false;
+  });
+  if (true) {
     // Delete tracking para itens de conciliação removidos
     if (removedIds.length > 0) {
       try {
