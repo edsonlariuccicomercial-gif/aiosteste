@@ -1622,7 +1622,8 @@ function renderContasPagar() {
   // Story 4.54 AC-1: period filter
   filtered = _applyPeriodFilter(filtered, 'cp-filtro-periodo', 'cp-filtro-de', 'cp-filtro-ate', 'vencimento');
   renderContaPagarStatusTabs(filtered);
-  filtered = filtered.filter((item) => normalizeContaPagarStatus(item) === contaPagarStatusTabAtual);
+  // Story 4.68: quando usuario busca, mostrar resultados de todas as abas de status
+  if (!busca) filtered = filtered.filter((item) => normalizeContaPagarStatus(item) === contaPagarStatusTabAtual);
   const cpCountEl = document.getElementById("tab-count-contas-pagar");
   if (cpCountEl) cpCountEl.textContent = filtered.length;
 
@@ -1683,7 +1684,8 @@ function renderContasReceber() {
   // Story 4.54 AC-2: period filter
   filtered = _applyPeriodFilter(filtered, 'cr-filtro-periodo', 'cr-filtro-de', 'cr-filtro-ate', 'vencimento');
   renderContaReceberStatusTabs(filtered);
-  filtered = filtered.filter((item) => normalizeContaReceberStatus(item) === contaReceberStatusTabAtual);
+  // Story 4.68: quando usuario busca, mostrar resultados de todas as abas de status
+  if (!busca) filtered = filtered.filter((item) => normalizeContaReceberStatus(item) === contaReceberStatusTabAtual);
   const crCountEl = document.getElementById("tab-count-contas-receber");
   if (crCountEl) crCountEl.textContent = filtered.length;
 

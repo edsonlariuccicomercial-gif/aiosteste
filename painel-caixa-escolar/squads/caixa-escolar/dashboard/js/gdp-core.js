@@ -2222,6 +2222,7 @@ function renderConciliacao() {
         statusLabel = '<div style="font-size:.72rem;line-height:1.3">'
           + '<button class="btn btn-sm btn-green" style="font-size:.68rem;padding:.15rem .5rem;margin-bottom:.2rem" onclick="conciliarComBaixa(' + gi + ',\'' + s.contaId + '\',\'' + s.tipo + '\')">' + tipoLabel + ': ' + esc(descShort) + '</button>'
           + '<div style="color:var(--mut);font-size:.65rem">' + esc(vencFmt) + ' | ' + brl.format(s.valor) + (sugestoes.length > 1 ? ' (+' + (sugestoes.length - 1) + ')' : '') + '</div>'
+          + '<button class="btn btn-sm btn-blue" style="font-size:.65rem;padding:.1rem .4rem;margin-top:.3rem;opacity:.8" onclick="conciliarLancamento(' + gi + ')">Conciliar manual</button>'
           + '</div>';
       } else {
         statusLabel = '<button class="btn btn-sm btn-blue" style="font-size:.7rem;padding:.15rem .5rem" onclick="conciliarLancamento(' + gi + ')">Conciliar</button>';
