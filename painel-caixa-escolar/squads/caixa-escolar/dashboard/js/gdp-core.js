@@ -2359,13 +2359,23 @@ window.toggleAllExtratos = function(checked) {
 window.excluirExtratosSelecionados = function() {
   const selected = [...document.querySelectorAll('.ext-check:checked')].map(cb => parseInt(cb.value));
   if (!selected.length) return;
-  if (!confirm('Excluir ' + selected.length + ' extrato(s) da lista?\n\nOs lançamentos do Caixa serão preservados.')) return;
+  if (!confirm('Excluir ' + selected.length + ' extrato(s)?\n\nLançamentos conciliados serão preservados no Caixa.\nLançamentos não conciliados serão removidos.')) return;
   const extratos = loadExtratos();
+  const deletedExtIds = new Set(selected.map(i => extratos[i]?.id).filter(Boolean));
   const remaining = extratos.filter((_, i) => !selected.includes(i));
   saveExtratos(remaining);
-  // NUNCA excluir itens de conciliação — eles são a fonte de dados do Caixa
+  // Story 4.69: remover apenas itens NAO conciliados dos extratos excluídos
+  // Itens conciliados permanecem no Caixa
+  if (deletedExtIds.size > 0) {
+    const allItems = loadConciliacao();
+    const kept = allItems.filter(item => {
+      if (!deletedExtIds.has(item.extratoId)) return true; // não é do extrato excluído — manter
+      return item.conciliado === true; // do extrato excluído — manter SÓ se conciliado
+    });
+    saveConciliacao(kept);
+  }
   renderConciliacao();
-  showToast(selected.length + ' extrato(s) removido(s) da lista.');
+  showToast(selected.length + ' extrato(s) excluído(s). Conciliados preservados no Caixa.');
 };
 
 // Story 4.55 AC-2: toggle extrato aberto/fechado com state tracking
