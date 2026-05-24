@@ -84,7 +84,9 @@ function renderPedidos() {
   }
   empty.classList.add("hidden");
 
-  tbody.innerHTML = filtered.map(p => {
+  // Story 4.70: paginação
+  var paged = gdpPaginate(filtered, 'pedidos');
+  tbody.innerHTML = paged.items.map(p => {
     const statusMeta = getPedidoStatusMeta(p.status);
     const integracoes = getPedidoIntegracoesResumo(p);
     const pedidoFiscal = ensurePedidoFiscalData({ ...p, cliente: { ...(p.cliente || {}) }, itens: Array.isArray(p.itens) ? p.itens : [] });
@@ -103,6 +105,7 @@ function renderPedidos() {
       <td>${integracoes.html}</td>
     </tr>`;
   }).join("");
+  gdpRenderPageControls('pedidos-pagination', paged.total, paged.page, paged.pageSize, renderPedidos, 'pedidos');
   // Story 4.52 AC-2: update footer with filtered data
   if (typeof _updatePedidosFooterTotals === 'function') _updatePedidosFooterTotals(filtered);
 }
@@ -1587,7 +1590,9 @@ function renderNotasFiscais() {
   }
   empty.classList.add("hidden");
 
-  tbody.innerHTML = filtered.map((nf) => `
+  // Story 4.70: paginação
+  var pagedNf = gdpPaginate(filtered, 'notas-fiscais');
+  tbody.innerHTML = pagedNf.items.map((nf) => `
     <tr>
       <td class="text-center"><input type="checkbox" class="nota-fiscal-check" value="${nf.id}" onchange="atualizarSelecaoNotasFiscais()"></td>
       <td class="text-center"><button class="btn btn-outline btn-sm" onclick="abrirMenuNotaFiscal('${nf.id}')" style="min-width:auto;padding:.2rem .5rem;font-weight:700">...</button></td>
@@ -1604,6 +1609,7 @@ function renderNotasFiscais() {
       <td>${getNotaFiscalIntegracoesResumo(nf)}</td>
     </tr>
   `).join("");
+  gdpRenderPageControls('nf-pagination', pagedNf.total, pagedNf.page, pagedNf.pageSize, renderNotasFiscais, 'notas-fiscais');
   atualizarSelecaoNotasFiscais();
 }
 
@@ -1644,7 +1650,9 @@ function renderContasPagar() {
     return;
   }
   empty.classList.add("hidden");
-  tbody.innerHTML = filtered.map((item) => `
+  // Story 4.70: paginação
+  var pagedCp = gdpPaginate(filtered, 'contas-pagar');
+  tbody.innerHTML = pagedCp.items.map((item) => `
     <tr>
       <td style="position:relative;white-space:nowrap">
         <input type="checkbox" class="cp-check" value="${item.id}" onchange="atualizarSelecaoContasPagar()">
@@ -1665,6 +1673,7 @@ function renderContasPagar() {
       <td style="font-size:.76rem;color:var(--mut)">${esc(formatAuditStamp(item.audit, item.pagaEm, item.audit?.updatedBy))}</td>
     </tr>
   `).join("");
+  gdpRenderPageControls('cp-pagination', pagedCp.total, pagedCp.page, pagedCp.pageSize, renderContasPagar, 'contas-pagar');
   // Story 4.52 AC-3: update footer with filtered data
   if (typeof _updateCpFooterTotals === 'function') _updateCpFooterTotals(filtered);
 }
@@ -1715,7 +1724,9 @@ function renderContasReceber() {
     return;
   }
   empty.classList.add("hidden");
-  tbody.innerHTML = filtered.map((item) => `
+  // Story 4.70: paginação
+  var pagedCr = gdpPaginate(filtered, 'contas-receber');
+  tbody.innerHTML = pagedCr.items.map((item) => `
     <tr>
       <td style="position:relative;white-space:nowrap">
         <input type="checkbox" class="cr-check" value="${item.id}" onchange="atualizarSelecaoContasReceber()">
@@ -1742,6 +1753,7 @@ function renderContasReceber() {
       <td style="font-size:.76rem;color:var(--mut)">${esc(formatAuditStamp(item.audit, item.recebidaEm, item.audit?.updatedBy))}</td>
     </tr>
   `).join("");
+  gdpRenderPageControls('cr-pagination', pagedCr.total, pagedCr.page, pagedCr.pageSize, renderContasReceber, 'contas-receber');
   // Story 4.52 AC-4: update footer with filtered data
   if (typeof _updateCrFooterTotals === 'function') _updateCrFooterTotals(filtered);
 }

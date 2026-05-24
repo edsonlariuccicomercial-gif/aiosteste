@@ -195,8 +195,8 @@
     @media(max-width:768px){.main{padding:1rem}.kpi-grid{grid-template-columns:repeat(2,1fr)}.topbar{flex-wrap:wrap;gap:.5rem}}
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-  <script src="js/supabase-config.js?v=4"></script>
-  <script src="js/supabase-auth.js?v=4"></script>
+  <script src="js/supabase-config.js?v=5"></script>
+  <script src="js/supabase-auth.js?v=5"></script>
   <script>
     // Session guard (Story 7.2): redirect to login if no valid session
     (async function() {
@@ -208,7 +208,7 @@
       }
     })();
   </script>
-  <script src="gdp-api.js?v=4"></script>
+  <script src="gdp-api.js?v=5"></script>
 </head>
 <body>
 
@@ -534,6 +534,7 @@
       </table>
     </div>
     <div class="empty" id="pedidos-empty"><h3>Nenhum pedido registrado</h3><p>Os pedidos das escolas aparecerao aqui quando forem recebidos.</p></div>
+    <div id="pedidos-pagination"></div>
     <!-- Modal: Alterar Situacao em Lote -->
     <div id="modal-alterar-situacao-bulk" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1000;display:flex;align-items:center;justify-content:center" onclick="if(event.target===this)fecharModalSituacaoBulk()">
       <div style="background:var(--card,#1e293b);border:1px solid var(--bdr);border-radius:16px;padding:1.2rem 1.5rem;max-width:90vw">
@@ -590,6 +591,7 @@
       </table>
     </div>
     <div class="empty" id="notas-fiscais-empty"><h3>Nenhuma nota fiscal gerada</h3><p>Gere a nota fiscal diretamente a partir do pedido.</p></div>
+    <div id="nf-pagination"></div>
   </div>
 
   <div id="modal-nota-fiscal" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1001;display:flex;align-items:flex-start;justify-content:center;padding:1rem;overflow-y:auto">
@@ -687,6 +689,7 @@
       </table>
     </div>
     <div class="empty" id="contas-pagar-empty"><h3>Nenhuma conta a pagar</h3><p>Cadastre despesas operacionais e obrigaes financeiras do GDP.</p></div>
+    <div id="cp-pagination"></div>
     <!-- Modal Detalhe Conta a Pagar -->
     <div class="hidden" id="cp-detalhe-modal" style="position:fixed;inset:0;background:rgba(8,15,31,.88);z-index:1013;padding:1.25rem;overflow-y:auto" onclick="fecharDetalheCp()">
       <div style="background:var(--bg);border:1px solid var(--bdr);border-radius:18px;max-width:640px;margin:2rem auto;display:flex;flex-direction:column" onclick="event.stopPropagation()">
@@ -801,6 +804,7 @@
       </table>
     </div>
   <div class="empty" id="contas-receber-empty"><h3>Nenhuma conta a receber</h3><p>As cobrancas geradas a partir das notas fiscais aparecerao aqui.</p></div>
+  <div id="cr-pagination"></div>
     <!-- Modal Detalhe Conta a Receber -->
     <div class="hidden" id="cr-detalhe-modal" style="position:fixed;inset:0;background:rgba(8,15,31,.88);z-index:1013;padding:1.25rem;overflow-y:auto" onclick="fecharDetalheCr()">
       <div style="background:var(--bg);border:1px solid var(--bdr);border-radius:18px;max-width:640px;margin:2rem auto;display:flex;flex-direction:column" onclick="event.stopPropagation()">
@@ -1062,6 +1066,7 @@
         </table>
       </div>
       <div class="empty hidden" id="notas-entrada-empty"><h3>Nenhuma nota de entrada registrada</h3><p>Importe XML ou consulte a API para capturar notas emitidas contra seu CNPJ.</p></div>
+      <div id="ne-pagination"></div>
     </div>
     <div id="ei-grid-compra" style="display:grid;grid-template-columns:1fr;gap:1rem;align-items:start;margin-top:1rem">
       <div class="card" id="ei-card-fornecedores" data-ei-section="fornecedores">
@@ -1266,6 +1271,7 @@
       </table>
     </div>
     <div class="empty hidden" id="banco-produtos-empty"><h3>Nenhum produto cadastrado</h3><p>Adicione produtos manualmente ou importe via Excel/PDF.</p></div>
+    <div id="produtos-pagination"></div>
   </div>
 
   <!-- Modal: Produto -->
@@ -1828,16 +1834,17 @@ function confirmarImportCr() {
 }
 </script>
 
-<script src="./js/gdp-integrations-client.js?v=4"></script>
-<script src="./js/gdp-core.js?v=4"></script>
-<script src="./js/gdp-notas-fiscais.js?v=4"></script>
-<script src="./js/gdp-contratos-module.js?v=4"></script>
-<script src="./js/gdp-estoque-intel.js?v=4"></script>
-<script src="./js/gdp-pedidos.js?v=4"></script>
-<script src="./js/gdp-usuarios.js?v=4"></script>
+<script src="./js/gdp-pagination.js?v=5"></script>
+<script src="./js/gdp-integrations-client.js?v=5"></script>
+<script src="./js/gdp-core.js?v=5"></script>
+<script src="./js/gdp-notas-fiscais.js?v=5"></script>
+<script src="./js/gdp-contratos-module.js?v=5"></script>
+<script src="./js/gdp-estoque-intel.js?v=5"></script>
+<script src="./js/gdp-pedidos.js?v=5"></script>
+<script src="./js/gdp-usuarios.js?v=5"></script>
 <!-- gdp-entregas.js removido (Épico A - FR-016) -->
-<script src="./js/gdp-banco-produtos.js?v=4"></script>
-<script src="./js/gdp-init.js?v=4"></script>
+<script src="./js/gdp-banco-produtos.js?v=5"></script>
+<script src="./js/gdp-init.js?v=5"></script>
 
 
 

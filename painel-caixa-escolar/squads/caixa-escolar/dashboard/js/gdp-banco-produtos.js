@@ -109,8 +109,10 @@ function renderBancoProdutos() {
   }
   empty.classList.add("hidden");
 
+  // Story 4.70: paginação
+  var pagedProd = gdpPaginate(itens, 'produtos');
   const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
-  tbody.innerHTML = itens.map((p, idx) => {
+  tbody.innerHTML = pagedProd.items.map((p, idx) => {
     const custo = p.custoBase ? brl.format(p.custoBase) : '-';
     const preco = p.precoReferencia ? brl.format(p.precoReferencia) : '-';
     const margem = (p.custoBase && p.precoReferencia) ? (((p.precoReferencia - p.custoBase) / p.custoBase) * 100).toFixed(1) + '%' : '-';
@@ -128,6 +130,7 @@ function renderBancoProdutos() {
     <td class="text-right ${margemClass}">${margem}</td>
   </tr>`;
   }).join("");
+  gdpRenderPageControls('produtos-pagination', pagedProd.total, pagedProd.page, pagedProd.pageSize, renderBancoProdutos, 'produtos');
 }
 
 function toggleSelectAllBancoProd(checked) {
