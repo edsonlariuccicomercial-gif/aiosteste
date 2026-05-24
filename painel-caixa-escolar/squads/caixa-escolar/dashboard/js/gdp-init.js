@@ -639,10 +639,44 @@ function estornarContaReceber(contaId) {
   if (!confirm(`Estornar conta a receber "${conta.descricao}"?\nValor: ${brl.format(conta.valor)}\n\nO status voltará para pendente.`)) return;
   conta.status = "pendente";
   delete conta.recebidaEm;
+  delete conta.conciliacao;
   conta.audit = { ...(conta.audit || {}), updatedAt: new Date().toISOString(), updatedBy: getAuditActor(), estornoAt: new Date().toISOString() };
   saveContasReceber();
+  // Story 4.68: desvincular da conciliação bancária também
+  _desvincularConciliacao(contaId, 'cr');
   renderContasReceber();
   showToast(`Conta a receber "${conta.descricao}" estornada.`, 3000);
+}
+
+// Story 4.68: desvincula item de conciliação bancária associado a uma conta CP/CR
+function _desvincularConciliacao(contaId, tipo) {
+  if (typeof loadConciliacao !== 'function') return;
+  const items = loadConciliacao();
+  let changed = false;
+  items.forEach(item => {
+    if (item.vinculadoA && item.vinculadoA.contaId === contaId && item.vinculadoA.tipo === tipo) {
+      item.conciliado = false;
+      delete item.conciliadoEm;
+      delete item.vinculadoA;
+      changed = true;
+    }
+  });
+  if (changed) {
+    saveConciliacao(items);
+    if (typeof atualizarExtratoStats === 'function') atualizarExtratoStats();
+  }
+}
+
+function desvincularConciliacaoCr(contaId) {
+  const conta = contasReceber.find((item) => item.id === contaId);
+  if (!conta) return;
+  if (!confirm(`Desvincular conciliação de "${conta.descricao}"?\nValor: ${brl.format(conta.valor)}\n\nA conta continuará como recebida mas o lançamento do extrato voltará a pendente.`)) return;
+  delete conta.conciliacao;
+  conta.audit = { ...(conta.audit || {}), updatedAt: new Date().toISOString(), updatedBy: getAuditActor(), desvinculacaoAt: new Date().toISOString() };
+  saveContasReceber();
+  _desvincularConciliacao(contaId, 'cr');
+  renderContasReceber();
+  showToast(`Conciliação desvinculada de "${conta.descricao}".`, 3000);
 }
 
 function excluirContaPagar(contaId) {
@@ -764,6 +798,8 @@ function estornarContaPagar(contaId) {
   delete conta.pagaEm;
   conta.audit = { ...(conta.audit || {}), updatedAt: new Date().toISOString(), updatedBy: getAuditActor(), estornoAt: new Date().toISOString() };
   saveContasPagar();
+  // Story 4.68: desvincular da conciliação bancária também
+  _desvincularConciliacao(contaId, 'cp');
   renderContasPagar();
   showToast(`Conta a pagar "${conta.descricao}" estornada.`, 3000);
 }

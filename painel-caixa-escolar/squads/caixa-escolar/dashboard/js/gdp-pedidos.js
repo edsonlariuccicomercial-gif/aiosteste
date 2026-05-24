@@ -1724,6 +1724,7 @@ function renderContasReceber() {
           ${item.status !== "recebida" ? `<a style="display:block;padding:.45rem 1rem;font-size:.82rem;cursor:pointer;color:var(--fg)" onclick="registrarBaixaRecebimento('${item.id}');closeCrMenus()">Receber (Baixar)</a>` : ""}
           ${item.status === "recebida" ? `<a style="display:block;padding:.45rem 1rem;font-size:.82rem;cursor:pointer;color:var(--yellow,#eab308)" onclick="estornarContaReceber('${item.id}');closeCrMenus()">Estornar</a>` : ""}
           <a style="display:block;padding:.45rem 1rem;font-size:.82rem;cursor:pointer;color:var(--fg)" onclick="dispararCobrancaAutomatica('${item.id}');closeCrMenus()">Cobrar</a>
+          ${item.status === "recebida" ? `<a style="display:block;padding:.45rem 1rem;font-size:.82rem;cursor:pointer;color:var(--fg)" onclick="desvincularConciliacaoCr('${item.id}');closeCrMenus()">Desvincular conciliação</a>` : ""}
           <a style="display:block;padding:.45rem 1rem;font-size:.82rem;cursor:pointer;color:var(--fg)" onclick="clonarContaReceber('${item.id}');closeCrMenus()">Clonar</a>
           <a style="display:block;padding:.45rem 1rem;font-size:.82rem;cursor:pointer;color:var(--red,#f44)" onclick="excluirContaReceber('${item.id}');closeCrMenus()">Excluir</a>
         </div>
