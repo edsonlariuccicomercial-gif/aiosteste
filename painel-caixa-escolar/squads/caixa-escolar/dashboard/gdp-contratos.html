@@ -7,7 +7,7 @@
   <title>GDP Contratos — Gestao Pos-Licitacao</title>
   <script>if('serviceWorker' in navigator){navigator.serviceWorker.getRegistrations().then(function(r){r.forEach(function(reg){reg.unregister();});});}</script>
   <link rel="stylesheet" href="css/design-tokens.css">
-  <link rel="stylesheet" href="styles.css?v=9">
+  <link rel="stylesheet" href="styles.css?v=10">
   <script defer src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
   <script defer src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -17,7 +17,7 @@
     .page-footer{position:fixed;bottom:0;left:220px;right:0;z-index:90;background:var(--s1,#1e293b);border-top:1px solid var(--bdr,#475569);padding:.55rem 2rem;display:flex;align-items:center;gap:1rem;box-shadow:0 -2px 12px rgba(0,0,0,.25)}
     .page-footer .footer-actions{display:none;align-items:center;gap:.5rem;flex-wrap:wrap}
     .page-footer.has-selection .footer-actions{display:flex}
-    .page-footer .footer-stats{display:flex;align-items:center;gap:1.5rem}
+    .page-footer .footer-stats{display:flex;align-items:center;gap:1.5rem;margin-left:auto}
     .page-footer .footer-pagination{flex:1;display:flex;justify-content:center}
     .page-footer .footer-stat{text-align:right}
     .page-footer .footer-stat-value{font-size:1.05rem;font-weight:800;color:var(--txt,#f1f5f9);line-height:1.2}
@@ -200,8 +200,8 @@
     @media(max-width:768px){.main{padding:1rem}.kpi-grid{grid-template-columns:repeat(2,1fr)}.topbar{flex-wrap:wrap;gap:.5rem}}
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-  <script src="js/supabase-config.js?v=9"></script>
-  <script src="js/supabase-auth.js?v=9"></script>
+  <script src="js/supabase-config.js?v=10"></script>
+  <script src="js/supabase-auth.js?v=10"></script>
   <script>
     // Session guard (Story 7.2): redirect to login if no valid session
     (async function() {
@@ -213,7 +213,7 @@
       }
     })();
   </script>
-  <script src="gdp-api.js?v=9"></script>
+  <script src="gdp-api.js?v=10"></script>
 </head>
 <body>
 
@@ -2116,17 +2116,17 @@ function confirmarImportProd() {
   </div>
 </div>
 
-<script src="./js/gdp-pagination.js?v=9"></script>
-<script src="./js/gdp-integrations-client.js?v=9"></script>
-<script src="./js/gdp-core.js?v=9"></script>
-<script src="./js/gdp-notas-fiscais.js?v=9"></script>
-<script src="./js/gdp-contratos-module.js?v=9"></script>
-<script src="./js/gdp-estoque-intel.js?v=9"></script>
-<script src="./js/gdp-pedidos.js?v=9"></script>
-<script src="./js/gdp-usuarios.js?v=9"></script>
+<script src="./js/gdp-pagination.js?v=10"></script>
+<script src="./js/gdp-integrations-client.js?v=10"></script>
+<script src="./js/gdp-core.js?v=10"></script>
+<script src="./js/gdp-notas-fiscais.js?v=10"></script>
+<script src="./js/gdp-contratos-module.js?v=10"></script>
+<script src="./js/gdp-estoque-intel.js?v=10"></script>
+<script src="./js/gdp-pedidos.js?v=10"></script>
+<script src="./js/gdp-usuarios.js?v=10"></script>
 <!-- gdp-entregas.js removido (Épico A - FR-016) -->
-<script src="./js/gdp-banco-produtos.js?v=9"></script>
-<script src="./js/gdp-init.js?v=9"></script>
+<script src="./js/gdp-banco-produtos.js?v=10"></script>
+<script src="./js/gdp-init.js?v=10"></script>
 
 
 
@@ -2140,11 +2140,11 @@ function confirmarImportProd() {
     <button class="btn btn-blue btn-sm" onclick="imprimirPedidosSelecionados()">Imprimir</button>
     <button class="btn btn-red btn-sm" onclick="excluirPedidosSelecionados()">Excluir</button>
   </div>
+  <div id="pedidos-pagination" class="footer-pagination"></div>
   <div class="footer-stats">
     <div class="footer-stat"><div class="footer-stat-value" id="pedidos-footer-qtd">00</div><div class="footer-stat-label">quantidade</div></div>
     <div class="footer-stat"><div class="footer-stat-value" id="pedidos-footer-valor">R$ 0,00</div><div class="footer-stat-label">valor total (R$)</div></div>
   </div>
-  <div id="pedidos-pagination" class="footer-pagination"></div>
 </div>
 <div id="nf-page-footer" class="page-footer" style="display:none">
   <div class="footer-actions" id="notas-fiscais-bulk-actions">
@@ -2152,11 +2152,11 @@ function confirmarImportProd() {
     <button class="btn btn-outline btn-sm" onclick="imprimirDanfesSelecionadas()">Imprimir DANFEs</button>
     <button class="btn btn-red btn-sm" onclick="excluirNotasSelecionadas()">Excluir Notas</button>
   </div>
+  <div id="nf-pagination" class="footer-pagination"></div>
   <div class="footer-stats">
     <div class="footer-stat"><div class="footer-stat-value" id="nf-footer-qtd">00</div><div class="footer-stat-label">quantidade</div></div>
     <div class="footer-stat"><div class="footer-stat-value" id="nf-footer-valor">R$ 0,00</div><div class="footer-stat-label">valor total (R$)</div></div>
   </div>
-  <div id="nf-pagination" class="footer-pagination"></div>
 </div>
 <div id="cp-page-footer" class="page-footer" style="display:none">
   <div class="footer-actions" id="cp-bulk-actions">
@@ -2164,11 +2164,11 @@ function confirmarImportProd() {
     <button class="btn btn-sm btn-green" onclick="bulkBaixarContasPagar()">Pagar (Baixar)</button>
     <button class="btn btn-sm btn-red" onclick="bulkExcluirContasPagar()">Excluir</button>
   </div>
+  <div id="cp-pagination" class="footer-pagination"></div>
   <div class="footer-stats">
     <div class="footer-stat"><div class="footer-stat-value" id="cp-footer-qtd">00</div><div class="footer-stat-label">quantidade</div></div>
     <div class="footer-stat"><div class="footer-stat-value" id="cp-footer-valor">R$ 0,00</div><div class="footer-stat-label">valor total (R$)</div></div>
   </div>
-  <div id="cp-pagination" class="footer-pagination"></div>
 </div>
 <div id="cr-page-footer" class="page-footer" style="display:none">
   <div class="footer-actions" id="cr-bulk-actions">
@@ -2177,42 +2177,42 @@ function confirmarImportProd() {
     <button class="btn btn-sm btn-outline" onclick="bulkImprimirBoletos()">Imprimir Boletos</button>
     <button class="btn btn-sm btn-red" onclick="bulkExcluirContasReceber()">Excluir</button>
   </div>
+  <div id="cr-pagination" class="footer-pagination"></div>
   <div class="footer-stats">
     <div class="footer-stat"><div class="footer-stat-value" id="cr-footer-qtd">00</div><div class="footer-stat-label">quantidade</div></div>
     <div class="footer-stat"><div class="footer-stat-value" id="cr-footer-valor">R$ 0,00</div><div class="footer-stat-label">valor total (R$)</div></div>
   </div>
-  <div id="cr-pagination" class="footer-pagination"></div>
 </div>
 <div id="clientes-page-footer" class="page-footer" style="display:none">
   <div class="footer-actions" id="clientes-bulk-actions">
     <span id="clientes-bulk-summary" style="font-size:.82rem;font-weight:700;color:var(--mut)">0 cadastro(s)</span>
     <button class="btn btn-red btn-sm" onclick="excluirClientesSelecionados()">Excluir Cadastro</button>
   </div>
+  <div id="clientes-pagination" class="footer-pagination"></div>
   <div class="footer-stats">
     <div class="footer-stat"><div class="footer-stat-value" id="clientes-footer-qtd">00</div><div class="footer-stat-label">quantidade</div></div>
   </div>
-  <div id="clientes-pagination" class="footer-pagination"></div>
 </div>
 <div id="produtos-page-footer" class="page-footer" style="display:none">
   <div class="footer-actions" id="produtos-bulk-actions">
     <span id="produtos-bulk-summary" style="font-size:.82rem;font-weight:700;color:var(--mut)">0 produto(s)</span>
     <button class="btn btn-green btn-sm" onclick="abrirEditarMassaProdutos()">Editar em Massa</button>
   </div>
+  <div id="produtos-pagination" class="footer-pagination"></div>
   <div class="footer-stats">
     <div class="footer-stat"><div class="footer-stat-value" id="produtos-footer-qtd">00</div><div class="footer-stat-label">produtos</div></div>
   </div>
-  <div id="produtos-pagination" class="footer-pagination"></div>
 </div>
 <div id="ne-page-footer" class="page-footer" style="display:none">
   <div class="footer-actions" id="ne-bulk-actions">
     <span id="ne-bulk-summary" style="font-size:.82rem;font-weight:700;color:var(--mut)">0 nota(s)</span>
     <button class="btn btn-red btn-sm" onclick="excluirNotasEntradaSelecionadas()">Excluir Notas</button>
   </div>
+  <div id="ne-pagination" class="footer-pagination"></div>
   <div class="footer-stats">
     <div class="footer-stat"><div class="footer-stat-value" id="ne-footer-qtd">00</div><div class="footer-stat-label">quantidade</div></div>
     <div class="footer-stat"><div class="footer-stat-value" id="ne-footer-valor">R$ 0,00</div><div class="footer-stat-label">valor total (R$)</div></div>
   </div>
-  <div id="ne-pagination" class="footer-pagination"></div>
 </div>
 <!-- Story 4.70 Bloco B: rodapés faltantes -->
 <div id="fornecedores-page-footer" class="page-footer" style="display:none">
@@ -2220,6 +2220,7 @@ function confirmarImportProd() {
     <span id="fornecedores-bulk-summary" style="font-size:.82rem;font-weight:700;color:var(--mut)">0 fornecedor(es)</span>
     <button class="btn btn-red btn-sm" onclick="excluirFornecedoresSelecionados()">Excluir</button>
   </div>
+  <div id="fornecedores-pagination" class="footer-pagination"></div>
   <div class="footer-stats">
     <div class="footer-stat"><div class="footer-stat-value" id="fornecedores-footer-qtd">00</div><div class="footer-stat-label">quantidade</div></div>
   </div>
@@ -2228,6 +2229,7 @@ function confirmarImportProd() {
   <div class="footer-actions" id="contratos-bulk-actions">
     <span id="contratos-bulk-summary" style="font-size:.82rem;font-weight:700;color:var(--mut)">0 contrato(s)</span>
   </div>
+  <div id="contratos-pagination" class="footer-pagination"></div>
   <div class="footer-stats">
     <div class="footer-stat"><div class="footer-stat-value" id="contratos-footer-qtd">00</div><div class="footer-stat-label">contratos</div></div>
     <div class="footer-stat"><div class="footer-stat-value" id="contratos-footer-valor">R$ 0,00</div><div class="footer-stat-label">valor total (R$)</div></div>
@@ -2237,12 +2239,14 @@ function confirmarImportProd() {
   <div class="footer-actions" id="estoque-bulk-actions">
     <span id="estoque-bulk-summary" style="font-size:.82rem;font-weight:700;color:var(--mut)">0 item(ns)</span>
   </div>
+  <div id="estoque-pagination" class="footer-pagination"></div>
   <div class="footer-stats">
     <div class="footer-stat"><div class="footer-stat-value" id="estoque-footer-qtd">00</div><div class="footer-stat-label">itens</div></div>
     <div class="footer-stat"><div class="footer-stat-value" id="estoque-footer-valor">R$ 0,00</div><div class="footer-stat-label">valor estoque (R$)</div></div>
   </div>
 </div>
 <div id="financeiro-page-footer" class="page-footer" style="display:none">
+  <div id="financeiro-pagination" class="footer-pagination"></div>
   <div class="footer-stats">
     <div class="footer-stat"><div class="footer-stat-value" id="financeiro-footer-saldo">R$ 0,00</div><div class="footer-stat-label">saldo</div></div>
     <div class="footer-stat"><div class="footer-stat-value" id="financeiro-footer-entradas">R$ 0,00</div><div class="footer-stat-label">entradas</div></div>
