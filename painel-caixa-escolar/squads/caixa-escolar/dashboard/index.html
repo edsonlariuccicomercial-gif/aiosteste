@@ -55,6 +55,7 @@
       <div class="sidebar-submenu" id="submenu-intel-precos">
         <button class="sidebar-sub-item" data-subtab="analise-produto">Análise por Produto</button>
         <button class="sidebar-sub-item active" data-subtab="pre-orcamento">Pré-Orçamento</button>
+        <button class="sidebar-sub-item" data-subtab="pendencias-agente">Pendências do Agente</button>
         <button class="sidebar-sub-item" data-subtab="envio-sgd">Enviados ao SGD</button>
         <button class="sidebar-sub-item" data-subtab="central-precos">Central de Produtos</button>
         <button class="sidebar-sub-item" data-subtab="historico">Histórico</button>
@@ -339,6 +340,10 @@
           </div>
         </div>
 
+        <section id="cotacao-workflow" class="cotacao-workflow"></section>
+
+        <section id="normalizador-agent-panel" class="normalizador-agent-panel"></section>
+
         <!-- Story 10.2 (revisado): Revisão de Unidades inline no pré-orçamento -->
         <details id="revisao-unidades-inline" style="margin-bottom:1rem;border:1px solid var(--bdr);border-radius:10px;background:var(--s1);">
           <summary style="cursor:pointer;padding:.7rem 1rem;font-weight:700;font-size:.85rem;display:flex;align-items:center;gap:.5rem;">
@@ -442,7 +447,7 @@
           <button id="btn-simular" class="btn btn-sm" onclick="toggleSimulator()" style="margin-right:auto;">Simular Cenários</button>
           <button class="btn btn-sm" onclick="imprimirPreviaProposta()" title="Gerar PDF da proposta para impressão">Imprimir Prévia</button>
           <button class="btn btn-sm" onclick="gerarRelatorioDetalhado()" title="Relatório detalhado com análise de lucro" style="background:#8b5cf6;color:#fff;border:none;">Relatório Lucro</button>
-          <button id="btn-aprovar" class="btn btn-accent">Aprovar</button>
+          <button id="btn-aprovar" class="btn btn-accent">Aprovar participação</button>
           <button id="btn-recusar" class="btn btn-danger">Recusar</button>
           <button id="btn-editar-orcamento" class="btn btn-warning" style="display:none;">Editar</button>
           <button id="btn-enviar-sgd" class="btn btn-sgd" style="display:none;">Enviar ao SGD</button>
@@ -706,6 +711,45 @@
 
       <!-- Story 4.43: Demandas, Estoque e Compras migrados para gdp-contratos.html -->
 
+    </div>
+  </section>
+
+  <section id="tab-pendencias-agente" class="tab-content">
+    <div class="card">
+      <div class="table-head">
+        <h2>Pendências do Agente</h2>
+        <div class="table-head-actions">
+          <button class="btn btn-sm" onclick="NormalizadorAgent.exportPendencias()">Exportar CSV</button>
+          <button class="btn btn-sm btn-accent" onclick="NormalizadorAgent.renderPendencias()">Atualizar</button>
+        </div>
+      </div>
+      <div class="normalizador-pendencias-kpis" id="normalizador-pendencias-kpis"></div>
+      <div class="filters" style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.75rem;">
+        <select id="filtro-pendencia-agente-status" onchange="NormalizadorAgent.renderPendencias()">
+          <option value="all">Todos status</option>
+          <option value="cotar_marca">Cotar marca</option>
+          <option value="cotar">Cotar</option>
+          <option value="criar_produto">Criar produto</option>
+          <option value="revisar">Revisar</option>
+          <option value="pronto">Pronto/aprendido</option>
+        </select>
+        <input id="filtro-pendencia-agente-texto" type="text" placeholder="Buscar produto, marca, descrição..." autocomplete="off" oninput="NormalizadorAgent.renderPendencias()" style="padding:0.4rem;flex:1;min-width:220px;" />
+      </div>
+      <div class="table-wrap">
+        <table class="normalizador-table">
+          <thead>
+            <tr>
+              <th>Status</th>
+              <th>Produto canônico</th>
+              <th>Marcas / escolha</th>
+              <th>Origem SGD</th>
+              <th>Ação sugerida</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-pendencias-agente"></tbody>
+        </table>
+      </div>
+      <p id="pendencias-agente-empty" class="empty-msg" style="display:none;">Nenhuma pendência registrada. Use "Aprovar e ensinar" na Mesa do Agente para alimentar esta fila.</p>
     </div>
   </section>
 
@@ -1620,8 +1664,8 @@
   <script src="app-results.js?v=2"></script>
   <script src="radar-matcher.js?v=2"></script>
   <script src="app.js?v=28"></script>
+  <script src="agent-normalizer.js?v=1"></script>
   <script src="pricing-intel.js?v=1"></script>
   <script src="pricing-engine.js?v=1"></script>
-  <script src="commercial-agents.js?v=2"></script>
 </body>
 </html>

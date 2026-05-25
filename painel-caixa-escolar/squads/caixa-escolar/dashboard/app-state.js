@@ -373,7 +373,10 @@ function addCustoFornecedor(produtoId, fornecedor, custo, origem, confiabilidade
     arquivo_id: arquivoId || null,
     frete_estimado: ex.frete_estimado || null,
     prazo_pagamento_dias: ex.prazo_pagamento_dias || null,
-    descricao_original: ex.descricao_original || null
+    descricao_original: ex.descricao_original || null,
+    unidade_original: ex.unidade_original || null,
+    unidade_convertida: ex.unidade_convertida || null,
+    fator_conversao: ex.fator_conversao || null
   });
   // Note: caller should call saveCustosFornecedores() after batch operations
   // For single manual adds (from UI), save immediately
@@ -634,6 +637,7 @@ const SHARED_SYNC_KEYS = new Set([
   "gdp.estoque.v1", "gdp.lista-compras.v1",
   // Intel Preços v2 — Central + Custos + Histórico
   "intel.central-produtos.v2", "intel.custos-fornecedores.v1", "intel.historico-licitacoes.v1",
+  "intel.normalizacoes-sgd.v1",
   // Intel Preços — legacy sync
   "gdp.estoque-intel.produtos.v1", "gdp.estoque-intel.embalagens.v1",
   "gdp.estoque-intel.pedidos.v1", "gdp.estoque-intel.pedido-itens.v1",
@@ -691,6 +695,7 @@ const SYNC_KEYS = [
   "gdp.estoque.v1", "gdp.lista-compras.v1",
   // Intel Preços v2 — Central + Custos + Histórico
   "intel.central-produtos.v2", "intel.custos-fornecedores.v1", "intel.historico-licitacoes.v1",
+  "intel.normalizacoes-sgd.v1",
   // Intel Preços — legacy sync
   "gdp.estoque-intel.produtos.v1", "gdp.estoque-intel.embalagens.v1",
   "gdp.estoque-intel.pedidos.v1", "gdp.estoque-intel.pedido-itens.v1",

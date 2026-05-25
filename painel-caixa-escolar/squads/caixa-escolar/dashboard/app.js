@@ -1117,6 +1117,7 @@ window.abrirPreOrcamento = function (orcId) {
   }
 
   renderPreOrcamentoItens();
+  renderCotacaoWorkflow(pre, orc);
 
   // Auto-preencher button (Story 4.29) — show when pre-orcamento is active and editable
   const btnAuto = document.getElementById("btn-auto-preencher");
@@ -1316,7 +1317,159 @@ function renderPreOrcamentoItens() {
 
   el.preorcamentoTotal.textContent = brl.format(pre.totalGeral);
   el.preorcamentoMargemMedia.textContent = pct(pre.margemMedia);
+  renderCotacaoWorkflow(pre, orcamentos.find((o) => o.id === activePreOrcamentoId));
 }
+
+window.auditarCotacaoLote = function auditarCotacaoLote(pre, orc) {
+  const itensCotados = pre?.itens || [];
+  const itensLote = Array.isArray(orc?.itens) ? orc.itens : [];
+  const textoLote = normalizarTermoProduto([
+    orc?.objeto,
+    pre?.observacaoGeral,
+    ...itensLote.map((item) => [item.nome, item.descricao, item.especificacao, item.marca].filter(Boolean).join(" "))
+  ].filter(Boolean).join(" "));
+  const criticos = [];
+  const alertas = [];
+  const pendencias = [];
+
+  if (itensLote.length && itensCotados.length !== itensLote.length) {
+    criticos.push(`Lote do SGD tem ${itensLote.length} item(ns), mas a cotação tem ${itensCotados.length}.`);
+  }
+  if (!itensLote.length) {
+    alertas.push("Itens do lote ainda não estão carregados para comparação completa.");
+  }
+
+  const semPreco = itensCotados.filter((item) => !Number(item.precoUnitario));
+  const semQuantidade = itensCotados.filter((item) => !Number(item.quantidade));
+  const semCusto = itensCotados.filter((item) => !Number(item.custoUnitario));
+  const unidadesPendentes = itensCotados.filter((item) => !item._unidadeConfirmada);
+  const itensComFornecedor = itensCotados.filter((item) => {
+    const bp = findBancoItem(item.nome);
+    return bp && Array.isArray(bp.custosFornecedor) && bp.custosFornecedor.length;
+  });
+  const conversoesFornecedor = itensCotados.flatMap((item) => {
+    const bp = findBancoItem(item.nome);
+    const custos = bp && Array.isArray(bp.custosFornecedor) ? bp.custosFornecedor : [];
+    return custos.filter((custo) => custo.fatorConversao || custo.unidadeConvertida);
+  });
+  if (semPreco.length) criticos.push(`${semPreco.length} item(ns) sem preço unitário.`);
+  if (semQuantidade.length) criticos.push(`${semQuantidade.length} item(ns) sem quantidade válida.`);
+  if (unidadesPendentes.length) criticos.push(`${unidadesPendentes.length} unidade(s) ainda não confirmada(s) pelo cotador.`);
+  if (semCusto.length) pendencias.push(`${semCusto.length} item(ns) sem custo de fornecedor registrado.`);
+  if (itensCotados.length && itensComFornecedor.length < itensCotados.length) {
+    pendencias.push(`${itensCotados.length - itensComFornecedor.length} item(ns) sem referência importada de fornecedor.`);
+  }
+  if (conversoesFornecedor.length) {
+    alertas.push(`${conversoesFornecedor.length} referência(s) de fornecedor vieram com conversão de embalagem para unidade.`);
+  }
+
+  if (textoLote.includes("somente a marca") || textoLote.includes("marca informada") || textoLote.includes("marca:")) {
+    alertas.push("Texto do lote cita marca exigida ou marca de referência.");
+  }
+  if (textoLote.includes("original")) alertas.push("Texto do lote cita produto original; conferir se a oferta respeita essa exigência.");
+  if (textoLote.includes("instalacao") || textoLote.includes("instalação")) alertas.push("Lote cita instalação.");
+  if (textoLote.includes("descarte")) alertas.push("Lote cita descarte.");
+  if (textoLote.includes("visita tecnica") || textoLote.includes("visita técnica")) alertas.push("Lote cita visita técnica.");
+  if (orc?.prazoEntrega) alertas.push(`Prazo de entrega informado: ${orc.prazoEntrega}.`);
+  if (orc?.prazo && daysTo(orc.prazo) < 0) criticos.push("Prazo da oportunidade vencido.");
+  if (orc?.prazo && daysTo(orc.prazo) === 0) alertas.push("Prazo da oportunidade encerra hoje.");
+
+  return {
+    criticos,
+    alertas,
+    pendencias,
+    itensCotados: itensCotados.length,
+    itensLote: itensLote.length,
+    unidadesConfirmadas: itensCotados.length - unidadesPendentes.length,
+    itensComFornecedor: itensComFornecedor.length,
+    completo: !criticos.length
+  };
+};
+
+function renderCotacaoWorkflow(pre, orc) {
+  const box = document.getElementById("cotacao-workflow");
+  if (!box || !pre) return;
+  const auditoria = auditarCotacaoLote(pre, orc);
+  const emDecisao = !!pre.prontoDiretorEm;
+  const aprovado = pre.status === "aprovado" || pre.status === "enviado" || pre.status === "ganho" || pre.status === "perdido";
+  const revisaoClass = auditoria.criticos.length ? "blocked" : emDecisao ? "ready" : "review";
+  const listaCriticos = auditoria.criticos.length
+    ? auditoria.criticos.map((item) => `<li>${escapeHtml(item)}</li>`).join("")
+    : "<li>Lote cotado sem pendência crítica detectada.</li>";
+  const listaAlertas = [...auditoria.alertas, ...auditoria.pendencias].length
+    ? [...auditoria.alertas, ...auditoria.pendencias].map((item) => `<li>${escapeHtml(item)}</li>`).join("")
+    : "<li>Sem alerta adicional detectado.</li>";
+  const btnAprovar = document.getElementById("btn-aprovar");
+  if (btnAprovar && pre.status === "pendente") {
+    btnAprovar.disabled = !emDecisao || !!auditoria.criticos.length;
+    btnAprovar.title = auditoria.criticos.length
+      ? "Corrija os bloqueios da revisão antes da decisão."
+      : emDecisao
+        ? "Decisão final do diretor."
+        : "Envie a cotação para decisão do diretor primeiro.";
+  }
+
+  box.innerHTML = `
+    <div class="cotacao-workflow-head">
+      <div>
+        <span>Esteira de cotação</span>
+        <strong>Cotador revisa o lote antes da decisão do diretor</strong>
+      </div>
+      <button class="btn btn-sm btn-accent" type="button" onclick="marcarProntoParaDiretor()" ${auditoria.criticos.length || aprovado ? "disabled" : ""}>
+        ${emDecisao ? "Pronto para diretor" : "Enviar para decisão"}
+      </button>
+    </div>
+    <div class="cotacao-workflow-stages">
+      <div class="cotacao-stage ready"><span>1</span><strong>Cotação</strong><small>${auditoria.itensCotados} item(ns) preparados</small></div>
+      <div class="cotacao-stage ${revisaoClass}"><span>2</span><strong>Revisão de lote</strong><small>${auditoria.itensLote || "?"} no SGD | ${auditoria.unidadesConfirmadas}/${auditoria.itensCotados} un.</small></div>
+      <div class="cotacao-stage ${emDecisao || aprovado ? "ready" : "waiting"}"><span>3</span><strong>Diretor</strong><small>${aprovado ? "participação aprovada" : emDecisao ? "aguardando decisão" : "aguarda revisão"}</small></div>
+      <div class="cotacao-stage ${pre.status === "enviado" ? "ready" : "waiting"}"><span>4</span><strong>SGD</strong><small>${pre.status === "enviado" ? "proposta enviada" : "travado até aprovar"}</small></div>
+    </div>
+    <details class="cotacao-audit" ${auditoria.criticos.length ? "open" : ""}>
+      <summary>Revisar lote, unidades, marcas e fornecedor</summary>
+      <div class="cotacao-audit-grid">
+        <div><h4>Bloqueios</h4><ul>${listaCriticos}</ul></div>
+        <div><h4>Alertas do edital</h4><ul>${listaAlertas}</ul></div>
+      </div>
+      <div class="cotacao-supplier">
+        <div>
+          <span>Base de fornecedores</span>
+          <strong>${auditoria.itensComFornecedor}/${auditoria.itensCotados} item(ns) com referência</strong>
+          <small>Planilhas importadas alimentam custo, fornecedor e conversões para revisão.</small>
+        </div>
+        <label>Parecer do cotador
+          <textarea rows="2" placeholder="Pendências, fornecedor usado, marca validada, observação para o diretor..." onchange="salvarParecerCotador(this.value)">${escapeHtml(pre.parecerCotador || "")}</textarea>
+        </label>
+      </div>
+      <div class="cotacao-audit-actions">
+        <button class="btn btn-sm" type="button" onclick="document.getElementById('revisao-unidades-inline').open = true; document.getElementById('revisao-unidades-inline').scrollIntoView({behavior:'smooth', block:'start'})">Revisar unidades</button>
+        <button class="btn btn-sm" type="button" onclick="switchTab('central-precos')">Abrir fornecedores</button>
+      </div>
+    </details>`;
+}
+
+window.salvarParecerCotador = function salvarParecerCotador(value) {
+  const pre = preOrcamentos[activePreOrcamentoId];
+  if (!pre) return;
+  pre.parecerCotador = String(value || "").trim();
+  if (pre.status === "pendente") delete pre.prontoDiretorEm;
+  savePreOrcamentos();
+};
+
+window.marcarProntoParaDiretor = function marcarProntoParaDiretor() {
+  const pre = preOrcamentos[activePreOrcamentoId];
+  const orc = orcamentos.find((o) => o.id === activePreOrcamentoId);
+  if (!pre) return;
+  const auditoria = auditarCotacaoLote(pre, orc);
+  if (auditoria.criticos.length) {
+    alert("Antes de enviar para decisão, corrija:\n\n" + auditoria.criticos.map((item) => "- " + item).join("\n"));
+    return;
+  }
+  pre.prontoDiretorEm = new Date().toISOString();
+  savePreOrcamentos();
+  renderCotacaoWorkflow(pre, orc);
+  showToast("Cotação pronta para decisão do diretor.");
+};
 
 // Atualizar item do pré-orçamento
 window.updatePreItem = function (idx, field, value) {
@@ -1324,6 +1477,7 @@ window.updatePreItem = function (idx, field, value) {
   if (!pre || !pre.itens[idx]) return;
 
   const item = pre.itens[idx];
+  if (pre.status === "pendente") delete pre.prontoDiretorEm;
 
   if (field === "marca") {
     const oldMarca = (item.marca || "").trim();
@@ -1416,6 +1570,15 @@ function aprovarPreOrcamento() {
   if (!activePreOrcamentoId) return;
   const pre = preOrcamentos[activePreOrcamentoId];
   if (!pre) return;
+  const auditoria = auditarCotacaoLote(pre, orcamentos.find((o) => o.id === activePreOrcamentoId));
+  if (!pre.prontoDiretorEm) {
+    alert("Marque a cotação como pronta para decisão do diretor antes de aprovar a participação.");
+    return;
+  }
+  if (auditoria.criticos.length) {
+    alert("A aprovação está bloqueada por pendências críticas da revisão:\n\n" + auditoria.criticos.map((p) => "- " + p).join("\n"));
+    return;
+  }
 
   // Validar: todos os itens precisam ter preco > 0 (custo OU preco direto)
   const semPreco = pre.itens.filter((i) => i.precoUnitario <= 0);
@@ -1476,6 +1639,7 @@ function aprovarPreOrcamento() {
   el.btnEnviarSgd.style.display = "inline-block";
   el.btnEnviarSgd.textContent = "Enviar ao SGD";
   el.btnIrSgd.style.display = "inline-block";
+  renderCotacaoWorkflow(pre, orcamentos.find((o) => o.id === activePreOrcamentoId));
 }
 
 // Recusar pré-orçamento
@@ -2071,6 +2235,7 @@ window.switchTab = function switchTab(tabId) {
   }
   if (tabId === "pre-orcamento" && !activePreOrcamentoId) renderPreOrcamentosLista();
   if (tabId === "central-precos" && typeof renderCentralPrecos === "function") renderCentralPrecos();
+  if (tabId === "pendencias-agente" && window.NormalizadorAgent) window.NormalizadorAgent.renderPendencias();
 }
 
 // ===== EVENTS =====
@@ -3621,6 +3786,7 @@ window.alterarUnidadeInline = function (idx, valor) {
   if (!pre || !pre.itens[idx]) return;
   pre.itens[idx].unidade = valor;
   pre.itens[idx]._unidadeConfirmada = false;
+  if (pre.status === "pendente") delete pre.prontoDiretorEm;
   savePreOrcamentos();
   renderRevisaoUnidadesInline();
   renderPreOrcamentoItens();
@@ -3630,6 +3796,7 @@ window.confirmarUnidadeInline = function (idx) {
   const pre = preOrcamentos[activePreOrcamentoId];
   if (!pre || !pre.itens[idx]) return;
   pre.itens[idx]._unidadeConfirmada = true;
+  if (pre.status === "pendente") delete pre.prontoDiretorEm;
   savePreOrcamentos();
   renderRevisaoUnidadesInline();
   renderPreOrcamentoItens();
@@ -3640,6 +3807,7 @@ window.desconfirmarUnidadeInline = function (idx) {
   const pre = preOrcamentos[activePreOrcamentoId];
   if (!pre || !pre.itens[idx]) return;
   pre.itens[idx]._unidadeConfirmada = false;
+  if (pre.status === "pendente") delete pre.prontoDiretorEm;
   savePreOrcamentos();
   renderRevisaoUnidadesInline();
 };

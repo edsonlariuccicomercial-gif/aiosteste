@@ -888,6 +888,9 @@ function mergeImportIntoBanco() {
         frete_estimado: freteRaw > 0 ? freteRaw : null,
         prazo_pagamento_dias: prazoRaw > 0 ? prazoRaw : null,
         descricao_original: itemName,
+        unidade_original: unidadeRaw || null,
+        unidade_convertida: conv.convertido ? unidade : null,
+        fator_conversao: conv.convertido ? conv.qtdOriginal : null,
         _batch: true
       });
       custosNovos++;
@@ -902,7 +905,10 @@ function mergeImportIntoBanco() {
       existingBanco.ultimaCotacao = todayStr;
       if (preco > 0 && fornecedor) {
         if (!existingBanco.custosFornecedor) existingBanco.custosFornecedor = [];
-        existingBanco.custosFornecedor.push({ fornecedor, preco, data: todayStr, arquivoId: currentArquivoId, descricaoOriginal: itemName, confianca: sourceConfidence });
+        existingBanco.custosFornecedor.push({
+          fornecedor, preco, data: todayStr, arquivoId: currentArquivoId, descricaoOriginal: itemName, confianca: sourceConfidence,
+          unidadeOriginal: unidadeRaw || "", unidadeConvertida: conv.convertido ? unidade : "", fatorConversao: conv.convertido ? conv.qtdOriginal : null
+        });
       }
       if (!existingBanco.mesterId) {
         const mestreMatch = findBestMestre(existingBanco.item);
@@ -922,7 +928,10 @@ function mergeImportIntoBanco() {
         id: newId, item: itemName, grupo: "Importado", unidade: unidade || "Unidade",
         custoBase: preco, margemPadrao, precoReferencia: Math.round(preco * (1 + margemPadrao) * 100) / 100,
         ultimaCotacao: todayStr, fonte: fornecedor, propostas: [], concorrentes: [],
-        custosFornecedor: fornecedor && preco > 0 ? [{ fornecedor, preco, data: todayStr, arquivoId: currentArquivoId, descricaoOriginal: itemName, confianca: sourceConfidence }] : [],
+        custosFornecedor: fornecedor && preco > 0 ? [{
+          fornecedor, preco, data: todayStr, arquivoId: currentArquivoId, descricaoOriginal: itemName, confianca: sourceConfidence,
+          unidadeOriginal: unidadeRaw || "", unidadeConvertida: conv.convertido ? unidade : "", fatorConversao: conv.convertido ? conv.qtdOriginal : null
+        }] : [],
       };
       const mestreMatch = findBestMestre(newItem.item);
       if (mestreMatch && mestreMatch.score >= 0.5) {

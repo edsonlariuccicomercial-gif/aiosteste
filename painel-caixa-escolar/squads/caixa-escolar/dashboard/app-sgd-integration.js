@@ -123,6 +123,22 @@ function downloadSgdPayload(pre) {
 function revisarCotacaoAnteEnvio(pre) {
   const divergencias = [];
   const itens = pre.itens || [];
+  const orc = (typeof orcamentos !== "undefined" ? orcamentos : []).find((o) => String(o.id) === String(pre.orcamentoId || activePreOrcamentoId));
+  const auditoriaLote = typeof window.auditarCotacaoLote === "function" ? window.auditarCotacaoLote(pre, orc) : null;
+
+  if (auditoriaLote) {
+    auditoriaLote.criticos.forEach((mensagem) => {
+      divergencias.push({
+        idx: 0,
+        tipo: "lote",
+        severidade: "critical",
+        descricao: "Revisão completa do lote",
+        esperado: "Cotação completa e válida",
+        encontrado: "Pendência crítica",
+        sugestao: mensagem
+      });
+    });
+  }
 
   // Carregar Central de Produtos para comparação
   if (typeof loadBancoProdutos === 'function') loadBancoProdutos();
