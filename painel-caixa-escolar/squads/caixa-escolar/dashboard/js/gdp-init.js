@@ -1661,6 +1661,7 @@ function _renderAllImmediate() {
 let _vincularGdpContratoId = "";
 let _vincularGdpItemIdx = -1;
 let _vincularGdpDescricao = "";
+let _vincularGdpSkuAtual = null; // Story 4.73: SKU autoritativo do item (não da equivalência genérica)
 
 function abrirVincularGDP(contratoId, itemIdx) {
   const c = contratos.find(x => x.id === contratoId);
@@ -1668,21 +1669,23 @@ function abrirVincularGDP(contratoId, itemIdx) {
   _vincularGdpContratoId = contratoId;
   _vincularGdpItemIdx = itemIdx;
   _vincularGdpDescricao = c.itens[itemIdx].descricao;
-  document.getElementById("vincular-gdp-desc").textContent = _vincularGdpDescricao.slice(0, 80) + (_vincularGdpDescricao.length > 80 ? "..." : "");
-  // Se já tem vínculo, mostrar produto atual — priorizar item.skuVinculado (mesmo chain da tabela)
+  // Story 4.73: Priorizar skuVinculado do item (fonte autoritativa) sobre equivalencia genérica
   const _item = c.itens[itemIdx];
-  const equivSku = _item.skuVinculado || getGdpEquivalencia(_vincularGdpDescricao);
-  const prodVinculado = equivSku ? estoqueIntelProdutos.find(p => p.sku === equivSku || p.id === equivSku) : null;
+  _vincularGdpSkuAtual = _item.skuVinculado || getGdpEquivalencia(_vincularGdpDescricao) || null;
+  const prodVinculado = _vincularGdpSkuAtual ? estoqueIntelProdutos.find(p => p.sku === _vincularGdpSkuAtual || p.id === _vincularGdpSkuAtual) : null;
   const descEl = document.getElementById("vincular-gdp-desc");
   if (descEl) {
     let descText = _vincularGdpDescricao.slice(0, 80);
-    if (prodVinculado) descText += ' → Vinculado a: ' + prodVinculado.nome + ' (' + (prodVinculado.sku || '') + ')';
+    if (prodVinculado) {
+      descText += ' → Vinculado a: ' + prodVinculado.nome + ' (' + (prodVinculado.sku || '') + ')';
+    } else if (_vincularGdpSkuAtual) {
+      descText += ' → Vinculado a SKU: ' + _vincularGdpSkuAtual + ' (produto não encontrado na Central)';
+    }
     descEl.textContent = descText;
   }
   const buscaEl = document.getElementById("vincular-gdp-busca");
   if (buscaEl) buscaEl.value = prodVinculado ? prodVinculado.nome : "";
   renderVincularGDPResultados(prodVinculado ? prodVinculado.nome : "");
-  // (Formulário de cadastro rápido removido — agora usa o form padrão da central de produtos)
   const modal = document.getElementById("modal-vincular-gdp");
   if (modal) { modal.classList.remove("hidden"); modal.style.display = "flex"; }
 }
@@ -1693,6 +1696,7 @@ function fecharVincularGDP() {
   _vincularGdpContratoId = "";
   _vincularGdpItemIdx = -1;
   _vincularGdpDescricao = "";
+  _vincularGdpSkuAtual = null;
 }
 
 // Resumir descrição do contrato — moderado, mantém identidade do produto
@@ -1760,10 +1764,11 @@ function renderVincularGDPResultados(query) {
     el.innerHTML = '<div style="padding:1rem;color:var(--mut);text-align:center">Nenhum produto encontrado para "' + esc(query) + '".</div>';
     return;
   }
-  const equivSkuAtual = getGdpEquivalencia(_vincularGdpDescricao);
+  // Story 4.73: usar SKU autoritativo do item (não equivalência genérica que pode divergir)
+  const skuAtual = _vincularGdpSkuAtual || getGdpEquivalencia(_vincularGdpDescricao);
   el.innerHTML = '<table style="font-size:.82rem;width:100%"><thead><tr><th></th><th>Produto</th><th>Base</th><th>Embalagens</th><th>SKU</th><th></th></tr></thead><tbody>' +
     filtrados.map(p => {
-      const isVinculado = equivSkuAtual && (p.sku === equivSkuAtual || p.id === equivSkuAtual);
+      const isVinculado = skuAtual && (p.sku === skuAtual || p.id === skuAtual);
       return `<tr style="${isVinculado ? 'background:rgba(34,197,94,.1)' : ''}">
       <td style="text-align:center;font-size:.9rem">${isVinculado ? '✅' : ''}</td>
       <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap${isVinculado ? ';font-weight:700;color:var(--green)' : ''}" title="${esc(p.nome)}">${esc(p.nome.slice(0, 35))}</td>
