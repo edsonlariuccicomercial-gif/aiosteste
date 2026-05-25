@@ -218,35 +218,49 @@ function _quickHash(str) {
 const SYNC_MAX_BYTES = 500 * 1024;
 
 async function syncToCloud(signal) {
-  const promises = SYNC_KEYS.map(key => {
+  // Story 4.72: Batch upsert — 1 POST instead of N individual POSTs
+  const userId = getSyncUserId();
+  const now = new Date().toISOString();
+  const batch = [];
+
+  for (const key of SYNC_KEYS) {
     const raw = localStorage.getItem(key);
-    if (!raw) return Promise.resolve();
+    if (!raw) continue;
+    if (raw.length > SYNC_MAX_BYTES) continue;
 
-    // Skip keys that exceed max size (orcamentos ~1.5MB, notas-fiscais ~1.4MB already have dedicated tables)
-    if (raw.length > SYNC_MAX_BYTES) return Promise.resolve();
-
-    // Skip keys that haven't changed since last sync
     const hash = _quickHash(raw);
-    if (_syncHashes[key] === hash) return Promise.resolve();
+    if (_syncHashes[key] === hash) continue;
 
     try {
       const data = JSON.parse(raw);
-      // Story 4.64: never upload conciliacao/extratos in legacy array format (no wrapper)
-      // Only wrapped format {_v, updatedAt, items} is authoritative
-      if ((key === 'gdp.conciliacao.v1' || key === 'gdp.extratos.v1') && Array.isArray(data)) {
-        return Promise.resolve();
-      }
-      // Guard: skip empty data UNLESS it has a recent updatedAt (legitimate deletion)
-      const hasRecentUpdate = data?.updatedAt && (Date.now() - new Date(data.updatedAt).getTime()) < 300000; // 5 min
+      if ((key === 'gdp.conciliacao.v1' || key === 'gdp.extratos.v1') && Array.isArray(data)) continue;
+      const hasRecentUpdate = data?.updatedAt && (Date.now() - new Date(data.updatedAt).getTime()) < 300000;
       if (!hasRecentUpdate) {
-        if (Array.isArray(data) && data.length === 0) return Promise.resolve();
-        if (data && typeof data === 'object' && Array.isArray(data.items) && data.items.length === 0) return Promise.resolve();
+        if (Array.isArray(data) && data.length === 0) continue;
+        if (data && typeof data === 'object' && Array.isArray(data.items) && data.items.length === 0) continue;
       }
       _syncHashes[key] = hash;
-      return cloudSave(key, data, signal);
-    } catch(_) { return Promise.resolve(); }
-  });
-  await Promise.all(promises);
+      batch.push({ user_id: userId, key, data, updated_at: now });
+    } catch(_) { /* skip malformed */ }
+  }
+
+  if (batch.length === 0) return;
+
+  // Single batch POST (Supabase supports array upsert with on_conflict)
+  try {
+    await fetch(`${SUPABASE_URL}/rest/v1/sync_data?on_conflict=user_id,key`, {
+      method: "POST",
+      headers: {
+        "apikey": SUPABASE_KEY, "Authorization": "Bearer " + SUPABASE_KEY,
+        "Content-Type": "application/json", "Prefer": "return=minimal,resolution=merge-duplicates"
+      },
+      body: JSON.stringify(batch),
+      signal: signal || undefined
+    });
+  } catch (e) {
+    if (e.name === 'AbortError') return;
+    if (typeof gdpWarn === 'function') gdpWarn("Cloud batch save failed:", e);
+  }
 }
 
 // Story 12.1 AC3: AbortController — only 1 sync active at a time

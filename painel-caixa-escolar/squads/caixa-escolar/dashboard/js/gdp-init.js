@@ -2890,44 +2890,43 @@ async function enviarTiny(contratoId) {
   loadData();
   loadUsuarios();
   renderAll();
+
+  // Story 4.72: Cloud sync em background (non-blocking) — UI fica interativa imediatamente
   setGdpSyncState({ status: "syncing", source: "cloud", detail: "Sincronizando com cloud...", userId: getSyncUserId() });
-
-  // Cloud sync em background — atualiza se houver dados mais recentes
-  try {
-    const restored = await syncFromCloud();
-    if (restored?.restored) {
-      // Cloud trouxe dados novos — recarregar e re-renderizar
-      loadData();
-      loadUsuarios();
-      renderAll();
+  requestIdleCallback(() => {
+    syncFromCloud().then(restored => {
+      if (restored?.restored) {
+        loadData();
+        loadUsuarios();
+        renderAll();
+        setGdpSyncState({
+          status: "cloud",
+          source: restored.source || "cloud",
+          detail: `Cloud atualizado com dados do GDP`,
+          lastSyncAt: restored.lastSyncAt || new Date().toISOString(),
+          userId: getSyncUserId()
+        });
+        gdpLog("[GDP] Dados compartilhados atualizados do cloud.");
+      } else {
+        setGdpSyncState({
+          status: "local",
+          source: "local_cache",
+          detail: "Sem snapshot remoto encontrado; usando cache local",
+          userId: getSyncUserId()
+        });
+      }
+      // Push local → cloud (backup) — after download completes
+      syncToCloud().catch(() => {});
+    }).catch(e => {
+      gdpWarn("[GDP] Restauracao do cloud falhou:", e);
       setGdpSyncState({
-        status: "cloud",
-        source: restored.source || "cloud",
-        detail: `Cloud atualizado com dados do GDP`,
-        lastSyncAt: restored.lastSyncAt || new Date().toISOString(),
-        userId: getSyncUserId()
-      });
-      gdpLog("[GDP] Dados compartilhados atualizados do cloud.");
-    } else {
-      setGdpSyncState({
-        status: "local",
+        status: "offline",
         source: "local_cache",
-        detail: "Sem snapshot remoto encontrado; usando cache local",
+        detail: `Falha no cloud: ${e.message}`,
         userId: getSyncUserId()
       });
-    }
-  } catch (e) {
-    gdpWarn("[GDP] Restauracao do cloud falhou:", e);
-    setGdpSyncState({
-      status: "offline",
-      source: "local_cache",
-      detail: `Falha no cloud: ${e.message}`,
-      userId: getSyncUserId()
     });
-  }
-
-  // Push local → cloud (backup)
-  try { await syncToCloud(); } catch(_) {}
+  }, { timeout: 1000 });
 
   // Auto-refresh when portal escola or banco de produtos updates localStorage (cross-tab sync)
   window.addEventListener('storage', (e) => {

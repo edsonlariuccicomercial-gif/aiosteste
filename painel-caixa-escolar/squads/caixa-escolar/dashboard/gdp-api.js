@@ -336,21 +336,10 @@
   }
 
   // --- RLS context: set empresa_id for Row Level Security policies (Story 7.1) ---
+  // Story 4.72: RPC set_empresa_context removed from Supabase — function is now a no-op
+  // Will be re-enabled when RLS migration is complete
   async function setEmpresaContext(empresaId) {
-    var eid = empresaId || getEmpresaId();
-    try {
-      var resp = await fetch(SUPABASE_URL + '/rest/v1/rpc/set_empresa_context', {
-        method: 'POST',
-        headers: HEADERS,
-        body: JSON.stringify({ p_empresa_id: eid })
-      });
-      if (!resp.ok) gdpWarn('[gdp-api] RLS context failed:', resp.status);
-      else gdpLog('[gdp-api] RLS context set for:', eid);
-      return resp.ok;
-    } catch (e) {
-      gdpWarn('[gdp-api] RLS context error:', e.message);
-      return false;
-    }
+    return true;
   }
 
   // --- public API ---
@@ -376,5 +365,5 @@
   // Auto-set RLS context on load
   setEmpresaContext();
 
-  gdpLog('[gdp-api] loaded, empresa_id:', getEmpresaId());
+  if (typeof gdpLog === 'function') gdpLog('[gdp-api] loaded, empresa_id:', getEmpresaId());
 })();
