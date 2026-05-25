@@ -454,23 +454,7 @@ function renderModalFornecedores(item) {
   }).join("");
 }
 
-// Hook into existing openBancoModal
-const _origOpenBancoModal = typeof openBancoModal === "function" ? openBancoModal : null;
-if (_origOpenBancoModal) {
-  // Monkey-patch to also render fornecedores
-  const origFn = _origOpenBancoModal;
-  window._openBancoModalOrig = origFn;
-}
-
-// Override openBancoModal to show fornecedores
-(function () {
-  const origOpen = window._openBancoModalOrig || openBancoModal;
-  if (!origOpen) return;
-  // We'll hook via MutationObserver on modal visibility instead
-  // to avoid circular reference issues
-})();
-
-// Simpler approach: hook into editarBancoItem
+// Story 4.73: Hook into editarBancoItem to render fornecedores in modal
 const _origEditarBancoItem = window.editarBancoItem;
 window.editarBancoItem = function (id) {
   _origEditarBancoItem(id);
@@ -711,6 +695,7 @@ if (_origSwitchTab) {
     if (tab === "rentabilidade") renderRentabilidade();
     if (tab === "aprovados" && typeof renderAprovados === "function") renderAprovados();
     if (tab === "historico" && typeof renderHistorico === "function") renderHistorico();
+    if (tab === "pre-orcamento" && typeof renderPendentes === "function") renderPendentes();
   };
 }
 
@@ -722,8 +707,213 @@ document.querySelectorAll('#tabs-intel-precos .tab').forEach(btn => {
     if (tab === "rentabilidade") setTimeout(renderRentabilidade, 100);
     if (tab === "aprovados") setTimeout(() => { if (typeof renderAprovados === "function") renderAprovados(); }, 100);
     if (tab === "historico") setTimeout(() => { if (typeof renderHistorico === "function") renderHistorico(); }, 100);
+    if (tab === "pre-orcamento") setTimeout(() => { if (typeof renderPendentes === "function") renderPendentes(); }, 100);
   });
 });
+
+// ===== STORY 15.2: PRÉ-ORÇAMENTOS PENDENTES (ASSOCIAÇÃO EDITÁVEL) =====
+
+window.renderPendentes = function () {
+  const container = document.getElementById("intel-pendentes");
+  if (!container) return;
+  const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+  const rascunhos = Object.entries(preOrcamentos).filter(([, p]) => p.status === "rascunho");
+
+  if (rascunhos.length === 0) {
+    container.innerHTML = '<p style="color:var(--muted);text-align:center;padding:2rem;">Nenhum pré-orçamento pendente de associação.</p>';
+    return;
+  }
+
+  const produtos = (bancoPrecos.itens || []).filter(p => p.item).sort((a, b) => (a.item || "").localeCompare(b.item || ""));
+  const optionsHtml = '<option value="">— Selecione —</option>' + produtos.map(p =>
+    `<option value="${p.sku || p.id}">${p.item}${p.sku ? ' [' + p.sku + ']' : ''}</option>`
+  ).join("");
+
+  const margemDefault = (perfil.config ? perfil.config.margemPadrao || 0.30 : 0.30) * 100;
+
+  let html = '';
+  for (const [orcId, pre] of rascunhos) {
+    const orc = orcamentos.find(o => o.id === orcId);
+    const pendCount = (pre.itens || []).filter(i => !i.skuBanco || i.custoUnitario <= 0).length;
+    const totalCount = (pre.itens || []).length;
+    const okCount = totalCount - pendCount;
+
+    html += `<details class="pendente-card" open>
+      <summary style="cursor:pointer;padding:.6rem;background:var(--card);border:1px solid var(--line);border-radius:8px;display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">
+        <strong>${escapeHtml(pre.escola)}</strong>
+        <span style="color:var(--muted);font-size:.82rem">${escapeHtml(pre.municipio || '')}</span>
+        <span class="badge ${pendCount > 0 ? 'badge-rascunho' : 'badge-aprovado'}" style="font-size:.72rem">${okCount}/${totalCount} associados</span>
+        ${orc ? `<span style="font-size:.78rem;color:var(--muted)">Prazo: ${orc.prazo || '—'}</span>` : ''}
+        <span style="font-size:.82rem;font-weight:600;margin-left:auto">${brl.format(pre.totalGeral || 0)}</span>
+      </summary>
+      <table class="table-compact" style="width:100%;margin-top:.5rem;font-size:.82rem">
+        <thead><tr>
+          <th style="width:3%">#</th>
+          <th style="width:18%">Item SGD</th>
+          <th style="width:20%">Produto Banco</th>
+          <th style="width:10%">Marca</th>
+          <th style="width:5%">Qtd</th>
+          <th style="width:6%">Unid</th>
+          <th style="width:9%">Custo</th>
+          <th style="width:7%">Margem%</th>
+          <th style="width:9%">Preço</th>
+          <th style="width:9%">Total</th>
+          <th style="width:4%"></th>
+        </tr></thead>
+        <tbody>
+          ${(pre.itens || []).map((item, idx) => {
+            const isOk = item.skuBanco && item.custoUnitario > 0;
+            const rowBg = isOk ? '' : 'background:rgba(244,185,66,0.06)';
+            return `<tr style="${rowBg}" id="pend-row-${orcId}-${idx}">
+              <td style="color:var(--muted)">${idx + 1}</td>
+              <td><strong>${escapeHtml(item.nome)}</strong></td>
+              <td><select class="pend-prod-select" data-orc="${orcId}" data-idx="${idx}" onchange="pendAssociar('${orcId}',${idx},this.value)" style="width:100%;padding:3px 4px;font-size:.78rem;background:var(--bg);border:1px solid var(--line);border-radius:4px;color:var(--text)">${optionsHtml}</select></td>
+              <td><input type="text" value="${escapeHtml(item.marca || '')}" onchange="pendEditField('${orcId}',${idx},'marca',this.value)" style="width:100%;padding:3px;font-size:.78rem;background:var(--bg);border:1px solid var(--line);border-radius:4px;color:var(--text)"></td>
+              <td class="text-center">${item.quantidade}</td>
+              <td><select onchange="pendEditField('${orcId}',${idx},'unidade',this.value)" style="width:100%;padding:3px;font-size:.78rem;background:var(--bg);border:1px solid var(--line);border-radius:4px;color:var(--text)">
+                ${['UN','KG','L','CX','PCT','M','M2','FD','GL','ROL','RS','BD','SC'].map(u => `<option value="${u}" ${item.unidade === u ? 'selected' : ''}>${u}</option>`).join('')}
+              </select></td>
+              <td><input type="number" value="${item.custoUnitario || ''}" min="0" step="0.01" onchange="pendEditCusto('${orcId}',${idx},this.value)" style="width:100%;padding:3px;font-size:.78rem;background:var(--bg);border:1px solid var(--line);border-radius:4px;color:var(--text);text-align:right" id="pend-custo-${orcId}-${idx}"></td>
+              <td><input type="number" value="${Math.round((item.margem || 0.30) * 100)}" min="0" max="200" step="1" onchange="pendEditMargem('${orcId}',${idx},this.value)" style="width:100%;padding:3px;font-size:.78rem;background:var(--bg);border:1px solid var(--line);border-radius:4px;color:var(--text);text-align:right" id="pend-margem-${orcId}-${idx}"></td>
+              <td class="text-right font-mono" id="pend-preco-${orcId}-${idx}">${item.precoUnitario > 0 ? brl.format(item.precoUnitario) : '—'}</td>
+              <td class="text-right font-mono" id="pend-total-${orcId}-${idx}">${item.precoTotal > 0 ? brl.format(item.precoTotal) : '—'}</td>
+              <td>${!isOk ? `<button class="btn btn-inline" onclick="pendNovoProduto('${orcId}',${idx})" style="font-size:.7rem;padding:2px 5px;white-space:nowrap" title="Cadastrar novo produto">+</button>` : '<span style="color:var(--accent)">✓</span>'}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </details>`;
+  }
+
+  container.innerHTML = html;
+
+  // Pre-select matched products in dropdowns
+  for (const [orcId, pre] of rascunhos) {
+    (pre.itens || []).forEach((item, idx) => {
+      if (item.skuBanco) {
+        const sel = document.querySelector(`.pend-prod-select[data-orc="${orcId}"][data-idx="${idx}"]`);
+        if (sel) sel.value = item.skuBanco;
+      }
+    });
+  }
+};
+
+// Story 15.2: Associate product from dropdown
+window.pendAssociar = function (orcId, idx, bpId) {
+  const pre = preOrcamentos[orcId];
+  if (!pre || !pre.itens[idx]) return;
+  const bp = bpId ? bancoPrecos.itens.find(p => (p.sku || p.id) === bpId) : null;
+  const item = pre.itens[idx];
+  const margemPadrao = perfil.config ? perfil.config.margemPadrao || 0.30 : 0.30;
+
+  item.skuBanco = bpId || null;
+  item.marca = bp ? (bp.marca || item.marca || "") : item.marca || "";
+  item.custoUnitario = bp ? (bp.custoBase || 0) : 0;
+  item.margem = bp ? (bp.margemPadrao || margemPadrao) : item.margem || margemPadrao;
+  item.matchStatus = bp ? "associado" : "pendente";
+  _pendRecalc(orcId, idx);
+  savePreOrcamentos();
+  _pendCheckCompletude(orcId);
+  renderPendentes();
+};
+
+// Story 15.2: Edit individual field
+window.pendEditField = function (orcId, idx, field, value) {
+  const pre = preOrcamentos[orcId];
+  if (!pre || !pre.itens[idx]) return;
+  pre.itens[idx][field] = value;
+  savePreOrcamentos();
+};
+
+// Story 15.2: Edit custo — recalculate price
+window.pendEditCusto = function (orcId, idx, value) {
+  const pre = preOrcamentos[orcId];
+  if (!pre || !pre.itens[idx]) return;
+  pre.itens[idx].custoUnitario = parseFloat(value) || 0;
+  _pendRecalc(orcId, idx);
+  savePreOrcamentos();
+  _pendCheckCompletude(orcId);
+};
+
+// Story 15.2: Edit margem — recalculate price
+window.pendEditMargem = function (orcId, idx, value) {
+  const pre = preOrcamentos[orcId];
+  if (!pre || !pre.itens[idx]) return;
+  pre.itens[idx].margem = (parseFloat(value) || 0) / 100;
+  _pendRecalc(orcId, idx);
+  savePreOrcamentos();
+};
+
+// Recalculate price and total for an item
+function _pendRecalc(orcId, idx) {
+  const pre = preOrcamentos[orcId];
+  if (!pre) return;
+  const item = pre.itens[idx];
+  const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+  item.precoUnitario = item.custoUnitario > 0 ? Math.round(item.custoUnitario * (1 + item.margem) * 100) / 100 : 0;
+  item.precoTotal = Math.round(item.precoUnitario * (item.quantidade || 0) * 100) / 100;
+  // Update DOM
+  const precoEl = document.getElementById(`pend-preco-${orcId}-${idx}`);
+  const totalEl = document.getElementById(`pend-total-${orcId}-${idx}`);
+  if (precoEl) precoEl.textContent = item.precoUnitario > 0 ? brl.format(item.precoUnitario) : '—';
+  if (totalEl) totalEl.textContent = item.precoTotal > 0 ? brl.format(item.precoTotal) : '—';
+  // Recalc totals
+  pre.totalGeral = Math.round(pre.itens.reduce((s, i) => s + (i.precoTotal || 0), 0) * 100) / 100;
+  const margens = pre.itens.filter(i => i.custoUnitario > 0).map(i => i.margem);
+  pre.margemMedia = margens.length ? margens.reduce((a, b) => a + b, 0) / margens.length : 0.30;
+}
+
+// Story 15.4: Check completude — auto transition rascunho → pendente
+function _pendCheckCompletude(orcId) {
+  const pre = preOrcamentos[orcId];
+  if (!pre) return;
+  const allOk = pre.itens.every(i => i.skuBanco && i.custoUnitario > 0);
+  if (allOk && pre.status === "rascunho") {
+    pre.status = "pendente";
+    savePreOrcamentos();
+    showToast("Pré-orçamento completo! Status: pendente.", 3000);
+    renderPendentes();
+  } else if (!allOk && pre.status === "pendente") {
+    pre.status = "rascunho";
+    savePreOrcamentos();
+  }
+}
+
+// Story 15.3: Open product modal in compact mode for inline creation
+window.pendNovoProduto = function (orcId, idx) {
+  const pre = preOrcamentos[orcId];
+  if (!pre || !pre.itens[idx]) return;
+  const item = pre.itens[idx];
+  const orc = orcamentos.find(o => o.id === orcId);
+
+  // Open the Central de Produtos modal with prefill
+  if (typeof abrirModalProdutoCentral === 'function') {
+    abrirModalProdutoCentral({
+      compact: true,
+      prefill: {
+        nome: item.nome || "",
+        unidade: item.unidade || "UN",
+        categoria: orc ? (orc.grupo || "") : "",
+      },
+      onSave: function (produto) {
+        // Auto-associate the newly created product
+        item.skuBanco = produto.sku || produto.id;
+        item.marca = produto.marca || "";
+        item.custoUnitario = produto.custoBase || 0;
+        item.margem = produto.margemAlvo || (perfil.config ? perfil.config.margemPadrao || 0.30 : 0.30);
+        item.matchStatus = "criado_inline";
+        _pendRecalc(orcId, idx);
+        savePreOrcamentos();
+        _pendCheckCompletude(orcId);
+        renderPendentes();
+        showToast(`Produto "${produto.descricao}" criado e associado.`, 3000);
+      }
+    });
+  } else {
+    // Fallback: use existing inline creation
+    cadastrarProdutoInlineItem && cadastrarProdutoInlineItem(idx);
+  }
+};
 
 // ===== INIT =====
 // Auto-render if tab is already active

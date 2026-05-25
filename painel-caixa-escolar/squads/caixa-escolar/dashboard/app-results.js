@@ -687,7 +687,7 @@ function criarContratoGdp(orcId, preOrcamento, numContrato) {
         (bancoPrecos.itens.find(b => b.item && i.descricao && b.item.toLowerCase().includes(i.descricao.toLowerCase().split(' ')[0]))?.custoBase || null) : null;
       const margemPct = (custoBase && custoBase > 0) ? Number((((i.precoUnitario - custoBase) / i.precoUnitario) * 100).toFixed(2)) : null;
       return {
-        empresa_id: empId, sku: i.skuVinculado || '', escola: contrato.escola,
+        empresa_id: empId, sku: i.skuBanco || i.skuVinculado || '', escola: contrato.escola,
         tipo: 'contrato', valor: i.precoUnitario, custo_base: custoBase, margem_pct: margemPct,
         fonte: 'contrato', metadata: { contrato_id: contrato.id, edital: contrato.edital || '', fornecedor: contrato.fornecedor || '' }
       };
@@ -710,7 +710,7 @@ function criarContratoGdpComCentral(orcId, preOrcamento, numContrato) {
       const normalize = (s) => (s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
       for (const item of preOrcamento.itens) {
         // Se já vinculado no pré-orçamento, manter
-        if (item.skuVinculado || item.produto_vinculado_id) continue;
+        if (item.skuBanco || item.skuVinculado || item.produto_vinculado_id) continue;
         const descNorm = normalize(item.nome || item.descricao || "");
         if (!descNorm) continue;
         const descWords = descNorm.split(/\s+/).filter(w => w.length > 2);
@@ -738,7 +738,7 @@ function criarContratoGdpComCentral(orcId, preOrcamento, numContrato) {
           if (!item.ncm && match.ncm) item.ncm = match.ncm;
           if (!item.sku && match.sku) item.sku = match.sku;
           if (!item.marca && match.marca) item.marca = match.marca;
-          item.skuVinculado = match.sku || match.id;
+          item.skuBanco = match.sku || match.id;
           item.produto_vinculado_id = match.id;
           // Persistir equivalência para futuras consultas
           if (typeof setGdpEquivalencia === 'function') {
@@ -886,7 +886,7 @@ window.gerarContratoUnificado = function() {
   if (typeof _SB_PRECO_HIST !== 'undefined' && todosItens.length > 0) {
     const empId = (typeof getEmpresaId === 'function') ? getEmpresaId() : 'LARIUCCI';
     const rows = todosItens.filter(i => (i.precoUnitario || 0) > 0).map(i => ({
-      empresa_id: empId, sku: i.skuVinculado || '', escola: contrato.escola,
+      empresa_id: empId, sku: i.skuBanco || i.skuVinculado || '', escola: contrato.escola,
       tipo: 'contrato', valor: i.precoUnitario, custo_base: null, margem_pct: null,
       fonte: 'contrato-unificado', metadata: { contrato_id: contrato.id, fornecedor: contrato.fornecedor || '' }
     }));
