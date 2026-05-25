@@ -1683,13 +1683,35 @@ function renderContasReceber() {
   const empty = document.getElementById("contas-receber-empty");
   const busca = (document.getElementById("cr-busca")?.value || "").toLowerCase();
   const filtroCategoria = document.getElementById("cr-filtro-categoria")?.value || "";
+  // Story 4.74: popular dropdown com meses de emissão (YYYY-MM) em vez de categorias
+  const crFiltroEl = document.getElementById("cr-filtro-categoria");
+  if (crFiltroEl && !crFiltroEl._emissaoPopulated) {
+    const mesesSet = new Set();
+    contasReceber.forEach(item => {
+      const em = (item.dataEmissao || item.emissao || item.createdAt || '').slice(0, 7);
+      if (em) mesesSet.add(em);
+    });
+    const meses = [...mesesSet].sort().reverse();
+    const prev = crFiltroEl.value;
+    crFiltroEl.innerHTML = '<option value="">Todas as emissões</option>' + meses.map(m => {
+      const [y, mo] = m.split('-');
+      const label = ['', 'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'][parseInt(mo)] + '/' + y;
+      return '<option value="' + m + '">' + label + '</option>';
+    }).join('');
+    if (meses.includes(prev)) crFiltroEl.value = prev;
+    crFiltroEl._emissaoPopulated = true;
+  }
   let filtered = contasReceber;
   // Story 4.66: busca por descricao + cliente + valor (Story 4.68: busca valor com virgula BR)
   if (busca) filtered = filtered.filter((item) => {
     const valFmt = typeof item.valor === 'number' ? item.valor.toFixed(2).replace('.', ',') : String(item.valor || '');
     return ((item.descricao || '') + ' ' + (item.cliente || '') + ' ' + valFmt + ' ' + (item.valor || '')).toLowerCase().includes(busca);
   });
-  if (filtroCategoria) filtered = filtered.filter((item) => item.categoria === filtroCategoria);
+  // Story 4.74: filtrar por data de emissão (mês/ano) em vez de categoria
+  if (filtroCategoria) filtered = filtered.filter((item) => {
+    const emissao = item.dataEmissao || item.emissao || item.createdAt || '';
+    return emissao.slice(0, 7) === filtroCategoria;
+  });
   // Story 4.54 AC-2: period filter
   filtered = _applyPeriodFilter(filtered, 'cr-filtro-periodo', 'cr-filtro-de', 'cr-filtro-ate', 'vencimento');
   renderContaReceberStatusTabs(filtered);

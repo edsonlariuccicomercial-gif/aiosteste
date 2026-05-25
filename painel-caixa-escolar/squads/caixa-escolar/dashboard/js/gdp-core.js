@@ -668,7 +668,8 @@ function renderContaCategoriaOptions() {
     { id: "cp-categoria", tipo: "pagar", includeCreate: true, defaultValue: "fornecedor" },
     { id: "cp-filtro-categoria", tipo: "pagar", includeCreate: false, defaultValue: "" },
     { id: "cr-categoria", tipo: "receber", includeCreate: true, defaultValue: "faturamento" },
-    { id: "cr-filtro-categoria", tipo: "receber", includeCreate: false, defaultValue: "" }
+    // Story 4.74: cr-filtro-categoria agora filtra por emissão — populado separadamente em renderContasReceber
+    // { id: "cr-filtro-categoria", tipo: "receber", includeCreate: false, defaultValue: "" }
   ];
   mappings.forEach(({ id, tipo, includeCreate, defaultValue }) => {
     const select = document.getElementById(id);

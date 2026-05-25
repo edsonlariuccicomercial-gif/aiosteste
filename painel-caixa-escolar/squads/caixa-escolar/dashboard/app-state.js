@@ -699,5 +699,8 @@ const SYNC_KEYS = [
   "gdp.estoque-intel.compras.v1",
   "nexedu.config.contas-bancarias", "nexedu.config.fiscal", "nexedu.config.bank-api",
   // Story 4.61: conciliação e extratos bancários
-  "gdp.conciliacao.v1", "gdp.extratos.v1"
+  "gdp.conciliacao.v1", "gdp.extratos.v1",
+  // Story 4.74: sync deleted keys cross-machine
+  "gdp.notas-entrada.deleted.v1", "gdp.conciliacao.deleted.v1", "gdp.extratos.deleted.v1",
+  "gdp.estoque-intel.fornecedores.deleted.v1"
 ];

@@ -522,11 +522,21 @@ function _encontrarPrimeiroLivre(minimo, usados) {
 }
 
 // PEEK: retorna o próximo número livre SEM consumir (para preview/exibição)
+// Story 4.74: usar mesma lógica do consumir — piso = max(config.proximoNumero, gdp.nf-counter, maxAutorizada) + desempate
 function peekProximoNumeroNf() {
   try {
-    var minimo = _getNumeroMinimo();
     var usados = _getNumerosAutorizados();
-    return String(_encontrarPrimeiroLivre(minimo, usados));
+    // Piso: máximo entre counter local e max autorizada (ignora config.proximoNumero que pode estar adiantado)
+    var localCounter = parseInt(localStorage.getItem("gdp.nf-counter") || "0", 10);
+    var maxAutorizada = 0;
+    usados.forEach(function(n) { if (n > maxAutorizada) maxAutorizada = n; });
+    var piso = Math.max(localCounter, maxAutorizada) + 1;
+    // Se config tem proximoNumero menor que piso, usar piso
+    var nfConfig = JSON.parse(localStorage.getItem("nexedu.config.notas-fiscais") || "{}");
+    var configNum = parseInt(nfConfig.proximoNumero, 10);
+    if (configNum && configNum > 0 && configNum < piso) piso = piso; // keep piso
+    else if (configNum && configNum > 0) piso = configNum;
+    return String(_encontrarPrimeiroLivre(piso, usados));
   } catch(_) {
     return String(Date.now()).slice(-6);
   }

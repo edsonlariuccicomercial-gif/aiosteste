@@ -2817,12 +2817,13 @@ async function enviarTiny(contratoId) {
     }).catch(() => {});
   }
 
-  // Supabase-First: carregar dados das tabelas reais (atualiza em background)
+  // Story 4.74: Supabase-First em background (non-blocking) — UI já está renderizada do localStorage
   if (window.gdpApi) {
-    try {
-      const ready = await gdpApi.isReady();
-      if (ready) {
-        gdpLog("[GDP] Supabase-First: carregando das tabelas reais...");
+    setTimeout(async () => {
+      try {
+        const ready = await gdpApi.isReady();
+        if (!ready) { gdpLog("[GDP] Tabelas Supabase não encontradas, usando localStorage"); return; }
+        gdpLog("[GDP] Supabase-First (background): carregando das tabelas reais...");
         const _tableMap = {
           'gdp.contratos.v1': 'contratos',
           'gdp.pedidos.v1': 'pedidos',
@@ -2832,69 +2833,49 @@ async function enviarTiny(contratoId) {
           'gdp.entregas.provas.v1': 'entregas'
         };
         const _wrapKeys = new Set(['gdp.contratos.v1','gdp.pedidos.v1','gdp.notas-fiscais.v1','gdp.contas-receber.v1','gdp.contas-pagar.v1']);
+        let anyUpdated = false;
         for (const [lsKey, table] of Object.entries(_tableMap)) {
           try {
             const rows = await gdpApi[table].list();
             if (rows && rows.length > 0) {
-              // Carregar IDs deletados localmente para filtrar do merge
               let deletedIds = new Set();
-              try {
-                const delKey = lsKey.replace('.v1', '.deleted.v1');
-                const delArr = JSON.parse(localStorage.getItem(delKey) || '[]');
-                deletedIds = new Set(delArr);
-              } catch(_) {}
-              // Filtrar registros deletados do resultado Supabase
+              try { const delArr = JSON.parse(localStorage.getItem(lsKey.replace('.v1', '.deleted.v1')) || '[]'); deletedIds = new Set(delArr); } catch(_) {}
               const filteredRows = deletedIds.size > 0 ? rows.filter(r => !deletedIds.has(r.id)) : rows;
-              // Merge: preservar registros locais que não existem no Supabase
               let localItems = [];
-              try {
-                const raw = JSON.parse(localStorage.getItem(lsKey) || '{}');
-                localItems = _wrapKeys.has(lsKey) ? (raw.items || []) : (Array.isArray(raw) ? raw : []);
-              } catch(_) {}
+              try { const raw = JSON.parse(localStorage.getItem(lsKey) || '{}'); localItems = _wrapKeys.has(lsKey) ? (raw.items || []) : (Array.isArray(raw) ? raw : []); } catch(_) {}
               const remoteIds = new Set(filteredRows.map(r => r.id));
               const localOnly = localItems.filter(item => item.id && !remoteIds.has(item.id) && !deletedIds.has(item.id));
-              // Story 4.65: dirty window — se local foi salvo recentemente, preservar dados locais sobre remotos
               const localById = {};
               localItems.forEach(item => { if (item.id) localById[item.id] = item; });
               const msSinceLocalSave = typeof getLastLocalSave === 'function' ? (Date.now() - getLastLocalSave(lsKey)) : Infinity;
               const preferLocal = msSinceLocalSave < 5000;
-              const mergedRemote = filteredRows.map(r => {
-                if (preferLocal && localById[r.id]) return localById[r.id];
-                return r;
-              });
+              const mergedRemote = filteredRows.map(r => (preferLocal && localById[r.id]) ? localById[r.id] : r);
               const merged = [...mergedRemote, ...localOnly];
               const data = _wrapKeys.has(lsKey) ? { _v: 1, updatedAt: new Date().toISOString(), items: merged } : merged;
               localStorage.setItem(lsKey, JSON.stringify(data));
-              gdpLog("[GDP] " + table + ": " + filteredRows.length + " do Supabase + " + localOnly.length + " locais preservados" + (deletedIds.size ? " (" + deletedIds.size + " deletados filtrados)" : ""));
+              anyUpdated = true;
+              gdpLog("[GDP] " + table + ": " + filteredRows.length + " Supabase + " + localOnly.length + " locais");
             }
-          } catch(e) { gdpWarn("[GDP] Falha ao carregar " + table + ":", e); }
+          } catch(e) { gdpWarn("[GDP] Falha " + table + ":", e); }
         }
-        // Clientes (usuarios)
         try {
           const clientes = await gdpApi.clientes.list();
           if (clientes && clientes.length > 0) {
-            // Merge: preservar clientes locais que não existem no Supabase
             let localClientes = [];
             try { localClientes = JSON.parse(localStorage.getItem('gdp.usuarios.v1') || '[]'); } catch(_) {}
             const remoteIds = new Set(clientes.map(c => c.id));
             const localOnly = localClientes.filter(c => c.id && !remoteIds.has(c.id));
-            const merged = [...clientes, ...localOnly];
-            localStorage.setItem('gdp.usuarios.v1', JSON.stringify(merged));
-            gdpLog("[GDP] clientes: " + clientes.length + " do Supabase + " + localOnly.length + " locais preservados");
+            localStorage.setItem('gdp.usuarios.v1', JSON.stringify([...clientes, ...localOnly]));
+            anyUpdated = true;
           }
         } catch(e) {}
-      } else {
-        gdpLog("[GDP] Tabelas Supabase não encontradas, usando localStorage");
+        // Re-render silencioso se houve dados novos do Supabase
+        if (anyUpdated) { loadData(); loadUsuarios(); renderAll(); gdpLog("[GDP] Re-render com dados Supabase concluído"); }
+      } catch(e) {
+        gdpWarn("[GDP] Supabase-First falhou, fallback localStorage:", e);
       }
-    } catch(e) {
-      gdpWarn("[GDP] Supabase-First falhou, fallback localStorage:", e);
-    }
+    }, 100); // non-blocking: cede o event loop para UI primeiro
   }
-
-  // Render com dados (agora do Supabase via localStorage cache)
-  loadData();
-  loadUsuarios();
-  renderAll();
 
   // Story 4.72: Cloud sync em background (non-blocking) — UI fica interativa imediatamente
   setGdpSyncState({ status: "syncing", source: "cloud", detail: "Sincronizando com cloud...", userId: getSyncUserId() });
