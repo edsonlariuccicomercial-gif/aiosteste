@@ -981,25 +981,27 @@ function selectContract(type, idx) {
   } else {
     // Use contract items as products
     const c = contracts[idx];
-    // Compute pending order quantities per item for this contract
-    // ONLY count pedidos that have NOT yet been deducted from qtdEntregue
+    // Story 4.71: Recalcular qtdEntregue dos itens com base em TODOS os pedidos nao-cancelados
+    // (mesma logica do dashboard gdp-contratos-module.js:2811-2825 — garante consistencia portal=dashboard)
     const pedidosLocal = (() => { try { return unwrapData(JSON.parse(localStorage.getItem('gdp.pedidos.v1') || '{}')); } catch(_) { return []; } })();
-    const pedidosPend = pedidosLocal.filter(p => p.contratoId === c.id && p.status !== 'entregue' && !p.saldoDeduzido);
-    const qtdPedidaPorItem = {};
-    pedidosPend.forEach(p => {
+    const pedidosTodos = pedidosLocal.filter(p => p.contratoId === c.id && p.status !== 'cancelado');
+    c.itens.forEach(item => { item.qtdEntregue = 0; });
+    pedidosTodos.forEach(p => {
       (p.itens || []).forEach(pi => {
-        const key = (pi.descricao || '').toUpperCase();
-        qtdPedidaPorItem[key] = (qtdPedidaPorItem[key] || 0) + (pi.qtd || 0);
+        const normDesc = (pi.descricao || '').toUpperCase().trim();
+        const item = c.itens.find(ci => ci.num === pi.itemNum || (ci.descricao || '').toUpperCase().trim() === normDesc);
+        if (item) item.qtdEntregue += (pi.qtd || 0);
       });
     });
+    c.itens.forEach(item => { if (item.qtdEntregue > item.qtdContratada) item.qtdEntregue = item.qtdContratada; });
 
     // Load Estoque Intel Produtos para enriquecer catalogo
     let _intelProdutos = [];
     try { const raw = JSON.parse(localStorage.getItem('gdp.estoque-intel.produtos.v1') || '{}'); _intelProdutos = raw.items || raw || []; } catch(_) {}
 
     schoolProducts = c.itens.map(item => {
-      const pedida = qtdPedidaPorItem[item.descricao.toUpperCase()] || 0;
-      const disponivel = Math.max(0, item.qtdContratada - (item.qtdEntregue || 0) - pedida);
+      // Story 4.71: disponivel = contratada - recalculado (ja inclui todos pedidos nao-cancelados)
+      const disponivel = Math.max(0, item.qtdContratada - (item.qtdEntregue || 0));
 
       // Enrich from Estoque Intel — priority: skuVinculado > Intel match > item.sku
       let intelMatch = null;
@@ -1026,7 +1028,7 @@ function selectContract(type, idx) {
         preco: item.precoUnitario,
         unidade,
         qtdContratada: item.qtdContratada,
-        qtdEntregue: (item.qtdEntregue || 0) + pedida,
+        qtdEntregue: (item.qtdEntregue || 0), // Story 4.71: recalculado acima (inclui todos nao-cancelados)
         qtdDisponivel: disponivel,
         estoque: 0,
         _syncedBanco: !!intelMatch || !!item._syncedFromBanco
