@@ -809,7 +809,7 @@ window.gerarPreOrcamento = function (orcId) {
   _assocOrcId = orcId;
   _assocItens = (orc.itens || []).map((item, idx) => {
     let bp = null;
-    let matchStatus = "sem_match";
+    let matchStatus = "pendente";
     let matchScore = 0;
 
     // Use full description for matching: nome + descricao (ex: "Papel higiênico rolão fardo com 8 rolos")
@@ -836,8 +836,71 @@ window.gerarPreOrcamento = function (orcId) {
 
     return { idx, nome: item.nome, quantidade: item.quantidade || 0, unidade: item.unidade || "Un", descricao: item.descricao || "", nomeCompleto: nomeCompleto, idBudgetItem: item.idBudgetItem || null, bpId: bp ? (bp.sku || bp.id) : null, bpNome: bp ? bp.item : "", custoBase: bp ? bp.custoBase : 0, precoRef: bp ? bp.precoReferencia : 0, matchStatus: matchStatus };
   });
-  renderModalAssociacao(orc);
+
+  // Story 4.73: Criar pré-orçamento rascunho direto (sem modal de associação)
+  // Associação de itens pendentes é feita depois no Intel Preços
+  _criarPreOrcamentoRascunho(orc);
 };
+
+// Story 15.1: Create draft pre-quote with raw SGD items (no association required)
+function _criarPreOrcamentoRascunho(orc) {
+  const margemPadrao = perfil.config ? perfil.config.margemPadrao || 0.30 : 0.30;
+  const frete = calcFreteEstimado(orc.municipio);
+
+  const itens = _assocItens.map(assocItem => {
+    const bp = assocItem.bpId ? bancoPrecos.itens.find(p => (p.sku || p.id) === assocItem.bpId) : null;
+    let custoUnit = bp ? (bp.custoBase || 0) : 0;
+    if (custoUnit === 0 && bp && (bp.custosFornecedor || []).length > 0) {
+      custoUnit = bp.custosFornecedor[bp.custosFornecedor.length - 1].preco;
+    }
+    const margem = bp ? (bp.margemPadrao || margemPadrao) : margemPadrao;
+    const precoUnit = custoUnit > 0 ? Math.round(custoUnit * (1 + margem) * 100) / 100 : 0;
+
+    return {
+      nome: assocItem.nome,
+      marca: bp ? (bp.marca || "") : "",
+      descricao: assocItem.descricao || "",
+      matchStatus: assocItem.matchStatus || "pendente",
+      matchScore: bp ? 1.0 : 0,
+      skuBanco: assocItem.bpId || null,
+      quantidade: assocItem.quantidade || 0,
+      unidade: assocItem.unidade || "Unidade",
+      custoUnitario: custoUnit,
+      margem: margem,
+      precoUnitario: precoUnit,
+      precoTotal: Math.round(precoUnit * (assocItem.quantidade || 0) * 100) / 100,
+      idBudgetItem: assocItem.idBudgetItem || null,
+      menorConcorrente: 0,
+    };
+  });
+
+  const totalGeral = itens.reduce((s, i) => s + i.precoTotal, 0);
+  const margens = itens.filter(i => i.custoUnitario > 0).map(i => i.margem);
+  const margemMedia = margens.length ? margens.reduce((a, b) => a + b, 0) / margens.length : margemPadrao;
+  const allAssociated = itens.every(i => i.skuBanco && i.custoUnitario > 0);
+
+  preOrcamentos[_assocOrcId] = {
+    orcamentoId: _assocOrcId,
+    escola: orc.escola,
+    municipio: orc.municipio,
+    grupo: orc.grupo,
+    status: allAssociated ? "pendente" : "rascunho",
+    criadoEm: new Date().toISOString().slice(0, 10),
+    freteEstimado: frete,
+    itens: itens,
+    totalGeral: Math.round(totalGeral * 100) / 100,
+    margemMedia: margemMedia,
+  };
+
+  savePreOrcamentos();
+  _assocOrcId = null;
+  _assocItens = [];
+  const pending = itens.filter(i => !i.skuBanco || i.custoUnitario <= 0).length;
+  showToast(`Pré-orçamento rascunho criado! ${pending > 0 ? pending + ' itens pendentes — associe no Intel Preços.' : 'Todos itens associados.'}`, 4000);
+  renderKPIs();
+  renderOrcamentos();
+  renderPreOrcamentosLista();
+}
 
 function renderModalAssociacao(orc) {
   const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
@@ -1121,6 +1184,18 @@ window.abrirPreOrcamento = function (orcId) {
   // Auto-preencher button (Story 4.29) — show when pre-orcamento is active and editable
   const btnAuto = document.getElementById("btn-auto-preencher");
   if (btnAuto) btnAuto.style.display = (pre.status === "pendente" || pre.status === "aprovado") ? "inline-block" : "none";
+
+  // Story 15.4: Rascunho banner — prompt user to associate in Intel Preços
+  const rascBanner = document.getElementById("rascunho-banner");
+  if (pre.status === "rascunho") {
+    const pendCount = (pre.itens || []).filter(i => !i.skuBanco || i.custoUnitario <= 0).length;
+    if (rascBanner) {
+      rascBanner.style.display = "block";
+      rascBanner.innerHTML = `<span style="color:var(--warning);font-weight:600">Rascunho — ${pendCount} item(ns) pendentes de associação.</span> <button class="btn btn-inline btn-accent" onclick="switchTab('pre-orcamento');setTimeout(renderPendentes,200)" style="font-size:.78rem">Associar no Intel Preços</button>`;
+    }
+  } else if (rascBanner) {
+    rascBanner.style.display = "none";
+  }
 
   // Botões
   const isPendente = pre.status === "pendente";
@@ -1557,6 +1632,8 @@ function renderPreOrcamentosLista() {
   if (fPreCidadeVal !== "all") filtered = filtered.filter(p => p.municipio === fPreCidadeVal);
   if (fPreStatus === "ativos") {
     filtered = filtered.filter(p => !["enviado", "ganho", "perdido"].includes(p.status));
+  } else if (fPreStatus === "rascunho") {
+    filtered = filtered.filter(p => p.status === "rascunho");
   } else if (fPreStatus !== "all" && fPreStatus !== "todos") {
     filtered = filtered.filter(p => p.status === fPreStatus);
   }
@@ -1576,11 +1653,14 @@ function renderPreOrcamentosLista() {
   });
   el.tbodyPreorcamentosLista.innerHTML = sorted
     .map((p) => {
-      const badgeClass = p.status === "ganho" ? "badge-ganho"
+      const pendingItems = p.status === "rascunho" ? (p.itens || []).filter(i => !i.skuBanco || i.custoUnitario <= 0).length : 0;
+      const badgeClass = p.status === "rascunho" ? "badge-rascunho"
+        : p.status === "ganho" ? "badge-ganho"
         : p.status === "perdido" ? "badge-perdido"
           : p.status === "enviado" ? "badge-enviado"
             : p.status === "aprovado" ? "badge-aprovado"
               : p.status === "recusado" ? "badge-recusado" : "badge-pendente";
+      const badgeLabel = p.status === "rascunho" ? `rascunho (${pendingItems}/${(p.itens||[]).length})` : p.status;
       const checkbox = `<input type="checkbox" class="pre-lote-check" data-id="${p.orcamentoId}" />`;
       // Story 4.42: items summary with fallback to objeto
       const orc = orcamentos.find(o => o.id === p.orcamentoId);
@@ -1594,7 +1674,7 @@ function renderPreOrcamentosLista() {
         <td title="${iTooltip}" style="font-size:0.8rem;max-width:200px;">${iSummary}</td>
         <td class="text-right font-mono">${brl.format(p.totalGeral || 0)}</td>
         <td class="nowrap">${(() => { const dias = orc ? daysTo(orc.prazo) : 999; return dias < 0 ? '<span style="color:#ef4444;font-weight:700">VENCIDO</span>' : dias <= 2 ? '<span style="color:#dc2626;font-weight:800;background:#fee2e2;padding:2px 6px;border-radius:4px">' + (dias === 0 ? 'HOJE' : dias === 1 ? 'AMANHÃ' : dias + 'd') + '</span>' : dias <= 5 ? '<span style="color:#b45309;font-weight:600">' + dias + ' dias</span>' : formatDate(orc?.prazo || p.criadoEm); })()}</td>
-        <td><span class="badge ${badgeClass}">${p.status}</span></td>
+        <td><span class="badge ${badgeClass}">${badgeLabel}</span></td>
         <td>
           <button class="btn btn-inline" onclick="abrirPreOrcamento('${p.orcamentoId}')">Ver</button>
           ${(p.status === "ganho" || p.status === "perdido" || p.status === "enviado") ? `<button class="btn btn-inline" onclick="editarResultadoPreOrcamento('${p.orcamentoId}')" title="Alterar resultado">Editar Resultado</button>` : ""}
@@ -3136,9 +3216,38 @@ window.editarProdutoCentralPrecos = function (id) {
   document.getElementById("modal-produto-central").style.display = "flex";
 };
 
+// Story 15.3: Unified modal opener with compact mode + prefill + callback
+let _mpcOnSaveCallback = null;
+window.abrirModalProdutoCentral = function (opts) {
+  opts = opts || {};
+  _mpcOnSaveCallback = opts.onSave || null;
+
+  document.getElementById("modal-prod-central-titulo").textContent = "Novo Produto";
+  document.getElementById("mpc-id").value = "";
+  document.getElementById("mpc-nome").value = (opts.prefill && opts.prefill.nome) || "";
+  document.getElementById("mpc-unidade").value = (opts.prefill && opts.prefill.unidade) || "UN";
+  document.getElementById("mpc-categoria").value = (opts.prefill && opts.prefill.categoria) || "";
+  document.getElementById("mpc-sku").value = "";
+  document.getElementById("mpc-ncm").value = "";
+  document.getElementById("mpc-origem").value = "0";
+  document.getElementById("mpc-custo").value = "0";
+  document.getElementById("mpc-venda").value = "0";
+  const tipoComum = document.querySelector('input[name="mpc-tipo"][value="comum"]');
+  if (tipoComum) tipoComum.checked = true;
+  const fornEl = document.getElementById("mpc-fornecedor");
+  if (fornEl) fornEl.value = "";
+
+  // Compact mode — reduce modal width
+  const modalCard = document.querySelector("#modal-produto-central .modal.card");
+  if (modalCard) modalCard.style.maxWidth = opts.compact ? "480px" : "600px";
+
+  document.getElementById("modal-produto-central").style.display = "flex";
+};
+
 window.fecharModalProdutoCentral = function () {
   const modal = document.getElementById("modal-produto-central");
   if (modal) modal.style.display = "none";
+  _mpcOnSaveCallback = null;
 };
 
 // Salvar produto (novo ou edição) — grava em gdp.estoque-intel.produtos.v1
@@ -3184,6 +3293,22 @@ window.salvarProdutoCentral = function () {
   saveCentralProdutos();
   fecharModalProdutoCentral();
   renderCentralPrecos();
+
+  // Story 15.3: Call onSave callback if set (for inline association)
+  if (_mpcOnSaveCallback && !id) {
+    const savedProduto = { id: dados.id, descricao: dados.nome, sku: dados.sku, ncm: dados.ncm, unidade: dados.unidade_base, marca: dados.fornecedor || "", custoBase: dados.preco_custo, margemAlvo: 0.30, precoReferencia: dados.preco_referencia };
+    try { _mpcOnSaveCallback(savedProduto); } catch(_) {}
+    _mpcOnSaveCallback = null;
+  }
+
+  // Also sync to bancoPrecos for immediate availability in dropdowns
+  if (!id && dados.preco_custo > 0) {
+    const bpItem = bancoPrecos.itens.find(p => p.sku === dados.sku);
+    if (!bpItem) {
+      bancoPrecos.itens.push({ id: dados.id, sku: dados.sku || dados.id, item: dados.nome, custoBase: dados.preco_custo, precoReferencia: dados.preco_referencia, unidade: dados.unidade_base, marca: dados.fornecedor || "", grupo: dados.categoria });
+    }
+  }
+
   showToast(id ? "Produto atualizado." : "Produto cadastrado.", 3000);
 };
 
