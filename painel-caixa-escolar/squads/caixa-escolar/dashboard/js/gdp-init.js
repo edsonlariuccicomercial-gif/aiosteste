@@ -2723,6 +2723,8 @@ async function enviarTiny(contratoId) {
 
 // ===== INIT =====
 (async function initGDP() {
+  window.__GDP_BOOTING = true;
+  setTimeout(() => { window.__GDP_BOOTING = false; }, 12000);
   // FR-008: Montar abas do Financeiro — mover conteúdo de Caixa, CP, CR para dentro de tab-financeiro
   try {
     const finCaixa = document.getElementById("fin-content-caixa");
@@ -2741,8 +2743,9 @@ async function enviarTiny(contratoId) {
   loadUsuarios();
   renderAll();
 
-  // Auto-apply pending DB migrations (one-time, background, non-blocking)
-  if (!sessionStorage.getItem("gdp.db-migrate-done")) {
+  // DB migrations must not run on every user page load. Trigger manually with
+  // ?migrate=1 when doing maintenance.
+  if (new URLSearchParams(window.location.search).get("migrate") === "1" && !sessionStorage.getItem("gdp.db-migrate-done")) {
     fetch("/api/db-migrate").then(r => r.json()).then(d => {
       gdpLog("[GDP] db-migrate:", d.message || d.hint || "done");
       sessionStorage.setItem("gdp.db-migrate-done", "1");
@@ -2764,34 +2767,37 @@ async function enviarTiny(contratoId) {
           'gdp.entregas.provas.v1': 'entregas'
         };
         const _wrapKeys = new Set(['gdp.contratos.v1','gdp.pedidos.v1','gdp.notas-fiscais.v1','gdp.contas-receber.v1','gdp.contas-pagar.v1']);
-        for (const [lsKey, table] of Object.entries(_tableMap)) {
+        const loadedTables = await Promise.all(Object.entries(_tableMap).map(async ([lsKey, table]) => {
           try {
             const rows = await gdpApi[table].list();
-            if (rows && rows.length > 0) {
-              // Carregar IDs deletados localmente para filtrar do merge
-              let deletedIds = new Set();
-              try {
-                const delKey = lsKey.replace('.v1', '.deleted.v1');
-                const delArr = JSON.parse(localStorage.getItem(delKey) || '[]');
-                deletedIds = new Set(delArr);
-              } catch(_) {}
-              // Filtrar registros deletados do resultado Supabase
-              const filteredRows = deletedIds.size > 0 ? rows.filter(r => !deletedIds.has(r.id)) : rows;
-              // Merge: preservar registros locais que não existem no Supabase
-              let localItems = [];
-              try {
-                const raw = JSON.parse(localStorage.getItem(lsKey) || '{}');
-                localItems = _wrapKeys.has(lsKey) ? (raw.items || []) : (Array.isArray(raw) ? raw : []);
-              } catch(_) {}
-              const remoteIds = new Set(filteredRows.map(r => r.id));
-              const localOnly = localItems.filter(item => item.id && !remoteIds.has(item.id) && !deletedIds.has(item.id));
-              const merged = [...filteredRows, ...localOnly];
-              const data = _wrapKeys.has(lsKey) ? { _v: 1, updatedAt: new Date().toISOString(), items: merged } : merged;
-              localStorage.setItem(lsKey, JSON.stringify(data));
-              gdpLog("[GDP] " + table + ": " + filteredRows.length + " do Supabase + " + localOnly.length + " locais preservados" + (deletedIds.size ? " (" + deletedIds.size + " deletados filtrados)" : ""));
-            }
+            return { lsKey, table, rows: rows || [] };
           } catch(e) { gdpWarn("[GDP] Falha ao carregar " + table + ":", e); }
-        }
+          return { lsKey, table, rows: [] };
+        }));
+        loadedTables.forEach(({ lsKey, table, rows }) => {
+          if (!rows || rows.length === 0) return;
+          // Carregar IDs deletados localmente para filtrar do merge
+          let deletedIds = new Set();
+          try {
+            const delKey = lsKey.replace('.v1', '.deleted.v1');
+            const delArr = JSON.parse(localStorage.getItem(delKey) || '[]');
+            deletedIds = new Set(delArr);
+          } catch(_) {}
+          // Filtrar registros deletados do resultado Supabase
+          const filteredRows = deletedIds.size > 0 ? rows.filter(r => !deletedIds.has(r.id)) : rows;
+          // Merge: preservar registros locais que não existem no Supabase
+          let localItems = [];
+          try {
+            const raw = JSON.parse(localStorage.getItem(lsKey) || '{}');
+            localItems = _wrapKeys.has(lsKey) ? (raw.items || []) : (Array.isArray(raw) ? raw : []);
+          } catch(_) {}
+          const remoteIds = new Set(filteredRows.map(r => r.id));
+          const localOnly = localItems.filter(item => item.id && !remoteIds.has(item.id) && !deletedIds.has(item.id));
+          const merged = [...filteredRows, ...localOnly];
+          const data = _wrapKeys.has(lsKey) ? { _v: 1, updatedAt: new Date().toISOString(), items: merged } : merged;
+          localStorage.setItem(lsKey, JSON.stringify(data));
+          gdpLog("[GDP] " + table + ": " + filteredRows.length + " do Supabase + " + localOnly.length + " locais preservados" + (deletedIds.size ? " (" + deletedIds.size + " deletados filtrados)" : ""));
+        });
         // Clientes (usuarios)
         try {
           const clientes = await gdpApi.clientes.list();
@@ -2854,8 +2860,8 @@ async function enviarTiny(contratoId) {
     });
   }
 
-  // Push local → cloud (backup)
-  try { await syncToCloud(); } catch(_) {}
+  // Do not push all local snapshots during boot. Normal edits call
+  // schedulCloudSync(), and the explicit sync button still forces full sync.
 
   // Auto-refresh when portal escola or banco de produtos updates localStorage (cross-tab sync)
   window.addEventListener('storage', (e) => {
@@ -2881,6 +2887,7 @@ async function enviarTiny(contratoId) {
   if (window._gdpSync) {
     window._gdpSync.startPolling(30000);
   }
+  window.__GDP_BOOTING = false;
 })();
 
 // [gdp-pedidos.js loaded above — Lista de Compras, Status Tabs, Selection, Menu]
@@ -3933,4 +3940,4 @@ function _gerarHtmlNf(nf) {
   }
   html += `</body></html>`;
   return html;
-}
+}

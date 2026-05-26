@@ -170,9 +170,9 @@ async function boot() {
       if (freshOrc) { try { orcamentos = JSON.parse(freshOrc); } catch(_) {} }
       renderAll();
     }
-    // Only push AFTER pull completes — prevents overwriting cloud with empty data
-    return syncToCloud();
-  }).then(() => gdpLog("[Boot] Local data pushed to cloud"))
+    if (typeof primeSyncHashes === "function") primeSyncHashes();
+    return null;
+  }).then(() => gdpLog("[Boot] Cloud sync checked"))
     .catch(e => gdpWarn("[Boot] Cloud sync failed:", e));
 }
 
