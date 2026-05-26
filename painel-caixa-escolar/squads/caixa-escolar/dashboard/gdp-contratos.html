@@ -199,7 +199,8 @@
     .hidden{display:none!important}
     @media(max-width:768px){.main{padding:1rem}.kpi-grid{grid-template-columns:repeat(2,1fr)}.topbar{flex-wrap:wrap;gap:.5rem}}
   </style>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <!-- Story 4.80: defer html2pdf (500KB) — não é necessário no boot -->
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <script src="js/supabase-config.js?v=10"></script>
   <script src="js/supabase-auth.js?v=10"></script>
   <script>
@@ -2511,17 +2512,18 @@ function confirmarImportProd() {
   </div>
 </div>
 
-<script src="./js/gdp-pagination.js?v=10"></script>
-<script src="./js/gdp-integrations-client.js?v=10"></script>
-<script src="./js/gdp-core.js?v=10"></script>
-<script src="./js/gdp-notas-fiscais.js?v=10"></script>
-<script src="./js/gdp-contratos-module.js?v=10"></script>
-<script src="./js/gdp-estoque-intel.js?v=10"></script>
-<script src="./js/gdp-pedidos.js?v=10"></script>
-<script src="./js/gdp-usuarios.js?v=10"></script>
+<!-- Story 4.80: defer scripts para não bloquear parse do HTML -->
+<script defer src="./js/gdp-pagination.js?v=11"></script>
+<script defer src="./js/gdp-integrations-client.js?v=11"></script>
+<script defer src="./js/gdp-core.js?v=11"></script>
+<script defer src="./js/gdp-notas-fiscais.js?v=11"></script>
+<script defer src="./js/gdp-contratos-module.js?v=11"></script>
+<script defer src="./js/gdp-estoque-intel.js?v=11"></script>
+<script defer src="./js/gdp-pedidos.js?v=11"></script>
+<script defer src="./js/gdp-usuarios.js?v=11"></script>
 <!-- gdp-entregas.js removido (Épico A - FR-016) -->
-<script src="./js/gdp-banco-produtos.js?v=10"></script>
-<script src="./js/gdp-init.js?v=10"></script>
+<script defer src="./js/gdp-banco-produtos.js?v=11"></script>
+<script defer src="./js/gdp-init.js?v=11"></script>
 
 
 

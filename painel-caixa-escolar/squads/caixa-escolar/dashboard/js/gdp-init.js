@@ -2834,30 +2834,35 @@ async function enviarTiny(contratoId) {
         };
         const _wrapKeys = new Set(['gdp.contratos.v1','gdp.pedidos.v1','gdp.notas-fiscais.v1','gdp.contas-receber.v1','gdp.contas-pagar.v1']);
         let anyUpdated = false;
-        for (const [lsKey, table] of Object.entries(_tableMap)) {
-          try {
-            const rows = await gdpApi[table].list();
-            if (rows && rows.length > 0) {
-              let deletedIds = new Set();
-              try { const delArr = JSON.parse(localStorage.getItem(lsKey.replace('.v1', '.deleted.v1')) || '[]'); deletedIds = new Set(delArr); } catch(_) {}
-              const filteredRows = deletedIds.size > 0 ? rows.filter(r => !deletedIds.has(r.id)) : rows;
-              let localItems = [];
-              try { const raw = JSON.parse(localStorage.getItem(lsKey) || '{}'); localItems = _wrapKeys.has(lsKey) ? (raw.items || []) : (Array.isArray(raw) ? raw : []); } catch(_) {}
-              const remoteIds = new Set(filteredRows.map(r => r.id));
-              const localOnly = localItems.filter(item => item.id && !remoteIds.has(item.id) && !deletedIds.has(item.id));
-              const localById = {};
-              localItems.forEach(item => { if (item.id) localById[item.id] = item; });
-              const msSinceLocalSave = typeof getLastLocalSave === 'function' ? (Date.now() - getLastLocalSave(lsKey)) : Infinity;
-              const preferLocal = msSinceLocalSave < 5000;
-              const mergedRemote = filteredRows.map(r => (preferLocal && localById[r.id]) ? localById[r.id] : r);
-              const merged = [...mergedRemote, ...localOnly];
-              const data = _wrapKeys.has(lsKey) ? { _v: 1, updatedAt: new Date().toISOString(), items: merged } : merged;
-              localStorage.setItem(lsKey, JSON.stringify(data));
+        // Story 4.80: Paralelizar todas as chamadas Supabase (Promise.all em vez de for sequencial)
+        const _mergeTable = (lsKey, rows) => {
+          if (!rows || !rows.length) return false;
+          let deletedIds = new Set();
+          try { const delArr = JSON.parse(localStorage.getItem(lsKey.replace('.v1', '.deleted.v1')) || '[]'); deletedIds = new Set(delArr); } catch(_) {}
+          const filteredRows = deletedIds.size > 0 ? rows.filter(r => !deletedIds.has(r.id)) : rows;
+          let localItems = [];
+          try { const raw = JSON.parse(localStorage.getItem(lsKey) || '{}'); localItems = _wrapKeys.has(lsKey) ? (raw.items || []) : (Array.isArray(raw) ? raw : []); } catch(_) {}
+          const remoteIds = new Set(filteredRows.map(r => r.id));
+          const localOnly = localItems.filter(item => item.id && !remoteIds.has(item.id) && !deletedIds.has(item.id));
+          const localById = {};
+          localItems.forEach(item => { if (item.id) localById[item.id] = item; });
+          const msSinceLocalSave = typeof getLastLocalSave === 'function' ? (Date.now() - getLastLocalSave(lsKey)) : Infinity;
+          const preferLocal = msSinceLocalSave < 5000;
+          const mergedRemote = filteredRows.map(r => (preferLocal && localById[r.id]) ? localById[r.id] : r);
+          const merged = [...mergedRemote, ...localOnly];
+          const data = _wrapKeys.has(lsKey) ? { _v: 1, updatedAt: new Date().toISOString(), items: merged } : merged;
+          localStorage.setItem(lsKey, JSON.stringify(data));
+          return true;
+        };
+        const fetchPromises = Object.entries(_tableMap).map(([lsKey, table]) =>
+          gdpApi[table].list().then(rows => {
+            if (_mergeTable(lsKey, rows)) {
               anyUpdated = true;
-              gdpLog("[GDP] " + table + ": " + filteredRows.length + " Supabase + " + localOnly.length + " locais");
+              gdpLog("[GDP] " + table + ": " + (rows ? rows.length : 0) + " rows merged");
             }
-          } catch(e) { gdpWarn("[GDP] Falha " + table + ":", e); }
-        }
+          }).catch(e => gdpWarn("[GDP] Falha " + table + ":", e))
+        );
+        await Promise.all(fetchPromises);
         try {
           const clientes = await gdpApi.clientes.list();
           if (clientes && clientes.length > 0) {
