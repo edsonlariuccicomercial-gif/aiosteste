@@ -1518,16 +1518,7 @@ async function enviarEmailNotaFiscal(notaId) {
   const pedido = pedidos.find(p => p.id === nf.pedidoId);
   const totalProd = (nf.itens || []).reduce((s, i) => s + (Number(i.qtd || 0) * Number(i.precoUnitario || 0)), 0);
 
-  // Gerar PDF do DANFE
-  let danfePdfBase64 = "";
-  try {
-    if (typeof html2pdf !== "undefined") {
-      showToast("Gerando PDF do DANFE...", 2000);
-      danfePdfBase64 = await gerarDanfePdfBase64(nf);
-    }
-  } catch (pdfErr) {
-    gdpWarn("[Email NF] Falha PDF:", pdfErr.message);
-  }
+  // Story 4.77: PDF gerado server-side (jsPDF vetorial) — não gerar client-side
   const payload = {
     to,
     schoolName: nf.cliente?.nome || pedido?.escola || '',
@@ -1543,7 +1534,6 @@ async function enviarEmailNotaFiscal(notaId) {
       protocolo: nf.sefaz?.protocolo || '',
       valor: nf.valor || totalProd,
       chaveAcesso: nf.sefaz?.chaveAcesso || '',
-      danfePdf: danfePdfBase64,
       emitente: nf.sefaz?.preview?.emitente || {},
       destinatario: nf.sefaz?.preview?.destinatario || nf.cliente || {},
       itensNf: (nf.itens || []).map(i => ({ desc: i.descricao, ncm: i.ncm, cst: i.cst, cfop: i.cfop, un: i.unidade, qtd: i.qtd, vUnit: i.precoUnitario })),
@@ -2345,16 +2335,7 @@ async function dispararEmailNotaEBoletoAutomatico(notaId, contaId, options = {})
     return false;
   }
   const totalProd = (nf.itens || []).reduce((s, i) => s + (Number(i.qtd || 0) * Number(i.precoUnitario || 0)), 0);
-  // Gerar PDF do DANFE
-  let danfePdfBase64 = "";
-  try {
-    if (typeof html2pdf !== "undefined") {
-      danfePdfBase64 = await gerarDanfePdfBase64(nf);
-      gdpLog("[Email NF] PDF gerado:", danfePdfBase64.length, "bytes base64");
-    }
-  } catch (pdfErr) {
-    gdpWarn("[Email NF] Falha ao gerar PDF, enviando sem anexo:", pdfErr.message);
-  }
+  // Story 4.77: PDF gerado server-side (jsPDF vetorial) — não gerar client-side
   const emailPayload = {
     schoolName: nf.cliente?.nome || "",
     protocol: nf.pedidoId || nf.numero || nf.id,
