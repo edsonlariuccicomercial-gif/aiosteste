@@ -1653,9 +1653,9 @@
     <div style="padding:1.5rem">
       <div id="ct-import-dropzone" style="border:2px dashed var(--bdr);border-radius:10px;padding:2.5rem 1.5rem;text-align:center;cursor:pointer;transition:border-color .2s" onclick="document.getElementById('ct-import-file').click()">
         <div style="font-size:2.5rem;margin-bottom:.5rem">📄</div>
-        <div style="font-weight:600;margin-bottom:.3rem">Arraste a planilha aqui ou clique para selecionar</div>
-        <div style="font-size:.8rem;color:var(--mut)">Aceita .xls, .xlsx e .csv — Colunas: Escola, Edital, Processo, Vigência, Fornecedor, Objeto, Valor, Status</div>
-        <input type="file" id="ct-import-file" accept=".xls,.xlsx,.csv" style="display:none" onchange="handleCtImportFile(this.files[0])">
+        <div style="font-weight:600;margin-bottom:.3rem">Arraste o arquivo aqui ou clique para selecionar</div>
+        <div style="font-size:.8rem;color:var(--mut)">Aceita .xls, .xlsx, .csv e .pdf — Colunas: Escola, Edital, Processo, Vigência, Fornecedor, Objeto, Valor, Status</div>
+        <input type="file" id="ct-import-file" accept=".xls,.xlsx,.csv,.pdf" style="display:none" onchange="handleCtImportFile(this.files[0])">
       </div>
       <div id="ct-import-preview" class="hidden" style="margin-top:1rem">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.8rem">
@@ -1907,6 +1907,11 @@ function resetCtImport() {
 
 function handleCtImportFile(file) {
   if (!file) return;
+  var isPdf = file.name.toLowerCase().endsWith('.pdf');
+  if (isPdf) {
+    handleCtImportPdf(file);
+    return;
+  }
   var reader = new FileReader();
   reader.onload = function(e) {
     try {
@@ -1922,6 +1927,44 @@ function handleCtImportFile(file) {
     }
   };
   reader.readAsArrayBuffer(file);
+}
+
+async function handleCtImportPdf(file) {
+  try {
+    showToast('Extraindo dados do PDF... Aguarde.', 3000);
+    var result = await parsePDF(file);
+    if (!result.tables || !result.tables.length) {
+      showToast('Nenhuma tabela encontrada no PDF. Tente Excel/CSV.', 5000);
+      return;
+    }
+    // Usar a maior tabela encontrada
+    var bestTable = result.tables.reduce(function(best, t) { return t.length > best.length ? t : best; }, result.tables[0]);
+    if (bestTable.length < 2) { showToast('Tabela do PDF tem dados insuficientes.', 4000); return; }
+    // Primeira linha = headers, restante = dados
+    var headers = bestTable[0];
+    var dataRows = bestTable.slice(1);
+    // Converter para objetos keyed (como sheet_to_json faz)
+    var rows = dataRows.map(function(cells) {
+      var obj = {};
+      for (var i = 0; i < headers.length; i++) {
+        obj[headers[i] || ('Col' + i)] = (cells[i] || '').trim();
+      }
+      return obj;
+    }).filter(function(r) {
+      // Filtrar linhas totalmente vazias
+      return Object.values(r).some(function(v) { return v; });
+    });
+    if (!rows.length) { showToast('PDF sem dados utilizáveis.', 4000); return; }
+    _ctImportData = mapCtImportRows(rows);
+    if (!_ctImportData.length) {
+      showToast('Nenhum contrato extraído — verifique se o PDF tem coluna de escola/entidade.', 5000);
+      return;
+    }
+    renderCtImportPreview(_ctImportData);
+    showToast(_ctImportData.length + ' contratos extraídos do PDF!', 3000);
+  } catch (err) {
+    showToast('Erro ao processar PDF: ' + err.message, 5000);
+  }
 }
 
 function _detectCtColumns(keys) {
