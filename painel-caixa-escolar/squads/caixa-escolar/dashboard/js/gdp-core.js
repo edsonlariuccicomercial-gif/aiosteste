@@ -824,14 +824,12 @@ function loadData() {
   console.time('[GDP] loadData:parse');
   // Story 4.80: dirty flags removidos — save migrado para background
   try { contratosExcluidos = unwrapData(JSON.parse(localStorage.getItem(CONTRACTS_DELETED_KEY))); } catch(_) { contratosExcluidos = []; }
-  // Story 4.80: remover JSON.stringify per-item no boot (era O(n) stringify desnecessário)
+  // Story 4.83: defer sanitize pesado para depois do render (era 22s bloqueante por buscas O(n²))
   try {
-    const rawContratos = applyDeletedContractsFilter(unwrapData(JSON.parse(localStorage.getItem(CONTRACTS_KEY))));
-    contratos = rawContratos.map(item => sanitizeContratoLegacyData(item));
+    contratos = applyDeletedContractsFilter(unwrapData(JSON.parse(localStorage.getItem(CONTRACTS_KEY))));
   } catch(_) { contratos = []; }
   try {
-    const rawPedidos = unwrapData(JSON.parse(localStorage.getItem(ORDERS_KEY)));
-    pedidos = rawPedidos.map(item => sanitizePedidoLegacyData(item));
+    pedidos = unwrapData(JSON.parse(localStorage.getItem(ORDERS_KEY)));
   } catch(_) { pedidos = []; }
   try { provasEntrega = JSON.parse(localStorage.getItem(PROOFS_KEY)) || []; } catch(_) { provasEntrega = []; }
   try { notasFiscais = unwrapData(JSON.parse(localStorage.getItem(INVOICES_KEY))); } catch(_) { notasFiscais = []; }

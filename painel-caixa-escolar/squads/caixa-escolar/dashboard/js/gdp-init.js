@@ -2815,6 +2815,17 @@ async function enviarTiny(contratoId) {
   renderAll();
   console.timeEnd('[GDP] renderAll');
 
+  // Story 4.83: Defer heavy sanitize (was 22s blocking — O(n²) lookups in ensurePedidoFiscalData)
+  // UI renders raw data first, sanitize runs in background after paint
+  setTimeout(function() {
+    console.time('[GDP] deferred-sanitize');
+    try { contratos = contratos.map(item => sanitizeContratoLegacyData(item)); } catch(_) {}
+    try { pedidos = pedidos.map(item => sanitizePedidoLegacyData(item)); } catch(_) {}
+    console.timeEnd('[GDP] deferred-sanitize');
+    renderAll();
+    gdpLog('[GDP] Deferred sanitize complete — re-rendered with fiscal data');
+  }, 200);
+
   // Story 4.83: liberar cloud sync 3s após boot (tabelas Supabase carregam em ~1-2s)
   setTimeout(function() { if (typeof _gdpBootInProgress !== 'undefined') _gdpBootInProgress = false; }, 3000);
 
