@@ -2833,11 +2833,12 @@ async function enviarTiny(contratoId) {
     try { pedidos = pedidos.map(function(item) { return sanitizePedidoLegacyData(item); }); } catch(_) {}
     if (_origGetClientesVinculados) getClientesVinculadosAoContrato = _origGetClientesVinculados;
     delete window._fastClienteCache;
-    // Story 4.83: Auto-fix notas with wrong status (cStat 100/150=autorizada, 539=duplicidade já autorizada)
+    // Story 4.83: Auto-fix notas with cStat 100/150 (autorizada pela SEFAZ) mas status errado
+    // NÃO incluir 539 (duplicidade) — pode ser outra nota tentando usar mesmo número
     var _nfFixed = 0;
     notasFiscais.forEach(function(nf) {
       var cStat = String((nf.integracoes && nf.integracoes.sefaz && nf.integracoes.sefaz.cStat) || '');
-      if (nf.status !== 'autorizada' && (cStat === '100' || cStat === '150' || cStat === '539')) {
+      if (nf.status !== 'autorizada' && (cStat === '100' || cStat === '150')) {
         nf.status = 'autorizada';
         if (nf.sefaz) nf.sefaz.status = 'autorizada';
         _nfFixed++;
