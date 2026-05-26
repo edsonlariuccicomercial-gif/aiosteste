@@ -808,33 +808,20 @@ function saveWrappedArray(key, items) {
   schedulCloudSync();
 }
 function loadData() {
-  let contratosDirty = false;
-  let pedidosDirty = false;
-  let contasPagarDirty = false;
-  let contasReceberDirty = false;
+  // Story 4.80: dirty flags removidos — save migrado para background
   try { contratosExcluidos = unwrapData(JSON.parse(localStorage.getItem(CONTRACTS_DELETED_KEY))); } catch(_) { contratosExcluidos = []; }
+  // Story 4.80: remover JSON.stringify per-item no boot (era O(n) stringify desnecessário)
   try {
     const rawContratos = applyDeletedContractsFilter(unwrapData(JSON.parse(localStorage.getItem(CONTRACTS_KEY))));
-    contratos = rawContratos.map((item, idx) => {
-      const before = JSON.stringify(item);
-      const after = sanitizeContratoLegacyData(item);
-      if (!contratosDirty && JSON.stringify(after) !== before) contratosDirty = true;
-      return after;
-    });
+    contratos = rawContratos.map(item => sanitizeContratoLegacyData(item));
   } catch(_) { contratos = []; }
   try {
     const rawPedidos = unwrapData(JSON.parse(localStorage.getItem(ORDERS_KEY)));
-    pedidos = rawPedidos.map((item) => {
-      const before = JSON.stringify(item);
-      const after = sanitizePedidoLegacyData(item);
-      if (!pedidosDirty && JSON.stringify(after) !== before) pedidosDirty = true;
-      return after;
-    });
+    pedidos = rawPedidos.map(item => sanitizePedidoLegacyData(item));
   } catch(_) { pedidos = []; }
   try { provasEntrega = JSON.parse(localStorage.getItem(PROOFS_KEY)) || []; } catch(_) { provasEntrega = []; }
   try { notasFiscais = unwrapData(JSON.parse(localStorage.getItem(INVOICES_KEY))); } catch(_) { notasFiscais = []; }
-  // Auto-cleanup: re-save NFs to strip heavy data from authorized NFs (prevents localStorage quota exceeded)
-  if (notasFiscais.length > 0) { try { saveNotasFiscais(); } catch(_) {} }
+  // Story 4.80: removido saveNotasFiscais() no boot — re-save desnecessário bloqueava thread
   try { notasEntrada = unwrapData(JSON.parse(localStorage.getItem(ENTRY_INVOICES_KEY))); } catch(_) { notasEntrada = []; }
   try { contasPagar = unwrapData(JSON.parse(localStorage.getItem(PAYABLES_KEY))); } catch(_) { contasPagar = []; }
   try { contasReceber = unwrapData(JSON.parse(localStorage.getItem(RECEIVABLES_KEY))); } catch(_) { contasReceber = []; }
@@ -929,18 +916,10 @@ function loadData() {
   } catch(_) {}
 
   contasPagar = contasPagar.map((item) => {
-    const categoria = normalizeContaCategoriaRegistro("pagar", item?.categoria);
-    const forma = normalizeContaFormaRegistro(item?.forma);
-    if (!contasPagarDirty && categoria !== item?.categoria) contasPagarDirty = true;
-    if (!contasPagarDirty && forma !== item?.forma) contasPagarDirty = true;
-    return { ...item, categoria, forma };
+    return { ...item, categoria: normalizeContaCategoriaRegistro("pagar", item?.categoria), forma: normalizeContaFormaRegistro(item?.forma) };
   });
   contasReceber = contasReceber.map((item) => {
-    const categoria = normalizeContaCategoriaRegistro("receber", item?.categoria);
-    const forma = normalizeContaFormaRegistro(item?.forma);
-    if (!contasReceberDirty && categoria !== item?.categoria) contasReceberDirty = true;
-    if (!contasReceberDirty && forma !== item?.forma) contasReceberDirty = true;
-    return { ...item, categoria, forma };
+    return { ...item, categoria: normalizeContaCategoriaRegistro("receber", item?.categoria), forma: normalizeContaFormaRegistro(item?.forma) };
   });
   contaPagarCategorias = [...new Set([...getDefaultContaPagarCategorias(), ...contaPagarCategorias.map(normalizeCategoriaValue).filter(Boolean)])];
   contaReceberCategorias = [...new Set([...getDefaultContaReceberCategorias(), ...contaReceberCategorias.map(normalizeCategoriaValue).filter(Boolean)])];
@@ -1122,10 +1101,13 @@ function loadData() {
   loadGdpDemandas();
   loadGdpEstoqueSimples();
   loadGdpListaCompras();
-  if (contratosDirty) saveWrappedArray(CONTRACTS_KEY, contratos);
-  if (pedidosDirty) saveWrappedArray(ORDERS_KEY, pedidos);
-  if (contasPagarDirty) saveWrappedArray(PAYABLES_KEY, contasPagar);
-  if (contasReceberDirty) saveWrappedArray(RECEIVABLES_KEY, contasReceber);
+  // Story 4.80: save sanitizado em background (não bloquear boot)
+  setTimeout(function() {
+    try { saveWrappedArray(CONTRACTS_KEY, contratos); } catch(_) {}
+    try { saveWrappedArray(ORDERS_KEY, pedidos); } catch(_) {}
+    try { saveWrappedArray(PAYABLES_KEY, contasPagar); } catch(_) {}
+    try { saveWrappedArray(RECEIVABLES_KEY, contasReceber); } catch(_) {}
+  }, 3000);
 }
 function saveContratos() {
   contratos = applyDeletedContractsFilter(contratos).map(sanitizeContratoLegacyData);
