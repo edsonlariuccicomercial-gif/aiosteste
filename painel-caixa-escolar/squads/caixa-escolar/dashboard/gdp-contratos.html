@@ -307,6 +307,7 @@
         </div>
         <div style="display:flex;gap:.5rem">
           <button class="btn btn-blue" onclick="switchTab('importar')">+ Importar Mapa</button>
+          <button class="btn btn-outline" onclick="toggleImportContratosModal(true)">📥 Importar Planilha</button>
           <button class="btn btn-green" onclick="novoContratoManual()">+ Contrato Manual</button>
         </div>
       </div>
@@ -1642,6 +1643,40 @@
   </div>
 </div>
 
+<!-- Story 4.76: Modal importacao planilha Contratos -->
+<div class="hidden" id="ct-import-modal" style="position:fixed;inset:0;background:rgba(8,15,31,.88);z-index:1020;display:flex;align-items:center;justify-content:center;padding:1rem" onclick="toggleImportContratosModal(false)">
+  <div style="background:var(--bg);border:1px solid var(--bdr);border-radius:12px;width:680px;max-width:95vw;max-height:90vh;display:flex;flex-direction:column;overflow-y:auto" onclick="event.stopPropagation()">
+    <div style="padding:1rem 1.5rem;border-bottom:1px solid var(--bdr);display:flex;justify-content:space-between;align-items:center">
+      <h2 style="margin:0;font-size:1.1rem">Importar Planilha — Contratos</h2>
+      <button class="btn btn-outline btn-sm" onclick="toggleImportContratosModal(false)">Fechar</button>
+    </div>
+    <div style="padding:1.5rem">
+      <div id="ct-import-dropzone" style="border:2px dashed var(--bdr);border-radius:10px;padding:2.5rem 1.5rem;text-align:center;cursor:pointer;transition:border-color .2s" onclick="document.getElementById('ct-import-file').click()">
+        <div style="font-size:2.5rem;margin-bottom:.5rem">📄</div>
+        <div style="font-weight:600;margin-bottom:.3rem">Arraste a planilha aqui ou clique para selecionar</div>
+        <div style="font-size:.8rem;color:var(--mut)">Aceita .xls, .xlsx e .csv — Colunas: Escola, Edital, Processo, Vigência, Fornecedor, Objeto, Valor, Status</div>
+        <input type="file" id="ct-import-file" accept=".xls,.xlsx,.csv" style="display:none" onchange="handleCtImportFile(this.files[0])">
+      </div>
+      <div id="ct-import-preview" class="hidden" style="margin-top:1rem">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.8rem">
+          <div id="ct-import-summary" style="font-size:.85rem;font-weight:600"></div>
+          <button class="btn btn-outline btn-sm" onclick="resetCtImport()">Trocar arquivo</button>
+        </div>
+        <div style="max-height:250px;overflow-y:auto;border:1px solid var(--bdr);border-radius:6px">
+          <table style="font-size:.8rem;width:100%">
+            <thead><tr id="ct-import-thead"></tr></thead>
+            <tbody id="ct-import-tbody"></tbody>
+          </table>
+        </div>
+        <div style="margin-top:1rem;display:flex;justify-content:flex-end;gap:.8rem">
+          <button class="btn btn-outline" onclick="toggleImportContratosModal(false)">Cancelar</button>
+          <button class="btn btn-green" id="ct-import-confirm-btn" onclick="confirmarImportContratos()">Importar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Story 4.66: Modal importacao planilha Contas a Receber -->
 <div class="hidden" id="cr-import-modal" style="position:fixed;inset:0;background:rgba(8,15,31,.88);z-index:1020;display:flex;align-items:center;justify-content:center;padding:1rem" onclick="toggleImportCrModal(false)">
   <div style="background:var(--bg);border:1px solid var(--bdr);border-radius:12px;width:640px;max-width:95vw;max-height:90vh;display:flex;flex-direction:column;overflow-y:auto" onclick="event.stopPropagation()">
@@ -1836,6 +1871,134 @@ function confirmarImportCr() {
   toggleImportCrModal(false);
   showToast(_crImportData.length + ' lancamentos importados com sucesso!', 5000);
   _crImportData = [];
+}
+
+// ===== Story 4.76: Importacao Excel Contratos =====
+var _ctImportData = [];
+
+function toggleImportContratosModal(open) {
+  var m = document.getElementById('ct-import-modal');
+  if (!m) return;
+  m.classList.toggle('hidden', !open);
+  if (open) resetCtImport();
+}
+
+function resetCtImport() {
+  _ctImportData = [];
+  document.getElementById('ct-import-file').value = '';
+  document.getElementById('ct-import-preview').classList.add('hidden');
+  document.getElementById('ct-import-dropzone').style.display = '';
+}
+
+(function() {
+  var dz = document.getElementById('ct-import-dropzone');
+  if (!dz) return;
+  ['dragenter','dragover'].forEach(function(ev) {
+    dz.addEventListener(ev, function(e) { e.preventDefault(); e.stopPropagation(); dz.style.borderColor = 'var(--green)'; });
+  });
+  ['dragleave','drop'].forEach(function(ev) {
+    dz.addEventListener(ev, function(e) { e.preventDefault(); e.stopPropagation(); dz.style.borderColor = 'var(--bdr)'; });
+  });
+  dz.addEventListener('drop', function(e) {
+    var f = e.dataTransfer.files[0];
+    if (f) handleCtImportFile(f);
+  });
+})();
+
+function handleCtImportFile(file) {
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      var data = new Uint8Array(e.target.result);
+      var wb = XLSX.read(data, { type: 'array', cellDates: false });
+      var ws = wb.Sheets[wb.SheetNames[0]];
+      var rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+      if (!rows.length) { showToast('Planilha vazia.', 3000); return; }
+      _ctImportData = mapCtImportRows(rows);
+      renderCtImportPreview(_ctImportData);
+    } catch (err) {
+      showToast('Erro ao ler planilha: ' + err.message, 5000);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function _detectCtColumns(keys) {
+  var map = {};
+  for (var i = 0; i < keys.length; i++) {
+    var k = keys[i];
+    if (_fuzzyMatch(k, ['escola', 'orgao', 'entidade', 'caixa escolar', 'razao'])) map.escola = k;
+    else if (_fuzzyMatch(k, ['edital', 'pregao', 'licitacao'])) map.edital = k;
+    else if (_fuzzyMatch(k, ['processo', 'proc'])) map.processo = k;
+    else if (_fuzzyMatch(k, ['vigencia', 'validade', 'periodo'])) map.vigencia = k;
+    else if (_fuzzyMatch(k, ['fornecedor', 'empresa', 'supplier'])) map.fornecedor = k;
+    else if (_fuzzyMatch(k, ['objeto', 'descricao', 'descr'])) map.objeto = k;
+    else if (_fuzzyMatch(k, ['status', 'situacao', 'sit'])) map.status = k;
+    else if (_fuzzyMatch(k, ['valor', 'total', 'value'])) map.valor = k;
+    else if (_fuzzyMatch(k, ['observ', 'obs', 'nota'])) map.obs = k;
+  }
+  return map;
+}
+
+function _mapCtStatus(val) {
+  var v = (val || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+  if (v.indexOf('encerr') >= 0 || v.indexOf('inativ') >= 0 || v.indexOf('cancel') >= 0) return 'encerrado';
+  return 'ativo';
+}
+
+function mapCtImportRows(rows) {
+  var keys = Object.keys(rows[0]);
+  var col = _detectCtColumns(keys);
+  return rows.map(function(r) {
+    var valorRaw = String(r[col.valor] || '0').replace(/[^\d,.\-]/g, '').replace(',', '.');
+    return {
+      id: 'CTR-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).slice(2, 5).toUpperCase(),
+      escola: String(r[col.escola] || '').trim(),
+      edital: String(r[col.edital] || '').trim(),
+      processo: String(r[col.processo] || '').trim(),
+      vigencia: String(r[col.vigencia] || '').trim(),
+      fornecedor: String(r[col.fornecedor] || 'Lariucci & Ribeiro Pereira').trim(),
+      objeto: String(r[col.objeto] || '').trim(),
+      status: _mapCtStatus(r[col.status]),
+      valorTotal: parseFloat(valorRaw) || 0,
+      observacoes: String(r[col.obs] || '').trim(),
+      dataApuracao: new Date().toISOString().split('T')[0],
+      itens: [],
+      audit: { createdAt: new Date().toISOString(), createdBy: 'importacao-excel', updatedAt: new Date().toISOString(), updatedBy: 'importacao-excel' }
+    };
+  }).filter(function(c) { return c.escola; });
+}
+
+function renderCtImportPreview(items) {
+  document.getElementById('ct-import-dropzone').style.display = 'none';
+  document.getElementById('ct-import-preview').classList.remove('hidden');
+  var totalVal = items.reduce(function(s, i) { return s + i.valorTotal; }, 0);
+  document.getElementById('ct-import-summary').textContent = items.length + ' contratos encontrados — Total: R$ ' + totalVal.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+  var thead = document.getElementById('ct-import-thead');
+  thead.innerHTML = '<th>Escola</th><th>Edital</th><th>Processo</th><th>Fornecedor</th><th>Valor</th><th>Status</th>';
+  var tbody = document.getElementById('ct-import-tbody');
+  var html = '';
+  var show = items.slice(0, 8);
+  for (var i = 0; i < show.length; i++) {
+    var it = show[i];
+    html += '<tr><td>' + (it.escola || '-') + '</td><td>' + (it.edital || '-') + '</td><td>' + (it.processo || '-') + '</td><td>' + (it.fornecedor || '-').slice(0, 30) + '</td><td style="text-align:right">R$ ' + it.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) + '</td><td>' + it.status + '</td></tr>';
+  }
+  if (items.length > 8) html += '<tr><td colspan="6" style="text-align:center;color:var(--mut)">... e mais ' + (items.length - 8) + ' contratos</td></tr>';
+  tbody.innerHTML = html;
+  document.getElementById('ct-import-confirm-btn').textContent = 'Importar ' + items.length + ' contratos';
+}
+
+function confirmarImportContratos() {
+  if (!_ctImportData.length) return;
+  for (var i = 0; i < _ctImportData.length; i++) {
+    contratos.push(_ctImportData[i]);
+  }
+  saveContratos();
+  renderContratos();
+  toggleImportContratosModal(false);
+  showToast(_ctImportData.length + ' contratos importados com sucesso!', 5000);
+  _ctImportData = [];
 }
 
 // ===== Story 4.70 Bloco A: Importacao padrao CP, Fornecedores, Produtos =====
