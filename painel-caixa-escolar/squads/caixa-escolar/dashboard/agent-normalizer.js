@@ -417,6 +417,167 @@
     return "Sem ação pendente.";
   }
 
+  function pendingRowById(rowId) {
+    return loadStore().find((row) => String(row.id) === String(rowId)) || null;
+  }
+
+  function upsertPendingRow(rowId, patch) {
+    const items = loadStore();
+    const idx = items.findIndex((row) => String(row.id) === String(rowId));
+    if (idx < 0) return null;
+    const next = {
+      ...items[idx],
+      ...patch,
+      updatedAt: new Date().toISOString(),
+    };
+    items[idx] = next;
+    saveStore(items);
+    return next;
+  }
+
+  function ensurePendingModal() {
+    let modal = document.getElementById("modal-pendencia-agente");
+    if (modal) return modal;
+    modal = document.createElement("div");
+    modal.id = "modal-pendencia-agente";
+    modal.className = "modal-overlay normalizador-pending-overlay";
+    modal.style.display = "none";
+    document.body.appendChild(modal);
+    modal.addEventListener("click", (ev) => {
+      if (ev.target === modal) closePending();
+    });
+    return modal;
+  }
+
+  function statusOptions(selected) {
+    return ["cotar_marca", "cotar", "criar_produto", "revisar", "pronto"].map((status) =>
+      `<option value="${status}" ${status === selected ? "selected" : ""}>${statusLabel(status)}</option>`
+    ).join("");
+  }
+
+  function closePending() {
+    const modal = document.getElementById("modal-pendencia-agente");
+    if (modal) modal.style.display = "none";
+  }
+
+  function openPending(rowId) {
+    const row = pendingRowById(rowId);
+    const modal = ensurePendingModal();
+    if (!row) {
+      if (typeof showToast === "function") showToast("Pendencia nao encontrada.", 2500);
+      return;
+    }
+    const marcas = (row.marcas_extraidas || []).length ? row.marcas_extraidas.join(", ") : "Sem marca exigida";
+    const hasPrequote = !!(row.orcamento_id && typeof preOrcamentos !== "undefined" && preOrcamentos[row.orcamento_id]);
+    modal.innerHTML = `
+      <aside class="normalizador-pending-drawer" role="dialog" aria-modal="true" aria-labelledby="pendencia-agente-title">
+        <div class="normalizador-pending-head">
+          <div>
+            <span class="normalizador-status normalizador-status-inline">${statusLabel(row.status)}</span>
+            <h2 id="pendencia-agente-title">Resolver pendencia</h2>
+          </div>
+          <button type="button" class="btn btn-sm" onclick="NormalizadorAgent.closePending()">Fechar</button>
+        </div>
+        <div class="normalizador-pending-body">
+          <section class="normalizador-pending-context">
+            <p>Produto</p>
+            <strong>${escapeHtml(row.produto_canonico || "Sem produto canonico")}</strong>
+            <span>${escapeHtml(row.produto_nome || "")}</span>
+          </section>
+          <section class="normalizador-pending-context">
+            <p>Origem SGD</p>
+            <strong>${escapeHtml(row.orcamento_id || "Sem orcamento vinculado")}</strong>
+            <span>${escapeHtml(row.descricao_original || "")}</span>
+          </section>
+          <section class="normalizador-pending-context">
+            <p>Acao sugerida</p>
+            <strong>${escapeHtml(actionText(row))}</strong>
+            <span>${escapeHtml(marcas)}</span>
+          </section>
+          <form id="form-pendencia-agente" class="normalizador-pending-form" onsubmit="NormalizadorAgent.savePending('${escapeHtml(row.id)}'); return false;">
+            <label>Status
+              <select id="pendencia-agente-status">${statusOptions(row.status)}</select>
+            </label>
+            <label>Produto canonico
+              <input id="pendencia-agente-produto" type="text" value="${escapeHtml(row.produto_canonico || "")}" />
+            </label>
+            <label>Marca escolhida
+              <input id="pendencia-agente-marca" type="text" value="${escapeHtml(row.marca_escolhida || "")}" />
+            </label>
+            <label>Custo escolhido
+              <input id="pendencia-agente-custo" type="number" min="0" step="0.01" value="${Number(row.custo_escolhido || 0) || ""}" />
+            </label>
+            <label class="normalizador-pending-full">Observacao
+              <textarea id="pendencia-agente-nota" rows="3" placeholder="Ex: fornecedor respondeu, produto criado, revisar marca...">${escapeHtml(row.observacao_operador || "")}</textarea>
+            </label>
+            <label class="normalizador-pending-check">
+              <input id="pendencia-agente-aprendido" type="checkbox" ${row.aprovado_por_usuario ? "checked" : ""} />
+              Marcar como aprendido/resolvido
+            </label>
+          </form>
+        </div>
+        <div class="normalizador-pending-actions">
+          <button type="button" class="btn" onclick="NormalizadorAgent.markPending('${escapeHtml(row.id)}', 'revisar')">Revisar depois</button>
+          <button type="button" class="btn" ${hasPrequote ? "" : "disabled"} onclick="NormalizadorAgent.openPendingPrequote('${escapeHtml(row.id)}')">Abrir cotacao</button>
+          <button type="button" class="btn btn-accent" onclick="NormalizadorAgent.savePending('${escapeHtml(row.id)}')">Salvar</button>
+          <button type="button" class="btn btn-primary" onclick="NormalizadorAgent.resolvePending('${escapeHtml(row.id)}')">Concluir</button>
+        </div>
+      </aside>`;
+    modal.style.display = "flex";
+    setTimeout(() => document.getElementById("pendencia-agente-status")?.focus(), 0);
+  }
+
+  function pendingFormPatch(forceResolved) {
+    const status = document.getElementById("pendencia-agente-status")?.value || "revisar";
+    const learned = !!document.getElementById("pendencia-agente-aprendido")?.checked || !!forceResolved;
+    const finalStatus = forceResolved ? "pronto" : status;
+    return {
+      status: finalStatus,
+      produto_canonico: document.getElementById("pendencia-agente-produto")?.value || "",
+      marca_escolhida: document.getElementById("pendencia-agente-marca")?.value || "",
+      custo_escolhido: Number(document.getElementById("pendencia-agente-custo")?.value || 0),
+      observacao_operador: document.getElementById("pendencia-agente-nota")?.value || "",
+      aprovado_por_usuario: learned,
+      precisa_cotar: !learned && ["cotar", "cotar_marca", "criar_produto"].includes(finalStatus),
+      resolvidoEm: learned ? new Date().toISOString() : "",
+    };
+  }
+
+  function savePending(rowId) {
+    const saved = upsertPendingRow(rowId, pendingFormPatch(false));
+    if (!saved) return;
+    renderPendencias();
+    openPending(saved.id);
+    if (typeof showToast === "function") showToast("Pendencia atualizada.", 2200);
+  }
+
+  function resolvePending(rowId) {
+    const saved = upsertPendingRow(rowId, pendingFormPatch(true));
+    if (!saved) return;
+    closePending();
+    renderPendencias();
+    if (typeof showToast === "function") showToast("Pendencia concluida e marcada como aprendida.", 2600);
+  }
+
+  function markPending(rowId, status) {
+    const saved = upsertPendingRow(rowId, {
+      status,
+      precisa_cotar: ["cotar", "cotar_marca", "criar_produto"].includes(status),
+      aprovado_por_usuario: false,
+      resolvidoEm: "",
+    });
+    if (!saved) return;
+    renderPendencias();
+    openPending(saved.id);
+  }
+
+  function openPendingPrequote(rowId) {
+    const row = pendingRowById(rowId);
+    if (!row || !row.orcamento_id || typeof abrirPreOrcamento !== "function") return;
+    closePending();
+    abrirPreOrcamento(row.orcamento_id);
+  }
+
   function filteredStoreRows() {
     const status = document.getElementById("filtro-pendencia-agente-status")?.value || "all";
     const query = norm(document.getElementById("filtro-pendencia-agente-texto")?.value || "");
@@ -469,6 +630,7 @@
         <td>${escapeHtml(marcas)}${escolha}</td>
         <td><strong>${escapeHtml(row.orcamento_id || "—")}</strong><br><span>${escapeHtml(row.descricao_original || "")}</span></td>
         <td>${escapeHtml(actionText(row))}</td>
+        <td><button type="button" class="btn btn-sm btn-accent" onclick="NormalizadorAgent.openPending('${escapeHtml(row.id)}')">Resolver</button></td>
       </tr>`;
     }).join("");
     if (empty) empty.style.display = rows.length ? "none" : "block";
@@ -519,7 +681,22 @@
     }
   }
 
-  window.NormalizadorAgent = { analyzePre, analyzeItem, render, apply, approveAndTeach, loadStore, renderPendencias, exportPendencias };
+  window.NormalizadorAgent = {
+    analyzePre,
+    analyzeItem,
+    render,
+    apply,
+    approveAndTeach,
+    loadStore,
+    renderPendencias,
+    exportPendencias,
+    openPending,
+    closePending,
+    savePending,
+    resolvePending,
+    markPending,
+    openPendingPrequote,
+  };
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", hook);
   else hook();
 })();

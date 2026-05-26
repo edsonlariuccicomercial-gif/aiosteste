@@ -2310,6 +2310,114 @@ input[type="checkbox"]:hover {
   color: #991b1b;
   background: #fee2e2;
 }
+.normalizador-pending-overlay {
+  justify-content: flex-end;
+  align-items: stretch;
+  padding: 0;
+}
+.normalizador-pending-drawer {
+  width: min(520px, 100%);
+  height: 100%;
+  background: var(--s1);
+  border-left: 1px solid var(--bdr);
+  box-shadow: -18px 0 40px rgba(15, 23, 42, .22);
+  display: flex;
+  flex-direction: column;
+}
+.normalizador-pending-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem;
+  border-bottom: 1px solid var(--bdr);
+}
+.normalizador-pending-head h2 {
+  margin: .45rem 0 0;
+  font-size: 1.05rem;
+}
+.normalizador-status-inline {
+  color: #92400e;
+  background: #fef3c7;
+}
+.normalizador-pending-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem;
+  display: grid;
+  gap: .75rem;
+}
+.normalizador-pending-context {
+  border: 1px solid var(--bdr);
+  border-radius: 8px;
+  padding: .8rem;
+  background: var(--bg);
+}
+.normalizador-pending-context p {
+  margin: 0 0 .35rem;
+  color: var(--mut);
+  font-size: .72rem;
+  text-transform: uppercase;
+  letter-spacing: 0;
+}
+.normalizador-pending-context strong {
+  display: block;
+  font-size: .9rem;
+  margin-bottom: .25rem;
+}
+.normalizador-pending-context span {
+  color: var(--mut);
+  font-size: .78rem;
+}
+.normalizador-pending-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: .75rem;
+}
+.normalizador-pending-form label {
+  display: flex;
+  flex-direction: column;
+  gap: .3rem;
+  color: var(--mut);
+  font-size: .76rem;
+}
+.normalizador-pending-form input,
+.normalizador-pending-form select,
+.normalizador-pending-form textarea {
+  width: 100%;
+  border: 1px solid var(--bdr);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  padding: .55rem .65rem;
+  font: inherit;
+  outline: none;
+}
+.normalizador-pending-form input:focus,
+.normalizador-pending-form select:focus,
+.normalizador-pending-form textarea:focus {
+  border-color: var(--accent);
+}
+.normalizador-pending-full,
+.normalizador-pending-check {
+  grid-column: 1 / -1;
+}
+.normalizador-pending-check {
+  flex-direction: row !important;
+  align-items: center;
+}
+.normalizador-pending-check input {
+  width: auto;
+}
+.normalizador-pending-actions {
+  display: flex;
+  gap: .5rem;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  padding: 1rem;
+  border-top: 1px solid var(--bdr);
+  background: var(--bg);
+}
 
 @media (max-width: 960px) {
   .analise-produto-filtros {
@@ -2330,6 +2438,9 @@ input[type="checkbox"]:hover {
     grid-template-columns: 1fr;
   }
   .normalizador-pendencias-kpis {
+    grid-template-columns: 1fr;
+  }
+  .normalizador-pending-form {
     grid-template-columns: 1fr;
   }
 }
