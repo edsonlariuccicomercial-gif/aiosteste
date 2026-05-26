@@ -2922,7 +2922,23 @@ async function enviarTiny(contratoId) {
           }
         } catch(e) {}
         // Re-render silencioso se houve dados novos do Supabase
-        if (anyUpdated) { loadData(); loadUsuarios(); renderAll(); gdpLog("[GDP] Re-render com dados Supabase concluído"); }
+        if (anyUpdated) {
+          loadData(); loadUsuarios();
+          // Story 4.83: Auto-fix NFs with wrong status AFTER Supabase data is loaded
+          var _nfFixed = 0;
+          notasFiscais.forEach(function(nf) {
+            var cStat = String((nf.integracoes && nf.integracoes.sefaz && nf.integracoes.sefaz.cStat) || '');
+            if (nf.status !== 'autorizada' && (cStat === '100' || cStat === '150' || cStat === '539')) {
+              nf.status = 'autorizada';
+              if (nf.sefaz) nf.sefaz.status = 'autorizada';
+              _nfFixed++;
+              gdpLog('[GDP] Auto-fix NF ' + (nf.numero || nf.id) + ': cStat=' + cStat + ' → autorizada');
+            }
+          });
+          if (_nfFixed > 0) saveNotasFiscais();
+          renderAll();
+          gdpLog("[GDP] Re-render com dados Supabase concluído" + (_nfFixed > 0 ? " (" + _nfFixed + " NFs corrigidas)" : ""));
+        }
       } catch(e) {
         gdpWarn("[GDP] Supabase-First falhou, fallback localStorage:", e);
       }
