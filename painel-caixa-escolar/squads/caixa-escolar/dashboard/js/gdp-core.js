@@ -1130,6 +1130,8 @@ function loadData() {
   console.timeEnd('[GDP] loadData:migrations');
 }
 function saveContratos() {
+  _contratoByIdCache = null; // invalidate lookup cache
+  _enrichedContratos.clear(); // allow re-enrichment
   contratos = applyDeletedContractsFilter(contratos).map(sanitizeContratoLegacyData);
   saveWrappedArray(CONTRACTS_KEY, contratos);
 }
@@ -1458,8 +1460,12 @@ function syncContratoItemToPedidos(contratoId, itemAtualizado) {
   if (touched) savePedidos();
 }
 
+// Story 4.83: cache guard — process each contrato only once per session
+var _enrichedContratos = new Set();
 function ensureContratoItensMetadata(contrato) {
   if (!contrato?.itens) return;
+  if (_enrichedContratos.has(contrato.id)) return; // already processed
+  _enrichedContratos.add(contrato.id);
   let touched = false;
   contrato.itens.forEach((item, idx) => {
     const before = `${item.ncm || ""}|${item.sku || ""}|${item.unidade || ""}`;
@@ -1473,8 +1479,17 @@ function ensureContratoItensMetadata(contrato) {
   if (touched) saveContratos();
 }
 
+// Story 4.83: O(1) contrato lookup cache (rebuilt on save)
+var _contratoByIdCache = null;
+function _getContratoById(id) {
+  if (!_contratoByIdCache) {
+    _contratoByIdCache = {};
+    contratos.forEach(function(c) { if (c.id) _contratoByIdCache[c.id] = c; });
+  }
+  return _contratoByIdCache[id] || null;
+}
 function getContratoItemForPedidoItem(contratoId, itemPedido) {
-  const contrato = contratos.find((item) => item.id === contratoId);
+  const contrato = _getContratoById(contratoId);
   if (!contrato || !itemPedido) return null;
   ensureContratoItensMetadata(contrato);
   return contrato.itens.find((item) =>
@@ -1521,7 +1536,7 @@ function buildClienteFiscalSnapshot(cliente, fallbackNome = "") {
 }
 
 function getClienteFiscalSnapshotDoContrato(contratoId) {
-  const contrato = contratos.find((item) => item.id === contratoId);
+  const contrato = _getContratoById(contratoId);
   if (!contrato) return null;
   const principal = getClientePrincipalDoContrato(contratoId);
   if (principal) {
