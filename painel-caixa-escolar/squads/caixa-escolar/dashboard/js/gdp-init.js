@@ -1409,7 +1409,16 @@ async function consultarNotasEntradaApi() {
   // Consulta direta via caixa-proxy → SEFAZ DistribuicaoDFe
   const PROXY = "/api/caixa-proxy";
   const nsuKey = "radar.sefaz.ultNSU";
+  const cooldownKey = "radar.sefaz.cooldownUntil";
   const ultNSU = localStorage.getItem(nsuKey) || "0";
+
+  // Story 4.83: Respeitar cooldown da SEFAZ (cStat 656 = aguardar 1h)
+  const cooldownUntil = Number(localStorage.getItem(cooldownKey) || "0");
+  if (cooldownUntil > Date.now()) {
+    const minRestantes = Math.ceil((cooldownUntil - Date.now()) / 60000);
+    showToast("SEFAZ em cooldown — aguarde " + minRestantes + " minuto(s) para nova consulta.", 5000);
+    return;
+  }
 
   try {
     let allDocs = [];
@@ -1435,7 +1444,9 @@ async function consultarNotasEntradaApi() {
       }
 
       if (data.cStat === "656") {
-        showToast("SEFAZ: rate limit ativo. Tente novamente em 1 hora.", 4000);
+        // Gravar cooldown de 1h para não tentar de novo
+        localStorage.setItem(cooldownKey, String(Date.now() + 3600000));
+        showToast("SEFAZ: consumo indevido (cStat 656). Cooldown de 1h ativado. Tente novamente depois.", 6000);
         return;
       }
 
@@ -1449,7 +1460,11 @@ async function consultarNotasEntradaApi() {
       maxNSU = data.maxNSU || 0;
       currentNSU = data.ultNSU || currentNSU;
 
-      if (currentNSU >= maxNSU || docs.length === 0 || tentativas > 10) break;
+      // Parar se não há mais documentos ou atingiu o máximo
+      if (currentNSU >= maxNSU || docs.length === 0 || tentativas > 5) break;
+
+      // Aguardar 2s entre requisições para evitar rate limit
+      await new Promise(r => setTimeout(r, 2000));
     } while (true);
 
     // Salvar NSU pra próxima consulta
