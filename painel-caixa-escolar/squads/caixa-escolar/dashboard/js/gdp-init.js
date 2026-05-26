@@ -2906,8 +2906,8 @@ async function enviarTiny(contratoId) {
           userId: getSyncUserId()
         });
       }
-      // Push local → cloud (backup) — after download completes
-      syncToCloud().catch(() => {});
+      // Story 4.80: NÃO fazer push para cloud no boot — só quando usuário altera dados
+      // syncToCloud() removido do boot (era 20+ requests bloqueantes de ~1s cada)
     }).catch(e => {
       gdpWarn("[GDP] Restauracao do cloud falhou:", e);
       setGdpSyncState({

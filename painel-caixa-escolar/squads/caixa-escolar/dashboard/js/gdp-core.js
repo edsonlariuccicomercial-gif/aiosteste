@@ -1108,12 +1108,15 @@ function loadData() {
   loadGdpDemandas();
   loadGdpEstoqueSimples();
   loadGdpListaCompras();
-  // Story 4.80: save sanitizado em background (não bloquear boot)
+  // Story 4.80: save sanitizado em background — só localStorage, sem cloud (evita 20+ requests no boot)
   setTimeout(function() {
-    try { saveWrappedArray(CONTRACTS_KEY, contratos); } catch(_) {}
-    try { saveWrappedArray(ORDERS_KEY, pedidos); } catch(_) {}
-    try { saveWrappedArray(PAYABLES_KEY, contasPagar); } catch(_) {}
-    try { saveWrappedArray(RECEIVABLES_KEY, contasReceber); } catch(_) {}
+    var _saveLocal = function(key, items) {
+      localStorage.setItem(key, JSON.stringify({ _v: 1, updatedAt: new Date().toISOString(), items: items }));
+    };
+    try { _saveLocal(CONTRACTS_KEY, contratos); } catch(_) {}
+    try { _saveLocal(ORDERS_KEY, pedidos); } catch(_) {}
+    try { _saveLocal(PAYABLES_KEY, contasPagar); } catch(_) {}
+    try { _saveLocal(RECEIVABLES_KEY, contasReceber); } catch(_) {}
   }, 3000);
 }
 function saveContratos() {
