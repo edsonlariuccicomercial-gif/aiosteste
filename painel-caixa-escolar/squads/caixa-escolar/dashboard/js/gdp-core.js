@@ -727,7 +727,6 @@ const _LS_TO_TABLE = {
 function saveWrappedArray(key, items) {
   const wrapped = { _v: 1, updatedAt: new Date().toISOString(), items };
   localStorage.setItem(key, JSON.stringify(wrapped));
-  if (window.__GDP_BOOTING) return;
   // Gravar no Supabase tabela real (fonte primária)
   const table = _LS_TO_TABLE[key];
   if (table && window.gdpApi && window.gdpApi[table]) {

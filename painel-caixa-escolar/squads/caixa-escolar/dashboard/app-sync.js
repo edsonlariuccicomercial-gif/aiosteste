@@ -166,13 +166,6 @@ function _quickHash(str) {
   return h;
 }
 
-function primeSyncHashes() {
-  SYNC_KEYS.forEach(key => {
-    const raw = localStorage.getItem(key);
-    if (raw) _syncHashes[key] = _quickHash(raw);
-  });
-}
-
 // Max payload per key (500KB) — larger keys already have dedicated Supabase tables
 const SYNC_MAX_BYTES = 500 * 1024;
 
@@ -318,4 +311,3 @@ document.addEventListener('visibilitychange', () => {
 
 // Export for use by other modules
 window._gdpSync = { startPolling, stopPolling, pollForChanges, getSyncStatus: () => _pollStatus };
-window.primeSyncHashes = primeSyncHashes;
