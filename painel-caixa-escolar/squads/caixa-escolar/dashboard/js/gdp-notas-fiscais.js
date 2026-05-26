@@ -108,27 +108,41 @@ function ensurePedidoFiscalData(pedido) {
   if (!pedido.cliente) pedido.cliente = {};
   const clienteContrato = pedido.contratoId ? getClientePrincipalDoContrato(pedido.contratoId) : null;
   const snapshotContrato = pedido.contratoId ? getClienteFiscalSnapshotDoContrato(pedido.contratoId) : null;
+  // Story 4.81: Fallback — buscar escola em usuarios por nome ou CNPJ (pedidos do portal)
+  let clienteUsuario = null;
+  if (!clienteContrato && typeof usuarios !== 'undefined') {
+    const nomeBusca = (pedido.cliente?.nome || pedido.escola || '').toLowerCase().trim();
+    const cnpjBusca = (pedido.cliente?.cnpj || '').replace(/\D/g, '');
+    if (cnpjBusca.length >= 11) {
+      clienteUsuario = usuarios.find(u => (u.cnpj || '').replace(/\D/g, '') === cnpjBusca);
+    }
+    if (!clienteUsuario && nomeBusca) {
+      clienteUsuario = usuarios.find(u => (u.nome || '').toLowerCase().trim() === nomeBusca);
+    }
+  }
   const c = pedido.cliente;
-  c.id = clienteContrato?.id || snapshotContrato?.id || c.id || "";
-  c.nome = clienteContrato?.nome || snapshotContrato?.nome || c.nome || pedido.escola || "";
-  c.cnpj = clienteContrato?.cnpj || snapshotContrato?.cnpj || c.cnpj || "";
-  c.ie = clienteContrato?.ie || snapshotContrato?.ie || c.ie || "ISENTO";
-  c.email = clienteContrato?.email || snapshotContrato?.email || c.email || "";
-  c.telefone = clienteContrato?.telefone || snapshotContrato?.telefone || c.telefone || "";
+  c.id = clienteContrato?.id || clienteUsuario?.id || snapshotContrato?.id || c.id || "";
+  c.nome = clienteContrato?.nome || clienteUsuario?.nome || snapshotContrato?.nome || c.nome || pedido.escola || "";
+  c.cnpj = clienteContrato?.cnpj || clienteUsuario?.cnpj || snapshotContrato?.cnpj || c.cnpj || "";
+  c.ie = clienteContrato?.ie || clienteUsuario?.ie || snapshotContrato?.ie || c.ie || "ISENTO";
+  c.email = clienteContrato?.email || clienteUsuario?.email || snapshotContrato?.email || c.email || "";
+  c.telefone = clienteContrato?.telefone || clienteUsuario?.telefone || snapshotContrato?.telefone || c.telefone || "";
+  c.responsavel = clienteContrato?.responsavel || clienteUsuario?.responsavel || clienteUsuario?.contato || snapshotContrato?.responsavel || c.responsavel || "";
   // Extrair endereço: pode estar em campos diretos OU dentro de endereco{}
   const _s = (v) => (typeof v === 'string' && v) ? v : "";
   const _addr = (obj) => (obj && typeof obj.endereco === 'object' && obj.endereco) || {};
   const ccAddr = _addr(clienteContrato);
+  const cuAddr = _addr(clienteUsuario);
   const snAddr = _addr(snapshotContrato);
   const cAddr = _addr(c);
-  c.logradouro = _s(clienteContrato?.logradouro) || _s(ccAddr.logradouro) || _s(snapshotContrato?.logradouro) || _s(snAddr.logradouro) || _s(c.logradouro) || _s(cAddr.logradouro) || "";
-  c.numero = _s(clienteContrato?.numero) || _s(ccAddr.numero) || _s(snapshotContrato?.numero) || _s(snAddr.numero) || _s(c.numero) || _s(cAddr.numero) || "";
-  c.complemento = _s(clienteContrato?.complemento) || _s(ccAddr.complemento) || _s(snapshotContrato?.complemento) || _s(snAddr.complemento) || _s(c.complemento) || _s(cAddr.complemento) || "";
-  c.bairro = _s(clienteContrato?.bairro) || _s(ccAddr.bairro) || _s(snapshotContrato?.bairro) || _s(snAddr.bairro) || _s(c.bairro) || _s(cAddr.bairro) || "";
-  c.cep = _s(clienteContrato?.cep) || _s(ccAddr.cep) || _s(snapshotContrato?.cep) || _s(snAddr.cep) || _s(c.cep) || _s(cAddr.cep) || "";
-  c.cidade = _s(clienteContrato?.municipio) || _s(ccAddr.cidade) || _s(snapshotContrato?.cidade) || _s(snAddr.cidade) || _s(c.cidade) || _s(cAddr.cidade) || "";
-  c.uf = clienteContrato?.uf || snapshotContrato?.uf || c.uf || "MG";
-  c.indicador_contribuinte = clienteContrato?.indicador_contribuinte || snapshotContrato?.indicador_contribuinte || c.indicador_contribuinte || "9";
+  c.logradouro = _s(clienteContrato?.logradouro) || _s(ccAddr.logradouro) || _s(clienteUsuario?.logradouro) || _s(cuAddr.logradouro) || _s(snapshotContrato?.logradouro) || _s(snAddr.logradouro) || _s(c.logradouro) || _s(cAddr.logradouro) || "";
+  c.numero = _s(clienteContrato?.numero) || _s(ccAddr.numero) || _s(clienteUsuario?.numero) || _s(cuAddr.numero) || _s(snapshotContrato?.numero) || _s(snAddr.numero) || _s(c.numero) || _s(cAddr.numero) || "";
+  c.complemento = _s(clienteContrato?.complemento) || _s(ccAddr.complemento) || _s(clienteUsuario?.complemento) || _s(cuAddr.complemento) || _s(snapshotContrato?.complemento) || _s(snAddr.complemento) || _s(c.complemento) || _s(cAddr.complemento) || "";
+  c.bairro = _s(clienteContrato?.bairro) || _s(ccAddr.bairro) || _s(clienteUsuario?.bairro) || _s(cuAddr.bairro) || _s(snapshotContrato?.bairro) || _s(snAddr.bairro) || _s(c.bairro) || _s(cAddr.bairro) || "";
+  c.cep = _s(clienteContrato?.cep) || _s(ccAddr.cep) || _s(clienteUsuario?.cep) || _s(cuAddr.cep) || _s(snapshotContrato?.cep) || _s(snAddr.cep) || _s(c.cep) || _s(cAddr.cep) || "";
+  c.cidade = _s(clienteContrato?.municipio) || _s(ccAddr.cidade) || _s(clienteUsuario?.cidade) || _s(clienteUsuario?.municipio) || _s(cuAddr.cidade) || _s(snapshotContrato?.cidade) || _s(snAddr.cidade) || _s(c.cidade) || _s(cAddr.cidade) || "";
+  c.uf = clienteContrato?.uf || clienteUsuario?.uf || snapshotContrato?.uf || c.uf || "MG";
+  c.indicador_contribuinte = clienteContrato?.indicador_contribuinte || clienteUsuario?.indicador_contribuinte || snapshotContrato?.indicador_contribuinte || c.indicador_contribuinte || "9";
   pedido.itens = (pedido.itens || []).map((item, idx) => {
     const baseItem = {
       ...item,
