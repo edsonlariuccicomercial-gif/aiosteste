@@ -2815,43 +2815,30 @@ async function enviarTiny(contratoId) {
   renderAll();
   console.timeEnd('[GDP] renderAll');
 
-  // Story 4.83: Defer sanitize — build O(1) lookup caches first, then sanitize is fast
+  // Story 4.83: Defer sanitize — build O(1) lookup caches, sanitize, persist results
   setTimeout(function() {
     console.time('[GDP] deferred-sanitize');
-    // Pre-build lookup maps to eliminate O(n²) .find() calls
     try { if (typeof loadBancoProdutos === 'function') loadBancoProdutos(); } catch(_) {}
-    // Cache contrato by ID for getContratoItemForPedidoItem
-    var _contratoById = {};
-    contratos.forEach(function(c) { if (c.id) _contratoById[c.id] = c; });
-    // Cache usuarios by id, nome, cnpj for ensurePedidoFiscalData
-    var _userById = {}, _userByNome = {}, _userByCnpj = {};
-    (typeof usuarios !== 'undefined' ? usuarios : []).forEach(function(u) {
-      if (u.id) _userById[u.id] = u;
-      if (u.nome) _userByNome[u.nome.toLowerCase().trim()] = u;
-      if (u.cnpj) _userByCnpj[u.cnpj.replace(/\D/g, '')] = u;
-    });
-    // Patch lookup functions to use cache during sanitize
+    // Patch lookup to use memoization during sanitize
     var _origGetClientesVinculados = (typeof getClientesVinculadosAoContrato === 'function') ? getClientesVinculadosAoContrato : null;
     if (_origGetClientesVinculados) {
       window._fastClienteCache = {};
       var origFn = getClientesVinculadosAoContrato;
-      getClientesVinculadosAoContrato = function(contratoId) {
-        if (window._fastClienteCache[contratoId] !== undefined) return window._fastClienteCache[contratoId];
-        var result = origFn(contratoId);
-        window._fastClienteCache[contratoId] = result;
-        return result;
+      getClientesVinculadosAoContrato = function(cid) {
+        if (window._fastClienteCache[cid] !== undefined) return window._fastClienteCache[cid];
+        var r = origFn(cid); window._fastClienteCache[cid] = r; return r;
       };
     }
-    // Sanitize contratos (light — just strips legacy fields)
     try { contratos = contratos.map(function(item) { return sanitizeContratoLegacyData(item); }); } catch(_) {}
-    // Sanitize pedidos (heavy — ensurePedidoFiscalData with lookups, now cached)
     try { pedidos = pedidos.map(function(item) { return sanitizePedidoLegacyData(item); }); } catch(_) {}
-    // Restore original function
     if (_origGetClientesVinculados) getClientesVinculadosAoContrato = _origGetClientesVinculados;
     delete window._fastClienteCache;
     console.timeEnd('[GDP] deferred-sanitize');
+    // Persist sanitized data so next boot loads clean data (no re-sanitize needed)
+    try { localStorage.setItem('gdp.contratos.v1', JSON.stringify({ _v: 1, updatedAt: new Date().toISOString(), items: contratos })); } catch(_) {}
+    try { localStorage.setItem('gdp.pedidos.v1', JSON.stringify({ _v: 1, updatedAt: new Date().toISOString(), items: pedidos })); } catch(_) {}
     renderAll();
-    gdpLog('[GDP] Deferred sanitize complete — c:' + contratos.length + ' p:' + pedidos.length);
+    gdpLog('[GDP] Sanitize + persist complete — next boot will be instant');
   }, 200);
 
   // Story 4.83: liberar cloud sync 3s após boot (tabelas Supabase carregam em ~1-2s)
