@@ -2823,7 +2823,8 @@ async function enviarTiny(contratoId) {
   // Cloud sync em background — atualiza se houver dados mais recentes
   try {
     const restored = await syncFromCloud();
-    if (restored?.restored) {
+    const restoredNotasEntrada = await restoreEntryInvoicesFromFallbackIfEmpty();
+    if (restored?.restored || restoredNotasEntrada) {
       // Cloud trouxe dados novos — recarregar e re-renderizar
       loadData();
       loadUsuarios();
@@ -3933,4 +3934,4 @@ function _gerarHtmlNf(nf) {
   }
   html += `</body></html>`;
   return html;
-}
+}

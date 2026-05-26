@@ -265,6 +265,30 @@ async function cloudLoadAll() {
   return null;
 }
 
+async function restoreEntryInvoicesFromFallbackIfEmpty() {
+  const localArr = unwrapData(JSON.parse(localStorage.getItem(ENTRY_INVOICES_KEY) || "[]"));
+  if (localArr.length > 0) return false;
+  try {
+    const headers = { "apikey": SUPABASE_KEY, "Authorization": "Bearer " + SUPABASE_KEY };
+    const resp = await fetch(
+      `${SUPABASE_URL}/rest/v1/sync_data?user_id=eq.${encodeURIComponent(GDP_SYNC_FALLBACK_USER)}&key=eq.${encodeURIComponent(ENTRY_INVOICES_KEY)}&select=key,data,updated_at&limit=1`,
+      { headers }
+    );
+    if (!resp.ok) return false;
+    const rows = await resp.json();
+    const incoming = rows?.[0]?.data;
+    const incomingArr = unwrapData(incoming);
+    if (incomingArr.length === 0) return false;
+    localStorage.setItem(ENTRY_INVOICES_KEY, JSON.stringify(incoming));
+    persistResolvedGdpSyncUser(GDP_SYNC_FALLBACK_USER);
+    gdpLog("[GDP] Notas de Entrada restauradas do snapshot principal:", incomingArr.length);
+    return true;
+  } catch (e) {
+    gdpWarn("[GDP] Falha restaurando Notas de Entrada:", e);
+    return false;
+  }
+}
+
 function getDataTimestamp(data, fallback = "") {
   const source = data?.updatedAt || data?.updated_at || fallback || "";
   if (!source) return 0;
