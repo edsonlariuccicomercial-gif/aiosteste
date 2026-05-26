@@ -2833,6 +2833,18 @@ async function enviarTiny(contratoId) {
     try { pedidos = pedidos.map(function(item) { return sanitizePedidoLegacyData(item); }); } catch(_) {}
     if (_origGetClientesVinculados) getClientesVinculadosAoContrato = _origGetClientesVinculados;
     delete window._fastClienteCache;
+    // Story 4.83: Auto-fix notas with wrong status (cStat 100/150=autorizada, 539=duplicidade já autorizada)
+    var _nfFixed = 0;
+    notasFiscais.forEach(function(nf) {
+      var cStat = String((nf.integracoes && nf.integracoes.sefaz && nf.integracoes.sefaz.cStat) || '');
+      if (nf.status !== 'autorizada' && (cStat === '100' || cStat === '150' || cStat === '539')) {
+        nf.status = 'autorizada';
+        if (nf.sefaz) nf.sefaz.status = 'autorizada';
+        _nfFixed++;
+        gdpLog('[GDP] Auto-fix NF ' + (nf.numero || nf.id) + ': cStat=' + cStat + ' → autorizada');
+      }
+    });
+    if (_nfFixed > 0) saveNotasFiscais();
     console.timeEnd('[GDP] deferred-sanitize');
     // Persist sanitized data so next boot loads clean data (no re-sanitize needed)
     try { localStorage.setItem('gdp.contratos.v1', JSON.stringify({ _v: 1, updatedAt: new Date().toISOString(), items: contratos })); } catch(_) {}

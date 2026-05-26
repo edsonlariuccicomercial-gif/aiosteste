@@ -1428,7 +1428,7 @@ function getContaReceberOperationalBank(item) {
 
 function normalizeNotaFiscalStatus(status) {
   const normalized = String(status || "").trim().toLowerCase();
-  if (!normalized || normalized === "rascunho" || normalized === "pendente_autorizacao") return "pendente";
+  if (!normalized || normalized === "rascunho" || normalized === "rascunho_nf_real" || normalized === "pendente_autorizacao") return "pendente";
   // Story 4.83: "transmitida" = enviada com sucesso para SEFAZ → vai para Emitidas (não é mais pendente)
   // "rejeitada" = SEFAZ rejeitou → pendente (precisa corrigir e reenviar)
   if (normalized === "rejeitada") return "pendente";

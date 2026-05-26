@@ -1244,12 +1244,17 @@ async function transmitirHomologacaoNota(notaId) {
     // Story 4.57 AC-2: preservar preview (emitente/destinatario) após transmissão
     if (result.preview && !nf.sefaz.preview) nf.sefaz.preview = result.preview;
     if (result.preview) nf.sefaz.preview = { ...(nf.sefaz.preview || {}), ...result.preview };
-    nf.sefaz.status = result.parsed?.autorizado ? "autorizada" : (result.parsed?.cStat ? "rejeitada" : "transmitida");
+    // Story 4.83: cStat 100/150 = autorizada, 539 (duplicidade) = já autorizada na SEFAZ
+    var _cStat = String(result.parsed?.cStat || "");
+    var _isAutorizado = result.parsed?.autorizado || _cStat === "100" || _cStat === "150";
+    var _isDuplicidade = _cStat === "539"; // NF já existe autorizada na SEFAZ
+    var _sefazStatus = _isAutorizado || _isDuplicidade ? "autorizada" : (_cStat ? "rejeitada" : "transmitida");
+    nf.sefaz.status = _sefazStatus;
     nf.sefaz.protocolo = result.parsed?.prot || nf.sefaz?.protocolo || "";
     nf.sefaz.chaveAcesso = result.parsed?.chNFe || nf.sefaz?.chaveAcesso || "";
     nf.numero = nf.numero || result.preview?.identificacao?.numero || nf.numero;
     nf.serie = nf.serie || result.preview?.identificacao?.serie || nf.serie || "1";
-    nf.status = result.parsed?.autorizado ? "autorizada" : (result.parsed?.cStat ? "rejeitada" : "transmitida");
+    nf.status = _sefazStatus;
     nf.audit = {
       ...(nf.audit || {}),
       updatedAt: new Date().toISOString(),
