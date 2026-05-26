@@ -1,0 +1,174 @@
+# ═══════════════════════════════════════════════════════════════
+# WORKFLOW: GEO Audit
+# Version: 1.0.0
+# Purpose: Auditar visibilidade GEO/SEO de um site
+# ═══════════════════════════════════════════════════════════════
+
+workflow-id: wf-geo-audit
+name: GEO Audit
+version: 1.0.0
+estimated-time: 10-20 minutes
+complexity: medium
+orchestrator: "@geo-seo-chief"
+
+
+inputs:
+  - name: url
+    type: string
+    required: true
+    description: "URL do site a auditar"
+  - name: mode
+    type: string
+    required: false
+    default: "full"
+    description: "Modo de auditoria"
+  - name: brand_name
+    type: string
+    required: false
+    description: "Nome da marca (auto-detectado se não fornecido)"
+
+# ═══════════════════════════════════════════════════════════════
+# PHASES
+# ═══════════════════════════════════════════════════════════════
+
+phases:
+
+  - id: CRAWL
+    name: "Crawl & Detect"
+    agent: geo-seo-chief
+    description: |
+      Recolher dados do site para alimentar os módulos de auditoria.
+    steps:
+      - "1. Fetch homepage com WebFetch — extrair HTML, meta, headings, schema, links, content"
+      - "2. Fetch robots.txt — verificar AI bot access, crawl-delay, sitemap reference"
+      - "3. Fetch sitemap.xml — contar páginas, categorias, estrutura"
+      - "4. Fetch /llms.txt — verificar existência"
+      - "5. Detectar CMS: Shopify (Shopify.theme), WordPress (wp-content), custom"
+      - "6. Se e-commerce: fetch 1 página de produto para verificar Product schema"
+      - "7. WebSearch brand name — verificar presença externa, reviews, menções"
+    outputs:
+      - homepage_data: "HTML + meta + headings + schema + links"
+      - robots_data: "AI bot rules + crawl-delay + sitemap URL"
+      - sitemap_data: "Page count + categories + structure"
+      - llms_txt: "exists | not_found"
+      - cms_type: "shopify | wordpress | woocommerce | custom"
+      - is_ecommerce: "boolean"
+      - product_page_data: "schema + price + availability (if ecommerce)"
+      - external_presence: "reviews + mentions + ratings"
+    parallel: true
+    checkpoint:
+      criteria:
+        - "Homepage fetched successfully"
+        - "robots.txt data collected"
+        - "CMS type identified"
+
+  - id: PARALLEL_AUDIT
+    name: "Parallel Audit Modules"
+    description: |
+      5 módulos correm em paralelo, cada um com o seu framework.
+    agents:
+      - id: entity-identity
+        agent: jason-barnard
+        input: "homepage_data + brand_name + external_presence"
+        output: "Entity Identity Score (0-100) + issues[]"
+        checks:
+          - "Entity Home identification"
+          - "Organization schema completeness"
+          - "Knowledge Graph presence"
+          - "Corroboration Threshold (≥2-3 sources)"
+          - "Brand SERP analysis"
+          - "sameAs links"
+
+      - id: entity-schema
+        agent: dixon-jones
+        input: "homepage_data + product_page_data + sitemap_data"
+        output: "Entity & Schema Score (0-100) + issues[] + suggested_jsonld[]"
+        checks:
+          - "Schema types present vs missing"
+          - "Product/Offer schema (if ecommerce)"
+          - "FAQPage, HowTo, BreadcrumbList"
+          - "Review/AggregateRating"
+          - "LocalBusiness (if physical stores)"
+          - "JSON-LD validation"
+
+      - id: llm-readability
+        agent: olaf-kopp
+        input: "homepage_data + robots_data + llms_txt"
+        output: "LLM Readability Score (0-100) + issues[]"
+        checks:
+          - "Chunk quality (self-contained sections)"
+          - "Fact density per 200 words"
+          - "Content structure (headers, lists, tables)"
+          - "Information hierarchy (answer-first)"
+          - "AI crawler access (robots.txt + llms.txt)"
+
+      - id: technical-relevance
+        agent: mike-king
+        input: "homepage_data + sitemap_data + cms_type"
+        output: "Technical Relevance Score (0-100) + issues[]"
+        checks:
+          - "Page count and content volume"
+          - "H1 uniqueness"
+          - "Meta descriptions presence"
+          - "Image alt text quality"
+          - "Internal linking structure"
+          - "Content freshness (last modified dates)"
+          - "Canonical URLs"
+
+      - id: audience-strategy
+        agent: rand-fishkin
+        input: "brand_name + external_presence"
+        output: "Audience Presence Score (0-100) + issues[]"
+        checks:
+          - "Brand mentions across platforms"
+          - "Presence in industry directories/lists"
+          - "Social media profiles and activity"
+          - "Review platforms (Trustpilot, Google, sector-specific)"
+          - "Competitor AI visibility comparison"
+
+    parallel: true
+    checkpoint:
+      criteria:
+        - "All 5 modules returned scores"
+        - "Each module has ≥1 issue identified"
+
+  - id: AGGREGATE
+    name: "Aggregate & Report"
+    agent: aleyda-solis
+    description: |
+      Agregar scores, identificar positivos, priorizar issues, gerar relatório.
+    steps:
+      - "1. Calcular GEO Score (weighted average dos 6 sub-scores)"
+      - "2. Classificar: Crítico (0-25), Fraco (26-45), Médio (46-65), Bom (66-80), Excelente (81-100)"
+      - "3. Identificar pontos positivos (o que já está bem)"
+      - "4. Ordenar issues por severidade (Critical > High > Medium)"
+      - "6. Se mode=full: gerar análise completa + plano de acção 30/60/90"
+      - "7. Gerar relatório HTML (template v2 Apple-style)"
+      - "8. Guardar em squads/geo-seo/outputs/audit-{mode}-{domain}.html"
+    weights:
+      llm_readability: 0.25
+      entity_identity: 0.20
+      schema_structured_data: 0.15
+      technical_seo: 0.15
+      ai_crawler_access: 0.10
+      audience_presence: 0.15
+
+outputs:
+    sections:
+      - "GEO Score (0-100) com classificação"
+      - "Sub-scores por área (6 métricas)"
+      - "Pontos positivos (o que está bem)"
+      - "Pain Points (problemas sem solução)"
+      - "Impact numbers (3 métricas de impacto)"
+      - "Callout (query IA + resposta)"
+      - "CTA para diagnóstico completo"
+
+  full:
+    file: "squads/geo-seo/outputs/audit-full-{domain}.html"
+    sections:
+      - "Análise detalhada por framework (6 secções)"
+      - "Schema JSON-LD sugerido (copy-paste ready)"
+      - "Plano de acção prioritizado (impacto × esforço)"
+      - "Roadmap 30/60/90 dias"
+      - "Competitive analysis"
+      - "Recomendações técnicas específicas"
