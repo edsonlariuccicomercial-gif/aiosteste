@@ -334,12 +334,16 @@ async function syncFromCloud() {
       incomingData = { _v: 1, updatedAt: row.updated_at || new Date().toISOString(), items: incomingData };
     }
 
-    // Story 4.65: filter out locally-deleted items before writing
-    // (mirror of app-sync.js:159-182 protection — Story 4.64 invariant #6)
+    // Story 4.80: filter out ALL locally-deleted items before writing (prevent zombie restore)
     const _delKeyMap = {
       'gdp.conciliacao.v1': 'gdp.conciliacao.deleted.v1',
       'gdp.extratos.v1': 'gdp.extratos.deleted.v1',
       'gdp.notas-entrada.v1': 'gdp.notas-entrada.deleted.v1',
+      'gdp.notas-fiscais.v1': 'gdp.notas-fiscais.deleted.v1',
+      'gdp.contas-receber.v1': 'gdp.contas-receber.deleted.v1',
+      'gdp.contas-pagar.v1': 'gdp.contas-pagar.deleted.v1',
+      'gdp.pedidos.v1': 'gdp.pedidos.deleted.v1',
+      'gdp.contratos.v1': 'gdp.contratos.deleted.v1',
       'gdp.estoque-intel.fornecedores.v1': 'gdp.estoque-intel.fornecedores.deleted.v1'
     };
     const _delKey = _delKeyMap[row.key];
@@ -393,7 +397,10 @@ async function syncFromCloud() {
       gdpLog("[Sync] Bloqueado: local tem mais itens nested que cloud para", row.key, "localDeep:", localDeepItens, "cloudDeep:", cloudDeepItens);
       // Merge: manter pedidos locais que têm mais itens, aceitar rest do cloud
       if (localArr.length > 0 && cloudArr.length > 0 && localData?.items) {
-        const merged = mergeArraysPreservingItens(localArr, cloudArr);
+        let merged = mergeArraysPreservingItens(localArr, cloudArr);
+        // Story 4.80: re-filter deleted after merge
+        const _mDelKey = _delKeyMap[row.key];
+        if (_mDelKey) { try { const _mDel = new Set(JSON.parse(localStorage.getItem(_mDelKey) || '[]')); if (_mDel.size > 0) merged = merged.filter(it => !_mDel.has(it.id)); } catch(_) {} }
         const mergedData = { ...incomingData, items: merged, updatedAt: new Date().toISOString() };
         localStorage.setItem(row.key, JSON.stringify(mergedData));
         gdpLog("[Sync] Merge concluído para", row.key, "— preservou itens locais mais completos");
