@@ -119,12 +119,7 @@ export default async function handler(req, res) {
         content: Buffer.from(nfe.xml, 'utf-8').toString('base64')
       });
     }
-    if (!nfe?.danfePdf && nfe?.danfeHtml) {
-      attachments.push({
-        filename: `DANFE_${nfe.numero || 'sem-numero'}.html`,
-        content: Buffer.from(nfe.danfeHtml, 'utf-8').toString('base64')
-      });
-    }
+    // Story 4.75: danfeHtml fallback removido — DANFE vai apenas como PDF em anexo
 
     const fromAddr = process.env.EMAIL_FROM || 'GDP Pedidos <onboarding@resend.dev>';
     const subject = `${nfe ? 'NF-e ' + (nfe.numero || '') + ' — ' : ''}${pagamento ? 'Cobranca' : 'Pedido'} ${protocol} — ${schoolName}`;

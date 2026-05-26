@@ -1544,7 +1544,6 @@ async function enviarEmailNotaFiscal(notaId) {
       valor: nf.valor || totalProd,
       chaveAcesso: nf.sefaz?.chaveAcesso || '',
       danfePdf: danfePdfBase64,
-      danfeHtml: gerarDanfeHtmlCompleto(nf),
       emitente: nf.sefaz?.preview?.emitente || {},
       destinatario: nf.sefaz?.preview?.destinatario || nf.cliente || {},
       itensNf: (nf.itens || []).map(i => ({ desc: i.descricao, ncm: i.ncm, cst: i.cst, cfop: i.cfop, un: i.unidade, qtd: i.qtd, vUnit: i.precoUnitario })),
@@ -1592,9 +1591,9 @@ async function enviarEmailNotaFiscal(notaId) {
 }
 
 async function gerarDanfePdfBase64(nf) {
-  // Story 4.59: gerar PDF idêntico ao visualizado no sistema
-  // Usa iframe isolado com documento branco próprio (sem interferência do tema dark)
-  const danfeHtml = gerarDanfeHtmlCompleto(nf);
+  // Story 4.75: gerar PDF idêntico ao "Visualizar DANFE" (abrirDanfeNotaFiscal)
+  // Usa a mesma função gerarDanfeHtmlParaPdf() que produz o HTML completo com CSS dedicado
+  const danfeFullHtml = gerarDanfeHtmlParaPdf(nf);
   if (typeof html2pdf === "undefined") return "";
 
   const iframe = document.createElement("iframe");
@@ -1604,7 +1603,7 @@ async function gerarDanfePdfBase64(nf) {
   try {
     const iDoc = iframe.contentDocument || iframe.contentWindow.document;
     iDoc.open();
-    iDoc.write('<!DOCTYPE html><html><head><meta charset="utf-8"><style>*{margin:0;padding:0;box-sizing:border-box}body{background:#fff;color:#000;font-family:Arial,sans-serif;padding:6mm}</style></head><body>' + danfeHtml + '</body></html>');
+    iDoc.write(danfeFullHtml);
     iDoc.close();
 
     // Aguardar render completo
@@ -1907,12 +1906,10 @@ function salvarDadosNotaFiscal(notaId) {
 }
 
 // Story 2.2 AC-1: DANFE com layout padrão NF-e + Code128 barcode
-function abrirDanfeNotaFiscal(notaId) {
-  const nf = notasFiscais.find((item) => item.id === notaId);
-  if (!nf) return;
-  if (nf.documentos?.danfeUrl) { window.open(nf.documentos.danfeUrl, "_blank"); return; }
-  const win = window.open("", "_blank");
-  if (!win) { showToast("Nao foi possivel abrir o DANFE.", 3500); return; }
+// Story 4.75: HTML DANFE extraído como função reutilizável — usado por gerarDanfePdfBase64() e abrirDanfeNotaFiscal()
+function gerarDanfeHtmlParaPdf(nf, options) {
+  if (!nf) return "";
+  const opts = options || {};
   const emit = nf.sefaz?.preview?.emitente || {};
   const emEnd = emit.endereco || {};
   const dest = nf.sefaz?.preview?.destinatario || {};
@@ -1933,17 +1930,15 @@ function abrirDanfeNotaFiscal(notaId) {
   const numNf = String(nf.numero || "0").padStart(6, "0");
   const numFmt = numNf.replace(/^(\d{3})(\d{3})$/, "$1.$2");
   const destNome = dest.nome || dest.razaoSocial || nf.cliente?.nome || "-";
-  const destEnd = [dEnd.logradouro, dEnd.numero].filter(Boolean).join(", ");
+  const destEndStr = [dEnd.logradouro, dEnd.numero].filter(Boolean).join(", ");
   const destCidade = dEnd.cidade || dEnd.municipio || "";
-  const emEndFull = [emEnd.logradouro, emEnd.numero].filter(Boolean).join(", ");
   const destEmail = dest.email || nf.cliente?.email || "";
-  // Story 14.6: Logomarca from config (dedicated column)
   let logoImg = "";
   try { const cfg = JSON.parse(localStorage.getItem("nexedu.config.notas-fiscais") || "{}"); if (cfg.logomarcaBase64) logoImg = cfg.logomarcaBase64; } catch(_) {}
   const emEndLine1 = [emEnd.logradouro, emEnd.numero].filter(Boolean).join(", ");
   const emEndLine2 = [emEnd.bairro, emEnd.complemento].filter(Boolean).join(", ");
   const emEndLine3 = [emEnd.cidade, emEnd.uf].filter(Boolean).join(" - ") + (emEnd.cep ? " - " + emEnd.cep : "");
-  const reciboTxt = `RECEBEMOS DE ${emit.razaoSocial || "-"} OS PRODUTOS CONSTANTES DA NOTA FISCAL INDICADA AO LADO`;
+  const reciboTxt = "RECEBEMOS DE " + (emit.razaoSocial || "-") + " OS PRODUTOS CONSTANTES DA NOTA FISCAL INDICADA AO LADO";
   const infCplParts = [];
   if (nf.pedidoId) infCplParts.push("Inf. Contribuinte: Pedido GDP " + nf.pedidoId);
   if (destEmail) infCplParts.push("Email do Destinatário: " + destEmail);
@@ -1954,259 +1949,105 @@ function abrirDanfeNotaFiscal(notaId) {
   const impressoEm = "Impresso em " + nowPrint.toLocaleDateString("pt-BR") + " as " + nowPrint.toLocaleTimeString("pt-BR", {hour:"2-digit",minute:"2-digit",second:"2-digit"});
   const rows = (nf.itens || []).map((item, idx) => {
     const vt = Number(item.qtd || 0) * Number(item.precoUnitario || 0);
-    return `<tr>
-      <td class="c">${esc(item.sku || item.codigoBarras || String(idx+1).padStart(3,"0"))}</td>
-      <td class="desc">${esc(item.descricao || "")}</td>
-      <td class="c mono">${esc(item.ncm || "")}</td>
-      <td class="c">${esc(item.cst || "0/102")}</td>
-      <td class="c">${esc(item.cfop || "5102")}</td>
-      <td class="c">${esc(item.unidade || "UN")}</td>
-      <td class="r">${f4(item.qtd)}</td>
-      <td class="r">${f4(item.precoUnitario)}</td>
-      <td class="r">${f2(vt)}</td>
-      <td class="r">0,00</td><td class="r">0,00</td><td class="r">0,00</td><td class="r">0,00</td><td class="r">0,00</td><td class="r">0,00</td>
-    </tr>`;
+    return '<tr><td class="c">' + esc(item.sku || item.codigoBarras || String(idx+1).padStart(3,"0")) + '</td><td class="desc">' + esc(item.descricao || "") + '</td><td class="c mono">' + esc(item.ncm || "") + '</td><td class="c">' + esc(item.cst || "0/102") + '</td><td class="c">' + esc(item.cfop || "5102") + '</td><td class="c">' + esc(item.unidade || "UN") + '</td><td class="r">' + f4(item.qtd) + '</td><td class="r">' + f4(item.precoUnitario) + '</td><td class="r">' + f2(vt) + '</td><td class="r">0,00</td><td class="r">0,00</td><td class="r">0,00</td><td class="r">0,00</td><td class="r">0,00</td><td class="r">0,00</td></tr>';
   }).join("");
-  win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>DANFE NF ${esc(nf.numero || "")}</title>
-<style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:Arial,Helvetica,sans-serif;font-size:7.5pt;color:#000;padding:6mm;max-width:210mm;margin:0 auto}
-.bx{border:1px solid #000}
-.row{display:flex;border-bottom:1px solid #000;page-break-inside:avoid}
-.row:last-child{border-bottom:none}
-.cell{border-right:1px solid #000;padding:3px 5px;flex:1;min-height:24px;overflow:hidden}
-.cell:last-child{border-right:none}
-.cell label{font-size:6pt;color:#000;text-transform:uppercase;display:block;line-height:1.3;margin-bottom:1px}
-.cell .v{font-size:9pt;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.cell .v-lg{font-size:10pt;font-weight:900}
-.cell .v-sm{font-size:8pt;font-weight:700;white-space:nowrap}
-.stit{font-weight:700;font-size:6.5pt;padding:2px 5px;text-transform:uppercase;border-bottom:1px solid #000;background:#eee}
-table.it{width:100%;border-collapse:collapse}
-table.it th{border:1px solid #000;padding:2px 4px;font-size:6pt;text-transform:uppercase;font-weight:700;background:#eee}
-table.it td{border:1px solid #999;padding:2px 4px;font-size:7.5pt;line-height:1.4}
-table.it td:first-child{border-left:1px solid #aaa}
-table.it td.desc{max-width:280px;white-space:normal;word-wrap:break-word;overflow-wrap:break-word}
-.c{text-align:center}.r{text-align:right}.mono{font-family:monospace;font-size:6pt}
-.cancel-stamp{position:absolute;top:40%;left:50%;transform:translate(-50%,-50%) rotate(-30deg);font-size:64pt;color:rgba(220,38,38,.18);font-weight:900;pointer-events:none;z-index:10;letter-spacing:6px}
-.wrap{position:relative}
-/* Recibo */
-.rec{border:1px solid #000;display:flex;margin-bottom:3px}
-.rec-body{flex:3;border-right:1px solid #000;display:flex;flex-direction:column}
-.rec-body .rec-txt{padding:2px 4px;font-size:6pt;line-height:1.3;flex:1}
-.rec-body .rec-flds{display:flex;border-top:1px solid #000}
-.rec-body .rec-flds .rf{flex:1;padding:1px 3px;border-right:1px solid #000}
-.rec-body .rec-flds .rf:last-child{border-right:none}
-.rec-body .rec-flds .rf label{font-size:5pt;text-transform:uppercase}
-.rec-nf{width:130px;text-align:center;padding:4px}
-.rec-nf .nfe{font-size:12pt;font-weight:900}
-.rec-nf .num{font-size:11pt;font-weight:900}
-.rec-nf .ser{font-size:7pt}
-/* Header */
-.hdr{display:flex;border-bottom:1px solid #000}
-.hdr-logo{width:70px;border-right:1px solid #000;display:flex;align-items:center;justify-content:center;padding:3px;min-height:70px}
-.hdr-emit{flex:3;padding:4px 8px;border-right:1px solid #000;display:flex;flex-direction:column;justify-content:center}
-.hdr-emit .nome{font-size:11pt;font-weight:700;white-space:nowrap}
-.hdr-emit .end{font-size:7pt;line-height:1.4;white-space:nowrap}
-.hdr-danfe{width:120px;text-align:center;padding:2px 4px;border-right:1px solid #000}
-.hdr-danfe h1{font-size:16pt;font-weight:900;letter-spacing:1px;margin:0}
-.hdr-danfe .sub{font-size:6pt;line-height:1.2}
-.hdr-danfe .tp-row{font-size:7pt;margin-top:2px}
-.hdr-danfe .tp-box{display:inline-block;border:1px solid #000;padding:0 6px;font-size:10pt;font-weight:900;margin:1px 0}
-.hdr-danfe .nf-num{font-size:10pt;font-weight:900;margin-top:2px}
-.hdr-danfe .nf-ser{font-size:7pt}
-.hdr-danfe .nf-fol{font-size:6pt;font-style:italic}
-.hdr-chave{flex:2;padding:2px 4px;overflow:hidden}
-.hdr-chave .bc{text-align:center;min-height:32px}
-.hdr-chave .lbl{font-size:5pt;text-align:center;text-transform:uppercase;margin-top:1px}
-.hdr-chave .val{font-size:6.5pt;font-weight:700;text-align:center;letter-spacing:.4px;word-break:break-all}
-.hdr-chave .cons{font-size:5.5pt;text-align:center;margin-top:2px}
-@media print{body{padding:0;margin:0}@page{size:A4;margin:6mm}}
-</style></head><body>
-<!-- RECIBO -->
-<div class="rec">
-  <div class="rec-body">
-    <div class="rec-txt">${esc(reciboTxt)}</div>
-    <div class="rec-flds">
-      <div class="rf"><label>DATA DE RECEBIMENTO</label><div style="min-height:12px"></div></div>
-      <div class="rf" style="flex:2"><label>IDENTIFICAÇÃO E ASSINATURA DO RECEBEDOR</label><div style="min-height:12px"></div></div>
-    </div>
-  </div>
-  <div class="rec-nf">
-    <div class="nfe">NF-e</div>
-    <div class="num">N°. ${esc(numFmt)}</div>
-    <div class="ser">Série ${String(nf.serie || "1").padStart(3,"0")}</div>
-  </div>
-</div>
-<div style="border-bottom:1px dashed #000;margin-bottom:3px"></div>
-<!-- DANFE -->
-<div class="wrap">
-${isCancelada ? '<div class="cancel-stamp">CANCELADA</div>' : ''}
-<div class="bx">
-  <div class="hdr">
-    <div class="hdr-logo">${logoImg ? '<img src="' + logoImg + '" style="max-height:65px;max-width:90px" />' : ''}</div>
-    <div class="hdr-emit">
-      <div class="nome">${esc(emit.razaoSocial || "-")}</div>
-      <div class="end">${esc(emEndLine1)}${emEnd.complemento ? ", " + esc(emEnd.complemento) : ""}</div>
-      <div class="end">${esc(emEndLine2)}</div>
-      <div class="end">${esc(emEndLine3)} Fone ${esc(emEnd.telefone || emit.telefone || "")}</div>
-      <div class="end">${esc(emit.email || "")}</div>
-    </div>
-    <div class="hdr-danfe">
-      <h1>DANFE</h1>
-      <div class="sub">Documento Auxiliar da Nota<br>Fiscal Eletrônica</div>
-      <div class="tp-row">0 - ENTRADA</div>
-      <div class="tp-row">1 - SAÍDA <div class="tp-box">1</div></div>
-      <div class="nf-num">N°. ${esc(numFmt)}</div>
-      <div class="nf-ser">Série ${String(nf.serie || "1").padStart(3,"0")}</div>
-      <div class="nf-fol">Folha 1/1</div>
-    </div>
-    <div class="hdr-chave">
-      <div class="bc" id="danfe-barcode"></div>
-      <div class="lbl">CHAVE DE ACESSO</div>
-      <div class="val">${esc(chaveFormatada || "-")}</div>
-      <div class="cons">Consulta de autenticidade no portal nacional da NF-e<br><strong>www.nfe.fazenda.gov.br/portal</strong> ou no site da Sefaz Autorizadora</div>
-    </div>
-  </div>
-  <!-- NAT. OPERAÇÃO + PROTOCOLO -->
-  <div class="row">
-    <div class="cell" style="flex:1"><label>NATUREZA DA OPERAÇÃO</label><div class="v-lg">VENDA DE MERCADORIA</div></div>
-    <div class="cell" style="flex:1"><label>PROTOCOLO DE AUTORIZAÇÃO DE USO</label><div class="v">${esc(protFormatado)}</div></div>
-  </div>
-  <!-- IE EMITENTE -->
-  <div class="row">
-    <div class="cell"><label>INSCRIÇÃO ESTADUAL</label><div class="v-sm">${esc(emit.ie || "")}</div></div>
-    <div class="cell"><label>INSCRIÇÃO MUNICIPAL</label><div class="v-sm"></div></div>
-    <div class="cell"><label>INSCRIÇÃO ESTADUAL DO SUBST. TRIBUT.</label><div class="v-sm"></div></div>
-    <div class="cell"><label>CNPJ / CPF</label><div class="v">${esc(emit.cnpj || "")}</div></div>
-  </div>
-  <!-- DESTINATÁRIO -->
-  <div class="stit">DESTINATÁRIO / REMETENTE</div>
-  <div class="row">
-    <div class="cell" style="flex:3"><label>NOME / RAZÃO SOCIAL</label><div class="v">${esc(destNome)}</div></div>
-    <div class="cell"><label>CNPJ / CPF</label><div class="v-sm">${esc(dest.cnpj || "")}</div></div>
-    <div class="cell"><label>DATA DA EMISSÃO</label><div class="v-sm">${dtParts[0] || "-"}</div></div>
-  </div>
-  <div class="row">
-    <div class="cell" style="flex:3"><label>ENDEREÇO</label><div class="v">${esc(destEnd)}</div></div>
-    <div class="cell"><label>BAIRRO / DISTRITO</label><div class="v-sm">${esc(dEnd.bairro || "")}</div></div>
-    <div class="cell"><label>CEP</label><div class="v-sm">${esc(dEnd.cep || "")}</div></div>
-    <div class="cell"><label>DATA DA SAÍDA/ENTRADA</label><div class="v-sm">${dtParts[0] || "-"}</div></div>
-  </div>
-  <div class="row">
-    <div class="cell" style="flex:2"><label>MUNICÍPIO</label><div class="v">${esc(destCidade)}</div></div>
-    <div class="cell" style="width:30px;flex:none;min-width:30px"><label>UF</label><div class="v-sm">${esc(dEnd.uf || "")}</div></div>
-    <div class="cell"><label>FONE / FAX</label><div class="v-sm">${esc(dest.telefone || "")}</div></div>
-    <div class="cell"><label>INSCRIÇÃO ESTADUAL</label><div class="v-sm">${esc(dest.ie || "")}</div></div>
-    <div class="cell"><label>HORA DA SAÍDA/ENTRADA</label><div class="v-sm">${dtParts[1] || ""}</div></div>
-  </div>
-  <!-- FATURA / DUPLICATA -->
-  <div class="stit">FATURA / DUPLICATA</div>
-  <div class="row">
-    <div class="cell"><label>NÚMERO</label><div class="v-sm"></div></div>
-    <div class="cell"><label>VENCIMENTO</label><div class="v-sm"></div></div>
-    <div class="cell"><label>VALOR</label><div class="v-sm"></div></div>
-    <div class="cell"><label>NÚMERO</label><div class="v-sm"></div></div>
-    <div class="cell"><label>VENCIMENTO</label><div class="v-sm"></div></div>
-    <div class="cell"><label>VALOR</label><div class="v-sm"></div></div>
-  </div>
-  <!-- CÁLCULO DO IMPOSTO -->
-  <div class="stit">CÁLCULO DO IMPOSTO</div>
-  <div class="row">
-    <div class="cell"><label>BASE DE CALC. DO ICMS</label><div class="v-sm">0,00</div></div>
-    <div class="cell"><label>VALOR DO ICMS</label><div class="v-sm">0,00</div></div>
-    <div class="cell"><label>BASE DE CALC. ICMS S.T</label><div class="v-sm">0,00</div></div>
-    <div class="cell"><label>VALOR DO ICMS SUBST</label><div class="v-sm">0,00</div></div>
-    <div class="cell"><label>V. IMP. IMPORTAÇÃO</label><div class="v-sm">0,00</div></div>
-    <div class="cell"><label>V. ICMS UF REMET.</label><div class="v-sm">0,00</div></div>
-    <div class="cell"><label>V. FCP UF DEST.</label><div class="v-sm">0,00</div></div>
-    <div class="cell"><label>V. TOTAL PRODUTOS</label><div class="v">${f2(totalProd)}</div></div>
-  </div>
-  <div class="row">
-    <div class="cell"><label>VALOR DO FRETE</label><div class="v-sm">0,00</div></div>
-    <div class="cell"><label>VALOR DO SEGURO</label><div class="v-sm">0,00</div></div>
-    <div class="cell"><label>DESCONTO</label><div class="v-sm">0,00</div></div>
-    <div class="cell"><label>OUTRAS DESPESAS</label><div class="v-sm">0,00</div></div>
-    <div class="cell"><label>VALOR TOTAL IPI</label><div class="v-sm">0,00</div></div>
-    <div class="cell"><label>V. ICMS UF DEST.</label><div class="v-sm">0,00</div></div>
-    <div class="cell"><label>V. TOT. TRIB.</label><div class="v-sm">0,00</div></div>
-    <div class="cell"><label>V. TOTAL DA NOTA</label><div class="v">${f2(totalNota)}</div></div>
-  </div>
-  <!-- TRANSPORTADOR -->
-  <div class="stit">TRANSPORTADOR / VOLUMES TRANSPORTADOS</div>
-  <div class="row">
-    <div class="cell" style="flex:2"><label>NOME / RAZÃO SOCIAL</label><div class="v-sm"></div></div>
-    <div class="cell"><label>FRETE</label><div class="v-sm">9-Sem Transporte</div></div>
-    <div class="cell"><label>CÓDIGO ANTT</label><div class="v-sm"></div></div>
-    <div class="cell"><label>PLACA DO VEÍCULO</label><div class="v-sm"></div></div>
-    <div class="cell" style="width:24px;flex:none"><label>UF</label><div class="v-sm"></div></div>
-    <div class="cell"><label>CNPJ / CPF</label><div class="v-sm"></div></div>
-  </div>
-  <div class="row">
-    <div class="cell" style="flex:2"><label>ENDEREÇO</label><div class="v-sm"></div></div>
-    <div class="cell"><label>MUNICÍPIO</label><div class="v-sm"></div></div>
-    <div class="cell" style="width:24px;flex:none"><label>UF</label><div class="v-sm"></div></div>
-    <div class="cell"><label>INSCRIÇÃO ESTADUAL</label><div class="v-sm"></div></div>
-  </div>
-  <div class="row">
-    <div class="cell"><label>QUANTIDADE</label><div class="v-sm"></div></div>
-    <div class="cell"><label>ESPÉCIE</label><div class="v-sm"></div></div>
-    <div class="cell"><label>MARCA</label><div class="v-sm"></div></div>
-    <div class="cell"><label>NUMERAÇÃO</label><div class="v-sm"></div></div>
-    <div class="cell"><label>PESO BRUTO</label><div class="v-sm"></div></div>
-    <div class="cell"><label>PESO LÍQUIDO</label><div class="v-sm"></div></div>
-  </div>
-  <!-- PRODUTOS -->
-  <div class="stit">DADOS DOS PRODUTOS / SERVIÇOS</div>
-  <table class="it">
-    <thead><tr>
-      <th>CÓDIGO PRODUTO</th><th style="min-width:120px">DESCRIÇÃO DO PRODUTO / SERVIÇO</th><th>NCM/SH</th><th>O/CSON</th><th>CFOP</th>
-      <th>UN</th><th>QUANT.</th><th>VALOR UNIT.</th><th>VALOR TOTAL</th><th>DESC.</th>
-      <th>B.CALC ICMS</th><th>VALOR ICMS</th><th>VALOR IPI</th><th>ALIQ ICMS</th><th>ALIQ IPI</th>
-    </tr></thead>
-    <tbody>${rows}</tbody>
-  </table>
-  <!-- DADOS ADICIONAIS -->
-  <div class="stit">DADOS ADICIONAIS</div>
-  <div class="row" style="min-height:90px;border-bottom:none">
-    <div class="cell" style="flex:2"><label>INFORMAÇÕES COMPLEMENTARES</label><div style="font-size:6.5pt;padding-top:2px;line-height:1.5">
-      ${isCancelada ? '<strong style="color:red">NF-e CANCELADA</strong> em ' + esc(cancelStamp) + ' — ' + esc(nf.cancelamento?.retornoEvento?.xMotivo || "") + '<br>' : ""}
-      <span style="white-space:pre-line">${esc(infCplTxt)}</span>
-    </div></div>
-    <div class="cell"><label>RESERVADO AO FISCO</label></div>
-  </div>
-</div>
-</div>
-<div style="font-size:6pt;margin-top:3px;color:#333">${esc(impressoEm)}</div>
-<script>
-(function(){
-  const chave = "${chave}";
-  if (!chave || chave.length < 10) return;
-  const canvas = document.createElement("canvas");
-  canvas.height = 40; canvas.width = Math.max(chave.length * 11, 400);
-  const ctx = canvas.getContext("2d");
-  const START_B = 104, STOP = 106;
-  const P = [
-    "11011001100","11001101100","11001100110","10010011000","10010001100","10001001100","10011001000","10011000100","10001100100","11001001000",
-    "11001000100","11000100100","10110011100","10011011100","10011001110","10111001100","10011101100","10011100110","11001110010","11001011100",
-    "11001001110","11011100100","11001110100","11100101100","11100100110","11101100100","11100110100","11100110010","11011011000","11011000110",
-    "11000110110","10100011000","10001011000","10001000110","10110001000","10001101000","10001100010","11010001000","11000101000","11000100010",
-    "10110111000","10110001110","10001101110","10111011000","10111000110","10001110110","11101110110","11010001110","11000101110","11011101000",
-    "11011100010","11011101110","11101011000","11101000110","11100010110","11101101000","11101100010","11100011010","11101111010","11001000010",
-    "11110001010","10100110000","10100001100","10010110000","10010000110","10000101100","10000100110","10110010000","10110000100","10011010000",
-    "10011000010","10000110100","10000110010","11000010010","11001010000","11110111010","11000010100","10001111010","10100111100","10010111100",
-    "10010011110","10111100100","10011110100","10011110010","11110100100","11110010100","11110010010","11011110110","11110110110","21121141211"
-  ];
-  const e=[];e.push(P[START_B]);let cs=START_B;
-  for(let i=0;i<chave.length;i++){const v=chave.charCodeAt(i)-32;e.push(P[v]);cs+=v*(i+1)}
-  e.push(P[cs%103]);e.push(P[STOP]);const b=e.join("");
-  const bw=Math.max(1,Math.floor(canvas.width/b.length));
-  canvas.width=b.length*bw+20;ctx.fillStyle="#fff";ctx.fillRect(0,0,canvas.width,canvas.height);
-  ctx.fillStyle="#000";for(let i=0;i<b.length;i++){if(b[i]==="1")ctx.fillRect(10+i*bw,2,bw,canvas.height-4)}
-  const t=document.getElementById("danfe-barcode");if(t)t.appendChild(canvas);
-  window.print();
-})();
-<\/script>
-</body></html>`);
+  // opts.includeBarcode: se true, inclui script do barcode (para window.open). PDF não precisa.
+  var barcodeScript = "";
+  if (opts.includeBarcode && chave && chave.length >= 10) {
+    barcodeScript = '<script>(function(){var chave="' + chave + '";var canvas=document.createElement("canvas");canvas.height=40;canvas.width=Math.max(chave.length*11,400);var ctx=canvas.getContext("2d");var START_B=104,STOP=106;var P=["11011001100","11001101100","11001100110","10010011000","10010001100","10001001100","10011001000","10011000100","10001100100","11001001000","11001000100","11000100100","10110011100","10011011100","10011001110","10111001100","10011101100","10011100110","11001110010","11001011100","11001001110","11011100100","11001110100","11100101100","11100100110","11101100100","11100110100","11100110010","11011011000","11011000110","11000110110","10100011000","10001011000","10001000110","10110001000","10001101000","10001100010","11010001000","11000101000","11000100010","10110111000","10110001110","10001101110","10111011000","10111000110","10001110110","11101110110","11010001110","11000101110","11011101000","11011100010","11011101110","11101011000","11101000110","11100010110","11101101000","11101100010","11100011010","11101111010","11001000010","11110001010","10100110000","10100001100","10010110000","10010000110","10000101100","10000100110","10110010000","10110000100","10011010000","10011000010","10000110100","10000110010","11000010010","11001010000","11110111010","11000010100","10001111010","10100111100","10010111100","10010011110","10111100100","10011110100","10011110010","11110100100","11110010100","11110010010","11011110110","11110110110","21121141211"];var e=[];e.push(P[START_B]);var cs=START_B;for(var i=0;i<chave.length;i++){var v=chave.charCodeAt(i)-32;e.push(P[v]);cs+=v*(i+1)}e.push(P[cs%103]);e.push(P[STOP]);var b=e.join("");var bw=Math.max(1,Math.floor(canvas.width/b.length));canvas.width=b.length*bw+20;ctx.fillStyle="#fff";ctx.fillRect(0,0,canvas.width,canvas.height);ctx.fillStyle="#000";for(var j=0;j<b.length;j++){if(b[j]==="1")ctx.fillRect(10+j*bw,2,bw,canvas.height-4)}var t=document.getElementById("danfe-barcode");if(t)t.appendChild(canvas);' + (opts.autoPrint ? 'window.print();' : '') + '})()</script>';
+  }
+  return '<!doctype html><html><head><meta charset="utf-8"><title>DANFE NF ' + esc(nf.numero || "") + '</title>' +
+'<style>' +
+'*{margin:0;padding:0;box-sizing:border-box}' +
+'body{font-family:Arial,Helvetica,sans-serif;font-size:7.5pt;color:#000;background:#fff;padding:6mm;max-width:210mm;margin:0 auto}' +
+'.bx{border:1px solid #000}' +
+'.row{display:flex;border-bottom:1px solid #000;page-break-inside:avoid}' +
+'.row:last-child{border-bottom:none}' +
+'.cell{border-right:1px solid #000;padding:3px 5px;flex:1;min-height:24px;overflow:hidden}' +
+'.cell:last-child{border-right:none}' +
+'.cell label{font-size:6pt;color:#000;text-transform:uppercase;display:block;line-height:1.3;margin-bottom:1px}' +
+'.cell .v{font-size:9pt;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
+'.cell .v-lg{font-size:10pt;font-weight:900}' +
+'.cell .v-sm{font-size:8pt;font-weight:700;white-space:nowrap}' +
+'.stit{font-weight:700;font-size:6.5pt;padding:2px 5px;text-transform:uppercase;border-bottom:1px solid #000;background:#eee}' +
+'table.it{width:100%;border-collapse:collapse}' +
+'table.it th{border:1px solid #000;padding:2px 4px;font-size:6pt;text-transform:uppercase;font-weight:700;background:#eee}' +
+'table.it td{border:1px solid #999;padding:2px 4px;font-size:7.5pt;line-height:1.4}' +
+'table.it td:first-child{border-left:1px solid #aaa}' +
+'table.it td.desc{max-width:280px;white-space:normal;word-wrap:break-word;overflow-wrap:break-word}' +
+'.c{text-align:center}.r{text-align:right}.mono{font-family:monospace;font-size:6pt}' +
+'.cancel-stamp{position:absolute;top:40%;left:50%;transform:translate(-50%,-50%) rotate(-30deg);font-size:64pt;color:rgba(220,38,38,.18);font-weight:900;pointer-events:none;z-index:10;letter-spacing:6px}' +
+'.wrap{position:relative}' +
+'.rec{border:1px solid #000;display:flex;margin-bottom:3px}' +
+'.rec-body{flex:3;border-right:1px solid #000;display:flex;flex-direction:column}' +
+'.rec-body .rec-txt{padding:2px 4px;font-size:6pt;line-height:1.3;flex:1}' +
+'.rec-body .rec-flds{display:flex;border-top:1px solid #000}' +
+'.rec-body .rec-flds .rf{flex:1;padding:1px 3px;border-right:1px solid #000}' +
+'.rec-body .rec-flds .rf:last-child{border-right:none}' +
+'.rec-body .rec-flds .rf label{font-size:5pt;text-transform:uppercase}' +
+'.rec-nf{width:130px;text-align:center;padding:4px}' +
+'.rec-nf .nfe{font-size:12pt;font-weight:900}' +
+'.rec-nf .num{font-size:11pt;font-weight:900}' +
+'.rec-nf .ser{font-size:7pt}' +
+'.hdr{display:flex;border-bottom:1px solid #000}' +
+'.hdr-logo{width:70px;border-right:1px solid #000;display:flex;align-items:center;justify-content:center;padding:3px;min-height:70px}' +
+'.hdr-emit{flex:3;padding:4px 8px;border-right:1px solid #000;display:flex;flex-direction:column;justify-content:center}' +
+'.hdr-emit .nome{font-size:11pt;font-weight:700;white-space:nowrap}' +
+'.hdr-emit .end{font-size:7pt;line-height:1.4;white-space:nowrap}' +
+'.hdr-danfe{width:120px;text-align:center;padding:2px 4px;border-right:1px solid #000}' +
+'.hdr-danfe h1{font-size:16pt;font-weight:900;letter-spacing:1px;margin:0}' +
+'.hdr-danfe .sub{font-size:6pt;line-height:1.2}' +
+'.hdr-danfe .tp-row{font-size:7pt;margin-top:2px}' +
+'.hdr-danfe .tp-box{display:inline-block;border:1px solid #000;padding:0 6px;font-size:10pt;font-weight:900;margin:1px 0}' +
+'.hdr-danfe .nf-num{font-size:10pt;font-weight:900;margin-top:2px}' +
+'.hdr-danfe .nf-ser{font-size:7pt}' +
+'.hdr-danfe .nf-fol{font-size:6pt;font-style:italic}' +
+'.hdr-chave{flex:2;padding:2px 4px;overflow:hidden}' +
+'.hdr-chave .bc{text-align:center;min-height:32px}' +
+'.hdr-chave .lbl{font-size:5pt;text-align:center;text-transform:uppercase;margin-top:1px}' +
+'.hdr-chave .val{font-size:6.5pt;font-weight:700;text-align:center;letter-spacing:.4px;word-break:break-all}' +
+'.hdr-chave .cons{font-size:5.5pt;text-align:center;margin-top:2px}' +
+'@media print{body{padding:0;margin:0}@page{size:A4;margin:6mm}}' +
+'</style></head><body>' +
+'<div class="rec"><div class="rec-body"><div class="rec-txt">' + esc(reciboTxt) + '</div><div class="rec-flds"><div class="rf"><label>DATA DE RECEBIMENTO</label><div style="min-height:12px"></div></div><div class="rf" style="flex:2"><label>IDENTIFICAÇÃO E ASSINATURA DO RECEBEDOR</label><div style="min-height:12px"></div></div></div></div><div class="rec-nf"><div class="nfe">NF-e</div><div class="num">N°. ' + esc(numFmt) + '</div><div class="ser">Série ' + String(nf.serie || "1").padStart(3,"0") + '</div></div></div>' +
+'<div style="border-bottom:1px dashed #000;margin-bottom:3px"></div>' +
+'<div class="wrap">' +
+(isCancelada ? '<div class="cancel-stamp">CANCELADA</div>' : '') +
+'<div class="bx">' +
+'<div class="hdr"><div class="hdr-logo">' + (logoImg ? '<img src="' + logoImg + '" style="max-height:65px;max-width:90px" />' : '') + '</div><div class="hdr-emit"><div class="nome">' + esc(emit.razaoSocial || "-") + '</div><div class="end">' + esc(emEndLine1) + (emEnd.complemento ? ", " + esc(emEnd.complemento) : "") + '</div><div class="end">' + esc(emEndLine2) + '</div><div class="end">' + esc(emEndLine3) + ' Fone ' + esc(emEnd.telefone || emit.telefone || "") + '</div><div class="end">' + esc(emit.email || "") + '</div></div><div class="hdr-danfe"><h1>DANFE</h1><div class="sub">Documento Auxiliar da Nota<br>Fiscal Eletrônica</div><div class="tp-row">0 - ENTRADA</div><div class="tp-row">1 - SAÍDA <div class="tp-box">1</div></div><div class="nf-num">N°. ' + esc(numFmt) + '</div><div class="nf-ser">Série ' + String(nf.serie || "1").padStart(3,"0") + '</div><div class="nf-fol">Folha 1/1</div></div><div class="hdr-chave"><div class="bc" id="danfe-barcode"></div><div class="lbl">CHAVE DE ACESSO</div><div class="val">' + esc(chaveFormatada || "-") + '</div><div class="cons">Consulta de autenticidade no portal nacional da NF-e<br><strong>www.nfe.fazenda.gov.br/portal</strong> ou no site da Sefaz Autorizadora</div></div></div>' +
+'<div class="row"><div class="cell" style="flex:1"><label>NATUREZA DA OPERAÇÃO</label><div class="v-lg">VENDA DE MERCADORIA</div></div><div class="cell" style="flex:1"><label>PROTOCOLO DE AUTORIZAÇÃO DE USO</label><div class="v">' + esc(protFormatado) + '</div></div></div>' +
+'<div class="row"><div class="cell"><label>INSCRIÇÃO ESTADUAL</label><div class="v-sm">' + esc(emit.ie || "") + '</div></div><div class="cell"><label>INSCRIÇÃO MUNICIPAL</label><div class="v-sm"></div></div><div class="cell"><label>INSCRIÇÃO ESTADUAL DO SUBST. TRIBUT.</label><div class="v-sm"></div></div><div class="cell"><label>CNPJ / CPF</label><div class="v">' + esc(emit.cnpj || "") + '</div></div></div>' +
+'<div class="stit">DESTINATÁRIO / REMETENTE</div>' +
+'<div class="row"><div class="cell" style="flex:3"><label>NOME / RAZÃO SOCIAL</label><div class="v">' + esc(destNome) + '</div></div><div class="cell"><label>CNPJ / CPF</label><div class="v-sm">' + esc(dest.cnpj || "") + '</div></div><div class="cell"><label>DATA DA EMISSÃO</label><div class="v-sm">' + (dtParts[0] || "-") + '</div></div></div>' +
+'<div class="row"><div class="cell" style="flex:3"><label>ENDEREÇO</label><div class="v">' + esc(destEndStr) + '</div></div><div class="cell"><label>BAIRRO / DISTRITO</label><div class="v-sm">' + esc(dEnd.bairro || "") + '</div></div><div class="cell"><label>CEP</label><div class="v-sm">' + esc(dEnd.cep || "") + '</div></div><div class="cell"><label>DATA DA SAÍDA/ENTRADA</label><div class="v-sm">' + (dtParts[0] || "-") + '</div></div></div>' +
+'<div class="row"><div class="cell" style="flex:2"><label>MUNICÍPIO</label><div class="v">' + esc(destCidade) + '</div></div><div class="cell" style="width:30px;flex:none;min-width:30px"><label>UF</label><div class="v-sm">' + esc(dEnd.uf || "") + '</div></div><div class="cell"><label>FONE / FAX</label><div class="v-sm">' + esc(dest.telefone || "") + '</div></div><div class="cell"><label>INSCRIÇÃO ESTADUAL</label><div class="v-sm">' + esc(dest.ie || "") + '</div></div><div class="cell"><label>HORA DA SAÍDA/ENTRADA</label><div class="v-sm">' + (dtParts[1] || "") + '</div></div></div>' +
+'<div class="stit">FATURA / DUPLICATA</div>' +
+'<div class="row"><div class="cell"><label>NÚMERO</label><div class="v-sm"></div></div><div class="cell"><label>VENCIMENTO</label><div class="v-sm"></div></div><div class="cell"><label>VALOR</label><div class="v-sm"></div></div><div class="cell"><label>NÚMERO</label><div class="v-sm"></div></div><div class="cell"><label>VENCIMENTO</label><div class="v-sm"></div></div><div class="cell"><label>VALOR</label><div class="v-sm"></div></div></div>' +
+'<div class="stit">CÁLCULO DO IMPOSTO</div>' +
+'<div class="row"><div class="cell"><label>BASE DE CALC. DO ICMS</label><div class="v-sm">0,00</div></div><div class="cell"><label>VALOR DO ICMS</label><div class="v-sm">0,00</div></div><div class="cell"><label>BASE DE CALC. ICMS S.T</label><div class="v-sm">0,00</div></div><div class="cell"><label>VALOR DO ICMS SUBST</label><div class="v-sm">0,00</div></div><div class="cell"><label>V. IMP. IMPORTAÇÃO</label><div class="v-sm">0,00</div></div><div class="cell"><label>V. ICMS UF REMET.</label><div class="v-sm">0,00</div></div><div class="cell"><label>V. FCP UF DEST.</label><div class="v-sm">0,00</div></div><div class="cell"><label>V. TOTAL PRODUTOS</label><div class="v">' + f2(totalProd) + '</div></div></div>' +
+'<div class="row"><div class="cell"><label>VALOR DO FRETE</label><div class="v-sm">0,00</div></div><div class="cell"><label>VALOR DO SEGURO</label><div class="v-sm">0,00</div></div><div class="cell"><label>DESCONTO</label><div class="v-sm">0,00</div></div><div class="cell"><label>OUTRAS DESPESAS</label><div class="v-sm">0,00</div></div><div class="cell"><label>VALOR TOTAL IPI</label><div class="v-sm">0,00</div></div><div class="cell"><label>V. ICMS UF DEST.</label><div class="v-sm">0,00</div></div><div class="cell"><label>V. TOT. TRIB.</label><div class="v-sm">0,00</div></div><div class="cell"><label>V. TOTAL DA NOTA</label><div class="v">' + f2(totalNota) + '</div></div></div>' +
+'<div class="stit">TRANSPORTADOR / VOLUMES TRANSPORTADOS</div>' +
+'<div class="row"><div class="cell" style="flex:2"><label>NOME / RAZÃO SOCIAL</label><div class="v-sm"></div></div><div class="cell"><label>FRETE</label><div class="v-sm">9-Sem Transporte</div></div><div class="cell"><label>CÓDIGO ANTT</label><div class="v-sm"></div></div><div class="cell"><label>PLACA DO VEÍCULO</label><div class="v-sm"></div></div><div class="cell" style="width:24px;flex:none"><label>UF</label><div class="v-sm"></div></div><div class="cell"><label>CNPJ / CPF</label><div class="v-sm"></div></div></div>' +
+'<div class="row"><div class="cell" style="flex:2"><label>ENDEREÇO</label><div class="v-sm"></div></div><div class="cell"><label>MUNICÍPIO</label><div class="v-sm"></div></div><div class="cell" style="width:24px;flex:none"><label>UF</label><div class="v-sm"></div></div><div class="cell"><label>INSCRIÇÃO ESTADUAL</label><div class="v-sm"></div></div></div>' +
+'<div class="row"><div class="cell"><label>QUANTIDADE</label><div class="v-sm"></div></div><div class="cell"><label>ESPÉCIE</label><div class="v-sm"></div></div><div class="cell"><label>MARCA</label><div class="v-sm"></div></div><div class="cell"><label>NUMERAÇÃO</label><div class="v-sm"></div></div><div class="cell"><label>PESO BRUTO</label><div class="v-sm"></div></div><div class="cell"><label>PESO LÍQUIDO</label><div class="v-sm"></div></div></div>' +
+'<div class="stit">DADOS DOS PRODUTOS / SERVIÇOS</div>' +
+'<table class="it"><thead><tr><th>CÓDIGO PRODUTO</th><th style="min-width:120px">DESCRIÇÃO DO PRODUTO / SERVIÇO</th><th>NCM/SH</th><th>O/CSON</th><th>CFOP</th><th>UN</th><th>QUANT.</th><th>VALOR UNIT.</th><th>VALOR TOTAL</th><th>DESC.</th><th>B.CALC ICMS</th><th>VALOR ICMS</th><th>VALOR IPI</th><th>ALIQ ICMS</th><th>ALIQ IPI</th></tr></thead><tbody>' + rows + '</tbody></table>' +
+'<div class="stit">DADOS ADICIONAIS</div>' +
+'<div class="row" style="min-height:90px;border-bottom:none"><div class="cell" style="flex:2"><label>INFORMAÇÕES COMPLEMENTARES</label><div style="font-size:6.5pt;padding-top:2px;line-height:1.5">' + (isCancelada ? '<strong style="color:red">NF-e CANCELADA</strong> em ' + esc(cancelStamp) + ' — ' + esc(nf.cancelamento?.retornoEvento?.xMotivo || "") + '<br>' : "") + '<span style="white-space:pre-line">' + esc(infCplTxt) + '</span></div></div><div class="cell"><label>RESERVADO AO FISCO</label></div></div>' +
+'</div></div>' +
+'<div style="font-size:6pt;margin-top:3px;color:#333">' + esc(impressoEm) + '</div>' +
+barcodeScript +
+'</body></html>';
+}
+
+function abrirDanfeNotaFiscal(notaId) {
+  const nf = notasFiscais.find((item) => item.id === notaId);
+  if (!nf) return;
+  if (nf.documentos?.danfeUrl) { window.open(nf.documentos.danfeUrl, "_blank"); return; }
+  const win = window.open("", "_blank");
+  if (!win) { showToast("Nao foi possivel abrir o DANFE.", 3500); return; }
+  // Story 4.75: usa gerarDanfeHtmlParaPdf() com barcode + autoPrint
+  win.document.write(gerarDanfeHtmlParaPdf(nf, { includeBarcode: true, autoPrint: true }));
   win.document.close();
 }
 
@@ -2529,7 +2370,6 @@ async function dispararEmailNotaEBoletoAutomatico(notaId, contaId, options = {})
       protocolo: nf.sefaz?.protocolo || "",
       valor: nf.valor || totalProd,
       chaveAcesso: nf.sefaz?.chaveAcesso || "",
-      danfeHtml: gerarDanfeHtmlCompleto(nf),
       emitente: nf.sefaz?.preview?.emitente || {},
       destinatario: nf.sefaz?.preview?.destinatario || nf.cliente || {},
       itensNf: (nf.itens || []).map(function(i) { return { desc: i.descricao, ncm: i.ncm, cst: i.cst, cfop: i.cfop, un: i.unidade, qtd: i.qtd, vUnit: i.precoUnitario }; })
