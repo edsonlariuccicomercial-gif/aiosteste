@@ -206,8 +206,10 @@
         }
         var ls = readLS(entity);
         if (ls != null) { _dataSource = 'cache'; return ls; }
+        // Story 4.83: readSyncData fallback removido — sync_data legacy é lento (29.6s)
+        // Tabelas Supabase reais são a fonte de verdade; localStorage/memCache é o fallback
         _dataSource = 'offline';
-        return (await readSyncData(entity.lsKey)) || [];
+        return [];
       },
 
       get: async function (id) {

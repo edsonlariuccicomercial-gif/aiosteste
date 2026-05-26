@@ -2809,8 +2809,8 @@ async function enviarTiny(contratoId) {
   loadUsuarios();
   renderAll();
 
-  // Story 4.80: liberar cloud sync 10s após boot (migrações já terminaram)
-  setTimeout(function() { if (typeof _gdpBootInProgress !== 'undefined') _gdpBootInProgress = false; }, 10000);
+  // Story 4.83: liberar cloud sync 3s após boot (tabelas Supabase carregam em ~1-2s)
+  setTimeout(function() { if (typeof _gdpBootInProgress !== 'undefined') _gdpBootInProgress = false; }, 3000);
 
   // Auto-apply pending DB migrations (one-time, background, non-blocking)
   if (!sessionStorage.getItem("gdp.db-migrate-done")) {
@@ -2885,42 +2885,18 @@ async function enviarTiny(contratoId) {
     }, 100); // non-blocking: cede o event loop para UI primeiro
   }
 
-  // Story 4.72: Cloud sync em background (non-blocking) — UI fica interativa imediatamente
-  setGdpSyncState({ status: "syncing", source: "cloud", detail: "Sincronizando com cloud...", userId: getSyncUserId() });
-  requestIdleCallback(() => {
-    syncFromCloud().then(restored => {
-      if (restored?.restored) {
-        loadData();
-        loadUsuarios();
-        renderAll();
-        setGdpSyncState({
-          status: "cloud",
-          source: restored.source || "cloud",
-          detail: `Cloud atualizado com dados do GDP`,
-          lastSyncAt: restored.lastSyncAt || new Date().toISOString(),
-          userId: getSyncUserId()
-        });
-        gdpLog("[GDP] Dados compartilhados atualizados do cloud.");
-      } else {
-        setGdpSyncState({
-          status: "local",
-          source: "local_cache",
-          detail: "Sem snapshot remoto encontrado; usando cache local",
-          userId: getSyncUserId()
-        });
-      }
-      // Story 4.80: NÃO fazer push para cloud no boot — só quando usuário altera dados
-      // syncToCloud() removido do boot (era 20+ requests bloqueantes de ~1s cada)
-    }).catch(e => {
-      gdpWarn("[GDP] Restauracao do cloud falhou:", e);
-      setGdpSyncState({
-        status: "offline",
-        source: "local_cache",
-        detail: `Falha no cloud: ${e.message}`,
-        userId: getSyncUserId()
-      });
-    });
-  }, { timeout: 1000 });
+  // Story 4.83: syncFromCloud() REMOVIDO do boot — era 29.6s bloqueantes via sync_data legacy
+  // Tabelas reais Supabase (gdpApi) já carregam todos os dados no bloco Supabase-First acima.
+  // sync_data é legacy: só necessário para keys auxiliares (config, estoque-intel, etc.)
+  // Essas keys auxiliares persistem no localStorage e não precisam de refresh a cada boot.
+  setGdpSyncState({
+    status: "cloud",
+    source: "supabase_tables",
+    detail: "Dados carregados das tabelas Supabase",
+    lastSyncAt: new Date().toISOString(),
+    userId: getSyncUserId()
+  });
+  gdpLog("[GDP] Boot rápido: sync_data legacy desabilitado no boot (Story 4.83)");
 
   // Auto-refresh when portal escola or banco de produtos updates localStorage (cross-tab sync)
   window.addEventListener('storage', (e) => {

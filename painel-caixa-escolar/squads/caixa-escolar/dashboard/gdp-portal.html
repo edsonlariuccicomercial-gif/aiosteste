@@ -2640,9 +2640,9 @@ ${ctrSection}
   setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 
-// Init — sync from cloud then load, then push local to cloud
+// Story 4.83: syncFromCloud/syncToCloud REMOVIDOS do init — sync_data legacy é lento (29.6s)
+// gdpApi (tabelas reais) já carrega tudo que o portal precisa
 (async function() {
-  try { await syncFromCloud(); } catch(_) {}
   // Pre-load Supabase tables into localStorage cache (gdpApi mirrors to LS)
   if (window.gdpApi) {
     try {
@@ -2655,7 +2655,6 @@ ${ctrSection}
   }
   escolaOrders = JSON.parse(localStorage.getItem('gdp.escola.pedidos') || '[]');
   init();
-  try { await syncToCloud(); } catch(_) {}
 })();
 </script>
 

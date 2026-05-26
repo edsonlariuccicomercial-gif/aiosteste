@@ -159,21 +159,9 @@ async function boot() {
     updateModeIndicator(sgdAvailable);
   }).catch(() => {});
 
-  // 6. Cloud sync — PULL first, THEN push (never overwrite cloud with stale local)
-  syncFromCloud().then(synced => {
-    if (synced) {
-      gdpLog("[Boot] Cloud data synced to localStorage");
-      loadPreOrcamentos();
-      loadBancoLocal();
-      // Reload orcamentos from freshly-synced localStorage
-      const freshOrc = localStorage.getItem("caixaescolar.orcamentos");
-      if (freshOrc) { try { orcamentos = JSON.parse(freshOrc); } catch(_) {} }
-      renderAll();
-    }
-    // Only push AFTER pull completes — prevents overwriting cloud with empty data
-    return syncToCloud();
-  }).then(() => gdpLog("[Boot] Local data pushed to cloud"))
-    .catch(e => gdpWarn("[Boot] Cloud sync failed:", e));
+  // Story 4.83: syncFromCloud/syncToCloud REMOVIDOS do boot — sync_data legacy é lento (29.6s)
+  // Dados são carregados diretamente das tabelas Supabase via gdpApi (rápido, ~400ms)
+  gdpLog("[Boot] sync_data legacy desabilitado no boot (Story 4.83)");
 }
 
 // ===== FILTERS =====
