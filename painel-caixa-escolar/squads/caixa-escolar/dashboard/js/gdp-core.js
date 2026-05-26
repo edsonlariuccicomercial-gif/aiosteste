@@ -200,6 +200,7 @@ function renderGdpSyncIndicator() {
 }
 
 async function cloudSave(key, data, signal) {
+  if (_gdpBootInProgress) return; // Block cloud saves during boot
   const userId = getSyncUserId();
   try {
     // FIX Story 4.17: UPSERT via Supabase on_conflict
@@ -462,7 +463,10 @@ async function syncToCloud(signal) {
 
 let _syncTimeout = null;
 let _gdpSyncAbort = null;
+// Story 4.80: flag para bloquear cloud sync durante boot (migrações disparam saves que geram 20+ POST)
+var _gdpBootInProgress = true;
 function schedulCloudSync() {
+  if (_gdpBootInProgress) return; // Block all cloud sync during boot
   if (_syncTimeout) clearTimeout(_syncTimeout);
   if (_gdpSyncAbort) _gdpSyncAbort.abort();
   setGdpSyncState({ status: "pending", source: "cloud", detail: "Aguardando envio automatico" });

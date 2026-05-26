@@ -2809,6 +2809,9 @@ async function enviarTiny(contratoId) {
   loadUsuarios();
   renderAll();
 
+  // Story 4.80: liberar cloud sync 10s após boot (migrações já terminaram)
+  setTimeout(function() { if (typeof _gdpBootInProgress !== 'undefined') _gdpBootInProgress = false; }, 10000);
+
   // Auto-apply pending DB migrations (one-time, background, non-blocking)
   if (!sessionStorage.getItem("gdp.db-migrate-done")) {
     fetch("/api/db-migrate").then(r => r.json()).then(d => {
