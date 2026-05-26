@@ -114,7 +114,7 @@ const SUPABASE_URL = window.SUPABASE_URL || "https://mvvsjaudhbglxttxaeop.supaba
 const SUPABASE_KEY = window.SUPABASE_KEY || "sb_publishable_uBqL8sLjMGWnZ2aaQ1zwvg_mlQrZUXR";
 // Entidades com tabela Supabase real — NÃO sincronizar via sync_data (gdpApi cuida)
 const _SUPABASE_TABLE_KEYS = new Set([CONTRACTS_KEY, ORDERS_KEY, INVOICES_KEY, RECEIVABLES_KEY, PAYABLES_KEY, PROOFS_KEY, "gdp.usuarios.v1"]);
-const GDP_SYNC_KEYS = [CONTRACTS_DELETED_KEY, ENTRY_INVOICES_KEY, PAYABLE_CATEGORIES_KEY, RECEIVABLE_CATEGORIES_KEY, PAYABLE_METHODS_KEY, RECEIVABLE_METHODS_KEY, CAIXA_STATEMENT_KEY, STOCK_KEY, ESTOQUE_INTEL_PRODUCTS_KEY, ESTOQUE_INTEL_PACKAGES_KEY, ESTOQUE_INTEL_ORDERS_KEY, ESTOQUE_INTEL_ORDER_ITEMS_KEY, ESTOQUE_INTEL_MOVES_KEY, ESTOQUE_INTEL_SUPPLIERS_KEY, ESTOQUE_INTEL_PURCHASES_KEY, INTEGRATIONS_KEY, "caixaescolar.banco.v1", GDP_EQUIV_KEY, GDP_CONVERSOES_KEY, GDP_DEMANDAS_KEY, GDP_ESTOQUE_SIMPLES_KEY, GDP_COMPRAS_KEY, "nexedu.config.contas-bancarias", "nexedu.config.fiscal", "nexedu.config.bank-api", "nexedu.empresa", "gdp.extratos.v1", "gdp.conciliacao.v1", "gdp.produtos.v1"];
+const GDP_SYNC_KEYS = [CONTRACTS_DELETED_KEY, ENTRY_INVOICES_KEY, PAYABLE_CATEGORIES_KEY, RECEIVABLE_CATEGORIES_KEY, PAYABLE_METHODS_KEY, RECEIVABLE_METHODS_KEY, CAIXA_STATEMENT_KEY, STOCK_KEY, ESTOQUE_INTEL_PRODUCTS_KEY, ESTOQUE_INTEL_PACKAGES_KEY, ESTOQUE_INTEL_ORDERS_KEY, ESTOQUE_INTEL_ORDER_ITEMS_KEY, ESTOQUE_INTEL_MOVES_KEY, ESTOQUE_INTEL_SUPPLIERS_KEY, ESTOQUE_INTEL_PURCHASES_KEY, INTEGRATIONS_KEY, "caixaescolar.banco.v1", GDP_EQUIV_KEY, GDP_CONVERSOES_KEY, GDP_DEMANDAS_KEY, GDP_ESTOQUE_SIMPLES_KEY, GDP_COMPRAS_KEY, "nexedu.config.contas-bancarias", "nexedu.config.fiscal", "nexedu.config.bank-api", "nexedu.empresa", "gdp.extratos.v1", "gdp.conciliacao.v1", "gdp.produtos.v1", "gdp.extratos.deleted.v1", "gdp.conciliacao.deleted.v1"];
 const GDP_SHARED_SYNC_KEYS = new Set(GDP_SYNC_KEYS);
 const GDP_SYNC_USER_KEY = "gdp.sync.user_id.v1";
 const GDP_SYNC_FALLBACK_USER = "LARIUCCI";
@@ -481,10 +481,8 @@ async function forcarSyncCompleto() {
     // Story 4.61: limpar dados locais que podem estar obsoletos antes de puxar do cloud
     setGdpSyncState({ status: "syncing", detail: "Limpando cache local..." });
     showToast("Sync: limpando cache e baixando dados do cloud...", 2000);
-    // Limpar conciliação/extratos locais para garantir versão do cloud
-    // Story 4.69: NUNCA apagar chaves .deleted — elas impedem restauração de itens excluídos
-    localStorage.removeItem("gdp.conciliacao.v1");
-    localStorage.removeItem("gdp.extratos.v1");
+    // Story 4.83: NÃO deletar conciliação/extratos — dados desaparecem se cloud falhar
+    // Apenas notas-entrada e fornecedores são safe to clear (não são dados financeiros críticos)
     localStorage.removeItem("gdp.notas-entrada.v1");
     localStorage.removeItem("gdp.estoque-intel.fornecedores.v1");
     const result = await syncFromCloud({ force: true });
@@ -896,8 +894,14 @@ function loadData() {
     var _concItems = loadConciliacao();
     var _bootExtratos = loadExtratos();
 
-    // Se há itens de conciliação mas ZERO extratos → reconstruir extrato perdido
-    if (_concItems.length > 0 && _bootExtratos.length === 0) {
+    // Story 4.83: Verificar se há extratos deletados rastreados — NÃO criar ghost extrato
+    var _deletedExtIds = new Set();
+    try { _deletedExtIds = new Set(JSON.parse(localStorage.getItem('gdp.extratos.deleted.v1') || '[]')); } catch(_) {}
+    var _deletedConcIds = new Set();
+    try { _deletedConcIds = new Set(JSON.parse(localStorage.getItem('gdp.conciliacao.deleted.v1') || '[]')); } catch(_) {}
+
+    // Se há itens de conciliação mas ZERO extratos → reconstruir SOMENTE se não há deletados rastreados
+    if (_concItems.length > 0 && _bootExtratos.length === 0 && _deletedExtIds.size === 0) {
       var _contaBancaria = 'Conta Principal';
       try {
         var _contas = JSON.parse(localStorage.getItem('nexedu.config.contas-bancarias') || '[]');
@@ -2088,6 +2092,7 @@ function saveConciliacao(items) {
   // Story 4.62: salvar no formato wrapped para que syncToCloud reconheça exclusões (updatedAt)
   var wrapped = { _v: 1, updatedAt: new Date().toISOString(), items: arr };
   localStorage.setItem(CONCILIACAO_KEY, JSON.stringify(wrapped));
+  _lastLocalSave[CONCILIACAO_KEY] = Date.now(); // Story 4.83: dirty window protection
   if (typeof cloudSave === 'function') cloudSave(CONCILIACAO_KEY, wrapped);
 }
 
@@ -2106,6 +2111,7 @@ function saveExtratos(list) {
   arr.forEach(function(it) { if (!it.id) it.id = 'ext-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8); });
   var wrapped = { _v: 1, updatedAt: new Date().toISOString(), items: arr };
   localStorage.setItem(EXTRATOS_KEY, JSON.stringify(wrapped));
+  _lastLocalSave[EXTRATOS_KEY] = Date.now(); // Story 4.83: dirty window protection
   if (typeof cloudSave === 'function') cloudSave(EXTRATOS_KEY, wrapped);
 }
 
