@@ -1412,12 +1412,13 @@ async function consultarNotasEntradaApi() {
   const cooldownKey = "radar.sefaz.cooldownUntil";
   const ultNSU = localStorage.getItem(nsuKey) || "0";
 
-  // Story 4.83: Respeitar cooldown da SEFAZ (cStat 656 = aguardar 1h)
+  // Story 4.83: Respeitar cooldown da SEFAZ (cStat 656 = aguardar)
   const cooldownUntil = Number(localStorage.getItem(cooldownKey) || "0");
   if (cooldownUntil > Date.now()) {
     const minRestantes = Math.ceil((cooldownUntil - Date.now()) / 60000);
-    showToast("SEFAZ em cooldown — aguarde " + minRestantes + " minuto(s) para nova consulta.", 5000);
-    return;
+    if (!confirm("SEFAZ em cooldown — faltam ~" + minRestantes + " min.\n\nForçar consulta mesmo assim? (pode gerar cStat 656)")) return;
+    // Usuário forçou — limpar cooldown
+    localStorage.removeItem(cooldownKey);
   }
 
   try {
@@ -1444,14 +1445,14 @@ async function consultarNotasEntradaApi() {
       }
 
       if (data.cStat === "656") {
-        // Gravar cooldown de 1h para não tentar de novo
-        localStorage.setItem(cooldownKey, String(Date.now() + 3600000));
-        showToast("SEFAZ: consumo indevido (cStat 656). Cooldown de 1h ativado. Tente novamente depois.", 6000);
-        return;
+        localStorage.setItem(cooldownKey, String(Date.now() + 3600000)); // 1h
+        showToast("SEFAZ: consumo indevido (cStat 656). Aguarde 1h. A SEFAZ bloqueia consultas repetidas sem documentos novos.", 6000);
+        break;
       }
 
       if (data.cStat === "137") {
-        showToast("Nenhum documento novo na SEFAZ.", 3000);
+        localStorage.setItem(cooldownKey, String(Date.now() + 900000)); // 15min
+        showToast("Nenhum documento novo na SEFAZ. Próxima consulta liberada em 15 min.", 4000);
         break;
       }
 
