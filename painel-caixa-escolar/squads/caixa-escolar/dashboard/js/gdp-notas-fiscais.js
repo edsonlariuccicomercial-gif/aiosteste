@@ -2154,7 +2154,7 @@ function solicitarCancelamentoNotaFiscal(notaId) {
   fetch("/api/gdp-integrations", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ action: "nfe-sefaz-cancelar", nota: nf, motivo: justificativa })
+    body: JSON.stringify({ action: "nfe-sefaz-cancelar", chaveAcesso: nf.sefaz?.chaveAcesso, protocolo: nf.sefaz?.protocolo, justificativa: justificativa })
   }).then(async (resp) => {
     const data = await resp.json().catch(() => ({}));
     const result = data.result || {};
