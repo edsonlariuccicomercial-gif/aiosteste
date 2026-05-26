@@ -38,12 +38,14 @@ export default async function handler(req, res) {
     if (action === "budget-detail") return await handleBudgetDetail(params, res);
     if (action === "budget-items") return await handleBudgetItems(params, res);
     if (action === "send-proposal") return await handleSendProposal(params, res);
+    if (action === "list-counties") return await handleListCounties(params, res);
 
     // B2B scrape
     if (action === "b2b-scrape") return await handleB2bScrape(params, res);
 
     // SEFAZ DistribuicaoDFe — buscar NFs de entrada
     if (action === "sefaz-dist-dfe") return await handleSefazDistDFe(params, res);
+    if (action === "sefaz-dist-dfe-chave") return await handleSefazDistDFeChave(params, res);
 
     // PNCP proxy (supports both new "pncp-search"/"pncp-items" and legacy "search"/"items" action names)
     if (action === "pncp-search" || action === "search") return await handlePncpSearch(params, res);
@@ -122,6 +124,17 @@ async function handleBudgetItems({ cookie, networkId, idSubprogram, idSchool, id
   const r = await fetch(`${SGD_API}/budget-item/by-subprogram/${idSubprogram}/by-school/${idSchool}/by-budget/${idBudget}?limit=9999`, { headers: buildHeaders(cookie, networkId) });
   if (!r.ok) return res.status(r.status).json({ error: `getBudgetItems failed (${r.status})` });
   return res.status(200).json(await r.json());
+}
+
+async function handleListCounties({ cookie }, res) {
+  const r = await fetch(`${SGD_API}/county/by-network`, { headers: buildHeaders(cookie, null) });
+  if (!r.ok) return res.status(r.status).json({ error: `listCounties failed (${r.status})` });
+  const data = await r.json();
+  // Return map { idCounty: txCounty } for efficient lookup
+  const items = Array.isArray(data) ? data : (data.data || []);
+  const map = {};
+  for (const c of items) map[c.idCounty] = c.txCounty;
+  return res.status(200).json({ map, total: items.length });
 }
 
 async function handleSendProposal({ cookie, networkId, idSubprogram, idSchool, idBudget, payload }, res) {
@@ -253,23 +266,31 @@ async function handleSefazDistDFe({ cnpj, ultNSU }, res) {
     const maxNSU = (sefazResp.match(/<maxNSU>(\d+)<\/maxNSU>/) || [])[1] || "0";
     const ultNSUResp = (sefazResp.match(/<ultNSU>(\d+)<\/ultNSU>/) || [])[1] || "0";
 
-    // Extrair documentos
+    // Extrair documentos — DistDFe retorna resNFe (resumo) e procNFe (NF completa)
     const docs = [];
     const docZips = sefazResp.match(/<docZip[^>]*>([^<]+)<\/docZip>/g) || [];
     for (const dz of docZips) {
       try {
+        // Detectar schema do docZip (resNFe = resumo, procNFe = NF completa)
+        const schemaMatch = dz.match(/schema="([^"]+)"/);
+        const schema = schemaMatch ? schemaMatch[1] : "";
+        const isResumo = schema.includes("resNFe") || schema.includes("resEvento");
+
         const b64 = dz.replace(/<[^>]+>/g, "");
         const xml = zlib.gunzipSync(Buffer.from(b64, "base64")).toString("utf8");
 
         const tag = (t) => (xml.match(new RegExp(`<${t}>([^<]*)</${t}>`)) || [])[1] || "";
         const emitNome = (xml.match(/<emit>[\s\S]*?<xNome>([^<]+)<\/xNome>/) || [])[1] || "";
         const emitCnpj = (xml.match(/<emit>[\s\S]*?<CNPJ>([^<]+)<\/CNPJ>/) || [])[1] || "";
+        // resNFe usa xNome direto, procNFe usa dentro de <emit>
+        const nomeEmit = emitNome || tag("xNome") || "";
+        const cnpjEmit = emitCnpj || tag("CNPJ") || "";
         const nNF = tag("nNF");
         const chNFe = tag("chNFe") || (xml.match(/Id="NFe(\d{44})"/) || [])[1] || "";
-        const vNF = Number(tag("vNF") || 0);
-        const dhEmi = tag("dhEmi") || tag("dEmi");
+        const vNF = Number(tag("vNF") || tag("vTPag") || 0);
+        const dhEmi = tag("dhEmi") || tag("dEmi") || tag("dhRecbto") || "";
 
-        // Extrair itens
+        // Extrair itens (só existe em procNFe / NF completa)
         const itens = [];
         const detMatches = xml.match(/<det\s[^>]*>[\s\S]*?<\/det>/g) || [];
         for (const det of detMatches) {
@@ -286,7 +307,12 @@ async function handleSefazDistDFe({ cnpj, ultNSU }, res) {
         }
 
         if (nNF || chNFe) {
-          docs.push({ nNF, chave: chNFe, fornecedor: emitNome, cnpjEmitente: emitCnpj, valor: vNF, emitidaEm: dhEmi, itens });
+          docs.push({
+            nNF, chave: chNFe, fornecedor: nomeEmit, cnpjEmitente: cnpjEmit,
+            valor: vNF, emitidaEm: dhEmi, itens,
+            tipo: isResumo ? "resumo" : "completa",
+            schema: schema
+          });
         }
       } catch (_) { /* skip malformed */ }
     }
@@ -294,6 +320,77 @@ async function handleSefazDistDFe({ cnpj, ultNSU }, res) {
     return res.status(200).json({ cStat, xMotivo, maxNSU: Number(maxNSU), ultNSU: Number(ultNSUResp), documentos: docs });
   } catch (err) {
     return res.status(500).json({ error: "SEFAZ DistDFe: " + err.message });
+  }
+}
+
+// Story 4.83: Consulta DistDFe por chave de acesso específica (baixar NF completa com itens)
+async function handleSefazDistDFeChave({ cnpj, chave }, res) {
+  const certBase64 = process.env.NFE_CERT_BASE64;
+  const certPassword = process.env.NFE_CERT_PASSWORD || "1234567";
+  if (!certBase64) return res.status(500).json({ error: "NFE_CERT_BASE64 não configurado" });
+  if (!cnpj || !chave) return res.status(400).json({ error: "CNPJ e chave obrigatórios" });
+
+  const cleanCnpj = cnpj.replace(/\D/g, "");
+  const cleanChave = chave.replace(/\D/g, "");
+
+  const soap = `<?xml version="1.0" encoding="utf-8"?>
+<soap12:Envelope xmlns:soap12="http://www.w3.org/2003/05/soap-envelope">
+<soap12:Body>
+<nfeDistDFeInteresse xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe">
+<nfeDadosMsg>
+<distDFeInt versao="1.01" xmlns="http://www.portalfiscal.inf.br/nfe">
+<tpAmb>1</tpAmb><cUFAutor>31</cUFAutor><CNPJ>${cleanCnpj}</CNPJ>
+<consChNFe><chNFe>${cleanChave}</chNFe></consChNFe>
+</distDFeInt></nfeDadosMsg></nfeDistDFeInteresse>
+</soap12:Body></soap12:Envelope>`;
+
+  try {
+    const https = await import("https");
+    const zlib = await import("zlib");
+    const pfxBuffer = Buffer.from(certBase64, "base64");
+    const body = Buffer.from(soap, "utf8");
+
+    const sefazResp = await new Promise((resolve, reject) => {
+      const req = https.request(SEFAZ_DIST_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/soap+xml; charset=utf-8", "Content-Length": body.length },
+        pfx: pfxBuffer, passphrase: certPassword, minVersion: "TLSv1.2"
+      }, (r) => {
+        let raw = ""; r.on("data", c => raw += c); r.on("end", () => resolve(raw));
+      });
+      req.on("error", reject);
+      req.write(body); req.end();
+    });
+
+    const cStat = (sefazResp.match(/<cStat>(\d+)<\/cStat>/) || [])[1] || "";
+    const xMotivo = (sefazResp.match(/<xMotivo>([^<]+)<\/xMotivo>/) || [])[1] || "";
+
+    const docs = [];
+    const docZips = sefazResp.match(/<docZip[^>]*>([^<]+)<\/docZip>/g) || [];
+    for (const dz of docZips) {
+      try {
+        const b64 = dz.replace(/<[^>]+>/g, "");
+        const xml = zlib.gunzipSync(Buffer.from(b64, "base64")).toString("utf8");
+        const tag = (t) => (xml.match(new RegExp(`<${t}>([^<]*)</${t}>`)) || [])[1] || "";
+        const emitNome = (xml.match(/<emit>[\s\S]*?<xNome>([^<]+)<\/xNome>/) || [])[1] || tag("xNome") || "";
+        const emitCnpj = (xml.match(/<emit>[\s\S]*?<CNPJ>([^<]+)<\/CNPJ>/) || [])[1] || tag("CNPJ") || "";
+        const nNF = tag("nNF");
+        const chNFe = tag("chNFe") || (xml.match(/Id="NFe(\d{44})"/) || [])[1] || "";
+        const vNF = Number(tag("vNF") || 0);
+        const dhEmi = tag("dhEmi") || tag("dEmi") || "";
+        const itens = [];
+        const detMatches = xml.match(/<det\s[^>]*>[\s\S]*?<\/det>/g) || [];
+        for (const det of detMatches) {
+          const pTag = (t) => (det.match(new RegExp(`<${t}>([^<]*)</${t}>`)) || [])[1] || "";
+          itens.push({ descricao: pTag("xProd"), ncm: pTag("NCM"), unidade: pTag("uCom"), quantidade: Number(pTag("qCom") || 0), valorUnitario: Number(pTag("vUnCom") || 0), valorTotal: Number(pTag("vProd") || 0), codigo: pTag("cProd") });
+        }
+        if (nNF || chNFe) docs.push({ nNF, chave: chNFe, fornecedor: emitNome, cnpjEmitente: emitCnpj, valor: vNF, emitidaEm: dhEmi, itens });
+      } catch (_) {}
+    }
+
+    return res.status(200).json({ cStat, xMotivo, documentos: docs });
+  } catch (err) {
+    return res.status(500).json({ error: "SEFAZ DistDFe chave: " + err.message });
   }
 }
 

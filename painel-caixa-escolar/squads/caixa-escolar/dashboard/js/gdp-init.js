@@ -1125,10 +1125,11 @@ function renderNotasEntrada() {
       <td>${esc(item.numero || "-")}</td>
       <td style="font-size:.72rem" class="font-mono">${esc(item.chave || "-")}</td>
       <td class="text-right font-mono">${brl.format(Number(item.valor || 0))}</td>
-      <td><span class="badge ${item.status === "registrada" ? "badge-green" : item.status === "consulta_pendente" ? "badge-yellow" : "badge-blue"}">${esc(item.status || "-")}</span></td>
-      <td>${itensCount > 0 ? `<span class="badge badge-blue">${itensCount} itens</span>` : '<span style="color:var(--mut)">—</span>'}</td>
+      <td><span class="badge ${item.status === "registrada" ? "badge-green" : item.status === "resumo_sefaz" ? "badge-yellow" : item.status === "consulta_pendente" ? "badge-yellow" : "badge-blue"}">${esc(item.status === "resumo_sefaz" ? "Resumo" : item.status || "-")}</span></td>
+      <td>${itensCount > 0 ? `<span class="badge badge-blue">${itensCount} itens</span>` : item.tipo === "resumo" || item.status === "resumo_sefaz" ? '<span class="badge badge-yellow" style="font-size:.65rem">Sem itens (resumo)</span>' : '<span style="color:var(--mut)">—</span>'}</td>
       <td style="white-space:nowrap" onclick="event.stopPropagation()">
         ${hasItens ? `<button class="btn btn-outline btn-sm" onclick="importarNfParaCentral('${item.id}')" title="Importar todos para Central de Produtos">📥 Importar</button>` : ''}
+        ${!hasItens && item.chave ? `<button class="btn btn-outline btn-sm" onclick="baixarNfCompletaPorChave('${item.id}')" title="Baixar NF completa com itens da SEFAZ">🔄 Baixar itens</button>` : ''}
         <button class="btn btn-outline btn-sm" onclick="downloadNfPdf('${item.id}')" title="Download PDF da NF">📄 PDF</button>
       </td>
     </tr>`;
@@ -1483,8 +1484,9 @@ async function consultarNotasEntradaApi() {
           numero: doc.nNF || "",
           chave: chave,
           valor: Number(doc.valor || 0),
-          status: "baixada_automatica",
+          status: doc.tipo === "resumo" ? "resumo_sefaz" : "baixada_automatica",
           origem: "api_sefaz",
+          tipo: doc.tipo || "completa",
           emitidaEm: doc.emitidaEm || new Date().toISOString(),
           createdAt: new Date().toISOString(),
           cnpjEmitente: doc.cnpjEmitente || "",
@@ -3850,6 +3852,42 @@ window.importarNfParaCentral = function(nfId) {
   showToast(`Central de Produtos: ${msg.join(", ")}`, 5000);
   // Refresh Central tab if visible
   if (typeof renderBancoProdutos === 'function') renderBancoProdutos();
+};
+
+// Story 4.83: Baixar NF completa (com itens) por chave de acesso via consulta DistDFe por chave
+window.baixarNfCompletaPorChave = async function(nfId) {
+  const nf = notasEntrada.find(n => n.id === nfId);
+  if (!nf || !nf.chave) { showToast("Nota sem chave de acesso.", 3000); return; }
+
+  showToast("Consultando NF completa na SEFAZ...", 3000);
+  try {
+    const empresa = JSON.parse(localStorage.getItem("nexedu.empresa") || "{}");
+    const cnpj = String(empresa.cnpj || "").replace(/\D/g, "");
+    const resp = await fetch("/api/caixa-proxy", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "sefaz-dist-dfe-chave", cnpj, chave: nf.chave })
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || "Erro na consulta");
+
+    const doc = (data.documentos || [])[0];
+    if (doc && doc.itens && doc.itens.length > 0) {
+      nf.itens = doc.itens;
+      nf.totalItens = doc.itens.length;
+      nf.status = "baixada_automatica";
+      nf.tipo = "completa";
+      if (doc.fornecedor) nf.fornecedor = doc.fornecedor;
+      if (doc.valor) nf.valor = Number(doc.valor);
+      saveNotasEntrada();
+      renderNotasEntrada();
+      showToast("NF #" + (nf.numero || "") + ": " + doc.itens.length + " itens baixados com sucesso!", 4000);
+    } else {
+      showToast("SEFAZ retornou sem itens. Pode ser necessário manifestar ciência da operação primeiro.", 5000);
+    }
+  } catch(e) {
+    showToast("Erro ao baixar NF: " + e.message, 5000);
+  }
 };
 
 // Selecionar todas as notas de entrada
