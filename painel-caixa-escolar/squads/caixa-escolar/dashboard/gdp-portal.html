@@ -602,54 +602,66 @@ async function init() {
 }
 
 // ─── LOGIN ───
-function doLogin() {
+async function doLogin() {
   const user = document.getElementById('login-user').value.trim().toLowerCase();
   const pass = document.getElementById('login-pass').value;
 
-  // PRIORIDADE 1: localStorage/Supabase (dados atualizados pelo sistema)
-  let usrLocal = null;
+  // Story 4.82: Helper to build escola object from client record
+  function buildEscola(u) {
+    return {
+      id: u.login || u.id,
+      nome: u.nome_completo || u.nome,
+      nome_completo: u.nome_completo || u.nome,
+      cnpj: u.cnpj || '',
+      sre: u.sre || '',
+      municipio: u.municipio || '',
+      login: u.login,
+      senha: u.senha,
+      responsavel: u.responsavel || '',
+      cargo: u.cargo || 'Presidente da Caixa Escolar',
+      telefone: u.telefone || '',
+      email: u.email || '',
+      categoria_catalogo: u.categoria_catalogo || u.catalogo || '',
+      arp_vinculada: u.arp_vinculada || u.arp || 'ARP-LARIUCCI-2025',
+      saldo_disponivel: parseFloat(u.saldo_disponivel) || 0,
+      saldo_total: parseFloat(u.saldo_total) || 0,
+      contratos_vinculados: u.contratos_vinculados || [],
+      logradouro: u.logradouro || '',
+      numero: u.numero || '',
+      complemento: u.complemento || '',
+      bairro: u.bairro || '',
+      cep: u.cep || '',
+      uf: u.uf || 'MG',
+      ie: u.ie || 'ISENTO'
+    };
+  }
+
+  // PRIORIDADE 1: localStorage (dados cacheados de sessões anteriores)
+  let escola = null;
   try {
     const usuarios = JSON.parse(localStorage.getItem('gdp.usuarios.v1') || '[]');
-    usrLocal = usuarios.find(u => (u.login || '').toLowerCase() === user && u.senha === pass);
+    const usrLocal = usuarios.find(u => (u.login || '').toLowerCase() === user && u.senha === pass);
+    if (usrLocal) escola = buildEscola(usrLocal);
   } catch(_) {}
 
   // PRIORIDADE 2: JSON estático (fallback para escolas não migradas)
-  let escola = null;
-  if (usrLocal) {
-    escola = {
-      id: usrLocal.login || usrLocal.id,
-      nome: usrLocal.nome_completo || usrLocal.nome,
-      nome_completo: usrLocal.nome_completo || usrLocal.nome,
-      cnpj: usrLocal.cnpj || '',
-      sre: usrLocal.sre || '',
-      municipio: usrLocal.municipio || '',
-      login: usrLocal.login,
-      senha: usrLocal.senha,
-      responsavel: usrLocal.responsavel || '',
-      cargo: usrLocal.cargo || 'Presidente da Caixa Escolar',
-      telefone: usrLocal.telefone || '',
-      email: usrLocal.email || '',
-      categoria_catalogo: usrLocal.categoria_catalogo || usrLocal.catalogo || '',
-      arp_vinculada: usrLocal.arp_vinculada || usrLocal.arp || 'ARP-LARIUCCI-2025',
-      saldo_disponivel: parseFloat(usrLocal.saldo_disponivel) || 0,
-      saldo_total: parseFloat(usrLocal.saldo_total) || 0,
-      contratos_vinculados: usrLocal.contratos_vinculados || [],
-      logradouro: usrLocal.logradouro || '',
-      numero: usrLocal.numero || '',
-      complemento: usrLocal.complemento || '',
-      bairro: usrLocal.bairro || '',
-      cep: usrLocal.cep || '',
-      uf: usrLocal.uf || 'MG',
-      ie: usrLocal.ie || 'ISENTO'
-    };
-  }
-  // Fallback: JSON estático para escolas não migradas para o sistema de clientes
   if (!escola && credentials && credentials.escolas) {
     const credMatch = credentials.escolas.find(e => e.login === user && e.senha === pass);
-    if (credMatch) {
-      escola = { ...credMatch, contratos_vinculados: credMatch.contratos_vinculados || [] };
-    }
+    if (credMatch) escola = { ...credMatch, contratos_vinculados: credMatch.contratos_vinculados || [] };
   }
+
+  // Story 4.82 PRIORIDADE 3: Supabase direto (aba anônima / senha atualizada no cloud)
+  if (!escola && window.gdpApi) {
+    try {
+      const clientes = await gdpApi.clientes.list();
+      const usrCloud = clientes.find(u => (u.login || '').toLowerCase() === user && u.senha === pass);
+      if (usrCloud) {
+        escola = buildEscola(usrCloud);
+        console.log('[portal] Login via Supabase (cloud-first)');
+      }
+    } catch(e) { console.warn('[portal] Supabase login fallback failed:', e); }
+  }
+
   if (!escola) {
     const err = document.getElementById('login-error');
     err.style.display = 'block';
@@ -678,19 +690,41 @@ function doLogin() {
   document.getElementById('topbar-saldo').style.display = 'none';
   document.getElementById('topbar-saldo').textContent = '';
 
-  // Load fresh data from Supabase (fire-and-forget, don't block login)
+  // Story 4.82: Await Supabase data before rendering contracts (fixes incognito/empty cache)
   if (window.gdpApi) {
+    showContractLoading();
     Promise.all([
       gdpApi.contratos.list(),
       gdpApi.pedidos.list(),
       gdpApi.clientes.list()
     ]).then(function() {
       console.log('[portal] Refreshed from Supabase after login');
-      if (currentUser) showContractSelection();
-    }).catch(function(e) { console.warn('[portal] Supabase refresh failed:', e); });
+      // Story 4.82: Enrich currentUser with Supabase client data (contratos_vinculados, saldo, etc.)
+      if (currentUser) {
+        try {
+          const clientes = unwrapData(JSON.parse(localStorage.getItem('gdp.usuarios.v1')))
+            || (gdpApi._memCache && gdpApi._memCache['gdp.usuarios.v1']) || [];
+          const match = clientes.find(c => (c.login || '').toLowerCase() === (currentUser.login || '').toLowerCase());
+          if (match) {
+            // Enrich all fields from Supabase client (authoritative source)
+            if (match.nome) currentUser.nome = match.nome;
+            if (match.nome_completo || match.nome) currentUser.nome_completo = match.nome_completo || match.nome;
+            if (match.cnpj) currentUser.cnpj = match.cnpj;
+            if (match.contratos_vinculados && match.contratos_vinculados.length > 0) currentUser.contratos_vinculados = match.contratos_vinculados;
+            if (match.saldo_disponivel) currentUser.saldo_disponivel = parseFloat(match.saldo_disponivel) || currentUser.saldo_disponivel;
+            if (match.saldo_total) currentUser.saldo_total = parseFloat(match.saldo_total) || currentUser.saldo_total;
+            if (match.categoria_catalogo) currentUser.categoria_catalogo = match.categoria_catalogo || currentUser.categoria_catalogo;
+          }
+        } catch(_) {}
+        showContractSelection();
+      }
+    }).catch(function(e) {
+      console.warn('[portal] Supabase refresh failed:', e);
+      if (currentUser) showContractSelection(); // fallback to whatever localStorage/memCache has
+    });
+  } else {
+    showContractSelection();
   }
-
-  showContractSelection();
 
   // Re-sync any pending pedidos that failed to save in previous sessions
   try {
@@ -746,10 +780,39 @@ function logout() {
 }
 
 // ─── CONTRACT SELECTION ───
+
+// Story 4.82: Show loading state while Supabase data is being fetched
+function showContractLoading() {
+  const container = document.getElementById('contract-selection');
+  const schoolName = currentUser ? (currentUser.nome_completo || currentUser.nome) : '';
+  container.innerHTML = `
+    <div class="school-folder">
+      <div class="school-folder-header">
+        <div class="school-folder-icon">🏫</div>
+        <div>
+          <div class="school-folder-name">${schoolName}</div>
+          <div class="school-folder-meta">${(currentUser && currentUser.municipio) || ''} · ${(currentUser && currentUser.sre) || ''}</div>
+        </div>
+      </div>
+      <div style="text-align:center;padding:3rem 1rem;">
+        <div style="font-size:2rem;margin-bottom:1rem;">⏳</div>
+        <div style="color:var(--muted);font-size:0.95rem;">Carregando contratos...</div>
+      </div>
+    </div>
+  `;
+  document.getElementById('contract-selection-screen').classList.remove('hidden');
+  document.getElementById('escola-tabs-bar').classList.add('hidden');
+  document.getElementById('tab-catalogo-wrapper').classList.add('hidden');
+}
+
 function getSchoolContracts() {
-  // Load contracts from Contratos module (gdp.contratos.v1)
+  // Story 4.82: Load contracts from localStorage with in-memory fallback (incognito support)
   let contratos = [];
   try { contratos = unwrapData(JSON.parse(localStorage.getItem('gdp.contratos.v1'))); } catch(_) {}
+  // Fallback to gdpApi in-memory cache when localStorage is empty (incognito/first access)
+  if (contratos.length === 0 && window.gdpApi && gdpApi._memCache && gdpApi._memCache['gdp.contratos.v1']) {
+    contratos = gdpApi._memCache['gdp.contratos.v1'];
+  }
 
   // Primary: match by contratos_vinculados (explicit link set in Usuarios tab)
   const vinculados = currentUser.contratos_vinculados || [];
@@ -802,6 +865,10 @@ function showContractSelection() {
   // Load pedidos for accurate saldo calculation
   let _pedidosAll = [];
   try { _pedidosAll = unwrapData(JSON.parse(localStorage.getItem('gdp.pedidos.v1') || '{}')); } catch(_) {}
+  // Story 4.82: fallback to in-memory cache for pedidos (incognito support)
+  if (_pedidosAll.length === 0 && window.gdpApi && gdpApi._memCache && gdpApi._memCache['gdp.pedidos.v1']) {
+    _pedidosAll = gdpApi._memCache['gdp.pedidos.v1'];
+  }
 
   // Contract cards from Contratos module
   contracts.forEach((c, i) => {
@@ -961,7 +1028,7 @@ function selectContract(type, idx) {
 
     // Load Estoque Intel for SKU enrichment (same pattern as contract products lines 957-978)
     let _intelProdutos = [];
-    try { const raw = JSON.parse(localStorage.getItem('gdp.estoque-intel.produtos.v1') || '{}'); _intelProdutos = raw.items || raw || []; } catch(_) {}
+    try { const raw = JSON.parse(localStorage.getItem('gdp.estoque-intel.produtos.v1') || '{}'); _intelProdutos = Array.isArray(raw) ? raw : (Array.isArray(raw.items) ? raw.items : []); } catch(_) {}
 
     schoolProducts = arpEscola ? arpEscola.produtos.map(p => {
       const descNorm = (p.produto || '').toUpperCase().trim();
@@ -983,7 +1050,7 @@ function selectContract(type, idx) {
     const c = contracts[idx];
     // Story 4.71: Recalcular qtdEntregue dos itens com base em TODOS os pedidos nao-cancelados
     // (mesma logica do dashboard gdp-contratos-module.js:2811-2825 — garante consistencia portal=dashboard)
-    const pedidosLocal = (() => { try { return unwrapData(JSON.parse(localStorage.getItem('gdp.pedidos.v1') || '{}')); } catch(_) { return []; } })();
+    const pedidosLocal = (() => { try { const ls = unwrapData(JSON.parse(localStorage.getItem('gdp.pedidos.v1') || '{}')); return ls.length > 0 ? ls : (window.gdpApi && gdpApi._memCache && gdpApi._memCache['gdp.pedidos.v1'] || []); } catch(_) { return (window.gdpApi && gdpApi._memCache && gdpApi._memCache['gdp.pedidos.v1'] || []); } })();
     const pedidosTodos = pedidosLocal.filter(p => p.contratoId === c.id && p.status !== 'cancelado');
     c.itens.forEach(item => { item.qtdEntregue = 0; });
     pedidosTodos.forEach(p => {
@@ -997,7 +1064,7 @@ function selectContract(type, idx) {
 
     // Load Estoque Intel Produtos para enriquecer catalogo
     let _intelProdutos = [];
-    try { const raw = JSON.parse(localStorage.getItem('gdp.estoque-intel.produtos.v1') || '{}'); _intelProdutos = raw.items || raw || []; } catch(_) {}
+    try { const raw = JSON.parse(localStorage.getItem('gdp.estoque-intel.produtos.v1') || '{}'); _intelProdutos = Array.isArray(raw) ? raw : (Array.isArray(raw.items) ? raw.items : []); } catch(_) {}
 
     schoolProducts = c.itens.map(item => {
       // Story 4.71: disponivel = contratada - recalculado (ja inclui todos pedidos nao-cancelados)

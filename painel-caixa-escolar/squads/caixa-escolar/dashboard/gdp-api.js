@@ -41,19 +41,26 @@
     return crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2);
   }
 
+  // Story 4.82: in-memory cache for incognito/private browsing fallback
+  var _memCache = {};
+
   function readLS(entity) {
     try {
       var raw = JSON.parse(localStorage.getItem(entity.lsKey) || 'null');
-      if (raw == null) return null;
+      if (raw == null) return _memCache[entity.lsKey] || null;
       if (entity.wrapped && raw.items) return raw.items;
       if (Array.isArray(raw)) return raw;
-      return null;
-    } catch (_) { return null; }
+      return _memCache[entity.lsKey] || null;
+    } catch (_) { return _memCache[entity.lsKey] || null; }
   }
 
   function writeLS(entity, items) {
-    var value = entity.wrapped ? { _v: 1, updatedAt: new Date().toISOString(), items: items } : items;
-    localStorage.setItem(entity.lsKey, JSON.stringify(value));
+    // Story 4.82: always keep in-memory cache (works even when localStorage fails)
+    _memCache[entity.lsKey] = items;
+    try {
+      var value = entity.wrapped ? { _v: 1, updatedAt: new Date().toISOString(), items: items } : items;
+      localStorage.setItem(entity.lsKey, JSON.stringify(value));
+    } catch (_) { /* Safari private mode / quota exceeded — in-memory cache still available */ }
   }
 
   // Map localStorage camelCase items to Supabase snake_case columns
@@ -359,6 +366,7 @@
     flushRetryQueue:     flushRetryQueue,
     _retryQueue: _retryQueue,
     _ENTITIES:   ENTITIES,
+    _memCache:   _memCache,
     getDataSource: function () { return _dataSource; }
   };
 
