@@ -2430,17 +2430,26 @@ function imprimirDanfeNotaAtual() {
 function imprimirDanfesSelecionadas() {
   const items = notasFiscais.filter((item) => _selectedNotaFiscalIds.has(item.id));
   if (!items.length) { showToast("Selecione notas fiscais para imprimir.", 3000); return; }
-  const pages = items.map((nf, i) => (i > 0 ? '<div style="page-break-before:always"></div>' : '') + gerarDanfeHtml(nf)).join('');
-  const iframe = document.createElement('iframe');
-  iframe.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:0;height:0';
-  document.body.appendChild(iframe);
-  const doc = iframe.contentDocument;
-  doc.open();
-  doc.write('<!DOCTYPE html><html><head><title>DANFEs</title><style>body{font-family:Arial,sans-serif;margin:1cm;color:#000}@media print{body{margin:5mm}}</style></head><body>' + pages + '</body></html>');
-  doc.close();
-  iframe.contentWindow.focus();
-  iframe.contentWindow.print();
-  setTimeout(() => document.body.removeChild(iframe), 5000);
+  // Story 4.78: usar gerarDanfeHtmlParaPdf para layout DANFE completo idêntico ao Visualizar
+  // Cada NF gera um documento HTML completo — extrair apenas o body de cada um
+  const win = window.open("", "_blank");
+  if (!win) { showToast("Popup bloqueado. Permita popups para imprimir.", 3500); return; }
+  // Montar um documento único com page-break entre DANFEs
+  // Pegar CSS + body do primeiro, depois concatenar os bodies com page-break
+  const firstHtml = gerarDanfeHtmlParaPdf(items[0]);
+  const styleMatch = firstHtml.match(/<style>([\s\S]*?)<\/style>/);
+  const css = styleMatch ? styleMatch[1] : '';
+  function extractBody(html) {
+    var m = html.match(/<body[^>]*>([\s\S]*?)<\/body>/);
+    return m ? m[1] : html;
+  }
+  var bodies = items.map(function(nf, i) {
+    var fullHtml = gerarDanfeHtmlParaPdf(nf);
+    var bodyContent = extractBody(fullHtml);
+    return (i > 0 ? '<div style="page-break-before:always"></div>' : '') + bodyContent;
+  }).join('');
+  win.document.write('<!doctype html><html><head><meta charset="utf-8"><title>DANFEs (' + items.length + ' notas)</title><style>' + css + ' @media print{body{padding:0;margin:0}@page{size:A4;margin:6mm}}</style></head><body>' + bodies + '<script>window.print()<\/script></body></html>');
+  win.document.close();
 }
 
 function excluirNotasSelecionadas() {
