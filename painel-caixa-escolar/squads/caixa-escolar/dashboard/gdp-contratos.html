@@ -196,7 +196,7 @@
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <script src="js/supabase-config.js?v=2"></script>
-  <script src="js/supabase-auth.js?v=2"></script>
+  <script src="js/supabase-auth.js?v=4"></script>
   <script>
     // Session guard (Story 7.2): redirect to login if no valid session
     (async function() {
@@ -246,6 +246,9 @@
           <button class="sidebar-subitem" data-gdp-tab="notas-fiscais" onclick="switchTab('notas-fiscais')"><span class="sidebar-subitem-label">Notas Fiscais</span><span class="count" id="tab-count-notas-fiscais">0</span></button>
           <button class="sidebar-subitem" data-gdp-tab="estoque-op" onclick="switchTab('estoque-op')"><span class="sidebar-subitem-label">Estoque</span><span class="count" id="tab-count-estoque-op">0</span></button>
           <button class="sidebar-subitem" data-gdp-tab="financeiro" onclick="switchTab('financeiro')"><span class="sidebar-subitem-label">Financeiro</span><span class="count" id="tab-count-financeiro">0</span></button>
+          <button class="sidebar-subitem" data-gdp-tab="financeiro-caixa" data-fin-tab="caixa" onclick="openFinanceiroSubTab('caixa')"><span class="sidebar-subitem-label">Caixa</span><span class="count" id="tab-count-caixa">0</span></button>
+          <button class="sidebar-subitem" data-gdp-tab="financeiro-contas-pagar" data-fin-tab="contas-pagar" onclick="openFinanceiroSubTab('contas-pagar')"><span class="sidebar-subitem-label">Contas a Pagar</span><span class="count" id="tab-count-contas-pagar">0</span></button>
+          <button class="sidebar-subitem" data-gdp-tab="financeiro-contas-receber" data-fin-tab="contas-receber" onclick="openFinanceiroSubTab('contas-receber')"><span class="sidebar-subitem-label">Contas a Receber</span><span class="count" id="tab-count-contas-receber">0</span></button>
           <button class="sidebar-subitem" data-gdp-tab="relatorios" onclick="switchTab('relatorios')"><span class="sidebar-subitem-label">Relatórios</span><span class="count" id="tab-count-relatorios">0</span></button>
         </div>
       </div>

@@ -160,6 +160,22 @@ function switchTab(tab) {
   if (tab === "financeiro" && typeof atualizarResumosVencimento === "function") atualizarResumosVencimento();
 }
 
+function openFinanceiroSubTab(subTab) {
+  switchTab("financeiro");
+  switchFinanceiroTab(subTab);
+  document.querySelectorAll(".sidebar-subitem[data-gdp-tab]").forEach((item) => item.classList.remove("active"));
+  const shortcut = document.querySelector(`.sidebar-subitem[data-fin-tab="${subTab}"]`);
+  if (shortcut) shortcut.classList.add("active");
+  const title = document.getElementById("gdp-section-title");
+  const labels = {
+    "caixa": "Caixa",
+    "contas-pagar": "Contas a Pagar",
+    "contas-receber": "Contas a Receber",
+    "conciliacao": "Conciliacao Bancaria"
+  };
+  if (title) title.textContent = labels[subTab] || "Financeiro";
+}
+
 // Financeiro sub-tab switching
 function switchFinanceiroTab(subTab) {
   ["caixa","contas-pagar","contas-receber","conciliacao"].forEach(t => {
@@ -1577,9 +1593,15 @@ function _renderAllImmediate() {
     case 'pedidos': renderPedidos(); break;
     case 'notas-fiscais': renderNotasFiscais(); break;
     case 'financeiro':
-    case 'contas-pagar': renderContasPagar(); break;
-    case 'contas-receber': renderContasReceber(); break;
-    case 'caixa': renderCaixa(); break;
+    case 'financeiro-caixa':
+    case 'financeiro-contas-pagar':
+    case 'financeiro-contas-receber': {
+      const finTab = activeBtn?.dataset.finTab || document.querySelector('.fin-tab-btn.active')?.dataset.finTab || 'caixa';
+      if (finTab === 'contas-pagar') renderContasPagar();
+      else if (finTab === 'contas-receber') renderContasReceber();
+      else renderCaixa();
+      break;
+    }
     case 'relatorios': renderRelatorios(); break;
     case 'estoque':
     case 'fornecedores':
