@@ -834,7 +834,17 @@ function loadData() {
   try { provasEntrega = JSON.parse(localStorage.getItem(PROOFS_KEY)) || []; } catch(_) { provasEntrega = []; }
   try { notasFiscais = unwrapData(JSON.parse(localStorage.getItem(INVOICES_KEY))); } catch(_) { notasFiscais = []; }
   // Story 4.80: removido saveNotasFiscais() no boot — re-save desnecessário bloqueava thread
-  try { notasEntrada = unwrapData(JSON.parse(localStorage.getItem(ENTRY_INVOICES_KEY))); } catch(_) { notasEntrada = []; }
+  try {
+    notasEntrada = unwrapData(JSON.parse(localStorage.getItem(ENTRY_INVOICES_KEY)));
+    // Story 4.83: limpar xmlRaw/danfe pesados de notas existentes (evita estouro sync_data 500KB)
+    var _neCleaned = 0;
+    notasEntrada.forEach(function(ne) {
+      if (ne.xmlRaw) { delete ne.xmlRaw; _neCleaned++; }
+      if (ne.danfe && ne.danfe.rawHtml) { delete ne.danfe.rawHtml; _neCleaned++; }
+      if (ne.danfe && ne.danfe.rawXml) { delete ne.danfe.rawXml; _neCleaned++; }
+    });
+    if (_neCleaned > 0) { saveNotasEntrada(); gdpLog('[boot] Cleaned ' + _neCleaned + ' heavy fields from notas de entrada'); }
+  } catch(_) { notasEntrada = []; }
   try { contasPagar = unwrapData(JSON.parse(localStorage.getItem(PAYABLES_KEY))); } catch(_) { contasPagar = []; }
   try { contasReceber = unwrapData(JSON.parse(localStorage.getItem(RECEIVABLES_KEY))); } catch(_) { contasReceber = []; }
 
@@ -1212,7 +1222,22 @@ window.limparNotasRejeitadas = function() {
   alert("RESET COMPLETO:\\n- " + antes + " notas removidas\\n- Referencias nos pedidos limpas\\n- Counter: proximo = 1201\\n\\nRecarregue a pagina (F5) e gere a nota novamente.");
   renderAll();
 };
-function saveNotasEntrada() { saveWrappedArray(ENTRY_INVOICES_KEY, notasEntrada); }
+function saveNotasEntrada() {
+  // Story 4.83: Strip xmlRaw and heavy danfe data before saving — each can be 150-300KB
+  // Without this, 2-3 notas estouram o limite de 500KB do sync_data e dados são perdidos
+  var lightItems = notasEntrada.map(function(ne) {
+    var light = Object.assign({}, ne);
+    delete light.xmlRaw; // 150-300KB per nota — não é necessário persistir
+    // Manter danfe mas limpar campos pesados (rawHtml, etc.)
+    if (light.danfe) {
+      light.danfe = Object.assign({}, light.danfe);
+      delete light.danfe.rawHtml;
+      delete light.danfe.rawXml;
+    }
+    return light;
+  });
+  saveWrappedArray(ENTRY_INVOICES_KEY, lightItems);
+}
 function saveContasPagar() { saveWrappedArray(PAYABLES_KEY, contasPagar); }
 function saveContasReceber() { saveWrappedArray(RECEIVABLES_KEY, contasReceber); }
 function saveCaixaExtrato() { saveWrappedArray(CAIXA_STATEMENT_KEY, caixaExtratoMovimentos); }

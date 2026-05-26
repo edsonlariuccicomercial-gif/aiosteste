@@ -226,7 +226,10 @@ async function syncToCloud(signal) {
   for (const key of SYNC_KEYS) {
     const raw = localStorage.getItem(key);
     if (!raw) continue;
-    if (raw.length > SYNC_MAX_BYTES) continue;
+    if (raw.length > SYNC_MAX_BYTES) {
+      console.warn('[Sync] Key ' + key + ' excede ' + Math.round(SYNC_MAX_BYTES/1024) + 'KB (' + Math.round(raw.length/1024) + 'KB) — sync ignorado. Limpe dados pesados.');
+      continue;
+    }
 
     const hash = _quickHash(raw);
     if (_syncHashes[key] === hash) continue;
