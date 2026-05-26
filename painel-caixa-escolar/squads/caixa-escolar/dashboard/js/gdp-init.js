@@ -2805,9 +2805,15 @@ async function enviarTiny(contratoId) {
   } catch(e) { gdpWarn("[GDP] Erro montando financeiro:", e); }
 
   // LOCAL-FIRST: renderizar dados locais imediatamente para UX instantânea
+  console.time('[GDP] loadData');
   loadData();
+  console.timeEnd('[GDP] loadData');
+  console.time('[GDP] loadUsuarios');
   loadUsuarios();
+  console.timeEnd('[GDP] loadUsuarios');
+  console.time('[GDP] renderAll');
   renderAll();
+  console.timeEnd('[GDP] renderAll');
 
   // Story 4.83: liberar cloud sync 3s após boot (tabelas Supabase carregam em ~1-2s)
   setTimeout(function() { if (typeof _gdpBootInProgress !== 'undefined') _gdpBootInProgress = false; }, 3000);

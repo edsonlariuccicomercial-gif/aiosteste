@@ -809,6 +809,8 @@ function saveWrappedArray(key, items) {
   localStorage.setItem(key, JSON.stringify(wrapped));
   // Story 4.65: registrar timestamp do save local para dirty window protection
   _lastLocalSave[key] = Date.now();
+  // Story 4.83: Skip network saves during boot (saveAll + cloudSave são ~15 POST requests bloqueantes)
+  if (_gdpBootInProgress) return;
   // Gravar no Supabase tabela real (fonte primária)
   const table = _LS_TO_TABLE[key];
   if (table && window.gdpApi && window.gdpApi[table]) {
