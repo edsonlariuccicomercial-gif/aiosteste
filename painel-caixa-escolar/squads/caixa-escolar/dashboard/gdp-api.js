@@ -290,7 +290,7 @@
       }
     } catch (_) { /* skip */ }
 
-    gdpLog('[gdp-api] Migration complete:', migrated);
+    if (typeof window.gdpLog === 'function') window.gdpLog('[gdp-api] Migration complete:', migrated);
     return migrated;
   }
 
@@ -304,7 +304,7 @@
         body: JSON.stringify({ p_empresa_id: eid })
       });
       if (!resp.ok) gdpWarn('[gdp-api] RLS context failed:', resp.status);
-      else gdpLog('[gdp-api] RLS context set for:', eid);
+      else if (typeof window.gdpLog === 'function') window.gdpLog('[gdp-api] RLS context set for:', eid);
       return resp.ok;
     } catch (e) {
       gdpWarn('[gdp-api] RLS context error:', e.message);
@@ -335,5 +335,5 @@
   // Auto-set RLS context on load
   setEmpresaContext();
 
-  gdpLog('[gdp-api] loaded, empresa_id:', getEmpresaId());
+  if (typeof window.gdpLog === 'function') window.gdpLog('[gdp-api] loaded, empresa_id:', getEmpresaId());
 })();
