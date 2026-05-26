@@ -1984,101 +1984,137 @@ function _parsePedidoVendaPdf(result, allText, fileName) {
 
   // --- Extrair metadados do header ---
   var escola = '', cnpjEscola = '', enderecoEscola = '', emailEscola = '', foneEscola = '';
-  var fornecedor = '', cnpjFornecedor = '', numPedido = '', dataPedido = '', obs = '';
+  var fornecedor = '', numPedido = '', dataPedido = '', obs = '';
 
-  // Cliente / Escola
-  var clienteMatch = allText.match(/Cliente\s+(.+?)(?:\n|$)/i);
-  if (clienteMatch) escola = clienteMatch[1].trim();
-  // CNPJ escola (depois do nome do cliente)
-  var cnpjEscMatch = allText.match(/(\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}),?\s*IE/);
-  if (cnpjEscMatch) cnpjEscola = cnpjEscMatch[1];
-  // Se não achou pelo padrão IE, pegar segundo CNPJ (primeiro é do fornecedor)
-  if (!cnpjEscola) {
-    var cnpjs = allText.match(/\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}/g) || [];
-    if (cnpjs.length >= 2) cnpjEscola = cnpjs[1];
+  // Fornecedor = primeira linha (nome em caixa alta, antes de "Pedido de Venda")
+  for (var pi = 0; pi < paras.length; pi++) {
+    if (/pedido\s+de\s+venda/i.test(paras[pi])) break;
+    if (/[A-Z]{3,}/.test(paras[pi]) && !/^\d/.test(paras[pi]) && paras[pi].length > 5) {
+      fornecedor = paras[pi].trim();
+      break;
+    }
   }
-  // Email
-  var emailMatch = allText.match(/([\w.]+@[\w.]+\.\w+)/);
-  if (emailMatch) emailEscola = emailMatch[1];
-  // Fone
-  var foneMatch = allText.match(/Fone:\s*([\(\)\d\s\-]+)/i);
-  if (foneMatch) foneEscola = foneMatch[1].trim();
-  // Endereço escola
-  var endMatch = allText.match(/Endere[cç]o\s+(.+?)(?:\n|Contato)/is);
-  if (endMatch) enderecoEscola = endMatch[1].replace(/\n/g, ', ').trim();
-
-  // Fornecedor (primeira linha ou primeira razão social)
-  var firstLine = paras[0] || '';
-  if (/[A-Z]{3,}/.test(firstLine) && !/pedido/i.test(firstLine)) fornecedor = firstLine.trim();
-  // CNPJ fornecedor (primeiro CNPJ no texto)
-  var cnpjsAll = allText.match(/\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}/g) || [];
-  if (cnpjsAll.length >= 1) cnpjFornecedor = cnpjsAll[0];
 
   // Número do pedido
-  var numMatch = allText.match(/(?:Pedido\s+de\s+Venda\s+N[°ºo]?\s*|N[uú]mero\s+do\s+pedido\s*)(\d+)/i);
+  var numMatch = allText.match(/Pedido\s+de\s+Venda\s+N[°ºo]?\s*(\d+)/i);
+  if (!numMatch) numMatch = allText.match(/N[uú]mero\s+do\s+pedido\s*(\d+)/i);
   if (numMatch) numPedido = numMatch[1];
+
+  // Escola/Cliente: linha logo após "Pedido de Venda Nº XXX"
+  var pedidoIdx = paras.findIndex(function(p) { return /pedido\s+de\s+venda/i.test(p); });
+  if (pedidoIdx >= 0 && pedidoIdx + 1 < paras.length) {
+    var nextLine = paras[pedidoIdx + 1];
+    if (!/^\d{2}\.\d{3}/.test(nextLine) && !/pedido/i.test(nextLine)) {
+      escola = nextLine.trim();
+    }
+  }
+  // Fallback: procurar "Cliente" no texto
+  if (!escola) {
+    var clienteMatch = allText.match(/Cliente\s+(.+?)(?:\n|$)/i);
+    if (clienteMatch) escola = clienteMatch[1].trim();
+  }
+
+  // CNPJs: primeiro = fornecedor, segundo = escola
+  var cnpjs = allText.match(/\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}/g) || [];
+  if (cnpjs.length >= 2) cnpjEscola = cnpjs[1];
+  else if (cnpjs.length === 1) cnpjEscola = cnpjs[0];
+
+  // Email, Fone
+  var emailMatch = allText.match(/([\w.]+@[\w.]+\.\w{2,})/);
+  if (emailMatch) emailEscola = emailMatch[1];
+  var foneMatch = allText.match(/Fone:\s*([\(\)\d\s\-]+)/i);
+  if (foneMatch) foneEscola = foneMatch[1].trim();
+
   // Data
   var dataMatch = allText.match(/\bData\s+(\d{2}\/\d{2}\/\d{4})/i);
   if (dataMatch) dataPedido = dataMatch[1];
-  // Observações
-  var obsMatch = allText.match(/Observa[cç][oõ]es\s*\n?\s*(.+?)(?:\n\s*\/|$)/is);
-  if (obsMatch) obs = obsMatch[1].trim();
 
-  // --- Extrair itens da tabela de produtos ---
+  // Observações
+  var obsIdx = paras.findIndex(function(p) { return /observa/i.test(p); });
+  if (obsIdx >= 0 && obsIdx + 1 < paras.length) {
+    var obsLine = paras[obsIdx + 1];
+    if (!/^\//.test(obsLine) && !/data de receb/i.test(obsLine)) obs = obsLine.trim();
+  }
+
+  // --- Extrair itens da tabela ---
+  // Sinhana: tabela SEM header na primeira linha. Formato: [descricao, sku, "qtd un", preco, total]
   var itens = [];
-  // Procurar tabela com colunas Item/Qtd/Un/Preço/Total
   for (var ti = 0; ti < tables.length; ti++) {
     var tbl = tables[ti];
-    if (tbl.length < 2) continue;
-    var hdr = tbl[0].join(' ').toLowerCase();
-    if (hdr.indexOf('qtd') >= 0 || hdr.indexOf('preco') >= 0 || hdr.indexOf('total') >= 0 || hdr.indexOf('item') >= 0) {
-      // Detectar posição das colunas
-      var hCells = tbl[0];
-      var iDesc = -1, iSku = -1, iQtd = -1, iUn = -1, iPreco = -1, iTotal = -1;
-      for (var hi = 0; hi < hCells.length; hi++) {
-        var h = hCells[hi].toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-        if (h.indexOf('item') >= 0 || h.indexOf('descr') >= 0 || h.indexOf('produto') >= 0) iDesc = hi;
-        else if (h.indexOf('sku') >= 0 || h.indexOf('codigo') >= 0 || h.indexOf('gtin') >= 0) iSku = hi;
-        else if (h.indexOf('qtd') >= 0 || h.indexOf('quant') >= 0) iQtd = hi;
-        else if (h === 'un' || h.indexOf('unid') >= 0) iUn = hi;
-        else if (h.indexOf('preco') >= 0 || h.indexOf('prec') >= 0 || h.indexOf('unit') >= 0) iPreco = hi;
-        else if (h.indexOf('total') >= 0 || h.indexOf('subtotal') >= 0) iTotal = hi;
+    if (tbl.length < 3) continue;
+    // Verificar se tem dados numéricos (preços)
+    var hasPrecos = tbl.some(function(row) { return row.some(function(c) { return /\d+[.,]\d{2}$/.test(c.trim()); }); });
+    if (!hasPrecos) continue;
+
+    for (var ri = 0; ri < tbl.length; ri++) {
+      var r = tbl[ri];
+      if (r.length < 3) continue;
+      var descricao = (r[0] || '').trim();
+      if (!descricao) continue;
+      // Pular linhas de resumo
+      if (/^(n[uú]mero|soma|total)/i.test(descricao)) continue;
+      // Pular linhas de header se existirem
+      if (/^item$/i.test(descricao) || /^produto$/i.test(descricao)) continue;
+
+      var sku = '';
+      var qtdRaw = '0', unidade = 'UN', precoRaw = '0', totalRaw = '0';
+
+      if (r.length === 5) {
+        // Sinhana: [desc, sku, "qtd un", preco, total]
+        sku = (r[1] || '').trim();
+        // Coluna 2 pode ser "6,00 Un" ou "105,00 UN" (qtd + unidade juntos)
+        var qtdUnStr = (r[2] || '').trim();
+        var qtdUnMatch = qtdUnStr.match(/^([\d.,]+)\s*([A-Za-z]+)?$/);
+        if (qtdUnMatch) {
+          qtdRaw = qtdUnMatch[1].replace(',', '.');
+          if (qtdUnMatch[2]) unidade = qtdUnMatch[2].toUpperCase();
+        } else {
+          qtdRaw = qtdUnStr.replace(/[^\d,.]/g, '').replace(',', '.');
+        }
+        precoRaw = (r[3] || '0').replace(/[^\d,.]/g, '').replace(',', '.');
+        totalRaw = (r[4] || '0').replace(/[^\d,.]/g, '').replace(',', '.');
+      } else if (r.length === 6) {
+        // [desc, sku, qtd, un, preco, total]
+        sku = (r[1] || '').trim();
+        qtdRaw = (r[2] || '0').replace(/[^\d,.]/g, '').replace(',', '.');
+        unidade = (r[3] || 'UN').trim().toUpperCase();
+        precoRaw = (r[4] || '0').replace(/[^\d,.]/g, '').replace(',', '.');
+        totalRaw = (r[5] || '0').replace(/[^\d,.]/g, '').replace(',', '.');
+      } else if (r.length === 4) {
+        // [desc, "qtd un", preco, total]
+        var qu = (r[1] || '').trim();
+        var quM = qu.match(/^([\d.,]+)\s*([A-Za-z]+)?$/);
+        if (quM) { qtdRaw = quM[1].replace(',', '.'); if (quM[2]) unidade = quM[2].toUpperCase(); }
+        else { qtdRaw = qu.replace(/[^\d,.]/g, '').replace(',', '.'); }
+        precoRaw = (r[2] || '0').replace(/[^\d,.]/g, '').replace(',', '.');
+        totalRaw = (r[3] || '0').replace(/[^\d,.]/g, '').replace(',', '.');
+      } else {
+        continue;
       }
-      // Se não achou colunas por header, tentar por posição fixa (Sinhana: Item, SKU, Qtd, Un, Preço, Total)
-      if (iDesc < 0 && hCells.length >= 5) {
-        iDesc = 0; iSku = 1; iQtd = 2; iUn = 3; iPreco = 4; iTotal = hCells.length > 5 ? 5 : 4;
-      }
-      if (iDesc < 0) continue;
-      // Ler linhas de dados
-      for (var ri = 1; ri < tbl.length; ri++) {
-        var r = tbl[ri];
-        var descricao = (r[iDesc] || '').trim();
-        if (!descricao) continue;
-        // Pular linhas de resumo (número de itens, soma, total)
-        if (/^(n[uú]mero|soma|total)/i.test(descricao)) continue;
-        var qtdRaw = iQtd >= 0 ? String(r[iQtd] || '0').replace(/[^\d,.\-]/g, '').replace(',', '.') : '0';
-        var precoRaw = iPreco >= 0 ? String(r[iPreco] || '0').replace(/[^\d,.\-]/g, '').replace(',', '.') : '0';
-        itens.push({
-          num: itens.length + 1,
-          descricao: descricao,
-          sku: iSku >= 0 ? (r[iSku] || '').trim() : '',
-          qtdContratada: parseFloat(qtdRaw) || 0,
-          qtdEntregue: 0,
-          unidade: iUn >= 0 ? (r[iUn] || 'UN').trim().toUpperCase() : 'UN',
-          precoUnitario: parseFloat(precoRaw) || 0,
-          ncm: ''
-        });
-      }
-      break; // Usar primeira tabela de itens encontrada
+
+      var qty = parseFloat(qtdRaw) || 0;
+      var price = parseFloat(precoRaw) || 0;
+      if (qty <= 0 && price <= 0) continue; // Pular linhas sem dados
+
+      itens.push({
+        num: itens.length + 1,
+        descricao: descricao,
+        sku: sku,
+        qtdContratada: qty,
+        qtdEntregue: 0,
+        unidade: unidade,
+        precoUnitario: price,
+        ncm: ''
+      });
     }
+    if (itens.length > 0) break;
   }
 
   if (!escola && !itens.length) return null;
 
   var valorTotal = itens.reduce(function(s, i) { return s + (i.qtdContratada * i.precoUnitario); }, 0);
-  // Extrair processo das observações (PAS XX/YYYY)
-  var procMatch = (obs + ' ' + allText).match(/PAS\s+(\d{1,4}\/\d{4})/i);
-  var processo = procMatch ? procMatch[1] : '';
+  var procMatch2 = (obs + ' ' + allText).match(/PAS\s+(\d{1,4}\/\d{4})/i);
+  var processo = procMatch2 ? procMatch2[1] : '';
 
   return {
     id: 'CTR-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).slice(2, 5).toUpperCase(),
@@ -2087,7 +2123,7 @@ function _parsePedidoVendaPdf(result, allText, fileName) {
     processo: processo,
     vigencia: '',
     fornecedor: fornecedor || 'Lariucci & Ribeiro Pereira',
-    objeto: 'Pedido de Venda' + (numPedido ? ' Nº ' + numPedido : ''),
+    objeto: 'Pedido de Venda' + (numPedido ? ' N\u00ba ' + numPedido : ''),
     status: 'ativo',
     valorTotal: valorTotal,
     observacoes: obs,
