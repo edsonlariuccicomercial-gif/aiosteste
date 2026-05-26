@@ -821,6 +821,7 @@ function saveWrappedArray(key, items) {
   schedulCloudSync();
 }
 function loadData() {
+  console.time('[GDP] loadData:parse');
   // Story 4.80: dirty flags removidos — save migrado para background
   try { contratosExcluidos = unwrapData(JSON.parse(localStorage.getItem(CONTRACTS_DELETED_KEY))); } catch(_) { contratosExcluidos = []; }
   // Story 4.80: remover JSON.stringify per-item no boot (era O(n) stringify desnecessário)
@@ -879,6 +880,8 @@ function loadData() {
   } catch(_) {}
   try { estoqueIntelCompras = unwrapData(JSON.parse(localStorage.getItem(ESTOQUE_INTEL_PURCHASES_KEY))); } catch(_) { estoqueIntelCompras = []; }
   try { integracoesGdp = unwrapData(JSON.parse(localStorage.getItem(INTEGRATIONS_KEY))); } catch(_) { integracoesGdp = []; }
+  console.timeEnd('[GDP] loadData:parse');
+  console.time('[GDP] loadData:migrations');
 
   // Story 4.58 AC-1: reconstruir extrato + migrar itens sem extratoId no boot
   try {
@@ -1107,7 +1110,9 @@ function loadData() {
     }
     localStorage.setItem("gdp.migration.restaurar-criticos-v8", new Date().toISOString());
   }
+  console.time('[GDP] loadData:syncPedidos');
   syncPedidosGDPToEstoqueIntel(true);
+  console.timeEnd('[GDP] loadData:syncPedidos');
   // Story 4.43: load equivalencias/demandas/estoque data layer
   loadGdpEquivalencias();
   loadGdpConversoes();
@@ -1124,6 +1129,7 @@ function loadData() {
     try { _saveLocal(PAYABLES_KEY, contasPagar); } catch(_) {}
     try { _saveLocal(RECEIVABLES_KEY, contasReceber); } catch(_) {}
   }, 3000);
+  console.timeEnd('[GDP] loadData:migrations');
 }
 function saveContratos() {
   contratos = applyDeletedContractsFilter(contratos).map(sanitizeContratoLegacyData);
