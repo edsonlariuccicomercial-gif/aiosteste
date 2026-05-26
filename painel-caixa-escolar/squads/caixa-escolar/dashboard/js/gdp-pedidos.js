@@ -1377,6 +1377,10 @@ function getNotaFiscalOperationalFiscal(nf) {
   if (nf.status === "autorizada" || sefazStatus.includes("autoriz")) {
     return { label: "Fiscal ok", detail: "Nota liberada pela SEFAZ", badgeClass: "badge-green" };
   }
+  // Story 4.83: transmitida = enviada com sucesso para SEFAZ, aguardando confirmação
+  if (nf.status === "transmitida" || sefazStatus.includes("transmit")) {
+    return { label: "Transmitida", detail: "Enviada para SEFAZ — aguardando confirmacao", badgeClass: "badge-blue" };
+  }
   return { label: "Pendente fiscal", detail: "Aguardando transmissao ou autorizacao", badgeClass: "badge-yellow" };
 }
 
@@ -1424,8 +1428,11 @@ function getContaReceberOperationalBank(item) {
 
 function normalizeNotaFiscalStatus(status) {
   const normalized = String(status || "").trim().toLowerCase();
-  if (!normalized || normalized === "rascunho" || normalized === "transmitida" || normalized === "pendente_autorizacao" || normalized === "rejeitada") return "pendente";
-  if (normalized === "autorizada" || normalized === "emitida" || normalized === "faturada") return "emitida";
+  if (!normalized || normalized === "rascunho" || normalized === "pendente_autorizacao") return "pendente";
+  // Story 4.83: "transmitida" = enviada com sucesso para SEFAZ → vai para Emitidas (não é mais pendente)
+  // "rejeitada" = SEFAZ rejeitou → pendente (precisa corrigir e reenviar)
+  if (normalized === "rejeitada") return "pendente";
+  if (normalized === "autorizada" || normalized === "emitida" || normalized === "faturada" || normalized === "transmitida") return "emitida";
   if (normalized === "cancelada") return "cancelada";
   if (normalized === "inutilizada") return "inutilizada";
   return "pendente";
