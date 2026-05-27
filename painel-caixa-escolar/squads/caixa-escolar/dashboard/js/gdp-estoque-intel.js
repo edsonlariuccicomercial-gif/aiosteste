@@ -12,13 +12,32 @@ function _promptNovaCategoriaProduto() {
   const catSelect = document.getElementById("ei-filtro-categoria");
   if (catSelect) catSelect.value = "";
 }
-// Handler para capturar seleção de "+ Nova categoria" no onChange
+// Handler para capturar seleção de "+ Nova categoria" e "- Remover categoria"
 document.addEventListener("change", function(e) {
-  if (e.target && e.target.id === "ei-filtro-categoria" && e.target.value === "__nova__") {
-    e.target.value = "";
-    _promptNovaCategoriaProduto();
+  if (e.target && e.target.id === "ei-filtro-categoria") {
+    if (e.target.value === "__nova__") { e.target.value = ""; _promptNovaCategoriaProduto(); }
+    if (e.target.value === "__remover__") { e.target.value = ""; _promptRemoverCategoriaProduto(); }
   }
 });
+
+function _promptRemoverCategoriaProduto() {
+  var allCats = [...new Set(estoqueIntelProdutos.map(function(p) { return p.categoria || ""; }).filter(Boolean))].sort();
+  if (allCats.length === 0) { showToast("Nenhuma categoria para remover.", 3000); return; }
+  var msg = "Categorias existentes:\n" + allCats.map(function(c, i) { return (i + 1) + ". " + c; }).join("\n") + "\n\nDigite o número da categoria para remover:";
+  var choice = prompt(msg);
+  if (!choice) return;
+  var idx = parseInt(choice) - 1;
+  if (isNaN(idx) || idx < 0 || idx >= allCats.length) { showToast("Opção inválida.", 3000); return; }
+  var catRemover = allCats[idx];
+  var produtosComCat = estoqueIntelProdutos.filter(function(p) { return p.categoria === catRemover; });
+  if (produtosComCat.length > 0) {
+    if (!confirm("A categoria '" + catRemover + "' tem " + produtosComCat.length + " produto(s). Remover a categoria deles?")) return;
+    produtosComCat.forEach(function(p) { p.categoria = ""; });
+    if (typeof saveEstoqueIntelProdutos === 'function') saveEstoqueIntelProdutos();
+  }
+  if (typeof renderEstoque === 'function') renderEstoque();
+  showToast("Categoria '" + catRemover + "' removida de " + produtosComCat.length + " produto(s).");
+}
 
 // ===== LIMPAR PRODUTOS E MOVIMENTAÇÕES =====
 window.limparProdutosEstoqueIntel = function() {
@@ -1920,8 +1939,7 @@ function renderEstoque() {
   if (catSelect) {
     const currentVal = catSelect.value;
     const allCats = [...new Set(estoqueIntelProdutos.map(p => p.categoria || "").filter(Boolean))].sort();
-    catSelect.innerHTML = '<option value="">Todas Categorias</option>' + allCats.map(c => '<option value="' + c + '"' + (c === currentVal ? ' selected' : '') + '>' + c + '</option>').join("") + '<option value="__nova__">+ Nova categoria</option>';
-    if (currentVal === '__nova__') { catSelect.value = ''; _promptNovaCategoriaProduto(); }
+    catSelect.innerHTML = '<option value="">Todas Categorias</option>' + allCats.map(c => '<option value="' + c + '"' + (c === currentVal ? ' selected' : '') + '>' + c + '</option>').join("") + '<option value="__nova__">+ Nova categoria</option>' + (allCats.length > 0 ? '<option value="__remover__">- Remover categoria</option>' : '');
   }
   document.querySelectorAll("[data-ei-section]").forEach((el) => {
     const section = el.getAttribute("data-ei-section");

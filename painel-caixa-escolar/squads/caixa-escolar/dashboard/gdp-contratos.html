@@ -664,19 +664,30 @@
       <div class="kpi"><div class="kpi-label">A Pagar</div><div class="kpi-value yellow" id="cp-kpi-aberto">R$&nbsp;0,00</div><div class="kpi-sub">Contas pendentes</div></div>
       <div class="kpi"><div class="kpi-label">Em Atraso</div><div class="kpi-value red" id="cp-kpi-atrasadas">0</div><div class="kpi-sub">Contas vencidas</div></div>
     </div>
-    <div style="display:flex;justify-content:space-between;gap:.8rem;align-items:center;margin-bottom:1rem;flex-wrap:wrap">
-      <div style="display:flex;gap:.8rem;align-items:center;flex-wrap:wrap">
+    <div style="display:flex;gap:.8rem;align-items:center;margin-bottom:.6rem;flex-wrap:wrap">
         <input type="text" id="cp-busca" placeholder="Buscar descricao..." oninput="renderContasPagar()" style="min-width:220px">
         <select id="cp-filtro-categoria" onchange="renderContasPagar()"></select>
-        <select id="cp-filtro-periodo" onchange="renderContasPagar()" style="height:40px;padding:4px 10px;border-radius:6px;border:1px solid var(--bdr);background:var(--bg);color:var(--txt);font-size:.85rem"><option value="todos">Todos os vencimentos</option><option value="hoje">Hoje</option><option value="semana">Esta Semana</option><option value="mes">Este Mes</option><option value="intervalo">Intervalo</option></select>
-        <input type="date" id="cp-filtro-de" class="hidden" onchange="renderContasPagar()" style="height:40px;padding:4px 8px;border-radius:6px;border:1px solid var(--bdr);background:var(--bg);color:var(--txt);font-size:.82rem">
-        <input type="date" id="cp-filtro-ate" class="hidden" onchange="renderContasPagar()" style="height:40px;padding:4px 8px;border-radius:6px;border:1px solid var(--bdr);background:var(--bg);color:var(--txt);font-size:.82rem">
-      </div>
-      <div style="display:flex;gap:.6rem;align-items:center;flex-wrap:wrap">
+        <div style="position:relative" id="periodo-cp-venc-container">
+          <div id="periodo-cp-venc-trigger" style="display:flex;align-items:center;gap:6px;padding:7px 10px;border:1px solid var(--bdr);border-radius:6px;cursor:pointer;font-size:.85rem;color:var(--mut);background:var(--bg);min-height:36px;user-select:none" onclick="togglePeriodoDropdown('cp-venc')">
+            <span id="periodo-cp-venc-label">Vencimento</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-left:auto;flex-shrink:0"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          </div>
+          <div id="periodo-cp-venc-dropdown" style="display:none;position:absolute;top:calc(100% + 4px);left:0;z-index:100;background:var(--s1);border:1px solid var(--bdr);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.25);padding:12px;min-width:220px">
+            <label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:4px">Data inicial</label>
+            <input type="date" id="cp-filtro-de" style="width:100%;padding:8px;border:1px solid var(--bdr);border-radius:6px;font-size:.85rem;margin-bottom:10px;background:var(--bg);color:var(--txt)">
+            <label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:4px">Data final</label>
+            <input type="date" id="cp-filtro-ate" style="width:100%;padding:8px;border:1px solid var(--bdr);border-radius:6px;font-size:.85rem;margin-bottom:8px;background:var(--bg);color:var(--txt)">
+            <div style="display:flex;gap:6px">
+              <button class="btn btn-sm" onclick="limparPeriodoFilter('cp-venc','renderContasPagar')" style="flex:1">Limpar</button>
+              <button class="btn btn-sm btn-green" onclick="aplicarPeriodoFilter('cp-venc','renderContasPagar')" style="flex:1">Aplicar</button>
+            </div>
+          </div>
+        </div>
+    </div>
+    <div style="display:flex;gap:.6rem;align-items:center;margin-bottom:1rem;flex-wrap:wrap">
         <button class="btn btn-outline" onclick="imprimirRelatorioContasPagar()">Imprimir Relatorio</button>
         <button class="btn btn-outline" onclick="toggleImportCpModal(true)">📥 Importar Planilha</button>
         <button class="btn btn-green" onclick="toggleContaPagarForm()">+ Incluir Conta a Pagar</button>
-      </div>
     </div>
     <div id="contas-pagar-status-tabs" style="display:flex;gap:.25rem;flex-wrap:nowrap;align-items:center;margin-bottom:1rem"></div>
     <div class="table-wrap" style="max-height:600px;overflow-y:auto">
@@ -780,12 +791,38 @@
     </div>
     <div style="display:flex;gap:.8rem;align-items:center;margin-bottom:.6rem;flex-wrap:wrap">
         <input type="text" id="cr-busca" placeholder="Buscar descricao ou cliente..." oninput="renderContasReceber()" style="min-width:240px">
-        <select id="cr-filtro-categoria" onchange="renderContasReceber()" style="height:40px;padding:4px 10px;border-radius:6px;border:1px solid var(--bdr);background:var(--bg);color:var(--txt);font-size:.85rem"><option value="">Todas as emissões</option><option value="hoje">Hoje</option><option value="semana">Esta Semana</option><option value="mes">Este Mês</option><option value="intervalo">Intervalo</option></select>
-        <input type="date" id="cr-filtro-emissao-de" class="hidden" onchange="renderContasReceber()" style="height:40px;padding:4px 8px;border-radius:6px;border:1px solid var(--bdr);background:var(--bg);color:var(--txt);font-size:.82rem">
-        <input type="date" id="cr-filtro-emissao-ate" class="hidden" onchange="renderContasReceber()" style="height:40px;padding:4px 8px;border-radius:6px;border:1px solid var(--bdr);background:var(--bg);color:var(--txt);font-size:.82rem">
-        <select id="cr-filtro-periodo" onchange="renderContasReceber()" style="height:40px;padding:4px 10px;border-radius:6px;border:1px solid var(--bdr);background:var(--bg);color:var(--txt);font-size:.85rem"><option value="todos">Todos os vencimentos</option><option value="hoje">Hoje</option><option value="semana">Esta Semana</option><option value="mes">Este Mes</option><option value="intervalo">Intervalo</option></select>
-        <input type="date" id="cr-filtro-de" class="hidden" onchange="renderContasReceber()" style="height:40px;padding:4px 8px;border-radius:6px;border:1px solid var(--bdr);background:var(--bg);color:var(--txt);font-size:.82rem">
-        <input type="date" id="cr-filtro-ate" class="hidden" onchange="renderContasReceber()" style="height:40px;padding:4px 8px;border-radius:6px;border:1px solid var(--bdr);background:var(--bg);color:var(--txt);font-size:.82rem">
+        <div style="position:relative" id="periodo-cr-emissao-container">
+          <div id="periodo-cr-emissao-trigger" style="display:flex;align-items:center;gap:6px;padding:7px 10px;border:1px solid var(--bdr);border-radius:6px;cursor:pointer;font-size:.85rem;color:var(--mut);background:var(--bg);min-height:36px;user-select:none" onclick="togglePeriodoDropdown('cr-emissao')">
+            <span id="periodo-cr-emissao-label">Emissão</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-left:auto;flex-shrink:0"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          </div>
+          <div id="periodo-cr-emissao-dropdown" style="display:none;position:absolute;top:calc(100% + 4px);left:0;z-index:100;background:var(--s1);border:1px solid var(--bdr);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.25);padding:12px;min-width:220px">
+            <label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:4px">Data inicial</label>
+            <input type="date" id="cr-filtro-emissao-de" style="width:100%;padding:8px;border:1px solid var(--bdr);border-radius:6px;font-size:.85rem;margin-bottom:10px;background:var(--bg);color:var(--txt)">
+            <label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:4px">Data final</label>
+            <input type="date" id="cr-filtro-emissao-ate" style="width:100%;padding:8px;border:1px solid var(--bdr);border-radius:6px;font-size:.85rem;margin-bottom:8px;background:var(--bg);color:var(--txt)">
+            <div style="display:flex;gap:6px">
+              <button class="btn btn-sm" onclick="limparPeriodoFilter('cr-emissao','renderContasReceber')" style="flex:1">Limpar</button>
+              <button class="btn btn-sm btn-green" onclick="aplicarPeriodoFilter('cr-emissao','renderContasReceber')" style="flex:1">Aplicar</button>
+            </div>
+          </div>
+        </div>
+        <div style="position:relative" id="periodo-cr-venc-container">
+          <div id="periodo-cr-venc-trigger" style="display:flex;align-items:center;gap:6px;padding:7px 10px;border:1px solid var(--bdr);border-radius:6px;cursor:pointer;font-size:.85rem;color:var(--mut);background:var(--bg);min-height:36px;user-select:none" onclick="togglePeriodoDropdown('cr-venc')">
+            <span id="periodo-cr-venc-label">Vencimento</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-left:auto;flex-shrink:0"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          </div>
+          <div id="periodo-cr-venc-dropdown" style="display:none;position:absolute;top:calc(100% + 4px);left:0;z-index:100;background:var(--s1);border:1px solid var(--bdr);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.25);padding:12px;min-width:220px">
+            <label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:4px">Data inicial</label>
+            <input type="date" id="cr-filtro-de" style="width:100%;padding:8px;border:1px solid var(--bdr);border-radius:6px;font-size:.85rem;margin-bottom:10px;background:var(--bg);color:var(--txt)">
+            <label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:4px">Data final</label>
+            <input type="date" id="cr-filtro-ate" style="width:100%;padding:8px;border:1px solid var(--bdr);border-radius:6px;font-size:.85rem;margin-bottom:8px;background:var(--bg);color:var(--txt)">
+            <div style="display:flex;gap:6px">
+              <button class="btn btn-sm" onclick="limparPeriodoFilter('cr-venc','renderContasReceber')" style="flex:1">Limpar</button>
+              <button class="btn btn-sm btn-green" onclick="aplicarPeriodoFilter('cr-venc','renderContasReceber')" style="flex:1">Aplicar</button>
+            </div>
+          </div>
+        </div>
     </div>
     <div style="display:flex;gap:.6rem;align-items:center;margin-bottom:1rem;flex-wrap:wrap">
         <button class="btn btn-outline" onclick="imprimirRelatorioContasReceber()">Imprimir Relatorio</button>
@@ -2520,8 +2557,8 @@ function confirmarImportProd() {
 <script src="./js/gdp-core.js?v=22"></script>
 <script src="./js/gdp-notas-fiscais.js?v=14"></script>
 <script src="./js/gdp-contratos-module.js?v=11"></script>
-<script src="./js/gdp-estoque-intel.js?v=11"></script>
-<script src="./js/gdp-pedidos.js?v=16"></script>
+<script src="./js/gdp-estoque-intel.js?v=12"></script>
+<script src="./js/gdp-pedidos.js?v=17"></script>
 <script src="./js/gdp-usuarios.js?v=11"></script>
 <!-- gdp-entregas.js removido (Épico A - FR-016) -->
 <script src="./js/gdp-banco-produtos.js?v=11"></script>

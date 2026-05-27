@@ -66,6 +66,48 @@ function _applyPeriodFilterCustom(items, periodo, deId, ateId, dateGetter) {
   });
 }
 
+// ===== PERIODO DROPDOWN (modelo Radar) — genérico para CR/CP =====
+window.togglePeriodoDropdown = function(prefix) {
+  var dd = document.getElementById('periodo-' + prefix + '-dropdown');
+  if (!dd) return;
+  // Fechar todos os outros dropdowns abertos
+  document.querySelectorAll('[id^="periodo-"][id$="-dropdown"]').forEach(function(el) { if (el !== dd) el.style.display = 'none'; });
+  dd.style.display = dd.style.display === 'none' ? 'block' : 'none';
+};
+window.aplicarPeriodoFilter = function(prefix, renderFn) {
+  var de = document.getElementById(prefix === 'cr-emissao' ? 'cr-filtro-emissao-de' : (prefix === 'cr-venc' ? 'cr-filtro-de' : 'cp-filtro-de'));
+  var ate = document.getElementById(prefix === 'cr-emissao' ? 'cr-filtro-emissao-ate' : (prefix === 'cr-venc' ? 'cr-filtro-ate' : 'cp-filtro-ate'));
+  var label = document.getElementById('periodo-' + prefix + '-label');
+  var deVal = de ? de.value : '';
+  var ateVal = ate ? ate.value : '';
+  if (deVal || ateVal) {
+    var fmtD = function(v) { if (!v) return ''; var p = v.split('-'); return p[2] + '/' + p[1]; };
+    if (label) { label.textContent = (fmtD(deVal) || '...') + ' — ' + (fmtD(ateVal) || '...'); label.style.color = 'var(--txt)'; }
+  } else {
+    var defaultLabel = prefix.includes('emissao') ? 'Emissão' : 'Vencimento';
+    if (label) { label.textContent = defaultLabel; label.style.color = 'var(--mut)'; }
+  }
+  document.getElementById('periodo-' + prefix + '-dropdown').style.display = 'none';
+  if (typeof window[renderFn] === 'function') window[renderFn]();
+};
+window.limparPeriodoFilter = function(prefix, renderFn) {
+  var de = document.getElementById(prefix === 'cr-emissao' ? 'cr-filtro-emissao-de' : (prefix === 'cr-venc' ? 'cr-filtro-de' : 'cp-filtro-de'));
+  var ate = document.getElementById(prefix === 'cr-emissao' ? 'cr-filtro-emissao-ate' : (prefix === 'cr-venc' ? 'cr-filtro-ate' : 'cp-filtro-ate'));
+  if (de) de.value = '';
+  if (ate) ate.value = '';
+  var defaultLabel = prefix.includes('emissao') ? 'Emissão' : 'Vencimento';
+  var label = document.getElementById('periodo-' + prefix + '-label');
+  if (label) { label.textContent = defaultLabel; label.style.color = 'var(--mut)'; }
+  document.getElementById('periodo-' + prefix + '-dropdown').style.display = 'none';
+  if (typeof window[renderFn] === 'function') window[renderFn]();
+};
+// Fechar dropdowns ao clicar fora
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('[id^="periodo-"][id$="-container"]')) {
+    document.querySelectorAll('[id^="periodo-"][id$="-dropdown"]').forEach(function(el) { el.style.display = 'none'; });
+  }
+});
+
 // ===== RENDER PEDIDOS =====
 function renderPedidos() {
   // Populate contract filter
@@ -1692,7 +1734,14 @@ function renderContasPagar() {
   });
   if (filtroCategoria) filtered = filtered.filter((item) => item.categoria === filtroCategoria);
   // Story 4.54 AC-1: period filter
-  filtered = _applyPeriodFilter(filtered, 'cp-filtro-periodo', 'cp-filtro-de', 'cp-filtro-ate', 'vencimento');
+  // Filtro por data de vencimento (dropdown Radar)
+  const cpVDe = document.getElementById("cp-filtro-de")?.value || "";
+  const cpVAte = document.getElementById("cp-filtro-ate")?.value || "";
+  if (cpVDe || cpVAte) {
+    filtered = _applyPeriodFilterCustom(filtered, 'intervalo', 'cp-filtro-de', 'cp-filtro-ate', function(item) {
+      return item.vencimento || '';
+    });
+  }
   renderContaPagarStatusTabs(filtered);
   // Story 4.68: quando usuario busca, mostrar resultados de todas as abas de status
   if (!busca && contaPagarStatusTabAtual !== 'todas') filtered = filtered.filter((item) => normalizeContaPagarStatus(item) === contaPagarStatusTabAtual);
@@ -1748,30 +1797,28 @@ function renderContasReceber() {
   const tbody = document.getElementById("contas-receber-tbody");
   const empty = document.getElementById("contas-receber-empty");
   const busca = (document.getElementById("cr-busca")?.value || "").toLowerCase();
-  const filtroCategoria = document.getElementById("cr-filtro-categoria")?.value || "";
-  // Filtro de emissão: toggle date inputs
-  const crEmissaoSel = document.getElementById("cr-filtro-categoria");
-  const crEmissaoDe = document.getElementById("cr-filtro-emissao-de");
-  const crEmissaoAte = document.getElementById("cr-filtro-emissao-ate");
-  if (crEmissaoSel && crEmissaoDe && crEmissaoAte) {
-    const isIntervalo = crEmissaoSel.value === "intervalo";
-    crEmissaoDe.classList.toggle("hidden", !isIntervalo);
-    crEmissaoAte.classList.toggle("hidden", !isIntervalo);
-  }
   let filtered = contasReceber;
-  // Story 4.66: busca por descricao + cliente + valor (Story 4.68: busca valor com virgula BR)
+  // Busca por descricao + cliente + valor
   if (busca) filtered = filtered.filter((item) => {
     const valFmt = typeof item.valor === 'number' ? item.valor.toFixed(2).replace('.', ',') : String(item.valor || '');
     return ((item.descricao || '') + ' ' + (item.cliente || '') + ' ' + valFmt + ' ' + (item.valor || '')).toLowerCase().includes(busca);
   });
-  // Filtro por data de emissão (período)
-  if (filtroCategoria && filtroCategoria !== '') {
-    filtered = _applyPeriodFilterCustom(filtered, filtroCategoria, 'cr-filtro-emissao-de', 'cr-filtro-emissao-ate', function(item) {
+  // Filtro por data de emissão (dropdown Radar)
+  const crEmDe = document.getElementById("cr-filtro-emissao-de")?.value || "";
+  const crEmAte = document.getElementById("cr-filtro-emissao-ate")?.value || "";
+  if (crEmDe || crEmAte) {
+    filtered = _applyPeriodFilterCustom(filtered, 'intervalo', 'cr-filtro-emissao-de', 'cr-filtro-emissao-ate', function(item) {
       return item.dataEmissao || item.emissao || item.createdAt || '';
     });
   }
-  // Story 4.54 AC-2: period filter
-  filtered = _applyPeriodFilter(filtered, 'cr-filtro-periodo', 'cr-filtro-de', 'cr-filtro-ate', 'vencimento');
+  // Filtro por data de vencimento (dropdown Radar)
+  const crVDe = document.getElementById("cr-filtro-de")?.value || "";
+  const crVAte = document.getElementById("cr-filtro-ate")?.value || "";
+  if (crVDe || crVAte) {
+    filtered = _applyPeriodFilterCustom(filtered, 'intervalo', 'cr-filtro-de', 'cr-filtro-ate', function(item) {
+      return item.vencimento || '';
+    });
+  }
   renderContaReceberStatusTabs(filtered);
   // Story 4.83-fix: busca SEMPRE respeita a aba de status ativa (corrige bug que mostrava todas as contas)
   if (contaReceberStatusTabAtual !== 'todas') filtered = filtered.filter((item) => normalizeContaReceberStatus(item) === contaReceberStatusTabAtual);
