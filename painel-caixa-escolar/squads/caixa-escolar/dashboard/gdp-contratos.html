@@ -668,7 +668,7 @@
       <div style="display:flex;gap:.8rem;align-items:center;flex-wrap:wrap">
         <input type="text" id="cp-busca" placeholder="Buscar descricao..." oninput="renderContasPagar()" style="min-width:220px">
         <select id="cp-filtro-categoria" onchange="renderContasPagar()"></select>
-        <select id="cp-filtro-periodo" onchange="renderContasPagar()" style="height:40px;padding:4px 10px;border-radius:6px;border:1px solid var(--bdr);background:var(--bg);color:var(--txt);font-size:.85rem"><option value="todos">Todos</option><option value="hoje">Hoje</option><option value="semana">Esta Semana</option><option value="mes">Este Mes</option><option value="intervalo">Intervalo</option></select>
+        <select id="cp-filtro-periodo" onchange="renderContasPagar()" style="height:40px;padding:4px 10px;border-radius:6px;border:1px solid var(--bdr);background:var(--bg);color:var(--txt);font-size:.85rem"><option value="todos">Todos os vencimentos</option><option value="hoje">Hoje</option><option value="semana">Esta Semana</option><option value="mes">Este Mes</option><option value="intervalo">Intervalo</option></select>
         <input type="date" id="cp-filtro-de" class="hidden" onchange="renderContasPagar()" style="height:40px;padding:4px 8px;border-radius:6px;border:1px solid var(--bdr);background:var(--bg);color:var(--txt);font-size:.82rem">
         <input type="date" id="cp-filtro-ate" class="hidden" onchange="renderContasPagar()" style="height:40px;padding:4px 8px;border-radius:6px;border:1px solid var(--bdr);background:var(--bg);color:var(--txt);font-size:.82rem">
       </div>
@@ -778,19 +778,19 @@
         </div>
       </div>
     </div>
-    <div style="display:flex;justify-content:space-between;gap:.8rem;align-items:center;margin-bottom:1rem;flex-wrap:wrap">
-      <div style="display:flex;gap:.8rem;align-items:center;flex-wrap:wrap">
+    <div style="display:flex;gap:.8rem;align-items:center;margin-bottom:.6rem;flex-wrap:wrap">
         <input type="text" id="cr-busca" placeholder="Buscar descricao ou cliente..." oninput="renderContasReceber()" style="min-width:240px">
-        <select id="cr-filtro-categoria" onchange="renderContasReceber()"></select>
-        <select id="cr-filtro-periodo" onchange="renderContasReceber()" style="height:40px;padding:4px 10px;border-radius:6px;border:1px solid var(--bdr);background:var(--bg);color:var(--txt);font-size:.85rem"><option value="todos">Todos</option><option value="hoje">Hoje</option><option value="semana">Esta Semana</option><option value="mes">Este Mes</option><option value="intervalo">Intervalo</option></select>
+        <select id="cr-filtro-categoria" onchange="renderContasReceber()" style="height:40px;padding:4px 10px;border-radius:6px;border:1px solid var(--bdr);background:var(--bg);color:var(--txt);font-size:.85rem"><option value="">Todas as emissões</option><option value="hoje">Hoje</option><option value="semana">Esta Semana</option><option value="mes">Este Mês</option><option value="intervalo">Intervalo</option></select>
+        <input type="date" id="cr-filtro-emissao-de" class="hidden" onchange="renderContasReceber()" style="height:40px;padding:4px 8px;border-radius:6px;border:1px solid var(--bdr);background:var(--bg);color:var(--txt);font-size:.82rem">
+        <input type="date" id="cr-filtro-emissao-ate" class="hidden" onchange="renderContasReceber()" style="height:40px;padding:4px 8px;border-radius:6px;border:1px solid var(--bdr);background:var(--bg);color:var(--txt);font-size:.82rem">
+        <select id="cr-filtro-periodo" onchange="renderContasReceber()" style="height:40px;padding:4px 10px;border-radius:6px;border:1px solid var(--bdr);background:var(--bg);color:var(--txt);font-size:.85rem"><option value="todos">Todos os vencimentos</option><option value="hoje">Hoje</option><option value="semana">Esta Semana</option><option value="mes">Este Mes</option><option value="intervalo">Intervalo</option></select>
         <input type="date" id="cr-filtro-de" class="hidden" onchange="renderContasReceber()" style="height:40px;padding:4px 8px;border-radius:6px;border:1px solid var(--bdr);background:var(--bg);color:var(--txt);font-size:.82rem">
         <input type="date" id="cr-filtro-ate" class="hidden" onchange="renderContasReceber()" style="height:40px;padding:4px 8px;border-radius:6px;border:1px solid var(--bdr);background:var(--bg);color:var(--txt);font-size:.82rem">
-      </div>
-      <div style="display:flex;gap:.6rem;align-items:center;flex-wrap:wrap">
+    </div>
+    <div style="display:flex;gap:.6rem;align-items:center;margin-bottom:1rem;flex-wrap:wrap">
         <button class="btn btn-outline" onclick="imprimirRelatorioContasReceber()">Imprimir Relatorio</button>
         <button class="btn btn-outline" onclick="toggleImportCrModal(true)">📥 Importar Planilha</button>
         <button class="btn btn-green" onclick="toggleContaReceberForm()">+ Incluir Conta a Receber</button>
-      </div>
     </div>
     <div id="contas-receber-status-tabs" style="display:flex;gap:.25rem;flex-wrap:nowrap;align-items:center;margin-bottom:1rem"></div>
     <div class="table-wrap" style="max-height:600px;overflow-y:auto">
@@ -856,10 +856,13 @@
     <!-- Story 4.51 AC-B5: Nome da conta bancaria -->
     <div id="caixa-conta-bancaria-label" style="font-size:.82rem;color:var(--mut);margin-bottom:.75rem;font-weight:600"></div>
     <div class="card">
-      <h3 style="margin-bottom:.75rem">Extrato Conciliado</h3>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem">
+        <h3 style="margin:0">Extrato Conciliado</h3>
+        <button class="btn btn-sm btn-green" onclick="abrirModalIncluirLancamento()">+ Incluir Lançamento</button>
+      </div>
       <div class="table-wrap" style="max-height:460px;overflow-y:auto">
         <table>
-          <thead><tr><th>Data</th><th>Descricao</th><th>Categoria</th><th>Status</th><th class="text-right">Valor</th></tr></thead>
+          <thead><tr><th class="text-center" style="width:32px"><input type="checkbox" id="caixa-select-all" onchange="toggleSelectAllCaixa(this.checked)"></th><th>Data</th><th>Descricao</th><th>Categoria</th><th>Status</th><th class="text-right">Valor</th></tr></thead>
           <tbody id="caixa-extrato-tbody"></tbody>
         </table>
       </div>
@@ -1007,7 +1010,7 @@
         <div style="display:grid;grid-template-columns:1fr auto auto auto;gap:.75rem;align-items:end;margin-bottom:.75rem">
           <div><input type="text" id="ei-busca" placeholder="Buscar produto, embalagem ou codigo de barras..." oninput="renderEstoque()" style="width:100%"></div>
           <div><select id="ei-filtro-categoria" onchange="renderEstoque()" style="min-width:130px"><option value="">Todas Categorias</option></select></div>
-          <div><select id="ei-filtro-tipo" onchange="renderEstoque()"><option value="">Todos</option><option value="comum">Comum</option><option value="critico">Critico</option></select></div>
+          <div><select id="ei-filtro-tipo" onchange="renderEstoque()"><option value="">Todos os tipos</option><option value="comum">Comum</option><option value="critico">Critico</option></select></div>
           <div><select id="ei-filtro-base" onchange="renderEstoque()"><option value="">Todas as Bases</option><option value="UN">UN</option><option value="g">g</option><option value="KG">KG</option><option value="ml">ml</option><option value="LT">LT</option><option value="MÇ">MÇ</option></select></div>
         </div>
         <div id="ei-form-novo-produto" data-ei-form style="display:none"></div>
@@ -2514,19 +2517,32 @@ function confirmarImportProd() {
 
 <script src="./js/gdp-pagination.js?v=11"></script>
 <script src="./js/gdp-integrations-client.js?v=11"></script>
-<script src="./js/gdp-core.js?v=18"></script>
+<script src="./js/gdp-core.js?v=22"></script>
 <script src="./js/gdp-notas-fiscais.js?v=14"></script>
 <script src="./js/gdp-contratos-module.js?v=11"></script>
 <script src="./js/gdp-estoque-intel.js?v=11"></script>
-<script src="./js/gdp-pedidos.js?v=13"></script>
+<script src="./js/gdp-pedidos.js?v=16"></script>
 <script src="./js/gdp-usuarios.js?v=11"></script>
 <!-- gdp-entregas.js removido (Épico A - FR-016) -->
 <script src="./js/gdp-banco-produtos.js?v=11"></script>
-<script src="./js/gdp-init.js?v=22"></script>
+<script src="./js/gdp-init.js?v=23"></script>
 
 
 
 <!-- Page footers — outside all tabs so position:fixed works regardless of parent visibility -->
+<div id="caixa-page-footer" class="page-footer" style="display:none">
+  <div class="footer-actions" id="caixa-bulk-actions">
+    <span id="caixa-bulk-summary" style="font-size:.82rem;font-weight:700;color:var(--mut)">0 lançamento(s)</span>
+    <span id="caixa-bulk-valor" style="font-size:.85rem;font-weight:700"></span>
+    <button class="btn btn-sm" style="background:var(--blue,#3b82f6);color:#fff" id="caixa-btn-editar" onclick="editarCaixaLancamento()">Editar</button>
+    <button class="btn btn-red btn-sm" onclick="excluirCaixaLancamentos()">Excluir Selecionados</button>
+  </div>
+  <div class="footer-stats">
+    <div class="footer-stat"><div class="footer-stat-value" id="caixa-footer-saldo">R$&nbsp;0</div><div class="footer-stat-label">SALDO</div></div>
+    <div class="footer-stat"><div class="footer-stat-value" id="caixa-footer-entradas">R$&nbsp;0</div><div class="footer-stat-label">ENTRADAS</div></div>
+    <div class="footer-stat"><div class="footer-stat-value" id="caixa-footer-saidas">R$&nbsp;0</div><div class="footer-stat-label">SAIDAS</div></div>
+  </div>
+</div>
 <div id="pedidos-page-footer" class="page-footer" style="display:none">
   <div class="footer-actions" id="pedidos-bulk-actions">
     <span id="pedidos-bulk-summary" style="font-size:.82rem;font-weight:700;color:var(--mut)">0 pedido(s)</span>

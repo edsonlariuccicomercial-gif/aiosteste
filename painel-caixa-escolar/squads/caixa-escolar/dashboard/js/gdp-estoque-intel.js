@@ -3,6 +3,23 @@
 // syncPedidosGDPToEstoqueIntel, renderEstoque, renderGdpDemandasIntel, renderGdpEstoqueIntel,
 // renderGdpComprasIntel, and all related stock intelligence functions.
 
+// Nova categoria de produto via prompt
+function _promptNovaCategoriaProduto() {
+  const nome = prompt("Nome da nova categoria:");
+  if (!nome || !nome.trim()) return;
+  showToast("Categoria '" + nome.trim() + "' disponível. Atribua a um produto para salvar.", 4000);
+  // Forçar re-render para que a categoria apareça na próxima edição de produto
+  const catSelect = document.getElementById("ei-filtro-categoria");
+  if (catSelect) catSelect.value = "";
+}
+// Handler para capturar seleção de "+ Nova categoria" no onChange
+document.addEventListener("change", function(e) {
+  if (e.target && e.target.id === "ei-filtro-categoria" && e.target.value === "__nova__") {
+    e.target.value = "";
+    _promptNovaCategoriaProduto();
+  }
+});
+
 // ===== LIMPAR PRODUTOS E MOVIMENTAÇÕES =====
 window.limparProdutosEstoqueIntel = function() {
   const total = estoqueIntelProdutos.length + estoqueIntelEmbalagens.length + estoqueIntelMovimentacoes.length;
@@ -1903,7 +1920,8 @@ function renderEstoque() {
   if (catSelect) {
     const currentVal = catSelect.value;
     const allCats = [...new Set(estoqueIntelProdutos.map(p => p.categoria || "").filter(Boolean))].sort();
-    catSelect.innerHTML = '<option value="">Todas Categorias</option>' + allCats.map(c => '<option value="' + c + '"' + (c === currentVal ? ' selected' : '') + '>' + c + '</option>').join("");
+    catSelect.innerHTML = '<option value="">Todas Categorias</option>' + allCats.map(c => '<option value="' + c + '"' + (c === currentVal ? ' selected' : '') + '>' + c + '</option>').join("") + '<option value="__nova__">+ Nova categoria</option>';
+    if (currentVal === '__nova__') { catSelect.value = ''; _promptNovaCategoriaProduto(); }
   }
   document.querySelectorAll("[data-ei-section]").forEach((el) => {
     const section = el.getAttribute("data-ei-section");

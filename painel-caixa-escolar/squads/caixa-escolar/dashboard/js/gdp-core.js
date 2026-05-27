@@ -2,6 +2,18 @@
 // Infrastructure: sidebar, constants, data layer, cloud sync, state, storage helpers,
 // save/load, sanitizers, normalization, client/escola utils, SKU/item enrichment.
 
+// Story 4.83-fix: Reset manual via ?reset-caixa (limpa localStorage corrompido, força re-sync do cloud)
+(function() {
+  if (location.search.includes('reset-caixa')) {
+    console.warn('[GDP] reset-caixa: limpando localStorage de conciliação/extratos para re-sync');
+    localStorage.removeItem('gdp.extratos.v1');
+    localStorage.removeItem('gdp.extratos.deleted.v1');
+    localStorage.removeItem('gdp.conciliacao.v1');
+    localStorage.removeItem('gdp.conciliacao.deleted.v1');
+    history.replaceState(null, '', location.href.replace(/[?&]reset-caixa/, ''));
+  }
+})();
+
 // ===== CONDITIONAL LOGGER (Story 12.1 AC2) =====
 // Em producao: silencioso. Para debug: localStorage.setItem('gdp.debug', 'true')
 const _GDP_DEBUG = localStorage.getItem('gdp.debug') === 'true';
@@ -312,8 +324,32 @@ async function syncFromCloud() {
   let newest = "";
   // Keys gerenciadas pelo gdpApi (tabelas reais) — ignorar no sync legado
   const _GDPAPI_KEYS = new Set(['gdp.contratos.v1','gdp.pedidos.v1','gdp.notas-fiscais.v1','gdp.contas-receber.v1','gdp.contas-pagar.v1','gdp.entregas.provas.v1','gdp.usuarios.v1']);
+
+  // Story 4.83-fix: Pré-carregar TODAS as chaves .deleted.v1 do cloud ANTES do loop principal.
+  // Em browser novo, localStorage não tem deleted.v1 — sem isso, o filtro na passada principal
+  // não encontra os IDs deletados e restaura extrato/conciliacao que deveria estar morto.
+  const _cloudDeletedCache = {};
+  for (const row of rows) {
+    if (row.key && row.key.endsWith('.deleted.v1') && row.data) {
+      try {
+        const cloudDeleted = Array.isArray(row.data) ? row.data : [];
+        if (cloudDeleted.length > 0) {
+          // Merge com localStorage existente (pode já ter dados locais)
+          let localDel;
+          try { localDel = JSON.parse(localStorage.getItem(row.key) || '[]'); } catch(_) { localDel = []; }
+          const merged = [...new Set([...localDel, ...cloudDeleted])];
+          localStorage.setItem(row.key, JSON.stringify(merged));
+          _cloudDeletedCache[row.key] = new Set(merged);
+          gdpLog('[Sync] Pre-loaded deleted IDs from cloud:', row.key, merged.length, 'ids');
+        }
+      } catch(_) {}
+    }
+  }
+
   for (const row of rows) {
     if (_GDPAPI_KEYS.has(row.key)) continue; // managed by gdpApi, skip legacy sync
+    // Skip .deleted.v1 keys — already pre-processed above
+    if (row.key && row.key.endsWith('.deleted.v1')) { synced++; continue; }
     const local = localStorage.getItem(row.key);
     let localData = null;
     try {
@@ -335,7 +371,8 @@ async function syncFromCloud() {
       incomingData = { _v: 1, updatedAt: row.updated_at || new Date().toISOString(), items: incomingData };
     }
 
-    // Story 4.80: filter out ALL locally-deleted items before writing (prevent zombie restore)
+    // Story 4.80: filter out ALL deleted items before writing (prevent zombie restore)
+    // Story 4.83-fix: Agora usa _cloudDeletedCache (pre-loaded) + localStorage como fallback
     const _delKeyMap = {
       'gdp.conciliacao.v1': 'gdp.conciliacao.deleted.v1',
       'gdp.extratos.v1': 'gdp.extratos.deleted.v1',
@@ -349,8 +386,11 @@ async function syncFromCloud() {
     };
     const _delKey = _delKeyMap[row.key];
     if (_delKey) {
-      let deletedIds;
-      try { deletedIds = new Set(JSON.parse(localStorage.getItem(_delKey) || '[]')); } catch (_) { deletedIds = new Set(); }
+      // Prefer pre-loaded cloud cache, fallback to localStorage
+      let deletedIds = _cloudDeletedCache[_delKey];
+      if (!deletedIds) {
+        try { deletedIds = new Set(JSON.parse(localStorage.getItem(_delKey) || '[]')); } catch (_) { deletedIds = new Set(); }
+      }
       if (deletedIds.size > 0) {
         const items = incomingData?.items || (Array.isArray(incomingData) ? incomingData : null);
         if (items) {
@@ -433,24 +473,45 @@ async function syncFromCloud() {
 
 async function syncToCloud(signal) {
   setGdpSyncState({ status: "syncing", source: "cloud", detail: "Publicando alteracoes locais" });
-  const promises = GDP_SYNC_KEYS.map(key => {
+  const promises = GDP_SYNC_KEYS.map(async (key) => {
     const raw = localStorage.getItem(key);
-    if (!raw) return Promise.resolve();
+    if (!raw) return;
     try {
       const data = JSON.parse(raw);
       // Story 4.64: never upload conciliacao/extratos in legacy array format
-      if ((key === 'gdp.conciliacao.v1' || key === 'gdp.extratos.v1') && Array.isArray(data)) {
-        return Promise.resolve();
+      if ((key === 'gdp.conciliacao.v1' || key === 'gdp.extratos.v1') && Array.isArray(data)) return;
+      // Story 4.83-fix: Proteger conciliação — nunca publicar listas corrompidas
+      if (key === 'gdp.conciliacao.deleted.v1' && Array.isArray(data) && data.length > 30) {
+        gdpLog("[Sync] BLOCKED corrupted conciliacao.deleted.v1 (" + data.length + " ids)");
+        return;
+      }
+      if (key === 'gdp.extratos.deleted.v1' && Array.isArray(data) && data.some(function(id) { return id && !id.startsWith('ext-recovered-'); })) {
+        gdpLog("[Sync] BLOCKED extratos.deleted.v1 with real extrato IDs");
+        return;
+      }
+      // Story 4.83-fix: Nunca sobrescrever conciliação/extratos no cloud com menos itens (proteção anti-perda)
+      if ((key === 'gdp.conciliacao.v1' || key === 'gdp.extratos.v1') && data?.items && Array.isArray(data.items)) {
+        try {
+          var _cloudCheck = await fetch(SUPABASE_URL + '/rest/v1/sync_data?user_id=eq.' + encodeURIComponent(getSyncUserId()) + '&key=eq.' + encodeURIComponent(key) + '&select=data', { headers: { "apikey": SUPABASE_KEY, "Authorization": "Bearer " + SUPABASE_KEY } });
+          if (_cloudCheck.ok) {
+            var _cloudRows = await _cloudCheck.json();
+            var _cloudCount = (_cloudRows[0]?.data?.items || []).length;
+            if (_cloudCount > 0 && data.items.length < _cloudCount) {
+              gdpLog("[Sync] BLOCKED " + key + " upload: local=" + data.items.length + " cloud=" + _cloudCount + " — keeping cloud");
+              return;
+            }
+          }
+        } catch(_) {}
       }
       // Guard: skip empty data UNLESS it has a recent updatedAt (legitimate deletion)
       const hasRecentUpdate = data?.updatedAt && (Date.now() - new Date(data.updatedAt).getTime()) < 300000;
       if (!hasRecentUpdate) {
-        if (Array.isArray(data) && data.length === 0) return Promise.resolve();
-        if (data && typeof data === 'object' && Array.isArray(data.items) && data.items.length === 0) return Promise.resolve();
+        if (Array.isArray(data) && data.length === 0) return;
+        if (data && typeof data === 'object' && Array.isArray(data.items) && data.items.length === 0) return;
       }
       return cloudSave(key, data, signal);
     }
-    catch(_) { return Promise.resolve(); }
+    catch(_) {}
   });
   await Promise.all(promises);
   setGdpSyncState({
@@ -2079,9 +2140,16 @@ function loadConciliacao() {
   try {
     var raw = JSON.parse(localStorage.getItem(CONCILIACAO_KEY) || "[]");
     // Story 4.62: suporta formato wrapped { items: [] } e array puro
-    if (raw && raw.items && Array.isArray(raw.items)) return raw.items;
-    if (Array.isArray(raw)) return raw;
-    return [];
+    var items = (raw && raw.items && Array.isArray(raw.items)) ? raw.items : (Array.isArray(raw) ? raw : []);
+    // Story 4.83-fix: filtrar SOMENTE itens cujo próprio ID está na lista de deletados
+    // NÃO filtrar por extratoId — itens de conciliação devem permanecer mesmo se extrato foi deletado
+    try {
+      var _delConc = new Set(JSON.parse(localStorage.getItem('gdp.conciliacao.deleted.v1') || '[]'));
+      if (_delConc.size > 0) {
+        items = items.filter(function(i) { return !(i.id && _delConc.has(i.id)); });
+      }
+    } catch(_) {}
+    return items;
   } catch(_) { return []; }
 }
 
@@ -2100,9 +2168,15 @@ function saveConciliacao(items) {
 function loadExtratos() {
   try {
     var raw = JSON.parse(localStorage.getItem(EXTRATOS_KEY) || "[]");
-    if (raw && raw.items && Array.isArray(raw.items)) return raw.items;
-    if (Array.isArray(raw)) return raw;
-    return [];
+    var items = (raw && raw.items && Array.isArray(raw.items)) ? raw.items : (Array.isArray(raw) ? raw : []);
+    // Story 4.83-fix: filtrar extratos deletados no ponto de leitura
+    try {
+      var _delExt = new Set(JSON.parse(localStorage.getItem('gdp.extratos.deleted.v1') || '[]'));
+      if (_delExt.size > 0) {
+        items = items.filter(function(e) { return !_delExt.has(e.id); });
+      }
+    } catch(_) {}
+    return items;
   } catch(_) { return []; }
 }
 

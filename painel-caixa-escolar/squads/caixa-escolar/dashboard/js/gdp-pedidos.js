@@ -39,6 +39,33 @@ function _applyPeriodFilter(items, selectId, deId, ateId, dateField) {
   });
 }
 
+// Filtro de período com getter customizado de data (para emissão com fallback)
+function _applyPeriodFilterCustom(items, periodo, deId, ateId, dateGetter) {
+  if (!periodo || periodo === 'todos' || periodo === '') return items;
+  var hoje = new Date(); hoje.setHours(0,0,0,0);
+  var de, ate;
+  if (periodo === "hoje") { de = ate = hoje; }
+  else if (periodo === "semana") { de = new Date(hoje); de.setDate(de.getDate() - de.getDay()); ate = hoje; }
+  else if (periodo === "mes") { de = new Date(hoje.getFullYear(), hoje.getMonth(), 1); ate = hoje; }
+  else if (periodo === "intervalo") {
+    var deInput = document.getElementById(deId);
+    var ateInput = document.getElementById(ateId);
+    de = deInput?.value ? _parseLocalDate(deInput.value) : null;
+    ate = ateInput?.value ? _parseLocalDate(ateInput.value) : null;
+  }
+  if (!de && !ate) return items;
+  return items.filter(function(item) {
+    var val = dateGetter(item);
+    if (!val) return true;
+    var d = _parseLocalDate(val);
+    if (!d || isNaN(d.getTime())) return true;
+    d.setHours(0,0,0,0);
+    if (de && d < de) return false;
+    if (ate) { var ateEnd = new Date(ate); ateEnd.setHours(23,59,59,999); if (d > ateEnd) return false; }
+    return true;
+  });
+}
+
 // ===== RENDER PEDIDOS =====
 function renderPedidos() {
   // Populate contract filter
@@ -316,82 +343,114 @@ function gerarRelatorioDemandaSelecionados() {
   if (sel.length === 0) { showToast("Selecione pedidos primeiro.", 3000); return; }
   if (sel.length === 1) { gerarRelatorioDemanda(sel[0]); return; }
 
-  // Unificar itens de todos os pedidos selecionados, somando produtos iguais
+  // Unificar itens de todos os pedidos selecionados, somando produtos iguais e rastreando escola+cidade
   const pedidosSel = pedidos.filter(p => sel.includes(p.id));
+  // Build escola→cidade map from pedidos
+  const escolaCidadeMap = {};
+  pedidosSel.forEach(p => {
+    if (p.escola) escolaCidadeMap[p.escola] = p.cliente?.cidade || p.cliente?.municipio || "";
+  });
   const mapa = {};
   pedidosSel.forEach(p => {
+    const escola = p.escola || "";
+    const cidade = p.cliente?.cidade || p.cliente?.municipio || "";
     (p.itens || []).forEach(item => {
       const chave = (item.descricao || "").toLowerCase().trim();
       if (!chave) return;
+      const qtd = Number(item.qtd || item.quantidade || 0);
       if (!mapa[chave]) {
-        mapa[chave] = { descricao: item.descricao, unidade: item.unidade || "UN", qtdSolicitada: 0, estoqueDisp: null, sku: item.sku || item.codigoBarras || "" };
+        const linha = _buildDemandaLinha(item, escola, cidade);
+        mapa[chave] = linha;
+      } else {
+        mapa[chave].qtdSolicitada += qtd;
+        mapa[chave].faltaComprar = Math.max(0, mapa[chave].qtdSolicitada - mapa[chave].estoqueDisp);
+        if (escola) mapa[chave].escolasQtd[escola] = (mapa[chave].escolasQtd[escola] || 0) + qtd;
       }
-      mapa[chave].qtdSolicitada += Number(item.qtd || item.quantidade || 0);
     });
   });
 
-  // Calcular estoque disponível + embalagens para produtos críticos
-  const linhas = Object.values(mapa).map(item => {
-    let estoqueDisp = 0;
-    let prod = null;
-    if (typeof estoqueIntelProdutos !== 'undefined' && typeof estoqueIntelMovimentacoes !== 'undefined') {
-      const descNorm = (item.descricao || "").toLowerCase().replace(/\d+\s*(g|gr|kg|ml|l|un)\b/gi, '').trim();
-      prod = estoqueIntelProdutos.find(pr => item.sku && (pr.sku === item.sku || pr.id === item.sku));
-      if (!prod && descNorm) {
-        const descWords = descNorm.split(/\s+/).filter(w => w.length > 2);
-        let bestMatch = null, bestScore = 0;
-        estoqueIntelProdutos.forEach(pr => {
-          const nome = (pr.nome || "").toLowerCase();
-          const score = descWords.filter(w => nome.includes(w)).length;
-          if (score > bestScore) { bestScore = score; bestMatch = pr; }
-        });
-        if (bestScore > 0) prod = bestMatch;
+  const linhas = Object.values(mapa);
+  // Recalculate embalagens with updated totals
+  linhas.forEach(l => {
+    if (l.isCritico) {
+      let prod = null;
+      if (typeof estoqueIntelProdutos !== 'undefined') {
+        prod = estoqueIntelProdutos.find(pr => (pr.nome || "").toLowerCase() === l.descricao.toLowerCase());
       }
-      if (prod) {
-        const entradas = estoqueIntelMovimentacoes.filter(m => m.produto_id === prod.id && m.operacao.startsWith("entrada")).reduce((s, m) => s + Number(m.quantidade || 0), 0);
-        const saidas = estoqueIntelMovimentacoes.filter(m => m.produto_id === prod.id && m.operacao.startsWith("saida")).reduce((s, m) => s + Number(m.quantidade || 0), 0);
-        estoqueDisp = entradas - saidas;
-      }
+      l.embalagens = _calcEmbalagens(prod, l.qtdSolicitada, l.descricao);
     }
-    const faltaComprar = Math.max(0, item.qtdSolicitada - estoqueDisp);
-    const embalagens = _calcEmbalagens(prod, item.qtdSolicitada, item.descricao);
-    return { descricao: item.descricao, unidade: item.unidade, qtdSolicitada: item.qtdSolicitada, estoqueDisp, faltaComprar, embalagens, isCritico: !!(prod && prod.produto_critico) };
   });
-
-  linhas.sort((a, b) => a.descricao.localeCompare(b.descricao));
   const temCriticos = linhas.some(l => l.isCritico && l.embalagens);
+
+  // Group by sector
+  const porSetor = {};
+  linhas.forEach(l => { if (!porSetor[l.setor]) porSetor[l.setor] = []; porSetor[l.setor].push(l); });
+
+  // Detect cities
+  const cidadesSet = new Set(pedidosSel.map(p => p.cliente?.cidade || p.cliente?.municipio || "").filter(Boolean));
+  const cidadesLista = [...cidadesSet].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  const multiCidades = cidadesLista.length > 1;
 
   const nomeEmpresa = (typeof empresa !== 'undefined' && empresa) ? (empresa.nomeFantasia || empresa.razaoSocial || "Empresa") : "Empresa";
   const pedidosIds = pedidosSel.map(p => p.id).join(", ");
+  const escolasLista = [...new Set(pedidosSel.map(p => p.escola).filter(Boolean))];
   const iframe = document.createElement("iframe");
   iframe.style.cssText = "position:fixed;left:-9999px;width:0;height:0";
   document.body.appendChild(iframe);
   const doc = iframe.contentDocument || iframe.contentWindow.document;
   doc.open();
-  doc.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>Relatório de Demanda Unificado</title>' +
-  '<style>body{font-family:Arial,sans-serif;font-size:12px;color:#333;padding:20px}' +
-  'h1{font-size:16px;margin-bottom:4px}h2{font-size:13px;color:#666;margin-bottom:12px}' +
-  'table{width:100%;border-collapse:collapse;margin-top:12px}th,td{border:1px solid #ddd;padding:6px 10px;text-align:left}' +
-  'th{background:#f5f5f5;font-weight:700;font-size:11px;text-transform:uppercase}' +
-  '.text-right{text-align:right}.text-center{text-align:center}' +
-  '.falta{color:#e53e3e;font-weight:700}.ok{color:#38a169;font-weight:700}' +
-  '.critico{background:#fffbeb}.emb-badge{display:inline-block;background:#f0f9ff;border:1px solid #bae6fd;border-radius:3px;padding:1px 5px;margin:1px 2px;font-size:10px;color:#0369a1}' +
-  '</style></head><body>' +
-  '<h1>Relatório de Demanda Unificado</h1>' +
-  '<h2>' + sel.length + ' pedido(s): ' + pedidosIds + '</h2>' +
-  '<table><thead><tr><th>Produto</th><th>Unidade</th><th class="text-right">Qtd Solicitada</th><th class="text-right">Disponível Estoque</th><th class="text-right">Falta Comprar</th>' + (temCriticos ? '<th>Embalagens Necessárias</th>' : '') + '</tr></thead>' +
-  '<tbody>' + linhas.map(l => {
-    var embHtml = '-';
-    if (l.embalagens && l.embalagens.length) {
-      var e0 = l.embalagens[0];
-      var totalLabel = e0.pesoUnitario > 0 ? '<div style="font-size:9px;color:#666;margin-bottom:2px">' + l.qtdSolicitada + ' un × ' + e0.pesoUnitario + e0.unidBase + ' = ' + e0.totalBase + e0.unidBase + '</div>' : '';
-      embHtml = totalLabel + l.embalagens.map(function(e) { return '<span class="emb-badge">' + e.embNecessarias + 'x ' + e.descricao + (e.precoRef ? ' (R$ ' + e.precoRef.toFixed(2) + '/un)' : '') + '</span>'; }).join(' ');
-    }
-    return '<tr class="' + (l.isCritico ? 'critico' : '') + '"><td>' + l.descricao + (l.isCritico ? ' <span style="font-size:9px;color:#d97706">●crítico</span>' : '') + '</td><td class="text-center">' + l.unidade + '</td><td class="text-right">' + l.qtdSolicitada + '</td><td class="text-right">' + l.estoqueDisp + '</td><td class="text-right ' + (l.faltaComprar > 0 ? 'falta' : 'ok') + '">' + (l.faltaComprar > 0 ? l.faltaComprar : '✓') + '</td>' + (temCriticos ? '<td>' + embHtml + '</td>' : '') + '</tr>';
-  }).join("") + '</tbody></table>' +
-  (temCriticos ? '<div style="margin-top:10px;font-size:10px;color:#92400e;background:#fffbeb;padding:6px 10px;border-radius:4px">● Produtos críticos: qtd solicitada × peso unitário = total em g/ml, dividido pela embalagem (arredondado para cima).</div>' : '') +
-  '<div style="margin-top:16px;font-size:10px;color:#999">Gerado em ' + new Date().toLocaleString("pt-BR") + ' — GDP ' + nomeEmpresa + '</div>' +
-  '</body></html>');
+  let bodyHtml = '<h1>Relatório de Demanda Unificado</h1>';
+  bodyHtml += '<h2>' + sel.length + ' pedido(s): ' + pedidosIds + '</h2>';
+  if (escolasLista.length > 0) {
+    bodyHtml += '<div style="margin-bottom:4px;font-size:11px;color:#555">Escolas: ' + escolasLista.map(e => e + (escolaCidadeMap[e] ? ' <span style="color:#888">(' + escolaCidadeMap[e] + ')</span>' : '')).join(', ') + '</div>';
+  }
+  if (multiCidades) {
+    bodyHtml += '<div style="margin-bottom:10px;font-size:11px;color:#555">Cidades: ' + cidadesLista.join(', ') + '</div>';
+  }
+
+  if (multiCidades) {
+    // Group by city → then by sector within each city
+    cidadesLista.forEach(cidade => {
+      // Filter linhas for this city: items where at least one escola from this city ordered
+      const escolasDaCidade = Object.entries(escolaCidadeMap).filter(([, c]) => c === cidade).map(([e]) => e);
+      bodyHtml += '<div class="cidade-section" data-cidade="' + cidade + '" style="margin-top:20px;page-break-before:auto">';
+      bodyHtml += '<div style="background:#f8fafc;border:2px solid #cbd5e1;border-radius:6px;padding:8px 12px;margin-bottom:6px;font-size:15px;font-weight:700;color:#1e293b">📍 ' + cidade;
+      bodyHtml += ' <span style="font-size:11px;font-weight:400;color:#64748b">(' + escolasDaCidade.join(', ') + ')</span>';
+      bodyHtml += ' <button class="print-section-btn no-print" onclick="window._printCidade(\'' + cidade.replace(/'/g, "\\'") + '\')">Imprimir cidade</button>';
+      bodyHtml += '</div>';
+      // Build city-filtered lines: clone lines with only this city's escola qtds
+      const linhasCidade = [];
+      linhas.forEach(l => {
+        const escolasQtdCidade = {};
+        let qtdCidade = 0;
+        escolasDaCidade.forEach(esc => {
+          if (l.escolasQtd[esc]) { escolasQtdCidade[esc] = l.escolasQtd[esc]; qtdCidade += l.escolasQtd[esc]; }
+        });
+        if (qtdCidade > 0) {
+          linhasCidade.push({ ...l, qtdSolicitada: qtdCidade, faltaComprar: Math.max(0, qtdCidade - l.estoqueDisp), escolasQtd: escolasQtdCidade });
+        }
+      });
+      const porSetorCidade = {};
+      linhasCidade.forEach(l => { if (!porSetorCidade[l.setor]) porSetorCidade[l.setor] = []; porSetorCidade[l.setor].push(l); });
+      _SETOR_ORDEM.forEach(setor => {
+        if (porSetorCidade[setor] && porSetorCidade[setor].length > 0) {
+          bodyHtml += _renderSetorTable(setor, porSetorCidade[setor], temCriticos, escolasDaCidade.length > 1);
+        }
+      });
+      bodyHtml += '</div>';
+    });
+  } else {
+    // Single city — just group by sector (original behavior)
+    _SETOR_ORDEM.forEach(setor => {
+      if (porSetor[setor] && porSetor[setor].length > 0) {
+        bodyHtml += _renderSetorTable(setor, porSetor[setor], temCriticos, escolasLista.length > 1);
+      }
+    });
+  }
+
+  if (temCriticos) bodyHtml += '<div style="margin-top:10px;font-size:10px;color:#92400e;background:#fffbeb;padding:6px 10px;border-radius:4px">● Produtos críticos: qtd solicitada × peso unitário = total em g/ml, dividido pela embalagem (arredondado para cima).</div>';
+  bodyHtml += '<div style="margin-top:16px;font-size:10px;color:#999">Gerado em ' + new Date().toLocaleString("pt-BR") + ' — GDP ' + nomeEmpresa + '</div>';
+  doc.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>Relatório de Demanda Unificado</title><style>' + _demandaReportCss() + '</style></head><body>' + bodyHtml + _demandaPrintSectionScript() + '</body></html>');
   doc.close();
   iframe.contentWindow.focus();
   iframe.contentWindow.print();
@@ -1690,23 +1749,14 @@ function renderContasReceber() {
   const empty = document.getElementById("contas-receber-empty");
   const busca = (document.getElementById("cr-busca")?.value || "").toLowerCase();
   const filtroCategoria = document.getElementById("cr-filtro-categoria")?.value || "";
-  // Story 4.74: popular dropdown com meses de emissão (YYYY-MM) em vez de categorias
-  const crFiltroEl = document.getElementById("cr-filtro-categoria");
-  if (crFiltroEl && !crFiltroEl._emissaoPopulated) {
-    const mesesSet = new Set();
-    contasReceber.forEach(item => {
-      const em = (item.dataEmissao || item.emissao || item.createdAt || '').slice(0, 7);
-      if (em) mesesSet.add(em);
-    });
-    const meses = [...mesesSet].sort().reverse();
-    const prev = crFiltroEl.value;
-    crFiltroEl.innerHTML = '<option value="">Todas as emissões</option>' + meses.map(m => {
-      const [y, mo] = m.split('-');
-      const label = ['', 'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'][parseInt(mo)] + '/' + y;
-      return '<option value="' + m + '">' + label + '</option>';
-    }).join('');
-    if (meses.includes(prev)) crFiltroEl.value = prev;
-    crFiltroEl._emissaoPopulated = true;
+  // Filtro de emissão: toggle date inputs
+  const crEmissaoSel = document.getElementById("cr-filtro-categoria");
+  const crEmissaoDe = document.getElementById("cr-filtro-emissao-de");
+  const crEmissaoAte = document.getElementById("cr-filtro-emissao-ate");
+  if (crEmissaoSel && crEmissaoDe && crEmissaoAte) {
+    const isIntervalo = crEmissaoSel.value === "intervalo";
+    crEmissaoDe.classList.toggle("hidden", !isIntervalo);
+    crEmissaoAte.classList.toggle("hidden", !isIntervalo);
   }
   let filtered = contasReceber;
   // Story 4.66: busca por descricao + cliente + valor (Story 4.68: busca valor com virgula BR)
@@ -1714,16 +1764,17 @@ function renderContasReceber() {
     const valFmt = typeof item.valor === 'number' ? item.valor.toFixed(2).replace('.', ',') : String(item.valor || '');
     return ((item.descricao || '') + ' ' + (item.cliente || '') + ' ' + valFmt + ' ' + (item.valor || '')).toLowerCase().includes(busca);
   });
-  // Story 4.74: filtrar por data de emissão (mês/ano) em vez de categoria
-  if (filtroCategoria) filtered = filtered.filter((item) => {
-    const emissao = item.dataEmissao || item.emissao || item.createdAt || '';
-    return emissao.slice(0, 7) === filtroCategoria;
-  });
+  // Filtro por data de emissão (período)
+  if (filtroCategoria && filtroCategoria !== '') {
+    filtered = _applyPeriodFilterCustom(filtered, filtroCategoria, 'cr-filtro-emissao-de', 'cr-filtro-emissao-ate', function(item) {
+      return item.dataEmissao || item.emissao || item.createdAt || '';
+    });
+  }
   // Story 4.54 AC-2: period filter
   filtered = _applyPeriodFilter(filtered, 'cr-filtro-periodo', 'cr-filtro-de', 'cr-filtro-ate', 'vencimento');
   renderContaReceberStatusTabs(filtered);
-  // Story 4.68: quando usuario busca, mostrar resultados de todas as abas de status
-  if (!busca && contaReceberStatusTabAtual !== 'todas') filtered = filtered.filter((item) => normalizeContaReceberStatus(item) === contaReceberStatusTabAtual);
+  // Story 4.83-fix: busca SEMPRE respeita a aba de status ativa (corrige bug que mostrava todas as contas)
+  if (contaReceberStatusTabAtual !== 'todas') filtered = filtered.filter((item) => normalizeContaReceberStatus(item) === contaReceberStatusTabAtual);
   const crCountEl = document.getElementById("tab-count-contas-receber");
   if (crCountEl) crCountEl.textContent = filtered.length;
 
@@ -1954,47 +2005,192 @@ window.atualizarSelecaoCaixa = function() {
 };
 
 function _updateCaixaFooter(items) {
-  let footer = document.getElementById('caixa-page-footer');
-  if (!footer) {
-    footer = document.createElement('div');
-    footer.id = 'caixa-page-footer';
-    footer.className = 'page-footer';
-    footer.style.cssText = 'display:none;position:sticky;bottom:0;background:var(--s1);border-top:1px solid var(--bdr);padding:.6rem 1rem;z-index:50';
-    const finContent = document.getElementById('fin-content-caixa');
-    if (finContent) finContent.appendChild(footer);
-  }
+  const footer = document.getElementById('caixa-page-footer');
+  if (!footer) return;
+  // SEMPRE atualizar stats do rodapé (independente de seleção)
+  const resumo = getCaixaResumo();
+  const saldoEl = document.getElementById('caixa-footer-saldo');
+  const entEl = document.getElementById('caixa-footer-entradas');
+  const saiEl = document.getElementById('caixa-footer-saidas');
+  if (saldoEl) saldoEl.textContent = brl.format(resumo.saldo);
+  if (entEl) entEl.textContent = brl.format(resumo.entradas);
+  if (saiEl) saiEl.textContent = brl.format(resumo.saidas);
+  // Select-all sync
+  const selectAll = document.getElementById('caixa-select-all');
+  if (selectAll) selectAll.checked = _selectedCaixaIds.size > 0 && _selectedCaixaIds.size === document.querySelectorAll('.caixa-check').length;
+  // Ações de seleção: toggle has-selection (mostra/esconde footer-actions via CSS)
   if (_selectedCaixaIds.size === 0) {
-    footer.style.display = 'none';
-    return;
+    footer.classList.remove('has-selection');
+  } else {
+    footer.classList.add('has-selection');
+    // Atualizar resumo de seleção
+    const concItems = typeof loadConciliacao === 'function' ? loadConciliacao() : [];
+    const allItems = concItems.length > 0 ? concItems : (items || []);
+    const idMap = {};
+    allItems.forEach((it, i) => { idMap[it.id || ('cx-' + i)] = it; });
+    let totalValor = 0;
+    _selectedCaixaIds.forEach(id => { if (idMap[id]) totalValor += Number(idMap[id].valor || 0); });
+    const summary = document.getElementById('caixa-bulk-summary');
+    if (summary) summary.textContent = _selectedCaixaIds.size + ' lançamento(s)';
+    const valorEl = document.getElementById('caixa-bulk-valor');
+    if (valorEl) { valorEl.textContent = brl.format(totalValor); valorEl.style.color = totalValor >= 0 ? 'var(--green)' : 'var(--red)'; }
+    const editBtn = document.getElementById('caixa-btn-editar');
+    if (editBtn) editBtn.style.display = _selectedCaixaIds.size === 1 ? '' : 'none';
   }
-  footer.style.display = 'flex';
-  footer.style.alignItems = 'center';
-  footer.style.gap = '.8rem';
-  footer.style.flexWrap = 'wrap';
-  const concItems = typeof loadConciliacao === 'function' ? loadConciliacao() : [];
-  const allItems = concItems.length > 0 ? concItems : (items || []);
-  let totalValor = 0;
-  _selectedCaixaIds.forEach(id => {
-    const idx = parseInt(id.replace('cx-', ''));
-    if (!isNaN(idx) && allItems[idx]) totalValor += Number(allItems[idx].valor || 0);
-  });
-  footer.innerHTML = '<span style="font-size:.85rem;font-weight:600;color:var(--txt)">' + _selectedCaixaIds.size + ' lançamento(s)</span>'
-    + '<span style="font-size:.85rem;color:var(--green);font-weight:700">' + brl.format(totalValor) + '</span>'
-    + '<button class="btn btn-sm btn-red" onclick="excluirCaixaLancamentos()">Excluir</button>';
 }
+
+// Story 4.83: Select All checkbox para Caixa
+window.toggleSelectAllCaixa = function(checked) {
+  document.querySelectorAll('.caixa-check').forEach(cb => { cb.checked = checked; });
+  atualizarSelecaoCaixa();
+};
+
+// Story 4.83: Modal Incluir Lançamento Manual no Caixa
+window.abrirModalIncluirLancamento = function() {
+  const hoje = new Date().toISOString().slice(0, 10);
+  const html = `
+    <div style="display:grid;gap:.8rem">
+      <div><label style="font-size:.78rem;color:var(--mut);display:block;margin-bottom:.25rem">Data</label><input type="date" id="ml-data" value="${hoje}" style="width:100%"></div>
+      <div><label style="font-size:.78rem;color:var(--mut);display:block;margin-bottom:.25rem">Descrição</label><input type="text" id="ml-descricao" placeholder="Ex: Pix recebido, Pagamento fornecedor..." style="width:100%"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem">
+        <div><label style="font-size:.78rem;color:var(--mut);display:block;margin-bottom:.25rem">Valor (R$)</label><input type="number" id="ml-valor" step="0.01" placeholder="0,00" style="width:100%"></div>
+        <div><label style="font-size:.78rem;color:var(--mut);display:block;margin-bottom:.25rem">Tipo</label><select id="ml-tipo" style="width:100%"><option value="credito">Crédito (entrada)</option><option value="debito">Débito (saída)</option></select></div>
+      </div>
+      <div><label style="font-size:.78rem;color:var(--mut);display:block;margin-bottom:.25rem">Categoria DRE</label>
+        <select id="ml-categoria" style="width:100%">
+          <option value="">Sem categoria</option>
+          <option value="RECEITA DE VENDAS">Receita de Vendas</option>
+          <option value="CUSTO MERCADORIA VENDIDA">Custo Mercadoria Vendida</option>
+          <option value="DESPESA OPERACIONAL">Despesa Operacional</option>
+          <option value="COMBUSTIVEL">Combustível</option>
+          <option value="SERVICO">Serviço</option>
+          <option value="FRETE">Frete</option>
+          <option value="NAO CLASSIFICADO">Não Classificado</option>
+        </select>
+      </div>
+    </div>`;
+  _showCaixaModal("Incluir Lançamento", html, function() {
+      const data = document.getElementById('ml-data')?.value || hoje;
+      const descricao = document.getElementById('ml-descricao')?.value?.trim();
+      const valorRaw = parseFloat(document.getElementById('ml-valor')?.value || 0);
+      const tipo = document.getElementById('ml-tipo')?.value || 'credito';
+      const categoria = document.getElementById('ml-categoria')?.value || '';
+      if (!descricao) { showToast("Preencha a descrição.", 3000); return; }
+      if (!valorRaw || valorRaw <= 0) { showToast("Informe um valor válido.", 3000); return; }
+      const valor = tipo === 'debito' ? -Math.abs(valorRaw) : Math.abs(valorRaw);
+      const concItems = typeof loadConciliacao === 'function' ? loadConciliacao() : [];
+      const novoItem = {
+        id: 'conc-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8),
+        manual: true,
+        data: data,
+        descricao: descricao,
+        historico: descricao,
+        valor: valor,
+        tipo: tipo,
+        conciliado: true,
+        categoriaDre: categoria,
+        criadoEm: new Date().toISOString()
+      };
+      concItems.push(novoItem);
+      if (typeof saveConciliacao === 'function') saveConciliacao(concItems);
+      _closeCaixaModal();
+      renderCaixa();
+      showToast("Lançamento incluído com sucesso!");
+  });
+};
+
+function _showCaixaModal(title, bodyHtml, onConfirm) {
+  let overlay = document.getElementById('caixa-modal-overlay');
+  if (overlay) overlay.remove();
+  overlay = document.createElement('div');
+  overlay.id = 'caixa-modal-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;display:flex;align-items:center;justify-content:center';
+  overlay.innerHTML = '<div style="background:var(--s1,#1e293b);border:1px solid var(--bdr,#334155);border-radius:8px;padding:1.5rem;width:420px;max-width:90vw;max-height:85vh;overflow-y:auto">'
+    + '<h3 style="margin:0 0 1rem 0;font-size:1.1rem">' + title + '</h3>'
+    + '<div id="caixa-modal-body">' + bodyHtml + '</div>'
+    + '<div style="display:flex;gap:.6rem;justify-content:flex-end;margin-top:1.2rem">'
+    + '<button class="btn btn-sm btn-muted" onclick="_closeCaixaModal()">Cancelar</button>'
+    + '<button class="btn btn-sm btn-green" id="caixa-modal-confirm">Incluir</button>'
+    + '</div></div>';
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', function(e) { if (e.target === overlay) _closeCaixaModal(); });
+  document.getElementById('caixa-modal-confirm').addEventListener('click', onConfirm);
+}
+
+function _closeCaixaModal() {
+  const overlay = document.getElementById('caixa-modal-overlay');
+  if (overlay) overlay.remove();
+}
+
+window.editarCaixaLancamento = function() {
+  if (_selectedCaixaIds.size !== 1) { showToast("Selecione apenas 1 lançamento para editar.", 3000); return; }
+  const itemId = [..._selectedCaixaIds][0];
+  const concItems = typeof loadConciliacao === 'function' ? loadConciliacao() : [];
+  const item = concItems.find(i => i.id === itemId);
+  if (!item) { showToast("Lançamento não encontrado.", 3000); return; }
+  const val = Math.abs(Number(item.valor || 0));
+  const tipo = Number(item.valor || 0) >= 0 ? 'credito' : 'debito';
+  const html = `
+    <div style="display:grid;gap:.8rem">
+      <div><label style="font-size:.78rem;color:var(--mut);display:block;margin-bottom:.25rem">Data</label><input type="date" id="ml-data" value="${item.data || ''}" style="width:100%"></div>
+      <div><label style="font-size:.78rem;color:var(--mut);display:block;margin-bottom:.25rem">Descrição</label><input type="text" id="ml-descricao" value="${(item.historico || item.descricao || '').replace(/"/g, '&quot;')}" style="width:100%"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem">
+        <div><label style="font-size:.78rem;color:var(--mut);display:block;margin-bottom:.25rem">Valor (R$)</label><input type="number" id="ml-valor" step="0.01" value="${val.toFixed(2)}" style="width:100%"></div>
+        <div><label style="font-size:.78rem;color:var(--mut);display:block;margin-bottom:.25rem">Tipo</label><select id="ml-tipo" style="width:100%"><option value="credito"${tipo === 'credito' ? ' selected' : ''}>Crédito (entrada)</option><option value="debito"${tipo === 'debito' ? ' selected' : ''}>Débito (saída)</option></select></div>
+      </div>
+      <div><label style="font-size:.78rem;color:var(--mut);display:block;margin-bottom:.25rem">Categoria DRE</label>
+        <select id="ml-categoria" style="width:100%">
+          <option value="">Sem categoria</option>
+          <option value="RECEITA DE VENDAS"${item.categoriaDre === 'RECEITA DE VENDAS' ? ' selected' : ''}>Receita de Vendas</option>
+          <option value="CUSTO MERCADORIA VENDIDA"${item.categoriaDre === 'CUSTO MERCADORIA VENDIDA' ? ' selected' : ''}>Custo Mercadoria Vendida</option>
+          <option value="DESPESA OPERACIONAL"${item.categoriaDre === 'DESPESA OPERACIONAL' ? ' selected' : ''}>Despesa Operacional</option>
+          <option value="COMBUSTIVEL"${item.categoriaDre === 'COMBUSTIVEL' ? ' selected' : ''}>Combustível</option>
+          <option value="SERVICO"${item.categoriaDre === 'SERVICO' ? ' selected' : ''}>Serviço</option>
+          <option value="FRETE"${item.categoriaDre === 'FRETE' ? ' selected' : ''}>Frete</option>
+          <option value="NAO CLASSIFICADO"${item.categoriaDre === 'NAO CLASSIFICADO' ? ' selected' : ''}>Não Classificado</option>
+        </select>
+      </div>
+    </div>`;
+  _showCaixaModal("Editar Lançamento", html, function() {
+    const data = document.getElementById('ml-data')?.value;
+    const descricao = document.getElementById('ml-descricao')?.value?.trim();
+    const valorRaw = parseFloat(document.getElementById('ml-valor')?.value || 0);
+    const tipoNovo = document.getElementById('ml-tipo')?.value || 'credito';
+    const categoria = document.getElementById('ml-categoria')?.value || '';
+    if (!descricao) { showToast("Preencha a descrição.", 3000); return; }
+    if (!valorRaw || valorRaw <= 0) { showToast("Informe um valor válido.", 3000); return; }
+    const valor = tipoNovo === 'debito' ? -Math.abs(valorRaw) : Math.abs(valorRaw);
+    const idx = concItems.findIndex(i => i.id === itemId);
+    if (idx >= 0) {
+      concItems[idx].data = data;
+      concItems[idx].descricao = descricao;
+      concItems[idx].historico = descricao;
+      concItems[idx].valor = valor;
+      concItems[idx].tipo = tipoNovo;
+      concItems[idx].categoriaDre = categoria;
+      if (typeof saveConciliacao === 'function') saveConciliacao(concItems);
+    }
+    _closeCaixaModal();
+    _selectedCaixaIds.clear();
+    renderCaixa();
+    showToast("Lançamento atualizado!");
+  });
+  // Mudar texto do botão confirm para "Salvar"
+  setTimeout(function() {
+    const btn = document.getElementById('caixa-modal-confirm');
+    if (btn) btn.textContent = 'Salvar';
+  }, 50);
+};
 
 window.excluirCaixaLancamentos = function() {
   if (!_selectedCaixaIds.size) return;
   if (!confirm('Excluir ' + _selectedCaixaIds.size + ' lançamento(s) do extrato?')) return;
   const concItems = typeof loadConciliacao === 'function' ? loadConciliacao() : [];
-  const indices = new Set();
-  _selectedCaixaIds.forEach(id => { const idx = parseInt(id.replace('cx-', '')); if (!isNaN(idx)) indices.add(idx); });
+  // Filtrar por ID real (não por índice)
+  const idsToDelete = new Set(_selectedCaixaIds);
+  const delIds = [...idsToDelete];
   // Story 4.64: rastrear IDs deletados para impedir sync restaurar
-  const deletedItems = concItems.filter((_, i) => indices.has(i));
-  const delIds = deletedItems.map(it => it.id).filter(Boolean);
-  if (delIds.length > 0 && window.gdpApi && typeof window.gdpApi._trackDeletedId === 'function') {
-    delIds.forEach(id => window.gdpApi._trackDeletedId('conciliacao', id));
-  } else if (delIds.length > 0) {
+  if (delIds.length > 0) {
     try {
       var dk = 'gdp.conciliacao.deleted.v1';
       var existing = JSON.parse(localStorage.getItem(dk) || '[]');
@@ -2003,7 +2199,7 @@ window.excluirCaixaLancamentos = function() {
       localStorage.setItem(dk, JSON.stringify(existing));
     } catch(_) {}
   }
-  const remaining = concItems.filter((_, i) => !indices.has(i));
+  const remaining = concItems.filter(item => !idsToDelete.has(item.id));
   if (typeof saveConciliacao === 'function') saveConciliacao(remaining);
   if (typeof atualizarExtratoStats === 'function') atualizarExtratoStats();
   var count = _selectedCaixaIds.size;
@@ -2960,75 +3156,166 @@ function _calcEmbalagens(prod, qtdSolicitada, descricaoItem) {
   });
 }
 
+// Classificar produto em setor por heurística de nome
+function _classificarSetorProduto(descricao) {
+  const d = (descricao || "").toLowerCase();
+  const hortifruti = ["alface","alho","banana","batata","beterraba","cebola","cenoura","couve","laranja","maça","maca","maçã","mandioca","melancia","repolho","tomate","abobora","abóbora","limao","limão","mamao","mamão","manga","pepino","pimentao","pimentão","chuchu","quiabo","vagem","berinjela","jilo","jiló","abacaxi","goiaba","uva","morango","tangerina","mexerica","kiwi","pera","pêra","melao","melão","caqui","jabuticaba","maracuja","maracujá"];
+  const carnes = ["carne","frango","file de peito","filé de peito","linguica","linguiça","pernil","ovo ","ovos","queijo","mussarela","salsicha","costela","acém","acem","alcatra","patinho","cupim","picanha","bisteca","sobrecoxa","coxa","peito de frango","fil.* peito"];
+  if (hortifruti.some(k => d.includes(k))) return "hortifruti";
+  if (carnes.some(k => k.includes(".*") ? new RegExp(k).test(d) : d.includes(k))) return "carnes";
+  return "mercearia";
+}
+
+const _SETOR_META = {
+  hortifruti: { label: "Hortifruti", icon: "🥬", color: "#16a34a", bg: "#f0fdf4" },
+  carnes:     { label: "Carnes / Proteínas", icon: "🥩", color: "#dc2626", bg: "#fef2f2" },
+  mercearia:  { label: "Mercearia", icon: "🛒", color: "#2563eb", bg: "#eff6ff" }
+};
+const _SETOR_ORDEM = ["hortifruti", "carnes", "mercearia"];
+
+// Shared: build demanda line from item + stock lookup
+function _buildDemandaLinha(item, escola, cidade) {
+  const qtdSolicitada = Number(item.qtd || item.quantidade || 0);
+  let estoqueDisp = 0;
+  let prod = null;
+  if (typeof estoqueIntelProdutos !== 'undefined' && typeof estoqueIntelMovimentacoes !== 'undefined') {
+    const sku = item.sku || item.codigoBarras || "";
+    const descNorm = (item.descricao || "").toLowerCase().replace(/\d+\s*(g|gr|kg|ml|l|un)\b/gi, '').trim();
+    prod = estoqueIntelProdutos.find(pr => sku && (pr.sku === sku || pr.id === sku));
+    if (!prod && descNorm) {
+      const descWords = descNorm.split(/\s+/).filter(w => w.length > 2);
+      let bestMatch = null, bestScore = 0;
+      estoqueIntelProdutos.forEach(pr => {
+        const nome = (pr.nome || "").toLowerCase();
+        const score = descWords.filter(w => nome.includes(w)).length;
+        if (score > bestScore) { bestScore = score; bestMatch = pr; }
+      });
+      if (bestScore > 0) prod = bestMatch;
+    }
+    if (prod) {
+      const entradas = estoqueIntelMovimentacoes.filter(m => m.produto_id === prod.id && m.operacao.startsWith("entrada")).reduce((s, m) => s + Number(m.quantidade || 0), 0);
+      const saidas = estoqueIntelMovimentacoes.filter(m => m.produto_id === prod.id && m.operacao.startsWith("saida")).reduce((s, m) => s + Number(m.quantidade || 0), 0);
+      estoqueDisp = entradas - saidas;
+    }
+  }
+  const faltaComprar = Math.max(0, qtdSolicitada - estoqueDisp);
+  const embalagens = _calcEmbalagens(prod, qtdSolicitada, item.descricao);
+  const setor = _classificarSetorProduto(item.descricao);
+  return { descricao: item.descricao, unidade: item.unidade || "UN", qtdSolicitada, estoqueDisp, faltaComprar, embalagens, isCritico: !!(prod && prod.produto_critico), setor, escolasQtd: escola ? { [escola]: qtdSolicitada } : {}, cidade: cidade || "" };
+}
+
+// Shared: CSS for demand reports
+function _demandaReportCss() {
+  return 'body{font-family:Arial,sans-serif;font-size:12px;color:#333;padding:20px}' +
+    'h1{font-size:16px;margin-bottom:4px}h2{font-size:13px;color:#666;margin-bottom:12px}' +
+    '.setor-header{margin-top:18px;padding:6px 10px;border-radius:4px;font-size:14px;font-weight:700;page-break-inside:avoid}' +
+    '.setor-section{page-break-inside:avoid}' +
+    'table{width:100%;border-collapse:collapse;margin-top:6px}th,td{border:1px solid #ddd;padding:5px 8px;text-align:left}' +
+    'th{background:#f5f5f5;font-weight:700;font-size:10px;text-transform:uppercase}' +
+    '.text-right{text-align:right}.text-center{text-align:center}' +
+    '.falta{color:#e53e3e;font-weight:700}.ok{color:#38a169;font-weight:700}' +
+    '.critico{background:#fffbeb}' +
+    '.emb-badge{display:inline-block;background:#f0f9ff;border:1px solid #bae6fd;border-radius:3px;padding:1px 5px;margin:1px 2px;font-size:10px;color:#0369a1}' +
+    '.escola-detail{font-size:11px;color:#444;margin-top:2px;line-height:1.5}' +
+    '.subtotal-row{background:#fafafa;font-weight:600;font-size:11px}' +
+    '.print-section-btn{display:inline-block;margin-left:8px;padding:2px 8px;font-size:10px;border:1px solid #ccc;border-radius:3px;cursor:pointer;background:#fff;color:#333}' +
+    '.print-section-btn:hover{background:#f0f0f0}' +
+    '.cidade-section{page-break-before:auto}' +
+    '@media print{.no-print{display:none !important}}';
+}
+
+// Shared: render one sector table
+function _renderSetorTable(setor, linhas, temCriticos, showEscolas) {
+  const meta = _SETOR_META[setor];
+  const sorted = linhas.sort((a, b) => a.descricao.localeCompare(b.descricao, "pt-BR"));
+  let html = '<div class="setor-section" data-setor="' + setor + '">';
+  html += '<div class="setor-header" style="background:' + meta.bg + ';color:' + meta.color + '">' + meta.icon + ' ' + meta.label + ' (' + sorted.length + ' itens)';
+  html += ' <button class="print-section-btn no-print" onclick="window._printSetor(\'' + setor + '\')">Imprimir seção</button>';
+  html += '</div>';
+  html += '<table><thead><tr><th style="width:' + (showEscolas ? '25%' : '35%') + '">Produto</th><th>Unidade</th><th class="text-right">Qtd</th><th class="text-right">Estoque</th><th class="text-right">Falta</th>';
+  if (showEscolas) html += '<th>Por Escola</th>';
+  html += '<th>Embalagens Necessárias</th>';
+  html += '</tr></thead><tbody>';
+  sorted.forEach(l => {
+    let embHtml = '-';
+    if (l.embalagens && l.embalagens.length) {
+      const e0 = l.embalagens[0];
+      const totalLabel = e0.pesoUnitario > 0 ? '<div style="font-size:9px;color:#666;margin-bottom:2px">' + l.qtdSolicitada + ' un × ' + e0.pesoUnitario + e0.unidBase + ' = ' + e0.totalBase + e0.unidBase + '</div>' : '';
+      embHtml = totalLabel + l.embalagens.map(e => '<span class="emb-badge">' + e.embNecessarias + 'x ' + e.descricao + (e.precoRef ? ' (R$ ' + e.precoRef.toFixed(2) + '/un)' : '') + '</span>').join(' ');
+    }
+    let escolaHtml = '';
+    if (showEscolas && l.escolasQtd && Object.keys(l.escolasQtd).length > 0) {
+      escolaHtml = '<div class="escola-detail">' + Object.entries(l.escolasQtd).map(([esc, qt]) => esc + ': <b>' + qt + '</b>').join(' | ') + '</div>';
+    }
+    html += '<tr class="' + (l.isCritico ? 'critico' : '') + '">';
+    html += '<td>' + l.descricao + (l.isCritico ? ' <span style="font-size:9px;color:#d97706">●crítico</span>' : '') + '</td>';
+    html += '<td class="text-center">' + l.unidade + '</td>';
+    html += '<td class="text-right">' + l.qtdSolicitada + '</td>';
+    html += '<td class="text-right">' + l.estoqueDisp + '</td>';
+    html += '<td class="text-right ' + (l.faltaComprar > 0 ? 'falta' : 'ok') + '">' + (l.faltaComprar > 0 ? l.faltaComprar : '✓') + '</td>';
+    if (showEscolas) html += '<td>' + escolaHtml + '</td>';
+    html += '<td>' + embHtml + '</td>';
+    html += '</tr>';
+  });
+  // Subtotal row
+  const totalQtd = sorted.reduce((s, l) => s + l.qtdSolicitada, 0);
+  const totalFalta = sorted.reduce((s, l) => s + l.faltaComprar, 0);
+  html += '<tr class="subtotal-row"><td>Subtotal ' + meta.label + '</td><td></td><td class="text-right">' + totalQtd + '</td><td></td><td class="text-right">' + totalFalta + '</td>';
+  if (showEscolas) html += '<td></td>';
+  html += '<td></td>';
+  html += '</tr>';
+  html += '</tbody></table></div>';
+  return html;
+}
+
+// Print-section JS injected into the report iframe
+function _demandaPrintSectionScript() {
+  return '<script>' +
+    'window._printSetor = function(setor) {' +
+    '  var sections = document.querySelectorAll(".setor-section");' +
+    '  var cidades = document.querySelectorAll(".cidade-section");' +
+    '  sections.forEach(function(s) { s.style.display = s.getAttribute("data-setor") === setor ? "block" : "none"; });' +
+    '  cidades.forEach(function(c) { c.style.display = ""; });' +
+    '  window.print();' +
+    '  sections.forEach(function(s) { s.style.display = "block"; });' +
+    '};' +
+    'window._printCidade = function(cidade) {' +
+    '  var cidades = document.querySelectorAll(".cidade-section");' +
+    '  cidades.forEach(function(c) { c.style.display = c.getAttribute("data-cidade") === cidade ? "block" : "none"; });' +
+    '  window.print();' +
+    '  cidades.forEach(function(c) { c.style.display = "block"; });' +
+    '};' +
+    '<\/script>';
+}
+
 function gerarRelatorioDemanda(pedidoId) {
   const p = pedidos.find(x => x.id === pedidoId);
   if (!p) { showToast("Pedido não encontrado."); return; }
 
-  const linhas = (p.itens || []).map(item => {
-    const qtdSolicitada = Number(item.qtd || item.quantidade || 0);
-    let estoqueDisp = 0;
-    let prod = null;
-    if (typeof estoqueIntelProdutos !== 'undefined' && typeof estoqueIntelMovimentacoes !== 'undefined') {
-      const sku = item.sku || item.codigoBarras || "";
-      const descNorm = (item.descricao || "").toLowerCase().replace(/\d+\s*(g|gr|kg|ml|l|un)\b/gi, '').trim();
-      // Match by SKU first, then best text match (most words matching)
-      prod = estoqueIntelProdutos.find(pr => sku && (pr.sku === sku || pr.id === sku));
-      if (!prod && descNorm) {
-        const descWords = descNorm.split(/\s+/).filter(w => w.length > 2);
-        let bestMatch = null, bestScore = 0;
-        estoqueIntelProdutos.forEach(pr => {
-          const nome = (pr.nome || "").toLowerCase();
-          const score = descWords.filter(w => nome.includes(w)).length;
-          if (score > bestScore) { bestScore = score; bestMatch = pr; }
-        });
-        if (bestScore > 0) prod = bestMatch;
-      }
-      if (prod) {
-        const entradas = estoqueIntelMovimentacoes.filter(m => m.produto_id === prod.id && m.operacao.startsWith("entrada")).reduce((s, m) => s + Number(m.quantidade || 0), 0);
-        const saidas = estoqueIntelMovimentacoes.filter(m => m.produto_id === prod.id && m.operacao.startsWith("saida")).reduce((s, m) => s + Number(m.quantidade || 0), 0);
-        estoqueDisp = entradas - saidas;
-      }
-    }
-    const faltaComprar = Math.max(0, qtdSolicitada - estoqueDisp);
-    const embalagens = _calcEmbalagens(prod, qtdSolicitada, item.descricao);
-    return { descricao: item.descricao, unidade: item.unidade || "UN", qtdSolicitada, estoqueDisp, faltaComprar, embalagens, isCritico: !!(prod && prod.produto_critico) };
-  });
-
+  const cidadePedido = p.cliente?.cidade || p.cliente?.municipio || "";
+  const linhas = (p.itens || []).map(item => _buildDemandaLinha(item, p.escola, cidadePedido));
   const temCriticos = linhas.some(l => l.isCritico && l.embalagens);
 
+  // Group by sector
+  const porSetor = {};
+  linhas.forEach(l => { if (!porSetor[l.setor]) porSetor[l.setor] = []; porSetor[l.setor].push(l); });
+
+  const nomeEmpresa = (typeof empresa !== 'undefined' && empresa) ? (empresa.nomeFantasia || empresa.razaoSocial || "Empresa") : "Empresa";
   const iframe = document.createElement("iframe");
   iframe.style.cssText = "position:fixed;left:-9999px;width:0;height:0";
   document.body.appendChild(iframe);
   const doc = iframe.contentDocument || iframe.contentWindow.document;
-  const nomeEmpresa = (typeof empresa !== 'undefined' && empresa) ? (empresa.nomeFantasia || empresa.razaoSocial || "Empresa") : "Empresa";
   doc.open();
-  doc.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Relatório de Demanda</title>
-  <style>body{font-family:Arial,sans-serif;font-size:12px;color:#333;padding:20px}
-  h1{font-size:16px;margin-bottom:4px}h2{font-size:13px;color:#666;margin-bottom:12px}
-  table{width:100%;border-collapse:collapse;margin-top:12px}th,td{border:1px solid #ddd;padding:6px 10px;text-align:left}
-  th{background:#f5f5f5;font-weight:700;font-size:11px;text-transform:uppercase}
-  .text-right{text-align:right}.text-center{text-align:center}
-  .falta{color:#e53e3e;font-weight:700}.ok{color:#38a169;font-weight:700}
-  .critico{background:#fffbeb}.emb-detail{font-size:10px;color:#666;margin-top:3px}
-  .emb-badge{display:inline-block;background:#f0f9ff;border:1px solid #bae6fd;border-radius:3px;padding:1px 5px;margin:1px 2px;font-size:10px;color:#0369a1}
-  </style></head><body>
-  <h1>Relatório de Demanda</h1>
-  <h2>Pedido: ${p.id} — ${p.escola || ""} — ${p.dataEntrega || p.data || ""}</h2>
-  <table>
-    <thead><tr><th>Produto</th><th>Unidade</th><th class="text-right">Qtd Solicitada</th><th class="text-right">Disponível Estoque</th><th class="text-right">Falta Comprar</th>${temCriticos ? '<th>Embalagens Necessárias</th>' : ''}</tr></thead>
-    <tbody>${linhas.map(l => {
-      let embHtml = '-';
-      if (l.embalagens && l.embalagens.length) {
-        const e0 = l.embalagens[0];
-        const totalLabel = e0.pesoUnitario > 0 ? '<div style="font-size:9px;color:#666;margin-bottom:2px">' + l.qtdSolicitada + ' un × ' + e0.pesoUnitario + e0.unidBase + ' = ' + e0.totalBase + e0.unidBase + '</div>' : '';
-        embHtml = totalLabel + l.embalagens.map(e => '<span class="emb-badge">' + e.embNecessarias + 'x ' + e.descricao + (e.precoRef ? ' (R$ ' + e.precoRef.toFixed(2) + '/un)' : '') + '</span>').join(' ');
-      }
-      return '<tr class="' + (l.isCritico ? 'critico' : '') + '"><td>' + l.descricao + (l.isCritico ? ' <span style="font-size:9px;color:#d97706">●crítico</span>' : '') + '</td><td class="text-center">' + l.unidade + '</td><td class="text-right">' + l.qtdSolicitada + '</td><td class="text-right">' + l.estoqueDisp + '</td><td class="text-right ' + (l.faltaComprar > 0 ? 'falta' : 'ok') + '">' + (l.faltaComprar > 0 ? l.faltaComprar : '✓') + '</td>' + (temCriticos ? '<td>' + embHtml + '</td>' : '') + '</tr>';
-    }).join("")}</tbody>
-  </table>
-  ${temCriticos ? '<div style="margin-top:10px;font-size:10px;color:#92400e;background:#fffbeb;padding:6px 10px;border-radius:4px">● Produtos críticos: qtd solicitada × peso unitário = total em g/ml, dividido pela embalagem (arredondado para cima).</div>' : ''}
-  <div style="margin-top:16px;font-size:10px;color:#999">Gerado em ${new Date().toLocaleString("pt-BR")} — GDP ${nomeEmpresa}</div>
-  </body></html>`);
+  let bodyHtml = '<h1>Relatório de Demanda</h1>';
+  bodyHtml += '<h2>Pedido: ' + p.id + ' — ' + (p.escola || "") + (cidadePedido ? ' (' + cidadePedido + ')' : '') + ' — ' + (p.dataEntrega || p.data || "") + '</h2>';
+  _SETOR_ORDEM.forEach(setor => {
+    if (porSetor[setor] && porSetor[setor].length > 0) {
+      bodyHtml += _renderSetorTable(setor, porSetor[setor], temCriticos, false);
+    }
+  });
+  if (temCriticos) bodyHtml += '<div style="margin-top:10px;font-size:10px;color:#92400e;background:#fffbeb;padding:6px 10px;border-radius:4px">● Produtos críticos: qtd solicitada × peso unitário = total em g/ml, dividido pela embalagem (arredondado para cima).</div>';
+  bodyHtml += '<div style="margin-top:16px;font-size:10px;color:#999">Gerado em ' + new Date().toLocaleString("pt-BR") + ' — GDP ' + nomeEmpresa + '</div>';
+  doc.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>Relatório de Demanda</title><style>' + _demandaReportCss() + '</style></head><body>' + bodyHtml + _demandaPrintSectionScript() + '</body></html>');
   doc.close();
   iframe.contentWindow.focus();
   iframe.contentWindow.print();

@@ -60,7 +60,7 @@ function resetTabState() {
     if (el) { el.checked = false; el.indeterminate = false; }
   });
   // AC3: Remove selection state from all page footers
-  ["pedidos-page-footer","nf-page-footer","cp-page-footer","cr-page-footer","clientes-page-footer","produtos-page-footer","ne-page-footer","fornecedores-page-footer","contratos-page-footer","estoque-page-footer","financeiro-page-footer"].forEach(id => {
+  ["pedidos-page-footer","nf-page-footer","cp-page-footer","cr-page-footer","clientes-page-footer","produtos-page-footer","ne-page-footer","fornecedores-page-footer","contratos-page-footer","estoque-page-footer","financeiro-page-footer","caixa-page-footer"].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.classList.remove("has-selection");
   });
@@ -80,7 +80,7 @@ function resetTabState() {
   if (novoProdOverlay) novoProdOverlay.classList.add("hidden");
 }
 function _hideAllPageFooters() {
-  ["pedidos-page-footer","nf-page-footer","cp-page-footer","cr-page-footer","clientes-page-footer","produtos-page-footer","ne-page-footer","fornecedores-page-footer","contratos-page-footer","estoque-page-footer","financeiro-page-footer"].forEach(id => {
+  ["pedidos-page-footer","nf-page-footer","cp-page-footer","cr-page-footer","clientes-page-footer","produtos-page-footer","ne-page-footer","fornecedores-page-footer","contratos-page-footer","estoque-page-footer","financeiro-page-footer","caixa-page-footer"].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = "none";
   });
@@ -172,7 +172,7 @@ function switchFinanceiroTab(subTab) {
   document.querySelectorAll(".fin-tab-btn").forEach(btn => {
     btn.classList.toggle("active", btn.dataset.finTab === subTab);
   });
-  if (subTab === "caixa") { if (typeof renderCaixa === "function") renderCaixa(); _showPageFooter("financeiro-page-footer"); }
+  if (subTab === "caixa") { if (typeof renderCaixa === "function") renderCaixa(); _showPageFooter("caixa-page-footer"); }
   // Story 4.52: render functions now call footer updates internally with filtered data
   if (subTab === "contas-pagar") { if (typeof renderContasPagar === "function") renderContasPagar(); _showPageFooter("cp-page-footer"); }
   if (subTab === "contas-receber") {
