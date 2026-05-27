@@ -1359,6 +1359,15 @@ function verPedidoDetalhe(pedidoId, isClone) {
   }
   html += '</div>';
 
+  // ── Anotações Internas (NÃO vai para NF — uso interno do gestor) ──
+  const anotacaoInterna = p.anotacaoInterna || '';
+  html += '<div style="margin-top:1.2rem;padding-bottom:1rem;border-top:1px solid rgba(143,197,157,.25);padding-top:1rem">';
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;margin-bottom:.6rem">';
+  html += '<div><div style="font-size:.82rem;font-weight:600;margin-bottom:.25rem;color:var(--yellow,#eab308)">Anotações Internas</div><div style="font-size:.78rem;color:var(--mut)">Uso interno — <strong>não</strong> aparece na NF nem em documentos enviados ao cliente.</div></div>';
+  html += '</div>';
+  html += '<textarea id="pedido-anotacao-interna-' + p.id + '" style="width:100%;min-height:70px;padding:.6rem .8rem;background:rgba(234,179,8,.06);border:1px solid rgba(234,179,8,.3);border-radius:4px;color:var(--txt);font-size:.85rem;resize:vertical;font-family:inherit" placeholder="Anotações internas (ex: pendências, instruções de separação, alertas...)">' + esc(anotacaoInterna) + '</textarea>';
+  html += '</div>';
+
   if (isClone) {
     html += '<div style="margin-top:1.2rem;display:flex;justify-content:flex-end;gap:.5rem"><button class="btn btn-outline" onclick="cancelarClonePedido()">Cancelar</button><button class="btn btn-green" onclick="salvarClonePedido()">Salvar</button></div>';
   } else {
@@ -1390,6 +1399,9 @@ function salvarPedidoCompleto(pedidoId) {
   // Salvar observação do pedido
   const obsEl = document.getElementById('pedido-obs-' + pedidoId);
   if (obsEl) p.obs = obsEl.value;
+  // Salvar anotação interna
+  const anotacaoEl = document.getElementById('pedido-anotacao-interna-' + pedidoId);
+  if (anotacaoEl) p.anotacaoInterna = anotacaoEl.value;
   // Salvar dados fiscais
   savePedidoFiscalData(pedidoId);
   // Salvar pagamento

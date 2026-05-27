@@ -1512,6 +1512,17 @@ function verNotaFiscal(notaId) {
   }
   html += '</div>';
 
+  // ── Anotações Internas (do pedido vinculado — uso interno, NÃO aparece no XML/DANFE) ──
+  const _pedidoVinculado = nf.pedidoId ? pedidos.find(function(pp) { return pp.id === nf.pedidoId; }) : null;
+  const _anotacaoNf = nf.anotacaoInterna || (_pedidoVinculado ? _pedidoVinculado.anotacaoInterna : '') || '';
+  if (_anotacaoNf || true) {
+    html += '<div class="card" style="padding:1rem;margin-bottom:1rem;border:1px solid rgba(234,179,8,.3);background:rgba(234,179,8,.04)">';
+    html += '<h3 style="margin-bottom:.6rem;color:var(--yellow,#eab308)">Anotações Internas</h3>';
+    html += '<div style="font-size:.78rem;color:var(--mut);margin-bottom:.5rem">Uso interno — <strong>não</strong> aparece no XML, DANFE ou documentos enviados ao cliente.</div>';
+    html += '<textarea id="nf-anotacao-interna-' + nf.id + '" style="width:100%;min-height:70px;padding:.6rem .8rem;background:rgba(234,179,8,.06);border:1px solid rgba(234,179,8,.3);border-radius:4px;color:var(--txt);font-size:.85rem;resize:vertical;font-family:inherit" placeholder="Anotações internas...">' + esc(_anotacaoNf) + '</textarea>';
+    html += '</div>';
+  }
+
   html += '<div class="table-wrap"><table><thead><tr><th>Produto</th><th class="text-center">Qtd</th><th class="text-center">Un.</th><th class="text-center">NCM</th><th class="text-right">Unit.</th><th class="text-right">Subtotal</th></tr></thead><tbody>';
   html += (nf.itens || []).map((item, idx) => '<tr><td>' + esc(item.descricao || '') + '</td><td class="text-center">' + (item.qtd || 0) + '</td><td class="text-center">' + esc(item.unidade || '-') + '</td><td class="text-center"><input type="text" id="nf-item-ncm-' + nf.id + '-' + idx + '" value="' + esc(item.ncm || '') + '" style="width:90px;text-align:center;font-family:monospace;font-size:.78rem;padding:.2rem .3rem;background:var(--s1);border:1px solid var(--bdr);border-radius:4px;color:var(--cyan)" onchange="salvarNcmItemNf(\'' + nf.id + '\',' + idx + ',this.value)"></td><td class="text-right">' + brl.format(item.precoUnitario || 0) + '</td><td class="text-right">' + brl.format((item.qtd || 0) * (item.precoUnitario || 0)) + '</td></tr>').join('');
   html += '</tbody></table></div>';
@@ -1901,6 +1912,9 @@ function salvarDadosNotaFiscal(notaId) {
     numeroManual: !isReal,
     danfeUrl: (document.getElementById("nf-danfe-url")?.value || "").trim()
   };
+  // Salvar anotação interna
+  const anotacaoEl = document.getElementById('nf-anotacao-interna-' + notaId);
+  if (anotacaoEl) nf.anotacaoInterna = anotacaoEl.value;
   nf.audit = { ...(nf.audit || {}), updatedAt: new Date().toISOString(), updatedBy: getAuditActor() };
   setIntegrationState(nf, "sefaz", {
     status: isReal ? (nf.integracoes?.sefaz?.status || "validacao_pendente") : "controle_manual",
