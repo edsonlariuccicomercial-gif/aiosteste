@@ -1808,7 +1808,7 @@ function renderContasReceber() {
   const crEmAte = document.getElementById("cr-filtro-emissao-ate")?.value || "";
   if (crEmDe || crEmAte) {
     filtered = _applyPeriodFilterCustom(filtered, 'intervalo', 'cr-filtro-emissao-de', 'cr-filtro-emissao-ate', function(item) {
-      return item.dataEmissao || item.emissao || item.createdAt || '';
+      return item.dataEmissao || item.emissao || item.created_at || item.createdAt || '';
     });
   }
   // Filtro por data de vencimento (dropdown Radar)

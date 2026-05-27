@@ -3,25 +3,25 @@
 // syncPedidosGDPToEstoqueIntel, renderEstoque, renderGdpDemandasIntel, renderGdpEstoqueIntel,
 // renderGdpComprasIntel, and all related stock intelligence functions.
 
-// Nova categoria de produto via prompt
+// Categorias customizadas (persistem no localStorage)
+var _customCategorias = [];
+try { _customCategorias = JSON.parse(localStorage.getItem('gdp.produto-categorias-custom.v1') || '[]'); } catch(e) { _customCategorias = []; }
+function _saveCustomCategorias() { localStorage.setItem('gdp.produto-categorias-custom.v1', JSON.stringify(_customCategorias)); }
+
+// Flag para evitar re-render recursivo
+var _catActionPending = null;
+
 function _promptNovaCategoriaProduto() {
-  const nome = prompt("Nome da nova categoria:");
+  var nome = prompt("Nome da nova categoria:");
   if (!nome || !nome.trim()) return;
-  showToast("Categoria '" + nome.trim() + "' disponível. Atribua a um produto para salvar.", 4000);
-  // Forçar re-render para que a categoria apareça na próxima edição de produto
-  const catSelect = document.getElementById("ei-filtro-categoria");
-  if (catSelect) catSelect.value = "";
+  nome = nome.trim();
+  if (_customCategorias.indexOf(nome) < 0) { _customCategorias.push(nome); _saveCustomCategorias(); }
+  showToast("Categoria '" + nome + "' criada!", 3000);
+  if (typeof renderEstoque === 'function') renderEstoque();
 }
-// Handler para capturar seleção de "+ Nova categoria" e "- Remover categoria"
-document.addEventListener("change", function(e) {
-  if (e.target && e.target.id === "ei-filtro-categoria") {
-    if (e.target.value === "__nova__") { e.target.value = ""; _promptNovaCategoriaProduto(); }
-    if (e.target.value === "__remover__") { e.target.value = ""; _promptRemoverCategoriaProduto(); }
-  }
-});
 
 function _promptRemoverCategoriaProduto() {
-  var allCats = [...new Set(estoqueIntelProdutos.map(function(p) { return p.categoria || ""; }).filter(Boolean))].sort();
+  var allCats = [...new Set([..._customCategorias, ...estoqueIntelProdutos.map(function(p) { return p.categoria || ""; })])].filter(Boolean).sort();
   if (allCats.length === 0) { showToast("Nenhuma categoria para remover.", 3000); return; }
   var msg = "Categorias existentes:\n" + allCats.map(function(c, i) { return (i + 1) + ". " + c; }).join("\n") + "\n\nDigite o número da categoria para remover:";
   var choice = prompt(msg);
@@ -29,14 +29,18 @@ function _promptRemoverCategoriaProduto() {
   var idx = parseInt(choice) - 1;
   if (isNaN(idx) || idx < 0 || idx >= allCats.length) { showToast("Opção inválida.", 3000); return; }
   var catRemover = allCats[idx];
+  // Remover dos customizados
+  _customCategorias = _customCategorias.filter(function(c) { return c !== catRemover; });
+  _saveCustomCategorias();
+  // Remover dos produtos
   var produtosComCat = estoqueIntelProdutos.filter(function(p) { return p.categoria === catRemover; });
   if (produtosComCat.length > 0) {
     if (!confirm("A categoria '" + catRemover + "' tem " + produtosComCat.length + " produto(s). Remover a categoria deles?")) return;
     produtosComCat.forEach(function(p) { p.categoria = ""; });
     if (typeof saveEstoqueIntelProdutos === 'function') saveEstoqueIntelProdutos();
   }
+  showToast("Categoria '" + catRemover + "' removida.", 3000);
   if (typeof renderEstoque === 'function') renderEstoque();
-  showToast("Categoria '" + catRemover + "' removida de " + produtosComCat.length + " produto(s).");
 }
 
 // ===== LIMPAR PRODUTOS E MOVIMENTAÇÕES =====
@@ -1932,14 +1936,17 @@ function renderEstoque() {
   const busca = (document.getElementById("ei-busca")?.value || "").trim().toLowerCase();
   const filtroBase = document.getElementById("ei-filtro-base")?.value || "";
   // Story 4.51 AC-G1: category and type filters
-  const filtroCategoria = document.getElementById("ei-filtro-categoria")?.value || "";
-  const filtroTipo = document.getElementById("ei-filtro-tipo")?.value || "";
-  // Populate category dropdown dynamically
   const catSelect = document.getElementById("ei-filtro-categoria");
+  // Interceptar ações especiais ANTES de repopular
+  if (catSelect && catSelect.value === '__nova__') { catSelect.value = ''; setTimeout(_promptNovaCategoriaProduto, 10); return; }
+  if (catSelect && catSelect.value === '__remover__') { catSelect.value = ''; setTimeout(_promptRemoverCategoriaProduto, 10); return; }
+  const filtroCategoria = catSelect?.value || "";
+  const filtroTipo = document.getElementById("ei-filtro-tipo")?.value || "";
+  // Populate category dropdown dynamically (inclui customizadas)
   if (catSelect) {
     const currentVal = catSelect.value;
-    const allCats = [...new Set(estoqueIntelProdutos.map(p => p.categoria || "").filter(Boolean))].sort();
-    catSelect.innerHTML = '<option value="">Todas Categorias</option>' + allCats.map(c => '<option value="' + c + '"' + (c === currentVal ? ' selected' : '') + '>' + c + '</option>').join("") + '<option value="__nova__">+ Nova categoria</option>' + (allCats.length > 0 ? '<option value="__remover__">- Remover categoria</option>' : '');
+    const allCats = [...new Set([...(_customCategorias || []), ...estoqueIntelProdutos.map(p => p.categoria || "")])].filter(Boolean).sort();
+    catSelect.innerHTML = '<option value="">Todas Categorias</option>' + allCats.map(c => '<option value="' + c + '"' + (c === currentVal ? ' selected' : '') + '>' + c + '</option>').join("") + '<option value="__nova__" style="color:var(--green,#22c55e)">+ Nova categoria</option>' + (allCats.length > 0 ? '<option value="__remover__" style="color:var(--red,#ef4444)">- Remover categoria</option>' : '');
   }
   document.querySelectorAll("[data-ei-section]").forEach((el) => {
     const section = el.getAttribute("data-ei-section");
