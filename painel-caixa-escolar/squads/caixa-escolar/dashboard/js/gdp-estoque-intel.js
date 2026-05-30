@@ -2653,10 +2653,18 @@ function excluirMovimentacoesSelecionadas() {
   const indices = [...document.querySelectorAll(".mov-chk:checked")].map(cb => Number(cb.value));
   if (!indices.length) { showToast("Nenhum lancamento selecionado.", 3000); return; }
   if (!confirm("Excluir " + indices.length + " lancamento(s)? Esta acao nao pode ser desfeita.")) return;
-  // Build sorted copy to map checkbox indices to actual movimentacoes
-  const sorted = [...estoqueIntelMovimentacoes].sort((a, b) => new Date(b.data || 0) - new Date(a.data || 0));
-  const toRemove = new Set(indices.map(i => sorted[i]).filter(Boolean));
-  // Mutate in-place with splice (reverse order to preserve indices)
+  // Must use same filter as render: exclude "comprometido", apply busca/filtroBase, then sort by date desc
+  const busca = (document.getElementById("ei-busca")?.value || "").trim().toLowerCase();
+  const filtroBase = document.getElementById("ei-filtro-base")?.value || "";
+  const visiveis = estoqueIntelMovimentacoes.filter(mov => {
+    if (mov.tipo === "comprometido") return false;
+    const produto = findEstoqueIntelProduto(mov.produto_id);
+    const matchBusca = !busca || (produto?.nome || "" + " " + mov.tipo + " " + mov.origem).toLowerCase().includes(busca);
+    const matchBase = !filtroBase || produto?.unidade_base === filtroBase;
+    return matchBusca && matchBase;
+  }).sort((a, b) => new Date(b.data || 0) - new Date(a.data || 0));
+  const toRemove = new Set(indices.map(i => visiveis[i]).filter(Boolean));
+  if (!toRemove.size) { showToast("Nenhum lancamento encontrado para exclusao.", 3000); return; }
   for (let i = estoqueIntelMovimentacoes.length - 1; i >= 0; i--) {
     if (toRemove.has(estoqueIntelMovimentacoes[i])) {
       estoqueIntelMovimentacoes.splice(i, 1);
@@ -2666,5 +2674,5 @@ function excluirMovimentacoesSelecionadas() {
   const selectAll = document.getElementById("mov-select-all");
   if (selectAll) selectAll.checked = false;
   renderEstoque();
-  showToast(indices.length + " lancamento(s) excluido(s).", 3500);
+  showToast(toRemove.size + " lancamento(s) excluido(s).", 3500);
 }
