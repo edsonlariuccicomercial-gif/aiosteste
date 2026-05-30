@@ -1250,7 +1250,9 @@ function registrarFornecedorEstoqueIntel() {
     }
   }
   saveEstoqueIntelFornecedores();
-  ["ei-forn-nome", "ei-forn-doc", "ei-forn-telefone", "ei-forn-email", "ei-forn-preco"].forEach((id) => { const el = document.getElementById(id); if (el) el.value = ""; });
+  ["ei-forn-nome", "ei-forn-doc", "ei-forn-telefone", "ei-forn-email", "ei-forn-preco", "ei-forn-contato", "ei-forn-endereco"].forEach((id) => { const el = document.getElementById(id); if (el) el.value = ""; });
+  const editForm = document.querySelector("[data-ei-section='fornecedores'] [data-ei-form]");
+  if (editForm) { editForm.style.border = ""; editForm.style.boxShadow = ""; const lbl = editForm.querySelector("[data-edit-label]"); if (lbl) lbl.remove(); }
   const embalagemSelect = document.getElementById("ei-forn-embalagem");
   if (embalagemSelect) embalagemSelect.value = "";
   const existingSelect = document.getElementById("ei-forn-existing");
@@ -1285,8 +1287,18 @@ function editarFornecedorEstoqueIntel(fornecedorId) {
   if (el("ei-forn-status")) el("ei-forn-status").value = f.status || "ativo";
   if (el("ei-forn-existing")) el("ei-forn-existing").value = fornecedorId;
   const form = document.querySelector("[data-ei-section='fornecedores'] [data-ei-form]");
-  if (form) form.scrollIntoView({ behavior: "smooth", block: "start" });
-  showToast("Editando " + f.nome + ". Altere os campos e clique em Salvar.", 3000);
+  if (form) {
+    form.style.border = "2px solid var(--green, #22c55e)";
+    form.style.boxShadow = "0 0 8px rgba(34,197,94,.3)";
+    const lbl = form.querySelector("[data-edit-label]");
+    if (lbl) lbl.remove();
+    const editLabel = document.createElement("div");
+    editLabel.setAttribute("data-edit-label", "1");
+    editLabel.style.cssText = "background:var(--green,#22c55e);color:#fff;padding:.3rem .8rem;border-radius:4px;font-size:.78rem;font-weight:700;margin-bottom:.5rem;display:inline-block";
+    editLabel.textContent = "Editando: " + f.nome;
+    form.insertBefore(editLabel, form.firstChild);
+    form.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
 }
 
 function excluirFornecedorEstoqueIntel(fornecedorId) {

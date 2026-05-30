@@ -3605,17 +3605,18 @@ function adicionarCategoriaCustom() {
 window.editarCategoria = function(oldName) {
   const newName = prompt("Novo nome para a categoria:", oldName);
   if (!newName || !newName.trim() || newName.trim() === oldName) return;
-  // Update in custom list
+  // Update in custom list (add if not there yet — e.g. renaming a standard category)
   const customs = _loadCategoriasCustom();
   const idx = customs.indexOf(oldName);
-  if (idx >= 0) { customs[idx] = newName.trim(); _saveCategoriasCustom(customs); }
+  if (idx >= 0) { customs[idx] = newName.trim(); } else { customs.push(newName.trim()); }
+  _saveCategoriasCustom(customs);
   // Update all products with old category
   if (typeof estoqueIntelProdutos !== 'undefined') {
     estoqueIntelProdutos.filter(p => p.categoria === oldName).forEach(p => { p.categoria = newName.trim(); });
     if (typeof saveEstoqueIntelProdutos === 'function') saveEstoqueIntelProdutos();
   }
   showToast("Categoria renomeada: " + newName.trim(), 2500);
-  if (typeof renderProdutos === 'function') renderProdutos();
+  if (typeof renderEstoque === 'function') renderEstoque();
 };
 
 window.excluirCategoria = function(name) {
@@ -3629,30 +3630,34 @@ window.excluirCategoria = function(name) {
     if (typeof saveEstoqueIntelProdutos === 'function') saveEstoqueIntelProdutos();
   }
   showToast("Categoria excluída: " + name, 2500);
-  if (typeof renderProdutos === 'function') renderProdutos();
+  if (typeof renderEstoque === 'function') renderEstoque();
 };
 
-// Story 4.53 AC-2: UI para gerenciar categorias custom
+// Story 4.53 AC-2: UI para gerenciar categorias (todas — padrão + custom + em uso)
 window.abrirGerenciadorCategorias = function() {
   const customs = _loadCategoriasCustom();
-  if (!customs.length) { showToast("Nenhuma categoria customizada. Use o botão + para criar.", 3000); return; }
-  const listHtml = customs.map(c =>
-    '<div style="display:flex;align-items:center;gap:.5rem;padding:.4rem .6rem;border-bottom:1px solid var(--bdr)">'
+  const padrao = ["Hortifruti","Carnes/Proteinas","Graos/Cereais","Laticinios","Frutas","Mercearia","Padaria/Biscoitos","Ovos","Bebidas","Limpeza","Outros"];
+  const emUso = (typeof estoqueIntelProdutos !== 'undefined') ? estoqueIntelProdutos.map(p => p.categoria || "").filter(Boolean) : [];
+  const allCats = [...new Set([...padrao, ...customs, ...emUso])].sort();
+  if (!allCats.length) { showToast("Nenhuma categoria encontrada.", 3000); return; }
+  const listHtml = allCats.map(c => {
+    const escaped = c.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+    return '<div style="display:flex;align-items:center;gap:.5rem;padding:.4rem .6rem;border-bottom:1px solid var(--bdr)">'
     + '<span style="flex:1;font-size:.85rem">' + c + '</span>'
-    + '<button class="btn btn-outline btn-sm" onclick="editarCategoria(\'' + c.replace(/'/g, "\\'") + '\');abrirGerenciadorCategorias()" style="padding:.2rem .4rem;font-size:.7rem" title="Renomear">✏️</button>'
-    + '<button class="btn btn-outline btn-sm" onclick="excluirCategoria(\'' + c.replace(/'/g, "\\'") + '\');abrirGerenciadorCategorias()" style="padding:.2rem .4rem;font-size:.7rem;color:var(--red)" title="Excluir">🗑️</button>'
-    + '</div>'
-  ).join('');
+    + '<button class="btn btn-outline btn-sm" onclick="editarCategoria(\'' + escaped + '\');abrirGerenciadorCategorias()" style="padding:.2rem .4rem;font-size:.7rem" title="Renomear">✏️</button>'
+    + '<button class="btn btn-outline btn-sm" onclick="excluirCategoria(\'' + escaped + '\');abrirGerenciadorCategorias()" style="padding:.2rem .4rem;font-size:.7rem;color:var(--red)" title="Excluir">🗑️</button>'
+    + '</div>';
+  }).join('');
   const existing = document.getElementById('cat-manager-overlay');
   if (existing) existing.remove();
   const overlay = document.createElement('div');
   overlay.id = 'cat-manager-overlay';
   overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center';
   overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
-  overlay.innerHTML = '<div style="background:var(--bg);border:1px solid var(--bdr);border-radius:10px;width:380px;max-width:90vw;padding:1.2rem 1.5rem" onclick="event.stopPropagation()">'
+  overlay.innerHTML = '<div style="background:var(--bg);border:1px solid var(--bdr);border-radius:10px;width:420px;max-width:90vw;padding:1.2rem 1.5rem" onclick="event.stopPropagation()">'
     + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem"><h3 style="margin:0;font-size:.95rem">Gerenciar Categorias</h3><button class="btn btn-outline btn-sm" onclick="document.getElementById(\'cat-manager-overlay\').remove()">Fechar</button></div>'
     + '<div style="max-height:300px;overflow-y:auto;border:1px solid var(--bdr);border-radius:6px">' + listHtml + '</div>'
-    + '<div style="margin-top:.8rem;font-size:.72rem;color:var(--mut)">Categorias padrão (Hortifruti, Carnes, etc.) não podem ser editadas.</div>'
+    + '<div style="margin-top:.8rem;font-size:.72rem;color:var(--mut)">Clique ✏️ para renomear ou 🗑️ para excluir qualquer categoria.</div>'
     + '</div>';
   document.body.appendChild(overlay);
 };
