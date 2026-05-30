@@ -97,6 +97,27 @@ function excluirClientesSelecionados() {
   showToast(`${sel.length} cliente(s) excluído(s).`);
 }
 
+function imprimirListaClientes() {
+  const esc = s => (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const rows = usuarios.map(u =>
+    '<tr><td style="border:1px solid #ccc;padding:4px 8px;font-size:9pt">' + esc(u.nome) + '</td>'
+    + '<td style="border:1px solid #ccc;padding:4px 8px;font-size:9pt">' + esc(u.cnpj) + '</td>'
+    + '<td style="border:1px solid #ccc;padding:4px 8px;font-size:9pt">' + esc(u.municipio) + '</td>'
+    + '<td style="border:1px solid #ccc;padding:4px 8px;font-size:9pt">' + esc(u.email) + '</td>'
+    + '<td style="border:1px solid #ccc;padding:4px 8px;font-size:9pt">' + esc(u.telefone) + '</td></tr>'
+  ).join('');
+  const html = '<!DOCTYPE html><html><head><title>Lista de Clientes</title><style>body{font-family:Arial,sans-serif;margin:1.5cm;font-size:10pt}table{width:100%;border-collapse:collapse}th{background:#f0f0f0;border:1px solid #ccc;padding:4px 8px;font-size:9pt;text-align:left}@media print{body{margin:1cm}}</style></head><body>'
+    + '<h2 style="text-align:center;margin-bottom:1rem">Lista de Clientes</h2>'
+    + '<table><thead><tr><th>Nome / Razao Social</th><th>CNPJ</th><th>Municipio</th><th>E-mail</th><th>Telefone</th></tr></thead><tbody>' + rows + '</tbody></table>'
+    + '<div style="margin-top:1rem;font-size:8pt;color:#999;text-align:center">' + usuarios.length + ' cliente(s) — Impresso em ' + new Date().toLocaleString('pt-BR') + '</div>'
+    + '</body></html>';
+  const win = window.open('', '_blank');
+  if (!win) { showToast('Nao foi possivel abrir a janela de impressao.', 3000); return; }
+  win.document.write(html);
+  win.document.close();
+  setTimeout(() => { win.focus(); win.print(); }, 300);
+}
+
 function novoUsuario() {
   clienteDetalheAtualId = null;
   renderFormUsuario(null);

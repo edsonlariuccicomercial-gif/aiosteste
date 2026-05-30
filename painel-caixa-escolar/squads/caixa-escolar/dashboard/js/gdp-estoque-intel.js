@@ -2636,13 +2636,19 @@ function toggleSelectAllMovimentacoes(checked) {
 }
 
 function atualizarSelecaoMovimentacoes() {
-  const selected = [...document.querySelectorAll(".mov-chk:checked")];
+  const all = [...document.querySelectorAll(".mov-chk")];
+  const selected = all.filter(cb => cb.checked);
   const btn = document.getElementById("btn-excluir-movimentacoes");
   const summary = document.getElementById("estoque-bulk-summary");
   const footer = document.getElementById("estoque-page-footer");
+  const selectAll = document.getElementById("mov-select-all");
+  if (selectAll) {
+    selectAll.checked = all.length > 0 && selected.length === all.length;
+    selectAll.indeterminate = selected.length > 0 && selected.length < all.length;
+  }
   if (btn) btn.style.display = selected.length ? "inline-block" : "none";
-  if (summary && selected.length) summary.textContent = selected.length + " lancamento(s)";
-  if (footer && selected.length) footer.style.display = "";
+  if (summary) summary.textContent = selected.length ? selected.length + " lancamento(s)" : "0 item(ns)";
+  if (footer) footer.style.display = selected.length ? "flex" : (footer.style.display === "flex" ? "flex" : footer.style.display);
 }
 
 function excluirMovimentacoesSelecionadas() {

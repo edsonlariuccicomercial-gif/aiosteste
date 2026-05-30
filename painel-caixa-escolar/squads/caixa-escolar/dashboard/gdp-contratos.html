@@ -1241,8 +1241,11 @@
         <input type="text" id="busca-usuario" placeholder="Buscar escola, CNPJ..." oninput="renderUsuarios()">
       </div>
       <div style="display:flex;gap:.5rem;flex-wrap:wrap">
-        <button class="btn btn-blue" onclick="document.getElementById('import-clientes-input').click()" style="font-weight:600">📥 Importar Clientes</button>
         <button class="btn btn-green" onclick="novoUsuario()">+ Incluir Cliente</button>
+        <div style="display:flex;gap:.5rem;margin-left:auto">
+          <button class="btn btn-outline btn-sm" onclick="document.getElementById('import-clientes-input').click()">📥 Importar Planilha</button>
+          <button class="btn btn-outline btn-sm" onclick="imprimirListaClientes()">Imprimir Lista</button>
+        </div>
       </div>
       <input type="file" id="import-clientes-input" accept=".xlsx,.xls,.csv,.pdf" style="display:none" onchange="handleImportClientes(this)">
     </div>
@@ -2635,9 +2638,9 @@ function confirmarImportProd() {
   </div>
 </div>
 <div id="clientes-page-footer" class="page-footer" style="display:none">
-  <div class="footer-actions" id="clientes-bulk-actions">
+  <div class="footer-actions hidden" id="clientes-bulk-actions">
     <span id="clientes-bulk-summary" style="font-size:.82rem;font-weight:700;color:var(--mut)">0 cadastro(s)</span>
-    <button class="btn btn-red btn-sm" onclick="excluirClientesSelecionados()">Excluir Cadastro</button>
+    <button class="btn btn-red btn-sm" onclick="excluirClientesSelecionados()">Excluir Clientes</button>
   </div>
   <div id="clientes-pagination" class="footer-pagination"></div>
   <div class="footer-stats">
@@ -2690,7 +2693,7 @@ function confirmarImportProd() {
 <div id="estoque-page-footer" class="page-footer" style="display:none">
   <div class="footer-actions" id="estoque-bulk-actions">
     <span id="estoque-bulk-summary" style="font-size:.82rem;font-weight:700;color:var(--mut)">0 item(ns)</span>
-    <button class="btn btn-red btn-sm" onclick="excluirMovimentacoesSelecionadas()" style="display:none" id="btn-excluir-movimentacoes">Excluir Lancamentos</button>
+    <button class="btn btn-red btn-sm" onclick="excluirMovimentacoesSelecionadas()" id="btn-excluir-movimentacoes">Excluir Lancamentos</button>
   </div>
   <div id="estoque-pagination" class="footer-pagination"></div>
   <div class="footer-stats">
