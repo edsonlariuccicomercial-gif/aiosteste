@@ -1193,6 +1193,8 @@ function registrarFornecedorEstoqueIntel() {
   const documento = (document.getElementById("ei-forn-doc")?.value || "").trim();
   const telefone = (document.getElementById("ei-forn-telefone")?.value || "").trim();
   const email = (document.getElementById("ei-forn-email")?.value || "").trim();
+  const nomeContato = (document.getElementById("ei-forn-contato")?.value || "").trim();
+  const endereco = (document.getElementById("ei-forn-endereco")?.value || "").trim();
   const status = document.getElementById("ei-forn-status")?.value || "ativo";
   const embalagemId = document.getElementById("ei-forn-embalagem")?.value || "";
   const precoUnitario = Number(document.getElementById("ei-forn-preco")?.value || 0);
@@ -1220,6 +1222,8 @@ function registrarFornecedorEstoqueIntel() {
       documento,
       telefone,
       email,
+      nomeContato,
+      endereco,
       status,
       embalagens: []
     };
@@ -1229,6 +1233,8 @@ function registrarFornecedorEstoqueIntel() {
     fornecedor.documento = documento || fornecedor.documento;
     fornecedor.telefone = telefone || fornecedor.telefone || "";
     fornecedor.email = email || fornecedor.email || "";
+    fornecedor.nomeContato = nomeContato || fornecedor.nomeContato || "";
+    fornecedor.endereco = endereco || fornecedor.endereco || "";
     fornecedor.status = status || fornecedor.status;
   }
   if (!fornecedor && existingId) {
@@ -1264,6 +1270,23 @@ function getEstoqueIntelFornecedorDependencias(fornecedorId) {
   const totalCompras = estoqueIntelCompras.filter((item) => item.fornecedor_id === fornecedorId).length;
   if (totalCompras) dependencias.push(`${totalCompras} compra(s)`);
   return dependencias;
+}
+
+function editarFornecedorEstoqueIntel(fornecedorId) {
+  const f = findEstoqueIntelFornecedor(fornecedorId);
+  if (!f) { showToast("Fornecedor nao encontrado.", 3000); return; }
+  const el = (id) => document.getElementById(id);
+  if (el("ei-forn-nome")) el("ei-forn-nome").value = f.nome || "";
+  if (el("ei-forn-doc")) el("ei-forn-doc").value = f.documento || "";
+  if (el("ei-forn-telefone")) el("ei-forn-telefone").value = f.telefone || "";
+  if (el("ei-forn-email")) el("ei-forn-email").value = f.email || "";
+  if (el("ei-forn-contato")) el("ei-forn-contato").value = f.nomeContato || "";
+  if (el("ei-forn-endereco")) el("ei-forn-endereco").value = f.endereco || "";
+  if (el("ei-forn-status")) el("ei-forn-status").value = f.status || "ativo";
+  if (el("ei-forn-existing")) el("ei-forn-existing").value = fornecedorId;
+  const form = document.querySelector("[data-ei-section='fornecedores'] [data-ei-form]");
+  if (form) form.scrollIntoView({ behavior: "smooth", block: "start" });
+  showToast("Editando " + f.nome + ". Altere os campos e clique em Salvar.", 3000);
 }
 
 function excluirFornecedorEstoqueIntel(fornecedorId) {
@@ -1937,16 +1960,13 @@ function renderEstoque() {
   const filtroBase = document.getElementById("ei-filtro-base")?.value || "";
   // Story 4.51 AC-G1: category and type filters
   const catSelect = document.getElementById("ei-filtro-categoria");
-  // Interceptar ações especiais ANTES de repopular
-  if (catSelect && catSelect.value === '__nova__') { catSelect.value = ''; setTimeout(_promptNovaCategoriaProduto, 10); return; }
-  if (catSelect && catSelect.value === '__remover__') { catSelect.value = ''; setTimeout(_promptRemoverCategoriaProduto, 10); return; }
   const filtroCategoria = catSelect?.value || "";
   const filtroTipo = document.getElementById("ei-filtro-tipo")?.value || "";
   // Populate category dropdown dynamically (inclui customizadas)
   if (catSelect) {
     const currentVal = catSelect.value;
     const allCats = [...new Set([...(_customCategorias || []), ...estoqueIntelProdutos.map(p => p.categoria || "")])].filter(Boolean).sort();
-    catSelect.innerHTML = '<option value="">Todas Categorias</option>' + allCats.map(c => '<option value="' + c + '"' + (c === currentVal ? ' selected' : '') + '>' + c + '</option>').join("") + '<option value="__nova__" style="color:var(--green,#22c55e)">+ Nova categoria</option>' + (allCats.length > 0 ? '<option value="__remover__" style="color:var(--red,#ef4444)">- Remover categoria</option>' : '');
+    catSelect.innerHTML = '<option value="">Todas Categorias</option>' + allCats.map(c => '<option value="' + c + '"' + (c === currentVal ? ' selected' : '') + '>' + c + '</option>').join("");
   }
   document.querySelectorAll("[data-ei-section]").forEach((el) => {
     const section = el.getAttribute("data-ei-section");
@@ -2252,14 +2272,14 @@ function renderEstoque() {
   }).join("") : `<tr><td colspan="5" style="color:var(--mut)">Nenhuma movimentacao registrada.</td></tr>`;
   if (fornecedoresTbody) fornecedoresTbody.innerHTML = fornecedoresVisiveis.length ? fornecedoresVisiveis.map((fornecedor) => `
     <tr>
-      <td>${esc(fornecedor.nome)}<br><span style="font-size:.72rem;color:var(--mut)">Tel: ${esc(getEstoqueIntelFornecedorTelefone(fornecedor) || "-")} | E-mail: ${esc(getEstoqueIntelFornecedorEmail(fornecedor) || "-")}</span></td>
+      <td>${esc(fornecedor.nome)}${fornecedor.nomeContato ? ' <span style="font-size:.72rem;color:var(--mut)">(' + esc(fornecedor.nomeContato) + ')</span>' : ''}<br><span style="font-size:.72rem;color:var(--mut)">Tel: ${esc(getEstoqueIntelFornecedorTelefone(fornecedor) || "-")} | E-mail: ${esc(getEstoqueIntelFornecedorEmail(fornecedor) || "-")}</span>${fornecedor.endereco ? '<br><span style="font-size:.72rem;color:var(--mut)">' + esc(fornecedor.endereco) + '</span>' : ''}</td>
       <td class="font-mono">${esc(fornecedor.documento || "-")}</td>
       <td><span class="badge ${fornecedor.status === "ativo" ? "badge-green" : fornecedor.status === "homologacao" ? "badge-yellow" : "badge-red"}">${esc(fornecedor.status || "-")}</span></td>
       <td style="font-size:.78rem;color:var(--mut)">${(fornecedor.embalagens || []).map((oferta) => {
         const emb = estoqueIntelEmbalagens.find((item) => item.id === oferta.embalagem_id);
         return `${esc(emb?.descricao || oferta.embalagem_id)}: ${brl.format(Number(oferta.preco_unitario || 0))} <button class="btn btn-outline btn-sm" style="padding:.15rem .45rem;margin-left:.35rem" onclick="excluirOfertaFornecedorEstoqueIntel('${esc(fornecedor.id)}','${esc(oferta.embalagem_id)}')">Excluir oferta</button>`;
       }).join("<br>") || "Sem preco negociado especifico. Usa o preco padrao da embalagem."}</td>
-      <td class="text-right"><button class="btn btn-outline btn-sm" onclick="excluirFornecedorEstoqueIntel('${esc(fornecedor.id)}')">Excluir</button></td>
+      <td class="text-right" style="white-space:nowrap"><button class="btn btn-outline btn-sm" onclick="editarFornecedorEstoqueIntel('${esc(fornecedor.id)}')">Editar</button> <button class="btn btn-outline btn-sm" onclick="excluirFornecedorEstoqueIntel('${esc(fornecedor.id)}')">Excluir</button></td>
     </tr>
   `).join("") : `<tr><td colspan="5" style="color:var(--mut)">Nenhum fornecedor cadastrado.</td></tr>`;
   if (comprasTbody) comprasTbody.innerHTML = comprasVisiveis.length ? comprasVisiveis.map((compra) => {
@@ -2584,4 +2604,15 @@ function aplicarEditarMassaProdutos() {
   desmarcarTodosProdutos();
   renderEstoque();
   showToast(alterados + " produto(s) atualizado(s).", 4000);
+}
+
+function excluirProdutosSelecionados() {
+  const ids = getSelectedProdutoIds();
+  if (!ids.length) { showToast("Nenhum produto selecionado.", 3000); return; }
+  if (!confirm("Excluir " + ids.length + " produto(s) selecionado(s)? Esta acao nao pode ser desfeita.")) return;
+  estoqueIntelProdutos = estoqueIntelProdutos.filter(p => !ids.includes(p.id));
+  saveEstoqueIntelProdutos();
+  desmarcarTodosProdutos();
+  renderEstoque();
+  showToast(ids.length + " produto(s) excluido(s).", 3500);
 }

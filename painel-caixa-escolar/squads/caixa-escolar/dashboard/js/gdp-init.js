@@ -3643,7 +3643,9 @@ window.abrirGerenciadorCategorias = function() {
     + '<button class="btn btn-outline btn-sm" onclick="excluirCategoria(\'' + c.replace(/'/g, "\\'") + '\');abrirGerenciadorCategorias()" style="padding:.2rem .4rem;font-size:.7rem;color:var(--red)" title="Excluir">🗑️</button>'
     + '</div>'
   ).join('');
-  const overlay = document.getElementById('vincular-cadastro-overlay') || document.createElement('div');
+  const existing = document.getElementById('cat-manager-overlay');
+  if (existing) existing.remove();
+  const overlay = document.createElement('div');
   overlay.id = 'cat-manager-overlay';
   overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center';
   overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
