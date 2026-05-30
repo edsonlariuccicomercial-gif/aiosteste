@@ -2653,9 +2653,15 @@ function excluirMovimentacoesSelecionadas() {
   const indices = [...document.querySelectorAll(".mov-chk:checked")].map(cb => Number(cb.value));
   if (!indices.length) { showToast("Nenhum lancamento selecionado.", 3000); return; }
   if (!confirm("Excluir " + indices.length + " lancamento(s)? Esta acao nao pode ser desfeita.")) return;
+  // Build sorted copy to map checkbox indices to actual movimentacoes
   const sorted = [...estoqueIntelMovimentacoes].sort((a, b) => new Date(b.data || 0) - new Date(a.data || 0));
-  const idsToRemove = indices.map(i => sorted[i]).filter(Boolean);
-  estoqueIntelMovimentacoes = estoqueIntelMovimentacoes.filter(m => !idsToRemove.includes(m));
+  const toRemove = new Set(indices.map(i => sorted[i]).filter(Boolean));
+  // Mutate in-place with splice (reverse order to preserve indices)
+  for (let i = estoqueIntelMovimentacoes.length - 1; i >= 0; i--) {
+    if (toRemove.has(estoqueIntelMovimentacoes[i])) {
+      estoqueIntelMovimentacoes.splice(i, 1);
+    }
+  }
   saveEstoqueIntelMovimentacoes();
   const selectAll = document.getElementById("mov-select-all");
   if (selectAll) selectAll.checked = false;

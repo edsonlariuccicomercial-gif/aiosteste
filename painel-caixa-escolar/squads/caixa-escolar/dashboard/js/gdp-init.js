@@ -3661,8 +3661,8 @@ window.abrirGerenciadorCategorias = function() {
     const escaped = c.replace(/'/g, "\\'").replace(/"/g, '&quot;');
     return '<div style="display:flex;align-items:center;gap:.5rem;padding:.4rem .6rem;border-bottom:1px solid var(--bdr)">'
     + '<span style="flex:1;font-size:.85rem">' + c + '</span>'
-    + '<button class="btn btn-outline btn-sm" onclick="editarCategoria(\'' + escaped + '\');abrirGerenciadorCategorias()" style="padding:.2rem .4rem;font-size:.7rem" title="Renomear">✏️</button>'
-    + '<button class="btn btn-outline btn-sm" onclick="excluirCategoria(\'' + escaped + '\');abrirGerenciadorCategorias()" style="padding:.2rem .4rem;font-size:.7rem;color:var(--red)" title="Excluir">🗑️</button>'
+    + '<button class="btn btn-outline btn-sm" onclick="editarCategoria(\'' + escaped + '\');setTimeout(abrirGerenciadorCategorias,100)" style="padding:.2rem .4rem;font-size:.7rem" title="Renomear">✏️</button>'
+    + '<button class="btn btn-outline btn-sm" onclick="excluirCategoria(\'' + escaped + '\');setTimeout(abrirGerenciadorCategorias,100)" style="padding:.2rem .4rem;font-size:.7rem;color:var(--red)" title="Excluir">🗑️</button>'
     + '</div>';
   }).join('');
   const existing = document.getElementById('cat-manager-overlay');
