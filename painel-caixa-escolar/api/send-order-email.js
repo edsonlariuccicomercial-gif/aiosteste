@@ -71,13 +71,13 @@ function generateDanfePdf(nfe, body) {
   // Emitente
   doc.rect(M, y, emitW, hdrH);
   doc.setFontSize(9); doc.setFont('helvetica', 'bold');
-  doc.text(safe(emit.razaoSocial || emit.nome, 45), M + 2, y + 6);
+  doc.text(safe(emit.razaoSocial || emit.nome, 45), M + 6, y + 6);
   doc.setFontSize(6.5); doc.setFont('helvetica', 'normal');
-  doc.text(safe(emEndLine1, 50), M + 2, y + 10);
-  doc.text(safe(emEndLine2, 50), M + 2, y + 13.5);
-  doc.text(safe(emEndLine3, 50), M + 2, y + 17);
-  if (emEnd.telefone || emit.telefone) doc.text('Fone: ' + safe(emEnd.telefone || emit.telefone, 20), M + 2, y + 20.5);
-  if (emit.email) doc.text(safe(emit.email, 40), M + 2, y + 24);
+  doc.text(safe(emEndLine1, 50), M + 6, y + 10);
+  doc.text(safe(emEndLine2, 50), M + 6, y + 13.5);
+  doc.text(safe(emEndLine3, 50), M + 6, y + 17);
+  if (emEnd.telefone || emit.telefone) doc.text('Fone: ' + safe(emEnd.telefone || emit.telefone, 20), M + 6, y + 20.5);
+  if (emit.email) doc.text(safe(emit.email, 40), M + 6, y + 24);
 
   // DANFE central
   const dx = M + emitW;
