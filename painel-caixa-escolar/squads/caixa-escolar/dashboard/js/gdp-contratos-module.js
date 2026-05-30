@@ -2187,8 +2187,11 @@ function renderContratos() {
 }
 
 // Abrir pasta escola — filtra contratos pela escola selecionada
+// Reseta filtro de status para mostrar todos os contratos da pasta
 window.abrirPastaEscola = function(escola) {
   const buscaEl = document.getElementById("busca-contrato");
+  const filtroStatus = document.getElementById("filtro-status-contrato");
+  if (filtroStatus) filtroStatus.value = "";
   if (buscaEl) {
     buscaEl.value = escola;
     renderContratos();

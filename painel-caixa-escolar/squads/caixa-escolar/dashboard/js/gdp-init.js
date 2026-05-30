@@ -60,7 +60,7 @@ function resetTabState() {
     if (el) { el.checked = false; el.indeterminate = false; }
   });
   // AC3: Remove selection state from all page footers
-  ["pedidos-page-footer","nf-page-footer","cp-page-footer","cr-page-footer","clientes-page-footer","produtos-page-footer","ne-page-footer","fornecedores-page-footer","contratos-page-footer","estoque-page-footer","financeiro-page-footer","caixa-page-footer"].forEach(id => {
+  ["pedidos-page-footer","nf-page-footer","cp-page-footer","cr-page-footer","clientes-page-footer","produtos-page-footer","ne-page-footer","fornecedores-page-footer","estoque-page-footer","financeiro-page-footer","caixa-page-footer"].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.classList.remove("has-selection");
   });
@@ -80,7 +80,7 @@ function resetTabState() {
   if (novoProdOverlay) novoProdOverlay.classList.add("hidden");
 }
 function _hideAllPageFooters() {
-  ["pedidos-page-footer","nf-page-footer","cp-page-footer","cr-page-footer","clientes-page-footer","produtos-page-footer","ne-page-footer","fornecedores-page-footer","contratos-page-footer","estoque-page-footer","financeiro-page-footer","caixa-page-footer"].forEach(id => {
+  ["pedidos-page-footer","nf-page-footer","cp-page-footer","cr-page-footer","clientes-page-footer","produtos-page-footer","ne-page-footer","fornecedores-page-footer","estoque-page-footer","financeiro-page-footer","caixa-page-footer"].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = "none";
   });
@@ -151,7 +151,7 @@ function switchTab(tab) {
     if (tabEl) tabEl.classList.remove("hidden");
   }
 
-  if (tab === "contratos") { renderContratos(); _showPageFooter("contratos-page-footer"); }
+  if (tab === "contratos") { renderContratos(); }
   if (tab === "itens") renderItens();
   if (tab === "fornecedores") _showPageFooter("fornecedores-page-footer");
   if (tab === "estoque-op") _showPageFooter("estoque-page-footer");
