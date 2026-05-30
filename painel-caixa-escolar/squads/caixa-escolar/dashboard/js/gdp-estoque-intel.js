@@ -2270,10 +2270,11 @@ function renderEstoque() {
     </tr>`;
   }).join("") : `<tr><td colspan="6" style="color:var(--mut)">Sem estoque calculado para o filtro atual.</td></tr>`;
 
-  movTbody.innerHTML = movVisiveis.length ? [...movVisiveis].sort((a, b) => new Date(b.data || 0) - new Date(a.data || 0)).map((mov) => {
+  movTbody.innerHTML = movVisiveis.length ? [...movVisiveis].sort((a, b) => new Date(b.data || 0) - new Date(a.data || 0)).map((mov, idx) => {
     const produto = findEstoqueIntelProduto(mov.produto_id);
     return `
       <tr>
+        <td><input type="checkbox" class="mov-chk" value="${idx}" onchange="atualizarSelecaoMovimentacoes()"></td>
         <td>${mov.data ? formatDateTimeLocal(mov.data) : "-"}</td>
         <td>${esc(produto?.nome || mov.produto_id)}</td>
         <td><span class="badge ${mov.operacao === "+" ? "badge-green" : "badge-red"}">${mov.operacao === "+" ? "Entrada" : "Saída"}</span></td>
@@ -2281,7 +2282,7 @@ function renderEstoque() {
         <td>${esc(mov.origem || "-")}</td>
       </tr>
     `;
-  }).join("") : `<tr><td colspan="5" style="color:var(--mut)">Nenhuma movimentacao registrada.</td></tr>`;
+  }).join("") : `<tr><td colspan="6" style="color:var(--mut)">Nenhuma movimentacao registrada.</td></tr>`;
   if (fornecedoresTbody) fornecedoresTbody.innerHTML = fornecedoresVisiveis.length ? fornecedoresVisiveis.map((fornecedor) => `
     <tr>
       <td>${esc(fornecedor.nome)}${fornecedor.nomeContato ? ' <span style="font-size:.72rem;color:var(--mut)">(' + esc(fornecedor.nomeContato) + ')</span>' : ''}<br><span style="font-size:.72rem;color:var(--mut)">Tel: ${esc(getEstoqueIntelFornecedorTelefone(fornecedor) || "-")} | E-mail: ${esc(getEstoqueIntelFornecedorEmail(fornecedor) || "-")}</span>${fornecedor.endereco ? '<br><span style="font-size:.72rem;color:var(--mut)">' + esc(fornecedor.endereco) + '</span>' : ''}</td>
@@ -2627,4 +2628,33 @@ function excluirProdutosSelecionados() {
   desmarcarTodosProdutos();
   renderEstoque();
   showToast(ids.length + " produto(s) excluido(s).", 3500);
+}
+
+function toggleSelectAllMovimentacoes(checked) {
+  document.querySelectorAll(".mov-chk").forEach(cb => { cb.checked = checked; });
+  atualizarSelecaoMovimentacoes();
+}
+
+function atualizarSelecaoMovimentacoes() {
+  const selected = [...document.querySelectorAll(".mov-chk:checked")];
+  const btn = document.getElementById("btn-excluir-movimentacoes");
+  const summary = document.getElementById("estoque-bulk-summary");
+  const footer = document.getElementById("estoque-page-footer");
+  if (btn) btn.style.display = selected.length ? "inline-block" : "none";
+  if (summary && selected.length) summary.textContent = selected.length + " lancamento(s)";
+  if (footer && selected.length) footer.style.display = "";
+}
+
+function excluirMovimentacoesSelecionadas() {
+  const indices = [...document.querySelectorAll(".mov-chk:checked")].map(cb => Number(cb.value));
+  if (!indices.length) { showToast("Nenhum lancamento selecionado.", 3000); return; }
+  if (!confirm("Excluir " + indices.length + " lancamento(s)? Esta acao nao pode ser desfeita.")) return;
+  const sorted = [...estoqueIntelMovimentacoes].sort((a, b) => new Date(b.data || 0) - new Date(a.data || 0));
+  const idsToRemove = indices.map(i => sorted[i]).filter(Boolean);
+  estoqueIntelMovimentacoes = estoqueIntelMovimentacoes.filter(m => !idsToRemove.includes(m));
+  saveEstoqueIntelMovimentacoes();
+  const selectAll = document.getElementById("mov-select-all");
+  if (selectAll) selectAll.checked = false;
+  renderEstoque();
+  showToast(indices.length + " lancamento(s) excluido(s).", 3500);
 }

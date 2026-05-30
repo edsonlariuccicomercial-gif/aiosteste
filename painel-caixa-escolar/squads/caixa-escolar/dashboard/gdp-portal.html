@@ -412,9 +412,10 @@
         <dl class="confirm-details" id="confirm-details"></dl>
         <div style="margin-top:2rem;display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;">
           <button class="btn btn-primary" onclick="newOrder()">Novo Pedido</button>
-          <button class="btn btn-outline" onclick="printOrder()">Imprimir</button>
+          <button class="btn btn-outline" onclick="imprimirPedidoPortalPadrao()">Imprimir Pedido</button>
           <button class="btn btn-outline" onclick="downloadPedidoPDF(document.getElementById('confirm-protocol').textContent)">Baixar PDF</button>
-          <button class="btn btn-outline" onclick="goToPhase(1);renderCatalog();">Voltar ao Catalogo</button>
+          <button class="btn btn-outline" onclick="backToContracts()">Voltar ao Inicio</button>
+          <button class="btn btn-outline" style="color:var(--red,#ef4444)" onclick="logout()">Sair</button>
         </div>
       </div>
     </div>
@@ -1746,6 +1747,61 @@ function newOrder() {
 }
 
 function printOrder() { window.print(); }
+
+function imprimirPedidoPortalPadrao() {
+  const protocol = (document.getElementById('confirm-protocol')?.textContent || '').trim();
+  let _orders = [];
+  try { _orders = JSON.parse(localStorage.getItem('gdp.pedidos.v1') || '[]'); } catch(_) {}
+  if (typeof unwrapData === 'function') _orders = unwrapData(_orders);
+  const p = _orders.find(o => o.id === protocol || (o.id || '').replace(/^PED-/, '').replace(/-/g, '') === protocol.replace(/[^0-9]/g, ''));
+  if (!p) { showToast('Pedido nao encontrado para impressao.', 3000); return; }
+  const _emp = JSON.parse(localStorage.getItem('nexedu.empresa') || '{}');
+  const nomeEmpresa = _emp.razaoSocial || _emp.nome || 'Empresa';
+  const nomeFantasia = (_emp.nomeFantasia || nomeEmpresa).toUpperCase();
+  const empresaCnpj = _emp.cnpj || '';
+  const empresaTel = _emp.telefone || '';
+  const empresaEndereco = [_emp.logradouro, _emp.numero ? 'N\u00ba ' + _emp.numero : '', _emp.bairro, _emp.cidade ? _emp.cidade + (_emp.uf ? ', ' + _emp.uf : '') : '', _emp.cep].filter(Boolean).join(', ');
+  const vendedor = _emp.responsavel || _emp.nomeFantasia || nomeEmpresa;
+  const escolaNome = p.escola || p.cliente?.nome || '-';
+  const escolaCnpj = p.cliente?.cnpj || '';
+  const escolaIe = p.cliente?.ie || 'ISENTO';
+  const escolaEndereco = [p.cliente?.logradouro, p.cliente?.numero ? 'N\u00ba ' + p.cliente.numero : '', p.cliente?.bairro, p.cliente?.cep, p.cliente?.cidade ? p.cliente.cidade + (p.cliente.uf ? ', ' + p.cliente.uf : '') : ''].filter(Boolean).join('. ');
+  const escolaEmail = p.cliente?.email || '';
+  const dataVenda = p.data ? new Date(p.data + 'T12:00:00').toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR');
+  const dataPrevista = p.dataPrevista ? new Date(p.dataPrevista + 'T12:00:00').toLocaleDateString('pt-BR') : '';
+  const nPedidoEcommerce = p.nPedidoExterno || p.id || '';
+  const totalItens = (p.itens || []).length;
+  const somaQtd = (p.itens || []).reduce((s, i) => s + (i.qtd || 0), 0);
+  const totalProdutos = (p.itens || []).reduce((s, i) => s + ((i.qtd || 0) * (i.precoUnitario || 0)), 0);
+  const esc = s => (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const tableRows = (p.itens || []).map(item => {
+    const sub = (item.qtd || 0) * (item.precoUnitario || 0);
+    return '<tr><td style="border-bottom:1px solid #ddd;padding:6px 8px">' + esc(item.descricao || '') + '</td><td style="border-bottom:1px solid #ddd;padding:6px 8px;text-align:center">' + esc(item.sku || item.codigoBarras || '') + '</td><td style="border-bottom:1px solid #ddd;padding:6px 8px;text-align:right">' + (item.qtd || 0).toFixed(2).replace('.', ',') + '</td><td style="border-bottom:1px solid #ddd;padding:6px 8px;text-align:center">' + esc(item.unidade || 'UN') + '</td><td style="border-bottom:1px solid #ddd;padding:6px 8px;text-align:right">' + (item.precoUnitario || 0).toFixed(2).replace('.', ',') + '</td><td style="border-bottom:1px solid #ddd;padding:6px 8px;text-align:right;font-weight:600">' + sub.toFixed(2).replace('.', ',') + '</td></tr>';
+  }).join('');
+  const html = '<!DOCTYPE html><html><head><title>Pedido de Venda</title><style>body{font-family:Arial,sans-serif;margin:2cm;color:#333;font-size:12px}@media print{body{margin:1.5cm}}</style></head><body>'
+    + '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1.5rem;border-bottom:2px solid #333;padding-bottom:1rem">'
+    + '<div style="font-size:11px;font-weight:700">' + esc(nomeFantasia) + '</div>'
+    + '<div style="text-align:right;font-size:10px;line-height:1.5">' + esc(nomeEmpresa.toUpperCase()) + '<br>' + esc(empresaCnpj) + (empresaTel ? '<br>' + esc(empresaTel) : '') + '<br>' + esc(empresaEndereco) + '</div></div>'
+    + '<h2 style="text-align:center;font-size:16px;margin:1.5rem 0">Pedido de Venda N&ordm; ' + esc(p.id.replace(/^PED-/, '').replace(/-/g, '')) + '</h2>'
+    + '<div style="display:grid;grid-template-columns:3fr 2fr;gap:0;border:1px solid #999;font-size:11px;margin-bottom:1.5rem">'
+    + '<div style="padding:6px 8px;border-bottom:1px solid #999"><strong>Cliente</strong></div><div style="padding:6px 8px;border-bottom:1px solid #999;border-left:1px solid #999"><strong>N&ordm; pedido e-commerce</strong></div>'
+    + '<div style="padding:6px 8px;border-bottom:1px solid #999">' + esc(escolaNome) + '<br>' + esc(escolaCnpj) + (escolaIe ? ', IE: ' + esc(escolaIe) : '') + '</div><div style="padding:6px 8px;border-bottom:1px solid #999;border-left:1px solid #999">' + esc(nPedidoEcommerce) + '</div>'
+    + '<div style="padding:6px 8px;border-bottom:1px solid #999"><strong>Endere&ccedil;o</strong></div><div style="padding:6px 8px;border-bottom:1px solid #999;border-left:1px solid #999"><strong>Data</strong></div>'
+    + '<div style="padding:6px 8px;border-bottom:1px solid #999">' + esc(escolaEndereco || '-') + '</div><div style="padding:6px 8px;border-bottom:1px solid #999;border-left:1px solid #999">' + esc(dataVenda) + '</div>'
+    + '<div style="padding:6px 8px;border-bottom:1px solid #999"><strong>Contato</strong></div><div style="padding:6px 8px;border-bottom:1px solid #999;border-left:1px solid #999"><strong>Data prevista</strong></div>'
+    + '<div style="padding:6px 8px;border-bottom:1px solid #999">' + esc(escolaEmail || '-') + '</div><div style="padding:6px 8px;border-bottom:1px solid #999;border-left:1px solid #999">' + esc(dataPrevista) + '</div>'
+    + '<div style="padding:6px 8px"><strong>Vendedor(a)</strong></div><div style="padding:6px 8px;border-left:1px solid #999"></div>'
+    + '<div style="padding:6px 8px">' + esc(vendedor) + '</div><div style="padding:6px 8px;border-left:1px solid #999"></div></div>'
+    + '<table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:.5rem"><thead><tr style="border-bottom:2px solid #999"><th style="padding:6px 8px;text-align:left">Item</th><th style="padding:6px 8px;text-align:center">C&oacute;digo (SKU) / GTIN</th><th style="padding:6px 8px;text-align:right">Qtde</th><th style="padding:6px 8px;text-align:center">UN</th><th style="padding:6px 8px;text-align:right">Pre&ccedil;o un</th><th style="padding:6px 8px;text-align:right">Pre&ccedil;o total</th></tr></thead><tbody>' + tableRows + '</tbody></table>'
+    + '<div style="border-top:2px solid #999;padding-top:.5rem;font-size:11px;margin-bottom:1.5rem"><div style="display:flex;justify-content:space-between"><span><strong>N&uacute;mero de itens:</strong> ' + totalItens + '</span><span><strong>Total de produtos</strong> ' + totalProdutos.toFixed(2).replace('.', ',') + '</span></div><div style="display:flex;justify-content:space-between"><span><strong>Soma das quantidades:</strong> ' + somaQtd.toFixed(2).replace('.', ',') + '</span><span><strong>Total do pedido</strong> <strong>' + (p.valor || totalProdutos).toFixed(2).replace('.', ',') + '</strong></span></div></div>'
+    + '<div style="display:flex;justify-content:space-around;margin-top:3rem;font-size:10px"><div style="text-align:center;width:40%"><div style="margin-bottom:4px">____/____/________</div><div style="border-top:1px solid #333;padding-top:6px">Data de Recebimento</div></div><div style="text-align:center;width:40%"><div style="border-top:1px solid #333;padding-top:6px;margin-top:18px">Assinatura do Recebedor</div></div></div>'
+    + '</body></html>';
+  const win = window.open('', '_blank');
+  if (!win) { showToast('Nao foi possivel abrir a janela de impressao.', 3000); return; }
+  win.document.write(html);
+  win.document.close();
+  setTimeout(() => { win.focus(); win.print(); }, 300);
+}
 
 // ─── TAB SWITCHING ───
 function switchEscolaTab(tab) {
