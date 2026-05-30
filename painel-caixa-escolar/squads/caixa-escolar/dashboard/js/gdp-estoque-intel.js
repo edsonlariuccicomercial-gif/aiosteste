@@ -2638,7 +2638,6 @@ function toggleSelectAllMovimentacoes(checked) {
 function atualizarSelecaoMovimentacoes() {
   const all = [...document.querySelectorAll(".mov-chk")];
   const selected = all.filter(cb => cb.checked);
-  const btn = document.getElementById("btn-excluir-movimentacoes");
   const summary = document.getElementById("estoque-bulk-summary");
   const footer = document.getElementById("estoque-page-footer");
   const selectAll = document.getElementById("mov-select-all");
@@ -2646,9 +2645,8 @@ function atualizarSelecaoMovimentacoes() {
     selectAll.checked = all.length > 0 && selected.length === all.length;
     selectAll.indeterminate = selected.length > 0 && selected.length < all.length;
   }
-  if (btn) btn.style.display = selected.length ? "inline-block" : "none";
   if (summary) summary.textContent = selected.length ? selected.length + " lancamento(s)" : "0 item(ns)";
-  if (footer) footer.style.display = selected.length ? "flex" : (footer.style.display === "flex" ? "flex" : footer.style.display);
+  if (footer) footer.classList.toggle("has-selection", selected.length > 0);
 }
 
 function excluirMovimentacoesSelecionadas() {

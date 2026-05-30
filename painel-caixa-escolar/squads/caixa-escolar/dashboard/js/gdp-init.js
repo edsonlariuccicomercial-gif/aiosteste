@@ -3402,8 +3402,9 @@ function renderModalNovoProduto() {
   const UNIT_OPTS_CRITICO = '<optgroup label="Peso (conversao gramatura)"><option value="g" selected>g — Grama</option><option value="KG">KG — Quilograma</option></optgroup><optgroup label="Volume (conversao ml)"><option value="ml">ml — Mililitro</option><option value="LT">LT — Litro</option><option value="GL">GL — Galao</option></optgroup>';
   const UNIT_OPTS = UNIT_OPTS_COMUM;
   const _customCats = (typeof _loadCategoriasCustom === 'function') ? _loadCategoriasCustom() : [];
+  const _removedCats = (typeof _loadCategoriasRemoved === 'function') ? _loadCategoriasRemoved() : [];
   const _prodCats = (typeof estoqueIntelProdutos !== 'undefined') ? estoqueIntelProdutos.map(p => p.categoria || "").filter(Boolean) : [];
-  const _allCatsNovoProd = [...new Set(["Hortifruti","Carnes/Proteinas","Graos/Cereais","Laticinios","Frutas","Mercearia","Padaria/Biscoitos","Ovos","Bebidas","Limpeza","Outros", ..._customCats, ..._prodCats])].sort();
+  const _allCatsNovoProd = [...new Set(["Hortifruti","Carnes/Proteinas","Graos/Cereais","Laticinios","Frutas","Mercearia","Padaria/Biscoitos","Ovos","Bebidas","Limpeza","Outros", ..._customCats, ..._prodCats])].filter(c => !_removedCats.includes(c)).sort();
   const CAT_OPTS = ['<option value="">Sem Categoria</option>', ..._allCatsNovoProd.map(c => `<option value="${c}">${c}</option>`)].join("");
   const ORI_OPTS = [{v:"0",l:"0 — Nacional"},{v:"1",l:"1 — Import. Direta"},{v:"2",l:"2 — Import. Merc. Interno"},{v:"3",l:"3 — Nac. >40% Import."},{v:"4",l:"4 — Nac. Proc. Basicos"},{v:"5",l:"5 — Nac. <=40% Import."},{v:"6",l:"6 — Import. s/ Similar"},{v:"7",l:"7 — Import. MI s/ Similar"}].map(o => `<option value="${o.v}">${o.l}</option>`).join("");
 
@@ -3575,6 +3576,15 @@ function salvarNovoProdutoModal() {
 // === Categoria Custom ===
 // Story 4.51 AC-G2: persist custom categories to localStorage
 const CATEGORIAS_CUSTOM_KEY = "gdp.categorias-produto.custom.v1";
+const CATEGORIAS_REMOVED_KEY = "gdp.categorias-produto.removed.v1";
+
+function _loadCategoriasRemoved() {
+  try { return JSON.parse(localStorage.getItem(CATEGORIAS_REMOVED_KEY) || "[]"); } catch(_) { return []; }
+}
+function _saveCategoriasRemoved(cats) {
+  localStorage.setItem(CATEGORIAS_REMOVED_KEY, JSON.stringify(cats));
+  if (typeof cloudSave === 'function') cloudSave(CATEGORIAS_REMOVED_KEY, cats);
+}
 
 function _loadCategoriasCustom() {
   try { return JSON.parse(localStorage.getItem(CATEGORIAS_CUSTOM_KEY) || "[]"); } catch(_) { return []; }
@@ -3627,6 +3637,9 @@ window.excluirCategoria = function(name) {
   const customs = _loadCategoriasCustom();
   const idx = customs.indexOf(name);
   if (idx >= 0) { customs.splice(idx, 1); _saveCategoriasCustom(customs); }
+  // Track removed categories so standard ones don't reappear
+  const removed = _loadCategoriasRemoved();
+  if (!removed.includes(name)) { removed.push(name); _saveCategoriasRemoved(removed); }
   // Clear category from products
   if (typeof estoqueIntelProdutos !== 'undefined') {
     estoqueIntelProdutos.filter(p => p.categoria === name).forEach(p => { p.categoria = ""; });
@@ -3639,9 +3652,10 @@ window.excluirCategoria = function(name) {
 // Story 4.53 AC-2: UI para gerenciar categorias (todas — padrão + custom + em uso)
 window.abrirGerenciadorCategorias = function() {
   const customs = _loadCategoriasCustom();
+  const removed = _loadCategoriasRemoved();
   const padrao = ["Hortifruti","Carnes/Proteinas","Graos/Cereais","Laticinios","Frutas","Mercearia","Padaria/Biscoitos","Ovos","Bebidas","Limpeza","Outros"];
   const emUso = (typeof estoqueIntelProdutos !== 'undefined') ? estoqueIntelProdutos.map(p => p.categoria || "").filter(Boolean) : [];
-  const allCats = [...new Set([...padrao, ...customs, ...emUso])].sort();
+  const allCats = [...new Set([...padrao, ...customs, ...emUso])].filter(c => !removed.includes(c)).sort();
   if (!allCats.length) { showToast("Nenhuma categoria encontrada.", 3000); return; }
   const listHtml = allCats.map(c => {
     const escaped = c.replace(/'/g, "\\'").replace(/"/g, '&quot;');

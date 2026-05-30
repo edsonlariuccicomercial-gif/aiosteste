@@ -74,7 +74,7 @@ function toggleSelectAllClientes(checked) {
 function atualizarSelecaoClientes() {
   const all = [...document.querySelectorAll('.cliente-chk')];
   const selected = all.filter(cb => cb.checked);
-  const bulk = document.getElementById("clientes-bulk-actions");
+  const footer = document.getElementById("clientes-page-footer");
   const summary = document.getElementById("clientes-bulk-summary");
   const selectAll = document.getElementById("clientes-select-all");
   if (selectAll) {
@@ -82,7 +82,7 @@ function atualizarSelecaoClientes() {
     selectAll.indeterminate = selected.length > 0 && selected.length < all.length;
   }
   if (summary) summary.textContent = `${selected.length} cadastro(s)`;
-  if (bulk) bulk.classList.toggle("hidden", selected.length === 0);
+  if (footer) footer.classList.toggle("has-selection", selected.length > 0);
   const qtdEl = document.getElementById("clientes-bulk-qtd");
   if (qtdEl) qtdEl.textContent = String(selected.length).padStart(2, '0');
 }
