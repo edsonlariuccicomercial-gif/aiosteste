@@ -2225,6 +2225,8 @@ function imprimirDanfePortal(notaId) {
   const destCidade = dEnd.cidade || dEnd.municipio || '';
   const emEndFull = [emEnd.logradouro, emEnd.numero].filter(Boolean).join(', ');
   const esc = s => (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  let emitFantasiaP = emit.nomeFantasia || '';
+  if (!emitFantasiaP) { try { const _empP = JSON.parse(localStorage.getItem('nexedu.empresa') || '{}'); emitFantasiaP = _empP.nomeFantasia || ''; } catch(_) {} }
   const reciboTxt = 'RECEBEMOS DE ' + (emit.razaoSocial || '-') + ' OS PRODUTOS E/OU SERVIÇOS CONSTANTES DA NOTA FISCAL ELETRÔNICA INDICADA ABAIXO. EMISSÃO: ' + dtFmt + ' VALOR TOTAL: R$ ' + f2(totalNota) + ' DESTINATÁRIO: ' + destNome + ' - ' + destEnd + ' ' + (dEnd.bairro || '') + ' ' + destCidade + '-' + (dEnd.uf || '');
   const destEmail = dest.email || nf.cliente?.email || '';
   const infCplParts = [];
@@ -2329,7 +2331,7 @@ ${isCancelada ? '<div class="cancel-stamp">CANCELADA</div>' : ''}
   <div class="hdr">
     <div class="hdr-emit">
       <div class="ident">IDENTIFICAÇÃO DO EMITENTE</div>
-      <div class="nome">${esc(emit.razaoSocial || '-')}</div>
+      <div class="nome">${esc(emit.razaoSocial || '-')}${emitFantasiaP ? ' (' + esc(emitFantasiaP) + ')' : ''}</div>
       <div class="end">${esc(emEndFull)}${emEnd.complemento ? ', ' + esc(emEnd.complemento) : ''}</div>
       <div class="end">${esc(emEnd.bairro || '')} - ${esc(emEnd.cep || '')}</div>
       <div class="end">${esc(emEnd.cidade || '')} - ${esc(emEnd.uf || '')} Fone/Fax: ${esc(emEnd.telefone || emit.telefone || '')}</div>

@@ -71,7 +71,8 @@ function generateDanfePdf(nfe, body) {
   // Emitente
   doc.rect(M, y, emitW, hdrH);
   doc.setFontSize(9); doc.setFont('helvetica', 'bold');
-  doc.text(safe(emit.razaoSocial || emit.nome, 45), M + 6, y + 6);
+  const emitNomeCompleto = (emit.razaoSocial || emit.nome || '') + (emit.nomeFantasia ? ' (' + emit.nomeFantasia + ')' : '');
+  doc.text(safe(emitNomeCompleto, 55), M + 6, y + 6);
   doc.setFontSize(6.5); doc.setFont('helvetica', 'normal');
   doc.text(safe(emEndLine1, 50), M + 6, y + 10);
   doc.text(safe(emEndLine2, 50), M + 6, y + 13.5);

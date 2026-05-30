@@ -549,7 +549,7 @@ function imprimirPedidosSelecionados() {
     if (idx > 0) pages += '<div style="page-break-before:always"></div>';
     pages += `
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1.5rem;border-bottom:2px solid #333;padding-bottom:1rem">
-        <div style="font-size:11px;font-weight:700">${nomeEmpresa.toUpperCase()}</div>
+        <div style="font-size:11px;font-weight:700">${(empresa.nomeFantasia || nomeEmpresa).toUpperCase()}</div>
         <div style="text-align:right;font-size:10px;line-height:1.5">${nomeEmpresa.toUpperCase()}<br>${empresaCnpj}<br>${empresaTel ? empresaTel + '<br>' : ''}${empresaEndereco}<br>${empresa.cep || ''}<br>${empresa.codigoIbge || ''}</div>
       </div>
 

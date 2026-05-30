@@ -1712,6 +1712,8 @@ function gerarDanfeHtmlCompleto(nf) {
   const destEmail = dest.email || nf.cliente?.email || "";
   let logoImg = "";
   try { const cfg = JSON.parse(localStorage.getItem("nexedu.config.notas-fiscais") || "{}"); if (cfg.logomarcaBase64) logoImg = cfg.logomarcaBase64; } catch(_) {}
+  let emitFantasia2 = emit.nomeFantasia || "";
+  if (!emitFantasia2) { try { const _emp2 = JSON.parse(localStorage.getItem("nexedu.empresa") || "{}"); emitFantasia2 = _emp2.nomeFantasia || ""; } catch(_) {} }
   const infCplParts = [];
   if (nf.pedidoId) infCplParts.push("Inf. Contribuinte: Pedido GDP " + nf.pedidoId);
   if (destEmail) infCplParts.push("Email do Destinatário: " + destEmail);
@@ -1778,7 +1780,7 @@ table.it td{border:1px solid #999;padding:2px 4px;font-size:7.5pt;page-break-ins
   <div class="hdr">
     <div class="hdr-logo">${logoImg ? '<img src="' + logoImg + '" />' : ''}</div>
     <div class="hdr-emit">
-      <div class="nome">${esc(emit.razaoSocial || "-")}</div>
+      <div class="nome">${esc(emit.razaoSocial || "-")}${emitFantasia2 ? ' (' + esc(emitFantasia2) + ')' : ''}</div>
       <div class="end">${esc(emEndLine1)}${emEnd.complemento ? ", " + esc(emEnd.complemento) : ""}</div>
       <div class="end">${esc(emEndLine2)}</div>
       <div class="end">${esc(emEndLine3)} Fone ${esc(emEnd.telefone || "")}</div>
@@ -1957,6 +1959,8 @@ function gerarDanfeHtmlParaPdf(nf, options) {
   const destEmail = dest.email || nf.cliente?.email || "";
   let logoImg = "";
   try { const cfg = JSON.parse(localStorage.getItem("nexedu.config.notas-fiscais") || "{}"); if (cfg.logomarcaBase64) logoImg = cfg.logomarcaBase64; } catch(_) {}
+  let emitFantasia = emit.nomeFantasia || "";
+  if (!emitFantasia) { try { const _emp = JSON.parse(localStorage.getItem("nexedu.empresa") || "{}"); emitFantasia = _emp.nomeFantasia || ""; } catch(_) {} }
   const emEndLine1 = [emEnd.logradouro, emEnd.numero].filter(Boolean).join(", ");
   const emEndLine2 = [emEnd.bairro, emEnd.complemento].filter(Boolean).join(", ");
   const emEndLine3 = [emEnd.cidade, emEnd.uf].filter(Boolean).join(" - ") + (emEnd.cep ? " - " + emEnd.cep : "");
@@ -2036,7 +2040,7 @@ function gerarDanfeHtmlParaPdf(nf, options) {
 '<div class="wrap">' +
 (isCancelada ? '<div class="cancel-stamp">CANCELADA</div>' : '') +
 '<div class="bx">' +
-'<div class="hdr"><div class="hdr-logo">' + (logoImg ? '<img src="' + logoImg + '" style="max-height:68px;max-width:75px;object-fit:contain" />' : '') + '</div><div class="hdr-emit"><div class="nome">' + esc(emit.razaoSocial || "-") + '</div><div class="end">' + esc(emEndLine1) + (emEnd.complemento ? ", " + esc(emEnd.complemento) : "") + '</div><div class="end">' + esc(emEndLine2) + '</div><div class="end">' + esc(emEndLine3) + ' Fone ' + esc(emEnd.telefone || emit.telefone || "") + '</div><div class="end">' + esc(emit.email || "") + '</div></div><div class="hdr-danfe"><h1>DANFE</h1><div class="sub">Documento Auxiliar da Nota<br>Fiscal Eletrônica</div><div class="tp-row">0 - ENTRADA</div><div class="tp-row">1 - SAÍDA <div class="tp-box">1</div></div><div class="nf-num">N°. ' + esc(numFmt) + '</div><div class="nf-ser">Série ' + String(nf.serie || "1").padStart(3,"0") + '</div><div class="nf-fol">Folha 1/1</div></div><div class="hdr-chave"><div class="bc" id="danfe-barcode"></div><div class="lbl">CHAVE DE ACESSO</div><div class="val">' + esc(chaveFormatada || "-") + '</div><div class="cons">Consulta de autenticidade no portal nacional da NF-e<br><strong>www.nfe.fazenda.gov.br/portal</strong> ou no site da Sefaz Autorizadora</div></div></div>' +
+'<div class="hdr"><div class="hdr-logo">' + (logoImg ? '<img src="' + logoImg + '" style="max-height:68px;max-width:75px;object-fit:contain" />' : '') + '</div><div class="hdr-emit"><div class="nome">' + esc(emit.razaoSocial || "-") + (emitFantasia ? ' (' + esc(emitFantasia) + ')' : '') + '</div><div class="end">' + esc(emEndLine1) + (emEnd.complemento ? ", " + esc(emEnd.complemento) : "") + '</div><div class="end">' + esc(emEndLine2) + '</div><div class="end">' + esc(emEndLine3) + ' Fone ' + esc(emEnd.telefone || emit.telefone || "") + '</div><div class="end">' + esc(emit.email || "") + '</div></div><div class="hdr-danfe"><h1>DANFE</h1><div class="sub">Documento Auxiliar da Nota<br>Fiscal Eletrônica</div><div class="tp-row">0 - ENTRADA</div><div class="tp-row">1 - SAÍDA <div class="tp-box">1</div></div><div class="nf-num">N°. ' + esc(numFmt) + '</div><div class="nf-ser">Série ' + String(nf.serie || "1").padStart(3,"0") + '</div><div class="nf-fol">Folha 1/1</div></div><div class="hdr-chave"><div class="bc" id="danfe-barcode"></div><div class="lbl">CHAVE DE ACESSO</div><div class="val">' + esc(chaveFormatada || "-") + '</div><div class="cons">Consulta de autenticidade no portal nacional da NF-e<br><strong>www.nfe.fazenda.gov.br/portal</strong> ou no site da Sefaz Autorizadora</div></div></div>' +
 '<div class="row"><div class="cell" style="flex:1"><label>NATUREZA DA OPERAÇÃO</label><div class="v-lg">VENDA DE MERCADORIA</div></div><div class="cell" style="flex:1"><label>PROTOCOLO DE AUTORIZAÇÃO DE USO</label><div class="v">' + esc(protFormatado) + '</div></div></div>' +
 '<div class="row"><div class="cell"><label>INSCRIÇÃO ESTADUAL</label><div class="v-sm">' + esc(emit.ie || "") + '</div></div><div class="cell"><label>INSCRIÇÃO MUNICIPAL</label><div class="v-sm"></div></div><div class="cell"><label>INSCRIÇÃO ESTADUAL DO SUBST. TRIBUT.</label><div class="v-sm"></div></div><div class="cell"><label>CNPJ / CPF</label><div class="v">' + esc(emit.cnpj || "") + '</div></div></div>' +
 '<div class="stit">DESTINATÁRIO / REMETENTE</div>' +
