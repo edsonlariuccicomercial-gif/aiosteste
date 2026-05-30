@@ -162,6 +162,9 @@ async function boot() {
   // Story 4.83: syncFromCloud/syncToCloud REMOVIDOS do boot — sync_data legacy é lento (29.6s)
   // Dados são carregados diretamente das tabelas Supabase via gdpApi (rápido, ~400ms)
   gdpLog("[Boot] sync_data legacy desabilitado no boot (Story 4.83)");
+
+  // Sync config keys from cloud (lightweight, non-blocking)
+  syncConfigFromCloud().catch(() => {});
 }
 
 // ===== FILTERS =====

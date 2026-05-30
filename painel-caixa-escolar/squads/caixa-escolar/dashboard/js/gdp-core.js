@@ -126,7 +126,7 @@ const SUPABASE_URL = window.SUPABASE_URL || "https://mvvsjaudhbglxttxaeop.supaba
 const SUPABASE_KEY = window.SUPABASE_KEY || "sb_publishable_uBqL8sLjMGWnZ2aaQ1zwvg_mlQrZUXR";
 // Entidades com tabela Supabase real — NÃO sincronizar via sync_data (gdpApi cuida)
 const _SUPABASE_TABLE_KEYS = new Set([CONTRACTS_KEY, ORDERS_KEY, INVOICES_KEY, RECEIVABLES_KEY, PAYABLES_KEY, PROOFS_KEY, "gdp.usuarios.v1"]);
-const GDP_SYNC_KEYS = [CONTRACTS_DELETED_KEY, ENTRY_INVOICES_KEY, PAYABLE_CATEGORIES_KEY, RECEIVABLE_CATEGORIES_KEY, PAYABLE_METHODS_KEY, RECEIVABLE_METHODS_KEY, CAIXA_STATEMENT_KEY, STOCK_KEY, ESTOQUE_INTEL_PRODUCTS_KEY, ESTOQUE_INTEL_PACKAGES_KEY, ESTOQUE_INTEL_ORDERS_KEY, ESTOQUE_INTEL_ORDER_ITEMS_KEY, ESTOQUE_INTEL_MOVES_KEY, ESTOQUE_INTEL_SUPPLIERS_KEY, ESTOQUE_INTEL_PURCHASES_KEY, INTEGRATIONS_KEY, "caixaescolar.banco.v1", GDP_EQUIV_KEY, GDP_CONVERSOES_KEY, GDP_DEMANDAS_KEY, GDP_ESTOQUE_SIMPLES_KEY, GDP_COMPRAS_KEY, "nexedu.config.contas-bancarias", "nexedu.config.fiscal", "nexedu.config.bank-api", "nexedu.empresa", "gdp.extratos.v1", "gdp.conciliacao.v1", "gdp.produtos.v1", "gdp.extratos.deleted.v1", "gdp.conciliacao.deleted.v1"];
+const GDP_SYNC_KEYS = [CONTRACTS_DELETED_KEY, ENTRY_INVOICES_KEY, PAYABLE_CATEGORIES_KEY, RECEIVABLE_CATEGORIES_KEY, PAYABLE_METHODS_KEY, RECEIVABLE_METHODS_KEY, CAIXA_STATEMENT_KEY, STOCK_KEY, ESTOQUE_INTEL_PRODUCTS_KEY, ESTOQUE_INTEL_PACKAGES_KEY, ESTOQUE_INTEL_ORDERS_KEY, ESTOQUE_INTEL_ORDER_ITEMS_KEY, ESTOQUE_INTEL_MOVES_KEY, ESTOQUE_INTEL_SUPPLIERS_KEY, ESTOQUE_INTEL_PURCHASES_KEY, INTEGRATIONS_KEY, "caixaescolar.banco.v1", GDP_EQUIV_KEY, GDP_CONVERSOES_KEY, GDP_DEMANDAS_KEY, GDP_ESTOQUE_SIMPLES_KEY, GDP_COMPRAS_KEY, "nexedu.config.contas-bancarias", "nexedu.config.notas-fiscais", "nexedu.config.bank-api", "nexedu.usuarios", "nexedu.empresa", "gdp.extratos.v1", "gdp.conciliacao.v1", "gdp.produtos.v1", "gdp.extratos.deleted.v1", "gdp.conciliacao.deleted.v1", "gdp.estoque-intel.movimentacoes.deleted.v1"];
 const GDP_SHARED_SYNC_KEYS = new Set(GDP_SYNC_KEYS);
 const GDP_SYNC_USER_KEY = "gdp.sync.user_id.v1";
 const GDP_SYNC_FALLBACK_USER = "LARIUCCI";
@@ -382,7 +382,8 @@ async function syncFromCloud() {
       'gdp.contas-pagar.v1': 'gdp.contas-pagar.deleted.v1',
       'gdp.pedidos.v1': 'gdp.pedidos.deleted.v1',
       'gdp.contratos.v1': 'gdp.contratos.deleted.v1',
-      'gdp.estoque-intel.fornecedores.v1': 'gdp.estoque-intel.fornecedores.deleted.v1'
+      'gdp.estoque-intel.fornecedores.v1': 'gdp.estoque-intel.fornecedores.deleted.v1',
+      'gdp.estoque-intel.movimentacoes.v1': 'gdp.estoque-intel.movimentacoes.deleted.v1'
     };
     const _delKey = _delKeyMap[row.key];
     if (_delKey) {
@@ -574,6 +575,34 @@ async function forcarSyncCompleto() {
   } catch (e) {
     setGdpSyncState({ status: "offline", detail: "Falha no sync: " + e.message });
     showToast("Erro no sync: " + e.message, 5000);
+  }
+}
+
+// Lightweight config-only sync from cloud (runs at boot, non-blocking)
+var GDP_CONFIG_SYNC_KEYS = [
+  "nexedu.empresa", "nexedu.usuarios", "nexedu.config.notas-fiscais",
+  "nexedu.config.contas-bancarias", "nexedu.config.bank-api"
+];
+
+async function syncConfigFromCloud() {
+  var rows = await cloudLoadAll();
+  if (!rows || rows.length === 0) return;
+  var applied = 0;
+  for (var i = 0; i < rows.length; i++) {
+    var row = rows[i];
+    if (GDP_CONFIG_SYNC_KEYS.indexOf(row.key) === -1 || !row.data) continue;
+    var local = localStorage.getItem(row.key);
+    var localData = null;
+    try { localData = local ? JSON.parse(local) : null; } catch (_) {}
+    var cloudTime = getDataTimestamp(row.data, row.updated_at);
+    var localTime = localData ? getDataTimestamp(localData) : 0;
+    if (!localData || cloudTime > localTime) {
+      localStorage.setItem(row.key, JSON.stringify(row.data));
+      applied++;
+    }
+  }
+  if (applied > 0) {
+    gdpLog("[Sync] Config keys restored from cloud:", applied);
   }
 }
 
@@ -939,6 +968,11 @@ function loadData() {
   try { estoqueIntelPedidos = unwrapData(JSON.parse(localStorage.getItem(ESTOQUE_INTEL_ORDERS_KEY))); } catch(_) { estoqueIntelPedidos = []; }
   try { estoqueIntelPedidoItens = unwrapData(JSON.parse(localStorage.getItem(ESTOQUE_INTEL_ORDER_ITEMS_KEY))); } catch(_) { estoqueIntelPedidoItens = []; }
   try { estoqueIntelMovimentacoes = unwrapData(JSON.parse(localStorage.getItem(ESTOQUE_INTEL_MOVES_KEY))); } catch(_) { estoqueIntelMovimentacoes = []; }
+  // FIX: filtrar movimentações deletadas (sync cross-device)
+  try {
+    var _delMovArr = JSON.parse(localStorage.getItem('gdp.estoque-intel.movimentacoes.deleted.v1') || '[]');
+    if (_delMovArr.length > 0) { var _delMovSet = new Set(_delMovArr); var _bmov = estoqueIntelMovimentacoes.length; estoqueIntelMovimentacoes = estoqueIntelMovimentacoes.filter(function(x) { return !_delMovSet.has(x.id); }); if (_bmov > estoqueIntelMovimentacoes.length) gdpLog('[boot] Filtered ' + (_bmov - estoqueIntelMovimentacoes.length) + ' deleted movimentacoes'); }
+  } catch(_) {}
   try { estoqueIntelFornecedores = unwrapData(JSON.parse(localStorage.getItem(ESTOQUE_INTEL_SUPPLIERS_KEY))); } catch(_) { estoqueIntelFornecedores = []; }
   // FIX: filtrar fornecedores deletados
   try {

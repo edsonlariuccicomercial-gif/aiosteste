@@ -137,7 +137,10 @@ function loadConfigData() {
 }
 
 function saveConfigEmpresa() {
-  const data = {
+  // Preserve existing fields (syncUserId, pricing, sresAtivas, etc.)
+  var existing = {};
+  try { existing = JSON.parse(localStorage.getItem(EMPRESA_STORAGE_KEY) || "{}"); } catch (_) {}
+  var data = Object.assign({}, existing, {
     nome: (document.getElementById("cfg-nome") || {}).value || "",
     razaoSocial: (document.getElementById("cfg-razao-social") || {}).value || "",
     cnpj: (document.getElementById("cfg-cnpj") || {}).value || "",
@@ -149,7 +152,8 @@ function saveConfigEmpresa() {
     cep: (document.getElementById("cfg-cep") || {}).value || "",
     telefone: (document.getElementById("cfg-telefone") || {}).value || "",
     email: (document.getElementById("cfg-email") || {}).value || "",
-  };
+    updatedAt: new Date().toISOString()
+  });
   localStorage.setItem(EMPRESA_STORAGE_KEY, JSON.stringify(data));
   schedulCloudSync();
 
@@ -205,6 +209,7 @@ window.addUsuario = function addUsuario() {
   const usuarios = JSON.parse(localStorage.getItem(USUARIOS_STORAGE_KEY) || "[]");
   usuarios.push({ nome, email, usuario, senha: btoa(senha), perfil, ativo: true });
   localStorage.setItem(USUARIOS_STORAGE_KEY, JSON.stringify(usuarios));
+  schedulCloudSync();
   renderUsuarios();
 
   // Clear form
@@ -230,6 +235,7 @@ window.editarUsuario = function editarUsuario(idx) {
   // Remove old entry, save will re-add
   usuarios.splice(idx, 1);
   localStorage.setItem(USUARIOS_STORAGE_KEY, JSON.stringify(usuarios));
+  schedulCloudSync();
   renderUsuarios();
 };
 
@@ -238,6 +244,7 @@ window.removeUsuario = function removeUsuario(idx) {
   if (idx >= 0 && idx < usuarios.length) {
     usuarios.splice(idx, 1);
     localStorage.setItem(USUARIOS_STORAGE_KEY, JSON.stringify(usuarios));
+    schedulCloudSync();
     renderUsuarios();
   }
 };
@@ -412,6 +419,7 @@ function handleLogoUpload(input) {
     const removeBtn = document.getElementById("nf-logo-remove");
     if (preview) { preview.src = base64; preview.style.display = "block"; }
     if (removeBtn) removeBtn.style.display = "inline-block";
+    schedulCloudSync();
     if (typeof showToast === "function") showToast("Logomarca salva com sucesso!");
   };
   reader.readAsDataURL(file);
@@ -429,6 +437,7 @@ function removeLogoNf() {
   if (preview) { preview.src = ""; preview.style.display = "none"; }
   if (removeBtn) removeBtn.style.display = "none";
   if (input) input.value = "";
+  schedulCloudSync();
   if (typeof showToast === "function") showToast("Logomarca removida.");
 }
 
@@ -451,6 +460,7 @@ function saveNotaFiscalConfig() {
   // Preserve logomarcaBase64 (managed by upload handler, not form fields)
   try { const prev = JSON.parse(localStorage.getItem(NF_CONFIG_STORAGE_KEY) || "{}"); if (prev.logomarcaBase64) config.logomarcaBase64 = prev.logomarcaBase64; } catch(_) {}
   localStorage.setItem(NF_CONFIG_STORAGE_KEY, JSON.stringify(config));
+  schedulCloudSync();
   if (typeof showToast === "function") showToast("Configuracoes fiscais salvas.");
 }
 
@@ -548,6 +558,7 @@ function saveBankApiConfig() {
   };
 
   localStorage.setItem(BANK_API_CONFIG_STORAGE_KEY, JSON.stringify(normalizeBankApiConfig(config)));
+  schedulCloudSync();
   syncBankApiSecretInputs(config, { clearValues: false });
   renderBankApiStatus(
     `Configuracao salva sem segredos no navegador. ${describeBankApiSecretPresence(config)} Os segredos reais do provider devem ficar no servidor.`,
@@ -708,6 +719,7 @@ function saveBankAccount() {
     }));
   }
 
+  schedulCloudSync();
   clearBankAccountForm();
   renderBankAccounts();
   refreshContaBancariaOptions();
@@ -813,6 +825,7 @@ window.removeBankAccount = function removeBankAccount(id) {
       updatedAt: new Date().toISOString()
     }));
   }
+  schedulCloudSync();
   renderBankAccounts();
   refreshContaBancariaOptions();
   refreshBankApiContaOptions();

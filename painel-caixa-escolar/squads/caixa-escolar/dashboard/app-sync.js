@@ -415,5 +415,36 @@ document.addEventListener('visibilitychange', () => {
   }
 });
 
+// Lightweight config-only sync from cloud (runs at boot, non-blocking)
+const CONFIG_SYNC_KEYS = [
+  "nexedu.empresa", "nexedu.usuarios", "nexedu.config.notas-fiscais",
+  "nexedu.config.contas-bancarias", "nexedu.config.bank-api"
+];
+
+async function syncConfigFromCloud() {
+  const rows = await cloudLoadAll();
+  if (!rows || rows.length === 0) return;
+  let applied = 0;
+  for (const row of rows) {
+    if (!CONFIG_SYNC_KEYS.includes(row.key) || !row.data) continue;
+    const local = localStorage.getItem(row.key);
+    let localData = null;
+    try { localData = local ? JSON.parse(local) : null; } catch (_) {}
+    const cloudTime = getDataTimestamp(row.data, row.updated_at);
+    const localTime = localData ? getDataTimestamp(localData) : 0;
+    if (!localData || cloudTime > localTime) {
+      localStorage.setItem(row.key, JSON.stringify(row.data));
+      applied++;
+    }
+  }
+  if (applied > 0) {
+    gdpLog("[Sync] Config keys restored from cloud:", applied);
+    // Refresh config UI if it's currently visible
+    if (typeof loadConfigData === 'function') {
+      try { loadConfigData(); } catch (_) {}
+    }
+  }
+}
+
 // Export for use by other modules
-window._gdpSync = { startPolling, stopPolling, pollForChanges, getSyncStatus: () => _pollStatus };
+window._gdpSync = { startPolling, stopPolling, pollForChanges, getSyncStatus: () => _pollStatus, syncConfigFromCloud };

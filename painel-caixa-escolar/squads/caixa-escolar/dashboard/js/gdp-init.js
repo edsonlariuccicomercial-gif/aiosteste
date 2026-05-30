@@ -2977,6 +2977,9 @@ async function enviarTiny(contratoId) {
   });
   gdpLog("[GDP] Boot rápido: sync_data legacy desabilitado no boot (Story 4.83)");
 
+  // Sync config keys from cloud (lightweight, non-blocking)
+  syncConfigFromCloud().catch(function() {});
+
   // Auto-refresh when portal escola or banco de produtos updates localStorage (cross-tab sync)
   window.addEventListener('storage', (e) => {
     if (GDP_SHARED_SYNC_KEYS.has(e.key) || e.key === USUARIOS_KEY) {
