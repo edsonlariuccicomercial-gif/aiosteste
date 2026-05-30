@@ -2090,7 +2090,11 @@ function renderContratos() {
   const busca = (document.getElementById("busca-contrato").value || "").toLowerCase();
   const statusFiltro = document.getElementById("filtro-status-contrato").value;
 
+  const pastaExata = window._pastaAberta;
   let filtered = contratos.filter(c => {
+    if (pastaExata) {
+      return (c.escola || '') === pastaExata;
+    }
     const matchBusca = !busca || (c.escola||'').toLowerCase().includes(busca) || (c.edital||'').toLowerCase().includes(busca) || (c.id||'').toLowerCase().includes(busca) || (c.processo||'').toLowerCase().includes(busca) || (c.objeto||'').toLowerCase().includes(busca);
     const matchStatus = !statusFiltro || c.status === statusFiltro;
     return matchBusca && matchStatus;
@@ -2145,14 +2149,15 @@ function renderContratos() {
   }
 
   // If only 1 escola in results (user clicked a folder or searched), show contracts flat
-  if (escolaKeys.length === 1 && busca) {
+  if (escolaKeys.length === 1 && (busca || pastaExata)) {
     const escola = escolaKeys[0];
     const cList = porEscola[escola];
     grid.innerHTML = `<div style="grid-column:1/-1;display:flex;align-items:center;gap:.8rem;margin-bottom:.5rem">
-      <button class="btn btn-sm" onclick="document.getElementById('busca-contrato').value='';renderContratos()">← Voltar</button>
+      <button class="btn btn-sm" onclick="window._pastaAberta=null;document.getElementById('busca-contrato').value='';renderContratos()">← Voltar</button>
       <span style="font-weight:700;font-size:.95rem">📁 ${esc(escola)}</span>
       <span style="color:var(--dim);font-size:.8rem">${cList.length} contrato${cList.length > 1 ? 's' : ''}</span>
     </div>` + cList.map(renderCard).join("");
+    window._pastaAberta = null;
     return;
   }
 
@@ -2186,12 +2191,14 @@ function renderContratos() {
   }).join("");
 }
 
-// Abrir pasta escola — filtra contratos pela escola selecionada
+// Abrir pasta escola — filtra contratos pela escola selecionada (match exato)
 // Reseta filtro de status para mostrar todos os contratos da pasta
+window._pastaAberta = null;
 window.abrirPastaEscola = function(escola) {
   const buscaEl = document.getElementById("busca-contrato");
   const filtroStatus = document.getElementById("filtro-status-contrato");
   if (filtroStatus) filtroStatus.value = "";
+  window._pastaAberta = escola;
   if (buscaEl) {
     buscaEl.value = escola;
     renderContratos();
