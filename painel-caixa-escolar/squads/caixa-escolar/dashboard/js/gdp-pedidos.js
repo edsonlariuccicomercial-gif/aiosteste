@@ -1863,6 +1863,12 @@ function renderContasReceber() {
     return;
   }
   empty.classList.add("hidden");
+  // FIX: ordenar por vencimento — mais antigas primeiro (em aberto/atrasadas prioritárias)
+  filtered.sort(function(a, b) {
+    var va = a.vencimento || '9999-12-31';
+    var vb = b.vencimento || '9999-12-31';
+    return va.localeCompare(vb);
+  });
   // Story 4.70: paginação
   var pagedCr = gdpPaginate(filtered, 'contas-receber');
   tbody.innerHTML = pagedCr.items.map((item) => `

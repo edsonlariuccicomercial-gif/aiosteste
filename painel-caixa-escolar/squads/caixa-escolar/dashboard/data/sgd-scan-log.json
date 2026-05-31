@@ -1,9 +1,13 @@
 {
-  "lastScan": "2026-03-27T23:00:02.359Z",
-  "novos": 0,
-  "atualizados": 0,
-  "total": 0,
-  "budgetsScanned": 50,
-  "sreUberaba": 0,
+  "lastScan": "2026-05-19T23:03:11.899Z",
+  "novos": 978,
+  "atualizados": 3255,
+  "total": 5146,
+  "budgetsScanned": 4233,
+  "networksScanned": 1,
+  "sreBreakdown": {
+    "Desconhecida": 5146
+  },
+  "sresAtivas": "all",
   "user": "Edson Lariucci Gonçalves"
 }

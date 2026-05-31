@@ -2665,6 +2665,15 @@ function excluirMovimentacoesSelecionadas() {
   }).sort((a, b) => new Date(b.data || 0) - new Date(a.data || 0));
   const toRemove = new Set(indices.map(i => visiveis[i]).filter(Boolean));
   if (!toRemove.size) { showToast("Nenhum lancamento encontrado para exclusao.", 3000); return; }
+  // Registrar IDs deletados para sync cross-device (mesmo padrão de contas-receber/notas-fiscais)
+  const delKey = "gdp.estoque-intel.movimentacoes.deleted.v1";
+  var delArr = [];
+  try { delArr = JSON.parse(localStorage.getItem(delKey) || '[]'); } catch(_) { delArr = []; }
+  for (const mov of toRemove) {
+    if (mov.id && !delArr.includes(mov.id)) delArr.push(mov.id);
+  }
+  localStorage.setItem(delKey, JSON.stringify(delArr));
+  cloudSave(delKey, delArr).catch(function() {});
   for (let i = estoqueIntelMovimentacoes.length - 1; i >= 0; i--) {
     if (toRemove.has(estoqueIntelMovimentacoes[i])) {
       estoqueIntelMovimentacoes.splice(i, 1);
