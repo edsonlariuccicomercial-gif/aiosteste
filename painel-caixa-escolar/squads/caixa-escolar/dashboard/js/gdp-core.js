@@ -1883,7 +1883,64 @@ function enviarLembreteConta(contaId, canal) {
     window.open('https://wa.me/' + tel + '?text=' + encodeURIComponent(msg), '_blank');
     showToast("WhatsApp aberto — " + (tipo === 'vencida' ? 'cobrança' : 'lembrete') + ".", 3000);
   } else if (canal === 'email') {
-    showToast("Envio de email será implementado em breve.", 3000);
+    _enviarEmailCobranca(conta);
+  }
+}
+
+async function _enviarEmailCobranca(conta) {
+  // Buscar email do cliente no cadastro
+  const nomeCliente = (conta.cliente || '').trim().toLowerCase();
+  const cliente = (typeof usuarios !== 'undefined' ? usuarios : []).find(u =>
+    (u.nome || '').trim().toLowerCase() === nomeCliente
+  );
+  const emailCliente = cliente?.email || '';
+  if (!emailCliente) { showToast("Email do cliente não encontrado. Cadastre no módulo Clientes.", 4000); return; }
+
+  const hoje = new Date().toISOString().slice(0, 10);
+  const tipo = (conta.vencimento && conta.vencimento < hoje) ? 'vencida' : 'lembrete';
+  const valor = brl.format(Number(conta.valor || 0));
+  const venc = _formatarDataBR(conta.vencimento);
+  const desc = conta.descricao || '';
+  const nfMatch = (desc.match(/(?:NF|Nota\s*Fiscal)\s*(?:n[º°]?\s*)?(\d+)/i) || [])[1] || '';
+  const nfRef = nfMatch ? 'nº ' + nfMatch : desc;
+  const pix = conta.cobranca?.pixCopiaECola || '';
+  const boleto = conta.cobranca?.linhaDigitavel || '';
+
+  const subject = tipo === 'lembrete'
+    ? `Lembrete — NF ${nfRef} vencendo hoje (${venc})`
+    : `Cobrança — NF ${nfRef} em aberto (venc. ${venc})`;
+
+  const msgTexto = _montarMensagemCobranca(conta, tipo);
+
+  try {
+    showToast("Enviando email para " + emailCliente + "...", 2000);
+    const resp = await fetch('/api/send-order-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        to: emailCliente,
+        protocol: 'COB-' + (conta.id || '').slice(-6),
+        schoolName: conta.cliente || '',
+        date: venc,
+        total: Number(conta.valor || 0),
+        items: [],
+        pagamento: {
+          vencimento: venc,
+          valor: valor,
+          pixCopiaECola: pix,
+          linhaDigitavel: boleto
+        },
+        obs: msgTexto.replace(/\n/g, '<br>')
+      })
+    });
+    const data = await resp.json();
+    if (resp.ok && data.success) {
+      showToast("Email de cobrança enviado para " + emailCliente, 4000);
+    } else {
+      showToast("Erro ao enviar email: " + (data.error || 'desconhecido'), 5000);
+    }
+  } catch (e) {
+    showToast("Falha no envio: " + e.message, 5000);
   }
 }
 
