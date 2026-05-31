@@ -1,2 +1,7 @@
 .vercel
 .env*.local
+
+# AIOX framework (dev tooling, não roda em produção)
+.aios-core/
+.aios/
+node_modules/
