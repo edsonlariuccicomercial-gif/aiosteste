@@ -1838,9 +1838,16 @@ function _buscarTelefoneCliente(nomeCliente) {
   return cliente ? (cliente.telefone || '') : '';
 }
 
+function _formatarDataBR(dataISO) {
+  if (!dataISO || dataISO === '-') return '-';
+  const parts = dataISO.split('-');
+  if (parts.length === 3) return parts[2] + '/' + parts[1] + '/' + parts[0];
+  return dataISO;
+}
+
 function _montarMensagemCobranca(conta, tipo) {
   const valor = brl.format(Number(conta.valor || 0));
-  const venc = conta.vencimento || '-';
+  const venc = _formatarDataBR(conta.vencimento);
   const desc = conta.descricao || '';
   const pix = conta.cobranca?.pixCopiaECola || '';
   const boleto = conta.cobranca?.linhaDigitavel || '';
@@ -1858,7 +1865,7 @@ function _montarMensagemCobranca(conta, tipo) {
   if (pix) msg += `\n\n📲 *PIX Copia e Cola:*\n${pix}`;
   if (boleto) msg += `\n\n🏦 *Linha Digitável:*\n${boleto}`;
 
-  msg += `\n\nAtenciosamente,\n\n*Setor Financeiro Lariucci*\n16 98204-4058`;
+  msg += `\n\nAtenciosamente,\n\n*Distribuidora Lariucci*\nSetor Financeiro\n16 98204-4058`;
   return msg;
 }
 
