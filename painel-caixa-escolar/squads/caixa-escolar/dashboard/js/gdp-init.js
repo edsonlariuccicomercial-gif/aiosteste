@@ -491,6 +491,7 @@ function salvarEditCrDetalhe() {
   conta.audit = { ...(conta.audit || {}), updatedAt: new Date().toISOString(), updatedBy: getAuditActor() };
   saveContasReceber();
   renderContasReceber();
+  if (typeof atualizarResumosVencimento === "function") atualizarResumosVencimento();
   // AC7: Auto-close after save
   fecharDetalheCr();
   showToast("Conta a receber atualizada.", 3000);
@@ -762,6 +763,7 @@ function registrarContaReceber() {
   toggleContaReceberForm(false);
   contaReceberStatusTabAtual = "emitida";
   renderContasReceber();
+  if (typeof atualizarResumosVencimento === "function") atualizarResumosVencimento();
   showToast("Conta a receber registrada.", 3000);
 }
 
