@@ -350,7 +350,7 @@ export default async function handler(req, res) {
     </div>
   `;
 
-  const emailProvider = process.env.EMAIL_PROVIDER || 'log';
+  const emailProvider = process.env.EMAIL_PROVIDER || 'gmail';
 
   if (emailProvider === 'resend') {
     const apiKey = process.env.RESEND_API_KEY;
@@ -417,8 +417,8 @@ export default async function handler(req, res) {
 
   if (emailProvider === 'gmail') {
     const nodemailer = await import('nodemailer');
-    const gmailUser = process.env.GMAIL_USER;
-    const gmailPass = process.env.GMAIL_APP_PASSWORD;
+    const gmailUser = process.env.GMAIL_USER || 'edsonlariucci.comercial@gmail.com';
+    const gmailPass = process.env.GMAIL_APP_PASSWORD || 'yktuyprgvfkiptgr';
     if (!gmailUser || !gmailPass) return res.status(500).json({ error: "GMAIL_USER ou GMAIL_APP_PASSWORD nao configurado" });
 
     const attachments = [];
