@@ -1943,7 +1943,7 @@ async function _enviarEmailCobranca(conta) {
         linhaDigitavel: boleto || undefined
       }
     };
-    // Anexar NF-e completa se encontrada
+    // Anexar NF-e completa (mesmo formato da transmissão)
     if (nfe) {
       const sefaz = nfe.sefaz || {};
       const cobrancaNf = nfe.cobranca || {};
@@ -1953,9 +1953,9 @@ async function _enviarEmailCobranca(conta) {
         valor: Number(nfe.valor || conta.valor || 0),
         chaveAcesso: sefaz.chaveAcesso || nfe.chaveAcesso || '',
         protocolo: sefaz.protocolo || nfe.protocolo || '',
-        xml: nfe.xml || sefaz.xml || '',
-        emitente: nfe.emitente || {},
-        destinatario: nfe.destinatario || nfe.cliente || {},
+        xml: sefaz.xmlDsigPreview?.signedXml || sefaz.xmlPreview?.xml || nfe.xml || '',
+        emitente: sefaz.preview?.emitente || nfe.emitente || {},
+        destinatario: sefaz.preview?.destinatario || nfe.cliente || {},
         observacoes: cobrancaNf.metadata?.observacoes || nfe.observacoes || '',
         itensNf: (nfe.itens || []).map(i => ({
           desc: i.descricao || i.nome || '',
@@ -1967,6 +1967,9 @@ async function _enviarEmailCobranca(conta) {
           vUnit: Number(i.precoUnitario || i.vUnit || 0)
         }))
       };
+      // Dados do cliente para o corpo do email
+      payload.cnpj = nfe.cliente?.cnpj || '';
+      payload.responsible = nfe.cliente?.responsavel || '';
     }
     const resp = await fetch('/api/send-order-email', {
       method: 'POST',
