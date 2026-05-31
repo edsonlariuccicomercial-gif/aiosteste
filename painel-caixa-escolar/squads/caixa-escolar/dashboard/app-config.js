@@ -219,6 +219,8 @@ function renderUsuarios() {
   });
 }
 
+let _editingUsuarioIdx = null;
+
 window.addUsuario = function addUsuario() {
   const nome = (document.getElementById("usr-nome") || {}).value || "";
   const email = (document.getElementById("usr-email") || {}).value || "";
@@ -226,24 +228,56 @@ window.addUsuario = function addUsuario() {
   const senha = (document.getElementById("usr-senha") || {}).value || "";
   const perfil = (document.getElementById("usr-perfil") || {}).value || "Operador";
 
+  const usuarios = JSON.parse(localStorage.getItem(USUARIOS_STORAGE_KEY) || "[]");
+
+  if (_editingUsuarioIdx !== null) {
+    // Modo edição: atualizar in-place
+    const u = usuarios[_editingUsuarioIdx];
+    if (!u) { cancelarEdicaoUsuario(); return; }
+    if (!nome || !usuario) { alert("Nome e Usuário são obrigatórios."); return; }
+    u.nome = nome;
+    u.email = email;
+    u.usuario = usuario;
+    if (senha) u.senha = btoa(senha); // só atualiza se digitou nova senha
+    u.perfil = perfil;
+    localStorage.setItem(USUARIOS_STORAGE_KEY, JSON.stringify(usuarios));
+    schedulCloudSync();
+    cancelarEdicaoUsuario();
+    renderUsuarios();
+    if (typeof showToast === "function") showToast("Usuário atualizado!");
+    return;
+  }
+
+  // Modo novo: criar
   if (!nome || !usuario || !senha) {
     alert("Preencha pelo menos Nome, Usuário e Senha.");
     return;
   }
 
-  const usuarios = JSON.parse(localStorage.getItem(USUARIOS_STORAGE_KEY) || "[]");
   usuarios.push({ nome, email, usuario, senha: btoa(senha), perfil, ativo: true });
   localStorage.setItem(USUARIOS_STORAGE_KEY, JSON.stringify(usuarios));
   schedulCloudSync();
   renderUsuarios();
+  clearUsuarioForm();
+  if (typeof showToast === "function") showToast("Usuário cadastrado!");
+};
 
-  // Clear form
+function clearUsuarioForm() {
   ["usr-nome", "usr-email", "usr-usuario", "usr-senha"].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = "";
   });
   const selPerfil = document.getElementById("usr-perfil");
   if (selPerfil) selPerfil.value = "Operador";
+}
+
+window.cancelarEdicaoUsuario = function cancelarEdicaoUsuario() {
+  _editingUsuarioIdx = null;
+  clearUsuarioForm();
+  const btn = document.getElementById("btn-add-usuario");
+  if (btn) btn.textContent = "+ Adicionar Usuário";
+  const btnCancel = document.getElementById("btn-cancel-usuario");
+  if (btnCancel) btnCancel.style.display = "none";
 };
 
 // Story 4.51 AC-K2: edit user
@@ -251,17 +285,27 @@ window.editarUsuarioConfig = function editarUsuarioConfig(idx) {
   const usuarios = JSON.parse(localStorage.getItem(USUARIOS_STORAGE_KEY) || "[]");
   const u = usuarios[idx];
   if (!u) return;
+  _editingUsuarioIdx = idx;
   document.getElementById("usr-nome").value = u.nome || "";
   document.getElementById("usr-email").value = u.email || "";
   document.getElementById("usr-usuario").value = u.usuario || "";
   document.getElementById("usr-senha").value = "";
+  document.getElementById("usr-senha").placeholder = "Deixe vazio para manter a atual";
   const selPerfil = document.getElementById("usr-perfil");
   if (selPerfil) selPerfil.value = u.perfil || "Operador";
-  // Remove old entry, save will re-add
-  usuarios.splice(idx, 1);
-  localStorage.setItem(USUARIOS_STORAGE_KEY, JSON.stringify(usuarios));
-  schedulCloudSync();
-  renderUsuarios();
+  // Mudar botão para "Salvar Alterações" e mostrar Cancelar
+  const btn = document.getElementById("btn-add-usuario");
+  if (btn) btn.textContent = "Salvar Alterações";
+  let btnCancel = document.getElementById("btn-cancel-usuario");
+  if (!btnCancel) {
+    btnCancel = document.createElement("button");
+    btnCancel.id = "btn-cancel-usuario";
+    btnCancel.className = "btn btn-outline";
+    btnCancel.textContent = "Cancelar";
+    btnCancel.onclick = cancelarEdicaoUsuario;
+    btn.parentNode.insertBefore(btnCancel, btn.nextSibling);
+  }
+  btnCancel.style.display = "";
 };
 
 window.toggleBloqueioUsuario = function toggleBloqueioUsuario(idx) {

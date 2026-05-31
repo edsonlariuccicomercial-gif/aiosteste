@@ -639,6 +639,8 @@ const SHARED_SYNC_KEYS = new Set([
   "gdp.estoque-intel.pedidos.v1", "gdp.estoque-intel.pedido-itens.v1",
   "gdp.estoque-intel.movimentacoes.v1", "gdp.estoque-intel.fornecedores.v1",
   "gdp.estoque-intel.compras.v1",
+  // Central de Produtos — sync cross-device
+  "gdp.produtos.v1",
   // Story 4.61: conciliação e extratos bancários
   "gdp.conciliacao.v1", "gdp.extratos.v1",
   // Config keys — sync across browsers/machines
@@ -702,6 +704,8 @@ const SYNC_KEYS = [
   "gdp.estoque-intel.compras.v1",
   "nexedu.config.contas-bancarias", "nexedu.config.notas-fiscais", "nexedu.config.bank-api",
   "nexedu.usuarios",
+  // Central de Produtos — sync cross-device
+  "gdp.produtos.v1",
   // Story 4.61: conciliação e extratos bancários
   "gdp.conciliacao.v1", "gdp.extratos.v1",
   // Story 4.74: sync deleted keys cross-machine
