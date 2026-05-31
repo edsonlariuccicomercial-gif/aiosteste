@@ -1841,22 +1841,24 @@ function _buscarTelefoneCliente(nomeCliente) {
 function _montarMensagemCobranca(conta, tipo) {
   const valor = brl.format(Number(conta.valor || 0));
   const venc = conta.vencimento || '-';
-  const cliente = conta.cliente || 'Cliente';
   const desc = conta.descricao || '';
   const pix = conta.cobranca?.pixCopiaECola || '';
   const boleto = conta.cobranca?.linhaDigitavel || '';
+  // Extrair número da NF da descrição (ex: "NF 03", "Nota Fiscal nº 05")
+  const nfMatch = (desc.match(/(?:NF|Nota\s*Fiscal)\s*(?:n[º°]?\s*)?(\d+)/i) || [])[1] || '';
+  const nfRef = nfMatch ? 'nº ' + nfMatch : desc;
 
   let msg = '';
   if (tipo === 'lembrete') {
-    msg = `Olá! Referente a *${desc}* no valor de *${valor}*, com vencimento em *${venc}*.`;
+    msg = `Olá, tudo bem?\n\nPassando apenas para lembrar que o vencimento da Nota Fiscal ${nfRef} no valor de *${valor}* está se aproximando (vence em *${venc}*).\n\nCaso já esteja programado, desconsidere esta mensagem. Nosso objetivo é apenas auxiliar no controle dos pagamentos e evitar qualquer transtorno.\n\nPermanecemos à disposição para o que for necessário.`;
   } else {
-    msg = `Olá! A conta *${desc}* no valor de *${valor}* venceu em *${venc}*. Solicitamos a regularização.`;
+    msg = `Olá, tudo bem?\n\nEstamos entrando em contato para lembrar sobre o pagamento da Nota Fiscal ${nfRef} no valor de *${valor}*, com vencimento em *${venc}*, que até o momento consta em aberto em nosso controle.\n\nPedimos, por gentileza, a verificação da pendência e, se possível, a programação do pagamento. Caso o pagamento já tenha sido realizado, desconsidere esta mensagem e, se possível, encaminhe o comprovante para atualização de nossos registros.\n\nFicamos à disposição para quaisquer esclarecimentos.`;
   }
 
   if (pix) msg += `\n\n📲 *PIX Copia e Cola:*\n${pix}`;
   if (boleto) msg += `\n\n🏦 *Linha Digitável:*\n${boleto}`;
-  if (!pix && !boleto) msg += `\n\nEntre em contato para dados de pagamento.`;
-  msg += `\n\n— Lariucci Comercial`;
+
+  msg += `\n\nAtenciosamente,\n\n*LARIUCCI*\nWhatsApp: (16) 9 8191-4537`;
   return msg;
 }
 
@@ -1867,9 +1869,12 @@ function enviarLembreteConta(contaId, canal) {
   if (canal === 'whatsapp') {
     const tel = _formatarTelefoneWpp(_buscarTelefoneCliente(conta.cliente));
     if (!tel) { showToast("Telefone do cliente não encontrado. Cadastre no módulo Clientes.", 4000); return; }
-    const msg = _montarMensagemCobranca(conta, 'lembrete');
+    // Detecta tipo: se vencimento < hoje → vencida, senão → lembrete
+    const hoje = new Date().toISOString().slice(0, 10);
+    const tipo = (conta.vencimento && conta.vencimento < hoje) ? 'vencida' : 'lembrete';
+    const msg = _montarMensagemCobranca(conta, tipo);
     window.open('https://wa.me/' + tel + '?text=' + encodeURIComponent(msg), '_blank');
-    showToast("WhatsApp aberto com mensagem de cobrança.", 3000);
+    showToast("WhatsApp aberto — " + (tipo === 'vencida' ? 'cobrança' : 'lembrete') + ".", 3000);
   } else if (canal === 'email') {
     showToast("Envio de email será implementado em breve.", 3000);
   }
