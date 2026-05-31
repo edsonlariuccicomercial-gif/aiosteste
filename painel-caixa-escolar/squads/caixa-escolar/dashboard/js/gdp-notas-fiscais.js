@@ -1748,8 +1748,8 @@ table.it td{border:1px solid #999;padding:2px 4px;font-size:7.5pt;page-break-ins
 .rec-nfe{width:110px;text-align:center;padding:6px 4px}
 /* Header 3 colunas: logo+emit | danfe | chave */
 .hdr{display:flex;border-bottom:1px solid #000}
-.hdr-logo{width:95px;border-right:1px solid #000;display:flex;align-items:center;justify-content:center;padding:4px;min-height:75px}
-.hdr-logo img{max-height:68px;max-width:85px}
+.hdr-logo{width:140px;border-right:1px solid #000;display:flex;align-items:center;justify-content:center;padding:4px;min-height:85px}
+.hdr-logo img{max-height:80px;max-width:130px;object-fit:contain}
 .hdr-emit{flex:3;border-right:1px solid #000;padding:4px 8px;display:flex;flex-direction:column;justify-content:center}
 .hdr-emit .nome{font-size:10pt;font-weight:700;white-space:nowrap}
 .hdr-emit .end{font-size:7pt;line-height:1.4;white-space:nowrap}
@@ -2012,7 +2012,7 @@ function gerarDanfeHtmlParaPdf(nf, options) {
 '.rec-nf .num{font-size:11pt;font-weight:900}' +
 '.rec-nf .ser{font-size:7pt}' +
 '.hdr{display:flex;border-bottom:1px solid #000}' +
-'.hdr-logo{width:80px;display:flex;align-items:center;justify-content:center;padding:4px;min-height:70px}' +
+'.hdr-logo{width:140px;display:flex;align-items:center;justify-content:center;padding:4px;min-height:85px}' +
 '.hdr-emit{flex:3;padding:4px 6px 4px 14px;border-right:1px solid #000;display:flex;flex-direction:column;justify-content:center}' +
 '.hdr-emit .nome{font-size:11pt;font-weight:700;white-space:nowrap}' +
 '.hdr-emit .end{font-size:7pt;line-height:1.4;white-space:nowrap}' +
@@ -2036,7 +2036,7 @@ function gerarDanfeHtmlParaPdf(nf, options) {
 '<div class="wrap">' +
 (isCancelada ? '<div class="cancel-stamp">CANCELADA</div>' : '') +
 '<div class="bx">' +
-'<div class="hdr"><div class="hdr-logo">' + (logoImg ? '<img src="' + logoImg + '" style="max-height:68px;max-width:75px;object-fit:contain" />' : '') + '</div><div class="hdr-emit"><div class="nome">' + esc(emit.razaoSocial || "-") + '</div><div class="end">' + esc(emEndLine1) + (emEnd.complemento ? ", " + esc(emEnd.complemento) : "") + '</div><div class="end">' + esc(emEndLine2) + '</div><div class="end">' + esc(emEndLine3) + ' Fone ' + esc(emEnd.telefone || emit.telefone || "") + '</div><div class="end">' + esc(emit.email || "") + '</div></div><div class="hdr-danfe"><h1>DANFE</h1><div class="sub">Documento Auxiliar da Nota<br>Fiscal Eletrônica</div><div class="tp-row">0 - ENTRADA</div><div class="tp-row">1 - SAÍDA <div class="tp-box">1</div></div><div class="nf-num">N°. ' + esc(numFmt) + '</div><div class="nf-ser">Série ' + String(nf.serie || "1").padStart(3,"0") + '</div><div class="nf-fol">Folha 1/1</div></div><div class="hdr-chave"><div class="bc" id="danfe-barcode"></div><div class="lbl">CHAVE DE ACESSO</div><div class="val">' + esc(chaveFormatada || "-") + '</div><div class="cons">Consulta de autenticidade no portal nacional da NF-e<br><strong>www.nfe.fazenda.gov.br/portal</strong> ou no site da Sefaz Autorizadora</div></div></div>' +
+'<div class="hdr"><div class="hdr-logo">' + (logoImg ? '<img src="' + logoImg + '" style="max-height:80px;max-width:130px;object-fit:contain" />' : '') + '</div><div class="hdr-emit"><div class="nome">' + esc(emit.razaoSocial || "-") + '</div><div class="end">' + esc(emEndLine1) + (emEnd.complemento ? ", " + esc(emEnd.complemento) : "") + '</div><div class="end">' + esc(emEndLine2) + '</div><div class="end">' + esc(emEndLine3) + ' Fone ' + esc(emEnd.telefone || emit.telefone || "") + '</div><div class="end">' + esc(emit.email || "") + '</div></div><div class="hdr-danfe"><h1>DANFE</h1><div class="sub">Documento Auxiliar da Nota<br>Fiscal Eletrônica</div><div class="tp-row">0 - ENTRADA</div><div class="tp-row">1 - SAÍDA <div class="tp-box">1</div></div><div class="nf-num">N°. ' + esc(numFmt) + '</div><div class="nf-ser">Série ' + String(nf.serie || "1").padStart(3,"0") + '</div><div class="nf-fol">Folha 1/1</div></div><div class="hdr-chave"><div class="bc" id="danfe-barcode"></div><div class="lbl">CHAVE DE ACESSO</div><div class="val">' + esc(chaveFormatada || "-") + '</div><div class="cons">Consulta de autenticidade no portal nacional da NF-e<br><strong>www.nfe.fazenda.gov.br/portal</strong> ou no site da Sefaz Autorizadora</div></div></div>' +
 '<div class="row"><div class="cell" style="flex:1"><label>NATUREZA DA OPERAÇÃO</label><div class="v-lg">VENDA DE MERCADORIA</div></div><div class="cell" style="flex:1"><label>PROTOCOLO DE AUTORIZAÇÃO DE USO</label><div class="v">' + esc(protFormatado) + '</div></div></div>' +
 '<div class="row"><div class="cell"><label>INSCRIÇÃO ESTADUAL</label><div class="v-sm">' + esc(emit.ie || "") + '</div></div><div class="cell"><label>INSCRIÇÃO MUNICIPAL</label><div class="v-sm"></div></div><div class="cell"><label>INSCRIÇÃO ESTADUAL DO SUBST. TRIBUT.</label><div class="v-sm"></div></div><div class="cell"><label>CNPJ / CPF</label><div class="v">' + esc(emit.cnpj || "") + '</div></div></div>' +
 '<div class="stit">DESTINATÁRIO / REMETENTE</div>' +
