@@ -599,6 +599,14 @@ async function syncConfigFromCloud() {
     if (!localData || cloudTime > localTime) {
       localStorage.setItem(row.key, JSON.stringify(row.data));
       applied++;
+    } else if (localData && row.key === "nexedu.config.notas-fiscais") {
+      // Merge: preserve logomarcaBase64 from cloud if missing locally
+      if (row.data.logomarcaBase64 && !localData.logomarcaBase64) {
+        localData.logomarcaBase64 = row.data.logomarcaBase64;
+        localStorage.setItem(row.key, JSON.stringify(localData));
+        applied++;
+        gdpLog("[Sync] Logomarca restored from cloud (merge)");
+      }
     }
   }
   if (applied > 0) {

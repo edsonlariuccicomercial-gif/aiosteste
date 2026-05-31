@@ -1243,11 +1243,10 @@
       <div style="display:flex;gap:.5rem;flex-wrap:wrap">
         <button class="btn btn-green" onclick="novoUsuario()">+ Incluir Cliente</button>
         <div style="display:flex;gap:.5rem;margin-left:auto">
-          <button class="btn btn-outline btn-sm" onclick="document.getElementById('import-clientes-input').click()">📥 Importar Planilha</button>
+          <button class="btn btn-outline btn-sm" onclick="toggleImportClientesModal(true)">📥 Importar Planilha</button>
           <button class="btn btn-outline btn-sm" onclick="imprimirListaClientes()">Imprimir Lista</button>
         </div>
       </div>
-      <input type="file" id="import-clientes-input" accept=".xlsx,.xls,.csv,.pdf" style="display:none" onchange="handleImportClientes(this)">
     </div>
     <div class="table-wrap" style="max-height:600px;overflow-y:auto">
       <table>
@@ -1270,23 +1269,37 @@
     </div><!-- /clientes-listagem -->
   </div>
 
-  <!-- Modal: Import Clientes -->
-  <div id="modal-import-clientes" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1000;display:flex;align-items:center;justify-content:center">
-    <div style="background:var(--s2,#1e293b);border:1px solid var(--bdr,#334155);border-radius:4px;padding:1.5rem;width:90%;max-width:800px;max-height:85vh;overflow-y:auto">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
-        <h2 style="font-size:1rem;margin:0">📥 Importar Clientes</h2>
-        <span id="import-clientes-filename" style="font-size:.75rem;color:var(--mut)"></span>
+  <!-- Modal: Import Clientes (padrão dropzone) -->
+  <div class="hidden" id="modal-import-clientes" style="position:fixed;inset:0;background:rgba(8,15,31,.88);z-index:1020;display:flex;align-items:center;justify-content:center;padding:1rem" onclick="toggleImportClientesModal(false)">
+    <div style="background:var(--bg);border:1px solid var(--bdr);border-radius:12px;width:640px;max-width:95vw;max-height:90vh;display:flex;flex-direction:column;overflow-y:auto" onclick="event.stopPropagation()">
+      <div style="padding:1rem 1.5rem;border-bottom:1px solid var(--bdr);display:flex;justify-content:space-between;align-items:center">
+        <h2 style="margin:0;font-size:1.1rem">Importar Planilha — Clientes</h2>
+        <button class="btn btn-outline btn-sm" onclick="toggleImportClientesModal(false)">Fechar</button>
       </div>
-      <div id="import-clientes-preview" style="margin-bottom:1rem"></div>
-      <div id="import-clientes-stats" style="font-size:.8rem;margin-bottom:1rem;color:var(--mut)"></div>
-      <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1rem">
-        <label style="font-size:.8rem;display:flex;align-items:center;gap:.4rem;cursor:pointer">
-          <input type="checkbox" id="chk-import-sem-cnpj"> Importar linhas sem CNPJ
-        </label>
-      </div>
-      <div style="display:flex;gap:.5rem;justify-content:flex-end">
-        <button class="btn btn-outline" onclick="fecharImportClientes()">Cancelar</button>
-        <button class="btn btn-green" id="btn-confirmar-import-clientes" onclick="confirmarImportClientes()">Importar</button>
+      <div style="padding:1.5rem">
+        <div id="clientes-import-dropzone" style="border:2px dashed var(--bdr);border-radius:10px;padding:2.5rem 1.5rem;text-align:center;cursor:pointer;transition:border-color .2s" onclick="document.getElementById('import-clientes-file').click()">
+          <div style="font-size:2.5rem;margin-bottom:.5rem">📄</div>
+          <div style="font-weight:600;margin-bottom:.3rem">Arraste a planilha aqui ou clique para selecionar</div>
+          <div style="font-size:.8rem;color:var(--mut)">Aceita .xls, .xlsx, .csv e .pdf</div>
+          <input type="file" id="import-clientes-file" accept=".xls,.xlsx,.csv,.pdf" style="display:none" onchange="handleImportClientesFile(this.files[0])">
+        </div>
+        <div id="import-clientes-preview-wrap" class="hidden" style="margin-top:1rem">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.8rem">
+            <span id="import-clientes-filename" style="font-size:.85rem;font-weight:600"></span>
+            <button class="btn btn-outline btn-sm" onclick="resetImportClientesDropzone()">Trocar arquivo</button>
+          </div>
+          <div id="import-clientes-preview" style="margin-bottom:1rem"></div>
+          <div id="import-clientes-stats" style="font-size:.8rem;margin-bottom:1rem;color:var(--mut)"></div>
+          <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1rem">
+            <label style="font-size:.8rem;display:flex;align-items:center;gap:.4rem;cursor:pointer">
+              <input type="checkbox" id="chk-import-sem-cnpj"> Importar linhas sem CNPJ
+            </label>
+          </div>
+          <div style="display:flex;gap:.5rem;justify-content:flex-end">
+            <button class="btn btn-outline" onclick="toggleImportClientesModal(false)">Cancelar</button>
+            <button class="btn btn-green" id="btn-confirmar-import-clientes" onclick="confirmarImportClientes()">Importar</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -2559,12 +2572,12 @@ function confirmarImportProd() {
 
 <script src="./js/gdp-pagination.js?v=11"></script>
 <script src="./js/gdp-integrations-client.js?v=11"></script>
-<script src="./js/gdp-core.js?v=22"></script>
+<script src="./js/gdp-core.js?v=23"></script>
 <script src="./js/gdp-notas-fiscais.js?v=15"></script>
 <script src="./js/gdp-contratos-module.js?v=11"></script>
 <script src="./js/gdp-estoque-intel.js?v=13"></script>
 <script src="./js/gdp-pedidos.js?v=19"></script>
-<script src="./js/gdp-usuarios.js?v=11"></script>
+<script src="./js/gdp-usuarios.js?v=12"></script>
 <!-- gdp-entregas.js removido (Épico A - FR-016) -->
 <script src="./js/gdp-banco-produtos.js?v=11"></script>
 <script src="./js/gdp-init.js?v=23"></script>

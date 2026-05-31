@@ -407,10 +407,33 @@ function excluirClienteAtual() {
 // ===== IMPORTAR CLIENTES =====
 let _importClientesData = [];
 
-function handleImportClientes(input) {
-  const file = input.files[0];
-  input.value = '';
+function toggleImportClientesModal(show) {
+  const modal = document.getElementById("modal-import-clientes");
+  if (show) {
+    resetImportClientesDropzone();
+    modal.classList.remove("hidden");
+    modal.style.display = "flex";
+  } else {
+    modal.classList.add("hidden");
+    modal.style.display = "none";
+    _importClientesData = [];
+  }
+}
+
+function resetImportClientesDropzone() {
+  const dropzone = document.getElementById("clientes-import-dropzone");
+  const previewWrap = document.getElementById("import-clientes-preview-wrap");
+  const fileInput = document.getElementById("import-clientes-file");
+  if (dropzone) dropzone.classList.remove("hidden");
+  if (previewWrap) previewWrap.classList.add("hidden");
+  if (fileInput) fileInput.value = "";
+  _importClientesData = [];
+}
+
+function handleImportClientesFile(file) {
   if (!file) return;
+  const input = document.getElementById("import-clientes-file");
+  if (input) input.value = "";
 
   // Validate extension
   const ext = file.name.split('.').pop().toLowerCase();
@@ -432,6 +455,20 @@ function handleImportClientes(input) {
     parseExcelClientes(file);
   }
 }
+
+// Drag-and-drop support for clientes import
+document.addEventListener('DOMContentLoaded', function() {
+  const dropzone = document.getElementById("clientes-import-dropzone");
+  if (!dropzone) return;
+  dropzone.addEventListener("dragover", function(e) { e.preventDefault(); dropzone.style.borderColor = "var(--green)"; });
+  dropzone.addEventListener("dragleave", function() { dropzone.style.borderColor = "var(--bdr)"; });
+  dropzone.addEventListener("drop", function(e) {
+    e.preventDefault();
+    dropzone.style.borderColor = "var(--bdr)";
+    const file = e.dataTransfer.files[0];
+    if (file) handleImportClientesFile(file);
+  });
+});
 
 function parseExcelClientes(file) {
   const reader = new FileReader();
@@ -575,17 +612,11 @@ function mostrarPreviewClientes() {
   document.getElementById("import-clientes-stats").innerHTML =
     `<strong>${_importClientesData.length}</strong> linhas detectadas: <span style="color:var(--green)">${countNew} novos</span>, <span style="color:#f59e0b">${countIncomplete} incompletos</span>, <span style="color:var(--dim)">${countDup} duplicados (ignorados)</span>`;
 
-  // Show modal
-  const modal = document.getElementById("modal-import-clientes");
-  modal.classList.remove("hidden");
-  modal.style.display = "flex";
-}
-
-function fecharImportClientes() {
-  const modal = document.getElementById("modal-import-clientes");
-  modal.classList.add("hidden");
-  modal.style.display = "none";
-  _importClientesData = [];
+  // Show preview, hide dropzone
+  const dropzone = document.getElementById("clientes-import-dropzone");
+  const previewWrap = document.getElementById("import-clientes-preview-wrap");
+  if (dropzone) dropzone.classList.add("hidden");
+  if (previewWrap) previewWrap.classList.remove("hidden");
 }
 
 function confirmarImportClientes() {
@@ -636,6 +667,6 @@ function confirmarImportClientes() {
 
   saveUsuarios();
   renderUsuarios();
-  fecharImportClientes();
+  toggleImportClientesModal(false);
   showToast(`${imported} cliente(s) importado(s) com sucesso!`, 3000);
 }
