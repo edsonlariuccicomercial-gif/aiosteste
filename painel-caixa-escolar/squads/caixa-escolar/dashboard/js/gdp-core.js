@@ -1925,10 +1925,11 @@ async function _enviarEmailCobranca(conta) {
         total: Number(conta.valor || 0),
         items: [{ description: desc || 'Cobranca', qty: 1, unitPrice: Number(conta.valor || 0) }],
         pagamento: {
+          forma: pix ? 'pix' : (boleto ? 'boleto' : 'outros'),
           vencimento: venc,
-          valor: valor,
-          pixCopiaECola: pix,
-          linhaDigitavel: boleto
+          valor: Number(conta.valor || 0),
+          pixCopiaECola: pix || undefined,
+          linhaDigitavel: boleto || undefined
         }
       })
     });
