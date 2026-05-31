@@ -1923,21 +1923,22 @@ async function _enviarEmailCobranca(conta) {
         schoolName: conta.cliente || '',
         date: venc,
         total: Number(conta.valor || 0),
-        items: [],
+        items: [{ description: desc || 'Cobranca', qty: 1, unitPrice: Number(conta.valor || 0) }],
         pagamento: {
           vencimento: venc,
           valor: valor,
           pixCopiaECola: pix,
           linhaDigitavel: boleto
-        },
-        obs: msgTexto.replace(/\n/g, '<br>')
+        }
       })
     });
-    const data = await resp.json();
+    const text = await resp.text();
+    let data;
+    try { data = JSON.parse(text); } catch(_) { data = { error: text.slice(0, 100) }; }
     if (resp.ok && data.success) {
       showToast("Email de cobrança enviado para " + emailCliente, 4000);
     } else {
-      showToast("Erro ao enviar email: " + (data.error || 'desconhecido'), 5000);
+      showToast("Erro ao enviar email: " + (data.error || 'erro no servidor'), 5000);
     }
   } catch (e) {
     showToast("Falha no envio: " + e.message, 5000);
