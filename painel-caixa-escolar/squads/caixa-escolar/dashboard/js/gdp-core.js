@@ -1906,38 +1906,60 @@ async function _enviarEmailCobranca(conta) {
   const pix = conta.cobranca?.pixCopiaECola || '';
   const boleto = conta.cobranca?.linhaDigitavel || '';
 
+  // Assunto sem protocolo
   const subject = tipo === 'lembrete'
-    ? `Lembrete — NF ${nfRef} vencendo hoje (${venc})`
-    : `Cobrança — NF ${nfRef} em aberto (venc. ${venc})`;
+    ? `Lembrete de Vencimento — NF ${nfRef} — ${conta.cliente || ''}`
+    : `Cobrança — NF ${nfRef} em aberto — ${conta.cliente || ''}`;
 
-  const msgTexto = _montarMensagemCobranca(conta, tipo);
+  // Buscar NF vinculada para anexar
+  const notaId = conta.notaFiscalId || conta.origemId || '';
+  const nfe = notaId ? (notasFiscais || []).find(n => n.id === notaId) : null;
+
+  // Montar corpo do email com mesmos dizeres do WhatsApp
+  const msgHtml = _montarMensagemCobranca(conta, tipo).replace(/\n/g, '<br>').replace(/\*(.*?)\*/g, '<strong>$1</strong>');
 
   try {
     showToast("Enviando email para " + emailCliente + "...", 2000);
+    const payload = {
+      to: emailCliente,
+      protocol: nfRef,
+      schoolName: conta.cliente || '',
+      date: venc,
+      total: Number(conta.valor || 0),
+      items: [],
+      obs: msgHtml,
+      pagamento: {
+        forma: pix ? 'pix' : (boleto ? 'boleto' : 'outros'),
+        vencimento: venc,
+        valor: Number(conta.valor || 0),
+        pixCopiaECola: pix || undefined,
+        linhaDigitavel: boleto || undefined
+      }
+    };
+    // Anexar NF-e se encontrada
+    if (nfe) {
+      payload.nfe = {
+        numero: nfe.numero || nfe.id,
+        serie: nfe.serie || '1',
+        valor: Number(nfe.valor || conta.valor || 0),
+        chaveAcesso: nfe.chaveAcesso || '',
+        protocolo: nfe.protocolo || '',
+        xml: nfe.xml || '',
+        emitente: nfe.emitente || {},
+        destinatario: nfe.destinatario || {},
+        itensNf: nfe.itensNf || nfe.items || []
+      };
+    }
     const resp = await fetch('/api/send-order-email', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        to: emailCliente,
-        protocol: 'COB-' + (conta.id || '').slice(-6),
-        schoolName: conta.cliente || '',
-        date: venc,
-        total: Number(conta.valor || 0),
-        items: [{ description: desc || 'Cobranca', qty: 1, unitPrice: Number(conta.valor || 0) }],
-        pagamento: {
-          forma: pix ? 'pix' : (boleto ? 'boleto' : 'outros'),
-          vencimento: venc,
-          valor: Number(conta.valor || 0),
-          pixCopiaECola: pix || undefined,
-          linhaDigitavel: boleto || undefined
-        }
-      })
+      body: JSON.stringify(payload)
     });
     const text = await resp.text();
     let data;
     try { data = JSON.parse(text); } catch(_) { data = { error: text.slice(0, 100) }; }
     if (resp.ok && data.success) {
-      showToast("Email de cobrança enviado para " + emailCliente, 4000);
+      showToast("Email de cobrança enviado para " + emailCliente + (nfe ? ' (com NF anexa)' : ''), 4000);
     } else {
       showToast("Erro ao enviar email: " + (data.error || 'erro no servidor'), 5000);
     }
