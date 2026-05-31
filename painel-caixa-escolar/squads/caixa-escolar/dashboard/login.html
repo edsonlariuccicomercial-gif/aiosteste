@@ -122,7 +122,24 @@
       const email = document.getElementById("login-user").value.trim();
       const pass = document.getElementById("login-pass").value;
 
+      // Verificar se usuário está bloqueado em nexedu.usuarios
+      function isUsuarioBloqueado(login) {
+        try {
+          const usuarios = JSON.parse(localStorage.getItem("nexedu.usuarios") || "[]");
+          const u = usuarios.find(x => x.usuario === login);
+          return u && u.ativo === false;
+        } catch(_) { return false; }
+      }
+
       try {
+        if (isUsuarioBloqueado(email)) {
+          errEl.textContent = "Usuário bloqueado. Contate o administrador.";
+          errEl.style.display = "block";
+          btnEl.disabled = false;
+          btnEl.textContent = "Entrar";
+          return;
+        }
+
         // Try Supabase Auth first
         await window.gdpAuth.signIn(email, pass);
         // Story 14.1: ensure syncUserId is set for Supabase-authenticated admin
@@ -144,8 +161,27 @@
           } catch(_) {}
           window.location.href = DASHBOARD_URL;
         } else {
-          errEl.textContent = authErr.message || "Email ou senha inválidos.";
-          errEl.style.display = "block";
+          // Tentar login via nexedu.usuarios (usuários cadastrados no ERP)
+          const usuarios = JSON.parse(localStorage.getItem("nexedu.usuarios") || "[]");
+          const found = usuarios.find(u => u.usuario === email);
+          if (found && found.ativo !== false) {
+            const senhaOk = found.senha ? (found.senha === btoa(pass) || found.senha === pass) : false;
+            if (senhaOk) {
+              sessionStorage.setItem(LEGACY_AUTH.sessionKey, LEGACY_AUTH.passHash);
+              try {
+                const emp = JSON.parse(localStorage.getItem('nexedu.empresa') || '{}');
+                emp.syncUserId = email.toUpperCase();
+                localStorage.setItem('nexedu.empresa', JSON.stringify(emp));
+              } catch(_) {}
+              window.location.href = DASHBOARD_URL;
+            } else {
+              errEl.textContent = "Senha incorreta.";
+              errEl.style.display = "block";
+            }
+          } else {
+            errEl.textContent = authErr.message || "Email ou senha inválidos.";
+            errEl.style.display = "block";
+          }
         }
       } finally {
         btnEl.disabled = false;

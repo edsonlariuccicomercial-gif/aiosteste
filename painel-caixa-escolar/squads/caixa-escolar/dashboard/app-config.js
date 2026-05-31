@@ -166,12 +166,32 @@ function saveConfigEmpresa() {
   if (typeof showToast === "function") showToast("Dados da empresa salvos!");
 }
 
+function ensureMasterUser() {
+  // Garante que o usuário master (auth.js) exista em nexedu.usuarios
+  const usuarios = JSON.parse(localStorage.getItem(USUARIOS_STORAGE_KEY) || "[]");
+  const masterExists = usuarios.some(u => u.usuario === "lariucci");
+  if (!masterExists && typeof AUTH_CONFIG !== "undefined") {
+    usuarios.unshift({
+      nome: "Administrador",
+      email: "",
+      usuario: AUTH_CONFIG.user || "lariucci",
+      senha: "", // hash gerenciado em auth.js
+      perfil: "Admin",
+      ativo: true,
+      master: true
+    });
+    localStorage.setItem(USUARIOS_STORAGE_KEY, JSON.stringify(usuarios));
+    schedulCloudSync();
+  }
+  return usuarios;
+}
+
 function renderUsuarios() {
   const tbody = document.getElementById("tbody-usuarios");
   const emptyMsg = document.getElementById("usuarios-empty");
   if (!tbody) return;
 
-  const usuarios = JSON.parse(localStorage.getItem(USUARIOS_STORAGE_KEY) || "[]");
+  const usuarios = ensureMasterUser();
   tbody.innerHTML = "";
 
   if (usuarios.length === 0) {
@@ -182,13 +202,18 @@ function renderUsuarios() {
 
   usuarios.forEach((u, idx) => {
     const tr = document.createElement("tr");
+    const isMaster = u.master === true;
     tr.innerHTML = `
       <td>${u.nome || ""}</td>
       <td>${u.email || ""}</td>
       <td>${u.usuario || ""}</td>
       <td>${u.perfil || "Operador"}</td>
-      <td><span class="badge badge-${u.ativo !== false ? "aprovado" : "vencido"}">${u.ativo !== false ? "Ativo" : "Inativo"}</span></td>
-      <td><button class="btn btn-inline" onclick="editarUsuario(${idx})" style="margin-right:.3rem">Editar</button><button class="btn btn-inline btn-danger" onclick="removeUsuario(${idx})">Remover</button></td>
+      <td><span class="badge badge-${u.ativo !== false ? "aprovado" : "vencido"}">${u.ativo !== false ? "Ativo" : "Bloqueado"}</span></td>
+      <td>
+        <button class="btn btn-inline" onclick="editarUsuarioConfig(${idx})" style="margin-right:.3rem">Editar</button>
+        <button class="btn btn-inline" onclick="toggleBloqueioUsuario(${idx})" style="margin-right:.3rem">${u.ativo !== false ? "Bloquear" : "Desbloquear"}</button>
+        ${!isMaster ? `<button class="btn btn-inline btn-danger" onclick="removeUsuario(${idx})">Excluir</button>` : ""}
+      </td>
     `;
     tbody.appendChild(tr);
   });
@@ -222,7 +247,7 @@ window.addUsuario = function addUsuario() {
 };
 
 // Story 4.51 AC-K2: edit user
-window.editarUsuario = function editarUsuario(idx) {
+window.editarUsuarioConfig = function editarUsuarioConfig(idx) {
   const usuarios = JSON.parse(localStorage.getItem(USUARIOS_STORAGE_KEY) || "[]");
   const u = usuarios[idx];
   if (!u) return;
@@ -237,6 +262,17 @@ window.editarUsuario = function editarUsuario(idx) {
   localStorage.setItem(USUARIOS_STORAGE_KEY, JSON.stringify(usuarios));
   schedulCloudSync();
   renderUsuarios();
+};
+
+window.toggleBloqueioUsuario = function toggleBloqueioUsuario(idx) {
+  const usuarios = JSON.parse(localStorage.getItem(USUARIOS_STORAGE_KEY) || "[]");
+  const u = usuarios[idx];
+  if (!u) return;
+  u.ativo = u.ativo === false ? true : false;
+  localStorage.setItem(USUARIOS_STORAGE_KEY, JSON.stringify(usuarios));
+  schedulCloudSync();
+  renderUsuarios();
+  if (typeof showToast === "function") showToast(u.ativo ? "Usuário desbloqueado." : "Usuário bloqueado.");
 };
 
 window.removeUsuario = function removeUsuario(idx) {

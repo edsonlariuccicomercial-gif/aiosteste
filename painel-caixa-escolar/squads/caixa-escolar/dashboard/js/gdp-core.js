@@ -547,6 +547,8 @@ async function forcarSyncCompleto() {
     // Apenas notas-entrada e fornecedores são safe to clear (não são dados financeiros críticos)
     localStorage.removeItem("gdp.notas-entrada.v1");
     localStorage.removeItem("gdp.estoque-intel.fornecedores.v1");
+    // Fix: incluir produtos no reset para garantir sync cross-device
+    localStorage.removeItem("gdp.produtos.v1");
     const result = await syncFromCloud({ force: true });
 
     // Também fazer full load das tabelas dedicadas do Supabase (pedidos, contratos, etc.)
