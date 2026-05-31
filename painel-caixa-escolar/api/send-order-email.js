@@ -415,6 +415,47 @@ export default async function handler(req, res) {
     return res.status(200).json({ success: true, provider: 'resend', id: result.id });
   }
 
+  if (emailProvider === 'gmail') {
+    const nodemailer = await import('nodemailer');
+    const gmailUser = process.env.GMAIL_USER;
+    const gmailPass = process.env.GMAIL_APP_PASSWORD;
+    if (!gmailUser || !gmailPass) return res.status(500).json({ error: "GMAIL_USER ou GMAIL_APP_PASSWORD nao configurado" });
+
+    const attachments = [];
+    if (nfe) {
+      try {
+        const pdfBase64 = generateDanfePdf(nfe, body);
+        if (pdfBase64 && pdfBase64.length > 1000) {
+          attachments.push({ filename: `DANFE_NF_${nfe.numero || 'sem-numero'}.pdf`, content: Buffer.from(pdfBase64, 'base64') });
+        }
+      } catch (pdfErr) { console.error('[Email/Gmail] jsPDF falhou:', pdfErr.message); }
+    }
+    if (nfe?.xml) {
+      attachments.push({ filename: `NFe_${nfe.numero || 'sem-numero'}.xml`, content: Buffer.from(nfe.xml, 'utf-8') });
+    }
+
+    const subject = `${nfe ? 'NF-e ' + (nfe.numero || '') + ' — ' : ''}${pagamento ? 'Cobranca' : 'Pedido'} ${protocol} — ${schoolName}`;
+
+    const transporter = nodemailer.default.createTransport({
+      service: 'gmail',
+      auth: { user: gmailUser, pass: gmailPass }
+    });
+
+    try {
+      const info = await transporter.sendMail({
+        from: `Distribuidora Lariucci <${gmailUser}>`,
+        to: to,
+        subject: subject,
+        html: html,
+        attachments: attachments.length > 0 ? attachments : undefined
+      });
+      return res.status(200).json({ success: true, provider: 'gmail', id: info.messageId });
+    } catch (gmailErr) {
+      console.error('[Email/Gmail] Falha:', gmailErr.message);
+      return res.status(500).json({ error: `Gmail: ${gmailErr.message}` });
+    }
+  }
+
   console.log(`[Email] Would send to ${to}: Pedido ${protocol} — ${schoolName} — R$ ${(total||0).toFixed(2)}`);
-  return res.status(200).json({ success: true, provider: 'log', message: 'Email registrado (modo log). Configure EMAIL_PROVIDER=resend para envio real.' });
+  return res.status(200).json({ success: true, provider: 'log', message: 'Email registrado (modo log). Configure EMAIL_PROVIDER=gmail para envio real.' });
 }
