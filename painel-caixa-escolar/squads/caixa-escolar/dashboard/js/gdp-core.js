@@ -1858,7 +1858,7 @@ function _montarMensagemCobranca(conta, tipo) {
   if (pix) msg += `\n\n📲 *PIX Copia e Cola:*\n${pix}`;
   if (boleto) msg += `\n\n🏦 *Linha Digitável:*\n${boleto}`;
 
-  msg += `\n\nAtenciosamente,\n\n*LARIUCCI*\nWhatsApp: (16) 9 8191-4537`;
+  msg += `\n\nAtenciosamente,\n\n*Setor Financeiro Lariucci*\n16 98204-4058`;
   return msg;
 }
 
