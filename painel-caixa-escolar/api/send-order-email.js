@@ -225,15 +225,16 @@ function generateDanfePdf(nfe, body) {
 
   // ===== DADOS ADICIONAIS =====
   y = sectionTitle(y, 'DADOS ADICIONAIS');
-  const addH = 22;
+  const infLines = [];
+  if (nfe.observacoes) infLines.push(...String(nfe.observacoes).split('\n').filter(Boolean));
+  if (body.protocol && !String(body.protocol).startsWith('COB-')) infLines.push('Pedido GDP: ' + body.protocol);
+  infLines.push('Valor Aproximado dos Tributos: R$ 0,00');
+  const addH = Math.max(22, 8 + infLines.length * 3);
   doc.rect(M, y, IW * 0.65, addH);
   doc.setFontSize(5); doc.setFont('helvetica', 'normal');
   doc.text('INFORMACOES COMPLEMENTARES', M + 1.5, y + 3);
   doc.setFontSize(5.5);
-  const infLines = [];
-  if (body.protocol) infLines.push('Pedido GDP: ' + body.protocol);
-  infLines.push('Valor Aproximado dos Tributos: R$ 0,00');
-  infLines.forEach((ln, i) => doc.text(ln, M + 1.5, y + 7 + i * 3, { maxWidth: IW * 0.6 }));
+  infLines.forEach((ln, i) => doc.text(safe(ln, 90), M + 1.5, y + 7 + i * 3, { maxWidth: IW * 0.6 }));
   doc.rect(M + IW * 0.65, y, IW * 0.35, addH);
   doc.text('RESERVADO AO FISCO', M + IW * 0.65 + 1.5, y + 3);
   y += addH;

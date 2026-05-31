@@ -1943,18 +1943,29 @@ async function _enviarEmailCobranca(conta) {
         linhaDigitavel: boleto || undefined
       }
     };
-    // Anexar NF-e se encontrada
+    // Anexar NF-e completa se encontrada
     if (nfe) {
+      const sefaz = nfe.sefaz || {};
+      const cobrancaNf = nfe.cobranca || {};
       payload.nfe = {
         numero: nfe.numero || nfe.id,
         serie: nfe.serie || '1',
         valor: Number(nfe.valor || conta.valor || 0),
-        chaveAcesso: nfe.chaveAcesso || '',
-        protocolo: nfe.protocolo || '',
-        xml: nfe.xml || '',
+        chaveAcesso: sefaz.chaveAcesso || nfe.chaveAcesso || '',
+        protocolo: sefaz.protocolo || nfe.protocolo || '',
+        xml: nfe.xml || sefaz.xml || '',
         emitente: nfe.emitente || {},
-        destinatario: nfe.destinatario || {},
-        itensNf: nfe.itensNf || nfe.items || []
+        destinatario: nfe.destinatario || nfe.cliente || {},
+        observacoes: cobrancaNf.metadata?.observacoes || nfe.observacoes || '',
+        itensNf: (nfe.itens || []).map(i => ({
+          desc: i.descricao || i.nome || '',
+          ncm: i.ncm || '',
+          cst: i.cst || '',
+          cfop: i.cfop || '',
+          un: i.unidade || 'UN',
+          qtd: Number(i.qtd || i.quantidade || 0),
+          vUnit: Number(i.precoUnitario || i.vUnit || 0)
+        }))
       };
     }
     const resp = await fetch('/api/send-order-email', {
