@@ -1857,7 +1857,7 @@ function _montarMensagemCobranca(conta, tipo) {
 
   let msg = '';
   if (tipo === 'lembrete') {
-    msg = `Olá, tudo bem?\n\nPassando apenas para lembrar que o vencimento da Nota Fiscal ${nfRef} no valor de *${valor}* está se aproximando (vence em *${venc}*).\n\nCaso já esteja programado, desconsidere esta mensagem. Nosso objetivo é apenas auxiliar no controle dos pagamentos e evitar qualquer transtorno.\n\nPermanecemos à disposição para o que for necessário.`;
+    msg = `Olá, tudo bem?\n\nPassando apenas para lembrar que a Nota Fiscal ${nfRef} no valor de *${valor}* está vencendo hoje (*${venc}*).\n\nCaso já esteja programado, desconsidere esta mensagem. Nosso objetivo é apenas auxiliar no controle dos pagamentos e evitar qualquer transtorno.\n\nPermanecemos à disposição para o que for necessário.`;
   } else {
     msg = `Olá, tudo bem?\n\nEstamos entrando em contato para lembrar sobre o pagamento da Nota Fiscal ${nfRef} no valor de *${valor}*, com vencimento em *${venc}*, que até o momento consta em aberto em nosso controle.\n\nPedimos, por gentileza, a verificação da pendência e, se possível, a programação do pagamento. Caso o pagamento já tenha sido realizado, desconsidere esta mensagem e, se possível, encaminhe o comprovante para atualização de nossos registros.\n\nFicamos à disposição para quaisquer esclarecimentos.`;
   }
