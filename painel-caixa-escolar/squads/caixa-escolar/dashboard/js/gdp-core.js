@@ -1820,10 +1820,82 @@ function fecharListaVencimento() {
   if (el) el.classList.add("hidden");
 }
 
-// FR-009: Stubs para envio (integração WhatsApp/Email/Inter será implementada no Épico C.4)
-function enviarLembreteVencendoHoje(canal) { showToast("Integração " + canal + " será configurada com API Inter. Em breve!", 3000); }
-function enviarCobrancaVencidas(canal) { showToast("Cobrança via " + canal + " com boleto reemitido será configurada com API Inter. Em breve!", 3000); }
-function enviarLembreteConta(contaId, canal) { showToast("Envio de lembrete via " + canal + " para conta " + contaId + " em breve!", 3000); }
+// FR-009: Cobrança via WhatsApp (link direto wa.me) e Email
+function _formatarTelefoneWpp(tel) {
+  if (!tel) return null;
+  let num = tel.replace(/[^\d]/g, '');
+  if (num.length === 10 || num.length === 11) num = '55' + num; // adiciona DDI Brasil
+  if (num.length === 12) num = num.slice(0,4) + '9' + num.slice(4); // adiciona 9 se falta
+  return num.length >= 12 ? num : null;
+}
+
+function _buscarTelefoneCliente(nomeCliente) {
+  if (!nomeCliente) return null;
+  const nome = nomeCliente.trim().toLowerCase();
+  const cliente = (typeof usuarios !== 'undefined' ? usuarios : []).find(u =>
+    (u.nome || '').trim().toLowerCase() === nome
+  );
+  return cliente ? (cliente.telefone || '') : '';
+}
+
+function _montarMensagemCobranca(conta, tipo) {
+  const valor = brl.format(Number(conta.valor || 0));
+  const venc = conta.vencimento || '-';
+  const cliente = conta.cliente || 'Cliente';
+  const desc = conta.descricao || '';
+  const pix = conta.cobranca?.pixCopiaECola || '';
+  const boleto = conta.cobranca?.linhaDigitavel || '';
+
+  let msg = '';
+  if (tipo === 'lembrete') {
+    msg = `Olá! Referente a *${desc}* no valor de *${valor}*, com vencimento em *${venc}*.`;
+  } else {
+    msg = `Olá! A conta *${desc}* no valor de *${valor}* venceu em *${venc}*. Solicitamos a regularização.`;
+  }
+
+  if (pix) msg += `\n\n📲 *PIX Copia e Cola:*\n${pix}`;
+  if (boleto) msg += `\n\n🏦 *Linha Digitável:*\n${boleto}`;
+  if (!pix && !boleto) msg += `\n\nEntre em contato para dados de pagamento.`;
+  msg += `\n\n— Lariucci Comercial`;
+  return msg;
+}
+
+function enviarLembreteConta(contaId, canal) {
+  const conta = contasReceber.find(c => c.id === contaId);
+  if (!conta) { showToast("Conta não encontrada.", 3000); return; }
+
+  if (canal === 'whatsapp') {
+    const tel = _formatarTelefoneWpp(_buscarTelefoneCliente(conta.cliente));
+    if (!tel) { showToast("Telefone do cliente não encontrado. Cadastre no módulo Clientes.", 4000); return; }
+    const msg = _montarMensagemCobranca(conta, 'lembrete');
+    window.open('https://wa.me/' + tel + '?text=' + encodeURIComponent(msg), '_blank');
+    showToast("WhatsApp aberto com mensagem de cobrança.", 3000);
+  } else if (canal === 'email') {
+    showToast("Envio de email será implementado em breve.", 3000);
+  }
+}
+
+function enviarLembreteVencendoHoje(canal) {
+  const hoje = new Date().toISOString().slice(0, 10);
+  const lista = contasReceber.filter(c => c.vencimento === hoje && c.status !== "recebida");
+  if (lista.length === 0) { showToast("Nenhuma conta vencendo hoje.", 3000); return; }
+  if (canal === 'whatsapp') {
+    lista.forEach(c => enviarLembreteConta(c.id, 'whatsapp'));
+  } else {
+    showToast("Envio em lote via " + canal + " em breve.", 3000);
+  }
+}
+
+function enviarCobrancaVencidas(canal) {
+  const hoje = new Date().toISOString().slice(0, 10);
+  const lista = contasReceber.filter(c => c.vencimento < hoje && c.status !== "recebida");
+  if (lista.length === 0) { showToast("Nenhuma conta vencida.", 3000); return; }
+  if (canal === 'whatsapp') {
+    lista.forEach(c => enviarLembreteConta(c.id, 'whatsapp'));
+  } else {
+    showToast("Cobrança em lote via " + canal + " em breve.", 3000);
+  }
+}
 function renderRelatorios() {}
 // renderUsuarios definido em gdp-usuarios.js
 // renderBancoProdutos definido em gdp-banco-produtos.js
