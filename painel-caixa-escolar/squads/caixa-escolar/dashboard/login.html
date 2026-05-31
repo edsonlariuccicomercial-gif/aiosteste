@@ -17,116 +17,438 @@
       min-height: 100vh;
       padding: 20px;
     }
-    .login-container { width: 100%; max-width: 380px; }
-    .login-card {
+
+    /* ===== LAYOUT SPLIT ===== */
+    .login-wrapper {
+      display: flex;
+      width: 100%;
+      max-width: 820px;
       background: var(--card);
       border: 1px solid var(--line);
-      border-radius: var(--radius);
-      padding: 32px 28px;
+      border-radius: 16px;
+      overflow: hidden;
       backdrop-filter: blur(12px);
-      text-align: center;
     }
-    .login-card h1 {
-      font-size: 1.3rem;
-      margin-bottom: 4px;
+
+    /* ===== LEFT: FORM ===== */
+    .login-form-side {
+      flex: 1;
+      padding: 40px 36px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
     }
-    .login-card .eyebrow { margin-bottom: 24px; }
+
+    .login-form-side .eyebrow { margin-bottom: 4px; }
+
+    .login-form-side h1 {
+      font-size: 1.4rem;
+      margin-bottom: 6px;
+    }
+
+    .login-subtitle {
+      color: var(--muted);
+      font-size: 0.82rem;
+      line-height: 1.4;
+      margin-bottom: 28px;
+    }
+
+    .login-field-label {
+      display: block;
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-bottom: 5px;
+      font-weight: 500;
+    }
+
     .login-input {
       width: 100%;
       background: var(--bg);
       border: 1px solid var(--line);
-      border-radius: 6px;
+      border-radius: 8px;
       color: var(--text);
-      padding: 10px 12px;
+      padding: 11px 14px;
       font-size: 0.9rem;
       outline: none;
-      margin-bottom: 12px;
+      margin-bottom: 16px;
       transition: border-color 0.2s;
     }
     .login-input:focus { border-color: var(--accent); }
+
+    /* ===== PASSWORD FIELD WITH EYE ===== */
+    .password-wrapper {
+      position: relative;
+      margin-bottom: 16px;
+    }
+    .password-wrapper .login-input {
+      margin-bottom: 0;
+      padding-right: 44px;
+    }
+    .toggle-password {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--muted);
+      padding: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color 0.2s;
+    }
+    .toggle-password:hover { color: var(--text); }
+    .toggle-password svg { width: 20px; height: 20px; }
+
     .login-btn {
       width: 100%;
-      padding: 10px;
+      padding: 12px;
       border: none;
-      border-radius: 6px;
+      border-radius: 8px;
       background: var(--accent);
       color: #0d1412;
-      font-size: 0.9rem;
-      font-weight: 600;
+      font-size: 0.92rem;
+      font-weight: 700;
       cursor: pointer;
       transition: opacity 0.2s;
+      letter-spacing: 0.01em;
     }
     .login-btn:hover { opacity: 0.85; }
+    .login-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
     .login-error {
       color: var(--danger);
       font-size: 0.8rem;
       margin-top: 12px;
       display: none;
+      text-align: center;
+    }
+
+    /* ===== FORGOT PASSWORD LINK ===== */
+    .forgot-password {
+      display: block;
+      text-align: center;
+      margin-top: 16px;
+      color: var(--accent);
+      font-size: 0.82rem;
+      font-weight: 500;
+      text-decoration: none;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    .forgot-password:hover { opacity: 0.75; text-decoration: underline; }
+
+    /* ===== FORGOT PASSWORD FORM (replaces login form) ===== */
+    .forgot-form { display: none; }
+    .forgot-form.active { display: block; }
+    .login-main-form.hidden { display: none; }
+
+    .forgot-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: var(--text);
+    }
+
+    .forgot-desc {
+      font-size: 0.82rem;
+      color: var(--muted);
+      line-height: 1.5;
+      margin-bottom: 20px;
+    }
+
+    .forgot-success {
+      padding: 14px 16px;
+      background: var(--accent-dim);
+      border: 1px solid rgba(78, 201, 138, 0.3);
+      border-radius: 8px;
+      color: var(--accent);
+      font-size: 0.85rem;
+      line-height: 1.5;
+      display: none;
+    }
+
+    .forgot-back {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 16px;
+      color: var(--muted);
+      font-size: 0.82rem;
+      cursor: pointer;
+      background: none;
+      border: none;
+      padding: 0;
+      transition: color 0.2s;
+    }
+    .forgot-back:hover { color: var(--text); }
+
+    /* ===== RIGHT: WELCOME ===== */
+    .login-welcome-side {
+      flex: 0 0 300px;
+      background: linear-gradient(135deg, rgba(78, 201, 138, 0.12) 0%, rgba(14, 77, 50, 0.25) 100%);
+      border-left: 1px solid var(--line);
+      padding: 40px 32px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .welcome-title {
+      font-size: 1.5rem;
+      font-weight: 800;
+      color: var(--accent);
+      line-height: 1.3;
+      margin-bottom: 12px;
+    }
+
+    .welcome-desc {
+      font-size: 0.88rem;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    .welcome-features {
+      margin-top: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .welcome-feature {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.82rem;
+      color: var(--text);
+    }
+
+    .welcome-feature-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      background: var(--accent-dim);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.9rem;
+      flex-shrink: 0;
+    }
+
+    /* ===== RESPONSIVE ===== */
+    @media (max-width: 700px) {
+      .login-wrapper {
+        flex-direction: column-reverse;
+        max-width: 420px;
+      }
+      .login-welcome-side {
+        flex: none;
+        border-left: none;
+        border-bottom: 1px solid var(--line);
+        padding: 28px 24px;
+      }
+      .login-form-side {
+        padding: 28px 24px;
+      }
+      .welcome-features { display: none; }
     }
   </style>
 </head>
 <body>
-  <div class="login-container">
-    <div class="login-card">
+  <div class="login-wrapper">
+    <!-- LEFT: Form -->
+    <div class="login-form-side">
       <p class="eyebrow">Painel do Fornecedor</p>
       <h1>Licit-AIX</h1>
-      <p style="color:#94a3b8;font-size:0.85rem;margin-top:0.3rem;line-height:1.4;font-style:italic;">Inteligência comercial para fornecedores da educação pública</p>
-      <form id="login-form" style="margin-top:24px;">
-        <input type="text" class="login-input" id="login-user" placeholder="Usuário ou Email" autocomplete="username" required />
-        <input type="password" class="login-input" id="login-pass" placeholder="Senha" autocomplete="current-password" required />
+      <p class="login-subtitle">Acesse sua conta</p>
+
+      <!-- Main Login Form -->
+      <form id="login-form" class="login-main-form">
+        <label class="login-field-label" for="login-user">Usuário ou Email</label>
+        <input type="text" class="login-input" id="login-user" placeholder="Digite seu usuário ou email" autocomplete="username" required />
+
+        <label class="login-field-label" for="login-pass">Senha</label>
+        <div class="password-wrapper">
+          <input type="password" class="login-input" id="login-pass" placeholder="Digite sua senha" autocomplete="current-password" required />
+          <button type="button" class="toggle-password" id="toggle-pass" title="Mostrar senha">
+            <!-- Eye icon (hidden) -->
+            <svg id="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+            <!-- Eye-off icon (visible) -->
+            <svg id="icon-eye-off" style="display:none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+              <line x1="1" y1="1" x2="23" y2="23"/>
+            </svg>
+          </button>
+        </div>
+
         <button type="submit" class="login-btn" id="login-btn">Entrar</button>
         <p class="login-error" id="login-error"></p>
+        <a class="forgot-password" id="show-forgot">Esqueceu sua senha?</a>
       </form>
+
+      <!-- Forgot Password Form -->
+      <div class="forgot-form" id="forgot-form">
+        <p class="forgot-title">Redefinir senha</p>
+        <p class="forgot-desc">Informe seu email cadastrado e enviaremos um link para redefinir sua senha.</p>
+        <label class="login-field-label" for="forgot-email">Email</label>
+        <input type="email" class="login-input" id="forgot-email" placeholder="seu@email.com" required />
+        <button type="button" class="login-btn" id="forgot-btn">Enviar link de redefinição</button>
+        <p class="login-error" id="forgot-error"></p>
+        <div class="forgot-success" id="forgot-success">
+          Email enviado com sucesso! Verifique sua caixa de entrada (e a pasta de spam) para o link de redefinição de senha.
+        </div>
+        <button type="button" class="forgot-back" id="forgot-back">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+          Voltar ao login
+        </button>
+      </div>
+    </div>
+
+    <!-- RIGHT: Welcome -->
+    <div class="login-welcome-side">
+      <p class="welcome-title">Que bom ter você aqui!</p>
+      <p class="welcome-desc">Entre com seus dados para acessar o painel de inteligência comercial para fornecedores da educação pública.</p>
+      <div class="welcome-features">
+        <div class="welcome-feature">
+          <span class="welcome-feature-icon">📊</span>
+          <span>Contratos e licitações</span>
+        </div>
+        <div class="welcome-feature">
+          <span class="welcome-feature-icon">💰</span>
+          <span>Gestão de preços e margens</span>
+        </div>
+        <div class="welcome-feature">
+          <span class="welcome-feature-icon">📦</span>
+          <span>Pedidos e entregas</span>
+        </div>
+      </div>
     </div>
   </div>
 
   <script src="js/supabase-config.js"></script>
   <script src="js/supabase-auth.js"></script>
   <script>
-    // Story 7.2: Supabase Auth login with legacy fallback
-    const LEGACY_AUTH = {
+    // ===== Toggle password visibility =====
+    (function() {
+      var passInput = document.getElementById('login-pass');
+      var toggleBtn = document.getElementById('toggle-pass');
+      var iconEye = document.getElementById('icon-eye');
+      var iconEyeOff = document.getElementById('icon-eye-off');
+
+      toggleBtn.addEventListener('click', function() {
+        var isPassword = passInput.type === 'password';
+        passInput.type = isPassword ? 'text' : 'password';
+        iconEye.style.display = isPassword ? 'none' : 'block';
+        iconEyeOff.style.display = isPassword ? 'block' : 'none';
+        toggleBtn.title = isPassword ? 'Ocultar senha' : 'Mostrar senha';
+      });
+    })();
+
+    // ===== Forgot password toggle =====
+    (function() {
+      var showForgot = document.getElementById('show-forgot');
+      var forgotForm = document.getElementById('forgot-form');
+      var forgotBack = document.getElementById('forgot-back');
+      var loginForm = document.getElementById('login-form');
+
+      showForgot.addEventListener('click', function(e) {
+        e.preventDefault();
+        loginForm.classList.add('hidden');
+        forgotForm.classList.add('active');
+      });
+
+      forgotBack.addEventListener('click', function() {
+        forgotForm.classList.remove('active');
+        loginForm.classList.remove('hidden');
+        document.getElementById('forgot-error').style.display = 'none';
+        document.getElementById('forgot-success').style.display = 'none';
+      });
+    })();
+
+    // ===== Forgot password submit =====
+    (function() {
+      var forgotBtn = document.getElementById('forgot-btn');
+      var forgotEmail = document.getElementById('forgot-email');
+      var forgotError = document.getElementById('forgot-error');
+      var forgotSuccess = document.getElementById('forgot-success');
+
+      forgotBtn.addEventListener('click', async function() {
+        var email = forgotEmail.value.trim();
+        if (!email) {
+          forgotError.textContent = 'Informe seu email.';
+          forgotError.style.display = 'block';
+          return;
+        }
+
+        forgotBtn.disabled = true;
+        forgotBtn.textContent = 'Enviando...';
+        forgotError.style.display = 'none';
+        forgotSuccess.style.display = 'none';
+
+        try {
+          await window.gdpAuth.resetPasswordForEmail(email);
+          forgotSuccess.style.display = 'block';
+          forgotEmail.style.display = 'none';
+          forgotBtn.style.display = 'none';
+          document.querySelector('.forgot-desc').style.display = 'none';
+          document.querySelector('label[for="forgot-email"]').style.display = 'none';
+        } catch (err) {
+          forgotError.textContent = err.message || 'Erro ao enviar email. Tente novamente.';
+          forgotError.style.display = 'block';
+        } finally {
+          forgotBtn.disabled = false;
+          forgotBtn.textContent = 'Enviar link de redefinição';
+        }
+      });
+    })();
+
+    // ===== Login logic (preserved from original) =====
+    var LEGACY_AUTH = {
       user: "lariucci",
       passHash: "b01b3ce6c2432fe67e535235bd985a787557c9584b56c70e855abad11d0bd871",
       sessionKey: "ce.auth",
     };
 
-    const DASHBOARD_URL = "gdp-contratos.html";
+    var DASHBOARD_URL = "gdp-contratos.html";
 
     // Already logged in? Check Supabase session first, then legacy
     (async function checkExistingSession() {
-      const session = await window.gdpAuth.getSession();
+      var session = await window.gdpAuth.getSession();
       if (session) {
         window.location.href = DASHBOARD_URL;
         return;
       }
-      // Legacy check (will be removed after full migration)
       if (sessionStorage.getItem(LEGACY_AUTH.sessionKey) === LEGACY_AUTH.passHash) {
         window.location.href = DASHBOARD_URL;
       }
     })();
 
     async function sha256(text) {
-      const data = new TextEncoder().encode(text);
-      const buf = await crypto.subtle.digest("SHA-256", data);
-      return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
+      var data = new TextEncoder().encode(text);
+      var buf = await crypto.subtle.digest("SHA-256", data);
+      return Array.from(new Uint8Array(buf)).map(function(b) { return b.toString(16).padStart(2, "0"); }).join("");
     }
 
-    document.getElementById("login-form").addEventListener("submit", async (e) => {
+    document.getElementById("login-form").addEventListener("submit", async function(e) {
       e.preventDefault();
-      const errEl = document.getElementById("login-error");
-      const btnEl = document.getElementById("login-btn");
+      var errEl = document.getElementById("login-error");
+      var btnEl = document.getElementById("login-btn");
       errEl.style.display = "none";
       btnEl.disabled = true;
       btnEl.textContent = "Entrando...";
 
-      const email = document.getElementById("login-user").value.trim();
-      const pass = document.getElementById("login-pass").value;
+      var email = document.getElementById("login-user").value.trim();
+      var pass = document.getElementById("login-pass").value;
 
-      // Verificar se usuário está bloqueado em nexedu.usuarios
       function isUsuarioBloqueado(login) {
         try {
-          const usuarios = JSON.parse(localStorage.getItem("nexedu.usuarios") || "[]");
-          const u = usuarios.find(x => x.usuario === login);
+          var usuarios = JSON.parse(localStorage.getItem("nexedu.usuarios") || "[]");
+          var u = usuarios.find(function(x) { return x.usuario === login; });
           return u && u.ativo === false;
         } catch(_) { return false; }
       }
@@ -142,34 +464,32 @@
 
         // Try Supabase Auth first
         await window.gdpAuth.signIn(email, pass);
-        // Story 14.1: ensure syncUserId is set for Supabase-authenticated admin
         try {
-          const emp = JSON.parse(localStorage.getItem('nexedu.empresa') || '{}');
+          var emp = JSON.parse(localStorage.getItem('nexedu.empresa') || '{}');
           if (!emp.syncUserId) { emp.syncUserId = 'LARIUCCI'; localStorage.setItem('nexedu.empresa', JSON.stringify(emp)); }
         } catch(_) {}
         window.location.href = DASHBOARD_URL;
       } catch (authErr) {
-        // Fallback to legacy auth (transition period)
-        const hash = await sha256(pass);
+        // Fallback to legacy auth
+        var hash = await sha256(pass);
         if (email === LEGACY_AUTH.user && hash === LEGACY_AUTH.passHash) {
           sessionStorage.setItem(LEGACY_AUTH.sessionKey, LEGACY_AUTH.passHash);
-          // Story 14.1: Set consistent empresa_id for admin/gestor login
           try {
-            const emp = JSON.parse(localStorage.getItem('nexedu.empresa') || '{}');
+            var emp = JSON.parse(localStorage.getItem('nexedu.empresa') || '{}');
             emp.syncUserId = 'LARIUCCI';
             localStorage.setItem('nexedu.empresa', JSON.stringify(emp));
           } catch(_) {}
           window.location.href = DASHBOARD_URL;
         } else {
-          // Tentar login via nexedu.usuarios (usuários cadastrados no ERP)
-          const usuarios = JSON.parse(localStorage.getItem("nexedu.usuarios") || "[]");
-          const found = usuarios.find(u => u.usuario === email);
+          // Try nexedu.usuarios
+          var usuarios = JSON.parse(localStorage.getItem("nexedu.usuarios") || "[]");
+          var found = usuarios.find(function(u) { return u.usuario === email; });
           if (found && found.ativo !== false) {
-            const senhaOk = found.senha ? (found.senha === btoa(pass) || found.senha === pass) : false;
+            var senhaOk = found.senha ? (found.senha === btoa(pass) || found.senha === pass) : false;
             if (senhaOk) {
               sessionStorage.setItem(LEGACY_AUTH.sessionKey, LEGACY_AUTH.passHash);
               try {
-                const emp = JSON.parse(localStorage.getItem('nexedu.empresa') || '{}');
+                var emp = JSON.parse(localStorage.getItem('nexedu.empresa') || '{}');
                 emp.syncUserId = email.toUpperCase();
                 localStorage.setItem('nexedu.empresa', JSON.stringify(emp));
               } catch(_) {}

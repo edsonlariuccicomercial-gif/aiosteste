@@ -150,6 +150,22 @@
     }
   }, 60000);
 
+  async function resetPasswordForEmail(email) {
+    var resp = await fetch(AUTH_URL + '/recover', {
+      method: 'POST',
+      headers: HEADERS,
+      body: JSON.stringify({
+        email: email,
+        gotrue_meta_security: {}
+      })
+    });
+    if (!resp.ok) {
+      var err = await resp.json().catch(function () { return {}; });
+      throw new Error(err.error_description || err.msg || 'Erro ao enviar email de redefinição');
+    }
+    return true;
+  }
+
   // Public API
   window.gdpAuth = {
     signIn: signIn,
@@ -158,6 +174,7 @@
     getAccessToken: getAccessToken,
     requireSession: requireSession,
     onAuthChange: onAuthChange,
+    resetPasswordForEmail: resetPasswordForEmail,
     LOGIN_PAGE: LOGIN_PAGE,
     DASHBOARD_PAGE: DASHBOARD_PAGE
   };
