@@ -1911,9 +1911,16 @@ async function _enviarEmailCobranca(conta) {
     ? `Lembrete de Vencimento — NF ${nfRef} — ${conta.cliente || ''}`
     : `Cobrança — NF ${nfRef} em aberto — ${conta.cliente || ''}`;
 
-  // Buscar NF vinculada para anexar
+  // Buscar NF vinculada para anexar (por ID, número na descrição, ou cliente)
   const notaId = conta.notaFiscalId || conta.origemId || '';
-  const nfe = notaId ? (notasFiscais || []).find(n => n.id === notaId) : null;
+  let nfe = notaId ? (notasFiscais || []).find(n => n.id === notaId) : null;
+  if (!nfe && nfMatch) {
+    nfe = (notasFiscais || []).find(n => String(n.numero) === nfMatch);
+  }
+  if (!nfe && conta.cliente) {
+    const _cliLower = conta.cliente.trim().toLowerCase();
+    nfe = (notasFiscais || []).find(n => (n.cliente?.nome || '').trim().toLowerCase() === _cliLower);
+  }
 
   // Montar corpo do email com mesmos dizeres do WhatsApp
   const msgHtml = _montarMensagemCobranca(conta, tipo).replace(/\n/g, '<br>').replace(/\*(.*?)\*/g, '<strong>$1</strong>');
