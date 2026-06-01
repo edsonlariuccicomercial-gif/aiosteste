@@ -1918,6 +1918,7 @@ function salvarDadosNotaFiscal(notaId) {
   nf.sefaz.chaveAcesso = (document.getElementById("nf-chave-manual")?.value || "").trim();
   nf.documentos = {
     ...(nf.documentos || {}),
+    observacao: nf.documentos?.observacao || "",
     numeroManual: !isReal,
     danfeUrl: (document.getElementById("nf-danfe-url")?.value || "").trim()
   };
@@ -2376,6 +2377,10 @@ async function dispararEmailNotaEBoletoAutomatico(notaId, contaId, options = {})
     return false;
   }
   const totalProd = (nf.itens || []).reduce((s, i) => s + (Number(i.qtd || 0) * Number(i.precoUnitario || 0)), 0);
+  // Montar observação completa idêntica ao Visualizar DANFE
+  const obsRaw = nf.documentos?.observacao || "";
+  const destForEmail = nf.sefaz?.preview?.destinatario || nf.cliente || {};
+  const destEmailForObs = destForEmail.email || nf.cliente?.email || email || "";
   // Story 4.77: PDF gerado server-side (jsPDF vetorial) — não gerar client-side
   const emailPayload = {
     schoolName: nf.cliente?.nome || "",
@@ -2383,7 +2388,7 @@ async function dispararEmailNotaEBoletoAutomatico(notaId, contaId, options = {})
     date: nf.emitidaEm ? formatDateTimeLocal(nf.emitidaEm) : "",
     total: nf.valor || totalProd,
     items: (nf.itens || []).map((item) => ({ name: item.descricao || "", description: item.descricao || "", qty: item.qtd || 0, unitPrice: item.precoUnitario || 0 })),
-    obs: nf.documentos?.observacao || (conta ? `Cobranca ${conta.forma || "boleto"} vinculada` : "Nota fiscal emitida"),
+    obs: obsRaw || (conta ? `Cobranca ${conta.forma || "boleto"} vinculada` : "Nota fiscal emitida"),
     cnpj: nf.cliente?.cnpj || "",
     responsible: nf.cliente?.responsavel || "",
     nfe: {
@@ -2394,8 +2399,9 @@ async function dispararEmailNotaEBoletoAutomatico(notaId, contaId, options = {})
       chaveAcesso: nf.sefaz?.chaveAcesso || "",
       emitente: nf.sefaz?.preview?.emitente || {},
       destinatario: nf.sefaz?.preview?.destinatario || nf.cliente || {},
-      observacoes: nf.documentos?.observacao || "",
+      observacoes: obsRaw,
       pedidoId: nf.pedidoId || "",
+      destEmail: destEmailForObs,
       itensNf: (nf.itens || []).map(function(i) { return { desc: i.descricao, ncm: i.ncm, cst: i.cst, cfop: i.cfop, un: i.unidade, qtd: i.qtd, vUnit: i.precoUnitario }; })
     },
     pagamento: conta ? {

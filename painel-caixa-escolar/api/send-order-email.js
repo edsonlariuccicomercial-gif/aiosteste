@@ -227,7 +227,7 @@ function generateDanfePdf(nfe, body) {
   y = sectionTitle(y, 'DADOS ADICIONAIS');
   const infLines = [];
   if (nfe.pedidoId) infLines.push('Inf. Contribuinte: Pedido GDP ' + nfe.pedidoId);
-  const destEmailAddr = dest.email || body.to || '';
+  const destEmailAddr = nfe.destEmail || dest.email || body.to || '';
   if (destEmailAddr) infLines.push('Email do Destinatario: ' + destEmailAddr);
   if (nfe.observacoes) {
     // Observação usa | como separador de blocos — converter para linhas
