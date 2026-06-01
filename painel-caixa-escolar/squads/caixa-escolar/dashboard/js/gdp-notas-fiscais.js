@@ -1566,6 +1566,7 @@ async function enviarEmailNotaFiscal(notaId) {
     total: nf.valor || totalProd,
     responsible: nf.cliente?.responsavel || '',
     cnpj: nf.cliente?.cnpj || '',
+    obs: nf.documentos?.observacao || '',
     nfe: {
       numero: nf.numero,
       serie: nf.serie || '1',
@@ -1574,6 +1575,9 @@ async function enviarEmailNotaFiscal(notaId) {
       chaveAcesso: nf.sefaz?.chaveAcesso || '',
       emitente: nf.sefaz?.preview?.emitente || {},
       destinatario: nf.sefaz?.preview?.destinatario || nf.cliente || {},
+      observacoes: nf.documentos?.observacao || '',
+      pedidoId: nf.pedidoId || '',
+      destEmail: to,
       itensNf: (nf.itens || []).map(i => ({ desc: i.descricao, ncm: i.ncm, cst: i.cst, cfop: i.cfop, un: i.unidade, qtd: i.qtd, vUnit: i.precoUnitario })),
       xml: nf.sefaz?.xmlDsigPreview?.signedXml || nf.sefaz?.xmlPreview?.xml || ''
     }
@@ -2429,7 +2433,7 @@ async function dispararEmailNotaEBoletoAutomatico(notaId, contaId, options = {})
         if (resp.ok && !data.error) {
           successCount++;
           lastId = data.id || "";
-          gdpLog("[Email NF] OK para:", addr, "ID:", data.id || "-", "DEBUG:", JSON.stringify(data._debug || {}));
+          gdpLog("[Email NF] OK para:", addr, "ID:", data.id || "-");
         } else {
           gdpWarn("[Email NF] Falha para", addr, ":", data.error || resp.status);
         }
