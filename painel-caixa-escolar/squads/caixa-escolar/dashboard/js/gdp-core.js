@@ -552,14 +552,26 @@ async function forcarSyncCompleto() {
     const result = await syncFromCloud({ force: true });
 
     // Também fazer full load das tabelas dedicadas do Supabase (pedidos, contratos, etc.)
+    // PROTEÇÃO: se Supabase retornar 0 rows mas localStorage tinha dados, NÃO zerar
     if (window.gdpApi) {
       const tables = ['contratos', 'pedidos', 'notas_fiscais', 'contas_receber', 'contas_pagar', 'entregas'];
+      const lsKeys = { contratos: 'gdp.contratos.v1', pedidos: 'gdp.pedidos.v1', notas_fiscais: 'gdp.notas-fiscais.v1', contas_receber: 'gdp.contas-receber.v1', contas_pagar: 'gdp.contas-pagar.v1', entregas: 'gdp.entregas.provas.v1' };
       for (const table of tables) {
         try {
           if (window.gdpApi[table] && window.gdpApi[table].list) {
+            // Snapshot do localStorage ANTES do list (que pode zerar)
+            const lsBefore = localStorage.getItem(lsKeys[table]);
+            let countBefore = 0;
+            try { const parsed = JSON.parse(lsBefore || 'null'); countBefore = parsed?.items?.length || (Array.isArray(parsed) ? parsed.length : 0); } catch(_) {}
+
             const rows = await window.gdpApi[table].list();
-            if (Array.isArray(rows)) {
-              gdpLog('[ForceSync] ' + table + ': ' + rows.length + ' rows from Supabase');
+            const countAfter = Array.isArray(rows) ? rows.length : 0;
+            gdpLog('[ForceSync] ' + table + ': ' + countAfter + ' rows from Supabase (antes: ' + countBefore + ')');
+
+            // SAFETY: se cloud retornou 0 mas localStorage tinha dados, restaurar
+            if (countAfter === 0 && countBefore > 0 && lsBefore) {
+              localStorage.setItem(lsKeys[table], lsBefore);
+              gdpWarn('[ForceSync] PROTECAO: ' + table + ' retornou 0 do cloud mas tinha ' + countBefore + ' local — mantido localStorage');
             }
           }
         } catch(_) {}
