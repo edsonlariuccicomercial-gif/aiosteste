@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>Restaurar Conciliacao</title></head>
+<body style="font-family:sans-serif;padding:2rem;background:#111;color:#eee">
+<h2>Restaurar Conciliacao do Cloud</h2>
+<button id="btn" style="padding:12px 24px;font-size:16px;cursor:pointer;background:#4ec98a;color:#000;border:none;border-radius:8px;font-weight:700">Restaurar Agora</button>
+<pre id="log" style="margin-top:1rem;padding:1rem;background:#222;border-radius:8px;min-height:100px"></pre>
+<script>
+var SB='https://mvvsjaudhbglxttxaeop.supabase.co';
+var KEY='sb_publishable_uBqL8sLjMGWnZ2aaQ1zwvg_mlQrZUXR';
+var H={apikey:KEY,Authorization:'Bearer '+KEY};
+var log=document.getElementById('log');
+function addLog(t){log.textContent+=t+'\n'}
+document.getElementById('btn').onclick=async function(){
+  addLog('Buscando conciliacao do cloud...');
+  try{
+    var r=await fetch(SB+'/rest/v1/sync_data?select=data,updated_at&key=eq.gdp.conciliacao.v1&order=updated_at.desc&limit=1',{headers:H});
+    var d=await r.json();
+    if(d[0]&&d[0].data){
+      var items=d[0].data.items||[];
+      addLog('Encontrado: '+items.length+' items (atualizado em '+d[0].updated_at+')');
+      localStorage.setItem('gdp.conciliacao.v1',JSON.stringify(d[0].data));
+      addLog('Conciliacao gravada no localStorage!');
+    }else{addLog('Nenhum dado encontrado no cloud.')}
+  }catch(e){addLog('ERRO: '+e.message)}
+  addLog('---');
+  addLog('Buscando extratos do cloud...');
+  try{
+    var r2=await fetch(SB+'/rest/v1/sync_data?select=data,updated_at&key=eq.gdp.extratos.v1&order=updated_at.desc&limit=1',{headers:H});
+    var d2=await r2.json();
+    if(d2[0]&&d2[0].data){
+      var items2=d2[0].data.items||[];
+      addLog('Encontrado: '+items2.length+' extratos (atualizado em '+d2[0].updated_at+')');
+      localStorage.setItem('gdp.extratos.v1',JSON.stringify(d2[0].data));
+      addLog('Extratos gravados no localStorage!');
+    }else{addLog('Nenhum extrato encontrado no cloud.')}
+  }catch(e){addLog('ERRO extratos: '+e.message)}
+  addLog('===');
+  addLog('PRONTO! Agora va para o painel (gdp-contratos.html) e faca Ctrl+Shift+R');
+};
+</script>
+</body></html>
