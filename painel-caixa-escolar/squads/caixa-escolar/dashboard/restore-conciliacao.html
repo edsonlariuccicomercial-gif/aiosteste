@@ -1,41 +1,87 @@
 <!DOCTYPE html>
-<html><head><meta charset="UTF-8"><title>Restaurar Conciliacao</title></head>
+<html><head><meta charset="UTF-8"><title>Restaurar Dados GDP</title></head>
 <body style="font-family:sans-serif;padding:2rem;background:#111;color:#eee">
-<h2>Restaurar Conciliacao do Cloud</h2>
-<button id="btn" style="padding:12px 24px;font-size:16px;cursor:pointer;background:#4ec98a;color:#000;border:none;border-radius:8px;font-weight:700">Restaurar Agora</button>
-<pre id="log" style="margin-top:1rem;padding:1rem;background:#222;border-radius:8px;min-height:100px"></pre>
+<h2>Restaurar TODOS os Dados do Supabase</h2>
+<p style="color:#94a3b8;margin-bottom:1rem">Puxa contratos, pedidos, notas fiscais, contas e conciliacao do Supabase para o localStorage.</p>
+<button id="btn" style="padding:14px 32px;font-size:18px;cursor:pointer;background:#4ec98a;color:#000;border:none;border-radius:8px;font-weight:700">Restaurar TUDO Agora</button>
+<pre id="log" style="margin-top:1rem;padding:1rem;background:#222;border-radius:8px;min-height:200px;font-size:13px;overflow:auto"></pre>
 <script>
 var SB='https://mvvsjaudhbglxttxaeop.supabase.co';
 var KEY='sb_publishable_uBqL8sLjMGWnZ2aaQ1zwvg_mlQrZUXR';
-var H={apikey:KEY,Authorization:'Bearer '+KEY};
+var H={apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'};
 var log=document.getElementById('log');
-function addLog(t){log.textContent+=t+'\n'}
+function addLog(t){log.textContent+=t+'\n';log.scrollTop=log.scrollHeight}
+
+// Garantir empresa_id
+try{var emp=JSON.parse(localStorage.getItem('nexedu.empresa')||'{}');emp.syncUserId='LARIUCCI';if(!emp.nome)emp.nome='LARIUCCI';localStorage.setItem('nexedu.empresa',JSON.stringify(emp));addLog('empresa_id: LARIUCCI (OK)')}catch(e){addLog('ERRO empresa: '+e.message)}
+
 document.getElementById('btn').onclick=async function(){
-  addLog('Buscando conciliacao do cloud...');
+  this.disabled=true;this.textContent='Restaurando...';
+
+  // 1. Tabelas dedicadas do Supabase
+  var tables=[
+    {name:'contratos',lsKey:'gdp.contratos.v1',wrapped:true},
+    {name:'pedidos',lsKey:'gdp.pedidos.v1',wrapped:true},
+    {name:'notas_fiscais',lsKey:'gdp.notas-fiscais.v1',wrapped:true},
+    {name:'contas_receber',lsKey:'gdp.contas-receber.v1',wrapped:true},
+    {name:'contas_pagar',lsKey:'gdp.contas-pagar.v1',wrapped:true},
+    {name:'entregas',lsKey:'gdp.entregas.provas.v1',wrapped:false},
+    {name:'clientes',lsKey:'gdp.usuarios.v1',wrapped:false}
+  ];
+
+  for(var t of tables){
+    try{
+      addLog('Baixando '+t.name+'...');
+      var r=await fetch(SB+'/rest/v1/'+t.name+'?select=*&empresa_id=eq.LARIUCCI',{headers:H});
+      if(!r.ok){addLog('  ERRO HTTP '+r.status);continue}
+      var rows=await r.json();
+      addLog('  '+rows.length+' registros encontrados');
+      if(rows.length>0){
+        var val=t.wrapped?{_v:1,updatedAt:new Date().toISOString(),items:rows}:rows;
+        localStorage.setItem(t.lsKey,JSON.stringify(val));
+        addLog('  Gravado em '+t.lsKey);
+      }
+    }catch(e){addLog('  ERRO '+t.name+': '+e.message)}
+  }
+
+  // 2. Conciliacao e extratos do sync_data (legado)
+  addLog('---');
+  addLog('Baixando conciliacao do sync_data...');
   try{
     var r=await fetch(SB+'/rest/v1/sync_data?select=data,updated_at&key=eq.gdp.conciliacao.v1&order=updated_at.desc&limit=1',{headers:H});
     var d=await r.json();
     if(d[0]&&d[0].data){
       var items=d[0].data.items||[];
-      addLog('Encontrado: '+items.length+' items (atualizado em '+d[0].updated_at+')');
+      addLog('  '+items.length+' lancamentos (ate '+d[0].updated_at+')');
       localStorage.setItem('gdp.conciliacao.v1',JSON.stringify(d[0].data));
-      addLog('Conciliacao gravada no localStorage!');
-    }else{addLog('Nenhum dado encontrado no cloud.')}
-  }catch(e){addLog('ERRO: '+e.message)}
-  addLog('---');
-  addLog('Buscando extratos do cloud...');
+    }else{addLog('  Nenhum dado no sync_data')}
+  }catch(e){addLog('  ERRO: '+e.message)}
+
+  addLog('Baixando extratos do sync_data...');
   try{
     var r2=await fetch(SB+'/rest/v1/sync_data?select=data,updated_at&key=eq.gdp.extratos.v1&order=updated_at.desc&limit=1',{headers:H});
     var d2=await r2.json();
     if(d2[0]&&d2[0].data){
       var items2=d2[0].data.items||[];
-      addLog('Encontrado: '+items2.length+' extratos (atualizado em '+d2[0].updated_at+')');
+      addLog('  '+items2.length+' extratos');
       localStorage.setItem('gdp.extratos.v1',JSON.stringify(d2[0].data));
-      addLog('Extratos gravados no localStorage!');
-    }else{addLog('Nenhum extrato encontrado no cloud.')}
-  }catch(e){addLog('ERRO extratos: '+e.message)}
+    }else{addLog('  Nenhum extrato no sync_data')}
+  }catch(e){addLog('  ERRO: '+e.message)}
+
+  // 3. Config keys do sync_data
+  var configKeys=['nexedu.config.contas-bancarias','nexedu.config.notas-fiscais','nexedu.config.bank-api'];
+  for(var ck of configKeys){
+    try{
+      var r3=await fetch(SB+'/rest/v1/sync_data?select=data&key=eq.'+encodeURIComponent(ck)+'&order=updated_at.desc&limit=1',{headers:H});
+      var d3=await r3.json();
+      if(d3[0]&&d3[0].data){localStorage.setItem(ck,JSON.stringify(d3[0].data));addLog('Config '+ck+': OK')}
+    }catch(e){}
+  }
+
   addLog('===');
-  addLog('PRONTO! Agora va para o painel (gdp-contratos.html) e faca Ctrl+Shift+R');
+  addLog('RESTAURACAO COMPLETA!');
+  addLog('Redirecionando para o painel em 3 segundos...');
+  setTimeout(function(){window.location.href='gdp-contratos.html'},3000);
 };
 </script>
 </body></html>
