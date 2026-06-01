@@ -226,13 +226,13 @@ function generateDanfePdf(nfe, body) {
   // ===== DADOS ADICIONAIS (idêntico ao Visualizar DANFE) =====
   y = sectionTitle(y, 'DADOS ADICIONAIS');
   const infLines = [];
-  if (nfe.pedidoId) infLines.push('Inf. Contribuinte: Pedido GDP ' + nfe.pedidoId);
+  if (nfe.pedidoId || body.protocol) infLines.push('Inf. Contribuinte: Pedido GDP ' + (nfe.pedidoId || body.protocol));
   const destEmailAddr = nfe.destEmail || dest.email || body.to || '';
   if (destEmailAddr) infLines.push('Email do Destinatario: ' + destEmailAddr);
-  if (nfe.observacoes) {
-    // Observação usa | como separador de blocos — converter para linhas
-    const obsText = String(nfe.observacoes).replace(/\|/g, '\n');
-    obsText.split('\n').filter(Boolean).forEach(ln => infLines.push(ln.trim()));
+  // Observação: tentar nfe.observacoes primeiro, fallback para body.obs
+  const obsSource = nfe.observacoes || body.obs || '';
+  if (obsSource) {
+    String(obsSource).replace(/\|/g, '\n').split('\n').filter(Boolean).forEach(ln => infLines.push(ln.trim()));
   }
   infLines.push('Valor Aproximado dos Tributos : R$ 0,00');
   // Altura dinâmica: cada linha ~3.2mm, mínimo 22mm, máximo até nova página
@@ -275,14 +275,6 @@ export default async function handler(req, res) {
   if (!body) return res.status(400).json({ error: "JSON invalido" });
 
   const { to, schoolName, protocol, date, items, total, obs, olistId, responsible, cnpj, sre, pagamento, nfe } = body;
-
-  // DEBUG: log nfe payload para diagnosticar observações
-  if (nfe) {
-    console.log('[Email DEBUG] nfe.observacoes:', JSON.stringify(nfe.observacoes || null));
-    console.log('[Email DEBUG] nfe.pedidoId:', nfe.pedidoId || null);
-    console.log('[Email DEBUG] nfe.destEmail:', nfe.destEmail || null);
-    console.log('[Email DEBUG] dest.email:', (nfe.destinatario || {}).email || null);
-  }
 
   if (!to || !protocol) {
     return res.status(400).json({ error: "Campos obrigatorios: to, protocol" });
