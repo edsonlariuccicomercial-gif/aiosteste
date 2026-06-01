@@ -2030,23 +2030,24 @@ function excluirPedidoPortal(protocol) {
 
 function verPedido(protocol) {
   let order = escolaOrders.find(o => o.protocol === protocol);
-  // Also search cronograma orders from pedidos.v1
+  // Also search ALL orders from pedidos.v1 (Supabase)
   if (!order) {
     try {
       const pv1 = unwrapData(JSON.parse(localStorage.getItem('gdp.pedidos.v1') || '{}'));
-      const cp = pv1.find(p => p.id === protocol && p.cronograma);
+      const cp = pv1.find(p => p.id === protocol);
       if (cp) {
         order = {
           protocol: cp.id, contratoId: cp.contratoId, school: cp.escola,
           date: cp.dataEntrega || cp.data, total: cp.valor || 0,
           items: (cp.itens || []).map(i => ({ name: i.descricao, qty: i.qtd, unit: i.unidade, unitPrice: i.precoUnitario, itemNum: i.itemNum })),
           itemCount: (cp.itens || []).length, obs: cp.obs || '', marcador: cp.marcador || '',
-          cronograma: true, statusAgendado: true
+          status: cp.status || 'pendente',
+          cronograma: !!cp.cronograma, statusAgendado: cp.status === 'agendado'
         };
       }
     } catch(_) {}
   }
-  if (!order) return;
+  if (!order) { alert('Pedido nao encontrado. Tente recarregar a pagina (Ctrl+Shift+R).'); return; }
 
   const modal = document.getElementById('modal-pedido');
   document.getElementById('modal-pedido-titulo').textContent = 'Pedido ' + protocol;
