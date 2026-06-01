@@ -1,6 +1,51 @@
 // ===== GDP NOTAS FISCAIS MODULE =====
 // Extracted from gdp-contratos.html — NF-e, SEFAZ, DANFE, cobranças
 
+// Retry helper: salva NF no Supabase com 3 tentativas
+async function _saveNfToSupabaseWithRetry(nfData, maxRetries) {
+  var retries = maxRetries || 3;
+  for (var attempt = 1; attempt <= retries; attempt++) {
+    try {
+      if (window.gdpApi) await window.gdpApi.notas_fiscais.save(nfData);
+      return true;
+    } catch (e) {
+      gdpWarn('[NF] Supabase save attempt ' + attempt + '/' + retries + ' failed:', e.message);
+      if (attempt < retries) await new Promise(function(r) { setTimeout(r, 1000 * attempt); });
+    }
+  }
+  // Todas tentativas falharam — salvar em fila pendente para retry no próximo boot
+  try {
+    var pending = JSON.parse(localStorage.getItem('gdp.nf-pending-save.v1') || '[]');
+    if (!pending.find(function(p) { return p.id === nfData.id; })) {
+      pending.push(nfData);
+      localStorage.setItem('gdp.nf-pending-save.v1', JSON.stringify(pending));
+      gdpWarn('[NF] Salvo na fila pendente para retry:', nfData.id);
+    }
+  } catch(_) {}
+  return false;
+}
+
+// Flush fila de NFs pendentes no boot (retry de saves que falharam)
+setTimeout(function() {
+  try {
+    var pending = JSON.parse(localStorage.getItem('gdp.nf-pending-save.v1') || '[]');
+    if (pending.length > 0 && window.gdpApi) {
+      gdpLog('[NF] Flushing ' + pending.length + ' pending NF saves...');
+      var remaining = [];
+      (async function() {
+        for (var p of pending) {
+          try {
+            await window.gdpApi.notas_fiscais.save(p);
+            gdpLog('[NF] Pending save OK:', p.id);
+          } catch(e) { remaining.push(p); }
+        }
+        localStorage.setItem('gdp.nf-pending-save.v1', JSON.stringify(remaining));
+        if (remaining.length > 0) gdpWarn('[NF] ' + remaining.length + ' NFs still pending after retry');
+      })();
+    }
+  } catch(_) {}
+}, 5000);
+
 // --- Block 1: NF utilities, fiscal config, invoice building, SEFAZ ---
 function getNotaFiscalByPedido(pedidoId) {
   return notasFiscais.find((nf) => nf.pedidoId === pedidoId) || null;
@@ -1080,28 +1125,16 @@ async function autorizarNotaFiscal(notaId) {
   };
   saveNotasFiscais();
 
-  // Persist to Supabase immediately after SEFAZ authorization
-  if (window.gdpApi) {
-    window.gdpApi.notas_fiscais.save({
-      id: nf.id,
-      numero: nf.numero,
-      serie: nf.serie,
-      valor: nf.valor,
-      status: nf.status,
-      pedido_id: nf.pedidoId,
-      contrato_id: nf.contratoId,
-      tipo_nota: nf.tipoNota,
-      emitida_em: nf.emitidaEm,
-      cliente: nf.cliente,
-      itens: nf.itens,
-      sefaz: nf.sefaz,
-      chave_acesso: nf.sefaz?.chaveAcesso,
-      protocolo: nf.sefaz?.protocolo,
-      xml_autorizado: nf.sefaz?.xmlAutorizado || nf.sefaz?.autorizacaoPreview || '',
-      cobranca: nf.cobranca,
-      audit: nf.audit
-    }).catch(e => gdpWarn('[NF] Supabase save failed:', e));
-  }
+  // Persist to Supabase with retry (prevent NF loss like 1475/1476)
+  _saveNfToSupabaseWithRetry({
+    id: nf.id, numero: nf.numero, serie: nf.serie, valor: nf.valor,
+    status: nf.status, pedidoId: nf.pedidoId, contratoId: nf.contratoId,
+    tipoNota: nf.tipoNota, emitidaEm: nf.emitidaEm, cliente: nf.cliente,
+    itens: nf.itens, sefaz: nf.sefaz, chaveAcesso: nf.sefaz?.chaveAcesso,
+    protocolo: nf.sefaz?.protocolo,
+    xmlAutorizado: nf.sefaz?.xmlAutorizado || nf.sefaz?.autorizacaoPreview || '',
+    cobranca: nf.cobranca, documentos: nf.documentos, audit: nf.audit
+  });
 
   const pedido = pedidos.find((item) => item.id === nf.pedidoId);
   if (pedido) {
@@ -1330,27 +1363,17 @@ async function transmitirHomologacaoNota(notaId) {
       }
     }
 
-    // Persist to Supabase immediately after real SEFAZ authorization
-    if (window.gdpApi && result.parsed?.autorizado) {
-      window.gdpApi.notas_fiscais.save({
-        id: nf.id,
-        numero: nf.numero,
-        serie: nf.serie,
-        valor: nf.valor,
-        status: nf.status,
-        pedido_id: nf.pedidoId,
-        contrato_id: nf.contratoId,
-        tipo_nota: nf.tipoNota,
-        emitida_em: nf.emitidaEm,
-        cliente: nf.cliente,
-        itens: nf.itens,
-        sefaz: nf.sefaz,
-        chave_acesso: nf.sefaz?.chaveAcesso,
+    // Persist to Supabase with retry (prevent NF loss)
+    if (result.parsed?.autorizado) {
+      _saveNfToSupabaseWithRetry({
+        id: nf.id, numero: nf.numero, serie: nf.serie, valor: nf.valor,
+        status: nf.status, pedidoId: nf.pedidoId, contratoId: nf.contratoId,
+        tipoNota: nf.tipoNota, emitidaEm: nf.emitidaEm, cliente: nf.cliente,
+        itens: nf.itens, sefaz: nf.sefaz, chaveAcesso: nf.sefaz?.chaveAcesso,
         protocolo: nf.sefaz?.protocolo,
-        xml_autorizado: nf.sefaz?.transmissao?.xml || nf.sefaz?.xmlAutorizado || nf.sefaz?.autorizacaoPreview || '',
-        cobranca: nf.cobranca,
-        audit: nf.audit
-      }).catch(e => gdpWarn('[NF] Supabase save failed:', e));
+        xmlAutorizado: nf.sefaz?.transmissao?.xml || nf.sefaz?.xmlAutorizado || nf.sefaz?.autorizacaoPreview || '',
+        cobranca: nf.cobranca, documentos: nf.documentos, audit: nf.audit
+      });
     }
 
     renderAll();

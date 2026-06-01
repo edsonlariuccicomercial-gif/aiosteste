@@ -466,7 +466,7 @@
         await window.gdpAuth.signIn(email, pass);
         try {
           var emp = JSON.parse(localStorage.getItem('nexedu.empresa') || '{}');
-          if (!emp.syncUserId) { emp.syncUserId = 'LARIUCCI'; localStorage.setItem('nexedu.empresa', JSON.stringify(emp)); }
+          emp.syncUserId = 'LARIUCCI'; localStorage.setItem('nexedu.empresa', JSON.stringify(emp));
         } catch(_) {}
         window.location.href = DASHBOARD_URL;
       } catch (authErr) {

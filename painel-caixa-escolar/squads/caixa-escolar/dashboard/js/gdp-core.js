@@ -539,10 +539,10 @@ function schedulCloudSync() {
 }
 
 async function forcarSyncCompleto() {
+  if (!confirm('Sincronizar dados com o cloud? Dados locais nao salvos no Supabase podem ser perdidos.')) return;
   try {
-    // Story 4.61: limpar dados locais que podem estar obsoletos antes de puxar do cloud
-    setGdpSyncState({ status: "syncing", detail: "Limpando cache local..." });
-    showToast("Sync: limpando cache e baixando dados do cloud...", 2000);
+    setGdpSyncState({ status: "syncing", detail: "Sincronizando com cloud..." });
+    showToast("Sync: baixando dados do cloud...", 2000);
     // Story 4.83: NÃO deletar conciliação/extratos — dados desaparecem se cloud falhar
     // Apenas notas-entrada e fornecedores são safe to clear (não são dados financeiros críticos)
     localStorage.removeItem("gdp.notas-entrada.v1");
