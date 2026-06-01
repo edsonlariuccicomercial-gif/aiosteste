@@ -223,12 +223,14 @@ function generateDanfePdf(nfe, body) {
     y += rowH;
   });
 
-  // ===== DADOS ADICIONAIS =====
+  // ===== DADOS ADICIONAIS (idêntico ao Visualizar DANFE) =====
   y = sectionTitle(y, 'DADOS ADICIONAIS');
   const infLines = [];
-  if (nfe.observacoes) infLines.push(...String(nfe.observacoes).split('\n').filter(Boolean));
-  if (body.protocol && !String(body.protocol).startsWith('COB-')) infLines.push('Pedido GDP: ' + body.protocol);
-  infLines.push('Valor Aproximado dos Tributos: R$ 0,00');
+  if (nfe.pedidoId) infLines.push('Inf. Contribuinte: Pedido GDP ' + nfe.pedidoId);
+  const destEmailAddr = dest.email || '';
+  if (destEmailAddr) infLines.push('Email do Destinatario: ' + destEmailAddr);
+  if (nfe.observacoes) infLines.push(...String(nfe.observacoes).replace(/\|/g, '\n').split('\n').filter(Boolean));
+  infLines.push('Valor Aproximado dos Tributos : R$ 0,00');
   const addH = Math.max(22, 8 + infLines.length * 3);
   doc.rect(M, y, IW * 0.65, addH);
   doc.setFontSize(5); doc.setFont('helvetica', 'normal');

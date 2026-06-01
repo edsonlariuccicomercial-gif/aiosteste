@@ -1148,6 +1148,9 @@ async function autorizarNotaFiscal(notaId) {
 
   renderAll();
   showToast(`NF ${nf.numero} autorizada. ${conta ? "Cobranca real enviada ao provider." : "Sem conta a receber vinculada."}`, 4000);
+
+  // Disparo automático de email ao autorizar NF
+  await dispararEmailNotaEBoletoAutomatico(nf.id, conta?.id || null, { manual: false });
 }
 
 async function transmitirHomologacaoNota(notaId) {
@@ -1352,6 +1355,12 @@ async function transmitirHomologacaoNota(notaId) {
 
     renderAll();
     showToast(`SEFAZ: ${result.parsed?.cStat || "-"} ${result.parsed?.xMotivo || ""}`.trim(), 5000);
+
+    // Disparo automático de email quando NF autorizada pela SEFAZ
+    if (result.parsed?.autorizado) {
+      const contaEmail = getContaReceberByNota(nf.id);
+      await dispararEmailNotaEBoletoAutomatico(nf.id, contaEmail?.id || null, { manual: false });
+    }
   } catch (err) {
     nf.status = "rejeitada";
     nf.audit = { ...(nf.audit || {}), updatedAt: new Date().toISOString(), updatedBy: getAuditActor() };
@@ -2385,6 +2394,8 @@ async function dispararEmailNotaEBoletoAutomatico(notaId, contaId, options = {})
       chaveAcesso: nf.sefaz?.chaveAcesso || "",
       emitente: nf.sefaz?.preview?.emitente || {},
       destinatario: nf.sefaz?.preview?.destinatario || nf.cliente || {},
+      observacoes: nf.documentos?.observacao || "",
+      pedidoId: nf.pedidoId || "",
       itensNf: (nf.itens || []).map(function(i) { return { desc: i.descricao, ncm: i.ncm, cst: i.cst, cfop: i.cfop, un: i.unidade, qtd: i.qtd, vUnit: i.precoUnitario }; })
     },
     pagamento: conta ? {
