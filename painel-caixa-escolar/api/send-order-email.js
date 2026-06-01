@@ -276,6 +276,14 @@ export default async function handler(req, res) {
 
   const { to, schoolName, protocol, date, items, total, obs, olistId, responsible, cnpj, sre, pagamento, nfe } = body;
 
+  // DEBUG: log nfe payload para diagnosticar observações
+  if (nfe) {
+    console.log('[Email DEBUG] nfe.observacoes:', JSON.stringify(nfe.observacoes || null));
+    console.log('[Email DEBUG] nfe.pedidoId:', nfe.pedidoId || null);
+    console.log('[Email DEBUG] nfe.destEmail:', nfe.destEmail || null);
+    console.log('[Email DEBUG] dest.email:', (nfe.destinatario || {}).email || null);
+  }
+
   if (!to || !protocol) {
     return res.status(400).json({ error: "Campos obrigatorios: to, protocol" });
   }
