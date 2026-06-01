@@ -460,7 +460,7 @@ export default async function handler(req, res) {
         html: html,
         attachments: attachments.length > 0 ? attachments : undefined
       });
-      return res.status(200).json({ success: true, provider: 'gmail', id: info.messageId });
+      return res.status(200).json({ success: true, provider: 'gmail', id: info.messageId, _debug: { obsSource: obs || null, nfeObs: nfe?.observacoes || null, nfePedidoId: nfe?.pedidoId || null, nfeDestEmail: nfe?.destEmail || null } });
     } catch (gmailErr) {
       console.error('[Email/Gmail] Falha:', gmailErr.message);
       return res.status(500).json({ error: `Gmail: ${gmailErr.message}` });

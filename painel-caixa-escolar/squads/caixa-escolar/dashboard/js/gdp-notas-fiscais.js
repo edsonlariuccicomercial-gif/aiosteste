@@ -2429,7 +2429,7 @@ async function dispararEmailNotaEBoletoAutomatico(notaId, contaId, options = {})
         if (resp.ok && !data.error) {
           successCount++;
           lastId = data.id || "";
-          gdpLog("[Email NF] OK para:", addr, "ID:", data.id || "-");
+          gdpLog("[Email NF] OK para:", addr, "ID:", data.id || "-", "DEBUG:", JSON.stringify(data._debug || {}));
         } else {
           gdpWarn("[Email NF] Falha para", addr, ":", data.error || resp.status);
         }
