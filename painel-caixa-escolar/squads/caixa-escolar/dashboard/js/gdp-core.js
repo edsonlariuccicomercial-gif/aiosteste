@@ -125,8 +125,8 @@ function scheduleGdpCloudSync() { if (typeof schedulCloudSync === "function") sc
 const SUPABASE_URL = window.SUPABASE_URL || "https://mvvsjaudhbglxttxaeop.supabase.co";
 const SUPABASE_KEY = window.SUPABASE_KEY || "sb_publishable_uBqL8sLjMGWnZ2aaQ1zwvg_mlQrZUXR";
 // Entidades com tabela Supabase real — NÃO sincronizar via sync_data (gdpApi cuida)
-const _SUPABASE_TABLE_KEYS = new Set([CONTRACTS_KEY, ORDERS_KEY, INVOICES_KEY, RECEIVABLES_KEY, PAYABLES_KEY, PROOFS_KEY, "gdp.usuarios.v1"]);
-const GDP_SYNC_KEYS = [CONTRACTS_DELETED_KEY, ENTRY_INVOICES_KEY, PAYABLE_CATEGORIES_KEY, RECEIVABLE_CATEGORIES_KEY, PAYABLE_METHODS_KEY, RECEIVABLE_METHODS_KEY, CAIXA_STATEMENT_KEY, STOCK_KEY, ESTOQUE_INTEL_PRODUCTS_KEY, ESTOQUE_INTEL_PACKAGES_KEY, ESTOQUE_INTEL_ORDERS_KEY, ESTOQUE_INTEL_ORDER_ITEMS_KEY, ESTOQUE_INTEL_MOVES_KEY, ESTOQUE_INTEL_SUPPLIERS_KEY, ESTOQUE_INTEL_PURCHASES_KEY, INTEGRATIONS_KEY, "caixaescolar.banco.v1", GDP_EQUIV_KEY, GDP_CONVERSOES_KEY, GDP_DEMANDAS_KEY, GDP_ESTOQUE_SIMPLES_KEY, GDP_COMPRAS_KEY, "nexedu.config.contas-bancarias", "nexedu.config.notas-fiscais", "nexedu.config.bank-api", "nexedu.usuarios", "nexedu.empresa", "gdp.extratos.v1", "gdp.conciliacao.v1", "gdp.produtos.v1", "gdp.extratos.deleted.v1", "gdp.conciliacao.deleted.v1", "gdp.estoque-intel.movimentacoes.deleted.v1"];
+const _SUPABASE_TABLE_KEYS = new Set([CONTRACTS_KEY, ORDERS_KEY, INVOICES_KEY, RECEIVABLES_KEY, PAYABLES_KEY, PROOFS_KEY, "gdp.usuarios.v1", "gdp.extratos.v1", "gdp.conciliacao.v1"]);
+const GDP_SYNC_KEYS = [CONTRACTS_DELETED_KEY, ENTRY_INVOICES_KEY, PAYABLE_CATEGORIES_KEY, RECEIVABLE_CATEGORIES_KEY, PAYABLE_METHODS_KEY, RECEIVABLE_METHODS_KEY, CAIXA_STATEMENT_KEY, STOCK_KEY, ESTOQUE_INTEL_PRODUCTS_KEY, ESTOQUE_INTEL_PACKAGES_KEY, ESTOQUE_INTEL_ORDERS_KEY, ESTOQUE_INTEL_ORDER_ITEMS_KEY, ESTOQUE_INTEL_MOVES_KEY, ESTOQUE_INTEL_SUPPLIERS_KEY, ESTOQUE_INTEL_PURCHASES_KEY, INTEGRATIONS_KEY, "caixaescolar.banco.v1", GDP_EQUIV_KEY, GDP_CONVERSOES_KEY, GDP_DEMANDAS_KEY, GDP_ESTOQUE_SIMPLES_KEY, GDP_COMPRAS_KEY, "nexedu.config.contas-bancarias", "nexedu.config.notas-fiscais", "nexedu.config.bank-api", "nexedu.usuarios", "nexedu.empresa", "gdp.produtos.v1", "gdp.extratos.deleted.v1", "gdp.conciliacao.deleted.v1", "gdp.estoque-intel.movimentacoes.deleted.v1"];
 const GDP_SHARED_SYNC_KEYS = new Set(GDP_SYNC_KEYS);
 const GDP_SYNC_USER_KEY = "gdp.sync.user_id.v1";
 const GDP_SYNC_FALLBACK_USER = "LARIUCCI";
@@ -554,8 +554,8 @@ async function forcarSyncCompleto() {
     // Também fazer full load das tabelas dedicadas do Supabase (pedidos, contratos, etc.)
     // PROTEÇÃO: se Supabase retornar 0 rows mas localStorage tinha dados, NÃO zerar
     if (window.gdpApi) {
-      const tables = ['contratos', 'pedidos', 'notas_fiscais', 'contas_receber', 'contas_pagar', 'entregas'];
-      const lsKeys = { contratos: 'gdp.contratos.v1', pedidos: 'gdp.pedidos.v1', notas_fiscais: 'gdp.notas-fiscais.v1', contas_receber: 'gdp.contas-receber.v1', contas_pagar: 'gdp.contas-pagar.v1', entregas: 'gdp.entregas.provas.v1' };
+      const tables = ['contratos', 'pedidos', 'notas_fiscais', 'contas_receber', 'contas_pagar', 'entregas', 'extratos', 'conciliacoes'];
+      const lsKeys = { contratos: 'gdp.contratos.v1', pedidos: 'gdp.pedidos.v1', notas_fiscais: 'gdp.notas-fiscais.v1', contas_receber: 'gdp.contas-receber.v1', contas_pagar: 'gdp.contas-pagar.v1', entregas: 'gdp.entregas.provas.v1', extratos: 'gdp.extratos.v1', conciliacoes: 'gdp.conciliacao.v1' };
       for (const table of tables) {
         try {
           if (window.gdpApi[table] && window.gdpApi[table].list) {
@@ -2396,14 +2396,17 @@ function loadConciliacao() {
 }
 
 function saveConciliacao(items) {
-  // Story 4.64: garantir que cada item tenha ID para delete tracking
   var arr = items || [];
   arr.forEach(function(it) { if (!it.id) it.id = 'conc-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8); });
-  // Story 4.62: salvar no formato wrapped para que syncToCloud reconheça exclusões (updatedAt)
   var wrapped = { _v: 1, updatedAt: new Date().toISOString(), items: arr };
   localStorage.setItem(CONCILIACAO_KEY, JSON.stringify(wrapped));
-  _lastLocalSave[CONCILIACAO_KEY] = Date.now(); // Story 4.83: dirty window protection
-  if (typeof cloudSave === 'function') cloudSave(CONCILIACAO_KEY, wrapped);
+  _lastLocalSave[CONCILIACAO_KEY] = Date.now();
+  // Persistir cada item no Supabase (tabela dedicada)
+  if (window.gdpApi && window.gdpApi.conciliacoes) {
+    arr.forEach(function(it) {
+      window.gdpApi.conciliacoes.save(it).catch(function(e) { gdpWarn('[Conciliacao] Supabase save failed:', it.id, e.message); });
+    });
+  }
 }
 
 // Story 4.51 AC-C1/C2/C3: extrato management
@@ -2427,8 +2430,13 @@ function saveExtratos(list) {
   arr.forEach(function(it) { if (!it.id) it.id = 'ext-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8); });
   var wrapped = { _v: 1, updatedAt: new Date().toISOString(), items: arr };
   localStorage.setItem(EXTRATOS_KEY, JSON.stringify(wrapped));
-  _lastLocalSave[EXTRATOS_KEY] = Date.now(); // Story 4.83: dirty window protection
-  if (typeof cloudSave === 'function') cloudSave(EXTRATOS_KEY, wrapped);
+  _lastLocalSave[EXTRATOS_KEY] = Date.now();
+  // Persistir cada extrato no Supabase (tabela dedicada)
+  if (window.gdpApi && window.gdpApi.extratos) {
+    arr.forEach(function(it) {
+      window.gdpApi.extratos.save(it).catch(function(e) { gdpWarn('[Extratos] Supabase save failed:', it.id, e.message); });
+    });
+  }
 }
 
 function registrarExtrato(filename, contaFinanceira, items) {

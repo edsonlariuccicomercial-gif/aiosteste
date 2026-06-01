@@ -24,7 +24,9 @@
     contas_receber: { lsKey: 'gdp.contas-receber.v1',  table: 'contas_receber', wrapped: true  },
     contas_pagar:   { lsKey: 'gdp.contas-pagar.v1',    table: 'contas_pagar',   wrapped: true  },
     entregas:       { lsKey: 'gdp.entregas.provas.v1', table: 'entregas',       wrapped: false },
-    nf_counter:     { lsKey: 'gdp.nf-counter.v1',      table: 'nf_counter',     wrapped: false }
+    nf_counter:     { lsKey: 'gdp.nf-counter.v1',      table: 'nf_counter',     wrapped: false },
+    extratos:       { lsKey: 'gdp.extratos.v1',         table: 'extratos',       wrapped: true  },
+    conciliacoes:   { lsKey: 'gdp.conciliacao.v1',      table: 'conciliacoes',   wrapped: true  }
   };
 
   // Story 14.1: empresa_id must match syncUserId set at login (from escola.id or "LARIUCCI")
@@ -71,13 +73,17 @@
     clientes: ['id','empresa_id','nome','cnpj','ie','uf','cep','sre','email','telefone','endereco','contratos_vinculados','login','senha','municipio','responsavel','cargo','contribuinte_icms','categoria_catalogo','arp_vinculada','saldo_total','saldo_disponivel','dados_extras','created_at','updated_at'],
     contas_receber: ['id','empresa_id','pedido_id','origem_id','descricao','valor','status','forma','categoria','vencimento','cliente','cobranca','automacao','audit','created_at','updated_at'],
     contas_pagar: ['id','empresa_id','descricao','valor','status','forma','categoria','vencimento','fornecedor','audit','created_at','updated_at'],
-    entregas: ['id','empresa_id','pedido_id','escola','data_entrega','status_entrega','recebedor','obs','foto','assinatura','created_at','updated_at']
+    entregas: ['id','empresa_id','pedido_id','escola','data_entrega','status_entrega','recebedor','obs','foto','assinatura','created_at','updated_at'],
+    extratos: ['id','empresa_id','data','arquivo','conta_financeira','conciliados','total','is_open','criado_em','created_at','updated_at'],
+    conciliacoes: ['id','empresa_id','extrato_id','data','descricao','valor','tipo','conciliado','conciliado_em','vinculado_a','historico','categoria_dre','metadata','created_at','updated_at']
   };
   var CAMEL_TO_SNAKE = {
     escolaClienteId:'escola_cliente_id', contratoId:'contrato_id', pedidoId:'pedido_id', origemId:'origem_id',
     tipoNota:'tipo_nota', emitidaEm:'emitida_em', clienteSnapshot:'cliente_snapshot',
     dataApuracao:'data_apuracao', dataEntrega:'data_entrega', statusEntrega:'status_entrega',
     xmlAutorizado:'xml_autorizado', chaveAcesso:'chave_acesso',
+    contaFinanceira:'conta_financeira', isOpen:'is_open', criadoEm:'criado_em',
+    extratoId:'extrato_id', conciliadoEm:'conciliado_em', vinculadoA:'vinculado_a', categoriaDre:'categoria_dre',
     nomeFantasia:'nome_fantasia', razaoSocial:'razao_social',
     categoriaCatalogo:'categoria_catalogo', arpVinculada:'arp_vinculada',
     saldoTotal:'saldo_total', saldoDisponivel:'saldo_disponivel', contribuinteIcms:'contribuinte_icms'
