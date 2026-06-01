@@ -528,14 +528,14 @@ let _gdpSyncAbort = null;
 // Story 4.80: flag para bloquear cloud sync durante boot (migrações disparam saves que geram 20+ POST)
 var _gdpBootInProgress = true;
 function schedulCloudSync() {
-  if (_gdpBootInProgress) return; // Block all cloud sync during boot
+  if (_gdpBootInProgress) return;
   if (_syncTimeout) clearTimeout(_syncTimeout);
   if (_gdpSyncAbort) _gdpSyncAbort.abort();
   setGdpSyncState({ status: "pending", source: "cloud", detail: "Aguardando envio automatico" });
   _syncTimeout = setTimeout(() => {
     _gdpSyncAbort = new AbortController();
     syncToCloud(_gdpSyncAbort.signal).catch(() => {});
-  }, 2000);
+  }, 10000); // 10s debounce (era 2s — reduziu sobrecarga no Supabase)
 }
 
 async function forcarSyncCompleto() {
