@@ -227,16 +227,24 @@ function generateDanfePdf(nfe, body) {
   y = sectionTitle(y, 'DADOS ADICIONAIS');
   const infLines = [];
   if (nfe.pedidoId) infLines.push('Inf. Contribuinte: Pedido GDP ' + nfe.pedidoId);
-  const destEmailAddr = dest.email || '';
+  const destEmailAddr = dest.email || body.to || '';
   if (destEmailAddr) infLines.push('Email do Destinatario: ' + destEmailAddr);
-  if (nfe.observacoes) infLines.push(...String(nfe.observacoes).replace(/\|/g, '\n').split('\n').filter(Boolean));
+  if (nfe.observacoes) {
+    // Observação usa | como separador de blocos — converter para linhas
+    const obsText = String(nfe.observacoes).replace(/\|/g, '\n');
+    obsText.split('\n').filter(Boolean).forEach(ln => infLines.push(ln.trim()));
+  }
   infLines.push('Valor Aproximado dos Tributos : R$ 0,00');
-  const addH = Math.max(22, 8 + infLines.length * 3);
+  // Altura dinâmica: cada linha ~3.2mm, mínimo 22mm, máximo até nova página
+  const lineH = 3.2;
+  const addH = Math.max(22, 8 + infLines.length * lineH);
+  // Se ultrapassa a página, ajustar
+  if (y + addH > 280) { doc.addPage(); y = M; }
   doc.rect(M, y, IW * 0.65, addH);
   doc.setFontSize(5); doc.setFont('helvetica', 'normal');
   doc.text('INFORMACOES COMPLEMENTARES', M + 1.5, y + 3);
   doc.setFontSize(5.5);
-  infLines.forEach((ln, i) => doc.text(safe(ln, 90), M + 1.5, y + 7 + i * 3, { maxWidth: IW * 0.6 }));
+  infLines.forEach((ln, i) => doc.text(safe(ln, 120), M + 1.5, y + 7 + i * lineH, { maxWidth: IW * 0.6 }));
   doc.rect(M + IW * 0.65, y, IW * 0.35, addH);
   doc.text('RESERVADO AO FISCO', M + IW * 0.65 + 1.5, y + 3);
   y += addH;
