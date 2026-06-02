@@ -137,15 +137,16 @@ function renderPedidos() {
   // Story 4.54 AC-3: period filter replaces old date input
   filtered = _applyPeriodFilter(filtered, 'filtro-periodo-pedido', 'filtro-pedido-de', 'filtro-pedido-ate', 'data');
   if (filtroContrato) filtered = filtered.filter(p => p.contratoId === filtroContrato);
-  renderPedidosStatusTabs(filtered);
-  filtered = filtered.filter(p => normalizePedidoStatus(p.status) === pedidoStatusTabAtual);
 
-  // Story 5.17: filtro de entrega (independente do status do pedido)
+  // Story 5.17: filtro de entrega ANTES dos tabs (afeta contadores)
   var filtroEntrega = document.getElementById('filtro-entrega-pedido');
   if (filtroEntrega && filtroEntrega.value) {
     var fEnt = filtroEntrega.value;
     filtered = filtered.filter(function(p) { return calcStatusEntrega(p) === fEnt; });
   }
+
+  renderPedidosStatusTabs(filtered);
+  filtered = filtered.filter(p => normalizePedidoStatus(p.status) === pedidoStatusTabAtual);
 
   const tbody = document.getElementById("pedidos-tbody");
   const empty = document.getElementById("pedidos-empty");
