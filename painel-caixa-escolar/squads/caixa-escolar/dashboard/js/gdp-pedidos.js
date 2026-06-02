@@ -545,9 +545,15 @@ function imprimirPedidosSelecionados() {
     const totalProdutos = (p.itens || []).reduce((s, i) => s + ((i.qtd || 0) * (i.precoUnitario || 0)), 0);
     const obsText = p.obs || '';
 
-    const tableRows = (p.itens || []).map((item) => {
-      const sub = (item.qtd || 0) * (item.precoUnitario || 0);
-      return '<tr><td style="border-bottom:1px solid #ddd;padding:6px 8px">' + (item.descricao || '') + '</td><td style="border-bottom:1px solid #ddd;padding:6px 8px;text-align:center">' + (item.sku || item.codigoBarras || '') + '</td><td style="border-bottom:1px solid #ddd;padding:6px 8px;text-align:right">' + (item.qtd || 0).toFixed(2).replace('.', ',') + '</td><td style="border-bottom:1px solid #ddd;padding:6px 8px;text-align:center">' + (item.unidade || 'UN') + '</td><td style="border-bottom:1px solid #ddd;padding:6px 8px;text-align:right">' + (item.precoUnitario || 0).toFixed(2).replace('.', ',') + '</td><td style="border-bottom:1px solid #ddd;padding:6px 8px;text-align:right;font-weight:600">' + sub.toFixed(2).replace('.', ',') + '</td></tr>';
+    // Story 5.17: se pedido tem entrega parcial, imprimir só itens pendentes
+    const _hasEntregas = p.itens.some(function(it) { return (it.qtdEntregue || 0) > 0; });
+    const _itensPrint = _hasEntregas
+      ? (p.itens || []).filter(function(it) { return (it.qtd || 0) - (it.qtdEntregue || 0) > 0; })
+      : (p.itens || []);
+    const tableRows = _itensPrint.map((item) => {
+      const saldoPend = _hasEntregas ? Math.max(0, (item.qtd || 0) - (item.qtdEntregue || 0)) : (item.qtd || 0);
+      const sub = saldoPend * (item.precoUnitario || 0);
+      return '<tr><td style="border-bottom:1px solid #ddd;padding:6px 8px">' + (item.descricao || '') + '</td><td style="border-bottom:1px solid #ddd;padding:6px 8px;text-align:center">' + (item.sku || item.codigoBarras || '') + '</td><td style="border-bottom:1px solid #ddd;padding:6px 8px;text-align:right">' + saldoPend.toFixed(2).replace('.', ',') + (_hasEntregas ? ' <span style="font-size:9px;color:#999">(ped: ' + (item.qtd||0) + ')</span>' : '') + '</td><td style="border-bottom:1px solid #ddd;padding:6px 8px;text-align:center">' + (item.unidade || 'UN') + '</td><td style="border-bottom:1px solid #ddd;padding:6px 8px;text-align:right">' + (item.precoUnitario || 0).toFixed(2).replace('.', ',') + '</td><td style="border-bottom:1px solid #ddd;padding:6px 8px;text-align:right;font-weight:600">' + sub.toFixed(2).replace('.', ',') + '</td></tr>';
     }).join("");
 
     if (idx > 0) pages += '<div style="page-break-before:always"></div>';
@@ -2675,6 +2681,21 @@ function atualizarSelecaoPedidos() {
   if (count > 0) {
     if (badge) { badge.textContent = count + " protocolo" + (count > 1 ? "s" : "") + " selecionado" + (count > 1 ? "s" : ""); badge.style.display = ""; }
     if (btn) { btn.disabled = false; btn.style.opacity = "1"; btn.title = "Gerar lista de compras dos protocolos selecionados"; }
+    // Story 5.17: show/hide Rel.Entrega button
+    var btnRelEnt = document.getElementById("btn-rel-entrega");
+    if (!btnRelEnt) {
+      var footerEl = document.getElementById("pedidos-page-footer");
+      if (footerEl) {
+        btnRelEnt = document.createElement("button");
+        btnRelEnt.id = "btn-rel-entrega";
+        btnRelEnt.className = "btn btn-sm";
+        btnRelEnt.style.cssText = "background:rgba(234,179,8,.15);color:var(--yellow,#eab308);border:1px solid rgba(234,179,8,.4);font-weight:700;display:none";
+        btnRelEnt.textContent = "Rel. Entrega";
+        btnRelEnt.onclick = function() { gerarRelatorioEntregaPendente(); };
+        footerEl.appendChild(btnRelEnt);
+      }
+    }
+    if (btnRelEnt) btnRelEnt.style.display = count > 0 ? "" : "none";
     if (footer) footer.classList.add("has-selection");
     if (bulkSummary) bulkSummary.textContent = count + " pedido(s)";
     // Update footer with selected totals
@@ -3563,7 +3584,10 @@ function renderHistoricoEntregas(pedidoId) {
     html += '<div style="padding:.6rem .8rem;margin-bottom:.5rem;background:var(--s1);border:1px solid var(--bdr);border-radius:6px">';
     html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.3rem">';
     html += '<div style="font-size:.82rem;font-weight:600">' + fmtDate(ent.data) + '</div>';
-    html += '<div style="font-size:.72rem;color:var(--mut)">' + esc(ent.criadoPor || '') + '</div></div>';
+    html += '<div style="display:flex;gap:.4rem;align-items:center"><span style="font-size:.72rem;color:var(--mut)">' + esc(ent.criadoPor || '') + '</span>';
+    html += '<button class="btn btn-outline btn-sm" style="font-size:.68rem;padding:.1rem .4rem" onclick="editarEntrega(\'' + pedidoId + '\',\'' + ent.id + '\')">Editar</button>';
+    html += '<button class="btn btn-sm" style="font-size:.68rem;padding:.1rem .4rem;background:rgba(239,68,68,.15);color:var(--red,#ef4444);border:none" onclick="excluirEntrega(\'' + pedidoId + '\',\'' + ent.id + '\')">Excluir</button>';
+    html += '</div></div>';
     if (ent.nfNumero) html += '<div style="font-size:.78rem;color:var(--blue);margin-bottom:.3rem">NF-e: ' + esc(ent.nfNumero) + (ent.nfSerie ? ' Serie ' + esc(ent.nfSerie) : '') + '</div>';
     if (ent.obs) html += '<div style="font-size:.78rem;color:var(--mut);margin-bottom:.3rem">' + esc(ent.obs) + '</div>';
     html += '<div style="font-size:.78rem">';
@@ -3574,4 +3598,144 @@ function renderHistoricoEntregas(pedidoId) {
   });
   html += '</div></details>';
   return html;
+}
+
+// ── Editar entrega existente ──
+window.editarEntrega = function(pedidoId, entregaId) {
+  var p = pedidos.find(function(x) { return x.id === pedidoId; });
+  if (!p || !p.dados_extras || !p.dados_extras.entregas) return;
+  var entIdx = p.dados_extras.entregas.findIndex(function(e) { return e.id === entregaId; });
+  if (entIdx < 0) return;
+  var ent = p.dados_extras.entregas[entIdx];
+
+  // Reverter qtdEntregue dos itens desta entrega
+  (ent.itens || []).forEach(function(ei) {
+    var item = p.itens[ei.itemIdx];
+    if (item) item.qtdEntregue = Math.max(0, (item.qtdEntregue || 0) - ei.qtdEntregue);
+  });
+
+  // Remover a entrega do histórico
+  p.dados_extras.entregas.splice(entIdx, 1);
+  p.dados_extras.statusEntrega = calcStatusEntrega(p);
+  savePedidos();
+
+  // Reabrir modal de entrega com dados pré-preenchidos
+  abrirModalEntrega(pedidoId);
+
+  // Preencher campos com dados da entrega revertida
+  setTimeout(function() {
+    var dataEl = document.getElementById('entrega-data');
+    if (dataEl && ent.data) dataEl.value = ent.data;
+    var obsEl = document.getElementById('entrega-obs');
+    if (obsEl && ent.obs) obsEl.value = ent.obs;
+    var nfEl = document.getElementById('entrega-nf-numero');
+    if (nfEl && ent.nfNumero) nfEl.value = ent.nfNumero;
+    var serieEl = document.getElementById('entrega-nf-serie');
+    if (serieEl && ent.nfSerie) serieEl.value = ent.nfSerie;
+    var nfDataEl = document.getElementById('entrega-nf-data');
+    if (nfDataEl && ent.nfDataEmissao) nfDataEl.value = ent.nfDataEmissao;
+    // Preencher quantidades da entrega revertida
+    (ent.itens || []).forEach(function(ei) {
+      var input = document.getElementById('entrega-qtd-' + ei.itemIdx);
+      if (input) input.value = ei.qtdEntregue;
+    });
+  }, 100);
+
+  showToast('Entrega revertida — edite e salve novamente.', 4000);
+};
+
+// ── Excluir entrega ──
+window.excluirEntrega = function(pedidoId, entregaId) {
+  var p = pedidos.find(function(x) { return x.id === pedidoId; });
+  if (!p || !p.dados_extras || !p.dados_extras.entregas) return;
+  if (!confirm('Excluir esta entrega? As quantidades entregues serao revertidas.')) return;
+
+  var entIdx = p.dados_extras.entregas.findIndex(function(e) { return e.id === entregaId; });
+  if (entIdx < 0) return;
+  var ent = p.dados_extras.entregas[entIdx];
+
+  // Reverter qtdEntregue
+  (ent.itens || []).forEach(function(ei) {
+    var item = p.itens[ei.itemIdx];
+    if (item) item.qtdEntregue = Math.max(0, (item.qtdEntregue || 0) - ei.qtdEntregue);
+  });
+
+  p.dados_extras.entregas.splice(entIdx, 1);
+  p.dados_extras.statusEntrega = calcStatusEntrega(p);
+  savePedidos();
+  verPedidoDetalhe(pedidoId);
+  renderPedidos();
+  showToast('Entrega excluida e quantidades revertidas.', 3000);
+};
+
+// ── Relatório de Pendências de Entrega (multi-pedido, agrupado por cliente) ──
+function gerarRelatorioEntregaPendente() {
+  var sel = [..._selectedPedidoIds];
+  if (sel.length === 0) { showToast('Selecione pedidos para o relatorio.', 3000); return; }
+
+  // Agrupar por cliente
+  var porCliente = {};
+  sel.forEach(function(id) {
+    var p = pedidos.find(function(x) { return x.id === id; });
+    if (!p) return;
+    var cliente = p.escola || p.cliente?.nome || 'Sem cliente';
+    if (!porCliente[cliente]) porCliente[cliente] = [];
+    porCliente[cliente].push(p);
+  });
+
+  var empresa = JSON.parse(localStorage.getItem('nexedu.empresa') || '{}');
+  var nomeEmpresa = empresa.razaoSocial || empresa.nome || 'Empresa';
+  var hoje = new Date().toLocaleDateString('pt-BR');
+
+  var html = '';
+  html += '<h1 style="text-align:center;font-size:16px;margin-bottom:.5rem">RELATORIO DE PENDENCIAS DE ENTREGA</h1>';
+  html += '<div style="text-align:center;font-size:11px;color:#666;margin-bottom:1.5rem">' + nomeEmpresa + ' — Gerado em ' + hoje + '</div>';
+
+  var clientes = Object.keys(porCliente).sort();
+  clientes.forEach(function(cliente) {
+    var pedidosCliente = porCliente[cliente];
+    html += '<div style="margin-bottom:1.5rem;border:1px solid #ccc;border-radius:6px;overflow:hidden">';
+    html += '<div style="background:#f0f0f0;padding:8px 12px;font-weight:700;font-size:12px;border-bottom:1px solid #ccc">' + cliente + '</div>';
+
+    pedidosCliente.forEach(function(p) {
+      var dataPed = p.data ? new Date(p.data + 'T12:00:00').toLocaleDateString('pt-BR') : '';
+      html += '<div style="padding:6px 12px;border-bottom:1px solid #eee;font-size:11px;background:#fafafa">';
+      html += '<strong>Pedido #' + (p.id || '').split('-').pop() + '</strong> — ' + dataPed;
+      var statusEnt = calcStatusEntrega(p);
+      var statusLabel = { pendente: 'PENDENTE', parcial: 'PARCIAL', entregue: 'ENTREGUE', atrasado: 'ATRASADO' };
+      html += ' <span style="font-size:10px;padding:1px 6px;border-radius:3px;background:' + (statusEnt === 'entregue' ? '#dcfce7' : statusEnt === 'atrasado' ? '#fee2e2' : '#fef9c3') + '">' + (statusLabel[statusEnt] || 'PENDENTE') + '</span>';
+      html += '</div>';
+
+      html += '<table style="width:100%;border-collapse:collapse;font-size:11px">';
+      html += '<thead><tr style="border-bottom:1px solid #ddd"><th style="padding:4px 8px;text-align:left">Produto</th><th style="padding:4px 8px;text-align:center">Pedido</th><th style="padding:4px 8px;text-align:center">Entregue</th><th style="padding:4px 8px;text-align:center;font-weight:700">Pendente</th><th style="padding:4px 8px;text-align:center">Un.</th></tr></thead>';
+      html += '<tbody>';
+      (p.itens || []).forEach(function(item) {
+        var qtdPed = Number(item.qtd || 0);
+        var qtdEnt = Number(item.qtdEntregue || 0);
+        var saldo = Math.max(0, qtdPed - qtdEnt);
+        var cor = saldo > 0 ? '#92400e' : '#166534';
+        html += '<tr style="border-bottom:1px solid #eee">';
+        html += '<td style="padding:4px 8px">' + (item.descricao || '') + '</td>';
+        html += '<td style="padding:4px 8px;text-align:center">' + qtdPed + '</td>';
+        html += '<td style="padding:4px 8px;text-align:center">' + qtdEnt + '</td>';
+        html += '<td style="padding:4px 8px;text-align:center;font-weight:700;color:' + cor + '">' + (saldo > 0 ? saldo : 'OK') + '</td>';
+        html += '<td style="padding:4px 8px;text-align:center;color:#666">' + (item.unidade || 'UN') + '</td>';
+        html += '</tr>';
+      });
+      html += '</tbody></table>';
+    });
+    html += '</div>';
+  });
+
+  // Imprimir
+  var iframe = document.createElement('iframe');
+  iframe.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:0;height:0';
+  document.body.appendChild(iframe);
+  var doc = iframe.contentDocument || iframe.contentWindow.document;
+  doc.open();
+  doc.write('<!DOCTYPE html><html><head><title>Rel. Pendencias Entrega</title><style>body{font-family:Arial,sans-serif;margin:2cm;color:#333;font-size:12px}@media print{body{margin:1.5cm}}</style></head><body>' + html + '</body></html>');
+  doc.close();
+  iframe.contentWindow.focus();
+  iframe.contentWindow.print();
+  setTimeout(function() { document.body.removeChild(iframe); }, 5000);
 }
