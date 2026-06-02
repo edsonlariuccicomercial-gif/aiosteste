@@ -316,80 +316,20 @@ function _getDeletedIds(table) {
 }
 
 async function pollForChanges() {
-  if (!navigator.onLine) { _updateSyncIndicator('disconnected'); return; }
-  _updateSyncIndicator('syncing');
-  try {
-    const empresaId = getSyncUserId();
-    // Story 4.61: sync ALL business tables, not just pedidos/contratos
-    const tables = ['pedidos', 'contratos', 'notas_fiscais', 'contas_receber', 'contas_pagar', 'entregas'];
-    let hasChanges = false;
-
-    for (const table of tables) {
-      // Story 4.61: se localStorage está vazio para esta entidade, fazer full load (sem filtro de data)
-      const entity = window.gdpApi?._ENTITIES?.[table];
-      let localEmpty = false;
-      if (entity) {
-        try {
-          const raw = JSON.parse(localStorage.getItem(entity.lsKey) || 'null');
-          const items = raw?.items || (Array.isArray(raw) ? raw : []);
-          localEmpty = items.length === 0;
-        } catch(_) { localEmpty = true; }
-      }
-
-      let url = `${SUPABASE_URL}/rest/v1/${table}?empresa_id=eq.${encodeURIComponent(empresaId)}&order=updated_at.desc&limit=200`;
-      if (_lastPollTs && !localEmpty) {
-        url += `&updated_at=gt.${encodeURIComponent(_lastPollTs)}`;
-      }
-      // Exclude soft-deleted rows for tables that support it
-      if (['contratos', 'notas_fiscais', 'contas_receber', 'contas_pagar'].includes(table)) {
-        url += '&deleted_at=is.null';
-      }
-      const resp = await fetch(url, { headers: { apikey: SUPABASE_KEY, Authorization: 'Bearer ' + SUPABASE_KEY } });
-      if (!resp.ok) continue;
-      const rows = await resp.json();
-      if (!rows.length) continue;
-      hasChanges = true;
-
-      // Story 4.51 AC-A4: get locally-deleted IDs to prevent restore
-      const deletedIds = _getDeletedIds(table);
-
-      // Update localStorage cache via gdp-api entity structure
-      if (entity) {
-        const lsKey = entity.lsKey;
-        let existing = [];
-        try {
-          const raw = JSON.parse(localStorage.getItem(lsKey) || 'null');
-          if (raw && raw.items) existing = raw.items;
-          else if (Array.isArray(raw)) existing = raw;
-        } catch (_) {}
-
-        for (const row of rows) {
-          // Story 4.51 AC-A4: skip rows that were deleted locally
-          if (deletedIds.has(row.id)) continue;
-
-          const idx = existing.findIndex(e => e.id === row.id);
-          if (idx >= 0) existing[idx] = row;
-          else existing.push(row);
-          // Track newest timestamp
-          if (row.updated_at && (!_lastPollTs || row.updated_at > _lastPollTs)) {
-            _lastPollTs = row.updated_at;
-          }
-        }
-        const wrapped = entity.wrapped
-          ? { _v: 1, updatedAt: new Date().toISOString(), items: existing }
-          : existing;
-        localStorage.setItem(lsKey, JSON.stringify(wrapped));
-      }
-    }
-
-    if (hasChanges && typeof window.renderAll === 'function') {
-      window.renderAll();
-    }
-    _updateSyncIndicator('connected');
-  } catch (e) {
-    gdpWarn('[poll] Error:', e);
-    _updateSyncIndicator('disconnected');
-  }
+  // DISABLED: pollForChanges was causing destructive sync loops.
+  // These tables already have dedicated Supabase tables managed by gdp-api.js,
+  // and real-time sync via gdp-realtime.js WebSocket.
+  // Having app-sync.js ALSO poll and overwrite localStorage every 30s
+  // caused data flickering, disappearing contratos, and race conditions.
+  //
+  // The sync architecture is now:
+  // - gdp-api.js: Supabase REST (source of truth, CRUD operations)
+  // - gdp-realtime.js: WebSocket (instant cross-browser updates)
+  // - app-sync.js: ONLY for legacy sync_data keys (config, estoque-intel, etc.)
+  //
+  // If cross-machine sync issues persist, the fix is in gdp-realtime.js
+  // (WebSocket reconnection), NOT in polling.
+  _updateSyncIndicator('connected');
 }
 
 function startPolling(intervalMs) {
@@ -403,15 +343,10 @@ function stopPolling() {
   if (_pollInterval) { clearInterval(_pollInterval); _pollInterval = null; }
 }
 
-// Story 14.3: Auto-start polling as fallback (30s instead of 120s)
-// Realtime handles instant sync; polling catches anything missed
-document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible' && !_pollInterval) {
-    startPolling(30000);
-  } else if (document.visibilityState === 'hidden') {
-    stopPolling();
-  }
-});
+// Story 14.3: Auto-start polling DISABLED — pollForChanges was causing destructive loops.
+// Realtime (gdp-realtime.js WebSocket) handles cross-browser sync.
+// Keeping visibility listener only for syncToCloud on tab hide (save data before close).
+// document.addEventListener('visibilitychange', () => { ... polling ... });
 
 // Lightweight config-only sync from cloud (runs at boot, non-blocking)
 const CONFIG_SYNC_KEYS = [

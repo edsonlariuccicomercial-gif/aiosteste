@@ -3,7 +3,7 @@
 // Story 6.2: Helper para persistir preço histórico em Supabase
 const _SB_PRECO_HIST = {
   URL: (window.SUPABASE_URL || 'https://mvvsjaudhbglxttxaeop.supabase.co') + '/rest/v1',
-  KEY: window.SUPABASE_KEY || 'sb_publishable_uBqL8sLjMGWnZ2aaQ1zwvg_mlQrZUXR',
+  KEY: window.SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im12dnNqYXVkaGJnbHh0dHhhZW9wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4MDY3OTAsImV4cCI6MjA5MDM4Mjc5MH0.jadqvmRvbZjtjATaF_4WWB6A44NF06whtEIyNNyCUGo',
   headers() {
     return { apikey: this.KEY, Authorization: 'Bearer ' + this.KEY, 'Content-Type': 'application/json' };
   },
@@ -3002,10 +3002,9 @@ async function enviarTiny(contratoId) {
     }
   });
 
-  // Story 14.2: Start cross-machine polling (30s interval)
-  if (window._gdpSync) {
-    window._gdpSync.startPolling(30000);
-  }
+  // Story 14.2: Polling DISABLED — was causing destructive sync loops (contratos disappearing).
+  // Cross-machine sync now handled by gdp-realtime.js WebSocket only.
+  // if (window._gdpSync) { window._gdpSync.startPolling(30000); }
 })();
 
 // [gdp-pedidos.js loaded above — Lista de Compras, Status Tabs, Selection, Menu]
