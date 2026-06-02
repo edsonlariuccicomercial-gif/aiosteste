@@ -660,42 +660,42 @@ async function doLogin() {
     };
   }
 
-  // PRIORIDADE 1: localStorage (dados cacheados de sessões anteriores)
+  // PRIORIDADE 1: Supabase RPC verify_escola_login (bcrypt hash — source of truth)
   let escola = null;
   try {
-    const usuarios = JSON.parse(localStorage.getItem('gdp.usuarios.v1') || '[]');
-    const usrLocal = usuarios.find(u => (u.login || '').toLowerCase() === user && u.senha === pass);
-    if (usrLocal) escola = buildEscola(usrLocal);
-  } catch(_) {}
+    const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000));
+    const rpcUrl = (window.SUPABASE_URL || 'https://mvvsjaudhbglxttxaeop.supabase.co') + '/rest/v1/rpc/verify_escola_login';
+    const rpcKey = window.SUPABASE_KEY || '';
+    const rpcRes = await Promise.race([
+      fetch(rpcUrl, {
+        method: 'POST',
+        headers: { 'apikey': rpcKey, 'Authorization': 'Bearer ' + rpcKey, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ p_login: user, p_senha: pass })
+      }),
+      timeoutPromise
+    ]);
+    if (rpcRes.ok) {
+      const rows = await rpcRes.json();
+      if (rows && rows.length > 0) {
+        escola = buildEscola(rows[0]);
+        console.log('[portal] Login via Supabase RPC (bcrypt verified)');
+      }
+    }
+  } catch(e) { console.warn('[portal] Supabase RPC login skipped:', e.message); }
 
-  // PRIORIDADE 2: JSON estático (fallback para escolas não migradas)
+  // PRIORIDADE 2: JSON estático (fallback para escolas não migradas ou Supabase offline)
   if (!escola && credentials && credentials.escolas) {
     const credMatch = credentials.escolas.find(e => e.login === user && e.senha === pass);
     if (credMatch) escola = { ...credMatch, contratos_vinculados: credMatch.contratos_vinculados || [] };
   }
 
-  // Story 5.2: PRIORIDADE 3: Supabase RPC verify_escola_login (bcrypt hash verification)
+  // PRIORIDADE 3: localStorage (fallback offline — skip bcrypt hashes)
   if (!escola) {
     try {
-      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000));
-      const rpcUrl = (window.SUPABASE_URL || 'https://mvvsjaudhbglxttxaeop.supabase.co') + '/rest/v1/rpc/verify_escola_login';
-      const rpcKey = window.SUPABASE_KEY || '';
-      const rpcRes = await Promise.race([
-        fetch(rpcUrl, {
-          method: 'POST',
-          headers: { 'apikey': rpcKey, 'Authorization': 'Bearer ' + rpcKey, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ p_login: user, p_senha: pass })
-        }),
-        timeoutPromise
-      ]);
-      if (rpcRes.ok) {
-        const rows = await rpcRes.json();
-        if (rows && rows.length > 0) {
-          escola = buildEscola(rows[0]);
-          console.log('[portal] Login via Supabase RPC (bcrypt verified)');
-        }
-      }
-    } catch(e) { console.warn('[portal] Supabase RPC login skipped:', e.message); }
+      const usuarios = JSON.parse(localStorage.getItem('gdp.usuarios.v1') || '[]');
+      const usrLocal = usuarios.find(u => (u.login || '').toLowerCase() === user && (u.senha === pass || (u.senha && u.senha.startsWith('$2') && false)));
+      if (usrLocal) escola = buildEscola(usrLocal);
+    } catch(_) {}
   }
 
   if (!escola) {
