@@ -83,6 +83,8 @@
       </div>
       <div class="topbar-right">
         <span class="mode-indicator" id="mode-indicator"></span>
+        <span id="realtime-status-indicator" title="Realtime status" style="font-size:.75rem;cursor:help">⚪</span>
+        <button id="btn-force-sync" class="btn btn-sm" onclick="window._gdpForceSync && window._gdpForceSync()" title="Atualizar dados de todas as máquinas" style="font-size:.75rem;padding:2px 8px">↻ Sync</button>
         <div class="pill" id="pill-sre">Multi-SRE</div>
 
         <button id="btn-varrer-sgd" class="btn btn-sm btn-sgd" style="display:none;" title="Varrer novos orçamentos no SGD">Varrer SGD</button>
@@ -1570,10 +1572,13 @@
   <!-- Sidebar overlay (mobile) -->
   <div class="sidebar-overlay" id="sidebar-overlay"></div>
 
+  <script src="js/supabase-config.js?v=10"></script>
   <script src="auth.js"></script>
   <script src="js/banco-precos-client.js?v=1"></script>
   <script src="app-state.js?v=2"></script>
-  <script src="app-sync.js?v=3"></script>
+  <script src="app-sync.js?v=4"></script>
+  <script src="gdp-api.js?v=12"></script>
+  <script src="js/gdp-realtime.js?v=2"></script>
   <script src="app-sgd-client.js?v=1"></script>
   <script src="app-utils.js?v=1"></script>
   <script src="app-config.js?v=1"></script>

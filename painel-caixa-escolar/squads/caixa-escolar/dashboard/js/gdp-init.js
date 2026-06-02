@@ -3001,9 +3001,10 @@ async function enviarTiny(contratoId) {
     }
   });
 
-  // Story 14.2: Polling DISABLED — was causing destructive sync loops (contratos disappearing).
-  // Cross-machine sync now handled by gdp-realtime.js WebSocket only.
-  // if (window._gdpSync) { window._gdpSync.startPolling(30000); }
+  // Story 14.2 rev: Polling RE-ENABLED as lightweight reconciliation (90s interval).
+  // Now delegates to gdp-realtime.js forceReconcile() which safely fetches from Supabase
+  // with internal cooldown — no destructive loops. Catches missed WebSocket events.
+  if (window._gdpSync) { window._gdpSync.startPolling(90000); }
 })();
 
 // [gdp-pedidos.js loaded above — Lista de Compras, Status Tabs, Selection, Menu]

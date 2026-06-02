@@ -416,14 +416,24 @@
 
     var DASHBOARD_URL = "gdp-contratos.html";
 
-    // Already logged in? Check Supabase session first, then legacy
+    // Story 14.3: Check existing session — legacy first (instant), then Supabase (with timeout)
     (async function checkExistingSession() {
-      var session = await window.gdpAuth.getSession();
-      if (session) {
+      // Legacy check is instant — no network call
+      if (sessionStorage.getItem(LEGACY_AUTH.sessionKey) === LEGACY_AUTH.passHash) {
         window.location.href = DASHBOARD_URL;
         return;
       }
-      if (sessionStorage.getItem(LEGACY_AUTH.sessionKey) === LEGACY_AUTH.passHash) {
+      // Supabase session: check locally-stored token validity first (no network if valid)
+      try {
+        var stored = JSON.parse(localStorage.getItem('gdp.auth.session') || 'null');
+        if (stored && stored.access_token && stored.expires_at && (stored.expires_at * 1000) > Date.now()) {
+          window.location.href = DASHBOARD_URL;
+          return;
+        }
+      } catch(_) {}
+      // Token expired — try refresh (has 8s timeout, won't hang)
+      var session = await window.gdpAuth.getSession();
+      if (session) {
         window.location.href = DASHBOARD_URL;
       }
     })();
@@ -453,60 +463,71 @@
         } catch(_) { return false; }
       }
 
-      try {
-        if (isUsuarioBloqueado(email)) {
-          errEl.textContent = "Usuário bloqueado. Contate o administrador.";
-          errEl.style.display = "block";
-          btnEl.disabled = false;
-          btnEl.textContent = "Entrar";
-          return;
-        }
+      if (isUsuarioBloqueado(email)) {
+        errEl.textContent = "Usuário bloqueado. Contate o administrador.";
+        errEl.style.display = "block";
+        btnEl.disabled = false;
+        btnEl.textContent = "Entrar";
+        return;
+      }
 
-        // Try Supabase Auth first
-        await window.gdpAuth.signIn(email, pass);
+      function setSyncUser(id) {
         try {
           var emp = JSON.parse(localStorage.getItem('nexedu.empresa') || '{}');
-          emp.syncUserId = 'LARIUCCI'; localStorage.setItem('nexedu.empresa', JSON.stringify(emp));
+          emp.syncUserId = id || 'LARIUCCI';
+          if (!emp.nome) emp.nome = 'LARIUCCI';
+          localStorage.setItem('nexedu.empresa', JSON.stringify(emp));
         } catch(_) {}
-        window.location.href = DASHBOARD_URL;
-      } catch (authErr) {
-        // Fallback to legacy auth
-        var hash = await sha256(pass);
-        if (email === LEGACY_AUTH.user && hash === LEGACY_AUTH.passHash) {
-          sessionStorage.setItem(LEGACY_AUTH.sessionKey, LEGACY_AUTH.passHash);
-          try {
-            var emp = JSON.parse(localStorage.getItem('nexedu.empresa') || '{}');
-            emp.syncUserId = 'LARIUCCI';
-            localStorage.setItem('nexedu.empresa', JSON.stringify(emp));
-          } catch(_) {}
-          window.location.href = DASHBOARD_URL;
-        } else {
-          // Try nexedu.usuarios
+      }
+
+      // Story 14.3: LOCAL-FIRST LOGIN — try instant methods first, Supabase last
+      var loggedIn = false;
+
+      // 1) Legacy admin auth (instant — no network)
+      var hash = await sha256(pass);
+      if (email === LEGACY_AUTH.user && hash === LEGACY_AUTH.passHash) {
+        sessionStorage.setItem(LEGACY_AUTH.sessionKey, LEGACY_AUTH.passHash);
+        setSyncUser('LARIUCCI');
+        loggedIn = true;
+      }
+
+      // 2) nexedu.usuarios localStorage (instant — no network)
+      if (!loggedIn) {
+        try {
           var usuarios = JSON.parse(localStorage.getItem("nexedu.usuarios") || "[]");
           var found = usuarios.find(function(u) { return u.usuario === email; });
           if (found && found.ativo !== false) {
             var senhaOk = found.senha ? (found.senha === btoa(pass) || found.senha === pass) : false;
             if (senhaOk) {
               sessionStorage.setItem(LEGACY_AUTH.sessionKey, LEGACY_AUTH.passHash);
-              try {
-                var emp = JSON.parse(localStorage.getItem('nexedu.empresa') || '{}');
-                emp.syncUserId = email.toUpperCase();
-                localStorage.setItem('nexedu.empresa', JSON.stringify(emp));
-              } catch(_) {}
-              window.location.href = DASHBOARD_URL;
-            } else {
-              errEl.textContent = "Senha incorreta.";
-              errEl.style.display = "block";
+              // ALL users in the same empresa must share the same syncUserId (LARIUCCI)
+              // Using email.toUpperCase() created data silos where each user had
+              // their own empresa_id and couldn't see each other's data.
+              setSyncUser('LARIUCCI');
+              loggedIn = true;
             }
-          } else {
-            errEl.textContent = authErr.message || "Email ou senha inválidos.";
-            errEl.style.display = "block";
           }
-        }
-      } finally {
-        btnEl.disabled = false;
-        btnEl.textContent = "Entrar";
+        } catch(_) {}
       }
+
+      // 3) Supabase Auth (network — only if local methods failed)
+      if (!loggedIn) {
+        try {
+          await window.gdpAuth.signIn(email, pass);
+          setSyncUser('LARIUCCI');
+          loggedIn = true;
+        } catch (authErr) {
+          errEl.textContent = authErr.message || "Email ou senha inválidos.";
+          errEl.style.display = "block";
+        }
+      }
+
+      if (loggedIn) {
+        window.location.href = DASHBOARD_URL;
+      }
+
+      btnEl.disabled = false;
+      btnEl.textContent = "Entrar";
     });
   </script>
 </body>

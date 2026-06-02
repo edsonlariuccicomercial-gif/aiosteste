@@ -161,6 +161,9 @@ function renderPedidos() {
     const pedidoFiscal = ensurePedidoFiscalData({ ...p, cliente: { ...(p.cliente || {}) }, itens: Array.isArray(p.itens) ? p.itens : [] });
     const clienteNome = pedidoFiscal.cliente?.nome || p.escola || "-";
     const clienteCnpj = pedidoFiscal.cliente?.cnpj || "-";
+    const _entStatus = calcStatusEntrega(p);
+    const _entBadgeMap = { pendente: 'badge-vencido', parcial: 'badge-pendente', entregue: 'badge-aprovado', atrasado: 'badge-danger' };
+    const _entLabelMap = { pendente: 'PENDENTE', parcial: 'PARCIAL', entregue: 'ENTREGUE', atrasado: 'ATRASADO' };
     return `<tr>
       <td class="text-center"><input type="checkbox" class="pedido-check" value="${p.id}" onchange="atualizarSelecaoPedidos()"${_selectedPedidoIds.has(p.id) ? ' checked' : ''}></td>
       <td class="text-center"><button class="btn btn-outline btn-sm" onclick="abrirMenuPedido('${p.id}')" title="Abrir menu do pedido" style="min-width:auto;padding:.2rem .5rem;font-weight:700">...</button></td>
@@ -171,6 +174,7 @@ function renderPedidos() {
       <td class="nowrap">${fmtDate(p.dataPrevista || p.dataEntrega)}</td>
       <td class="text-right font-mono" style="color:var(--green);font-weight:700">${brl.format(p.valor)}</td>
       <td><span class="badge ${statusMeta.className}">${statusMeta.label}</span></td>
+      <td><span class="badge ${_entBadgeMap[_entStatus] || 'badge-vencido'}" style="font-size:.7rem">${_entLabelMap[_entStatus] || 'PENDENTE'}</span></td>
       <td>${integracoes.html}</td>
     </tr>`;
   }).join("");
@@ -1260,6 +1264,10 @@ function verPedidoDetalhe(pedidoId, isClone) {
   if (isCancelado) {
     _headerButtons += '<span class="badge badge-danger">Cancelado em ' + fmtDate(p.canceladoEm) + '</span>';
   }
+  // Story 5.17: Botão Entregar (visível quando pedido tem itens para entregar)
+  if (!isCancelado && p.itens && p.itens.length > 0) {
+    _headerButtons += '<button class="btn btn-sm" style="background:rgba(34,197,94,.2);color:var(--green);border:1px solid rgba(34,197,94,.4);font-weight:700" onclick="abrirModalEntrega(\'' + p.id + '\')">Entregar</button>';
+  }
   _headerButtons += '<button class="btn btn-purple btn-sm" onclick="imprimirPedido(\'' + p.id + '\')">Imprimir</button>';
   _headerButtons += (nf
     ? '<button class="btn btn-outline btn-sm" onclick="voltarListaPedidos();switchTab(\'notas-fiscais\');setTimeout(function(){verNotaFiscal(\'' + nf.id + '\')},300)">Ver NF</button>'
@@ -1304,10 +1312,15 @@ function verPedidoDetalhe(pedidoId, isClone) {
 
   if (p.itens && p.itens.length > 0) {
     html += '<div style="margin-bottom:1.2rem"><div style="font-size:.82rem;color:var(--mut);font-weight:600;margin-bottom:.6rem">Itens de produtos</div><table style="width:100%;border-collapse:separate;border-spacing:0 2px">';
-    html += '<thead><tr><th style="padding:10px 6px;text-align:left;font-size:.82rem;color:var(--mut);font-weight:400;border-bottom:1px solid var(--bdr)">Produto</th><th style="padding:10px 6px;text-align:center;font-size:.82rem;color:var(--mut);font-weight:400;border-bottom:1px solid var(--bdr)">Qtd</th><th style="padding:10px 6px;text-align:center;font-size:.82rem;color:var(--mut);font-weight:400;border-bottom:1px solid var(--bdr)">Un.</th><th style="padding:10px 6px;text-align:center;font-size:.82rem;color:var(--mut);font-weight:400;border-bottom:1px solid var(--bdr)">NCM</th><th style="padding:10px 6px;text-align:center;font-size:.82rem;color:var(--mut);font-weight:400;border-bottom:1px solid var(--bdr)">SKU</th><th style="padding:10px 6px;text-align:right;font-size:.82rem;color:var(--mut);font-weight:400;border-bottom:1px solid var(--bdr)">Preco Unit.</th><th style="padding:10px 6px;text-align:right;font-size:.82rem;color:var(--mut);font-weight:400;border-bottom:1px solid var(--bdr)">Subtotal</th><th style="padding:10px 4px;width:40px;border-bottom:1px solid var(--bdr)"></th></tr></thead><tbody>';
+    html += '<thead><tr><th style="padding:10px 6px;text-align:left;font-size:.82rem;color:var(--mut);font-weight:400;border-bottom:1px solid var(--bdr)">Produto</th><th style="padding:10px 6px;text-align:center;font-size:.82rem;color:var(--mut);font-weight:400;border-bottom:1px solid var(--bdr)">Qtd</th><th style="padding:10px 6px;text-align:center;font-size:.82rem;color:var(--mut);font-weight:400;border-bottom:1px solid var(--bdr)">Un.</th><th style="padding:10px 6px;text-align:center;font-size:.82rem;color:var(--mut);font-weight:400;border-bottom:1px solid var(--bdr)">NCM</th><th style="padding:10px 6px;text-align:center;font-size:.82rem;color:var(--mut);font-weight:400;border-bottom:1px solid var(--bdr)">SKU</th><th style="padding:10px 6px;text-align:right;font-size:.82rem;color:var(--mut);font-weight:400;border-bottom:1px solid var(--bdr)">Preco Unit.</th><th style="padding:10px 6px;text-align:right;font-size:.82rem;color:var(--mut);font-weight:400;border-bottom:1px solid var(--bdr)">Subtotal</th><th style="padding:10px 6px;text-align:center;font-size:.82rem;color:var(--mut);font-weight:400;border-bottom:1px solid var(--bdr)">Entrega</th><th style="padding:10px 4px;width:40px;border-bottom:1px solid var(--bdr)"></th></tr></thead><tbody>';
     p.itens.forEach((item, idx) => {
       const sub = Math.round(((item.qtd || 0) * (item.precoUnitario || 0)) * 100) / 100;
-      html += '<tr><td style="padding:9px 4px;border-bottom:1px solid rgba(143,197,157,.25)"><input id="fiscal-item-desc-' + p.id + '-' + idx + '" type="text" value="' + esc(item.descricao || '') + '" style="width:100%;min-width:140px;font-size:.85rem"></td><td style="padding:9px 4px;text-align:center;border-bottom:1px solid rgba(143,197,157,.25)"><input id="fiscal-item-qtd-' + p.id + '-' + idx + '" type="number" step="any" min="0" value="' + (item.qtd || 0) + '" style="width:70px;text-align:center" onchange="recalcSubtotalDetalhe(\'' + p.id + '\',' + idx + ')"></td><td style="padding:9px 4px;border-bottom:1px solid rgba(143,197,157,.25)"><input id="fiscal-item-un-' + p.id + '-' + idx + '" type="text" value="' + esc(item.unidade || 'UN') + '" style="width:62px;text-align:center"></td><td style="padding:9px 4px;border-bottom:1px solid rgba(143,197,157,.25)"><input id="fiscal-item-ncm-' + p.id + '-' + idx + '" type="text" value="' + esc(item.ncm || '') + '" style="width:110px;text-align:center"></td><td style="padding:9px 4px;border-bottom:1px solid rgba(143,197,157,.25)"><input id="fiscal-item-sku-' + p.id + '-' + idx + '" type="text" value="' + esc(item.sku || '') + '" style="width:90px;text-align:center"></td><td style="padding:9px 4px;text-align:right;border-bottom:1px solid rgba(143,197,157,.25)"><input id="fiscal-item-preco-' + p.id + '-' + idx + '" type="number" step="0.01" min="0" value="' + (item.precoUnitario || 0).toFixed(2) + '" style="width:90px;text-align:right" onchange="recalcSubtotalDetalhe(\'' + p.id + '\',' + idx + ')"></td><td id="fiscal-item-sub-' + p.id + '-' + idx + '" style="padding:9px 6px;text-align:right;color:var(--green);font-weight:600;border-bottom:1px solid rgba(143,197,157,.25)">' + brl.format(sub) + '</td><td style="padding:9px 4px;border-bottom:1px solid rgba(143,197,157,.25)"><button onclick="excluirItemDetalhe(\'' + p.id + '\',' + idx + ')" style="background:none;border:none;cursor:pointer;font-size:.9rem;color:var(--red,#f44)" title="Excluir item">🗑️</button></td></tr>';
+      const _qtdEnt = Number(item.qtdEntregue || 0);
+      const _saldoPend = Math.max(0, (item.qtd || 0) - _qtdEnt);
+      const _entBadge = _saldoPend <= 0
+        ? '<span class="badge badge-aprovado" style="font-size:.7rem">OK</span>'
+        : '<span class="badge badge-pendente" style="font-size:.7rem">' + _saldoPend.toFixed(item.unidade === 'KG' ? 2 : 0) + ' PEND.</span>';
+      html += '<tr><td style="padding:9px 4px;border-bottom:1px solid rgba(143,197,157,.25)"><input id="fiscal-item-desc-' + p.id + '-' + idx + '" type="text" value="' + esc(item.descricao || '') + '" style="width:100%;min-width:140px;font-size:.85rem"></td><td style="padding:9px 4px;text-align:center;border-bottom:1px solid rgba(143,197,157,.25)"><input id="fiscal-item-qtd-' + p.id + '-' + idx + '" type="number" step="any" min="0" value="' + (item.qtd || 0) + '" style="width:70px;text-align:center" onchange="recalcSubtotalDetalhe(\'' + p.id + '\',' + idx + ')"></td><td style="padding:9px 4px;border-bottom:1px solid rgba(143,197,157,.25)"><input id="fiscal-item-un-' + p.id + '-' + idx + '" type="text" value="' + esc(item.unidade || 'UN') + '" style="width:62px;text-align:center"></td><td style="padding:9px 4px;border-bottom:1px solid rgba(143,197,157,.25)"><input id="fiscal-item-ncm-' + p.id + '-' + idx + '" type="text" value="' + esc(item.ncm || '') + '" style="width:110px;text-align:center"></td><td style="padding:9px 4px;border-bottom:1px solid rgba(143,197,157,.25)"><input id="fiscal-item-sku-' + p.id + '-' + idx + '" type="text" value="' + esc(item.sku || '') + '" style="width:90px;text-align:center"></td><td style="padding:9px 4px;text-align:right;border-bottom:1px solid rgba(143,197,157,.25)"><input id="fiscal-item-preco-' + p.id + '-' + idx + '" type="number" step="0.01" min="0" value="' + (item.precoUnitario || 0).toFixed(2) + '" style="width:90px;text-align:right" onchange="recalcSubtotalDetalhe(\'' + p.id + '\',' + idx + ')"></td><td id="fiscal-item-sub-' + p.id + '-' + idx + '" style="padding:9px 6px;text-align:right;color:var(--green);font-weight:600;border-bottom:1px solid rgba(143,197,157,.25)">' + brl.format(sub) + '</td><td style="padding:9px 6px;text-align:center;border-bottom:1px solid rgba(143,197,157,.25)">' + _entBadge + '</td><td style="padding:9px 4px;border-bottom:1px solid rgba(143,197,157,.25)"><button onclick="excluirItemDetalhe(\'' + p.id + '\',' + idx + ')" style="background:none;border:none;cursor:pointer;font-size:.9rem;color:var(--red,#f44)" title="Excluir item">🗑️</button></td></tr>';
     });
     html += '</tbody></table></div>';
   }
@@ -1360,13 +1373,16 @@ function verPedidoDetalhe(pedidoId, isClone) {
   html += '</div>';
 
   // ── Anotações Internas (NÃO vai para NF — uso interno do gestor) ──
-  const anotacaoInterna = p.anotacaoInterna || '';
+  const anotacaoInterna = p.dados_extras?.anotacaoInterna || p.anotacaoInterna || '';
   html += '<div style="margin-top:1.2rem;padding-bottom:1rem;border-top:1px solid rgba(143,197,157,.25);padding-top:1rem">';
   html += '<div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;margin-bottom:.6rem">';
   html += '<div><div style="font-size:.82rem;font-weight:600;margin-bottom:.25rem;color:var(--yellow,#eab308)">Anotações Internas</div><div style="font-size:.78rem;color:var(--mut)">Uso interno — <strong>não</strong> aparece na NF nem em documentos enviados ao cliente.</div></div>';
   html += '</div>';
   html += '<textarea id="pedido-anotacao-interna-' + p.id + '" style="width:100%;min-height:70px;padding:.6rem .8rem;background:rgba(234,179,8,.06);border:1px solid rgba(234,179,8,.3);border-radius:4px;color:var(--txt);font-size:.85rem;resize:vertical;font-family:inherit" placeholder="Anotações internas (ex: pendências, instruções de separação, alertas...)">' + esc(anotacaoInterna) + '</textarea>';
   html += '</div>';
+
+  // Story 5.17: Histórico de entregas parciais
+  html += renderHistoricoEntregas(p.id);
 
   if (isClone) {
     html += '<div style="margin-top:1.2rem;display:flex;justify-content:flex-end;gap:.5rem"><button class="btn btn-outline" onclick="cancelarClonePedido()">Cancelar</button><button class="btn btn-green" onclick="salvarClonePedido()">Salvar</button></div>';
@@ -1399,9 +1415,12 @@ function salvarPedidoCompleto(pedidoId) {
   // Salvar observação do pedido
   const obsEl = document.getElementById('pedido-obs-' + pedidoId);
   if (obsEl) p.obs = obsEl.value;
-  // Salvar anotação interna
+  // Salvar anotação interna (dentro de dados_extras para persistir no Supabase)
   const anotacaoEl = document.getElementById('pedido-anotacao-interna-' + pedidoId);
-  if (anotacaoEl) p.anotacaoInterna = anotacaoEl.value;
+  if (anotacaoEl) {
+    p.anotacaoInterna = anotacaoEl.value;
+    p.dados_extras = { ...(p.dados_extras || {}), anotacaoInterna: anotacaoEl.value };
+  }
   // Salvar dados fiscais
   savePedidoFiscalData(pedidoId);
   // Salvar pagamento
@@ -3385,4 +3404,174 @@ function gerarRelatorioDemanda(pedidoId) {
   iframe.contentWindow.focus();
   iframe.contentWindow.print();
   setTimeout(() => document.body.removeChild(iframe), 5000);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Story 5.17 — Entrega Parcial de Pedidos
+// ═══════════════════════════════════════════════════════════════════
+
+function calcStatusEntrega(p) {
+  if (!p || !p.itens || !p.itens.length) return 'pendente';
+  var totalPedido = 0, totalEntregue = 0;
+  p.itens.forEach(function(item) {
+    totalPedido += Number(item.qtd || 0);
+    totalEntregue += Number(item.qtdEntregue || 0);
+  });
+  if (totalEntregue <= 0) {
+    var dataPrev = p.dataPrevista || p.dataEntrega;
+    if (dataPrev) {
+      var prev = new Date(dataPrev); prev.setHours(23,59,59,999);
+      if (prev < new Date()) return 'atrasado';
+    }
+    return 'pendente';
+  }
+  if (totalEntregue >= totalPedido) return 'entregue';
+  return 'parcial';
+}
+
+window.abrirModalEntrega = function(pedidoId) {
+  var p = pedidos.find(function(x) { return x.id === pedidoId; });
+  if (!p || !p.itens || !p.itens.length) return;
+
+  var hoje = new Date().toISOString().slice(0, 10);
+  var html = '';
+  html += '<div style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);z-index:2000;display:flex;align-items:center;justify-content:center" id="modal-entrega-overlay" onclick="if(event.target===this)fecharModalEntrega()">';
+  html += '<div style="background:var(--card,#1e293b);border:1px solid var(--bdr);border-radius:12px;width:95%;max-width:700px;max-height:90vh;overflow-y:auto;padding:0">';
+
+  html += '<div style="padding:1rem 1.2rem;border-bottom:1px solid var(--bdr);display:flex;justify-content:space-between;align-items:center">';
+  html += '<h3 style="margin:0;font-size:1rem;font-weight:700">ENTREGAR PEDIDO</h3>';
+  html += '<button onclick="fecharModalEntrega()" style="background:none;border:none;color:var(--mut);font-size:1.3rem;cursor:pointer;padding:4px">&times;</button>';
+  html += '</div>';
+
+  html += '<div style="padding:1.2rem">';
+  html += '<div style="font-size:.78rem;color:var(--mut);margin-bottom:1rem;text-transform:uppercase;letter-spacing:.5px">Selecione os itens pendentes e informe a quantidade a entregar.</div>';
+
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">';
+  html += '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Data de Entrega</label><input type="date" id="entrega-data" value="' + hoje + '" style="width:100%"></div>';
+  html += '<div></div>';
+  html += '</div>';
+
+  html += '<details style="margin-bottom:1rem"><summary style="font-size:.82rem;color:var(--mut);cursor:pointer;padding:.4rem 0;font-weight:600">Dados Fiscais (opcional)</summary>';
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.75rem;margin-top:.5rem">';
+  html += '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">N NF-e</label><input type="text" id="entrega-nf-numero" placeholder="Nao informado" style="width:100%"></div>';
+  html += '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Serie</label><input type="text" id="entrega-nf-serie" placeholder="Nao informado" style="width:100%"></div>';
+  html += '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Data de Emissao</label><input type="date" id="entrega-nf-data" style="width:100%"></div>';
+  html += '</div></details>';
+
+  html += '<div style="margin-bottom:1rem"><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Observacoes</label>';
+  html += '<textarea id="entrega-obs" style="width:100%;min-height:60px;padding:.5rem .7rem;background:var(--bg);border:1px solid var(--bdr);border-radius:4px;color:var(--txt);font-size:.85rem;resize:vertical" placeholder="Observacoes da entrega..."></textarea></div>';
+
+  html += '<table style="width:100%;border-collapse:separate;border-spacing:0 2px;font-size:.85rem">';
+  html += '<thead><tr style="border-bottom:1px solid var(--bdr)">';
+  html += '<th style="padding:8px 6px;text-align:left;font-size:.78rem;color:var(--mut);font-weight:600">Produto</th>';
+  html += '<th style="padding:8px 6px;text-align:center;font-size:.78rem;color:var(--mut);font-weight:600">Pedido</th>';
+  html += '<th style="padding:8px 6px;text-align:center;font-size:.78rem;color:var(--mut);font-weight:600">Entregue</th>';
+  html += '<th style="padding:8px 6px;text-align:center;font-size:.78rem;color:var(--mut);font-weight:600">Saldo</th>';
+  html += '<th style="padding:8px 6px;text-align:center;font-size:.78rem;color:var(--mut);font-weight:600">Entregar</th>';
+  html += '<th style="padding:8px 6px;text-align:center;font-size:.78rem;color:var(--mut);font-weight:600">Un.</th>';
+  html += '</tr></thead><tbody>';
+
+  p.itens.forEach(function(item, idx) {
+    var qtdPed = Number(item.qtd || 0);
+    var qtdEnt = Number(item.qtdEntregue || 0);
+    var saldo = Math.max(0, qtdPed - qtdEnt);
+    var isKg = (item.unidade || 'UN').toUpperCase() === 'KG';
+    var step = isKg ? '0.01' : '1';
+    html += '<tr style="border-bottom:1px solid rgba(143,197,157,.15)">';
+    html += '<td style="padding:8px 6px">' + esc(item.descricao || 'Item ' + (idx + 1)) + '</td>';
+    html += '<td style="padding:8px 6px;text-align:center;font-weight:600">' + qtdPed + '</td>';
+    html += '<td style="padding:8px 6px;text-align:center;color:var(--blue)">' + qtdEnt + '</td>';
+    html += '<td style="padding:8px 6px;text-align:center;color:' + (saldo > 0 ? 'var(--yellow,#eab308)' : 'var(--green)') + ';font-weight:700">' + saldo + '</td>';
+    html += '<td style="padding:8px 6px;text-align:center"><input type="number" id="entrega-qtd-' + idx + '" min="0" max="' + saldo + '" step="' + step + '" value="' + (saldo > 0 ? saldo : 0) + '" style="width:70px;text-align:center;padding:.3rem .4rem"' + (saldo <= 0 ? ' disabled' : '') + '></td>';
+    html += '<td style="padding:8px 6px;text-align:center;color:var(--mut)">' + esc(item.unidade || 'UN') + '</td>';
+    html += '</tr>';
+  });
+  html += '</tbody></table></div>';
+
+  html += '<div style="padding:1rem 1.2rem;border-top:1px solid var(--bdr);display:flex;justify-content:flex-end;gap:.6rem">';
+  html += '<button class="btn btn-outline btn-sm" onclick="fecharModalEntrega()">Fechar</button>';
+  html += '<button class="btn btn-sm" style="background:var(--green);color:#fff;font-weight:700" onclick="confirmarEntrega(\'' + pedidoId + '\',' + p.itens.length + ')">Entregar Pedido</button>';
+  html += '</div></div></div>';
+
+  var container = document.createElement('div');
+  container.id = 'modal-entrega-container';
+  container.innerHTML = html;
+  document.body.appendChild(container);
+};
+
+window.fecharModalEntrega = function() {
+  var el = document.getElementById('modal-entrega-container');
+  if (el) el.remove();
+};
+
+window.confirmarEntrega = function(pedidoId, totalItens) {
+  var p = pedidos.find(function(x) { return x.id === pedidoId; });
+  if (!p) return;
+
+  var dataEntrega = (document.getElementById('entrega-data') || {}).value || new Date().toISOString().slice(0, 10);
+  var obs = (document.getElementById('entrega-obs') || {}).value || '';
+  var nfNumero = (document.getElementById('entrega-nf-numero') || {}).value || '';
+  var nfSerie = (document.getElementById('entrega-nf-serie') || {}).value || '';
+  var nfDataEmissao = (document.getElementById('entrega-nf-data') || {}).value || '';
+
+  var itensEntrega = [];
+  var algumEntregue = false;
+
+  for (var i = 0; i < totalItens; i++) {
+    var input = document.getElementById('entrega-qtd-' + i);
+    if (!input) continue;
+    var qtd = Number(input.value || 0);
+    if (qtd <= 0) continue;
+    var item = p.itens[i];
+    var saldo = Math.max(0, (item.qtd || 0) - (item.qtdEntregue || 0));
+    if (qtd > saldo) qtd = saldo;
+    item.qtdEntregue = (item.qtdEntregue || 0) + qtd;
+    algumEntregue = true;
+    itensEntrega.push({ itemIdx: i, descricao: item.descricao || '', qtdEntregue: qtd, unidade: item.unidade || 'UN' });
+  }
+
+  if (!algumEntregue) {
+    showToast('Informe a quantidade a entregar em pelo menos 1 item.', 3000);
+    return;
+  }
+
+  if (!p.dados_extras) p.dados_extras = {};
+  if (!p.dados_extras.entregas) p.dados_extras.entregas = [];
+  p.dados_extras.entregas.push({
+    id: 'ent-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 6),
+    data: dataEntrega, obs: obs, nfNumero: nfNumero, nfSerie: nfSerie, nfDataEmissao: nfDataEmissao,
+    itens: itensEntrega,
+    criadoEm: new Date().toISOString(),
+    criadoPor: typeof getAuditActor === 'function' ? getAuditActor() : 'sistema'
+  });
+  p.dados_extras.statusEntrega = calcStatusEntrega(p);
+
+  savePedidos();
+  fecharModalEntrega();
+  verPedidoDetalhe(pedidoId);
+  renderPedidos();
+  showToast('Entrega registrada — ' + itensEntrega.length + ' item(ns).', 4000);
+};
+
+function renderHistoricoEntregas(pedidoId) {
+  var p = pedidos.find(function(x) { return x.id === pedidoId; });
+  if (!p || !p.dados_extras || !p.dados_extras.entregas || !p.dados_extras.entregas.length) return '';
+  var html = '<details style="margin-top:1.2rem;padding-top:1rem;border-top:1px solid rgba(143,197,157,.25)">';
+  html += '<summary style="font-size:.82rem;font-weight:600;color:var(--mut);cursor:pointer;padding:.4rem 0">Historico de Entregas (' + p.dados_extras.entregas.length + ')</summary>';
+  html += '<div style="margin-top:.6rem">';
+  p.dados_extras.entregas.slice().reverse().forEach(function(ent) {
+    html += '<div style="padding:.6rem .8rem;margin-bottom:.5rem;background:var(--s1);border:1px solid var(--bdr);border-radius:6px">';
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.3rem">';
+    html += '<div style="font-size:.82rem;font-weight:600">' + fmtDate(ent.data) + '</div>';
+    html += '<div style="font-size:.72rem;color:var(--mut)">' + esc(ent.criadoPor || '') + '</div></div>';
+    if (ent.nfNumero) html += '<div style="font-size:.78rem;color:var(--blue);margin-bottom:.3rem">NF-e: ' + esc(ent.nfNumero) + (ent.nfSerie ? ' Serie ' + esc(ent.nfSerie) : '') + '</div>';
+    if (ent.obs) html += '<div style="font-size:.78rem;color:var(--mut);margin-bottom:.3rem">' + esc(ent.obs) + '</div>';
+    html += '<div style="font-size:.78rem">';
+    (ent.itens || []).forEach(function(ei) {
+      html += '<span style="display:inline-block;padding:.15rem .5rem;margin-right:.3rem;margin-bottom:.2rem;background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.25);border-radius:4px;font-size:.75rem;color:var(--green)">' + esc(ei.descricao || 'Item') + ': ' + ei.qtdEntregue + ' ' + esc(ei.unidade || 'UN') + '</span>';
+    });
+    html += '</div></div>';
+  });
+  html += '</div></details>';
+  return html;
 }

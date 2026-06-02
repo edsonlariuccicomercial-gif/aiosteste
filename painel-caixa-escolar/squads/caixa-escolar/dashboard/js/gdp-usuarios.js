@@ -93,6 +93,12 @@ function excluirClientesSelecionados() {
   if (!confirm(`Excluir ${sel.length} cliente(s) selecionado(s)?`)) return;
   usuarios = usuarios.filter(u => !sel.includes(u.id));
   saveUsuarios();
+  // DELETE from Supabase (so other machines see the deletion via Realtime)
+  if (window.gdpApi && window.gdpApi.clientes) {
+    sel.forEach(function(id) {
+      window.gdpApi.clientes.remove(id).catch(function(e) { console.warn('[Clientes] Supabase delete failed:', id, e); });
+    });
+  }
   renderUsuarios();
   showToast(`${sel.length} cliente(s) excluído(s).`);
 }
@@ -276,6 +282,10 @@ function excluirUsuario(id) {
   if (!confirm("Excluir este cadastro?")) return;
   usuarios = usuarios.filter(u => u.id !== id);
   saveUsuarios();
+  // DELETE from Supabase (so other machines see the deletion via Realtime)
+  if (window.gdpApi && window.gdpApi.clientes) {
+    window.gdpApi.clientes.remove(id).catch(function(e) { console.warn('[Clientes] Supabase delete failed:', id, e); });
+  }
   renderUsuarios();
   fecharMenuCliente();
   if (clienteDetalheAtualId === id) fecharModalUsuario();

@@ -31,6 +31,9 @@
   };
 
   // Story 14.1: empresa_id must match syncUserId set at login (from escola.id or "LARIUCCI")
+  // This is the SINGLE SOURCE OF TRUTH for empresa_id resolution.
+  // All other modules (gdp-realtime.js, app-sync.js) MUST delegate here.
+  var _cachedEmpresaId = null;
   function getEmpresaId() {
     try {
       var emp = JSON.parse(localStorage.getItem('nexedu.empresa') || '{}');
@@ -38,6 +41,21 @@
       // Normalize case: "Lariucci" → "LARIUCCI" to prevent sync split
       if (id.toUpperCase() === 'LARIUCCI') id = 'LARIUCCI';
       if (id === 'LARIUCCI' && !emp.syncUserId) console.warn('[Sync] empresa_id usando fallback LARIUCCI — verifique nexedu.empresa.syncUserId');
+      // Persist syncUserId if resolved from fallback (prevents divergence across machines)
+      if (!emp.syncUserId && id !== 'LARIUCCI') {
+        emp.syncUserId = id;
+        localStorage.setItem('nexedu.empresa', JSON.stringify(emp));
+      }
+      // Detect empresa_id change (login switch, different localStorage state)
+      if (_cachedEmpresaId && _cachedEmpresaId !== id) {
+        console.warn('[Sync] empresa_id CHANGED: ' + _cachedEmpresaId + ' → ' + id + ' — WebSocket reconnect needed');
+        _cachedEmpresaId = id;
+        // Notify realtime module to reconnect with new filter
+        if (window._gdpRealtime && window._gdpRealtime.reconnectWithNewId) {
+          window._gdpRealtime.reconnectWithNewId();
+        }
+      }
+      _cachedEmpresaId = id;
       return id;
     } catch (_) { return 'LARIUCCI'; }
   }

@@ -123,7 +123,7 @@ function scheduleGdpCloudSync() { if (typeof schedulCloudSync === "function") sc
 
 // ===== SUPABASE CLOUD SYNC (uses centralized config from supabase-config.js) =====
 const SUPABASE_URL = window.SUPABASE_URL || "https://mvvsjaudhbglxttxaeop.supabase.co";
-const SUPABASE_KEY = window.SUPABASE_KEY || "sb_publishable_uBqL8sLjMGWnZ2aaQ1zwvg_mlQrZUXR";
+const SUPABASE_KEY = window.SUPABASE_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im12dnNqYXVkaGJnbHh0dHhhZW9wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4MDY3OTAsImV4cCI6MjA5MDM4Mjc5MH0.jadqvmRvbZjtjATaF_4WWB6A44NF06whtEIyNNyCUGo";
 // Entidades com tabela Supabase real — NÃO sincronizar via sync_data (gdpApi cuida)
 const _SUPABASE_TABLE_KEYS = new Set([CONTRACTS_KEY, ORDERS_KEY, INVOICES_KEY, RECEIVABLES_KEY, PAYABLES_KEY, PROOFS_KEY, "gdp.usuarios.v1", "gdp.extratos.v1", "gdp.conciliacao.v1"]);
 const GDP_SYNC_KEYS = [CONTRACTS_DELETED_KEY, ENTRY_INVOICES_KEY, PAYABLE_CATEGORIES_KEY, RECEIVABLE_CATEGORIES_KEY, PAYABLE_METHODS_KEY, RECEIVABLE_METHODS_KEY, CAIXA_STATEMENT_KEY, STOCK_KEY, ESTOQUE_INTEL_PRODUCTS_KEY, ESTOQUE_INTEL_PACKAGES_KEY, ESTOQUE_INTEL_ORDERS_KEY, ESTOQUE_INTEL_ORDER_ITEMS_KEY, ESTOQUE_INTEL_MOVES_KEY, ESTOQUE_INTEL_SUPPLIERS_KEY, ESTOQUE_INTEL_PURCHASES_KEY, INTEGRATIONS_KEY, "caixaescolar.banco.v1", GDP_EQUIV_KEY, GDP_CONVERSOES_KEY, GDP_DEMANDAS_KEY, GDP_ESTOQUE_SIMPLES_KEY, GDP_COMPRAS_KEY, "nexedu.config.contas-bancarias", "nexedu.config.notas-fiscais", "nexedu.config.bank-api", "nexedu.usuarios", "nexedu.empresa", "gdp.produtos.v1", "gdp.extratos.deleted.v1", "gdp.conciliacao.deleted.v1", "gdp.estoque-intel.movimentacoes.deleted.v1"];
@@ -1282,7 +1282,14 @@ function registrarContratoExcluido(contrato) {
 function savePedidos() {
   pedidos = pedidos.map(sanitizePedidoLegacyData);
   saveWrappedArray(ORDERS_KEY, pedidos);
+  _lastLocalSave[ORDERS_KEY] = Date.now();
   syncPedidosGDPToEstoqueIntel(true);
+  // Persist to Supabase (async, non-blocking)
+  if (window.gdpApi && window.gdpApi.pedidos) {
+    pedidos.forEach(function(p) {
+      window.gdpApi.pedidos.save(p).catch(function(e) { gdpWarn('[Pedidos] Supabase save failed:', p.id, e.message); });
+    });
+  }
 }
 function saveNotasFiscais() {
   // Limpar dados pesados (XML, previews) de NFs autorizadas antes de salvar no localStorage
@@ -1309,6 +1316,7 @@ function saveNotasFiscais() {
   });
   try {
     saveWrappedArray(INVOICES_KEY, lightNfs);
+    _lastLocalSave[INVOICES_KEY] = Date.now();
   } catch(e) {
     if (e.name === 'QuotaExceededError') {
       console.warn("[NF] localStorage cheio — tentando salvar versão ultra-light");
@@ -1320,7 +1328,14 @@ function saveNotasFiscais() {
         return ul;
       });
       saveWrappedArray(INVOICES_KEY, ultraLight);
+      _lastLocalSave[INVOICES_KEY] = Date.now();
     } else { throw e; }
+  }
+  // Persist to Supabase (async, non-blocking)
+  if (window.gdpApi && window.gdpApi.notas_fiscais) {
+    notasFiscais.forEach(function(nf) {
+      window.gdpApi.notas_fiscais.save(nf).catch(function(e) { gdpWarn('[NF] Supabase save failed:', nf.id, e.message); });
+    });
   }
 }
 
@@ -2746,6 +2761,13 @@ window.excluirExtratosSelecionados = function() {
     localStorage.setItem(dkExt, JSON.stringify(existingExt));
   } catch(_) {}
 
+  // DELETE from Supabase (so other machines see the deletion via Realtime)
+  if (window.gdpApi && window.gdpApi.extratos) {
+    deletedExtIds.forEach(function(id) {
+      window.gdpApi.extratos.remove(id).catch(function(e) { gdpWarn('[Extratos] Supabase delete failed:', id, e); });
+    });
+  }
+
   saveExtratos(remaining);
 
   // Story 4.69: remover TODOS os itens NAO conciliados cujo extrato não existe mais
@@ -2770,6 +2792,12 @@ window.excluirExtratosSelecionados = function() {
         removedIds.forEach(function(id) { if (existingConc.indexOf(id) < 0) existingConc.push(id); });
         localStorage.setItem(dkConc, JSON.stringify(existingConc));
       } catch(_) {}
+      // DELETE from Supabase (so other machines see the deletion via Realtime)
+      if (window.gdpApi && window.gdpApi.conciliacoes) {
+        removedIds.forEach(function(id) {
+          window.gdpApi.conciliacoes.remove(id).catch(function(e) { gdpWarn('[Conciliacao] Supabase delete failed:', id, e); });
+        });
+      }
     }
     saveConciliacao(kept);
   }

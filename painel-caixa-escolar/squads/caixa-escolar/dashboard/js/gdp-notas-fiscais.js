@@ -665,7 +665,7 @@ async function syncNfCounterFromCloud() {
     }
     // Fallback: fetch direto
     const empresaId = typeof getEmpresaId === 'function' ? getEmpresaId() : '';
-    const resp = await fetch(SUPABASE_URL + "/rest/v1/nf_counter?empresa_id=eq." + encodeURIComponent(empresaId) + "&select=*", {
+    const resp = await fetch(SUPABASE_URL + "/rest/v1/nf_counter?empresa_id=eq." + encodeURIComponent(empresaId) + "&limit=1", {
       headers: { "apikey": SUPABASE_KEY, "Authorization": "Bearer " + SUPABASE_KEY }
     });
     const rows = await resp.json();
@@ -1546,7 +1546,7 @@ function verNotaFiscal(notaId) {
 
   // ── Anotações Internas (do pedido vinculado — uso interno, NÃO aparece no XML/DANFE) ──
   const _pedidoVinculado = nf.pedidoId ? pedidos.find(function(pp) { return pp.id === nf.pedidoId; }) : null;
-  const _anotacaoNf = nf.anotacaoInterna || (_pedidoVinculado ? _pedidoVinculado.anotacaoInterna : '') || '';
+  const _anotacaoNf = nf.documentos?.anotacaoInterna || nf.anotacaoInterna || (_pedidoVinculado ? (_pedidoVinculado.documentos?.anotacaoInterna || _pedidoVinculado.anotacaoInterna) : '') || '';
   if (_anotacaoNf || true) {
     html += '<div class="card" style="padding:1rem;margin-bottom:1rem;border:1px solid rgba(234,179,8,.3);background:rgba(234,179,8,.04)">';
     html += '<h3 style="margin-bottom:.6rem;color:var(--yellow,#eab308)">Anotações Internas</h3>';
@@ -1943,14 +1943,16 @@ function salvarDadosNotaFiscal(notaId) {
   nf.serie = (document.getElementById("nf-serie-manual")?.value || "").trim() || nf.serie || "1";
   nf.sefaz = nf.sefaz || {};
   nf.sefaz.chaveAcesso = (document.getElementById("nf-chave-manual")?.value || "").trim();
+  // Salvar anotação interna dentro de documentos (JSONB no Supabase)
+  const anotacaoEl = document.getElementById('nf-anotacao-interna-' + notaId);
   nf.documentos = {
     ...(nf.documentos || {}),
     observacao: nf.documentos?.observacao || "",
     numeroManual: !isReal,
-    danfeUrl: (document.getElementById("nf-danfe-url")?.value || "").trim()
+    danfeUrl: (document.getElementById("nf-danfe-url")?.value || "").trim(),
+    anotacaoInterna: anotacaoEl ? anotacaoEl.value : (nf.documentos?.anotacaoInterna || nf.anotacaoInterna || "")
   };
-  // Salvar anotação interna
-  const anotacaoEl = document.getElementById('nf-anotacao-interna-' + notaId);
+  // Legacy compat: keep top-level field in sync
   if (anotacaoEl) nf.anotacaoInterna = anotacaoEl.value;
   nf.audit = { ...(nf.audit || {}), updatedAt: new Date().toISOString(), updatedBy: getAuditActor() };
   setIntegrationState(nf, "sefaz", {

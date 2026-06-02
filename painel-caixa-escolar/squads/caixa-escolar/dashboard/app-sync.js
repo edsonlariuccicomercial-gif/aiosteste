@@ -38,10 +38,13 @@ function persistResolvedSyncUser(userId) {
 }
 
 function getSyncUserId() {
+  // Delegate to gdp-api.js (single source of truth) when available
+  if (window.gdpApi && typeof window.gdpApi.getEmpresaId === 'function') {
+    return window.gdpApi.getEmpresaId();
+  }
+  // Fallback for initial load before gdp-api.js
   const emp = ensureEmpresaContext();
-  // Story 14.1: prioritize fixed syncUserId set at login (from escola.id or "LARIUCCI")
   var id = emp.syncUserId || emp.nomeFantasia || emp.nome || emp.cnpj || "default";
-  // Normalize case: "Lariucci" → "LARIUCCI" to prevent sync split across machines
   if (id.toUpperCase() === 'LARIUCCI') id = 'LARIUCCI';
   return id;
 }
@@ -316,20 +319,20 @@ function _getDeletedIds(table) {
 }
 
 async function pollForChanges() {
-  // DISABLED: pollForChanges was causing destructive sync loops.
-  // These tables already have dedicated Supabase tables managed by gdp-api.js,
-  // and real-time sync via gdp-realtime.js WebSocket.
-  // Having app-sync.js ALSO poll and overwrite localStorage every 30s
-  // caused data flickering, disappearing contratos, and race conditions.
-  //
-  // The sync architecture is now:
-  // - gdp-api.js: Supabase REST (source of truth, CRUD operations)
-  // - gdp-realtime.js: WebSocket (instant cross-browser updates)
-  // - app-sync.js: ONLY for legacy sync_data keys (config, estoque-intel, etc.)
-  //
-  // If cross-machine sync issues persist, the fix is in gdp-realtime.js
-  // (WebSocket reconnection), NOT in polling.
-  _updateSyncIndicator('connected');
+  // Lightweight reconciliation: delegates to gdp-realtime.js forceReconcile()
+  // which fetches all entity tables from Supabase and merges into localStorage.
+  // This catches events missed during WebSocket disconnections or background tabs.
+  // Safe: forceReconcile has internal cooldown (10s) and dedup protection.
+  _updateSyncIndicator('syncing');
+  try {
+    if (window._gdpRealtime && window._gdpRealtime.forceReconcile) {
+      window._gdpRealtime.forceReconcile();
+    }
+    _updateSyncIndicator('connected');
+  } catch (e) {
+    _updateSyncIndicator('disconnected');
+    if (typeof gdpWarn === 'function') gdpWarn('[Sync] Poll reconcile failed:', e);
+  }
 }
 
 function startPolling(intervalMs) {

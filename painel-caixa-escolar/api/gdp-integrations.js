@@ -3,12 +3,14 @@
 
 const path = require("path");
 const nfeSefaz = require(path.join(__dirname, "..", "squads", "caixa-escolar", "dashboard", "server-lib", "nfe-sefaz-client.js"));
-const { requireAuth } = require("./lib/auth");
+// Story 5.3 rev: Auth middleware REMOVED — frontend uses local login (not Supabase Auth),
+// so no JWT is available. Re-enable when frontend migrates to Supabase Auth.
+// const { requireAuth } = require("./lib/auth");
 
 function corsHeaders(req, res) {
   const origin = (req.headers && req.headers.origin) || '';
   res.setHeader("Access-Control-Allow-Origin", origin || "*");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
 }
 
@@ -23,10 +25,6 @@ function env(key, fallback) { return (process.env[key] || fallback || "").trim()
 module.exports = async function handler(req, res) {
   corsHeaders(req, res);
   if (req.method === "OPTIONS") return res.status(204).end();
-
-  // Story 5.3: Auth middleware — require valid JWT for NF-e operations
-  const user = requireAuth(req, res);
-  if (!user) return;
 
   const body = req.method === "POST" ? (req.body || {}) : {};
   const action = body.action || req.query?.action || "";

@@ -3029,6 +3029,10 @@ function excluirContrato(id) {
   registrarContratoExcluido(c);
   contratos = contratos.filter(c => c.id !== id);
   saveContratos();
+  // DELETE from Supabase (so other machines see the deletion via Realtime)
+  if (window.gdpApi && window.gdpApi.contratos) {
+    window.gdpApi.contratos.remove(id).catch(function(e) { console.warn('[Contratos] Supabase delete failed:', id, e); });
+  }
   fecharModalContrato();
   renderAll();
   showToast(`Contrato ${id} excluído.`);

@@ -53,11 +53,15 @@
     }, 500);
   }
 
+  // ALWAYS delegate to gdp-api.js (single source of truth for empresa_id)
   function getEmpresaId() {
     if (window.gdpApi && typeof window.gdpApi.getEmpresaId === 'function') return window.gdpApi.getEmpresaId();
+    // Fallback only during initial load before gdp-api.js is ready
     try {
       var emp = JSON.parse(localStorage.getItem('nexedu.empresa') || '{}');
-      return emp.syncUserId || emp.nomeFantasia || emp.nome || emp.cnpj || 'LARIUCCI';
+      var id = emp.syncUserId || emp.nomeFantasia || emp.nome || emp.cnpj || 'LARIUCCI';
+      if (id.toUpperCase() === 'LARIUCCI') id = 'LARIUCCI';
+      return id;
     } catch (_) { return 'LARIUCCI'; }
   }
 
@@ -135,6 +139,17 @@
   }
 
   function handleEntityChange(table, type, record, oldRecord) {
+    // Dirty window protection: if local save happened in last 5s, only accept
+    // INSERT and DELETE events — skip UPDATE to prevent overwriting in-flight data.
+    // This prevents the race condition where Supabase sends stale data before
+    // a pending save completes (e.g., NF just emitted but not yet in Supabase).
+    var entity = TABLE_TO_ENTITY[table];
+    var isDirty = false;
+    if (entity && typeof getLastLocalSave === 'function') {
+      var msSinceLocal = Date.now() - getLastLocalSave(entity.lsKey);
+      isDirty = msSinceLocal < 5000;
+    }
+
     var items = readLocalItems(table);
     var changed = false;
 
@@ -145,16 +160,36 @@
       }
       if (!exists) { items.push(record); changed = true; }
     } else if (type === 'UPDATE') {
-      var found = false;
-      for (var j = 0; j < items.length; j++) {
-        if (items[j].id === record.id) {
-          items[j] = record;
-          changed = true;
-          found = true;
-          break;
+      if (isDirty) {
+        // During dirty window, only update if the record already exists locally
+        // and the Supabase record is newer. Otherwise skip to protect local data.
+        var localIdx = -1;
+        for (var k = 0; k < items.length; k++) {
+          if (items[k].id === record.id) { localIdx = k; break; }
         }
+        if (localIdx >= 0) {
+          var localTs = items[localIdx].updated_at || items[localIdx].updatedAt || '';
+          var remoteTs = record.updated_at || record.updatedAt || '';
+          if (remoteTs && localTs && remoteTs > localTs) {
+            items[localIdx] = record;
+            changed = true;
+          }
+          // else: local is newer or same — skip overwrite
+        }
+        // If record not found locally during dirty window, add it (new from another machine)
+        if (localIdx < 0) { items.push(record); changed = true; }
+      } else {
+        var found = false;
+        for (var j = 0; j < items.length; j++) {
+          if (items[j].id === record.id) {
+            items[j] = record;
+            changed = true;
+            found = true;
+            break;
+          }
+        }
+        if (!found) { items.push(record); changed = true; }
       }
-      if (!found) { items.push(record); changed = true; }
     } else if (type === 'DELETE') {
       var delId = (oldRecord && oldRecord.id) || (record && record.id);
       if (delId) {
@@ -397,13 +432,79 @@
     _reconnectDelay = Math.min(_reconnectDelay * 2, 30000);
   }
 
+  // ─── RECONCILIATION: full reload from Supabase to catch missed events ───
+  var _lastVisibleTs = Date.now();
+  var _reconcileInProgress = false;
+  var _lastReconcileTs = 0;
+  var RECONCILE_COOLDOWN = 10000; // min 10s between reconciliations
+
+  function forceReconcile() {
+    if (_reconcileInProgress) return;
+    if (Date.now() - _lastReconcileTs < RECONCILE_COOLDOWN) return;
+    if (!window.gdpApi) return;
+    _reconcileInProgress = true;
+    _lastReconcileTs = Date.now();
+    log('Reconcile: fetching all tables from Supabase...');
+
+    var tables = ['contratos', 'pedidos', 'notas_fiscais', 'clientes', 'contas_receber', 'contas_pagar', 'entregas', 'extratos', 'conciliacoes', 'produtos'];
+    var promises = tables.map(function (t) {
+      if (!window.gdpApi[t] || !window.gdpApi[t].list) return Promise.resolve();
+      // Skip tables with recent local saves (dirty window) to prevent overwriting in-flight data
+      var entity = TABLE_TO_ENTITY[t];
+      if (entity && typeof getLastLocalSave === 'function') {
+        var msSince = Date.now() - getLastLocalSave(entity.lsKey);
+        if (msSince < 5000) {
+          log('Reconcile: SKIP ' + t + ' — local save ' + msSince + 'ms ago');
+          return Promise.resolve();
+        }
+      }
+      return window.gdpApi[t].list().then(function (rows) {
+        if (rows && rows.length > 0) {
+          writeLocalItems(t, rows);
+        }
+      }).catch(function () {});
+    });
+
+    Promise.all(promises).then(function () {
+      _reconcileInProgress = false;
+      scheduleRender();
+      log('Reconcile complete');
+    }).catch(function () {
+      _reconcileInProgress = false;
+    });
+  }
+
+  // ─── RECONNECT WITH NEW EMPRESA_ID ───
+  function reconnectWithNewId() {
+    log('empresa_id changed — reconnecting WebSocket with new filters');
+    disconnect();
+    setTimeout(function () {
+      connect();
+      // After reconnect, reconcile to load data for new empresa_id
+      setTimeout(forceReconcile, 2000);
+    }, 500);
+  }
+
   window.addEventListener('online', function () {
     if (!ws || ws.readyState !== WebSocket.OPEN) connect();
   });
   window.addEventListener('offline', function () { disconnect(); });
+
+  // ─── VISIBILITY CHANGE: reconnect + reconcile after background ───
   document.addEventListener('visibilitychange', function () {
     if (document.visibilityState === 'visible') {
-      if (!ws || ws.readyState !== WebSocket.OPEN) connect();
+      var elapsed = Date.now() - _lastVisibleTs;
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        // WebSocket died in background — reconnect
+        connect();
+      }
+      // If tab was hidden for >30s, reconcile to catch missed events
+      if (elapsed > 30000) {
+        log('Tab was hidden for ' + Math.round(elapsed / 1000) + 's — reconciling');
+        setTimeout(forceReconcile, 1000);
+      }
+    } else {
+      _lastVisibleTs = Date.now();
     }
   });
 
@@ -411,9 +512,36 @@
   window._gdpRealtime = {
     connect: connect,
     disconnect: disconnect,
+    reconnectWithNewId: reconnectWithNewId,
+    forceReconcile: forceReconcile,
     getStatus: function () { return _status; },
     isConnected: function () { return _status === 'connected'; },
     getChangeCount: function () { return _changeCount; }
+  };
+
+  // ─── FORCE SYNC BUTTON HANDLER (debounced 10s) ───
+  var _lastForceSyncTs = 0;
+  window._gdpForceSync = function () {
+    var now = Date.now();
+    if (now - _lastForceSyncTs < 10000) {
+      log('Force sync debounced — wait ' + Math.ceil((10000 - (now - _lastForceSyncTs)) / 1000) + 's');
+      return;
+    }
+    _lastForceSyncTs = now;
+    var btn = document.getElementById('btn-force-sync');
+    if (btn) { btn.disabled = true; btn.textContent = '↻ ...'; }
+    // Reconnect WebSocket if not connected
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      disconnect();
+      connect();
+    }
+    // Force full reconciliation
+    _reconcileInProgress = false; // reset to allow immediate reconcile
+    _lastReconcileTs = 0;
+    forceReconcile();
+    setTimeout(function () {
+      if (btn) { btn.disabled = false; btn.textContent = '↻ Sync'; }
+    }, 10000);
   };
 
   // Auto-connect

@@ -3,7 +3,7 @@ import { buildBankProviderDiagnostic } from "../server-lib/bank-provider-config.
 import { createAsaasCharge, syncAsaasCharge, listAsaasWebhooks, createAsaasWebhook } from "../server-lib/asaas-charge-client.js";
 
 const SUPABASE_URL = process.env.SUPABASE_URL || "https://mvvsjaudhbglxttxaeop.supabase.co";
-const SUPABASE_KEY = process.env.SUPABASE_ANON_KEY || "sb_publishable_uBqL8sLjMGWnZ2aaQ1zwvg_mlQrZUXR";
+const SUPABASE_KEY = process.env.SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im12dnNqYXVkaGJnbHh0dHhhZW9wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4MDY3OTAsImV4cCI6MjA5MDM4Mjc5MH0.jadqvmRvbZjtjATaF_4WWB6A44NF06whtEIyNNyCUGo";
 const STORE_KEY = "gdp.integracoes.eventos.v1";
 const RECEIVABLES_KEY = "gdp.contas-receber.v1";
 const INVOICES_KEY = "gdp.notas-fiscais.v1";
