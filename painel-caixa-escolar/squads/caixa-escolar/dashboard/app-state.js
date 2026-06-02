@@ -638,8 +638,8 @@ const SHARED_SYNC_KEYS = new Set([
   "gdp.equivalencias.v1",
   "gdp.conversoes.v1", "gdp.demandas.v1",
   "gdp.estoque.v1", "gdp.lista-compras.v1",
-  // Intel Preços v2 — Central + Custos + Histórico
-  "intel.central-produtos.v2", "intel.custos-fornecedores.v1", "intel.historico-licitacoes.v1",
+  // Intel Preços v2 — Histórico only (central-produtos migrado para tabela dedicada)
+  "intel.historico-licitacoes.v1",
   // Intel Preços — legacy sync
   "gdp.estoque-intel.produtos.v1", "gdp.estoque-intel.embalagens.v1",
   "gdp.estoque-intel.pedidos.v1", "gdp.estoque-intel.pedido-itens.v1",
@@ -701,8 +701,8 @@ const SYNC_KEYS = [
   "gdp.equivalencias.v1",
   "gdp.conversoes.v1", "gdp.demandas.v1",
   "gdp.estoque.v1", "gdp.lista-compras.v1",
-  // Intel Preços v2 — Central + Custos + Histórico
-  "intel.central-produtos.v2", "intel.custos-fornecedores.v1", "intel.historico-licitacoes.v1",
+  // Intel Preços v2 — Histórico only (central-produtos migrado para tabela dedicada)
+  "intel.historico-licitacoes.v1",
   // Intel Preços — legacy sync
   "gdp.estoque-intel.produtos.v1", "gdp.estoque-intel.embalagens.v1",
   "gdp.estoque-intel.pedidos.v1", "gdp.estoque-intel.pedido-itens.v1",

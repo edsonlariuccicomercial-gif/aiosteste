@@ -14,7 +14,7 @@
   var wsUrl = SUPABASE_URL.replace(/^http/, 'ws') + '/realtime/v1/websocket?apikey=' + encodeURIComponent(SUPABASE_KEY) + '&vsn=1.0.0';
 
   // ─── DEDICATED TABLES (gdp-api.js entities) ───
-  var ENTITY_TABLES = ['contratos', 'pedidos', 'notas_fiscais', 'contas_receber', 'contas_pagar', 'entregas', 'extratos', 'conciliacoes', 'clientes'];
+  var ENTITY_TABLES = ['contratos', 'pedidos', 'notas_fiscais', 'contas_receber', 'contas_pagar', 'entregas', 'extratos', 'conciliacoes', 'clientes', 'produtos'];
 
   var TABLE_TO_ENTITY = {
     contratos:      { lsKey: 'gdp.contratos.v1',         wrapped: true  },
@@ -25,7 +25,8 @@
     entregas:       { lsKey: 'gdp.entregas.provas.v1',   wrapped: false },
     extratos:       { lsKey: 'gdp.extratos.v1',          wrapped: true  },
     conciliacoes:   { lsKey: 'gdp.conciliacao.v1',       wrapped: true  },
-    clientes:       { lsKey: 'gdp.usuarios.v1',          wrapped: false }
+    clientes:       { lsKey: 'gdp.usuarios.v1',          wrapped: false },
+    produtos:       { lsKey: 'intel.central-produtos.v2', wrapped: true  }
   };
 
   // ─── GENERIC TABLES (sync_data, resultados, radar) ───

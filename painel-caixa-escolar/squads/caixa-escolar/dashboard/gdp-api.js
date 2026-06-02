@@ -26,7 +26,8 @@
     entregas:       { lsKey: 'gdp.entregas.provas.v1', table: 'entregas',       wrapped: false },
     nf_counter:     { lsKey: 'gdp.nf-counter.v1',      table: 'nf_counter',     wrapped: false },
     extratos:       { lsKey: 'gdp.extratos.v1',         table: 'extratos',       wrapped: true  },
-    conciliacoes:   { lsKey: 'gdp.conciliacao.v1',      table: 'conciliacoes',   wrapped: true  }
+    conciliacoes:   { lsKey: 'gdp.conciliacao.v1',      table: 'conciliacoes',   wrapped: true  },
+    produtos:       { lsKey: 'intel.central-produtos.v2', table: 'produtos',     wrapped: true  }
   };
 
   // Story 14.1: empresa_id must match syncUserId set at login (from escola.id or "LARIUCCI")
@@ -77,7 +78,8 @@
     contas_pagar: ['id','empresa_id','descricao','valor','status','forma','categoria','vencimento','fornecedor','audit','created_at','updated_at'],
     entregas: ['id','empresa_id','pedido_id','escola','data_entrega','status_entrega','recebedor','obs','foto','assinatura','created_at','updated_at'],
     extratos: ['id','empresa_id','data','arquivo','conta_financeira','conciliados','total','is_open','criado_em','created_at','updated_at'],
-    conciliacoes: ['id','empresa_id','extrato_id','data','descricao','valor','tipo','conciliado','conciliado_em','vinculado_a','historico','categoria_dre','metadata','created_at','updated_at']
+    conciliacoes: ['id','empresa_id','extrato_id','data','descricao','valor','tipo','conciliado','conciliado_em','vinculado_a','historico','categoria_dre','metadata','created_at','updated_at'],
+    produtos: ['id','empresa_id','descricao','sku','ncm','unidade','marca','grupo','produto_critico','unidade_base','embalagens','custo_base','preco_referencia','margem_alvo','fonte','created_at','updated_at']
   };
   var CAMEL_TO_SNAKE = {
     escolaClienteId:'escola_cliente_id', contratoId:'contrato_id', pedidoId:'pedido_id', origemId:'origem_id',
@@ -385,6 +387,7 @@
     entregas:       createEntityApi('entregas'),
     extratos:       createEntityApi('extratos'),
     conciliacoes:   createEntityApi('conciliacoes'),
+    produtos:       createEntityApi('produtos'),
     nf_counter:     nfCounterApi,
     getEmpresaId:        getEmpresaId,
     setEmpresaContext:   setEmpresaContext,
