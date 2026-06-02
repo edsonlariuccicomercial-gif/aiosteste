@@ -204,17 +204,25 @@
   <script src="js/supabase-config.js?v=10"></script>
   <script src="js/supabase-auth.js?v=10"></script>
   <script>
-    // Session guard (Story 7.2): redirect to login if no valid session
+    // Story 14.3: Session guard — check local token first (instant), then Supabase (with timeout)
     (async function() {
-      var session = await window.gdpAuth.getSession();
-      // Allow legacy auth during transition
+      // Legacy auth — instant check
       var legacyOk = sessionStorage.getItem('ce.auth') === 'b01b3ce6c2432fe67e535235bd985a787557c9584b56c70e855abad11d0bd871';
-      if (!session && !legacyOk) {
+      if (legacyOk) return;
+      // Check locally-stored Supabase token (no network call if still valid)
+      try {
+        var stored = JSON.parse(localStorage.getItem('gdp.auth.session') || 'null');
+        if (stored && stored.access_token && stored.expires_at && (stored.expires_at * 1000) > Date.now()) return;
+      } catch(_) {}
+      // Token expired/missing — try refresh (has 8s timeout)
+      var session = await window.gdpAuth.getSession();
+      if (!session) {
         window.location.href = 'login.html';
       }
     })();
   </script>
   <script src="gdp-api.js?v=12"></script>
+  <script src="js/gdp-realtime.js?v=2"></script>
 </head>
 <body>
 
@@ -2712,4 +2720,5 @@ function confirmarImportProd() {
     <div class="footer-stat"><div class="footer-stat-value" id="financeiro-footer-saidas">R$ 0,00</div><div class="footer-stat-label">saidas</div></div>
   </div>
 </div>
+<script src="js/gdp-nav.js"></script>
 </body></html>

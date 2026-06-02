@@ -9,6 +9,7 @@
   <link rel="manifest" href="manifest-entregador.json">
   <link rel="apple-touch-icon" sizes="192x192" href="icon-entregador-192.png">
   <title>GDP Entregador</title>
+  <link rel="stylesheet" href="css/design-tokens.css">
   <style>
     :root {
       --bg:#0f172a;--surface:#1e293b;--surface2:#334155;--border:#475569;
@@ -172,6 +173,7 @@
 </div>
 
 <script src="js/supabase-config.js"></script>
+<script src="js/gdp-realtime.js?v=2"></script>
 <script>
 const ACCESS_CODE = "entregador2025";
 const ORDERS_KEY = "gdp.pedidos.v1";
@@ -179,7 +181,7 @@ const PROOFS_KEY = "gdp.entregas.provas.v1";
 
 // ===== SUPABASE CLOUD SYNC (uses centralized config from supabase-config.js) =====
 const SUPABASE_URL = window.SUPABASE_URL || "https://mvvsjaudhbglxttxaeop.supabase.co";
-const SUPABASE_KEY = window.SUPABASE_KEY || "sb_publishable_uBqL8sLjMGWnZ2aaQ1zwvg_mlQrZUXR";
+const SUPABASE_KEY = window.SUPABASE_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im12dnNqYXVkaGJnbHh0dHhhZW9wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4MDY3OTAsImV4cCI6MjA5MDM4Mjc5MH0.jadqvmRvbZjtjATaF_4WWB6A44NF06whtEIyNNyCUGo";
 
 function getSyncUserId() {
   const emp = JSON.parse(localStorage.getItem("nexedu.empresa") || "{}");
@@ -572,5 +574,6 @@ if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw-entregador.js').catch(() => {});
 }
 </script>
+<script src="js/gdp-nav.js"></script>
 </body>
 </html>

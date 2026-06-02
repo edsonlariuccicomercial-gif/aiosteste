@@ -1,42 +1,51 @@
 /**
- * Design Tokens — Licit-AIX Design System (Story 7.14)
- * Single source of truth for all visual primitives.
+ * Design Tokens — GDP Design System v2.0 (Story 5.10)
+ * Unified tokens: Slate/Blue theme for all GDP pages.
  * Import this file in any page that needs the design system.
  *
  * Usage: <link rel="stylesheet" href="css/design-tokens.css">
+ * Migrated from green/dark theme to slate/blue (Story 5.10)
  */
 
 /* ===== COLOR TOKENS ===== */
 :root {
   /* Backgrounds */
-  --bg: #0d1412;
-  --bg-soft: #131f1a;
-  --card: rgba(21, 34, 28, 0.84);
-  --card-hover: rgba(21, 34, 28, 0.95);
+  --bg: #0f172a;
+  --bg-soft: #1e293b;
+  --card: #1e293b;
+  --card-hover: #334155;
+  --surface: #1e293b;
+  --surface-2: #334155;
+  --surface-3: #475569;
 
   /* Borders & Lines */
-  --line: rgba(143, 197, 157, 0.2);
-  --line-strong: rgba(143, 197, 157, 0.4);
+  --line: rgba(71, 85, 105, 0.5);
+  --line-strong: rgba(71, 85, 105, 0.8);
+  --border: #334155;
+  --border-light: #475569;
 
   /* Text */
-  --text: #e6f3ec;
-  --muted: #9bb7a8;
-  --text-inverse: #0d1412;
+  --text: #f1f5f9;
+  --muted: #94a3b8;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --text-inverse: #0f172a;
 
-  /* Accent (Primary) */
-  --accent: #4ec98a;
-  --accent-dim: rgba(78, 201, 138, 0.15);
-  --accent-hover: #5fd99a;
+  /* Accent (Primary — Blue) */
+  --accent: #3b82f6;
+  --accent-dim: rgba(59, 130, 246, 0.15);
+  --accent-hover: #2563eb;
+  --accent-soft: rgba(59, 130, 246, 0.15);
 
   /* Status Colors */
-  --warning: #f4b942;
-  --warning-dim: rgba(244, 185, 66, 0.15);
-  --danger: #ff6f6f;
-  --danger-dim: rgba(255, 111, 111, 0.15);
-  --success: #4ec98a;
-  --success-dim: rgba(78, 201, 138, 0.15);
-  --info: #5b9cf5;
-  --info-dim: rgba(91, 156, 245, 0.15);
+  --warning: #f59e0b;
+  --warning-dim: rgba(245, 158, 11, 0.15);
+  --danger: #ef4444;
+  --danger-dim: rgba(239, 68, 68, 0.15);
+  --success: #22c55e;
+  --success-dim: rgba(34, 197, 94, 0.15);
+  --info: #06b6d4;
+  --info-dim: rgba(6, 182, 212, 0.15);
 
   /* ===== SPACING TOKENS ===== */
   --space-xs: 4px;
