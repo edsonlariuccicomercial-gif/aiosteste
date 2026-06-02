@@ -170,8 +170,8 @@ function renderPedidos() {
     const clienteNome = pedidoFiscal.cliente?.nome || p.escola || "-";
     const clienteCnpj = pedidoFiscal.cliente?.cnpj || "-";
     const _entStatus = calcStatusEntrega(p);
-    const _entBadgeMap = { pendente: 'badge-vencido', parcial: 'badge-pendente', entregue: 'badge-aprovado', atrasado: 'badge-danger' };
-    const _entLabelMap = { pendente: 'PENDENTE', parcial: 'PARCIAL', entregue: 'ENTREGUE', atrasado: 'ATRASADO' };
+    const _entBadgeMap = { pendente: 'badge-vencido', parcial: 'badge-pendente', entregue: 'badge-aprovado', cancelado: 'badge-danger' };
+    const _entLabelMap = { pendente: 'PENDENTE', parcial: 'PARCIAL', entregue: 'ENTREGUE', cancelado: 'CANCELADO' };
     return `<tr>
       <td class="text-center"><input type="checkbox" class="pedido-check" value="${p.id}" onchange="atualizarSelecaoPedidos()"${_selectedPedidoIds.has(p.id) ? ' checked' : ''}></td>
       <td class="text-center"><button class="btn btn-outline btn-sm" onclick="abrirMenuPedido('${p.id}')" title="Abrir menu do pedido" style="min-width:auto;padding:.2rem .5rem;font-weight:700">...</button></td>
@@ -3427,19 +3427,14 @@ function gerarRelatorioDemanda(pedidoId) {
 
 function calcStatusEntrega(p) {
   if (!p || !p.itens || !p.itens.length) return 'pendente';
+  // Pedido cancelado = entrega cancelada
+  if (normalizePedidoStatus(p.status) === 'cancelado') return 'cancelado';
   var totalPedido = 0, totalEntregue = 0;
   p.itens.forEach(function(item) {
     totalPedido += Number(item.qtd || 0);
     totalEntregue += Number(item.qtdEntregue || 0);
   });
-  if (totalEntregue <= 0) {
-    var dataPrev = p.dataPrevista || p.dataEntrega;
-    if (dataPrev) {
-      var prev = new Date(dataPrev); prev.setHours(23,59,59,999);
-      if (prev < new Date()) return 'atrasado';
-    }
-    return 'pendente';
-  }
+  if (totalEntregue <= 0) return 'pendente';
   if (totalEntregue >= totalPedido) return 'entregue';
   return 'parcial';
 }
