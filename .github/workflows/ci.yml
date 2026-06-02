@@ -28,6 +28,10 @@ jobs:
 
       - run: npm ci
 
+      - name: TypeScript check
+        run: npm run typecheck
+        continue-on-error: true
+
       - name: Run tests
         run: npm test
 
