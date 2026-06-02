@@ -40,7 +40,10 @@ function persistResolvedSyncUser(userId) {
 function getSyncUserId() {
   const emp = ensureEmpresaContext();
   // Story 14.1: prioritize fixed syncUserId set at login (from escola.id or "LARIUCCI")
-  return emp.syncUserId || emp.nomeFantasia || emp.nome || emp.cnpj || "default";
+  var id = emp.syncUserId || emp.nomeFantasia || emp.nome || emp.cnpj || "default";
+  // Normalize case: "Lariucci" → "LARIUCCI" to prevent sync split across machines
+  if (id.toUpperCase() === 'LARIUCCI') id = 'LARIUCCI';
+  return id;
 }
 
 async function cloudSave(key, data, signal) {
@@ -137,15 +140,9 @@ async function syncFromCloud(options) {
     const localTime = getDataTimestamp(localData);
     const isSharedKey = SHARED_SYNC_KEYS.has(row.key);
 
-    // Story 4.61: merge protection DESATIVADA quando force=true (Forçar Sync)
-    if (!force) {
-      const localItems = localData?.items || (Array.isArray(localData) ? localData : null);
-      const cloudItems = row.data?.items || (Array.isArray(row.data) ? row.data : null);
-      if (localItems && cloudItems && localItems.length > cloudItems.length && cloudItems.length > 0) {
-        gdpWarn("[Sync] Keeping local for " + row.key + " (local:" + localItems.length + " > cloud:" + cloudItems.length + ")");
-        continue;
-      }
-    }
+    // Story 14.3: merge protection REMOVIDA — cloud é source-of-truth
+    // A proteção anterior bloqueava sync legítimo quando outro browser adicionava registros
+    // e o localStorage local ficava com contagem diferente. Agora cloud sempre vence.
 
     // Story 4.65: dirty window protection — skip overwrite if local was saved recently (5s)
     if (!force && typeof getLastLocalSave === 'function') {
@@ -339,7 +336,7 @@ async function pollForChanges() {
         } catch(_) { localEmpty = true; }
       }
 
-      let url = `${SUPABASE_URL}/rest/v1/${table}?empresa_id=eq.${encodeURIComponent(empresaId)}&select=*&order=updated_at.desc&limit=500`;
+      let url = `${SUPABASE_URL}/rest/v1/${table}?empresa_id=eq.${encodeURIComponent(empresaId)}&order=updated_at.desc&limit=200`;
       if (_lastPollTs && !localEmpty) {
         url += `&updated_at=gt.${encodeURIComponent(_lastPollTs)}`;
       }
@@ -399,14 +396,15 @@ function startPolling(intervalMs) {
   stopPolling();
   _lastPollTs = new Date().toISOString();
   pollForChanges();
-  _pollInterval = setInterval(pollForChanges, intervalMs || 30000);
+  _pollInterval = setInterval(pollForChanges, intervalMs || 120000);
 }
 
 function stopPolling() {
   if (_pollInterval) { clearInterval(_pollInterval); _pollInterval = null; }
 }
 
-// Auto-start polling when page is visible, stop when hidden
+// Story 14.3: Auto-start polling as fallback (30s instead of 120s)
+// Realtime handles instant sync; polling catches anything missed
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && !_pollInterval) {
     startPolling(30000);

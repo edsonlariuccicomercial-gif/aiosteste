@@ -8,7 +8,7 @@
   'use strict';
 
   var SUPABASE_URL = window.SUPABASE_URL || 'https://mvvsjaudhbglxttxaeop.supabase.co';
-  var SUPABASE_KEY = window.SUPABASE_KEY || 'sb_publishable_uBqL8sLjMGWnZ2aaQ1zwvg_mlQrZUXR';
+  var SUPABASE_KEY = window.SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im12dnNqYXVkaGJnbHh0dHhhZW9wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4MDY3OTAsImV4cCI6MjA5MDM4Mjc5MH0.jadqvmRvbZjtjATaF_4WWB6A44NF06whtEIyNNyCUGo';
   var REST = SUPABASE_URL + '/rest/v1';
   var HEADERS = { apikey: SUPABASE_KEY, Authorization: 'Bearer ' + SUPABASE_KEY, 'Content-Type': 'application/json' };
   var UPSERT_HEADERS = Object.assign({}, HEADERS, { Prefer: 'return=minimal,resolution=merge-duplicates' });
@@ -34,6 +34,8 @@
     try {
       var emp = JSON.parse(localStorage.getItem('nexedu.empresa') || '{}');
       var id = emp.syncUserId || emp.nomeFantasia || emp.nome || emp.cnpj || 'LARIUCCI';
+      // Normalize case: "Lariucci" → "LARIUCCI" to prevent sync split
+      if (id.toUpperCase() === 'LARIUCCI') id = 'LARIUCCI';
       if (id === 'LARIUCCI' && !emp.syncUserId) console.warn('[Sync] empresa_id usando fallback LARIUCCI — verifique nexedu.empresa.syncUserId');
       return id;
     } catch (_) { return 'LARIUCCI'; }
@@ -111,9 +113,13 @@
     return obj;
   }
 
+  // Story 14.3: 10s timeout to prevent hanging when Supabase is slow/offline
   async function sbFetch(path) {
     try {
-      var resp = await fetch(REST + path, { headers: HEADERS });
+      var controller = new AbortController();
+      var timer = setTimeout(function() { controller.abort(); }, 10000);
+      var resp = await fetch(REST + path, { headers: HEADERS, signal: controller.signal });
+      clearTimeout(timer);
       if (!resp.ok) return null;
       return await resp.json();
     } catch (_) { return null; }
@@ -121,16 +127,22 @@
 
   async function sbUpsert(table, row, conflict) {
     try {
+      var controller = new AbortController();
+      var timer = setTimeout(function() { controller.abort(); }, 10000);
       var resp = await fetch(REST + '/' + table + '?on_conflict=' + conflict, {
-        method: 'POST', headers: UPSERT_HEADERS, body: JSON.stringify(row)
+        method: 'POST', headers: UPSERT_HEADERS, body: JSON.stringify(row), signal: controller.signal
       });
+      clearTimeout(timer);
       return resp.ok;
     } catch (_) { return false; }
   }
 
   async function sbDelete(table, id) {
     try {
-      var resp = await fetch(REST + '/' + table + '?id=eq.' + encodeURIComponent(id), { method: 'DELETE', headers: HEADERS });
+      var controller = new AbortController();
+      var timer = setTimeout(function() { controller.abort(); }, 10000);
+      var resp = await fetch(REST + '/' + table + '?id=eq.' + encodeURIComponent(id), { method: 'DELETE', headers: HEADERS, signal: controller.signal });
+      clearTimeout(timer);
       return resp.ok;
     } catch (_) { return false; }
   }
@@ -184,7 +196,7 @@
     }
   }
 
-  setInterval(function () { if (navigator.onLine && _retryQueue.length) flushRetryQueue(); }, 30000);
+  setInterval(function () { if (navigator.onLine && _retryQueue.length) flushRetryQueue(); }, 120000);
 
   // --- entity CRUD factory ---
   function createEntityApi(name) {
@@ -193,7 +205,7 @@
 
     return {
       list: async function () {
-        var rows = await sbFetch('/' + table + '?select=*&empresa_id=eq.' + encodeURIComponent(getEmpresaId()));
+        var rows = await sbFetch('/' + table + '?empresa_id=eq.' + encodeURIComponent(getEmpresaId()) + '&limit=1000');
         if (rows != null) {
           rows = rows.map(mapFromTable);
           // Story 4.51 AC-A4: filter out locally-deleted items
@@ -219,7 +231,7 @@
       },
 
       get: async function (id) {
-        var rows = await sbFetch('/' + table + '?id=eq.' + encodeURIComponent(id) + '&select=*');
+        var rows = await sbFetch('/' + table + '?id=eq.' + encodeURIComponent(id) + '&limit=1');
         if (rows && rows.length) return mapFromTable(rows[0]);
         var ls = readLS(entity);
         if (ls) for (var i = 0; i < ls.length; i++) { if (ls[i].id === id) return ls[i]; }
@@ -282,13 +294,13 @@
   // --- nf_counter (keyed by empresa_id, not id) ---
   var nfCounterApi = {
     list: async function () {
-      var rows = await sbFetch('/nf_counter?select=*&empresa_id=eq.' + encodeURIComponent(getEmpresaId()));
+      var rows = await sbFetch('/nf_counter?empresa_id=eq.' + encodeURIComponent(getEmpresaId()) + '&limit=100');
       if (rows != null) return rows;
       try { return JSON.parse(localStorage.getItem('gdp.nf-counter.v1') || '[]'); } catch (_) { return []; }
     },
     get: async function (empresaId) {
       var eid = empresaId || getEmpresaId();
-      var rows = await sbFetch('/nf_counter?empresa_id=eq.' + encodeURIComponent(eid) + '&select=*');
+      var rows = await sbFetch('/nf_counter?empresa_id=eq.' + encodeURIComponent(eid) + '&limit=1');
       return (rows && rows.length) ? rows[0] : null;
     },
     save: async function (item) {

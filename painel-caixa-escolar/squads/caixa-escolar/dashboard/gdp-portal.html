@@ -660,42 +660,33 @@ async function doLogin() {
     };
   }
 
-  // PRIORIDADE 1: Supabase RPC verify_escola_login (bcrypt hash — source of truth)
+  // PRIORIDADE 1: Supabase direto (source of truth — plaintext comparison server-side)
   let escola = null;
-  try {
-    const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000));
-    const rpcUrl = (window.SUPABASE_URL || 'https://mvvsjaudhbglxttxaeop.supabase.co') + '/rest/v1/rpc/verify_escola_login';
-    const rpcKey = window.SUPABASE_KEY || '';
-    const rpcRes = await Promise.race([
-      fetch(rpcUrl, {
-        method: 'POST',
-        headers: { 'apikey': rpcKey, 'Authorization': 'Bearer ' + rpcKey, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ p_login: user, p_senha: pass })
-      }),
-      timeoutPromise
-    ]);
-    if (rpcRes.ok) {
-      const rows = await rpcRes.json();
-      if (rows && rows.length > 0) {
-        escola = buildEscola(rows[0]);
-        console.log('[portal] Login via Supabase RPC (bcrypt verified)');
+  if (window.gdpApi) {
+    try {
+      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000));
+      const clientes = await Promise.race([gdpApi.clientes.list(), timeoutPromise]);
+      const usrCloud = clientes.find(u => (u.login || '').toLowerCase() === user && u.senha === pass);
+      if (usrCloud) {
+        escola = buildEscola(usrCloud);
+        console.log('[portal] Login via Supabase (cloud-first)');
       }
-    }
-  } catch(e) { console.warn('[portal] Supabase RPC login skipped:', e.message); }
-
-  // PRIORIDADE 2: JSON estático (fallback para escolas não migradas ou Supabase offline)
-  if (!escola && credentials && credentials.escolas) {
-    const credMatch = credentials.escolas.find(e => e.login === user && e.senha === pass);
-    if (credMatch) escola = { ...credMatch, contratos_vinculados: credMatch.contratos_vinculados || [] };
+    } catch(e) { console.warn('[portal] Supabase login skipped:', e.message); }
   }
 
-  // PRIORIDADE 3: localStorage (fallback offline — skip bcrypt hashes)
+  // PRIORIDADE 2: localStorage (dados cacheados de sessões anteriores)
   if (!escola) {
     try {
       const usuarios = JSON.parse(localStorage.getItem('gdp.usuarios.v1') || '[]');
-      const usrLocal = usuarios.find(u => (u.login || '').toLowerCase() === user && (u.senha === pass || (u.senha && u.senha.startsWith('$2') && false)));
+      const usrLocal = usuarios.find(u => (u.login || '').toLowerCase() === user && u.senha === pass);
       if (usrLocal) escola = buildEscola(usrLocal);
     } catch(_) {}
+  }
+
+  // PRIORIDADE 3: JSON estático (fallback para escolas não migradas)
+  if (!escola && credentials && credentials.escolas) {
+    const credMatch = credentials.escolas.find(e => e.login === user && e.senha === pass);
+    if (credMatch) escola = { ...credMatch, contratos_vinculados: credMatch.contratos_vinculados || [] };
   }
 
   if (!escola) {
