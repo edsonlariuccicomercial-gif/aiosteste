@@ -12,6 +12,24 @@
 -- Authenticated users get proper isolation via auth.uid() → user_empresa.
 
 -- ============================================================
+-- STEP 0: Ensure user_empresa table exists (may not have been created by migration 009)
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS user_empresa (
+  user_id UUID NOT NULL,
+  empresa_id TEXT NOT NULL,
+  role TEXT NOT NULL DEFAULT 'operador',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (user_id, empresa_id)
+);
+ALTER TABLE user_empresa ENABLE ROW LEVEL SECURITY;
+DO $$ BEGIN
+  CREATE POLICY "user_empresa_self" ON user_empresa
+    FOR ALL USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+-- ============================================================
 -- STEP 1: Drop ALL permissive policies from migration 007
 -- ============================================================
 

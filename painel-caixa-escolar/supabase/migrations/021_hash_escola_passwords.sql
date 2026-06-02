@@ -3,11 +3,11 @@
 -- Uses pgcrypto extension (available by default in Supabase).
 
 -- Ensure pgcrypto is available
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
+CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
 
 -- Hash all existing plaintext passwords
 UPDATE clientes
-SET senha = crypt(senha, gen_salt('bf', 8))
+SET senha = extensions.crypt(senha, extensions.gen_salt('bf', 8))
 WHERE senha IS NOT NULL
   AND senha != ''
   AND senha NOT LIKE '$2a$%'  -- skip already hashed
@@ -52,7 +52,7 @@ BEGIN
   FROM clientes c
   WHERE LOWER(c.login) = LOWER(p_login)
     AND c.senha IS NOT NULL
-    AND c.senha = crypt(p_senha, c.senha);
+    AND c.senha = extensions.crypt(p_senha, c.senha);
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
