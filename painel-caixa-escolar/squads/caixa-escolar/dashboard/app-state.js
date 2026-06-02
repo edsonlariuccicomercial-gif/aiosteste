@@ -64,7 +64,7 @@ const SRE_CONFIGS = [
   { id: "unai", nome: "Unaí", regiao: "Noroeste" },
   { id: "varginha", nome: "Varginha", regiao: "Sul" },
 ];
-const SRE_DEFAULT_ATIVAS = ["uberaba", "uberlandia", "passos"]; // backward compat
+const SRE_DEFAULT_ATIVAS = SRE_CONFIGS.map(s => s.id); // all SREs by default — user can filter in config
 const SRE_PERFIS = {
   rapido: ["uberaba", "uberlandia", "passos"],
   regional: ["uberaba", "uberlandia", "passos", "ituiutaba", "patos-de-minas", "patrocinio", "monte-carmelo", "campo-belo", "divinopolis", "varginha"],
@@ -85,8 +85,14 @@ function setSresAtivas(ids) {
   try {
     const emp = JSON.parse(localStorage.getItem("nexedu.empresa") || "{}");
     emp.sresAtivas = ids;
+    emp.updatedAt = new Date().toISOString(); // ensure cloud sync detects change
     localStorage.setItem("nexedu.empresa", JSON.stringify(emp));
-    schedulCloudSync();
+    // Force immediate cloud save (don't wait for debounced schedulCloudSync)
+    if (typeof cloudSave === 'function') {
+      cloudSave("nexedu.empresa", emp);
+    } else if (typeof schedulCloudSync === 'function') {
+      schedulCloudSync();
+    }
   } catch(_) {}
 }
 
@@ -620,7 +626,7 @@ function calcPrecoUnitario(preco, unidadeDesc, quantidade) {
 
 // ===== SUPABASE CLOUD SYNC (uses centralized config from supabase-config.js) =====
 const SUPABASE_URL = window.SUPABASE_URL || "https://mvvsjaudhbglxttxaeop.supabase.co";
-const SUPABASE_KEY = window.SUPABASE_KEY || "sb_publishable_uBqL8sLjMGWnZ2aaQ1zwvg_mlQrZUXR";
+const SUPABASE_KEY = window.SUPABASE_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im12dnNqYXVkaGJnbHh0dHhhZW9wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4MDY3OTAsImV4cCI6MjA5MDM4Mjc5MH0.jadqvmRvbZjtjATaF_4WWB6A44NF06whtEIyNNyCUGo";
 const SHARED_SYNC_KEYS = new Set([
   "caixaescolar.banco.v1", "caixaescolar.preorcamentos.v1", "caixaescolar.resultados.v1",
   "caixaescolar.contratos.v1", "caixaescolar.orcamentos", "caixaescolar.descartados",
