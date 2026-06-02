@@ -2,7 +2,7 @@
  * gdp-api.js — Supabase-first data access layer for GDP (Story 7.22)
  * Architecture: Supabase is source-of-truth; localStorage is offline cache.
  * Write path: Supabase → localStorage (mirror)
- * Read path: Supabase → localStorage fallback (sync_data legacy removed)
+ * Read path: Supabase → localStorage fallback
  */
 (function () {
   'use strict';
