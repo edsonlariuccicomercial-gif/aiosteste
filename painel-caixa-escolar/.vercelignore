@@ -1,0 +1,19 @@
+# Exclude legacy API files from squads (duplicates of /api/)
+squads/caixa-escolar/dashboard/api/
+
+# Exclude test files
+tests/
+
+# Exclude supabase migrations (not needed in deploy)
+supabase/
+
+# Exclude docs
+docs/
+
+# Exclude scripts (operational, not serverless)
+scripts/
+
+# Exclude dev config
+tsconfig.json
+vitest.config.js
+vite.config.js
