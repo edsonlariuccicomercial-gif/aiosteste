@@ -1,8 +1,8 @@
-# Frontend Specification — Caixa Escolar MG / LicitIA
+# Frontend Specification — GDP Painel Caixa Escolar
 
 > **Fase:** Brownfield Discovery — Phase 3 (UX/Frontend Assessment)
-> **Agente:** @ux-design-expert (Uma)
-> **Data:** 2026-03-09
+> **Agente:** @ux-design-expert (executado por @architect)
+> **Data:** 2026-06-02 (v2.0 — atualizado de 2026-03-09)
 > **Escopo:** `squads/caixa-escolar/dashboard/`
 
 ---
@@ -13,26 +13,34 @@
 
 | Camada | Tecnologia | Observacoes |
 |--------|-----------|-------------|
-| **Linguagem** | Vanilla JS (ES2020+) | Sem framework (React, Vue, etc.) |
+| **Linguagem** | Vanilla JS (ES2020+, IIFE) | Sem framework (React, Vue, etc.) |
 | **CSS** | CSS puro com custom properties | Sem preprocessador (Sass, Tailwind) |
-| **Bundler** | Nenhum | Arquivos servidos diretamente |
-| **Libs externas** | SheetJS (xlsx), pdf.js | Carregadas via CDN |
-| **Hospedagem** | Netlify (Functions + Static) | Proxy SGD via Netlify Functions |
-| **Persistencia** | localStorage + sessionStorage | Sem banco de dados client-side (IndexedDB) |
+| **Bundler** | Vite 7.3 (dev only) | Arquivos servidos diretamente em prod |
+| **Libs externas** | SheetJS (xlsx), jsPDF | CDN + npm |
+| **Hospedagem** | Vercel (Functions + Static) | Migrado de Netlify (mar/2026) |
+| **Auth** | Supabase GoTrue (JWT) | Migrado de SHA-256 client-side |
+| **Persistencia** | Supabase (source of truth) + localStorage (cache) + in-memory fallback | Migrado de localStorage-only |
+| **Realtime** | Supabase WebSocket (12 canais) | Sync cross-browser |
 
 ### 1.2 Mapa de Paginas
 
-O sistema possui **7 paginas HTML independentes**, cada uma com CSS inline (exceto index.html que usa styles.css externo):
+O sistema possui **11 paginas HTML independentes**, cada uma com CSS inline:
 
 | Pagina | Arquivo | Funcao | Auth |
 |--------|---------|--------|------|
-| Login Fornecedor | `login.html` | Autenticacao SHA-256 client-side | Publico |
-| Painel Fornecedor | `index.html` | Dashboard principal (orcamentos, pre-orcamentos, banco precos, SGD) | sessionStorage |
-| GDP Dashboard | `gdp-dashboard.html` | Gestao de Pedidos pos-licitacao — visao fornecedor | Proprio |
-| GDP Contratos | `gdp-contratos.html` | Upload de atas, parser de contratos, gestao de itens | Proprio |
-| GDP Gestao | `gdp-gestao.html` | Workflow de pedido (pipeline visual com 7 fases) | Proprio |
-| GDP Portal | `gdp-portal.html` | Portal da escola — catalogo, carrinho, pedidos | Login escola |
-| GDP Entregador | `gdp-entregador.html` | App mobile de entrega — foto, assinatura, comprovante | Codigo acesso |
+| Login | `login.html` | Autenticação Supabase (email+senha) | Público |
+| Entry Point | `index.html` | Redirect → gdp-contratos.html | - |
+| Home | `dashboard-home.html` | Home dashboard com navegação | Supabase JWT |
+| GDP Contratos | `gdp-contratos.html` | Gestão de contratos (página principal) | Supabase JWT |
+| GDP Dashboard | `gdp-dashboard.html` | KPIs e analytics | Supabase JWT |
+| GDP Gestao | `gdp-gestao.html` | Workflow de pedido (pipeline visual) | Supabase JWT |
+| GDP Portal | `gdp-portal.html` | Portal escola — catálogo, carrinho, pedidos | Login escola |
+| GDP Entregador | `gdp-entregador.html` | App de entregas (PWA mobile) | Código acesso |
+| Estoque Intel | `gdp-estoque-intel-mobile.html` | Inteligência de estoque (mobile) | Supabase JWT |
+| Restore | `restore-conciliacao.html` | Restauração de conciliação/extratos | Supabase JWT |
+| Painel Legado | `index.html` (antigo) | Dashboard de orçamentos SGD (legado) | sessionStorage |
+
+**Mudanças desde v1.0:** Auth migrada de SHA-256 client-side para Supabase GoTrue. 4 novas páginas adicionadas (dashboard-home, estoque-intel, restore-conciliacao, index redirect).
 
 ### 1.3 Navegacao entre Paginas
 
@@ -338,7 +346,7 @@ Cada pagina GDP tem seu proprio estado independente, tambem em variaveis globais
 
 | ID | Debito | Impacto | Esforco |
 |----|--------|---------|---------|
-| UX-01 | **Autenticacao insegura client-side** — hash SHA-256 hardcoded no HTML, credenciais visiveis no source | Seguranca: qualquer pessoa pode ver usuario/senha | Alto (requer backend) |
+| UX-01 | ~~Autenticacao insegura client-side~~ **RESOLVIDO** — migrado para Supabase Auth (JWT) | ~~Seguranca~~ CORRIGIDO | ~~Alto~~ Done |
 | UX-02 | **Dois design systems incompativeis** — painel verde vs GDP azul sem transicao visual | Experiencia fragmentada, parece dois produtos diferentes | Alto |
 | UX-03 | **7 paginas HTML independentes sem layout compartilhado** — duplicacao massiva de CSS (cada pagina tem 200-400 linhas de CSS inline) | Manutencao impossivel, inconsistencias visuais crescentes | Alto |
 | UX-04 | **Zero acessibilidade (a11y)** — nenhum aria-*, nenhum role, nenhum focus management | Inacessivel para usuarios com deficiencias | Alto |
@@ -354,7 +362,7 @@ Cada pagina GDP tem seu proprio estado independente, tambem em variaveis globais
 | UX-09 | **PWA incompleta** — manifest e icons ausentes, service worker nao registrado | App entregador nao instalavel | Medio |
 | UX-10 | **Dados demo hardcoded** — gdp-entregador.html tem seed data inline | Confusao em producao | Baixo |
 | UX-11 | **Sem paginacao** — tabelas renderizam todos os registros de uma vez | Performance em datasets grandes | Medio |
-| UX-12 | **localStorage como unico armazenamento** — risco de perda de dados (limpeza de cache) | Perda de pre-orcamentos e banco de precos | Alto |
+| UX-12 | ~~localStorage como unico armazenamento~~ **PARCIALMENTE RESOLVIDO** — Supabase é source-of-truth, localStorage é cache offline | ~~Perda de dados~~ Mitigado | ~~Alto~~ Médio |
 | UX-13 | **Credenciais SGD armazenadas em localStorage** em plain text | Seguranca: CNPJ e senha do SGD expostos | Alto |
 
 ### 9.3 Debitos Menores (Severidade Baixa)
@@ -398,7 +406,7 @@ Cada pagina GDP tem seu proprio estado independente, tambem em variaveis globais
 
 | # | Recomendacao | Debitos Resolvidos | Esforco |
 |---|-------------|-------------------|---------|
-| R14 | Migrar autenticacao para backend (Supabase Auth ou similar) | UX-01, UX-13 | 1-2 semanas |
+| R14 | ~~Migrar autenticacao para backend~~ **CONCLUÍDO** — Supabase Auth implementado | ~~UX-01~~ DONE | Done |
 | R15 | Considerar framework leve (Svelte, Preact ou Web Components) para componentizacao | UX-02, UX-03, UX-05, UX-06 | 2-4 semanas |
 | R16 | Implementar SPA com router (ou micro-frontends) para unificar navegacao | UX-03 | 2-3 semanas |
 | R17 | Implementar testes e2e com Playwright | Validacao geral | 1-2 semanas |

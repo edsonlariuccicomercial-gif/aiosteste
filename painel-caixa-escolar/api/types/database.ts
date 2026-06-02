@@ -41,6 +41,16 @@ export interface Cliente {
   telefone?: string;
   endereco?: string;
   contratos_vinculados?: string[];
+  login?: string;
+  senha?: string;
+  municipio?: string;
+  responsavel?: string;
+  cargo?: string;
+  contribuinte_icms?: string;
+  categoria_catalogo?: string;
+  arp_vinculada?: string;
+  saldo_total?: number;
+  saldo_disponivel?: number;
   dados_extras?: Record<string, unknown>;
   created_at: string;
   updated_at: string;
@@ -60,6 +70,7 @@ export interface Contrato {
   data_apuracao?: string; // DATE after migration 011
   itens?: Record<string, unknown>;
   cliente_snapshot?: Record<string, unknown>;
+  escola_cliente_id?: string;
   dados_extras?: Record<string, unknown>;
   deleted_at?: string;
   created_at: string;
@@ -167,6 +178,38 @@ export interface Entrega {
   obs?: string;
   foto?: string;
   assinatura?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Extrato {
+  id: string;
+  empresa_id: string;
+  data?: string;
+  arquivo?: string;
+  conta_financeira?: string;
+  conciliados?: number;
+  total?: number;
+  is_open?: boolean;
+  criado_em?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Conciliacao {
+  id: string;
+  empresa_id: string;
+  extrato_id?: string;
+  data?: string;
+  descricao?: string;
+  valor: number;
+  tipo?: string;
+  conciliado?: boolean;
+  conciliado_em?: string;
+  vinculado_a?: Record<string, unknown>;
+  historico?: string;
+  categoria_dre?: string;
+  metadata?: Record<string, unknown>;
   created_at: string;
   updated_at: string;
 }
