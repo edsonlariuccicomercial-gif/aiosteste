@@ -516,6 +516,13 @@
         <select id="filtro-periodo-pedido" onchange="renderPedidos()" style="height:40px;padding:4px 10px;border-radius:6px;border:1px solid var(--bdr);background:var(--bg);color:var(--txt);font-size:.85rem"><option value="todos">Todos</option><option value="hoje">Hoje</option><option value="semana">Esta Semana</option><option value="mes">Este Mes</option><option value="intervalo">Intervalo</option></select>
         <input type="date" id="filtro-pedido-de" class="hidden" onchange="renderPedidos()" style="height:40px;padding:4px 8px;border-radius:6px;border:1px solid var(--bdr);background:var(--bg);color:var(--txt);font-size:.82rem">
         <input type="date" id="filtro-pedido-ate" class="hidden" onchange="renderPedidos()" style="height:40px;padding:4px 8px;border-radius:6px;border:1px solid var(--bdr);background:var(--bg);color:var(--txt);font-size:.82rem">
+        <select id="filtro-entrega-pedido" onchange="renderPedidos()" style="height:40px;padding:4px 10px;border-radius:6px;border:1px solid var(--bdr);background:var(--bg);color:var(--txt);font-size:.85rem">
+          <option value="">Entrega: Todos</option>
+          <option value="pendente">Pendente</option>
+          <option value="parcial">Parcial</option>
+          <option value="entregue">Entregue</option>
+          <option value="atrasado">Atrasado</option>
+        </select>
       </div>
       <div style="display:flex;gap:.5rem;align-items:center">
         <span id="pedidos-sel-count" style="font-size:.8rem;color:var(--cyan);font-weight:600;display:none"></span>

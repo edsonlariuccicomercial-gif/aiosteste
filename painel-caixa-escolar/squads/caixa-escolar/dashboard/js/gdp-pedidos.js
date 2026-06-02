@@ -138,10 +138,14 @@ function renderPedidos() {
   filtered = _applyPeriodFilter(filtered, 'filtro-periodo-pedido', 'filtro-pedido-de', 'filtro-pedido-ate', 'data');
   if (filtroContrato) filtered = filtered.filter(p => p.contratoId === filtroContrato);
   renderPedidosStatusTabs(filtered);
-  // "parcial" tab filters by entrega status, not pedido status
-  filtered = pedidoStatusTabAtual === 'parcial'
-    ? filtered.filter(function(p) { return calcStatusEntrega(p) === 'parcial'; })
-    : filtered.filter(p => normalizePedidoStatus(p.status) === pedidoStatusTabAtual);
+  filtered = filtered.filter(p => normalizePedidoStatus(p.status) === pedidoStatusTabAtual);
+
+  // Story 5.17: filtro de entrega (independente do status do pedido)
+  var filtroEntrega = document.getElementById('filtro-entrega-pedido');
+  if (filtroEntrega && filtroEntrega.value) {
+    var fEnt = filtroEntrega.value;
+    filtered = filtered.filter(function(p) { return calcStatusEntrega(p) === fEnt; });
+  }
 
   const tbody = document.getElementById("pedidos-tbody");
   const empty = document.getElementById("pedidos-empty");
@@ -633,7 +637,6 @@ var PEDIDO_STATUS_COLORS = {
   preparando_envio: '#f97316',
   pronto_para_envio: '#06b6d4',
   faturado: '#22c55e',
-  parcial: '#f59e0b',
   entregue: '#10b981',
   nao_entregue: '#ef4444',
   cancelado: '#94a3b8'
@@ -2439,7 +2442,6 @@ var PEDIDO_STATUS_TABS = [
   { key: "preparando_envio", label: "Prep. Envio", className: "badge-yellow" },
   { key: "pronto_para_envio", label: "Pronto Envio", className: "badge-blue" },
   { key: "faturado", label: "Faturado", className: "badge-green" },
-  { key: "parcial", label: "Parcial", className: "badge-pendente" },
   { key: "entregue", label: "Entregue", className: "badge-green" },
   { key: "nao_entregue", label: "Nao Entregue", className: "badge-red" },
   { key: "cancelado", label: "Cancelado", className: "badge-red" }
@@ -2544,10 +2546,7 @@ function renderPedidosStatusTabs(items = pedidos) {
   const overflowTabs = PEDIDO_STATUS_TABS.slice(MAX_VISIBLE);
 
   function renderTab(tab) {
-    // "parcial" tab counts by entrega status, not pedido status
-    const tabItems = tab.key === 'parcial'
-      ? safeItems.filter(function(item) { return calcStatusEntrega(item) === 'parcial'; })
-      : safeItems.filter((item) => normalizePedidoStatus(item.status) === tab.key);
+    const tabItems = safeItems.filter((item) => normalizePedidoStatus(item.status) === tab.key);
     const count = tabItems.length;
     const cor = PEDIDO_STATUS_COLORS[tab.key] || '#94a3b8';
     const active = pedidoStatusTabAtual === tab.key;
