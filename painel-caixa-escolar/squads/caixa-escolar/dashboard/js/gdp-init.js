@@ -2898,9 +2898,11 @@ async function enviarTiny(contratoId) {
           'gdp.notas-fiscais.v1': 'notas_fiscais',
           'gdp.contas-receber.v1': 'contas_receber',
           'gdp.contas-pagar.v1': 'contas_pagar',
-          'gdp.entregas.provas.v1': 'entregas'
+          'gdp.entregas.provas.v1': 'entregas',
+          'gdp.extratos.v1': 'extratos',
+          'gdp.conciliacao.v1': 'conciliacoes'
         };
-        const _wrapKeys = new Set(['gdp.contratos.v1','gdp.pedidos.v1','gdp.notas-fiscais.v1','gdp.contas-receber.v1','gdp.contas-pagar.v1']);
+        const _wrapKeys = new Set(['gdp.contratos.v1','gdp.pedidos.v1','gdp.notas-fiscais.v1','gdp.contas-receber.v1','gdp.contas-pagar.v1','gdp.extratos.v1','gdp.conciliacao.v1']);
         let anyUpdated = false;
         // Story 4.80: Paralelizar todas as chamadas Supabase (Promise.all em vez de for sequencial)
         const _mergeTable = (lsKey, rows) => {

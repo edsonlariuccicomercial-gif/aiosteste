@@ -383,6 +383,8 @@
     contas_receber: createEntityApi('contas_receber'),
     contas_pagar:   createEntityApi('contas_pagar'),
     entregas:       createEntityApi('entregas'),
+    extratos:       createEntityApi('extratos'),
+    conciliacoes:   createEntityApi('conciliacoes'),
     nf_counter:     nfCounterApi,
     getEmpresaId:        getEmpresaId,
     setEmpresaContext:   setEmpresaContext,
