@@ -138,7 +138,10 @@ function renderPedidos() {
   filtered = _applyPeriodFilter(filtered, 'filtro-periodo-pedido', 'filtro-pedido-de', 'filtro-pedido-ate', 'data');
   if (filtroContrato) filtered = filtered.filter(p => p.contratoId === filtroContrato);
   renderPedidosStatusTabs(filtered);
-  filtered = filtered.filter(p => normalizePedidoStatus(p.status) === pedidoStatusTabAtual);
+  // "parcial" tab filters by entrega status, not pedido status
+  filtered = pedidoStatusTabAtual === 'parcial'
+    ? filtered.filter(function(p) { return calcStatusEntrega(p) === 'parcial'; })
+    : filtered.filter(p => normalizePedidoStatus(p.status) === pedidoStatusTabAtual);
 
   const tbody = document.getElementById("pedidos-tbody");
   const empty = document.getElementById("pedidos-empty");
@@ -172,9 +175,9 @@ function renderPedidos() {
       <td class="font-mono">${esc(clienteCnpj)}</td>
       <td class="nowrap">${fmtDate(p.dataEntrega || p.data)}</td>
       <td class="nowrap">${fmtDate(p.dataPrevista || p.dataEntrega)}</td>
+      <td><span class="badge ${_entBadgeMap[_entStatus] || 'badge-vencido'}" style="font-size:.7rem">${_entLabelMap[_entStatus] || 'PENDENTE'}</span></td>
       <td class="text-right font-mono" style="color:var(--green);font-weight:700">${brl.format(p.valor)}</td>
       <td><span class="badge ${statusMeta.className}">${statusMeta.label}</span></td>
-      <td><span class="badge ${_entBadgeMap[_entStatus] || 'badge-vencido'}" style="font-size:.7rem">${_entLabelMap[_entStatus] || 'PENDENTE'}</span></td>
       <td>${integracoes.html}</td>
     </tr>`;
   }).join("");
@@ -626,9 +629,11 @@ function imprimirPedidosSelecionados() {
 var PEDIDO_STATUS_COLORS = {
   em_aberto: '#eab308',
   agendado: '#3b82f6',
+  separando: '#8b5cf6',
   preparando_envio: '#f97316',
   pronto_para_envio: '#06b6d4',
   faturado: '#22c55e',
+  parcial: '#f59e0b',
   entregue: '#10b981',
   nao_entregue: '#ef4444',
   cancelado: '#94a3b8'
@@ -2431,11 +2436,12 @@ var PEDIDO_STATUS_TABS = [
   { key: "em_aberto", label: "Em Aberto", className: "badge-yellow" },
   { key: "agendado", label: "Agendado", className: "badge-blue" },
   { key: "separando", label: "Separando", className: "badge-blue" },
-  { key: "preparando_envio", label: "Preparando Envio", className: "badge-yellow" },
-  { key: "pronto_para_envio", label: "Pronto para Envio", className: "badge-blue" },
+  { key: "preparando_envio", label: "Prep. Envio", className: "badge-yellow" },
+  { key: "pronto_para_envio", label: "Pronto Envio", className: "badge-blue" },
   { key: "faturado", label: "Faturado", className: "badge-green" },
+  { key: "parcial", label: "Parcial", className: "badge-pendente" },
   { key: "entregue", label: "Entregue", className: "badge-green" },
-  { key: "nao_entregue", label: "Não Entregue", className: "badge-red" },
+  { key: "nao_entregue", label: "Nao Entregue", className: "badge-red" },
   { key: "cancelado", label: "Cancelado", className: "badge-red" }
 ];
 var pedidoStatusTabAtual = "em_aberto";
@@ -2533,12 +2539,15 @@ function renderPedidosStatusTabs(items = pedidos) {
   if (!container) return;
   const safeItems = Array.isArray(items) ? items : [];
   const brlFmt = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
-  const MAX_VISIBLE = 6;
+  const MAX_VISIBLE = 10;
   const visibleTabs = PEDIDO_STATUS_TABS.slice(0, MAX_VISIBLE);
   const overflowTabs = PEDIDO_STATUS_TABS.slice(MAX_VISIBLE);
 
   function renderTab(tab) {
-    const tabItems = safeItems.filter((item) => normalizePedidoStatus(item.status) === tab.key);
+    // "parcial" tab counts by entrega status, not pedido status
+    const tabItems = tab.key === 'parcial'
+      ? safeItems.filter(function(item) { return calcStatusEntrega(item) === 'parcial'; })
+      : safeItems.filter((item) => normalizePedidoStatus(item.status) === tab.key);
     const count = tabItems.length;
     const cor = PEDIDO_STATUS_COLORS[tab.key] || '#94a3b8';
     const active = pedidoStatusTabAtual === tab.key;
@@ -3726,7 +3735,7 @@ function gerarRelatorioEntregaPendente() {
 }
 
 // ── Relatório Pendencias de Entrega (tab Relatórios) ──
-// Mostra somente pedidos com entrega PARCIAL (nem pendente total, nem entregue)
+// Mostra somente pedidos com entrega PARCIAL, agrupado por escola/pedido
 function renderRelatorioPendenciasEntrega() {
   var tbody = document.getElementById('rel-pendencias-entrega-tbody');
   var empty = document.getElementById('rel-pendencias-entrega-empty');
@@ -3741,31 +3750,49 @@ function renderRelatorioPendenciasEntrega() {
   }
   if (empty) empty.style.display = 'none';
 
-  var rows = '';
+  // Agrupar por escola
+  var porEscola = {};
   parciais.forEach(function(p) {
     var escola = p.escola || p.cliente?.nome || '-';
-    var pedidoNum = (p.id || '').split('-').pop();
-    (p.itens || []).forEach(function(item) {
-      var qtdPed = Number(item.qtd || 0);
-      var qtdEnt = Number(item.qtdEntregue || 0);
-      var saldo = Math.max(0, qtdPed - qtdEnt);
-      if (saldo <= 0) return; // skip itens já entregues
-      rows += '<tr>';
-      rows += '<td>' + esc(item.descricao || '') + '</td>';
-      rows += '<td class="text-center">' + esc(item.unidade || 'UN') + '</td>';
-      rows += '<td class="text-right">' + qtdPed + '</td>';
-      rows += '<td class="text-right">' + qtdEnt + '</td>';
-      rows += '<td class="text-right" style="color:var(--yellow,#eab308);font-weight:700">' + saldo + '</td>';
-      rows += '<td>' + esc(escola) + '</td>';
-      rows += '<td style="font-family:monospace;font-size:.78rem">#' + esc(pedidoNum) + '</td>';
-      rows += '</tr>';
+    var cnpj = p.cliente?.cnpj || '';
+    var key = escola + (cnpj ? ' - ' + cnpj : '');
+    if (!porEscola[key]) porEscola[key] = [];
+    porEscola[key].push(p);
+  });
+
+  var rows = '';
+  var escolas = Object.keys(porEscola).sort();
+  escolas.forEach(function(escolaKey) {
+    var pedidosEscola = porEscola[escolaKey];
+    // Header da escola
+    rows += '<tr><td colspan="7" style="padding:10px 8px 4px;font-weight:700;font-size:.88rem;color:var(--txt);border-bottom:2px solid var(--bdr);background:rgba(59,130,246,.04)">' + esc(escolaKey) + '</td></tr>';
+    pedidosEscola.forEach(function(p, pIdx) {
+      var pedidoNum = (p.id || '').split('-').pop();
+      if (pedidosEscola.length > 1) {
+        rows += '<tr><td colspan="7" style="padding:6px 8px 2px;font-size:.78rem;color:var(--blue);font-weight:600">Pedido #' + esc(pedidoNum) + ' — ' + fmtDate(p.data || p.dataEntrega) + '</td></tr>';
+      }
+      (p.itens || []).forEach(function(item) {
+        var qtdPed = Number(item.qtd || 0);
+        var qtdEnt = Number(item.qtdEntregue || 0);
+        var saldo = Math.max(0, qtdPed - qtdEnt);
+        if (saldo <= 0) return;
+        rows += '<tr>';
+        rows += '<td style="padding-left:' + (pedidosEscola.length > 1 ? '24px' : '12px') + '">' + esc(item.descricao || '') + '</td>';
+        rows += '<td class="text-center">' + esc(item.unidade || 'UN') + '</td>';
+        rows += '<td class="text-right">' + qtdPed + '</td>';
+        rows += '<td class="text-right">' + qtdEnt + '</td>';
+        rows += '<td class="text-right" style="color:var(--yellow,#eab308);font-weight:700">' + saldo + '</td>';
+        rows += '<td>' + (pedidosEscola.length <= 1 ? '#' + esc(pedidoNum) : '') + '</td>';
+        rows += '<td></td>';
+        rows += '</tr>';
+      });
     });
   });
 
   tbody.innerHTML = rows;
 }
 
-// Imprimir relatório de pendencias
+// Imprimir relatório de pendencias (agrupado por escola)
 function imprimirRelPendenciasEntrega() {
   var parciais = pedidos.filter(function(p) { return calcStatusEntrega(p) === 'parcial'; });
   if (parciais.length === 0) { showToast('Nenhuma entrega parcial pendente.', 3000); return; }
@@ -3774,23 +3801,38 @@ function imprimirRelPendenciasEntrega() {
   var nomeEmpresa = empresa.razaoSocial || empresa.nome || 'Empresa';
   var hoje = new Date().toLocaleDateString('pt-BR');
 
-  var html = '<h1 style="text-align:center;font-size:16px;margin-bottom:.3rem">PENDENCIAS DE ENTREGA</h1>';
-  html += '<div style="text-align:center;font-size:11px;color:#666;margin-bottom:1.5rem">' + nomeEmpresa + ' — ' + hoje + '</div>';
-  html += '<table style="width:100%;border-collapse:collapse;font-size:11px">';
-  html += '<thead><tr style="border-bottom:2px solid #999"><th style="padding:6px 8px;text-align:left">Produto</th><th style="padding:6px 8px;text-align:center">Un.</th><th style="padding:6px 8px;text-align:right">Pedido</th><th style="padding:6px 8px;text-align:right">Entregue</th><th style="padding:6px 8px;text-align:right;font-weight:700">Pendente</th><th style="padding:6px 8px;text-align:left">Escola</th><th style="padding:6px 8px;text-align:left">Pedido #</th></tr></thead><tbody>';
-
+  // Agrupar por escola
+  var porEscola = {};
   parciais.forEach(function(p) {
     var escola = p.escola || p.cliente?.nome || '-';
-    var pedidoNum = (p.id || '').split('-').pop();
-    (p.itens || []).forEach(function(item) {
-      var qtdPed = Number(item.qtd || 0);
-      var qtdEnt = Number(item.qtdEntregue || 0);
-      var saldo = Math.max(0, qtdPed - qtdEnt);
-      if (saldo <= 0) return;
-      html += '<tr style="border-bottom:1px solid #ddd"><td style="padding:5px 8px">' + (item.descricao || '') + '</td><td style="padding:5px 8px;text-align:center">' + (item.unidade || 'UN') + '</td><td style="padding:5px 8px;text-align:right">' + qtdPed + '</td><td style="padding:5px 8px;text-align:right">' + qtdEnt + '</td><td style="padding:5px 8px;text-align:right;font-weight:700;color:#92400e">' + saldo + '</td><td style="padding:5px 8px">' + escola + '</td><td style="padding:5px 8px;font-family:monospace">#' + pedidoNum + '</td></tr>';
-    });
+    var cnpj = p.cliente?.cnpj || '';
+    var key = escola + (cnpj ? ' - ' + cnpj : '');
+    if (!porEscola[key]) porEscola[key] = [];
+    porEscola[key].push(p);
   });
-  html += '</tbody></table>';
+
+  var html = '<h1 style="text-align:center;font-size:16px;margin-bottom:.3rem">Relatorio de Pendencias de Entrega</h1>';
+  html += '<div style="text-align:center;font-size:11px;color:#666;margin-bottom:1.5rem">' + nomeEmpresa + ' — ' + hoje + '</div>';
+
+  var escolas = Object.keys(porEscola).sort();
+  escolas.forEach(function(escolaKey) {
+    var pedidosEscola = porEscola[escolaKey];
+    html += '<div style="margin-bottom:1.2rem">';
+    html += '<div style="font-weight:700;font-size:12px;padding:6px 0;border-bottom:2px solid #333">' + escolaKey + '</div>';
+    html += '<table style="width:100%;border-collapse:collapse;font-size:11px">';
+    html += '<thead><tr style="border-bottom:1px solid #999"><th style="padding:4px 8px;text-align:left">Produto</th><th style="padding:4px 8px;text-align:center">Codigo (SKU)</th><th style="padding:4px 8px;text-align:right">Quantidade</th><th style="padding:4px 8px;text-align:right">Valor</th><th style="padding:4px 8px;text-align:right">Pendente</th></tr></thead><tbody>';
+    pedidosEscola.forEach(function(p) {
+      (p.itens || []).forEach(function(item) {
+        var qtdPed = Number(item.qtd || 0);
+        var qtdEnt = Number(item.qtdEntregue || 0);
+        var saldo = Math.max(0, qtdPed - qtdEnt);
+        if (saldo <= 0) return;
+        var valor = (saldo * (item.precoUnitario || 0));
+        html += '<tr style="border-bottom:1px solid #ddd"><td style="padding:5px 8px">' + (item.descricao || '') + '</td><td style="padding:5px 8px;text-align:center">' + (item.sku || '') + '</td><td style="padding:5px 8px;text-align:right">' + saldo.toFixed(2).replace('.', ',') + '</td><td style="padding:5px 8px;text-align:right">' + valor.toFixed(2).replace('.', ',') + '</td><td style="padding:5px 8px;text-align:right;font-weight:700;color:#92400e">' + saldo + ' ' + (item.unidade || 'UN') + '</td></tr>';
+      });
+    });
+    html += '</tbody></table></div>';
+  });
   html += '<div style="margin-top:1rem;font-size:10px;color:#999">Total: ' + parciais.length + ' pedido(s) com entrega parcial</div>';
 
   var iframe = document.createElement('iframe');
