@@ -647,10 +647,10 @@ const SHARED_SYNC_KEYS = new Set([
   "gdp.estoque-intel.compras.v1",
   // Central de Produtos — sync cross-device
   "gdp.produtos.v1",
-  // Story 4.61: conciliação e extratos bancários
-  "gdp.conciliacao.v1", "gdp.extratos.v1",
+  // gdp.conciliacao.v1, gdp.extratos.v1 — REMOVED: now have dedicated Supabase tables
+  // nexedu.usuarios — REMOVED: clientes table is source of truth
   // Config keys — sync across browsers/machines
-  "nexedu.usuarios", "nexedu.config.notas-fiscais",
+  "nexedu.config.notas-fiscais",
   "nexedu.config.contas-bancarias", "nexedu.config.bank-api"
 ]);
 
@@ -709,12 +709,12 @@ const SYNC_KEYS = [
   "gdp.estoque-intel.movimentacoes.v1", "gdp.estoque-intel.fornecedores.v1",
   "gdp.estoque-intel.compras.v1",
   "nexedu.config.contas-bancarias", "nexedu.config.notas-fiscais", "nexedu.config.bank-api",
-  "nexedu.usuarios",
+  // nexedu.usuarios — REMOVED: clientes table is source of truth
   // Central de Produtos — sync cross-device
   "gdp.produtos.v1",
-  // Story 4.61: conciliação e extratos bancários
-  "gdp.conciliacao.v1", "gdp.extratos.v1",
-  // Story 4.74: sync deleted keys cross-machine
-  "gdp.notas-entrada.deleted.v1", "gdp.conciliacao.deleted.v1", "gdp.extratos.deleted.v1",
+  // gdp.conciliacao.v1, gdp.extratos.v1 — REMOVED: now have dedicated Supabase tables
+  // Story 4.74: sync deleted keys cross-machine (keep only non-dedicated table keys)
+  "gdp.notas-entrada.deleted.v1",
   "gdp.estoque-intel.fornecedores.deleted.v1"
+  // gdp.conciliacao.deleted.v1, gdp.extratos.deleted.v1 — REMOVED: dedicated tables handle deletes
 ];
