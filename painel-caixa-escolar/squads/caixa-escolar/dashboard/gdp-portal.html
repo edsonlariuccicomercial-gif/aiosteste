@@ -279,7 +279,17 @@
     </div>
     <div class="form-group">
       <label>Senha</label>
-      <input type="password" id="login-pass" placeholder="••••••••">
+      <div style="position:relative">
+        <input type="password" id="login-pass" placeholder="••••••••" style="padding-right:44px">
+        <button type="button" id="toggle-pass" title="Mostrar senha" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--muted);padding:4px;display:flex;align-items:center;transition:color 0.2s" onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--muted)'">
+          <svg id="icon-eye" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+          </svg>
+          <svg id="icon-eye-off" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none">
+            <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>
+          </svg>
+        </button>
+      </div>
     </div>
     <button class="btn btn-primary" onclick="doLogin()">Entrar no Portal</button>
     <div class="login-error" id="login-error">Login ou senha inválidos</div>
@@ -494,10 +504,11 @@ if (typeof gdpLog === 'undefined') { var gdpLog = console.log.bind(console, '[GD
 if (typeof gdpWarn === 'undefined') { var gdpWarn = console.warn.bind(console, '[GDP]'); }
 </script>
 <script src="gdp-api.js"></script>
+<script src="js/gdp-realtime.js?v=2"></script>
 <script>
 // ===== SUPABASE CLOUD SYNC (uses centralized config from supabase-config.js) =====
 const SUPABASE_URL = window.SUPABASE_URL || "https://mvvsjaudhbglxttxaeop.supabase.co";
-const SUPABASE_KEY = window.SUPABASE_KEY || "sb_publishable_uBqL8sLjMGWnZ2aaQ1zwvg_mlQrZUXR";
+const SUPABASE_KEY = window.SUPABASE_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im12dnNqYXVkaGJnbHh0dHhhZW9wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4MDY3OTAsImV4cCI6MjA5MDM4Mjc5MH0.jadqvmRvbZjtjATaF_4WWB6A44NF06whtEIyNNyCUGo";
 // contratos, pedidos, usuarios agora gerenciados pelo gdpApi (tabelas reais) — NÃO sync via sync_data legado
 const PORTAL_SYNC_KEYS = ["gdp.escola.pedidos"];
 const PORTAL_SHARED_SYNC_KEYS = new Set(PORTAL_SYNC_KEYS);
@@ -600,6 +611,18 @@ async function init() {
   // Enter key on login
   document.getElementById('login-pass').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
   document.getElementById('login-user').addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('login-pass').focus(); });
+
+  // Toggle password visibility
+  document.getElementById('toggle-pass').addEventListener('click', function() {
+    var passInput = document.getElementById('login-pass');
+    var iconEye = document.getElementById('icon-eye');
+    var iconEyeOff = document.getElementById('icon-eye-off');
+    var isPassword = passInput.type === 'password';
+    passInput.type = isPassword ? 'text' : 'password';
+    iconEye.style.display = isPassword ? 'none' : 'block';
+    iconEyeOff.style.display = isPassword ? 'block' : 'none';
+    this.title = isPassword ? 'Ocultar senha' : 'Mostrar senha';
+  });
 }
 
 // ─── LOGIN ───
@@ -651,16 +674,28 @@ async function doLogin() {
     if (credMatch) escola = { ...credMatch, contratos_vinculados: credMatch.contratos_vinculados || [] };
   }
 
-  // Story 4.82 PRIORIDADE 3: Supabase direto (aba anônima / senha atualizada no cloud)
-  if (!escola && window.gdpApi) {
+  // Story 5.2: PRIORIDADE 3: Supabase RPC verify_escola_login (bcrypt hash verification)
+  if (!escola) {
     try {
-      const clientes = await gdpApi.clientes.list();
-      const usrCloud = clientes.find(u => (u.login || '').toLowerCase() === user && u.senha === pass);
-      if (usrCloud) {
-        escola = buildEscola(usrCloud);
-        console.log('[portal] Login via Supabase (cloud-first)');
+      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000));
+      const rpcUrl = (window.SUPABASE_URL || 'https://mvvsjaudhbglxttxaeop.supabase.co') + '/rest/v1/rpc/verify_escola_login';
+      const rpcKey = window.SUPABASE_KEY || '';
+      const rpcRes = await Promise.race([
+        fetch(rpcUrl, {
+          method: 'POST',
+          headers: { 'apikey': rpcKey, 'Authorization': 'Bearer ' + rpcKey, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ p_login: user, p_senha: pass })
+        }),
+        timeoutPromise
+      ]);
+      if (rpcRes.ok) {
+        const rows = await rpcRes.json();
+        if (rows && rows.length > 0) {
+          escola = buildEscola(rows[0]);
+          console.log('[portal] Login via Supabase RPC (bcrypt verified)');
+        }
       }
-    } catch(e) { console.warn('[portal] Supabase login fallback failed:', e); }
+    } catch(e) { console.warn('[portal] Supabase RPC login skipped:', e.message); }
   }
 
   if (!escola) {
@@ -691,13 +726,17 @@ async function doLogin() {
   document.getElementById('topbar-saldo').style.display = 'none';
   document.getElementById('topbar-saldo').textContent = '';
 
-  // Story 4.82: Await Supabase data before rendering contracts (fixes incognito/empty cache)
+  // Story 14.3: Load Supabase data with 8s timeout (não trava se Supabase offline)
   if (window.gdpApi) {
     showContractLoading();
-    Promise.all([
-      gdpApi.contratos.list(),
-      gdpApi.pedidos.list(),
-      gdpApi.clientes.list()
+    var loadTimeout = new Promise(function(_, reject) { setTimeout(function() { reject(new Error('timeout')); }, 8000); });
+    Promise.race([
+      Promise.all([
+        gdpApi.contratos.list(),
+        gdpApi.pedidos.list(),
+        gdpApi.clientes.list()
+      ]),
+      loadTimeout
     ]).then(function() {
       console.log('[portal] Refreshed from Supabase after login');
       // Story 4.82: Enrich currentUser with Supabase client data (contratos_vinculados, saldo, etc.)
@@ -752,7 +791,7 @@ async function doLogin() {
     }
   } catch(_) {}
 
-  // Story 14.2: Start polling for cross-machine sync (every 30s)
+  // Story 14.2: Start polling for cross-machine sync (every 120s — reduced from 30s to lower DB load)
   if (window._portalPoll) clearInterval(window._portalPoll);
   window._portalPoll = setInterval(function() {
     if (!window.gdpApi || !currentUser) return;
@@ -761,7 +800,7 @@ async function doLogin() {
         renderPedidosList();
       }
     }).catch(function() {});
-  }, 30000);
+  }, 120000);
 }
 
 function logout() {
