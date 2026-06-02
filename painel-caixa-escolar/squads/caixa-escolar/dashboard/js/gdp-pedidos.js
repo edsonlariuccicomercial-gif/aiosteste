@@ -2681,21 +2681,6 @@ function atualizarSelecaoPedidos() {
   if (count > 0) {
     if (badge) { badge.textContent = count + " protocolo" + (count > 1 ? "s" : "") + " selecionado" + (count > 1 ? "s" : ""); badge.style.display = ""; }
     if (btn) { btn.disabled = false; btn.style.opacity = "1"; btn.title = "Gerar lista de compras dos protocolos selecionados"; }
-    // Story 5.17: show/hide Rel.Entrega button
-    var btnRelEnt = document.getElementById("btn-rel-entrega");
-    if (!btnRelEnt) {
-      var footerEl = document.getElementById("pedidos-page-footer");
-      if (footerEl) {
-        btnRelEnt = document.createElement("button");
-        btnRelEnt.id = "btn-rel-entrega";
-        btnRelEnt.className = "btn btn-sm";
-        btnRelEnt.style.cssText = "background:rgba(234,179,8,.15);color:var(--yellow,#eab308);border:1px solid rgba(234,179,8,.4);font-weight:700;display:none";
-        btnRelEnt.textContent = "Rel. Entrega";
-        btnRelEnt.onclick = function() { gerarRelatorioEntregaPendente(); };
-        footerEl.appendChild(btnRelEnt);
-      }
-    }
-    if (btnRelEnt) btnRelEnt.style.display = count > 0 ? "" : "none";
     if (footer) footer.classList.add("has-selection");
     if (bulkSummary) bulkSummary.textContent = count + " pedido(s)";
     // Update footer with selected totals
@@ -3734,6 +3719,86 @@ function gerarRelatorioEntregaPendente() {
   var doc = iframe.contentDocument || iframe.contentWindow.document;
   doc.open();
   doc.write('<!DOCTYPE html><html><head><title>Rel. Pendencias Entrega</title><style>body{font-family:Arial,sans-serif;margin:2cm;color:#333;font-size:12px}@media print{body{margin:1.5cm}}</style></head><body>' + html + '</body></html>');
+  doc.close();
+  iframe.contentWindow.focus();
+  iframe.contentWindow.print();
+  setTimeout(function() { document.body.removeChild(iframe); }, 5000);
+}
+
+// ── Relatório Pendencias de Entrega (tab Relatórios) ──
+// Mostra somente pedidos com entrega PARCIAL (nem pendente total, nem entregue)
+function renderRelatorioPendenciasEntrega() {
+  var tbody = document.getElementById('rel-pendencias-entrega-tbody');
+  var empty = document.getElementById('rel-pendencias-entrega-empty');
+  if (!tbody) return;
+
+  var parciais = pedidos.filter(function(p) { return calcStatusEntrega(p) === 'parcial'; });
+
+  if (parciais.length === 0) {
+    tbody.innerHTML = '';
+    if (empty) empty.style.display = '';
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+
+  var rows = '';
+  parciais.forEach(function(p) {
+    var escola = p.escola || p.cliente?.nome || '-';
+    var pedidoNum = (p.id || '').split('-').pop();
+    (p.itens || []).forEach(function(item) {
+      var qtdPed = Number(item.qtd || 0);
+      var qtdEnt = Number(item.qtdEntregue || 0);
+      var saldo = Math.max(0, qtdPed - qtdEnt);
+      if (saldo <= 0) return; // skip itens já entregues
+      rows += '<tr>';
+      rows += '<td>' + esc(item.descricao || '') + '</td>';
+      rows += '<td class="text-center">' + esc(item.unidade || 'UN') + '</td>';
+      rows += '<td class="text-right">' + qtdPed + '</td>';
+      rows += '<td class="text-right">' + qtdEnt + '</td>';
+      rows += '<td class="text-right" style="color:var(--yellow,#eab308);font-weight:700">' + saldo + '</td>';
+      rows += '<td>' + esc(escola) + '</td>';
+      rows += '<td style="font-family:monospace;font-size:.78rem">#' + esc(pedidoNum) + '</td>';
+      rows += '</tr>';
+    });
+  });
+
+  tbody.innerHTML = rows;
+}
+
+// Imprimir relatório de pendencias
+function imprimirRelPendenciasEntrega() {
+  var parciais = pedidos.filter(function(p) { return calcStatusEntrega(p) === 'parcial'; });
+  if (parciais.length === 0) { showToast('Nenhuma entrega parcial pendente.', 3000); return; }
+
+  var empresa = JSON.parse(localStorage.getItem('nexedu.empresa') || '{}');
+  var nomeEmpresa = empresa.razaoSocial || empresa.nome || 'Empresa';
+  var hoje = new Date().toLocaleDateString('pt-BR');
+
+  var html = '<h1 style="text-align:center;font-size:16px;margin-bottom:.3rem">PENDENCIAS DE ENTREGA</h1>';
+  html += '<div style="text-align:center;font-size:11px;color:#666;margin-bottom:1.5rem">' + nomeEmpresa + ' — ' + hoje + '</div>';
+  html += '<table style="width:100%;border-collapse:collapse;font-size:11px">';
+  html += '<thead><tr style="border-bottom:2px solid #999"><th style="padding:6px 8px;text-align:left">Produto</th><th style="padding:6px 8px;text-align:center">Un.</th><th style="padding:6px 8px;text-align:right">Pedido</th><th style="padding:6px 8px;text-align:right">Entregue</th><th style="padding:6px 8px;text-align:right;font-weight:700">Pendente</th><th style="padding:6px 8px;text-align:left">Escola</th><th style="padding:6px 8px;text-align:left">Pedido #</th></tr></thead><tbody>';
+
+  parciais.forEach(function(p) {
+    var escola = p.escola || p.cliente?.nome || '-';
+    var pedidoNum = (p.id || '').split('-').pop();
+    (p.itens || []).forEach(function(item) {
+      var qtdPed = Number(item.qtd || 0);
+      var qtdEnt = Number(item.qtdEntregue || 0);
+      var saldo = Math.max(0, qtdPed - qtdEnt);
+      if (saldo <= 0) return;
+      html += '<tr style="border-bottom:1px solid #ddd"><td style="padding:5px 8px">' + (item.descricao || '') + '</td><td style="padding:5px 8px;text-align:center">' + (item.unidade || 'UN') + '</td><td style="padding:5px 8px;text-align:right">' + qtdPed + '</td><td style="padding:5px 8px;text-align:right">' + qtdEnt + '</td><td style="padding:5px 8px;text-align:right;font-weight:700;color:#92400e">' + saldo + '</td><td style="padding:5px 8px">' + escola + '</td><td style="padding:5px 8px;font-family:monospace">#' + pedidoNum + '</td></tr>';
+    });
+  });
+  html += '</tbody></table>';
+  html += '<div style="margin-top:1rem;font-size:10px;color:#999">Total: ' + parciais.length + ' pedido(s) com entrega parcial</div>';
+
+  var iframe = document.createElement('iframe');
+  iframe.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:0;height:0';
+  document.body.appendChild(iframe);
+  var doc = iframe.contentDocument || iframe.contentWindow.document;
+  doc.open();
+  doc.write('<!DOCTYPE html><html><head><title>Pendencias de Entrega</title><style>body{font-family:Arial,sans-serif;margin:2cm;color:#333}@media print{body{margin:1.5cm}}</style></head><body>' + html + '</body></html>');
   doc.close();
   iframe.contentWindow.focus();
   iframe.contentWindow.print();

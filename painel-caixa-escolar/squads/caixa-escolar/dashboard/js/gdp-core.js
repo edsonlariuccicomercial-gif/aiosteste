@@ -2037,7 +2037,9 @@ function enviarCobrancaVencidas(canal) {
     showToast("Cobrança em lote via " + canal + " em breve.", 3000);
   }
 }
-function renderRelatorios() {}
+function renderRelatorios() {
+  if (typeof renderRelatorioPendenciasEntrega === 'function') renderRelatorioPendenciasEntrega();
+}
 // renderUsuarios definido em gdp-usuarios.js
 // renderBancoProdutos definido em gdp-banco-produtos.js
 
