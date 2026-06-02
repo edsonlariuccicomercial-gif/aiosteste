@@ -1,10 +1,14 @@
 const { sample, clone, normalizePedidoPayload } = require("./lib/estoque-intel-data");
+const { requireAuth } = require("./lib/auth");
 
 module.exports = async (req, res) => {
   if (req.method !== "POST") {
     res.status(405).json({ ok: false, error: "Metodo nao permitido" });
     return;
   }
+  // Story 5.3: Auth middleware
+  const user = requireAuth(req, res);
+  if (!user) return;
   const payload = normalizePedidoPayload(typeof req.body === "object" && req.body ? req.body : {});
   if (!payload.item.produto_id || !payload.item.quantidade_base) {
     res.status(400).json({ ok: false, error: "produto_id e quantidade_base sao obrigatorios" });
