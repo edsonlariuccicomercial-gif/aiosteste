@@ -206,7 +206,7 @@
     return {
       list: async function () {
         var rows = await sbFetch('/' + table + '?empresa_id=eq.' + encodeURIComponent(getEmpresaId()) + '&limit=1000');
-        if (rows != null) {
+        if (rows != null && Array.isArray(rows)) {
           rows = rows.map(mapFromTable);
           // Story 4.51 AC-A4: filter out locally-deleted items
           var delKey = _DELETE_KEYS[name];
@@ -220,12 +220,17 @@
               }
             } catch (_) {}
           }
+          // SAFETY: never overwrite local cache with empty when local has data
+          var localCount = (readLS(entity) || []).length;
+          if (rows.length === 0 && localCount > 0) {
+            _dataSource = 'cache';
+            return readLS(entity);
+          }
           _dataSource = 'cloud'; writeLS(entity, rows); return rows;
         }
+        // Supabase failed/timeout — use localStorage cache, NEVER return empty
         var ls = readLS(entity);
         if (ls != null) { _dataSource = 'cache'; return ls; }
-        // Story 4.83: readSyncData fallback removido — sync_data legacy é lento (29.6s)
-        // Tabelas Supabase reais são a fonte de verdade; localStorage/memCache é o fallback
         _dataSource = 'offline';
         return [];
       },

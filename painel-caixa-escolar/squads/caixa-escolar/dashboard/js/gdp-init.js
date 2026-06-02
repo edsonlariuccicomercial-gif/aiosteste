@@ -2904,7 +2904,11 @@ async function enviarTiny(contratoId) {
         let anyUpdated = false;
         // Story 4.80: Paralelizar todas as chamadas Supabase (Promise.all em vez de for sequencial)
         const _mergeTable = (lsKey, rows) => {
-          if (!rows || !rows.length) return false;
+          if (!rows || !rows.length) {
+            // SAFETY: never clear localStorage when Supabase returns empty
+            // This prevents data loss on timeout/network errors
+            return false;
+          }
           let deletedIds = new Set();
           try { const delArr = JSON.parse(localStorage.getItem(lsKey.replace('.v1', '.deleted.v1')) || '[]'); deletedIds = new Set(delArr); } catch(_) {}
           const filteredRows = deletedIds.size > 0 ? rows.filter(r => !deletedIds.has(r.id)) : rows;
@@ -2982,20 +2986,12 @@ async function enviarTiny(contratoId) {
   // Sync config keys from cloud (lightweight, non-blocking)
   syncConfigFromCloud().catch(function() {});
 
-  // Auto-refresh when portal escola or banco de produtos updates localStorage (cross-tab sync)
+  // Cross-tab storage listener DISABLED — was causing destructive re-render loops.
+  // When Supabase-First boot writes to localStorage, this listener fired loadData() + renderAll(),
+  // which re-triggered writes, creating an infinite cycle of data loading/clearing.
+  // Cross-browser sync is now handled exclusively by gdp-realtime.js WebSocket.
+  // Keeping only banco de produtos listener (isolated, no conflict).
   window.addEventListener('storage', (e) => {
-    if (GDP_SHARED_SYNC_KEYS.has(e.key) || e.key === USUARIOS_KEY) {
-      loadData();
-      loadUsuarios();
-      renderAll();
-      setGdpSyncState({
-        status: "cloud",
-        source: "cross_tab",
-        detail: `Atualizacao detectada em ${e.key}`,
-        lastSyncAt: new Date().toISOString(),
-        userId: getSyncUserId()
-      });
-    }
     if (e.key === PRODUTOS_KEY) {
       loadBancoProdutos();
       renderBancoProdutos();
