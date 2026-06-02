@@ -140,7 +140,7 @@ function renderPedidos() {
 
   // Story 5.17: filtro de entrega ANTES dos tabs (afeta contadores)
   var filtroEntrega = document.getElementById('filtro-entrega-pedido');
-  if (filtroEntrega && filtroEntrega.value) {
+  if (filtroEntrega && filtroEntrega.value && filtroEntrega.value !== 'todos') {
     var fEnt = filtroEntrega.value;
     filtered = filtered.filter(function(p) { return calcStatusEntrega(p) === fEnt; });
   }
