@@ -513,17 +513,36 @@
         <select id="filtro-contrato-pedido" onchange="renderPedidos()" style="display:none">
           <option value="">Todos os contratos</option>
         </select>
-        <select id="filtro-periodo-pedido" onchange="renderPedidos()" style="height:40px;padding:4px 10px;border-radius:6px;border:1px solid var(--bdr);background:var(--bg);color:var(--txt);font-size:.85rem"><option value="todos">Todos</option><option value="hoje">Hoje</option><option value="semana">Esta Semana</option><option value="mes">Este Mes</option><option value="intervalo">Intervalo</option></select>
-        <input type="date" id="filtro-pedido-de" class="hidden" onchange="renderPedidos()" style="height:40px;padding:4px 8px;border-radius:6px;border:1px solid var(--bdr);background:var(--bg);color:var(--txt);font-size:.82rem">
-        <input type="date" id="filtro-pedido-ate" class="hidden" onchange="renderPedidos()" style="height:40px;padding:4px 8px;border-radius:6px;border:1px solid var(--bdr);background:var(--bg);color:var(--txt);font-size:.82rem">
-        <select id="filtro-entrega-pedido" onchange="renderPedidos()" style="height:40px;padding:4px 10px;border-radius:6px;border:1px solid var(--bdr);background:var(--bg);color:var(--txt);font-size:.85rem">
-          <option value="">Entrega</option>
-          <option value="todos">Todos</option>
-          <option value="pendente">Pendente</option>
-          <option value="parcial">Parcial</option>
-          <option value="entregue">Entregue</option>
-          <option value="cancelado">Cancelado</option>
-        </select>
+        <div style="position:relative" id="periodo-ped-emissao-container">
+          <div id="periodo-ped-emissao-trigger" style="display:flex;align-items:center;gap:6px;padding:7px 10px;border:1px solid var(--bdr);border-radius:6px;cursor:pointer;font-size:.85rem;color:var(--mut);background:var(--bg);min-height:36px;user-select:none" onclick="togglePeriodoDropdown('ped-emissao')">
+            <span id="periodo-ped-emissao-label">Emissao</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-left:auto;flex-shrink:0"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          </div>
+          <div id="periodo-ped-emissao-dropdown" style="display:none;position:absolute;top:calc(100% + 4px);left:0;z-index:100;background:var(--s1);border:1px solid var(--bdr);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.25);padding:12px;min-width:220px">
+            <label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:4px">Data inicial</label>
+            <input type="date" id="ped-filtro-emissao-de" style="width:100%;padding:8px;border:1px solid var(--bdr);border-radius:6px;font-size:.85rem;margin-bottom:10px;background:var(--bg);color:var(--txt)">
+            <label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:4px">Data final</label>
+            <input type="date" id="ped-filtro-emissao-ate" style="width:100%;padding:8px;border:1px solid var(--bdr);border-radius:6px;font-size:.85rem;margin-bottom:8px;background:var(--bg);color:var(--txt)">
+            <div style="display:flex;gap:6px">
+              <button class="btn btn-sm" onclick="limparPeriodoFilter('ped-emissao','renderPedidos')" style="flex:1">Limpar</button>
+              <button class="btn btn-sm btn-green" onclick="aplicarPeriodoFilter('ped-emissao','renderPedidos')" style="flex:1">Aplicar</button>
+            </div>
+          </div>
+        </div>
+        <input type="hidden" id="filtro-entrega-pedido" value="todos">
+        <div style="position:relative" id="filtro-entrega-container">
+          <div id="filtro-entrega-trigger" style="display:flex;align-items:center;gap:6px;padding:7px 10px;border:1px solid var(--bdr);border-radius:6px;cursor:pointer;font-size:.85rem;color:var(--mut);background:var(--bg);min-height:36px;user-select:none" onclick="toggleEntregaDropdown()">
+            <span id="filtro-entrega-label">Entrega</span>
+            <svg id="filtro-entrega-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-left:auto;flex-shrink:0"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 1118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            <span id="filtro-entrega-clear" style="display:none;margin-left:2px;cursor:pointer;font-size:.9rem;color:var(--mut);line-height:1" onclick="event.stopPropagation();limparFiltroEntrega()" title="Limpar filtro">&times;</span>
+          </div>
+          <div id="filtro-entrega-dropdown" style="display:none;position:absolute;top:calc(100% + 4px);left:0;z-index:100;background:var(--s1);border:1px solid var(--bdr);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.25);padding:4px 0;min-width:160px">
+            <div class="entrega-opt" onclick="selecionarFiltroEntrega('pendente')" style="padding:8px 14px;cursor:pointer;font-size:.85rem;transition:background .12s" onmouseenter="this.style.background='rgba(59,130,246,.08)'" onmouseleave="this.style.background='transparent'">Pendente</div>
+            <div class="entrega-opt" onclick="selecionarFiltroEntrega('parcial')" style="padding:8px 14px;cursor:pointer;font-size:.85rem;transition:background .12s" onmouseenter="this.style.background='rgba(59,130,246,.08)'" onmouseleave="this.style.background='transparent'">Parcial</div>
+            <div class="entrega-opt" onclick="selecionarFiltroEntrega('entregue')" style="padding:8px 14px;cursor:pointer;font-size:.85rem;transition:background .12s" onmouseenter="this.style.background='rgba(59,130,246,.08)'" onmouseleave="this.style.background='transparent'">Entregue</div>
+            <div class="entrega-opt" onclick="selecionarFiltroEntrega('cancelado')" style="padding:8px 14px;cursor:pointer;font-size:.85rem;transition:background .12s" onmouseenter="this.style.background='rgba(59,130,246,.08)'" onmouseleave="this.style.background='transparent'">Cancelado</div>
+          </div>
+        </div>
       </div>
       <div style="display:flex;gap:.5rem;align-items:center">
         <span id="pedidos-sel-count" style="font-size:.8rem;color:var(--cyan);font-weight:600;display:none"></span>
@@ -578,15 +597,22 @@
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:.8rem">
       <div style="display:flex;gap:.6rem;align-items:center;flex-wrap:wrap">
         <input type="text" id="busca-nota-fiscal" placeholder="Buscar NF, pedido ou cliente..." oninput="renderNotasFiscais()" style="min-width:240px">
-        <select id="nf-filtro-periodo" onchange="renderNotasFiscais()" style="height:40px;padding:4px 10px;border-radius:6px;border:1px solid var(--bdr);background:var(--bg);color:var(--txt);font-size:.85rem">
-          <option value="todos">Todos</option>
-          <option value="hoje">Hoje</option>
-          <option value="semana">Esta Semana</option>
-          <option value="mes">Este Mes</option>
-          <option value="intervalo">Intervalo</option>
-        </select>
-        <input type="date" id="nf-filtro-de" class="hidden" onchange="renderNotasFiscais()" style="height:40px;padding:4px 8px;border-radius:6px;border:1px solid var(--bdr);background:var(--bg);color:var(--txt);font-size:.82rem">
-        <input type="date" id="nf-filtro-ate" class="hidden" onchange="renderNotasFiscais()" style="height:40px;padding:4px 8px;border-radius:6px;border:1px solid var(--bdr);background:var(--bg);color:var(--txt);font-size:.82rem">
+        <div style="position:relative" id="periodo-nf-emissao-container">
+          <div id="periodo-nf-emissao-trigger" style="display:flex;align-items:center;gap:6px;padding:7px 10px;border:1px solid var(--bdr);border-radius:6px;cursor:pointer;font-size:.85rem;color:var(--mut);background:var(--bg);min-height:36px;user-select:none" onclick="togglePeriodoDropdown('nf-emissao')">
+            <span id="periodo-nf-emissao-label">Emissao</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-left:auto;flex-shrink:0"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          </div>
+          <div id="periodo-nf-emissao-dropdown" style="display:none;position:absolute;top:calc(100% + 4px);left:0;z-index:100;background:var(--s1);border:1px solid var(--bdr);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.25);padding:12px;min-width:220px">
+            <label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:4px">Data inicial</label>
+            <input type="date" id="nf-filtro-emissao-de" style="width:100%;padding:8px;border:1px solid var(--bdr);border-radius:6px;font-size:.85rem;margin-bottom:10px;background:var(--bg);color:var(--txt)">
+            <label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:4px">Data final</label>
+            <input type="date" id="nf-filtro-emissao-ate" style="width:100%;padding:8px;border:1px solid var(--bdr);border-radius:6px;font-size:.85rem;margin-bottom:8px;background:var(--bg);color:var(--txt)">
+            <div style="display:flex;gap:6px">
+              <button class="btn btn-sm" onclick="limparPeriodoFilter('nf-emissao','renderNotasFiscais')" style="flex:1">Limpar</button>
+              <button class="btn btn-sm btn-green" onclick="aplicarPeriodoFilter('nf-emissao','renderNotasFiscais')" style="flex:1">Aplicar</button>
+            </div>
+          </div>
+        </div>
       </div>
       <div style="font-size:.82rem;color:var(--mut)">Geradas a partir do pedido e acompanhadas aqui com situacao fiscal e cobranca.</div>
     </div>
@@ -923,51 +949,45 @@
 
   <!-- Tab: Relatorios -->
   <div id="tab-relatorios" class="hidden">
-    <div class="kpi-grid" style="margin-bottom:1rem">
-      <div class="kpi"><div class="kpi-label">Fluxo de Caixa</div><div class="kpi-value blue" id="rel-kpi-fluxo">R$&nbsp;0,00</div><div class="kpi-sub">Saldo liquido do periodo</div></div>
-      <div class="kpi"><div class="kpi-label">Entradas</div><div class="kpi-value green" id="rel-kpi-entradas">R$&nbsp;0,00</div><div class="kpi-sub">Receitas registradas</div></div>
-      <div class="kpi"><div class="kpi-label">Saidas</div><div class="kpi-value red" id="rel-kpi-saidas">R$&nbsp;0,00</div><div class="kpi-sub">Despesas registradas</div></div>
-      <div class="kpi"><div class="kpi-label">DRE</div><div class="kpi-value yellow" id="rel-kpi-dre">R$&nbsp;0,00</div><div class="kpi-sub">Resultado operacional</div></div>
-    </div>
-    <div style="display:grid;grid-template-columns:1.1fr .9fr;gap:1rem;align-items:start">
-      <div style="display:flex;flex-direction:column;gap:1rem">
-        <div class="card">
-          <h3 style="margin-bottom:.75rem">Fluxo de Caixa</h3>
-          <div class="table-wrap" style="max-height:340px;overflow-y:auto">
-            <table>
-              <thead><tr><th>Data</th><th class="text-right">Entradas</th><th class="text-right">Saidas</th><th class="text-right">Saldo</th></tr></thead>
-              <tbody id="rel-fluxo-tbody"></tbody>
-            </table>
+    <!-- Menu principal de relatórios -->
+    <div id="rel-menu">
+      <div style="margin-bottom:1.5rem">
+        <h3 style="font-size:.78rem;text-transform:uppercase;letter-spacing:.08em;color:var(--mut);margin-bottom:.75rem;font-weight:700">Financeiro</h3>
+        <div style="display:flex;flex-direction:column">
+          <div onclick="abrirRelatorio('dre')" style="padding:14px 16px;border-bottom:1px solid var(--bdr);cursor:pointer;transition:background .12s" onmouseenter="this.style.background='rgba(59,130,246,.06)'" onmouseleave="this.style.background='transparent'">
+            <div style="font-weight:700;font-size:.92rem;margin-bottom:2px">DRE</div>
+            <div style="font-size:.82rem;color:var(--mut)">Demonstrativo de Resultados do Exercicio</div>
           </div>
-        </div>
-        <div class="card">
-          <h3 style="margin-bottom:.75rem">Entradas e Saidas por Categoria</h3>
-          <div class="table-wrap" style="max-height:340px;overflow-y:auto">
-            <table>
-              <thead><tr><th>Categoria</th><th class="text-right">Entradas</th><th class="text-right">Saidas</th><th class="text-right">Saldo</th></tr></thead>
-              <tbody id="rel-categorias-tbody"></tbody>
-            </table>
+          <div onclick="abrirRelatorio('fluxo')" style="padding:14px 16px;border-bottom:1px solid var(--bdr);cursor:pointer;transition:background .12s" onmouseenter="this.style.background='rgba(59,130,246,.06)'" onmouseleave="this.style.background='transparent'">
+            <div style="font-weight:700;font-size:.92rem;margin-bottom:2px">Fluxo de Caixa</div>
+            <div style="font-size:.82rem;color:var(--mut)">Relatorio e projecao das entradas e saidas futuras de acordo com as contas a pagar e receber.</div>
+          </div>
+          <div onclick="abrirRelatorio('categorias')" style="padding:14px 16px;border-bottom:1px solid var(--bdr);cursor:pointer;transition:background .12s" onmouseenter="this.style.background='rgba(59,130,246,.06)'" onmouseleave="this.style.background='transparent'">
+            <div style="font-weight:700;font-size:.92rem;margin-bottom:2px">Entradas e Saidas por Categoria</div>
+            <div style="font-size:.82rem;color:var(--mut)">Relatorio das entradas e saidas agrupadas pela categoria de receita e despesa.</div>
           </div>
         </div>
       </div>
-      <div class="card">
-        <h3 style="margin-bottom:.75rem">DRE</h3>
-        <div id="rel-dre-body" style="display:grid;gap:.6rem;font-size:.84rem"></div>
+      <div>
+        <h3 style="font-size:.78rem;text-transform:uppercase;letter-spacing:.08em;color:var(--mut);margin-bottom:.75rem;font-weight:700">Vendas</h3>
+        <div style="display:flex;flex-direction:column">
+          <div onclick="abrirRelatorio('pendencias')" style="padding:14px 16px;border-bottom:1px solid var(--bdr);cursor:pointer;transition:background .12s" onmouseenter="this.style.background='rgba(59,130,246,.06)'" onmouseleave="this.style.background='transparent'">
+            <div style="font-weight:700;font-size:.92rem;margin-bottom:2px">Pendencias de Entrega</div>
+            <div style="font-size:.82rem;color:var(--mut)">Pedidos com entrega parcial pendente, agrupados por escola.</div>
+          </div>
+        </div>
       </div>
     </div>
-    <!-- Story 5.17: Pendencias de Entrega -->
-    <div class="card" style="margin-top:1rem">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem">
-        <h3 style="margin:0">Pendencias de Entrega</h3>
-        <button class="btn btn-outline btn-sm" onclick="imprimirRelPendenciasEntrega()" style="font-size:.75rem">Imprimir</button>
+    <!-- Área de relatório ativo (oculta por padrão) -->
+    <div id="rel-viewer" class="hidden">
+      <div id="rel-viewer-header" style="display:flex;align-items:center;gap:1rem;margin-bottom:1rem">
+        <button class="btn btn-outline btn-sm" onclick="voltarMenuRelatorios()" style="display:flex;align-items:center;gap:4px"><span style="font-size:1rem">&larr;</span> Voltar</button>
+        <h2 id="rel-viewer-title" style="font-size:1.05rem;margin:0;flex:1"></h2>
+        <button id="rel-btn-toggle-filtros" class="btn btn-outline btn-sm" onclick="toggleRelFiltros()" style="font-size:.78rem">Exibir filtros</button>
+        <button class="btn btn-outline btn-sm" onclick="imprimirRelatorioAtivo()" style="font-size:.78rem">Imprimir</button>
       </div>
-      <div id="rel-pendencias-entrega-empty" style="font-size:.85rem;color:var(--mut);padding:.5rem 0">Nenhuma entrega parcial pendente.</div>
-      <div class="table-wrap" style="max-height:400px;overflow-y:auto">
-        <table>
-          <thead><tr><th>Produto</th><th>Un.</th><th class="text-right">Pedido</th><th class="text-right">Entregue</th><th class="text-right" style="color:var(--yellow,#eab308)">Pendente</th><th>Escola</th><th>Pedido #</th></tr></thead>
-          <tbody id="rel-pendencias-entrega-tbody"></tbody>
-        </table>
-      </div>
+      <div id="rel-filtros" class="hidden" style="margin-bottom:1rem;padding:1rem;border:1px solid var(--bdr);border-radius:8px;background:var(--s1)"></div>
+      <div id="rel-viewer-body"></div>
     </div>
   </div>
 

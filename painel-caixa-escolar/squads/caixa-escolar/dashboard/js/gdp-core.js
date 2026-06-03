@@ -1889,8 +1889,7 @@ function _montarMensagemCobranca(conta, tipo) {
     msg = `Olá, tudo bem?\n\nEstamos entrando em contato para lembrar sobre o pagamento da Nota Fiscal ${nfRef} no valor de *${valor}*, com vencimento em *${venc}*, que até o momento consta em aberto em nosso controle.\n\nPedimos, por gentileza, a verificação da pendência e, se possível, a programação do pagamento. Caso o pagamento já tenha sido realizado, desconsidere esta mensagem e, se possível, encaminhe o comprovante para atualização de nossos registros.\n\nFicamos à disposição para quaisquer esclarecimentos.`;
   }
 
-  if (pix) msg += `\n\n📲 *PIX Copia e Cola:*\n${pix}`;
-  if (boleto) msg += `\n\n🏦 *Linha Digitável:*\n${boleto}`;
+  msg += `\n\n📲 *PIX Copia e Cola:*\n36.802.147/0001-42`;
 
   msg += `\n\nAtenciosamente,\n\n*Distribuidora Lariucci*\nSetor Financeiro\n16 98204-4058`;
   return msg;
@@ -1949,8 +1948,17 @@ async function _enviarEmailCobranca(conta) {
     nfe = (notasFiscais || []).find(n => (n.cliente?.nome || '').trim().toLowerCase() === _cliLower);
   }
 
-  // Montar corpo do email com mesmos dizeres do WhatsApp
-  const msgHtml = _montarMensagemCobranca(conta, tipo).replace(/\n/g, '<br>').replace(/\*(.*?)\*/g, '<strong>$1</strong>');
+  // Montar corpo do email — remove seção PIX (já exibida no box dedicado do template)
+  var msgRaw = _montarMensagemCobranca(conta, tipo);
+  var pixIdx = msgRaw.indexOf('PIX Copia e Cola');
+  if (pixIdx > 0) {
+    var cutStart = msgRaw.lastIndexOf('\n\n', pixIdx);
+    if (cutStart < 0) cutStart = pixIdx;
+    var cutEnd = msgRaw.indexOf('\n\n', pixIdx);
+    if (cutEnd < 0) cutEnd = msgRaw.length;
+    msgRaw = msgRaw.slice(0, cutStart) + msgRaw.slice(cutEnd);
+  }
+  const msgHtml = msgRaw.replace(/\n/g, '<br>').replace(/\*(.*?)\*/g, '<strong>$1</strong>');
 
   try {
     showToast("Enviando email para " + emailCliente + "...", 2000);
@@ -1963,11 +1971,10 @@ async function _enviarEmailCobranca(conta) {
       items: [],
       obs: msgHtml,
       pagamento: {
-        forma: pix ? 'pix' : (boleto ? 'boleto' : 'outros'),
+        forma: pix ? 'pix' : 'outros',
         vencimento: venc,
         valor: Number(conta.valor || 0),
-        pixCopiaECola: pix || undefined,
-        linhaDigitavel: boleto || undefined
+        pixCopiaECola: pix || undefined
       }
     };
     // Anexar NF-e completa (mesmo formato da transmissão)
@@ -2037,9 +2044,7 @@ function enviarCobrancaVencidas(canal) {
     showToast("Cobrança em lote via " + canal + " em breve.", 3000);
   }
 }
-function renderRelatorios() {
-  if (typeof renderRelatorioPendenciasEntrega === 'function') renderRelatorioPendenciasEntrega();
-}
+// renderRelatorios definido em gdp-pedidos.js (Story 8.20)
 // renderUsuarios definido em gdp-usuarios.js
 // renderBancoProdutos definido em gdp-banco-produtos.js
 

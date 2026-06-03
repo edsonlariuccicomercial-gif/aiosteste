@@ -848,8 +848,7 @@ function buildReceivableFromInvoice(invoice) {
     },
     cobranca: {
       status: invoice.cobranca?.forma === "pix" ? "pix_pronto" : "boleto_gerado",
-      linhaDigitavel: `34191.${Math.floor(Math.random() * 99999)} ${Math.floor(Math.random() * 99999)} ${Math.floor(Math.random() * 99999)} 1 ${Math.floor(1000000000 + Math.random() * 9000000000)}`,
-      pixCopiaECola: contaPadrao?.pix ? `PIX ${contaPadrao.pix} | ${Number(invoice.valor || 0).toFixed(2)}` : `00020126480014BR.GOV.BCB.PIX0126${genId("PIX")}520400005303986540${Number(invoice.valor || 0).toFixed(2)}5802BR5925${(invoice.cliente?.nome || "CLIENTE").slice(0, 25)}6009SAOPAULO62070503***6304ABCD`,
+      pixCopiaECola: contaPadrao?.pix ? contaPadrao.pix : '',
       contaBancariaId: contaPadrao?.id || "",
       banco: contaPadrao?.banco || "",
       agencia: contaPadrao?.agencia || "",
@@ -1790,7 +1789,7 @@ table.it td{border:1px solid #999;padding:2px 4px;font-size:7.5pt;page-break-ins
 .hdr-emit .nome{font-size:10pt;font-weight:700;white-space:nowrap}
 .hdr-emit .end{font-size:7pt;line-height:1.4;white-space:nowrap}
 .hdr-danfe{width:120px;text-align:center;padding:4px;border-right:1px solid #000}
-.hdr-chave{flex:2;padding:4px 6px;overflow:hidden}
+.hdr-chave{flex:2;padding:4px 6px;overflow:hidden;text-align:center}
 </style>
 <div class="danfe-wrap">
 <!-- RECIBO DE ENTREGA -->
@@ -2063,7 +2062,7 @@ function gerarDanfeHtmlParaPdf(nf, options) {
 '.hdr-danfe .nf-num{font-size:10pt;font-weight:900;margin-top:2px}' +
 '.hdr-danfe .nf-ser{font-size:7pt}' +
 '.hdr-danfe .nf-fol{font-size:6pt;font-style:italic}' +
-'.hdr-chave{flex:2;padding:2px 4px;overflow:hidden}' +
+'.hdr-chave{flex:2;padding:2px 4px;overflow:hidden;text-align:center}' +
 '.hdr-chave .bc{text-align:center;min-height:32px}' +
 '.hdr-chave .lbl{font-size:5pt;text-align:center;text-transform:uppercase;margin-top:1px}' +
 '.hdr-chave .val{font-size:6.5pt;font-weight:700;text-align:center;letter-spacing:.4px;word-break:break-all}' +

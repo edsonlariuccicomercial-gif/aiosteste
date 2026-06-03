@@ -28,6 +28,8 @@ var PRODUTO_DEFAULTS = {
   taxaConversao: null,       // number — % de propostas ganhas
   grupo: "",                 // string — Grupo de despesa (alimentação, limpeza, etc.)
   fonte: "",                 // string — Origem dos dados (b2b, excel, nf, manual)
+  produto_critico: false,    // boolean — Produto crítico requer embalagem especial
+  embalagem_descricao: "",   // string — Descrição do tipo de embalagem (se crítico)
   criadoEm: null,
   atualizadoEm: null
 };
