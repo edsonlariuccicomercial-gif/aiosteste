@@ -731,6 +731,25 @@ window.renderPendentes = function () {
 
   const margemDefault = (perfil.config ? perfil.config.margemPadrao || 0.30 : 0.30) * 100;
 
+  // Story (Intel): liga o RadarMatcher na tela de associação.
+  // Para cada item sem associação, calcula a melhor sugestão (camada + score) e
+  // devolve { sku, badge } para pré-selecionar o dropdown e exibir a confiança.
+  function sugerirAssoc(item) {
+    if (item.skuBanco) return null; // já associado manualmente
+    if (typeof RadarMatcher === 'undefined' || !RadarMatcher.isReady()) return null;
+    const nomeCompleto = [item.nome, item.descricao].filter(Boolean).join(' ').trim();
+    const r = RadarMatcher.match(nomeCompleto) || RadarMatcher.match(item.nome);
+    if (!r || !r.sku || r.status === 'sem_match') return null;
+    const pct = Math.round((r.score || 0) * 100);
+    const layer = r.match_layer || '';
+    const tone = r.status === 'confirmado' ? 'badge-aprovado'
+      : pct >= 85 ? 'badge-aprovado'
+      : pct >= 70 ? 'badge-rascunho' : 'badge-pendente';
+    const label = r.status === 'confirmado' ? `✓ Confirmado` : `${layer} · ${pct}%`;
+    const badge = `<span class="badge ${tone}" title="Sugestão do Radar Matcher (camada ${layer}, confiança ${pct}%)" style="font-size:.66rem;margin-left:4px">${label}</span>`;
+    return { sku: r.sku, badge };
+  }
+
   let html = '';
   for (const [orcId, pre] of rascunhos) {
     const orc = orcamentos.find(o => o.id === orcId);
@@ -764,18 +783,50 @@ window.renderPendentes = function () {
           ${(pre.itens || []).map((item, idx) => {
             const isOk = item.skuBanco && item.custoUnitario > 0;
             const rowBg = isOk ? '' : 'background:rgba(244,185,66,0.06)';
+            const sugestao = sugerirAssoc(item);
+            const sugSku = sugestao ? sugestao.sku : '';
+            const sugBadge = sugestao ? sugestao.badge : '';
+            const descCompleta = (item.descricao || '').trim();
+            // Descrição completa 100% — sem truncar (texto íntegro do edital fica visível).
+            const descHtml = descCompleta
+              ? `<div class="pend-item-desc" style="color:var(--muted);font-size:.72rem;line-height:1.3;margin-top:2px;white-space:pre-wrap;word-break:break-word">${escapeHtml(descCompleta)}</div>`
+              : '';
+            // Preço de referência (teto): cotação acima → INABILITADA.
+            const refInfo = (typeof RadarMatcherCore !== 'undefined' && RadarMatcherCore.extractReferencePrice)
+              ? RadarMatcherCore.extractReferencePrice(descCompleta + ' ' + (item.observacao || ''))
+              : null;
+            const precoRef = item.precoReferenciaSgd || (refInfo ? refInfo.valor : 0);
+            const acimaTeto = precoRef > 0 && item.precoUnitario > 0 && item.precoUnitario > precoRef;
+            const refHtml = precoRef > 0
+              ? `<div class="pend-item-ref" title="Preço de referência do edital — cotações acima são inabilitadas" style="font-size:.7rem;margin-top:3px;font-weight:600;color:${acimaTeto ? 'var(--danger)' : 'var(--accent)'}">Teto: ${brl.format(precoRef)}${acimaTeto ? ' ⚠️ ACIMA — INABILITA' : ''}</div>`
+              : '';
+            // Marcas de referência: cotar marca fora da lista → INABILITADA.
+            const brandInfo = (typeof RadarMatcherCore !== 'undefined' && RadarMatcherCore.extractReferenceBrands)
+              ? RadarMatcherCore.extractReferenceBrands(descCompleta)
+              : null;
+            const marcasRef = (item.marcasReferencia && item.marcasReferencia.length)
+              ? item.marcasReferencia
+              : (brandInfo ? brandInfo.marcas : []);
+            const marcaOk = (typeof RadarMatcherCore !== 'undefined' && RadarMatcherCore.isBrandCompliant)
+              ? RadarMatcherCore.isBrandCompliant(item.marca, marcasRef)
+              : true;
+            const marcaNaoConforme = marcasRef.length > 0 && !marcaOk;
+            const marcasHtml = marcasRef.length > 0
+              ? `<div class="pend-item-marcas" title="Marcas aceitas pelo edital — cotar fora da lista inabilita" style="font-size:.7rem;margin-top:2px;color:${marcaNaoConforme ? 'var(--danger)' : 'var(--accent)'}">Marcas: ${escapeHtml(marcasRef.join(', '))}${marcaNaoConforme ? ' ⚠️ marca fora da lista — INABILITA' : ''}</div>`
+              : '';
+            const marcaBorder = marcaNaoConforme ? 'var(--danger)' : 'var(--line)';
             return `<tr style="${rowBg}" id="pend-row-${orcId}-${idx}">
               <td style="color:var(--muted)">${idx + 1}</td>
-              <td><strong>${escapeHtml(item.nome)}</strong></td>
-              <td><select class="pend-prod-select" data-orc="${orcId}" data-idx="${idx}" onchange="pendAssociar('${orcId}',${idx},this.value)" style="width:100%;padding:3px 4px;font-size:.78rem;background:var(--bg);border:1px solid var(--line);border-radius:4px;color:var(--text)">${optionsHtml}</select></td>
-              <td><input type="text" value="${escapeHtml(item.marca || '')}" onchange="pendEditField('${orcId}',${idx},'marca',this.value)" style="width:100%;padding:3px;font-size:.78rem;background:var(--bg);border:1px solid var(--line);border-radius:4px;color:var(--text)"></td>
+              <td><strong>${escapeHtml(item.nome)}</strong>${refHtml}${marcasHtml}${descHtml}</td>
+              <td><select class="pend-prod-select" data-orc="${orcId}" data-idx="${idx}" data-sugestao="${escapeHtml(sugSku)}" onchange="pendAssociar('${orcId}',${idx},this.value)" style="width:100%;padding:3px 4px;font-size:.78rem;background:var(--bg);border:1px solid var(--line);border-radius:4px;color:var(--text)">${optionsHtml}</select>${sugBadge}</td>
+              <td><input type="text" value="${escapeHtml(item.marca || '')}" data-marcasref="${escapeHtml(marcasRef.join('|'))}" onchange="pendEditField('${orcId}',${idx},'marca',this.value)" title="${marcaNaoConforme ? 'Marca fora da lista de referência — proposta seria INABILITADA' : ''}" style="width:100%;padding:3px;font-size:.78rem;background:var(--bg);border:1px solid ${marcaBorder};border-radius:4px;color:var(--text)"></td>
               <td class="text-center">${item.quantidade}</td>
               <td><select onchange="pendEditField('${orcId}',${idx},'unidade',this.value)" style="width:100%;padding:3px;font-size:.78rem;background:var(--bg);border:1px solid var(--line);border-radius:4px;color:var(--text)">
                 ${['UN','KG','L','CX','PCT','M','M2','FD','GL','ROL','RS','BD','SC'].map(u => `<option value="${u}" ${item.unidade === u ? 'selected' : ''}>${u}</option>`).join('')}
               </select></td>
               <td><input type="number" value="${item.custoUnitario || ''}" min="0" step="0.01" onchange="pendEditCusto('${orcId}',${idx},this.value)" style="width:100%;padding:3px;font-size:.78rem;background:var(--bg);border:1px solid var(--line);border-radius:4px;color:var(--text);text-align:right" id="pend-custo-${orcId}-${idx}"></td>
               <td><input type="number" value="${Math.round((item.margem || 0.30) * 100)}" min="0" max="200" step="1" onchange="pendEditMargem('${orcId}',${idx},this.value)" style="width:100%;padding:3px;font-size:.78rem;background:var(--bg);border:1px solid var(--line);border-radius:4px;color:var(--text);text-align:right" id="pend-margem-${orcId}-${idx}"></td>
-              <td class="text-right font-mono" id="pend-preco-${orcId}-${idx}">${item.precoUnitario > 0 ? brl.format(item.precoUnitario) : '—'}</td>
+              <td class="text-right font-mono" id="pend-preco-${orcId}-${idx}" data-ref="${precoRef || 0}" style="${acimaTeto ? 'color:var(--danger);font-weight:700' : ''}" title="${acimaTeto ? 'Preço acima do teto do edital — proposta seria INABILITADA' : ''}">${item.precoUnitario > 0 ? brl.format(item.precoUnitario) : '—'}${acimaTeto ? ' ⚠️' : ''}</td>
               <td class="text-right font-mono" id="pend-total-${orcId}-${idx}">${item.precoTotal > 0 ? brl.format(item.precoTotal) : '—'}</td>
               <td>${!isOk ? `<button class="btn btn-inline" onclick="pendNovoProduto('${orcId}',${idx})" style="font-size:.7rem;padding:2px 5px;white-space:nowrap" title="Cadastrar novo produto">+</button>` : '<span style="color:var(--accent)">✓</span>'}</td>
             </tr>`;
@@ -787,12 +838,19 @@ window.renderPendentes = function () {
 
   container.innerHTML = html;
 
-  // Pre-select matched products in dropdowns
+  // Pré-seleciona no dropdown: associação manual existente OU sugestão do Radar Matcher.
+  // A sugestão é só visual no select (badge mostra a confiança); o usuário confirma
+  // escolhendo no dropdown — o que dispara pendAssociar e trava a associação.
   for (const [orcId, pre] of rascunhos) {
     (pre.itens || []).forEach((item, idx) => {
+      const sel = document.querySelector(`.pend-prod-select[data-orc="${orcId}"][data-idx="${idx}"]`);
+      if (!sel) return;
       if (item.skuBanco) {
-        const sel = document.querySelector(`.pend-prod-select[data-orc="${orcId}"][data-idx="${idx}"]`);
-        if (sel) sel.value = item.skuBanco;
+        sel.value = item.skuBanco;
+      } else if (sel.dataset.sugestao) {
+        // pré-seleciona a sugestão (sem gravar) — destaca para revisão humana
+        sel.value = sel.dataset.sugestao;
+        sel.style.borderColor = 'var(--accent)';
       }
     });
   }
@@ -823,6 +881,9 @@ window.pendEditField = function (orcId, idx, field, value) {
   if (!pre || !pre.itens[idx]) return;
   pre.itens[idx][field] = value;
   savePreOrcamentos();
+  // Marca afeta a conformidade com as marcas de referência → re-renderiza para
+  // atualizar o destaque de inabilitação na hora.
+  if (field === 'marca') renderPendentes();
 };
 
 // Story 15.2: Edit custo — recalculate price
@@ -855,7 +916,15 @@ function _pendRecalc(orcId, idx) {
   // Update DOM
   const precoEl = document.getElementById(`pend-preco-${orcId}-${idx}`);
   const totalEl = document.getElementById(`pend-total-${orcId}-${idx}`);
-  if (precoEl) precoEl.textContent = item.precoUnitario > 0 ? brl.format(item.precoUnitario) : '—';
+  if (precoEl) {
+    // Reavalia o teto do edital: cotação acima do preço de referência → INABILITA.
+    const precoRef = parseFloat(precoEl.dataset.ref || '0') || 0;
+    const acimaTeto = precoRef > 0 && item.precoUnitario > precoRef;
+    precoEl.textContent = (item.precoUnitario > 0 ? brl.format(item.precoUnitario) : '—') + (acimaTeto ? ' ⚠️' : '');
+    precoEl.style.color = acimaTeto ? 'var(--danger)' : '';
+    precoEl.style.fontWeight = acimaTeto ? '700' : '';
+    precoEl.title = acimaTeto ? 'Preço acima do teto do edital — proposta seria INABILITADA' : '';
+  }
   if (totalEl) totalEl.textContent = item.precoTotal > 0 ? brl.format(item.precoTotal) : '—';
   // Recalc totals
   pre.totalGeral = Math.round(pre.itens.reduce((s, i) => s + (i.precoTotal || 0), 0) * 100) / 100;

@@ -847,10 +847,29 @@ function _criarPreOrcamentoRascunho(orc) {
     const margem = bp ? (bp.margemPadrao || margemPadrao) : margemPadrao;
     const precoUnit = custoUnit > 0 ? Math.round(custoUnit * (1 + margem) * 100) / 100 : 0;
 
+    // Extrai do edital o preço de referência (teto) e as marcas exigidas.
+    // Cotação acima do teto OU com marca fora da lista → INABILITA. Guardamos para
+    // alertar/bloquear na tela de associação.
+    let precoRefSgd = 0;
+    let marcasRef = [];
+    if (typeof RadarMatcherCore !== "undefined") {
+      const txt = (assocItem.descricao || "") + " " + (assocItem.observacao || "");
+      if (RadarMatcherCore.extractReferencePrice) {
+        const ref = RadarMatcherCore.extractReferencePrice(txt);
+        if (ref && ref.valor > 0) precoRefSgd = ref.valor;
+      }
+      if (RadarMatcherCore.extractReferenceBrands) {
+        const rb = RadarMatcherCore.extractReferenceBrands(assocItem.descricao || "");
+        if (rb && rb.marcas.length) marcasRef = rb.marcas;
+      }
+    }
+
     return {
       nome: assocItem.nome,
       marca: bp ? (bp.marca || "") : "",
       descricao: assocItem.descricao || "",
+      precoReferenciaSgd: precoRefSgd,
+      marcasReferencia: marcasRef,
       matchStatus: assocItem.matchStatus || "pendente",
       matchScore: bp ? 1.0 : 0,
       skuBanco: assocItem.bpId || null,
@@ -1478,6 +1497,35 @@ window.rejeitarMatchPreOrc = async function (itemName) {
 };
 
 // Aprovar pré-orçamento
+// Detecta itens que seriam INABILITADOS: preço acima do teto do edital ou marca cotada
+// fora da lista de marcas de referência. Retorna mensagens legíveis (uma por problema).
+// Só avalia o que TEM exigência — itens sem teto/sem marca-ref nunca bloqueiam.
+function detectarInabilitacoes(pre) {
+  const out = [];
+  const RMC = typeof RadarMatcherCore !== "undefined" ? RadarMatcherCore : null;
+  (pre.itens || []).forEach((item) => {
+    // Teto de preço
+    let teto = item.precoReferenciaSgd || 0;
+    if (!teto && RMC && RMC.extractReferencePrice) {
+      const ref = RMC.extractReferencePrice((item.descricao || "") + " " + (item.observacao || ""));
+      if (ref && ref.valor > 0) teto = ref.valor;
+    }
+    if (teto > 0 && item.precoUnitario > teto) {
+      out.push(`${item.nome}: preço R$ ${item.precoUnitario.toFixed(2)} acima do teto R$ ${teto.toFixed(2)}`);
+    }
+    // Marca de referência
+    let marcasRef = (item.marcasReferencia && item.marcasReferencia.length) ? item.marcasReferencia : [];
+    if (!marcasRef.length && RMC && RMC.extractReferenceBrands) {
+      const rb = RMC.extractReferenceBrands(item.descricao || "");
+      if (rb && rb.marcas.length) marcasRef = rb.marcas;
+    }
+    if (marcasRef.length && RMC && RMC.isBrandCompliant && !RMC.isBrandCompliant(item.marca, marcasRef)) {
+      out.push(`${item.nome}: marca "${item.marca || "(vazia)"}" fora da lista exigida (${marcasRef.join(", ")})`);
+    }
+  });
+  return out;
+}
+
 function aprovarPreOrcamento() {
   if (!activePreOrcamentoId) return;
   const pre = preOrcamentos[activePreOrcamentoId];
@@ -1487,6 +1535,18 @@ function aprovarPreOrcamento() {
   const semPreco = pre.itens.filter((i) => i.precoUnitario <= 0);
   if (semPreco.length > 0) {
     alert("Preencha o preço unitário de todos os itens antes de aprovar.");
+    return;
+  }
+
+  // Gate de INABILITAÇÃO: bloquear itens acima do teto OU com marca fora da referência.
+  const inabilitacoes = detectarInabilitacoes(pre);
+  if (inabilitacoes.length > 0) {
+    const linhas = inabilitacoes.map((x) => "• " + x).join("\n");
+    alert(
+      "Não é possível aprovar — os itens abaixo seriam INABILITADOS no edital:\n\n" +
+      linhas +
+      "\n\nAjuste o preço (≤ teto) e/ou a marca antes de aprovar."
+    );
     return;
   }
 

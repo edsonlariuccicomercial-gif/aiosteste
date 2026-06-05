@@ -3,21 +3,27 @@
   'use strict';
 
   var SUPABASE_URL = window.SUPABASE_URL || 'https://mvvsjaudhbglxttxaeop.supabase.co';
-  var SUPABASE_KEY = window.SUPABASE_KEY || 'sb_publishable_uBqL8sLjMGWnZ2aaQ1zwvg_mlQrZUXR';
+  var SUPABASE_KEY = window.SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im12dnNqYXVkaGJnbHh0dHhhZW9wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4MDY3OTAsImV4cCI6MjA5MDM4Mjc5MH0.jadqvmRvbZjtjATaF_4WWB6A44NF06whtEIyNNyCUGo';
   var REST = SUPABASE_URL + '/rest/v1';
   var HEADERS = { apikey: SUPABASE_KEY, Authorization: 'Bearer ' + SUPABASE_KEY, 'Content-Type': 'application/json' };
   var LS_KEY = 'radar.equivalencias.v1';
-  var NOISE = ['tipo', 'pct', 'c/', 'un', 'marca', 'de', 'do', 'da', 'com', 'para', 'em',
-    'qualidade', 'primeira', 'segunda', 'pacote'];
-  var SYNONYMS = {
-    carioquinha: 'carioca', parboilizado: 'parbolizado',
-    mussarela: 'mussarela', mucarela: 'mussarela', muzzarela: 'mussarela',
-    macarrao: 'macarrao'
-  };
-  var BRAND_BLACKLIST = ['yoki', 'camil', 'kicaldo', 'urbano', 'tio joao', 'dona benta',
-    'renata', 'adria', 'isabela', 'piraque', 'vitarella', 'predilecta', 'fugini',
-    'quero', 'elefante', 'hemmer', 'sadia', 'perdigao', 'aurora', 'seara',
-    'friboi', 'minerva', 'marfrig', 'liza', 'soya', 'abc'];
+
+  // ── Fonte única de regras de matching: RadarMatcherCore (server-lib/radar-matcher-core.js) ──
+  // O core (carregado antes via radar-matcher-core.browser.js) detém normalização, sinônimos,
+  // similaridade e camadas N1-N4. Este arquivo só adiciona persistência (Supabase/localStorage).
+  // Fallback defensivo: se o core não carregou, expõe um stub que evita crash de boot.
+  var CORE = (typeof window !== 'undefined' && window.RadarMatcherCore) ? window.RadarMatcherCore : null;
+  if (!CORE) {
+    gdpWarn && gdpWarn('[RadarMatcher] RadarMatcherCore não carregado — matching desabilitado. Verifique a ordem dos <script>.');
+    CORE = {
+      normalizeProductName: function (n) { return String(n || '').toLowerCase().trim(); },
+      tokenSimilarity: function () { return 0; },
+      matchRegexRules: function () { return null; },
+      matchProduct: function () { return { status: 'sem_match', score: 0, sku: null, nomeBanco: null, matchLayer: 'N4' }; },
+      REGEX_RULES: [],
+      MATCH_STATUS: { CONFIRMADO: 'confirmado', EXATO: 'exato', SUGESTAO: 'sugestao', SEM_MATCH: 'sem_match' }
+    };
+  }
 
   var _cache = {};       // chave_normalizada -> entry
   var _cacheReady = false;
@@ -47,25 +53,9 @@
   }
   function saveLS() { localStorage.setItem(LS_KEY, JSON.stringify(_cache)); }
 
-  function normalizeProductName(name) {
-    var s = String(name || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-    Object.keys(SYNONYMS).forEach(function (k) { s = s.replace(new RegExp('\\b' + k + '\\b', 'g'), SYNONYMS[k]); });
-    BRAND_BLACKLIST.forEach(function (b) { s = s.replace(new RegExp('\\b' + b + '\\b', 'gi'), ''); });
-    var tokens = s.split(/[\s,;/\-()]+/).filter(Boolean);
-    tokens = tokens.filter(function (t) { return NOISE.indexOf(t) === -1; });
-    tokens = tokens.filter(function (t) { return !/^\d+$/.test(t); }); // keep 1kg, 500g, 900ml
-    return tokens.join(' ').replace(/\s+/g, ' ').trim();
-  }
-
-  function tokenSimilarity(a, b) {
-    var ta = normalizeProductName(a).split(/\s+/).filter(function (t) { return t.length > 2; });
-    var tb = normalizeProductName(b).split(/\s+/).filter(function (t) { return t.length > 2; });
-    if (ta.length === 0 || tb.length === 0) return 0;
-    var setA = new Set(ta), setB = new Set(tb);
-    var inter = 0;
-    setA.forEach(function (t) { if (setB.has(t)) inter++; });
-    return inter / Math.max(setA.size, setB.size);
-  }
+  // Delega\u00e7\u00f5es ao core (fonte \u00fanica de verdade)
+  function normalizeProductName(name) { return CORE.normalizeProductName(name); }
+  function tokenSimilarity(a, b) { return CORE.tokenSimilarity(a, b); }
 
   var _initPromise = null;
   async function init() {
@@ -75,7 +65,7 @@
   }
   async function _doInit() {
     try {
-      var rows = await sbFetch('/radar_equivalencias?select=*&empresa_id=eq.' + encodeURIComponent(empresaId()));
+      var rows = await sbFetch('/radar_equivalencias?empresa_id=eq.' + encodeURIComponent(empresaId()) + '&limit=1000');
       if (rows && rows.length > 0) {
         rows.forEach(function (r) { _cache[r.chave_normalizada] = r; });
         saveLS();
@@ -98,7 +88,7 @@
   async function seedFromContratos() {
     var contratos = [];
     try {
-      contratos = await sbFetch('/contratos?select=*&empresa_id=eq.' + encodeURIComponent(empresaId()));
+      contratos = await sbFetch('/contratos?empresa_id=eq.' + encodeURIComponent(empresaId()) + '&limit=500');
     } catch (_) {
       // fallback: try localStorage
       try {
@@ -141,151 +131,79 @@
     }
   }
 
-  // Story 13.5: Configurable regex rules for N3 matching layer
-  var REGEX_RULES = [
-    // Alimentos
-    { pattern: /arroz\s*(tipo\s*1|agulhinha|parbo)/i, categoria: "Alimentos" },
-    { pattern: /feij[aã]o\s*(carioca|preto|fradinho|branco)/i, categoria: "Alimentos" },
-    { pattern: /a[cç][uú]car\s*(cristal|refinado|demerara)/i, categoria: "Alimentos" },
-    { pattern: /[oó]leo\s*(soja|canola|girassol|milho)/i, categoria: "Alimentos" },
-    { pattern: /macarr[aã]o\s*(espaguete|parafuso|penne|padre\s*nosso)/i, categoria: "Alimentos" },
-    { pattern: /farinha\s*(trigo|mandioca|milho|rosca)/i, categoria: "Alimentos" },
-    { pattern: /leite\s*(integral|desnatado|semi|p[oó]\s*integral|p[oó]|uht)/i, categoria: "Alimentos" },
-    { pattern: /caf[eé]\s*(torrado|moido|soluvel|em\s*po)/i, categoria: "Alimentos" },
-    { pattern: /sal\s*(refinado|grosso|iodado)/i, categoria: "Alimentos" },
-    { pattern: /extrato\s*(tomate|molho)/i, categoria: "Alimentos" },
-    // Limpeza
-    { pattern: /papel\s*(higi[eê]nico|toalha|rol[aã]o)/i, categoria: "Limpeza" },
-    { pattern: /detergente\s*(l[ií]quido|neutro|coco)/i, categoria: "Limpeza" },
-    { pattern: /desinfetante|agua\s*sanitaria|cloro/i, categoria: "Limpeza" },
-    { pattern: /sabao\s*(em\s*po|liquido|barra|pedra)/i, categoria: "Limpeza" },
-    { pattern: /esponja|palha\s*de\s*aco|pano\s*de\s*(ch[aã]o|prato)/i, categoria: "Limpeza" },
-    { pattern: /saco\s*(lixo|de\s*lixo)/i, categoria: "Limpeza" },
-    // Material Escolar
-    { pattern: /caderno\s*(\d+|espiral|brochura|capa\s*dura)/i, categoria: "Material Escolar" },
-    { pattern: /l[aá]pis\s*(preto|cor|grafite|hb)/i, categoria: "Material Escolar" },
-    { pattern: /caneta\s*(esferogr|azul|preta|vermelha)/i, categoria: "Material Escolar" },
-    { pattern: /borracha\s*(branca|bicolor|escolar)/i, categoria: "Material Escolar" },
-    { pattern: /cola\s*(branca|bast[aã]o|instant|l[ií]quida)/i, categoria: "Material Escolar" },
-    { pattern: /papel\s*(sulfite|a4|chamequinho|oficio)/i, categoria: "Material Escolar" },
-  ];
+  // Story 13.5: regras de regex N3 vivem no core (REGEX_RULES). Reexportadas para compat.
+  var REGEX_RULES = CORE.REGEX_RULES || [];
 
+  // matchRegexRules: delega ao core, alimentando o catálogo de produtos do browser
+  // (centralProdutos preferencial, bancoPrecos como fallback) que o core não conhece.
   function matchRegexRules(itemName) {
-    var norm = String(itemName || '');
-    for (var i = 0; i < REGEX_RULES.length; i++) {
-      if (REGEX_RULES[i].pattern.test(norm)) {
-        // Find a product in centralProdutos (v2) or bancoPrecos that matches the regex
-        var rule = REGEX_RULES[i];
-        // Search centralProdutos first
-        if (typeof centralProdutos !== 'undefined' && Array.isArray(centralProdutos)) {
-          for (var j = 0; j < centralProdutos.length; j++) {
-            var cp = centralProdutos[j];
-            if (rule.pattern.test(cp.nome || cp.descricao || '')) {
-              return { produto_id: cp.id, nome: cp.nome || cp.descricao || '', categoria: rule.categoria, ruleIdx: i };
-            }
-          }
-        }
-        // Fallback: search bancoPrecos
-        if (typeof bancoPrecos !== 'undefined' && bancoPrecos && Array.isArray(bancoPrecos.itens)) {
-          for (var k = 0; k < bancoPrecos.itens.length; k++) {
-            var bp = bancoPrecos.itens[k];
-            if (rule.pattern.test(bp.item || '')) {
-              return { produto_id: bp.id, nome: bp.item || '', categoria: rule.categoria, ruleIdx: i, sku: bp.id };
-            }
-          }
-        }
-        // Regex matched but no product found — return partial match for category suggestion
-        return { produto_id: null, nome: null, categoria: rule.categoria, ruleIdx: i };
-      }
+    var produtos = [];
+    if (typeof centralProdutos !== 'undefined' && Array.isArray(centralProdutos)) {
+      produtos = produtos.concat(centralProdutos);
     }
-    return null;
+    if (typeof bancoPrecos !== 'undefined' && bancoPrecos && Array.isArray(bancoPrecos.itens)) {
+      produtos = produtos.concat(bancoPrecos.itens.map(function (b) {
+        return { id: b.id, sku: b.id, item: b.item, nome: b.item };
+      }));
+    }
+    return CORE.matchRegexRules(itemName, produtos);
+  }
+
+  // Mapeia o status canônico do core → vocabulário consumido pelo app.js legado.
+  // SUGESTAO vira 'pendente_revisao' (gate de aprovação humana em renderPreOrcamentoItens).
+  function mapStatus(coreStatus) {
+    if (coreStatus === CORE.MATCH_STATUS.CONFIRMADO) return 'confirmado';
+    if (coreStatus === CORE.MATCH_STATUS.SUGESTAO) return 'pendente_revisao';
+    return 'sem_match';
+  }
+
+  // Monta o catálogo de produtos que o core usa para N2/N3 (bancoPrecos do browser).
+  function bancoProdutos() {
+    if (typeof bancoPrecos === 'undefined' || !bancoPrecos || !Array.isArray(bancoPrecos.itens)) return [];
+    return bancoPrecos.itens;
   }
 
   function match(itemName) {
-    var key = normalizeProductName(itemName);
-    var noMatch = { status: 'sem_match', score: 0, sku: null, nomeBanco: null, custoBase: 0, margem: 0, precoSugerido: 0, match_layer: null };
-    if (!key) return noMatch;
+    var core = CORE.matchProduct(itemName, { cache: _cache, produtos: bancoProdutos() });
 
-    // Layer N1: Exact dictionary match (confirmed equivalencia) — score 1.0
-    if (_cache[key]) {
-      var entry = _cache[key];
-      entry.vezes_usado = (entry.vezes_usado || 0) + 1;
-      saveLS();
-      var bp = findBancoItem(entry.sku);
-      var status = entry.confirmado ? 'confirmado' : 'pendente_revisao';
-      var r1 = buildResult(status, 1.0, entry, bp);
-      r1.match_layer = 'N1';
-      return r1;
+    // N4 / sem match
+    if (!core.sku || core.status === CORE.MATCH_STATUS.SEM_MATCH) {
+      var noMatch = {
+        status: 'sem_match', score: 0, sku: null, nomeBanco: null,
+        custoBase: 0, margem: 0, precoSugerido: 0, match_layer: core.matchLayer || 'N4'
+      };
+      if (core.categoriaSugerida) noMatch.categoria_sugerida = core.categoriaSugerida;
+      return noMatch;
     }
 
-    // Layer N2: Token similarity >= 0.7 (Story 13.5: raised from 0.6)
-    var bestSeed = null, bestSeedScore = 0;
-    Object.keys(_cache).forEach(function (k) {
-      var sc = tokenSimilarity(key, k);
-      if (sc >= 0.7 && sc > bestSeedScore) { bestSeedScore = sc; bestSeed = _cache[k]; }
-    });
-    if (bestSeed) {
-      var bp2 = findBancoItem(bestSeed.sku);
-      var r2 = buildResult('pendente_revisao', bestSeedScore, bestSeed, bp2);
-      r2.match_layer = 'N2';
-      return r2;
-    }
-
-    // Also check bancoPrecos with raised threshold 0.7
-    if (typeof bancoPrecos !== 'undefined' && bancoPrecos && Array.isArray(bancoPrecos.itens)) {
-      var bestBp = null, bestBpScore = 0;
-      bancoPrecos.itens.forEach(function (b) {
-        var sc = tokenSimilarity(key, b.item);
-        if (sc >= 0.7 && sc > bestBpScore) { bestBpScore = sc; bestBp = b; }
-      });
-      if (bestBp) {
-        var r2b = {
-          status: 'pendente_revisao', score: bestBpScore,
-          sku: bestBp.id, nomeBanco: bestBp.item,
-          custoBase: bestBp.custoBase || 0,
-          margem: bestBp.margemPadrao || 0,
-          precoSugerido: (bestBp.custoBase || 0) * (1 + (bestBp.margemPadrao || 0.30)),
-          match_layer: 'N2'
-        };
-        return r2b;
+    // N1 hit no cache → registra uso (telemetria de equivalências)
+    if (core.matchLayer === 'N1') {
+      var key = normalizeProductName(itemName);
+      if (_cache[key]) {
+        _cache[key].vezes_usado = (_cache[key].vezes_usado || 0) + 1;
+        saveLS();
       }
     }
 
-    // Layer N3: Regex rules (Story 13.5) — pattern-based matching
-    var regexMatch = matchRegexRules(itemName);
-    if (regexMatch && regexMatch.produto_id) {
-      var bpRegex = findBancoItem(regexMatch.sku || regexMatch.produto_id);
-      return {
-        status: 'pendente_revisao', score: 0.65,
-        sku: regexMatch.sku || regexMatch.produto_id, nomeBanco: regexMatch.nome,
-        custoBase: bpRegex ? (bpRegex.custoBase || 0) : 0,
-        margem: bpRegex ? (bpRegex.margemPadrao || 0) : 0,
-        precoSugerido: bpRegex ? (bpRegex.custoBase || 0) * (1 + (bpRegex.margemPadrao || 0.30)) : 0,
-        match_layer: 'N3',
-        categoria_sugerida: regexMatch.categoria
-      };
-    }
-
-    // Layer N4: No match — fallback (create produto inline, handled by caller)
-    noMatch.match_layer = 'N4';
-    if (regexMatch && regexMatch.categoria) {
-      noMatch.categoria_sugerida = regexMatch.categoria;
-    }
-    return noMatch;
+    // Enriquecimento com dados do banco (custo/margem/preço sugerido)
+    var bp = findBancoItem(core.sku);
+    var result = {
+      status: mapStatus(core.status),
+      score: core.score,
+      sku: core.sku,
+      nomeBanco: core.nomeBanco || (bp ? bp.item : null),
+      custoBase: bp ? (bp.custoBase || 0) : 0,
+      margem: bp ? (bp.margemPadrao || 0) : 0,
+      precoSugerido: bp ? (bp.custoBase || 0) * (1 + (bp.margemPadrao || 0.30)) : 0,
+      match_layer: core.matchLayer
+    };
+    if (core.categoriaSugerida) result.categoria_sugerida = core.categoriaSugerida;
+    return result;
   }
+
   function findBancoItem(sku) {
     if (!sku || typeof bancoPrecos === 'undefined' || !bancoPrecos || !Array.isArray(bancoPrecos.itens)) return null;
     return bancoPrecos.itens.find(function (b) { return b.id === sku || b.sku === sku; }) || null;
-  }
-
-  function buildResult(status, score, entry, bp) {
-    return {
-      status: status, score: score,
-      sku: entry.sku, nomeBanco: entry.nome_banco,
-      custoBase: bp ? (bp.custoBase || 0) : 0,
-      margem: bp ? (bp.margemPadrao || 0) : 0,
-      precoSugerido: bp ? (bp.custoBase || 0) * (1 + (bp.margemPadrao || 0.30)) : 0
-    };
   }
 
   async function confirm(itemName, sku, nomeBanco) {
