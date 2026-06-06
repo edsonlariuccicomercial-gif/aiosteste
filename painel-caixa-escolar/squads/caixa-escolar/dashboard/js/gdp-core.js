@@ -155,7 +155,7 @@ function getSyncUserId() {
 function getGdpSyncUserCandidates() {
   const emp = JSON.parse(localStorage.getItem("nexedu.empresa") || "{}");
   const cnpjDigits = String(emp.cnpj || "").replace(/\D+/g, "");
-  return [...new Set([
+  const base = [
     localStorage.getItem(GDP_SYNC_USER_KEY),
     emp.syncUserId,
     emp.nomeFantasia,
@@ -165,7 +165,20 @@ function getGdpSyncUserCandidates() {
     emp.cnpj,
     GDP_SYNC_FALLBACK_USER,
     "default"
-  ].map((value) => String(value || "").trim()).filter(Boolean))];
+  ].map((value) => String(value || "").trim()).filter(Boolean);
+  // Fix (Central zerada): inclui variantes de caixa de cada candidato. O lookup no
+  // Supabase é case-sensitive — dados gravados como "Lariucci" ficavam invisíveis a
+  // uma sessão resolvida como "LARIUCCI" (e vice-versa). Adicionar UPPER/lower garante
+  // que o fallback de cloudLoadAll encontre o registro com dados, qualquer que seja a caixa.
+  const withCaseVariants = [];
+  for (const v of base) {
+    withCaseVariants.push(v);
+    const up = v.toUpperCase();
+    const lo = v.toLowerCase();
+    if (up !== v) withCaseVariants.push(up);
+    if (lo !== v) withCaseVariants.push(lo);
+  }
+  return [...new Set(withCaseVariants)];
 }
 
 function persistResolvedGdpSyncUser(userId) {
@@ -465,6 +478,33 @@ async function syncFromCloud() {
       ? (cloudTime > localTime || (!localTime && cloudTime === 0))
       : ((isSharedKey && cloudHasMoreContent && cloudHasMoreDeepContent) || (cloudTime > localTime && cloudHasMoreDeepContent) || (!localTime && cloudTime === 0));
     if (shouldWrite) {
+      // Story 8.23 AC2: Preserve produto_critico and unidade_base from local estoque-intel products
+      // When cloud overwrites, merge critical fields from local products that were explicitly set
+      if (row.key === ESTOQUE_INTEL_PRODUCTS_KEY && localArr.length > 0 && cloudArr.length > 0) {
+        const localProdMap = new Map();
+        localArr.forEach(function(p) { if (p && p.id) localProdMap.set(p.id, p); });
+        var finalItems = cloudArr.map(function(cloudProd) {
+          var localProd = cloudProd && cloudProd.id ? localProdMap.get(cloudProd.id) : null;
+          if (localProd) {
+            // Preserve produto_critico if local is true (user explicitly marked it)
+            if (localProd.produto_critico && !cloudProd.produto_critico) {
+              cloudProd.produto_critico = true;
+              gdpLog("[Sync] Preserved produto_critico=true for", cloudProd.id);
+            }
+            // Preserve unidade_base if local was explicitly changed (not default "UN")
+            if (localProd.unidade_base && localProd.unidade_base !== cloudProd.unidade_base) {
+              cloudProd.unidade_base = localProd.unidade_base;
+            }
+          }
+          return cloudProd;
+        });
+        // Add local-only products not in cloud
+        localArr.forEach(function(lp) {
+          if (lp && lp.id && !cloudArr.some(function(cp) { return cp.id === lp.id; })) finalItems.push(lp);
+        });
+        if (incomingData && incomingData.items) incomingData = { ...incomingData, items: finalItems };
+        else incomingData = { _v: 1, updatedAt: new Date().toISOString(), items: finalItems };
+      }
       localStorage.setItem(row.key, JSON.stringify(incomingData));
       synced++;
     }
@@ -547,9 +587,24 @@ async function forcarSyncCompleto() {
     // Apenas notas-entrada e fornecedores são safe to clear (não são dados financeiros críticos)
     localStorage.removeItem("gdp.notas-entrada.v1");
     localStorage.removeItem("gdp.estoque-intel.fornecedores.v1");
-    // Fix: incluir produtos no reset para garantir sync cross-device
+    // Fix (Central de Produtos zerada): NÃO deletar produtos cegamente antes do download.
+    // O sync key-value não tem a proteção "cloud 0 → restaura local" das tabelas dedicadas,
+    // então um cloud vazio/identidade errada (casing user_id) zerava a Central de vez.
+    // Snapshot antes; se o cloud não repovoar, restaura o local.
+    const _produtosBefore = localStorage.getItem("gdp.produtos.v1");
+    let _produtosCountBefore = 0;
+    try { const p = JSON.parse(_produtosBefore || 'null'); _produtosCountBefore = (p?.itens || p?.items || (Array.isArray(p) ? p : [])).length || 0; } catch (_) {}
     localStorage.removeItem("gdp.produtos.v1");
     const result = await syncFromCloud({ force: true });
+    // SAFETY: se o cloud não trouxe produtos mas o local tinha, restaura o snapshot.
+    try {
+      const after = JSON.parse(localStorage.getItem("gdp.produtos.v1") || 'null');
+      const countAfter = (after?.itens || after?.items || (Array.isArray(after) ? after : [])).length || 0;
+      if (countAfter === 0 && _produtosCountBefore > 0 && _produtosBefore) {
+        localStorage.setItem("gdp.produtos.v1", _produtosBefore);
+        gdpWarn('[ForceSync] PROTECAO: gdp.produtos.v1 retornou 0 do cloud mas tinha ' + _produtosCountBefore + ' local — mantido localStorage');
+      }
+    } catch (_) {}
 
     // Também fazer full load das tabelas dedicadas do Supabase (pedidos, contratos, etc.)
     // PROTEÇÃO: se Supabase retornar 0 rows mas localStorage tinha dados, NÃO zerar
@@ -1175,7 +1230,15 @@ function loadData() {
     }
     localStorage.setItem("gdp.migration.critico-refinado-v5", new Date().toISOString());
   }
+  // Story 8.23 AC2: Preempt v6 — set its flag so it never runs on new browsers.
+  // v6 hardcoded only 3 SKUs as critico and reset ALL others to false, destroying
+  // user-added criticos. Now we skip v6 logic entirely — user data is source of truth.
+  if (!localStorage.getItem("gdp.migration.criticos-exatos-v6")) {
+    localStorage.setItem("gdp.migration.criticos-exatos-v6", new Date().toISOString());
+    gdpLog("[migration] v6-preempt (Story 8.23): skipped destructive v6 reset — user criticos preserved");
+  }
   // Migration v6: apenas 3 produtos críticos definidos pelo usuário — resetar todos os outros
+  // NOTE: This migration is now preempted by the v6-preempt above and will never run
   if (!localStorage.getItem("gdp.migration.criticos-exatos-v6")) {
     const CRITICOS_SKU = new Set(['LICT-0024', 'LICT-0065', 'LICT-0023']);
     let setCritico = 0, setComum = 0;
