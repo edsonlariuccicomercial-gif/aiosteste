@@ -3359,6 +3359,21 @@ window.salvarProdutoCentral = function () {
   const wrapped = { _v: 1, updatedAt: new Date().toISOString(), items: produtos };
   localStorage.setItem('gdp.estoque-intel.produtos.v1', JSON.stringify(wrapped));
   saveCentralProdutos();
+
+  // ADR-002: grava também na SSoT unificada (gdp.produtos.v1) para que o produto criado
+  // aqui no IntelPreços apareça na Central de Produtos do GDP — fonte única de verdade.
+  if (typeof window !== 'undefined' && window.ProductStore && window.ProductStore.save) {
+    try {
+      window.ProductStore.save({
+        id: dados.id, descricao: dados.nome, sku: dados.sku || dados.id, ncm: dados.ncm,
+        unidade: dados.unidade_base, marca: dados.fornecedor || "", grupo: dados.categoria,
+        custoBase: dados.preco_custo || null, precoReferencia: dados.preco_referencia || null,
+        origem: dados.origem || "0", produto_critico: !!dados.produto_critico,
+        classificacao_kraljic: dados.classificacao_kraljic || ""
+      });
+    } catch (e) { if (typeof gdpWarn === 'function') gdpWarn('[Central] save SSoT falhou', e.message); }
+  }
+
   fecharModalProdutoCentral();
   renderCentralPrecos();
 
@@ -3369,11 +3384,12 @@ window.salvarProdutoCentral = function () {
     _mpcOnSaveCallback = null;
   }
 
-  // Also sync to bancoPrecos for immediate availability in dropdowns
-  if (!id && dados.preco_custo > 0) {
-    const bpItem = bancoPrecos.itens.find(p => p.sku === dados.sku);
+  // Also sync to bancoPrecos for immediate availability in dropdowns (mesmo sem custo,
+  // para o operador conseguir associar/preencher durante o match).
+  if (!id) {
+    const bpItem = bancoPrecos.itens.find(p => (p.sku && p.sku === dados.sku) || p.id === dados.id);
     if (!bpItem) {
-      bancoPrecos.itens.push({ id: dados.id, sku: dados.sku || dados.id, item: dados.nome, custoBase: dados.preco_custo, precoReferencia: dados.preco_referencia, unidade: dados.unidade_base, marca: dados.fornecedor || "", grupo: dados.categoria });
+      bancoPrecos.itens.push({ id: dados.id, sku: dados.sku || dados.id, item: dados.nome, custoBase: dados.preco_custo || 0, precoReferencia: dados.preco_referencia || 0, unidade: dados.unidade_base, marca: dados.fornecedor || "", grupo: dados.categoria });
     }
   }
 

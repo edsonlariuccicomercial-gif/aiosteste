@@ -84,6 +84,15 @@ describe('ProductStore wrapper', () => {
     expect(h.win.ProductStore.list()).toHaveLength(3);
   });
 
+  it('produto criado no IntelPreços persiste na SSoT que o GDP lê', () => {
+    // Simula salvarProdutoCentral gravando na SSoT via ProductStore.save
+    h.win.ProductStore.save({ id: 'PROD-NOVO', descricao: 'Beterraba', sku: 'PROD-NOVO', custoBase: 4, grupo: 'Hortifruti' });
+    // a chave gdp.produtos.v1 (carregada pelo GDP Central) deve conter o novo produto
+    const ssot = JSON.parse(h.store['gdp.produtos.v1']);
+    const nomes = ssot.itens.map((p) => p.descricao);
+    expect(nomes).toContain('Beterraba');
+  });
+
   it('remove() deletes by id', () => {
     const all = h.win.ProductStore.list();
     const n = h.win.ProductStore.remove(all[0].id);
