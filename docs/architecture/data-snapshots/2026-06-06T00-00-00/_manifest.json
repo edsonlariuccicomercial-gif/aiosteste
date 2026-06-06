@@ -1,0 +1,22 @@
+{
+  "timestamp": "2026-06-06T00-00-00",
+  "user_id": "LARIUCCI",
+  "keys": {
+    "gdp.produtos.v1": {
+      "count": 270,
+      "updated_at": "2026-06-06T13:26:27.276+00:00"
+    },
+    "intel.central-produtos.v2": {
+      "count": 386,
+      "updated_at": "2026-06-02T17:15:38.544+00:00"
+    },
+    "caixaescolar.banco.v1": {
+      "count": 256,
+      "updated_at": "2026-06-06T13:26:12.875+00:00"
+    },
+    "gdp.estoque-intel.produtos.v1": {
+      "count": 201,
+      "updated_at": "2026-06-06T13:26:12.875+00:00"
+    }
+  }
+}

@@ -1,0 +1,5232 @@
+{
+  "itens": [
+    {
+      "id": "bp-001",
+      "item": "Ventilador de parede 60cm 6 pás",
+      "fonte": "Distribuidora X",
+      "grupo": "Climatização",
+      "unidade": "Unidade",
+      "custoBase": 120,
+      "margemPadrao": 0.35,
+      "ultimaCotacao": "2026-02-15",
+      "precoReferencia": 189.9
+    },
+    {
+      "id": "bp-002",
+      "item": "Ventilador de coluna 50cm",
+      "fonte": "Distribuidora X",
+      "grupo": "Climatização",
+      "unidade": "Unidade",
+      "custoBase": 95,
+      "margemPadrao": 0.35,
+      "ultimaCotacao": "2026-02-15",
+      "precoReferencia": 149.9
+    },
+    {
+      "id": "bp-003",
+      "item": "Papel A4 75g resma 500 folhas",
+      "fonte": "Atacadão Papelaria",
+      "grupo": "Material de Consumo Geral",
+      "marca": "nobre",
+      "unidade": "Resma",
+      "custoBase": 14.9,
+      "propostas": [
+        {
+          "data": "2026-03-30",
+          "preco": 28.56,
+          "edital": "214753",
+          "escola": "EE DOUTOR JOSE CORDEIRO DE CAMPOS",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-03-30",
+          "preco": 19.5,
+          "edital": "214802",
+          "escola": "EE DOUTOR JOSE CORDEIRO DE CAMPOS",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-08",
+          "preco": 26.5,
+          "edital": "240827",
+          "escola": "EE MAESTRO JOSINO DE OLIVEIRA",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-14",
+          "preco": 53.3,
+          "edital": "244309",
+          "escola": "EE CORONEL JOSE ADOLFO AGUIAR",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-14",
+          "preco": 8.97,
+          "edital": "244309",
+          "escola": "EE CORONEL JOSE ADOLFO AGUIAR",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-14",
+          "preco": 18.53,
+          "edital": "244309",
+          "escola": "EE CORONEL JOSE ADOLFO AGUIAR",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-14",
+          "preco": 271.31,
+          "edital": "243150",
+          "escola": "EE IVAN MATTAR SOUKEF",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-15",
+          "preco": 59.23,
+          "edital": "248249",
+          "escola": "EE BRASIL",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-19",
+          "preco": 27.26,
+          "edital": "260821",
+          "escola": "EE DOM PEDRO II",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-19",
+          "preco": 19.37,
+          "edital": "260821",
+          "escola": "EE DOM PEDRO II",
+          "resultado": "pendente"
+        }
+      ],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-19",
+      "precoReferencia": 19.37
+    },
+    {
+      "id": "bp-004",
+      "item": "Caneta esferográfica azul cx 50un",
+      "fonte": "Atacadão Papelaria",
+      "grupo": "Material de Consumo Geral",
+      "unidade": "Caixa",
+      "custoBase": 35,
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-02-20",
+      "precoReferencia": 49.9
+    },
+    {
+      "id": "bp-005",
+      "item": "Kit material pedagógico básico",
+      "fonte": "Didática Brasil",
+      "grupo": "Material Pedagógico",
+      "unidade": "Kit",
+      "custoBase": 85,
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-01-28",
+      "precoReferencia": 119.9
+    },
+    {
+      "id": "bp-006",
+      "item": "Notebook educacional 14pol 8GB",
+      "fonte": "Tech Distribuição",
+      "grupo": "Equipamentos Tecnológicos",
+      "unidade": "Unidade",
+      "custoBase": 1850,
+      "margemPadrao": 0.2,
+      "ultimaCotacao": "2026-02-10",
+      "precoReferencia": 2399
+    },
+    {
+      "id": "bp-007",
+      "item": "Projetor multimídia 3600 lumens",
+      "fonte": "Tech Distribuição",
+      "grupo": "Equipamentos Tecnológicos",
+      "unidade": "Unidade",
+      "custoBase": 2200,
+      "margemPadrao": 0.2,
+      "ultimaCotacao": "2026-02-10",
+      "precoReferencia": 2890
+    },
+    {
+      "id": "bp-008",
+      "item": "Cadeira giratória escritório",
+      "fonte": "Movelaria Central",
+      "grupo": "Mobiliários Administrativos",
+      "unidade": "Unidade",
+      "custoBase": 280,
+      "margemPadrao": 0.25,
+      "ultimaCotacao": "2026-01-15",
+      "precoReferencia": 389.9
+    },
+    {
+      "id": "bp-009",
+      "item": "Arroz tipo 1 5kg",
+      "fonte": "Atacadão Regional",
+      "grupo": "Gêneros Alimentícios",
+      "marca": "casa grande",
+      "unidade": "Pacote",
+      "custoBase": 15,
+      "propostas": [
+        {
+          "data": "2026-03-12",
+          "preco": 18.75,
+          "edital": "166821",
+          "escola": "EE CORONEL JOSE ADOLFO AGUIAR",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-03-26",
+          "preco": 18.75,
+          "edital": "200098",
+          "escola": "EE PROFESSORA CECILIA MARIA DE REZENDE NEVES",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-06",
+          "preco": 18.75,
+          "edital": "236943",
+          "escola": "EE PROFESSOR ALCEU NOVAES",
+          "resultado": "pendente"
+        }
+      ],
+      "margemPadrao": 0.25,
+      "ultimaCotacao": "2026-04-06",
+      "precoReferencia": 18.75
+    },
+    {
+      "id": "bp-010",
+      "item": "Feijão carioca 1kg",
+      "fonte": "Atacadão Regional",
+      "grupo": "Gêneros Alimentícios",
+      "marca": "ligeirinho",
+      "unidade": "Pacote",
+      "custoBase": 6,
+      "propostas": [
+        {
+          "data": "2026-03-12",
+          "preco": 6.25,
+          "edital": "166821",
+          "escola": "EE CORONEL JOSE ADOLFO AGUIAR",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-03-12",
+          "preco": 7.81,
+          "edital": "166821",
+          "escola": "EE CORONEL JOSE ADOLFO AGUIAR",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-03-19",
+          "preco": 7.5,
+          "edital": "173792",
+          "escola": "EE ARMANDO SANTOS",
+          "resultado": "pendente"
+        }
+      ],
+      "margemPadrao": 0.25,
+      "ultimaCotacao": "2026-03-19",
+      "precoReferencia": 7.5
+    },
+    {
+      "id": "bp-011",
+      "item": "Fogão industrial 6 bocas",
+      "fonte": "Inox Industrial",
+      "grupo": "Equipamentos de Cozinha",
+      "unidade": "Unidade",
+      "custoBase": 1450,
+      "margemPadrao": 0.25,
+      "ultimaCotacao": "2026-01-20",
+      "precoReferencia": 1950
+    },
+    {
+      "id": "bp-012",
+      "item": "Panela de pressão industrial 20L",
+      "fonte": "Inox Industrial",
+      "grupo": "Utensílios de Cozinha",
+      "unidade": "Unidade",
+      "custoBase": 320,
+      "margemPadrao": 0.25,
+      "ultimaCotacao": "2026-01-20",
+      "precoReferencia": 429.9
+    },
+    {
+      "id": "bp-495457-j8h",
+      "item": "Lousa de vidro",
+      "fonte": "",
+      "grupo": "Mobiliários Administrativos",
+      "unidade": "Unidade",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-12",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-673161-czk",
+      "item": "Extrato de tomate",
+      "fonte": "",
+      "grupo": "Gêneros Alimentícios",
+      "marca": "D'ajuda",
+      "unidade": "Unidade",
+      "custoBase": 9.9,
+      "propostas": [
+        {
+          "data": "2026-03-12",
+          "preco": 18.2,
+          "edital": "166821",
+          "escola": "EE CORONEL JOSE ADOLFO AGUIAR",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-06",
+          "preco": 12.87,
+          "edital": "237080",
+          "escola": "EE PROFESSOR ALCEU NOVAES",
+          "resultado": "pendente"
+        }
+      ],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-06",
+      "precoReferencia": 12.87,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-673161-nwo",
+      "item": "Macarrão pai nosso",
+      "fonte": "",
+      "grupo": "Gêneros Alimentícios",
+      "marca": "CEASA",
+      "unidade": "UN",
+      "custoBase": 7.9,
+      "propostas": [
+        {
+          "data": "2026-03-12",
+          "preco": 3.89,
+          "edital": "166821",
+          "escola": "EE CORONEL JOSE ADOLFO AGUIAR",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-03-12",
+          "preco": 3.89,
+          "edital": "166821",
+          "escola": "EE CORONEL JOSE ADOLFO AGUIAR",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-03-12",
+          "preco": 3.77,
+          "edital": "166821",
+          "escola": "EE CORONEL JOSE ADOLFO AGUIAR",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-03-26",
+          "preco": 3.77,
+          "edital": "200098",
+          "escola": "EE PROFESSORA CECILIA MARIA DE REZENDE NEVES",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-11",
+          "preco": 10.27,
+          "edital": "245809",
+          "escola": "EE PROFESSOR BANDEIRA",
+          "resultado": "pendente"
+        }
+      ],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-11",
+      "precoReferencia": 10.27,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-673162-1yr",
+      "item": "Óleo vegetal soja",
+      "fonte": "",
+      "grupo": "Gêneros Alimentícios",
+      "marca": "abc",
+      "unidade": "UN",
+      "custoBase": 6.2,
+      "propostas": [
+        {
+          "data": "2026-03-12",
+          "preco": 10.27,
+          "edital": "166821",
+          "escola": "EE CORONEL JOSE ADOLFO AGUIAR",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-03-19",
+          "preco": 7.44,
+          "edital": "173792",
+          "escola": "EE ARMANDO SANTOS",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-03-26",
+          "preco": 8.06,
+          "edital": "200098",
+          "escola": "EE PROFESSORA CECILIA MARIA DE REZENDE NEVES",
+          "resultado": "pendente"
+        }
+      ],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-19",
+      "precoReferencia": 8.06,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-673162-abm",
+      "item": "Sal",
+      "fonte": "",
+      "grupo": "Gêneros Alimentícios",
+      "marca": "piramide",
+      "unidade": "KG",
+      "custoBase": 1.4,
+      "propostas": [
+        {
+          "data": "2026-03-12",
+          "preco": 2.6,
+          "edital": "166821",
+          "escola": "EE CORONEL JOSE ADOLFO AGUIAR",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-11",
+          "preco": 1.82,
+          "edital": "245839",
+          "escola": "EE PROFESSOR BANDEIRA",
+          "resultado": "pendente"
+        }
+      ],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-11",
+      "precoReferencia": 1.82,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-770889-w1m",
+      "item": "Água sanitária",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "marca": "classic",
+      "unidade": "UN",
+      "custoBase": 42,
+      "propostas": [
+        {
+          "data": "2026-04-08",
+          "preco": 5.15,
+          "edital": "240874",
+          "escola": "EE MAESTRO JOSINO DE OLIVEIRA",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-15",
+          "preco": 4.75,
+          "edital": "250124",
+          "escola": "EE DOM JOSE GASPAR",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-19",
+          "preco": 54.6,
+          "edital": "260821",
+          "escola": "EE DOM PEDRO II",
+          "resultado": "pendente"
+        }
+      ],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-19",
+      "precoReferencia": 54.6,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-770889-yup",
+      "item": "Detergente",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "marca": "ESTRELA",
+      "unidade": "UN",
+      "custoBase": 3.2,
+      "propostas": [
+        {
+          "data": "2026-03-30",
+          "preco": 2.42,
+          "edital": "218169",
+          "escola": "EE PROFESSOR BANDEIRA",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-08",
+          "preco": 2.46,
+          "edital": "240874",
+          "escola": "EE MAESTRO JOSINO DE OLIVEIRA",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-11",
+          "preco": 15.52,
+          "edital": "241546",
+          "escola": "EE VICENTE MACEDO",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-15",
+          "preco": 58.97,
+          "edital": "250136",
+          "escola": "EE DOM JOSE GASPAR",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-19",
+          "preco": 2.59,
+          "edital": "260821",
+          "escola": "EE DOM PEDRO II",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-19",
+          "preco": 4.16,
+          "edital": "260821",
+          "escola": "EE DOM PEDRO II",
+          "resultado": "pendente"
+        }
+      ],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-19",
+      "precoReferencia": 4.16,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-770889-vhs",
+      "item": "Balde",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "marca": "genérica",
+      "unidade": "UN",
+      "custoBase": 14.5,
+      "propostas": [
+        {
+          "data": "2026-04-10",
+          "preco": 33.02,
+          "edital": "240898",
+          "escola": "EE MAESTRO JOSINO DE OLIVEIRA",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-13",
+          "preco": 41.09,
+          "edital": "248704",
+          "escola": "EE DR LINDOLFO BERNARDES",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-19",
+          "preco": 18.85,
+          "edital": "260821",
+          "escola": "EE DOM PEDRO II",
+          "resultado": "pendente"
+        }
+      ],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-19",
+      "precoReferencia": 18.85,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-770889-0q7",
+      "item": "Desinfetante",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "marca": "classic",
+      "unidade": "UN",
+      "custoBase": 47.95,
+      "propostas": [
+        {
+          "data": "2026-03-30",
+          "preco": 12.87,
+          "edital": "218164",
+          "escola": "EE PROFESSOR BANDEIRA",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-03-31",
+          "preco": 14.28,
+          "edital": "218060",
+          "escola": "EE PROFESSOR BANDEIRA",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-08",
+          "preco": 13.26,
+          "edital": "240874",
+          "escola": "EE MAESTRO JOSINO DE OLIVEIRA",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-11",
+          "preco": 12.49,
+          "edital": "241567",
+          "escola": "EE VICENTE MACEDO",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-19",
+          "preco": 62.34,
+          "edital": "260821",
+          "escola": "EE DOM PEDRO II",
+          "resultado": "pendente"
+        }
+      ],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-19",
+      "precoReferencia": 62.34,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-770889-3bw",
+      "item": "Sacos de lixo",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "marca": "nobre",
+      "unidade": "Pacote",
+      "custoBase": 21,
+      "propostas": [
+        {
+          "data": "2026-04-14",
+          "preco": 53.17,
+          "edital": "246312",
+          "escola": "EE CORONEL JOSE ADOLFO AGUIAR",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-14",
+          "preco": 27.3,
+          "edital": "246312",
+          "escola": "EE CORONEL JOSE ADOLFO AGUIAR",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-19",
+          "preco": 27.3,
+          "edital": "260821",
+          "escola": "EE DOM PEDRO II",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-19",
+          "preco": 27.3,
+          "edital": "260821",
+          "escola": "EE DOM PEDRO II",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-19",
+          "preco": 27.3,
+          "edital": "260821",
+          "escola": "EE DOM PEDRO II",
+          "resultado": "pendente"
+        }
+      ],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-14",
+      "precoReferencia": 27.3,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-770889-f51",
+      "item": "Esponja de aço",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "marca": "esfrebom",
+      "unidade": "Fardo",
+      "custoBase": 1.8,
+      "propostas": [
+        {
+          "data": "2026-04-10",
+          "preco": 2.34,
+          "edital": "240898",
+          "escola": "EE MAESTRO JOSINO DE OLIVEIRA",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-10",
+          "preco": 2.34,
+          "edital": "240898",
+          "escola": "EE MAESTRO JOSINO DE OLIVEIRA",
+          "resultado": "pendente"
+        }
+      ],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-10",
+      "precoReferencia": 2.34,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-770890-34y",
+      "item": "Cera",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "marca": "polyar",
+      "unidade": "UN",
+      "custoBase": 28.49,
+      "propostas": [
+        {
+          "data": "2026-04-08",
+          "preco": 6.5,
+          "edital": "240874",
+          "escola": "EE MAESTRO JOSINO DE OLIVEIRA",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-15",
+          "preco": 37.89,
+          "edital": "248249",
+          "escola": "EE BRASIL",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-19",
+          "preco": 37.04,
+          "edital": "260179",
+          "escola": "EE BARAO DA RIFAINA",
+          "resultado": "pendente"
+        }
+      ],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-15",
+      "precoReferencia": 37.04,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-770890-el5",
+      "item": "Sabão em barra",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "marca": "NOBRE",
+      "unidade": "Pacote",
+      "custoBase": 3.6,
+      "propostas": [
+        {
+          "data": "2026-03-30",
+          "preco": 12.87,
+          "edital": "218176",
+          "escola": "EE PROFESSOR BANDEIRA",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-03-31",
+          "preco": 14.53,
+          "edital": "218186",
+          "escola": "EE PROFESSOR BANDEIRA",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-08",
+          "preco": 14.18,
+          "edital": "240874",
+          "escola": "EE MAESTRO JOSINO DE OLIVEIRA",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-08",
+          "preco": 12.93,
+          "edital": "240874",
+          "escola": "EE MAESTRO JOSINO DE OLIVEIRA",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-11",
+          "preco": 13.73,
+          "edital": "241509",
+          "escola": "EE VICENTE MACEDO",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-19",
+          "preco": 12.58,
+          "edital": "260179",
+          "escola": "EE BARAO DA RIFAINA",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-19",
+          "preco": 12.87,
+          "edital": "260821",
+          "escola": "EE DOM PEDRO II",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-19",
+          "preco": 4.68,
+          "edital": "260821",
+          "escola": "EE DOM PEDRO II",
+          "resultado": "pendente"
+        }
+      ],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-19",
+      "precoReferencia": 4.68,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-770890-nl6",
+      "item": "Limpador multiuso",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "marca": "estrela",
+      "unidade": "UN",
+      "custoBase": 25.66,
+      "propostas": [
+        {
+          "data": "2026-03-30",
+          "preco": 5.19,
+          "edital": "218199",
+          "escola": "EE PROFESSOR BANDEIRA",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-08",
+          "preco": 5.19,
+          "edital": "240874",
+          "escola": "EE MAESTRO JOSINO DE OLIVEIRA",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-15",
+          "preco": 3.42,
+          "edital": "248249",
+          "escola": "EE BRASIL",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-19",
+          "preco": 33.36,
+          "edital": "260179",
+          "escola": "EE BARAO DA RIFAINA",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-19",
+          "preco": 3.42,
+          "edital": "260821",
+          "escola": "EE DOM PEDRO II",
+          "resultado": "pendente"
+        }
+      ],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-19",
+      "precoReferencia": 33.36,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-770890-uau",
+      "item": "Pano de chão",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "marca": "rodoforte",
+      "unidade": "Unidade",
+      "custoBase": 5.7,
+      "propostas": [
+        {
+          "data": "2026-04-10",
+          "preco": 6.5,
+          "edital": "240898",
+          "escola": "EE MAESTRO JOSINO DE OLIVEIRA",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-10",
+          "preco": 9.33,
+          "edital": "240898",
+          "escola": "EE MAESTRO JOSINO DE OLIVEIRA",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-14",
+          "preco": 7.79,
+          "edital": "245527",
+          "escola": "EE CORONEL JOSE ADOLFO AGUIAR",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-14",
+          "preco": 4.64,
+          "edital": "245527",
+          "escola": "EE CORONEL JOSE ADOLFO AGUIAR",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-15",
+          "preco": 7.5,
+          "edital": "250479",
+          "escola": "EE DOM JOSE GASPAR",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-15",
+          "preco": 80.39,
+          "edital": "250191",
+          "escola": "EE DOM JOSE GASPAR",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-15",
+          "preco": 61.75,
+          "edital": "248249",
+          "escola": "EE BRASIL",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-15",
+          "preco": 5.85,
+          "edital": "248249",
+          "escola": "EE BRASIL",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-19",
+          "preco": 7.5,
+          "edital": "260821",
+          "escola": "EE DOM PEDRO II",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-19",
+          "preco": 7.41,
+          "edital": "260821",
+          "escola": "EE DOM PEDRO II",
+          "resultado": "pendente"
+        }
+      ],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-19",
+      "precoReferencia": 7.41,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-770890-rj7",
+      "item": "Luvas de borracha",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "marca": "NOBRE",
+      "unidade": "PAR",
+      "custoBase": 3.2,
+      "propostas": [
+        {
+          "data": "2026-04-19",
+          "preco": 4.16,
+          "edital": "260821",
+          "escola": "EE DOM PEDRO II",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-19",
+          "preco": 4.16,
+          "edital": "260821",
+          "escola": "EE DOM PEDRO II",
+          "resultado": "pendente"
+        }
+      ],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-19",
+      "precoReferencia": 4.16,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-770890-0a6",
+      "item": "Luva de procedimento nitrílica m",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "marca": "nobre",
+      "unidade": "CX",
+      "custoBase": 2.85,
+      "propostas": [
+        {
+          "data": "2026-04-08",
+          "preco": 26.13,
+          "edital": "240881",
+          "escola": "EE MAESTRO JOSINO DE OLIVEIRA",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-08",
+          "preco": 45.37,
+          "edital": "240881",
+          "escola": "EE MAESTRO JOSINO DE OLIVEIRA",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-15",
+          "preco": 14.87,
+          "edital": "248249",
+          "escola": "EE BRASIL",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-15",
+          "preco": 3.71,
+          "edital": "248249",
+          "escola": "EE BRASIL",
+          "resultado": "pendente"
+        }
+      ],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-15",
+      "precoReferencia": 3.71,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-770890-158",
+      "item": "Flanela",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "marca": "NOBRE",
+      "unidade": "Unidade",
+      "custoBase": 15.5,
+      "propostas": [
+        {
+          "data": "2026-04-14",
+          "preco": 12.74,
+          "edital": "252157",
+          "escola": "EE PROFESSOR BANDEIRA",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-15",
+          "preco": 2.29,
+          "edital": "248249",
+          "escola": "EE BRASIL",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-15",
+          "preco": 19.15,
+          "edital": "248249",
+          "escola": "EE BRASIL",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-15",
+          "preco": 12.87,
+          "edital": "248249",
+          "escola": "EE BRASIL",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-19",
+          "preco": 4.82,
+          "edital": "260821",
+          "escola": "EE DOM PEDRO II",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-19",
+          "preco": 20.15,
+          "edital": "260821",
+          "escola": "EE DOM PEDRO II",
+          "resultado": "pendente"
+        }
+      ],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-19",
+      "precoReferencia": 20.15,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-770890-flw",
+      "item": "Touca descartável em TNT com elástico",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "unidade": "Pacote",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-12",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-770890-n5o",
+      "item": "Sabonete líquido",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "marca": "PALMOLIVE",
+      "unidade": "Unidade",
+      "custoBase": 2.9,
+      "propostas": [
+        {
+          "data": "2026-04-08",
+          "preco": 22.71,
+          "edital": "240874",
+          "escola": "EE MAESTRO JOSINO DE OLIVEIRA",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-19",
+          "preco": 3.77,
+          "edital": "260821",
+          "escola": "EE DOM PEDRO II",
+          "resultado": "pendente"
+        }
+      ],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-19",
+      "precoReferencia": 3.77,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-365075708",
+      "item": "[COCO UNITARIO 50x180GR",
+      "fonte": "",
+      "grupo": "Importado",
+      "unidade": "Unidade",
+      "custoBase": 2.03,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-12",
+      "precoReferencia": 2.64,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-365075269",
+      "item": "[GLICERINADO 10x900GR",
+      "fonte": "",
+      "grupo": "Importado",
+      "unidade": "Unidade",
+      "custoBase": 7.65,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-12",
+      "precoReferencia": 9.95,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-365075695",
+      "item": "[GLICERINADO UNIT 50X180GR",
+      "fonte": "",
+      "grupo": "Importado",
+      "unidade": "Unidade",
+      "custoBase": 1.74,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-12",
+      "precoReferencia": 2.26,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-365075522",
+      "item": "[ECONOMICO UNIT 50X180GR.",
+      "fonte": "",
+      "grupo": "Importado",
+      "unidade": "Unidade",
+      "custoBase": 1.32,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-12",
+      "precoReferencia": 1.72,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-365075698",
+      "item": "[SABAO EM PASTA 12X500GR",
+      "fonte": "",
+      "grupo": "Importado",
+      "unidade": "Unidade",
+      "custoBase": 5.12,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-12",
+      "precoReferencia": 6.66,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-365075863",
+      "item": "[SODA SOL 12x1KG",
+      "fonte": "",
+      "grupo": "Importado",
+      "unidade": "Unidade",
+      "custoBase": 16.13,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-12",
+      "precoReferencia": 20.97,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-365076577",
+      "item": "[SODA TROVAO 12X1KG.",
+      "fonte": "",
+      "grupo": "Importado",
+      "unidade": "Unidade",
+      "custoBase": 61.65,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-12",
+      "precoReferencia": 80.15,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-365076855",
+      "item": "IDESENTUPIDOR SOL 12X300GR.",
+      "fonte": "",
+      "grupo": "Importado",
+      "unidade": "Unidade",
+      "custoBase": 9.42,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-12",
+      "precoReferencia": 12.25,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-365076109",
+      "item": "SODA TROVAO 12X500GR",
+      "fonte": "",
+      "grupo": "Importado",
+      "unidade": "Unidade",
+      "custoBase": 2.98,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-12",
+      "precoReferencia": 3.87,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-365076586",
+      "item": "[SODA SOL LIQUIDA 6XiLT",
+      "fonte": "",
+      "grupo": "Importado",
+      "unidade": "Unidade",
+      "custoBase": 20.42,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-12",
+      "precoReferencia": 26.55,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-365076382",
+      "item": "ILIMPA FORNO SOL 12x230GR",
+      "fonte": "",
+      "grupo": "Importado",
+      "unidade": "Unidade",
+      "custoBase": 7.89,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-12",
+      "precoReferencia": 10.26,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-365076189",
+      "item": "LAVA ROUPAS LIQ 4XSLTS",
+      "fonte": "",
+      "grupo": "Importado",
+      "unidade": "Unidade",
+      "custoBase": 176.78,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-12",
+      "precoReferencia": 229.81,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-365076032",
+      "item": "IMULTIUSO 12X500ML",
+      "fonte": "",
+      "grupo": "Importado",
+      "unidade": "Unidade",
+      "custoBase": 2.7,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-12",
+      "precoReferencia": 3.51,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-365076904",
+      "item": "BRILHA ALUMINIO 24X500ML_",
+      "fonte": "",
+      "grupo": "Importado",
+      "unidade": "Unidade",
+      "custoBase": 1.83,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-12",
+      "precoReferencia": 2.38,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-365076019",
+      "item": "BRILHA ALUMINIO 12X500ML,",
+      "fonte": "",
+      "grupo": "Importado",
+      "unidade": "Unidade",
+      "custoBase": 1.94,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-12",
+      "precoReferencia": 2.52,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-365076694",
+      "item": "ILIMPA PISO 12X1LT.",
+      "fonte": "",
+      "grupo": "Importado",
+      "unidade": "Unidade",
+      "custoBase": 3.89,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-12",
+      "precoReferencia": 5.06,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-365076114",
+      "item": "ILIMPA PISO E PORCELANATO SOL 12x4_",
+      "fonte": "",
+      "grupo": "Importado",
+      "unidade": "Unidade",
+      "custoBase": 4.08,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-12",
+      "precoReferencia": 5.3,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-365076197",
+      "item": "LIMPA CERAMICAS 12X1LT",
+      "fonte": "",
+      "grupo": "Importado",
+      "marca": "NOBRE",
+      "unidade": "Unidade",
+      "custoBase": 24.1,
+      "propostas": [
+        {
+          "data": "2026-04-15",
+          "preco": 21.29,
+          "edital": "248249",
+          "escola": "EE BRASIL",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-15",
+          "preco": 31.33,
+          "edital": "248249",
+          "escola": "EE BRASIL",
+          "resultado": "pendente"
+        }
+      ],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-15",
+      "precoReferencia": 31.33,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-365076790",
+      "item": "ILIMPA PEDRAS 6X2LT",
+      "fonte": "",
+      "grupo": "Importado",
+      "unidade": "Unidade",
+      "custoBase": 10.52,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-12",
+      "precoReferencia": 13.68,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-365076768",
+      "item": "LIMP PERFUMADO 12X500ML_",
+      "fonte": "",
+      "grupo": "Importado",
+      "unidade": "Unidade",
+      "custoBase": 2.63,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-12",
+      "precoReferencia": 3.42,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-365076467",
+      "item": "IDESINFETANTE 6X2LT",
+      "fonte": "",
+      "grupo": "Importado",
+      "unidade": "Unidade",
+      "custoBase": 3.83,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-12",
+      "precoReferencia": 4.98,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-365076057",
+      "item": "IDESINFETANTE 4X5 LT.",
+      "fonte": "",
+      "grupo": "Importado",
+      "unidade": "Unidade",
+      "custoBase": 9.6,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-12",
+      "precoReferencia": 12.48,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-365076193",
+      "item": "[AGUA SANITARIA 6X2 LT",
+      "fonte": "",
+      "grupo": "Importado",
+      "unidade": "Unidade",
+      "custoBase": 3.92,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-12",
+      "precoReferencia": 5.1,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-365076294",
+      "item": "[AGUA SANITARIA 12X1 LT",
+      "fonte": "",
+      "grupo": "Importado",
+      "unidade": "Unidade",
+      "custoBase": 2.14,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-12",
+      "precoReferencia": 2.78,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-365076604",
+      "item": "[ALVEJANTE S/ CLORO 12X1LT",
+      "fonte": "",
+      "grupo": "Importado",
+      "unidade": "Unidade",
+      "custoBase": 5.52,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-12",
+      "precoReferencia": 7.18,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-365076121",
+      "item": "[ALVEJANTE S/ CLORO 6X2LT",
+      "fonte": "",
+      "grupo": "Importado",
+      "unidade": "Unidade",
+      "custoBase": 9.5,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-12",
+      "precoReferencia": 12.35,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-365076493",
+      "item": "IDESINF HOSP ALCOOL Lia 70° 42x1LT |",
+      "fonte": "",
+      "grupo": "Importado",
+      "marca": "NOBRE",
+      "unidade": "Unidade",
+      "custoBase": 6.8,
+      "propostas": [
+        {
+          "data": "2026-04-15",
+          "preco": 56.82,
+          "edital": "248249",
+          "escola": "EE BRASIL",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-19",
+          "preco": 8.84,
+          "edital": "260821",
+          "escola": "EE DOM PEDRO II",
+          "resultado": "pendente"
+        }
+      ],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-19",
+      "precoReferencia": 8.84,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-365076699",
+      "item": "[SODA ELETRICA 12X1KG",
+      "fonte": "",
+      "grupo": "Importado",
+      "unidade": "Unidade",
+      "custoBase": 15.23,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-12",
+      "precoReferencia": 19.8,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-365076989",
+      "item": "ISODA ELETRICA 12X500GR.",
+      "fonte": "",
+      "grupo": "Importado",
+      "unidade": "Unidade",
+      "custoBase": 9.59,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-12",
+      "precoReferencia": 12.47,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-365076252",
+      "item": "ISODA SANSAO 12X1KG",
+      "fonte": "",
+      "grupo": "Importado",
+      "unidade": "Unidade",
+      "custoBase": 9.91,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-12",
+      "precoReferencia": 12.88,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-365076235",
+      "item": "ISODA SANSAO 12X500GR",
+      "fonte": "",
+      "grupo": "Importado",
+      "unidade": "Unidade",
+      "custoBase": 6.07,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-12",
+      "precoReferencia": 7.89,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-365076625",
+      "item": "ISODA SANSAO 12X300GR",
+      "fonte": "",
+      "grupo": "Importado",
+      "unidade": "Unidade",
+      "custoBase": 5.74,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-12",
+      "precoReferencia": 7.46,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-365076181",
+      "item": "ISODA SOL LIQUIDA 4X5 LT",
+      "fonte": "",
+      "grupo": "Importado",
+      "unidade": "Unidade",
+      "custoBase": 50.42,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-12",
+      "precoReferencia": 65.55,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-365076901",
+      "item": "[SODA SOL LIQUIDA 50 LT",
+      "fonte": "",
+      "grupo": "Importado",
+      "unidade": "Unidade",
+      "custoBase": 484,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-12",
+      "precoReferencia": 629.2,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-365077778",
+      "item": "[AGUA SANITARIA SOL 50 LTS",
+      "fonte": "",
+      "grupo": "Importado",
+      "unidade": "Unidade",
+      "custoBase": 97.8,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-12",
+      "precoReferencia": 127.14,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-365077976",
+      "item": "DETERGENTE CONCENT SOL 4X5LTS |",
+      "fonte": "",
+      "grupo": "Importado",
+      "unidade": "Unidade",
+      "custoBase": 23.77,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-12",
+      "precoReferencia": 30.9,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-365077798",
+      "item": "DETERGENTE CONCENT SOL 50 LTS",
+      "fonte": "",
+      "grupo": "Importado",
+      "unidade": "Unidade",
+      "custoBase": 223.1,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-12",
+      "precoReferencia": 290.03,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-365077979",
+      "item": "IDETERG LAVA AUTOS SANSAO 4X5LT|",
+      "fonte": "",
+      "grupo": "Importado",
+      "unidade": "Unidade",
+      "custoBase": 23.2,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-12",
+      "precoReferencia": 30.16,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-365077468",
+      "item": "DETERG LAVA AUTOS SANSAO 50LT_|",
+      "fonte": "",
+      "grupo": "Importado",
+      "unidade": "Unidade",
+      "custoBase": 218.4,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-12",
+      "precoReferencia": 283.92,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-365077083",
+      "item": "DESINCRUST ACIDO SANSAO 4X5 LT",
+      "fonte": "",
+      "grupo": "Importado",
+      "unidade": "Unidade",
+      "custoBase": 26.13,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-12",
+      "precoReferencia": 33.97,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-365077506",
+      "item": "DESINCRUST ACIDO SANSAO 50 LT",
+      "fonte": "",
+      "grupo": "Importado",
+      "unidade": "Unidade",
+      "custoBase": 253.3,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-12",
+      "precoReferencia": 329.29,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-365077408",
+      "item": "DESENGRAX ALCALINO SANSAO 4X5L]__",
+      "fonte": "",
+      "grupo": "Importado",
+      "unidade": "Unidade",
+      "custoBase": 23.2,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-12",
+      "precoReferencia": 30.16,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-365077518",
+      "item": "DESENGRAX ALCALINO SANSAO 50LT|",
+      "fonte": "",
+      "grupo": "Importado",
+      "unidade": "Unidade",
+      "custoBase": 220.8,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-12",
+      "precoReferencia": 287.04,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-365077176",
+      "item": "DES ALCALINO S/ ODOR SANSAO 4X5L|",
+      "fonte": "",
+      "grupo": "Importado",
+      "unidade": "Unidade",
+      "custoBase": 23.2,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-12",
+      "precoReferencia": 30.16,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-365077697",
+      "item": "DES ALCALINO S/ ODOR SANSAO 50LT|",
+      "fonte": "",
+      "grupo": "Importado",
+      "unidade": "Unidade",
+      "custoBase": 220.8,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-12",
+      "precoReferencia": 287.04,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-365077492",
+      "item": "FLOTADOR SANSAO 4X5 LT",
+      "fonte": "",
+      "grupo": "Importado",
+      "unidade": "Unidade",
+      "custoBase": 25.67,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-12",
+      "precoReferencia": 33.37,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-365077407",
+      "item": "FLOTADOR SANSAO 50 LT",
+      "fonte": "",
+      "grupo": "Importado",
+      "unidade": "Unidade",
+      "custoBase": 245.7,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-12",
+      "precoReferencia": 319.41,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-365077731",
+      "item": "BR PNEU PRETINHO SANSAO 4X5 LT.",
+      "fonte": "",
+      "grupo": "Importado",
+      "unidade": "Unidade",
+      "custoBase": 37.2,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-12",
+      "precoReferencia": 48.36,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-365077714",
+      "item": "BR PNEU PRETINHO SANSAO 50 LT",
+      "fonte": "",
+      "grupo": "Importado",
+      "unidade": "Unidade",
+      "custoBase": 364,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-12",
+      "precoReferencia": 473.2,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-892575625",
+      "item": "Pão de Queijo Congelado",
+      "fonte": "Mapa ",
+      "grupo": "Mapa Importado",
+      "unidade": "Pcte",
+      "custoBase": 0.01,
+      "propostas": [
+        {
+          "data": "2026-03-12",
+          "preco": 0.01,
+          "edital": "",
+          "escola": "ESCOLA: Caixa Escolar Dr. José Mendonça",
+          "resultado": "pendente"
+        }
+      ],
+      "concorrentes": [
+        {
+          "data": "2026-03-12",
+          "nome": "PUMA COMERCIO LTDA",
+          "preco": 0.02,
+          "edital": "",
+          "escola": "ESCOLA: Caixa Escolar Dr. José Mendonça"
+        },
+        {
+          "data": "2026-03-12",
+          "nome": "SABOR DA FRUTA LTDA",
+          "preco": 0.02,
+          "edital": "",
+          "escola": "ESCOLA: Caixa Escolar Dr. José Mendonça"
+        }
+      ],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-12",
+      "precoReferencia": 0.01,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-892575552",
+      "item": "Broa de Fubá",
+      "fonte": "Mapa ",
+      "grupo": "Mapa Importado",
+      "marca": "pachá",
+      "unidade": "KG",
+      "custoBase": 5.95,
+      "propostas": [
+        {
+          "data": "2026-03-26",
+          "preco": 3.89,
+          "edital": "200098",
+          "escola": "EE PROFESSORA CECILIA MARIA DE REZENDE NEVES",
+          "resultado": "pendente"
+        }
+      ],
+      "concorrentes": [
+        {
+          "data": "2026-03-12",
+          "nome": "PUMA COMERCIO LTDA",
+          "preco": 0.04,
+          "edital": "",
+          "escola": "ESCOLA: Caixa Escolar Dr. José Mendonça"
+        }
+      ],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-30",
+      "precoReferencia": 7.74,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-892576739",
+      "item": "Farinha de Trigo Simples",
+      "fonte": "Mapa ",
+      "grupo": "Mapa Importado",
+      "marca": "lunar",
+      "unidade": "KG",
+      "custoBase": 5,
+      "propostas": [
+        {
+          "data": "2026-03-12",
+          "preco": 4.03,
+          "edital": "",
+          "escola": "ESCOLA: Caixa Escolar Dr. José Mendonça",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-03-19",
+          "preco": 4.99,
+          "edital": "173792",
+          "escola": "EE ARMANDO SANTOS",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-03-26",
+          "preco": 5.19,
+          "edital": "200098",
+          "escola": "EE PROFESSORA CECILIA MARIA DE REZENDE NEVES",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-03-26",
+          "preco": 5.19,
+          "edital": "200098",
+          "escola": "EE PROFESSORA CECILIA MARIA DE REZENDE NEVES",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-03-26",
+          "preco": 5.19,
+          "edital": "200098",
+          "escola": "EE PROFESSORA CECILIA MARIA DE REZENDE NEVES",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-06",
+          "preco": 6.5,
+          "edital": "237106",
+          "escola": "EE PROFESSOR ALCEU NOVAES",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-06",
+          "preco": 3.61,
+          "edital": "237119",
+          "escola": "EE PROFESSOR ALCEU NOVAES",
+          "resultado": "pendente"
+        }
+      ],
+      "concorrentes": [
+        {
+          "data": "2026-03-12",
+          "nome": "PUMA COMERCIO LTDA",
+          "preco": 3.45,
+          "edital": "",
+          "escola": "ESCOLA: Caixa Escolar Dr. José Mendonça"
+        }
+      ],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-06",
+      "precoReferencia": 6.5,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-892576790",
+      "item": "Fermento em Pó",
+      "fonte": "Mapa ",
+      "grupo": "Mapa Importado",
+      "marca": "trisante",
+      "unidade": "Frasco",
+      "custoBase": 6.29,
+      "propostas": [
+        {
+          "data": "2026-03-12",
+          "preco": 4.41,
+          "edital": "",
+          "escola": "ESCOLA: Caixa Escolar Dr. José Mendonça",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-03-19",
+          "preco": 8.18,
+          "edital": "173833",
+          "escola": "EE ARMANDO SANTOS",
+          "resultado": "pendente"
+        }
+      ],
+      "concorrentes": [
+        {
+          "data": "2026-03-12",
+          "nome": "PUMA COMERCIO LTDA",
+          "preco": 3.25,
+          "edital": "",
+          "escola": "ESCOLA: Caixa Escolar Dr. José Mendonça"
+        }
+      ],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-19",
+      "precoReferencia": 8.18,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-892576535",
+      "item": "Macarrão Parafuso",
+      "fonte": "Mapa ",
+      "grupo": "Mapa Importado",
+      "unidade": "KG",
+      "custoBase": 0.01,
+      "propostas": [
+        {
+          "data": "2026-03-12",
+          "preco": 0.01,
+          "edital": "",
+          "escola": "ESCOLA: Caixa Escolar Dr. José Mendonça",
+          "resultado": "pendente"
+        }
+      ],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-12",
+      "precoReferencia": 0.01,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-892576852",
+      "item": "Maçã Casca Fina",
+      "fonte": "Mapa ",
+      "grupo": "Mapa Importado",
+      "unidade": "KG",
+      "custoBase": 0.01,
+      "propostas": [
+        {
+          "data": "2026-03-12",
+          "preco": 0.01,
+          "edital": "",
+          "escola": "ESCOLA: Caixa Escolar Dr. José Mendonça",
+          "resultado": "pendente"
+        }
+      ],
+      "concorrentes": [
+        {
+          "data": "2026-03-12",
+          "nome": "PUMA COMERCIO LTDA",
+          "preco": 0.01,
+          "edital": "",
+          "escola": "ESCOLA: Caixa Escolar Dr. José Mendonça"
+        }
+      ],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-12",
+      "precoReferencia": 0.01,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-892576976",
+      "item": "Orégano Desidratado",
+      "fonte": "Mapa ",
+      "grupo": "Mapa Importado",
+      "marca": "pachá",
+      "unidade": "Pcte",
+      "custoBase": 56,
+      "propostas": [
+        {
+          "data": "2026-03-12",
+          "preco": 45.36,
+          "edital": "",
+          "escola": "ESCOLA: Caixa Escolar Dr. José Mendonça",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-03-19",
+          "preco": 72.8,
+          "edital": "173833",
+          "escola": "EE ARMANDO SANTOS",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-03-26",
+          "preco": 72.8,
+          "edital": "200098",
+          "escola": "EE PROFESSORA CECILIA MARIA DE REZENDE NEVES",
+          "resultado": "pendente"
+        }
+      ],
+      "concorrentes": [
+        {
+          "data": "2026-03-12",
+          "nome": "PUMA COMERCIO LTDA",
+          "preco": 55.06,
+          "edital": "",
+          "escola": "ESCOLA: Caixa Escolar Dr. José Mendonça"
+        }
+      ],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-19",
+      "precoReferencia": 72.8,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-892576824",
+      "item": "Mel de 1ª Qualidade",
+      "fonte": "Mapa ",
+      "grupo": "Mapa Importado",
+      "unidade": "KG",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [
+        {
+          "data": "2026-03-12",
+          "nome": "PUMA COMERCIO LTDA",
+          "preco": 7.8,
+          "edital": "",
+          "escola": "ESCOLA: Caixa Escolar Dr. José Mendonça"
+        }
+      ],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-12",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-892576207",
+      "item": "Pão de batata. Peso mínimo por unidade 50 gramas. Fresco, macio, apropriado para consumo no dia do recebimento. Isento de sujeiras e mofos. Fornecimento em unidades de 50 gramas.",
+      "fonte": "Mapa ",
+      "grupo": "Mapa Importado",
+      "unidade": "UNID",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-12",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-892576568",
+      "item": "Pão de milho. Peso mínimo por unidade 50 gramas. Fresco, macio, apropriado para consumo no dia do recebimento. Isento de sujeiras e mofos. Fornecimento em unidades de 50 gramas.",
+      "fonte": "Mapa ",
+      "grupo": "Mapa Importado",
+      "unidade": "UNID",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-12",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-892577455",
+      "item": "Placa de bolo com no mínimo 2kg. Sabores: banana, maçã, farinha, tubá. Pedido do sabor.",
+      "fonte": "Mapa ",
+      "grupo": "Mapa Importado",
+      "unidade": "KG",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-12",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-892577240",
+      "item": "Peixe fileteado congelado de substâncias estranhas que sejam impróprias ao consumo e que alterem suas características naturais. Os pacotes deverão ser rotulados conforme legislação vigente, contendo a data de processamento e validade, o nº de registro no órgão competente e os valores nutricionais. O produto deverá ser entregue congelado sob refrigeração.",
+      "fonte": "Mapa ",
+      "grupo": "Mapa Importado",
+      "unidade": "KG",
+      "custoBase": 0.04,
+      "propostas": [
+        {
+          "data": "2026-03-12",
+          "preco": 0.04,
+          "edital": "",
+          "escola": "ESCOLA: Caixa Escolar Dr. José Mendonça",
+          "resultado": "pendente"
+        }
+      ],
+      "concorrentes": [
+        {
+          "data": "2026-03-12",
+          "nome": "PUMA COMERCIO LTDA",
+          "preco": 0.05,
+          "edital": "",
+          "escola": "ESCOLA: Caixa Escolar Dr. José Mendonça"
+        }
+      ],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-12",
+      "precoReferencia": 0.05,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-892577775",
+      "item": "Queijo tipo frescal. Apropriado para consumo; isento de sujeiras, insetos, mofos e odor desagradável. Embalagem plástica, atóxica, transparente, contendo dados do produto: identificação, procedência, ingredientes, informações nutricionais.",
+      "fonte": "Mapa ",
+      "grupo": "Mapa Importado",
+      "unidade": "KG",
+      "custoBase": 0.04,
+      "propostas": [
+        {
+          "data": "2026-03-12",
+          "preco": 0.04,
+          "edital": "",
+          "escola": "ESCOLA: Caixa Escolar Dr. José Mendonça",
+          "resultado": "pendente"
+        }
+      ],
+      "concorrentes": [
+        {
+          "data": "2026-03-12",
+          "nome": "PUMA COMERCIO LTDA",
+          "preco": 0.05,
+          "edital": "",
+          "escola": "ESCOLA: Caixa Escolar Dr. José Mendonça"
+        }
+      ],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-12",
+      "precoReferencia": 0.05,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-892577764",
+      "item": "SAL REFINADO sal iodado, refinado, para consumo doméstico, isento de sujeiras, parasitas, materiais terrosos e detritos animais ou vegetais. A embalagem deverá conter 1kg. A embalagem deverá conter externamente os dados de identificação, procedência, informações nutricionais, número do lote, data de validade.",
+      "fonte": "Mapa ",
+      "grupo": "Mapa Importado",
+      "unidade": "KG",
+      "custoBase": 1.25,
+      "propostas": [
+        {
+          "data": "2026-03-12",
+          "preco": 1.25,
+          "edital": "",
+          "escola": "ESCOLA: Caixa Escolar Dr. José Mendonça",
+          "resultado": "pendente"
+        }
+      ],
+      "concorrentes": [
+        {
+          "data": "2026-03-12",
+          "nome": "PUMA COMERCIO LTDA",
+          "preco": 1.8,
+          "edital": "",
+          "escola": "ESCOLA: Caixa Escolar Dr. José Mendonça"
+        }
+      ],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-12",
+      "precoReferencia": 1.63,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-182685-7xi",
+      "item": "Fubá de canjica",
+      "fonte": "",
+      "grupo": "Gêneros Alimentícios",
+      "marca": "pachá",
+      "unidade": "Pacote",
+      "custoBase": 8.99,
+      "propostas": [
+        {
+          "data": "2026-03-19",
+          "preco": 11.24,
+          "edital": "173792",
+          "escola": "EE ARMANDO SANTOS",
+          "resultado": "pendente"
+        }
+      ],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-19",
+      "precoReferencia": 11.69,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-182685-ro3",
+      "item": "Manteiga com sal",
+      "fonte": "",
+      "grupo": "Gêneros Alimentícios",
+      "marca": "ABAETÉ",
+      "unidade": "UN",
+      "custoBase": 17.5,
+      "propostas": [
+        {
+          "data": "2026-03-19",
+          "preco": 22.75,
+          "edital": "173792",
+          "escola": "EE ARMANDO SANTOS",
+          "resultado": "pendente"
+        }
+      ],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-19",
+      "precoReferencia": 22.75,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-036885-e9j",
+      "item": "Frango filé de peito sem osso",
+      "fonte": "",
+      "grupo": "Gêneros Alimentícios",
+      "marca": "Real",
+      "unidade": "KG",
+      "custoBase": 14.48,
+      "propostas": [
+        {
+          "data": "2026-03-19",
+          "preco": 16.25,
+          "edital": "173805",
+          "escola": "EE ARMANDO SANTOS",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-11",
+          "preco": 18.82,
+          "edital": "245774",
+          "escola": "EE PROFESSOR BANDEIRA",
+          "resultado": "pendente"
+        }
+      ],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-11",
+      "precoReferencia": 18.82,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-371596-g8w",
+      "item": "Açúcar cristal",
+      "fonte": "",
+      "grupo": "Gêneros Alimentícios",
+      "marca": "DELTA",
+      "unidade": "Pacote",
+      "custoBase": 11.9,
+      "propostas": [
+        {
+          "data": "2026-03-19",
+          "preco": 15.47,
+          "edital": "173833",
+          "escola": "EE ARMANDO SANTOS",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-11",
+          "preco": 15.47,
+          "edital": "245839",
+          "escola": "EE PROFESSOR BANDEIRA",
+          "resultado": "pendente"
+        }
+      ],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-19",
+      "precoReferencia": 15.47,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-371597-31u",
+      "item": "Canela - pó - pau",
+      "fonte": "",
+      "grupo": "Gêneros Alimentícios",
+      "marca": "Pachá",
+      "unidade": "Pacote",
+      "custoBase": 6.18,
+      "propostas": [
+        {
+          "data": "2026-03-19",
+          "preco": 8.03,
+          "edital": "173833",
+          "escola": "EE ARMANDO SANTOS",
+          "resultado": "pendente"
+        }
+      ],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-19",
+      "precoReferencia": 8.03,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-371597-wkk",
+      "item": "Coco ralado",
+      "fonte": "",
+      "grupo": "Gêneros Alimentícios",
+      "marca": "Sococo",
+      "unidade": "Pacote",
+      "custoBase": 23.33,
+      "propostas": [
+        {
+          "data": "2026-03-19",
+          "preco": 30.33,
+          "edital": "173833",
+          "escola": "EE ARMANDO SANTOS",
+          "resultado": "pendente"
+        }
+      ],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-19",
+      "precoReferencia": 30.33,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-925493-bl3",
+      "item": "Cebola",
+      "fonte": "",
+      "grupo": "Gêneros Alimentícios",
+      "unidade": "KG",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-19",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-925493-hl3",
+      "item": "Cenoura amarela",
+      "fonte": "",
+      "grupo": "Gêneros Alimentícios",
+      "unidade": "KG",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-19",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-925493-zqm",
+      "item": "Repolho branco",
+      "fonte": "",
+      "grupo": "Gêneros Alimentícios",
+      "unidade": "KG",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-19",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-925493-mjd",
+      "item": "Carne bovina acém",
+      "fonte": "",
+      "grupo": "Gêneros Alimentícios",
+      "marca": "Frigoleste",
+      "unidade": "KG",
+      "custoBase": 17.5,
+      "propostas": [
+        {
+          "data": "2026-04-06",
+          "preco": 33.63,
+          "edital": "237532",
+          "escola": "EE PROFESSOR ALCEU NOVAES",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-06",
+          "preco": 32.37,
+          "edital": "237537",
+          "escola": "EE PROFESSOR ALCEU NOVAES",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-08",
+          "preco": 32.37,
+          "edital": "240290",
+          "escola": "EE SANTA TEREZINHA",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-08",
+          "preco": 32.37,
+          "edital": "240295",
+          "escola": "EE SANTA TEREZINHA",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-08",
+          "preco": 18.14,
+          "edital": "240305",
+          "escola": "EE SANTA TEREZINHA",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-08",
+          "preco": 21.45,
+          "edital": "240325",
+          "escola": "EE SANTA TEREZINHA",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-11",
+          "preco": 22.75,
+          "edital": "245774",
+          "escola": "EE PROFESSOR BANDEIRA",
+          "resultado": "pendente"
+        }
+      ],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-11",
+      "precoReferencia": 22.75,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-975564-twh",
+      "item": "Impressão",
+      "fonte": "",
+      "grupo": "Material Pedagógico",
+      "unidade": "Unidade",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-19",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-972549-4fi",
+      "item": "Pão de cachorro quente",
+      "fonte": "",
+      "grupo": "Gêneros Alimentícios",
+      "marca": "fabricação própria",
+      "unidade": "KG",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-19",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-972549-hm1",
+      "item": "Pão doce comum",
+      "fonte": "",
+      "grupo": "Gêneros Alimentícios",
+      "marca": "fabricação própria",
+      "unidade": "KG",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-19",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-972549-hka",
+      "item": "Pão de sal",
+      "fonte": "",
+      "grupo": "Gêneros Alimentícios",
+      "marca": "fabricação própria",
+      "unidade": "KG",
+      "custoBase": 18,
+      "propostas": [
+        {
+          "data": "2026-04-11",
+          "preco": 23.4,
+          "edital": "234934",
+          "escola": "EE SANTA TEREZINHA",
+          "resultado": "pendente"
+        }
+      ],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-31",
+      "precoReferencia": 23.4,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-764751-cis",
+      "item": "Escova de limpeza",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "marca": "rodoforte",
+      "unidade": "Unidade",
+      "custoBase": 7,
+      "propostas": [
+        {
+          "data": "2026-04-14",
+          "preco": 6.25,
+          "edital": "245527",
+          "escola": "EE CORONEL JOSE ADOLFO AGUIAR",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-15",
+          "preco": 7.19,
+          "edital": "248249",
+          "escola": "EE BRASIL",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-15",
+          "preco": 5.68,
+          "edital": "248249",
+          "escola": "EE BRASIL",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-19",
+          "preco": 5.28,
+          "edital": "260821",
+          "escola": "EE DOM PEDRO II",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-19",
+          "preco": 9.1,
+          "edital": "260821",
+          "escola": "EE DOM PEDRO II",
+          "resultado": "pendente"
+        }
+      ],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-19",
+      "precoReferencia": 9.1,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-764752-6rx",
+      "item": "Esponjas de cozinha / limpeza",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "marca": "scoth",
+      "unidade": "Pacote",
+      "custoBase": 1.35,
+      "propostas": [
+        {
+          "data": "2026-03-31",
+          "preco": 6.44,
+          "edital": "218073",
+          "escola": "EE PROFESSOR BANDEIRA",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-10",
+          "preco": 1.76,
+          "edital": "240898",
+          "escola": "EE MAESTRO JOSINO DE OLIVEIRA",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-19",
+          "preco": 1.76,
+          "edital": "260821",
+          "escola": "EE DOM PEDRO II",
+          "resultado": "pendente"
+        }
+      ],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-10",
+      "precoReferencia": 1.76,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-764752-5rg",
+      "item": "Inseticida de uso doméstico",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "marca": "sbp",
+      "unidade": "Unidade",
+      "custoBase": 16.99,
+      "propostas": [
+        {
+          "data": "2026-04-10",
+          "preco": 22.09,
+          "edital": "240898",
+          "escola": "EE MAESTRO JOSINO DE OLIVEIRA",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-10",
+          "preco": 22.09,
+          "edital": "240898",
+          "escola": "EE MAESTRO JOSINO DE OLIVEIRA",
+          "resultado": "pendente"
+        }
+      ],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-10",
+      "precoReferencia": 22.09,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-764754-7pl",
+      "item": "Máscara cirúrgica tripla descartável",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "unidade": "CX",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-19",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-764754-98o",
+      "item": "Pá de lixo",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "marca": "rodoforte",
+      "unidade": "Unidade",
+      "custoBase": 7.6,
+      "propostas": [
+        {
+          "data": "2026-04-13",
+          "preco": 9.88,
+          "edital": "248704",
+          "escola": "EE DR LINDOLFO BERNARDES",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-19",
+          "preco": 9.88,
+          "edital": "260821",
+          "escola": "EE DOM PEDRO II",
+          "resultado": "pendente"
+        }
+      ],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-13",
+      "precoReferencia": 9.88,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-764755-hin",
+      "item": "Rodo",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "marca": "rodoforte",
+      "unidade": "Unidade",
+      "custoBase": 8.8,
+      "propostas": [
+        {
+          "data": "2026-03-30",
+          "preco": 50.18,
+          "edital": "217917",
+          "escola": "EE PROFESSOR BANDEIRA",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-13",
+          "preco": 9.89,
+          "edital": "248704",
+          "escola": "EE DR LINDOLFO BERNARDES",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-13",
+          "preco": 11.44,
+          "edital": "248704",
+          "escola": "EE DR LINDOLFO BERNARDES",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-15",
+          "preco": 11.44,
+          "edital": "248249",
+          "escola": "EE BRASIL",
+          "resultado": "pendente"
+        }
+      ],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-13",
+      "precoReferencia": 11.44,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-764755-u9j",
+      "item": "Saco plástico em rolo (bobina)",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "marca": "nobe",
+      "unidade": "Unidade",
+      "custoBase": 31.9,
+      "propostas": [
+        {
+          "data": "2026-04-14",
+          "preco": 37.57,
+          "edital": "246312",
+          "escola": "EE CORONEL JOSE ADOLFO AGUIAR",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-14",
+          "preco": 41.47,
+          "edital": "246312",
+          "escola": "EE CORONEL JOSE ADOLFO AGUIAR",
+          "resultado": "pendente"
+        }
+      ],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-14",
+      "precoReferencia": 41.47,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-764755-7hc",
+      "item": "Vassouras",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "marca": "rodoforte",
+      "unidade": "Unidade",
+      "custoBase": 16.1,
+      "propostas": [
+        {
+          "data": "2026-04-13",
+          "preco": 14.26,
+          "edital": "248704",
+          "escola": "EE DR LINDOLFO BERNARDES",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-13",
+          "preco": 22.92,
+          "edital": "248704",
+          "escola": "EE DR LINDOLFO BERNARDES",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-14",
+          "preco": 21.74,
+          "edital": "252075",
+          "escola": "EE PROFESSOR BANDEIRA",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-19",
+          "preco": 20.93,
+          "edital": "260821",
+          "escola": "EE DOM PEDRO II",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-19",
+          "preco": 20.93,
+          "edital": "260821",
+          "escola": "EE DOM PEDRO II",
+          "resultado": "pendente"
+        }
+      ],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-14",
+      "precoReferencia": 20.93,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-416015-x8m",
+      "item": "Guardanapo de papel",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "marca": "NOBRE",
+      "unidade": "Pacote",
+      "custoBase": 4.5,
+      "propostas": [
+        {
+          "data": "2026-04-19",
+          "preco": 5.85,
+          "edital": "260821",
+          "escola": "EE DOM PEDRO II",
+          "resultado": "pendente"
+        }
+      ],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-19",
+      "precoReferencia": 5.85,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-455646-tz0",
+      "item": "Jogos pedagógicos em geral",
+      "fonte": "",
+      "grupo": "Material Pedagógico",
+      "unidade": "Unidade",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-19",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-455647-srz",
+      "item": "Folha de EVA",
+      "fonte": "",
+      "grupo": "Material Pedagógico",
+      "unidade": "Unidade",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-19",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-455647-zgu",
+      "item": "Crachá",
+      "fonte": "",
+      "grupo": "Material Pedagógico",
+      "unidade": "Unidade",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-19",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-505783-chj",
+      "item": "Café em pó (torrado e moído)",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "marca": "ALPÍNOPOLIS",
+      "unidade": "UN",
+      "custoBase": 18.9,
+      "propostas": [
+        {
+          "data": "2026-03-26",
+          "preco": 49.27,
+          "edital": "200098",
+          "escola": "EE PROFESSORA CECILIA MARIA DE REZENDE NEVES",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-01",
+          "preco": 31.07,
+          "edital": "232865",
+          "escola": "EE JOSE ACACIO DA SILVA",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-06",
+          "preco": 28.47,
+          "edital": "237446",
+          "escola": "EE PROFESSOR ALCEU NOVAES",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-19",
+          "preco": 24.57,
+          "edital": "260821",
+          "escola": "EE DOM PEDRO II",
+          "resultado": "pendente"
+        }
+      ],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-19",
+      "precoReferencia": 24.57,
+      "custosFornecedor": [],
+      "historicoResultados": [
+        {
+          "data": "2026-04-07",
+          "escola": "EE JOSE ACACIO DA SILVA",
+          "resultado": "ganho",
+          "precoVencedor": null,
+          "precoPraticado": 31.07
+        }
+      ]
+    },
+    {
+      "id": "bp-808892-tbc",
+      "item": "Envelope pardo",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "unidade": "CX",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-20",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-808892-mlb",
+      "item": "Cartolina",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "unidade": "Unidade",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-20",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-808893-67l",
+      "item": "Fita adesiva transparente reforçada para embalagem 48 mm x 50 m",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "marca": "3m",
+      "unidade": "Unidade",
+      "custoBase": 8.8,
+      "propostas": [
+        {
+          "data": "2026-04-19",
+          "preco": 11.44,
+          "edital": "260821",
+          "escola": "EE DOM PEDRO II",
+          "resultado": "pendente"
+        }
+      ],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-19",
+      "precoReferencia": 11.44,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-808893-abp",
+      "item": "Lápis grafite (preto)",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "unidade": "CX",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-20",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-808894-p24",
+      "item": "TNT - Tecido não tecido",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "unidade": "Unidade",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-20",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-660049-0mi",
+      "item": "Polvilho doce",
+      "fonte": "",
+      "grupo": "Gêneros Alimentícios",
+      "marca": "pachá",
+      "unidade": "KG",
+      "custoBase": 8,
+      "propostas": [
+        {
+          "data": "2026-03-26",
+          "preco": 10.4,
+          "edital": "200098",
+          "escola": "EE PROFESSORA CECILIA MARIA DE REZENDE NEVES",
+          "resultado": "pendente"
+        }
+      ],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-26",
+      "precoReferencia": 10.4,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-953924-724",
+      "item": "Fio elétrico",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "unidade": "M",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-30",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-032431-glf",
+      "item": "Pincel quadro branco",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "marca": "jocar office (leonora)",
+      "unidade": "UN",
+      "custoBase": 2.5,
+      "propostas": [
+        {
+          "data": "2026-03-30",
+          "preco": 9.9,
+          "edital": "232584",
+          "escola": "EE DOUTOR JOSE CORDEIRO DE CAMPOS",
+          "resultado": "pendente"
+        }
+      ],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-30",
+      "precoReferencia": 3.25,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-516865-sdt",
+      "item": "Copo de vidro",
+      "fonte": "",
+      "grupo": "Utensílios de Cozinha",
+      "marca": "nobre",
+      "unidade": "Unidade",
+      "custoBase": 147.5,
+      "propostas": [
+        {
+          "data": "2026-03-31",
+          "preco": 1.74,
+          "edital": "212866",
+          "escola": "EE LAURISTON SOUZA",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-14",
+          "preco": 191.75,
+          "edital": "246312",
+          "escola": "EE CORONEL JOSE ADOLFO AGUIAR",
+          "resultado": "pendente"
+        }
+      ],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-14",
+      "precoReferencia": 191.75,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-176996-hs0",
+      "item": "Acelga",
+      "fonte": "",
+      "grupo": "Gêneros Alimentícios",
+      "unidade": "Unidade",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-30",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-176997-vf7",
+      "item": "Batata inglesa",
+      "fonte": "",
+      "grupo": "Gêneros Alimentícios",
+      "unidade": "KG",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-30",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-176998-rbw",
+      "item": "Chuchu",
+      "fonte": "",
+      "grupo": "Gêneros Alimentícios",
+      "unidade": "KG",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-30",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-176999-uwo",
+      "item": "Mamão formoso",
+      "fonte": "",
+      "grupo": "Gêneros Alimentícios",
+      "unidade": "KG",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-30",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-177000-d1g",
+      "item": "Milho verde - espiga",
+      "fonte": "",
+      "grupo": "Gêneros Alimentícios",
+      "unidade": "KG",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-30",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-177001-a6h",
+      "item": "Pepino",
+      "fonte": "",
+      "grupo": "Gêneros Alimentícios",
+      "unidade": "KG",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-30",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-177001-d2b",
+      "item": "Pimentão",
+      "fonte": "",
+      "grupo": "Gêneros Alimentícios",
+      "unidade": "KG",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-30",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-177002-xja",
+      "item": "Vagem",
+      "fonte": "",
+      "grupo": "Gêneros Alimentícios",
+      "unidade": "KG",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-30",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-713060-ffe",
+      "item": "Açafrão pó",
+      "fonte": "",
+      "grupo": "Gêneros Alimentícios",
+      "marca": "pachá",
+      "unidade": "KG",
+      "custoBase": 3,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-03-30",
+      "precoReferencia": 3.9,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-031206-yqe",
+      "item": "Saponáceo cremoso",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "unidade": "Unidade",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-01",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-031206-ivz",
+      "item": "Caixa de fósforo",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "marca": "parana",
+      "unidade": "Unidade",
+      "custoBase": 1.9,
+      "propostas": [
+        {
+          "data": "2026-04-19",
+          "preco": 2.47,
+          "edital": "260821",
+          "escola": "EE DOM PEDRO II",
+          "resultado": "pendente"
+        }
+      ],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-19",
+      "precoReferencia": 2.47,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-031206-tyy",
+      "item": "Filtro de papel para café nº 103",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "unidade": "Unidade",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-01",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-108389-k6j",
+      "item": "Muçarela",
+      "fonte": "",
+      "grupo": "Gêneros Alimentícios",
+      "unidade": "KG",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-01",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-219652-j5v",
+      "item": "Biscoito doce - sal",
+      "fonte": "",
+      "grupo": "Gêneros Alimentícios",
+      "marca": "Vilma",
+      "unidade": "Pacote",
+      "custoBase": 3.98,
+      "propostas": [
+        {
+          "data": "2026-04-06",
+          "preco": 6.31,
+          "edital": "236984",
+          "escola": "EE PROFESSOR ALCEU NOVAES",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-06",
+          "preco": 6.37,
+          "edital": "237008",
+          "escola": "EE PROFESSOR ALCEU NOVAES",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-11",
+          "preco": 4.97,
+          "edital": "245839",
+          "escola": "EE PROFESSOR BANDEIRA",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-11",
+          "preco": 4.97,
+          "edital": "245839",
+          "escola": "EE PROFESSOR BANDEIRA",
+          "resultado": "pendente"
+        }
+      ],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-11",
+      "precoReferencia": 5.17,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-219653-0l5",
+      "item": "Colorau-colorífico",
+      "fonte": "",
+      "grupo": "Gêneros Alimentícios",
+      "marca": "pachá",
+      "unidade": "Pacote",
+      "custoBase": 6.18,
+      "propostas": [
+        {
+          "data": "2026-04-06",
+          "preco": 8.03,
+          "edital": "237051",
+          "escola": "EE PROFESSOR ALCEU NOVAES",
+          "resultado": "pendente"
+        }
+      ],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-06",
+      "precoReferencia": 8.03,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-219657-zj0",
+      "item": "Polpa de fruta - sabor variados",
+      "fonte": "",
+      "grupo": "Gêneros Alimentícios",
+      "unidade": "UN",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-06",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-219659-srz",
+      "item": "Amendoim",
+      "fonte": "",
+      "grupo": "Gêneros Alimentícios",
+      "unidade": "Pacote",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-06",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-219660-4mh",
+      "item": "Aveia",
+      "fonte": "",
+      "grupo": "Gêneros Alimentícios",
+      "unidade": "Unidade",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-06",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-910513-kmv",
+      "item": "Linguiça suína toscana",
+      "fonte": "",
+      "grupo": "Gêneros Alimentícios",
+      "marca": "rezende",
+      "unidade": "KG",
+      "custoBase": 14.4,
+      "propostas": [
+        {
+          "data": "2026-04-08",
+          "preco": 18.72,
+          "edital": "240352",
+          "escola": "EE SANTA TEREZINHA",
+          "resultado": "pendente"
+        }
+      ],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-08",
+      "precoReferencia": 18.72,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-369565-2fl",
+      "item": "Desengordurante",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "unidade": "Unidade",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-08",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-369569-nsm",
+      "item": "Borrifador (pulverizador)",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "marca": "genérica",
+      "unidade": "Unidade",
+      "custoBase": 3.9,
+      "propostas": [
+        {
+          "data": "2026-04-10",
+          "preco": 5.07,
+          "edital": "240898",
+          "escola": "EE MAESTRO JOSINO DE OLIVEIRA",
+          "resultado": "pendente"
+        }
+      ],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-10",
+      "precoReferencia": 5.07,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-369570-foc",
+      "item": "Aromatizantes",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "unidade": "Unidade",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-08",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-369570-7jd",
+      "item": "Acendedor multiuso a gás (tipo isqueiro)",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "marca": "BIC",
+      "unidade": "Unidade",
+      "custoBase": 4.5,
+      "propostas": [
+        {
+          "data": "2026-04-19",
+          "preco": 5.85,
+          "edital": "260821",
+          "escola": "EE DOM PEDRO II",
+          "resultado": "pendente"
+        }
+      ],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-19",
+      "precoReferencia": 5.85,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-369571-psr",
+      "item": "Clip de papel",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "marca": "wireplast",
+      "unidade": "CX",
+      "custoBase": 9.16,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-13",
+      "precoReferencia": 11.91,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-369572-rux",
+      "item": "Grampos",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "marca": "Joccar Office",
+      "unidade": "CX",
+      "custoBase": 4.37,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-13",
+      "precoReferencia": 5.68,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-369572-l63",
+      "item": "Tesoura",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "marca": "joccar ofice",
+      "unidade": "Unidade",
+      "custoBase": 5.36,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-13",
+      "precoReferencia": 6.97,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-369572-qjh",
+      "item": "Estilete",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "unidade": "Unidade",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-08",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-392401-33x",
+      "item": "Mesa de futmesa",
+      "fonte": "",
+      "grupo": "Equipamentos Pedagógicos",
+      "unidade": "UN",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-08",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-126557-kf0",
+      "item": "Absorvente",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "marca": "SYM",
+      "unidade": "Unidade",
+      "custoBase": 2.69,
+      "propostas": [
+        {
+          "data": "2026-04-08",
+          "preco": 3.5,
+          "edital": "240874",
+          "escola": "EE MAESTRO JOSINO DE OLIVEIRA",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-19",
+          "preco": 3.5,
+          "edital": "260821",
+          "escola": "EE DOM PEDRO II",
+          "resultado": "pendente"
+        }
+      ],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-08",
+      "precoReferencia": 3.5,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-126557-h8k",
+      "item": "Desodorizador de ambiente",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "marca": "ultraflash",
+      "unidade": "Unidade",
+      "custoBase": 9.4,
+      "propostas": [
+        {
+          "data": "2026-04-08",
+          "preco": 12.22,
+          "edital": "240874",
+          "escola": "EE MAESTRO JOSINO DE OLIVEIRA",
+          "resultado": "pendente"
+        }
+      ],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-08",
+      "precoReferencia": 12.22,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-126558-3ir",
+      "item": "Avental de segurança em PVC impermeável",
+      "fonte": "",
+      "grupo": "Equipamentos de Segurança",
+      "marca": "maiocol",
+      "unidade": "UN",
+      "custoBase": 16.9,
+      "propostas": [
+        {
+          "data": "2026-04-08",
+          "preco": 18.2,
+          "edital": "240881",
+          "escola": "EE MAESTRO JOSINO DE OLIVEIRA",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-13",
+          "preco": 22.31,
+          "edital": "242943",
+          "escola": "EE IVAN MATTAR SOUKEF",
+          "resultado": "pendente"
+        }
+      ],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-13",
+      "precoReferencia": 21.97,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-170781-el0",
+      "item": "Ovos frescos extra cor branca - galinha dúzia",
+      "fonte": "",
+      "grupo": "Gêneros Alimentícios",
+      "marca": "granja São João",
+      "unidade": "Unidade",
+      "custoBase": 7.33,
+      "propostas": [
+        {
+          "data": "2026-04-11",
+          "preco": 9.53,
+          "edital": "245809",
+          "escola": "EE PROFESSOR BANDEIRA",
+          "resultado": "pendente"
+        }
+      ],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-11",
+      "precoReferencia": 9.53,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-170782-zri",
+      "item": "Laranja",
+      "fonte": "",
+      "grupo": "Gêneros Alimentícios",
+      "marca": "CEASA",
+      "unidade": "KG",
+      "custoBase": 4.99,
+      "propostas": [
+        {
+          "data": "2026-04-11",
+          "preco": 6.49,
+          "edital": "245809",
+          "escola": "EE PROFESSOR BANDEIRA",
+          "resultado": "pendente"
+        }
+      ],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-11",
+      "precoReferencia": 6.49,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-302798-b12",
+      "item": "Botas de segurança",
+      "fonte": "",
+      "grupo": "Equipamentos de Segurança",
+      "unidade": "Unidade",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-08",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-302798-mxr",
+      "item": "Tonner",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "unidade": "Unidade",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-08",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-302799-c7m",
+      "item": "Cola escolar em bastão lavável à base de PVP, atóxica.",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "unidade": "UN",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-08",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-302799-arq",
+      "item": "Apagador de lousa branca",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "unidade": "Unidade",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-08",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-302802-zg4",
+      "item": "Plástico transparente para encapar",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "unidade": "UN",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-08",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-302802-4bu",
+      "item": "Polaseal A4 para plastificação",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "unidade": "Unidade",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-08",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-756894-4dr",
+      "item": "Sapato antiderrapante (EPI)",
+      "fonte": "",
+      "grupo": "Equipamentos de Segurança",
+      "marca": "SoftwWorks",
+      "unidade": "UN",
+      "custoBase": 56.8,
+      "propostas": [
+        {
+          "data": "2026-04-13",
+          "preco": 72.14,
+          "edital": "242925",
+          "escola": "EE IVAN MATTAR SOUKEF",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-15",
+          "preco": 73.84,
+          "edital": "248249",
+          "escola": "EE BRASIL",
+          "resultado": "pendente"
+        }
+      ],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-13",
+      "precoReferencia": 73.84,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-611563-jy3",
+      "item": "Coador de café reutilizável",
+      "fonte": "",
+      "grupo": "Utensílios de Cozinha",
+      "unidade": "UN",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-13",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-611564-2ya",
+      "item": "Lustra móveis",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "marca": "nobre",
+      "unidade": "UN",
+      "custoBase": 5.71,
+      "propostas": [
+        {
+          "data": "2026-04-15",
+          "preco": 7.42,
+          "edital": "248249",
+          "escola": "EE BRASIL",
+          "resultado": "pendente"
+        }
+      ],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-15",
+      "precoReferencia": 7.42,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-611564-uof",
+      "item": "Panelas diversos tamanhos",
+      "fonte": "",
+      "grupo": "Utensílios de Cozinha",
+      "unidade": "UN",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-13",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-611565-4vr",
+      "item": "Prato plástico descartável",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "unidade": "UN",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-13",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-611566-kze",
+      "item": "Colher plástica descartável",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "unidade": "UN",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-13",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-611568-zea",
+      "item": "Bota de PVC (EPI)",
+      "fonte": "",
+      "grupo": "Equipamentos de Segurança",
+      "marca": "softworks",
+      "unidade": "Unidade",
+      "custoBase": 48.9,
+      "propostas": [
+        {
+          "data": "2026-04-15",
+          "preco": 58.68,
+          "edital": "248249",
+          "escola": "EE BRASIL",
+          "resultado": "pendente"
+        }
+      ],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-15",
+      "precoReferencia": 63.57,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-611569-900",
+      "item": "Espanador de pó",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "unidade": "Unidade",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-13",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-611569-k4b",
+      "item": "Vasilhame com tampa para acondicionamento de alimentos",
+      "fonte": "",
+      "grupo": "Utensílios de Cozinha",
+      "unidade": "Unidade",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-13",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-611570-j6c",
+      "item": "Canecão diversos tamanhos",
+      "fonte": "",
+      "grupo": "Utensílios de Cozinha",
+      "unidade": "Unidade",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-13",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-971053-hbh",
+      "item": "Lixeira",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "marca": "nobre",
+      "unidade": "Unidade",
+      "custoBase": 187.6,
+      "propostas": [
+        {
+          "data": "2026-04-13",
+          "preco": 24.05,
+          "edital": "248704",
+          "escola": "EE DR LINDOLFO BERNARDES",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-15",
+          "preco": 59.17,
+          "edital": "248249",
+          "escola": "EE BRASIL",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-15",
+          "preco": 243.88,
+          "edital": "248249",
+          "escola": "EE BRASIL",
+          "resultado": "pendente"
+        }
+      ],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-15",
+      "precoReferencia": 243.88,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-040421-1k7",
+      "item": "Uniformes para cantineiras e epi's",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "marca": "própria",
+      "unidade": "UN",
+      "custoBase": 19.96,
+      "propostas": [
+        {
+          "data": "2026-04-13",
+          "preco": 43.55,
+          "edital": "242888",
+          "escola": "EE IVAN MATTAR SOUKEF",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-13",
+          "preco": 43.55,
+          "edital": "242888",
+          "escola": "EE IVAN MATTAR SOUKEF",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-13",
+          "preco": 97.5,
+          "edital": "242888",
+          "escola": "EE IVAN MATTAR SOUKEF",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-13",
+          "preco": 97.5,
+          "edital": "242888",
+          "escola": "EE IVAN MATTAR SOUKEF",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-13",
+          "preco": 91,
+          "edital": "242888",
+          "escola": "EE IVAN MATTAR SOUKEF",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-13",
+          "preco": 25.95,
+          "edital": "242888",
+          "escola": "EE IVAN MATTAR SOUKEF",
+          "resultado": "pendente"
+        }
+      ],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-13",
+      "precoReferencia": 25.95,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-883209-r4d",
+      "item": "Tampa para vaso sanitário",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "marca": "Tampasul",
+      "unidade": "Unidade",
+      "custoBase": 24.49,
+      "propostas": [
+        {
+          "data": "2026-04-15",
+          "preco": 31.84,
+          "edital": "248249",
+          "escola": "EE BRASIL",
+          "resultado": "pendente"
+        }
+      ],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-15",
+      "precoReferencia": 31.84,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-669940-412",
+      "item": "Armário baixo",
+      "fonte": "",
+      "grupo": "Mobiliários Administrativos",
+      "marca": "NOBRE",
+      "unidade": "Unidade",
+      "custoBase": 299.94,
+      "propostas": [
+        {
+          "data": "2026-04-19",
+          "preco": 764.21,
+          "edital": "259718",
+          "escola": "EE CORONEL JOSE AFONSO DE ALMEIDA",
+          "resultado": "pendente"
+        },
+        {
+          "data": "2026-04-19",
+          "preco": 389.92,
+          "edital": "259857",
+          "escola": "EE CORONEL JOSE AFONSO DE ALMEIDA",
+          "resultado": "pendente"
+        }
+      ],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-19",
+      "precoReferencia": 389.92,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-669941-gc6",
+      "item": "Gaveteiro",
+      "fonte": "",
+      "grupo": "Mobiliários Administrativos",
+      "unidade": "Unidade",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-16",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-669945-fwk",
+      "item": "Prendedor de roupa",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "marca": "TRADICIONAL",
+      "unidade": "Pacote",
+      "custoBase": 3.4,
+      "propostas": [
+        {
+          "data": "2026-04-19",
+          "preco": 4.42,
+          "edital": "260821",
+          "escola": "EE DOM PEDRO II",
+          "resultado": "pendente"
+        }
+      ],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-19",
+      "precoReferencia": 4.42,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-814398-cz2",
+      "item": "Descascador de legumes",
+      "fonte": "",
+      "grupo": "Utensílios de Cozinha",
+      "unidade": "UN",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-16",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-814399-uhv",
+      "item": "Refil de tinta para marcador de quadro branco",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "unidade": "CX",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-16",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-065292-eej",
+      "item": "Livro para acervo bibliográfico",
+      "fonte": "",
+      "grupo": "Material Pedagógico",
+      "unidade": "Unidade",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-16",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-065297-wo7",
+      "item": "Colchonetes",
+      "fonte": "",
+      "grupo": "Material Pedagógico",
+      "unidade": "UN",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-16",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-180244-jr8",
+      "item": "Bastão de cola quente",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "unidade": "Unidade",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-16",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-180246-1cu",
+      "item": "Pasta suspensa em cartão, completa, com visor e etiqueta",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "unidade": "CX",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-16",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-180247-asj",
+      "item": "Pistola de cola quente",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "unidade": "Unidade",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-16",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-180248-5mw",
+      "item": "Régua",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "unidade": "Unidade",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-16",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-180249-uud",
+      "item": "Cadernos brochura",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "unidade": "Unidade",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-16",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-180250-4sz",
+      "item": "Balão de látex",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "unidade": "Pacote",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-16",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-180250-m4u",
+      "item": "Capa encadernação",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "unidade": "Pacote",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-16",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-180251-eth",
+      "item": "Corretivo em fita",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "unidade": "CX",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-16",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-180251-1qi",
+      "item": "Barbante",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "unidade": "Unidade",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-16",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-180253-2mf",
+      "item": "Borracha escolar",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "unidade": "CX",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-16",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-180254-75e",
+      "item": "Marcador de texto",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "unidade": "CX",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-16",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-180255-0dt",
+      "item": "Elástico lastex",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "unidade": "Pacote",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-16",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-253813-f89",
+      "item": "Grampo trilho para pasta suspensa",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "unidade": "Pacote",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-16",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-253814-cat",
+      "item": "Fio de nylon",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "unidade": "Pacote",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-16",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-253824-lfn",
+      "item": "Percevejo",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "unidade": "CX",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-16",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-253825-rt8",
+      "item": "Perfurador de papel",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "unidade": "Unidade",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-16",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-253832-pvo",
+      "item": "Tinta guache",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "unidade": "Pacote",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-16",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-253833-96t",
+      "item": "Papelão",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "unidade": "Pacote",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-16",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-253834-t9p",
+      "item": "Post-it",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "unidade": "Pacote",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-16",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-302492-80y",
+      "item": "Sirene escolar eletrônica",
+      "fonte": "",
+      "grupo": "Equipamentos Tecnológicos",
+      "unidade": "Unidade",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-16",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-302495-l5b",
+      "item": "Almofada para carimbo",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "unidade": "UN",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-16",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-302496-b8i",
+      "item": "Bola esportiva",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "unidade": "UN",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-16",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-302502-nr1",
+      "item": "Grampeador",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "unidade": "UN",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-16",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-302503-von",
+      "item": "Cartucho de tinta para impressora",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "unidade": "UN",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-16",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-302503-0m6",
+      "item": "Espiral",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "unidade": "UN",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-16",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-425485-6is",
+      "item": "Lã de aço",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "marca": "BOMBRIL",
+      "unidade": "Fardo",
+      "custoBase": 11.4,
+      "propostas": [
+        {
+          "data": "2026-04-19",
+          "preco": 14.82,
+          "edital": "260821",
+          "escola": "EE DOM PEDRO II",
+          "resultado": "pendente"
+        }
+      ],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-19",
+      "precoReferencia": 14.82,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-425486-cvi",
+      "item": "Amaciante de roupas",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "marca": "URCA",
+      "unidade": "Unidade",
+      "custoBase": 6.29,
+      "propostas": [
+        {
+          "data": "2026-04-19",
+          "preco": 8.18,
+          "edital": "260821",
+          "escola": "EE DOM PEDRO II",
+          "resultado": "pendente"
+        }
+      ],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-19",
+      "precoReferencia": 8.18,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-425486-m49",
+      "item": "Creme dental",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "marca": "SORRISO",
+      "unidade": "Unidade",
+      "custoBase": 5.9,
+      "propostas": [
+        {
+          "data": "2026-04-19",
+          "preco": 7.67,
+          "edital": "260821",
+          "escola": "EE DOM PEDRO II",
+          "resultado": "pendente"
+        }
+      ],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-19",
+      "precoReferencia": 7.67,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-425489-xre",
+      "item": "Pilhas e baterias recarregáveis",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "marca": "elin",
+      "unidade": "Unidade",
+      "custoBase": 1.75,
+      "propostas": [
+        {
+          "data": "2026-04-19",
+          "preco": 2.28,
+          "edital": "260821",
+          "escola": "EE DOM PEDRO II",
+          "resultado": "pendente"
+        }
+      ],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-19",
+      "precoReferencia": 2.28,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-425491-0af",
+      "item": "Palito de churrasco",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "marca": "parana",
+      "unidade": "Pacote",
+      "custoBase": 6.5,
+      "propostas": [
+        {
+          "data": "2026-04-19",
+          "preco": 8.45,
+          "edital": "260821",
+          "escola": "EE DOM PEDRO II",
+          "resultado": "pendente"
+        }
+      ],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-04-19",
+      "precoReferencia": 8.45,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-764611-vjd",
+      "item": "Rede para pratica de esportes",
+      "fonte": "",
+      "grupo": "Material Pedagógico",
+      "marca": "REDSPORT",
+      "unidade": "PAR",
+      "custoBase": 289.43,
+      "propostas": [
+        {
+          "data": "2026-05-12",
+          "preco": 415.33,
+          "edital": "280548",
+          "escola": "EE ARMANDO SANTOS",
+          "resultado": "pendente"
+        }
+      ],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-05-12",
+      "precoReferencia": 376.26,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-513005-vit",
+      "item": "Lâmpada LED quadrada de sobrepor",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "unidade": "Unidade",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-05-12",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-513007-1ae",
+      "item": "Raquete",
+      "fonte": "",
+      "grupo": "Material Pedagógico",
+      "marca": "vollo",
+      "unidade": "UN",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-05-12",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-513010-k9q",
+      "item": "Massa de modelar",
+      "fonte": "",
+      "grupo": "Material Pedagógico",
+      "unidade": "Unidade",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-05-12",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-513024-guk",
+      "item": "Papel quadriculado",
+      "fonte": "",
+      "grupo": "Material Pedagógico",
+      "unidade": "Pacote",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-05-12",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-513032-8bq",
+      "item": "Papel cartão",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "unidade": "Pacote",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-05-12",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-513035-lt1",
+      "item": "Papel colorsete",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "unidade": "Pacote",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-05-12",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-513038-byf",
+      "item": "Caneta",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "unidade": "CX",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-05-12",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-008736-5jw",
+      "item": "Iogurte de vaca sabores variados",
+      "fonte": "",
+      "grupo": "Gêneros Alimentícios",
+      "unidade": "UN",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-05-15",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-008737-pud",
+      "item": "Queijo",
+      "fonte": "",
+      "grupo": "Gêneros Alimentícios",
+      "unidade": "KG",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-05-15",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-008739-rb5",
+      "item": "Banana prata",
+      "fonte": "",
+      "grupo": "Gêneros Alimentícios",
+      "unidade": "KG",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-05-15",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-008741-00n",
+      "item": "Limão tahiti",
+      "fonte": "",
+      "grupo": "Gêneros Alimentícios",
+      "unidade": "KG",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-05-15",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-008743-tpu",
+      "item": "Maçã nacional",
+      "fonte": "",
+      "grupo": "Gêneros Alimentícios",
+      "unidade": "KG",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-05-15",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-008744-asj",
+      "item": "Alface",
+      "fonte": "",
+      "grupo": "Gêneros Alimentícios",
+      "unidade": "UN",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-05-15",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-008745-luo",
+      "item": "Cheiro verde",
+      "fonte": "",
+      "grupo": "Gêneros Alimentícios",
+      "unidade": "UN",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-05-15",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-008746-2t6",
+      "item": "Couve",
+      "fonte": "",
+      "grupo": "Gêneros Alimentícios",
+      "unidade": "UN",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-05-15",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-008748-024",
+      "item": "Beterraba",
+      "fonte": "",
+      "grupo": "Gêneros Alimentícios",
+      "unidade": "KG",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-05-15",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-008750-yj6",
+      "item": "Mandioca - aipim - macaxeira descascada",
+      "fonte": "",
+      "grupo": "Gêneros Alimentícios",
+      "unidade": "KG",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-05-15",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-008751-pj9",
+      "item": "Alho descascado",
+      "fonte": "",
+      "grupo": "Gêneros Alimentícios",
+      "unidade": "KG",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-05-15",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-008753-v3k",
+      "item": "Abóbora japonesa - cabotia",
+      "fonte": "",
+      "grupo": "Gêneros Alimentícios",
+      "unidade": "KG",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-05-15",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-008754-nfc",
+      "item": "Abobrinha menina brasileira",
+      "fonte": "",
+      "grupo": "Gêneros Alimentícios",
+      "unidade": "KG",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-05-15",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-008759-9r2",
+      "item": "Carne bovina músculo em cubos e iscas",
+      "fonte": "",
+      "grupo": "Gêneros Alimentícios",
+      "unidade": "KG",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-05-15",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-008760-rd7",
+      "item": "Carne suína pernil",
+      "fonte": "",
+      "grupo": "Gêneros Alimentícios",
+      "unidade": "KG",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-05-15",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-008762-m62",
+      "item": "Filé de peixe - tilápia",
+      "fonte": "",
+      "grupo": "Gêneros Alimentícios",
+      "unidade": "KG",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-05-15",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-008764-i8p",
+      "item": "Carne de frango - pedacos",
+      "fonte": "",
+      "grupo": "Gêneros Alimentícios",
+      "unidade": "KG",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-05-15",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-008765-vl5",
+      "item": "Cacau em pó 100%",
+      "fonte": "",
+      "grupo": "Gêneros Alimentícios",
+      "unidade": "Pacote",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-05-15",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-008766-ph9",
+      "item": "Margarina",
+      "fonte": "",
+      "grupo": "Gêneros Alimentícios",
+      "unidade": "Unidade",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-05-15",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-008768-599",
+      "item": "Polpa de fruta para suco",
+      "fonte": "",
+      "grupo": "Gêneros Alimentícios",
+      "unidade": "UN",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-05-15",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-008769-6ht",
+      "item": "Farinha de mandioca",
+      "fonte": "",
+      "grupo": "Gêneros Alimentícios",
+      "unidade": "Pacote",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-05-15",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-008773-q0z",
+      "item": "Canjiquinha",
+      "fonte": "",
+      "grupo": "Gêneros Alimentícios",
+      "unidade": "KG",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-05-15",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-008776-tf2",
+      "item": "Feijão preto",
+      "fonte": "",
+      "grupo": "Gêneros Alimentícios",
+      "unidade": "KG",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-05-15",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-008778-xm0",
+      "item": "Macarrão espaguete",
+      "fonte": "",
+      "grupo": "Gêneros Alimentícios",
+      "unidade": "KG",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-05-15",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-008792-fry",
+      "item": "Papel A4 - caixa 10 resmas",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "unidade": "CX",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-05-15",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-008793-hcm",
+      "item": "Cilindro de impressora",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "unidade": "Unidade",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-05-15",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-008797-yru",
+      "item": "Iogurte garrafa",
+      "fonte": "",
+      "grupo": "Gêneros Alimentícios",
+      "unidade": "L",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-05-15",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    },
+    {
+      "id": "bp-008798-8n8",
+      "item": "Filtro bebedouro",
+      "fonte": "",
+      "grupo": "Material de Consumo Geral",
+      "unidade": "Unidade",
+      "custoBase": 0,
+      "propostas": [],
+      "concorrentes": [],
+      "margemPadrao": 0.3,
+      "ultimaCotacao": "2026-05-15",
+      "precoReferencia": 0,
+      "custosFornecedor": []
+    }
+  ],
+  "updatedAt": "2026-05-15"
+}
