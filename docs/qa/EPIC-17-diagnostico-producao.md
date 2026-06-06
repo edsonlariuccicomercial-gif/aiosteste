@@ -236,3 +236,191 @@ COMMIT;  -- ou ROLLBACK se algo inesperado
 ---
 
 *Story 17.0 — @data-engineer Dara. Diagnóstico de código concluído; aguardando execução das queries pelo stakeholder.*
+
+---
+
+## ATUALIZAÇÃO 2026-06-06 (pós-deploy 17.3) — Resíduo de dados do EPIC-16 descoberto
+
+**O diagnóstico "banco íntegro" estava INCOMPLETO.** Após o deploy da 17.3, novos dados de console revelaram:
+
+| Navegador | Lançamentos | Saldo |
+|-----------|-------------|-------|
+| Edson | **186** (= banco) | R$ 8.002,58 |
+| Angela (correto) | 147 | R$ 10.949,40 |
+
+**Inversão da premissa:** o Edson não tinha cache defasado — ele tinha o banco COMPLETO (186). A Angela tem cache PARCIAL (147), mas o saldo dela (R$ 10.949,40) é o que o stakeholder considera **correto**.
+
+**Causa identificada:** `186 - 147 = 39` lançamentos a mais no banco. Provável **resíduo da Story 16.1** (`_registrarLancamentoCaixaVinculado`), que criava lançamentos em `conciliacoes` ao dar baixa em CR/CP. O rollback de código (17.3) **removeu a função** (confirmado: 0 ocorrências no código atual) — então parou de gerar novos —, **mas os 39 já gravados permanecem no banco** (rollback de código não apaga dados).
+
+**Decisão do stakeholder:** os 147 da Angela são corretos → os 39 extras são lixo a remover. @data-engineer deve LISTAR os 39 para revisão antes de qualquer DELETE.
+
+### ⚠️ Correção de schema (validado pela migration 018)
+
+`conciliacoes.vinculado_a` é **JSONB DEFAULT `'{}'`** (NÃO null). Logo `vinculado_a IS NOT NULL` retornaria TODAS as linhas — query errada. O filtro correto é `vinculado_a->>'contaId' IS NOT NULL`. NÃO existe coluna `origem` em `conciliacoes` (apenas `metadata` JSONB). Os lançamentos da 16.1 tinham `vinculadoA: {contaId, tipo}` → persistido em `vinculado_a`.
+
+### Queries de DIAGNÓSTICO (read-only) — Edson executa no SQL Editor
+
+> Provar a hipótese por múltiplos ângulos ANTES de qualquer DELETE.
+
+```sql
+-- D1) Contagem por dia de criação — isola o "pico" do dia do EPIC-16 (2026-06-06)
+SELECT created_at::date AS dia, count(*) AS qtd
+FROM conciliacoes
+WHERE empresa_id = 'LARIUCCI'
+GROUP BY dia
+ORDER BY dia DESC;
+
+-- D2) Lançamentos VINCULADOS (criados pela Story 16.1 ao dar baixa em CR/CP) — contagem
+SELECT count(*) AS com_vinculo
+FROM conciliacoes
+WHERE empresa_id = 'LARIUCCI'
+  AND vinculado_a->>'contaId' IS NOT NULL;
+
+-- D3) LISTA dos lançamentos vinculados (os principais suspeitos) — revisar
+SELECT id, data, descricao, valor, tipo,
+       vinculado_a->>'tipo' AS vinc_tipo,
+       vinculado_a->>'contaId' AS vinc_conta,
+       created_at
+FROM conciliacoes
+WHERE empresa_id = 'LARIUCCI'
+  AND vinculado_a->>'contaId' IS NOT NULL
+ORDER BY created_at DESC;
+
+-- D4) Lançamentos criados HOJE (dia do EPIC-16) independente de vínculo
+SELECT count(*) AS criados_em_0606
+FROM conciliacoes
+WHERE empresa_id = 'LARIUCCI'
+  AND created_at::date = '2026-06-06';
+```
+
+**Como interpretar (validação cruzada):**
+- Se **D2 ≈ 39** E **D4 ≈ 39** E **D1 mostra pico em 2026-06-06** → hipótese CONFIRMADA: os extras são os vinculados criados pela 16.1 hoje. Seguro deletar os vinculados.
+- Se os números **NÃO baterem** (ex.: D2=5 mas faltam 39) → a causa é outra; investigar antes de deletar. NÃO assumir.
+
+### Verificação da Angela (antes de assumir banco−39 = Angela)
+
+No console do navegador da Angela:
+```javascript
+var conc = (JSON.parse(localStorage.getItem('gdp.conciliacao.v1')||'{}').items||[]);
+console.log('total Angela:', conc.length);
+console.log('vinculados no cache Angela:', conc.filter(i => i.vinculadoA && i.vinculadoA.contaId).length);
+```
+Se a Angela tem **0 vinculados** e 147 itens, e o banco tem 147 não-vinculados + 39 vinculados = 186, a conta fecha perfeitamente.
+
+### Plano de LIMPEZA — Passo 2 (SÓ após D2/D4 confirmarem ≈39)
+
+> ⚠️ ESCREVE. Exige **snapshot Supabase imediatamente antes** (@devops). Executar em transação.
+
+```sql
+-- Pré-checagem (read-only): exatamente o que será deletado
+SELECT count(*) FROM conciliacoes
+WHERE empresa_id = 'LARIUCCI' AND vinculado_a->>'contaId' IS NOT NULL;
+
+-- DELETE seguro (após snapshot):
+BEGIN;
+DELETE FROM conciliacoes
+WHERE empresa_id = 'LARIUCCI'
+  AND vinculado_a->>'contaId' IS NOT NULL;
+-- conferir contagem restante ANTES de confirmar:
+-- SELECT count(*) FROM conciliacoes WHERE empresa_id = 'LARIUCCI';  -- deve dar ~147
+COMMIT;  -- ou ROLLBACK se o número não bater
+```
+
+**Pós-limpeza:** Edson e Angela recarregam (hard reload) → ambos veem 147 e saldo R$ 10.949,40.
+
+⚠️ **Ressalva de integridade:** este DELETE remove o vínculo caixa↔conta criado pela 16.1. As contas CR/CP em si NÃO são tocadas (tabelas separadas). Se no futuro o EPIC-16 voltar (corrigido), os lançamentos serão recriados pela baixa — sem duplicar, pois a função era idempotente por `vinculadoA`.
+
+---
+
+## ATUALIZAÇÃO 2026-06-06 (v2) — Hipótese do "lixo" REFUTADA → decisão de RESET
+
+**Dado decisivo do console da Angela:** `total: 186 | vinculados: 25`.
+
+Isso **refuta** a hipótese anterior (39 lançamentos lixo):
+- A Angela também tem **186** lançamentos no cache (não 147). Os dois navegadores têm os MESMOS dados.
+- Só **25** são vinculados (não 39). Deletar vinculados NÃO resolveria a diferença de saldo e apagaria dados legítimos.
+- A diferença 147/R$10.949 (Angela) vs 186/R$8.002 (Edson) é de **cálculo/filtro/versão de código no cliente**, não de quantidade de dados.
+
+**Contexto histórico do stakeholder (crítico):** o caixa NUNCA persistiu/sincronizou bem desde os primeiros lançamentos; dados se perdem sozinhos; foram feitos VÁRIOS ajustes manuais de valor para bater com o banco. → O caixa está **historicamente corrompido**. Não há "verdade" recuperável nos 186 — é acúmulo de inconsistências + ajustes.
+
+### Decisão do stakeholder (2026-06-06)
+
+- **Abordagem:** RESET + recomeço limpo do caixa.
+- **Fonte da verdade:** saldo REAL da conta bancária.
+- **Escopo:** zerar `conciliacoes` (186) + `extratos`. **NÃO tocar** `contas_receber`, `contas_pagar`, `pedidos`.
+- **Saldo inicial:** **R$ 10.949,40 com data de referência 02/06/2026** (saldo real da conta bancária informado pelo stakeholder).
+
+### Plano de RESET — execução segura
+
+**Pré-requisitos:**
+1. **Snapshot Supabase** imediatamente antes (@devops).
+2. Saldo real do banco + data de referência (stakeholder).
+
+**Passo A — Arquivar (segurança extra antes de apagar):**
+```sql
+-- Backup dos lançamentos antes do reset (caso precise consultar depois)
+CREATE TABLE IF NOT EXISTS conciliacoes_arquivo_20260606 AS
+  SELECT * FROM conciliacoes WHERE empresa_id = 'LARIUCCI';
+CREATE TABLE IF NOT EXISTS extratos_arquivo_20260606 AS
+  SELECT * FROM extratos WHERE empresa_id = 'LARIUCCI';
+SELECT count(*) FROM conciliacoes_arquivo_20260606;  -- deve dar 186
+```
+
+**Passo B — Reset do caixa (em transação, após snapshot + arquivo):**
+```sql
+BEGIN;
+DELETE FROM conciliacoes WHERE empresa_id = 'LARIUCCI';
+DELETE FROM extratos     WHERE empresa_id = 'LARIUCCI';
+-- conferir zerado:
+-- SELECT count(*) FROM conciliacoes WHERE empresa_id='LARIUCCI'; -- deve dar 0
+COMMIT;  -- ou ROLLBACK
+```
+
+**Passo C — Saldo inicial (client-side, NÃO é tabela conciliacoes):**
+Valor definido: **R$ 10.949,40 (ref. 02/06/2026)**. Vem de `localStorage['nexedu.config.contas-bancarias']` (campo `saldo_inicial`). Definir na conta padrão de cada navegador. (A sincronização desse saldo entre navegadores é a Story 17.4 — pendente; por ora, definir manualmente em cada navegador.)
+
+⚠️ **Atenção à data 02/06:** o saldo é de 02/06, mas hoje é 06/06. Se houve movimentações bancárias REAIS entre 02/06 e 06/06 (entradas/saídas no banco), elas precisarão ser lançadas no caixa após o reset para o saldo bater com o banco atual. Confirmar com o stakeholder: o saldo de 02/06 é o saldo atual do banco, ou houve movimento depois?
+
+**Passo D — Limpar caches locais (todos os navegadores):**
+Cada navegador (Edson, Angela, demais) faz hard reload OU roda no console:
+```javascript
+localStorage.removeItem('gdp.conciliacao.v1');
+localStorage.removeItem('gdp.conciliacao.deleted.v1');
+localStorage.removeItem('gdp.extratos.v1');
+localStorage.removeItem('gdp.extratos.deleted.v1');
+localStorage.removeItem('gdp.caixa.extrato.v1');
+location.reload();
+```
+Após isso, o caixa recarrega vazio do banco (0 lançamentos) + saldo inicial = saldo do banco. Todos veem o mesmo.
+
+### ⚠️ Limitação conhecida (honestidade técnica)
+
+O RESET resolve o ESTADO atual (caixa limpo e consistente hoje). MAS a **causa-raiz da não-persistência/dessincronização continua no código** — se nada mudar, o caixa voltará a divergir com o uso. O reset é necessário mas NÃO suficiente.
+
+### 🔑 DECISÃO FINAL DE SEQUÊNCIA (stakeholder, 2026-06-06)
+
+**Corrigir a persistência ANTES do reset.** O stakeholder vai reconciliar o extrato de 02/06→hoje após o reset; se a persistência ainda falhar, esse trabalho se perderia. Portanto a ordem é:
+
+```
+FASE 1 — CÓDIGO (persistência): investigar e corrigir a causa-raiz de o caixa
+         não persistir/sincronizar. Deploy. Validar que um lançamento sobrevive
+         a reload + aparece em outro navegador.
+   ↓
+FASE 2 — DADOS (reset): snapshot → arquivar 186 → DELETE conciliacoes+extratos
+         → saldo inicial R$ 10.949,40 (02/06) → limpar cache dos navegadores.
+   ↓
+FASE 3 — RECONCILIAÇÃO (stakeholder): importar extrato bancário 02/06→hoje
+         e conciliar. Caixa passa a refletir a realidade, sobre base confiável.
+```
+
+**Marco zero confirmado:** R$ 10.949,40 em 02/06/2026.
+
+### Próximo passo: investigar a causa-raiz da NÃO-PERSISTÊNCIA (Fase 1)
+
+Esta investigação é de **código/aplicação** (fora do escopo de database). Pistas já levantadas para o @analyst/@dev:
+- `loadConciliacao` / `saveConciliacao` (gdp-core.js): como persiste e quando sincroniza.
+- `gdpApi.conciliacoes` (gdp-api.js): merge Supabase↔localStorage, a SAFETY que pode mascarar perdas.
+- Boot merge (gdp-init.js `_tableMap` + `_mergeTable`): `[...mergedRemote, ...localOnly]` pode reintroduzir itens deletados OU descartar locais.
+- Tombstone `gdp.conciliacao.deleted.v1`: deletes que reaparecem ou somem.
+- Realtime `handleEntityChange`: já tem dirty-window; verificar interação com conciliacoes.
+- **Diferença 147 vs 186 com mesmos dados**: provável FILTRO de período no `renderCaixa`/`getCaixaResumo` OU versão de JS diferente entre navegadores — confirmar.

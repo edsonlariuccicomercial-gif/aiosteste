@@ -200,15 +200,27 @@ O saldo inicial da conta deve ser propriedade da empresa, sincronizado, não por
 
 ---
 
-## Sequenciamento Recomendado
+## Sequenciamento Recomendado (REVISADO após diagnóstico real)
+
+O diagnóstico (17.0) e a investigação de persistência (brief causa-raiz) revisaram o épico:
+- 17.0 ✅ Done (banco unificado em LARIUCCI; sem migração de empresa_id necessária).
+- 17.1, 17.2 ❌ CANCELADAS (empresa_id já unificado — não é a causa).
+- 17.3 ✅ Done (fonte única + filtro empresa_id defensivo; deployada).
+- **Fase 1 real = 17.5 + 17.6 + 17.7** (correção de persistência — causa-raiz verdadeira).
 
 ```
-17.0 (diagnóstico, BLOQUEANTE)
-   └─► 17.1 (empresa_id código)
-          └─► 17.2 (migração de dados, snapshot antes)
-                 └─► 17.3 (fonte única + backfill)
-                        └─► 17.4 (saldo inicial sync)
+FASE 1 (código): 17.5 (saldo inicial sync) ║ 17.6 (tombstone sync) ║ 17.7 (convergência cache)
+   └─► FASE 2: RESET (marco zero 02/06 = R$10.949,40; zera conciliacoes+extratos, backup antes)
+          └─► FASE 3: stakeholder reconcilia extrato 02/06→hoje
 ```
+
+## Stories da Fase 1 (Persistência — causa-raiz)
+
+| Story | Resolve | Executor | Risco |
+|-------|---------|----------|-------|
+| **17.5** — Saldo inicial sincronizado | FR-A (saldo diverge por navegador) | @data-engineer + @dev | MÉDIO (tabela nova) |
+| **17.6** — Tombstone de exclusão sincronizado | FR-B (contagem 147 vs 186) | @data-engineer + @dev | MÉDIO |
+| **17.7** — Convergência de cache no boot | FR-C (dados somem/divergem) | @dev | MÉDIO |
 
 ## Requisitos Não-Funcionais
 

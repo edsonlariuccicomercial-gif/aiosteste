@@ -89,23 +89,25 @@
   // Map localStorage camelCase items to Supabase snake_case columns
   var TABLE_COLS = {
     contratos: ['id','empresa_id','escola','processo','edital','objeto','status','fornecedor','vigencia','observacoes','data_apuracao','itens','cliente_snapshot','escola_cliente_id','dados_extras','deleted_at','created_at','updated_at'],
-    pedidos: ['id','empresa_id','contrato_id','escola','data','status','valor','obs','itens','fiscal','cliente','pagamento','marcador','audit','dados_extras','created_at','updated_at'],
+    pedidos: ['id','empresa_id','contrato_id','escola','data','data_prevista','status','valor','obs','itens','fiscal','cliente','pagamento','marcador','audit','dados_extras','created_at','updated_at'],
     notas_fiscais: ['id','empresa_id','pedido_id','contrato_id','numero','serie','valor','status','tipo_nota','origem','emitida_em','vencimento','cliente','itens','sefaz','cobranca','documentos','parametros','integracoes','xml_autorizado','chave_acesso','protocolo','audit','created_at','updated_at'],
     clientes: ['id','empresa_id','nome','cnpj','ie','uf','cep','sre','email','telefone','endereco','contratos_vinculados','login','senha','municipio','responsavel','cargo','contribuinte_icms','categoria_catalogo','arp_vinculada','saldo_total','saldo_disponivel','dados_extras','created_at','updated_at'],
     contas_receber: ['id','empresa_id','pedido_id','origem_id','descricao','valor','status','forma','categoria','vencimento','cliente','cobranca','automacao','audit','created_at','updated_at'],
     contas_pagar: ['id','empresa_id','descricao','valor','status','forma','categoria','vencimento','fornecedor','audit','created_at','updated_at'],
     entregas: ['id','empresa_id','pedido_id','escola','data_entrega','status_entrega','recebedor','obs','foto','assinatura','created_at','updated_at'],
     extratos: ['id','empresa_id','data','arquivo','conta_financeira','conciliados','total','is_open','criado_em','created_at','updated_at'],
-    conciliacoes: ['id','empresa_id','extrato_id','data','descricao','valor','tipo','conciliado','conciliado_em','vinculado_a','historico','categoria_dre','metadata','created_at','updated_at'],
+    conciliacoes: ['id','empresa_id','extrato_id','data','descricao','valor','tipo','conciliado','conciliado_em','vinculado_a','historico','categoria_dre','metadata','deleted_at','created_at','updated_at'],
+    caixa_config: ['empresa_id','saldo_inicial','saldo_inicial_data','metadata','created_at','updated_at'],
     produtos: ['id','empresa_id','descricao','sku','ncm','unidade','marca','grupo','produto_critico','unidade_base','embalagens','custo_base','preco_referencia','margem_alvo','fonte','created_at','updated_at']
   };
   var CAMEL_TO_SNAKE = {
     escolaClienteId:'escola_cliente_id', contratoId:'contrato_id', pedidoId:'pedido_id', origemId:'origem_id',
     tipoNota:'tipo_nota', emitidaEm:'emitida_em', clienteSnapshot:'cliente_snapshot',
-    dataApuracao:'data_apuracao', dataEntrega:'data_entrega', statusEntrega:'status_entrega',
+    dataPrevista:'data_prevista', dataApuracao:'data_apuracao', dataEntrega:'data_entrega', statusEntrega:'status_entrega',
     xmlAutorizado:'xml_autorizado', chaveAcesso:'chave_acesso',
     contaFinanceira:'conta_financeira', isOpen:'is_open', criadoEm:'criado_em',
-    extratoId:'extrato_id', conciliadoEm:'conciliado_em', vinculadoA:'vinculado_a', categoriaDre:'categoria_dre',
+    extratoId:'extrato_id', conciliadoEm:'conciliado_em', vinculadoA:'vinculado_a', categoriaDre:'categoria_dre', deletedAt:'deleted_at',
+    saldoInicial:'saldo_inicial', saldoInicialData:'saldo_inicial_data',
     nomeFantasia:'nome_fantasia', razaoSocial:'razao_social',
     categoriaCatalogo:'categoria_catalogo', arpVinculada:'arp_vinculada',
     saldoTotal:'saldo_total', saldoDisponivel:'saldo_disponivel', contribuinteIcms:'contribuinte_icms'
@@ -395,6 +397,48 @@
   }
 
   // --- public API ---
+  // Story 17.5: caixa_config — saldo inicial sincronizado (1 linha por empresa_id).
+  // PK = empresa_id (não 'id'), então usa helper dedicado em vez da factory CRUD.
+  var CAIXA_CONFIG_LS = 'gdp.caixa-config.v1';
+  var caixaConfigApi = {
+    // Lê do Supabase; cai no cache local; nunca lança.
+    get: async function () {
+      var emp = getEmpresaId();
+      var rows = await sbFetch('/caixa_config?empresa_id=eq.' + encodeURIComponent(emp) + '&limit=1');
+      if (rows && Array.isArray(rows) && rows.length > 0) {
+        var cfg = mapFromTable(rows[0]);
+        try { localStorage.setItem(CAIXA_CONFIG_LS, JSON.stringify(cfg)); } catch (_) {}
+        return cfg;
+      }
+      // Fallback: cache local (offline ou tabela ainda não migrada)
+      try { return JSON.parse(localStorage.getItem(CAIXA_CONFIG_LS) || 'null'); } catch (_) { return null; }
+    },
+    // Grava saldo inicial (e data) no Supabase + cache local.
+    save: async function (cfg) {
+      cfg = cfg || {};
+      var row = mapToTable('caixa_config', {
+        empresaId: getEmpresaId(),
+        saldoInicial: Number(cfg.saldoInicial || 0),
+        saldoInicialData: cfg.saldoInicialData || null,
+        updatedAt: new Date().toISOString()
+      });
+      row.empresa_id = getEmpresaId();
+      var ok = await sbUpsert('caixa_config', row, 'empresa_id');
+      try { localStorage.setItem(CAIXA_CONFIG_LS, JSON.stringify(mapFromTable(row))); } catch (_) {}
+      return ok;
+    },
+    // Leitura síncrona do cache (para getCaixaResumo, que é síncrono).
+    getCachedSaldoInicial: function () {
+      try {
+        var c = JSON.parse(localStorage.getItem(CAIXA_CONFIG_LS) || 'null');
+        if (c && (c.saldoInicial != null || c.saldo_inicial != null)) {
+          return parseFloat(c.saldoInicial != null ? c.saldoInicial : c.saldo_inicial) || 0;
+        }
+      } catch (_) {}
+      return null; // null = sem valor sincronizado; caller usa fallback local
+    }
+  };
+
   window.gdpApi = {
     contratos:      createEntityApi('contratos'),
     pedidos:        createEntityApi('pedidos'),
@@ -407,6 +451,7 @@
     conciliacoes:   createEntityApi('conciliacoes'),
     produtos:       createEntityApi('produtos'),
     nf_counter:     nfCounterApi,
+    caixaConfig:    caixaConfigApi,
     getEmpresaId:        getEmpresaId,
     setEmpresaContext:   setEmpresaContext,
     isReady:             isReady,

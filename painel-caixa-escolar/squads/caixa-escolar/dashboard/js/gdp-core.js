@@ -2468,7 +2468,10 @@ function loadConciliacao() {
     var raw = JSON.parse(localStorage.getItem(CONCILIACAO_KEY) || "[]");
     // Story 4.62: suporta formato wrapped { items: [] } e array puro
     var items = (raw && raw.items && Array.isArray(raw.items)) ? raw.items : (Array.isArray(raw) ? raw : []);
-    // Story 4.83-fix: filtrar SOMENTE itens cujo próprio ID está na lista de deletados
+    // Story 17.6: soft-delete sincronizado — esconder itens com deletedAt preenchido
+    // (exclusão é vista por todos via Supabase, não mais por tombstone local).
+    items = items.filter(function(i) { return !(i && (i.deletedAt || i.deleted_at)); });
+    // Story 4.83-fix (legado): tombstone local — mantido por compat até o reset (Fase 2).
     // NÃO filtrar por extratoId — itens de conciliação devem permanecer mesmo se extrato foi deletado
     try {
       var _delConc = new Set(JSON.parse(localStorage.getItem('gdp.conciliacao.deleted.v1') || '[]'));
@@ -2477,6 +2480,16 @@ function loadConciliacao() {
       }
     } catch(_) {}
     return items;
+  } catch(_) { return []; }
+}
+
+// Story 17.6: lê a conciliação CRUA do localStorage SEM esconder soft-deletados.
+// Necessário para o soft-delete: ao excluir, marcamos deletedAt no item e precisamos
+// persisti-lo (não removê-lo) para que o Supabase propague a exclusão a todos.
+function loadConciliacaoRaw() {
+  try {
+    var raw = JSON.parse(localStorage.getItem(CONCILIACAO_KEY) || "[]");
+    return (raw && raw.items && Array.isArray(raw.items)) ? raw.items : (Array.isArray(raw) ? raw : []);
   } catch(_) { return []; }
 }
 

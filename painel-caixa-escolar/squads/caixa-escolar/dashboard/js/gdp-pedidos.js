@@ -2032,13 +2032,26 @@ function getCaixaResumo() {
   const saidas = items.filter((item) => Number(item.valor || 0) < 0).reduce((sum, item) => sum + Math.abs(Number(item.valor || 0)), 0);
   const conciliados = items.filter((item) => item.conciliado || item.conciliacao?.matched).length;
   const pendentes = items.length - conciliados;
-  // Story 4.60 AC-5: somar saldo inicial da conta bancária
+  // Story 17.5: saldo inicial SINCRONIZADO (caixa_config no Supabase, scoped empresa_id).
+  // Fonte única para todos os navegadores. Fallback (AC4): se ainda não há valor
+  // sincronizado, usa o saldo_inicial local de nexedu.config.contas-bancarias como seed.
   let saldoInicial = 0;
+  let _synced = null;
   try {
-    const contas = JSON.parse(localStorage.getItem("nexedu.config.contas-bancarias") || "[]");
-    const padrao = contas.find(c => c.padrao && c.ativa) || contas.find(c => c.ativa) || contas[0];
-    if (padrao && padrao.saldo_inicial) saldoInicial = parseFloat(padrao.saldo_inicial) || 0;
+    if (window.gdpApi && window.gdpApi.caixaConfig && typeof gdpApi.caixaConfig.getCachedSaldoInicial === 'function') {
+      _synced = gdpApi.caixaConfig.getCachedSaldoInicial();
+    }
   } catch(_) {}
+  if (_synced != null) {
+    saldoInicial = _synced;
+  } else {
+    // Fallback local (compat / antes do primeiro sync)
+    try {
+      const contas = JSON.parse(localStorage.getItem("nexedu.config.contas-bancarias") || "[]");
+      const padrao = contas.find(c => c.padrao && c.ativa) || contas.find(c => c.ativa) || contas[0];
+      if (padrao && padrao.saldo_inicial) saldoInicial = parseFloat(padrao.saldo_inicial) || 0;
+    } catch(_) {}
+  }
   return { entradas, saidas, saldo: saldoInicial + entradas - saidas, saldoInicial, divergencias: pendentes, conciliados, total: items.length, items };
 }
 
@@ -2327,23 +2340,28 @@ window.excluirCaixaLancamentos = function() {
   if (!_selectedCaixaIds.size) return;
   if (!confirm('Excluir ' + _selectedCaixaIds.size + ' lançamento(s) do extrato?')) return;
   const concItems = typeof loadConciliacao === 'function' ? loadConciliacao() : [];
-  // Filtrar por ID real (não por índice)
   const idsToDelete = new Set(_selectedCaixaIds);
-  const delIds = [...idsToDelete];
-  // Story 4.64: rastrear IDs deletados para impedir sync restaurar
-  if (delIds.length > 0) {
-    try {
-      var dk = 'gdp.conciliacao.deleted.v1';
-      var existing = JSON.parse(localStorage.getItem(dk) || '[]');
-      if (!Array.isArray(existing)) existing = [];
-      delIds.forEach(function(id) { if (existing.indexOf(id) < 0) existing.push(id); });
-      localStorage.setItem(dk, JSON.stringify(existing));
-    } catch(_) {}
-  }
-  const remaining = concItems.filter(item => !idsToDelete.has(item.id));
-  if (typeof saveConciliacao === 'function') saveConciliacao(remaining);
+  // Story 17.6: SOFT-DELETE sincronizado — marca deletedAt no item e persiste no Supabase
+  // (gdpApi.conciliacoes.save dentro de saveConciliacao). A exclusão passa a ser vista por
+  // TODOS os usuários, não mais via tombstone gdp.conciliacao.deleted.v1 por-navegador.
+  // loadConciliacao já esconde itens com deletedAt; precisamos persistir o item marcado,
+  // por isso operamos sobre a lista CRUA (não a filtrada).
+  var nowIso = new Date().toISOString();
+  var rawConc = (typeof loadConciliacaoRaw === 'function') ? loadConciliacaoRaw() : concItems;
+  var count = 0;
+  rawConc.forEach(function(item) {
+    if (idsToDelete.has(item.id)) { item.deletedAt = nowIso; count++; }
+  });
+  // Fallback de compatibilidade: também registra no tombstone local (inofensivo; some no reset).
+  try {
+    var dk = 'gdp.conciliacao.deleted.v1';
+    var existing = JSON.parse(localStorage.getItem(dk) || '[]');
+    if (!Array.isArray(existing)) existing = [];
+    [...idsToDelete].forEach(function(id) { if (existing.indexOf(id) < 0) existing.push(id); });
+    localStorage.setItem(dk, JSON.stringify(existing));
+  } catch(_) {}
+  if (typeof saveConciliacao === 'function') saveConciliacao(rawConc);
   if (typeof atualizarExtratoStats === 'function') atualizarExtratoStats();
-  var count = _selectedCaixaIds.size;
   _selectedCaixaIds.clear();
   renderCaixa();
   showToast(count + ' lançamento(s) excluído(s).');

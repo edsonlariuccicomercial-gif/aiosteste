@@ -2918,7 +2918,14 @@ async function enviarTiny(contratoId) {
           let localItems = [];
           try { const raw = JSON.parse(localStorage.getItem(lsKey) || '{}'); localItems = _wrapKeys.has(lsKey) ? (raw.items || []) : (Array.isArray(raw) ? raw : []); } catch(_) {}
           const remoteIds = new Set(filteredRows.map(r => r.id));
-          const localOnly = localItems.filter(item => item.id && !remoteIds.has(item.id) && !deletedIds.has(item.id));
+          // Story 17.7: para o CAIXA (conciliacao), o Supabase é a FONTE ÚNICA — não preservar
+          // itens local-only (evita ressuscitar lançamentos órfãos/antigos que causavam a
+          // divergência histórica). A SAFETY anti-vazio acima já protege contra apagão.
+          // Demais tabelas mantêm o comportamento anterior (preserva local-only recente).
+          const _caixaSingleSource = (lsKey === 'gdp.conciliacao.v1');
+          const localOnly = _caixaSingleSource
+            ? []
+            : localItems.filter(item => item.id && !remoteIds.has(item.id) && !deletedIds.has(item.id));
           const localById = {};
           localItems.forEach(item => { if (item.id) localById[item.id] = item; });
           const msSinceLocalSave = typeof getLastLocalSave === 'function' ? (Date.now() - getLastLocalSave(lsKey)) : Infinity;
@@ -2947,6 +2954,13 @@ async function enviarTiny(contratoId) {
             const localOnly = localClientes.filter(c => c.id && !remoteIds.has(c.id));
             localStorage.setItem('gdp.usuarios.v1', JSON.stringify([...clientes, ...localOnly]));
             anyUpdated = true;
+          }
+        } catch(e) {}
+        // Story 17.5: popular cache do saldo inicial sincronizado (caixa_config) no boot
+        try {
+          if (gdpApi.caixaConfig && typeof gdpApi.caixaConfig.get === 'function') {
+            const _cfg = await gdpApi.caixaConfig.get();
+            if (_cfg) anyUpdated = true;
           }
         } catch(e) {}
         // Re-render silencioso se houve dados novos do Supabase
