@@ -1100,32 +1100,7 @@ function loadData() {
     }
 
     // Migrar itens órfãos (sem extratoId) para extrato existente
-    // Story 16.2 (AC3): se há órfãos mas NENHUM extrato disponível (ex.: extrato foi
-    // deletado, então a reconstrução acima foi pulada), criar um extrato de recuperação
-    // dedicado para acolhê-los. Sem isso, os órfãos ficam invisíveis na aba Conciliação
-    // por extrato e aparecem como "pendência fantasma" que não pode ser reconciliada.
     var _orphans = _concItems.filter(function(i) { return !i.extratoId; });
-    if (_orphans.length > 0 && _bootExtratos.length === 0) {
-      var _orphanContaBancaria = 'Conta Principal';
-      try {
-        var _oc = JSON.parse(localStorage.getItem('nexedu.config.contas-bancarias') || '[]');
-        var _op = _oc.find(function(c) { return c.padrao && c.ativa; }) || _oc[0];
-        if (_op) _orphanContaBancaria = (_op.banco || '') + (_op.apelido ? ' (' + _op.apelido + ')' : '') || 'Conta Principal';
-      } catch(_) {}
-      var _orphanExtId = 'ext-recovered-' + Date.now();
-      _bootExtratos.push({
-        id: _orphanExtId,
-        data: _orphans.reduce(function(min, i) { return i.data && i.data < min ? i.data : min; }, _orphans[0].data || new Date().toISOString().slice(0, 10)),
-        arquivo: 'Extrato recuperado (itens órfãos)',
-        contaFinanceira: _orphanContaBancaria,
-        conciliados: _orphans.filter(function(i) { return i.conciliado; }).length,
-        total: _orphans.length,
-        isOpen: false,
-        criadoEm: new Date().toISOString()
-      });
-      saveExtratos(_bootExtratos);
-      gdpLog('[boot] Created recovery extrato for ' + _orphans.length + ' orphan items (extratos previously deleted)');
-    }
     if (_orphans.length > 0 && _bootExtratos.length > 0) {
       var _targetExt = _bootExtratos[0];
       _orphans.forEach(function(i) { i.extratoId = _targetExt.id; });
@@ -1369,11 +1344,6 @@ function registrarContratoExcluido(contrato) {
 }
 function savePedidos() {
   pedidos = pedidos.map(sanitizePedidoLegacyData);
-  // Story 16.3 (B1/B2): carimbar updated_at/updatedAt SÍNCRONO antes de salvar.
-  // Sem isso, o timestamp local fica defasado e o webhook realtime (handleEntityChange)
-  // aceita o registro stale do Supabase (remoteTs > localTs), revertendo a edição.
-  var _nowIso = new Date().toISOString();
-  pedidos.forEach(function(p) { p.updated_at = _nowIso; p.updatedAt = _nowIso; });
   saveWrappedArray(ORDERS_KEY, pedidos);
   _lastLocalSave[ORDERS_KEY] = Date.now();
   syncPedidosGDPToEstoqueIntel(true);
@@ -2503,14 +2473,7 @@ function loadConciliacao() {
     try {
       var _delConc = new Set(JSON.parse(localStorage.getItem('gdp.conciliacao.deleted.v1') || '[]'));
       if (_delConc.size > 0) {
-        // Story 16.2 (A1): itens VINCULADOS (vinculadoA) são imunes ao tombstone — foram
-        // criados por baixa de CR/CP e só podem sair via estorno (que limpa o vínculo antes).
-        // Isso evita que um delete antigo/órfão reaplicado pelo cloud sync faça o lançamento
-        // conciliado "sumir" do caixa.
-        items = items.filter(function(i) {
-          if (i.vinculadoA && i.vinculadoA.contaId) return true;
-          return !(i.id && _delConc.has(i.id));
-        });
+        items = items.filter(function(i) { return !(i.id && _delConc.has(i.id)); });
       }
     } catch(_) {}
     return items;

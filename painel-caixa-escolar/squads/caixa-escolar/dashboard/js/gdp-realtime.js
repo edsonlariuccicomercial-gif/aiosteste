@@ -139,6 +139,15 @@
   }
 
   function handleEntityChange(table, type, record, oldRecord) {
+    // Story 17.3 (defensivo): descartar eventos de realtime de OUTRO empresa_id.
+    // Hoje o banco é unificado (tudo LARIUCCI), mas isto previne regressão futura:
+    // sem o filtro, um INSERT/UPDATE de outra empresa seria empurrado cego para o
+    // cache local (items.push), misturando caixas de tenants diferentes.
+    if (typeof getEmpresaId === 'function' && record && record.empresa_id != null) {
+      try {
+        if (String(record.empresa_id) !== String(getEmpresaId())) return false;
+      } catch (_) {}
+    }
     // Dirty window protection: if local save happened in last 5s, only accept
     // INSERT and DELETE events — skip UPDATE to prevent overwriting in-flight data.
     // This prevents the race condition where Supabase sends stale data before
@@ -161,16 +170,22 @@
       if (!exists) { items.push(record); changed = true; }
     } else if (type === 'UPDATE') {
       if (isDirty) {
-        // Story 16.3 (B1/B2): durante a dirty window, o item local acabou de ser editado
-        // pelo usuário. NÃO sobrescrever item que já existe localmente — o webhook costuma
-        // ser o eco do próprio save (possivelmente stale) e sobrescrevê-lo reverte a edição
-        // (status/dataPrevista/faturado). Itens NOVOS (de outra máquina) ainda entram.
+        // During dirty window, only update if the record already exists locally
+        // and the Supabase record is newer. Otherwise skip to protect local data.
         var localIdx = -1;
         for (var k = 0; k < items.length; k++) {
           if (items[k].id === record.id) { localIdx = k; break; }
         }
-        // Se já existe localmente: proteger a edição recente — skip overwrite.
-        // Se não existe: é registro novo de outra origem — adicionar.
+        if (localIdx >= 0) {
+          var localTs = items[localIdx].updated_at || items[localIdx].updatedAt || '';
+          var remoteTs = record.updated_at || record.updatedAt || '';
+          if (remoteTs && localTs && remoteTs > localTs) {
+            items[localIdx] = record;
+            changed = true;
+          }
+          // else: local is newer or same — skip overwrite
+        }
+        // If record not found locally during dirty window, add it (new from another machine)
         if (localIdx < 0) { items.push(record); changed = true; }
       } else {
         var found = false;
