@@ -26,6 +26,18 @@ function savePreOrcamentos() {
 }
 
 function loadBancoLocal() {
+  // ADR-002 Fase 3: quando a SSoT unificada (ProductStore) está disponível, bancoPrecos
+  // passa a ser uma VIEW dela (asBancoPrecos) — fonte única. Fallback: chave legada.
+  try {
+    if (typeof window !== 'undefined' && window.ProductStore && window.ProductStore.asBancoPrecos) {
+      if (window.ProductStore.migrarParaSSoT) { try { window.ProductStore.migrarParaSSoT(); } catch (_) {} }
+      const view = window.ProductStore.asBancoPrecos();
+      if (view && Array.isArray(view.itens) && view.itens.length) {
+        bancoPrecos = view;
+        return true;
+      }
+    }
+  } catch (_) { /* cai no fallback legado */ }
   try {
     const raw = localStorage.getItem(BANCO_STORAGE_KEY);
     if (raw) {

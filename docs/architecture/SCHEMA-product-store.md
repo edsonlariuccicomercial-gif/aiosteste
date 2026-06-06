@@ -178,9 +178,15 @@ Dúvidas de schema/migração → @data-engineer. Push/deploy → @devops.
 |------|--------|----------|
 | Fase 0 — backup + auditoria | ✅ FEITO | `docs/architecture/data-snapshots/2026-06-06T00-00-00/` (4 chaves + manifest) |
 | Fase 1 — módulo core + testes | ✅ FEITO | `server-lib/product-store-core.js` + `tests/product-store-core.test.js` (14) + `tests/product-store-migration.test.js` (3, dados reais) |
-| Fase 2 — wiring da migração no browser | ⏳ PENDENTE | precisa twin browser + `migrarParaSSoT()` com persistência localStorage/Supabase + backup automático |
-| Fase 3 — telas consomem o módulo | ⏳ PENDENTE | GDP / Radar(bancoPrecos) / centralProdutos |
-| Fase 4 — aposentar bases legadas | ⏳ PENDENTE | remover das SYNC_KEYS após estabilização |
+| Fase 2 — wiring da migração no browser | ✅ FEITO | `product-store.js` (wrapper localStorage/Supabase) + `product-store-core.browser.js` (twin) + `migrarParaSSoT()` idempotente c/ backup + gate; testes `product-store-wrapper.test.js` (9) + `product-store-sync.test.js` (1) |
+| Fase 3 — telas consomem o módulo | ✅ FEITO | `gdp-banco-produtos.js` (Central GDP) e `app.js`/`loadBancoLocal` (Radar/bancoPrecos) delegam ao ProductStore; scripts carregados em `gdp-contratos.html` + `index.html` |
+| Fase 4 — aposentar bases legadas | ✅ PARCIAL | `saveBancoProdutos` roteia escrita pela SSoT; chaves legadas mantidas read-only durante transição (remover das SYNC_KEYS após estabilização em produção) |
+
+### Validação de integração (boot real do GDP com dados de produção)
+SSoT 270 → migração APLICADA → **457 produtos** consolidados | gate OK (0 id nulo/sku dup/sem desc)
+| backup criado | idempotente (2ª chamada = already_done) | asBancoPrecos expõe os 457 ao Radar.
+
+**Total de testes:** 182 passando (16 arquivos). Twin em sync (guard anti-drift).
 
 ### Resultado da consolidação (validado contra dados reais de produção)
 - Entrada: 270 (SSoT) + 256 (banco) + 386 (intel) + 201 (estoque) = 1113 itens brutos

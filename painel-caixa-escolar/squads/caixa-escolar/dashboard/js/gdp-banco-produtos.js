@@ -76,7 +76,20 @@ function loadBancoProdutos() {
   // Story 8.2: Auto-migrar Banco de Preços na primeira carga
   if (!_centralLoaded) {
     _centralLoaded = true;
-    try { migrarBancoPrecoParaCentral(); } catch(_) {}
+    // ADR-002 Fase 3: se o ProductStore (SSoT unificada) está disponível, consolida as
+    // 4 bases legadas uma vez. A migração é idempotente, com backup e gate de validação.
+    if (typeof window !== 'undefined' && window.ProductStore && window.ProductStore.migrarParaSSoT) {
+      try {
+        const r = window.ProductStore.migrarParaSSoT();
+        if (r && r.applied) {
+          // recarrega bancoProdutos a partir da SSoT consolidada
+          bancoProdutos = { updatedAt: new Date().toISOString(), itens: window.ProductStore.list() };
+        }
+      } catch (e) { if (typeof gdpWarn === 'function') gdpWarn('[Central] migração SSoT falhou', e.message); }
+    } else {
+      // Fallback legado: migração antiga Banco→Central (pré-ProductStore)
+      try { migrarBancoPrecoParaCentral(); } catch(_) {}
+    }
   }
 }
 
@@ -84,7 +97,12 @@ function saveBancoProdutos() {
   bancoProdutos.itens = (bancoProdutos.itens || []).map(sanitizeBancoProduto);
   bancoProdutos.updatedAt = new Date().toISOString();
   try {
+    // ADR-002 Fase 3/4: grava na SSoT via ProductStore quando disponível (mesma chave
+    // gdp.produtos.v1). Mantém o setItem direto como fallback se o store não carregou.
     localStorage.setItem(PRODUTOS_KEY, JSON.stringify(bancoProdutos));
+    if (typeof window !== 'undefined' && window.ProductStore && window.ProductStore.reload) {
+      try { window.ProductStore.reload(); } catch (_) {}
+    }
   } catch (e) {
     console.error("[GDP] Falha ao salvar Banco de Produtos:", e);
     showToast("Erro ao salvar produto — localStorage cheio?", 4000);

@@ -2625,7 +2625,11 @@ function confirmarImportProd() {
 <script src="./js/gdp-pedidos.js?v=19"></script>
 <script src="./js/gdp-usuarios.js?v=12"></script>
 <!-- gdp-entregas.js removido (Épico A - FR-016) -->
-<script src="./js/gdp-banco-produtos.js?v=11"></script>
+<!-- ADR-002 Fase 3: SSoT unificada de produtos (carregar ANTES de gdp-banco-produtos) -->
+<script src="./server-lib/radar-matcher-core.browser.js?v=3"></script>
+<script src="./server-lib/product-store-core.browser.js?v=1"></script>
+<script src="./product-store.js?v=1"></script>
+<script src="./js/gdp-banco-produtos.js?v=12"></script>
 <script src="./js/gdp-init.js?v=23"></script>
 
 
