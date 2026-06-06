@@ -328,6 +328,21 @@ COMMIT;  -- ou ROLLBACK se o número não bater
 
 **Pós-limpeza:** Edson e Angela recarregam (hard reload) → ambos veem 147 e saldo R$ 10.949,40.
 
+---
+
+## ✅ FASE 2 (RESET) EXECUTADA — 2026-06-06
+
+- **Passo A (arquivar):** `conciliacoes_arquivo_20260606` = **186 linhas** ✅; `extratos_arquivo_20260606` = 0 (não havia extratos vinculados — coerente com o problema de órfãos).
+- **Passo B (reset):** DELETE em transação. Verificação pós: `conc_restantes = 0`, `extr_restantes = 0` ✅. COMMIT confirmado.
+- **Passo C (saldo inicial):** já em `caixa_config` (R$ 10.949,40 / 02-06) via seed da migration 028 — nada a fazer.
+- **Passo D (cache local):** stakeholder limpa localStorage (gdp.conciliacao*/gdp.extratos*/gdp.caixa.extrato) + reload em cada navegador.
+
+**Estado final esperado:** caixa zerado (0 lançamentos), saldo = R$ 10.949,40, IGUAL em todos os navegadores.
+**Backup:** os 186 lançamentos originais preservados em `conciliacoes_arquivo_20260606` (consulta/restauração futura se necessário).
+
+## ➡️ FASE 3 (pendente — stakeholder)
+Importar o extrato bancário de **02/06 → hoje** e conciliar, registrando as entradas/saídas reais sobre a base limpa e confiável. Agora a persistência (Fase 1) garante que esse trabalho sincroniza para todos e não se perde.
+
 ⚠️ **Ressalva de integridade:** este DELETE remove o vínculo caixa↔conta criado pela 16.1. As contas CR/CP em si NÃO são tocadas (tabelas separadas). Se no futuro o EPIC-16 voltar (corrigido), os lançamentos serão recriados pela baixa — sem duplicar, pois a função era idempotente por `vinculadoA`.
 
 ---
