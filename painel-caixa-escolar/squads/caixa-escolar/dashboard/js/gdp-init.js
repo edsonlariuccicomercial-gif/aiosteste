@@ -258,6 +258,8 @@ function registrarBaixaRecebimento(contaId) {
   };
   conta.audit = { ...(conta.audit || {}), updatedAt: new Date().toISOString(), updatedBy: getAuditActor(), baixaManualAt: conta.recebidaEm };
   saveContasReceber();
+  // Story 16.1 (A3): baixa manual gera lançamento vinculado no caixa.
+  _registrarLancamentoCaixaVinculado(conta, 'cr', dataBaixa);
   queueGdpIntegration("conta_receber", "registrar_recebimento", conta.id, {
     contaReceberId: conta.id,
     valor: conta.valor,
@@ -335,6 +337,8 @@ function bulkReceberContas() {
       conta.status = "recebida";
       conta.recebidaEm = `${dataBaixa}T12:00:00`;
       conta.audit = { ...(conta.audit || {}), updatedAt: new Date().toISOString(), updatedBy: getAuditActor(), baixaManualAt: conta.recebidaEm };
+      // Story 16.1 (A3): cada baixa em massa também gera lançamento vinculado no caixa.
+      _registrarLancamentoCaixaVinculado(conta, 'cr', dataBaixa);
       count++;
     }
   });
@@ -670,6 +674,38 @@ function _desvincularConciliacao(contaId, tipo) {
   }
 }
 
+// Story 16.1: cria (ou atualiza) o lançamento no Caixa vinculado a uma conta CR/CP.
+// Fonte única do caixa = loadConciliacao(); criar aqui faz o lançamento aparecer no caixa
+// e alimentar DRE/Fluxo/Categoria. O vínculo (vinculadoA) habilita o estorno obrigatório.
+function _registrarLancamentoCaixaVinculado(conta, tipo, dataBaixa) {
+  if (typeof loadConciliacao !== 'function' || typeof saveConciliacao !== 'function') return;
+  const items = loadConciliacao();
+  // Idempotência: se já existe lançamento vinculado a esta conta, não duplica.
+  if (items.some(i => i.vinculadoA && i.vinculadoA.contaId === conta.id && i.vinculadoA.tipo === tipo)) return;
+  const valorAbs = Math.abs(Number(conta.valor || 0));
+  // CR = crédito (entrada, valor positivo); CP = débito (saída, valor negativo).
+  const valor = tipo === 'cr' ? valorAbs : -valorAbs;
+  const data = (dataBaixa || new Date().toISOString().slice(0, 10)).slice(0, 10);
+  const novo = {
+    id: 'conc-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8),
+    data: data,
+    descricao: conta.descricao || '',
+    historico: conta.descricao || '',
+    valor: valor,
+    tipo: tipo === 'cr' ? 'credito' : 'debito',
+    conciliado: true,
+    conciliadoEm: new Date().toISOString(),
+    categoriaDre: conta.categoria || '',
+    vinculadoA: { contaId: conta.id, tipo: tipo },
+    origem: tipo === 'cr' ? 'baixa_cr' : 'baixa_cp',
+    criadoEm: new Date().toISOString()
+  };
+  items.push(novo);
+  saveConciliacao(items);
+  if (typeof atualizarExtratoStats === 'function') atualizarExtratoStats();
+  if (typeof renderCaixa === 'function') renderCaixa();
+}
+
 function desvincularConciliacaoCr(contaId) {
   const conta = contasReceber.find((item) => item.id === contaId);
   if (!conta) return;
@@ -776,6 +812,8 @@ function registrarBaixaContaPagar(contaId) {
   conta.pagaEm = `${dataBaixa}T12:00:00`;
   conta.audit = { ...(conta.audit || {}), updatedAt: new Date().toISOString(), updatedBy: getAuditActor(), baixaManualAt: conta.pagaEm };
   saveContasPagar();
+  // Story 16.1 (A3): baixa manual gera lançamento vinculado no caixa.
+  _registrarLancamentoCaixaVinculado(conta, 'cp', dataBaixa);
   renderContasPagar();
   showToast(`Conta a pagar "${conta.descricao}" baixada.`, 3000);
 }
@@ -855,6 +893,8 @@ function bulkBaixarContasPagar() {
       conta.status = "paga";
       conta.pagaEm = `${dataBaixa}T12:00:00`;
       conta.audit = { ...(conta.audit || {}), updatedAt: new Date().toISOString(), updatedBy: getAuditActor(), baixaManualAt: conta.pagaEm };
+      // Story 16.1 (A3): baixa em massa de CP também gera lançamento vinculado no caixa.
+      _registrarLancamentoCaixaVinculado(conta, 'cp', dataBaixa);
       count++;
     }
   });
@@ -3232,6 +3272,10 @@ function salvarEditarProduto(produtoId) {
   produto.origem = document.getElementById("edit-prod-origem")?.value || "0";
   const editTipoEl = document.querySelector('input[name="edit-prod-tipo"]:checked');
   produto.produto_critico = editTipoEl ? editTipoEl.value === "critico" : false;
+  // Story 8.23 AC3: Normalize unidade_base — if not critico, g/ml must become UN
+  if (!produto.produto_critico && (produto.unidade_base === "g" || produto.unidade_base === "ml")) {
+    produto.unidade_base = "UN";
+  }
   produto.preco_custo = parseFloat(document.getElementById("edit-prod-preco-custo")?.value) || 0;
   produto.preco_referencia = parseFloat(document.getElementById("edit-prod-preco-ref")?.value) || 0;
   saveEstoqueIntelProdutos();

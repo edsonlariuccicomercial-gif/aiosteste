@@ -2111,13 +2111,23 @@ function renderCaixa() {
         const conciliado = item.conciliado || item.conciliacao?.matched;
         const cat = item.categoriaDre || "";
         const itemId = item.id || ('cx-' + idx);
+        // Story 16.1 (AC6): lançamentos vinculados a CR/CP exibem APENAS "Estornar"
+        // (sem checkbox de exclusão); lançamentos manuais mantêm o checkbox normal.
+        const vinculado = !!(item.vinculadoA && item.vinculadoA.contaId);
+        const checkboxCell = vinculado
+          ? '<td class="text-center" title="Lançamento vinculado: use Estornar">🔗</td>'
+          : `<td class="text-center"><input type="checkbox" class="caixa-check" value="${itemId}" data-idx="${idx}" onchange="atualizarSelecaoCaixa()"${_selectedCaixaIds.has(itemId) ? ' checked' : ''}></td>`;
+        const acaoCell = vinculado
+          ? `<td class="text-center"><button class="btn btn-sm" style="padding:2px 8px;font-size:.72rem;color:var(--yellow,#eab308)" onclick="estornarLancamentoCaixa('${itemId}')">Estornar</button></td>`
+          : '<td class="text-center" style="color:var(--mut)">—</td>';
         return `<tr style="${conciliado ? '' : 'opacity:.7'}">
-          <td class="text-center"><input type="checkbox" class="caixa-check" value="${itemId}" data-idx="${idx}" onchange="atualizarSelecaoCaixa()"${_selectedCaixaIds.has(itemId) ? ' checked' : ''}></td>
+          ${checkboxCell}
           <td class="nowrap">${esc(item.data || "")}</td>
           <td>${esc(item.historico || item.descricao || "-")}</td>
           <td style="font-size:.75rem">${cat ? '<span class="badge badge-muted" style="font-size:.6rem">' + esc(cat) + '</span>' : '<span style="color:var(--mut);font-size:.7rem">Sem categoria</span>'}</td>
           <td><span class="badge ${conciliado ? "badge-green" : "badge-yellow"}">${conciliado ? "Conciliado" : "Pendente"}</span></td>
           <td class="text-right font-mono" style="color:${Number(item.valor || 0) >= 0 ? "var(--green)" : "var(--red)"}">${brl.format(Number(item.valor || 0))}</td>
+          ${acaoCell}
         </tr>`;
       }).join("");
   }
@@ -2133,6 +2143,30 @@ function renderCaixa() {
   // Story 4.60 AC-1: atualizar footer do caixa
   _updateCaixaFooter(items);
 }
+
+// Story 16.1 (AC3/AC7): estorna um lançamento do caixa a partir da própria linha.
+// Reusa os estornos de conta (estornarContaReceber/Pagar), que já devolvem a conta a
+// "pendente" E chamam _desvincularConciliacao() — desfazendo a marca no extrato (AC7).
+// Para lançamentos vinculados, esta é a ÚNICA via de remoção (bloqueio rígido).
+window.estornarLancamentoCaixa = function(lancId) {
+  const concItems = typeof loadConciliacao === 'function' ? loadConciliacao() : [];
+  const item = concItems.find(i => i.id === lancId);
+  if (!item || !item.vinculadoA || !item.vinculadoA.contaId) {
+    showToast('Lançamento sem conta de origem para estornar.', 3500);
+    return;
+  }
+  const { contaId, tipo } = item.vinculadoA;
+  if (tipo === 'cr' && typeof estornarContaReceber === 'function') {
+    estornarContaReceber(contaId);
+  } else if (tipo === 'cp' && typeof estornarContaPagar === 'function') {
+    estornarContaPagar(contaId);
+  } else {
+    showToast('Origem do lançamento não encontrada.', 3500);
+    return;
+  }
+  // estornarConta* já chama _desvincularConciliacao (remove o lançamento do caixa); só re-renderiza.
+  if (typeof renderCaixa === 'function') renderCaixa();
+};
 
 // Story 4.60 AC-1: funções de seleção e exclusão do Caixa
 window.atualizarSelecaoCaixa = function() {
@@ -2321,8 +2355,16 @@ window.editarCaixaLancamento = function() {
 
 window.excluirCaixaLancamentos = function() {
   if (!_selectedCaixaIds.size) return;
-  if (!confirm('Excluir ' + _selectedCaixaIds.size + ' lançamento(s) do extrato?')) return;
   const concItems = typeof loadConciliacao === 'function' ? loadConciliacao() : [];
+  // Story 16.1 (A4/AC2): bloqueio rígido — lançamentos vinculados a CR/CP ou conciliação
+  // NÃO podem ser excluídos diretamente. Exigem estorno prévio da conta de origem.
+  const idsSel = new Set(_selectedCaixaIds);
+  const vinculados = concItems.filter(i => idsSel.has(i.id) && i.vinculadoA && i.vinculadoA.contaId);
+  if (vinculados.length > 0) {
+    showToast('Lançamento(s) vinculado(s) a contas não podem ser excluídos. Use "Estornar" para devolver a conta à pendência.', 5000);
+    return;
+  }
+  if (!confirm('Excluir ' + _selectedCaixaIds.size + ' lançamento(s) do extrato?')) return;
   // Filtrar por ID real (não por índice)
   const idsToDelete = new Set(_selectedCaixaIds);
   const delIds = [...idsToDelete];
@@ -2626,12 +2668,21 @@ function relCatMesNav(dir) {
 }
 function gerarCategorias() {
   var prefix = _relCatMes;
-  var crAtivas = contasReceber.filter(function(c) { return c.status !== 'cancelada'; });
-  var cpAtivas = contasPagar.filter(function(c) { return c.status !== 'cancelada'; });
-  function getMes(item) { return (item.dataEmissao || item.emissao || item.recebidaEm || item.pagaEm || item.vencimento || item.created_at || '').slice(0, 7); }
+  // Story 16.4: REGIME DE CAIXA — o relatório lê dos lançamentos do caixa (loadConciliacao),
+  // refletindo o que EFETIVAMENTE entrou/saiu (baixas de CR/CP, conciliação e lançamentos
+  // manuais), não as contas apenas emitidas. Estornos somem automaticamente (removem o
+  // lançamento). Entrada = valor > 0; Saída = valor < 0.
+  var concItems = typeof loadConciliacao === 'function' ? loadConciliacao() : [];
+  function getMes(item) { return String(item.data || item.dataMovimento || '').slice(0, 7); }
   var entMap = {}, saiMap = {}, totalEnt = 0, totalSai = 0;
-  crAtivas.forEach(function(c) { if (getMes(c) !== prefix) return; var cat = formatCategoriaLabel(c.categoria || 'Sem categoria'); entMap[cat] = (entMap[cat] || 0) + Number(c.valor || 0); totalEnt += Number(c.valor || 0); });
-  cpAtivas.forEach(function(c) { if (getMes(c) !== prefix) return; var cat = formatCategoriaLabel(c.categoria || 'Sem categoria'); saiMap[cat] = (saiMap[cat] || 0) + Number(c.valor || 0); totalSai += Number(c.valor || 0); });
+  concItems.forEach(function(it) {
+    if (getMes(it) !== prefix) return;
+    var v = Number(it.valor || 0);
+    if (v === 0) return;
+    var cat = formatCategoriaLabel(it.categoriaDre || 'Sem categoria');
+    if (v > 0) { entMap[cat] = (entMap[cat] || 0) + v; totalEnt += v; }
+    else { var abs = Math.abs(v); saiMap[cat] = (saiMap[cat] || 0) + abs; totalSai += abs; }
+  });
   function pct(v, t) { return t > 0 ? (v / t * 100).toFixed(2).replace('.', ',') : '0,00'; }
   var html = '<table style="width:100%;border-collapse:collapse;font-size:.85rem">';
   html += '<thead><tr style="border-bottom:2px solid var(--bdr)"><th style="padding:6px 12px;text-align:left">Categoria</th><th style="padding:6px 12px;text-align:right">Valor</th><th style="padding:6px 12px;text-align:right">%</th></tr></thead><tbody>';
