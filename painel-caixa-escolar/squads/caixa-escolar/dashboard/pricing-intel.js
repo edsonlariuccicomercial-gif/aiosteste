@@ -724,10 +724,14 @@ window.renderPendentes = function () {
     return;
   }
 
+  // SKU interno auto-gerado (BANK-/PROD-/LICT-) é ruído na busca — esconde do label.
+  // SKUs externos reais (Tiny/ERP/numéricos) continuam visíveis pois têm significado.
+  const isInternalSku = (sku) => /^(BANK|PROD|LICT)-/i.test(String(sku || ""));
   const produtos = (bancoPrecos.itens || []).filter(p => p.item).sort((a, b) => (a.item || "").localeCompare(b.item || ""));
-  const optionsHtml = '<option value="">— Selecione —</option>' + produtos.map(p =>
-    `<option value="${p.sku || p.id}">${p.item}${p.sku ? ' [' + p.sku + ']' : ''}</option>`
-  ).join("");
+  const optionsHtml = '<option value="">— Selecione —</option>' + produtos.map(p => {
+    const mostrarSku = p.sku && !isInternalSku(p.sku);
+    return `<option value="${p.sku || p.id}">${p.item}${mostrarSku ? ' [' + p.sku + ']' : ''}</option>`;
+  }).join("");
 
   const margemDefault = (perfil.config ? perfil.config.margemPadrao || 0.30 : 0.30) * 100;
 

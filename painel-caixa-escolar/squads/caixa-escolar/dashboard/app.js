@@ -929,7 +929,12 @@ function renderModalAssociacao(orc) {
   document.getElementById("assoc-escola").textContent = orc.escola + " — " + orc.municipio;
   // Build product options from banco
   const produtos = (bancoPrecos.itens || []).filter(p => p.item).sort((a, b) => (a.item || "").localeCompare(b.item || ""));
-  const optionsHtml = '<option value="">— Selecione um produto —</option>' + produtos.map(p => `<option value="${p.sku || p.id}" data-custo="${p.custoBase || 0}" data-preco="${p.precoReferencia || 0}">${p.item}${p.sku ? ' [' + p.sku + ']' : ''}</option>`).join("");
+  // Esconde SKU interno auto-gerado (BANK-/PROD-/LICT-) do label; mantém SKU externo real.
+  const isInternalSku = (sku) => /^(BANK|PROD|LICT)-/i.test(String(sku || ""));
+  const optionsHtml = '<option value="">— Selecione um produto —</option>' + produtos.map(p => {
+    const mostrarSku = p.sku && !isInternalSku(p.sku);
+    return `<option value="${p.sku || p.id}" data-custo="${p.custoBase || 0}" data-preco="${p.precoReferencia || 0}">${p.item}${mostrarSku ? ' [' + p.sku + ']' : ''}</option>`;
+  }).join("");
 
   document.getElementById("tbody-associacao").innerHTML = _assocItens.map((item, i) => {
     const statusBadge = item.bpId && item.custoBase > 0
