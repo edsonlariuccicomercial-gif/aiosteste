@@ -288,7 +288,19 @@
 
   function handleChange(table, type, record, oldRecord) {
     var relevantRecord = record || oldRecord;
-    if (!isOurRecord(relevantRecord, table)) return;
+    // Story 17.8: eventos DELETE entregam old_record SOMENTE com a primary key
+    // (sem empresa_id), mesmo com REPLICA IDENTITY FULL — limitação do Supabase Realtime.
+    // O filtro server-side da subscription (subscribeToTables: 'empresa_id=eq.'+empresaId)
+    // JÁ garante que só chegam eventos do tenant correto. Portanto, no DELETE só barramos
+    // quando o empresa_id vier PREENCHIDO e divergente (defesa cross-tenant); se vier
+    // ausente (PK-only), confiamos no filtro do servidor e processamos a remoção.
+    if (type === 'DELETE') {
+      var col = (table === 'sync_data') ? 'user_id' : 'empresa_id';
+      var tenant = (relevantRecord && relevantRecord[col] != null) ? relevantRecord[col] : null;
+      if (tenant != null && String(tenant) !== String(getEmpresaId())) return;
+    } else if (!isOurRecord(relevantRecord, table)) {
+      return;
+    }
 
     var changed = false;
 
