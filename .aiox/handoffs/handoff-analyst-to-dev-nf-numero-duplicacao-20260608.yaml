@@ -1,0 +1,94 @@
+handoff:
+  from_agent: "analyst"
+  to_agent: "dev"
+  timestamp: "2026-06-08"
+  last_command: "*investigate-bug nf-numero-duplicacao"
+  consumed: false
+
+  story_context:
+    story_id: "BUG-NF-NUMERO-DUPLICACAO"
+    story_path: "docs/stories/ (a criar)"
+    story_status: "Diagnosed — ready for fix"
+    current_task: "Corrigir numeração e duplicação de NF-e no módulo GDP"
+    branch: "master"
+    module: "GDP / Notas Fiscais"
+    main_file: "painel-caixa-escolar/squads/caixa-escolar/dashboard/js/gdp-notas-fiscais.js"
+
+  problem_summary: |
+    Três bugs confirmados na geração/transmissão de NF-e no módulo GDP, todos
+    com a mesma raiz: o número da nota e a cobrança são alocados de forma
+    OTIMISTA na criação do rascunho, em vez de serem confirmados pela autorização
+    da SEFAZ. O rollback em caso de falha é incompleto (counter não decrementa,
+    cobrança órfã não é removida), desalinhando a sequência e duplicando registros.
+
+  evidence:
+    - "Imagem do usuário: PED-20260602-8547 com DUAS notas nº 1501 — uma 'Revise a transmissão' (integração vermelha) e outra 'liberada pela SEFAZ'."
+    - "Relato: preview mostra 1507, gera 1506, mas o número correto seria 1505."
+    - "Relato: fechar e reabrir o pedido + clicar 'Gerar NF' pula um número na sequência."
+    - "Relato: falha de transmissão por NCM gerou nota duplicada + 2 cobranças idênticas."
+
+  bugs:
+    - id: "BUG-1"
+      titulo: "Número consumido duas vezes (off-by-one + número pula)"
+      causa: |
+        consumirProximoNumeroNf() é chamado na CRIAÇÃO do rascunho (linha 943-944),
+        incrementando localStorage 'gdp.nf-counter' e o Supabase (linha 621-623).
+        Mas o preview no topo usa peekProximoNumeroNf() (linhas 969, 979), que não
+        reflete o consumo. Ao fechar o pedido, o rascunho é descartado (917-919),
+        mas o counter já incrementou e NÃO faz rollback → próximo clique pula número.
+        Pior: _getNumerosAutorizados() (553-557) só lê NFs 'autorizada' do localStorage,
+        confiando no counter persistido em vez do maior número REALMENTE autorizado pela SEFAZ.
+      linhas: ["943-944", "969", "979", "1224-1226", "553-557", "621-623"]
+    - id: "BUG-2"
+      titulo: "NF duplicada após falha de transmissão (caso NCM)"
+      causa: |
+        No catch da transmissão (1386-1390) a NF é só marcada 'rejeitada', NÃO removida.
+        Ao regerar, cria-se nova NF (917-919), mas o registro rejeitado/parcial permanece
+        → dois registros para o mesmo pedido. cStat 539 (duplicidade) é tratado como
+        'rejeitada' (1282-1285), confirmando número desalinhado já visto pela SEFAZ.
+      linhas: ["1386-1390", "917-919", "1282-1285"]
+    - id: "BUG-3"
+      titulo: "Duas cobranças idênticas"
+      causa: |
+        A cobrança (receivable) é criada incondicionalmente na criação do rascunho
+        (949-951), antes de saber se a SEFAZ autoriza. Ao regerar, a NF rejeitada é
+        removida (918) mas a cobrança vinculada NÃO é removida → cobrança órfã + nova.
+      linhas: ["949-951", "918"]
+
+  root_cause: |
+    Número e cobrança são alocados na criação do rascunho (otimista), mas a fonte
+    da verdade deveria ser a SEFAZ na autorização. Rollback incompleto deixa lixo
+    e desalinha a sequência a cada erro.
+
+  recommended_fixes:
+    - id: "FIX-1"
+      desc: "NÃO consumir número na criação — só peek para preview. Consumir UMA única vez na transmissão, idealmente após autorização SEFAZ."
+      onde: "Remover linhas 943-944; manter consumo em 1224-1226"
+    - id: "FIX-2"
+      desc: "Após autorização, gravar nf.numero a partir do número que a SEFAZ retornou (result.parsed / chave de acesso), não do counter local."
+      onde: "linha 1289"
+    - id: "FIX-3"
+      desc: "Re-sincronizar counter pelo maior número autorizado REAL (local + Supabase), não confiar em config.proximoNumero adiantado."
+      onde: "peekProximoNumeroNf / _getNumeroMinimo (562-564, 585-602)"
+    - id: "FIX-4"
+      desc: "Criar a cobrança SOMENTE após autorização SEFAZ — mover de 949-951 para dentro do bloco if (result.parsed?.autorizado) em 1320."
+      onde: "949-951 → 1320"
+    - id: "FIX-5"
+      desc: "No regenerar, remover também a cobrança órfã vinculada à NF rejeitada."
+      onde: "917-919"
+    - id: "FIX-6"
+      desc: "Guard de idempotência: bloquear clique duplo em 'Gerar NF' enquanto há transmissão em andamento para o pedido."
+      onde: "início de gerarNotaFiscalPedido (908)"
+
+  immediate_manual_action:
+    - "Excluir a nota 1501 com status 'Revise a transmissão' (a rejeitada) em PED-20260602-8547; manter a 'liberada pela SEFAZ'."
+    - "Excluir a cobrança duplicada vinculada a ela em Contas a Receber."
+    - "Confirmar o último número REALMENTE autorizado na SEFAZ e realinhar com setProximoNumeroNf(<numero_real+1>) (linha 638)."
+
+  files_to_modify:
+    - "painel-caixa-escolar/squads/caixa-escolar/dashboard/js/gdp-notas-fiscais.js"
+
+  blockers:
+    - "Validar o comportamento real da API /api/gdp-integrations (action nfe-sefaz-emitir) — confirmar qual campo de result.parsed traz o número/chave autorizados pela SEFAZ antes de implementar FIX-2."
+
+  next_action: "@dev: implementar FIX-1..FIX-6 via Story Development Cycle. Antes, considerar criar story numerada via @sm. Testar cenário de falha de NCM e clique duplo."

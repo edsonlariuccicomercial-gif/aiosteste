@@ -1,6 +1,10 @@
 // ===== GDP NOTAS FISCAIS MODULE =====
 // Extracted from gdp-contratos.html — NF-e, SEFAZ, DANFE, cobranças
 
+// Story 16.5 AC8: lock de idempotência por pedido — bloqueia clique duplo em
+// "Gerar NF" / transmissão enquanto uma operação está em andamento para o pedido.
+var _nfOpsEmAndamento = {};
+
 // Retry helper: salva NF no Supabase com 3 tentativas
 async function _saveNfToSupabaseWithRetry(nfData, maxRetries) {
   var retries = maxRetries || 3;
@@ -549,6 +553,18 @@ async function sincronizarCobrancaProvider(contaId) {
 // Isso preenche lacunas automaticamente (ex: 1434, 1437).
 // ============================================================
 
+// Story 16.5 FIX-2: extrai o nNF embutido na chave de acesso NF-e (chNFe).
+// Layout (44 díg.): cUF(2) AAMM(4) CNPJ(14) mod(2) serie(3) nNF(9) tpEmis(1) cNF(8) cDV(1).
+// O nNF ocupa as posições 26-34 (índices 25..34, base 0). Retorna número (sem zeros à esquerda)
+// ou "" se a chave for inválida.
+function extrairNumeroDaChaveNfe(chave) {
+  var ch = String(chave || "").replace(/\D/g, "");
+  if (ch.length !== 44) return "";
+  var nNF = ch.slice(25, 34);
+  var num = parseInt(nNF, 10);
+  return (num && num > 0) ? String(num) : "";
+}
+
 // Retorna Set de números já usados por NFs AUTORIZADAS
 function _getNumerosAutorizados() {
   try {
@@ -557,19 +573,24 @@ function _getNumerosAutorizados() {
   } catch(_) { return new Set(); }
 }
 
-// Retorna o piso mínimo para busca de número livre
+// Retorna o piso mínimo para busca de número livre.
+// Story 16.5 FIX-3: o piso é ancorado no MAIOR número REALMENTE autorizado (fonte
+// da verdade SEFAZ) e no counter local — NÃO no config.proximoNumero, que pode estar
+// adiantado e causava off-by-one entre preview (peek) e consumo. config.proximoNumero
+// só é honrado quando NÃO fica abaixo desse piso real. Mesma lógica de peekProximoNumeroNf
+// para garantir que preview == número consumido.
 function _getNumeroMinimo() {
-  var nfConfig = JSON.parse(localStorage.getItem("nexedu.config.notas-fiscais") || "{}");
-  var configNum = parseInt(nfConfig.proximoNumero, 10);
-  if (configNum && configNum > 0) return configNum;
-  // Fallback: max existente + 1 ou counter local
-  var maxExistente = 0;
+  var maxAutorizada = 0;
   try {
-    var nfs = unwrapData(JSON.parse(localStorage.getItem("gdp.notas-fiscais.v1") || "[]"));
-    maxExistente = nfs.reduce(function(max, nf) { return Math.max(max, parseInt(nf.numero) || 0); }, 0);
+    _getNumerosAutorizados().forEach(function(n) { if (n > maxAutorizada) maxAutorizada = n; });
   } catch(_) {}
   var localCounter = parseInt(localStorage.getItem("gdp.nf-counter") || "0", 10);
-  return Math.max(maxExistente, localCounter) + 1;
+  var piso = Math.max(localCounter, maxAutorizada) + 1;
+  var nfConfig = JSON.parse(localStorage.getItem("nexedu.config.notas-fiscais") || "{}");
+  var configNum = parseInt(nfConfig.proximoNumero, 10);
+  // Honra config apenas se estiver no piso real ou acima (preenchimento intencional de lacuna).
+  if (configNum && configNum > 0 && configNum >= piso) piso = configNum;
+  return piso;
 }
 
 // Encontra o primeiro número livre >= minimo que não está em usados
@@ -580,21 +601,14 @@ function _encontrarPrimeiroLivre(minimo, usados) {
   return num;
 }
 
-// PEEK: retorna o próximo número livre SEM consumir (para preview/exibição)
-// Story 4.74: usar mesma lógica do consumir — piso = max(config.proximoNumero, gdp.nf-counter, maxAutorizada) + desempate
+// PEEK: retorna o próximo número livre SEM consumir (para preview/exibição).
+// Story 16.5 FIX-3: reusa EXATAMENTE o piso de _getNumeroMinimo() (mesma fonte da
+// verdade do consumo) — garante que o número exibido no preview seja idêntico ao
+// número que será consumido na transmissão (sem off-by-one).
 function peekProximoNumeroNf() {
   try {
     var usados = _getNumerosAutorizados();
-    // Piso: máximo entre counter local e max autorizada (ignora config.proximoNumero que pode estar adiantado)
-    var localCounter = parseInt(localStorage.getItem("gdp.nf-counter") || "0", 10);
-    var maxAutorizada = 0;
-    usados.forEach(function(n) { if (n > maxAutorizada) maxAutorizada = n; });
-    var piso = Math.max(localCounter, maxAutorizada) + 1;
-    // Se config tem proximoNumero menor que piso, usar piso
-    var nfConfig = JSON.parse(localStorage.getItem("nexedu.config.notas-fiscais") || "{}");
-    var configNum = parseInt(nfConfig.proximoNumero, 10);
-    if (configNum && configNum > 0 && configNum < piso) piso = piso; // keep piso
-    else if (configNum && configNum > 0) piso = configNum;
+    var piso = _getNumeroMinimo();
     return String(_encontrarPrimeiroLivre(piso, usados));
   } catch(_) {
     return String(Date.now()).slice(-6);
@@ -908,6 +922,15 @@ function getProjectedNegativeStock(pedido) {
 async function gerarNotaFiscalPedido(pedidoId) {
   const pedido = pedidos.find((x) => x.id === pedidoId);
   if (!pedido) return;
+  // Story 16.5 AC8: guard de idempotência — bloquear clique duplo enquanto há
+  // geração/transmissão em andamento para o mesmo pedido.
+  _nfOpsEmAndamento = _nfOpsEmAndamento || {};
+  if (_nfOpsEmAndamento[pedidoId]) {
+    showToast(`Geracao de NF ja em andamento para o pedido ${pedidoId}. Aguarde.`, 3500);
+    return;
+  }
+  _nfOpsEmAndamento[pedidoId] = true;
+  try {
   const nfExistente = getNotaFiscalByPedido(pedidoId);
   if (nfExistente && nfExistente.status === "autorizada") {
     showToast(`Pedido ${pedidoId} ja possui nota fiscal autorizada.`, 3500);
@@ -915,6 +938,13 @@ async function gerarNotaFiscalPedido(pedidoId) {
   }
   // Se nota existe mas está rejeitada/pendente, remover para gerar nova
   if (nfExistente && nfExistente.status !== "autorizada") {
+    // Story 16.5 FIX-5: remover também a cobrança órfã vinculada à NF removida,
+    // para não acumular cobranças duplicadas a cada regeração.
+    const contaOrfa = getContaReceberByNota(nfExistente.id);
+    if (contaOrfa) {
+      contasReceber = contasReceber.filter((c) => c.id !== contaOrfa.id);
+      saveContasReceber();
+    }
     notasFiscais = notasFiscais.filter(n => n.id !== nfExistente.id);
     saveNotasFiscais();
   }
@@ -938,17 +968,22 @@ async function gerarNotaFiscalPedido(pedidoId) {
 
   const invoice = buildInvoiceFromOrder(pedido, tipoNota);
   if (!invoice) return;
-  // Fix: atribuir número sequencial na criação (não esperar transmissão)
-  // Isso garante que NFs em lote recebam números únicos imediatamente
-  if (tipoNota === "nfe_real" && !invoice.numero) {
-    invoice.numero = await consumirProximoNumeroNf();
-  }
+  // Story 16.5 FIX-1: NÃO consumir número na criação do rascunho. O número de
+  // NF-e real é consumido UMA única vez na transmissão (transmitirHomologacaoNota),
+  // ancorado na autorização da SEFAZ. Notas manuais externas já trazem invoice.numero.
   notasFiscais.push(invoice);
   saveNotasFiscais();
 
-  const receivable = buildReceivableFromInvoice(invoice);
-  contasReceber.push(receivable);
-  saveContasReceber();
+  // Story 16.5 FIX-4: a cobrança (receivable) NÃO é mais criada de forma otimista
+  // aqui para NF-e real — ela é criada SOMENTE após autorização da SEFAZ
+  // (em transmitirHomologacaoNota). Notas manuais externas (controle manual, sem
+  // transmissão) mantêm a criação imediata da cobrança.
+  let receivable = null;
+  if (tipoNota !== "nfe_real") {
+    receivable = buildReceivableFromInvoice(invoice);
+    contasReceber.push(receivable);
+    saveContasReceber();
+  }
 
   if (tipoNota === "nfe_real") {
     // Story 2.1 AC-2: Validar itens ANTES de transmitir — bloquear se 0, confirmar contagem
@@ -1033,14 +1068,18 @@ async function gerarNotaFiscalPedido(pedidoId) {
     lastAction: tipoNota === "manual_externa" ? "numero_externo_informado" : "preparar_nf_real",
     accessKey: invoice.sefaz?.chaveAcesso || ""
   });
-  updateContaReceberIntegration(receivable.id, "bancaria", {
-    status: "titulo_local",
-    lastAction: "criar_titulo_local"
-  });
-  updateNotaFiscalIntegration(invoice.id, "bancaria", {
-    status: "titulo_local",
-    lastAction: "criar_titulo_local"
-  });
+  // Story 16.5 FIX-4: cobrança só existe para nota manual externa neste ponto.
+  // Para NF-e real, a cobrança é criada após autorização SEFAZ.
+  if (receivable) {
+    updateContaReceberIntegration(receivable.id, "bancaria", {
+      status: "titulo_local",
+      lastAction: "criar_titulo_local"
+    });
+    updateNotaFiscalIntegration(invoice.id, "bancaria", {
+      status: "titulo_local",
+      lastAction: "criar_titulo_local"
+    });
+  }
   // Story 4.56 AC-3: NÃO enviar email na criação do rascunho — apenas após autorização SEFAZ
   // dispararEmailNotaEBoletoAutomatico() será chamado após transmissão autorizada
 
@@ -1050,14 +1089,19 @@ async function gerarNotaFiscalPedido(pedidoId) {
     notaFiscalId: invoice.id,
     status: invoice.status,
     tipoNota: invoice.tipoNota,
-    cobrancaId: receivable.id,
+    cobrancaId: receivable ? receivable.id : "",
     updatedAt: new Date().toISOString(),
     updatedBy: getAuditActor()
   };
   pedido.status = "faturado";
   savePedidos();
   renderAll();
-  showToast(`${getNotaFiscalTipoLabel(invoice)} ${invoice.numero || invoice.id} registrada com conta a receber vinculada.`, 4500);
+  const msgCobranca = receivable ? " registrada com conta a receber vinculada." : " registrada. Conta a receber sera criada apos autorizacao SEFAZ.";
+  showToast(`${getNotaFiscalTipoLabel(invoice)} ${invoice.numero || invoice.id}${msgCobranca}`, 4500);
+  } finally {
+    // Story 16.5 AC8: liberar o lock de idempotência ao concluir.
+    if (_nfOpsEmAndamento) delete _nfOpsEmAndamento[pedidoId];
+  }
 }
 
 function savePedidoFiscalData(pedidoId) {
@@ -1186,6 +1230,8 @@ async function autorizarNotaFiscal(notaId) {
 }
 
 async function transmitirHomologacaoNota(notaId) {
+  // Story 16.5 AC8: lock de idempotência por pedido (definido após resolver a NF).
+  let _lockPedidoId = null;
   try {
   const nf = notasFiscais.find((item) => item.id === notaId);
   if (!nf) { showToast("NF não encontrada: " + notaId, 3500); return; }
@@ -1202,6 +1248,14 @@ async function transmitirHomologacaoNota(notaId) {
     showToast("Pedido vinculado nao encontrado para transmissao.", 3500);
     return;
   }
+  // Story 16.5 AC8: bloquear transmissão concorrente para o mesmo pedido.
+  _nfOpsEmAndamento = _nfOpsEmAndamento || {};
+  if (_nfOpsEmAndamento[nf.pedidoId]) {
+    showToast(`Transmissao ja em andamento para o pedido ${nf.pedidoId}. Aguarde.`, 3500);
+    return;
+  }
+  _nfOpsEmAndamento[nf.pedidoId] = true;
+  _lockPedidoId = nf.pedidoId;
 
   // Sincronizar itens do pedido para a NF (pega NCM/descrição atualizados)
   if (pedido.itens && pedido.itens.length) {
@@ -1286,6 +1340,20 @@ async function transmitirHomologacaoNota(notaId) {
     nf.sefaz.status = _sefazStatus;
     nf.sefaz.protocolo = result.parsed?.prot || nf.sefaz?.protocolo || "";
     nf.sefaz.chaveAcesso = result.parsed?.chNFe || nf.sefaz?.chaveAcesso || "";
+    // Story 16.5 FIX-2: ancorar o número na fonte da verdade da SEFAZ. A resposta
+    // de autorização não traz nNF em campo próprio — ele está embutido na chave de
+    // acesso (chNFe, posições 26-34, 9 dígitos). Quando autorizado, extrai-se o nNF
+    // da chave e valida-se contra o número que foi enviado; se divergir, a chave
+    // (autoridade SEFAZ) prevalece e o desvio é logado.
+    if (_isAutorizado) {
+      const _numeroChave = extrairNumeroDaChaveNfe(nf.sefaz.chaveAcesso);
+      if (_numeroChave) {
+        if (nf.numero && String(nf.numero) !== String(_numeroChave)) {
+          console.warn("[NF-e] Divergencia de numero: enviado=" + nf.numero + " | autorizado(chNFe)=" + _numeroChave + ". Usando o da chave (SEFAZ).");
+        }
+        nf.numero = String(_numeroChave);
+      }
+    }
     nf.numero = nf.numero || result.preview?.identificacao?.numero || nf.numero;
     nf.serie = nf.serie || result.preview?.identificacao?.serie || nf.serie || "1";
     nf.status = _sefazStatus;
@@ -1316,8 +1384,17 @@ async function transmitirHomologacaoNota(notaId) {
     };
     savePedidos();
 
-    const conta = getContaReceberByNota(nf.id);
-    if (conta && result.parsed?.autorizado) {
+    // Story 16.5 FIX-4: a cobrança da NF-e real é criada SOMENTE após autorização
+    // SEFAZ (não mais de forma otimista na criação do rascunho). Isso elimina
+    // cobranças órfãs quando a transmissão falha (ex.: NCM inválido).
+    let conta = getContaReceberByNota(nf.id);
+    if (_isAutorizado && result.parsed?.autorizado) {
+      if (!conta) {
+        conta = buildReceivableFromInvoice(nf);
+        contasReceber.push(conta);
+        // vincular pedido à cobrança recém-criada
+        if (pedido.fiscal) pedido.fiscal.cobrancaId = conta.id;
+      }
       conta.audit = {
         ...(conta.audit || {}),
         updatedAt: new Date().toISOString(),
@@ -1328,6 +1405,7 @@ async function transmitirHomologacaoNota(notaId) {
         lastAction: "emitir_cobranca_nf_autorizada"
       });
       saveContasReceber();
+      savePedidos();
       await emitirOuSincronizarCobrancaReal(conta.id, { silent: true });
     }
 
@@ -1392,6 +1470,10 @@ async function transmitirHomologacaoNota(notaId) {
     showToast(`Falha na transmissao SEFAZ: ${err.message}`, 4500);
   }
   } catch(outerErr) { console.error("[NF-e] Erro inesperado em transmitirHomologacaoNota:", outerErr); showToast("Erro inesperado: " + outerErr.message, 5000); }
+  finally {
+    // Story 16.5 AC8: liberar o lock de idempotência ao concluir a transmissão.
+    if (_lockPedidoId && _nfOpsEmAndamento) delete _nfOpsEmAndamento[_lockPedidoId];
+  }
 }
 
 function atualizarFormaCobrancaNota(notaId, forma) {

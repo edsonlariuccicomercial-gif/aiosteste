@@ -1,0 +1,61 @@
+storyId: "16.5"
+storyTitle: "Numeração NF-e Confiável + Eliminação de Duplicação (Nota/Cobrança)"
+epic: "EPIC-16"
+reviewer: "@qa Quinn"
+reviewDate: "2026-06-08"
+verdict: CONCERNS
+
+summary: >
+  Implementação sólida e cirúrgica dos 6 fixes. Causa-raiz (consumo otimista de
+  número + cobrança na criação do rascunho) corretamente eliminada. Single point of
+  consumption confirmado; preview==consumo garantido por refatoração de _getNumeroMinimo;
+  persistência Supabase verificada. 192/192 testes (re-executados pelo QA). Veredito
+  CONCERNS (não FAIL) por 3 pendências não-bloqueantes: AC3 Supabase parcial, ausência
+  de E2E (requer deploy) e CodeRabbit não executado (WSL indisponível).
+
+acceptanceCriteria:
+  AC1: { status: PASS, evidence: "FIX-1 remove consumo na criação; só peek (diff L968-986)" }
+  AC2: { status: PASS, evidence: "FIX-3: peek reusa _getNumeroMinimo (mesma fonte) — sem off-by-one; unit 3 casos" }
+  AC3: { status: CONCERNS, evidence: "FIX-2 extrai nNF da chNFe + valida. Piso ancora em localStorage+counter; Supabase via syncNfCounterFromCloud no boot, não em tempo real" }
+  AC4: { status: PASS, evidence: "FIX-1+FIX-3: counter não incrementa na criação; peek idempotente (unit)" }
+  AC5: { status: CONCERNS, evidence: "Single point of consumption (L1278) + FIX-5; validação definitiva requer E2E pós-deploy" }
+  AC6: { status: PASS, evidence: "FIX-4: cobrança movida p/ ramo _isAutorizado (L1387)" }
+  AC7: { status: PASS, evidence: "FIX-5: remove conta órfã + propaga ao Supabase via saveAll" }
+  AC8: { status: PASS, evidence: "FIX-6: lock _nfOpsEmAndamento try/finally em gerar e transmitir" }
+  AC9: { status: PASS, evidence: "manual_externa preservado; 183 testes originais verdes" }
+
+issues:
+  - id: C1
+    severity: medium
+    category: requirements
+    description: "AC3 pede re-sync do counter por (local + Supabase). FIX-3 ancora em localStorage+counter local; Supabase só via syncNfCounterFromCloud no boot, não consultado em tempo real no cálculo do piso."
+    risk: "Em multiusuário concorrente (EPIC-17), duas máquinas podem calcular o mesmo piso simultaneamente."
+    mitigation: "Constraint UNIQUE (empresa+numero+serie) no banco é a rede final — validada por nf-counter.test.js."
+    recommendation: "Documentar como débito técnico; avaliar consulta de counter ao Supabase pré-consumo em iteração futura."
+  - id: C2
+    severity: low
+    category: tests
+    description: "AC5 (falha NCM sem duplicar) e preview==gerado real só validáveis pós-deploy. Unit cobre lógica pura, não fluxo DOM/SEFAZ."
+    recommendation: "Validação E2E em produção por @devops após deploy (3 cenários do stakeholder)."
+  - id: C3
+    severity: low
+    category: code
+    description: "CodeRabbit self-healing não executado — WSL indisponível neste ambiente."
+    mitigation: "QA fez revisão manual adversarial do diff (refs guardadas, reassignment segue padrão, sem secrets/injeção)."
+    recommendation: "Rodar CodeRabbit quando WSL disponível."
+
+nfr:
+  security: { status: PASS, notes: "Sem novos secrets/inputs externos; extração de chNFe é parsing local seguro" }
+  reliability: { status: PASS, notes: "try/finally garante release do lock; refs receivable guardadas; persistência com retry pré-existente" }
+  performance: { status: PASS, notes: "Operações O(n) sobre arrays já em memória; sem novas chamadas de rede bloqueantes" }
+  maintainability: { status: PASS, notes: "Edições cirúrgicas, comentadas por AC; peek delega a _getNumeroMinimo (DRY)" }
+
+validation:
+  syntaxCheck: "node --check OK (re-executado pelo QA)"
+  testSuite: "vitest 192/192 (re-executado pelo QA; 183 regressão + 9 novos)"
+  independentReview: true
+
+recommendation: >
+  APROVAR com concerns documentados. Prosseguir para @devops (commit + push + deploy)
+  E validação E2E obrigatória dos 3 cenários do stakeholder em produção antes de marcar Done.
+  C1 vira débito técnico no backlog do EPIC-17.
