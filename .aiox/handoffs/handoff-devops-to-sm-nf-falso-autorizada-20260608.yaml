@@ -1,0 +1,63 @@
+handoff:
+  from_agent: "devops"
+  to_agent: "sm"
+  timestamp: "2026-06-08"
+  last_command: "*investigate nf-falso-autorizada"
+  consumed: false
+
+  story_context:
+    story_id: "BUG-NF-FALSO-AUTORIZADA"
+    story_path: "docs/stories/ (a criar — provável 16.6)"
+    story_status: "Diagnosed — ready for story"
+    current_task: "Corrigir status 'autorizada' atribuído sem protocolo/chave da SEFAZ"
+    branch: "master"
+    module: "GDP / Notas Fiscais"
+    main_file: "painel-caixa-escolar/squads/caixa-escolar/dashboard/js/gdp-notas-fiscais.js"
+
+  problem_summary: |
+    Descoberto durante o suporte pós-deploy da Story 16.5: uma NF-e que a SEFAZ
+    NÃO autorizou de fato aparece no GDP com status "autorizada". Como
+    canDeleteNotaFiscal bloqueia exclusão de notas "autorizada", o registro vira
+    um fantasma impossível de excluir pela interface. Confirmado pelo stakeholder:
+    a nota fantasma tem PROTOCOLO VAZIO e está INVÁLIDA quando consultada na SEFAZ,
+    mas o GDP a marca "autorizada".
+
+  evidence:
+    - "Stakeholder: nota 1501 'Revise a transmissão' aparece autorizada no GDP mas INVÁLIDA na consulta SEFAZ."
+    - "Stakeholder: protocolo VAZIO / sem chave na nota fantasma — confirma que não houve autorização real."
+    - "Há 2 notas 1501 com chaves DIFERENTES no PED-20260602-8547: uma válida (liberada SEFAZ), uma fantasma (inválida)."
+
+  root_cause: |
+    gdp-notas-fiscais.js L1338-1340 (transmitirHomologacaoNota):
+      var _isAutorizado = result.parsed?.autorizado || _cStat === "100" || _cStat === "150";
+      var _sefazStatus = _isAutorizado ? "autorizada" : (_cStat ? "rejeitada" : "transmitida");
+    O status "autorizada" é atribuído com base SOMENTE no cStat (100/150) ou na flag
+    parsed.autorizado, SEM exigir que protocolo (prot) e chave de acesso (chNFe) tenham
+    realmente retornado preenchidos. Resultado: respostas inconsistentes da SEFAZ
+    (lote 100 mas nota sem protocolo, cStat 150 fora de prazo, parsing frágil) marcam
+    "autorizada" sem autorização real → fantasma não-excluível.
+    Parser (server-lib/nfe-sefaz-client.js L1125): autorizado = protCStat === "100".
+
+  recommended_fix: |
+    Invariante: marcar "autorizada" SOMENTE se cStat === "100" E prot (protocolo) preenchido
+    E chNFe (chave de acesso) preenchida. Sem os três, NÃO é autorização real:
+      - se cStat indica rejeição → status "rejeitada" (fica excluível)
+      - se transmitiu mas faltam prot/chNFe → status "transmissao_realizada"/"em_verificacao"
+        (pendente de reconsulta, NÃO autorizada, e excluível)
+    Reavaliar tratamento de cStat 150 (autorização fora de prazo) — só aceitar se tiver
+    prot+chNFe. Garantir que canDeleteNotaFiscal continue permitindo excluir não-autorizadas.
+
+  files_to_modify:
+    - "painel-caixa-escolar/squads/caixa-escolar/dashboard/js/gdp-notas-fiscais.js (L1336-1342)"
+
+  acceptance_hints:
+    - "Given transmissão com cStat 100 mas SEM protocolo/chave, Then status NÃO é 'autorizada' (é excluível)."
+    - "Given cStat 100 COM protocolo E chave, Then status 'autorizada' (comportamento normal preservado)."
+    - "Given cStat de rejeição, Then status 'rejeitada'."
+    - "Given nota não-autorizada (sem prot/chave), Then canDeleteNotaFiscal retorna true (excluível)."
+    - "Não-regressão: notas realmente autorizadas continuam bloqueadas para exclusão."
+
+  immediate_manual_action:
+    - "Limpar a nota fantasma 1501 atual via console (status falso → rejeitada → excluirNotaFiscal). Em paralelo a esta story."
+
+  next_action: "@sm: criar story (provável 16.6) no EPIC-16 com os AC acima. Depois @dev implementa, @qa valida, @devops deploya."

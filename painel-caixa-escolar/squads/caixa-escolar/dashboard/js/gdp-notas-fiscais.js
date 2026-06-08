@@ -1335,8 +1335,30 @@ async function transmitirHomologacaoNota(notaId) {
     if (result.preview) nf.sefaz.preview = { ...(nf.sefaz.preview || {}), ...result.preview };
     // Story 4.83: cStat 100/150 = autorizada. 539 (duplicidade) = rejeitada (pode ser outra nota com mesmo número)
     var _cStat = String(result.parsed?.cStat || "");
-    var _isAutorizado = result.parsed?.autorizado || _cStat === "100" || _cStat === "150";
-    var _sefazStatus = _isAutorizado ? "autorizada" : (_cStat ? "rejeitada" : "transmitida");
+    // Story 16.6: "autorizada" exige PROVA real da SEFAZ — protocolo (prot) E chave (chNFe)
+    // preenchidos. Sem essa prova, cStat 100/150 (ou flag parsed.autorizado) NÃO basta:
+    // respostas inconsistentes geravam status "autorizada" sem autorização real (fantasma
+    // não-excluível). Esta é a ÚNICA flag de autorização — todas as ações pós-transmissão
+    // (audit, cobrança, email, banco) passam a referenciá-la para manter coerência.
+    var _temProvaSefaz = !!(result.parsed?.prot) && !!(result.parsed?.chNFe);
+    var _cStatSucesso = (_cStat === "100" || _cStat === "150");
+    var _isAutorizado = _temProvaSefaz && _cStatSucesso;
+    // Classificação de status (Story 16.6):
+    //  - autorizada: cStat sucesso + prova (prot+chNFe).
+    //  - transmissao_realizada: cStat sucesso SEM prova (anômalo, pendente de reconsulta)
+    //    OU sem cStat algum. NÃO autorizada e excluível (canDeleteNotaFiscal só bloqueia finais).
+    //  - rejeitada: cStat de rejeição real (≠ 100/150).
+    var _sefazStatus;
+    if (_isAutorizado) {
+      _sefazStatus = "autorizada";
+    } else if (_cStat && !_cStatSucesso) {
+      _sefazStatus = "rejeitada";
+    } else {
+      _sefazStatus = "transmissao_realizada";
+    }
+    if (_cStatSucesso && !_temProvaSefaz) {
+      console.warn("[NF-e] cStat " + _cStat + " sem protocolo/chave — NAO marcada autorizada (Story 16.6). Reconsultar SEFAZ.");
+    }
     nf.sefaz.status = _sefazStatus;
     nf.sefaz.protocolo = result.parsed?.prot || nf.sefaz?.protocolo || "";
     nf.sefaz.chaveAcesso = result.parsed?.chNFe || nf.sefaz?.chaveAcesso || "";
@@ -1361,11 +1383,12 @@ async function transmitirHomologacaoNota(notaId) {
       ...(nf.audit || {}),
       updatedAt: new Date().toISOString(),
       updatedBy: getAuditActor(),
-      authorizedAt: result.parsed?.autorizado ? (result.parsed?.dhRecbto || new Date().toISOString()) : (nf.audit?.authorizedAt || ""),
-      authorizedBy: result.parsed?.autorizado ? getAuditActor() : (nf.audit?.authorizedBy || "")
+      // Story 16.6: usar a flag única _isAutorizado (exige prot+chNFe) para coerência
+      authorizedAt: _isAutorizado ? (result.parsed?.dhRecbto || new Date().toISOString()) : (nf.audit?.authorizedAt || ""),
+      authorizedBy: _isAutorizado ? getAuditActor() : (nf.audit?.authorizedBy || "")
     };
     setIntegrationState(nf, "sefaz", {
-      status: result.parsed?.autorizado ? "autorizada" : (result.parsed?.cStat ? "rejeitada" : "transmissao_realizada"),
+      status: _isAutorizado ? "autorizada" : (_cStat ? "rejeitada" : "transmissao_realizada"),
       lastAction: "nfe_sefaz_emitir_real",
       httpStatus: result.httpStatus || "",
       cStat: result.parsed?.cStat || "",
@@ -1388,7 +1411,7 @@ async function transmitirHomologacaoNota(notaId) {
     // SEFAZ (não mais de forma otimista na criação do rascunho). Isso elimina
     // cobranças órfãs quando a transmissão falha (ex.: NCM inválido).
     let conta = getContaReceberByNota(nf.id);
-    if (_isAutorizado && result.parsed?.autorizado) {
+    if (_isAutorizado) {
       if (!conta) {
         conta = buildReceivableFromInvoice(nf);
         contasReceber.push(conta);
@@ -1412,7 +1435,8 @@ async function transmitirHomologacaoNota(notaId) {
     saveNotasFiscais();
 
     // Bridge 5: NF Saída → Banco (preço real faturado) — transmissão SEFAZ real
-    if (result.parsed?.autorizado && typeof bancoPrecos !== 'undefined' && bancoPrecos.itens && nf.itens) {
+    // Story 16.6: usar flag única _isAutorizado (exige prot+chNFe)
+    if (_isAutorizado && typeof bancoPrecos !== 'undefined' && bancoPrecos.itens && nf.itens) {
       var nfSaidaRows = []; // Story 6.6
       nf.itens.forEach(function(item) {
         var sku = item.skuVinculado || item.sku;
@@ -1441,7 +1465,8 @@ async function transmitirHomologacaoNota(notaId) {
     }
 
     // Persist to Supabase with retry (prevent NF loss)
-    if (result.parsed?.autorizado) {
+    // Story 16.6: usar flag única _isAutorizado (exige prot+chNFe)
+    if (_isAutorizado) {
       _saveNfToSupabaseWithRetry({
         id: nf.id, numero: nf.numero, serie: nf.serie, valor: nf.valor,
         status: nf.status, pedidoId: nf.pedidoId, contratoId: nf.contratoId,
@@ -1457,7 +1482,8 @@ async function transmitirHomologacaoNota(notaId) {
     showToast(`SEFAZ: ${result.parsed?.cStat || "-"} ${result.parsed?.xMotivo || ""}`.trim(), 5000);
 
     // Disparo automático de email quando NF autorizada pela SEFAZ
-    if (result.parsed?.autorizado) {
+    // Story 16.6: usar flag única _isAutorizado (exige prot+chNFe)
+    if (_isAutorizado) {
       const contaEmail = getContaReceberByNota(nf.id);
       await dispararEmailNotaEBoletoAutomatico(nf.id, contaEmail?.id || null, { manual: false });
     }

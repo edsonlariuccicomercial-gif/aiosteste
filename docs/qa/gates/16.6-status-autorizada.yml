@@ -1,0 +1,63 @@
+storyId: "16.6"
+storyTitle: "Status 'autorizada' só com Protocolo + Chave reais da SEFAZ"
+epic: "EPIC-16"
+reviewer: "@qa Quinn"
+reviewDate: "2026-06-08"
+verdict: CONCERNS
+
+summary: >
+  Correção precisa e bem feita. Invariante "autorizada exige prot+chNFe" implementado
+  na origem (transmitirHomologacaoNota), impedindo o nascimento de notas falso-autorizadas
+  (fantasmas não-excluíveis). Recomendação do @po atendida 100% — flag única _isAutorizado
+  substitui todas as 5 refs a result.parsed?.autorizado (grep confirma 0 soltas). 204/204
+  testes (re-executados pelo QA). Análise adversarial confirmou que a mudança de label
+  transmitida→transmissao_realizada MELHORA o fluxo (nota sem prova vai para 'Pendente',
+  exigindo reconsulta, em vez de mascarar como 'Emitida'). Veredito CONCERNS por 3 itens
+  LOW não-bloqueantes.
+
+acceptanceCriteria:
+  AC1: { status: PASS, evidence: "_isAutorizado = _temProvaSefaz && _cStatSucesso; cStat 100 sem prot/chave NAO autoriza. 2 unit." }
+  AC2: { status: PASS, evidence: "cStat 100 + prot + chNFe -> autorizada. 1 unit." }
+  AC3: { status: PASS, evidence: "cStat de rejeicao (539/110) -> rejeitada. 2 unit." }
+  AC4: { status: PASS, evidence: "cStat 150 so autoriza com prot+chNFe. 2 unit." }
+  AC5: { status: PASS, evidence: "transmissao_realizada/rejeitada excluiveis via canDeleteNotaFiscal. 3 unit." }
+  AC6: { status: PASS, evidence: "autorizada real continua bloqueada. 2 unit." }
+
+adversarial_findings:
+  - "Coerência de flags: grep confirma 0 refs soltas a result.parsed?.autorizado — todas viraram _isAutorizado (recomendação @po 100%)."
+  - "Regressão de label transmitida->transmissao_realizada: gdp-pedidos.js L1584 (.includes transmit) ainda casa; L1638 (igualdade exata) NAO casa -> nota cai em 'pendente'. COMPORTAMENTO CORRETO (nota sem prova deve ser reconsultada, nao exibida como Emitida). Melhoria, nao regressao."
+  - "FIX-2 da 16.5 (extracao de numero da chNFe) coerente: autorizado agora exige chNFe, entao a extracao sempre tem chave."
+
+issues:
+  - id: C1
+    severity: low
+    category: code
+    description: "Ramo 'transmitida' na L1638 de gdp-pedidos.js vira codigo morto para notas novas (dev parou de gerar esse valor)."
+    risk: "Inofensivo — notas legadas com status 'transmitida' seguem mapeadas para 'emitida'."
+    recommendation: "Limpar o ramo 'transmitida' obsoleto numa futura iteracao (debito tecnico)."
+  - id: C2
+    severity: low
+    category: code
+    description: "CodeRabbit nao executado — WSL sem distribuicao."
+    mitigation: "QA fez revisao manual adversarial do diff (coerencia de flags, consumidores do label, interacao com 16.5)."
+  - id: C3
+    severity: low
+    category: tests
+    description: "E2E pos-deploy pendente."
+    recommendation: "Confirmar em producao que nota sem protocolo aparece em 'Pendente' e fica excluivel."
+
+nfr:
+  security: { status: PASS, notes: "Parsing local de prot/chNFe; sem novos inputs externos ou secrets" }
+  reliability: { status: PASS, notes: "Flag unica elimina divergencia entre status visivel e acoes pos-transmissao (audit/cobranca/email)" }
+  performance: { status: PASS, notes: "Checagens O(1) de strings; sem novas chamadas de rede" }
+  maintainability: { status: PASS, notes: "Bloco if/else if/else claro e comentado; flag unica reduz duplicacao" }
+
+validation:
+  syntaxCheck: "node --check OK (re-executado pelo QA)"
+  testSuite: "vitest 204/204 (re-executado pelo QA; 192 anteriores + 12 novos)"
+  independentReview: true
+
+recommendation: >
+  APROVAR com concerns documentados. Prosseguir para @devops (commit + push + deploy).
+  Validacao E2E em producao: confirmar que nota sem protocolo fica excluivel e aparece em
+  'Pendente'. C1 -> debito tecnico (limpeza do ramo 'transmitida' obsoleto).
