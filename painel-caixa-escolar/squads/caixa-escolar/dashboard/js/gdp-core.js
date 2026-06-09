@@ -1012,6 +1012,9 @@ function loadData() {
   } catch(_) { notasEntrada = []; }
   try { contasPagar = unwrapData(JSON.parse(localStorage.getItem(PAYABLES_KEY))); } catch(_) { contasPagar = []; }
   try { contasReceber = unwrapData(JSON.parse(localStorage.getItem(RECEIVABLES_KEY))); } catch(_) { contasReceber = []; }
+  // EPIC-19 Story 19.3: esconder soft-deletados (deletedAt/deleted_at) — exclusão sincronizada via Supabase.
+  contasReceber = contasReceber.filter(function(x){ return !(x && (x.deletedAt || x.deleted_at)); });
+  contasPagar = contasPagar.filter(function(x){ return !(x && (x.deletedAt || x.deleted_at)); });
 
   // FIX DEFINITIVO: filtrar itens deletados de TODAS as entidades no boot
   // Isso garante que mesmo que o Supabase ou sync_data restaure itens, eles são removidos imediatamente
@@ -1081,7 +1084,11 @@ function loadData() {
         if (_padrao) _contaBancaria = (_padrao.banco || '') + (_padrao.apelido ? ' (' + _padrao.apelido + ')' : '') || 'Conta Principal';
       } catch(_) {}
       var _conciliados = _concItems.filter(function(i) { return i.conciliado; }).length;
-      var _recoveredId = 'ext-recovered-' + Date.now();
+      // EPIC-19 Story 19.4: ID DETERMINÍSTICO (idempotente). Antes usava Date.now(), o que fazia
+      // cada navegador que bootava com cache de extratos vazio criar um 'ext-recovered' DIFERENTE,
+      // gerando duplicatas no Supabase (causa do "1 extrato num PC, 2 noutro"). Derivando o id da
+      // conta bancária, qualquer re-execução colapsa no MESMO registro via upsert.
+      var _recoveredId = 'ext-recovered-' + String(_contaBancaria).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
       var _oldestDate = _concItems.reduce(function(min, i) { return i.data && i.data < min ? i.data : min; }, _concItems[0].data || new Date().toISOString().slice(0, 10));
       _bootExtratos.push({
         id: _recoveredId,
@@ -2512,7 +2519,9 @@ function loadExtratos() {
   try {
     var raw = JSON.parse(localStorage.getItem(EXTRATOS_KEY) || "[]");
     var items = (raw && raw.items && Array.isArray(raw.items)) ? raw.items : (Array.isArray(raw) ? raw : []);
-    // Story 4.83-fix: filtrar extratos deletados no ponto de leitura
+    // EPIC-19 Story 19.4: soft-delete sincronizado — esconder extratos com deletedAt/deleted_at.
+    items = items.filter(function(e) { return !(e && (e.deletedAt || e.deleted_at)); });
+    // Story 4.83-fix (legado): tombstone local — mantido por compat até o reset.
     try {
       var _delExt = new Set(JSON.parse(localStorage.getItem('gdp.extratos.deleted.v1') || '[]'));
       if (_delExt.size > 0) {

@@ -355,30 +355,27 @@ function bulkExcluirContasReceber() {
   if (!_selectedContaReceberIds.size) return;
   if (!confirm(`Excluir ${_selectedContaReceberIds.size} conta(s) a receber selecionada(s)?`)) return;
 
-  // Story 4.55 AC-1: sincronizar exclusão bulk com Supabase + rastrear IDs deletados
-  // (replica a lógica de excluirContaReceber individual que já funciona)
+  // EPIC-19 Story 19.3: SOFT-DELETE sincronizado em bulk (substitui hard-delete + tombstone local).
+  // Marca deletedAt nos itens selecionados e persiste a lista COM os marcados via saveContasReceber
+  // (saveAll → UPDATE deleted_at no Supabase). Propaga a exclusão para todos via realtime.
+  const idsToDelete = new Set(_selectedContaReceberIds);
+  const nowIso = new Date().toISOString();
+  contasReceber.forEach(c => { if (idsToDelete.has(c.id)) c.deletedAt = nowIso; });
+  saveContasReceber(); // persiste com os itens marcados (Supabase recebe o UPDATE)
+
+  // Compat: mantém o tombstone local (inofensivo; aposentado no reset). Não é mais o mecanismo principal.
   const delKey = "gdp.contas-receber.deleted.v1";
   let deleted = [];
   try { deleted = JSON.parse(localStorage.getItem(delKey) || "[]"); } catch(_) {}
-
-  for (const contaId of _selectedContaReceberIds) {
-    // Persistir delete no Supabase para evitar re-criação no sync
-    if (window.gdpApi && window.gdpApi.contas_receber) {
-      gdpApi.contas_receber.remove(contaId).catch(e => gdpWarn('[bulkExcluirCR] Supabase delete failed:', e));
-    }
-    // Rastrear ID deletado para bloquear re-merge do Supabase
-    if (!deleted.includes(contaId)) deleted.push(contaId);
-  }
-
+  for (const contaId of idsToDelete) { if (!deleted.includes(contaId)) deleted.push(contaId); }
   try { localStorage.setItem(delKey, JSON.stringify(deleted)); } catch(_) {}
 
   // Limpar integrações vinculadas
-  const idsToDelete = new Set(_selectedContaReceberIds);
   integracoesGdp = (integracoesGdp || []).filter(item => !(item.entityType === "conta_receber" && idsToDelete.has(item.entityId)));
   saveIntegracoesGdp();
 
   const count = _selectedContaReceberIds.size;
-  contasReceber = contasReceber.filter(c => !_selectedContaReceberIds.has(c.id));
+  contasReceber = contasReceber.filter(c => !idsToDelete.has(c.id)); // some da UI
   saveContasReceber();
   _selectedContaReceberIds.clear();
   renderContasReceber();
@@ -526,15 +523,16 @@ function excluirContaReceber(contaId) {
   if (!confirm(`Excluir a conta a receber "${conta.descricao}"?`)) return;
 
   const notaId = conta.notaFiscalId || conta.origemId || "";
-  contasReceber = contasReceber.filter((item) => item.id !== contaId);
-  saveContasReceber();
 
-  // Persistir delete no Supabase para evitar re-criação no sync
-  if (window.gdpApi && window.gdpApi.contas_receber) {
-    gdpApi.contas_receber.remove(contaId).catch(e => gdpWarn('[excluirContaReceber] Supabase delete failed:', e));
-  }
+  // EPIC-19 Story 19.3: SOFT-DELETE sincronizado (substitui hard-delete + tombstone local).
+  // Marca deletedAt no item e persiste via saveContasReceber → gdpApi.saveAll (UPDATE no Supabase,
+  // que envia deleted_at). A exclusão passa a ser vista por TODOS via realtime, não mais por
+  // gdp.contas-receber.deleted.v1 (por-navegador). loadData já filtra deletedAt na leitura.
+  conta.deletedAt = new Date().toISOString();
+  saveContasReceber(); // persiste a lista COM o item marcado (Supabase recebe o UPDATE)
+  contasReceber = contasReceber.filter((item) => item.id !== contaId); // some da UI imediatamente
 
-  // Rastrear IDs deletados para bloquear re-merge do Supabase
+  // Compat: mantém o tombstone local (inofensivo; será aposentado no reset). Não é mais o mecanismo principal.
   try {
     const delKey = "gdp.contas-receber.deleted.v1";
     const deleted = JSON.parse(localStorage.getItem(delKey) || "[]");
