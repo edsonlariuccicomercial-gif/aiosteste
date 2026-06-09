@@ -92,10 +92,10 @@
     pedidos: ['id','empresa_id','contrato_id','escola','data','data_prevista','status','valor','obs','itens','fiscal','cliente','pagamento','marcador','audit','dados_extras','created_at','updated_at'],
     notas_fiscais: ['id','empresa_id','pedido_id','contrato_id','numero','serie','valor','status','tipo_nota','origem','emitida_em','vencimento','cliente','itens','sefaz','cobranca','documentos','parametros','integracoes','xml_autorizado','chave_acesso','protocolo','audit','created_at','updated_at'],
     clientes: ['id','empresa_id','nome','cnpj','ie','uf','cep','sre','email','telefone','endereco','contratos_vinculados','login','senha','municipio','responsavel','cargo','contribuinte_icms','categoria_catalogo','arp_vinculada','saldo_total','saldo_disponivel','dados_extras','created_at','updated_at'],
-    contas_receber: ['id','empresa_id','pedido_id','origem_id','descricao','valor','status','forma','categoria','vencimento','cliente','cobranca','automacao','audit','created_at','updated_at'],
+    contas_receber: ['id','empresa_id','pedido_id','origem_id','descricao','valor','status','forma','categoria','vencimento','cliente','cobranca','automacao','audit','deleted_at','created_at','updated_at'],
     contas_pagar: ['id','empresa_id','descricao','valor','status','forma','categoria','vencimento','fornecedor','audit','created_at','updated_at'],
     entregas: ['id','empresa_id','pedido_id','escola','data_entrega','status_entrega','recebedor','obs','foto','assinatura','created_at','updated_at'],
-    extratos: ['id','empresa_id','data','arquivo','conta_financeira','conciliados','total','is_open','criado_em','created_at','updated_at'],
+    extratos: ['id','empresa_id','data','arquivo','conta_financeira','conciliados','total','is_open','criado_em','deleted_at','created_at','updated_at'],
     conciliacoes: ['id','empresa_id','extrato_id','data','descricao','valor','tipo','conciliado','conciliado_em','vinculado_a','historico','categoria_dre','metadata','deleted_at','created_at','updated_at'],
     caixa_config: ['empresa_id','saldo_inicial','saldo_inicial_data','metadata','created_at','updated_at'],
     produtos: ['id','empresa_id','descricao','sku','ncm','unidade','marca','grupo','produto_critico','unidade_base','embalagens','custo_base','preco_referencia','margem_alvo','fonte','created_at','updated_at']
@@ -230,6 +230,9 @@
         var rows = await sbFetch('/' + table + '?empresa_id=eq.' + encodeURIComponent(getEmpresaId()) + '&limit=1000');
         if (rows != null && Array.isArray(rows)) {
           rows = rows.map(mapFromTable);
+          // EPIC-19 Story 19.2: filter out soft-deleted rows (deleted_at preenchido).
+          // Consistente com loadConciliacao/loadExtratos e com writeLocalItems (gdp-realtime.js).
+          rows = rows.filter(function (r) { return !(r && (r.deleted_at || r.deletedAt)); });
           // Story 4.51 AC-A4: filter out locally-deleted items
           var delKey = _DELETE_KEYS[name];
           if (delKey) {

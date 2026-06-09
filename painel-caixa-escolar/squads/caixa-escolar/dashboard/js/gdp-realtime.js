@@ -118,9 +118,22 @@
     } catch (_) { return []; }
   }
 
+  // EPIC-19 Story 19.2: filtro de soft-delete no PONTO DE ESCRITA do cache.
+  // loadConciliacao/loadExtratos já filtravam deleted_at na LEITURA, mas writeLocalItems
+  // (chamado por forceReconcile e pelos eventos realtime) gravava a lista CRUA do Supabase,
+  // re-incluindo itens deletados → saldo divergente entre navegadores. Filtrar aqui torna
+  // leitura e escrita consistentes para TODAS as entidades.
+  function stripSoftDeleted(items) {
+    if (!Array.isArray(items)) return items;
+    return items.filter(function (it) {
+      return !(it && (it.deleted_at || it.deletedAt));
+    });
+  }
+
   function writeLocalItems(table, items) {
     var entity = TABLE_TO_ENTITY[table];
     if (!entity) return;
+    items = stripSoftDeleted(items);
     try {
       var value = entity.wrapped
         ? { _v: 1, updatedAt: new Date().toISOString(), items: items }
