@@ -1192,7 +1192,7 @@ function recalcularVencimentoPedido(pedidoId) {
   if (!p) return;
   // Story 20.7: se o pedido já tem NF emitida, o vencimento da cobrança é regido pela NF (emissão + prazo config),
   // não pela data do pedido. Não sobrescrever nesse caso.
-  if (typeof findNotaByPedido === "function" && findNotaByPedido(pedidoId)) return;
+  if (typeof getNotaFiscalByPedido === "function" && getNotaFiscalByPedido(pedidoId)) return;
   const prazo = document.getElementById("pag-prazo-" + pedidoId)?.value || String(getFinancasConfig().prazoRecebimentoDias);
   const venc = calcularVencimentoPagamento(p.data || p.dataEntrega, prazo);
   const el = document.getElementById("pag-vencimento-" + pedidoId);
