@@ -820,12 +820,57 @@ function _titleProdutoCanonico(value) {
     .join(" ");
 }
 
+function _extrairCaracteristicasProduto(texto) {
+  const raw = String(texto || "");
+  const t = _normTextBasic(raw);
+  const partes = [];
+  const add = (valor) => {
+    const clean = String(valor || "").replace(/\s+/g, " ").trim();
+    if (!clean) return;
+    const norm = _normTextBasic(clean);
+    if (!partes.some(p => _normTextBasic(p) === norm)) partes.push(clean);
+  };
+
+  const tamanho = raw.match(/\b\d+(?:[,.]\d+)?\s*(?:cm|mm|m)\b/i);
+  if (tamanho) add(tamanho[0]);
+  const folhas = t.match(/\b\d+\s*folhas?\b/i);
+  if (folhas) add(folhas[0]);
+  const gramatura = raw.match(/\b\d{2,3}\s*g\/?m2\b/i);
+  if (gramatura) add(gramatura[0].replace(/\s+/g, ""));
+  const formato = raw.match(/\b(?:a4|oficio|carta)\b/i);
+  if (formato) add(formato[0].toUpperCase());
+
+  const cores = ["preta", "preto", "azul", "vermelha", "vermelho", "verde", "branca", "branco", "amarela", "amarelo", "colorida", "colorido", "transparente"];
+  const cor = cores.find(c => new RegExp("\\b" + c + "\\b", "i").test(t));
+  if (cor) add(cor);
+
+  const termos = [
+    "ponta arredondada", "sem ponta", "ponta fina", "ponta media", "ponta grossa",
+    "cabo plastico", "cabo emborrachado", "aco inox", "inox", "lombada larga",
+    "com elastico", "com aba", "capa dura", "capa flexivel", "espiral",
+    "quadriculado", "brochura", "reciclado", "adesiva", "lavavel", "permanente"
+  ];
+  termos.forEach(term => { if (t.includes(term)) add(term); });
+  return partes.slice(0, 5).map(_titleProdutoCanonico);
+}
+
+function _montarProdutoCanonico(texto, nomeBase, embalagemNormalizada) {
+  const base = _titleProdutoCanonico(nomeBase || texto || "");
+  const baseNorm = _normTextBasic(base);
+  const extras = _extrairCaracteristicasProduto(texto)
+    .filter(extra => !baseNorm.includes(_normTextBasic(extra)));
+  if (embalagemNormalizada && !baseNorm.includes(_normTextBasic(embalagemNormalizada))) {
+    extras.unshift(_titleProdutoCanonico(embalagemNormalizada));
+  }
+  return [base].concat(extras).filter(Boolean).slice(0, 6).join(" ");
+}
+
 function _inferirCategoriaCanonica(texto) {
   const t = _normTextBasic(texto);
   if (/\b(toner|tonner|cartucho|cilindro|unidade de imagem|fotocondutor|refil de tinta|tinta para impressora)\b/.test(t)) return "Toner/Cartucho";
   if (/\b(arroz|feijao|acucar|oleo|cafe|leite|macarrao|farinha|sal|biscoito|achocolatado|molho|extrato|fuba|canjiquinha|temper[o]?|vinagre)\b/.test(t)) return "Alimentacao";
   if (/\b(detergente|desinfetante|agua sanitaria|cloro|saco de lixo|papel higienico|papel toalha|esponja|sabao|pano|vassoura|rodo|alcool|limpa)\b/.test(t)) return "Limpeza";
-  if (/\b(sulfite|papel a4|caderno|lapis|caneta|borracha|cola|pasta|cartolina|envelope|grampeador|clips|marcador)\b/.test(t)) return "Papelaria";
+  if (/\b(sulfite|papel a4|caderno|lapis|caneta|borracha|cola|pasta|cartolina|envelope|grampeador|clips|marcador|tesoura|apontador|regua|papel)\b/.test(t)) return "Papelaria";
   return "Outro";
 }
 
@@ -884,7 +929,7 @@ function _normalizarItemPreOrcamento(assocItem, bp) {
   const rmcNome = (typeof RadarMatcherCore !== "undefined" && RadarMatcherCore.normalizeProductName)
     ? RadarMatcherCore.normalizeProductName(texto)
     : _normTextBasic(texto);
-  const produtoCanonico = _titleProdutoCanonico(rmcNome || assocItem.nome || "");
+  const produtoCanonico = _montarProdutoCanonico(texto, rmcNome || assocItem.nome || "", embalagemNormalizada);
   let marcasPermitidas = [];
   let precoRefSgd = 0;
   if (typeof RadarMatcherCore !== "undefined") {
@@ -1349,10 +1394,12 @@ window.abrirPreOrcamento = function (orcId) {
   // Story 15.4: Rascunho banner — prompt user to associate in Intel Preços
   const rascBanner = document.getElementById("rascunho-banner");
   if (pre.status === "rascunho") {
-    const pendCount = (pre.itens || []).filter(i => !i.skuBanco || i.custoUnitario <= 0).length;
+    const semAssoc = (pre.itens || []).filter(i => !i.skuBanco).length;
+    const semPreco = (pre.itens || []).filter(i => i.skuBanco && i.custoUnitario <= 0).length;
+    const pendCount = semAssoc + semPreco;
     if (rascBanner) {
       rascBanner.style.display = "block";
-      rascBanner.innerHTML = `<span style="color:var(--warning);font-weight:600">Rascunho — ${pendCount} item(ns) pendentes de associação.</span> <button class="btn btn-inline btn-accent" onclick="switchTab('pre-orcamento');setTimeout(renderPendentes,200)" style="font-size:.78rem">Associar no Intel Preços</button>`;
+      rascBanner.innerHTML = `<span style="color:var(--warning);font-weight:600">Rascunho — ${pendCount} pendência(s): ${semAssoc} sem produto e ${semPreco} sem preço.</span> <button class="btn btn-inline btn-accent" onclick="switchTab('pre-orcamento');setTimeout(renderPendentes,200)" style="font-size:.78rem">Resolver no Intel Preços</button>`;
     }
   } else if (rascBanner) {
     rascBanner.style.display = "none";
@@ -1533,6 +1580,9 @@ function renderPreOrcamentoItens() {
     const normAlerts = (item.alertasNormalizacao || []).map(a => `<span class="badge badge-rascunho" style="font-size:.66rem;margin-right:4px">${escapeHtml(a)}</span>`).join("");
     const linksExternos = item.linksExternos || [];
     const sgdDesc = item.descricaoSgdOriginal || item.descricao || item.nome || "";
+    const canonicoGerado = typeof _normalizarItemPreOrcamento === "function" ? _normalizarItemPreOrcamento(item, bp).produtoCanonico : "";
+    const canonicoAtual = item.produtoCanonico || "";
+    const produtoCanonicoRender = canonicoGerado && canonicoGerado.length > canonicoAtual.length ? canonicoGerado : (canonicoAtual || item.nome);
     const sgdOficialHtml = `
       <details style="margin-top:.25rem">
         <summary style="font-size:.72rem;color:var(--muted);cursor:pointer">SGD oficial · unid. <strong>${escapeHtml(item.unidadeSgdOriginal || item.unidade || "—")}</strong> · qtd. <strong>${escapeHtml(String(item.quantidadeSgdOriginal || item.quantidade || 0))}</strong></summary>
@@ -1550,7 +1600,7 @@ function renderPreOrcamentoItens() {
 
     return `<tr>
       <td>
-        <strong>${escapeHtml(item.produtoCanonico || item.nome)}</strong>
+        <strong>${escapeHtml(produtoCanonicoRender)}</strong>
         ${sgdOficialHtml}
         ${normalizacaoHtml}
         ${pncpHint}

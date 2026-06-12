@@ -772,16 +772,12 @@ window.renderPendentes = function () {
       <table class="table-compact" style="width:100%;margin-top:.5rem;font-size:.82rem">
         <thead><tr>
           <th style="width:3%">#</th>
-          <th style="width:22%">SGD oficial</th>
-          <th style="width:24%">Normalizacao interna</th>
-          <th style="width:18%">Produto Banco</th>
-          <th style="width:10%">Marca</th>
-          <th style="width:5%">Qtd</th>
-          <th style="width:6%">Unid</th>
-          <th style="width:9%">Custo</th>
-          <th style="width:7%">Margem%</th>
-          <th style="width:9%">Preço</th>
-          <th style="width:9%">Total</th>
+          <th style="width:34%">Item conferido</th>
+          <th style="width:22%">Associacao</th>
+          <th style="width:12%">Marca</th>
+          <th style="width:9%">Qtd/Unid</th>
+          <th style="width:12%">Custo/Margem</th>
+          <th style="width:12%">Preço/Total</th>
           <th style="width:4%"></th>
         </tr></thead>
         <tbody>
@@ -794,7 +790,7 @@ window.renderPendentes = function () {
             const descCompleta = (item.descricao || '').trim();
             // Descrição completa 100% — sem truncar (texto íntegro do edital fica visível).
             const descHtml = descCompleta
-              ? `<div class="pend-item-desc" style="color:var(--muted);font-size:.72rem;line-height:1.3;margin-top:2px;white-space:pre-wrap;word-break:break-word">${escapeHtml(descCompleta)}</div>`
+              ? `<details style="margin-top:4px"><summary style="cursor:pointer;color:var(--muted);font-size:.7rem">ver descricao oficial do SGD</summary><div class="pend-item-desc" style="color:var(--muted);font-size:.72rem;line-height:1.3;margin-top:2px;white-space:pre-wrap;word-break:break-word">${escapeHtml(descCompleta)}</div></details>`
               : '';
             // Preço de referência (teto): cotação acima → INABILITADA.
             const refInfo = (typeof RadarMatcherCore !== 'undefined' && RadarMatcherCore.extractReferencePrice)
@@ -819,34 +815,35 @@ window.renderPendentes = function () {
               ? `<div class="pend-item-marcas" title="Marcas aceitas pelo edital — cotar fora da lista inabilita" style="font-size:.7rem;margin-top:2px;color:${marcaNaoConforme ? 'var(--danger)' : 'var(--accent)'}">Marcas: ${escapeHtml(marcasRef.join(', '))}${marcaNaoConforme ? ' ⚠️ marca fora da lista — INABILITA' : ''}</div>`
               : '';
             const marcaBorder = marcaNaoConforme ? 'var(--danger)' : 'var(--line)';
-            const normProduto = item.produtoCanonico || (typeof _normalizarItemPreOrcamento === 'function' ? _normalizarItemPreOrcamento(item, null).produtoCanonico : item.nome);
+            const normGerada = typeof _normalizarItemPreOrcamento === 'function' ? _normalizarItemPreOrcamento(item, null).produtoCanonico : '';
+            const normProdutoAtual = item.produtoCanonico || '';
+            const normProduto = normGerada && normGerada.length > normProdutoAtual.length ? normGerada : (normProdutoAtual || item.nome);
             const normCategoria = item.categoriaCanonica || (typeof _inferirCategoriaCanonica === 'function' ? _inferirCategoriaCanonica([item.nome, item.descricao].join(' ')) : 'Outro');
             const normUnidade = item.unidadeNormalizada || (typeof _normalizarUnidadeCodigo === 'function' ? _normalizarUnidadeCodigo(item.unidade) : item.unidade);
             const normEmb = item.embalagemNormalizada || (typeof _extrairEmbalagemNormalizada === 'function' ? _extrairEmbalagemNormalizada([item.nome, item.descricao].join(' ')) : '');
             const linksExternos = item.linksExternos || (typeof _extrairLinksExternosEdital === 'function' ? _extrairLinksExternosEdital([item.nome, item.descricao, item.observacao].join(' ')) : []);
-            const normAlerts = (item.alertasNormalizacao || []).map(a => `<span class="badge badge-rascunho" style="font-size:.66rem;margin:2px 3px 0 0">${escapeHtml(a)}</span>`).join('');
+            const normAlerts = (item.alertasNormalizacao || []).map(a => `<span class="badge badge-rascunho" style="font-size:.64rem;margin:2px 3px 0 0">${escapeHtml(a)}</span>`).join('');
             const normalizacaoHtml = `<div style="font-size:.78rem;line-height:1.35">
               <strong>${escapeHtml(normProduto || item.nome || '')}</strong>
-              <div style="color:var(--muted);font-size:.72rem;margin-top:2px">Categoria: <strong>${escapeHtml(normCategoria || 'Outro')}</strong></div>
-              <div style="color:var(--muted);font-size:.72rem;margin-top:2px">Unid: <strong>${escapeHtml(normUnidade || item.unidade || '—')}</strong>${normEmb ? ` · Embalagem: <strong>${escapeHtml(normEmb)}</strong>` : ''}</div>
-              ${marcasRef.length ? `<div style="color:var(--accent);font-size:.72rem;margin-top:2px">Marcas permitidas: <strong>${escapeHtml(marcasRef.join(', '))}</strong></div>` : `<div style="color:var(--muted);font-size:.72rem;margin-top:2px">Sem marca obrigatoria: usar melhor custo do sistema.</div>`}
-              ${linksExternos.length ? `<div style="font-size:.72rem;margin-top:2px">Documento externo: ${linksExternos.map((url, i) => `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">link ${i + 1}</a>`).join(', ')}</div>` : ''}
+              <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:4px">
+                <span class="badge badge-muted" style="font-size:.64rem">${escapeHtml(normCategoria || 'Outro')}</span>
+                <span class="badge badge-muted" style="font-size:.64rem">${escapeHtml(normUnidade || item.unidade || '—')}</span>
+                ${normEmb ? `<span class="badge badge-muted" style="font-size:.64rem">${escapeHtml(normEmb)}</span>` : ''}
+                ${marcasRef.length ? `<span class="badge badge-aprovado" style="font-size:.64rem">marcas: ${escapeHtml(marcasRef.join(', '))}</span>` : `<span class="badge badge-muted" style="font-size:.64rem">marca livre</span>`}
+                ${linksExternos.length ? `<span class="badge badge-rascunho" style="font-size:.64rem">doc externo</span>` : ''}
+              </div>
               ${normAlerts ? `<div style="margin-top:4px">${normAlerts}</div>` : ''}
             </div>`;
             return `<tr style="${rowBg}" id="pend-row-${orcId}-${idx}">
               <td style="color:var(--muted)">${idx + 1}</td>
-              <td><strong>${escapeHtml(item.nome)}</strong><div style="font-size:.72rem;color:var(--muted);margin-top:2px">Unid: <strong>${escapeHtml(item.unidadeSgdOriginal || item.unidade || '—')}</strong> · Qtd: <strong>${escapeHtml(String(item.quantidadeSgdOriginal || item.quantidade || 0))}</strong></div>${refHtml}${marcasHtml}${descHtml}</td>
-              <td>${normalizacaoHtml}</td>
+              <td>${normalizacaoHtml}${refHtml}${marcasHtml}${descHtml}</td>
               <td><select class="pend-prod-select" data-orc="${orcId}" data-idx="${idx}" data-sugestao="${escapeHtml(sugSku)}" onchange="pendAssociar('${orcId}',${idx},this.value)" style="width:100%;padding:3px 4px;font-size:.78rem;background:var(--bg);border:1px solid var(--line);border-radius:4px;color:var(--text)">${optionsHtml}</select>${sugBadge}</td>
               <td><input type="text" value="${escapeHtml(item.marca || '')}" data-marcasref="${escapeHtml(marcasRef.join('|'))}" onchange="pendEditField('${orcId}',${idx},'marca',this.value)" title="${marcaNaoConforme ? 'Marca fora da lista de referência — proposta seria INABILITADA' : ''}" style="width:100%;padding:3px;font-size:.78rem;background:var(--bg);border:1px solid ${marcaBorder};border-radius:4px;color:var(--text)"></td>
-              <td class="text-center">${item.quantidade}</td>
-              <td><select onchange="pendEditField('${orcId}',${idx},'unidade',this.value)" style="width:100%;padding:3px;font-size:.78rem;background:var(--bg);border:1px solid var(--line);border-radius:4px;color:var(--text)">
+              <td class="text-center"><div>${item.quantidade}</div><select onchange="pendEditField('${orcId}',${idx},'unidade',this.value)" style="width:100%;padding:3px;font-size:.78rem;background:var(--bg);border:1px solid var(--line);border-radius:4px;color:var(--text);margin-top:3px">
                 ${['UN','KG','G','LT','ML','CX','PCT','FD','FR','GL','BD','RL','DZ','M','M2','RESMA','SC'].map(u => `<option value="${u}" ${item.unidade === u ? 'selected' : ''}>${u}</option>`).join('')}
               </select></td>
-              <td><input type="number" value="${item.custoUnitario || ''}" min="0" step="0.01" onchange="pendEditCusto('${orcId}',${idx},this.value)" style="width:100%;padding:3px;font-size:.78rem;background:var(--bg);border:1px solid var(--line);border-radius:4px;color:var(--text);text-align:right" id="pend-custo-${orcId}-${idx}"></td>
-              <td><input type="number" value="${Math.round((item.margem || 0.30) * 100)}" min="0" max="200" step="1" onchange="pendEditMargem('${orcId}',${idx},this.value)" style="width:100%;padding:3px;font-size:.78rem;background:var(--bg);border:1px solid var(--line);border-radius:4px;color:var(--text);text-align:right" id="pend-margem-${orcId}-${idx}"></td>
-              <td class="text-right font-mono" id="pend-preco-${orcId}-${idx}" data-ref="${precoRef || 0}" style="${acimaTeto ? 'color:var(--danger);font-weight:700' : ''}" title="${acimaTeto ? 'Preço acima do teto do edital — proposta seria INABILITADA' : ''}">${item.precoUnitario > 0 ? brl.format(item.precoUnitario) : '—'}${acimaTeto ? ' ⚠️' : ''}</td>
-              <td class="text-right font-mono" id="pend-total-${orcId}-${idx}">${item.precoTotal > 0 ? brl.format(item.precoTotal) : '—'}</td>
+              <td><input type="number" value="${item.custoUnitario || ''}" min="0" step="0.01" onchange="pendEditCusto('${orcId}',${idx},this.value)" style="width:100%;padding:3px;font-size:.78rem;background:var(--bg);border:1px solid var(--line);border-radius:4px;color:var(--text);text-align:right" id="pend-custo-${orcId}-${idx}"><input type="number" value="${Math.round((item.margem || 0.30) * 100)}" min="0" max="200" step="1" onchange="pendEditMargem('${orcId}',${idx},this.value)" style="width:100%;padding:3px;font-size:.78rem;background:var(--bg);border:1px solid var(--line);border-radius:4px;color:var(--text);text-align:right;margin-top:3px" id="pend-margem-${orcId}-${idx}"></td>
+              <td class="text-right font-mono"><div id="pend-preco-${orcId}-${idx}" data-ref="${precoRef || 0}" style="${acimaTeto ? 'color:var(--danger);font-weight:700' : ''}" title="${acimaTeto ? 'Preço acima do teto do edital — proposta seria INABILITADA' : ''}">${item.precoUnitario > 0 ? brl.format(item.precoUnitario) : '—'}${acimaTeto ? ' ⚠️' : ''}</div><div id="pend-total-${orcId}-${idx}" style="font-size:.74rem;color:var(--muted);margin-top:3px">${item.precoTotal > 0 ? brl.format(item.precoTotal) : '—'}</div></td>
               <td>${!isOk ? `<button class="btn btn-inline" onclick="pendNovoProduto('${orcId}',${idx})" style="font-size:.7rem;padding:2px 5px;white-space:nowrap" title="Cadastrar novo produto">+</button>` : '<span style="color:var(--accent)">✓</span>'}</td>
             </tr>`;
           }).join('')}
