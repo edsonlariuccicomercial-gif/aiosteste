@@ -759,6 +759,7 @@ window.renderPendentes = function () {
     const orc = orcamentos.find(o => o.id === orcId);
     const semProduto = (pre.itens || []).filter(i => !i.skuBanco).length;
     const semPreco = (pre.itens || []).filter(i => i.skuBanco && i.custoUnitario <= 0).length;
+    const revisaveis = (pre.itens || []).filter(i => i.skuBanco && /normalizacao/i.test(i.matchStatus || "")).length;
     const pendCount = semProduto + semPreco;
     const totalCount = (pre.itens || []).length;
     const okCount = totalCount - pendCount;
@@ -770,7 +771,7 @@ window.renderPendentes = function () {
         <span class="badge ${pendCount > 0 ? 'badge-rascunho' : 'badge-aprovado'}" style="font-size:.72rem">${okCount}/${totalCount} prontos</span>
         ${semProduto > 0 ? `<span class="badge badge-rascunho" style="font-size:.68rem">${semProduto} sem produto</span>` : ''}
         ${semPreco > 0 ? `<span class="badge badge-pendente" style="font-size:.68rem">${semPreco} sem preço</span>` : ''}
-        ${semProduto > 0 ? `<button class="btn btn-inline btn-accent" onclick="event.stopPropagation();pendAutoAssociarNormalizados('${orcId}')" style="font-size:.72rem;padding:3px 7px">Lua associar produtos</button>` : ''}
+        ${(semProduto > 0 || revisaveis > 0) ? `<button class="btn btn-inline btn-accent" onclick="event.stopPropagation();pendAutoAssociarNormalizados('${orcId}')" style="font-size:.72rem;padding:3px 7px">Lua associar produtos</button>` : ''}
         ${orc ? `<span style="font-size:.78rem;color:var(--muted)">Prazo: ${orc.prazo || '—'}</span>` : ''}
         <span style="font-size:.82rem;font-weight:600;margin-left:auto">${brl.format(pre.totalGeral || 0)}</span>
       </summary>
