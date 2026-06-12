@@ -407,6 +407,23 @@ function toggleCrMenuHeader(event) {
   if (event) event.stopPropagation();
 }
 
+// Story 20.3: resolve a data de emissão com fallback (exibição apenas, não grava no banco)
+// Ordem: campo dataEmissao (camel/snake) -> data de emissão da NF de origem -> data de criação do registro.
+function resolveDataEmissaoConta(conta) {
+  if (!conta) return "";
+  const direta = conta.dataEmissao || conta.data_emissao;
+  if (direta) return direta;
+  const nfId = conta.notaFiscalId || conta.origemId;
+  if (nfId && typeof notasFiscais !== "undefined" && Array.isArray(notasFiscais)) {
+    const nf = notasFiscais.find((item) => item.id === nfId);
+    const nfEmissao = nf && (nf.emitidaEm || nf.dataEmissao || nf.data_emissao);
+    if (nfEmissao) return String(nfEmissao).slice(0, 10);
+  }
+  const criacao = conta.audit?.createdAt || conta.createdAt || conta.created_at;
+  if (criacao) return String(criacao).slice(0, 10);
+  return "";
+}
+
 function abrirDetalheCr(contaId) {
   const conta = contasReceber.find(c => c.id === contaId);
   if (!conta) return;
@@ -425,7 +442,7 @@ function abrirDetalheCr(contaId) {
     <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Cliente</label><div style="padding:.4rem 0;font-size:.92rem">${esc(conta.cliente || "-")}</div></div>
     <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Forma</label><div style="padding:.4rem 0;font-size:.92rem">${esc(conta.forma)}</div></div>
     <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Valor</label><div style="padding:.4rem 0;font-size:.92rem">${brl.format(conta.valor || 0)}</div></div>
-    <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Data de Emissao</label><div style="padding:.4rem 0;font-size:.92rem">${esc(conta.dataEmissao || "-")}</div></div>
+    <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Data de Emissao</label><div style="padding:.4rem 0;font-size:.92rem">${esc(resolveDataEmissaoConta(conta) || "-")}</div></div>
     <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Vencimento</label><div style="padding:.4rem 0;font-size:.92rem">${esc(conta.vencimento)}</div></div>
     <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Status</label><div style="padding:.4rem 0"><span class="badge ${statusMeta.className}">${esc(statusMeta.label)}</span></div></div>
     <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Automacao</label><div style="padding:.4rem 0;font-size:.82rem">${conta.automacao?.whatsapp ? "WhatsApp" : "-"} / ${conta.automacao?.email ? "E-mail" : "-"}</div></div>
@@ -457,7 +474,7 @@ function toggleEditCrDetalhe() {
       <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Cliente</label><input type="text" id="cr-edit-cliente" value="${esc(conta.cliente || "")}"></div>
       <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Forma</label><select id="cr-edit-forma"></select></div>
       <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Valor</label><input type="number" id="cr-edit-valor" min="0" step="0.01" value="${conta.valor || 0}"></div>
-      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Data de Emissao</label><input type="date" id="cr-edit-dataEmissao" value="${conta.dataEmissao || ""}"></div>
+      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Data de Emissao</label><input type="date" id="cr-edit-dataEmissao" value="${resolveDataEmissaoConta(conta)}"></div>
       <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Vencimento</label><input type="date" id="cr-edit-vencimento" value="${conta.vencimento || ""}"></div>
       <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Status</label><div style="padding:.4rem 0"><span class="badge ${getContaReceberStatusMeta(conta).className}">${esc(getContaReceberStatusMeta(conta).label)}</span></div></div>
       <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Automacao</label><div style="padding:.4rem 0;font-size:.82rem">${conta.automacao?.whatsapp ? "WhatsApp" : "-"} / ${conta.automacao?.email ? "E-mail" : "-"}</div></div>
