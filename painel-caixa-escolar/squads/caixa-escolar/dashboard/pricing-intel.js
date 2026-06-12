@@ -772,8 +772,9 @@ window.renderPendentes = function () {
       <table class="table-compact" style="width:100%;margin-top:.5rem;font-size:.82rem">
         <thead><tr>
           <th style="width:3%">#</th>
-          <th style="width:18%">Item SGD</th>
-          <th style="width:20%">Produto Banco</th>
+          <th style="width:22%">SGD oficial</th>
+          <th style="width:24%">Normalizacao interna</th>
+          <th style="width:18%">Produto Banco</th>
           <th style="width:10%">Marca</th>
           <th style="width:5%">Qtd</th>
           <th style="width:6%">Unid</th>
@@ -811,22 +812,34 @@ window.renderPendentes = function () {
             const marcasRef = (item.marcasReferencia && item.marcasReferencia.length)
               ? item.marcasReferencia
               : (brandInfo ? brandInfo.marcas : []);
-            const marcaOk = (typeof RadarMatcherCore !== 'undefined' && RadarMatcherCore.isBrandCompliant)
-              ? RadarMatcherCore.isBrandCompliant(item.marca, marcasRef)
-              : true;
+            const _normMarca = (m) => String(m || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+            const marcaOk = !marcasRef.length || marcasRef.some(m => _normMarca(m) === _normMarca(item.marca));
             const marcaNaoConforme = marcasRef.length > 0 && !marcaOk;
             const marcasHtml = marcasRef.length > 0
               ? `<div class="pend-item-marcas" title="Marcas aceitas pelo edital — cotar fora da lista inabilita" style="font-size:.7rem;margin-top:2px;color:${marcaNaoConforme ? 'var(--danger)' : 'var(--accent)'}">Marcas: ${escapeHtml(marcasRef.join(', '))}${marcaNaoConforme ? ' ⚠️ marca fora da lista — INABILITA' : ''}</div>`
               : '';
             const marcaBorder = marcaNaoConforme ? 'var(--danger)' : 'var(--line)';
+            const normProduto = item.produtoCanonico || (typeof _normalizarItemPreOrcamento === 'function' ? _normalizarItemPreOrcamento(item, null).produtoCanonico : item.nome);
+            const normCategoria = item.categoriaCanonica || (typeof _inferirCategoriaCanonica === 'function' ? _inferirCategoriaCanonica([item.nome, item.descricao].join(' ')) : 'Outro');
+            const normUnidade = item.unidadeNormalizada || (typeof _normalizarUnidadeCodigo === 'function' ? _normalizarUnidadeCodigo(item.unidade) : item.unidade);
+            const normEmb = item.embalagemNormalizada || (typeof _extrairEmbalagemNormalizada === 'function' ? _extrairEmbalagemNormalizada([item.nome, item.descricao].join(' ')) : '');
+            const normAlerts = (item.alertasNormalizacao || []).map(a => `<span class="badge badge-rascunho" style="font-size:.66rem;margin:2px 3px 0 0">${escapeHtml(a)}</span>`).join('');
+            const normalizacaoHtml = `<div style="font-size:.78rem;line-height:1.35">
+              <strong>${escapeHtml(normProduto || item.nome || '')}</strong>
+              <div style="color:var(--muted);font-size:.72rem;margin-top:2px">Categoria: <strong>${escapeHtml(normCategoria || 'Outro')}</strong></div>
+              <div style="color:var(--muted);font-size:.72rem;margin-top:2px">Unid: <strong>${escapeHtml(normUnidade || item.unidade || '—')}</strong>${normEmb ? ` · Embalagem: <strong>${escapeHtml(normEmb)}</strong>` : ''}</div>
+              ${marcasRef.length ? `<div style="color:var(--accent);font-size:.72rem;margin-top:2px">Marcas permitidas: <strong>${escapeHtml(marcasRef.join(', '))}</strong></div>` : `<div style="color:var(--muted);font-size:.72rem;margin-top:2px">Sem marca obrigatoria: usar melhor custo do sistema.</div>`}
+              ${normAlerts ? `<div style="margin-top:4px">${normAlerts}</div>` : ''}
+            </div>`;
             return `<tr style="${rowBg}" id="pend-row-${orcId}-${idx}">
               <td style="color:var(--muted)">${idx + 1}</td>
-              <td><strong>${escapeHtml(item.nome)}</strong>${refHtml}${marcasHtml}${descHtml}</td>
+              <td><strong>${escapeHtml(item.nome)}</strong><div style="font-size:.72rem;color:var(--muted);margin-top:2px">Unid: <strong>${escapeHtml(item.unidadeSgdOriginal || item.unidade || '—')}</strong> · Qtd: <strong>${escapeHtml(String(item.quantidadeSgdOriginal || item.quantidade || 0))}</strong></div>${refHtml}${marcasHtml}${descHtml}</td>
+              <td>${normalizacaoHtml}</td>
               <td><select class="pend-prod-select" data-orc="${orcId}" data-idx="${idx}" data-sugestao="${escapeHtml(sugSku)}" onchange="pendAssociar('${orcId}',${idx},this.value)" style="width:100%;padding:3px 4px;font-size:.78rem;background:var(--bg);border:1px solid var(--line);border-radius:4px;color:var(--text)">${optionsHtml}</select>${sugBadge}</td>
               <td><input type="text" value="${escapeHtml(item.marca || '')}" data-marcasref="${escapeHtml(marcasRef.join('|'))}" onchange="pendEditField('${orcId}',${idx},'marca',this.value)" title="${marcaNaoConforme ? 'Marca fora da lista de referência — proposta seria INABILITADA' : ''}" style="width:100%;padding:3px;font-size:.78rem;background:var(--bg);border:1px solid ${marcaBorder};border-radius:4px;color:var(--text)"></td>
               <td class="text-center">${item.quantidade}</td>
               <td><select onchange="pendEditField('${orcId}',${idx},'unidade',this.value)" style="width:100%;padding:3px;font-size:.78rem;background:var(--bg);border:1px solid var(--line);border-radius:4px;color:var(--text)">
-                ${['UN','KG','L','CX','PCT','M','M2','FD','GL','ROL','RS','BD','SC'].map(u => `<option value="${u}" ${item.unidade === u ? 'selected' : ''}>${u}</option>`).join('')}
+                ${['UN','KG','G','LT','ML','CX','PCT','FD','FR','GL','BD','RL','DZ','M','M2','RESMA','SC'].map(u => `<option value="${u}" ${item.unidade === u ? 'selected' : ''}>${u}</option>`).join('')}
               </select></td>
               <td><input type="number" value="${item.custoUnitario || ''}" min="0" step="0.01" onchange="pendEditCusto('${orcId}',${idx},this.value)" style="width:100%;padding:3px;font-size:.78rem;background:var(--bg);border:1px solid var(--line);border-radius:4px;color:var(--text);text-align:right" id="pend-custo-${orcId}-${idx}"></td>
               <td><input type="number" value="${Math.round((item.margem || 0.30) * 100)}" min="0" max="200" step="1" onchange="pendEditMargem('${orcId}',${idx},this.value)" style="width:100%;padding:3px;font-size:.78rem;background:var(--bg);border:1px solid var(--line);border-radius:4px;color:var(--text);text-align:right" id="pend-margem-${orcId}-${idx}"></td>
@@ -873,6 +886,18 @@ window.pendAssociar = function (orcId, idx, bpId) {
   item.custoUnitario = bp ? (bp.custoBase || 0) : 0;
   item.margem = bp ? (bp.margemPadrao || margemPadrao) : item.margem || margemPadrao;
   item.matchStatus = bp ? "associado" : "pendente";
+  if (typeof _normalizarItemPreOrcamento === 'function') {
+    const normalizacao = _normalizarItemPreOrcamento(item, bp);
+    item.produtoCanonico = normalizacao.produtoCanonico;
+    item.categoriaCanonica = normalizacao.categoriaCanonica;
+    item.unidadeNormalizada = normalizacao.unidadeNormalizada;
+    item.embalagemNormalizada = normalizacao.embalagemNormalizada;
+    item.marcasPermitidas = normalizacao.marcasPermitidas;
+    item.marcasReferencia = normalizacao.marcasPermitidas;
+    item.marcaCotada = item.marca;
+    item.alertasNormalizacao = normalizacao.alertasNormalizacao.filter(a => !(bp && a === 'Produto sem vinculo'));
+    item.normalizacaoConfirmada = item.alertasNormalizacao.length === 0;
+  }
   _pendRecalc(orcId, idx);
   savePreOrcamentos();
   _pendCheckCompletude(orcId);
@@ -884,6 +909,11 @@ window.pendEditField = function (orcId, idx, field, value) {
   const pre = preOrcamentos[orcId];
   if (!pre || !pre.itens[idx]) return;
   pre.itens[idx][field] = value;
+  if (field === 'unidade') {
+    pre.itens[idx].unidadeNormalizada = typeof _normalizarUnidadeCodigo === 'function' ? _normalizarUnidadeCodigo(value) : value;
+    pre.itens[idx]._unidadeConfirmada = false;
+  }
+  if (field === 'marca') pre.itens[idx].marcaCotada = value;
   savePreOrcamentos();
   // Marca afeta a conformidade com as marcas de referência → re-renderiza para
   // atualizar o destaque de inabilitação na hora.
@@ -895,6 +925,10 @@ window.pendEditCusto = function (orcId, idx, value) {
   const pre = preOrcamentos[orcId];
   if (!pre || !pre.itens[idx]) return;
   pre.itens[idx].custoUnitario = parseFloat(value) || 0;
+  if (pre.itens[idx].custoUnitario > 0 && Array.isArray(pre.itens[idx].alertasNormalizacao)) {
+    pre.itens[idx].alertasNormalizacao = pre.itens[idx].alertasNormalizacao.filter(a => a !== 'Preco de custo pendente');
+    pre.itens[idx].normalizacaoConfirmada = pre.itens[idx].alertasNormalizacao.length === 0;
+  }
   _pendRecalc(orcId, idx);
   savePreOrcamentos();
   _pendCheckCompletude(orcId);

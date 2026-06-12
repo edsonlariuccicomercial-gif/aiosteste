@@ -802,6 +802,119 @@ function batchExportCsv() {
 
 // ===== PRÉ-ORÇAMENTO =====
 
+function _normTextBasic(value) {
+  return String(value || "")
+    .toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function _titleProdutoCanonico(value) {
+  const small = ["de", "do", "da", "em", "com", "para", "e", "ou"];
+  return String(value || "")
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((w, idx) => (idx > 0 && small.includes(w)) ? w : w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
+function _inferirCategoriaCanonica(texto) {
+  const t = _normTextBasic(texto);
+  if (/\b(toner|tonner|cartucho|cilindro|unidade de imagem|fotocondutor|refil de tinta|tinta para impressora)\b/.test(t)) return "Toner/Cartucho";
+  if (/\b(arroz|feijao|acucar|oleo|cafe|leite|macarrao|farinha|sal|biscoito|achocolatado|molho|extrato|fuba|canjiquinha|temper[o]?|vinagre)\b/.test(t)) return "Alimentacao";
+  if (/\b(detergente|desinfetante|agua sanitaria|cloro|saco de lixo|papel higienico|papel toalha|esponja|sabao|pano|vassoura|rodo|alcool|limpa)\b/.test(t)) return "Limpeza";
+  if (/\b(sulfite|papel a4|caderno|lapis|caneta|borracha|cola|pasta|cartolina|envelope|grampeador|clips|marcador)\b/.test(t)) return "Papelaria";
+  return "Outro";
+}
+
+function _normalizarUnidadeCodigo(unidade) {
+  const u = _normTextBasic(unidade).replace(/[^a-z0-9]/g, "");
+  const map = {
+    un: "UN", und: "UN", unidade: "UN", unidades: "UN",
+    kg: "KG", quilo: "KG", quilograma: "KG", quilogramas: "KG",
+    g: "G", grama: "G", gramas: "G",
+    pct: "PCT", pacote: "PCT", pacotes: "PCT",
+    cx: "CX", caixa: "CX", caixas: "CX",
+    fd: "FD", fardo: "FD", fardos: "FD",
+    lt: "LT", litro: "LT", litros: "LT", l: "LT",
+    ml: "ML", mililitro: "ML", mililitros: "ML",
+    gl: "GL", galao: "GL", galoes: "GL",
+    fr: "FR", frasco: "FR", frascos: "FR",
+    bd: "BD", balde: "BD", baldes: "BD",
+    rl: "RL", rolo: "RL", rolos: "RL", rol: "RL",
+    dz: "DZ", duzia: "DZ",
+    m: "M", metro: "M", metros: "M",
+    resma: "RESMA", resmas: "RESMA"
+  };
+  return map[u] || String(unidade || "").toUpperCase().trim() || "UN";
+}
+
+function _extrairEmbalagemNormalizada(texto) {
+  const t = _normTextBasic(texto);
+  const patterns = [
+    { re: /\b(?:pct|pacote)\s*(?:com|de)?\s*(\d+(?:[,.]\d+)?)\s*(kg|g|ml|l|lt)\b/i, tipo: "PCT" },
+    { re: /\b(?:cx|caixa)\s*(?:com|de)?\s*(\d+(?:[,.]\d+)?)\s*(un|und|unidades|pct|pacotes)\b/i, tipo: "CX" },
+    { re: /\b(?:fd|fardo)\s*(?:com|de)?\s*(\d+(?:[,.]\d+)?)\s*(un|und|unidades|pct|pacotes|rolos?)\b/i, tipo: "FD" },
+    { re: /\b(?:frasco|fr)\s*(?:com|de)?\s*(\d+(?:[,.]\d+)?)\s*(ml|l|lt)\b/i, tipo: "FR" },
+    { re: /\b(?:resma)\s*(?:com|de)?\s*(\d+(?:[,.]\d+)?)\s*(folhas?)\b/i, tipo: "RESMA" },
+    { re: /\b(\d+(?:[,.]\d+)?)\s*(kg|g|ml|l|lt)\b/i, tipo: "" }
+  ];
+  for (const p of patterns) {
+    const m = t.match(p.re);
+    if (m) return (p.tipo ? p.tipo + " " : "") + String(m[1]).replace(".", ",") + " " + m[2].toUpperCase();
+  }
+  return "";
+}
+
+function _normalizarItemPreOrcamento(assocItem, bp) {
+  const descricaoSgdOriginal = assocItem.descricao || assocItem.nomeCompleto || assocItem.nome || "";
+  const texto = [assocItem.nome, assocItem.descricao].filter(Boolean).join(" ").trim();
+  const unidadeSgdOriginal = assocItem.unidade || "UN";
+  const unidadeNormalizada = _normalizarUnidadeCodigo(unidadeSgdOriginal);
+  const embalagemNormalizada = _extrairEmbalagemNormalizada(texto);
+  const categoriaCanonica = _inferirCategoriaCanonica(texto);
+  const rmcNome = (typeof RadarMatcherCore !== "undefined" && RadarMatcherCore.normalizeProductName)
+    ? RadarMatcherCore.normalizeProductName(texto)
+    : _normTextBasic(texto);
+  const produtoCanonico = _titleProdutoCanonico(rmcNome || assocItem.nome || "");
+  let marcasPermitidas = [];
+  let precoRefSgd = 0;
+  if (typeof RadarMatcherCore !== "undefined") {
+    if (RadarMatcherCore.extractReferencePrice) {
+      const ref = RadarMatcherCore.extractReferencePrice(descricaoSgdOriginal + " " + (assocItem.observacao || ""));
+      if (ref && ref.valor > 0) precoRefSgd = ref.valor;
+    }
+    if (RadarMatcherCore.extractReferenceBrands) {
+      const rb = RadarMatcherCore.extractReferenceBrands(descricaoSgdOriginal);
+      if (rb && rb.marcas.length) marcasPermitidas = rb.marcas;
+    }
+  }
+  const alertas = [];
+  if (marcasPermitidas.length > 0 && !(bp && bp.marca)) alertas.push("Marca obrigatoria pendente");
+  if (!unidadeNormalizada) alertas.push("Unidade pendente");
+  if (!bp) alertas.push("Produto sem vinculo");
+  if (bp && !(bp.custoBase > 0)) alertas.push("Preco de custo pendente");
+
+  return {
+    descricaoSgdOriginal,
+    unidadeSgdOriginal,
+    quantidadeSgdOriginal: assocItem.quantidade || 0,
+    observacaoSgdOriginal: assocItem.observacao || "",
+    produtoCanonico,
+    categoriaCanonica,
+    unidadeNormalizada,
+    embalagemNormalizada,
+    fatorConversao: 1,
+    marcasPermitidas,
+    marcaCotada: bp ? (bp.marca || "") : "",
+    precoReferenciaSgd: precoRefSgd,
+    alertasNormalizacao: alertas,
+    normalizacaoConfirmada: alertas.length === 0
+  };
+}
+
 // Gerar novo pré-orçamento — abre modal de associação primeiro
 let _assocOrcId = null;
 let _assocItens = [];
@@ -837,7 +950,21 @@ window.gerarPreOrcamento = function (orcId) {
       }
     }
 
-    return { idx, nome: item.nome, quantidade: item.quantidade || 0, unidade: item.unidade || "Un", descricao: item.descricao || "", nomeCompleto: nomeCompleto, idBudgetItem: item.idBudgetItem || null, bpId: bp ? (bp.sku || bp.id) : null, bpNome: bp ? bp.item : "", custoBase: bp ? bp.custoBase : 0, precoRef: bp ? bp.precoReferencia : 0, matchStatus: matchStatus };
+    return {
+      idx,
+      nome: item.nome,
+      quantidade: item.quantidade || 0,
+      unidade: item.unidade || "Un",
+      descricao: item.descricao || "",
+      observacao: item.observacao || item.garantia || "",
+      nomeCompleto: nomeCompleto,
+      idBudgetItem: item.idBudgetItem || null,
+      bpId: bp ? (bp.sku || bp.id) : null,
+      bpNome: bp ? bp.item : "",
+      custoBase: bp ? bp.custoBase : 0,
+      precoRef: bp ? bp.precoReferencia : 0,
+      matchStatus: matchStatus
+    };
   });
 
   // Story 4.73: Criar pré-orçamento rascunho direto (sem modal de associação)
@@ -859,29 +986,27 @@ function _criarPreOrcamentoRascunho(orc) {
     const margem = bp ? (bp.margemPadrao || margemPadrao) : margemPadrao;
     const precoUnit = custoUnit > 0 ? Math.round(custoUnit * (1 + margem) * 100) / 100 : 0;
 
-    // Extrai do edital o preço de referência (teto) e as marcas exigidas.
-    // Cotação acima do teto OU com marca fora da lista → INABILITA. Guardamos para
-    // alertar/bloquear na tela de associação.
-    let precoRefSgd = 0;
-    let marcasRef = [];
-    if (typeof RadarMatcherCore !== "undefined") {
-      const txt = (assocItem.descricao || "") + " " + (assocItem.observacao || "");
-      if (RadarMatcherCore.extractReferencePrice) {
-        const ref = RadarMatcherCore.extractReferencePrice(txt);
-        if (ref && ref.valor > 0) precoRefSgd = ref.valor;
-      }
-      if (RadarMatcherCore.extractReferenceBrands) {
-        const rb = RadarMatcherCore.extractReferenceBrands(assocItem.descricao || "");
-        if (rb && rb.marcas.length) marcasRef = rb.marcas;
-      }
-    }
+    const normalizacao = _normalizarItemPreOrcamento(assocItem, bp);
 
     return {
       nome: assocItem.nome,
-      marca: bp ? (bp.marca || "") : "",
+      marca: normalizacao.marcaCotada || "",
       descricao: assocItem.descricao || "",
-      precoReferenciaSgd: precoRefSgd,
-      marcasReferencia: marcasRef,
+      descricaoSgdOriginal: normalizacao.descricaoSgdOriginal,
+      unidadeSgdOriginal: normalizacao.unidadeSgdOriginal,
+      quantidadeSgdOriginal: normalizacao.quantidadeSgdOriginal,
+      observacaoSgdOriginal: normalizacao.observacaoSgdOriginal,
+      produtoCanonico: normalizacao.produtoCanonico,
+      categoriaCanonica: normalizacao.categoriaCanonica,
+      unidadeNormalizada: normalizacao.unidadeNormalizada,
+      embalagemNormalizada: normalizacao.embalagemNormalizada,
+      fatorConversao: normalizacao.fatorConversao,
+      marcasPermitidas: normalizacao.marcasPermitidas,
+      marcaCotada: normalizacao.marcaCotada,
+      alertasNormalizacao: normalizacao.alertasNormalizacao,
+      normalizacaoConfirmada: normalizacao.normalizacaoConfirmada,
+      precoReferenciaSgd: normalizacao.precoReferenciaSgd,
+      marcasReferencia: normalizacao.marcasPermitidas,
       matchStatus: assocItem.matchStatus || "pendente",
       matchScore: bp ? 1.0 : 0,
       skuBanco: assocItem.bpId || null,
@@ -1393,11 +1518,34 @@ function renderPreOrcamentoItens() {
     const unitKey = unitRaw.replace(/[^A-Z]/g, '').substring(0, 3);
     const unitClassMap = { KG: 'badge-un-kg', UN: 'badge-un-un', PCT: 'badge-un-pct', LT: 'badge-un-lt', L: 'badge-un-l', CX: 'badge-un-cx', UND: 'badge-un-un', PC: 'badge-un-pct', ML: 'badge-un-lt' };
     const unitClass = unitClassMap[unitKey] || 'badge-un-default';
+    const marcasNorm = (item.marcasPermitidas && item.marcasPermitidas.length)
+      ? item.marcasPermitidas
+      : (item.marcasReferencia || []);
+    const normAlerts = (item.alertasNormalizacao || []).map(a => `<span class="badge badge-rascunho" style="font-size:.66rem;margin-right:4px">${escapeHtml(a)}</span>`).join("");
+    const sgdOficialHtml = `
+      <div style="border:1px solid var(--line);border-radius:8px;padding:.5rem;background:rgba(148,163,184,.06);margin-top:.35rem">
+        <div style="font-size:.68rem;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin-bottom:.25rem">SGD oficial</div>
+        <div style="font-size:.78rem;line-height:1.35;white-space:pre-wrap;word-break:break-word">${escapeHtml(item.descricaoSgdOriginal || item.descricao || item.nome || "")}</div>
+        <div style="font-size:.72rem;color:var(--muted);margin-top:.35rem">Unid: <strong>${escapeHtml(item.unidadeSgdOriginal || item.unidade || "—")}</strong> · Qtd: <strong>${escapeHtml(String(item.quantidadeSgdOriginal || item.quantidade || 0))}</strong></div>
+      </div>`;
+    const normalizacaoHtml = `
+      <div style="border:1px solid var(--line);border-radius:8px;padding:.5rem;background:rgba(78,201,138,.06);margin-top:.35rem">
+        <div style="font-size:.68rem;color:var(--accent);font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin-bottom:.25rem">Normalizacao interna</div>
+        <div style="font-size:.8rem;line-height:1.35"><strong>${escapeHtml(item.produtoCanonico || item.nome || "")}</strong></div>
+        <div style="font-size:.72rem;color:var(--muted);margin-top:.25rem">
+          Categoria: <strong>${escapeHtml(item.categoriaCanonica || "Outro")}</strong> ·
+          Unid: <strong>${escapeHtml(item.unidadeNormalizada || item.unidade || "—")}</strong>
+          ${item.embalagemNormalizada ? ` · Embalagem: <strong>${escapeHtml(item.embalagemNormalizada)}</strong>` : ""}
+        </div>
+        ${marcasNorm.length ? `<div style="font-size:.72rem;color:var(--accent);margin-top:.25rem">Marcas permitidas: <strong>${escapeHtml(marcasNorm.join(", "))}</strong></div>` : `<div style="font-size:.72rem;color:var(--muted);margin-top:.25rem">Sem marca obrigatoria: usar melhor custo do sistema.</div>`}
+        ${normAlerts ? `<div style="margin-top:.35rem">${normAlerts}</div>` : ""}
+      </div>`;
 
     return `<tr>
       <td>
         <strong>${escapeHtml(item.nome)}</strong>
-        <br><span class="text-muted" style="font-size:0.75rem">${escapeHtml(item.descricao)}</span>
+        ${sgdOficialHtml}
+        ${normalizacaoHtml}
         ${pncpHint}
         ${concHint}
         ${fornHint}
@@ -1520,7 +1668,22 @@ window.rejeitarMatchPreOrc = async function (itemName) {
 function detectarInabilitacoes(pre) {
   const out = [];
   const RMC = typeof RadarMatcherCore !== "undefined" ? RadarMatcherCore : null;
+  function normBrand(b) {
+    return String(b || "")
+      .toLowerCase()
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9\s]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+  function marcaPermitidaEstrita(marcaCotada, marcasRef) {
+    const m = normBrand(marcaCotada);
+    if (!m) return false;
+    return (marcasRef || []).some(req => normBrand(req) === m);
+  }
   (pre.itens || []).forEach((item) => {
+    if (!item.skuBanco) out.push(`${item.nome}: produto sem vinculo na Central`);
+    if (item._unidadeConfirmada !== true) out.push(`${item.nome}: unidade/embalagem nao confirmada`);
     // Teto de preço
     let teto = item.precoReferenciaSgd || 0;
     if (!teto && RMC && RMC.extractReferencePrice) {
@@ -1536,7 +1699,7 @@ function detectarInabilitacoes(pre) {
       const rb = RMC.extractReferenceBrands(item.descricao || "");
       if (rb && rb.marcas.length) marcasRef = rb.marcas;
     }
-    if (marcasRef.length && RMC && RMC.isBrandCompliant && !RMC.isBrandCompliant(item.marca, marcasRef)) {
+    if (marcasRef.length && !marcaPermitidaEstrita(item.marca, marcasRef)) {
       out.push(`${item.nome}: marca "${item.marca || "(vazia)"}" fora da lista exigida (${marcasRef.join(", ")})`);
     }
   });
@@ -1562,7 +1725,7 @@ function aprovarPreOrcamento() {
     alert(
       "Não é possível aprovar — os itens abaixo seriam INABILITADOS no edital:\n\n" +
       linhas +
-      "\n\nAjuste o preço (≤ teto) e/ou a marca antes de aprovar."
+      "\n\nAjuste preço (≤ teto), marca, vínculo e unidade antes de aprovar."
     );
     return;
   }
