@@ -868,6 +868,11 @@ function _extrairEmbalagemNormalizada(texto) {
   return "";
 }
 
+function _extrairLinksExternosEdital(texto) {
+  const matches = String(texto || "").match(/https?:\/\/[^\s<>"')]+/gi) || [];
+  return matches.map(url => url.replace(/[.,;]+$/, ""));
+}
+
 function _normalizarItemPreOrcamento(assocItem, bp) {
   const descricaoSgdOriginal = assocItem.descricao || assocItem.nomeCompleto || assocItem.nome || "";
   const texto = [assocItem.nome, assocItem.descricao].filter(Boolean).join(" ").trim();
@@ -875,6 +880,7 @@ function _normalizarItemPreOrcamento(assocItem, bp) {
   const unidadeNormalizada = _normalizarUnidadeCodigo(unidadeSgdOriginal);
   const embalagemNormalizada = _extrairEmbalagemNormalizada(texto);
   const categoriaCanonica = _inferirCategoriaCanonica(texto);
+  const linksExternos = _extrairLinksExternosEdital(texto + " " + (assocItem.observacao || ""));
   const rmcNome = (typeof RadarMatcherCore !== "undefined" && RadarMatcherCore.normalizeProductName)
     ? RadarMatcherCore.normalizeProductName(texto)
     : _normTextBasic(texto);
@@ -896,6 +902,7 @@ function _normalizarItemPreOrcamento(assocItem, bp) {
   if (!unidadeNormalizada) alertas.push("Unidade pendente");
   if (!bp) alertas.push("Produto sem vinculo");
   if (bp && !(bp.custoBase > 0)) alertas.push("Preco de custo pendente");
+  if (linksExternos.length > 0) alertas.push("Documento externo do edital para leitura");
 
   return {
     descricaoSgdOriginal,
@@ -909,6 +916,7 @@ function _normalizarItemPreOrcamento(assocItem, bp) {
     fatorConversao: 1,
     marcasPermitidas,
     marcaCotada: bp ? (bp.marca || "") : "",
+    linksExternos,
     precoReferenciaSgd: precoRefSgd,
     alertasNormalizacao: alertas,
     normalizacaoConfirmada: alertas.length === 0
@@ -1003,6 +1011,7 @@ function _criarPreOrcamentoRascunho(orc) {
       fatorConversao: normalizacao.fatorConversao,
       marcasPermitidas: normalizacao.marcasPermitidas,
       marcaCotada: normalizacao.marcaCotada,
+      linksExternos: normalizacao.linksExternos,
       alertasNormalizacao: normalizacao.alertasNormalizacao,
       normalizacaoConfirmada: normalizacao.normalizacaoConfirmada,
       precoReferenciaSgd: normalizacao.precoReferenciaSgd,
@@ -1522,6 +1531,7 @@ function renderPreOrcamentoItens() {
       ? item.marcasPermitidas
       : (item.marcasReferencia || []);
     const normAlerts = (item.alertasNormalizacao || []).map(a => `<span class="badge badge-rascunho" style="font-size:.66rem;margin-right:4px">${escapeHtml(a)}</span>`).join("");
+    const linksExternos = item.linksExternos || [];
     const sgdOficialHtml = `
       <div style="border:1px solid var(--line);border-radius:8px;padding:.5rem;background:rgba(148,163,184,.06);margin-top:.35rem">
         <div style="font-size:.68rem;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin-bottom:.25rem">SGD oficial</div>
@@ -1538,6 +1548,7 @@ function renderPreOrcamentoItens() {
           ${item.embalagemNormalizada ? ` · Embalagem: <strong>${escapeHtml(item.embalagemNormalizada)}</strong>` : ""}
         </div>
         ${marcasNorm.length ? `<div style="font-size:.72rem;color:var(--accent);margin-top:.25rem">Marcas permitidas: <strong>${escapeHtml(marcasNorm.join(", "))}</strong></div>` : `<div style="font-size:.72rem;color:var(--muted);margin-top:.25rem">Sem marca obrigatoria: usar melhor custo do sistema.</div>`}
+        ${linksExternos.length ? `<div style="font-size:.72rem;margin-top:.25rem">Documento externo: ${linksExternos.map((url, i) => `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">link ${i + 1}</a>`).join(", ")}</div>` : ""}
         ${normAlerts ? `<div style="margin-top:.35rem">${normAlerts}</div>` : ""}
       </div>`;
 

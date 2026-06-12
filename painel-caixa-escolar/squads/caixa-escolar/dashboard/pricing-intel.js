@@ -823,12 +823,14 @@ window.renderPendentes = function () {
             const normCategoria = item.categoriaCanonica || (typeof _inferirCategoriaCanonica === 'function' ? _inferirCategoriaCanonica([item.nome, item.descricao].join(' ')) : 'Outro');
             const normUnidade = item.unidadeNormalizada || (typeof _normalizarUnidadeCodigo === 'function' ? _normalizarUnidadeCodigo(item.unidade) : item.unidade);
             const normEmb = item.embalagemNormalizada || (typeof _extrairEmbalagemNormalizada === 'function' ? _extrairEmbalagemNormalizada([item.nome, item.descricao].join(' ')) : '');
+            const linksExternos = item.linksExternos || (typeof _extrairLinksExternosEdital === 'function' ? _extrairLinksExternosEdital([item.nome, item.descricao, item.observacao].join(' ')) : []);
             const normAlerts = (item.alertasNormalizacao || []).map(a => `<span class="badge badge-rascunho" style="font-size:.66rem;margin:2px 3px 0 0">${escapeHtml(a)}</span>`).join('');
             const normalizacaoHtml = `<div style="font-size:.78rem;line-height:1.35">
               <strong>${escapeHtml(normProduto || item.nome || '')}</strong>
               <div style="color:var(--muted);font-size:.72rem;margin-top:2px">Categoria: <strong>${escapeHtml(normCategoria || 'Outro')}</strong></div>
               <div style="color:var(--muted);font-size:.72rem;margin-top:2px">Unid: <strong>${escapeHtml(normUnidade || item.unidade || '—')}</strong>${normEmb ? ` · Embalagem: <strong>${escapeHtml(normEmb)}</strong>` : ''}</div>
               ${marcasRef.length ? `<div style="color:var(--accent);font-size:.72rem;margin-top:2px">Marcas permitidas: <strong>${escapeHtml(marcasRef.join(', '))}</strong></div>` : `<div style="color:var(--muted);font-size:.72rem;margin-top:2px">Sem marca obrigatoria: usar melhor custo do sistema.</div>`}
+              ${linksExternos.length ? `<div style="font-size:.72rem;margin-top:2px">Documento externo: ${linksExternos.map((url, i) => `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">link ${i + 1}</a>`).join(', ')}</div>` : ''}
               ${normAlerts ? `<div style="margin-top:4px">${normAlerts}</div>` : ''}
             </div>`;
             return `<tr style="${rowBg}" id="pend-row-${orcId}-${idx}">
@@ -998,17 +1000,25 @@ window.pendNovoProduto = function (orcId, idx) {
     abrirModalProdutoCentral({
       compact: true,
       prefill: {
-        nome: item.nome || "",
-        unidade: item.unidade || "UN",
-        categoria: orc ? (orc.grupo || "") : "",
+        nome: item.produtoCanonico || item.nome || "",
+        unidade: item.unidadeNormalizada || item.unidade || "UN",
+        categoria: item.categoriaCanonica || (orc ? (orc.grupo || "") : ""),
       },
       onSave: function (produto) {
         // Auto-associate the newly created product
         item.skuBanco = produto.sku || produto.id;
         item.marca = produto.marca || "";
-        item.custoUnitario = produto.custoBase || 0;
-        item.margem = produto.margemAlvo || (perfil.config ? perfil.config.margemPadrao || 0.30 : 0.30);
+        item.custoUnitario = produto.custoBase || produto.preco_custo || 0;
+        item.margem = produto.margemAlvo || produto.margemPadrao || (perfil.config ? perfil.config.margemPadrao || 0.30 : 0.30);
         item.matchStatus = "criado_inline";
+        item.produtoCanonico = produto.descricao || produto.nome || item.produtoCanonico || item.nome;
+        item.categoriaCanonica = produto.grupo || produto.categoria || item.categoriaCanonica || "";
+        item.unidadeNormalizada = produto.unidade || produto.unidade_base || item.unidadeNormalizada || item.unidade;
+        if (Array.isArray(item.alertasNormalizacao)) {
+          item.alertasNormalizacao = item.alertasNormalizacao.filter(a => a !== 'Produto sem vinculo' && a !== 'Preco de custo pendente');
+          if (item.custoUnitario <= 0) item.alertasNormalizacao.push('Preco de custo pendente');
+          item.normalizacaoConfirmada = item.alertasNormalizacao.length === 0;
+        }
         _pendRecalc(orcId, idx);
         savePreOrcamentos();
         _pendCheckCompletude(orcId);
