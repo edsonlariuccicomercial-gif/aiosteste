@@ -918,7 +918,8 @@ function _pendProdutoNormalizado(item, orc) {
   const normalizacao = typeof _normalizarItemPreOrcamento === 'function' ? _normalizarItemPreOrcamento(item, null) : null;
   const nomeGerado = normalizacao ? normalizacao.produtoCanonico : '';
   const nomeAtual = item.produtoCanonico || '';
-  const nome = nomeGerado && nomeGerado.length > nomeAtual.length ? nomeGerado : (nomeAtual || item.nome || 'Produto');
+  const nomeBase = nomeGerado && nomeGerado.length > nomeAtual.length ? nomeGerado : (nomeAtual || item.nome || 'Produto');
+  const nome = typeof _limparTextoProdutoSgd === 'function' ? (_limparTextoProdutoSgd(nomeBase) || nomeBase) : nomeBase;
   return {
     nome,
     categoria: (normalizacao && normalizacao.categoriaCanonica) || item.categoriaCanonica || (orc ? orc.grupo || '' : ''),
@@ -942,6 +943,7 @@ function _pendAtualizarProdutoCatalogo(bp, dados) {
   if (!bp || !dados || !dados.nome) return bp;
   bp.item = dados.nome;
   bp.descricao = dados.nome;
+  bp.descricaoFiscal = dados.nome;
   bp.grupo = dados.categoria || bp.grupo || "";
   bp.unidade = dados.unidade || bp.unidade || "UN";
   bp.fonte = bp.fonte || "normalizacao-pre-orcamento";
@@ -952,6 +954,7 @@ function _pendAtualizarProdutoCatalogo(bp, dados) {
         id: bp.id,
         sku: bp.sku || bp.id,
         descricao: dados.nome,
+        descricaoFiscal: dados.nome,
         unidade: bp.unidade,
         grupo: bp.grupo,
         marca: bp.marca || "",
@@ -968,6 +971,7 @@ function _pendAtualizarProdutoCatalogo(bp, dados) {
     if (cp) {
       cp.nome = dados.nome;
       cp.descricao = dados.nome;
+      cp.descricao_fiscal = dados.nome;
       cp.unidade_base = bp.unidade;
       cp.categoria = bp.grupo;
       cp.atualizadoEm = new Date().toISOString();
@@ -989,6 +993,7 @@ function _pendCriarProdutoCatalogo(dados) {
     sku: id,
     item: dados.nome,
     descricao: dados.nome,
+    descricaoFiscal: dados.nome,
     grupo: dados.categoria || "",
     unidade: dados.unidade || "UN",
     marca: "",
@@ -1008,6 +1013,7 @@ function _pendCriarProdutoCatalogo(dados) {
         id,
         sku: id,
         descricao: dados.nome,
+        descricaoFiscal: dados.nome,
         unidade: bp.unidade,
         grupo: bp.grupo,
         marca: "",
@@ -1025,6 +1031,7 @@ function _pendCriarProdutoCatalogo(dados) {
       sku: id,
       nome: dados.nome,
       descricao: dados.nome,
+      descricao_fiscal: dados.nome,
       unidade_base: bp.unidade,
       categoria: bp.grupo,
       fornecedor: "",
