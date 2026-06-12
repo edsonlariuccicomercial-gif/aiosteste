@@ -824,7 +824,9 @@ window.renderPendentes = function () {
             const marcaBorder = marcaNaoConforme ? 'var(--danger)' : 'var(--line)';
             const normGerada = typeof _normalizarItemPreOrcamento === 'function' ? _normalizarItemPreOrcamento(item, null).produtoCanonico : '';
             const normProdutoAtual = item.produtoCanonico || '';
-            const normProduto = normGerada && normGerada.length > normProdutoAtual.length ? normGerada : (normProdutoAtual || item.nome);
+            const normProduto = normGerada && (!normProdutoAtual || _pendTextoPareceSujo(normProdutoAtual) || (normGerada.length > 8 && normGerada.length < normProdutoAtual.length))
+              ? normGerada
+              : (normProdutoAtual || normGerada || item.nome);
             const normCategoria = item.categoriaCanonica || (typeof _inferirCategoriaCanonica === 'function' ? _inferirCategoriaCanonica([item.nome, item.descricao].join(' ')) : 'Outro');
             const normUnidade = item.unidadeNormalizada || (typeof _normalizarUnidadeCodigo === 'function' ? _normalizarUnidadeCodigo(item.unidade) : item.unidade);
             const normEmb = item.embalagemNormalizada || (typeof _extrairEmbalagemNormalizada === 'function' ? _extrairEmbalagemNormalizada([item.nome, item.descricao].join(' ')) : '');
@@ -919,7 +921,9 @@ function _pendProdutoNormalizado(item, orc) {
   const normalizacao = typeof _normalizarItemPreOrcamento === 'function' ? _normalizarItemPreOrcamento(item, null) : null;
   const nomeGerado = normalizacao ? normalizacao.produtoCanonico : '';
   const nomeAtual = item.produtoCanonico || '';
-  const nomeBase = nomeGerado && nomeGerado.length > nomeAtual.length ? nomeGerado : (nomeAtual || item.nome || 'Produto');
+  const nomeBase = nomeGerado && (!nomeAtual || _pendTextoPareceSujo(nomeAtual) || (nomeGerado.length > 8 && nomeGerado.length < nomeAtual.length))
+    ? nomeGerado
+    : (nomeAtual || nomeGerado || item.nome || 'Produto');
   const nome = typeof _limparTextoProdutoSgd === 'function' ? (_limparTextoProdutoSgd(nomeBase) || nomeBase) : nomeBase;
   return {
     nome,
@@ -940,12 +944,17 @@ function _pendGetProdutoCatalogo(id) {
   return (bancoPrecos.itens || []).find(p => (p.sku || p.id) === id) || null;
 }
 
+function _pendTextoPareceSujo(nome) {
+  const value = String(nome || "");
+  const t = _pendNormKey(value);
+  return value.length > 120 ||
+    /\b(descricao|marca|marcas|referencia|preco|precos|teto|valor|edital|sgd|orcamento|cotacao)\b/.test(t) ||
+    /https?:\/\//i.test(value);
+}
+
 function _pendProdutoPareceSujo(bp) {
   const nome = [bp && bp.item, bp && bp.descricao, bp && bp.descricaoFiscal].filter(Boolean).join(" ");
-  const t = _pendNormKey(nome);
-  return nome.length > 120 ||
-    /\b(descricao|marca|marcas|referencia|preco|precos|teto|valor|edital|sgd|orcamento|cotacao)\b/.test(t) ||
-    /https?:\/\//i.test(nome);
+  return _pendTextoPareceSujo(nome);
 }
 
 function _pendAtualizarProdutoCatalogo(bp, dados) {

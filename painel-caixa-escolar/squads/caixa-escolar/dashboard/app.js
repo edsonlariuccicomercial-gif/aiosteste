@@ -867,6 +867,14 @@ function _limparTextoProdutoSgd(texto) {
     .trim();
 }
 
+function _textoProdutoPareceSujo(nome) {
+  const value = String(nome || "");
+  const t = _normTextBasic(value);
+  return value.length > 120 ||
+    /\b(descricao|marca|marcas|referencia|preco|precos|teto|valor|edital|sgd|orcamento|cotacao)\b/.test(t) ||
+    /https?:\/\//i.test(value);
+}
+
 function _produtoCanonicoEspecializado(texto) {
   const raw = String(texto || "");
   const t = _normTextBasic(raw);
@@ -1621,7 +1629,9 @@ function renderPreOrcamentoItens() {
     const sgdDesc = item.descricaoSgdOriginal || item.descricao || item.nome || "";
     const canonicoGerado = typeof _normalizarItemPreOrcamento === "function" ? _normalizarItemPreOrcamento(item, bp).produtoCanonico : "";
     const canonicoAtual = item.produtoCanonico || "";
-    const produtoCanonicoRender = canonicoGerado && canonicoGerado.length > canonicoAtual.length ? canonicoGerado : (canonicoAtual || item.nome);
+    const produtoCanonicoRender = canonicoGerado && (!canonicoAtual || _textoProdutoPareceSujo(canonicoAtual) || (canonicoGerado.length > 8 && canonicoGerado.length < canonicoAtual.length))
+      ? canonicoGerado
+      : (canonicoAtual || canonicoGerado || item.nome);
     const sgdOficialHtml = `
       <details style="margin-top:.25rem">
         <summary style="font-size:.72rem;color:var(--muted);cursor:pointer">SGD oficial · unid. <strong>${escapeHtml(item.unidadeSgdOriginal || item.unidade || "—")}</strong> · qtd. <strong>${escapeHtml(String(item.quantidadeSgdOriginal || item.quantidade || 0))}</strong></summary>
