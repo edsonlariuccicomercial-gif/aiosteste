@@ -90,6 +90,19 @@ function titleFiscalName(value) {
     .join(" ");
 }
 
+function inferCanonicalProduct(rawValue, fiscalName) {
+  const raw = [rawValue, fiscalName].filter(Boolean).join(" ");
+  const t = normText(raw);
+  if (/\bcaneta\b/.test(t)) return /\bpermanente|retroprojetor|retro projetor|transparencia\b/.test(t) ? "Caneta Permanente" : "Caneta";
+  if (/\bcolher(?:e|es)?\b/.test(t)) return "Colher";
+  if (/\bcopos?\b/.test(t)) return "Copo";
+  if (/\barroz\b/.test(t)) return "Arroz";
+  if (/\bpapel\b/.test(t) && /\ba4\b/.test(t)) return "Papel A4";
+  const cleaned = cleanFiscalName(fiscalName || rawValue || "Produto");
+  const firstWords = cleaned.split(/\s+/).filter(Boolean).slice(0, 2).join(" ");
+  return titleFiscalName(firstWords || "Produto");
+}
+
 function localNormalizeItem(item, idx) {
   const raw = [item.nome, item.descricao, item.observacao].filter(Boolean).join(" ");
   const cleaned = cleanFiscalName(raw);
@@ -99,7 +112,7 @@ function localNormalizeItem(item, idx) {
   const base = {
     idx,
     descricaoFiscal: titleFiscalName(cleaned || item.nome || "Produto"),
-    produtoCanonico: titleFiscalName(cleaned || item.nome || "Produto"),
+    produtoCanonico: inferCanonicalProduct(raw, cleaned || item.nome || "Produto"),
     categoria: "Outro",
     unidadeNormalizada: String(item.unidade || "UN").toUpperCase().trim(),
     embalagem: "",
@@ -116,7 +129,7 @@ function localNormalizeItem(item, idx) {
     const cor = /\bpreta?\b/.test(t) ? "Preta" : "";
     const ponta = /\bponta\s+media\b|\bmedia\b/.test(t) ? "Ponta Media" : "";
     base.descricaoFiscal = titleFiscalName(["Caneta Permanente para Retroprojetor/transparencia", ponta, espessura ? `${espessura} mm` : "", cor].filter(Boolean).join(" "));
-    base.produtoCanonico = base.descricaoFiscal;
+    base.produtoCanonico = "Caneta Permanente";
     base.categoria = "Papelaria";
     base.atributosEssenciais = [
       { chave: "tipo", valor: "caneta permanente" },
@@ -129,7 +142,7 @@ function localNormalizeItem(item, idx) {
   } else if (/\bcolher(?:e)?\b/.test(t) && /\b(servir|manipular|alimentos|cozinha|arroz)\b/.test(t)) {
     const tamanho = /\bmedia\b/.test(t) ? "Media" : "";
     base.descricaoFiscal = titleFiscalName(["Colher", tamanho, "para Servir Alimentos"].filter(Boolean).join(" "));
-    base.produtoCanonico = base.descricaoFiscal;
+    base.produtoCanonico = "Colher";
     base.categoria = "Utensilios de Cozinha";
     base.atributosEssenciais = [
       { chave: "tipo", valor: "colher" },
@@ -142,7 +155,7 @@ function localNormalizeItem(item, idx) {
     const material = /\bplastico|plastica\b/.test(t) ? "plastico" : "";
     base.descricaoFiscal = titleFiscalName(["Copo", /\bdescartavel\b/.test(t) ? "Descartavel" : "", material].filter(Boolean).join(" "));
     if (capacidade) base.descricaoFiscal = titleFiscalName(`${base.descricaoFiscal} ${capacidade[1].replace(",", ".")} ${capacidade[2].toLowerCase()}`);
-    base.produtoCanonico = base.descricaoFiscal;
+    base.produtoCanonico = "Copo";
     base.categoria = "Utensilios de Cozinha";
     base.atributosEssenciais = [
       { chave: "tipo", valor: "copo" },
@@ -182,7 +195,7 @@ function normalizeResult(item, result, idx) {
     return {
       ...local,
       idx: Number.isInteger(result.idx) ? result.idx : idx,
-      marcasPermitidas: resultBrands.length ? resultBrands : local.marcasPermitidas,
+      marcasPermitidas: local.marcasPermitidas.length ? local.marcasPermitidas : resultBrands,
       precoReferencia: Number(result.precoReferencia || 0) > 0 ? Number(result.precoReferencia) : local.precoReferencia,
       alertas: Array.from(new Set([
         ...local.alertas,
@@ -196,6 +209,9 @@ function normalizeResult(item, result, idx) {
   const rawName = result.descricaoFiscal || result.produtoCanonico || fallback.nome || item.nome || "Produto";
   let descricaoFiscal = cleanFiscalName(rawName);
   if (isDirtyFiscalName(descricaoFiscal)) descricaoFiscal = cleanFiscalName(local.descricaoFiscal || fallback.nome || item.nome || "Produto");
+  let produtoCanonico = cleanFiscalName(result.produtoCanonico || local.produtoCanonico || descricaoFiscal);
+  if (!produtoCanonico || isDirtyFiscalName(produtoCanonico)) produtoCanonico = inferCanonicalProduct([item.nome, item.descricao, item.observacao].join(" "), descricaoFiscal);
+  produtoCanonico = inferCanonicalProduct([item.nome, item.descricao, item.observacao].join(" "), produtoCanonico);
 
   const alertas = Array.from(new Set([
     ...local.alertas,
@@ -218,7 +234,7 @@ function normalizeResult(item, result, idx) {
   return {
     idx: Number.isInteger(result.idx) ? result.idx : idx,
     descricaoFiscal,
-    produtoCanonico: descricaoFiscal,
+    produtoCanonico,
     categoria,
     unidadeNormalizada,
     embalagem,
@@ -262,11 +278,13 @@ REGRAS CRITICAS
 4. Marcas permitidas ficam somente em marcasPermitidas.
 5. Preco referencia fica somente em precoReferencia. Se vier R$ 00, R$ 0,00 ou zero, use 0.
 6. Nao invente atributo essencial. Se faltar, marque precisaRevisao=true e inclua alerta claro.
-7. Para copo, capacidade em ml/l e material sao essenciais. Se nao houver capacidade, alerta "Capacidade do copo pendente".
-8. Para tesoura, tamanho/ponta/material sao essenciais quando existirem. Se o item so diz tesoura sem tamanho, alerta "Caracteristica essencial da tesoura pendente".
-9. Para utensilios de cozinha, o nucleo e o utensilio. Em "colher de arroz", "arroz" e aplicacao/formato, nao categoria alimentacao.
-10. Use categoria apenas entre: Alimentacao, Papelaria, Limpeza, Toner/Cartucho, Utensilios de Cozinha, Outro.
-11. Se tiver duvida entre criar produto ou associar, marque precisaRevisao=true.
+7. produtoCanonico e o nucleo simples do produto, sem variacoes: Copo, Colher, Caneta Permanente, Arroz, Papel A4.
+8. descricaoFiscal e o nome completo limpo com variacoes essenciais: material, capacidade, cor, ponta, tamanho, uso.
+9. Para copo, capacidade em ml/l e material sao essenciais. Se nao houver capacidade, alerta "Capacidade do copo pendente".
+10. Para tesoura, tamanho/ponta/material sao essenciais quando existirem. Se o item so diz tesoura sem tamanho, alerta "Caracteristica essencial da tesoura pendente".
+11. Para utensilios de cozinha, o nucleo e o utensilio. Em "colher de arroz", "arroz" e aplicacao/formato, nao categoria alimentacao.
+12. Use categoria apenas entre: Alimentacao, Papelaria, Limpeza, Toner/Cartucho, Utensilios de Cozinha, Outro.
+13. Se tiver duvida entre criar produto ou associar, marque precisaRevisao=true.
 
 Responda somente em json valido, sem markdown e sem texto fora do objeto.`;
 
@@ -276,8 +294,8 @@ Responda somente em json valido, sem markdown e sem texto fora do objeto.`;
       results: [
         {
           idx: 0,
-          descricaoFiscal: "Nome fiscal limpo",
-          produtoCanonico: "igual a descricaoFiscal",
+          descricaoFiscal: "Copo Descartavel Plastico 200 ml",
+          produtoCanonico: "Copo",
           categoria: "Papelaria",
           unidadeNormalizada: "UN",
           embalagem: "PCT 100 UN ou vazio",

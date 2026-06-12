@@ -920,7 +920,17 @@ function _produtoCanonicoEspecializado(texto) {
   return "";
 }
 
-function _montarProdutoCanonico(texto, nomeBase, embalagemNormalizada) {
+function _produtoCanonicoBaseEspecializado(texto) {
+  const t = _normTextBasic(texto);
+  if (/\bcaneta\b/.test(t)) return /\b(transparencia|retroprojetor|retro projetor|permanente)\b/.test(t) ? "Caneta Permanente" : "Caneta";
+  if (/\bcolher(?:e|es)?\b/.test(t)) return "Colher";
+  if (/\bcopos?\b/.test(t)) return "Copo";
+  if (/\barroz\b/.test(t)) return "Arroz";
+  if (/\bpapel\b/.test(t) && /\ba4\b/.test(t)) return "Papel A4";
+  return "";
+}
+
+function _montarDescricaoFiscal(texto, nomeBase, embalagemNormalizada) {
   const especializado = _produtoCanonicoEspecializado(texto);
   if (especializado) return especializado;
   const base = _titleProdutoCanonico(nomeBase || texto || "");
@@ -931,6 +941,13 @@ function _montarProdutoCanonico(texto, nomeBase, embalagemNormalizada) {
     extras.unshift(_titleProdutoCanonico(embalagemNormalizada));
   }
   return [base].concat(extras).filter(Boolean).slice(0, 6).join(" ");
+}
+
+function _montarProdutoCanonico(texto, descricaoFiscal) {
+  const especializado = _produtoCanonicoBaseEspecializado(texto);
+  if (especializado) return especializado;
+  const base = _titleProdutoCanonico(descricaoFiscal || texto || "");
+  return base.split(/\s+/).filter(Boolean).slice(0, 2).join(" ") || "Produto";
 }
 
 function _inferirCategoriaCanonica(texto) {
@@ -999,7 +1016,8 @@ function _normalizarItemPreOrcamento(assocItem, bp) {
   const rmcNome = (typeof RadarMatcherCore !== "undefined" && RadarMatcherCore.normalizeProductName)
     ? RadarMatcherCore.normalizeProductName(texto)
     : _normTextBasic(texto);
-  const produtoCanonico = _montarProdutoCanonico(texto, rmcNome || assocItem.nome || "", embalagemNormalizada);
+  const descricaoFiscal = _montarDescricaoFiscal(texto, rmcNome || assocItem.nome || "", embalagemNormalizada);
+  const produtoCanonico = _montarProdutoCanonico(texto, descricaoFiscal);
   let marcasPermitidas = [];
   let precoRefSgd = 0;
   if (typeof RadarMatcherCore !== "undefined") {
@@ -1025,6 +1043,7 @@ function _normalizarItemPreOrcamento(assocItem, bp) {
     unidadeSgdOriginal,
     quantidadeSgdOriginal: assocItem.quantidade || 0,
     observacaoSgdOriginal: assocItem.observacao || "",
+    descricaoFiscal,
     produtoCanonico,
     categoriaCanonica,
     unidadeNormalizada,
@@ -1120,6 +1139,7 @@ function _criarPreOrcamentoRascunho(orc) {
       unidadeSgdOriginal: normalizacao.unidadeSgdOriginal,
       quantidadeSgdOriginal: normalizacao.quantidadeSgdOriginal,
       observacaoSgdOriginal: normalizacao.observacaoSgdOriginal,
+      descricaoFiscal: normalizacao.descricaoFiscal,
       produtoCanonico: normalizacao.produtoCanonico,
       categoriaCanonica: normalizacao.categoriaCanonica,
       unidadeNormalizada: normalizacao.unidadeNormalizada,
@@ -1651,11 +1671,15 @@ function renderPreOrcamentoItens() {
     const normAlerts = (item.alertasNormalizacao || []).map(a => `<span class="badge badge-rascunho" style="font-size:.66rem;margin-right:4px">${escapeHtml(a)}</span>`).join("");
     const linksExternos = item.linksExternos || [];
     const sgdDesc = item.descricaoSgdOriginal || item.descricao || item.nome || "";
-    const canonicoGerado = typeof _normalizarItemPreOrcamento === "function" ? _normalizarItemPreOrcamento(item, bp).produtoCanonico : "";
+    const normalizacaoGerada = typeof _normalizarItemPreOrcamento === "function" ? _normalizarItemPreOrcamento(item, bp) : null;
+    const descricaoFiscalGerada = normalizacaoGerada ? (normalizacaoGerada.descricaoFiscal || normalizacaoGerada.produtoCanonico || "") : "";
+    const canonicoGerado = normalizacaoGerada ? (normalizacaoGerada.produtoCanonico || "") : "";
+    const descricaoFiscalAtual = item.descricaoFiscal || "";
     const canonicoAtual = item.produtoCanonico || "";
-    const produtoCanonicoRender = canonicoGerado && (!canonicoAtual || _textoProdutoPareceSujo(canonicoAtual) || (canonicoGerado.length > 8 && canonicoGerado.length < canonicoAtual.length))
-      ? canonicoGerado
-      : (canonicoAtual || canonicoGerado || item.nome);
+    const descricaoFiscalRender = descricaoFiscalGerada && (!descricaoFiscalAtual || _textoProdutoPareceSujo(descricaoFiscalAtual) || (descricaoFiscalGerada.length > 8 && descricaoFiscalGerada.length < descricaoFiscalAtual.length))
+      ? descricaoFiscalGerada
+      : (descricaoFiscalAtual || descricaoFiscalGerada || item.nome);
+    const produtoCanonicoRender = canonicoAtual || canonicoGerado || "";
     const sgdOficialHtml = `
       <details style="margin-top:.25rem">
         <summary style="font-size:.72rem;color:var(--muted);cursor:pointer">SGD oficial · unid. <strong>${escapeHtml(item.unidadeSgdOriginal || item.unidade || "—")}</strong> · qtd. <strong>${escapeHtml(String(item.quantidadeSgdOriginal || item.quantidade || 0))}</strong></summary>
@@ -1664,6 +1688,7 @@ function renderPreOrcamentoItens() {
     const normalizacaoHtml = `
       <div style="font-size:.72rem;line-height:1.45;color:var(--muted);margin-top:.25rem">
         <span class="badge badge-muted" style="font-size:.66rem">${escapeHtml(item.categoriaCanonica || "Outro")}</span>
+        ${produtoCanonicoRender && produtoCanonicoRender !== descricaoFiscalRender ? `<span class="badge badge-muted" style="font-size:.66rem">Base: ${escapeHtml(produtoCanonicoRender)}</span>` : ""}
         <span class="badge badge-muted" style="font-size:.66rem">Unid. ${escapeHtml(item.unidadeNormalizada || item.unidade || "—")}</span>
         ${item.embalagemNormalizada ? `<span class="badge badge-muted" style="font-size:.66rem">${escapeHtml(item.embalagemNormalizada)}</span>` : ""}
         ${marcasNorm.length ? `<span class="badge badge-aprovado" style="font-size:.66rem">Marcas: ${escapeHtml(marcasNorm.join(", "))}</span>` : `<span class="badge badge-muted" style="font-size:.66rem">marca livre</span>`}
@@ -1673,7 +1698,7 @@ function renderPreOrcamentoItens() {
 
     return `<tr>
       <td>
-        <strong>${escapeHtml(produtoCanonicoRender)}</strong>
+        <strong>${escapeHtml(descricaoFiscalRender)}</strong>
         ${sgdOficialHtml}
         ${normalizacaoHtml}
         ${pncpHint}

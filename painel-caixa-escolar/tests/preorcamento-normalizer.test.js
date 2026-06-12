@@ -30,9 +30,10 @@ describe('normalizacao de pre-orcamento', () => {
 
     const n = normalizar(item, null);
 
-    expect(n.produtoCanonico).toBe('Caneta Permanente para Retroprojetor/transparencia Ponta Media 2,0 Mm Preta');
-    expect(n.produtoCanonico.toLowerCase()).not.toContain('descricao');
-    expect(n.produtoCanonico.toLowerCase()).not.toContain('marca');
+    expect(n.produtoCanonico).toBe('Caneta Permanente');
+    expect(n.descricaoFiscal).toBe('Caneta Permanente para Retroprojetor/transparencia Ponta Media 2,0 Mm Preta');
+    expect(n.descricaoFiscal.toLowerCase()).not.toContain('descricao');
+    expect(n.descricaoFiscal.toLowerCase()).not.toContain('marca');
   });
 
   it('nao transforma colher em arroz nem alimento', () => {
@@ -44,8 +45,9 @@ describe('normalizacao de pre-orcamento', () => {
 
     const n = normalizar(item, null);
 
-    expect(n.produtoCanonico).toBe('Colher Media para Servir Alimentos');
-    expect(n.produtoCanonico.toLowerCase()).not.toContain('arroz');
+    expect(n.produtoCanonico).toBe('Colher');
+    expect(n.descricaoFiscal).toBe('Colher Media para Servir Alimentos');
+    expect(n.descricaoFiscal.toLowerCase()).not.toContain('arroz');
     expect(n.categoriaCanonica).toBe('Utensilios de Cozinha');
   });
 
@@ -58,7 +60,8 @@ describe('normalizacao de pre-orcamento', () => {
 
     const n = normalizar(item, null);
 
-    expect(n.produtoCanonico).toBe('Copo Descartavel Plastico 200 Ml Transparente');
+    expect(n.produtoCanonico).toBe('Copo');
+    expect(n.descricaoFiscal).toBe('Copo Descartavel Plastico 200 Ml Transparente');
     expect(n.alertasNormalizacao).not.toContain('Capacidade do copo pendente');
   });
 
@@ -71,7 +74,8 @@ describe('normalizacao de pre-orcamento', () => {
 
     const n = normalizar(item, null);
 
-    expect(n.produtoCanonico).toBe('Copo Descartavel Plastico Transparente');
+    expect(n.produtoCanonico).toBe('Copo');
+    expect(n.descricaoFiscal).toBe('Copo Descartavel Plastico Transparente');
     expect(n.alertasNormalizacao).toContain('Capacidade do copo pendente');
   });
 });
