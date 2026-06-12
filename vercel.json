@@ -1,0 +1,24 @@
+{
+  "rewrites": [
+    {
+      "source": "/",
+      "destination": "/painel-caixa-escolar/squads/caixa-escolar/dashboard/gdp-contratos.html"
+    },
+    {
+      "source": "/api/:path*",
+      "destination": "/painel-caixa-escolar/api/:path*"
+    },
+    {
+      "source": "/squads/:path*",
+      "destination": "/painel-caixa-escolar/squads/:path*"
+    },
+    {
+      "source": "/dashboard/:path*",
+      "destination": "/painel-caixa-escolar/dashboard/:path*"
+    },
+    {
+      "source": "/:path*",
+      "destination": "/painel-caixa-escolar/:path*"
+    }
+  ]
+}
