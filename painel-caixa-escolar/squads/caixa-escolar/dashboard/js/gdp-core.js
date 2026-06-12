@@ -998,6 +998,8 @@ function loadData() {
   } catch(_) { pedidos = []; }
   try { provasEntrega = JSON.parse(localStorage.getItem(PROOFS_KEY)) || []; } catch(_) { provasEntrega = []; }
   try { notasFiscais = unwrapData(JSON.parse(localStorage.getItem(INVOICES_KEY))); } catch(_) { notasFiscais = []; }
+  // EPIC-19 (extensão): esconder notas soft-deletadas (deletedAt/deleted_at) — exclusão sincronizada via Supabase.
+  notasFiscais = notasFiscais.filter(function(x){ return !(x && (x.deletedAt || x.deleted_at)); });
   // Story 4.80: removido saveNotasFiscais() no boot — re-save desnecessário bloqueava thread
   try {
     notasEntrada = unwrapData(JSON.parse(localStorage.getItem(ENTRY_INVOICES_KEY)));

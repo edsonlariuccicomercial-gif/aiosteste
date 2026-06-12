@@ -684,8 +684,12 @@ function excluirContaPagar(contaId) {
   const conta = contasPagar.find((item) => item.id === contaId);
   if (!conta) return;
   if (!confirm(`Excluir a conta a pagar "${conta.descricao}"?`)) return;
-  contasPagar = contasPagar.filter((item) => item.id !== contaId);
-  saveContasPagar();
+  // EPIC-19 (extensão): SOFT-DELETE sincronizado (espelha excluirContaReceber).
+  // Marca deletedAt e persiste via saveContasPagar → gdpApi UPSERT (envia deleted_at ao
+  // Supabase, propaga por realtime). loadData já filtra deletedAt na leitura (gdp-core 1017).
+  conta.deletedAt = new Date().toISOString();
+  saveContasPagar(); // persiste a lista COM o item marcado (Supabase recebe o UPDATE)
+  contasPagar = contasPagar.filter((item) => item.id !== contaId); // some da UI imediatamente
   renderContasPagar();
   showToast(`Conta a pagar "${conta.descricao}" excluida.`, 3000);
 }
