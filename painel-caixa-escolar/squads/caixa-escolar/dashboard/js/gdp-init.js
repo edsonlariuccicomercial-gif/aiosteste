@@ -991,11 +991,17 @@ function imprimirRelatorioContasPagar() {
 }
 
 function imprimirRelatorioContasReceber() {
-  const rows = contasReceber.map((item) => {
+  // Story 20.2: relatório respeita a aba de status + filtros de data/busca ativos (consistente com a tela)
+  let dados = contasReceber;
+  if (typeof _getContasReceberFiltradasBase === "function") {
+    dados = _applyContaReceberStatusTab(_getContasReceberFiltradasBase());
+  }
+  const statusFiltro = typeof _getContaReceberStatusTabLabel === "function" ? _getContaReceberStatusTabLabel() : "Todas";
+  const rows = dados.map((item) => {
     const status = getContaReceberStatusMeta(item);
     return `<tr><td>${esc(item.id)}</td><td>${esc(item.descricao)}</td><td>${esc(item.cliente || "-")}</td><td>${esc(formatCategoriaLabel(item.categoria))}</td><td>${fmtDate(item.vencimento)}</td><td class="right">${brl.format(item.valor || 0)}</td><td>${esc(status.label)}</td></tr>`;
   }).join("");
-  abrirJanelaRelatorioFinanceiro("Relatorio - Contas a Receber", ["ID", "Descricao", "Cliente", "Categoria", "Vencimento", "Valor", "Status"], rows);
+  abrirJanelaRelatorioFinanceiro(`Relatorio - Contas a Receber (Status: ${statusFiltro})`, ["ID", "Descricao", "Cliente", "Categoria", "Vencimento", "Valor", "Status"], rows);
 }
 
 // [gdp-estoque-intel.js loaded above — Stock Intelligence core functions]

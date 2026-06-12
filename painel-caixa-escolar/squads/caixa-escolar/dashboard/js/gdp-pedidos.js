@@ -1877,9 +1877,8 @@ function renderContasPagar() {
   if (typeof _updateCpFooterTotals === 'function') _updateCpFooterTotals(filtered);
 }
 
-function renderContasReceber() {
-  const tbody = document.getElementById("contas-receber-tbody");
-  const empty = document.getElementById("contas-receber-empty");
+// Story 20.2: filtragem reutilizável (busca + data emissão/vencimento) — usada por render e por imprimir
+function _getContasReceberFiltradasBase() {
   const busca = _normBusca(document.getElementById("cr-busca")?.value || "");
   let filtered = contasReceber;
   // Busca por descricao + cliente + valor (sem acentos)
@@ -1903,9 +1902,30 @@ function renderContasReceber() {
       return item.vencimento || '';
     });
   }
+  return filtered;
+}
+
+// Story 20.2: aplica a aba de status ativa (mesma regra de renderContasReceber)
+function _applyContaReceberStatusTab(list) {
+  if (contaReceberStatusTabAtual !== 'todas') {
+    return list.filter((item) => normalizeContaReceberStatus(item) === contaReceberStatusTabAtual);
+  }
+  return list;
+}
+
+// Story 20.2: rótulo legível da aba de status (fonte única para tela e relatório)
+function _getContaReceberStatusTabLabel() {
+  const map = { todas: 'Todas', pendente: 'Pendentes', recebida: 'Recebidas', vencida: 'Vencidas', recebido: 'Recebidas', vencido: 'Vencidas' };
+  return map[contaReceberStatusTabAtual] || (contaReceberStatusTabAtual || 'Todas');
+}
+
+function renderContasReceber() {
+  const tbody = document.getElementById("contas-receber-tbody");
+  const empty = document.getElementById("contas-receber-empty");
+  let filtered = _getContasReceberFiltradasBase();
   renderContaReceberStatusTabs(filtered);
   // Story 4.83-fix: busca SEMPRE respeita a aba de status ativa (corrige bug que mostrava todas as contas)
-  if (contaReceberStatusTabAtual !== 'todas') filtered = filtered.filter((item) => normalizeContaReceberStatus(item) === contaReceberStatusTabAtual);
+  filtered = _applyContaReceberStatusTab(filtered);
   const crCountEl = document.getElementById("tab-count-contas-receber");
   if (crCountEl) crCountEl.textContent = filtered.length;
 
