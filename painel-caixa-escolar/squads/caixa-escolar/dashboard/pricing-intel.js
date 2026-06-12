@@ -757,6 +757,7 @@ window.renderPendentes = function () {
   let html = '';
   for (const [orcId, pre] of rascunhos) {
     const orc = orcamentos.find(o => o.id === orcId);
+    _pendSanitizarNormalizacao(pre, orc);
     const semProduto = (pre.itens || []).filter(i => !i.skuBanco).length;
     const semPreco = (pre.itens || []).filter(i => i.skuBanco && i.custoUnitario <= 0).length;
     const acimaTetoCount = (pre.itens || []).filter(i => (i.precoReferenciaSgd || 0) > 0 && i.precoUnitario > i.precoReferenciaSgd).length;
@@ -824,7 +825,7 @@ window.renderPendentes = function () {
             const marcaBorder = marcaNaoConforme ? 'var(--danger)' : 'var(--line)';
             const normGerada = typeof _normalizarItemPreOrcamento === 'function' ? _normalizarItemPreOrcamento(item, null).produtoCanonico : '';
             const normProdutoAtual = item.produtoCanonico || '';
-            const normProduto = normGerada && (!normProdutoAtual || _pendTextoPareceSujo(normProdutoAtual) || (normGerada.length > 8 && normGerada.length < normProdutoAtual.length))
+            const normProduto = _pendDevePreferirNomeGerado(normProdutoAtual, normGerada)
               ? normGerada
               : (normProdutoAtual || normGerada || item.nome);
             const normCategoria = item.categoriaCanonica || (typeof _inferirCategoriaCanonica === 'function' ? _inferirCategoriaCanonica([item.nome, item.descricao].join(' ')) : 'Outro');
@@ -921,7 +922,7 @@ function _pendProdutoNormalizado(item, orc) {
   const normalizacao = typeof _normalizarItemPreOrcamento === 'function' ? _normalizarItemPreOrcamento(item, null) : null;
   const nomeGerado = normalizacao ? normalizacao.produtoCanonico : '';
   const nomeAtual = item.produtoCanonico || '';
-  const nomeBase = nomeGerado && (!nomeAtual || _pendTextoPareceSujo(nomeAtual) || (nomeGerado.length > 8 && nomeGerado.length < nomeAtual.length))
+  const nomeBase = _pendDevePreferirNomeGerado(nomeAtual, nomeGerado)
     ? nomeGerado
     : (nomeAtual || nomeGerado || item.nome || 'Produto');
   const nome = typeof _limparTextoProdutoSgd === 'function' ? (_limparTextoProdutoSgd(nomeBase) || nomeBase) : nomeBase;
@@ -944,6 +945,10 @@ function _pendGetProdutoCatalogo(id) {
   return (bancoPrecos.itens || []).find(p => (p.sku || p.id) === id) || null;
 }
 
+function _pendDevePreferirNomeGerado(atual, gerado) {
+  return !!gerado && (!atual || _pendTextoPareceSujo(atual) || (gerado.length > 8 && gerado.length < atual.length));
+}
+
 function _pendTextoPareceSujo(nome) {
   const value = String(nome || "");
   const t = _pendNormKey(value);
@@ -955,6 +960,29 @@ function _pendTextoPareceSujo(nome) {
 function _pendProdutoPareceSujo(bp) {
   const nome = [bp && bp.item, bp && bp.descricao, bp && bp.descricaoFiscal].filter(Boolean).join(" ");
   return _pendTextoPareceSujo(nome);
+}
+
+function _pendSanitizarNormalizacao(pre, orc) {
+  if (!pre || !Array.isArray(pre.itens)) return;
+  let changed = false;
+  pre.itens.forEach((item) => {
+    const dados = _pendProdutoNormalizado(item, orc);
+    if (_pendDevePreferirNomeGerado(item.produtoCanonico || '', dados.nome)) {
+      item.produtoCanonico = dados.nome;
+      item.categoriaCanonica = dados.categoria;
+      item.unidadeNormalizada = dados.unidade;
+      item.embalagemNormalizada = dados.embalagem;
+      item.marcasPermitidas = dados.marcasPermitidas;
+      item.linksExternos = dados.linksExternos;
+      changed = true;
+    }
+    const bp = item.skuBanco ? _pendGetProdutoCatalogo(item.skuBanco) : null;
+    if (bp && _pendProdutoPareceSujo(bp)) {
+      _pendAtualizarProdutoCatalogo(bp, dados);
+      changed = true;
+    }
+  });
+  if (changed) savePreOrcamentos();
 }
 
 function _pendAtualizarProdutoCatalogo(bp, dados) {
