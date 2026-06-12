@@ -56,6 +56,114 @@ function normalizeCategory(value) {
   return "Outro";
 }
 
+function extractAllowedBrands(value) {
+  const raw = String(value || "");
+  const match = raw.match(/\bmarcas?(?:\s+de)?\s+refer[eê]ncia\s*:?\s*([\s\S]*?)(?:\bpre[cç]o|\bvalor|\bteto|$)/i);
+  if (!match) return [];
+  return match[1]
+    .replace(/[.;]/g, " ")
+    .split(/,|\s+e\s+|\s+|\n/)
+    .map((part) => part.trim())
+    .filter((part) => part && part.length <= 24 && !/\b(referencia|preco|valor|teto)\b/i.test(part));
+}
+
+function extractReferencePrice(value) {
+  const raw = String(value || "");
+  const match = raw.match(/\b(?:pre[cç]o|valor|teto)\s+(?:de\s+)?refer[eê]ncia\s*:?\s*R?\$?\s*([\d.,]+)/i);
+  if (!match) return 0;
+  const normalized = match[1].replace(/\./g, "").replace(",", ".");
+  const price = Number(normalized);
+  return Number.isFinite(price) && price > 0 ? price : 0;
+}
+
+function titleFiscalName(value) {
+  const keepLower = new Set(["de", "da", "do", "das", "dos", "para", "em", "e"]);
+  return String(value || "")
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((word, idx) => {
+      const lower = word.toLowerCase();
+      if (idx > 0 && keepLower.has(lower)) return lower;
+      if (/^\d+(?:[,.]\d+)?$/.test(word) || /^(mm|ml|l|kg|g)$/i.test(word)) return word.replace(",", ".");
+      return lower.charAt(0).toUpperCase() + lower.slice(1);
+    })
+    .join(" ");
+}
+
+function localNormalizeItem(item, idx) {
+  const raw = [item.nome, item.descricao, item.observacao].filter(Boolean).join(" ");
+  const cleaned = cleanFiscalName(raw);
+  const t = normText(raw);
+  const marcasPermitidas = extractAllowedBrands(raw);
+  const precoReferencia = extractReferencePrice(raw);
+  const base = {
+    idx,
+    descricaoFiscal: titleFiscalName(cleaned || item.nome || "Produto"),
+    produtoCanonico: titleFiscalName(cleaned || item.nome || "Produto"),
+    categoria: "Outro",
+    unidadeNormalizada: String(item.unidade || "UN").toUpperCase().trim(),
+    embalagem: "",
+    atributosEssenciais: [],
+    marcasPermitidas,
+    precoReferencia,
+    alertas: [],
+    precisaRevisao: false,
+    confianca: 0.55,
+  };
+
+  if (/\bcaneta\b/.test(t) && /\b(retroprojetor|retro projetor|transparencia|transparencias|permanente)\b/.test(t)) {
+    const espessura = raw.match(/(\d+(?:[,.]\d+)?)\s*mm/i)?.[1]?.replace(",", ".") || "";
+    const cor = /\bpreta?\b/.test(t) ? "Preta" : "";
+    const ponta = /\bponta\s+media\b|\bmedia\b/.test(t) ? "Ponta Media" : "";
+    base.descricaoFiscal = titleFiscalName(["Caneta Permanente para Retroprojetor/transparencia", ponta, espessura ? `${espessura} mm` : "", cor].filter(Boolean).join(" "));
+    base.produtoCanonico = base.descricaoFiscal;
+    base.categoria = "Papelaria";
+    base.atributosEssenciais = [
+      { chave: "tipo", valor: "caneta permanente" },
+      { chave: "uso", valor: "retroprojetor/transparencia" },
+      ...(ponta ? [{ chave: "ponta", valor: "media" }] : []),
+      ...(espessura ? [{ chave: "espessura", valor: `${espessura} mm` }] : []),
+      ...(cor ? [{ chave: "cor", valor: cor.toLowerCase() }] : []),
+    ];
+    base.confianca = 0.88;
+  } else if (/\bcolher(?:e)?\b/.test(t) && /\b(servir|manipular|alimentos|cozinha|arroz)\b/.test(t)) {
+    const tamanho = /\bmedia\b/.test(t) ? "Media" : "";
+    base.descricaoFiscal = titleFiscalName(["Colher", tamanho, "para Servir Alimentos"].filter(Boolean).join(" "));
+    base.produtoCanonico = base.descricaoFiscal;
+    base.categoria = "Utensilios de Cozinha";
+    base.atributosEssenciais = [
+      { chave: "tipo", valor: "colher" },
+      ...(tamanho ? [{ chave: "tamanho", valor: "media" }] : []),
+      { chave: "uso", valor: "servir alimentos" },
+    ];
+    base.confianca = 0.84;
+  } else if (/\bcopo\b/.test(t)) {
+    const capacidade = raw.match(/(\d+(?:[,.]\d+)?)\s*(ml|l)\b/i);
+    const material = /\bplastico|plastica\b/.test(t) ? "plastico" : "";
+    base.descricaoFiscal = titleFiscalName(["Copo", /\bdescartavel\b/.test(t) ? "Descartavel" : "", material].filter(Boolean).join(" "));
+    if (capacidade) base.descricaoFiscal = titleFiscalName(`${base.descricaoFiscal} ${capacidade[1].replace(",", ".")} ${capacidade[2].toLowerCase()}`);
+    base.produtoCanonico = base.descricaoFiscal;
+    base.categoria = "Utensilios de Cozinha";
+    base.atributosEssenciais = [
+      { chave: "tipo", valor: "copo" },
+      ...(material ? [{ chave: "material", valor: material }] : []),
+      ...(capacidade ? [{ chave: "capacidade", valor: `${capacidade[1].replace(",", ".")} ${capacidade[2].toLowerCase()}` }] : []),
+    ];
+    if (!capacidade) {
+      base.alertas.push("Capacidade do copo pendente");
+      base.precisaRevisao = true;
+    }
+    base.confianca = capacidade ? 0.82 : 0.68;
+  }
+
+  if (isDirtyFiscalName(base.descricaoFiscal)) {
+    base.alertas.push("Descricao fiscal pendente de revisao");
+    base.precisaRevisao = true;
+  }
+
+  return base;
+}
+
 function runtimeMeta() {
   return {
     vercelEnv: process.env.VERCEL_ENV || null,
@@ -67,24 +175,45 @@ function runtimeMeta() {
 
 function normalizeResult(item, result, idx) {
   const fallback = item.fallback || {};
-  const rawName = result.descricaoFiscal || result.produtoCanonico || fallback.nome || item.nome || "Produto";
-  let descricaoFiscal = cleanFiscalName(rawName);
-  if (isDirtyFiscalName(descricaoFiscal)) descricaoFiscal = cleanFiscalName(fallback.nome || item.nome || "Produto");
-
-  const alertas = Array.isArray(result.alertas) ? result.alertas.filter(Boolean).map(String) : [];
-  if (!descricaoFiscal || isDirtyFiscalName(descricaoFiscal)) {
-    alertas.push("Descricao fiscal pendente de revisao");
-    descricaoFiscal = cleanFiscalName(item.nome || "Produto");
+  const local = localNormalizeItem(item, idx);
+  if (!result || !Object.keys(result).length) return local;
+  if ((local.confianca || 0) >= 0.68) {
+    const resultBrands = Array.isArray(result.marcasPermitidas) ? result.marcasPermitidas.map(String).filter(Boolean) : [];
+    return {
+      ...local,
+      idx: Number.isInteger(result.idx) ? result.idx : idx,
+      marcasPermitidas: resultBrands.length ? resultBrands : local.marcasPermitidas,
+      precoReferencia: Number(result.precoReferencia || 0) > 0 ? Number(result.precoReferencia) : local.precoReferencia,
+      alertas: Array.from(new Set([
+        ...local.alertas,
+        ...(Array.isArray(result.alertas) ? result.alertas.filter(Boolean).map(String) : []),
+      ])),
+      precisaRevisao: Boolean(local.precisaRevisao || local.alertas.length),
+      confianca: local.precisaRevisao ? local.confianca : Math.max(local.confianca || 0, Math.min(1, Number(result.confianca || 0))),
+    };
   }
 
-  const categoria = normalizeCategory(result.categoria || fallback.categoria || "Outro");
+  const rawName = result.descricaoFiscal || result.produtoCanonico || fallback.nome || item.nome || "Produto";
+  let descricaoFiscal = cleanFiscalName(rawName);
+  if (isDirtyFiscalName(descricaoFiscal)) descricaoFiscal = cleanFiscalName(local.descricaoFiscal || fallback.nome || item.nome || "Produto");
+
+  const alertas = Array.from(new Set([
+    ...local.alertas,
+    ...(Array.isArray(result.alertas) ? result.alertas.filter(Boolean).map(String) : []),
+  ]));
+  if (!descricaoFiscal || isDirtyFiscalName(descricaoFiscal)) {
+    alertas.push("Descricao fiscal pendente de revisao");
+    descricaoFiscal = cleanFiscalName(local.descricaoFiscal || item.nome || "Produto");
+  }
+
+  const categoria = normalizeCategory(result.categoria || local.categoria || fallback.categoria || "Outro");
   const unidadeNormalizada = String(result.unidadeNormalizada || fallback.unidade || item.unidade || "UN").toUpperCase().trim();
   const embalagem = result.embalagem || fallback.embalagem || "";
-  const marcasPermitidas = Array.isArray(result.marcasPermitidas) ? result.marcasPermitidas.map(String).filter(Boolean) : [];
-  const precoReferencia = Number(result.precoReferencia || 0) > 0 ? Number(result.precoReferencia) : 0;
-  const atributosEssenciais = Array.isArray(result.atributosEssenciais) ? result.atributosEssenciais : [];
-  const precisaRevisao = Boolean(result.precisaRevisao || alertas.length);
-  const confianca = Math.max(0, Math.min(1, Number(result.confianca || 0)));
+  const marcasPermitidas = Array.isArray(result.marcasPermitidas) && result.marcasPermitidas.length ? result.marcasPermitidas.map(String).filter(Boolean) : local.marcasPermitidas;
+  const precoReferencia = Number(result.precoReferencia || 0) > 0 ? Number(result.precoReferencia) : local.precoReferencia;
+  const atributosEssenciais = Array.isArray(result.atributosEssenciais) && result.atributosEssenciais.length ? result.atributosEssenciais : local.atributosEssenciais;
+  const precisaRevisao = Boolean(local.precisaRevisao || result.precisaRevisao || alertas.length);
+  const confianca = Math.max(local.confianca || 0, Math.min(1, Number(result.confianca || 0)));
 
   return {
     idx: Number.isInteger(result.idx) ? result.idx : idx,
@@ -137,7 +266,9 @@ REGRAS CRITICAS
 8. Para tesoura, tamanho/ponta/material sao essenciais quando existirem. Se o item so diz tesoura sem tamanho, alerta "Caracteristica essencial da tesoura pendente".
 9. Para utensilios de cozinha, o nucleo e o utensilio. Em "colher de arroz", "arroz" e aplicacao/formato, nao categoria alimentacao.
 10. Use categoria apenas entre: Alimentacao, Papelaria, Limpeza, Toner/Cartucho, Utensilios de Cozinha, Outro.
-11. Se tiver duvida entre criar produto ou associar, marque precisaRevisao=true.`;
+11. Se tiver duvida entre criar produto ou associar, marque precisaRevisao=true.
+
+Responda somente em json valido, sem markdown e sem texto fora do objeto.`;
 
   const userPrompt = JSON.stringify({
     contexto,
