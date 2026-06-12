@@ -724,9 +724,9 @@ window.renderPendentes = function () {
     return;
   }
 
-  // SKU interno auto-gerado (BANK-/PROD-/LICT-) é ruído na busca — esconde do label.
+  // SKU interno auto-gerado (BANK-/PROD-/LICT-/LICIT-) é ruído na busca — esconde do label.
   // SKUs externos reais (Tiny/ERP/numéricos) continuam visíveis pois têm significado.
-  const isInternalSku = (sku) => /^(BANK|PROD|LICT)-/i.test(String(sku || ""));
+  const isInternalSku = (sku) => /^(BANK|PROD|LICT|LICIT)-/i.test(String(sku || ""));
   const produtos = (bancoPrecos.itens || []).filter(p => p.item).sort((a, b) => (a.item || "").localeCompare(b.item || ""));
   const optionsHtml = '<option value="">— Selecione —</option>' + produtos.map(p => {
     const mostrarSku = p.sku && !isInternalSku(p.sku);
@@ -823,8 +823,9 @@ window.renderPendentes = function () {
               ? `<div class="pend-item-marcas" title="Marcas aceitas pelo edital — cotar fora da lista inabilita" style="font-size:.7rem;margin-top:2px;color:${marcaNaoConforme ? 'var(--danger)' : 'var(--accent)'}">Marcas: ${escapeHtml(marcasRef.join(', '))}${marcaNaoConforme ? ' ⚠️ marca fora da lista — INABILITA' : ''}</div>`
               : '';
             const marcaBorder = marcaNaoConforme ? 'var(--danger)' : 'var(--line)';
-            const normGerada = typeof _normalizarItemPreOrcamento === 'function' ? _normalizarItemPreOrcamento(item, null).produtoCanonico : '';
-            const normProdutoAtual = item.produtoCanonico || '';
+            const normLocal = typeof _normalizarItemPreOrcamento === 'function' ? _normalizarItemPreOrcamento(item, null) : null;
+            const normGerada = normLocal ? (normLocal.descricaoFiscal || normLocal.produtoCanonico || '') : '';
+            const normProdutoAtual = item.descricaoFiscal || item.produtoCanonico || '';
             const normProduto = _pendDevePreferirNomeGerado(normProdutoAtual, normGerada)
               ? normGerada
               : (normProdutoAtual || normGerada || item.nome);
@@ -918,16 +919,34 @@ function _pendNormKey(value) {
   return String(value || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
 }
 
+function _pendGerarSkuLicit() {
+  const skus = [];
+  const addSku = (sku) => { if (sku) skus.push(String(sku).trim()); };
+  (bancoPrecos.itens || []).forEach(p => { addSku(p.sku); addSku(p.id); });
+  if (typeof centralProdutos !== 'undefined' && Array.isArray(centralProdutos)) {
+    centralProdutos.forEach(p => { addSku(p.sku); addSku(p.id); });
+  }
+  if (typeof window !== 'undefined' && window.ProductStore && window.ProductStore.list) {
+    try { window.ProductStore.list().forEach(p => { addSku(p.sku); addSku(p.id); }); } catch (_) {}
+  }
+  const max = skus.reduce((acc, sku) => {
+    const match = String(sku || "").match(/^(?:LICIT|LICT)-(\d+)$/i);
+    return match ? Math.max(acc, Number(match[1]) || 0) : acc;
+  }, 0);
+  return "LICIT-" + String(max + 1).padStart(4, "0");
+}
+
 function _pendProdutoNormalizado(item, orc) {
   const normalizacao = typeof _normalizarItemPreOrcamento === 'function' ? _normalizarItemPreOrcamento(item, null) : null;
-  const nomeGerado = normalizacao ? normalizacao.produtoCanonico : '';
-  const nomeAtual = item.produtoCanonico || '';
+  const nomeGerado = normalizacao ? (normalizacao.descricaoFiscal || normalizacao.produtoCanonico) : '';
+  const nomeAtual = item.descricaoFiscal || item.produtoCanonico || '';
   const nomeBase = _pendDevePreferirNomeGerado(nomeAtual, nomeGerado)
     ? nomeGerado
     : (nomeAtual || nomeGerado || item.nome || 'Produto');
   const nome = typeof _limparTextoProdutoSgd === 'function' ? (_limparTextoProdutoSgd(nomeBase) || nomeBase) : nomeBase;
   return {
     nome,
+    produtoCanonico: (normalizacao && normalizacao.produtoCanonico) || item.produtoCanonico || nome,
     categoria: (normalizacao && normalizacao.categoriaCanonica) || item.categoriaCanonica || (orc ? orc.grupo || '' : ''),
     unidade: (normalizacao && normalizacao.unidadeNormalizada) || item.unidadeNormalizada || item.unidade || 'UN',
     embalagem: (normalizacao && normalizacao.embalagemNormalizada) || item.embalagemNormalizada || '',
@@ -967,8 +986,9 @@ function _pendSanitizarNormalizacao(pre, orc) {
   let changed = false;
   pre.itens.forEach((item) => {
     const dados = _pendProdutoNormalizado(item, orc);
-    if (_pendDevePreferirNomeGerado(item.produtoCanonico || '', dados.nome)) {
-      item.produtoCanonico = dados.nome;
+    if (_pendDevePreferirNomeGerado(item.descricaoFiscal || item.produtoCanonico || '', dados.nome)) {
+      item.descricaoFiscal = dados.nome;
+      item.produtoCanonico = dados.produtoCanonico || dados.nome;
       item.categoriaCanonica = dados.categoria;
       item.unidadeNormalizada = dados.unidade;
       item.embalagemNormalizada = dados.embalagem;
@@ -1032,7 +1052,7 @@ function _pendCriarProdutoCatalogo(dados) {
   const existente = _pendEncontrarProdutoCatalogo(dados.nome);
   if (existente) return existente;
 
-  const id = "PROD-" + Date.now() + "-" + Math.random().toString(36).slice(2, 7);
+  const id = _pendGerarSkuLicit();
   const margemPadrao = perfil.config ? perfil.config.margemPadrao || 0.30 : 0.30;
   const bp = {
     id,
@@ -1130,9 +1150,10 @@ async function _pendNormalizarItensComAgente(pre, orc) {
       const item = pre.itens[idx];
       if (!item) return;
       const nomeFiscal = String(n.descricaoFiscal || n.produtoCanonico || "").trim();
+      const produtoCanonico = String(n.produtoCanonico || nomeFiscal).trim();
       if (!nomeFiscal || _pendTextoPareceSujo(nomeFiscal)) return;
 
-      item.produtoCanonico = nomeFiscal;
+      item.produtoCanonico = produtoCanonico;
       item.descricaoFiscal = nomeFiscal;
       item.categoriaCanonica = n.categoria || item.categoriaCanonica || "Outro";
       item.unidadeNormalizada = n.unidadeNormalizada || item.unidadeNormalizada || item.unidade || "UN";
@@ -1188,7 +1209,8 @@ window.pendAutoAssociarNormalizados = async function (orcId) {
     item.custoUnitario = bp.custoBase || 0;
     item.margem = bp.margemPadrao || (perfil.config ? perfil.config.margemPadrao || 0.30 : 0.30);
     item.matchStatus = antes ? "associado_normalizacao" : "criado_normalizacao";
-    item.produtoCanonico = dados.nome;
+    item.produtoCanonico = dados.produtoCanonico || dados.nome;
+    item.descricaoFiscal = dados.nome;
     item.categoriaCanonica = dados.categoria;
     item.unidadeNormalizada = dados.unidade;
     item.embalagemNormalizada = dados.embalagem;
@@ -1301,7 +1323,7 @@ window.pendNovoProduto = function (orcId, idx) {
     abrirModalProdutoCentral({
       compact: true,
       prefill: {
-        nome: item.produtoCanonico || item.nome || "",
+        nome: item.descricaoFiscal || item.produtoCanonico || item.nome || "",
         unidade: item.unidadeNormalizada || item.unidade || "UN",
         categoria: item.categoriaCanonica || (orc ? (orc.grupo || "") : ""),
       },
@@ -1312,7 +1334,8 @@ window.pendNovoProduto = function (orcId, idx) {
         item.custoUnitario = produto.custoBase || produto.preco_custo || 0;
         item.margem = produto.margemAlvo || produto.margemPadrao || (perfil.config ? perfil.config.margemPadrao || 0.30 : 0.30);
         item.matchStatus = "criado_inline";
-        item.produtoCanonico = produto.descricao || produto.nome || item.produtoCanonico || item.nome;
+        item.descricaoFiscal = produto.descricao || produto.nome || item.descricaoFiscal || item.nome;
+        item.produtoCanonico = item.produtoCanonico || item.descricaoFiscal;
         item.categoriaCanonica = produto.grupo || produto.categoria || item.categoriaCanonica || "";
         item.unidadeNormalizada = produto.unidade || produto.unidade_base || item.unidadeNormalizada || item.unidade;
         if (Array.isArray(item.alertasNormalizacao)) {

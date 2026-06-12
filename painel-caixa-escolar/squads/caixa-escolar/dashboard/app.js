@@ -567,6 +567,25 @@ function toggleSelectAll() {
   updateBatchBar();
 }
 
+function _gerarProximoSkuLicitCentral() {
+  const skus = [];
+  const addSku = (sku) => { if (sku) skus.push(String(sku).trim()); };
+  if (typeof centralProdutos !== "undefined" && Array.isArray(centralProdutos)) {
+    centralProdutos.forEach(p => { addSku(p.sku); addSku(p.id); });
+  }
+  if (typeof bancoPrecos !== "undefined" && bancoPrecos && Array.isArray(bancoPrecos.itens)) {
+    bancoPrecos.itens.forEach(p => { addSku(p.sku); addSku(p.id); });
+  }
+  if (typeof window !== "undefined" && window.ProductStore && window.ProductStore.list) {
+    try { window.ProductStore.list().forEach(p => { addSku(p.sku); addSku(p.id); }); } catch (_) {}
+  }
+  const max = skus.reduce((acc, sku) => {
+    const match = String(sku || "").match(/^(?:LICIT|LICT)-(\d+)$/i);
+    return match ? Math.max(acc, Number(match[1]) || 0) : acc;
+  }, 0);
+  return "LICIT-" + String(max + 1).padStart(4, "0");
+}
+
 // Story 13.3: Prompt to create product inline when batch has no match
 function _promptCriarProdutoBatch(itemNome, unidade, categoria) {
   return new Promise((resolve) => {
@@ -603,9 +622,10 @@ function _promptCriarProdutoBatch(itemNome, unidade, categoria) {
       const custo = parseFloat(custoEl ? custoEl.value : 0) || 0;
       const margem = parseFloat(margemEl ? margemEl.value : 30) / 100 || 0.30;
       const fornecedor = fornEl ? fornEl.value.trim() : "";
+      const skuPadrao = skuEl && skuEl.value.trim() ? skuEl.value.trim() : _gerarProximoSkuLicitCentral();
       const prod = {
-        id: "PROD-" + Date.now() + "-" + Math.random().toString(36).substr(2, 6),
-        sku: skuEl ? skuEl.value.trim() : "",
+        id: skuPadrao,
+        sku: skuPadrao,
         nome: nome,
         item: nome,
         descricao: descEl ? descEl.value.trim() : "",
@@ -1199,8 +1219,8 @@ function renderModalAssociacao(orc) {
   document.getElementById("assoc-escola").textContent = orc.escola + " — " + orc.municipio;
   // Build product options from banco
   const produtos = (bancoPrecos.itens || []).filter(p => p.item).sort((a, b) => (a.item || "").localeCompare(b.item || ""));
-  // Esconde SKU interno auto-gerado (BANK-/PROD-/LICT-) do label; mantém SKU externo real.
-  const isInternalSku = (sku) => /^(BANK|PROD|LICT)-/i.test(String(sku || ""));
+  // Esconde SKU interno auto-gerado (BANK-/PROD-/LICT-/LICIT-) do label; mantém SKU externo real.
+  const isInternalSku = (sku) => /^(BANK|PROD|LICT|LICIT)-/i.test(String(sku || ""));
   const optionsHtml = '<option value="">— Selecione um produto —</option>' + produtos.map(p => {
     const mostrarSku = p.sku && !isInternalSku(p.sku);
     return `<option value="${p.sku || p.id}" data-custo="${p.custoBase || 0}" data-preco="${p.precoReferencia || 0}">${p.item}${mostrarSku ? ' [' + p.sku + ']' : ''}</option>`;
@@ -3665,7 +3685,9 @@ window.salvarProdutoCentral = function () {
     const cp = centralProdutos.find(x => x.id === id);
     if (cp) { Object.assign(cp, dados); cp.atualizadoEm = new Date().toISOString(); }
   } else {
-    dados.id = "PROD-" + Date.now() + "-" + Math.random().toString(36).substr(2, 6);
+    const skuPadrao = dados.sku || _gerarProximoSkuLicitCentral();
+    dados.id = skuPadrao;
+    dados.sku = skuPadrao;
     dados.ativo = true;
     dados.criadoEm = new Date().toISOString();
     dados.atualizadoEm = new Date().toISOString();
