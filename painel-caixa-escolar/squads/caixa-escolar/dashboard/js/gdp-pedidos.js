@@ -2474,6 +2474,10 @@ function abrirRelatorio(tipo) {
     if (btnFiltros) btnFiltros.style.display = 'none';
     body.innerHTML = '<div id="rel-pendencias-entrega-empty" style="font-size:.85rem;color:var(--mut);padding:.5rem 0">Nenhuma entrega parcial pendente.</div><div class="table-wrap" style="max-height:600px;overflow-y:auto"><table><thead><tr><th>Produto</th><th>Un.</th><th class="text-right">Pedido</th><th class="text-right">Entregue</th><th class="text-right" style="color:var(--yellow,#eab308)">Pendente</th><th>Escola</th><th>Pedido #</th></tr></thead><tbody id="rel-pendencias-entrega-tbody"></tbody></table></div>';
     renderRelatorioPendenciasEntrega();
+  } else if (tipo === 'previsao-liquidez') {
+    title.textContent = 'Previsao de Liquidez';
+    if (btnFiltros) btnFiltros.style.display = 'none';
+    gerarPrevisaoLiquidez();
   }
   if (tipo !== 'pendencias' && btnFiltros) btnFiltros.style.display = '';
 }
@@ -2726,6 +2730,108 @@ function gerarFluxoCaixa() {
   document.getElementById('rel-filtros').classList.add('hidden');
   document.getElementById('rel-btn-toggle-filtros').textContent = 'Exibir filtros';
   _relHtmlParaImprimir = '<h1 style="font-size:14px;margin-bottom:1rem">Fluxo de Caixa — ' + _relFluxoMes.split('-').reverse().join('/') + '</h1>' + html;
+  _relDreImpressaoLandscape = false;
+}
+
+// Previsao de Liquidez — projecao de caixa ao vivo (spec @fluxo-caixa Téo).
+// Âncora: saldo realizado (getCaixaResumo). Aging de AR por vencimento, cenario
+// base e pessimista, alerta de liquidez por sequencia. Somente leitura.
+function gerarPrevisaoLiquidez() {
+  var body = document.getElementById('rel-viewer-body');
+  // 1. Âncora: saldo realizado confiável (mesma fonte da tela de Caixa)
+  var saldoHoje = 0;
+  try { saldoHoje = (typeof getCaixaResumo === 'function') ? (getCaixaResumo().saldo || 0) : 0; } catch(_) {}
+
+  // 2. Janelas relativas a hoje
+  var hoje = new Date(); hoje.setHours(0,0,0,0);
+  function addDias(n) { var d = new Date(hoje); d.setDate(d.getDate() + n); return d; }
+  var lim7 = addDias(7), lim15 = addDias(15), lim30 = addDias(30);
+  function parseVenc(s) { if (!s) return null; var d = new Date(String(s).slice(0,10) + 'T00:00:00'); return isNaN(d) ? null : d; }
+
+  // 3. Aging de AR (a receber, nao recebidas/canceladas)
+  var arJ = { vencido:0, d7:0, d15:0, d30:0, dmais:0, semData:0 };
+  var arQ = { vencido:0, d7:0, d15:0, d30:0, dmais:0, semData:0 };
+  (contasReceber || []).forEach(function(c) {
+    if (c.deletedAt || c.deleted_at) return;
+    var st = String(c.status || '').toLowerCase();
+    if (st === 'recebida' || st === 'cancelada') return;
+    var v = Number(c.valor || 0); var venc = parseVenc(c.vencimento);
+    if (!venc) { arJ.semData += v; arQ.semData++; }
+    else if (venc < hoje) { arJ.vencido += v; arQ.vencido++; }
+    else if (venc <= lim7) { arJ.d7 += v; arQ.d7++; }
+    else if (venc <= lim15) { arJ.d15 += v; arQ.d15++; }
+    else if (venc <= lim30) { arJ.d30 += v; arQ.d30++; }
+    else { arJ.dmais += v; arQ.dmais++; }
+  });
+  var arTotal = arJ.vencido + arJ.d7 + arJ.d15 + arJ.d30 + arJ.dmais + arJ.semData;
+
+  // 4. AP (a pagar, nao pagas/canceladas)
+  var apTotal = 0, apVencido = 0, apQ = 0;
+  (contasPagar || []).forEach(function(c) {
+    if (c.deletedAt || c.deleted_at) return;
+    var st = String(c.status || '').toLowerCase();
+    if (st === 'paga' || st === 'cancelada') return;
+    var v = Number(c.valor || 0); apTotal += v; apQ++;
+    var venc = parseVenc(c.vencimento);
+    if (venc && venc < hoje) apVencido += v;
+  });
+
+  // 5. Projecao cenario BASE: vencidos entram em +7d; a vencer no prazo; AP sai no vencimento
+  var ent7 = arJ.vencido + arJ.d7;
+  var baseD7 = saldoHoje + ent7 - apTotal;        // assume AP toda paga ate +7d
+  var baseD15 = baseD7 + arJ.d15;
+  var baseD30 = baseD15 + arJ.d30;
+  // 6. Cenario PESSIMISTA: so 50% dos vencidos entram
+  var pessEnt7 = (arJ.vencido * 0.5) + arJ.d7;
+  var pessD7 = saldoHoje + pessEnt7 - apTotal;
+  // 7. Alerta de SEQUENCIA: pagar AP antes de receber
+  var saldoSePagarJa = saldoHoje - apTotal;
+
+  function corV(v) { return v >= 0 ? 'var(--green)' : 'var(--red)'; }
+  function linhaJanela(label, valor, qtd, cor) {
+    return '<tr style="border-bottom:1px solid var(--bdr)"><td style="padding:5px 12px">' + label + '</td>'
+      + '<td style="padding:5px 12px;text-align:right;font-family:monospace;color:' + (cor||'var(--txt)') + '">' + brl.format(valor) + '</td>'
+      + '<td style="padding:5px 12px;text-align:right;color:var(--mut)">' + qtd + '</td></tr>';
+  }
+
+  var capitalGiro = arTotal - apTotal;
+  var h = '';
+  h += '<div style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:1.25rem">';
+  h += '<div style="flex:1;min-width:160px;padding:14px;border:1px solid var(--bdr);border-radius:8px;background:var(--s1)"><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;letter-spacing:.05em">Saldo realizado hoje</div><div style="font-size:1.3rem;font-weight:700;font-family:monospace;color:' + corV(saldoHoje) + '">' + brl.format(saldoHoje) + '</div></div>';
+  h += '<div style="flex:1;min-width:160px;padding:14px;border:1px solid var(--bdr);border-radius:8px;background:var(--s1)"><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;letter-spacing:.05em">Capital de giro (AR-AP)</div><div style="font-size:1.3rem;font-weight:700;font-family:monospace;color:' + corV(capitalGiro) + '">' + brl.format(capitalGiro) + '</div></div>';
+  h += '<div style="flex:1;min-width:160px;padding:14px;border:1px solid var(--bdr);border-radius:8px;background:var(--s1)"><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;letter-spacing:.05em">A receber VENCIDO</div><div style="font-size:1.3rem;font-weight:700;font-family:monospace;color:var(--yellow,#eab308)">' + brl.format(arJ.vencido) + '</div><div style="font-size:.7rem;color:var(--mut)">' + arQ.vencido + ' conta(s) atrasada(s)</div></div>';
+  h += '</div>';
+
+  // Alerta de sequencia
+  if (apTotal > 0 && saldoSePagarJa < 0) {
+    h += '<div style="padding:12px 14px;border:1px solid var(--red);border-radius:8px;background:rgba(239,68,68,.08);margin-bottom:1.25rem;font-size:.85rem">'
+      + '<strong style="color:var(--red)">⚠️ Alerta de liquidez (sequencia):</strong> pagar as contas a pagar (' + brl.format(apTotal) + ') ANTES de receber deixa o caixa em <strong style="font-family:monospace;color:var(--red)">' + brl.format(saldoSePagarJa) + '</strong>. Recomendacao: cobrar pelo menos ' + brl.format(Math.abs(saldoSePagarJa)) + ' dos recebiveis vencidos antes de pagar.</div>';
+  }
+
+  // Aging AR
+  h += '<h4 style="font-size:.82rem;text-transform:uppercase;letter-spacing:.05em;color:var(--mut);margin:0 0 .5rem">Aging — Contas a Receber</h4>';
+  h += '<table style="width:100%;border-collapse:collapse;font-size:.85rem;margin-bottom:1.5rem"><thead><tr style="border-bottom:2px solid var(--bdr)"><th style="padding:6px 12px;text-align:left">Janela</th><th style="padding:6px 12px;text-align:right">Valor (R$)</th><th style="padding:6px 12px;text-align:right">Contas</th></tr></thead><tbody>';
+  h += linhaJanela('Vencido (atrasado)', arJ.vencido, arQ.vencido, 'var(--yellow,#eab308)');
+  h += linhaJanela('Vence em ate 7 dias', arJ.d7, arQ.d7, 'var(--green)');
+  h += linhaJanela('Vence em 8–15 dias', arJ.d15, arQ.d15, 'var(--green)');
+  h += linhaJanela('Vence em 16–30 dias', arJ.d30, arQ.d30, 'var(--green)');
+  h += linhaJanela('Vence em +30 dias', arJ.dmais, arQ.dmais, 'var(--green)');
+  if (arJ.semData > 0) h += linhaJanela('Sem data de vencimento', arJ.semData, arQ.semData, 'var(--mut)');
+  h += '<tr style="font-weight:700;background:rgba(255,255,255,.05)"><td style="padding:8px 12px">Total a receber</td><td style="padding:8px 12px;text-align:right;font-family:monospace;color:var(--green)">' + brl.format(arTotal) + '</td><td style="padding:8px 12px;text-align:right">' + (arQ.vencido+arQ.d7+arQ.d15+arQ.d30+arQ.dmais+arQ.semData) + '</td></tr>';
+  h += '</tbody></table>';
+
+  // Projecao
+  h += '<h4 style="font-size:.82rem;text-transform:uppercase;letter-spacing:.05em;color:var(--mut);margin:0 0 .5rem">Projecao de Caixa</h4>';
+  h += '<table style="width:100%;border-collapse:collapse;font-size:.85rem;margin-bottom:.5rem"><thead><tr style="border-bottom:2px solid var(--bdr)"><th style="padding:6px 12px;text-align:left">Momento</th><th style="padding:6px 12px;text-align:right">Cenario BASE</th><th style="padding:6px 12px;text-align:right">Cenario PESSIMISTA</th></tr></thead><tbody>';
+  h += '<tr style="border-bottom:1px solid var(--bdr)"><td style="padding:5px 12px">Hoje</td><td style="padding:5px 12px;text-align:right;font-family:monospace;color:' + corV(saldoHoje) + '">' + brl.format(saldoHoje) + '</td><td style="padding:5px 12px;text-align:right;font-family:monospace;color:' + corV(saldoHoje) + '">' + brl.format(saldoHoje) + '</td></tr>';
+  h += '<tr style="border-bottom:1px solid var(--bdr)"><td style="padding:5px 12px">+7 dias</td><td style="padding:5px 12px;text-align:right;font-family:monospace;color:' + corV(baseD7) + '">' + brl.format(baseD7) + '</td><td style="padding:5px 12px;text-align:right;font-family:monospace;color:' + corV(pessD7) + '">' + brl.format(pessD7) + '</td></tr>';
+  h += '<tr style="border-bottom:1px solid var(--bdr)"><td style="padding:5px 12px">+15 dias</td><td style="padding:5px 12px;text-align:right;font-family:monospace;color:' + corV(baseD15) + '">' + brl.format(baseD15) + '</td><td style="padding:5px 12px;text-align:right;color:var(--mut)">—</td></tr>';
+  h += '<tr style="border-bottom:1px solid var(--bdr)"><td style="padding:5px 12px">+30 dias</td><td style="padding:5px 12px;text-align:right;font-family:monospace;color:' + corV(baseD30) + '">' + brl.format(baseD30) + '</td><td style="padding:5px 12px;text-align:right;color:var(--mut)">—</td></tr>';
+  h += '</tbody></table>';
+  h += '<div style="font-size:.72rem;color:var(--mut);margin-bottom:1rem">Premissas — BASE: recebiveis vencidos entram em ate 7 dias, a vencer no prazo, contas a pagar (' + brl.format(apTotal) + ', ' + apQ + ' conta(s)) quitadas ate +7d. PESSIMISTA: apenas 50% dos vencidos entram. Projecao e estimativa, nao certeza.</div>';
+
+  body.innerHTML = h;
+  _relHtmlParaImprimir = '<h1 style="font-size:14px;margin-bottom:1rem">Previsao de Liquidez — ' + fmtDate(hoje.toISOString().slice(0,10)) + '</h1>' + h;
   _relDreImpressaoLandscape = false;
 }
 
