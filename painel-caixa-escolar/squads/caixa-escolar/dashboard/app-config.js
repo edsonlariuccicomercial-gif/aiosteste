@@ -5,6 +5,9 @@ const USUARIOS_STORAGE_KEY = "nexedu.usuarios";
 const NF_CONFIG_STORAGE_KEY = "nexedu.config.notas-fiscais";
 const BANK_ACCOUNTS_STORAGE_KEY = "nexedu.config.contas-bancarias";
 const BANK_API_CONFIG_STORAGE_KEY = "nexedu.config.bank-api";
+// Story 20.6: preferências de recebimento (config Finanças)
+const FINANCAS_CONFIG_STORAGE_KEY = "nexedu.config.financas";
+const FINANCAS_PRAZO_PADRAO = 5;
 const BANK_API_SECRET_FIELDS = [
   {
     inputId: "bank-api-client-secret",
@@ -134,6 +137,7 @@ function loadConfigData() {
   refreshContaBancariaOptions();
   refreshBankApiContaOptions();
   loadBankApiConfig();
+  loadFinancasConfig(); // Story 20.6
 }
 
 function saveConfigEmpresa() {
@@ -348,6 +352,53 @@ function getBankAccounts() {
 
 function setBankAccounts(accounts) {
   localStorage.setItem(BANK_ACCOUNTS_STORAGE_KEY, JSON.stringify(accounts));
+}
+
+// Story 20.6: config Finanças — getter com fallback defensivo (ponto único de leitura do prazo)
+function getFinancasConfig() {
+  let cfg = {};
+  try { cfg = JSON.parse(localStorage.getItem(FINANCAS_CONFIG_STORAGE_KEY) || "{}"); } catch (_) { cfg = {}; }
+  const prazo = Number(cfg.prazoRecebimentoDias);
+  const prazoFinal = prazo > 0 ? prazo : FINANCAS_PRAZO_PADRAO;
+  return {
+    prazoRecebimentoDias: prazoFinal,
+    condicaoPagamentoPadrao: cfg.condicaoPagamentoPadrao || String(prazoFinal),
+    contaCobrancaPadraoId: cfg.contaCobrancaPadraoId || ""
+  };
+}
+
+function loadFinancasConfig() {
+  const cfg = getFinancasConfig();
+  const prazoEl = document.getElementById("fin-prazo-recebimento");
+  const condEl = document.getElementById("fin-condicao-pagamento");
+  const contaEl = document.getElementById("fin-conta-cobranca");
+  if (prazoEl) prazoEl.value = cfg.prazoRecebimentoDias;
+  if (condEl) condEl.value = cfg.condicaoPagamentoPadrao;
+  // Popular o select com as contas bancárias cadastradas
+  if (contaEl) {
+    const accounts = getBankAccounts();
+    contaEl.innerHTML = '<option value="">Selecione...</option>' + accounts.map(function(a) {
+      const label = (a.banco || a.apelido || a.id || "") + (a.apelido && a.banco ? " (" + a.apelido + ")" : "");
+      return '<option value="' + a.id + '">' + label + '</option>';
+    }).join("");
+    contaEl.value = cfg.contaCobrancaPadraoId || "";
+  }
+}
+
+function saveFinancasConfig() {
+  const prazoEl = document.getElementById("fin-prazo-recebimento");
+  const condEl = document.getElementById("fin-condicao-pagamento");
+  const contaEl = document.getElementById("fin-conta-cobranca");
+  const prazoNum = Number(prazoEl && prazoEl.value);
+  const data = {
+    prazoRecebimentoDias: prazoNum > 0 ? prazoNum : FINANCAS_PRAZO_PADRAO,
+    condicaoPagamentoPadrao: (condEl && condEl.value) || "",
+    contaCobrancaPadraoId: (contaEl && contaEl.value) || "",
+    updatedAt: new Date().toISOString()
+  };
+  localStorage.setItem(FINANCAS_CONFIG_STORAGE_KEY, JSON.stringify(data));
+  schedulCloudSync();
+  if (typeof showToast === "function") showToast("Preferências de recebimento salvas!");
 }
 
 function readBankApiConfigRaw() {

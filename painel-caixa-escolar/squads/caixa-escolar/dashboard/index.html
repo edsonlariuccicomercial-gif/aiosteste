@@ -804,7 +804,7 @@
         <button class="config-tab active" data-config-tab="empresa">Dados da Empresa</button>
         <button class="config-tab" data-config-tab="usuarios">Cadastro de Usuários</button>
         <button class="config-tab" data-config-tab="notas-fiscais">Notas Fiscais</button>
-        <button class="config-tab" data-config-tab="contas-bancarias">Contas Bancarias</button>
+        <button class="config-tab" data-config-tab="contas-bancarias">Finanças</button>
         <button class="config-tab" data-config-tab="precificacao">Precificação</button>
         <button class="config-tab" data-config-tab="modulos">Módulos</button>
         <button class="config-tab" data-config-tab="sres">SREs Varredura</button>
@@ -970,6 +970,22 @@
       </div>
       <div id="config-contas-bancarias" class="config-content">
         <div class="config-section-grid">
+          <!-- Story 20.6: Preferências de Recebimento (config Finanças) -->
+          <article class="config-panel-card config-panel-span">
+            <div class="config-panel-head">
+              <div>
+                <h3>Preferências de Recebimento</h3>
+                <p>Prazo e condição padrão de cobrança da empresa. Usado ao gerar contas a receber.</p>
+              </div>
+              <span class="badge badge-aprovado">Finanças</span>
+            </div>
+            <div class="form-grid">
+              <label>Prazo padrão de recebimento (dias)<input type="number" id="fin-prazo-recebimento" min="0" step="1" placeholder="5" /></label>
+              <label>Condição de pagamento padrão<input type="text" id="fin-condicao-pagamento" placeholder="Ex: 5 dias / à vista" /></label>
+              <label>Conta bancária de cobrança padrão<select id="fin-conta-cobranca"><option value="">Selecione...</option></select></label>
+            </div>
+            <div class="modal-actions" style="margin-top:16px;"><button id="btn-salvar-financas" class="btn btn-accent">Salvar Preferências</button></div>
+          </article>
           <article class="config-panel-card">
             <div class="config-panel-head">
               <div>
