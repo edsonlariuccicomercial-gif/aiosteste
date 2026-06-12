@@ -1532,29 +1532,25 @@ function renderPreOrcamentoItens() {
       : (item.marcasReferencia || []);
     const normAlerts = (item.alertasNormalizacao || []).map(a => `<span class="badge badge-rascunho" style="font-size:.66rem;margin-right:4px">${escapeHtml(a)}</span>`).join("");
     const linksExternos = item.linksExternos || [];
+    const sgdDesc = item.descricaoSgdOriginal || item.descricao || item.nome || "";
     const sgdOficialHtml = `
-      <div style="border:1px solid var(--line);border-radius:8px;padding:.5rem;background:rgba(148,163,184,.06);margin-top:.35rem">
-        <div style="font-size:.68rem;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin-bottom:.25rem">SGD oficial</div>
-        <div style="font-size:.78rem;line-height:1.35;white-space:pre-wrap;word-break:break-word">${escapeHtml(item.descricaoSgdOriginal || item.descricao || item.nome || "")}</div>
-        <div style="font-size:.72rem;color:var(--muted);margin-top:.35rem">Unid: <strong>${escapeHtml(item.unidadeSgdOriginal || item.unidade || "—")}</strong> · Qtd: <strong>${escapeHtml(String(item.quantidadeSgdOriginal || item.quantidade || 0))}</strong></div>
-      </div>`;
+      <details style="margin-top:.25rem">
+        <summary style="font-size:.72rem;color:var(--muted);cursor:pointer">SGD oficial · unid. <strong>${escapeHtml(item.unidadeSgdOriginal || item.unidade || "—")}</strong> · qtd. <strong>${escapeHtml(String(item.quantidadeSgdOriginal || item.quantidade || 0))}</strong></summary>
+        <div style="font-size:.74rem;line-height:1.3;color:var(--muted);white-space:pre-wrap;word-break:break-word;margin-top:.2rem">${escapeHtml(sgdDesc)}</div>
+      </details>`;
     const normalizacaoHtml = `
-      <div style="border:1px solid var(--line);border-radius:8px;padding:.5rem;background:rgba(78,201,138,.06);margin-top:.35rem">
-        <div style="font-size:.68rem;color:var(--accent);font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin-bottom:.25rem">Normalizacao interna</div>
-        <div style="font-size:.8rem;line-height:1.35"><strong>${escapeHtml(item.produtoCanonico || item.nome || "")}</strong></div>
-        <div style="font-size:.72rem;color:var(--muted);margin-top:.25rem">
-          Categoria: <strong>${escapeHtml(item.categoriaCanonica || "Outro")}</strong> ·
-          Unid: <strong>${escapeHtml(item.unidadeNormalizada || item.unidade || "—")}</strong>
-          ${item.embalagemNormalizada ? ` · Embalagem: <strong>${escapeHtml(item.embalagemNormalizada)}</strong>` : ""}
-        </div>
-        ${marcasNorm.length ? `<div style="font-size:.72rem;color:var(--accent);margin-top:.25rem">Marcas permitidas: <strong>${escapeHtml(marcasNorm.join(", "))}</strong></div>` : `<div style="font-size:.72rem;color:var(--muted);margin-top:.25rem">Sem marca obrigatoria: usar melhor custo do sistema.</div>`}
-        ${linksExternos.length ? `<div style="font-size:.72rem;margin-top:.25rem">Documento externo: ${linksExternos.map((url, i) => `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">link ${i + 1}</a>`).join(", ")}</div>` : ""}
-        ${normAlerts ? `<div style="margin-top:.35rem">${normAlerts}</div>` : ""}
+      <div style="font-size:.72rem;line-height:1.45;color:var(--muted);margin-top:.25rem">
+        <span class="badge badge-muted" style="font-size:.66rem">${escapeHtml(item.categoriaCanonica || "Outro")}</span>
+        <span class="badge badge-muted" style="font-size:.66rem">Unid. ${escapeHtml(item.unidadeNormalizada || item.unidade || "—")}</span>
+        ${item.embalagemNormalizada ? `<span class="badge badge-muted" style="font-size:.66rem">${escapeHtml(item.embalagemNormalizada)}</span>` : ""}
+        ${marcasNorm.length ? `<span class="badge badge-aprovado" style="font-size:.66rem">Marcas: ${escapeHtml(marcasNorm.join(", "))}</span>` : `<span class="badge badge-muted" style="font-size:.66rem">marca livre</span>`}
+        ${linksExternos.length ? `<span class="badge badge-rascunho" style="font-size:.66rem">doc externo</span>` : ""}
+        ${normAlerts ? `<div style="margin-top:.2rem">${normAlerts}</div>` : ""}
       </div>`;
 
     return `<tr>
       <td>
-        <strong>${escapeHtml(item.nome)}</strong>
+        <strong>${escapeHtml(item.produtoCanonico || item.nome)}</strong>
         ${sgdOficialHtml}
         ${normalizacaoHtml}
         ${pncpHint}
@@ -3538,33 +3534,57 @@ window.salvarProdutoCentral = function () {
   // aqui no IntelPreços apareça na Central de Produtos do GDP — fonte única de verdade.
   if (typeof window !== 'undefined' && window.ProductStore && window.ProductStore.save) {
     try {
-      window.ProductStore.save({
+      const ssotProduto = window.ProductStore.save({
         id: dados.id, descricao: dados.nome, sku: dados.sku || dados.id, ncm: dados.ncm,
         unidade: dados.unidade_base, marca: dados.fornecedor || "", grupo: dados.categoria,
         custoBase: dados.preco_custo || null, precoReferencia: dados.preco_referencia || null,
         origem: dados.origem || "0", produto_critico: !!dados.produto_critico,
         classificacao_kraljic: dados.classificacao_kraljic || ""
       });
+      if (ssotProduto && ssotProduto.sku && !dados.sku) dados.sku = ssotProduto.sku;
     } catch (e) { if (typeof gdpWarn === 'function') gdpWarn('[Central] save SSoT falhou', e.message); }
-  }
-
-  fecharModalProdutoCentral();
-  renderCentralPrecos();
-
-  // Story 15.3: Call onSave callback if set (for inline association)
-  if (_mpcOnSaveCallback && !id) {
-    const savedProduto = { id: dados.id, descricao: dados.nome, sku: dados.sku, ncm: dados.ncm, unidade: dados.unidade_base, marca: dados.fornecedor || "", custoBase: dados.preco_custo, margemAlvo: 0.30, precoReferencia: dados.preco_referencia };
-    try { _mpcOnSaveCallback(savedProduto); } catch(_) {}
-    _mpcOnSaveCallback = null;
   }
 
   // Also sync to bancoPrecos for immediate availability in dropdowns (mesmo sem custo,
   // para o operador conseguir associar/preencher durante o match).
-  if (!id) {
-    const bpItem = bancoPrecos.itens.find(p => (p.sku && p.sku === dados.sku) || p.id === dados.id);
-    if (!bpItem) {
-      bancoPrecos.itens.push({ id: dados.id, sku: dados.sku || dados.id, item: dados.nome, custoBase: dados.preco_custo || 0, precoReferencia: dados.preco_referencia || 0, unidade: dados.unidade_base, marca: dados.fornecedor || "", grupo: dados.categoria });
-    }
+  const bancoSku = dados.sku || dados.id;
+  const bancoPayload = {
+    id: dados.id,
+    sku: bancoSku,
+    item: dados.nome,
+    descricao: dados.nome,
+    custoBase: dados.preco_custo || 0,
+    precoReferencia: dados.preco_referencia || 0,
+    unidade: dados.unidade_base,
+    marca: dados.fornecedor || "",
+    grupo: dados.categoria,
+    margemPadrao: perfil && perfil.config ? perfil.config.margemPadrao || 0.30 : 0.30,
+    propostas: [],
+    concorrentes: [],
+    custosFornecedor: []
+  };
+  const bpItem = bancoPrecos.itens.find(p => p.id === dados.id || (p.sku && p.sku === bancoSku));
+  if (bpItem) {
+    Object.assign(bpItem, bancoPayload, {
+      propostas: bpItem.propostas || [],
+      concorrentes: bpItem.concorrentes || [],
+      custosFornecedor: bpItem.custosFornecedor || []
+    });
+  } else {
+    bancoPrecos.itens.push(bancoPayload);
+  }
+  saveBancoLocal();
+
+  const onSaveCallback = _mpcOnSaveCallback;
+  fecharModalProdutoCentral();
+  renderCentralPrecos();
+
+  // Story 15.3: Call onSave callback after banco sync so inline association can
+  // re-render with the new product already available in the dropdown.
+  if (onSaveCallback && !id) {
+    const savedProduto = { id: dados.id, descricao: dados.nome, nome: dados.nome, sku: bancoSku, ncm: dados.ncm, unidade: dados.unidade_base, unidade_base: dados.unidade_base, marca: dados.fornecedor || "", grupo: dados.categoria, categoria: dados.categoria, custoBase: dados.preco_custo, preco_custo: dados.preco_custo, margemAlvo: bancoPayload.margemPadrao, margemPadrao: bancoPayload.margemPadrao, precoReferencia: dados.preco_referencia, preco_referencia: dados.preco_referencia };
+    try { onSaveCallback(savedProduto); } catch(_) {}
+    _mpcOnSaveCallback = null;
   }
 
   showToast(id ? "Produto atualizado." : "Produto cadastrado.", 3000);
