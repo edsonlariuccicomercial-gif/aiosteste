@@ -56,6 +56,15 @@ function normalizeCategory(value) {
   return "Outro";
 }
 
+function runtimeMeta() {
+  return {
+    vercelEnv: process.env.VERCEL_ENV || null,
+    vercelGitCommitRef: process.env.VERCEL_GIT_COMMIT_REF || null,
+    vercelUrl: process.env.VERCEL_URL || null,
+    hasOpenAIKey: Boolean(process.env.OPENAI_API_KEY),
+  };
+}
+
 function normalizeResult(item, result, idx) {
   const fallback = item.fallback || {};
   const rawName = result.descricaoFiscal || result.produtoCanonico || fallback.nome || item.nome || "Produto";
@@ -97,12 +106,20 @@ export default async function handler(req, res) {
   corsHeaders(req, res);
 
   if (req.method === "OPTIONS") return res.status(204).end();
+  if (req.method === "GET" && req.query?.debug === "1") {
+    return res.status(200).json({ ok: true, runtime: runtimeMeta() });
+  }
   if (req.method !== "POST") return res.status(405).json({ error: "Method Not Allowed" });
 
   const itens = Array.isArray(req.body?.itens) ? req.body.itens.slice(0, 40) : [];
   const contexto = req.body?.contexto || {};
   if (!itens.length) return res.status(400).json({ error: "Nenhum item informado" });
-  if (!OPENAI_API_KEY) return res.status(500).json({ error: "OPENAI_API_KEY nao configurada no servidor" });
+  if (!OPENAI_API_KEY) {
+    return res.status(500).json({
+      error: "OPENAI_API_KEY nao configurada no servidor",
+      runtime: runtimeMeta()
+    });
+  }
 
   const systemPrompt = `Voce e o agente de normalizacao de produtos de pre-orcamento para Caixa Escolar MG.
 
