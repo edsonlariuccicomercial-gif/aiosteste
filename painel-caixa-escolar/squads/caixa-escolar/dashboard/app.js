@@ -848,7 +848,8 @@ function _extrairCaracteristicasProduto(texto) {
     "ponta arredondada", "sem ponta", "ponta fina", "ponta media", "ponta grossa",
     "cabo plastico", "cabo emborrachado", "aco inox", "inox", "lombada larga",
     "com elastico", "com aba", "capa dura", "capa flexivel", "espiral",
-    "quadriculado", "brochura", "reciclado", "adesiva", "lavavel", "permanente"
+    "quadriculado", "brochura", "reciclado", "adesiva", "lavavel", "permanente",
+    "resistente a agua", "superficies lisas"
   ];
   termos.forEach(term => { if (t.includes(term)) add(term); });
   return partes.slice(0, 5).map(_titleProdutoCanonico);
@@ -857,6 +858,7 @@ function _extrairCaracteristicasProduto(texto) {
 function _limparTextoProdutoSgd(texto) {
   return String(texto || "")
     .replace(/https?:\/\/[^\s<>"')]+/gi, " ")
+    .replace(/\bdescri[cç][aã]o\s*:/gi, " ")
     .replace(/\b(?:marcas?|marca de refer[eê]ncia|refer[eê]ncia de marca|similar (?:a|as|ao|aos))\s*:?.*$/i, " ")
     .replace(/\b(?:observa[cç][aã]o|obs\.?|garantia|prazo|entrega|documento externo|conforme edital)\s*:?.*$/i, " ")
     .replace(/\b(?:dever[aá]|deve|conforme|atender|obedecer|apresentar)\b.*$/i, " ")
@@ -865,7 +867,32 @@ function _limparTextoProdutoSgd(texto) {
     .trim();
 }
 
+function _produtoCanonicoEspecializado(texto) {
+  const raw = String(texto || "");
+  const t = _normTextBasic(raw);
+  const add = (arr, value) => {
+    const clean = String(value || "").replace(/\s+/g, " ").trim();
+    if (clean && !arr.some(x => _normTextBasic(x) === _normTextBasic(clean))) arr.push(clean);
+  };
+
+  if (/\bcaneta\b/.test(t) && /\b(transparencia|retroprojetor|retro projetor|permanente)\b/.test(t)) {
+    const partes = ["Caneta permanente"];
+    if (/\b(transparencia|retroprojetor|retro projetor)\b/.test(t)) add(partes, "para retroprojetor/transparencia");
+    const ponta = t.match(/\bponta\s+(fina|media|grossa)\b/);
+    if (ponta) add(partes, "ponta " + ponta[1]);
+    const espessura = raw.match(/\b\d+(?:[,.]\d+)?\s*mm\b/i);
+    if (espessura) add(partes, espessura[0]);
+    const cor = t.match(/\b(preta|preto|azul|vermelha|vermelho|verde)\b/);
+    if (cor) add(partes, cor[1]);
+    return _titleProdutoCanonico(partes.join(" "));
+  }
+
+  return "";
+}
+
 function _montarProdutoCanonico(texto, nomeBase, embalagemNormalizada) {
+  const especializado = _produtoCanonicoEspecializado(texto);
+  if (especializado) return especializado;
   const base = _titleProdutoCanonico(nomeBase || texto || "");
   const baseNorm = _normTextBasic(base);
   const extras = _extrairCaracteristicasProduto(texto)
