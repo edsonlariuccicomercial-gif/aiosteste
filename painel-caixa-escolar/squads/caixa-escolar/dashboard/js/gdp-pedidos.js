@@ -772,8 +772,8 @@ function novoPedidoManual() {
       <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.75rem">
         <div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Forma de Recebimento</label><select id="novo-ped-pag-forma"><option value="boleto" ${(pedidoCloneDraft?.pagamento?.forma||'boleto')==='boleto'?'selected':''}>Boleto</option><option value="pix" ${pedidoCloneDraft?.pagamento?.forma==='pix'?'selected':''}>PIX</option><option value="ted" ${pedidoCloneDraft?.pagamento?.forma==='ted'?'selected':''}>TED</option><option value="dinheiro" ${pedidoCloneDraft?.pagamento?.forma==='dinheiro'?'selected':''}>Dinheiro</option></select></div>
         <div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Conta Bancaria</label><select id="novo-ped-pag-conta">${getContasBancariasOptions(pedidoCloneDraft?.pagamento?.contaBancaria?.apelido)}</select></div>
-        <div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Prazo</label><select id="novo-ped-pag-prazo" onchange="recalcularVencNovoPedido()"><option value="0" ${pedidoCloneDraft?.pagamento?.condicao==='0'?'selected':''}>A vista</option><option value="15" ${pedidoCloneDraft?.pagamento?.condicao==='15'?'selected':''}>15 dias</option><option value="28" ${(!pedidoCloneDraft?.pagamento?.condicao||pedidoCloneDraft?.pagamento?.condicao==='28')?'selected':''}>28 dias</option><option value="30" ${pedidoCloneDraft?.pagamento?.condicao==='30'?'selected':''}>30 dias</option><option value="45" ${pedidoCloneDraft?.pagamento?.condicao==='45'?'selected':''}>45 dias</option><option value="60" ${pedidoCloneDraft?.pagamento?.condicao==='60'?'selected':''}>60 dias</option><option value="90" ${pedidoCloneDraft?.pagamento?.condicao==='90'?'selected':''}>90 dias</option></select></div>
-        <div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Data de Vencimento</label><input type="date" id="novo-ped-pag-vencimento" value="${pedidoCloneDraft?.pagamento?.vencimento || calcularVencimentoPagamento(new Date().toISOString().slice(0,10), '28')}"></div>
+        <div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Prazo</label><select id="novo-ped-pag-prazo" onchange="recalcularVencNovoPedido()">${_buildPrazoPagamentoOptions(pedidoCloneDraft?.pagamento?.condicao)}</select></div>
+        <div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Data de Vencimento</label><input type="date" id="novo-ped-pag-vencimento" value="${pedidoCloneDraft?.pagamento?.vencimento || calcularVencimentoPagamento(new Date().toISOString().slice(0,10), String(getFinancasConfig().prazoRecebimentoDias))}"></div>
       </div>
     </div>
     <div style="margin-top:1rem;display:flex;justify-content:flex-end;gap:.8rem">
@@ -961,7 +961,7 @@ function atualizarItemPedidoManualValor(idx) {
 }
 
 function recalcularVencNovoPedido() {
-  const prazo = document.getElementById("novo-ped-pag-prazo")?.value || "28";
+  const prazo = document.getElementById("novo-ped-pag-prazo")?.value || String(getFinancasConfig().prazoRecebimentoDias);
   const dataPedido = document.getElementById("pedido-data")?.value || new Date().toISOString().slice(0, 10);
   const el = document.getElementById("novo-ped-pag-vencimento");
   if (el) el.value = calcularVencimentoPagamento(dataPedido, prazo);
@@ -1093,7 +1093,7 @@ function salvarPedidoManual() {
 
   // Coletar dados de pagamento do formulário
   const pagForma = document.getElementById("novo-ped-pag-forma")?.value || "boleto";
-  const pagCondicao = document.getElementById("novo-ped-pag-prazo")?.value || "28";
+  const pagCondicao = document.getElementById("novo-ped-pag-prazo")?.value || String(getFinancasConfig().prazoRecebimentoDias);
   const pagVencimento = document.getElementById("novo-ped-pag-vencimento")?.value || calcularVencimentoPagamento(dataPedido, pagCondicao);
   const contaPadrao = getConfiguredDefaultBankAccount();
   const pagamento = {
@@ -1166,9 +1166,24 @@ function salvarPedidoManual() {
 }
 
 /* ── Pedido: Dados de Pagamento ── */
+// Story 20.8: monta as opções de prazo; default = prazo configurado (config Finanças), mantendo a opção 28 disponível
+function _buildPrazoPagamentoOptions(condicaoAtual) {
+  const prazoPadrao = String(getFinancasConfig().prazoRecebimentoDias);
+  const selecionado = condicaoAtual != null && condicaoAtual !== "" ? String(condicaoAtual) : prazoPadrao;
+  const base = ["0", "5", "15", "28", "30", "45", "60", "90"];
+  if (base.indexOf(prazoPadrao) === -1) base.push(prazoPadrao);
+  if (base.indexOf(selecionado) === -1) base.push(selecionado);
+  base.sort(function(a, b) { return Number(a) - Number(b); });
+  return base.map(function(v) {
+    const label = v === "0" ? "A vista" : v + " dias";
+    return '<option value="' + v + '"' + (v === selecionado ? " selected" : "") + '>' + label + '</option>';
+  }).join("");
+}
+
 function calcularVencimentoPagamento(dataPedido, prazoDias) {
   const d = dataPedido ? new Date(dataPedido + "T12:00:00") : new Date();
-  d.setDate(d.getDate() + Number(prazoDias || 28));
+  // Story 20.8: default do prazo vem da config Finanças (sem 28 hardcoded)
+  d.setDate(d.getDate() + Number(prazoDias || getFinancasConfig().prazoRecebimentoDias));
   return d.toISOString().split("T")[0];
 }
 
@@ -1307,7 +1322,7 @@ function salvarPedidoPagamento(pedidoId) {
   if (!p) return;
   const forma = document.getElementById("pag-forma-" + pedidoId)?.value || "boleto";
   const contaId = document.getElementById("pag-conta-" + pedidoId)?.value || "";
-  const condicao = document.getElementById("pag-prazo-" + pedidoId)?.value || "28";
+  const condicao = document.getElementById("pag-prazo-" + pedidoId)?.value || String(getFinancasConfig().prazoRecebimentoDias);
   const vencimento = document.getElementById("pag-vencimento-" + pedidoId)?.value || "";
   const contaPadrao = getConfiguredDefaultBankAccount();
   p.pagamento = {
@@ -1429,8 +1444,8 @@ function verPedidoDetalhe(pedidoId, isClone) {
   html += '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.75rem">';
   html += '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Forma de Recebimento</label><select id="pag-forma-' + p.id + '"><option value="boleto"' + (pag.forma === "boleto" ? " selected" : "") + '>Boleto</option><option value="pix"' + (pag.forma === "pix" ? " selected" : "") + '>PIX</option><option value="ted"' + (pag.forma === "ted" ? " selected" : "") + '>TED</option><option value="dinheiro"' + (pag.forma === "dinheiro" ? " selected" : "") + '>Dinheiro</option></select></div>';
   html += '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Conta Bancaria</label><select id="pag-conta-' + p.id + '">' + getContasBancariasOptions(pag.contaBancaria?.apelido) + '</select></div>';
-  html += '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Condicao de Pagamento (prazo)</label><select id="pag-prazo-' + p.id + '" onchange="recalcularVencimentoPedido(\'' + p.id + '\')"><option value="0"' + (pag.condicao === "0" ? " selected" : "") + '>A vista</option><option value="5"' + (pag.condicao === "5" ? " selected" : "") + '>5 dias</option><option value="15"' + (pag.condicao === "15" ? " selected" : "") + '>15 dias</option><option value="28"' + (!pag.condicao || pag.condicao === "28" ? " selected" : "") + '>28 dias</option><option value="30"' + (pag.condicao === "30" ? " selected" : "") + '>30 dias</option><option value="45"' + (pag.condicao === "45" ? " selected" : "") + '>45 dias</option><option value="60"' + (pag.condicao === "60" ? " selected" : "") + '>60 dias</option><option value="90"' + (pag.condicao === "90" ? " selected" : "") + '>90 dias</option></select></div>';
-  html += '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Data de Vencimento</label><input type="date" id="pag-vencimento-' + p.id + '" value="' + (pag.vencimento || calcularVencimentoPagamento(p.data || p.dataEntrega, pag.condicao || "28")) + '"></div>';
+  html += '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Condicao de Pagamento (prazo)</label><select id="pag-prazo-' + p.id + '" onchange="recalcularVencimentoPedido(\'' + p.id + '\')">' + _buildPrazoPagamentoOptions(pag.condicao) + '</select></div>';
+  html += '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Data de Vencimento</label><input type="date" id="pag-vencimento-' + p.id + '" value="' + (pag.vencimento || calcularVencimentoPagamento(p.data || p.dataEntrega, pag.condicao || String(getFinancasConfig().prazoRecebimentoDias))) + '"></div>';
   html += '</div></div>';
 
   // ── Observações do Pedido (editável — vai para a NF) ──
