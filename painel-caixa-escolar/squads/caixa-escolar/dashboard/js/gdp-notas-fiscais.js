@@ -312,6 +312,19 @@ function getBankApiConfig() {
   }
 }
 
+// Story 20.6/20.7: espelho do getFinancasConfig (padrão multi-page — lê a mesma chave de localStorage)
+function getFinancasConfig() {
+  let cfg = {};
+  try { cfg = JSON.parse(localStorage.getItem("nexedu.config.financas") || "{}"); } catch (_) { cfg = {}; }
+  const prazo = Number(cfg.prazoRecebimentoDias);
+  const prazoFinal = prazo > 0 ? prazo : 5; // fallback padrão de recebimento
+  return {
+    prazoRecebimentoDias: prazoFinal,
+    condicaoPagamentoPadrao: cfg.condicaoPagamentoPadrao || String(prazoFinal),
+    contaCobrancaPadraoId: cfg.contaCobrancaPadraoId || ""
+  };
+}
+
 function getConfiguredDefaultBankAccount() {
   const fiscalConfig = getFiscalConfig();
   const accounts = getConfiguredBankAccounts();
@@ -819,8 +832,9 @@ function buildReceivableFromInvoice(invoice) {
   const issueDate = new Date(invoice.emitidaEm || Date.now());
   let dueDateStr = invoice.vencimento;
   if (!dueDateStr) {
+    // Story 20.7: vencimento = emissão da NF + prazo configurado (config Finanças), não mais 28 fixo
     const dueDate = new Date(issueDate);
-    dueDate.setDate(dueDate.getDate() + 28);
+    dueDate.setDate(dueDate.getDate() + getFinancasConfig().prazoRecebimentoDias);
     dueDateStr = dueDate.toISOString().slice(0, 10);
   }
   const contaPadrao = getConfiguredDefaultBankAccount();

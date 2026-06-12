@@ -1175,7 +1175,10 @@ function calcularVencimentoPagamento(dataPedido, prazoDias) {
 function recalcularVencimentoPedido(pedidoId) {
   const p = pedidos.find(x => x.id === pedidoId);
   if (!p) return;
-  const prazo = document.getElementById("pag-prazo-" + pedidoId)?.value || "28";
+  // Story 20.7: se o pedido já tem NF emitida, o vencimento da cobrança é regido pela NF (emissão + prazo config),
+  // não pela data do pedido. Não sobrescrever nesse caso.
+  if (typeof findNotaByPedido === "function" && findNotaByPedido(pedidoId)) return;
+  const prazo = document.getElementById("pag-prazo-" + pedidoId)?.value || String(getFinancasConfig().prazoRecebimentoDias);
   const venc = calcularVencimentoPagamento(p.data || p.dataEntrega, prazo);
   const el = document.getElementById("pag-vencimento-" + pedidoId);
   if (el) el.value = venc;
