@@ -2075,6 +2075,74 @@ function getCaixaResumo() {
   return { entradas, saidas, saldo: saldoInicial + entradas - saidas, saldoInicial, divergencias: pendentes, conciliados, total: items.length, items };
 }
 
+// Story 20.5: normaliza termo de busca por valor (remove R$, espaços e separador de milhar; unifica vírgula→ponto)
+function _normalizarValorBusca(termo) {
+  if (!termo) return "";
+  let t = String(termo).replace(/r\$|\s/gi, "");
+  // se tem vírgula e ponto, ponto é milhar -> remove ponto, vírgula vira ponto
+  if (t.indexOf(",") >= 0 && t.indexOf(".") >= 0) {
+    t = t.replace(/\./g, "").replace(",", ".");
+  } else if (t.indexOf(",") >= 0) {
+    t = t.replace(",", ".");
+  }
+  // mantém apenas dígitos e ponto
+  t = t.replace(/[^0-9.]/g, "");
+  return t;
+}
+
+// Story 20.5: coleta os lançamentos do caixa atualmente filtrados (mesma lógica de renderCaixa) para impressão
+function _getCaixaItemsFiltrados() {
+  const resumo = getCaixaResumo();
+  const buscaCliente = (document.getElementById("caixa-busca-cliente")?.value || "").toLowerCase().trim();
+  const periodoSel = document.getElementById("caixa-filtro-periodo");
+  const deInput = document.getElementById("caixa-filtro-de");
+  const ateInput = document.getElementById("caixa-filtro-ate");
+  const periodo = periodoSel?.value || "todos";
+  let items = resumo.items.slice().sort((a, b) => String(b.data || "").localeCompare(String(a.data || "")));
+  if (buscaCliente) {
+    const buscaNum = _normalizarValorBusca(buscaCliente);
+    items = items.filter(item => {
+      const desc = (item.historico || item.descricao || "").toLowerCase();
+      if (desc.includes(buscaCliente)) return true;
+      if (buscaNum) {
+        const valNum = Math.abs(Number(item.valor || 0));
+        const valStr = valNum.toFixed(2);
+        if (valStr.includes(buscaNum) || valStr.replace('.', ',').includes(buscaNum)) return true;
+      }
+      return false;
+    });
+  }
+  if (periodo !== "todos") {
+    const hoje = new Date(); hoje.setHours(0,0,0,0);
+    let de, ate;
+    if (periodo === "hoje") { de = ate = hoje; }
+    else if (periodo === "semana") { de = new Date(hoje); de.setDate(de.getDate() - de.getDay()); ate = hoje; }
+    else if (periodo === "mes") { de = new Date(hoje.getFullYear(), hoje.getMonth(), 1); ate = hoje; }
+    else if (periodo === "intervalo") { de = deInput?.value ? new Date(deInput.value + 'T00:00:00') : null; ate = ateInput?.value ? new Date(ateInput.value + 'T23:59:59') : null; }
+    if (de || ate) {
+      items = items.filter(item => {
+        const d = _parseLocalDate(item.data); if (!d) return true; d.setHours(0,0,0,0);
+        if (de && d < de) return false;
+        if (ate) { const ateEnd = new Date(ate); ateEnd.setHours(23,59,59); if (d > ateEnd) return false; }
+        return true;
+      });
+    }
+  }
+  return items;
+}
+
+// Story 20.5: imprime a lista de lançamentos do caixa (respeitando busca e filtro de data ativos)
+function imprimirRelatorioCaixa() {
+  const items = _getCaixaItemsFiltrados();
+  const rows = items.map((item) => {
+    const conciliado = item.conciliado || item.conciliacao?.matched;
+    return `<tr><td>${esc(item.data || "-")}</td><td>${esc(item.historico || item.descricao || "-")}</td><td>${esc(item.categoriaDre || "-")}</td><td>${conciliado ? "Conciliado" : "Pendente"}</td><td class="right">${brl.format(Number(item.valor || 0))}</td></tr>`;
+  }).join("");
+  if (typeof abrirJanelaRelatorioFinanceiro === "function") {
+    abrirJanelaRelatorioFinanceiro("Relatorio - Caixa (Lancamentos)", ["Data", "Descricao", "Categoria", "Status", "Valor"], rows);
+  }
+}
+
 function renderCaixa() {
   const resumo = getCaixaResumo();
   const saldoEl = document.getElementById("caixa-kpi-saldo");
@@ -2107,14 +2175,24 @@ function renderCaixa() {
   }
 
   // Story 4.51 AC-B3/B4: apply client search + period filter
+  // Story 20.5: busca também por valor (cliente/descrição + valor)
   const buscaCliente = (document.getElementById("caixa-busca-cliente")?.value || "").toLowerCase().trim();
   const periodo = periodoSel?.value || "todos";
   let items = resumo.items.slice().sort((a, b) => String(b.data || "").localeCompare(String(a.data || "")));
 
   if (buscaCliente) {
+    const buscaNum = _normalizarValorBusca(buscaCliente);
     items = items.filter(item => {
       const desc = (item.historico || item.descricao || "").toLowerCase();
-      return desc.includes(buscaCliente);
+      if (desc.includes(buscaCliente)) return true;
+      // Casa por valor: compara forma numérica e formatada (1.234,56 / 1234.56 / 1234,56)
+      if (buscaNum) {
+        const valNum = Math.abs(Number(item.valor || 0));
+        const valStr = valNum.toFixed(2);
+        const valStrBr = valStr.replace('.', ',');
+        if (valStr.includes(buscaNum) || valStrBr.includes(buscaNum) || _normalizarValorBusca(brl.format(Number(item.valor || 0))) .includes(buscaNum)) return true;
+      }
+      return false;
     });
   }
   if (periodo !== "todos") {

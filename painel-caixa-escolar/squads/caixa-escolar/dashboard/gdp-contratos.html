@@ -915,7 +915,7 @@
     </div>
     <!-- Story 4.51 AC-B3/B4: Busca por cliente + filtro por periodo -->
     <div style="display:flex;gap:.6rem;align-items:center;margin-bottom:.75rem;flex-wrap:wrap">
-      <input type="text" id="caixa-busca-cliente" placeholder="Buscar por cliente..." oninput="renderCaixa()" style="flex:1;min-width:200px;height:36px;padding:6px 12px;border-radius:6px;border:1px solid var(--bdr);background:var(--bg);color:var(--txt);font-size:.9rem">
+      <input type="text" id="caixa-busca-cliente" placeholder="Buscar por cliente ou valor..." oninput="renderCaixa()" style="flex:1;min-width:200px;height:36px;padding:6px 12px;border-radius:6px;border:1px solid var(--bdr);background:var(--bg);color:var(--txt);font-size:.9rem">
       <select id="caixa-filtro-periodo" onchange="renderCaixa()" style="height:36px;padding:4px 10px;border-radius:6px;border:1px solid var(--bdr);background:var(--bg);color:var(--txt);font-size:.85rem">
         <option value="todos">Todos</option>
         <option value="hoje">Hoje</option>
@@ -931,7 +931,10 @@
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem">
         <h3 style="margin:0">Extrato Conciliado</h3>
-        <button class="btn btn-sm btn-green" onclick="abrirModalIncluirLancamento()">+ Incluir Lançamento</button>
+        <div style="display:flex;gap:.5rem;align-items:center">
+          <button class="btn btn-sm" onclick="imprimirRelatorioCaixa()">Imprimir</button>
+          <button class="btn btn-sm btn-green" onclick="abrirModalIncluirLancamento()">+ Incluir Lançamento</button>
+        </div>
       </div>
       <div class="table-wrap" style="max-height:460px;overflow-y:auto">
         <table>
