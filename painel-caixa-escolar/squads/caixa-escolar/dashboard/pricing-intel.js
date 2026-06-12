@@ -1094,10 +1094,77 @@ function _pendCriarProdutoCatalogo(dados) {
   return bp;
 }
 
-window.pendAutoAssociarNormalizados = function (orcId) {
+async function _pendNormalizarItensComAgente(pre, orc) {
+  if (!pre || !Array.isArray(pre.itens) || !pre.itens.length) return { applied: false, error: null };
+
+  const itens = pre.itens.map((item) => ({
+    nome: item.nome || "",
+    descricao: item.descricao || "",
+    unidade: item.unidade || "",
+    quantidade: item.quantidade || 0,
+    observacao: item.observacao || "",
+    fallback: _pendProdutoNormalizado(item, orc)
+  }));
+
+  try {
+    const resp = await fetch("/api/ai-normalize-prequote", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contexto: {
+          escola: pre.escola || "",
+          municipio: pre.municipio || "",
+          grupo: orc ? (orc.grupo || orc.categoria || "") : ""
+        },
+        itens
+      })
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok || !data.success || !Array.isArray(data.results)) {
+      return { applied: false, error: data.error || data.detail || "normalizacao indisponivel" };
+    }
+
+    let applied = 0;
+    data.results.forEach((n) => {
+      const idx = Number(n.idx);
+      const item = pre.itens[idx];
+      if (!item) return;
+      const nomeFiscal = String(n.descricaoFiscal || n.produtoCanonico || "").trim();
+      if (!nomeFiscal || _pendTextoPareceSujo(nomeFiscal)) return;
+
+      item.produtoCanonico = nomeFiscal;
+      item.descricaoFiscal = nomeFiscal;
+      item.categoriaCanonica = n.categoria || item.categoriaCanonica || "Outro";
+      item.unidadeNormalizada = n.unidadeNormalizada || item.unidadeNormalizada || item.unidade || "UN";
+      item.embalagemNormalizada = n.embalagem || item.embalagemNormalizada || "";
+      item.atributosEssenciais = Array.isArray(n.atributosEssenciais) ? n.atributosEssenciais : [];
+      item.marcasPermitidas = Array.isArray(n.marcasPermitidas) ? n.marcasPermitidas : (item.marcasPermitidas || []);
+      item.marcasReferencia = item.marcasPermitidas;
+      item.precoReferenciaSgd = Number(n.precoReferencia || item.precoReferenciaSgd || 0) || 0;
+      item.normalizacaoOrigem = "agente-lua";
+      item.normalizacaoConfianca = Number(n.confianca || 0);
+
+      const alertas = Array.isArray(n.alertas) ? n.alertas.map(String).filter(Boolean) : [];
+      const atuais = Array.isArray(item.alertasNormalizacao) ? item.alertasNormalizacao : [];
+      item.alertasNormalizacao = Array.from(new Set(atuais.concat(alertas)));
+      if (n.precisaRevisao && !item.alertasNormalizacao.includes("Revisao humana da normalizacao")) {
+        item.alertasNormalizacao.push("Revisao humana da normalizacao");
+      }
+      applied++;
+    });
+
+    return { applied: applied > 0, error: null, count: applied };
+  } catch (err) {
+    return { applied: false, error: err.message || "falha no agente" };
+  }
+}
+
+window.pendAutoAssociarNormalizados = async function (orcId) {
   const pre = preOrcamentos[orcId];
   if (!pre) return;
   const orc = orcamentos.find(o => o.id === orcId);
+  showToast("Lua esta normalizando os itens com agente inteligente...", 1800);
+  const agente = await _pendNormalizarItensComAgente(pre, orc);
   let criados = 0;
   let vinculados = 0;
   let revisados = 0;
@@ -1136,7 +1203,8 @@ window.pendAutoAssociarNormalizados = function (orcId) {
   savePreOrcamentos();
   _pendCheckCompletude(orcId);
   renderPendentes();
-  showToast(`Lua associou ${vinculados} item(ns), criou ${criados} produto(s) e revisou ${revisados} nome(s). Agora falta preencher custos.`, 3500);
+  const origem = agente.applied ? `Agente normalizou ${agente.count || 0} item(ns). ` : `Agente indisponivel; usei fallback local. `;
+  showToast(`${origem}Lua associou ${vinculados} item(ns), criou ${criados} produto(s) e revisou ${revisados} nome(s). Agora falta preencher custos.`, 4500);
 };
 
 // Story 15.2: Edit individual field
