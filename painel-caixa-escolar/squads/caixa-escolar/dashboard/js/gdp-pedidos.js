@@ -75,7 +75,8 @@ function _getPeriodoInputIds(prefix) {
     'cr-emissao': ['cr-filtro-emissao-de', 'cr-filtro-emissao-ate'],
     'cr-venc': ['cr-filtro-de', 'cr-filtro-ate'],
     'ped-emissao': ['ped-filtro-emissao-de', 'ped-filtro-emissao-ate'],
-    'nf-emissao': ['nf-filtro-emissao-de', 'nf-filtro-emissao-ate']
+    'nf-emissao': ['nf-filtro-emissao-de', 'nf-filtro-emissao-ate'],
+    'caixa-periodo': ['caixa-filtro-de', 'caixa-filtro-ate']
   };
   return map[prefix] || ['cp-filtro-de', 'cp-filtro-ate'];
 }
@@ -86,6 +87,11 @@ window.togglePeriodoDropdown = function(prefix) {
   document.querySelectorAll('[id^="periodo-"][id$="-dropdown"]').forEach(function(el) { if (el !== dd) el.style.display = 'none'; });
   dd.style.display = dd.style.display === 'none' ? 'block' : 'none';
 };
+// Story 20.5: rótulo default do filtro de período por prefixo (caixa → "Período")
+function _periodoDefaultLabel(prefix) {
+  if (prefix === 'caixa-periodo') return 'Período';
+  return prefix.includes('emissao') ? 'Emissao' : 'Vencimento';
+}
 window.aplicarPeriodoFilter = function(prefix, renderFn) {
   var ids = _getPeriodoInputIds(prefix);
   var de = document.getElementById(ids[0]);
@@ -97,8 +103,7 @@ window.aplicarPeriodoFilter = function(prefix, renderFn) {
     var fmtD = function(v) { if (!v) return ''; var p = v.split('-'); return p[2] + '/' + p[1]; };
     if (label) { label.textContent = (fmtD(deVal) || '...') + ' — ' + (fmtD(ateVal) || '...'); label.style.color = 'var(--txt)'; }
   } else {
-    var defaultLabel = prefix.includes('emissao') ? 'Emissao' : 'Vencimento';
-    if (label) { label.textContent = defaultLabel; label.style.color = 'var(--mut)'; }
+    if (label) { label.textContent = _periodoDefaultLabel(prefix); label.style.color = 'var(--mut)'; }
   }
   document.getElementById('periodo-' + prefix + '-dropdown').style.display = 'none';
   if (typeof window[renderFn] === 'function') window[renderFn]();
@@ -109,9 +114,8 @@ window.limparPeriodoFilter = function(prefix, renderFn) {
   var ate = document.getElementById(ids[1]);
   if (de) de.value = '';
   if (ate) ate.value = '';
-  var defaultLabel = prefix.includes('emissao') ? 'Emissao' : 'Vencimento';
   var label = document.getElementById('periodo-' + prefix + '-label');
-  if (label) { label.textContent = defaultLabel; label.style.color = 'var(--mut)'; }
+  if (label) { label.textContent = _periodoDefaultLabel(prefix); label.style.color = 'var(--mut)'; }
   document.getElementById('periodo-' + prefix + '-dropdown').style.display = 'none';
   if (typeof window[renderFn] === 'function') window[renderFn]();
 };
@@ -2112,10 +2116,6 @@ function _normalizarValorBusca(termo) {
 function _getCaixaItemsFiltrados() {
   const resumo = getCaixaResumo();
   const buscaCliente = (document.getElementById("caixa-busca-cliente")?.value || "").toLowerCase().trim();
-  const periodoSel = document.getElementById("caixa-filtro-periodo");
-  const deInput = document.getElementById("caixa-filtro-de");
-  const ateInput = document.getElementById("caixa-filtro-ate");
-  const periodo = periodoSel?.value || "todos";
   let items = resumo.items.slice().sort((a, b) => String(b.data || "").localeCompare(String(a.data || "")));
   if (buscaCliente) {
     const buscaNum = _normalizarValorBusca(buscaCliente);
@@ -2130,22 +2130,8 @@ function _getCaixaItemsFiltrados() {
       return false;
     });
   }
-  if (periodo !== "todos") {
-    const hoje = new Date(); hoje.setHours(0,0,0,0);
-    let de, ate;
-    if (periodo === "hoje") { de = ate = hoje; }
-    else if (periodo === "semana") { de = new Date(hoje); de.setDate(de.getDate() - de.getDay()); ate = hoje; }
-    else if (periodo === "mes") { de = new Date(hoje.getFullYear(), hoje.getMonth(), 1); ate = hoje; }
-    else if (periodo === "intervalo") { de = deInput?.value ? new Date(deInput.value + 'T00:00:00') : null; ate = ateInput?.value ? new Date(ateInput.value + 'T23:59:59') : null; }
-    if (de || ate) {
-      items = items.filter(item => {
-        const d = _parseLocalDate(item.data); if (!d) return true; d.setHours(0,0,0,0);
-        if (de && d < de) return false;
-        if (ate) { const ateEnd = new Date(ate); ateEnd.setHours(23,59,59); if (d > ateEnd) return false; }
-        return true;
-      });
-    }
-  }
+  // Story 20.5: filtro de data no padrão CP/CR (mesma fonte de renderCaixa)
+  items = _applyPeriodFilterCustom(items, 'intervalo', 'caixa-filtro-de', 'caixa-filtro-ate', function(item) { return item.data; });
   return items;
 }
 
@@ -2182,20 +2168,9 @@ function renderCaixa() {
     } catch(_) { contaLabel.textContent = ''; }
   }
 
-  // Story 4.51 AC-B4: toggle date range inputs
-  const periodoSel = document.getElementById("caixa-filtro-periodo");
-  const deInput = document.getElementById("caixa-filtro-de");
-  const ateInput = document.getElementById("caixa-filtro-ate");
-  if (periodoSel && deInput && ateInput) {
-    const isIntervalo = periodoSel.value === "intervalo";
-    deInput.classList.toggle("hidden", !isIntervalo);
-    ateInput.classList.toggle("hidden", !isIntervalo);
-  }
-
   // Story 4.51 AC-B3/B4: apply client search + period filter
   // Story 20.5: busca também por valor (cliente/descrição + valor)
   const buscaCliente = (document.getElementById("caixa-busca-cliente")?.value || "").toLowerCase().trim();
-  const periodo = periodoSel?.value || "todos";
   let items = resumo.items.slice().sort((a, b) => String(b.data || "").localeCompare(String(a.data || "")));
 
   if (buscaCliente) {
@@ -2213,22 +2188,8 @@ function renderCaixa() {
       return false;
     });
   }
-  if (periodo !== "todos") {
-    const hoje = new Date(); hoje.setHours(0,0,0,0);
-    let de, ate;
-    if (periodo === "hoje") { de = ate = hoje; }
-    else if (periodo === "semana") { de = new Date(hoje); de.setDate(de.getDate() - de.getDay()); ate = hoje; }
-    else if (periodo === "mes") { de = new Date(hoje.getFullYear(), hoje.getMonth(), 1); ate = hoje; }
-    else if (periodo === "intervalo") { de = deInput?.value ? new Date(deInput.value + 'T00:00:00') : null; ate = ateInput?.value ? new Date(ateInput.value + 'T23:59:59') : null; }
-    if (de || ate) {
-      items = items.filter(item => {
-        const d = _parseLocalDate(item.data); if (!d) return true; d.setHours(0,0,0,0);
-        if (de && d < de) return false;
-        if (ate) { const ateEnd = new Date(ate); ateEnd.setHours(23,59,59); if (d > ateEnd) return false; }
-        return true;
-      });
-    }
-  }
+  // Story 20.5: filtro de data no padrão CP/CR (só intervalo De/Até via _applyPeriodFilterCustom)
+  items = _applyPeriodFilterCustom(items, 'intervalo', 'caixa-filtro-de', 'caixa-filtro-ate', function(item) { return item.data; });
 
   const tbody = document.getElementById("caixa-extrato-tbody");
   const empty = document.getElementById("caixa-extrato-empty");
