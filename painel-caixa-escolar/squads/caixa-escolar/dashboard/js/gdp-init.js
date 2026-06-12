@@ -407,6 +407,23 @@ function toggleCrMenuHeader(event) {
   if (event) event.stopPropagation();
 }
 
+// Story 20.3: resolve a data de emissão com fallback (exibição apenas, não grava no banco)
+// Ordem: campo dataEmissao (camel/snake) -> data de emissão da NF de origem -> data de criação do registro.
+function resolveDataEmissaoConta(conta) {
+  if (!conta) return "";
+  const direta = conta.dataEmissao || conta.data_emissao;
+  if (direta) return direta;
+  const nfId = conta.notaFiscalId || conta.origemId;
+  if (nfId && typeof notasFiscais !== "undefined" && Array.isArray(notasFiscais)) {
+    const nf = notasFiscais.find((item) => item.id === nfId);
+    const nfEmissao = nf && (nf.emitidaEm || nf.dataEmissao || nf.data_emissao);
+    if (nfEmissao) return String(nfEmissao).slice(0, 10);
+  }
+  const criacao = conta.audit?.createdAt || conta.createdAt || conta.created_at;
+  if (criacao) return String(criacao).slice(0, 10);
+  return "";
+}
+
 function abrirDetalheCr(contaId) {
   const conta = contasReceber.find(c => c.id === contaId);
   if (!conta) return;
@@ -425,7 +442,7 @@ function abrirDetalheCr(contaId) {
     <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Cliente</label><div style="padding:.4rem 0;font-size:.92rem">${esc(conta.cliente || "-")}</div></div>
     <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Forma</label><div style="padding:.4rem 0;font-size:.92rem">${esc(conta.forma)}</div></div>
     <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Valor</label><div style="padding:.4rem 0;font-size:.92rem">${brl.format(conta.valor || 0)}</div></div>
-    <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Data de Emissao</label><div style="padding:.4rem 0;font-size:.92rem">${esc(conta.dataEmissao || "-")}</div></div>
+    <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Data de Emissao</label><div style="padding:.4rem 0;font-size:.92rem">${esc(resolveDataEmissaoConta(conta) || "-")}</div></div>
     <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Vencimento</label><div style="padding:.4rem 0;font-size:.92rem">${esc(conta.vencimento)}</div></div>
     <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Status</label><div style="padding:.4rem 0"><span class="badge ${statusMeta.className}">${esc(statusMeta.label)}</span></div></div>
     <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Automacao</label><div style="padding:.4rem 0;font-size:.82rem">${conta.automacao?.whatsapp ? "WhatsApp" : "-"} / ${conta.automacao?.email ? "E-mail" : "-"}</div></div>
@@ -457,7 +474,7 @@ function toggleEditCrDetalhe() {
       <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Cliente</label><input type="text" id="cr-edit-cliente" value="${esc(conta.cliente || "")}"></div>
       <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Forma</label><select id="cr-edit-forma"></select></div>
       <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Valor</label><input type="number" id="cr-edit-valor" min="0" step="0.01" value="${conta.valor || 0}"></div>
-      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Data de Emissao</label><input type="date" id="cr-edit-dataEmissao" value="${conta.dataEmissao || ""}"></div>
+      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Data de Emissao</label><input type="date" id="cr-edit-dataEmissao" value="${resolveDataEmissaoConta(conta)}"></div>
       <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Vencimento</label><input type="date" id="cr-edit-vencimento" value="${conta.vencimento || ""}"></div>
       <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Status</label><div style="padding:.4rem 0"><span class="badge ${getContaReceberStatusMeta(conta).className}">${esc(getContaReceberStatusMeta(conta).label)}</span></div></div>
       <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Automacao</label><div style="padding:.4rem 0;font-size:.82rem">${conta.automacao?.whatsapp ? "WhatsApp" : "-"} / ${conta.automacao?.email ? "E-mail" : "-"}</div></div>
@@ -684,8 +701,12 @@ function excluirContaPagar(contaId) {
   const conta = contasPagar.find((item) => item.id === contaId);
   if (!conta) return;
   if (!confirm(`Excluir a conta a pagar "${conta.descricao}"?`)) return;
-  contasPagar = contasPagar.filter((item) => item.id !== contaId);
-  saveContasPagar();
+  // EPIC-19 (extensão): SOFT-DELETE sincronizado (espelha excluirContaReceber).
+  // Marca deletedAt e persiste via saveContasPagar → gdpApi UPSERT (envia deleted_at ao
+  // Supabase, propaga por realtime). loadData já filtra deletedAt na leitura (gdp-core 1017).
+  conta.deletedAt = new Date().toISOString();
+  saveContasPagar(); // persiste a lista COM o item marcado (Supabase recebe o UPDATE)
+  contasPagar = contasPagar.filter((item) => item.id !== contaId); // some da UI imediatamente
   renderContasPagar();
   showToast(`Conta a pagar "${conta.descricao}" excluida.`, 3000);
 }
@@ -987,11 +1008,17 @@ function imprimirRelatorioContasPagar() {
 }
 
 function imprimirRelatorioContasReceber() {
-  const rows = contasReceber.map((item) => {
+  // Story 20.2: relatório respeita a aba de status + filtros de data/busca ativos (consistente com a tela)
+  let dados = contasReceber;
+  if (typeof _getContasReceberFiltradasBase === "function") {
+    dados = _applyContaReceberStatusTab(_getContasReceberFiltradasBase());
+  }
+  const statusFiltro = typeof _getContaReceberStatusTabLabel === "function" ? _getContaReceberStatusTabLabel() : "Todas";
+  const rows = dados.map((item) => {
     const status = getContaReceberStatusMeta(item);
     return `<tr><td>${esc(item.id)}</td><td>${esc(item.descricao)}</td><td>${esc(item.cliente || "-")}</td><td>${esc(formatCategoriaLabel(item.categoria))}</td><td>${fmtDate(item.vencimento)}</td><td class="right">${brl.format(item.valor || 0)}</td><td>${esc(status.label)}</td></tr>`;
   }).join("");
-  abrirJanelaRelatorioFinanceiro("Relatorio - Contas a Receber", ["ID", "Descricao", "Cliente", "Categoria", "Vencimento", "Valor", "Status"], rows);
+  abrirJanelaRelatorioFinanceiro(`Relatorio - Contas a Receber (Status: ${statusFiltro})`, ["ID", "Descricao", "Cliente", "Categoria", "Vencimento", "Valor", "Status"], rows);
 }
 
 // [gdp-estoque-intel.js loaded above — Stock Intelligence core functions]

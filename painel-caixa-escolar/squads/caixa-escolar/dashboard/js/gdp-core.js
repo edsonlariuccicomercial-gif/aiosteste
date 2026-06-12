@@ -998,6 +998,8 @@ function loadData() {
   } catch(_) { pedidos = []; }
   try { provasEntrega = JSON.parse(localStorage.getItem(PROOFS_KEY)) || []; } catch(_) { provasEntrega = []; }
   try { notasFiscais = unwrapData(JSON.parse(localStorage.getItem(INVOICES_KEY))); } catch(_) { notasFiscais = []; }
+  // EPIC-19 (extensão): esconder notas soft-deletadas (deletedAt/deleted_at) — exclusão sincronizada via Supabase.
+  notasFiscais = notasFiscais.filter(function(x){ return !(x && (x.deletedAt || x.deleted_at)); });
   // Story 4.80: removido saveNotasFiscais() no boot — re-save desnecessário bloqueava thread
   try {
     notasEntrada = unwrapData(JSON.parse(localStorage.getItem(ENTRY_INVOICES_KEY)));
@@ -2694,15 +2696,32 @@ function renderConciliacao() {
       statusLabel = '<span style="color:var(--green,#22c55e);font-weight:700;font-size:.75rem">Conciliado' + vincLabel + '</span>';
     } else {
       const sugestoes = buscarSugestoesConciliacao(t);
-      if (sugestoes.length > 0) {
+      if (sugestoes.length === 1) {
         const s = sugestoes[0];
         const tipoLabel = s.tipo === 'cp' ? 'CP' : 'CR';
         const descShort = (s.descricao || '').slice(0, 25) + ((s.descricao || '').length > 25 ? '...' : '');
         const vencFmt = s.vencimento ? fmtDate(s.vencimento) : '';
         statusLabel = '<div style="font-size:.72rem;line-height:1.3">'
           + '<button class="btn btn-sm btn-green" style="font-size:.68rem;padding:.15rem .5rem;margin-bottom:.2rem" onclick="conciliarComBaixa(' + gi + ',\'' + s.contaId + '\',\'' + s.tipo + '\')">' + tipoLabel + ': ' + esc(descShort) + '</button>'
-          + '<div style="color:var(--mut);font-size:.65rem">' + esc(vencFmt) + ' | ' + brl.format(s.valor) + (sugestoes.length > 1 ? ' (+' + (sugestoes.length - 1) + ')' : '') + '</div>'
+          + '<div style="color:var(--mut);font-size:.65rem">' + esc(vencFmt) + ' | ' + brl.format(s.valor) + '</div>'
           + '<button class="btn btn-sm btn-blue" style="font-size:.65rem;padding:.1rem .4rem;margin-top:.3rem;opacity:.8" onclick="conciliarLancamento(' + gi + ')">Conciliar manual</button>'
+          + '</div>';
+      } else if (sugestoes.length > 1) {
+        // Story 20.4: múltiplos candidatos com mesmo valor — operador escolhe (CR e CP)
+        const candidatos = sugestoes.map(function(s) {
+          const tipoLabel = s.tipo === 'cp' ? 'CP' : 'CR';
+          const descShort = (s.descricao || s.cliente || '').slice(0, 22) + ((s.descricao || s.cliente || '').length > 22 ? '...' : '');
+          const vencFmt = s.vencimento ? fmtDate(s.vencimento) : '';
+          return '<button class="btn btn-sm btn-green" style="display:block;width:100%;text-align:left;font-size:.66rem;padding:.18rem .4rem;margin-bottom:.18rem;white-space:normal" '
+            + 'onclick="conciliarComBaixa(' + gi + ',\'' + s.contaId + '\',\'' + s.tipo + '\')" '
+            + 'title="' + esc((s.descricao || '') + ' ' + (s.cliente || '')) + '">'
+            + tipoLabel + ': ' + esc(descShort) + ' <span style="color:var(--mut)">' + esc(vencFmt) + ' · ' + brl.format(s.valor) + '</span>'
+            + '</button>';
+        }).join('');
+        statusLabel = '<div style="font-size:.72rem;line-height:1.3">'
+          + '<div style="color:var(--yellow,#f59e0b);font-weight:700;font-size:.65rem;margin-bottom:.2rem">' + sugestoes.length + ' candidatos — escolha:</div>'
+          + candidatos
+          + '<button class="btn btn-sm btn-blue" style="font-size:.65rem;padding:.1rem .4rem;margin-top:.2rem;opacity:.8" onclick="conciliarLancamento(' + gi + ')">Conciliar manual</button>'
           + '</div>';
       } else {
         statusLabel = '<button class="btn btn-sm btn-blue" style="font-size:.7rem;padding:.15rem .5rem" onclick="conciliarLancamento(' + gi + ')">Conciliar</button>';

@@ -1906,6 +1906,9 @@ function bindEvents() {
   if (btnTestarBankApi) btnTestarBankApi.addEventListener("click", testBankApiConfig);
   const btnProvisionarBankWebhook = document.getElementById("btn-provisionar-bank-webhook");
   if (btnProvisionarBankWebhook) btnProvisionarBankWebhook.addEventListener("click", provisionBankWebhook);
+  // Story 20.6: salvar preferências de recebimento (config Finanças)
+  const btnSalvarFinancas = document.getElementById("btn-salvar-financas");
+  if (btnSalvarFinancas) btnSalvarFinancas.addEventListener("click", saveFinancasConfig);
 
   // Tab navigation (Intel. Preços sub-tabs — horizontal, kept for compatibility)
   document.querySelectorAll("#tabs-intel-precos .tab").forEach((tab) => {

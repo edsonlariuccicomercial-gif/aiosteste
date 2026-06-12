@@ -772,8 +772,8 @@ function novoPedidoManual() {
       <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.75rem">
         <div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Forma de Recebimento</label><select id="novo-ped-pag-forma"><option value="boleto" ${(pedidoCloneDraft?.pagamento?.forma||'boleto')==='boleto'?'selected':''}>Boleto</option><option value="pix" ${pedidoCloneDraft?.pagamento?.forma==='pix'?'selected':''}>PIX</option><option value="ted" ${pedidoCloneDraft?.pagamento?.forma==='ted'?'selected':''}>TED</option><option value="dinheiro" ${pedidoCloneDraft?.pagamento?.forma==='dinheiro'?'selected':''}>Dinheiro</option></select></div>
         <div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Conta Bancaria</label><select id="novo-ped-pag-conta">${getContasBancariasOptions(pedidoCloneDraft?.pagamento?.contaBancaria?.apelido)}</select></div>
-        <div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Prazo</label><select id="novo-ped-pag-prazo" onchange="recalcularVencNovoPedido()"><option value="0" ${pedidoCloneDraft?.pagamento?.condicao==='0'?'selected':''}>A vista</option><option value="15" ${pedidoCloneDraft?.pagamento?.condicao==='15'?'selected':''}>15 dias</option><option value="28" ${(!pedidoCloneDraft?.pagamento?.condicao||pedidoCloneDraft?.pagamento?.condicao==='28')?'selected':''}>28 dias</option><option value="30" ${pedidoCloneDraft?.pagamento?.condicao==='30'?'selected':''}>30 dias</option><option value="45" ${pedidoCloneDraft?.pagamento?.condicao==='45'?'selected':''}>45 dias</option><option value="60" ${pedidoCloneDraft?.pagamento?.condicao==='60'?'selected':''}>60 dias</option><option value="90" ${pedidoCloneDraft?.pagamento?.condicao==='90'?'selected':''}>90 dias</option></select></div>
-        <div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Data de Vencimento</label><input type="date" id="novo-ped-pag-vencimento" value="${pedidoCloneDraft?.pagamento?.vencimento || calcularVencimentoPagamento(new Date().toISOString().slice(0,10), '28')}"></div>
+        <div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Prazo</label><select id="novo-ped-pag-prazo" onchange="recalcularVencNovoPedido()">${_buildPrazoPagamentoOptions(pedidoCloneDraft?.pagamento?.condicao)}</select></div>
+        <div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Data de Vencimento</label><input type="date" id="novo-ped-pag-vencimento" value="${pedidoCloneDraft?.pagamento?.vencimento || calcularVencimentoPagamento(new Date().toISOString().slice(0,10), String(getFinancasConfig().prazoRecebimentoDias))}"></div>
       </div>
     </div>
     <div style="margin-top:1rem;display:flex;justify-content:flex-end;gap:.8rem">
@@ -961,7 +961,7 @@ function atualizarItemPedidoManualValor(idx) {
 }
 
 function recalcularVencNovoPedido() {
-  const prazo = document.getElementById("novo-ped-pag-prazo")?.value || "28";
+  const prazo = document.getElementById("novo-ped-pag-prazo")?.value || String(getFinancasConfig().prazoRecebimentoDias);
   const dataPedido = document.getElementById("pedido-data")?.value || new Date().toISOString().slice(0, 10);
   const el = document.getElementById("novo-ped-pag-vencimento");
   if (el) el.value = calcularVencimentoPagamento(dataPedido, prazo);
@@ -1093,7 +1093,7 @@ function salvarPedidoManual() {
 
   // Coletar dados de pagamento do formulário
   const pagForma = document.getElementById("novo-ped-pag-forma")?.value || "boleto";
-  const pagCondicao = document.getElementById("novo-ped-pag-prazo")?.value || "28";
+  const pagCondicao = document.getElementById("novo-ped-pag-prazo")?.value || String(getFinancasConfig().prazoRecebimentoDias);
   const pagVencimento = document.getElementById("novo-ped-pag-vencimento")?.value || calcularVencimentoPagamento(dataPedido, pagCondicao);
   const contaPadrao = getConfiguredDefaultBankAccount();
   const pagamento = {
@@ -1166,16 +1166,34 @@ function salvarPedidoManual() {
 }
 
 /* ── Pedido: Dados de Pagamento ── */
+// Story 20.8: monta as opções de prazo; default = prazo configurado (config Finanças), mantendo a opção 28 disponível
+function _buildPrazoPagamentoOptions(condicaoAtual) {
+  const prazoPadrao = String(getFinancasConfig().prazoRecebimentoDias);
+  const selecionado = condicaoAtual != null && condicaoAtual !== "" ? String(condicaoAtual) : prazoPadrao;
+  const base = ["0", "5", "15", "28", "30", "45", "60", "90"];
+  if (base.indexOf(prazoPadrao) === -1) base.push(prazoPadrao);
+  if (base.indexOf(selecionado) === -1) base.push(selecionado);
+  base.sort(function(a, b) { return Number(a) - Number(b); });
+  return base.map(function(v) {
+    const label = v === "0" ? "A vista" : v + " dias";
+    return '<option value="' + v + '"' + (v === selecionado ? " selected" : "") + '>' + label + '</option>';
+  }).join("");
+}
+
 function calcularVencimentoPagamento(dataPedido, prazoDias) {
   const d = dataPedido ? new Date(dataPedido + "T12:00:00") : new Date();
-  d.setDate(d.getDate() + Number(prazoDias || 28));
+  // Story 20.8: default do prazo vem da config Finanças (sem 28 hardcoded)
+  d.setDate(d.getDate() + Number(prazoDias || getFinancasConfig().prazoRecebimentoDias));
   return d.toISOString().split("T")[0];
 }
 
 function recalcularVencimentoPedido(pedidoId) {
   const p = pedidos.find(x => x.id === pedidoId);
   if (!p) return;
-  const prazo = document.getElementById("pag-prazo-" + pedidoId)?.value || "28";
+  // Story 20.7: se o pedido já tem NF emitida, o vencimento da cobrança é regido pela NF (emissão + prazo config),
+  // não pela data do pedido. Não sobrescrever nesse caso.
+  if (typeof getNotaFiscalByPedido === "function" && getNotaFiscalByPedido(pedidoId)) return;
+  const prazo = document.getElementById("pag-prazo-" + pedidoId)?.value || String(getFinancasConfig().prazoRecebimentoDias);
   const venc = calcularVencimentoPagamento(p.data || p.dataEntrega, prazo);
   const el = document.getElementById("pag-vencimento-" + pedidoId);
   if (el) el.value = venc;
@@ -1304,7 +1322,7 @@ function salvarPedidoPagamento(pedidoId) {
   if (!p) return;
   const forma = document.getElementById("pag-forma-" + pedidoId)?.value || "boleto";
   const contaId = document.getElementById("pag-conta-" + pedidoId)?.value || "";
-  const condicao = document.getElementById("pag-prazo-" + pedidoId)?.value || "28";
+  const condicao = document.getElementById("pag-prazo-" + pedidoId)?.value || String(getFinancasConfig().prazoRecebimentoDias);
   const vencimento = document.getElementById("pag-vencimento-" + pedidoId)?.value || "";
   const contaPadrao = getConfiguredDefaultBankAccount();
   p.pagamento = {
@@ -1426,8 +1444,8 @@ function verPedidoDetalhe(pedidoId, isClone) {
   html += '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.75rem">';
   html += '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Forma de Recebimento</label><select id="pag-forma-' + p.id + '"><option value="boleto"' + (pag.forma === "boleto" ? " selected" : "") + '>Boleto</option><option value="pix"' + (pag.forma === "pix" ? " selected" : "") + '>PIX</option><option value="ted"' + (pag.forma === "ted" ? " selected" : "") + '>TED</option><option value="dinheiro"' + (pag.forma === "dinheiro" ? " selected" : "") + '>Dinheiro</option></select></div>';
   html += '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Conta Bancaria</label><select id="pag-conta-' + p.id + '">' + getContasBancariasOptions(pag.contaBancaria?.apelido) + '</select></div>';
-  html += '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Condicao de Pagamento (prazo)</label><select id="pag-prazo-' + p.id + '" onchange="recalcularVencimentoPedido(\'' + p.id + '\')"><option value="0"' + (pag.condicao === "0" ? " selected" : "") + '>A vista</option><option value="5"' + (pag.condicao === "5" ? " selected" : "") + '>5 dias</option><option value="15"' + (pag.condicao === "15" ? " selected" : "") + '>15 dias</option><option value="28"' + (!pag.condicao || pag.condicao === "28" ? " selected" : "") + '>28 dias</option><option value="30"' + (pag.condicao === "30" ? " selected" : "") + '>30 dias</option><option value="45"' + (pag.condicao === "45" ? " selected" : "") + '>45 dias</option><option value="60"' + (pag.condicao === "60" ? " selected" : "") + '>60 dias</option><option value="90"' + (pag.condicao === "90" ? " selected" : "") + '>90 dias</option></select></div>';
-  html += '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Data de Vencimento</label><input type="date" id="pag-vencimento-' + p.id + '" value="' + (pag.vencimento || calcularVencimentoPagamento(p.data || p.dataEntrega, pag.condicao || "28")) + '"></div>';
+  html += '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Condicao de Pagamento (prazo)</label><select id="pag-prazo-' + p.id + '" onchange="recalcularVencimentoPedido(\'' + p.id + '\')">' + _buildPrazoPagamentoOptions(pag.condicao) + '</select></div>';
+  html += '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.25rem">Data de Vencimento</label><input type="date" id="pag-vencimento-' + p.id + '" value="' + (pag.vencimento || calcularVencimentoPagamento(p.data || p.dataEntrega, pag.condicao || String(getFinancasConfig().prazoRecebimentoDias))) + '"></div>';
   html += '</div></div>';
 
   // ── Observações do Pedido (editável — vai para a NF) ──
@@ -1877,9 +1895,8 @@ function renderContasPagar() {
   if (typeof _updateCpFooterTotals === 'function') _updateCpFooterTotals(filtered);
 }
 
-function renderContasReceber() {
-  const tbody = document.getElementById("contas-receber-tbody");
-  const empty = document.getElementById("contas-receber-empty");
+// Story 20.2: filtragem reutilizável (busca + data emissão/vencimento) — usada por render e por imprimir
+function _getContasReceberFiltradasBase() {
   const busca = _normBusca(document.getElementById("cr-busca")?.value || "");
   let filtered = contasReceber;
   // Busca por descricao + cliente + valor (sem acentos)
@@ -1903,9 +1920,30 @@ function renderContasReceber() {
       return item.vencimento || '';
     });
   }
+  return filtered;
+}
+
+// Story 20.2: aplica a aba de status ativa (mesma regra de renderContasReceber)
+function _applyContaReceberStatusTab(list) {
+  if (contaReceberStatusTabAtual !== 'todas') {
+    return list.filter((item) => normalizeContaReceberStatus(item) === contaReceberStatusTabAtual);
+  }
+  return list;
+}
+
+// Story 20.2: rótulo legível da aba de status (fonte única para tela e relatório)
+function _getContaReceberStatusTabLabel() {
+  const map = { todas: 'Todas', pendente: 'Pendentes', recebida: 'Recebidas', vencida: 'Vencidas', recebido: 'Recebidas', vencido: 'Vencidas' };
+  return map[contaReceberStatusTabAtual] || (contaReceberStatusTabAtual || 'Todas');
+}
+
+function renderContasReceber() {
+  const tbody = document.getElementById("contas-receber-tbody");
+  const empty = document.getElementById("contas-receber-empty");
+  let filtered = _getContasReceberFiltradasBase();
   renderContaReceberStatusTabs(filtered);
   // Story 4.83-fix: busca SEMPRE respeita a aba de status ativa (corrige bug que mostrava todas as contas)
-  if (contaReceberStatusTabAtual !== 'todas') filtered = filtered.filter((item) => normalizeContaReceberStatus(item) === contaReceberStatusTabAtual);
+  filtered = _applyContaReceberStatusTab(filtered);
   const crCountEl = document.getElementById("tab-count-contas-receber");
   if (crCountEl) crCountEl.textContent = filtered.length;
 
@@ -2055,6 +2093,74 @@ function getCaixaResumo() {
   return { entradas, saidas, saldo: saldoInicial + entradas - saidas, saldoInicial, divergencias: pendentes, conciliados, total: items.length, items };
 }
 
+// Story 20.5: normaliza termo de busca por valor (remove R$, espaços e separador de milhar; unifica vírgula→ponto)
+function _normalizarValorBusca(termo) {
+  if (!termo) return "";
+  let t = String(termo).replace(/r\$|\s/gi, "");
+  // se tem vírgula e ponto, ponto é milhar -> remove ponto, vírgula vira ponto
+  if (t.indexOf(",") >= 0 && t.indexOf(".") >= 0) {
+    t = t.replace(/\./g, "").replace(",", ".");
+  } else if (t.indexOf(",") >= 0) {
+    t = t.replace(",", ".");
+  }
+  // mantém apenas dígitos e ponto
+  t = t.replace(/[^0-9.]/g, "");
+  return t;
+}
+
+// Story 20.5: coleta os lançamentos do caixa atualmente filtrados (mesma lógica de renderCaixa) para impressão
+function _getCaixaItemsFiltrados() {
+  const resumo = getCaixaResumo();
+  const buscaCliente = (document.getElementById("caixa-busca-cliente")?.value || "").toLowerCase().trim();
+  const periodoSel = document.getElementById("caixa-filtro-periodo");
+  const deInput = document.getElementById("caixa-filtro-de");
+  const ateInput = document.getElementById("caixa-filtro-ate");
+  const periodo = periodoSel?.value || "todos";
+  let items = resumo.items.slice().sort((a, b) => String(b.data || "").localeCompare(String(a.data || "")));
+  if (buscaCliente) {
+    const buscaNum = _normalizarValorBusca(buscaCliente);
+    items = items.filter(item => {
+      const desc = (item.historico || item.descricao || "").toLowerCase();
+      if (desc.includes(buscaCliente)) return true;
+      if (buscaNum) {
+        const valNum = Math.abs(Number(item.valor || 0));
+        const valStr = valNum.toFixed(2);
+        if (valStr.includes(buscaNum) || valStr.replace('.', ',').includes(buscaNum)) return true;
+      }
+      return false;
+    });
+  }
+  if (periodo !== "todos") {
+    const hoje = new Date(); hoje.setHours(0,0,0,0);
+    let de, ate;
+    if (periodo === "hoje") { de = ate = hoje; }
+    else if (periodo === "semana") { de = new Date(hoje); de.setDate(de.getDate() - de.getDay()); ate = hoje; }
+    else if (periodo === "mes") { de = new Date(hoje.getFullYear(), hoje.getMonth(), 1); ate = hoje; }
+    else if (periodo === "intervalo") { de = deInput?.value ? new Date(deInput.value + 'T00:00:00') : null; ate = ateInput?.value ? new Date(ateInput.value + 'T23:59:59') : null; }
+    if (de || ate) {
+      items = items.filter(item => {
+        const d = _parseLocalDate(item.data); if (!d) return true; d.setHours(0,0,0,0);
+        if (de && d < de) return false;
+        if (ate) { const ateEnd = new Date(ate); ateEnd.setHours(23,59,59); if (d > ateEnd) return false; }
+        return true;
+      });
+    }
+  }
+  return items;
+}
+
+// Story 20.5: imprime a lista de lançamentos do caixa (respeitando busca e filtro de data ativos)
+function imprimirRelatorioCaixa() {
+  const items = _getCaixaItemsFiltrados();
+  const rows = items.map((item) => {
+    const conciliado = item.conciliado || item.conciliacao?.matched;
+    return `<tr><td>${esc(item.data || "-")}</td><td>${esc(item.historico || item.descricao || "-")}</td><td>${esc(item.categoriaDre || "-")}</td><td>${conciliado ? "Conciliado" : "Pendente"}</td><td class="right">${brl.format(Number(item.valor || 0))}</td></tr>`;
+  }).join("");
+  if (typeof abrirJanelaRelatorioFinanceiro === "function") {
+    abrirJanelaRelatorioFinanceiro("Relatorio - Caixa (Lancamentos)", ["Data", "Descricao", "Categoria", "Status", "Valor"], rows);
+  }
+}
+
 function renderCaixa() {
   const resumo = getCaixaResumo();
   const saldoEl = document.getElementById("caixa-kpi-saldo");
@@ -2087,14 +2193,24 @@ function renderCaixa() {
   }
 
   // Story 4.51 AC-B3/B4: apply client search + period filter
+  // Story 20.5: busca também por valor (cliente/descrição + valor)
   const buscaCliente = (document.getElementById("caixa-busca-cliente")?.value || "").toLowerCase().trim();
   const periodo = periodoSel?.value || "todos";
   let items = resumo.items.slice().sort((a, b) => String(b.data || "").localeCompare(String(a.data || "")));
 
   if (buscaCliente) {
+    const buscaNum = _normalizarValorBusca(buscaCliente);
     items = items.filter(item => {
       const desc = (item.historico || item.descricao || "").toLowerCase();
-      return desc.includes(buscaCliente);
+      if (desc.includes(buscaCliente)) return true;
+      // Casa por valor: compara forma numérica e formatada (1.234,56 / 1234.56 / 1234,56)
+      if (buscaNum) {
+        const valNum = Math.abs(Number(item.valor || 0));
+        const valStr = valNum.toFixed(2);
+        const valStrBr = valStr.replace('.', ',');
+        if (valStr.includes(buscaNum) || valStrBr.includes(buscaNum) || _normalizarValorBusca(brl.format(Number(item.valor || 0))) .includes(buscaNum)) return true;
+      }
+      return false;
     });
   }
   if (periodo !== "todos") {
@@ -2474,6 +2590,10 @@ function abrirRelatorio(tipo) {
     if (btnFiltros) btnFiltros.style.display = 'none';
     body.innerHTML = '<div id="rel-pendencias-entrega-empty" style="font-size:.85rem;color:var(--mut);padding:.5rem 0">Nenhuma entrega parcial pendente.</div><div class="table-wrap" style="max-height:600px;overflow-y:auto"><table><thead><tr><th>Produto</th><th>Un.</th><th class="text-right">Pedido</th><th class="text-right">Entregue</th><th class="text-right" style="color:var(--yellow,#eab308)">Pendente</th><th>Escola</th><th>Pedido #</th></tr></thead><tbody id="rel-pendencias-entrega-tbody"></tbody></table></div>';
     renderRelatorioPendenciasEntrega();
+  } else if (tipo === 'previsao-liquidez') {
+    title.textContent = 'Previsao de Liquidez';
+    if (btnFiltros) btnFiltros.style.display = 'none';
+    gerarPrevisaoLiquidez();
   }
   if (tipo !== 'pendencias' && btnFiltros) btnFiltros.style.display = '';
 }
@@ -2726,6 +2846,108 @@ function gerarFluxoCaixa() {
   document.getElementById('rel-filtros').classList.add('hidden');
   document.getElementById('rel-btn-toggle-filtros').textContent = 'Exibir filtros';
   _relHtmlParaImprimir = '<h1 style="font-size:14px;margin-bottom:1rem">Fluxo de Caixa — ' + _relFluxoMes.split('-').reverse().join('/') + '</h1>' + html;
+  _relDreImpressaoLandscape = false;
+}
+
+// Previsao de Liquidez — projecao de caixa ao vivo (spec @fluxo-caixa Téo).
+// Âncora: saldo realizado (getCaixaResumo). Aging de AR por vencimento, cenario
+// base e pessimista, alerta de liquidez por sequencia. Somente leitura.
+function gerarPrevisaoLiquidez() {
+  var body = document.getElementById('rel-viewer-body');
+  // 1. Âncora: saldo realizado confiável (mesma fonte da tela de Caixa)
+  var saldoHoje = 0;
+  try { saldoHoje = (typeof getCaixaResumo === 'function') ? (getCaixaResumo().saldo || 0) : 0; } catch(_) {}
+
+  // 2. Janelas relativas a hoje
+  var hoje = new Date(); hoje.setHours(0,0,0,0);
+  function addDias(n) { var d = new Date(hoje); d.setDate(d.getDate() + n); return d; }
+  var lim7 = addDias(7), lim15 = addDias(15), lim30 = addDias(30);
+  function parseVenc(s) { if (!s) return null; var d = new Date(String(s).slice(0,10) + 'T00:00:00'); return isNaN(d) ? null : d; }
+
+  // 3. Aging de AR (a receber, nao recebidas/canceladas)
+  var arJ = { vencido:0, d7:0, d15:0, d30:0, dmais:0, semData:0 };
+  var arQ = { vencido:0, d7:0, d15:0, d30:0, dmais:0, semData:0 };
+  (contasReceber || []).forEach(function(c) {
+    if (c.deletedAt || c.deleted_at) return;
+    var st = String(c.status || '').toLowerCase();
+    if (st === 'recebida' || st === 'cancelada') return;
+    var v = Number(c.valor || 0); var venc = parseVenc(c.vencimento);
+    if (!venc) { arJ.semData += v; arQ.semData++; }
+    else if (venc < hoje) { arJ.vencido += v; arQ.vencido++; }
+    else if (venc <= lim7) { arJ.d7 += v; arQ.d7++; }
+    else if (venc <= lim15) { arJ.d15 += v; arQ.d15++; }
+    else if (venc <= lim30) { arJ.d30 += v; arQ.d30++; }
+    else { arJ.dmais += v; arQ.dmais++; }
+  });
+  var arTotal = arJ.vencido + arJ.d7 + arJ.d15 + arJ.d30 + arJ.dmais + arJ.semData;
+
+  // 4. AP (a pagar, nao pagas/canceladas)
+  var apTotal = 0, apVencido = 0, apQ = 0;
+  (contasPagar || []).forEach(function(c) {
+    if (c.deletedAt || c.deleted_at) return;
+    var st = String(c.status || '').toLowerCase();
+    if (st === 'paga' || st === 'cancelada') return;
+    var v = Number(c.valor || 0); apTotal += v; apQ++;
+    var venc = parseVenc(c.vencimento);
+    if (venc && venc < hoje) apVencido += v;
+  });
+
+  // 5. Projecao cenario BASE: vencidos entram em +7d; a vencer no prazo; AP sai no vencimento
+  var ent7 = arJ.vencido + arJ.d7;
+  var baseD7 = saldoHoje + ent7 - apTotal;        // assume AP toda paga ate +7d
+  var baseD15 = baseD7 + arJ.d15;
+  var baseD30 = baseD15 + arJ.d30;
+  // 6. Cenario PESSIMISTA: so 50% dos vencidos entram
+  var pessEnt7 = (arJ.vencido * 0.5) + arJ.d7;
+  var pessD7 = saldoHoje + pessEnt7 - apTotal;
+  // 7. Alerta de SEQUENCIA: pagar AP antes de receber
+  var saldoSePagarJa = saldoHoje - apTotal;
+
+  function corV(v) { return v >= 0 ? 'var(--green)' : 'var(--red)'; }
+  function linhaJanela(label, valor, qtd, cor) {
+    return '<tr style="border-bottom:1px solid var(--bdr)"><td style="padding:5px 12px">' + label + '</td>'
+      + '<td style="padding:5px 12px;text-align:right;font-family:monospace;color:' + (cor||'var(--txt)') + '">' + brl.format(valor) + '</td>'
+      + '<td style="padding:5px 12px;text-align:right;color:var(--mut)">' + qtd + '</td></tr>';
+  }
+
+  var capitalGiro = arTotal - apTotal;
+  var h = '';
+  h += '<div style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:1.25rem">';
+  h += '<div style="flex:1;min-width:160px;padding:14px;border:1px solid var(--bdr);border-radius:8px;background:var(--s1)"><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;letter-spacing:.05em">Saldo realizado hoje</div><div style="font-size:1.3rem;font-weight:700;font-family:monospace;color:' + corV(saldoHoje) + '">' + brl.format(saldoHoje) + '</div></div>';
+  h += '<div style="flex:1;min-width:160px;padding:14px;border:1px solid var(--bdr);border-radius:8px;background:var(--s1)"><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;letter-spacing:.05em">Capital de giro (AR-AP)</div><div style="font-size:1.3rem;font-weight:700;font-family:monospace;color:' + corV(capitalGiro) + '">' + brl.format(capitalGiro) + '</div></div>';
+  h += '<div style="flex:1;min-width:160px;padding:14px;border:1px solid var(--bdr);border-radius:8px;background:var(--s1)"><div style="font-size:.72rem;color:var(--mut);text-transform:uppercase;letter-spacing:.05em">A receber VENCIDO</div><div style="font-size:1.3rem;font-weight:700;font-family:monospace;color:var(--yellow,#eab308)">' + brl.format(arJ.vencido) + '</div><div style="font-size:.7rem;color:var(--mut)">' + arQ.vencido + ' conta(s) atrasada(s)</div></div>';
+  h += '</div>';
+
+  // Alerta de sequencia
+  if (apTotal > 0 && saldoSePagarJa < 0) {
+    h += '<div style="padding:12px 14px;border:1px solid var(--red);border-radius:8px;background:rgba(239,68,68,.08);margin-bottom:1.25rem;font-size:.85rem">'
+      + '<strong style="color:var(--red)">⚠️ Alerta de liquidez (sequencia):</strong> pagar as contas a pagar (' + brl.format(apTotal) + ') ANTES de receber deixa o caixa em <strong style="font-family:monospace;color:var(--red)">' + brl.format(saldoSePagarJa) + '</strong>. Recomendacao: cobrar pelo menos ' + brl.format(Math.abs(saldoSePagarJa)) + ' dos recebiveis vencidos antes de pagar.</div>';
+  }
+
+  // Aging AR
+  h += '<h4 style="font-size:.82rem;text-transform:uppercase;letter-spacing:.05em;color:var(--mut);margin:0 0 .5rem">Aging — Contas a Receber</h4>';
+  h += '<table style="width:100%;border-collapse:collapse;font-size:.85rem;margin-bottom:1.5rem"><thead><tr style="border-bottom:2px solid var(--bdr)"><th style="padding:6px 12px;text-align:left">Janela</th><th style="padding:6px 12px;text-align:right">Valor (R$)</th><th style="padding:6px 12px;text-align:right">Contas</th></tr></thead><tbody>';
+  h += linhaJanela('Vencido (atrasado)', arJ.vencido, arQ.vencido, 'var(--yellow,#eab308)');
+  h += linhaJanela('Vence em ate 7 dias', arJ.d7, arQ.d7, 'var(--green)');
+  h += linhaJanela('Vence em 8–15 dias', arJ.d15, arQ.d15, 'var(--green)');
+  h += linhaJanela('Vence em 16–30 dias', arJ.d30, arQ.d30, 'var(--green)');
+  h += linhaJanela('Vence em +30 dias', arJ.dmais, arQ.dmais, 'var(--green)');
+  if (arJ.semData > 0) h += linhaJanela('Sem data de vencimento', arJ.semData, arQ.semData, 'var(--mut)');
+  h += '<tr style="font-weight:700;background:rgba(255,255,255,.05)"><td style="padding:8px 12px">Total a receber</td><td style="padding:8px 12px;text-align:right;font-family:monospace;color:var(--green)">' + brl.format(arTotal) + '</td><td style="padding:8px 12px;text-align:right">' + (arQ.vencido+arQ.d7+arQ.d15+arQ.d30+arQ.dmais+arQ.semData) + '</td></tr>';
+  h += '</tbody></table>';
+
+  // Projecao
+  h += '<h4 style="font-size:.82rem;text-transform:uppercase;letter-spacing:.05em;color:var(--mut);margin:0 0 .5rem">Projecao de Caixa</h4>';
+  h += '<table style="width:100%;border-collapse:collapse;font-size:.85rem;margin-bottom:.5rem"><thead><tr style="border-bottom:2px solid var(--bdr)"><th style="padding:6px 12px;text-align:left">Momento</th><th style="padding:6px 12px;text-align:right">Cenario BASE</th><th style="padding:6px 12px;text-align:right">Cenario PESSIMISTA</th></tr></thead><tbody>';
+  h += '<tr style="border-bottom:1px solid var(--bdr)"><td style="padding:5px 12px">Hoje</td><td style="padding:5px 12px;text-align:right;font-family:monospace;color:' + corV(saldoHoje) + '">' + brl.format(saldoHoje) + '</td><td style="padding:5px 12px;text-align:right;font-family:monospace;color:' + corV(saldoHoje) + '">' + brl.format(saldoHoje) + '</td></tr>';
+  h += '<tr style="border-bottom:1px solid var(--bdr)"><td style="padding:5px 12px">+7 dias</td><td style="padding:5px 12px;text-align:right;font-family:monospace;color:' + corV(baseD7) + '">' + brl.format(baseD7) + '</td><td style="padding:5px 12px;text-align:right;font-family:monospace;color:' + corV(pessD7) + '">' + brl.format(pessD7) + '</td></tr>';
+  h += '<tr style="border-bottom:1px solid var(--bdr)"><td style="padding:5px 12px">+15 dias</td><td style="padding:5px 12px;text-align:right;font-family:monospace;color:' + corV(baseD15) + '">' + brl.format(baseD15) + '</td><td style="padding:5px 12px;text-align:right;color:var(--mut)">—</td></tr>';
+  h += '<tr style="border-bottom:1px solid var(--bdr)"><td style="padding:5px 12px">+30 dias</td><td style="padding:5px 12px;text-align:right;font-family:monospace;color:' + corV(baseD30) + '">' + brl.format(baseD30) + '</td><td style="padding:5px 12px;text-align:right;color:var(--mut)">—</td></tr>';
+  h += '</tbody></table>';
+  h += '<div style="font-size:.72rem;color:var(--mut);margin-bottom:1rem">Premissas — BASE: recebiveis vencidos entram em ate 7 dias, a vencer no prazo, contas a pagar (' + brl.format(apTotal) + ', ' + apQ + ' conta(s)) quitadas ate +7d. PESSIMISTA: apenas 50% dos vencidos entram. Projecao e estimativa, nao certeza.</div>';
+
+  body.innerHTML = h;
+  _relHtmlParaImprimir = '<h1 style="font-size:14px;margin-bottom:1rem">Previsao de Liquidez — ' + fmtDate(hoje.toISOString().slice(0,10)) + '</h1>' + h;
   _relDreImpressaoLandscape = false;
 }
 

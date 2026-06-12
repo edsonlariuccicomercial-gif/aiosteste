@@ -312,6 +312,19 @@ function getBankApiConfig() {
   }
 }
 
+// Story 20.6/20.7: espelho do getFinancasConfig (padrão multi-page — lê a mesma chave de localStorage)
+function getFinancasConfig() {
+  let cfg = {};
+  try { cfg = JSON.parse(localStorage.getItem("nexedu.config.financas") || "{}"); } catch (_) { cfg = {}; }
+  const prazo = Number(cfg.prazoRecebimentoDias);
+  const prazoFinal = prazo > 0 ? prazo : 5; // fallback padrão de recebimento
+  return {
+    prazoRecebimentoDias: prazoFinal,
+    condicaoPagamentoPadrao: cfg.condicaoPagamentoPadrao || String(prazoFinal),
+    contaCobrancaPadraoId: cfg.contaCobrancaPadraoId || ""
+  };
+}
+
 function getConfiguredDefaultBankAccount() {
   const fiscalConfig = getFiscalConfig();
   const accounts = getConfiguredBankAccounts();
@@ -819,8 +832,9 @@ function buildReceivableFromInvoice(invoice) {
   const issueDate = new Date(invoice.emitidaEm || Date.now());
   let dueDateStr = invoice.vencimento;
   if (!dueDateStr) {
+    // Story 20.7: vencimento = emissão da NF + prazo configurado (config Finanças), não mais 28 fixo
     const dueDate = new Date(issueDate);
-    dueDate.setDate(dueDate.getDate() + 28);
+    dueDate.setDate(dueDate.getDate() + getFinancasConfig().prazoRecebimentoDias);
     dueDateStr = dueDate.toISOString().slice(0, 10);
   }
   const contaPadrao = getConfiguredDefaultBankAccount();
@@ -2411,13 +2425,16 @@ function excluirNotaFiscal(notaId) {
   }
   if (!confirm(`Excluir a nota ${nf.numero || nf.id}?\n\nEsta acao remove a nota fiscal do GDP.`)) return;
 
-  notasFiscais = notasFiscais.filter((item) => item.id !== notaId);
-  saveNotasFiscais();
+  // EPIC-19 (extensão): SOFT-DELETE sincronizado (substitui hard-delete via .remove()).
+  // Marca deletedAt e persiste via saveNotasFiscais → gdpApi.notas_fiscais.save (UPSERT
+  // que envia deleted_at ao Supabase, propaga por realtime). loadData filtra deletedAt.
+  const nowIsoNf = new Date().toISOString();
+  nf.deletedAt = nowIsoNf;
+  nf.audit = { ...(nf.audit || {}), updatedAt: nowIsoNf, updatedBy: getAuditActor() };
+  saveNotasFiscais(); // persiste a NF COM deletedAt (Supabase recebe o UPDATE)
+  notasFiscais = notasFiscais.filter((item) => item.id !== notaId); // some da UI imediatamente
 
-  // FIX DEFINITIVO: deletar do Supabase E registrar ID deletado para impedir restauração
-  if (window.gdpApi && window.gdpApi.notas_fiscais) {
-    gdpApi.notas_fiscais.remove(notaId).catch(e => gdpWarn('[excluirNotaFiscal] Supabase delete failed:', e));
-  }
+  // Compat: mantém o tombstone local (inofensivo; aposentado no reset). Não é mais o principal.
   try {
     const delKey = "gdp.notas-fiscais.deleted.v1";
     const deleted = JSON.parse(localStorage.getItem(delKey) || "[]");
@@ -2427,12 +2444,10 @@ function excluirNotaFiscal(notaId) {
 
   const conta = getContaReceberByNota(notaId);
   if (conta) {
+    // SOFT-DELETE da conta a receber vinculada (espelha excluirContaReceber)
+    conta.deletedAt = nowIsoNf;
+    saveContasReceber(); // persiste COM deletedAt (Supabase recebe o UPDATE)
     contasReceber = contasReceber.filter((item) => item.id !== conta.id);
-    saveContasReceber();
-    // FIX: deletar conta a receber vinculada do Supabase também
-    if (window.gdpApi && window.gdpApi.contas_receber) {
-      gdpApi.contas_receber.remove(conta.id).catch(e => gdpWarn('[excluirNotaFiscal] CR Supabase delete failed:', e));
-    }
     try {
       const delKeyCr = "gdp.contas-receber.deleted.v1";
       const deletedCr = JSON.parse(localStorage.getItem(delKeyCr) || "[]");
