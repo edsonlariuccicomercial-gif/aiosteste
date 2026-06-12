@@ -940,6 +940,14 @@ function _pendGetProdutoCatalogo(id) {
   return (bancoPrecos.itens || []).find(p => (p.sku || p.id) === id) || null;
 }
 
+function _pendProdutoPareceSujo(bp) {
+  const nome = [bp && bp.item, bp && bp.descricao, bp && bp.descricaoFiscal].filter(Boolean).join(" ");
+  const t = _pendNormKey(nome);
+  return nome.length > 120 ||
+    /\b(descricao|marca|marcas|referencia|preco|precos|teto|valor|edital|sgd|orcamento|cotacao)\b/.test(t) ||
+    /https?:\/\//i.test(nome);
+}
+
 function _pendAtualizarProdutoCatalogo(bp, dados) {
   if (!bp || !dados || !dados.nome) return bp;
   bp.item = dados.nome;
@@ -1058,11 +1066,11 @@ window.pendAutoAssociarNormalizados = function (orcId) {
   let revisados = 0;
 
   (pre.itens || []).forEach((item) => {
-    const repararNormalizacao = item.skuBanco && /normalizacao/i.test(item.matchStatus || "");
+    let bp = item.skuBanco ? _pendGetProdutoCatalogo(item.skuBanco) : null;
+    const repararNormalizacao = item.skuBanco && (/normalizacao/i.test(item.matchStatus || "") || _pendProdutoPareceSujo(bp));
     if (item.skuBanco && !repararNormalizacao) return;
     const dados = _pendProdutoNormalizado(item, orc);
     const antes = _pendEncontrarProdutoCatalogo(dados.nome);
-    let bp = item.skuBanco ? _pendGetProdutoCatalogo(item.skuBanco) : null;
     if (bp && repararNormalizacao) {
       _pendAtualizarProdutoCatalogo(bp, dados);
       revisados++;
