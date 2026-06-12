@@ -915,14 +915,14 @@
     </div>
     <!-- Story 4.51 AC-B3/B4: Busca por cliente + filtro por periodo -->
     <div style="display:flex;gap:.6rem;align-items:center;margin-bottom:.75rem;flex-wrap:wrap">
-      <input type="text" id="caixa-busca-cliente" placeholder="Buscar por cliente ou valor..." oninput="renderCaixa()" style="flex:1;min-width:200px;height:36px;padding:6px 12px;border-radius:6px;border:1px solid var(--bdr);background:var(--bg);color:var(--txt);font-size:.9rem">
+      <input type="text" id="caixa-busca-cliente" placeholder="Buscar por cliente ou valor..." oninput="renderCaixa()" style="flex:0 1 360px;min-width:180px;max-width:420px;height:36px;padding:6px 12px;border-radius:6px;border:1px solid var(--bdr);background:var(--bg);color:var(--txt);font-size:.9rem">
       <!-- Story 20.5: filtro de data no padrão CP/CR (trigger + dropdown De/Até + Limpar/Aplicar) -->
-      <div style="position:relative" id="periodo-caixa-periodo-container">
-        <div id="periodo-caixa-periodo-trigger" style="display:flex;align-items:center;gap:6px;padding:7px 10px;border:1px solid var(--bdr);border-radius:6px;cursor:pointer;font-size:.85rem;color:var(--mut);background:var(--bg);min-height:36px;user-select:none" onclick="togglePeriodoDropdown('caixa-periodo')">
+      <div style="position:relative;flex-shrink:0" id="periodo-caixa-periodo-container">
+        <div id="periodo-caixa-periodo-trigger" style="display:flex;align-items:center;gap:6px;padding:7px 10px;border:1px solid var(--bdr);border-radius:6px;cursor:pointer;font-size:.85rem;color:var(--mut);background:var(--bg);min-height:36px;min-width:140px;user-select:none" onclick="togglePeriodoDropdown('caixa-periodo')">
           <span id="periodo-caixa-periodo-label">Período</span>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-left:auto;flex-shrink:0"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
         </div>
-        <div id="periodo-caixa-periodo-dropdown" style="display:none;position:absolute;top:calc(100% + 4px);left:0;z-index:100;background:var(--s1);border:1px solid var(--bdr);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.25);padding:12px;min-width:220px">
+        <div id="periodo-caixa-periodo-dropdown" style="display:none;position:absolute;top:calc(100% + 4px);right:0;z-index:100;background:var(--s1);border:1px solid var(--bdr);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.25);padding:12px;min-width:220px">
           <label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:4px">Data inicial</label>
           <input type="date" id="caixa-filtro-de" style="width:100%;padding:8px;border:1px solid var(--bdr);border-radius:6px;font-size:.85rem;margin-bottom:10px;background:var(--bg);color:var(--txt)">
           <label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:4px">Data final</label>
