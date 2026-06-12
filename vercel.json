@@ -8,10 +8,6 @@
   ],
   "rewrites": [
     {
-      "source": "/api/:path*",
-      "destination": "/painel-caixa-escolar/api/:path*"
-    },
-    {
       "source": "/squads/:path*",
       "destination": "/painel-caixa-escolar/squads/:path*"
     },
