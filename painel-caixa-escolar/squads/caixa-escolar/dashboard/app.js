@@ -895,6 +895,16 @@ function _produtoCanonicoEspecializado(texto) {
     return _titleProdutoCanonico(partes.join(" "));
   }
 
+  if (/\bcolher(?:e|es)?\b/.test(t) && /\b(arroz|servir|alimentos|cozinha)\b/.test(t)) {
+    const partes = [/\barroz\b/.test(t) ? "Colher de arroz" : "Colher para servir alimentos"];
+    const tamanho = t.match(/\b(pequena|media|grande)\b/);
+    if (tamanho) add(partes, tamanho[1]);
+    if (/\b(servir|manipular|alimentos)\b/.test(t)) add(partes, "para servir alimentos");
+    const material = t.match(/\b(aco inox|inox|aluminio|plastico|polipropileno|silicone)\b/);
+    if (material) add(partes, material[1]);
+    return _titleProdutoCanonico(partes.join(" "));
+  }
+
   return "";
 }
 
@@ -917,6 +927,7 @@ function _inferirCategoriaCanonica(texto) {
   if (/\b(arroz|feijao|acucar|oleo|cafe|leite|macarrao|farinha|sal|biscoito|achocolatado|molho|extrato|fuba|canjiquinha|temper[o]?|vinagre)\b/.test(t)) return "Alimentacao";
   if (/\b(detergente|desinfetante|agua sanitaria|cloro|saco de lixo|papel higienico|papel toalha|esponja|sabao|pano|vassoura|rodo|alcool|limpa)\b/.test(t)) return "Limpeza";
   if (/\b(sulfite|papel a4|caderno|lapis|caneta|borracha|cola|pasta|cartolina|envelope|grampeador|clips|marcador|tesoura|apontador|regua|papel)\b/.test(t)) return "Papelaria";
+  if (/\b(colher|colheres|garfo|faca|concha|panela|copo|prato|utensilio|cozinha)\b/.test(t)) return "Utensilios de Cozinha";
   return "Outro";
 }
 
