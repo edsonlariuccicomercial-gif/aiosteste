@@ -757,7 +757,9 @@ window.renderPendentes = function () {
   let html = '';
   for (const [orcId, pre] of rascunhos) {
     const orc = orcamentos.find(o => o.id === orcId);
-    const pendCount = (pre.itens || []).filter(i => !i.skuBanco || i.custoUnitario <= 0).length;
+    const semProduto = (pre.itens || []).filter(i => !i.skuBanco).length;
+    const semPreco = (pre.itens || []).filter(i => i.skuBanco && i.custoUnitario <= 0).length;
+    const pendCount = semProduto + semPreco;
     const totalCount = (pre.itens || []).length;
     const okCount = totalCount - pendCount;
 
@@ -765,7 +767,10 @@ window.renderPendentes = function () {
       <summary style="cursor:pointer;padding:.6rem;background:var(--card);border:1px solid var(--line);border-radius:8px;display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">
         <strong>${escapeHtml(pre.escola)}</strong>
         <span style="color:var(--muted);font-size:.82rem">${escapeHtml(pre.municipio || '')}</span>
-        <span class="badge ${pendCount > 0 ? 'badge-rascunho' : 'badge-aprovado'}" style="font-size:.72rem">${okCount}/${totalCount} associados</span>
+        <span class="badge ${pendCount > 0 ? 'badge-rascunho' : 'badge-aprovado'}" style="font-size:.72rem">${okCount}/${totalCount} prontos</span>
+        ${semProduto > 0 ? `<span class="badge badge-rascunho" style="font-size:.68rem">${semProduto} sem produto</span>` : ''}
+        ${semPreco > 0 ? `<span class="badge badge-pendente" style="font-size:.68rem">${semPreco} sem preço</span>` : ''}
+        ${semProduto > 0 ? `<button class="btn btn-inline btn-accent" onclick="event.stopPropagation();pendAutoAssociarNormalizados('${orcId}')" style="font-size:.72rem;padding:3px 7px">Lua associar produtos</button>` : ''}
         ${orc ? `<span style="font-size:.78rem;color:var(--muted)">Prazo: ${orc.prazo || '—'}</span>` : ''}
         <span style="font-size:.82rem;font-weight:600;margin-left:auto">${brl.format(pre.totalGeral || 0)}</span>
       </summary>
@@ -901,6 +906,131 @@ window.pendAssociar = function (orcId, idx, bpId) {
   savePreOrcamentos();
   _pendCheckCompletude(orcId);
   renderPendentes();
+};
+
+function _pendNormKey(value) {
+  if (typeof normalizedText === 'function') return normalizedText(value || '');
+  return String(value || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+function _pendProdutoNormalizado(item, orc) {
+  const normalizacao = typeof _normalizarItemPreOrcamento === 'function' ? _normalizarItemPreOrcamento(item, null) : null;
+  const nomeGerado = normalizacao ? normalizacao.produtoCanonico : '';
+  const nomeAtual = item.produtoCanonico || '';
+  const nome = nomeGerado && nomeGerado.length > nomeAtual.length ? nomeGerado : (nomeAtual || item.nome || 'Produto');
+  return {
+    nome,
+    categoria: (normalizacao && normalizacao.categoriaCanonica) || item.categoriaCanonica || (orc ? orc.grupo || '' : ''),
+    unidade: (normalizacao && normalizacao.unidadeNormalizada) || item.unidadeNormalizada || item.unidade || 'UN',
+    embalagem: (normalizacao && normalizacao.embalagemNormalizada) || item.embalagemNormalizada || '',
+    marcasPermitidas: (normalizacao && normalizacao.marcasPermitidas) || item.marcasPermitidas || [],
+    linksExternos: (normalizacao && normalizacao.linksExternos) || item.linksExternos || []
+  };
+}
+
+function _pendEncontrarProdutoCatalogo(nome) {
+  const key = _pendNormKey(nome);
+  return (bancoPrecos.itens || []).find(p => _pendNormKey(p.item || p.descricao || p.nome) === key) || null;
+}
+
+function _pendCriarProdutoCatalogo(dados) {
+  const existente = _pendEncontrarProdutoCatalogo(dados.nome);
+  if (existente) return existente;
+
+  const id = "PROD-" + Date.now() + "-" + Math.random().toString(36).slice(2, 7);
+  const margemPadrao = perfil.config ? perfil.config.margemPadrao || 0.30 : 0.30;
+  const bp = {
+    id,
+    sku: id,
+    item: dados.nome,
+    descricao: dados.nome,
+    grupo: dados.categoria || "",
+    unidade: dados.unidade || "UN",
+    marca: "",
+    custoBase: 0,
+    precoReferencia: 0,
+    margemPadrao,
+    propostas: [],
+    concorrentes: [],
+    custosFornecedor: [],
+    fonte: "normalizacao-pre-orcamento"
+  };
+  bancoPrecos.itens.push(bp);
+
+  if (typeof window !== 'undefined' && window.ProductStore && window.ProductStore.save) {
+    try {
+      window.ProductStore.save({
+        id,
+        sku: id,
+        descricao: dados.nome,
+        unidade: bp.unidade,
+        grupo: bp.grupo,
+        marca: "",
+        custoBase: 0,
+        precoReferencia: 0,
+        margemAlvo: margemPadrao,
+        fonte: bp.fonte
+      });
+    } catch (_) {}
+  }
+
+  if (typeof centralProdutos !== 'undefined' && Array.isArray(centralProdutos) && !centralProdutos.some(p => p.id === id)) {
+    centralProdutos.push({
+      id,
+      sku: id,
+      nome: dados.nome,
+      descricao: dados.nome,
+      unidade_base: bp.unidade,
+      categoria: bp.grupo,
+      fornecedor: "",
+      preco_custo: 0,
+      preco_referencia: 0,
+      ativo: true,
+      criadoEm: new Date().toISOString(),
+      atualizadoEm: new Date().toISOString()
+    });
+    if (typeof saveCentralProdutos === 'function') saveCentralProdutos();
+  }
+
+  saveBancoLocal();
+  return bp;
+}
+
+window.pendAutoAssociarNormalizados = function (orcId) {
+  const pre = preOrcamentos[orcId];
+  if (!pre) return;
+  const orc = orcamentos.find(o => o.id === orcId);
+  let criados = 0;
+  let vinculados = 0;
+
+  (pre.itens || []).forEach((item) => {
+    if (item.skuBanco) return;
+    const dados = _pendProdutoNormalizado(item, orc);
+    const antes = _pendEncontrarProdutoCatalogo(dados.nome);
+    const bp = _pendCriarProdutoCatalogo(dados);
+    if (!antes) criados++;
+    vinculados++;
+    item.skuBanco = bp.sku || bp.id;
+    item.marca = item.marca || bp.marca || "";
+    item.custoUnitario = bp.custoBase || 0;
+    item.margem = bp.margemPadrao || (perfil.config ? perfil.config.margemPadrao || 0.30 : 0.30);
+    item.matchStatus = antes ? "associado_normalizacao" : "criado_normalizacao";
+    item.produtoCanonico = dados.nome;
+    item.categoriaCanonica = dados.categoria;
+    item.unidadeNormalizada = dados.unidade;
+    item.embalagemNormalizada = dados.embalagem;
+    item.marcasPermitidas = dados.marcasPermitidas;
+    item.linksExternos = dados.linksExternos;
+    item.alertasNormalizacao = (item.alertasNormalizacao || []).filter(a => a !== 'Produto sem vinculo');
+    if (item.custoUnitario <= 0 && !item.alertasNormalizacao.includes('Preco de custo pendente')) {
+      item.alertasNormalizacao.push('Preco de custo pendente');
+    }
+  });
+
+  savePreOrcamentos();
+  _pendCheckCompletude(orcId);
+  renderPendentes();
+  showToast(`Lua associou ${vinculados} item(ns); ${criados} produto(s) criado(s). Agora falta preencher custos.`, 3500);
 };
 
 // Story 15.2: Edit individual field
