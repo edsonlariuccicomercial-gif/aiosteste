@@ -905,6 +905,18 @@ function _produtoCanonicoEspecializado(texto) {
     return _titleProdutoCanonico(partes.join(" "));
   }
 
+  if (/\bcopos?\b/.test(t)) {
+    const partes = ["Copo"];
+    if (/\b(descartavel|descartaveis)\b/.test(t)) add(partes, "descartavel");
+    const material = t.match(/\b(plastico|polipropileno|acrilico|vidro|isopor)\b/);
+    if (material) add(partes, material[1]);
+    const capacidade = raw.match(/\b\d+(?:[,.]\d+)?\s*(?:ml|l|lt)\b/i);
+    if (capacidade) add(partes, capacidade[0]);
+    const cor = t.match(/\b(transparente|branco|branca|colorido|colorida)\b/);
+    if (cor) add(partes, cor[1]);
+    return _titleProdutoCanonico(partes.join(" "));
+  }
+
   return "";
 }
 
@@ -1003,6 +1015,7 @@ function _normalizarItemPreOrcamento(assocItem, bp) {
   const alertas = [];
   if (marcasPermitidas.length > 0 && !(bp && bp.marca)) alertas.push("Marca obrigatoria pendente");
   if (!unidadeNormalizada) alertas.push("Unidade pendente");
+  if (/\bcopos?\b/.test(_normTextBasic(texto)) && !/\b\d+(?:[,.]\d+)?\s*(?:ml|l|lt)\b/i.test(texto)) alertas.push("Capacidade do copo pendente");
   if (!bp) alertas.push("Produto sem vinculo");
   if (bp && !(bp.custoBase > 0)) alertas.push("Preco de custo pendente");
   if (linksExternos.length > 0) alertas.push("Documento externo do edital para leitura");
