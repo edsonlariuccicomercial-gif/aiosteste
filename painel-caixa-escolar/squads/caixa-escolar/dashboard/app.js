@@ -854,6 +854,17 @@ function _extrairCaracteristicasProduto(texto) {
   return partes.slice(0, 5).map(_titleProdutoCanonico);
 }
 
+function _limparTextoProdutoSgd(texto) {
+  return String(texto || "")
+    .replace(/https?:\/\/[^\s<>"')]+/gi, " ")
+    .replace(/\b(?:marcas?|marca de refer[eê]ncia|refer[eê]ncia de marca|similar (?:a|as|ao|aos))\s*:?.*$/i, " ")
+    .replace(/\b(?:observa[cç][aã]o|obs\.?|garantia|prazo|entrega|documento externo|conforme edital)\s*:?.*$/i, " ")
+    .replace(/\b(?:dever[aá]|deve|conforme|atender|obedecer|apresentar)\b.*$/i, " ")
+    .replace(/[;|]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function _montarProdutoCanonico(texto, nomeBase, embalagemNormalizada) {
   const base = _titleProdutoCanonico(nomeBase || texto || "");
   const baseNorm = _normTextBasic(base);
@@ -920,12 +931,13 @@ function _extrairLinksExternosEdital(texto) {
 
 function _normalizarItemPreOrcamento(assocItem, bp) {
   const descricaoSgdOriginal = assocItem.descricao || assocItem.nomeCompleto || assocItem.nome || "";
-  const texto = [assocItem.nome, assocItem.descricao].filter(Boolean).join(" ").trim();
+  const textoOriginal = [assocItem.nome, assocItem.descricao].filter(Boolean).join(" ").trim();
+  const texto = _limparTextoProdutoSgd(textoOriginal) || assocItem.nome || textoOriginal;
   const unidadeSgdOriginal = assocItem.unidade || "UN";
   const unidadeNormalizada = _normalizarUnidadeCodigo(unidadeSgdOriginal);
   const embalagemNormalizada = _extrairEmbalagemNormalizada(texto);
   const categoriaCanonica = _inferirCategoriaCanonica(texto);
-  const linksExternos = _extrairLinksExternosEdital(texto + " " + (assocItem.observacao || ""));
+  const linksExternos = _extrairLinksExternosEdital(textoOriginal + " " + (assocItem.observacao || ""));
   const rmcNome = (typeof RadarMatcherCore !== "undefined" && RadarMatcherCore.normalizeProductName)
     ? RadarMatcherCore.normalizeProductName(texto)
     : _normTextBasic(texto);

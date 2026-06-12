@@ -933,6 +933,50 @@ function _pendEncontrarProdutoCatalogo(nome) {
   return (bancoPrecos.itens || []).find(p => _pendNormKey(p.item || p.descricao || p.nome) === key) || null;
 }
 
+function _pendGetProdutoCatalogo(id) {
+  return (bancoPrecos.itens || []).find(p => (p.sku || p.id) === id) || null;
+}
+
+function _pendAtualizarProdutoCatalogo(bp, dados) {
+  if (!bp || !dados || !dados.nome) return bp;
+  bp.item = dados.nome;
+  bp.descricao = dados.nome;
+  bp.grupo = dados.categoria || bp.grupo || "";
+  bp.unidade = dados.unidade || bp.unidade || "UN";
+  bp.fonte = bp.fonte || "normalizacao-pre-orcamento";
+
+  if (typeof window !== 'undefined' && window.ProductStore && window.ProductStore.save) {
+    try {
+      window.ProductStore.save({
+        id: bp.id,
+        sku: bp.sku || bp.id,
+        descricao: dados.nome,
+        unidade: bp.unidade,
+        grupo: bp.grupo,
+        marca: bp.marca || "",
+        custoBase: bp.custoBase || 0,
+        precoReferencia: bp.precoReferencia || 0,
+        margemAlvo: bp.margemPadrao || (perfil.config ? perfil.config.margemPadrao || 0.30 : 0.30),
+        fonte: bp.fonte
+      });
+    } catch (_) {}
+  }
+
+  if (typeof centralProdutos !== 'undefined' && Array.isArray(centralProdutos)) {
+    const cp = centralProdutos.find(p => p.id === bp.id || p.sku === (bp.sku || bp.id));
+    if (cp) {
+      cp.nome = dados.nome;
+      cp.descricao = dados.nome;
+      cp.unidade_base = bp.unidade;
+      cp.categoria = bp.grupo;
+      cp.atualizadoEm = new Date().toISOString();
+      if (typeof saveCentralProdutos === 'function') saveCentralProdutos();
+    }
+  }
+  saveBancoLocal();
+  return bp;
+}
+
 function _pendCriarProdutoCatalogo(dados) {
   const existente = _pendEncontrarProdutoCatalogo(dados.nome);
   if (existente) return existente;
@@ -1002,14 +1046,22 @@ window.pendAutoAssociarNormalizados = function (orcId) {
   const orc = orcamentos.find(o => o.id === orcId);
   let criados = 0;
   let vinculados = 0;
+  let revisados = 0;
 
   (pre.itens || []).forEach((item) => {
-    if (item.skuBanco) return;
+    const repararNormalizacao = item.skuBanco && /normalizacao/i.test(item.matchStatus || "");
+    if (item.skuBanco && !repararNormalizacao) return;
     const dados = _pendProdutoNormalizado(item, orc);
     const antes = _pendEncontrarProdutoCatalogo(dados.nome);
-    const bp = _pendCriarProdutoCatalogo(dados);
-    if (!antes) criados++;
-    vinculados++;
+    let bp = item.skuBanco ? _pendGetProdutoCatalogo(item.skuBanco) : null;
+    if (bp && repararNormalizacao) {
+      _pendAtualizarProdutoCatalogo(bp, dados);
+      revisados++;
+    } else {
+      bp = _pendCriarProdutoCatalogo(dados);
+      if (!antes) criados++;
+    }
+    if (!item.skuBanco) vinculados++;
     item.skuBanco = bp.sku || bp.id;
     item.marca = item.marca || bp.marca || "";
     item.custoUnitario = bp.custoBase || 0;
@@ -1030,7 +1082,7 @@ window.pendAutoAssociarNormalizados = function (orcId) {
   savePreOrcamentos();
   _pendCheckCompletude(orcId);
   renderPendentes();
-  showToast(`Lua associou ${vinculados} item(ns); ${criados} produto(s) criado(s). Agora falta preencher custos.`, 3500);
+  showToast(`Lua associou ${vinculados} item(ns), criou ${criados} produto(s) e revisou ${revisados} nome(s). Agora falta preencher custos.`, 3500);
 };
 
 // Story 15.2: Edit individual field
