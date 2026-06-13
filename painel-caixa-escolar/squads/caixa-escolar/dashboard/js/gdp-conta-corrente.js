@@ -184,7 +184,9 @@
         + '<td style="white-space:nowrap">' + (l.data || '') + '</td>'
         + '<td>' + (l.descricao || (ehDebito ? 'Retirada' : 'Crédito')) + '</td>'
         + '<td class="text-right" style="font-weight:600;color:' + cor + '">' + sinal + ' ' + _brl.format(_num(l.valor)) + '</td>'
-        + '<td class="text-right"><button class="btn btn-sm btn-outline" onclick="removerLancamentoCC(\'' + l.id + '\',\'' + clienteId + '\')" title="Remover">✕</button></td>'
+        + '<td class="text-right" style="white-space:nowrap">'
+        + '<button class="btn btn-sm btn-outline" onclick="editarLancamentoCC(\'' + l.id + '\',\'' + clienteId + '\')" title="Editar">✎</button> '
+        + '<button class="btn btn-sm btn-outline" onclick="removerLancamentoCC(\'' + l.id + '\',\'' + clienteId + '\')" title="Remover">✕</button></td>'
         + '</tr>' + itensHtml;
     }).join('');
 
@@ -199,7 +201,7 @@
       + '<button class="btn btn-sm btn-outline" onclick="imprimirExtratoCC(\'' + clienteId + '\')">🖨 Imprimir / PDF</button>'
       + '</div>'
       + '<div class="table-wrap"><table style="width:100%;font-size:.88rem">'
-      + '<thead><tr><th style="width:90px">Data</th><th>Descrição</th><th class="text-right" style="width:130px">Valor</th><th style="width:50px"></th></tr></thead>'
+      + '<thead><tr><th style="width:90px">Data</th><th>Descrição</th><th class="text-right" style="width:130px">Valor</th><th style="width:90px"></th></tr></thead>'
       + '<tbody>' + (linhas || '<tr><td colspan="4" style="text-align:center;color:var(--mut);padding:1.5rem">Nenhum lançamento ainda.</td></tr>') + '</tbody>'
       + '</table></div></div>';
 
@@ -389,6 +391,45 @@
     await abrirExtratoCliente(clienteId);
   }
 
+  // ---- Editar lançamento (data, descrição; valor só para crédito) ----
+  async function editarLancamentoCC(lancId, clienteId) {
+    var todos = await gdpApi.lancamentosCliente.list();
+    var l = (todos || []).find(function (x) { return x.id === lancId; });
+    if (!l) { _toast('Lançamento não encontrado.'); return; }
+    var ehDebito = l.tipo === 'debito';
+    _modal('<h3 style="margin-top:0">Editar lançamento</h3>'
+      + '<p style="color:var(--mut);font-size:.82rem">' + (ehDebito ? 'Retirada (débito). O valor é definido pelos itens — para alterar itens, remova e relance.' : 'Crédito.') + '</p>'
+      + '<label style="display:block;margin:.6rem 0 .2rem;font-size:.8rem">Data</label>'
+      + '<input id="cc-edit-data" type="date" value="' + (l.data || _hoje()) + '" style="width:100%;padding:.5rem;border:1px solid var(--bdr);border-radius:6px">'
+      + '<label style="display:block;margin:.6rem 0 .2rem;font-size:.8rem">Descrição</label>'
+      + '<input id="cc-edit-desc" type="text" value="' + String(l.descricao || '').replace(/"/g, '&quot;') + '" style="width:100%;padding:.5rem;border:1px solid var(--bdr);border-radius:6px">'
+      + (ehDebito ? ''
+        : '<label style="display:block;margin:.6rem 0 .2rem;font-size:.8rem">Valor (R$)</label>'
+          + '<input id="cc-edit-valor" type="number" step="0.01" min="0" value="' + _num(l.valor) + '" style="width:100%;padding:.5rem;border:1px solid var(--bdr);border-radius:6px">')
+      + '<div style="display:flex;gap:.6rem;justify-content:flex-end;margin-top:1.2rem">'
+      + '<button class="btn btn-sm btn-outline" onclick="fecharModalCC()">Cancelar</button>'
+      + '<button class="btn btn-sm btn-green" onclick="salvarEdicaoLancamentoCC(\'' + lancId + '\',\'' + clienteId + '\')">Salvar</button>'
+      + '</div>');
+  }
+  async function salvarEdicaoLancamentoCC(lancId, clienteId) {
+    var todos = await gdpApi.lancamentosCliente.list();
+    var l = (todos || []).find(function (x) { return x.id === lancId; });
+    if (!l) { _toast('Lançamento não encontrado.'); return; }
+    l.data = document.getElementById('cc-edit-data').value || l.data;
+    l.descricao = document.getElementById('cc-edit-desc').value || l.descricao;
+    var ve = document.getElementById('cc-edit-valor');
+    if (ve && l.tipo !== 'debito') {
+      var nv = _num(ve.value);
+      if (nv <= 0) { _toast('Valor inválido.'); return; }
+      l.valor = nv;
+    }
+    await gdpApi.lancamentosCliente.save(l);
+    _fecharModal();
+    _toast('Lançamento atualizado.');
+    await renderContaCorrente();
+    await abrirExtratoCliente(clienteId);
+  }
+
   // ---- Impressão / PDF (Story 20.9.4 — base já entregue aqui) ----
   async function imprimirExtratoCC(clienteId) {
     var cliente = await gdpApi.clientes.get(clienteId);
@@ -549,6 +590,8 @@
   window.ccRemoveItem = ccRemoveItem;
   window.salvarRetiradaCC = salvarRetiradaCC;
   window.removerLancamentoCC = removerLancamentoCC;
+  window.editarLancamentoCC = editarLancamentoCC;
+  window.salvarEdicaoLancamentoCC = salvarEdicaoLancamentoCC;
   window.imprimirExtratoCC = imprimirExtratoCC;
   window.fecharModalCC = _fecharModal;
 })();
