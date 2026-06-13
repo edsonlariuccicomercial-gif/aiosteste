@@ -24,6 +24,39 @@
   function _hoje() { return new Date().toISOString().slice(0, 10); }
   function _num(v) { var n = parseFloat(String(v).replace(',', '.')); return isNaN(n) ? 0 : n; }
 
+  // Detecta a unidade pelo nome do produto (mesma lógica do portal — parseUnidadeFromName).
+  function _parseUnidade(nome) {
+    if (!nome) return 'UN';
+    var n = nome.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+    var w = n.match(/(\d+[.,]?\d*)\s*(kg|kgs|quilo|quilos|g|gr|grs|gramas|mg)\b/);
+    if (w) { var u = w[2];
+      if (['kg','kgs','quilo','quilos'].indexOf(u) >= 0) return 'KG';
+      if (['g','gr','grs','gramas'].indexOf(u) >= 0) return 'GR';
+      if (u === 'mg') return 'MG'; }
+    var v = n.match(/(\d+[.,]?\d*)\s*(ml|mililitro|mililitros|l|lt|litro|litros)\b/);
+    if (v) { var uv = v[2];
+      if (['ml','mililitro','mililitros'].indexOf(uv) >= 0) return 'ML';
+      if (['l','lt','litro','litros'].indexOf(uv) >= 0) return 'LT'; }
+    if (n.match(/(\d+[.,]?\d*)\s*(un|unid|unidade|unidades|pc|pcs|peca|pecas)\b/)) return 'UN';
+    var pk = n.match(/(\d+[.,]?\d*)\s*(cx|caixa|pct|pacote|bd|bandeja|dz|duzia|mc|maco)\b/);
+    if (pk) { var up = pk[2];
+      if (['cx','caixa'].indexOf(up) >= 0) return 'CX';
+      if (['pct','pacote'].indexOf(up) >= 0) return 'PCT';
+      if (['bd','bandeja'].indexOf(up) >= 0) return 'BD';
+      if (['dz','duzia'].indexOf(up) >= 0) return 'DZ';
+      if (['mc','maco'].indexOf(up) >= 0) return 'MC'; }
+    var st = n.match(/(?:\b|\()(kg|gr|ml|lt|un)(?:\b|\))\s*(?:-.*)?$/);
+    if (st) { var us = st[1]; return us.toUpperCase(); }
+    var produce = ['batata','cebola','alho','tomate','cenoura','maca','banana','laranja','manga','abobora','beterraba','repolho','abobrinha','pimentao','pepino','inhame','mandioca','jilo','alface','couve','melancia','melao','mamao','abacaxi','limao','chuchu','quiabo','vagem','berinjela','brocolis'];
+    if (produce.some(function (k) { return n.indexOf(k) >= 0; })) return 'KG';
+    var meat = ['carne','frango','file','tilapia','mussarela','mucarela','queijo','presunto','linguica','salsicha','pernil','costela','alcatra','patinho','acem','bife','sobrecoxa','coxa','asa'];
+    if (meat.some(function (k) { return n.indexOf(k) >= 0; })) return 'KG';
+    var grain = ['feijao','arroz','farinha','fuba','acucar','sal ','amido','aveia','lentilha','ervilha','milho','trigo','tapioca','canjica','cuscuz','soja'];
+    if (grain.some(function (k) { return n.indexOf(k) >= 0; })) return 'KG';
+    if (n.indexOf('polpa') >= 0) return 'KG';
+    return 'UN';
+  }
+
   // ---- ARP catalog cache (para o seletor de itens da retirada) ----
   var _arpCache = null;
   async function _loadArp() {
@@ -91,8 +124,11 @@
     }).join('');
 
     host.innerHTML = '<div class="card">'
-      + '<h3>Conta-Corrente do Cliente</h3>'
-      + '<p style="color:var(--mut);font-size:.85rem;margin-bottom:1rem">Saldo recalculado dos lançamentos. '
+      + '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.6rem">'
+      + '<h3 style="margin:0">Conta-Corrente do Cliente</h3>'
+      + '<button class="btn btn-sm btn-outline" onclick="abrirRelatorioGeralCC()">📊 Relatório geral (multi-escola)</button>'
+      + '</div>'
+      + '<p style="color:var(--mut);font-size:.85rem;margin:.6rem 0 1rem">Saldo recalculado dos lançamentos. '
       + 'Verde = crédito a favor da escola · Vermelho = escola devedora.</p>'
       + '<div class="table-wrap"><table style="width:100%;font-size:.88rem">'
       + '<thead><tr><th>Escola</th><th class="text-right">Saldo</th><th>Situação</th><th></th></tr></thead>'
@@ -138,7 +174,7 @@
           + '<table style="width:100%;font-size:.78rem;margin:0">'
           + l._itens.map(function (it) {
             return '<tr><td style="padding-left:2rem">' + (it.produto || '') + '</td>'
-              + '<td class="text-right">' + (_num(it.quantidade)) + '</td>'
+              + '<td class="text-right">' + (_num(it.quantidade)) + ' ' + (it.unidade || 'UN') + '</td>'
               + '<td class="text-right">' + _brl.format(_num(it.valorUnitario || it.valor_unitario)) + '</td>'
               + '<td class="text-right">' + _brl.format(_num(it.subtotal)) + '</td></tr>';
           }).join('')
@@ -237,9 +273,10 @@
       + '<label style="display:block;margin:.6rem 0 .2rem;font-size:.8rem">Data</label>'
       + '<input id="cc-ret-data" type="date" value="' + _hoje() + '" style="width:100%;padding:.5rem;border:1px solid var(--bdr);border-radius:6px">'
       + '<div style="border:1px solid var(--bdr);border-radius:8px;padding:.8rem;margin-top:.8rem">'
-      + '<div style="display:grid;grid-template-columns:1fr 70px 90px auto;gap:.4rem;align-items:end">'
+      + '<div style="display:grid;grid-template-columns:1fr 60px 60px 90px auto;gap:.4rem;align-items:end">'
       + '<div><label style="font-size:.72rem">Produto (ARP)</label><select id="cc-ret-sel" onchange="ccPreencherPreco()" style="width:100%;padding:.4rem;border:1px solid var(--bdr);border-radius:6px">' + opts + '</select></div>'
       + '<div><label style="font-size:.72rem">Qtd</label><input id="cc-ret-qtd" type="number" step="0.001" min="0" value="1" style="width:100%;padding:.4rem;border:1px solid var(--bdr);border-radius:6px"></div>'
+      + '<div><label style="font-size:.72rem">Unid.</label><input id="cc-ret-un" type="text" value="UN" style="width:100%;padding:.4rem;border:1px solid var(--bdr);border-radius:6px;text-transform:uppercase"></div>'
       + '<div><label style="font-size:.72rem">Vlr unit.</label><input id="cc-ret-vu" type="number" step="0.01" min="0" style="width:100%;padding:.4rem;border:1px solid var(--bdr);border-radius:6px"></div>'
       + '<button class="btn btn-sm btn-blue" onclick="ccAddItem()">+ Add</button>'
       + '</div>'
@@ -259,6 +296,12 @@
     var opt = sel.options[sel.selectedIndex];
     var preco = opt ? _num(opt.getAttribute('data-preco')) : 0;
     if (preco > 0) document.getElementById('cc-ret-vu').value = preco.toFixed(2);
+    // detecta unidade pelo nome do produto selecionado (editável)
+    var produtos = window._ccProdutosEscola || [];
+    if (sel.value !== '') {
+      var p = produtos[parseInt(sel.value, 10)];
+      if (p) document.getElementById('cc-ret-un').value = _parseUnidade(p.produto);
+    }
   }
   function ccAddItem() {
     var sel = document.getElementById('cc-ret-sel');
@@ -269,12 +312,16 @@
     if (!nome) { _toast('Selecione um produto do ARP ou digite um item avulso.'); return; }
     var qtd = _num(document.getElementById('cc-ret-qtd').value);
     var vu = _num(document.getElementById('cc-ret-vu').value);
+    var unid = (document.getElementById('cc-ret-un').value || 'UN').trim().toUpperCase();
+    // item avulso sem unidade informada: tenta detectar do nome
+    if (avulso && (!unid || unid === 'UN')) unid = _parseUnidade(nome);
     if (qtd <= 0 || vu < 0) { _toast('Quantidade/valor inválidos.'); return; }
-    _retiradaItens.push({ produto: nome, quantidade: qtd, valorUnitario: vu, subtotal: Math.round(qtd * vu * 100) / 100 });
+    _retiradaItens.push({ produto: nome, quantidade: qtd, unidade: unid, valorUnitario: vu, subtotal: Math.round(qtd * vu * 100) / 100 });
     // reset linha de entrada
     document.getElementById('cc-ret-sel').value = '';
     document.getElementById('cc-ret-avulso').value = '';
     document.getElementById('cc-ret-qtd').value = '1';
+    document.getElementById('cc-ret-un').value = 'UN';
     document.getElementById('cc-ret-vu').value = '';
     _renderItensRetirada();
   }
@@ -286,10 +333,11 @@
     if (!_retiradaItens.length) {
       host.innerHTML = '<p style="color:var(--mut);font-size:.8rem;text-align:center;padding:.6rem">Nenhum item adicionado.</p>';
     } else {
-      host.innerHTML = '<table style="width:100%;font-size:.8rem"><thead><tr><th>Produto</th><th class="text-right">Qtd</th><th class="text-right">Vlr unit.</th><th class="text-right">Subtotal</th><th></th></tr></thead><tbody>'
+      host.innerHTML = '<table style="width:100%;font-size:.8rem"><thead><tr><th>Produto</th><th class="text-right">Qtd</th><th>Un.</th><th class="text-right">Vlr unit.</th><th class="text-right">Subtotal</th><th></th></tr></thead><tbody>'
         + _retiradaItens.map(function (it, i) {
           total += it.subtotal;
           return '<tr><td>' + it.produto + '</td><td class="text-right">' + it.quantidade + '</td>'
+            + '<td>' + (it.unidade || 'UN') + '</td>'
             + '<td class="text-right">' + _brl.format(it.valorUnitario) + '</td>'
             + '<td class="text-right">' + _brl.format(it.subtotal) + '</td>'
             + '<td class="text-right"><button class="btn btn-sm btn-outline" onclick="ccRemoveItem(' + i + ')">✕</button></td></tr>';
@@ -321,6 +369,7 @@
         lancamentoId: lancId,
         produto: it.produto,
         quantidade: it.quantidade,
+        unidade: it.unidade || 'UN',
         valorUnitario: it.valorUnitario,
         subtotal: it.subtotal
       });
@@ -349,7 +398,7 @@
     var linhas = ext.lancamentos.map(function (l) {
       var ehDebito = l.tipo === 'debito';
       var itens = (ehDebito && Array.isArray(l._itens)) ? l._itens.map(function (it) {
-        return '<div style="padding-left:20px;font-size:11px;color:#555">• ' + it.produto + ' — ' + _num(it.quantidade) + ' × ' + _brl.format(_num(it.valorUnitario || it.valor_unitario)) + ' = ' + _brl.format(_num(it.subtotal)) + '</div>';
+        return '<div style="padding-left:20px;font-size:11px;color:#555">• ' + it.produto + ' — ' + _num(it.quantidade) + ' ' + (it.unidade || 'UN') + ' × ' + _brl.format(_num(it.valorUnitario || it.valor_unitario)) + ' = ' + _brl.format(_num(it.subtotal)) + '</div>';
       }).join('') : '';
       return '<tr><td>' + (l.data || '') + '</td><td>' + (l.descricao || '') + itens + '</td>'
         + '<td style="text-align:right;color:' + (ehDebito ? '#d33' : '#090') + '">' + (ehDebito ? '−' : '+') + ' ' + _brl.format(_num(l.valor)) + '</td></tr>';
@@ -367,7 +416,129 @@
     setTimeout(function () { w.print(); }, 300);
   }
 
+  // ============================================================
+  // RELATÓRIO GERAL multi-escola
+  // ============================================================
+  async function abrirRelatorioGeralCC() {
+    var clientes = await _clientesContaCorrente();
+    if (!clientes.length) { _toast('Nenhuma escola em conta-corrente.'); return; }
+    var checks = clientes.map(function (c) {
+      return '<label style="display:flex;align-items:center;gap:.5rem;padding:.35rem .2rem;cursor:pointer;border-bottom:1px solid var(--bdr)">'
+        + '<input type="checkbox" class="cc-rel-chk" value="' + c.id + '" checked> ' + (c.nome || c.id) + '</label>';
+    }).join('');
+    _modal('<h3 style="margin-top:0">Relatório geral — selecione as escolas</h3>'
+      + '<div style="display:flex;gap:.6rem;margin-bottom:.6rem">'
+      + '<button class="btn btn-sm btn-outline" onclick="ccRelToggleTodos(true)">Marcar todas</button>'
+      + '<button class="btn btn-sm btn-outline" onclick="ccRelToggleTodos(false)">Desmarcar todas</button>'
+      + '</div>'
+      + '<div style="max-height:300px;overflow:auto;border:1px solid var(--bdr);border-radius:6px;padding:.4rem">' + checks + '</div>'
+      + '<div style="display:flex;gap:.6rem;justify-content:flex-end;margin-top:1rem">'
+      + '<button class="btn btn-sm btn-outline" onclick="fecharModalCC()">Cancelar</button>'
+      + '<button class="btn btn-sm btn-blue" onclick="gerarRelatorioGeralCC()">Gerar relatório</button>'
+      + '</div>');
+  }
+  function ccRelToggleTodos(v) {
+    document.querySelectorAll('.cc-rel-chk').forEach(function (cb) { cb.checked = v; });
+  }
+  async function gerarRelatorioGeralCC() {
+    var ids = [].map.call(document.querySelectorAll('.cc-rel-chk:checked'), function (cb) { return cb.value; });
+    if (!ids.length) { _toast('Selecione ao menos uma escola.'); return; }
+    _fecharModal();
+    var dados = [];
+    var totalGeral = 0;
+    for (var i = 0; i < ids.length; i++) {
+      var cliente = await gdpApi.clientes.get(ids[i]);
+      var ext = await gdpApi.contaCorrente.extrato(ids[i]);
+      await _anexarItens(ext.lancamentos);
+      totalGeral += ext.saldo;
+      dados.push({ nome: (cliente && cliente.nome) || ids[i], saldo: ext.saldo, lancamentos: ext.lancamentos });
+    }
+    totalGeral = Math.round(totalGeral * 100) / 100;
+
+    // Resumo de saldos
+    var resumo = dados.map(function (d) {
+      var cor = d.saldo >= 0 ? 'var(--green)' : 'var(--red, #d33)';
+      return '<tr><td style="font-weight:600">' + d.nome + '</td>'
+        + '<td class="text-right" style="font-weight:700;color:' + cor + '">' + _brl.format(d.saldo) + '</td>'
+        + '<td style="color:var(--mut);font-size:.8rem">' + (d.saldo >= 0 ? 'crédito a favor' : 'devedora') + '</td></tr>';
+    }).join('');
+    var totalCor = totalGeral >= 0 ? 'var(--green)' : 'var(--red, #d33)';
+
+    // Extratos detalhados
+    var detalhes = dados.map(function (d) {
+      var linhas = d.lancamentos.map(function (l) {
+        var ehDebito = l.tipo === 'debito';
+        var itensHtml = (ehDebito && Array.isArray(l._itens) && l._itens.length)
+          ? '<tr><td colspan="3" style="background:var(--s1);padding:.2rem .4rem">'
+            + l._itens.map(function (it) {
+              return '<div style="padding-left:1.2rem;font-size:.76rem;color:var(--mut)">• ' + it.produto + ' — ' + _num(it.quantidade) + ' ' + (it.unidade || 'UN') + ' × ' + _brl.format(_num(it.valorUnitario || it.valor_unitario)) + ' = ' + _brl.format(_num(it.subtotal)) + '</div>';
+            }).join('') + '</td></tr>'
+          : '';
+        return '<tr><td style="white-space:nowrap">' + (l.data || '') + '</td><td>' + (l.descricao || '') + '</td>'
+          + '<td class="text-right" style="color:' + (ehDebito ? 'var(--red,#d33)' : 'var(--green)') + '">' + (ehDebito ? '−' : '+') + ' ' + _brl.format(_num(l.valor)) + '</td></tr>' + itensHtml;
+      }).join('');
+      var cor = d.saldo >= 0 ? 'var(--green)' : 'var(--red, #d33)';
+      return '<div style="margin-top:1.2rem"><h4 style="margin:.4rem 0;display:flex;justify-content:space-between">'
+        + '<span>' + d.nome + '</span><span style="color:' + cor + '">Saldo: ' + _brl.format(d.saldo) + '</span></h4>'
+        + '<table style="width:100%;font-size:.82rem"><thead><tr><th style="width:90px">Data</th><th>Descrição</th><th class="text-right" style="width:120px">Valor</th></tr></thead>'
+        + '<tbody>' + (linhas || '<tr><td colspan="3" style="color:var(--mut);text-align:center;padding:.6rem">Sem lançamentos.</td></tr>') + '</tbody></table></div>';
+    }).join('');
+
+    var host = document.getElementById('cc-extrato-host');
+    host.innerHTML = '<div class="card" style="margin-top:1rem" id="cc-rel-geral">'
+      + '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.6rem;margin-bottom:.6rem">'
+      + '<h3 style="margin:0">Relatório Geral — ' + dados.length + ' escola(s)</h3>'
+      + '<button class="btn btn-sm btn-outline" onclick="imprimirRelatorioGeralCC()">🖨 Imprimir / PDF</button>'
+      + '</div>'
+      + '<h4 style="margin:.4rem 0">Resumo de saldos</h4>'
+      + '<table style="width:100%;font-size:.88rem"><thead><tr><th>Escola</th><th class="text-right">Saldo</th><th>Situação</th></tr></thead>'
+      + '<tbody>' + resumo + '</tbody>'
+      + '<tfoot><tr style="border-top:2px solid var(--bdr)"><td style="font-weight:800">TOTAL GERAL</td>'
+      + '<td class="text-right" style="font-weight:800;color:' + totalCor + '">' + _brl.format(totalGeral) + '</td><td></td></tr></tfoot>'
+      + '</table>'
+      + '<h4 style="margin:1.2rem 0 .2rem">Extratos detalhados</h4>'
+      + detalhes
+      + '</div>';
+    // guarda os dados para impressão
+    window._ccRelDados = { dados: dados, totalGeral: totalGeral };
+    host.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  function imprimirRelatorioGeralCC() {
+    var ctx = window._ccRelDados;
+    if (!ctx) return;
+    var resumo = ctx.dados.map(function (d) {
+      return '<tr><td>' + d.nome + '</td><td style="text-align:right;color:' + (d.saldo >= 0 ? '#090' : '#d33') + '">' + _brl.format(d.saldo) + '</td></tr>';
+    }).join('');
+    var detalhes = ctx.dados.map(function (d) {
+      var linhas = d.lancamentos.map(function (l) {
+        var ehDebito = l.tipo === 'debito';
+        var itens = (ehDebito && Array.isArray(l._itens)) ? l._itens.map(function (it) {
+          return '<div style="padding-left:18px;font-size:11px;color:#555">• ' + it.produto + ' — ' + _num(it.quantidade) + ' ' + (it.unidade || 'UN') + ' × ' + _brl.format(_num(it.valorUnitario || it.valor_unitario)) + ' = ' + _brl.format(_num(it.subtotal)) + '</div>';
+        }).join('') : '';
+        return '<tr><td>' + (l.data || '') + '</td><td>' + (l.descricao || '') + itens + '</td><td style="text-align:right;color:' + (ehDebito ? '#d33' : '#090') + '">' + (ehDebito ? '−' : '+') + ' ' + _brl.format(_num(l.valor)) + '</td></tr>';
+      }).join('');
+      return '<h3 style="margin:14px 0 4px">' + d.nome + ' — Saldo: ' + _brl.format(d.saldo) + '</h3>'
+        + '<table><thead><tr><th>Data</th><th>Descrição</th><th style="text-align:right">Valor</th></tr></thead><tbody>' + linhas + '</tbody></table>';
+    }).join('');
+    var w = window.open('', '_blank');
+    w.document.write('<html><head><title>Relatório Geral — Conta-Corrente</title>'
+      + '<style>body{font-family:Arial,sans-serif;padding:24px;color:#111}h2{margin:0 0 8px}table{width:100%;border-collapse:collapse;margin-top:8px}th,td{border-bottom:1px solid #ddd;padding:5px;text-align:left;font-size:12px}.tot{font-weight:bold;border-top:2px solid #333}</style>'
+      + '</head><body>'
+      + '<h2>Relatório Geral de Conta-Corrente</h2>'
+      + '<h3>Resumo de saldos</h3>'
+      + '<table><thead><tr><th>Escola</th><th style="text-align:right">Saldo</th></tr></thead><tbody>' + resumo
+      + '<tr class="tot"><td>TOTAL GERAL</td><td style="text-align:right">' + _brl.format(ctx.totalGeral) + '</td></tr>'
+      + '</tbody></table>' + detalhes
+      + '</body></html>');
+    w.document.close(); w.focus();
+    setTimeout(function () { w.print(); }, 300);
+  }
+
   // ---- expose globals (padrão do projeto: funções globais chamadas por onclick) ----
+  window.abrirRelatorioGeralCC = abrirRelatorioGeralCC;
+  window.ccRelToggleTodos = ccRelToggleTodos;
+  window.gerarRelatorioGeralCC = gerarRelatorioGeralCC;
+  window.imprimirRelatorioGeralCC = imprimirRelatorioGeralCC;
   window.renderContaCorrente = renderContaCorrente;
   window.abrirExtratoCliente = abrirExtratoCliente;
   window.abrirModalCredito = abrirModalCredito;

@@ -103,7 +103,7 @@
     caixa_config: ['empresa_id','saldo_inicial','saldo_inicial_data','metadata','created_at','updated_at'],
     produtos: ['id','empresa_id','descricao','sku','ncm','unidade','marca','grupo','produto_critico','unidade_base','embalagens','custo_base','preco_referencia','margem_alvo','fonte','created_at','updated_at'],
     lancamentos_cliente: ['id','empresa_id','cliente_id','data','tipo','valor','descricao','origem','deleted_at','created_at','updated_at'],
-    lancamentos_itens: ['id','empresa_id','lancamento_id','produto','quantidade','valor_unitario','subtotal','created_at','updated_at']
+    lancamentos_itens: ['id','empresa_id','lancamento_id','produto','quantidade','unidade','valor_unitario','subtotal','created_at','updated_at']
   };
   var CAMEL_TO_SNAKE = {
     escolaClienteId:'escola_cliente_id', contratoId:'contrato_id', pedidoId:'pedido_id', origemId:'origem_id',
