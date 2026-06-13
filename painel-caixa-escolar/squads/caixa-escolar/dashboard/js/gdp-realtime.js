@@ -14,7 +14,7 @@
   var wsUrl = SUPABASE_URL.replace(/^http/, 'ws') + '/realtime/v1/websocket?apikey=' + encodeURIComponent(SUPABASE_KEY) + '&vsn=1.0.0';
 
   // ─── DEDICATED TABLES (gdp-api.js entities) ───
-  var ENTITY_TABLES = ['contratos', 'pedidos', 'notas_fiscais', 'contas_receber', 'contas_pagar', 'entregas', 'extratos', 'conciliacoes', 'clientes', 'produtos'];
+  var ENTITY_TABLES = ['contratos', 'pedidos', 'notas_fiscais', 'contas_receber', 'contas_pagar', 'entregas', 'extratos', 'conciliacoes', 'clientes', 'produtos', 'lancamentos_cliente', 'lancamentos_itens'];
 
   var TABLE_TO_ENTITY = {
     contratos:      { lsKey: 'gdp.contratos.v1',         wrapped: true  },
@@ -26,7 +26,10 @@
     extratos:       { lsKey: 'gdp.extratos.v1',          wrapped: true  },
     conciliacoes:   { lsKey: 'gdp.conciliacao.v1',       wrapped: true  },
     clientes:       { lsKey: 'gdp.usuarios.v1',          wrapped: false },
-    produtos:       { lsKey: 'intel.central-produtos.v2', wrapped: true  }
+    produtos:       { lsKey: 'intel.central-produtos.v2', wrapped: true  },
+    // EPIC-20 Story 20.9.1 — conta-corrente do cliente
+    lancamentos_cliente: { lsKey: 'gdp.lancamentos-cliente.v1', wrapped: true },
+    lancamentos_itens:   { lsKey: 'gdp.lancamentos-itens.v1',   wrapped: true }
   };
 
   // ─── GENERIC TABLES (sync_data, resultados, radar) ───
@@ -234,7 +237,8 @@
     'gdp.contratos.v1': true, 'gdp.pedidos.v1': true, 'gdp.notas-fiscais.v1': true,
     'gdp.contas-receber.v1': true, 'gdp.contas-pagar.v1': true,
     'gdp.entregas.provas.v1': true, 'gdp.usuarios.v1': true,
-    'gdp.extratos.v1': true, 'gdp.conciliacao.v1': true
+    'gdp.extratos.v1': true, 'gdp.conciliacao.v1': true,
+    'gdp.lancamentos-cliente.v1': true, 'gdp.lancamentos-itens.v1': true
   };
 
   function handleSyncDataChange(type, record) {
@@ -480,7 +484,7 @@
     _lastReconcileTs = Date.now();
     log('Reconcile: fetching all tables from Supabase...');
 
-    var tables = ['contratos', 'pedidos', 'notas_fiscais', 'clientes', 'contas_receber', 'contas_pagar', 'entregas', 'extratos', 'conciliacoes', 'produtos'];
+    var tables = ['contratos', 'pedidos', 'notas_fiscais', 'clientes', 'contas_receber', 'contas_pagar', 'entregas', 'extratos', 'conciliacoes', 'produtos', 'lancamentos_cliente', 'lancamentos_itens'];
     var promises = tables.map(function (t) {
       if (!window.gdpApi[t] || !window.gdpApi[t].list) return Promise.resolve();
       // Skip tables with recent local saves (dirty window) to prevent overwriting in-flight data

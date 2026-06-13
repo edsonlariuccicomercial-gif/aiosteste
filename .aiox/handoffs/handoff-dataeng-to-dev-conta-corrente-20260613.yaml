@@ -1,0 +1,38 @@
+handoff:
+  from_agent: "data-engineer"
+  to_agent: "dev"
+  last_command: "create-schema"
+  timestamp: "2026-06-13"
+  story_context:
+    story_id: "20.9.1"
+    story_path: "docs/stories/20.9.1.story.md"
+    story_status: "InProgress (data layer pronto, UI pendente)"
+    current_task: "Implementar tela Extrato do Cliente + aplicar migration"
+    branch: "feature/epic20-ajustes-financeiro-gdp"
+    epic: "EPIC-20 (Ajustes Financeiro GDP)"
+  delivered:
+    - "Migration 031_conta_corrente_cliente_epic20.sql: tabelas lancamentos_cliente + lancamentos_itens, flag clientes.conta_corrente_ativa, RLS anon, realtime, soft-delete, CHECKs, rollback comentado"
+    - "gdp-api.js: entidades registradas na factory CRUD + mapeamento camelCase + helper gdpApi.contaCorrente (saldo recalculado P3)"
+    - "gdp-realtime.js: 2 tabelas em ENTITY_TABLES/TABLE_TO_ENTITY/DEDICATED_TABLE_KEYS/reconcile (sync cross-máquina)"
+    - "node --check passou em ambos os JS"
+  api_contract_for_dev:
+    - "gdpApi.lancamentosCliente.list()/save(item)/remove(id) — CRUD do extrato (item: {clienteId, data, tipo:'credito'|'debito', valor, descricao, origem})"
+    - "gdpApi.lancamentosItens.save(item) — itens do débito (item: {lancamentoId, produto, quantidade, valorUnitario, subtotal})"
+    - "gdpApi.contaCorrente.saldo(clienteId) → number (saldo recalculado)"
+    - "gdpApi.contaCorrente.extrato(clienteId) → {lancamentos:[], saldo:number}"
+  ui_tasks_pending:
+    - "1. Aplicar migration 031 no Supabase (delegar push a @devops, ou supabase db push)"
+    - "2. Tela Extrato do Cliente: lista escolas conta_corrente_ativa + saldo colorido (verde≥0 / vermelho<0)"
+    - "3. Extrato estilo bancário, débitos expansíveis mostrando itens"
+    - "4. Lançar crédito manual + retirada com seletor ARP (data/lariucci-arp-2025.json), campos editáveis + item avulso"
+    - "5. Salvar retirada = 1 lancamento debito + N itens; garantir Σ subtotal = valor do débito"
+  notes_for_2092:
+    - "Vínculo crédito↔contrato↔pedido↔NF usa campo origem JSONB: {pedido_id, contrato_id, nf_id, pagamento_id} — sem colunas extras"
+  inegociaveis:
+    - "P3: saldo SEMPRE via gdpApi.contaCorrente (recalculado), NUNCA ler clientes.saldo_total como verdade"
+    - "D3: valor sempre positivo; sinal vem do tipo"
+  blockers: []
+  next_action: >
+    @dev implementa a tela (5 tarefas acima) consumindo o contrato gdpApi.contaCorrente.
+    Migration precisa ser aplicada no Supabase (via @devops). Depois @qa qa-gate na 20.9.1.
+  consumed: false

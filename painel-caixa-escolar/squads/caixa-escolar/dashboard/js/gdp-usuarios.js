@@ -205,7 +205,7 @@ function renderFormUsuario(u, draft = {}) {
       <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Login</label><input type="text" id="usr-login" value="${esc(dataBase?.login||'')}" style="width:100%"></div>
       <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Senha</label><input type="text" id="usr-senha" value="${esc(dataBase?.senha||'escola2025')}" style="width:100%"></div>
       <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">ARP Vinculada</label><input type="text" id="usr-arp" value="${esc(dataBase?.arp_vinculada||'ARP-LARIUCCI-2025')}" style="width:100%"></div>
-      <div></div>
+      <div style="display:flex;align-items:flex-end"><label style="font-size:.8rem;display:flex;align-items:center;gap:.4rem;cursor:pointer"><input type="checkbox" id="usr-conta-corrente" ${(dataBase?.conta_corrente_ativa||dataBase?.contaCorrenteAtiva)?'checked':''}> Conta-Corrente (crédito/débito rotativo)</label></div>
     </div>
     <input type="hidden" id="usr-cargo" value="${esc(dataBase?.cargo||'')}">
     <input type="hidden" id="usr-catalogo" value="${esc(dataBase?.categoria_catalogo||'')}">
@@ -254,6 +254,7 @@ function salvarUsuario(editId) {
     arp_vinculada: document.getElementById("usr-arp").value.trim(),
     saldo_total: parseFloat(document.getElementById("usr-saldo-total").value) || 0,
     saldo_disponivel: parseFloat(document.getElementById("usr-saldo-disp").value) || 0,
+    conta_corrente_ativa: !!(document.getElementById("usr-conta-corrente") && document.getElementById("usr-conta-corrente").checked),
     contratos_vinculados: [...document.querySelectorAll(".usr-contrato-chk:checked")].map(cb => cb.value)
   };
 

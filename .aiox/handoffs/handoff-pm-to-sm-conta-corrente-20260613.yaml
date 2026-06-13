@@ -1,0 +1,44 @@
+handoff:
+  from_agent: "pm"
+  to_agent: "sm"
+  last_command: "create-epic"
+  timestamp: "2026-06-13"
+  story_context:
+    story_id: "20.9.x (4 stories a criar)"
+    prd_path: "docs/stories/EPIC-20.9-conta-corrente-cliente-PRD.md"
+    analysis_path: "docs/stories/20.9-ANALISE-conta-corrente-cliente.md"
+    story_status: "PRD pronto — criar stories formais"
+    current_task: "Decompor PRD em stories 20.9.1 a 20.9.4 (template create-next-story)"
+    branch: "feature/epic20-ajustes-financeiro-gdp"
+    epic: "EPIC-20 (Ajustes Financeiro GDP)"
+  problem_summary: >
+    Conta-corrente do cliente (crédito/débito rotativo) para escolas que pagam
+    adiantado e vão retirando (Caso A / Valadares) ou recebem e pagam parcelado
+    (Caso B). PRD decompõe em 4 stories incrementais.
+  product_decisions:
+    - "P1: nota paga (Caso A) NÃO gera Contas a Receber — evita duplicar caixa. Caso B usa CR normal."
+    - "P2: entregar Caso A E Caso B, mas em stories separadas (A primeiro, entrega incremental)."
+    - "P3: saldo sempre recalculado dos lançamentos (fonte única da verdade, sem materializar)."
+  stories_to_create:
+    - "20.9.1: Fundação — tabelas lancamentos_cliente/itens, flag conta_corrente_ativa, tela Extrato, saldo recalculado, lançamento manual (Caso A)"
+    - "20.9.2: Botão 'Saldo para crédito' no pedido antes de faturar (Forma A digitar valor + Forma B marcar itens), validação não-exceder-total, vínculo contrato/pedido/NF (Caso A)"
+    - "20.9.3: Caso B — saldo negativo, pagamentos parciais, integração com contas_receber"
+    - "20.9.4: Demonstrativo imprimível/PDF do extrato"
+  blocking_gates: []
+  accepted_risks:
+    - "T4/D10 (FISCAL): RISCO ACEITO pelo dono do negócio (Edson) em 2026-06-13. Emitir NF pelo total com entrega parcial, sem nova NF nas retiradas, reflete operação real. 20.9.2 LIBERADA — sem gate bloqueante. Waiver registrado no PRD §5.1."
+  open_questions_for_architect:
+    - "T2: Forma B exige itens granulares na UI do pedido — confirmar viabilidade"
+    - "T3: integração Caso B ↔ contas_receber sem duplicar caixa"
+    - "T1: schema final + índices + RLS (@data-engineer)"
+  inegociaveis:
+    - "D3: saldo por valor (R$), nunca digitado"
+    - "D4/D11: crédito só por ação manual no pedido — NUNCA automático cego"
+    - "D9: botão com 2 formas (valor / itens)"
+    - "D10: NF pelo total, retiradas sem nova NF (sujeito a gate fiscal T4)"
+  blockers: []
+  next_action: >
+    @sm cria as 4 stories (20.9.1–20.9.4) a partir do PRD usando create-next-story.
+    Recomendar @architect/@data-engineer para resolver T1/T2/T3 e acionar Squad
+    Fiscal para gate T4 antes de 20.9.2. Depois @po valida.
+  consumed: false
