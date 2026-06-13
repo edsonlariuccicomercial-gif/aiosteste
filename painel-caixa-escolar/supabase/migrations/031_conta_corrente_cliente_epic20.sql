@@ -88,6 +88,12 @@ $$;
 ALTER TABLE lancamentos_cliente ENABLE ROW LEVEL SECURITY;
 ALTER TABLE lancamentos_itens ENABLE ROW LEVEL SECURITY;
 
+-- DROP IF EXISTS antes do CREATE: policies não suportam IF NOT EXISTS no PG.
+-- Garante idempotência do db push (re-rodar a migration não falha).
+DROP POLICY IF EXISTS lancamentos_cliente_anon_read ON lancamentos_cliente;
+DROP POLICY IF EXISTS lancamentos_cliente_anon_write ON lancamentos_cliente;
+DROP POLICY IF EXISTS lancamentos_itens_anon_read ON lancamentos_itens;
+DROP POLICY IF EXISTS lancamentos_itens_anon_write ON lancamentos_itens;
 CREATE POLICY lancamentos_cliente_anon_read ON lancamentos_cliente FOR SELECT TO anon USING (true);
 CREATE POLICY lancamentos_cliente_anon_write ON lancamentos_cliente FOR ALL TO anon USING (true) WITH CHECK (true);
 CREATE POLICY lancamentos_itens_anon_read ON lancamentos_itens FOR SELECT TO anon USING (true);
