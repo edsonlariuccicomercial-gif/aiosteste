@@ -165,7 +165,7 @@ function switchTab(tab) {
 
 // Financeiro sub-tab switching
 function switchFinanceiroTab(subTab) {
-  ["caixa","contas-pagar","contas-receber","conciliacao"].forEach(t => {
+  ["caixa","contas-pagar","contas-receber","conciliacao","conta-corrente"].forEach(t => {
     const el = document.getElementById(`fin-content-${t}`);
     if (el) el.classList.toggle("hidden", t !== subTab);
   });
@@ -181,6 +181,7 @@ function switchFinanceiroTab(subTab) {
     _showPageFooter("cr-page-footer");
   }
   if (subTab === "conciliacao") { if (typeof renderConciliacao === "function") renderConciliacao(); _hideAllPageFooters(); }
+  if (subTab === "conta-corrente") { if (typeof renderContaCorrente === "function") renderContaCorrente(); _hideAllPageFooters(); }
 }
 
 

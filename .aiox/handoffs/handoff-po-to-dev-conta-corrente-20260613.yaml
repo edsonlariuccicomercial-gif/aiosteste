@@ -1,0 +1,41 @@
+handoff:
+  from_agent: "po"
+  to_agent: "dev"
+  cc_agents: ["architect", "data-engineer"]
+  last_command: "validate-story-draft"
+  timestamp: "2026-06-13"
+  story_context:
+    story_group: "20.9.1 a 20.9.4 (Conta-Corrente do Cliente)"
+    prd_path: "docs/stories/EPIC-20.9-conta-corrente-cliente-PRD.md"
+    analysis_path: "docs/stories/20.9-ANALISE-conta-corrente-cliente.md"
+    story_status: "TODAS Ready (validação 10/10 GO)"
+    branch: "feature/epic20-ajustes-financeiro-gdp"
+    epic: "EPIC-20 (Ajustes Financeiro GDP)"
+  validation_results:
+    - "20.9.1 (Fundação extrato+saldo): GO 10/10 → Ready"
+    - "20.9.2 (Botão crédito no pedido): GO 10/10 → Ready (gate fiscal resolvido por waiver)"
+    - "20.9.3 (Caso B parcelado): GO 10/10 → Ready (GATE: @architect resolver T3 antes do dev)"
+    - "20.9.4 (Demonstrativo PDF): GO 10/10 → Ready"
+  recommended_order:
+    - "1. @data-engineer: schema/migration de 20.9.1 (T1)"
+    - "2. @dev: 20.9.1 (fundação) — habilita as demais"
+    - "3. @dev: 20.9.2 (botão no pedido) — waiver fiscal já aceito"
+    - "4. @architect: resolver T3 → depois @dev: 20.9.3 (Caso B)"
+    - "5. @dev: 20.9.4 (demonstrativo PDF)"
+  technical_gates:
+    - "T1: schema final + índices + RLS (@data-engineer) — para 20.9.1"
+    - "T2: Forma B exige itens granulares na UI do pedido (@architect/@dev) — para 20.9.2"
+    - "T3: integração Caso B ↔ contas_receber sem duplicar caixa (@architect) — BLOQUEIA início de 20.9.3"
+    - "T5: fonte de preços por escola no catálogo ARP (@dev) — para 20.9.1"
+  accepted_risks:
+    - "D10 risco fiscal: ACEITO pelo dono do negócio (waiver PRD §5.1). 20.9.2 liberada."
+  inegociaveis:
+    - "D3: saldo por valor (R$), nunca digitado"
+    - "P3: saldo sempre recalculado (não materializar como verdade)"
+    - "D4/D11: crédito só por ação manual no pedido — nunca automático"
+    - "P1: nota paga não gera Contas a Receber (não duplicar caixa)"
+  blockers: []
+  next_action: >
+    @data-engineer inicia schema de 20.9.1; @dev implementa na ordem recomendada.
+    @architect resolve T2/T3. Após cada story: @qa qa-gate, depois @devops push.
+  consumed: false

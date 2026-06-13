@@ -1,0 +1,45 @@
+handoff:
+  from_agent: "analyst"
+  to_agent: "pm"
+  last_command: "discovery-conta-corrente-cliente"
+  timestamp: "2026-06-13"
+  story_context:
+    story_id: "20.9 (candidata)"
+    story_path: "docs/stories/20.9-ANALISE-conta-corrente-cliente.md"
+    story_status: "Análise concluída — para refinamento PM"
+    current_task: "Transformar análise de discovery em story formal do EPIC-20"
+    branch: "feature/epic20-ajustes-financeiro-gdp"
+    epic: "EPIC-20 (Ajustes Financeiro GDP)"
+  problem_summary: >
+    Escolas em regime de conta-corrente (ex: Valadares) faturam nota cheia paga
+    adiantado, retiram itens parcialmente e o restante fica como crédito rotativo.
+    Outras recebem e pagam em parcelas. GDP não tem conceito de saldo rotativo por
+    cliente — controle em Excel se perde. Solução: extrato de conta-corrente por
+    cliente (crédito/débito, saldo automático por valor).
+  decisions:
+    - "D1: Resolver dentro do GDP (não Excel)"
+    - "D3: Saldo calculado por VALOR (R$) = Σcréditos − Σdébitos, nunca digitado"
+    - "D4 (CORRIGIDA): Crédito NÃO é automático cego. Entra só por decisão manual no pedido, ANTES de faturar (botão). Escolas têm vários contratos; nota pode ser entregue em parte com restante indo pro crédito."
+    - "D5+D6: Débito manual com itens detalhados do catálogo ARP, campos editáveis + avulso"
+    - "D7: Demonstrativo com impressão/PDF para prestação de contas"
+    - "D9: Botão oferece 2 formas — digitar valor OU marcar itens entregues (resto vai pro crédito)"
+    - "D10: NF emitida pelo valor TOTAL; crédito é controle interno; retiradas NÃO geram nova NF"
+    - "D11 (PRINCÍPIO): nada vai pro crédito sem o usuário decidir. Usuário: 'se for tudo no automático, vamos nos perder.'"
+  files_modified:
+    - "docs/stories/20.9-ANALISE-conta-corrente-cliente.md (criado)"
+  model_proposal:
+    - "Reaproveitar clientes.saldo_total / saldo_disponivel (já existem, sem uso)"
+    - "Nova tabela lancamentos_cliente (extrato: tipo crédito/débito, valor, descrição)"
+    - "Nova tabela lancamentos_itens (detalhe do débito: produto, qtd, valor unitário)"
+    - "Flag clientes.conta_corrente_ativa"
+  open_questions:
+    - "Posição/validações do botão de crédito no fluxo de faturamento (não mandar > total do pedido)"
+    - "Forma B (marcar itens entregues) exige itens granulares na UI do pedido — confirmar viabilidade"
+    - "Integração com contas_receber existente (substitui? coexiste? CR vira débito no Caso B?)"
+    - "Saldo materializado vs calculado on-the-fly"
+    - "Validar implicação fiscal de D10 (NF total com entrega parcial, sem nova NF nas retiradas) com equipe fiscal"
+  blockers: []
+  next_action: >
+    @pm refina requisitos (responder open_questions), define prioridade no EPIC-20
+    e delega schema a @data-engineer. Depois @sm formaliza a story 20.9.
+  consumed: false

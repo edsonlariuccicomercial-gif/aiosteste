@@ -27,7 +27,10 @@
     nf_counter:     { lsKey: 'gdp.nf-counter.v1',      table: 'nf_counter',     wrapped: false },
     extratos:       { lsKey: 'gdp.extratos.v1',         table: 'extratos',       wrapped: true  },
     conciliacoes:   { lsKey: 'gdp.conciliacao.v1',      table: 'conciliacoes',   wrapped: true  },
-    produtos:       { lsKey: 'intel.central-produtos.v2', table: 'produtos',     wrapped: true  }
+    produtos:       { lsKey: 'intel.central-produtos.v2', table: 'produtos',     wrapped: true  },
+    // EPIC-20 Story 20.9.1 — Conta-Corrente do Cliente (crédito/débito rotativo)
+    lancamentos_cliente: { lsKey: 'gdp.lancamentos-cliente.v1', table: 'lancamentos_cliente', wrapped: true },
+    lancamentos_itens:   { lsKey: 'gdp.lancamentos-itens.v1',   table: 'lancamentos_itens',   wrapped: true }
   };
 
   // Story 14.1: empresa_id must match syncUserId set at login (from escola.id or "LARIUCCI")
@@ -91,14 +94,16 @@
     contratos: ['id','empresa_id','escola','processo','edital','objeto','status','fornecedor','vigencia','observacoes','data_apuracao','itens','cliente_snapshot','escola_cliente_id','dados_extras','deleted_at','created_at','updated_at'],
     pedidos: ['id','empresa_id','contrato_id','escola','data','data_prevista','status','valor','obs','itens','fiscal','cliente','pagamento','marcador','audit','dados_extras','created_at','updated_at'],
     notas_fiscais: ['id','empresa_id','pedido_id','contrato_id','numero','serie','valor','status','tipo_nota','origem','emitida_em','vencimento','cliente','itens','sefaz','cobranca','documentos','parametros','integracoes','xml_autorizado','chave_acesso','protocolo','audit','deleted_at','created_at','updated_at'],
-    clientes: ['id','empresa_id','nome','cnpj','ie','uf','cep','sre','email','telefone','endereco','contratos_vinculados','login','senha','municipio','responsavel','cargo','contribuinte_icms','categoria_catalogo','arp_vinculada','saldo_total','saldo_disponivel','dados_extras','created_at','updated_at'],
+    clientes: ['id','empresa_id','nome','cnpj','ie','uf','cep','sre','email','telefone','endereco','contratos_vinculados','login','senha','municipio','responsavel','cargo','contribuinte_icms','categoria_catalogo','arp_vinculada','saldo_total','saldo_disponivel','conta_corrente_ativa','dados_extras','created_at','updated_at'],
     contas_receber: ['id','empresa_id','pedido_id','origem_id','descricao','valor','status','forma','categoria','vencimento','cliente','cobranca','automacao','audit','deleted_at','created_at','updated_at'],
     contas_pagar: ['id','empresa_id','descricao','valor','status','forma','categoria','vencimento','fornecedor','audit','deleted_at','created_at','updated_at'],
     entregas: ['id','empresa_id','pedido_id','escola','data_entrega','status_entrega','recebedor','obs','foto','assinatura','created_at','updated_at'],
     extratos: ['id','empresa_id','data','arquivo','conta_financeira','conciliados','total','is_open','criado_em','deleted_at','created_at','updated_at'],
     conciliacoes: ['id','empresa_id','extrato_id','data','descricao','valor','tipo','conciliado','conciliado_em','vinculado_a','historico','categoria_dre','metadata','deleted_at','created_at','updated_at'],
     caixa_config: ['empresa_id','saldo_inicial','saldo_inicial_data','metadata','created_at','updated_at'],
-    produtos: ['id','empresa_id','descricao','sku','ncm','unidade','marca','grupo','produto_critico','unidade_base','embalagens','custo_base','preco_referencia','margem_alvo','fonte','created_at','updated_at']
+    produtos: ['id','empresa_id','descricao','sku','ncm','unidade','marca','grupo','produto_critico','unidade_base','embalagens','custo_base','preco_referencia','margem_alvo','fonte','created_at','updated_at'],
+    lancamentos_cliente: ['id','empresa_id','cliente_id','data','tipo','valor','descricao','origem','deleted_at','created_at','updated_at'],
+    lancamentos_itens: ['id','empresa_id','lancamento_id','produto','quantidade','valor_unitario','subtotal','created_at','updated_at']
   };
   var CAMEL_TO_SNAKE = {
     escolaClienteId:'escola_cliente_id', contratoId:'contrato_id', pedidoId:'pedido_id', origemId:'origem_id',
@@ -110,7 +115,9 @@
     saldoInicial:'saldo_inicial', saldoInicialData:'saldo_inicial_data',
     nomeFantasia:'nome_fantasia', razaoSocial:'razao_social',
     categoriaCatalogo:'categoria_catalogo', arpVinculada:'arp_vinculada',
-    saldoTotal:'saldo_total', saldoDisponivel:'saldo_disponivel', contribuinteIcms:'contribuinte_icms'
+    saldoTotal:'saldo_total', saldoDisponivel:'saldo_disponivel', contribuinteIcms:'contribuinte_icms',
+    // EPIC-20 Story 20.9.1 — conta-corrente
+    clienteId:'cliente_id', lancamentoId:'lancamento_id', valorUnitario:'valor_unitario', contaCorrenteAtiva:'conta_corrente_ativa'
   };
   var SNAKE_TO_CAMEL = {};
   for (var _k in CAMEL_TO_SNAKE) SNAKE_TO_CAMEL[CAMEL_TO_SNAKE[_k]] = _k;
@@ -442,6 +449,42 @@
     }
   };
 
+  // EPIC-20 Story 20.9.1 — Conta-Corrente do Cliente
+  // Saldo SEMPRE recalculado dos lançamentos (princípio P3 do PRD): nunca materializado.
+  // saldo = Σ(valor WHERE tipo=credito) − Σ(valor WHERE tipo=debito), ativos (deleted_at IS NULL).
+  // Positivo = crédito a favor da escola; negativo = escola devedora.
+  var contaCorrenteApi = {
+    // Saldo de um cliente a partir de uma lista de lançamentos (já filtrada de deletados pela factory).
+    saldoFromLancamentos: function (lancamentos, clienteId) {
+      var saldo = 0;
+      if (!Array.isArray(lancamentos)) return 0;
+      for (var i = 0; i < lancamentos.length; i++) {
+        var l = lancamentos[i];
+        if (!l) continue;
+        if (clienteId && (l.clienteId || l.cliente_id) !== clienteId) continue;
+        var v = parseFloat(l.valor) || 0;
+        if (l.tipo === 'debito') saldo -= v; else saldo += v;
+      }
+      return Math.round(saldo * 100) / 100;
+    },
+    // Saldo de um cliente buscando os lançamentos no Supabase/cache (assíncrono).
+    saldo: async function (clienteId) {
+      var todos = await window.gdpApi.lancamentosCliente.list();
+      return contaCorrenteApi.saldoFromLancamentos(todos, clienteId);
+    },
+    // Extrato de um cliente (lançamentos ordenados por data) + saldo corrente.
+    extrato: async function (clienteId) {
+      var todos = await window.gdpApi.lancamentosCliente.list();
+      var doCliente = (todos || []).filter(function (l) {
+        return l && (l.clienteId || l.cliente_id) === clienteId;
+      });
+      doCliente.sort(function (a, b) {
+        return String(a.data || '').localeCompare(String(b.data || ''));
+      });
+      return { lancamentos: doCliente, saldo: contaCorrenteApi.saldoFromLancamentos(doCliente) };
+    }
+  };
+
   window.gdpApi = {
     contratos:      createEntityApi('contratos'),
     pedidos:        createEntityApi('pedidos'),
@@ -453,6 +496,12 @@
     extratos:       createEntityApi('extratos'),
     conciliacoes:   createEntityApi('conciliacoes'),
     produtos:       createEntityApi('produtos'),
+    lancamentosCliente: createEntityApi('lancamentos_cliente'),
+    lancamentosItens:   createEntityApi('lancamentos_itens'),
+    // snake_case aliases so gdp-realtime.js reconcile (which indexes by table name) finds them
+    lancamentos_cliente: createEntityApi('lancamentos_cliente'),
+    lancamentos_itens:   createEntityApi('lancamentos_itens'),
+    contaCorrente:  contaCorrenteApi,
     nf_counter:     nfCounterApi,
     caixaConfig:    caixaConfigApi,
     getEmpresaId:        getEmpresaId,
