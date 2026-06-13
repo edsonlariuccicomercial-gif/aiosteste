@@ -2097,7 +2097,7 @@ function renderPreOrcamentosLista() {
     barHtml.id = "pre-lote-bar";
     barHtml.style.cssText = "display:none;padding:0.5rem 1rem;background:#f8f9fa;border:1px solid #dee2e6;border-radius:8px;margin-bottom:0.75rem;align-items:center;gap:0.75rem;flex-wrap:wrap;";
     barHtml.innerHTML = `<span id="pre-lote-count" style="font-weight:600;">0 selecionados</span>
-      <button class="btn btn-sm btn-accent" onclick="gerarDocFornecedorSelecionados()">Gerar Doc Fornecedor</button>
+      <button class="btn btn-sm btn-accent" onclick="gerarDocFornecedorSelecionados()">Gerar cotação cega</button>
       <button class="btn btn-sm btn-danger" onclick="excluirPreLote()">Excluir Selecionados</button>
       <button class="btn btn-sm btn-accent" onclick="gerarContratoUnificado()">Gerar Contrato Unificado</button>`;
     el.tbodyPreorcamentosLista.parentElement.parentElement.insertBefore(barHtml, el.tbodyPreorcamentosLista.parentElement);
@@ -2174,50 +2174,108 @@ function fornecedorDocItemText(item) {
   return item.descricaoSgdOriginal || item.descricaoFiscal || item.descricao || item.nome || "";
 }
 
+function fornecedorDocItemName(item) {
+  return item.nome || item.produtoCanonico || item.descricao || item.descricaoFiscal || "Item";
+}
+
+function fornecedorDocQuantity(item) {
+  return item.quantidadeSgdOriginal ?? item.quantidade ?? "";
+}
+
+function fornecedorDocUnit(item) {
+  return item.unidadeSgdOriginal || item.unidade || "";
+}
+
+function fornecedorDocKey(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toUpperCase();
+}
+
+function parseFornecedorQuantity(value) {
+  const text = String(value ?? "").trim();
+  if (!text) return null;
+  const normalized = text
+    .replace(/\./g, "")
+    .replace(",", ".")
+    .replace(/[^\d.-]/g, "");
+  if (!normalized || normalized === "-" || normalized === "." || normalized === "-.") return null;
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function formatFornecedorQuantity(value) {
+  if (!Number.isFinite(value)) return "";
+  return value.toLocaleString("pt-BR", { maximumFractionDigits: 4 });
+}
+
+function fornecedorDocItensConsolidados(preList) {
+  const grouped = new Map();
+
+  preList.forEach((pre) => {
+    (pre.itens || []).forEach((item) => {
+      const descricao = fornecedorDocItemText(item).trim() || fornecedorDocItemName(item).trim();
+      const unidade = fornecedorDocUnit(item);
+      const key = `${fornecedorDocKey(descricao)}|${fornecedorDocKey(unidade)}`;
+      const quantidadeTexto = fornecedorDocQuantity(item);
+      const quantidadeNumero = parseFornecedorQuantity(quantidadeTexto);
+
+      if (!grouped.has(key)) {
+        grouped.set(key, {
+          item: fornecedorDocItemName(item),
+          descricao,
+          unidade,
+          quantidadeNumero: 0,
+          quantidadeTextos: [],
+          podeSomar: true,
+          ocorrencias: 0,
+        });
+      }
+
+      const row = grouped.get(key);
+      row.ocorrencias += 1;
+      if (String(quantidadeTexto || "").trim()) row.quantidadeTextos.push(String(quantidadeTexto).trim());
+      if (quantidadeNumero === null) {
+        row.podeSomar = false;
+      } else if (row.podeSomar) {
+        row.quantidadeNumero += quantidadeNumero;
+      }
+    });
+  });
+
+  return [...grouped.values()].map((row) => ({
+    ...row,
+    quantidade: row.podeSomar
+      ? formatFornecedorQuantity(row.quantidadeNumero)
+      : [...new Set(row.quantidadeTextos)].join(" + "),
+  }));
+}
+
 function fornecedorDocHtml(preList) {
   const todayBr = new Date().toLocaleDateString("pt-BR");
-  const totalItens = preList.reduce((sum, pre) => sum + (pre.itens || []).length, 0);
-  const blocks = preList.map((pre, idx) => {
-    const orc = orcamentos.find(o => String(o.id) === String(pre.orcamentoId) || String(o.idBudget) === String(pre.orcamentoId));
-    const prazo = orc?.prazo ? formatDate(orc.prazo) : "";
-    const numero = pre.numeroOrcamento || orc?.numeroOrcamento || pre.orcamentoId;
-    const rows = (pre.itens || []).map((item, itemIdx) => `
-      <tr>
-        <td>${itemIdx + 1}</td>
-        <td>${escapeHtml(item.nome || item.produtoCanonico || "Item")}</td>
-        <td>${escapeHtml(fornecedorDocItemText(item))}</td>
-        <td>${escapeHtml(String(item.quantidadeSgdOriginal || item.quantidade || ""))}</td>
-        <td>${escapeHtml(item.unidadeSgdOriginal || item.unidade || "")}</td>
-        <td></td>
-        <td></td>
-      </tr>`).join("");
-    return `
-      <section class="processo">
-        <h2>${idx + 1}. Orçamento ${escapeHtml(String(numero))}</h2>
-        <p><strong>Escola:</strong> ${escapeHtml(pre.escola || "")}</p>
-        <p><strong>Município:</strong> ${escapeHtml(pre.municipio || "")}${prazo ? ` &nbsp; <strong>Prazo SGD:</strong> ${escapeHtml(prazo)}` : ""}</p>
-        <table>
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Item</th>
-              <th>Descrição para cotação</th>
-              <th>Qtd.</th>
-              <th>Unid.</th>
-              <th>Marca cotada</th>
-              <th>Preço unitário</th>
-            </tr>
-          </thead>
-          <tbody>${rows}</tbody>
-        </table>
-      </section>`;
-  }).join("");
+  const totalItensOriginais = preList.reduce((sum, pre) => sum + (pre.itens || []).length, 0);
+  const itens = fornecedorDocItensConsolidados(preList);
+  const rows = itens.map((item, idx) => `
+    <tr>
+      <td>${idx + 1}</td>
+      <td>${escapeHtml(item.item)}</td>
+      <td>${escapeHtml(item.descricao)}</td>
+      <td>${escapeHtml(item.quantidade)}</td>
+      <td>${escapeHtml(item.unidade)}</td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>`).join("");
 
   return `<!doctype html>
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Solicitação de cotação fornecedor</title>
+  <title>Solicitação de cotação</title>
   <style>
     body { font-family: Arial, sans-serif; color: #111827; line-height: 1.35; }
     h1 { font-size: 22px; margin: 0 0 6px; }
@@ -2227,14 +2285,29 @@ function fornecedorDocHtml(preList) {
     table { width: 100%; border-collapse: collapse; margin-top: 8px; page-break-inside: auto; }
     th, td { border: 1px solid #d1d5db; padding: 6px; font-size: 11px; vertical-align: top; }
     th { background: #f3f4f6; text-align: left; }
-    .processo { page-break-inside: avoid; margin-bottom: 18px; }
+    .text-right { text-align: right; }
   </style>
 </head>
 <body>
   <h1>Solicitação de Cotação</h1>
-  <p class="meta">Gerado em ${escapeHtml(todayBr)} pelo Licit-AIX. ${preList.length} processo(s), ${totalItens} item(ns).</p>
+  <p class="meta">Gerado em ${escapeHtml(todayBr)} pelo Licit-AIX. ${itens.length} item(ns) consolidado(s) a partir de ${totalItensOriginais} linha(s).</p>
   <p>Favor informar disponibilidade, marca compatível/paralela ofertada, preço unitário e prazo de entrega.</p>
-  ${blocks}
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Item</th>
+        <th>Descrição para cotação</th>
+        <th class="text-right">Qtd. total</th>
+        <th>Unid.</th>
+        <th>Marca cotada</th>
+        <th>Preço unitário</th>
+        <th>Prazo entrega</th>
+        <th>Observações</th>
+      </tr>
+    </thead>
+    <tbody>${rows}</tbody>
+  </table>
 </body>
 </html>`;
 }
@@ -2259,7 +2332,7 @@ window.gerarDocFornecedorSelecionados = function() {
   }
   const html = fornecedorDocHtml(selecionados);
   baixarArquivoFornecedor(`cotacao-fornecedor-${new Date().toISOString().slice(0, 10)}.doc`, html);
-  showToast(`Documento de cotação gerado com ${selecionados.length} pré-orçamento(s).`);
+  showToast(`Cotação cega gerada com ${selecionados.length} pré-orçamento(s), sem dados das escolas.`);
 };
 
 // Banco de Precos CRUD (openBancoModal, closeBancoModal, salvarBancoItem,
