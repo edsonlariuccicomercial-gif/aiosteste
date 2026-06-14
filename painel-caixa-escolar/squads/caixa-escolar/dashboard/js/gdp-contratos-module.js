@@ -2273,7 +2273,7 @@ async function sincronizarContratosDaPasta(clienteId) {
       try { localStorage.setItem("gdp.usuarios.v1", JSON.stringify(usuarios)); } catch (_) {}
     }
     try { localStorage.setItem("gdp.contratos.v1", JSON.stringify({ _v: 1, updatedAt: new Date().toISOString(), items: contratos })); } catch (_) {}
-    if (window._pastaAbertaClienteId === clienteId) renderContratos();
+    renderContratos();
   } catch (e) {
     console.warn("[Contratos] Falha ao sincronizar pasta:", clienteId, e);
   } finally {
