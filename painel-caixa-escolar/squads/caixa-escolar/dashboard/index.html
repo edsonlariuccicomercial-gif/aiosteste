@@ -443,11 +443,16 @@
           </div>
           <input type="text" id="filtro-pre-texto" placeholder="Buscar escola, objeto, item..." autocomplete="off" style="padding:0.4rem;" />
         </div>
+        <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;margin-bottom:.75rem">
+          <button class="btn btn-sm" onclick="selecionarTodosPreOrcamentosVisiveis(true)">Selecionar todos</button>
+          <button class="btn btn-sm" onclick="selecionarTodosPreOrcamentosVisiveis(false)">Limpar seleção</button>
+          <button class="btn btn-sm btn-accent" onclick="gerarDocFornecedorSelecionados()">Gerar cotação cega</button>
+        </div>
         <div class="table-wrap">
           <table id="tabela-preorcamentos-lista">
             <thead>
               <tr>
-                <th></th>
+                <th><input type="checkbox" id="pre-select-all" title="Selecionar todos visíveis" onchange="selecionarTodosPreOrcamentosVisiveis(this.checked)" /></th>
                 <th>ID</th>
                 <th>Escola</th>
                 <th>Município</th>

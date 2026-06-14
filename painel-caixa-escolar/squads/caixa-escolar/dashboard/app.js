@@ -567,6 +567,25 @@ function toggleSelectAll() {
   updateBatchBar();
 }
 
+function _gerarProximoSkuLicitCentral() {
+  const skus = [];
+  const addSku = (sku) => { if (sku) skus.push(String(sku).trim()); };
+  if (typeof centralProdutos !== "undefined" && Array.isArray(centralProdutos)) {
+    centralProdutos.forEach(p => { addSku(p.sku); addSku(p.id); });
+  }
+  if (typeof bancoPrecos !== "undefined" && bancoPrecos && Array.isArray(bancoPrecos.itens)) {
+    bancoPrecos.itens.forEach(p => { addSku(p.sku); addSku(p.id); });
+  }
+  if (typeof window !== "undefined" && window.ProductStore && window.ProductStore.list) {
+    try { window.ProductStore.list().forEach(p => { addSku(p.sku); addSku(p.id); }); } catch (_) {}
+  }
+  const max = skus.reduce((acc, sku) => {
+    const match = String(sku || "").match(/^(?:LICIT|LICT)-(\d+)$/i);
+    return match ? Math.max(acc, Number(match[1]) || 0) : acc;
+  }, 0);
+  return "LICIT-" + String(max + 1).padStart(4, "0");
+}
+
 // Story 13.3: Prompt to create product inline when batch has no match
 function _promptCriarProdutoBatch(itemNome, unidade, categoria) {
   return new Promise((resolve) => {
@@ -603,9 +622,10 @@ function _promptCriarProdutoBatch(itemNome, unidade, categoria) {
       const custo = parseFloat(custoEl ? custoEl.value : 0) || 0;
       const margem = parseFloat(margemEl ? margemEl.value : 30) / 100 || 0.30;
       const fornecedor = fornEl ? fornEl.value.trim() : "";
+      const skuPadrao = skuEl && skuEl.value.trim() ? skuEl.value.trim() : _gerarProximoSkuLicitCentral();
       const prod = {
-        id: "PROD-" + Date.now() + "-" + Math.random().toString(36).substr(2, 6),
-        sku: skuEl ? skuEl.value.trim() : "",
+        id: skuPadrao,
+        sku: skuPadrao,
         nome: nome,
         item: nome,
         descricao: descEl ? descEl.value.trim() : "",
@@ -802,6 +822,262 @@ function batchExportCsv() {
 
 // ===== PRÉ-ORÇAMENTO =====
 
+function _normTextBasic(value) {
+  return String(value || "")
+    .toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function _titleProdutoCanonico(value) {
+  const small = ["de", "do", "da", "em", "com", "para", "e", "ou"];
+  return String(value || "")
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((w, idx) => (idx > 0 && small.includes(w)) ? w : w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
+function _extrairCaracteristicasProduto(texto) {
+  const raw = String(texto || "");
+  const t = _normTextBasic(raw);
+  const partes = [];
+  const add = (valor) => {
+    const clean = String(valor || "").replace(/\s+/g, " ").trim();
+    if (!clean) return;
+    const norm = _normTextBasic(clean);
+    if (!partes.some(p => _normTextBasic(p) === norm)) partes.push(clean);
+  };
+
+  const tamanho = raw.match(/\b\d+(?:[,.]\d+)?\s*(?:cm|mm|m)\b/i);
+  if (tamanho) add(tamanho[0]);
+  const folhas = t.match(/\b\d+\s*folhas?\b/i);
+  if (folhas) add(folhas[0]);
+  const gramatura = raw.match(/\b\d{2,3}\s*g\/?m2\b/i);
+  if (gramatura) add(gramatura[0].replace(/\s+/g, ""));
+  const formato = raw.match(/\b(?:a4|oficio|carta)\b/i);
+  if (formato) add(formato[0].toUpperCase());
+
+  const cores = ["preta", "preto", "azul", "vermelha", "vermelho", "verde", "branca", "branco", "amarela", "amarelo", "colorida", "colorido", "transparente"];
+  const cor = cores.find(c => new RegExp("\\b" + c + "\\b", "i").test(t));
+  if (cor) add(cor);
+
+  const termos = [
+    "ponta arredondada", "sem ponta", "ponta fina", "ponta media", "ponta grossa",
+    "cabo plastico", "cabo emborrachado", "aco inox", "inox", "lombada larga",
+    "com elastico", "com aba", "capa dura", "capa flexivel", "espiral",
+    "quadriculado", "brochura", "reciclado", "adesiva", "lavavel", "permanente",
+    "resistente a agua", "superficies lisas"
+  ];
+  termos.forEach(term => { if (t.includes(term)) add(term); });
+  return partes.slice(0, 5).map(_titleProdutoCanonico);
+}
+
+function _limparTextoProdutoSgd(texto) {
+  return String(texto || "")
+    .replace(/https?:\/\/[^\s<>"')]+/gi, " ")
+    .replace(/\bdescri[cç][aã]o\s*:/gi, " ")
+    .replace(/\b(?:marcas?|marca de refer[eê]ncia|refer[eê]ncia de marca|similar (?:a|as|ao|aos))\s*:?.*$/i, " ")
+    .replace(/\b(?:observa[cç][aã]o|obs\.?|garantia|prazo|entrega|documento externo|conforme edital)\s*:?.*$/i, " ")
+    .replace(/\b(?:dever[aá]|deve|conforme|atender|obedecer|apresentar)\b.*$/i, " ")
+    .replace(/[;|]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function _textoProdutoPareceSujo(nome) {
+  const value = String(nome || "");
+  const t = _normTextBasic(value);
+  return value.length > 120 ||
+    /\b(descricao|marca|marcas|referencia|preco|precos|teto|valor|edital|sgd|orcamento|cotacao)\b/.test(t) ||
+    /https?:\/\//i.test(value);
+}
+
+function _produtoCanonicoEspecializado(texto) {
+  const raw = String(texto || "");
+  const t = _normTextBasic(raw);
+  const add = (arr, value) => {
+    const clean = String(value || "").replace(/\s+/g, " ").trim();
+    if (clean && !arr.some(x => _normTextBasic(x) === _normTextBasic(clean))) arr.push(clean);
+  };
+
+  if (/\bcaneta\b/.test(t) && /\b(transparencia|retroprojetor|retro projetor|permanente)\b/.test(t)) {
+    const partes = ["Caneta permanente"];
+    if (/\b(transparencia|retroprojetor|retro projetor)\b/.test(t)) add(partes, "para retroprojetor/transparencia");
+    const ponta = t.match(/\bponta\s+(fina|media|grossa)\b/);
+    if (ponta) add(partes, "ponta " + ponta[1]);
+    const espessura = raw.match(/\b\d+(?:[,.]\d+)?\s*mm\b/i);
+    if (espessura) add(partes, espessura[0]);
+    const cor = t.match(/\b(preta|preto|azul|vermelha|vermelho|verde)\b/);
+    if (cor) add(partes, cor[1]);
+    return _titleProdutoCanonico(partes.join(" "));
+  }
+
+  if (/\bcolher(?:e|es)?\b/.test(t) && /\b(arroz|servir|alimentos|cozinha)\b/.test(t)) {
+    const partes = ["Colher"];
+    const tamanho = t.match(/\b(pequena|media|grande)\b/);
+    if (tamanho) add(partes, tamanho[1]);
+    if (/\b(servir|manipular|alimentos)\b/.test(t)) add(partes, "para servir alimentos");
+    const material = t.match(/\b(aco inox|inox|aluminio|plastico|polipropileno|silicone)\b/);
+    if (material) add(partes, material[1]);
+    return _titleProdutoCanonico(partes.join(" "));
+  }
+
+  if (/\bcopos?\b/.test(t)) {
+    const partes = ["Copo"];
+    if (/\b(descartavel|descartaveis)\b/.test(t)) add(partes, "descartavel");
+    const material = t.match(/\b(plastico|polipropileno|acrilico|vidro|isopor)\b/);
+    if (material) add(partes, material[1]);
+    const capacidade = raw.match(/\b\d+(?:[,.]\d+)?\s*(?:ml|l|lt)\b/i);
+    if (capacidade) add(partes, capacidade[0]);
+    const cor = t.match(/\b(transparente|branco|branca|colorido|colorida)\b/);
+    if (cor) add(partes, cor[1]);
+    return _titleProdutoCanonico(partes.join(" "));
+  }
+
+  return "";
+}
+
+function _produtoCanonicoBaseEspecializado(texto) {
+  const t = _normTextBasic(texto);
+  if (/\bcaneta\b/.test(t)) return /\b(transparencia|retroprojetor|retro projetor|permanente)\b/.test(t) ? "Caneta Permanente" : "Caneta";
+  if (/\bcolher(?:e|es)?\b/.test(t)) return "Colher";
+  if (/\bcopos?\b/.test(t)) return "Copo";
+  if (/\barroz\b/.test(t)) return "Arroz";
+  if (/\bpapel\b/.test(t) && /\ba4\b/.test(t)) return "Papel A4";
+  return "";
+}
+
+function _montarDescricaoFiscal(texto, nomeBase, embalagemNormalizada) {
+  const especializado = _produtoCanonicoEspecializado(texto);
+  if (especializado) return especializado;
+  const base = _titleProdutoCanonico(nomeBase || texto || "");
+  const baseNorm = _normTextBasic(base);
+  const extras = _extrairCaracteristicasProduto(texto)
+    .filter(extra => !baseNorm.includes(_normTextBasic(extra)));
+  if (embalagemNormalizada && !baseNorm.includes(_normTextBasic(embalagemNormalizada))) {
+    extras.unshift(_titleProdutoCanonico(embalagemNormalizada));
+  }
+  return [base].concat(extras).filter(Boolean).slice(0, 6).join(" ");
+}
+
+function _montarProdutoCanonico(texto, descricaoFiscal) {
+  const especializado = _produtoCanonicoBaseEspecializado(texto);
+  if (especializado) return especializado;
+  const base = _titleProdutoCanonico(descricaoFiscal || texto || "");
+  return base.split(/\s+/).filter(Boolean).slice(0, 2).join(" ") || "Produto";
+}
+
+function _inferirCategoriaCanonica(texto) {
+  const t = _normTextBasic(texto);
+  if (/\b(toner|tonner|cartucho|cilindro|unidade de imagem|fotocondutor|refil de tinta|tinta para impressora)\b/.test(t)) return "Toner/Cartucho";
+  if (/\b(colher|colheres|garfo|faca|concha|panela|copo|prato|utensilio|cozinha)\b/.test(t)) return "Utensilios de Cozinha";
+  if (/\b(arroz|feijao|acucar|oleo|cafe|leite|macarrao|farinha|sal|biscoito|achocolatado|molho|extrato|fuba|canjiquinha|temper[o]?|vinagre)\b/.test(t)) return "Alimentacao";
+  if (/\b(detergente|desinfetante|agua sanitaria|cloro|saco de lixo|papel higienico|papel toalha|esponja|sabao|pano|vassoura|rodo|alcool|limpa)\b/.test(t)) return "Limpeza";
+  if (/\b(sulfite|papel a4|caderno|lapis|caneta|borracha|cola|pasta|cartolina|envelope|grampeador|clips|marcador|tesoura|apontador|regua|papel)\b/.test(t)) return "Papelaria";
+  return "Outro";
+}
+
+function _normalizarUnidadeCodigo(unidade) {
+  const u = _normTextBasic(unidade).replace(/[^a-z0-9]/g, "");
+  const map = {
+    un: "UN", und: "UN", unidade: "UN", unidades: "UN",
+    kg: "KG", quilo: "KG", quilograma: "KG", quilogramas: "KG",
+    g: "G", grama: "G", gramas: "G",
+    pct: "PCT", pacote: "PCT", pacotes: "PCT",
+    cx: "CX", caixa: "CX", caixas: "CX",
+    fd: "FD", fardo: "FD", fardos: "FD",
+    lt: "LT", litro: "LT", litros: "LT", l: "LT",
+    ml: "ML", mililitro: "ML", mililitros: "ML",
+    gl: "GL", galao: "GL", galoes: "GL",
+    fr: "FR", frasco: "FR", frascos: "FR",
+    bd: "BD", balde: "BD", baldes: "BD",
+    rl: "RL", rolo: "RL", rolos: "RL", rol: "RL",
+    dz: "DZ", duzia: "DZ",
+    m: "M", metro: "M", metros: "M",
+    resma: "RESMA", resmas: "RESMA"
+  };
+  return map[u] || String(unidade || "").toUpperCase().trim() || "UN";
+}
+
+function _extrairEmbalagemNormalizada(texto) {
+  const t = _normTextBasic(texto);
+  const patterns = [
+    { re: /\b(?:pct|pacote)\s*(?:com|de)?\s*(\d+(?:[,.]\d+)?)\s*(kg|g|ml|l|lt)\b/i, tipo: "PCT" },
+    { re: /\b(?:cx|caixa)\s*(?:com|de)?\s*(\d+(?:[,.]\d+)?)\s*(un|und|unidades|pct|pacotes)\b/i, tipo: "CX" },
+    { re: /\b(?:fd|fardo)\s*(?:com|de)?\s*(\d+(?:[,.]\d+)?)\s*(un|und|unidades|pct|pacotes|rolos?)\b/i, tipo: "FD" },
+    { re: /\b(?:frasco|fr)\s*(?:com|de)?\s*(\d+(?:[,.]\d+)?)\s*(ml|l|lt)\b/i, tipo: "FR" },
+    { re: /\b(?:resma)\s*(?:com|de)?\s*(\d+(?:[,.]\d+)?)\s*(folhas?)\b/i, tipo: "RESMA" },
+    { re: /\b(\d+(?:[,.]\d+)?)\s*(kg|g|ml|l|lt)\b/i, tipo: "" }
+  ];
+  for (const p of patterns) {
+    const m = t.match(p.re);
+    if (m) return (p.tipo ? p.tipo + " " : "") + String(m[1]).replace(".", ",") + " " + m[2].toUpperCase();
+  }
+  return "";
+}
+
+function _extrairLinksExternosEdital(texto) {
+  const matches = String(texto || "").match(/https?:\/\/[^\s<>"')]+/gi) || [];
+  return matches.map(url => url.replace(/[.,;]+$/, ""));
+}
+
+function _normalizarItemPreOrcamento(assocItem, bp) {
+  const descricaoSgdOriginal = assocItem.descricao || assocItem.nomeCompleto || assocItem.nome || "";
+  const textoOriginal = [assocItem.nome, assocItem.descricao].filter(Boolean).join(" ").trim();
+  const texto = _limparTextoProdutoSgd(textoOriginal) || assocItem.nome || textoOriginal;
+  const unidadeSgdOriginal = assocItem.unidade || "UN";
+  const unidadeNormalizada = _normalizarUnidadeCodigo(unidadeSgdOriginal);
+  const embalagemNormalizada = _extrairEmbalagemNormalizada(texto);
+  const categoriaCanonica = _inferirCategoriaCanonica(texto);
+  const linksExternos = _extrairLinksExternosEdital(textoOriginal + " " + (assocItem.observacao || ""));
+  const rmcNome = (typeof RadarMatcherCore !== "undefined" && RadarMatcherCore.normalizeProductName)
+    ? RadarMatcherCore.normalizeProductName(texto)
+    : _normTextBasic(texto);
+  const descricaoFiscal = _montarDescricaoFiscal(texto, rmcNome || assocItem.nome || "", embalagemNormalizada);
+  const produtoCanonico = _montarProdutoCanonico(texto, descricaoFiscal);
+  let marcasPermitidas = [];
+  let precoRefSgd = 0;
+  if (typeof RadarMatcherCore !== "undefined") {
+    if (RadarMatcherCore.extractReferencePrice) {
+      const ref = RadarMatcherCore.extractReferencePrice(descricaoSgdOriginal + " " + (assocItem.observacao || ""));
+      if (ref && ref.valor > 0) precoRefSgd = ref.valor;
+    }
+    if (RadarMatcherCore.extractReferenceBrands) {
+      const rb = RadarMatcherCore.extractReferenceBrands(descricaoSgdOriginal);
+      if (rb && rb.marcas.length) marcasPermitidas = rb.marcas;
+    }
+  }
+  const alertas = [];
+  if (marcasPermitidas.length > 0 && !(bp && bp.marca)) alertas.push("Marca obrigatoria pendente");
+  if (!unidadeNormalizada) alertas.push("Unidade pendente");
+  if (/\bcopos?\b/.test(_normTextBasic(texto)) && !/\b\d+(?:[,.]\d+)?\s*(?:ml|l|lt)\b/i.test(texto)) alertas.push("Capacidade do copo pendente");
+  if (!bp) alertas.push("Produto sem vinculo");
+  if (bp && !(bp.custoBase > 0)) alertas.push("Preco de custo pendente");
+  if (linksExternos.length > 0) alertas.push("Documento externo do edital para leitura");
+
+  return {
+    descricaoSgdOriginal,
+    unidadeSgdOriginal,
+    quantidadeSgdOriginal: assocItem.quantidade || 0,
+    observacaoSgdOriginal: assocItem.observacao || "",
+    descricaoFiscal,
+    produtoCanonico,
+    categoriaCanonica,
+    unidadeNormalizada,
+    embalagemNormalizada,
+    fatorConversao: 1,
+    marcasPermitidas,
+    marcaCotada: bp ? (bp.marca || "") : "",
+    linksExternos,
+    precoReferenciaSgd: precoRefSgd,
+    alertasNormalizacao: alertas,
+    normalizacaoConfirmada: alertas.length === 0
+  };
+}
+
 // Gerar novo pré-orçamento — abre modal de associação primeiro
 let _assocOrcId = null;
 let _assocItens = [];
@@ -837,7 +1113,21 @@ window.gerarPreOrcamento = function (orcId) {
       }
     }
 
-    return { idx, nome: item.nome, quantidade: item.quantidade || 0, unidade: item.unidade || "Un", descricao: item.descricao || "", nomeCompleto: nomeCompleto, idBudgetItem: item.idBudgetItem || null, bpId: bp ? (bp.sku || bp.id) : null, bpNome: bp ? bp.item : "", custoBase: bp ? bp.custoBase : 0, precoRef: bp ? bp.precoReferencia : 0, matchStatus: matchStatus };
+    return {
+      idx,
+      nome: item.nome,
+      quantidade: item.quantidade || 0,
+      unidade: item.unidade || "Un",
+      descricao: item.descricao || "",
+      observacao: item.observacao || item.garantia || "",
+      nomeCompleto: nomeCompleto,
+      idBudgetItem: item.idBudgetItem || null,
+      bpId: bp ? (bp.sku || bp.id) : null,
+      bpNome: bp ? bp.item : "",
+      custoBase: bp ? bp.custoBase : 0,
+      precoRef: bp ? bp.precoReferencia : 0,
+      matchStatus: matchStatus
+    };
   });
 
   // Story 4.73: Criar pré-orçamento rascunho direto (sem modal de associação)
@@ -859,29 +1149,29 @@ function _criarPreOrcamentoRascunho(orc) {
     const margem = bp ? (bp.margemPadrao || margemPadrao) : margemPadrao;
     const precoUnit = custoUnit > 0 ? Math.round(custoUnit * (1 + margem) * 100) / 100 : 0;
 
-    // Extrai do edital o preço de referência (teto) e as marcas exigidas.
-    // Cotação acima do teto OU com marca fora da lista → INABILITA. Guardamos para
-    // alertar/bloquear na tela de associação.
-    let precoRefSgd = 0;
-    let marcasRef = [];
-    if (typeof RadarMatcherCore !== "undefined") {
-      const txt = (assocItem.descricao || "") + " " + (assocItem.observacao || "");
-      if (RadarMatcherCore.extractReferencePrice) {
-        const ref = RadarMatcherCore.extractReferencePrice(txt);
-        if (ref && ref.valor > 0) precoRefSgd = ref.valor;
-      }
-      if (RadarMatcherCore.extractReferenceBrands) {
-        const rb = RadarMatcherCore.extractReferenceBrands(assocItem.descricao || "");
-        if (rb && rb.marcas.length) marcasRef = rb.marcas;
-      }
-    }
+    const normalizacao = _normalizarItemPreOrcamento(assocItem, bp);
 
     return {
       nome: assocItem.nome,
-      marca: bp ? (bp.marca || "") : "",
+      marca: normalizacao.marcaCotada || "",
       descricao: assocItem.descricao || "",
-      precoReferenciaSgd: precoRefSgd,
-      marcasReferencia: marcasRef,
+      descricaoSgdOriginal: normalizacao.descricaoSgdOriginal,
+      unidadeSgdOriginal: normalizacao.unidadeSgdOriginal,
+      quantidadeSgdOriginal: normalizacao.quantidadeSgdOriginal,
+      observacaoSgdOriginal: normalizacao.observacaoSgdOriginal,
+      descricaoFiscal: normalizacao.descricaoFiscal,
+      produtoCanonico: normalizacao.produtoCanonico,
+      categoriaCanonica: normalizacao.categoriaCanonica,
+      unidadeNormalizada: normalizacao.unidadeNormalizada,
+      embalagemNormalizada: normalizacao.embalagemNormalizada,
+      fatorConversao: normalizacao.fatorConversao,
+      marcasPermitidas: normalizacao.marcasPermitidas,
+      marcaCotada: normalizacao.marcaCotada,
+      linksExternos: normalizacao.linksExternos,
+      alertasNormalizacao: normalizacao.alertasNormalizacao,
+      normalizacaoConfirmada: normalizacao.normalizacaoConfirmada,
+      precoReferenciaSgd: normalizacao.precoReferenciaSgd,
+      marcasReferencia: normalizacao.marcasPermitidas,
       matchStatus: assocItem.matchStatus || "pendente",
       matchScore: bp ? 1.0 : 0,
       skuBanco: assocItem.bpId || null,
@@ -929,8 +1219,8 @@ function renderModalAssociacao(orc) {
   document.getElementById("assoc-escola").textContent = orc.escola + " — " + orc.municipio;
   // Build product options from banco
   const produtos = (bancoPrecos.itens || []).filter(p => p.item).sort((a, b) => (a.item || "").localeCompare(b.item || ""));
-  // Esconde SKU interno auto-gerado (BANK-/PROD-/LICT-) do label; mantém SKU externo real.
-  const isInternalSku = (sku) => /^(BANK|PROD|LICT)-/i.test(String(sku || ""));
+  // Esconde SKU interno auto-gerado (BANK-/PROD-/LICT-/LICIT-) do label; mantém SKU externo real.
+  const isInternalSku = (sku) => /^(BANK|PROD|LICT|LICIT)-/i.test(String(sku || ""));
   const optionsHtml = '<option value="">— Selecione um produto —</option>' + produtos.map(p => {
     const mostrarSku = p.sku && !isInternalSku(p.sku);
     return `<option value="${p.sku || p.id}" data-custo="${p.custoBase || 0}" data-preco="${p.precoReferencia || 0}">${p.item}${mostrarSku ? ' [' + p.sku + ']' : ''}</option>`;
@@ -1215,10 +1505,12 @@ window.abrirPreOrcamento = function (orcId) {
   // Story 15.4: Rascunho banner — prompt user to associate in Intel Preços
   const rascBanner = document.getElementById("rascunho-banner");
   if (pre.status === "rascunho") {
-    const pendCount = (pre.itens || []).filter(i => !i.skuBanco || i.custoUnitario <= 0).length;
+    const semAssoc = (pre.itens || []).filter(i => !i.skuBanco).length;
+    const semPreco = (pre.itens || []).filter(i => i.skuBanco && i.custoUnitario <= 0).length;
+    const pendCount = semAssoc + semPreco;
     if (rascBanner) {
       rascBanner.style.display = "block";
-      rascBanner.innerHTML = `<span style="color:var(--warning);font-weight:600">Rascunho — ${pendCount} item(ns) pendentes de associação.</span> <button class="btn btn-inline btn-accent" onclick="switchTab('pre-orcamento');setTimeout(renderPendentes,200)" style="font-size:.78rem">Associar no Intel Preços</button>`;
+      rascBanner.innerHTML = `<span style="color:var(--warning);font-weight:600">Rascunho — ${pendCount} pendência(s): ${semAssoc} sem produto e ${semPreco} sem preço.</span> <button class="btn btn-inline btn-accent" onclick="switchTab('pre-orcamento');setTimeout(renderPendentes,200)" style="font-size:.78rem">Resolver no Intel Preços</button>`;
     }
   } else if (rascBanner) {
     rascBanner.style.display = "none";
@@ -1393,11 +1685,42 @@ function renderPreOrcamentoItens() {
     const unitKey = unitRaw.replace(/[^A-Z]/g, '').substring(0, 3);
     const unitClassMap = { KG: 'badge-un-kg', UN: 'badge-un-un', PCT: 'badge-un-pct', LT: 'badge-un-lt', L: 'badge-un-l', CX: 'badge-un-cx', UND: 'badge-un-un', PC: 'badge-un-pct', ML: 'badge-un-lt' };
     const unitClass = unitClassMap[unitKey] || 'badge-un-default';
+    const marcasNorm = (item.marcasPermitidas && item.marcasPermitidas.length)
+      ? item.marcasPermitidas
+      : (item.marcasReferencia || []);
+    const normAlerts = (item.alertasNormalizacao || []).map(a => `<span class="badge badge-rascunho" style="font-size:.66rem;margin-right:4px">${escapeHtml(a)}</span>`).join("");
+    const linksExternos = item.linksExternos || [];
+    const sgdDesc = item.descricaoSgdOriginal || item.descricao || item.nome || "";
+    const normalizacaoGerada = typeof _normalizarItemPreOrcamento === "function" ? _normalizarItemPreOrcamento(item, bp) : null;
+    const descricaoFiscalGerada = normalizacaoGerada ? (normalizacaoGerada.descricaoFiscal || normalizacaoGerada.produtoCanonico || "") : "";
+    const canonicoGerado = normalizacaoGerada ? (normalizacaoGerada.produtoCanonico || "") : "";
+    const descricaoFiscalAtual = item.descricaoFiscal || "";
+    const canonicoAtual = item.produtoCanonico || "";
+    const descricaoFiscalRender = descricaoFiscalGerada && (!descricaoFiscalAtual || _textoProdutoPareceSujo(descricaoFiscalAtual) || (descricaoFiscalGerada.length > 8 && descricaoFiscalGerada.length < descricaoFiscalAtual.length))
+      ? descricaoFiscalGerada
+      : (descricaoFiscalAtual || descricaoFiscalGerada || item.nome);
+    const produtoCanonicoRender = canonicoAtual || canonicoGerado || "";
+    const sgdOficialHtml = `
+      <details style="margin-top:.25rem">
+        <summary style="font-size:.72rem;color:var(--muted);cursor:pointer">SGD oficial · unid. <strong>${escapeHtml(item.unidadeSgdOriginal || item.unidade || "—")}</strong> · qtd. <strong>${escapeHtml(String(item.quantidadeSgdOriginal || item.quantidade || 0))}</strong></summary>
+        <div style="font-size:.74rem;line-height:1.3;color:var(--muted);white-space:pre-wrap;word-break:break-word;margin-top:.2rem">${escapeHtml(sgdDesc)}</div>
+      </details>`;
+    const normalizacaoHtml = `
+      <div style="font-size:.72rem;line-height:1.45;color:var(--muted);margin-top:.25rem">
+        <span class="badge badge-muted" style="font-size:.66rem">${escapeHtml(item.categoriaCanonica || "Outro")}</span>
+        ${produtoCanonicoRender && produtoCanonicoRender !== descricaoFiscalRender ? `<span class="badge badge-muted" style="font-size:.66rem">Base: ${escapeHtml(produtoCanonicoRender)}</span>` : ""}
+        <span class="badge badge-muted" style="font-size:.66rem">Unid. ${escapeHtml(item.unidadeNormalizada || item.unidade || "—")}</span>
+        ${item.embalagemNormalizada ? `<span class="badge badge-muted" style="font-size:.66rem">${escapeHtml(item.embalagemNormalizada)}</span>` : ""}
+        ${marcasNorm.length ? `<span class="badge badge-aprovado" style="font-size:.66rem">Marcas: ${escapeHtml(marcasNorm.join(", "))}</span>` : `<span class="badge badge-muted" style="font-size:.66rem">marca livre</span>`}
+        ${linksExternos.length ? `<span class="badge badge-rascunho" style="font-size:.66rem">doc externo</span>` : ""}
+        ${normAlerts ? `<div style="margin-top:.2rem">${normAlerts}</div>` : ""}
+      </div>`;
 
     return `<tr>
       <td>
-        <strong>${escapeHtml(item.nome)}</strong>
-        <br><span class="text-muted" style="font-size:0.75rem">${escapeHtml(item.descricao)}</span>
+        <strong>${escapeHtml(descricaoFiscalRender)}</strong>
+        ${sgdOficialHtml}
+        ${normalizacaoHtml}
         ${pncpHint}
         ${concHint}
         ${fornHint}
@@ -1520,7 +1843,22 @@ window.rejeitarMatchPreOrc = async function (itemName) {
 function detectarInabilitacoes(pre) {
   const out = [];
   const RMC = typeof RadarMatcherCore !== "undefined" ? RadarMatcherCore : null;
+  function normBrand(b) {
+    return String(b || "")
+      .toLowerCase()
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9\s]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+  function marcaPermitidaEstrita(marcaCotada, marcasRef) {
+    const m = normBrand(marcaCotada);
+    if (!m) return false;
+    return (marcasRef || []).some(req => normBrand(req) === m);
+  }
   (pre.itens || []).forEach((item) => {
+    if (!item.skuBanco) out.push(`${item.nome}: produto sem vinculo na Central`);
+    if (item._unidadeConfirmada !== true) out.push(`${item.nome}: unidade/embalagem nao confirmada`);
     // Teto de preço
     let teto = item.precoReferenciaSgd || 0;
     if (!teto && RMC && RMC.extractReferencePrice) {
@@ -1536,7 +1874,7 @@ function detectarInabilitacoes(pre) {
       const rb = RMC.extractReferenceBrands(item.descricao || "");
       if (rb && rb.marcas.length) marcasRef = rb.marcas;
     }
-    if (marcasRef.length && RMC && RMC.isBrandCompliant && !RMC.isBrandCompliant(item.marca, marcasRef)) {
+    if (marcasRef.length && !marcaPermitidaEstrita(item.marca, marcasRef)) {
       out.push(`${item.nome}: marca "${item.marca || "(vazia)"}" fora da lista exigida (${marcasRef.join(", ")})`);
     }
   });
@@ -1562,7 +1900,7 @@ function aprovarPreOrcamento() {
     alert(
       "Não é possível aprovar — os itens abaixo seriam INABILITADOS no edital:\n\n" +
       linhas +
-      "\n\nAjuste o preço (≤ teto) e/ou a marca antes de aprovar."
+      "\n\nAjuste preço (≤ teto), marca, vínculo e unidade antes de aprovar."
     );
     return;
   }
@@ -1759,6 +2097,7 @@ function renderPreOrcamentosLista() {
     barHtml.id = "pre-lote-bar";
     barHtml.style.cssText = "display:none;padding:0.5rem 1rem;background:#f8f9fa;border:1px solid #dee2e6;border-radius:8px;margin-bottom:0.75rem;align-items:center;gap:0.75rem;flex-wrap:wrap;";
     barHtml.innerHTML = `<span id="pre-lote-count" style="font-weight:600;">0 selecionados</span>
+      <button class="btn btn-sm btn-accent" onclick="gerarDocFornecedorSelecionados()">Gerar cotação cega</button>
       <button class="btn btn-sm btn-danger" onclick="excluirPreLote()">Excluir Selecionados</button>
       <button class="btn btn-sm btn-accent" onclick="gerarContratoUnificado()">Gerar Contrato Unificado</button>`;
     el.tbodyPreorcamentosLista.parentElement.parentElement.insertBefore(barHtml, el.tbodyPreorcamentosLista.parentElement);
@@ -1767,14 +2106,27 @@ function renderPreOrcamentosLista() {
   // Bind checkboxes
   function updatePreLoteBar() {
     const checked = el.tbodyPreorcamentosLista.querySelectorAll(".pre-lote-check:checked");
+    const allChecks = el.tbodyPreorcamentosLista.querySelectorAll(".pre-lote-check");
     const bar = document.getElementById("pre-lote-bar");
     const count = document.getElementById("pre-lote-count");
+    const selectAllPre = document.getElementById("pre-select-all");
     if (bar) bar.style.display = checked.length > 0 ? "flex" : "none";
     if (count) count.textContent = `${checked.length} selecionado(s)`;
+    if (selectAllPre) {
+      selectAllPre.checked = allChecks.length > 0 && checked.length === allChecks.length;
+      selectAllPre.indeterminate = checked.length > 0 && checked.length < allChecks.length;
+    }
   }
   el.tbodyPreorcamentosLista.querySelectorAll(".pre-lote-check").forEach(cb => {
     cb.addEventListener("change", updatePreLoteBar);
   });
+  updatePreLoteBar();
+  const selectAllPre = document.getElementById("pre-select-all");
+  if (selectAllPre) {
+    const checks = [...el.tbodyPreorcamentosLista.querySelectorAll(".pre-lote-check")];
+    selectAllPre.checked = checks.length > 0 && checks.every(cb => cb.checked);
+    selectAllPre.indeterminate = checks.some(cb => cb.checked) && !selectAllPre.checked;
+  }
 }
 
 window.removerPreOrcamento = function (orcId) {
@@ -1794,6 +2146,193 @@ window.excluirPreLote = function() {
   renderAll();
   voltarPreOrcamento();
   showToast(`${checked.length} pré-orçamento(s) excluído(s).`);
+};
+
+window.selecionarTodosPreOrcamentosVisiveis = function(selecionar) {
+  const checks = [...document.querySelectorAll("#tbody-preorcamentos-lista .pre-lote-check")];
+  checks.forEach(cb => { cb.checked = !!selecionar; });
+  const selectAllPre = document.getElementById("pre-select-all");
+  if (selectAllPre) {
+    selectAllPre.checked = !!selecionar && checks.length > 0;
+    selectAllPre.indeterminate = false;
+  }
+  const checked = checks.filter(cb => cb.checked);
+  const bar = document.getElementById("pre-lote-bar");
+  const count = document.getElementById("pre-lote-count");
+  if (bar) bar.style.display = checked.length > 0 ? "flex" : "none";
+  if (count) count.textContent = `${checked.length} selecionado(s)`;
+};
+
+function selectedPreOrcamentosFornecedor() {
+  const ids = [...document.querySelectorAll("#tbody-preorcamentos-lista .pre-lote-check:checked")]
+    .map(cb => cb.dataset.id)
+    .filter(Boolean);
+  return ids.map(id => preOrcamentos[id]).filter(Boolean);
+}
+
+function fornecedorDocItemText(item) {
+  return item.descricaoSgdOriginal || item.descricaoFiscal || item.descricao || item.nome || "";
+}
+
+function fornecedorDocItemName(item) {
+  return item.nome || item.produtoCanonico || item.descricao || item.descricaoFiscal || "Item";
+}
+
+function fornecedorDocQuantity(item) {
+  return item.quantidadeSgdOriginal ?? item.quantidade ?? "";
+}
+
+function fornecedorDocUnit(item) {
+  return item.unidadeSgdOriginal || item.unidade || "";
+}
+
+function fornecedorDocKey(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toUpperCase();
+}
+
+function parseFornecedorQuantity(value) {
+  const text = String(value ?? "").trim();
+  if (!text) return null;
+  const normalized = text
+    .replace(/\./g, "")
+    .replace(",", ".")
+    .replace(/[^\d.-]/g, "");
+  if (!normalized || normalized === "-" || normalized === "." || normalized === "-.") return null;
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function formatFornecedorQuantity(value) {
+  if (!Number.isFinite(value)) return "";
+  return value.toLocaleString("pt-BR", { maximumFractionDigits: 4 });
+}
+
+function fornecedorDocItensConsolidados(preList) {
+  const grouped = new Map();
+
+  preList.forEach((pre) => {
+    (pre.itens || []).forEach((item) => {
+      const descricao = fornecedorDocItemText(item).trim() || fornecedorDocItemName(item).trim();
+      const unidade = fornecedorDocUnit(item);
+      const key = `${fornecedorDocKey(descricao)}|${fornecedorDocKey(unidade)}`;
+      const quantidadeTexto = fornecedorDocQuantity(item);
+      const quantidadeNumero = parseFornecedorQuantity(quantidadeTexto);
+
+      if (!grouped.has(key)) {
+        grouped.set(key, {
+          item: fornecedorDocItemName(item),
+          descricao,
+          unidade,
+          quantidadeNumero: 0,
+          quantidadeTextos: [],
+          podeSomar: true,
+          ocorrencias: 0,
+        });
+      }
+
+      const row = grouped.get(key);
+      row.ocorrencias += 1;
+      if (String(quantidadeTexto || "").trim()) row.quantidadeTextos.push(String(quantidadeTexto).trim());
+      if (quantidadeNumero === null) {
+        row.podeSomar = false;
+      } else if (row.podeSomar) {
+        row.quantidadeNumero += quantidadeNumero;
+      }
+    });
+  });
+
+  return [...grouped.values()].map((row) => ({
+    ...row,
+    quantidade: row.podeSomar
+      ? formatFornecedorQuantity(row.quantidadeNumero)
+      : [...new Set(row.quantidadeTextos)].join(" + "),
+  }));
+}
+
+function fornecedorDocHtml(preList) {
+  const todayBr = new Date().toLocaleDateString("pt-BR");
+  const totalItensOriginais = preList.reduce((sum, pre) => sum + (pre.itens || []).length, 0);
+  const itens = fornecedorDocItensConsolidados(preList);
+  const rows = itens.map((item, idx) => `
+    <tr>
+      <td>${idx + 1}</td>
+      <td>${escapeHtml(item.item)}</td>
+      <td>${escapeHtml(item.descricao)}</td>
+      <td>${escapeHtml(item.quantidade)}</td>
+      <td>${escapeHtml(item.unidade)}</td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>`).join("");
+
+  return `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Solicitação de cotação</title>
+  <style>
+    body { font-family: Arial, sans-serif; color: #111827; line-height: 1.35; }
+    h1 { font-size: 22px; margin: 0 0 6px; }
+    h2 { font-size: 16px; margin: 22px 0 8px; }
+    p { margin: 3px 0; }
+    .meta { color: #4b5563; margin-bottom: 16px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 8px; page-break-inside: auto; }
+    th, td { border: 1px solid #d1d5db; padding: 6px; font-size: 11px; vertical-align: top; }
+    th { background: #f3f4f6; text-align: left; }
+    .text-right { text-align: right; }
+  </style>
+</head>
+<body>
+  <h1>Solicitação de Cotação</h1>
+  <p class="meta">Gerado em ${escapeHtml(todayBr)} pelo Licit-AIX. ${itens.length} item(ns) consolidado(s) a partir de ${totalItensOriginais} linha(s).</p>
+  <p>Favor informar disponibilidade, marca compatível/paralela ofertada, preço unitário e prazo de entrega.</p>
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Item</th>
+        <th>Descrição para cotação</th>
+        <th class="text-right">Qtd. total</th>
+        <th>Unid.</th>
+        <th>Marca cotada</th>
+        <th>Preço unitário</th>
+        <th>Prazo entrega</th>
+        <th>Observações</th>
+      </tr>
+    </thead>
+    <tbody>${rows}</tbody>
+  </table>
+</body>
+</html>`;
+}
+
+function baixarArquivoFornecedor(filename, html) {
+  const blob = new Blob(["\uFEFF" + html], { type: "application/msword;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+window.gerarDocFornecedorSelecionados = function() {
+  const selecionados = selectedPreOrcamentosFornecedor();
+  if (selecionados.length === 0) {
+    showToast("Selecione ao menos um pré-orçamento para gerar o documento.");
+    return;
+  }
+  const html = fornecedorDocHtml(selecionados);
+  baixarArquivoFornecedor(`cotacao-fornecedor-${new Date().toISOString().slice(0, 10)}.doc`, html);
+  showToast(`Cotação cega gerada com ${selecionados.length} pré-orçamento(s), sem dados das escolas.`);
 };
 
 // Banco de Precos CRUD (openBancoModal, closeBancoModal, salvarBancoItem,
@@ -3350,7 +3889,9 @@ window.salvarProdutoCentral = function () {
     const cp = centralProdutos.find(x => x.id === id);
     if (cp) { Object.assign(cp, dados); cp.atualizadoEm = new Date().toISOString(); }
   } else {
-    dados.id = "PROD-" + Date.now() + "-" + Math.random().toString(36).substr(2, 6);
+    const skuPadrao = dados.sku || _gerarProximoSkuLicitCentral();
+    dados.id = skuPadrao;
+    dados.sku = skuPadrao;
     dados.ativo = true;
     dados.criadoEm = new Date().toISOString();
     dados.atualizadoEm = new Date().toISOString();
@@ -3367,33 +3908,57 @@ window.salvarProdutoCentral = function () {
   // aqui no IntelPreços apareça na Central de Produtos do GDP — fonte única de verdade.
   if (typeof window !== 'undefined' && window.ProductStore && window.ProductStore.save) {
     try {
-      window.ProductStore.save({
+      const ssotProduto = window.ProductStore.save({
         id: dados.id, descricao: dados.nome, sku: dados.sku || dados.id, ncm: dados.ncm,
         unidade: dados.unidade_base, marca: dados.fornecedor || "", grupo: dados.categoria,
         custoBase: dados.preco_custo || null, precoReferencia: dados.preco_referencia || null,
         origem: dados.origem || "0", produto_critico: !!dados.produto_critico,
         classificacao_kraljic: dados.classificacao_kraljic || ""
       });
+      if (ssotProduto && ssotProduto.sku && !dados.sku) dados.sku = ssotProduto.sku;
     } catch (e) { if (typeof gdpWarn === 'function') gdpWarn('[Central] save SSoT falhou', e.message); }
-  }
-
-  fecharModalProdutoCentral();
-  renderCentralPrecos();
-
-  // Story 15.3: Call onSave callback if set (for inline association)
-  if (_mpcOnSaveCallback && !id) {
-    const savedProduto = { id: dados.id, descricao: dados.nome, sku: dados.sku, ncm: dados.ncm, unidade: dados.unidade_base, marca: dados.fornecedor || "", custoBase: dados.preco_custo, margemAlvo: 0.30, precoReferencia: dados.preco_referencia };
-    try { _mpcOnSaveCallback(savedProduto); } catch(_) {}
-    _mpcOnSaveCallback = null;
   }
 
   // Also sync to bancoPrecos for immediate availability in dropdowns (mesmo sem custo,
   // para o operador conseguir associar/preencher durante o match).
-  if (!id) {
-    const bpItem = bancoPrecos.itens.find(p => (p.sku && p.sku === dados.sku) || p.id === dados.id);
-    if (!bpItem) {
-      bancoPrecos.itens.push({ id: dados.id, sku: dados.sku || dados.id, item: dados.nome, custoBase: dados.preco_custo || 0, precoReferencia: dados.preco_referencia || 0, unidade: dados.unidade_base, marca: dados.fornecedor || "", grupo: dados.categoria });
-    }
+  const bancoSku = dados.sku || dados.id;
+  const bancoPayload = {
+    id: dados.id,
+    sku: bancoSku,
+    item: dados.nome,
+    descricao: dados.nome,
+    custoBase: dados.preco_custo || 0,
+    precoReferencia: dados.preco_referencia || 0,
+    unidade: dados.unidade_base,
+    marca: dados.fornecedor || "",
+    grupo: dados.categoria,
+    margemPadrao: perfil && perfil.config ? perfil.config.margemPadrao || 0.30 : 0.30,
+    propostas: [],
+    concorrentes: [],
+    custosFornecedor: []
+  };
+  const bpItem = bancoPrecos.itens.find(p => p.id === dados.id || (p.sku && p.sku === bancoSku));
+  if (bpItem) {
+    Object.assign(bpItem, bancoPayload, {
+      propostas: bpItem.propostas || [],
+      concorrentes: bpItem.concorrentes || [],
+      custosFornecedor: bpItem.custosFornecedor || []
+    });
+  } else {
+    bancoPrecos.itens.push(bancoPayload);
+  }
+  saveBancoLocal();
+
+  const onSaveCallback = _mpcOnSaveCallback;
+  fecharModalProdutoCentral();
+  renderCentralPrecos();
+
+  // Story 15.3: Call onSave callback after banco sync so inline association can
+  // re-render with the new product already available in the dropdown.
+  if (onSaveCallback && !id) {
+    const savedProduto = { id: dados.id, descricao: dados.nome, nome: dados.nome, sku: bancoSku, ncm: dados.ncm, unidade: dados.unidade_base, unidade_base: dados.unidade_base, marca: dados.fornecedor || "", grupo: dados.categoria, categoria: dados.categoria, custoBase: dados.preco_custo, preco_custo: dados.preco_custo, margemAlvo: bancoPayload.margemPadrao, margemPadrao: bancoPayload.margemPadrao, precoReferencia: dados.preco_referencia, preco_referencia: dados.preco_referencia };
+    try { onSaveCallback(savedProduto); } catch(_) {}
+    _mpcOnSaveCallback = null;
   }
 
   showToast(id ? "Produto atualizado." : "Produto cadastrado.", 3000);

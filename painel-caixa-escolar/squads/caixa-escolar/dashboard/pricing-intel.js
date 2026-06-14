@@ -724,9 +724,9 @@ window.renderPendentes = function () {
     return;
   }
 
-  // SKU interno auto-gerado (BANK-/PROD-/LICT-) é ruído na busca — esconde do label.
+  // SKU interno auto-gerado (BANK-/PROD-/LICT-/LICIT-) é ruído na busca — esconde do label.
   // SKUs externos reais (Tiny/ERP/numéricos) continuam visíveis pois têm significado.
-  const isInternalSku = (sku) => /^(BANK|PROD|LICT)-/i.test(String(sku || ""));
+  const isInternalSku = (sku) => /^(BANK|PROD|LICT|LICIT)-/i.test(String(sku || ""));
   const produtos = (bancoPrecos.itens || []).filter(p => p.item).sort((a, b) => (a.item || "").localeCompare(b.item || ""));
   const optionsHtml = '<option value="">— Selecione —</option>' + produtos.map(p => {
     const mostrarSku = p.sku && !isInternalSku(p.sku);
@@ -757,7 +757,11 @@ window.renderPendentes = function () {
   let html = '';
   for (const [orcId, pre] of rascunhos) {
     const orc = orcamentos.find(o => o.id === orcId);
-    const pendCount = (pre.itens || []).filter(i => !i.skuBanco || i.custoUnitario <= 0).length;
+    _pendSanitizarNormalizacao(pre, orc);
+    const semProduto = (pre.itens || []).filter(i => !i.skuBanco).length;
+    const semPreco = (pre.itens || []).filter(i => i.skuBanco && i.custoUnitario <= 0).length;
+    const acimaTetoCount = (pre.itens || []).filter(i => (i.precoReferenciaSgd || 0) > 0 && i.precoUnitario > i.precoReferenciaSgd).length;
+    const pendCount = semProduto + semPreco;
     const totalCount = (pre.itens || []).length;
     const okCount = totalCount - pendCount;
 
@@ -765,22 +769,23 @@ window.renderPendentes = function () {
       <summary style="cursor:pointer;padding:.6rem;background:var(--card);border:1px solid var(--line);border-radius:8px;display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">
         <strong>${escapeHtml(pre.escola)}</strong>
         <span style="color:var(--muted);font-size:.82rem">${escapeHtml(pre.municipio || '')}</span>
-        <span class="badge ${pendCount > 0 ? 'badge-rascunho' : 'badge-aprovado'}" style="font-size:.72rem">${okCount}/${totalCount} associados</span>
+        <span class="badge ${pendCount > 0 ? 'badge-rascunho' : 'badge-aprovado'}" style="font-size:.72rem">${okCount}/${totalCount} prontos</span>
+        ${semProduto > 0 ? `<span class="badge badge-rascunho" style="font-size:.68rem">${semProduto} sem produto</span>` : ''}
+        ${semPreco > 0 ? `<span class="badge badge-pendente" style="font-size:.68rem">${semPreco} sem preço</span>` : ''}
+        ${acimaTetoCount > 0 ? `<span class="badge badge-recusado" style="font-size:.68rem">${acimaTetoCount} acima do teto</span>` : ''}
+        <button class="btn btn-inline btn-accent" onclick="event.stopPropagation();pendAutoAssociarNormalizados('${orcId}')" style="font-size:.72rem;padding:3px 7px">Lua revisar/associar</button>
         ${orc ? `<span style="font-size:.78rem;color:var(--muted)">Prazo: ${orc.prazo || '—'}</span>` : ''}
         <span style="font-size:.82rem;font-weight:600;margin-left:auto">${brl.format(pre.totalGeral || 0)}</span>
       </summary>
       <table class="table-compact" style="width:100%;margin-top:.5rem;font-size:.82rem">
         <thead><tr>
           <th style="width:3%">#</th>
-          <th style="width:18%">Item SGD</th>
-          <th style="width:20%">Produto Banco</th>
-          <th style="width:10%">Marca</th>
-          <th style="width:5%">Qtd</th>
-          <th style="width:6%">Unid</th>
-          <th style="width:9%">Custo</th>
-          <th style="width:7%">Margem%</th>
-          <th style="width:9%">Preço</th>
-          <th style="width:9%">Total</th>
+          <th style="width:34%">Item conferido</th>
+          <th style="width:22%">Associacao</th>
+          <th style="width:12%">Marca</th>
+          <th style="width:9%">Qtd/Unid</th>
+          <th style="width:12%">Custo/Margem</th>
+          <th style="width:12%">Preço/Total</th>
           <th style="width:4%"></th>
         </tr></thead>
         <tbody>
@@ -793,7 +798,7 @@ window.renderPendentes = function () {
             const descCompleta = (item.descricao || '').trim();
             // Descrição completa 100% — sem truncar (texto íntegro do edital fica visível).
             const descHtml = descCompleta
-              ? `<div class="pend-item-desc" style="color:var(--muted);font-size:.72rem;line-height:1.3;margin-top:2px;white-space:pre-wrap;word-break:break-word">${escapeHtml(descCompleta)}</div>`
+              ? `<details style="margin-top:4px"><summary style="cursor:pointer;color:var(--muted);font-size:.7rem">ver descricao oficial do SGD</summary><div class="pend-item-desc" style="color:var(--muted);font-size:.72rem;line-height:1.3;margin-top:2px;white-space:pre-wrap;word-break:break-word">${escapeHtml(descCompleta)}</div></details>`
               : '';
             // Preço de referência (teto): cotação acima → INABILITADA.
             const refInfo = (typeof RadarMatcherCore !== 'undefined' && RadarMatcherCore.extractReferencePrice)
@@ -811,27 +816,45 @@ window.renderPendentes = function () {
             const marcasRef = (item.marcasReferencia && item.marcasReferencia.length)
               ? item.marcasReferencia
               : (brandInfo ? brandInfo.marcas : []);
-            const marcaOk = (typeof RadarMatcherCore !== 'undefined' && RadarMatcherCore.isBrandCompliant)
-              ? RadarMatcherCore.isBrandCompliant(item.marca, marcasRef)
-              : true;
+            const _normMarca = (m) => String(m || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+            const marcaOk = !marcasRef.length || marcasRef.some(m => _normMarca(m) === _normMarca(item.marca));
             const marcaNaoConforme = marcasRef.length > 0 && !marcaOk;
             const marcasHtml = marcasRef.length > 0
               ? `<div class="pend-item-marcas" title="Marcas aceitas pelo edital — cotar fora da lista inabilita" style="font-size:.7rem;margin-top:2px;color:${marcaNaoConforme ? 'var(--danger)' : 'var(--accent)'}">Marcas: ${escapeHtml(marcasRef.join(', '))}${marcaNaoConforme ? ' ⚠️ marca fora da lista — INABILITA' : ''}</div>`
               : '';
             const marcaBorder = marcaNaoConforme ? 'var(--danger)' : 'var(--line)';
+            const normLocal = typeof _normalizarItemPreOrcamento === 'function' ? _normalizarItemPreOrcamento(item, null) : null;
+            const normGerada = normLocal ? (normLocal.descricaoFiscal || normLocal.produtoCanonico || '') : '';
+            const normProdutoAtual = item.descricaoFiscal || item.produtoCanonico || '';
+            const normProduto = _pendDevePreferirNomeGerado(normProdutoAtual, normGerada)
+              ? normGerada
+              : (normProdutoAtual || normGerada || item.nome);
+            const normCategoria = item.categoriaCanonica || (typeof _inferirCategoriaCanonica === 'function' ? _inferirCategoriaCanonica([item.nome, item.descricao].join(' ')) : 'Outro');
+            const normUnidade = item.unidadeNormalizada || (typeof _normalizarUnidadeCodigo === 'function' ? _normalizarUnidadeCodigo(item.unidade) : item.unidade);
+            const normEmb = item.embalagemNormalizada || (typeof _extrairEmbalagemNormalizada === 'function' ? _extrairEmbalagemNormalizada([item.nome, item.descricao].join(' ')) : '');
+            const linksExternos = item.linksExternos || (typeof _extrairLinksExternosEdital === 'function' ? _extrairLinksExternosEdital([item.nome, item.descricao, item.observacao].join(' ')) : []);
+            const normAlerts = (item.alertasNormalizacao || []).map(a => `<span class="badge badge-rascunho" style="font-size:.64rem;margin:2px 3px 0 0">${escapeHtml(a)}</span>`).join('');
+            const normalizacaoHtml = `<div style="font-size:.78rem;line-height:1.35">
+              <strong>${escapeHtml(normProduto || item.nome || '')}</strong>
+              <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:4px">
+                <span class="badge badge-muted" style="font-size:.64rem">${escapeHtml(normCategoria || 'Outro')}</span>
+                <span class="badge badge-muted" style="font-size:.64rem">${escapeHtml(normUnidade || item.unidade || '—')}</span>
+                ${normEmb ? `<span class="badge badge-muted" style="font-size:.64rem">${escapeHtml(normEmb)}</span>` : ''}
+                ${marcasRef.length ? `<span class="badge badge-aprovado" style="font-size:.64rem">marcas: ${escapeHtml(marcasRef.join(', '))}</span>` : `<span class="badge badge-muted" style="font-size:.64rem">marca livre</span>`}
+                ${linksExternos.length ? `<span class="badge badge-rascunho" style="font-size:.64rem">doc externo</span>` : ''}
+              </div>
+              ${normAlerts ? `<div style="margin-top:4px">${normAlerts}</div>` : ''}
+            </div>`;
             return `<tr style="${rowBg}" id="pend-row-${orcId}-${idx}">
               <td style="color:var(--muted)">${idx + 1}</td>
-              <td><strong>${escapeHtml(item.nome)}</strong>${refHtml}${marcasHtml}${descHtml}</td>
+              <td>${normalizacaoHtml}${refHtml}${marcasHtml}${descHtml}</td>
               <td><select class="pend-prod-select" data-orc="${orcId}" data-idx="${idx}" data-sugestao="${escapeHtml(sugSku)}" onchange="pendAssociar('${orcId}',${idx},this.value)" style="width:100%;padding:3px 4px;font-size:.78rem;background:var(--bg);border:1px solid var(--line);border-radius:4px;color:var(--text)">${optionsHtml}</select>${sugBadge}</td>
               <td><input type="text" value="${escapeHtml(item.marca || '')}" data-marcasref="${escapeHtml(marcasRef.join('|'))}" onchange="pendEditField('${orcId}',${idx},'marca',this.value)" title="${marcaNaoConforme ? 'Marca fora da lista de referência — proposta seria INABILITADA' : ''}" style="width:100%;padding:3px;font-size:.78rem;background:var(--bg);border:1px solid ${marcaBorder};border-radius:4px;color:var(--text)"></td>
-              <td class="text-center">${item.quantidade}</td>
-              <td><select onchange="pendEditField('${orcId}',${idx},'unidade',this.value)" style="width:100%;padding:3px;font-size:.78rem;background:var(--bg);border:1px solid var(--line);border-radius:4px;color:var(--text)">
-                ${['UN','KG','L','CX','PCT','M','M2','FD','GL','ROL','RS','BD','SC'].map(u => `<option value="${u}" ${item.unidade === u ? 'selected' : ''}>${u}</option>`).join('')}
+              <td class="text-center"><div>${item.quantidade}</div><select onchange="pendEditField('${orcId}',${idx},'unidade',this.value)" style="width:100%;padding:3px;font-size:.78rem;background:var(--bg);border:1px solid var(--line);border-radius:4px;color:var(--text);margin-top:3px">
+                ${['UN','KG','G','LT','ML','CX','PCT','FD','FR','GL','BD','RL','DZ','M','M2','RESMA','SC'].map(u => `<option value="${u}" ${item.unidade === u ? 'selected' : ''}>${u}</option>`).join('')}
               </select></td>
-              <td><input type="number" value="${item.custoUnitario || ''}" min="0" step="0.01" onchange="pendEditCusto('${orcId}',${idx},this.value)" style="width:100%;padding:3px;font-size:.78rem;background:var(--bg);border:1px solid var(--line);border-radius:4px;color:var(--text);text-align:right" id="pend-custo-${orcId}-${idx}"></td>
-              <td><input type="number" value="${Math.round((item.margem || 0.30) * 100)}" min="0" max="200" step="1" onchange="pendEditMargem('${orcId}',${idx},this.value)" style="width:100%;padding:3px;font-size:.78rem;background:var(--bg);border:1px solid var(--line);border-radius:4px;color:var(--text);text-align:right" id="pend-margem-${orcId}-${idx}"></td>
-              <td class="text-right font-mono" id="pend-preco-${orcId}-${idx}" data-ref="${precoRef || 0}" style="${acimaTeto ? 'color:var(--danger);font-weight:700' : ''}" title="${acimaTeto ? 'Preço acima do teto do edital — proposta seria INABILITADA' : ''}">${item.precoUnitario > 0 ? brl.format(item.precoUnitario) : '—'}${acimaTeto ? ' ⚠️' : ''}</td>
-              <td class="text-right font-mono" id="pend-total-${orcId}-${idx}">${item.precoTotal > 0 ? brl.format(item.precoTotal) : '—'}</td>
+              <td><input type="number" value="${item.custoUnitario || ''}" min="0" step="0.01" onchange="pendEditCusto('${orcId}',${idx},this.value)" style="width:100%;padding:3px;font-size:.78rem;background:var(--bg);border:1px solid var(--line);border-radius:4px;color:var(--text);text-align:right" id="pend-custo-${orcId}-${idx}"><input type="number" value="${Math.round((item.margem || 0.30) * 100)}" min="0" max="200" step="1" onchange="pendEditMargem('${orcId}',${idx},this.value)" style="width:100%;padding:3px;font-size:.78rem;background:var(--bg);border:1px solid var(--line);border-radius:4px;color:var(--text);text-align:right;margin-top:3px" id="pend-margem-${orcId}-${idx}"></td>
+              <td class="text-right font-mono"><div id="pend-preco-${orcId}-${idx}" data-ref="${precoRef || 0}" style="${acimaTeto ? 'color:var(--danger);font-weight:700' : ''}" title="${acimaTeto ? 'Preço acima do teto do edital — proposta seria INABILITADA' : ''}">${item.precoUnitario > 0 ? brl.format(item.precoUnitario) : '—'}${acimaTeto ? ' ⚠️' : ''}</div><div id="pend-total-${orcId}-${idx}" style="font-size:.74rem;color:var(--muted);margin-top:3px">${item.precoTotal > 0 ? brl.format(item.precoTotal) : '—'}</div></td>
               <td>${!isOk ? `<button class="btn btn-inline" onclick="pendNovoProduto('${orcId}',${idx})" style="font-size:.7rem;padding:2px 5px;white-space:nowrap" title="Cadastrar novo produto">+</button>` : '<span style="color:var(--accent)">✓</span>'}</td>
             </tr>`;
           }).join('')}
@@ -873,10 +896,337 @@ window.pendAssociar = function (orcId, idx, bpId) {
   item.custoUnitario = bp ? (bp.custoBase || 0) : 0;
   item.margem = bp ? (bp.margemPadrao || margemPadrao) : item.margem || margemPadrao;
   item.matchStatus = bp ? "associado" : "pendente";
+  if (typeof _normalizarItemPreOrcamento === 'function') {
+    const normalizacao = _normalizarItemPreOrcamento(item, bp);
+    item.produtoCanonico = normalizacao.produtoCanonico;
+    item.categoriaCanonica = normalizacao.categoriaCanonica;
+    item.unidadeNormalizada = normalizacao.unidadeNormalizada;
+    item.embalagemNormalizada = normalizacao.embalagemNormalizada;
+    item.marcasPermitidas = normalizacao.marcasPermitidas;
+    item.marcasReferencia = normalizacao.marcasPermitidas;
+    item.marcaCotada = item.marca;
+    item.alertasNormalizacao = normalizacao.alertasNormalizacao.filter(a => !(bp && a === 'Produto sem vinculo'));
+    item.normalizacaoConfirmada = item.alertasNormalizacao.length === 0;
+  }
   _pendRecalc(orcId, idx);
   savePreOrcamentos();
   _pendCheckCompletude(orcId);
   renderPendentes();
+};
+
+function _pendNormKey(value) {
+  if (typeof normalizedText === 'function') return normalizedText(value || '');
+  return String(value || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+function _pendGerarSkuLicit() {
+  const skus = [];
+  const addSku = (sku) => { if (sku) skus.push(String(sku).trim()); };
+  (bancoPrecos.itens || []).forEach(p => { addSku(p.sku); addSku(p.id); });
+  if (typeof centralProdutos !== 'undefined' && Array.isArray(centralProdutos)) {
+    centralProdutos.forEach(p => { addSku(p.sku); addSku(p.id); });
+  }
+  if (typeof window !== 'undefined' && window.ProductStore && window.ProductStore.list) {
+    try { window.ProductStore.list().forEach(p => { addSku(p.sku); addSku(p.id); }); } catch (_) {}
+  }
+  const max = skus.reduce((acc, sku) => {
+    const match = String(sku || "").match(/^(?:LICIT|LICT)-(\d+)$/i);
+    return match ? Math.max(acc, Number(match[1]) || 0) : acc;
+  }, 0);
+  return "LICIT-" + String(max + 1).padStart(4, "0");
+}
+
+function _pendProdutoNormalizado(item, orc) {
+  const normalizacao = typeof _normalizarItemPreOrcamento === 'function' ? _normalizarItemPreOrcamento(item, null) : null;
+  const nomeGerado = normalizacao ? (normalizacao.descricaoFiscal || normalizacao.produtoCanonico) : '';
+  const nomeAtual = item.descricaoFiscal || item.produtoCanonico || '';
+  const nomeBase = _pendDevePreferirNomeGerado(nomeAtual, nomeGerado)
+    ? nomeGerado
+    : (nomeAtual || nomeGerado || item.nome || 'Produto');
+  const nome = typeof _limparTextoProdutoSgd === 'function' ? (_limparTextoProdutoSgd(nomeBase) || nomeBase) : nomeBase;
+  return {
+    nome,
+    produtoCanonico: (normalizacao && normalizacao.produtoCanonico) || item.produtoCanonico || nome,
+    categoria: (normalizacao && normalizacao.categoriaCanonica) || item.categoriaCanonica || (orc ? orc.grupo || '' : ''),
+    unidade: (normalizacao && normalizacao.unidadeNormalizada) || item.unidadeNormalizada || item.unidade || 'UN',
+    embalagem: (normalizacao && normalizacao.embalagemNormalizada) || item.embalagemNormalizada || '',
+    marcasPermitidas: (normalizacao && normalizacao.marcasPermitidas) || item.marcasPermitidas || [],
+    linksExternos: (normalizacao && normalizacao.linksExternos) || item.linksExternos || []
+  };
+}
+
+function _pendEncontrarProdutoCatalogo(nome) {
+  const key = _pendNormKey(nome);
+  return (bancoPrecos.itens || []).find(p => _pendNormKey(p.item || p.descricao || p.nome) === key) || null;
+}
+
+function _pendGetProdutoCatalogo(id) {
+  return (bancoPrecos.itens || []).find(p => (p.sku || p.id) === id) || null;
+}
+
+function _pendDevePreferirNomeGerado(atual, gerado) {
+  return !!gerado && (!atual || _pendTextoPareceSujo(atual) || (gerado.length > 8 && gerado.length < atual.length));
+}
+
+function _pendTextoPareceSujo(nome) {
+  const value = String(nome || "");
+  const t = _pendNormKey(value);
+  return value.length > 120 ||
+    /\b(descricao|marca|marcas|referencia|preco|precos|teto|valor|edital|sgd|orcamento|cotacao)\b/.test(t) ||
+    /https?:\/\//i.test(value);
+}
+
+function _pendProdutoPareceSujo(bp) {
+  const nome = [bp && bp.item, bp && bp.descricao, bp && bp.descricaoFiscal].filter(Boolean).join(" ");
+  return _pendTextoPareceSujo(nome);
+}
+
+function _pendSanitizarNormalizacao(pre, orc) {
+  if (!pre || !Array.isArray(pre.itens)) return;
+  let changed = false;
+  pre.itens.forEach((item) => {
+    const dados = _pendProdutoNormalizado(item, orc);
+    if (_pendDevePreferirNomeGerado(item.descricaoFiscal || item.produtoCanonico || '', dados.nome)) {
+      item.descricaoFiscal = dados.nome;
+      item.produtoCanonico = dados.produtoCanonico || dados.nome;
+      item.categoriaCanonica = dados.categoria;
+      item.unidadeNormalizada = dados.unidade;
+      item.embalagemNormalizada = dados.embalagem;
+      item.marcasPermitidas = dados.marcasPermitidas;
+      item.linksExternos = dados.linksExternos;
+      changed = true;
+    }
+    const bp = item.skuBanco ? _pendGetProdutoCatalogo(item.skuBanco) : null;
+    if (bp && _pendProdutoPareceSujo(bp)) {
+      _pendAtualizarProdutoCatalogo(bp, dados);
+      changed = true;
+    }
+  });
+  if (changed) savePreOrcamentos();
+}
+
+function _pendAtualizarProdutoCatalogo(bp, dados) {
+  if (!bp || !dados || !dados.nome) return bp;
+  bp.item = dados.nome;
+  bp.descricao = dados.nome;
+  bp.descricaoFiscal = dados.nome;
+  bp.grupo = dados.categoria || bp.grupo || "";
+  bp.unidade = dados.unidade || bp.unidade || "UN";
+  bp.fonte = bp.fonte || "normalizacao-pre-orcamento";
+
+  if (typeof window !== 'undefined' && window.ProductStore && window.ProductStore.save) {
+    try {
+      window.ProductStore.save({
+        id: bp.id,
+        sku: bp.sku || bp.id,
+        descricao: dados.nome,
+        descricaoFiscal: dados.nome,
+        unidade: bp.unidade,
+        grupo: bp.grupo,
+        marca: bp.marca || "",
+        custoBase: bp.custoBase || 0,
+        precoReferencia: bp.precoReferencia || 0,
+        margemAlvo: bp.margemPadrao || (perfil.config ? perfil.config.margemPadrao || 0.30 : 0.30),
+        fonte: bp.fonte
+      });
+    } catch (_) {}
+  }
+
+  if (typeof centralProdutos !== 'undefined' && Array.isArray(centralProdutos)) {
+    const cp = centralProdutos.find(p => p.id === bp.id || p.sku === (bp.sku || bp.id));
+    if (cp) {
+      cp.nome = dados.nome;
+      cp.descricao = dados.nome;
+      cp.descricao_fiscal = dados.nome;
+      cp.unidade_base = bp.unidade;
+      cp.categoria = bp.grupo;
+      cp.atualizadoEm = new Date().toISOString();
+      if (typeof saveCentralProdutos === 'function') saveCentralProdutos();
+    }
+  }
+  saveBancoLocal();
+  return bp;
+}
+
+function _pendCriarProdutoCatalogo(dados) {
+  const existente = _pendEncontrarProdutoCatalogo(dados.nome);
+  if (existente) return existente;
+
+  const id = _pendGerarSkuLicit();
+  const margemPadrao = perfil.config ? perfil.config.margemPadrao || 0.30 : 0.30;
+  const bp = {
+    id,
+    sku: id,
+    item: dados.nome,
+    descricao: dados.nome,
+    descricaoFiscal: dados.nome,
+    grupo: dados.categoria || "",
+    unidade: dados.unidade || "UN",
+    marca: "",
+    custoBase: 0,
+    precoReferencia: 0,
+    margemPadrao,
+    propostas: [],
+    concorrentes: [],
+    custosFornecedor: [],
+    fonte: "normalizacao-pre-orcamento"
+  };
+  bancoPrecos.itens.push(bp);
+
+  if (typeof window !== 'undefined' && window.ProductStore && window.ProductStore.save) {
+    try {
+      window.ProductStore.save({
+        id,
+        sku: id,
+        descricao: dados.nome,
+        descricaoFiscal: dados.nome,
+        unidade: bp.unidade,
+        grupo: bp.grupo,
+        marca: "",
+        custoBase: 0,
+        precoReferencia: 0,
+        margemAlvo: margemPadrao,
+        fonte: bp.fonte
+      });
+    } catch (_) {}
+  }
+
+  if (typeof centralProdutos !== 'undefined' && Array.isArray(centralProdutos) && !centralProdutos.some(p => p.id === id)) {
+    centralProdutos.push({
+      id,
+      sku: id,
+      nome: dados.nome,
+      descricao: dados.nome,
+      descricao_fiscal: dados.nome,
+      unidade_base: bp.unidade,
+      categoria: bp.grupo,
+      fornecedor: "",
+      preco_custo: 0,
+      preco_referencia: 0,
+      ativo: true,
+      criadoEm: new Date().toISOString(),
+      atualizadoEm: new Date().toISOString()
+    });
+    if (typeof saveCentralProdutos === 'function') saveCentralProdutos();
+  }
+
+  saveBancoLocal();
+  return bp;
+}
+
+async function _pendNormalizarItensComAgente(pre, orc) {
+  if (!pre || !Array.isArray(pre.itens) || !pre.itens.length) return { applied: false, error: null };
+
+  const itens = pre.itens.map((item) => ({
+    nome: item.nome || "",
+    descricao: item.descricao || "",
+    unidade: item.unidade || "",
+    quantidade: item.quantidade || 0,
+    observacao: item.observacao || "",
+    fallback: _pendProdutoNormalizado(item, orc)
+  }));
+
+  try {
+    const resp = await fetch("/api/ai-normalize-prequote", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contexto: {
+          escola: pre.escola || "",
+          municipio: pre.municipio || "",
+          grupo: orc ? (orc.grupo || orc.categoria || "") : ""
+        },
+        itens
+      })
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok || !data.success || !Array.isArray(data.results)) {
+      return { applied: false, error: data.error || data.detail || "normalizacao indisponivel" };
+    }
+
+    let applied = 0;
+    data.results.forEach((n) => {
+      const idx = Number(n.idx);
+      const item = pre.itens[idx];
+      if (!item) return;
+      const nomeFiscal = String(n.descricaoFiscal || n.produtoCanonico || "").trim();
+      const produtoCanonico = String(n.produtoCanonico || nomeFiscal).trim();
+      if (!nomeFiscal || _pendTextoPareceSujo(nomeFiscal)) return;
+
+      item.produtoCanonico = produtoCanonico;
+      item.descricaoFiscal = nomeFiscal;
+      item.categoriaCanonica = n.categoria || item.categoriaCanonica || "Outro";
+      item.unidadeNormalizada = n.unidadeNormalizada || item.unidadeNormalizada || item.unidade || "UN";
+      item.embalagemNormalizada = n.embalagem || item.embalagemNormalizada || "";
+      item.atributosEssenciais = Array.isArray(n.atributosEssenciais) ? n.atributosEssenciais : [];
+      item.marcasPermitidas = Array.isArray(n.marcasPermitidas) ? n.marcasPermitidas : (item.marcasPermitidas || []);
+      item.marcasReferencia = item.marcasPermitidas;
+      item.precoReferenciaSgd = Number(n.precoReferencia || item.precoReferenciaSgd || 0) || 0;
+      item.normalizacaoOrigem = "agente-lua";
+      item.normalizacaoConfianca = Number(n.confianca || 0);
+
+      const alertas = Array.isArray(n.alertas) ? n.alertas.map(String).filter(Boolean) : [];
+      const atuais = Array.isArray(item.alertasNormalizacao) ? item.alertasNormalizacao : [];
+      item.alertasNormalizacao = Array.from(new Set(atuais.concat(alertas)));
+      if (n.precisaRevisao && !item.alertasNormalizacao.includes("Revisao humana da normalizacao")) {
+        item.alertasNormalizacao.push("Revisao humana da normalizacao");
+      }
+      applied++;
+    });
+
+    return { applied: applied > 0, error: null, count: applied };
+  } catch (err) {
+    return { applied: false, error: err.message || "falha no agente" };
+  }
+}
+
+window.pendAutoAssociarNormalizados = async function (orcId) {
+  const pre = preOrcamentos[orcId];
+  if (!pre) return;
+  const orc = orcamentos.find(o => o.id === orcId);
+  showToast("Lua esta normalizando os itens com agente inteligente...", 1800);
+  const agente = await _pendNormalizarItensComAgente(pre, orc);
+  let criados = 0;
+  let vinculados = 0;
+  let revisados = 0;
+
+  (pre.itens || []).forEach((item) => {
+    let bp = item.skuBanco ? _pendGetProdutoCatalogo(item.skuBanco) : null;
+    const repararNormalizacao = item.skuBanco && (/normalizacao/i.test(item.matchStatus || "") || _pendProdutoPareceSujo(bp));
+    if (item.skuBanco && !repararNormalizacao) return;
+    const dados = _pendProdutoNormalizado(item, orc);
+    const antes = _pendEncontrarProdutoCatalogo(dados.nome);
+    if (bp && repararNormalizacao) {
+      _pendAtualizarProdutoCatalogo(bp, dados);
+      revisados++;
+    } else {
+      bp = _pendCriarProdutoCatalogo(dados);
+      if (!antes) criados++;
+    }
+    if (!item.skuBanco) vinculados++;
+    item.skuBanco = bp.sku || bp.id;
+    item.marca = item.marca || bp.marca || "";
+    item.custoUnitario = bp.custoBase || 0;
+    item.margem = bp.margemPadrao || (perfil.config ? perfil.config.margemPadrao || 0.30 : 0.30);
+    item.matchStatus = antes ? "associado_normalizacao" : "criado_normalizacao";
+    item.produtoCanonico = dados.produtoCanonico || dados.nome;
+    item.descricaoFiscal = dados.nome;
+    item.categoriaCanonica = dados.categoria;
+    item.unidadeNormalizada = dados.unidade;
+    item.embalagemNormalizada = dados.embalagem;
+    item.marcasPermitidas = dados.marcasPermitidas;
+    item.linksExternos = dados.linksExternos;
+    item.alertasNormalizacao = (item.alertasNormalizacao || []).filter(a => a !== 'Produto sem vinculo');
+    if (item.custoUnitario <= 0 && !item.alertasNormalizacao.includes('Preco de custo pendente')) {
+      item.alertasNormalizacao.push('Preco de custo pendente');
+    }
+  });
+
+  savePreOrcamentos();
+  _pendCheckCompletude(orcId);
+  renderPendentes();
+  const origem = agente.applied ? `Agente normalizou ${agente.count || 0} item(ns). ` : `Agente indisponivel; usei fallback local. `;
+  showToast(`${origem}Lua associou ${vinculados} item(ns), criou ${criados} produto(s) e revisou ${revisados} nome(s). Agora falta preencher custos.`, 4500);
 };
 
 // Story 15.2: Edit individual field
@@ -884,6 +1234,11 @@ window.pendEditField = function (orcId, idx, field, value) {
   const pre = preOrcamentos[orcId];
   if (!pre || !pre.itens[idx]) return;
   pre.itens[idx][field] = value;
+  if (field === 'unidade') {
+    pre.itens[idx].unidadeNormalizada = typeof _normalizarUnidadeCodigo === 'function' ? _normalizarUnidadeCodigo(value) : value;
+    pre.itens[idx]._unidadeConfirmada = false;
+  }
+  if (field === 'marca') pre.itens[idx].marcaCotada = value;
   savePreOrcamentos();
   // Marca afeta a conformidade com as marcas de referência → re-renderiza para
   // atualizar o destaque de inabilitação na hora.
@@ -895,6 +1250,10 @@ window.pendEditCusto = function (orcId, idx, value) {
   const pre = preOrcamentos[orcId];
   if (!pre || !pre.itens[idx]) return;
   pre.itens[idx].custoUnitario = parseFloat(value) || 0;
+  if (pre.itens[idx].custoUnitario > 0 && Array.isArray(pre.itens[idx].alertasNormalizacao)) {
+    pre.itens[idx].alertasNormalizacao = pre.itens[idx].alertasNormalizacao.filter(a => a !== 'Preco de custo pendente');
+    pre.itens[idx].normalizacaoConfirmada = pre.itens[idx].alertasNormalizacao.length === 0;
+  }
   _pendRecalc(orcId, idx);
   savePreOrcamentos();
   _pendCheckCompletude(orcId);
@@ -964,17 +1323,26 @@ window.pendNovoProduto = function (orcId, idx) {
     abrirModalProdutoCentral({
       compact: true,
       prefill: {
-        nome: item.nome || "",
-        unidade: item.unidade || "UN",
-        categoria: orc ? (orc.grupo || "") : "",
+        nome: item.descricaoFiscal || item.produtoCanonico || item.nome || "",
+        unidade: item.unidadeNormalizada || item.unidade || "UN",
+        categoria: item.categoriaCanonica || (orc ? (orc.grupo || "") : ""),
       },
       onSave: function (produto) {
         // Auto-associate the newly created product
         item.skuBanco = produto.sku || produto.id;
         item.marca = produto.marca || "";
-        item.custoUnitario = produto.custoBase || 0;
-        item.margem = produto.margemAlvo || (perfil.config ? perfil.config.margemPadrao || 0.30 : 0.30);
+        item.custoUnitario = produto.custoBase || produto.preco_custo || 0;
+        item.margem = produto.margemAlvo || produto.margemPadrao || (perfil.config ? perfil.config.margemPadrao || 0.30 : 0.30);
         item.matchStatus = "criado_inline";
+        item.descricaoFiscal = produto.descricao || produto.nome || item.descricaoFiscal || item.nome;
+        item.produtoCanonico = item.produtoCanonico || item.descricaoFiscal;
+        item.categoriaCanonica = produto.grupo || produto.categoria || item.categoriaCanonica || "";
+        item.unidadeNormalizada = produto.unidade || produto.unidade_base || item.unidadeNormalizada || item.unidade;
+        if (Array.isArray(item.alertasNormalizacao)) {
+          item.alertasNormalizacao = item.alertasNormalizacao.filter(a => a !== 'Produto sem vinculo' && a !== 'Preco de custo pendente');
+          if (item.custoUnitario <= 0) item.alertasNormalizacao.push('Preco de custo pendente');
+          item.normalizacaoConfirmada = item.alertasNormalizacao.length === 0;
+        }
         _pendRecalc(orcId, idx);
         savePreOrcamentos();
         _pendCheckCompletude(orcId);
