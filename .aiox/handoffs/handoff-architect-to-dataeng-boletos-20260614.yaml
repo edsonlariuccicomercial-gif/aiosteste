@@ -1,0 +1,21 @@
+handoff:
+  from_agent: "architect"
+  to_agent: "data-engineer"
+  last_command: "create-doc"
+  date: "2026-06-14"
+  title: "ADR emissão boletos multi-banco pronto — gate de schema (provável NO-migration)"
+  story_context:
+    adr_path: "docs/architecture/ADR-epic20-emissao-boletos-multibanco.md"
+    brief_path: "docs/briefs/brief-ingestao-automatica-boletos-dda.md"
+    branch: "feature/epic20-ajustes-financeiro-gdp"
+  descoberta_chave:
+    - "Sistema JÁ tem arquitetura de provider bancário: bank-provider-config.js (allowlist com Inter catalogado), asaas-charge-client.js (template), gdp-integrations.js (orquestrador com if/else extensível) e processAsaasWebhook (conciliação)."
+    - "Esforço é INCREMENTAL: add cliente inter/c6 ao padrão existente."
+  pergunta_para_dataeng:
+    - "contas_receber.cobranca é JSON e já guarda linhaDigitavel, nossoNumero, bankSlipUrl, invoiceUrl, provider, providerChargeId (ver gdp-integrations.js:185-195). Emissão Inter cabe nesse JSON?"
+    - "Há necessidade de migration? ADR diz: provavelmente NÃO. Só criar coluna banco_emissor se for indexar para relatório."
+  guard_rails:
+    - "NÃO criar colunas especulativas."
+    - "Se migration for criada, seguir padrão idempotente das migrations 029/030 (ADD COLUMN IF NOT EXISTS, índice parcial, realtime já coberto)."
+  next_action: "@data-engineer: inspecionar gdp-api.js:98 (campos contas_receber) e o uso do JSON cobranca em gdp-integrations.js. Emitir verdict: migration necessária (sim/não). Se não, liberar @dev direto."
+  consumed: false

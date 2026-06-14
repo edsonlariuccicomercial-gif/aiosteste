@@ -1,0 +1,28 @@
+handoff:
+  from_agent: "dev"
+  to_agent: "qa"
+  last_command: "develop"
+  date: "2026-06-14"
+  title: "Emissão Inter implementada (multi-banco dispatch) — pronto para QA gate"
+  story_context:
+    adr_path: "docs/architecture/ADR-epic20-emissao-boletos-multibanco.md"
+    branch: "feature/epic20-ajustes-financeiro-gdp"
+  files_modified:
+    - "server-lib/bank-provider-config.js — add c6 à allowlist; campos cert mTLS (certPem/keyPem/contaCorrente) no spec inter; nextSteps inclui c6"
+    - "server-lib/inter-charge-client.js — NOVO: createInterCharge/syncInterCharge, OAuth v2 + mTLS (https.Agent), API Cobrança v3 Bolepix, formato normalized compartilhado"
+    - "server-lib/c6-charge-client.js — NOVO: stub createC6Charge/syncC6Charge (falha explícita até homologação), mesma assinatura"
+    - "api/gdp-integrations.js — dispatch por mapa CHARGE_CREATORS/CHARGE_SYNCERS substitui if(asaas)/else em bank-charge-create e bank-charge-sync"
+  validacoes_feitas:
+    - "node --check --input-type=module em todos os 4 módulos: PASS ✓"
+    - "Símbolos do mapa conferidos (grep): asaas/inter/c6 ligados; listAsaasWebhooks/createAsaasWebhook intactos no bank-webhook-sync."
+  decisoes:
+    - "Conciliação Inter via POLLING (bank-charge-sync provider=inter), não webhook — suficiente p/ 1ª entrega; webhook Inter entra quando cliente configurar callback no IB."
+    - "Sem migration (gate @data-engineer): dados do boleto Inter gravam em contas_receber.cobranca JSONB, mesmas chaves do Asaas."
+    - "Certificado mTLS via env vars (GDP_BANK_INTER_CERT_PEM/_KEY_PEM); normalizePem aceita \\n escapado."
+  pontos_para_qa:
+    - "Idempotência: emissão usa seuNumero=conta.id (rastreável); confirmar que reemissão não duplica no provider."
+    - "Segurança: nenhuma credencial/cert no front; tudo resolvido server-side via resolveProviderRuntimeConfig."
+    - "Regressão: caminho Asaas (createAsaasCharge/webhook) inalterado — confirmar que não quebrou."
+    - "C6 stub deve falhar com mensagem clara, não com erro genérico."
+  next_action: "@qa: executar gate — verificar idempotência, segredos fora do front, sem regressão Asaas, sintaxe/contratos. Verdict PASS/CONCERNS/FAIL."
+  consumed: false
