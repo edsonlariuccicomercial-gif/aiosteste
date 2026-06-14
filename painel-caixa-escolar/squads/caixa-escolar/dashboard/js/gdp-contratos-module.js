@@ -2174,6 +2174,13 @@ function renderContratos() {
     const pasta = porEscola[escolaKeys[0]];
     const escola = pasta.label;
     const cList = pasta.contratos;
+    if (pasta.clienteId) {
+      window._pastaAutoSync = window._pastaAutoSync || {};
+      if (!window._pastaAutoSync[pasta.clienteId]) {
+        window._pastaAutoSync[pasta.clienteId] = true;
+        setTimeout(() => sincronizarContratosDaPasta(pasta.clienteId), 0);
+      }
+    }
     grid.innerHTML = `<div style="grid-column:1/-1;display:flex;align-items:center;gap:.8rem;margin-bottom:.5rem">
       <button class="btn btn-sm" onclick="window._pastaAberta=null;window._pastaAbertaClienteId=null;document.getElementById('busca-contrato').value='';renderContratos()">← Voltar</button>
       <span style="font-weight:700;font-size:.95rem">📁 ${esc(escola)}</span>
