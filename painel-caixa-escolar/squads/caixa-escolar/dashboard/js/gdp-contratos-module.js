@@ -2220,6 +2220,59 @@ function renderContratos() {
 // Reseta filtro de status para mostrar todos os contratos da pasta
 window._pastaAberta = null;
 window._pastaAbertaClienteId = null;
+async function sincronizarContratosDaPasta(clienteId) {
+  if (!clienteId || !window.SUPABASE_URL || !window.SUPABASE_KEY) return;
+  if (window._syncPastaContratosId === clienteId) return;
+  window._syncPastaContratosId = clienteId;
+  try {
+    const resp = await fetch(`${window.SUPABASE_URL}/rest/v1/contratos?select=*&escola_cliente_id=eq.${encodeURIComponent(clienteId)}&order=updated_at.desc&limit=200`, {
+      headers: {
+        apikey: window.SUPABASE_KEY,
+        Authorization: `Bearer ${window.SUPABASE_KEY}`,
+      },
+    });
+    if (!resp.ok) return;
+    const rows = await resp.json();
+    if (!Array.isArray(rows) || rows.length === 0) return;
+    const remote = rows
+      .filter(row => !(row && row.deleted_at))
+      .map(row => ({
+        id: row.id,
+        empresa_id: row.empresa_id,
+        escola: row.escola,
+        processo: row.processo,
+        edital: row.edital,
+        objeto: row.objeto,
+        status: row.status,
+        fornecedor: row.fornecedor,
+        vigencia: row.vigencia,
+        observacoes: row.observacoes,
+        dataApuracao: row.data_apuracao,
+        itens: Array.isArray(row.itens) ? row.itens : [],
+        clienteSnapshot: row.cliente_snapshot || null,
+        escolaClienteId: row.escola_cliente_id || clienteId,
+        dadosExtras: row.dados_extras || {},
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+      }));
+    const byId = new Map((contratos || []).map(contrato => [contrato.id, contrato]));
+    remote.forEach(contrato => byId.set(contrato.id, { ...(byId.get(contrato.id) || {}), ...contrato }));
+    contratos = Array.from(byId.values());
+    const cliente = usuarios.find(user => user.id === clienteId);
+    if (cliente) {
+      const vinculados = new Set(cliente.contratos_vinculados || []);
+      remote.forEach(contrato => vinculados.add(contrato.id));
+      cliente.contratos_vinculados = Array.from(vinculados);
+      try { localStorage.setItem("gdp.usuarios.v1", JSON.stringify(usuarios)); } catch (_) {}
+    }
+    try { localStorage.setItem("gdp.contratos.v1", JSON.stringify({ _v: 1, updatedAt: new Date().toISOString(), items: contratos })); } catch (_) {}
+    if (window._pastaAbertaClienteId === clienteId) renderContratos();
+  } catch (e) {
+    console.warn("[Contratos] Falha ao sincronizar pasta:", clienteId, e);
+  } finally {
+    window._syncPastaContratosId = null;
+  }
+}
 window.abrirPastaEscola = function(escola, clienteId) {
   const buscaEl = document.getElementById("busca-contrato");
   const filtroStatus = document.getElementById("filtro-status-contrato");
@@ -2230,6 +2283,7 @@ window.abrirPastaEscola = function(escola, clienteId) {
     buscaEl.value = escola;
     renderContratos();
   }
+  sincronizarContratosDaPasta(window._pastaAbertaClienteId);
 };
 
 function getEscolasVinculadasBadges(contratoId) {
