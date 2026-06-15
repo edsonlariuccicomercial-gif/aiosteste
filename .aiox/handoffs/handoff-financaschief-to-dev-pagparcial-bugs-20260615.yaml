@@ -1,0 +1,80 @@
+handoff:
+  from_agent: financas-chief
+  to_agent: dev
+  timestamp: "2026-06-15"
+  contexto: |
+    Validação em produção (via Playwright, login lariucci) da feature de pagamentos
+    parciais (story 20.13). Testado com a conta "Edson Lariucci / Prolabore" (valor 5000).
+    Estado real lido do gdpApi._memCache (= Supabase):
+      valor=5000, valor_pago=100, status="parcial", pagamentos=[] (VAZIO)
+    Ou seja: valor_pago e pagamentos[] estão DESSINCRONIZADOS.
+
+  bugs_encontrados:
+    - id: BUG-1
+      severidade: ALTA
+      titulo: "valor_pago não zera ao excluir o último pagamento (fallback de legado vaza)"
+      causa_raiz: |
+        Em gdp-core.js, cpValorPago():
+          if (Array.isArray(conta.pagamentos) && conta.pagamentos.length) return soma;
+          if (Number(conta.valor_pago)) return Number(conta.valor_pago);  // <-- fallback legado
+          if (status === 'paga') return valor;
+        Quando o usuário remove o ÚLTIMO pagamento, pagamentos fica [] (length 0),
+        e a função cai no fallback de legado, retornando o valor_pago ANTIGO (100)
+        em vez de 0. Assim cpRecalcular regrava valor_pago=100 e mantém status=parcial.
+        Sintoma do usuário: "excluí o pagamento mas o card continua como pago".
+      correcao_sugerida: |
+        Distinguir "conta legada (nunca teve array)" de "array intencionalmente vazio".
+        Opção A (recomendada): se conta.pagamentos é um Array (mesmo vazio), a soma do
+        array é a verdade absoluta — NÃO cair no fallback. O fallback de legado só vale
+        quando pagamentos é undefined/ausente.
+          function cpValorPago(conta){
+            if (Array.isArray(conta.pagamentos)) {
+              return round(conta.pagamentos.reduce((s,p)=>s+(+p.valorPago||0),0));
+            }
+            // legado: nunca teve array de pagamentos
+            if (String(conta.status||'').toLowerCase()==='paga') return +conta.valor||0;
+            return +conta.valor_pago||0;
+          }
+        Garantir que removerPagamentoCp chama cpRecalcular e salva (já chama) — com o
+        fix acima, array vazio → valor_pago=0 → status='pendente'.
+
+    - id: BUG-2
+      severidade: MEDIA
+      titulo: "Coluna 'Valor' da lista de Contas a Pagar mostra valor total, não o saldo restante"
+      local: "js/gdp-pedidos.js — renderContasPagar(), célula da coluna Valor (~linha 1908)"
+      detalhe: |
+        A linha exibe brl.format(item.valor) = 5.000,00 mesmo para conta parcial.
+        Os KPIs do topo JÁ usam saldo (A Pagar = 9.900 correto), mas a coluna da tabela não.
+        Confunde o operador ("paguei 100 e continua 5.000").
+      correcao_sugerida: |
+        Para conta parcial, exibir o saldo restante (cpSaldoRestante) com o total como
+        referência. Ex.: "R$ 4.900,00" principal + "<small>de R$ 5.000,00</small>",
+        ou coluna mostra saldo quando status==='parcial'.
+
+    - id: BUG-3
+      severidade: BAIXA (UX)
+      titulo: "Modal: só botão 'Cancelar', sem 'Fechar'; inclusão de pagamento salva automático sem feedback de 'salvo'"
+      detalhe: |
+        O painel fica dentro do modal 'Detalhes da Conta a Pagar', cujos botões são
+        'Editar' e 'Cancelar'. Ao 'Incluir Pagamento' o dado JÁ é persistido (correto),
+        mas o usuário não tem botão claro de 'Fechar/Voltar' — usa 'Cancelar', o que dá
+        sensação de que vai descartar. Também não há toast/confirmação visível de 'salvo'
+        que deixe claro que não precisa salvar de novo.
+      correcao_sugerida: |
+        - Renomear/duplicar botão para 'Fechar' (ou adicionar X no topo do modal) já que
+          a inclusão de pagamento é uma ação autônoma e persistida.
+        - Mensagem clara após incluir: "Pagamento registrado e salvo" (toast já existe;
+          reforçar copy). Opcional: deixar explícito que cada pagamento é salvo na hora.
+
+  validacao_extra:
+    - "Há uma conta legada 'Elismario P. Moreira / Prolabore' status 'atrasada' valor 5000 — usar para garantir que o fix do BUG-1 NÃO quebre contas legadas (sem array pagamentos)."
+    - "Após corrigir, a conta Edson deve: ou voltar a pendente (valor_pago=0) se a intenção era excluir, ou re-registrar o pagamento. Decidir com o usuário se limpa o estado inconsistente atual (valor_pago=100 órfão)."
+
+  acao_dados_inconsistentes: |
+    A conta Edson está com estado órfão (valor_pago=100, pagamentos=[]). Após o fix de
+    código, recomendo corrigir o dado: zerar valor_pago e status para pendente (já que
+    o usuário excluiu o pagamento). Fazer via app após deploy (abrir e remover/ajustar)
+    ou, se necessário, @data-engineer faz um UPDATE pontual. NUNCA sem aprovação do Edson.
+
+  proximo_passo: "@dev corrige BUG-1 (crítico) + BUG-2 + BUG-3; @devops faz deploy --force; revalidar em produção."
+  consumed: false

@@ -1908,7 +1908,17 @@ function renderContasPagar() {
       <td>${esc(formatCategoriaLabel(item.categoria))}</td>
       <td>${esc(item.forma)}</td>
       <td>${fmtDate(item.vencimento)}</td>
-      <td class="text-right font-mono">${brl.format(item.valor || 0)}</td>
+      <td class="text-right font-mono">${(() => {
+        // BUG-2 fix (2026-06-15): para conta com pagamento parcial, exibir o SALDO restante
+        // como valor principal (o que ainda falta pagar), com o total como referência.
+        const pago = (typeof cpValorPago === 'function') ? cpValorPago(item) : 0;
+        const total = Number(item.valor) || 0;
+        if (pago > 0 && pago < total) {
+          const saldo = (typeof cpSaldoRestante === 'function') ? cpSaldoRestante(item) : (total - pago);
+          return `${brl.format(saldo)}<br><span style="font-size:.7rem;color:var(--mut);font-weight:400">de ${brl.format(total)}</span>`;
+        }
+        return brl.format(total);
+      })()}</td>
       <td>${(() => { const status = getContaPagarStatusMeta(item); return `<span class="badge ${status.className}">${esc(status.label)}</span>`; })()}</td>
       <td style="font-size:.76rem;color:var(--mut)">${esc(formatAuditStamp(item.audit, item.pagaEm, item.audit?.updatedBy))}</td>
     </tr>

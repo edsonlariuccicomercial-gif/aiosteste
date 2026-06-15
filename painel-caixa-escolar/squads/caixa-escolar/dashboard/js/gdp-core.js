@@ -1468,11 +1468,13 @@ function saveContasPagar() { saveWrappedArray(PAYABLES_KEY, contasPagar); }
 // Saldo a pagar = valor - valor_pago. Status: pendente (0) / parcial (0<pago<valor) / paga (pago>=valor).
 function cpValorPago(conta) {
   if (!conta) return 0;
-  if (Array.isArray(conta.pagamentos) && conta.pagamentos.length) {
+  // BUG-1 fix (2026-06-15): se `pagamentos` é um Array, ele é a VERDADE ABSOLUTA — inclusive
+  // quando vazio (após remover o último pagamento, valor_pago deve ser 0). Antes, o array
+  // vazio caía no fallback de legado e ressuscitava o valor_pago antigo (conta "voltava" a paga).
+  if (Array.isArray(conta.pagamentos)) {
     return Math.round(conta.pagamentos.reduce((s, p) => s + (Number(p.valorPago) || 0), 0) * 100) / 100;
   }
-  // Reconciliação de legado (Story 20.13 AC7): conta marcada 'paga' antes do recurso de parciais.
-  if (Number(conta.valor_pago)) return Number(conta.valor_pago);
+  // Reconciliação de legado (Story 20.13 AC7): conta SEM array de pagamentos, criada antes do recurso.
   if (String(conta.status || '').toLowerCase() === 'paga') return Number(conta.valor) || 0;
   return Number(conta.valor_pago) || 0;
 }
