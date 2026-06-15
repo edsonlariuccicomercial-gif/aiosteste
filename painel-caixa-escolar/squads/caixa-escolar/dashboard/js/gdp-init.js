@@ -1022,7 +1022,9 @@ function incluirPagamentoCp() {
   saveContasPagar();
   renderContasPagar();
   abrirDetalheCp(_cpDetalheId); // re-render do modal com o novo pagamento
-  showToast(`Pagamento de ${brl.format(valorPago)} incluído.`, 3000);
+  // BUG-3 fix (2026-06-15): deixar explícito que o pagamento já foi salvo (não precisa "Salvar").
+  const _saldoMsg = cpSaldoRestante(conta) > 0 ? ` Saldo restante: ${brl.format(cpSaldoRestante(conta))}.` : ' Conta quitada.';
+  showToast(`✓ Pagamento de ${brl.format(valorPago)} salvo.${_saldoMsg}`, 3500);
 }
 
 function removerPagamentoCp(idx) {
