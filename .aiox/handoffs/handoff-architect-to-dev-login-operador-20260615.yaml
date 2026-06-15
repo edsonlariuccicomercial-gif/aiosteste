@@ -1,0 +1,63 @@
+handoff:
+  from_agent: architect
+  to_agent: dev
+  last_command: create-front-end-architecture
+  timestamp: "2026-06-15"
+  titulo: "Design: login de operador resiliente (resolve bug de login da Angela)"
+
+  contexto_recebido: "handoff-analyst-to-dev-login-angela-20260615.yaml — Angela (Operador) não loga apesar de cadastro ativo."
+
+  diagnostico_refinado_architect: |
+    O login.html já é LOCAL-FIRST em 3 camadas (não é 'só Supabase Auth'):
+      1. Legacy admin (sha256 hardcoded) → só 'lariucci'
+      2. nexedu.usuarios (localStorage) → operadores: valida found.senha === btoa(pass) || === pass
+      3. Supabase Auth (fallback de rede)
+    A camada 2 JÁ tem a lógica correta para operadores. O bug é ARQUITETURAL:
+    `nexedu.usuarios` é localStorage POR NAVEGADOR. O cadastro da Angela vive na máquina
+    do Edson. Na máquina/navegador da Angela, o login.html carrega ANTES de qualquer sync,
+    então nexedu.usuarios está vazio → camada 2 não acha a Angela → cai na 3 → 'Invalid'.
+    Paradoxo ovo-e-galinha: precisa logar p/ baixar usuários, mas precisa de usuários p/ logar.
+
+  decisao_usuario:
+    arquitetura: "Opção 1 — login.html busca usuários no Supabase ANTES de validar operador (sem criar conta no Auth)."
+    seguranca_senha: "Manter base64 (btoa) por ora. Hash real = DÉBITO registrado (ver abaixo)."
+
+  ponto_de_integracao_exato:
+    fonte_dados: "Tabela `sync_data` no Supabase (KV genérico: colunas user_id, key, data)."
+    chave: "user_id = 'LARIUCCI' (GDP_SYNC_FALLBACK_USER), key = 'nexedu.usuarios'"
+    query_referencia: "GET {SUPABASE_URL}/rest/v1/sync_data?user_id=eq.LARIUCCI&key=eq.nexedu.usuarios&select=data (headers apikey + Authorization Bearer SUPABASE_KEY)"
+    credenciais_ja_disponiveis: "login.html já tem SUPABASE_URL e SUPABASE_KEY (usa na camada 3 via window.gdpAuth)."
+    formato_data: "data é o array nexedu.usuarios: [{nome, usuario, email, senha(base64), ativo, perfil}]"
+
+  design_proposto:
+    arquivo: "painel-caixa-escolar/squads/caixa-escolar/dashboard/login.html (bloco <script> do submit, ~linha 483-523)"
+    nova_ordem_camadas:
+      - "1. Legacy admin (inalterado) — lariucci"
+      - "2. NOVA: fetch sync_data (key=nexedu.usuarios, user_id=LARIUCCI) → validar operador (mesma regra senha === btoa(pass) || === pass; ativo !== false). Aceitar match por `usuario` OU `email`."
+      - "3. nexedu.usuarios localStorage (cache local — mantém como fallback offline/instantâneo)"
+      - "4. Supabase Auth (fallback final, inalterado)"
+    detalhes:
+      - "Em caso de sucesso na camada 2 nova: setSyncUser('LARIUCCI') (mesma empresa compartilhada — NÃO usar email.toUpperCase, isso criava silos) + sessionStorage do LEGACY_AUTH.sessionKey, igual à camada local atual."
+      - "Timeout curto no fetch (ex.: 4-5s) com try/catch — se a rede falhar, cai para a camada 3 (cache local) sem travar o login."
+      - "Bloqueio: respeitar ativo === false (isUsuarioBloqueado já existe)."
+      - "Login aceitar 'usuário OU email' (o campo já diz isso): comparar contra u.usuario e u.email."
+    nao_fazer:
+      - "NÃO criar conta no Supabase Auth (decisão do usuário — opção 1)."
+      - "NÃO alterar schema (sync_data já existe). Sem migração."
+      - "NÃO mudar a empresa/syncUserId — todos os operadores compartilham 'LARIUCCI'."
+
+  validacao_esperada:
+    - "Logar como angela/Alicia06@ em navegador SEM cadastro local prévio (aba anônima) → deve entrar."
+    - "Regressão: lariucci continua logando (camada 1); operador inativo é bloqueado."
+    - "Sem rede: cai no cache local (camada 3) se existir."
+
+  debito_seguranca:
+    id: "SEC-1"
+    descricao: "Senha de operador em base64 (btoa) é reversível, não é hash. Migrar para hash seguro (bcrypt/argon via Edge Function) OU adotar Supabase Auth real no futuro. Registrar com @data-engineer."
+
+  evolucao_futura: "Opção 2 (criar conta real no Supabase Auth via Edge Function + service_role) fica como evolução de longo prazo — mais robusta, resolve também o débito SEC-1."
+
+  relacionado: "Divergência de notas (108 vs 109) tem a MESMA raiz de fundo (dados que não propagam entre sessões) — investigar separadamente o realtime de notas_fiscais e registros sem chave_acesso (nota #1526). NÃO faz parte deste fix de login."
+
+  proximo_passo: "@dev implementa a camada 2-nova no login.html; @devops faz deploy --force; @analyst revalida logando como Angela e então compara notas/pedidos."
+  consumed: false

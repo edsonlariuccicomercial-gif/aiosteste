@@ -491,26 +491,61 @@
         loggedIn = true;
       }
 
-      // 2) nexedu.usuarios localStorage (instant — no network)
+      // Helper: valida um operador contra a lista nexedu.usuarios (match por usuario OU email).
+      // Senha aceita base64 (btoa) ou texto puro — mesma regra histórica. (Débito SEC-1: hash real no futuro.)
+      function validarOperador(usuarios, login, senha) {
+        if (!Array.isArray(usuarios)) return false;
+        var alvo = String(login || '').trim().toLowerCase();
+        var found = usuarios.find(function(u) {
+          return String(u.usuario || '').toLowerCase() === alvo || String(u.email || '').toLowerCase() === alvo;
+        });
+        if (!found || found.ativo === false) return false;
+        return found.senha ? (found.senha === btoa(senha) || found.senha === senha) : false;
+      }
+
+      // 2) Supabase sync_data (rede) — resolve o "ovo-e-galinha": na máquina do operador
+      // o nexedu.usuarios local ainda não foi baixado. Busca a lista compartilhada (user_id=LARIUCCI)
+      // ANTES do cache local. Timeout curto + try/catch: se a rede falhar, cai no cache local (passo 3).
+      if (!loggedIn) {
+        try {
+          var _ctrl = new AbortController();
+          var _t = setTimeout(function () { _ctrl.abort(); }, 5000);
+          var _url = window.SUPABASE_URL + "/rest/v1/sync_data?user_id=eq.LARIUCCI&key=eq.nexedu.usuarios&select=data";
+          var _resp = await fetch(_url, {
+            headers: { apikey: window.SUPABASE_KEY, Authorization: "Bearer " + window.SUPABASE_KEY },
+            signal: _ctrl.signal
+          });
+          clearTimeout(_t);
+          if (_resp.ok) {
+            var _rows = await _resp.json();
+            var _usuariosCloud = (_rows && _rows[0] && _rows[0].data) ? _rows[0].data : [];
+            if (validarOperador(_usuariosCloud, email, pass)) {
+              sessionStorage.setItem(LEGACY_AUTH.sessionKey, LEGACY_AUTH.passHash);
+              setSyncUser('LARIUCCI');
+              // Cacheia localmente para próximos logins offline
+              try { localStorage.setItem("nexedu.usuarios", JSON.stringify(_usuariosCloud)); } catch(_) {}
+              loggedIn = true;
+            }
+          }
+        } catch(_) { /* rede indisponível/timeout — cai no cache local abaixo */ }
+      }
+
+      // 3) nexedu.usuarios localStorage (instant — cache local / offline)
       if (!loggedIn) {
         try {
           var usuarios = JSON.parse(localStorage.getItem("nexedu.usuarios") || "[]");
-          var found = usuarios.find(function(u) { return u.usuario === email; });
-          if (found && found.ativo !== false) {
-            var senhaOk = found.senha ? (found.senha === btoa(pass) || found.senha === pass) : false;
-            if (senhaOk) {
-              sessionStorage.setItem(LEGACY_AUTH.sessionKey, LEGACY_AUTH.passHash);
-              // ALL users in the same empresa must share the same syncUserId (LARIUCCI)
-              // Using email.toUpperCase() created data silos where each user had
-              // their own empresa_id and couldn't see each other's data.
-              setSyncUser('LARIUCCI');
-              loggedIn = true;
-            }
+          if (validarOperador(usuarios, email, pass)) {
+            sessionStorage.setItem(LEGACY_AUTH.sessionKey, LEGACY_AUTH.passHash);
+            // ALL users in the same empresa must share the same syncUserId (LARIUCCI)
+            // Using email.toUpperCase() created data silos where each user had
+            // their own empresa_id and couldn't see each other's data.
+            setSyncUser('LARIUCCI');
+            loggedIn = true;
           }
         } catch(_) {}
       }
 
-      // 3) Supabase Auth (network — only if local methods failed)
+      // 4) Supabase Auth (network — only if all previous methods failed)
       if (!loggedIn) {
         try {
           await window.gdpAuth.signIn(email, pass);
