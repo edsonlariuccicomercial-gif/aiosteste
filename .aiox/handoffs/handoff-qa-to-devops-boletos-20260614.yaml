@@ -1,0 +1,32 @@
+handoff:
+  from_agent: "qa"
+  to_agent: "devops"
+  last_command: "gate"
+  date: "2026-06-14"
+  title: "QA gate PASS (após auto-fix CRITICAL mTLS) — liberado para deploy com env vars de certificado"
+  story_context:
+    gate_path: "docs/qa/gates/EPIC-20-emissao-boletos-inter.yml"
+    adr_path: "docs/architecture/ADR-epic20-emissao-boletos-multibanco.md"
+    branch: "feature/epic20-ajustes-financeiro-gdp"
+  verdict: PASS
+  fix_aplicado_no_loop:
+    - "QA-01 CRITICAL: fetch(undici) ignora `agent` → mTLS não aplicaria. Reescrito inter-charge-client.js para https.request nativo + https.Agent (precedente nfe-sefaz-client.js:323). RESOLVIDO + re-validado."
+    - "QA-02 MEDIUM: precedência || vs ?: no campo pix → parênteses explícitos. RESOLVIDO."
+  verificacoes_pass:
+    - "Idempotência: seuNumero=conta.id, emissão 1-por-lançamento. PASS"
+    - "Segurança: cert/secret server-side (env), nada no front. PASS"
+    - "Regressão Asaas: dispatch por mapa preserva caminho asaas + webhooks. PASS"
+    - "Sintaxe: node --check em 4 módulos pós-fix. PASS"
+  acao_devops_obrigatoria:
+    env_vars_vercel:
+      - "GDP_BANK_INTER_CLIENT_ID — client id da aplicação no IB PJ Inter"
+      - "GDP_BANK_INTER_CLIENT_SECRET — client secret"
+      - "GDP_BANK_INTER_CERT_PEM — certificado público PEM (\\n escapado OK)"
+      - "GDP_BANK_INTER_KEY_PEM — chave privada PEM (\\n escapado OK) — SECRETO"
+      - "GDP_BANK_INTER_CONTA_CORRENTE — número da conta corrente Inter (opcional, header x-conta-corrente)"
+      - "(opcional) GDP_BANK_PROVIDER=inter para tornar Inter o provider default"
+    nota_seguranca: "KEY_PEM é credencial sensível: configurar como Encrypted/Secret no Vercel, nunca commitar. Sem cert, o client falha explícito (não silencioso)."
+    deploy: "cd painel-caixa-escolar && npx vercel --prod --force (regra do projeto: sempre --force por causa do build cache)."
+    sem_migration: "Nenhuma migration a aplicar (gate @data-engineer confirmou: usa cobranca JSONB existente)."
+  next_action: "@devops: configurar env vars Inter no Vercel, deploy --force, commit das mudanças (git add/commit), push. Validar /api/gdp-integrations responde a bank-charge-create provider=inter (sandbox) sem erro de TLS."
+  consumed: false

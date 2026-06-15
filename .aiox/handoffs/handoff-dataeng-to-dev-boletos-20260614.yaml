@@ -1,0 +1,23 @@
+handoff:
+  from_agent: "data-engineer"
+  to_agent: "dev"
+  last_command: "security-audit"
+  date: "2026-06-14"
+  title: "Gate de schema: NO-MIGRATION confirmado — emissão Inter reusa cobranca JSONB. Liberado para implementar."
+  story_context:
+    adr_path: "docs/architecture/ADR-epic20-emissao-boletos-multibanco.md"
+    branch: "feature/epic20-ajustes-financeiro-gdp"
+  verdict_schema:
+    migration_necessaria: false
+    evidencia:
+      - "001_gdp_tables.sql:138 → contas_receber.cobranca é JSONB DEFAULT '{}'."
+      - "Asaas já grava linhaDigitavel/nossoNumero/bankSlipUrl/providerChargeId dentro de cobranca (gdp-integrations.js:185-195) sem coluna dedicada."
+      - "integracoes.bancaria e conciliacao são sub-objetos do mesmo JSONB."
+      - "Realtime já cobre contas_receber (026) + soft-delete (029)."
+    sem_indice_novo: "Emissão é 1-boleto-por-lançamento iniciada pelo usuário; externalReference=conta.id rastreia no provider. Sem risco de duplicação que exija índice único (diferente da trilha DDA, que foi adiada)."
+  guard_rails_dev:
+    - "Gravar dados do boleto Inter DENTRO de cobranca JSONB, espelhando o formato do Asaas (mesmas chaves: provider, providerChargeId, linhaDigitavel, bankSlipUrl, nossoNumero, status, pix)."
+    - "NÃO adicionar colunas. Se algum dia precisar de relatório por banco, usar índice de expressão em cobranca->>'provider' — fora de escopo agora."
+    - "Manter o formato `normalized` idêntico ao asaas-charge-client para o orquestrador persistir sem branch novo."
+  next_action: "@dev: implementar conforme ADR (seção Sequência de entrega passos 2-6): add c6 à allowlist, inter-charge-client.js (OAuth+mTLS), dispatch por mapa em bank-charge-create/sync, c6 stub, generalizar conciliação. Sem tocar em schema/migrations."
+  consumed: false

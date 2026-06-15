@@ -1,0 +1,88 @@
+gate: EPIC-20-emissao-boletos-inter
+story: "Emissão de boletos multi-banco (Inter) — trilha B"
+reviewer: "Quinn (@qa)"
+date: "2026-06-14"
+status_inicial: CONCERNS
+status_final: PASS_APOS_FIX
+
+contexto:
+  adr: docs/architecture/ADR-epic20-emissao-boletos-multibanco.md
+  arquivos:
+    - server-lib/inter-charge-client.js (novo)
+    - server-lib/c6-charge-client.js (novo)
+    - server-lib/bank-provider-config.js (modificado)
+    - api/gdp-integrations.js (modificado)
+
+achados:
+  - id: QA-01
+    severidade: CRITICAL
+    titulo: "fetch(undici) ignora opção `agent` — certificado mTLS do Inter não seria aplicado"
+    evidencia: >
+      Node 24 usa fetch global (undici), que não aceita `agent` (opção do node-fetch);
+      usa `dispatcher`. O precedente do projeto para mTLS é nfe-sefaz-client.js:323
+      (https.request + https.Agent, CommonJS). fetch(..,{agent}) falharia o handshake TLS.
+    acao: auto_fix
+    correcao: >
+      Reescrito inter-charge-client.js para usar https.request() nativo com https.Agent
+      (cert/key PEM), espelhando o precedente do SEFAZ. Removido fetch para chamadas mTLS.
+    status: RESOLVIDO
+
+  - id: QA-02
+    severidade: MEDIUM
+    titulo: "Precedência de operador no campo pix (|| antes de ?:)"
+    evidencia: "linha 150: pix.pixCopiaECola || pix.txid ? {...} : null — funciona mas é ilegível."
+    acao: auto_fix
+    correcao: "Adicionado parênteses explícitos: (pix.pixCopiaECola || pix.txid) ? {...} : null"
+    status: RESOLVIDO
+
+  - id: QA-03
+    severidade: LOW
+    titulo: "Inconsistência de module system (ESM import vs commonjs no diretório)"
+    evidencia: "dashboard/package.json é type:commonjs; nfe-sefaz usa require; novos arquivos usavam import."
+    acao: auto_fix
+    correcao: "Convertido inter/c6-charge-client e mantida compatibilidade — ver nota de deploy."
+    status: RESOLVIDO
+
+verificacoes:
+  idempotencia:
+    resultado: PASS
+    nota: "seuNumero=conta.id rastreável; emissão iniciada por usuário (1 por lançamento). Sem duplicação automática."
+  seguranca_credenciais:
+    resultado: PASS
+    nota: "Cert/secret resolvidos server-side via resolveProviderRuntimeConfig (env vars). Nada no front."
+  regressao_asaas:
+    resultado: PASS
+    nota: "createAsaasCharge/syncAsaasCharge/webhooks intactos; dispatch por mapa preserva caminho asaas."
+  c6_stub:
+    resultado: PASS
+    nota: "Falha com mensagem clara apontando ADR e provider inter. Não bloqueia."
+  sintaxe:
+    resultado: PASS
+    nota: "node --check em todos os módulos após fix."
+
+verdict: PASS
+justificativa: >
+  Arquitetura sólida (reuso do padrão de provider existente). Achado CRITICAL de transporte
+  mTLS corrigido in-loop pelo self-healing do QA usando o precedente do próprio projeto.
+  Liberado para @devops com nota de configuração de env vars de certificado.
+
+deploy_validacao_producao:
+  data: "2026-06-14"
+  achado_deploy:
+    id: DEPLOY-01
+    severidade: CRITICAL
+    titulo: "Endpoint editado pela cadeia (squads/.../api/gdp-integrations.js, ESM) NÃO é o servido em /api/* (raiz, CommonJS)"
+    causa_raiz: >
+      Dois gdp-integrations.js divergentes. A função deployada (api/gdp-integrations.js raiz)
+      é CommonJS e só trata NF-e; não consegue require() dos clients de cobrança ESM.
+      Por isso a emissão Inter (e todo o fluxo de cobrança ESM) nunca foi acessível em produção.
+    correcao: >
+      Criado api/bank-charge.js (CommonJS auto-contido, provider Inter via https.request+mTLS),
+      rota dedicada /api/bank-charge, registrado em vercel.json. Commit 7b2679b.
+    status: RESOLVIDO
+  testes_producao:
+    - "POST /api/bank-charge {provider:inter} → 'Credenciais OAuth do Inter ausentes' (código novo no ar; não mais Unknown action). PASS"
+    - "POST /api/bank-charge {provider:c6} → stub claro 'aguardando homologacao'. PASS"
+    - "GET home → HTTP 200, sem regressão. PASS"
+  deployment: "painel-caixa-escolar-pysytm8mo (Skipping build cache). Aliased: painel-caixa-escolar.vercel.app"
+  pendencia_usuario: "Configurar env vars GDP_BANK_INTER_* na Vercel para emissão real."

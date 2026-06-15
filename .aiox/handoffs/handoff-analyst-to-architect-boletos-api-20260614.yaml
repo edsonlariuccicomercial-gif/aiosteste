@@ -1,0 +1,35 @@
+handoff:
+  from_agent: "analyst"
+  to_agent: "architect"
+  last_command: "create-project-brief"
+  date: "2026-06-14"
+  title: "Ciclo financeiro via API bancária (DDA + emissão boletos) — brief pronto, desenhar arquitetura multi-banco"
+  story_context:
+    brief_path: "docs/briefs/brief-ingestao-automatica-boletos-dda.md"
+    epic_alvo: "EPIC-20 (Ajustes Financeiro GDP) ou novo EPIC dedicado"
+    sistema: "painel-caixa-escolar/"
+    branch: "feature/epic20-ajustes-financeiro-gdp"
+  contexto_negocio:
+    - "Cliente tem conta PJ no Inter E no C6; quer fechar o ciclo financeiro sem digitação manual."
+    - "TRILHA A (PAGAR): boletos do DDA → contas_pagar, automático. Hoje copia/digita à mão."
+    - "TRILHA B (RECEBER): emitir boletos pelo próprio sistema via API de Cobrança → contas_receber."
+    - "Prioridade de valor: começar pela TRILHA B / Inter (self-service, Bolepix, sandbox, registro instantâneo)."
+  achados_codigo:
+    - "contas_pagar (gdp-api.js:99): NÃO tem campo de identidade de boleto (linha_digitavel/codigo_barras) → ingestão automática duplicaria sem índice único. Migration aditiva proposta no brief (padrão 029/030)."
+    - "contas_receber (gdp-api.js:98): JÁ tem campos `cobranca` e `automacao` → indício de design antecipado. INSPECIONAR uso atual e REUSAR antes de criar colunas novas."
+    - "Ambas tabelas usam createEntityApi genérico + soft-delete (migrations 029/030) + Supabase Realtime → conector novo só precisa upsert idempotente; sync entre PCs já é de graça."
+  decisoes_pendentes:
+    - "DECISÃO #1 (bloqueante, trilha A): DDA via API do próprio banco vs agregador (Pluggy/Belvo/Asaas). C6 cobre DDA na própria API de cobrança → candidato natural para evitar agregador."
+    - "DECISÃO #2 (trilha B): arquitetura multi-banco. Abstrair interface única `BoletoProvider` (emitir/consultar/cancelar/webhookBaixa) com adapters InterBoletoProvider e C6BoletoProvider."
+  riscos_chave:
+    - "R5: certificado mTLS do Inter exige armazenamento seguro (env Vercel) + renovação; vazamento = emissão indevida."
+    - "R6: liberação da API do C6 pode demorar (homologação) → NÃO bloquear Inter por causa do C6."
+    - "R7: tarifa por boleto varia por banco/contrato → confirmar custo antes de escalar (não assumido no brief)."
+  comparativo_bancos:
+    inter: "Self-service no IB PJ; Bolepix nativo; sandbox; registro instantâneo (sem D+1); OAuth v2 + mTLS. Endpoints cdpj.partners.bancointer.com.br/cobranca/v3/."
+    c6: "API de cobrança (boleto+Pix) + consulta DDA na mesma API; gera chave no Web Banking PJ; relatos de demora na liberação; sandbox não confirmado."
+  fontes:
+    - "https://developers.inter.co/references/cobranca-bolepix"
+    - "https://www.c6bank.com.br/apis-integracao/"
+  next_action: "@architect: ler o brief, decidir DECISÃO #1 (DDA banco vs agregador) e DECISÃO #2 (desenhar interface BoletoProvider multi-banco). Definir sequência de entrega (recomendado: emissão Inter → contas_receber primeiro). Produzir ADR. Depois @data-engineer faz migrations (só o que não couber em `cobranca`/`automacao`) e @dev implementa."
+  consumed: false

@@ -37,10 +37,32 @@ const ALLOWED_PROVIDERS = Object.freeze({
     },
     envPrefix: "GDP_BANK_INTER",
     auth: {
-      required: ["clientId", "clientSecret"],
+      // Inter exige OAuth v2 (clientId/clientSecret) + certificado mTLS (PEM).
+      required: ["clientId", "clientSecret", "certPem", "keyPem"],
       env: {
         clientId: ["GDP_BANK_INTER_CLIENT_ID", "INTER_CLIENT_ID"],
-        clientSecret: ["GDP_BANK_INTER_CLIENT_SECRET", "INTER_CLIENT_SECRET"]
+        clientSecret: ["GDP_BANK_INTER_CLIENT_SECRET", "INTER_CLIENT_SECRET"],
+        certPem: ["GDP_BANK_INTER_CERT_PEM", "INTER_CERT_PEM"],
+        keyPem: ["GDP_BANK_INTER_KEY_PEM", "INTER_KEY_PEM"],
+        contaCorrente: ["GDP_BANK_INTER_CONTA_CORRENTE", "INTER_CONTA_CORRENTE"]
+      }
+    }
+  },
+  c6: {
+    label: "C6 Bank",
+    defaultBaseUrls: {
+      sandbox: "https://baas-api-sandbox.c6bank.info",
+      producao: "https://baas-api.c6bank.info"
+    },
+    envPrefix: "GDP_BANK_C6",
+    auth: {
+      // C6 usa OAuth (clientId/clientSecret) + mTLS, liberação por homologação.
+      required: ["clientId", "clientSecret", "certPem", "keyPem"],
+      env: {
+        clientId: ["GDP_BANK_C6_CLIENT_ID", "C6_CLIENT_ID"],
+        clientSecret: ["GDP_BANK_C6_CLIENT_SECRET", "C6_CLIENT_SECRET"],
+        certPem: ["GDP_BANK_C6_CERT_PEM", "C6_CERT_PEM"],
+        keyPem: ["GDP_BANK_C6_KEY_PEM", "C6_KEY_PEM"]
       }
     }
   },
@@ -151,7 +173,7 @@ function buildBankProviderDiagnostic(config = {}) {
   );
 
   if (!providerAllowed) {
-    pushCheck("Server provider config", false, "Use one of: asaas, efi, inter, bb");
+    pushCheck("Server provider config", false, "Use one of: asaas, efi, inter, c6, bb");
     return {
       provider: requestedProvider,
       providerLabel: requestedProvider || "undefined",

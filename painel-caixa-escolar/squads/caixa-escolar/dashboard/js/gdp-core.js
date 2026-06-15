@@ -20,6 +20,21 @@ const _GDP_DEBUG = localStorage.getItem('gdp.debug') === 'true';
 const gdpLog = _GDP_DEBUG ? console.log.bind(console, '[GDP]') : function() {};
 const gdpWarn = _GDP_DEBUG ? console.warn.bind(console, '[GDP]') : function() {};
 
+// ===== BUSCA: NORMALIZAÇÃO (Story 20.10) =====
+// Helper global de normalização de busca: remove acentos E pontuação, aplica lowercase + trim.
+// Carregado em gdp-core.js (primeiro script), disponível para todos os módulos via window.
+// Deve ser aplicado em AMBOS os lados da comparação (termo digitado E campo do registro).
+// Ex.: "feijao" encontra "Feijão"; "12345678/0001" encontra "12.345.678/0001".
+window.normalizeSearch = function (s) {
+  return (s || '')
+    .toString()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '') // remove diacríticos (acentos)
+    .replace(/[^\w\s]/g, '')         // remove pontuação
+    .toLowerCase()
+    .trim();
+};
+
 // ===== SIDEBAR TOGGLE =====
 document.getElementById("sidebar-toggle").addEventListener("click", () => {
   document.getElementById("sidebar").classList.toggle("open");
@@ -1447,6 +1462,51 @@ function saveNotasEntrada() {
   saveWrappedArray(ENTRY_INVOICES_KEY, lightItems);
 }
 function saveContasPagar() { saveWrappedArray(PAYABLES_KEY, contasPagar); }
+
+// ===== CONTAS A PAGAR: PAGAMENTOS PARCIAIS (Story 20.13 — modelo MarketUp) =====
+// pagamentos[] é a fonte da verdade; valor_pago é a soma materializada (mantida aqui).
+// Saldo a pagar = valor - valor_pago. Status: pendente (0) / parcial (0<pago<valor) / paga (pago>=valor).
+function cpValorPago(conta) {
+  if (!conta) return 0;
+  if (Array.isArray(conta.pagamentos) && conta.pagamentos.length) {
+    return Math.round(conta.pagamentos.reduce((s, p) => s + (Number(p.valorPago) || 0), 0) * 100) / 100;
+  }
+  // Reconciliação de legado (Story 20.13 AC7): conta marcada 'paga' antes do recurso de parciais.
+  if (Number(conta.valor_pago)) return Number(conta.valor_pago);
+  if (String(conta.status || '').toLowerCase() === 'paga') return Number(conta.valor) || 0;
+  return Number(conta.valor_pago) || 0;
+}
+function cpSaldoRestante(conta) {
+  if (!conta) return 0;
+  return Math.round(((Number(conta.valor) || 0) - cpValorPago(conta)) * 100) / 100;
+}
+// Recalcula valor_pago e status a partir de pagamentos[]. Chamar após incluir/remover pagamento.
+function cpRecalcular(conta) {
+  if (!conta) return;
+  const pago = cpValorPago(conta);
+  conta.valor_pago = pago;
+  const total = Number(conta.valor) || 0;
+  if (pago <= 0) conta.status = 'pendente';
+  else if (pago < total) conta.status = 'parcial';
+  else conta.status = 'paga';
+  // pagaEm: data do último pagamento quando quitada (mantém compat. com auditoria existente)
+  if (conta.status === 'paga' && Array.isArray(conta.pagamentos) && conta.pagamentos.length) {
+    const ultima = conta.pagamentos[conta.pagamentos.length - 1];
+    conta.pagaEm = (ultima && ultima.data ? ultima.data : new Date().toISOString().slice(0, 10)) + 'T12:00:00';
+  } else {
+    delete conta.pagaEm;
+  }
+}
+// Lista de contas bancárias para o dropdown "Conta Corrente" (mesma fonte da conciliação).
+function cpListaContasBancarias() {
+  let contas = [];
+  try { contas = JSON.parse(localStorage.getItem('nexedu.config.contas-bancarias') || '[]'); } catch (_) {}
+  const ativas = (Array.isArray(contas) ? contas : []).filter(c => c && c.ativa !== false).map(c => {
+    const label = ((c.banco || '') + (c.apelido ? ' (' + c.apelido + ')' : '')).trim() || 'Conta Principal';
+    return { id: c.id || label, label };
+  });
+  return ativas.length ? ativas : [{ id: 'Conta Principal', label: 'Conta Principal' }];
+}
 function saveContasReceber() { saveWrappedArray(RECEIVABLES_KEY, contasReceber); }
 function saveCaixaExtrato() { saveWrappedArray(CAIXA_STATEMENT_KEY, caixaExtratoMovimentos); }
 function saveEstoqueMovimentos() { saveWrappedArray(STOCK_KEY, estoqueMovimentos); }

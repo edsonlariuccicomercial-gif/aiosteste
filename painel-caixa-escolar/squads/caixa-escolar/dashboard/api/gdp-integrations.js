@@ -1,6 +1,20 @@
 import nfeClient from "../server-lib/nfe-sefaz-client.js";
 import { buildBankProviderDiagnostic } from "../server-lib/bank-provider-config.js";
 import { createAsaasCharge, syncAsaasCharge, listAsaasWebhooks, createAsaasWebhook } from "../server-lib/asaas-charge-client.js";
+import { createInterCharge, syncInterCharge } from "../server-lib/inter-charge-client.js";
+import { createC6Charge, syncC6Charge } from "../server-lib/c6-charge-client.js";
+
+// Dispatch por provider — cada client expõe a MESMA assinatura e retorna o mesmo `normalized`.
+const CHARGE_CREATORS = {
+  asaas: createAsaasCharge,
+  inter: createInterCharge,
+  c6: createC6Charge
+};
+const CHARGE_SYNCERS = {
+  asaas: syncAsaasCharge,
+  inter: syncInterCharge,
+  c6: syncC6Charge
+};
 
 const SUPABASE_URL = process.env.SUPABASE_URL || "https://mvvsjaudhbglxttxaeop.supabase.co";
 const SUPABASE_KEY = process.env.SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im12dnNqYXVkaGJnbHh0dHhhZW9wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4MDY3OTAsImV4cCI6MjA5MDM4Mjc5MH0.jadqvmRvbZjtjATaF_4WWB6A44NF06whtEIyNNyCUGo";
@@ -457,12 +471,11 @@ export default async function handler(req, res) {
       const ambiente = String(body.ambiente || conta?.integracoes?.bancaria?.ambiente || nota?.integracoes?.bancaria?.ambiente || "sandbox").trim().toLowerCase() === "producao" ? "producao" : "sandbox";
       if (!conta?.id) return res.status(400).json({ ok: false, error: "conta.id obrigatorio" });
 
-      let result;
-      if (provider === "asaas") {
-        result = await createAsaasCharge({ provider, ambiente, conta, nota });
-      } else {
+      const createCharge = CHARGE_CREATORS[provider];
+      if (!createCharge) {
         return res.status(400).json({ ok: false, error: `Provider ${provider} ainda nao suportado para emissao real` });
       }
+      const result = await createCharge({ provider, ambiente, conta, nota });
 
       return res.status(200).json({
         ok: true,
@@ -479,12 +492,11 @@ export default async function handler(req, res) {
       const providerChargeId = String(body.providerChargeId || "").trim();
       if (!providerChargeId) return res.status(400).json({ ok: false, error: "providerChargeId obrigatorio" });
 
-      let result;
-      if (provider === "asaas") {
-        result = await syncAsaasCharge({ provider, ambiente, providerChargeId });
-      } else {
+      const syncCharge = CHARGE_SYNCERS[provider];
+      if (!syncCharge) {
         return res.status(400).json({ ok: false, error: `Provider ${provider} ainda nao suportado para sincronizacao real` });
       }
+      const result = await syncCharge({ provider, ambiente, providerChargeId });
 
       return res.status(200).json({
         ok: true,

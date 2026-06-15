@@ -2,7 +2,12 @@
 // Pedidos, Notas Fiscais, Contas Pagar/Receber, Caixa, Relatorios, Lista de Compras
 
 // Story 8.22: busca inteligente sem acentos/sinais
-function _normBusca(s) { return (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''); }
+// Story 20.10: delega ao helper global (gdp-core.js) que tamb\u00e9m remove pontua\u00e7\u00e3o.
+// Fallback inline mant\u00e9m compatibilidade caso gdp-core.js n\u00e3o tenha carregado.
+function _normBusca(s) {
+  if (typeof window !== 'undefined' && typeof window.normalizeSearch === 'function') return window.normalizeSearch(s);
+  return (s || '').toString().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w\s]/g, '').trim();
+}
 
 // Story 4.54: shared period filter helper — reusable across all list views
 // Fix: parse dates as LOCAL (not UTC) to avoid timezone mismatch (BR = UTC-3)
@@ -219,6 +224,17 @@ function renderPedidos() {
     return;
   }
   empty.classList.add("hidden");
+
+  // Story 20.11: ordenar do mais recente para o mais antigo (data desc).
+  // Mesma tripla de campos do filtro de período existente (linha ~195): data → dataEntrega → created_at.
+  // Registros sem data vão para o fim. Cópia para não mutar o array `pedidos` original.
+  filtered = filtered.slice().sort(function (a, b) {
+    var da = _parseLocalDate(a.data || a.dataEntrega || a.created_at || '');
+    var db = _parseLocalDate(b.data || b.dataEntrega || b.created_at || '');
+    var ta = da ? da.getTime() : -Infinity;
+    var tb = db ? db.getTime() : -Infinity;
+    return tb - ta;
+  });
 
   // Story 4.70: paginação
   var paged = gdpPaginate(filtered, 'pedidos');
@@ -1855,8 +1871,11 @@ function renderContasPagar() {
   if (cpCountEl) cpCountEl.textContent = filtered.length;
 
   const hoje = new Date().toISOString().slice(0, 10);
-  const totalAberto = contasPagar.filter((item) => item.status !== "paga").reduce((sum, item) => sum + Number(item.valor || 0), 0);
-  const totalPago = contasPagar.filter((item) => item.status === "paga").reduce((sum, item) => sum + Number(item.valor || 0), 0);
+  // Story 20.13: KPIs consideram pagamentos parciais — "aberto" = saldo restante, "pago" = valor efetivamente pago.
+  const _cpSaldo = (typeof cpSaldoRestante === 'function') ? cpSaldoRestante : (it) => Number(it.valor || 0);
+  const _cpPago = (typeof cpValorPago === 'function') ? cpValorPago : (it) => (it.status === 'paga' ? Number(it.valor || 0) : 0);
+  const totalAberto = contasPagar.filter((item) => item.status !== "paga").reduce((sum, item) => sum + _cpSaldo(item), 0);
+  const totalPago = contasPagar.reduce((sum, item) => sum + _cpPago(item), 0);
   const atrasadas = contasPagar.filter((item) => item.status !== "paga" && item.vencimento && item.vencimento < hoje);
   const abertoEl = document.getElementById("cp-kpi-aberto");
   const pagoEl = document.getElementById("cp-kpi-pago");
@@ -2974,6 +2993,7 @@ var CONTAS_PAGAR_STATUS_TABS = [
   { key: "todas", label: "Todas", className: "badge-gray" },
   { key: "emitida", label: "Emitidas", className: "badge-blue" },
   { key: "em_aberto", label: "Em Aberto", className: "badge-yellow" },
+  { key: "parcial", label: "Parciais", className: "badge-blue" },
   { key: "paga", label: "Pagas", className: "badge-green" },
   { key: "atrasada", label: "Atrasadas", className: "badge-red" }
 ];
@@ -2982,6 +3002,7 @@ var CONTAS_PAGAR_STATUS_COLORS = {
   todas: '#94a3b8',
   emitida: '#3b82f6',
   em_aberto: '#eab308',
+  parcial: '#0ea5e9',
   paga: '#22c55e',
   atrasada: '#ef4444'
 };
@@ -3269,8 +3290,8 @@ function renderListaCompras(itens) {
 }
 
 function filtrarListaCompras() {
-  const busca = (document.getElementById("busca-lista-compras")?.value || "").toLowerCase();
-  const filtered = busca ? _listaComprasData.filter(i => i.descricao.toLowerCase().includes(busca) || (i.sku || "").toLowerCase().includes(busca)) : _listaComprasData;
+  const busca = window.normalizeSearch(document.getElementById("busca-lista-compras")?.value || ""); // Story 20.10
+  const filtered = busca ? _listaComprasData.filter(i => window.normalizeSearch(i.descricao).includes(busca) || window.normalizeSearch(i.sku || "").includes(busca)) : _listaComprasData;
   renderListaCompras(filtered);
 }
 
@@ -3572,8 +3593,8 @@ function renderListaComprasAtual() {
   // Refresh dados frescos (dataPrevista pode ter mudado) e reconsolidar
   refreshListaComprasOrigem();
   _listaComprasData = consolidarItensParaLista(_listaComprasOrigem);
-  const busca = (document.getElementById("busca-lista-compras")?.value || "").toLowerCase();
-  let itens = busca ? _listaComprasData.filter(i => i.descricao.toLowerCase().includes(busca) || (i.sku || "").toLowerCase().includes(busca)) : _listaComprasData;
+  const busca = window.normalizeSearch(document.getElementById("busca-lista-compras")?.value || ""); // Story 20.10
+  let itens = busca ? _listaComprasData.filter(i => window.normalizeSearch(i.descricao).includes(busca) || window.normalizeSearch(i.sku || "").includes(busca)) : _listaComprasData;
 
   const tbody = document.getElementById("lista-compras-tbody");
   const thead = tbody.closest("table").querySelector("thead tr");

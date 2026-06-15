@@ -1,0 +1,46 @@
+handoff:
+  from_agent: po
+  to_agent: dev
+  last_command: validate-story-draft
+  timestamp: "2026-06-15"
+  story_context:
+    epic: EPIC-20
+    branch: feature/epic20-ajustes-financeiro-gdp
+    story_status: Ready (validadas pelo @po)
+
+  validacao:
+    veredito: GO (todas)
+    stories:
+      - id: "20.10"
+        score: "9/10"
+        status: Ready
+        nota: "Atenção ao AC4 (não-regressão de busca) — alcance ~42 arquivos."
+      - id: "20.11"
+        score: "10/10"
+        status: Ready
+      - id: "20.12"
+        score: "10/10"
+        status: Ready
+      - id: "20.13"
+        score: "10/10"
+        status: Ready
+        nota: "Onda 2 — depende da migration 033 (aplicar @devops antes do go-live). Gap gdp-api.js:99 no escopo."
+
+  ordem_execucao_sugerida:
+    - "20.11 (P, trivial) — ordenação pedidos"
+    - "20.10 (M) — busca sem acento/pontuação"
+    - "20.12 (M) — fix aba portal (sync saldoVisivelEscola)"
+    - "20.13 (G) — pagamentos parciais (após migration 033)"
+
+  decisoes_usuario:
+    - "1 story por item."
+    - "Fluxo: @data-engineer ✅ → @pm ✅ → @po ✅ → @dev implementa → @devops deploya."
+    - "20.12: @dev investiga sync direto."
+
+  lembretes_operacionais:
+    - "Bumpar ?v=N nos <script> alterados no HTML; orientar Ctrl+Shift+R."
+    - "Deploy de produção é exclusivo do @devops: cd painel-caixa-escolar && npx vercel --prod --force --yes."
+    - "@dev pode git add/commit/branch local, mas NÃO git push (delegar @devops)."
+
+  proximo_passo: "@dev: *develop-story 20.11 → 20.10 → 20.12 → 20.13 (esta após @devops aplicar migration 033)."
+  consumed: false

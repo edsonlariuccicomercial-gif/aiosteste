@@ -1,0 +1,43 @@
+handoff:
+  from_agent: data-engineer
+  to_agent: pm
+  last_command: create-migration-plan
+  timestamp: "2026-06-15"
+  story_context:
+    epic: EPIC-20
+    branch: feature/epic20-ajustes-financeiro-gdp
+    feature: "Item 4 — Pagamentos parciais em Contas a Pagar (modelo MarketUp)"
+    story_status: "schema pronto, aguardando criação de stories"
+
+  entrega_dataeng:
+    migration_criada: "painel-caixa-escolar/supabase/migrations/033_pagamentos_parciais_contas_pagar_epic20.sql"
+    aplicada: false
+    aplicar_por: "@devops (autoridade exclusiva de deploy) — decisão do usuário"
+    modelo_aprovado_pelo_usuario: "pagamentos[] jsonb + valor_pago (NÃO tabela separada)"
+    schema_changes:
+      - "ADD COLUMN pagamentos JSONB NOT NULL DEFAULT '[]'"
+      - "ADD COLUMN valor_pago NUMERIC(12,2) NOT NULL DEFAULT 0"
+      - "CHECK constraint chk_contas_pagar_valor_pago_nonneg (valor_pago >= 0)"
+      - "Realtime: contas_pagar já publicada (migr.030); garantia idempotente incluída"
+    formato_pagamento_item: "{ data, valorPago, juros, descontos, forma, contaCorrenteId }"
+    regra_negocio:
+      - "SALDO A PAGAR = valor - valor_pago (calculado no app)"
+      - "status: pendente (valor_pago=0) | parcial (0<valor_pago<valor) | paga (valor_pago>=valor)"
+      - "VALOR TOTAL = coluna valor (já existe)"
+
+  gap_critico_para_dev:
+    arquivo: "painel-caixa-escolar/squads/caixa-escolar/dashboard/gdp-api.js"
+    linha: 99
+    problema: "TABLE_COLS.contas_pagar NÃO inclui 'pagamentos' nem 'valor_pago'. Sem adicionar, o app não sincroniza os novos campos com o Supabase (campos seriam descartados no save/load)."
+    acao_dev: "Adicionar 'pagamentos' e 'valor_pago' ao array TABLE_COLS.contas_pagar em gdp-api.js:99."
+
+  pontos_de_implementacao_para_dev:
+    - "Render lista: renderContasPagar() em js/gdp-pedidos.js:1830 — mostrar saldo restante e status parcial"
+    - "Baixa atual (substituir/estender): registrarBaixaContaPagar() em js/gdp-init.js:790"
+    - "Persistência: saveContasPagar() / gdpApi.contas_pagar"
+    - "UI nova: painel EFETUAR PAGAMENTO + HISTÓRICO DE PAGAMENTOS REALIZADOS + SALDO A PAGAR (ref: Desktop/markeup.jpg)"
+    - "Reconciliar contas legadas status='paga' → valor_pago=valor na primeira escrita"
+
+  fluxo_solicitado_pelo_usuario: "@data-engineer (feito) → @pm cria story → @po valida → @dev implementa → @devops deploya"
+  proximo_passo: "@pm: criar a story do Item 4 (pagamentos parciais) com base neste schema. As stories dos itens 1,2,3 (busca sem acento, ordenação de pedidos, aba portal) estão no handoff-analyst-to-dev-ajustes-gdp-20260615.yaml — 1 story por item."
+  consumed: false

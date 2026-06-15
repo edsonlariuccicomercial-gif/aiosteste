@@ -942,8 +942,101 @@ function abrirDetalheCp(contaId) {
     <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Vencimento</label><div id="cp-det-vencimento" class="cp-det-field" style="padding:.4rem 0;font-size:.92rem">${esc(conta.vencimento)}</div></div>
     <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Status</label><div style="padding:.4rem 0"><span class="badge ${statusMeta.className}">${esc(statusMeta.label)}</span></div></div>
     <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Auditoria</label><div style="padding:.4rem 0;font-size:.82rem;color:var(--mut)">${esc(formatAuditStamp(conta.audit, conta.pagaEm, conta.audit?.updatedBy))}</div></div>
+    <div style="grid-column:1/-1">${renderCpPagamentoPanel(conta)}</div>
   `;
   modal.classList.remove("hidden");
+}
+
+// Story 20.13: painel "EFETUAR PAGAMENTO" + "HISTÓRICO DE PAGAMENTOS REALIZADOS" + "SALDO A PAGAR"
+function renderCpPagamentoPanel(conta) {
+  const hoje = new Date().toISOString().slice(0, 10);
+  const saldo = cpSaldoRestante(conta);
+  const pago = cpValorPago(conta);
+  const quitada = saldo <= 0;
+  const bancos = cpListaContasBancarias();
+  const formas = (typeof contaPagarFormas !== 'undefined' && contaPagarFormas.length) ? contaPagarFormas : ['dinheiro', 'pix', 'ted', 'boleto'];
+  const pagamentos = Array.isArray(conta.pagamentos) ? conta.pagamentos : [];
+
+  const histRows = pagamentos.length ? pagamentos.map((p, i) => `
+    <tr>
+      <td style="padding:.3rem .5rem">${esc(fmtDate(p.data))}</td>
+      <td style="padding:.3rem .5rem;text-align:right;font-family:monospace">${brl.format(Number(p.valorPago) || 0)}</td>
+      <td style="padding:.3rem .5rem;text-align:right;font-family:monospace">${brl.format(Number(p.descontos) || 0)}</td>
+      <td style="padding:.3rem .5rem;text-align:right;font-family:monospace">${brl.format(Number(p.juros) || 0)}</td>
+      <td style="padding:.3rem .5rem">${esc(p.forma || '-')}</td>
+      <td style="padding:.3rem .5rem">${esc(p.contaCorrenteId || '-')}</td>
+      <td style="padding:.3rem .5rem;text-align:center"><button title="Remover pagamento" onclick="removerPagamentoCp(${i})" style="background:var(--red,#ef4444);color:#fff;border:none;border-radius:3px;cursor:pointer;padding:.1rem .4rem;font-size:.8rem">✕</button></td>
+    </tr>`).join('') : `<tr><td colspan="7" style="padding:.5rem;text-align:center;color:var(--mut);font-size:.82rem">Nenhum pagamento registrado.</td></tr>`;
+
+  return `
+    <div style="margin-top:1rem;border-top:1px solid var(--bdr);padding-top:1rem">
+      ${quitada ? '' : `
+      <div style="font-size:.78rem;font-weight:700;color:var(--mut);text-transform:uppercase;margin-bottom:.5rem">Efetuar Pagamento</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:.5rem;align-items:end;margin-bottom:.8rem">
+        <div><label style="font-size:.72rem;color:var(--mut);display:block">Data</label><input type="date" id="cp-pg-data" value="${hoje}" style="width:100%"></div>
+        <div><label style="font-size:.72rem;color:var(--mut);display:block">Conta Corrente</label><select id="cp-pg-conta" style="width:100%">${bancos.map(b => `<option value="${esc(b.id)}">${esc(b.label)}</option>`).join('')}</select></div>
+        <div><label style="font-size:.72rem;color:var(--mut);display:block">Juros</label><input type="number" id="cp-pg-juros" min="0" step="0.01" value="0" style="width:100%"></div>
+        <div><label style="font-size:.72rem;color:var(--mut);display:block">Descontos</label><input type="number" id="cp-pg-descontos" min="0" step="0.01" value="0" style="width:100%"></div>
+        <div><label style="font-size:.72rem;color:var(--mut);display:block">Valor Pago</label><input type="number" id="cp-pg-valor" min="0" step="0.01" value="${saldo.toFixed(2)}" style="width:100%"></div>
+        <div><label style="font-size:.72rem;color:var(--mut);display:block">Efetuado em</label><select id="cp-pg-forma" style="width:100%">${formas.map(f => `<option value="${esc(f)}">${esc(String(f).toUpperCase())}</option>`).join('')}</select></div>
+        <div><button onclick="incluirPagamentoCp()" style="background:var(--green,#22c55e);color:#fff;border:none;border-radius:4px;cursor:pointer;padding:.5rem .8rem;font-weight:700;font-size:.82rem;width:100%">Incluir Pagamento</button></div>
+      </div>`}
+      <div style="font-size:.78rem;font-weight:700;color:var(--mut);text-transform:uppercase;margin-bottom:.4rem">Histórico de Pagamentos Realizados</div>
+      <table style="width:100%;border-collapse:collapse;font-size:.82rem;margin-bottom:.6rem">
+        <thead><tr style="border-bottom:1px solid var(--bdr);color:var(--mut);font-size:.72rem">
+          <th style="padding:.3rem .5rem;text-align:left">Data</th>
+          <th style="padding:.3rem .5rem;text-align:right">Pago</th>
+          <th style="padding:.3rem .5rem;text-align:right">Desconto</th>
+          <th style="padding:.3rem .5rem;text-align:right">Juros</th>
+          <th style="padding:.3rem .5rem;text-align:left">Forma</th>
+          <th style="padding:.3rem .5rem;text-align:left">Conta</th>
+          <th style="padding:.3rem .5rem"></th>
+        </tr></thead>
+        <tbody>${histRows}</tbody>
+      </table>
+      <div style="display:flex;justify-content:space-between;align-items:center;background:var(--s1,#f1f5f9);padding:.5rem .8rem;border-radius:4px">
+        <span style="font-size:.8rem;color:var(--mut)">Pago: <strong style="font-family:monospace">${brl.format(pago)}</strong></span>
+        <span style="font-size:.95rem;font-weight:700">Saldo a Pagar: <span style="font-family:monospace;color:${quitada ? 'var(--green,#22c55e)' : 'var(--red,#ef4444)'}">${brl.format(saldo)}</span></span>
+      </div>
+    </div>`;
+}
+
+function incluirPagamentoCp() {
+  const conta = contasPagar.find(c => c.id === _cpDetalheId);
+  if (!conta) return;
+  const data = document.getElementById('cp-pg-data')?.value || new Date().toISOString().slice(0, 10);
+  const valorPago = Number(document.getElementById('cp-pg-valor')?.value) || 0;
+  const juros = Number(document.getElementById('cp-pg-juros')?.value) || 0;
+  const descontos = Number(document.getElementById('cp-pg-descontos')?.value) || 0;
+  const forma = document.getElementById('cp-pg-forma')?.value || '';
+  const contaCorrenteId = document.getElementById('cp-pg-conta')?.value || '';
+  if (valorPago <= 0) { showToast('Informe um valor de pagamento maior que zero.', 3000); return; }
+  const saldoAtual = cpSaldoRestante(conta);
+  if (valorPago - saldoAtual > 0.001) {
+    if (!confirm(`O valor pago (${brl.format(valorPago)}) é maior que o saldo restante (${brl.format(saldoAtual)}).\n\nDeseja incluir mesmo assim?`)) return;
+  }
+  if (!Array.isArray(conta.pagamentos)) conta.pagamentos = [];
+  conta.pagamentos.push({ data, valorPago, juros, descontos, forma, contaCorrenteId });
+  cpRecalcular(conta);
+  conta.audit = { ...(conta.audit || {}), updatedAt: new Date().toISOString(), updatedBy: getAuditActor() };
+  saveContasPagar();
+  renderContasPagar();
+  abrirDetalheCp(_cpDetalheId); // re-render do modal com o novo pagamento
+  showToast(`Pagamento de ${brl.format(valorPago)} incluído.`, 3000);
+}
+
+function removerPagamentoCp(idx) {
+  const conta = contasPagar.find(c => c.id === _cpDetalheId);
+  if (!conta || !Array.isArray(conta.pagamentos) || !conta.pagamentos[idx]) return;
+  const p = conta.pagamentos[idx];
+  if (!confirm(`Remover o pagamento de ${brl.format(Number(p.valorPago) || 0)} (${fmtDate(p.data)})?`)) return;
+  conta.pagamentos.splice(idx, 1);
+  cpRecalcular(conta);
+  conta.audit = { ...(conta.audit || {}), updatedAt: new Date().toISOString(), updatedBy: getAuditActor() };
+  saveContasPagar();
+  renderContasPagar();
+  abrirDetalheCp(_cpDetalheId);
+  showToast('Pagamento removido.', 2500);
 }
 
 function fecharDetalheCp() {

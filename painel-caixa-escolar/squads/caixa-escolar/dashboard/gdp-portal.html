@@ -836,6 +836,16 @@ function showContractLoading() {
   document.getElementById('tab-catalogo-wrapper').classList.add('hidden');
 }
 
+// Story 20.12: hidrata saldoVisivelEscola de dados_extras (fonte Supabase),
+// espelhando o dashboard (gdp-contratos-module.js:2813-2815). Sem isso, o contrato
+// vindo do Supabase tem a flag apenas em dados_extras e a aba "Saldo Contrato" não aparece.
+function _hydrateSaldoVisivel(c) {
+  if (c && c.dados_extras && c.dados_extras.saldoVisivelEscola !== undefined && c.saldoVisivelEscola === undefined) {
+    c.saldoVisivelEscola = c.dados_extras.saldoVisivelEscola;
+  }
+  return c;
+}
+
 function getSchoolContracts() {
   // Story 4.82: Load contracts from localStorage with in-memory fallback (incognito support)
   let contratos = [];
@@ -861,7 +871,11 @@ function getSchoolContracts() {
   const seen = new Set();
   const merged = [];
   [...byVinculo, ...byName].forEach(c => {
-    if (!seen.has(c.id)) { seen.add(c.id); merged.push(c); }
+    if (!seen.has(c.id)) {
+      seen.add(c.id);
+      _hydrateSaldoVisivel(c); // Story 20.12
+      merged.push(c);
+    }
   });
   return merged;
 }
@@ -1860,6 +1874,7 @@ function renderSaldo() {
     try {
       const _freshAll = unwrapData(JSON.parse(localStorage.getItem('gdp.contratos.v1') || '{}'));
       _freshCtr = _freshAll.find(c => c.id === _freshCtr.id) || _freshCtr;
+      _hydrateSaldoVisivel(_freshCtr); // Story 20.12: garante a flag após re-leitura do localStorage
     } catch(_) {}
   }
   if (_freshCtr && _freshCtr.itens && _freshCtr.itens.length) {
@@ -1948,6 +1963,7 @@ function renderMeusPedidos() {
     try {
       const _freshAll = unwrapData(JSON.parse(localStorage.getItem('gdp.contratos.v1') || '{}'));
       _freshContrato = _freshAll.find(c => c.id === _freshContrato.id) || _freshContrato;
+      _hydrateSaldoVisivel(_freshContrato); // Story 20.12: garante a flag após re-leitura do localStorage
     } catch(_) {}
   }
   if (_freshContrato && _freshContrato.saldoVisivelEscola === true) {
