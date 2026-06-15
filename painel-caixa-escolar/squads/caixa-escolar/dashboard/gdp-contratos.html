@@ -752,12 +752,10 @@
     <!-- Modal Detalhe Conta a Pagar -->
     <div class="hidden" id="cp-detalhe-modal" style="position:fixed;inset:0;background:rgba(8,15,31,.88);z-index:1013;padding:1.25rem;overflow-y:auto" onclick="fecharDetalheCp()">
       <div style="background:var(--bg);border:1px solid var(--bdr);border-radius:18px;max-width:640px;margin:2rem auto;display:flex;flex-direction:column" onclick="event.stopPropagation()">
-        <div style="padding:1.2rem 1.5rem;border-bottom:1px solid var(--bdr);display:flex;justify-content:space-between;align-items:center">
-          <h2 style="margin:0;font-size:1.12rem">Detalhes da Conta a Pagar</h2>
-          <div style="display:flex;gap:.5rem">
-            <button class="btn btn-outline btn-sm" id="cp-detalhe-edit-btn" onclick="toggleEditCpDetalhe()">Editar</button>
-            <button class="btn btn-outline btn-sm" onclick="fecharDetalheCp()" title="Fechar (pagamentos já são salvos ao incluir)">✕ Fechar</button>
-          </div>
+        <div style="padding:1.2rem 1.5rem;border-bottom:1px solid var(--bdr);display:flex;align-items:center;gap:1rem">
+          <button class="btn btn-outline btn-sm" onclick="fecharDetalheCp()" title="Voltar (pagamentos já são salvos ao incluir)" style="display:flex;align-items:center;gap:4px"><span style="font-size:1rem">&larr;</span> Voltar</button>
+          <h2 style="margin:0;font-size:1.12rem;flex:1">Detalhes da Conta a Pagar</h2>
+          <button class="btn btn-outline btn-sm" id="cp-detalhe-edit-btn" onclick="toggleEditCpDetalhe()">Editar</button>
         </div>
         <div id="cp-detalhe-body" style="padding:1.5rem;display:grid;grid-template-columns:repeat(2,minmax(200px,1fr));gap:1rem"></div>
         <div id="cp-detalhe-actions" class="hidden" style="padding:1rem 1.5rem;border-top:1px solid var(--bdr);display:flex;justify-content:flex-end;gap:.8rem">
