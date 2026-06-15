@@ -1759,7 +1759,7 @@ function renderPreOrcamentosLista() {
     barHtml.id = "pre-lote-bar";
     barHtml.style.cssText = "display:none;padding:0.5rem 1rem;background:#f8f9fa;border:1px solid #dee2e6;border-radius:8px;margin-bottom:0.75rem;align-items:center;gap:0.75rem;flex-wrap:wrap;";
     barHtml.innerHTML = `<span id="pre-lote-count" style="font-weight:600;">0 selecionados</span>
-      <button class="btn btn-sm btn-accent" onclick="gerarDocFornecedorSelecionados()">Gerar Doc Fornecedor</button>
+      <button class="btn btn-sm btn-accent" onclick="gerarDocFornecedorSelecionados()">Gerar Pedido de Cotação</button>
       <button class="btn btn-sm btn-danger" onclick="excluirPreLote()">Excluir Selecionados</button>
       <button class="btn btn-sm btn-accent" onclick="gerarContratoUnificado()">Gerar Contrato Unificado</button>`;
     el.tbodyPreorcamentosLista.parentElement.parentElement.insertBefore(barHtml, el.tbodyPreorcamentosLista.parentElement);
@@ -1879,7 +1879,7 @@ function fornecedorDocHtml(preList) {
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Solicitação de cotação fornecedor</title>
+  <title>Pedido de cotação para fornecedor</title>
   <style>
     body { font-family: Arial, sans-serif; color: #111827; line-height: 1.35; }
     h1 { font-size: 22px; margin: 0 0 6px; }
@@ -1893,7 +1893,7 @@ function fornecedorDocHtml(preList) {
   </style>
 </head>
 <body>
-  <h1>Solicitação de Cotação</h1>
+  <h1>Pedido de Cotação para Fornecedor</h1>
   <p class="meta">Gerado em ${escapeHtml(todayBr)} pelo Licit-AIX. ${preList.length} processo(s), ${totalItens} item(ns).</p>
   <p>Favor informar disponibilidade, marca compatível/paralela ofertada, preço unitário e prazo de entrega.</p>
   ${blocks}
@@ -1920,8 +1920,8 @@ window.gerarDocFornecedorSelecionados = function() {
     return;
   }
   const html = fornecedorDocHtml(selecionados);
-  baixarArquivoFornecedor(`cotacao-fornecedor-${new Date().toISOString().slice(0, 10)}.doc`, html);
-  showToast(`Documento de cotação gerado com ${selecionados.length} pré-orçamento(s).`);
+  baixarArquivoFornecedor(`pedido-cotacao-fornecedor-${new Date().toISOString().slice(0, 10)}.doc`, html);
+  showToast(`Pedido de cotação gerado com ${selecionados.length} pré-orçamento(s).`);
 };
 
 // Banco de Precos CRUD (openBancoModal, closeBancoModal, salvarBancoItem,
