@@ -383,6 +383,15 @@ cd painel-caixa-escolar && npx vercel --prod --force
 - O projeto `dashboard` no Vercel é redundante mas pode ficar
 - Sempre deployar pelo projeto `painel-caixa-escolar` (root)
 
+### ⚠️ SEMPRE usar `--force` no deploy (cache de build do Vercel)
+- **Use `npx vercel --prod --force`** como padrão neste projeto, NÃO o `--prod` simples.
+- **Motivo:** o deploy normal reaproveita o "build cache" do Vercel (`Restored build cache from previous deployment`). Em alterações de frontend estático (HTML/JS sob `dashboard/`), esse cache frequentemente **republica a versão antiga** mesmo com o código novo já na master — sem erro, silenciosamente.
+- **Sintoma:** funcionalidade "some" / "sistema regrediu" em produção, mas a master e os arquivos locais estão corretos. Confirmar com:
+  `curl -s "https://painel-caixa-escolar.vercel.app/squads/caixa-escolar/dashboard/gdp-contratos.html" | grep -o "gdp-api.js?v=[0-9]*"` — se a versão servida for menor que a do arquivo local, é o cache.
+- **Correção:** `cd painel-caixa-escolar && npx vercel --prod --force --yes` reconstrói do zero (`Creating build cache...`).
+- Sempre **bumpar a versão** dos scripts no HTML (`?v=N`) ao alterar um JS, e orientar o usuário a dar **Ctrl+Shift+R** (cache do navegador é uma camada separada do cache do Vercel).
+- Histórico: incidente em 2026-06-13 (aba Conta-Corrente "sumiu" por build cache servindo `gdp-api.js?v=12` em vez de `v=14`).
+
 ## Squad Fiscal Engine v2.0 — Reforma Tributária
 
 O módulo fiscal (`nfe-sefaz-client.js`) foi atualizado em 2026-05-18 com:
