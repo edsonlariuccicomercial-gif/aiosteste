@@ -1,0 +1,30 @@
+handoff:
+  from_agent: analyst
+  to_agent: data-engineer
+  timestamp: "2026-06-15"
+  story_context:
+    epic: EPIC-20
+    branch: feature/epic20-ajustes-financeiro-gdp
+    feature: "Item 4 — Pagamentos parciais em Contas a Pagar"
+    story_sugerida: "20.x — Contas a Pagar: pagamentos parciais (modelo MarketUp)"
+  contexto: |
+    Hoje Contas a Pagar é binário: status "emitida" | "paga". Não há campo de valor pago,
+    histórico de pagamentos nem saldo restante. O usuário quer o modelo MarketUp:
+    clicar na conta, escolher conta bancária, valor a pagar, meio de pagamento, incluir e salvar;
+    abaixo lista data, valor pago, forma, conta e saldo restante.
+  estado_atual_schema:
+    tabela: contas_pagar
+    fonte: painel-caixa-escolar/squads/caixa-escolar/dashboard/gdp-api.js (linha ~99)
+    colunas_atuais: [id, empresa_id, descricao, valor, status, forma, categoria, vencimento, fornecedor, audit, deleted_at, created_at, updated_at]
+    lacuna: "Sem coluna para pagamentos parciais nem saldo restante."
+  pedido_ao_dataeng:
+    - "Adicionar coluna pagamentos (jsonb, default '[]') em contas_pagar."
+    - "Cada item do array: { data, valorPago, juros, descontos, forma, contaCorrenteId }."
+    - "Avaliar coluna gerada/derivada saldo_restante OU calcular em app (recomendar abordagem)."
+    - "Migration segura (sem perda de dados); contas legadas 'paga' devem mapear para 1 pagamento full ou flag."
+    - "Atualizar mapeamento de colunas em gdp-api.js para incluir o novo campo."
+  decisoes_usuario:
+    - "Schema primeiro (@data-engineer), depois UI (@dev)."
+    - "Story separada por item."
+  proximo_passo: "@data-engineer planeja e aplica migration; depois handoff para @dev implementar UI/lógica."
+  consumed: false

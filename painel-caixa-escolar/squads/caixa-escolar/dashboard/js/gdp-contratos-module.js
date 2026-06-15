@@ -2087,7 +2087,7 @@ function importarCronograma() {
 
 // ===== RENDER CONTRATOS =====
 function renderContratos() {
-  const busca = (document.getElementById("busca-contrato").value || "").toLowerCase();
+  const busca = window.normalizeSearch(document.getElementById("busca-contrato").value || ""); // Story 20.10
   const statusFiltro = document.getElementById("filtro-status-contrato").value;
 
   const pastaExata = window._pastaAberta;
@@ -2095,7 +2095,7 @@ function renderContratos() {
     if (pastaExata) {
       return (c.escola || '') === pastaExata;
     }
-    const matchBusca = !busca || (c.escola||'').toLowerCase().includes(busca) || (c.edital||'').toLowerCase().includes(busca) || (c.id||'').toLowerCase().includes(busca) || (c.processo||'').toLowerCase().includes(busca) || (c.objeto||'').toLowerCase().includes(busca);
+    const matchBusca = !busca || window.normalizeSearch(c.escola||'').includes(busca) || window.normalizeSearch(c.edital||'').includes(busca) || window.normalizeSearch(c.id||'').includes(busca) || window.normalizeSearch(c.processo||'').includes(busca) || window.normalizeSearch(c.objeto||'').includes(busca);
     const matchStatus = !statusFiltro || c.status === statusFiltro;
     return matchBusca && matchStatus;
   });
@@ -2261,9 +2261,9 @@ function vincularEscolaContrato(contratoId) {
 }
 
 function filtrarEscolasVinculo() {
-  const q = (document.getElementById("busca-vincular-escola").value || "").toLowerCase();
+  const q = window.normalizeSearch(document.getElementById("busca-vincular-escola").value || ""); // Story 20.10
   document.querySelectorAll("#lista-escolas-vinculo label").forEach(label => {
-    const text = label.textContent.toLowerCase();
+    const text = window.normalizeSearch(label.textContent);
     label.style.display = text.includes(q) ? "" : "none";
   });
 }
@@ -2451,11 +2451,11 @@ function visualizarVinculos(contratoId) {
 
 // AC10: Filter catalog products by search term
 function filtrarCatalogo() {
-  const busca = (document.getElementById("catalogo-busca")?.value || "").toLowerCase();
+  const busca = window.normalizeSearch(document.getElementById("catalogo-busca")?.value || ""); // Story 20.10
   document.querySelectorAll(".catalogo-qtd").forEach(input => {
     const row = input.closest("tr");
     if (!row) return;
-    const text = row.textContent.toLowerCase();
+    const text = window.normalizeSearch(row.textContent);
     row.style.display = !busca || text.includes(busca) ? "" : "none";
   });
 }
@@ -3215,7 +3215,7 @@ function renderItens() {
   if (prevVal) sel.value = prevVal;
 
   const filtroContrato = sel.value;
-  const busca = (document.getElementById("busca-item").value || "").toLowerCase();
+  const busca = window.normalizeSearch(document.getElementById("busca-item").value || ""); // Story 20.10
 
   const allItens = [];
   const source = filtroContrato ? contratos.filter(c => c.id === filtroContrato) : contratos;
@@ -3225,7 +3225,7 @@ function renderItens() {
     });
   });
 
-  const filtered = allItens.filter(i => !busca || i.descricao.toLowerCase().includes(busca) || i.escola.toLowerCase().includes(busca));
+  const filtered = allItens.filter(i => !busca || window.normalizeSearch(i.descricao).includes(busca) || window.normalizeSearch(i.escola).includes(busca));
 
   // Atualizar contador da aba com quantidade filtrada
   const itensTabCount = document.getElementById("tab-count-itens");

@@ -1,0 +1,71 @@
+handoff:
+  from_agent: analyst
+  to_agent: dev
+  timestamp: "2026-06-15"
+  story_context:
+    epic: EPIC-20
+    branch: feature/epic20-ajustes-financeiro-gdp
+    diretorio_ativo: painel-caixa-escolar/squads/caixa-escolar/dashboard/
+    deploy: "cd painel-caixa-escolar && npx vercel --prod --force --yes (sempre --force)"
+  decisoes_usuario:
+    - "1 story por item (4 stories no total)."
+    - "Item 3: @dev investiga sync direto (sem passar antes pelo @qa)."
+    - "Item 4: @data-engineer faz schema primeiro; @dev só implementa UI/lógica depois."
+
+  itens:
+    - id: 1
+      titulo: "Busca sem acentos/pontuação em todo o sistema"
+      escopo: medio
+      diagnostico: |
+        ~42 arquivos usam toLowerCase/includes em busca/filtro, sem normalizar acentos.
+        Não existe helper central de normalização.
+      recomendacao: |
+        Criar util normalizeSearch(str):
+          str.normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^\w\s]/g,'').toLowerCase().trim()
+        Aplicar em ambos os lados (termo digitado E campo comparado).
+      pontos_de_aplicacao:
+        - js/gdp-pedidos.js
+        - js/gdp-contratos-module.js
+        - js/gdp-core.js
+        - js/gdp-estoque-intel.js
+        - js/gdp-notas-fiscais.js
+      lembrete: "Bumpar ?v=N nos <script> alterados no HTML."
+
+    - id: 2
+      titulo: "Pedidos ordenados do mais recente para o mais antigo"
+      escopo: pequeno
+      local: "js/gdp-pedidos.js — função de render/listagem de pedidos"
+      recomendacao: "Ordenar a lista por createdAt/data desc antes de renderizar."
+
+    - id: 3
+      titulo: "Aba do Portal Escolar (saldo/qtd entregue vs faltam) não aparece"
+      escopo: medio
+      natureza: "Não é feature ausente — já existe; é bug de visibilidade/sync."
+      fatos_decodificados:
+        - "Checkbox persiste OK: saldoVisivelEscola em dados_extras (gdp-contratos-module.js:3175-3177)."
+        - "Portal já tem a aba 'Saldo Contrato' com tabela Qtd Contratada / Qtd Entregue / Saldo por produto (gdp-portal.html, renderSaldo() ~linha 1872)."
+        - "Aba é exibida quando saldoVisivelEscola === true (gdp-portal.html:1183-1188)."
+      causas_provaveis_a_investigar:
+        - "Contrato no localStorage do portal (gdp.contratos.v1) desatualizado — flag não sincronizou dashboard -> portal."
+        - "selectedContract.contrato não traz saldoVisivelEscola hidratado de dados_extras no contexto do portal."
+        - "c.itens sem qtdEntregue populado -> aba aparece mas tabela vazia."
+      acao: "Investigar hidratação da flag + sync Supabase->portal e corrigir causa raiz."
+
+    - id: 4
+      titulo: "Pagamentos parciais em Contas a Pagar (modelo MarketUp)"
+      escopo: maior
+      depende_de: "@data-engineer (schema contas_pagar.pagamentos) — handoff-analyst-to-dataeng-pagamentos-parciais-20260615.yaml"
+      referencia_visual: "C:/Users/Hearthz Gaming/Desktop/markeup.jpg"
+      estado_atual:
+        - "Binário: status 'emitida' | 'paga'. Sem valorPago/pagamentos[]/saldoRestante."
+        - "Render: renderContasPagar() em js/gdp-pedidos.js:1830"
+        - "Baixa atual: registrarBaixaContaPagar() em js/gdp-init.js:790"
+        - "Persistência: tabela contas_pagar (gdp-api.js)"
+      recomendacao_ui: |
+        Ao clicar na conta, abrir painel 'EFETUAR PAGAMENTO': data, conta corrente,
+        juros, descontos, valor pago, meio de pagamento, botão 'INCLUIR PAGAMENTO'.
+        Abaixo: 'HISTÓRICO DE PAGAMENTOS REALIZADOS' (data, pago, desconto, juros, forma, conta, remover)
+        e 'SALDO A PAGAR'. Marcar 'paga' só quando saldo = 0.
+
+  proximo_passo: "@dev pode iniciar itens 1, 2 e 3 imediatamente; item 4 aguarda schema do @data-engineer."
+  consumed: false

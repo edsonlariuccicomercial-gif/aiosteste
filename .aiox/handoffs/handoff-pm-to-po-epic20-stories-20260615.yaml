@@ -1,0 +1,53 @@
+handoff:
+  from_agent: pm
+  to_agent: po
+  last_command: create-story
+  timestamp: "2026-06-15"
+  story_context:
+    epic: EPIC-20
+    branch: feature/epic20-ajustes-financeiro-gdp
+    story_status: Draft (aguardando validação @po)
+
+  stories_criadas:
+    - id: "20.10"
+      arquivo: docs/stories/20.10.story.md
+      titulo: "Busca sem acentos e pontuação em todo o sistema"
+      executor: dev
+      onda: 1
+      dependencias: nenhuma
+      origem: handoff-analyst-to-dev-ajustes-gdp-20260615.yaml (item 1)
+    - id: "20.11"
+      arquivo: docs/stories/20.11.story.md
+      titulo: "GDP Pedidos: ordenar do mais recente para o mais antigo"
+      executor: dev
+      onda: 1
+      dependencias: nenhuma
+      origem: handoff-analyst-to-dev-ajustes-gdp-20260615.yaml (item 2)
+    - id: "20.12"
+      arquivo: docs/stories/20.12.story.md
+      titulo: "Portal Escolar: aba Saldo Contrato não aparece (fix sync saldoVisivelEscola)"
+      executor: dev
+      onda: 1
+      dependencias: nenhuma
+      origem: handoff-analyst-to-dev-ajustes-gdp-20260615.yaml (item 3)
+    - id: "20.13"
+      arquivo: docs/stories/20.13.story.md
+      titulo: "Contas a Pagar: pagamentos parciais (modelo MarketUp)"
+      executor: dev
+      onda: 2
+      dependencias: "migration 033 (criada pela @data-engineer; aplicar via @devops antes do go-live)"
+      origem: "handoff-dataeng-to-pm-pagamentos-parciais-20260615.yaml (item 4) + Desktop/markeup.jpg"
+      gap_critico_destacado_na_story: "gdp-api.js:99 TABLE_COLS.contas_pagar precisa incluir pagamentos e valor_pago"
+
+  decisoes_usuario:
+    - "1 story por item (4 stories)."
+    - "ACs em Given/When/Then completo."
+    - "Fluxo: @data-engineer (feito) → @pm (feito) → @po valida → @dev implementa → @devops deploya."
+
+  observacoes_para_po:
+    - "Numeração 20.10–20.13 (próximas livres após 20.9.4)."
+    - "Stories seguem o padrão do projeto (ver 20.5.story.md): Story/Contexto/AC/Escopo/FR/Arquivos/Change Log."
+    - "20.13 tem dependência de schema (migration 033) — validar que a ordem de execução respeita isso."
+
+  proximo_passo: "@po: *validate-story-draft em 20.10, 20.11, 20.12, 20.13 (checklist 10 pontos). Em GO, atualizar Status Draft → Ready."
+  consumed: false

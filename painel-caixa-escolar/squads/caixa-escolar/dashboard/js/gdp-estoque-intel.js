@@ -1968,7 +1968,7 @@ function renderEstoque() {
   // Guard: só abortar se elementos essenciais não existem (compras/pedidos removidos no Épico A)
   if (!produtosTbody || !estoqueTbody || !movTbody) return;
 
-  const busca = (document.getElementById("ei-busca")?.value || "").trim().toLowerCase();
+  const busca = window.normalizeSearch(document.getElementById("ei-busca")?.value || ""); // Story 20.10
   const filtroBase = document.getElementById("ei-filtro-base")?.value || "";
   // Story 4.51 AC-G1: category and type filters
   const catSelect = document.getElementById("ei-filtro-categoria");
@@ -2092,7 +2092,7 @@ function renderEstoque() {
   if (estoqueCountEl) estoqueCountEl.textContent = estoqueIntelProdutos.length;
 
   const produtosFiltrados = estoqueIntelProdutos.filter((produto) => {
-    const matchBusca = !busca || `${produto.id} ${produto.nome} ${produto.unidade_base}`.toLowerCase().includes(busca);
+    const matchBusca = !busca || window.normalizeSearch(`${produto.id} ${produto.nome} ${produto.unidade_base}`).includes(busca);
     const matchBase = !filtroBase || produto.unidade_base === filtroBase;
     // Story 4.51 AC-G1: category and type filters
     const matchCategoria = !filtroCategoria || (produto.categoria || "") === filtroCategoria;
@@ -2102,14 +2102,14 @@ function renderEstoque() {
   const produtoIdsFiltrados = new Set(produtosFiltrados.map((produto) => produto.id));
   const embalagensFiltradas = estoqueIntelEmbalagens.filter((emb) => {
     const produto = findEstoqueIntelProduto(emb.produto_id);
-    const matchBusca = !busca || `${produto?.nome || ""} ${emb.descricao} ${emb.codigo_barras || ""}`.toLowerCase().includes(busca);
+    const matchBusca = !busca || window.normalizeSearch(`${produto?.nome || ""} ${emb.descricao} ${emb.codigo_barras || ""}`).includes(busca);
     const matchBase = !filtroBase || produto?.unidade_base === filtroBase;
     return matchBusca && matchBase;
   });
   const pedidosFiltrados = estoqueIntelPedidos.filter((pedido) => {
     const item = estoqueIntelPedidoItens.find((pedidoItem) => pedidoItem.pedido_id === pedido.id);
     const produto = item ? findEstoqueIntelProduto(item.produto_id) : null;
-    const matchBusca = !busca || `${pedido.id} ${pedido.status} ${produto?.nome || ""}`.toLowerCase().includes(busca);
+    const matchBusca = !busca || window.normalizeSearch(`${pedido.id} ${pedido.status} ${produto?.nome || ""}`).includes(busca);
     const matchBase = !filtroBase || produto?.unidade_base === filtroBase;
     const reservaStatus = getEstoqueIntelReservaStatus(pedido.id);
     const matchReserva = !estoqueIntelFiltroReservaStatus || reservaStatus.key === estoqueIntelFiltroReservaStatus;
@@ -2151,7 +2151,7 @@ function renderEstoque() {
     const comprFiltrado = movCompr.reduce((s, m) => s + (m.operacao === '+' ? Number(m.quantidade||0) : -Number(m.quantidade||0)), 0);
     return { ...item, comprometido: comprFiltrado, disponivel: item.fisico - comprFiltrado };
   }) : resumo).filter((item) => {
-    const matchBusca = !busca || `${item.produto.id} ${item.produto.nome}`.toLowerCase().includes(busca);
+    const matchBusca = !busca || window.normalizeSearch(`${item.produto.id} ${item.produto.nome}`).includes(busca);
     const matchBase = !filtroBase || item.produto.unidade_base === filtroBase;
     // Quando filtrando por data/cliente, mostrar só itens com demanda
     const matchDemanda = !(filtroEstData || filtroEstCliente) || item.comprometido > 0;
@@ -2160,7 +2160,7 @@ function renderEstoque() {
   const movFiltrados = estoqueIntelMovimentacoes.filter((mov) => {
     if (mov.tipo === "comprometido") return false; // comprometido já aparece no Estoque Calculado
     const produto = findEstoqueIntelProduto(mov.produto_id);
-    const matchBusca = !busca || `${produto?.nome || ""} ${mov.tipo} ${mov.origem}`.toLowerCase().includes(busca);
+    const matchBusca = !busca || window.normalizeSearch(`${produto?.nome || ""} ${mov.tipo} ${mov.origem}`).includes(busca);
     const matchBase = !filtroBase || produto?.unidade_base === filtroBase;
     return matchBusca && matchBase;
   });
@@ -2654,12 +2654,12 @@ function excluirMovimentacoesSelecionadas() {
   if (!indices.length) { showToast("Nenhum lancamento selecionado.", 3000); return; }
   if (!confirm("Excluir " + indices.length + " lancamento(s)? Esta acao nao pode ser desfeita.")) return;
   // Must use same filter as render: exclude "comprometido", apply busca/filtroBase, then sort by date desc
-  const busca = (document.getElementById("ei-busca")?.value || "").trim().toLowerCase();
+  const busca = window.normalizeSearch(document.getElementById("ei-busca")?.value || ""); // Story 20.10
   const filtroBase = document.getElementById("ei-filtro-base")?.value || "";
   const visiveis = estoqueIntelMovimentacoes.filter(mov => {
     if (mov.tipo === "comprometido") return false;
     const produto = findEstoqueIntelProduto(mov.produto_id);
-    const matchBusca = !busca || (produto?.nome || "" + " " + mov.tipo + " " + mov.origem).toLowerCase().includes(busca);
+    const matchBusca = !busca || window.normalizeSearch(produto?.nome || "" + " " + mov.tipo + " " + mov.origem).includes(busca);
     const matchBase = !filtroBase || produto?.unidade_base === filtroBase;
     return matchBusca && matchBase;
   }).sort((a, b) => new Date(b.data || 0) - new Date(a.data || 0));

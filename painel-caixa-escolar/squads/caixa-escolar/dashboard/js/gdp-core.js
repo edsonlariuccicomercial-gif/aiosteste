@@ -20,6 +20,21 @@ const _GDP_DEBUG = localStorage.getItem('gdp.debug') === 'true';
 const gdpLog = _GDP_DEBUG ? console.log.bind(console, '[GDP]') : function() {};
 const gdpWarn = _GDP_DEBUG ? console.warn.bind(console, '[GDP]') : function() {};
 
+// ===== BUSCA: NORMALIZAÇÃO (Story 20.10) =====
+// Helper global de normalização de busca: remove acentos E pontuação, aplica lowercase + trim.
+// Carregado em gdp-core.js (primeiro script), disponível para todos os módulos via window.
+// Deve ser aplicado em AMBOS os lados da comparação (termo digitado E campo do registro).
+// Ex.: "feijao" encontra "Feijão"; "12345678/0001" encontra "12.345.678/0001".
+window.normalizeSearch = function (s) {
+  return (s || '')
+    .toString()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '') // remove diacríticos (acentos)
+    .replace(/[^\w\s]/g, '')         // remove pontuação
+    .toLowerCase()
+    .trim();
+};
+
 // ===== SIDEBAR TOGGLE =====
 document.getElementById("sidebar-toggle").addEventListener("click", () => {
   document.getElementById("sidebar").classList.toggle("open");
