@@ -60,3 +60,19 @@ handoff:
   bloqueio_investigacao: "O bug de login da Angela impede confirmar 100% os pedidos (11 vs 13). Prioridade: corrigir auth → revalidar."
   proximo_passo: "@dev (+@architect): implementar criação de conta Supabase Auth no cadastro de usuários. Depois @analyst revalida pedidos logado como Angela."
   consumed: false
+
+# ===== REVALIDAÇÃO PÓS-FIX (2026-06-15, @analyst via Playwright) =====
+revalidacao_pos_fix_login:
+  metodo: "Login real como Angela (após fix PR #13), comparação dos números com o Edson."
+  resultado:
+    notas_total: "Angela 109 = Edson 109 (105 autorizadas + 4 canceladas) — IDÊNTICO"
+    pedidos_total: "Angela 120 = Edson 120 — IDÊNTICO"
+    pedidos_entregue: "Angela 13 = Edson 13 — IDÊNTICO"
+    empresa: "Ambos compartilham LARIUCCI (sem silo de dados — fix do login garantiu)"
+  conclusao: |
+    NÃO HÁ DIVERGÊNCIA DE DADOS. As diferenças relatadas (108 vs 109 notas, 11 vs 13 pedidos)
+    eram causadas por: (1) o bug do login — a Angela nunca logava de verdade, então a tela dela
+    refletia estado defasado/de outra máquina; (2) filtros/abas diferentes; (3) cache do navegador.
+    Com o login corrigido e ambos na empresa LARIUCCI, os números convergiram para os valores reais.
+  observacao: "As 12 notas sem chave_acesso seguem existindo (registros legados/rascunho), mas são iguais nas duas visões — não causam divergência entre usuários."
+  status: CASO_ENCERRADO

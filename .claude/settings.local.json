@@ -94,7 +94,18 @@
       "Bash(mv api/health-check.js api/_disabled/)",
       "Bash(mv api/compras.js api/_disabled/)",
       "Bash(mv api/embalagens.js api/_disabled/)",
-      "Bash(ls \"C:/Users/Hearthz Gaming/aiosteste/painel-caixa-escolar/api/\"*.js)"
+      "Bash(ls \"C:/Users/Hearthz Gaming/aiosteste/painel-caixa-escolar/api/\"*.js)",
+      "Bash(grep -rn \"function _fmt\\\\|function fmt\\\\|R\\\\$\\\\|Intl.NumberFormat\\\\|toFixed\\(2\\)\" js/gdp-core.js)",
+      "Bash(git reset *)",
+      "Bash(git add *)",
+      "Bash(git commit -q -m 'feat\\(gdp\\): conta-corrente do cliente — fundação + tela \\(EPIC-20 Story 20.9.1\\) *)",
+      "Bash(gh auth *)",
+      "Bash(git push *)",
+      "Bash(gh pr *)",
+      "Bash(git fetch *)",
+      "Bash(git commit -q -m 'feat\\(gdp\\): botão editar lançamento + fix idempotência policies \\(conta-corrente\\) *)",
+      "Bash(git commit *)",
+      "Bash(gh repo *)"
     ]
   },
   "hooks": {
