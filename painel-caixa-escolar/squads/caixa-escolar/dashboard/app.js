@@ -1759,6 +1759,7 @@ function renderPreOrcamentosLista() {
     barHtml.id = "pre-lote-bar";
     barHtml.style.cssText = "display:none;padding:0.5rem 1rem;background:#f8f9fa;border:1px solid #dee2e6;border-radius:8px;margin-bottom:0.75rem;align-items:center;gap:0.75rem;flex-wrap:wrap;";
     barHtml.innerHTML = `<span id="pre-lote-count" style="font-weight:600;">0 selecionados</span>
+      <button class="btn btn-sm btn-accent" onclick="gerarDocFornecedorSelecionados()">Gerar Doc Fornecedor</button>
       <button class="btn btn-sm btn-danger" onclick="excluirPreLote()">Excluir Selecionados</button>
       <button class="btn btn-sm btn-accent" onclick="gerarContratoUnificado()">Gerar Contrato Unificado</button>`;
     el.tbodyPreorcamentosLista.parentElement.parentElement.insertBefore(barHtml, el.tbodyPreorcamentosLista.parentElement);
@@ -1767,14 +1768,27 @@ function renderPreOrcamentosLista() {
   // Bind checkboxes
   function updatePreLoteBar() {
     const checked = el.tbodyPreorcamentosLista.querySelectorAll(".pre-lote-check:checked");
+    const allChecks = el.tbodyPreorcamentosLista.querySelectorAll(".pre-lote-check");
     const bar = document.getElementById("pre-lote-bar");
     const count = document.getElementById("pre-lote-count");
+    const selectAllPre = document.getElementById("pre-select-all");
     if (bar) bar.style.display = checked.length > 0 ? "flex" : "none";
     if (count) count.textContent = `${checked.length} selecionado(s)`;
+    if (selectAllPre) {
+      selectAllPre.checked = allChecks.length > 0 && checked.length === allChecks.length;
+      selectAllPre.indeterminate = checked.length > 0 && checked.length < allChecks.length;
+    }
   }
   el.tbodyPreorcamentosLista.querySelectorAll(".pre-lote-check").forEach(cb => {
     cb.addEventListener("change", updatePreLoteBar);
   });
+  updatePreLoteBar();
+  const selectAllPre = document.getElementById("pre-select-all");
+  if (selectAllPre) {
+    const checks = [...el.tbodyPreorcamentosLista.querySelectorAll(".pre-lote-check")];
+    selectAllPre.checked = checks.length > 0 && checks.every(cb => cb.checked);
+    selectAllPre.indeterminate = checks.some(cb => cb.checked) && !selectAllPre.checked;
+  }
 }
 
 window.removerPreOrcamento = function (orcId) {
@@ -1794,6 +1808,120 @@ window.excluirPreLote = function() {
   renderAll();
   voltarPreOrcamento();
   showToast(`${checked.length} pré-orçamento(s) excluído(s).`);
+};
+
+window.selecionarTodosPreOrcamentosVisiveis = function(selecionar) {
+  const checks = [...document.querySelectorAll("#tbody-preorcamentos-lista .pre-lote-check")];
+  checks.forEach(cb => { cb.checked = !!selecionar; });
+  const selectAllPre = document.getElementById("pre-select-all");
+  if (selectAllPre) {
+    selectAllPre.checked = !!selecionar && checks.length > 0;
+    selectAllPre.indeterminate = false;
+  }
+  const checked = checks.filter(cb => cb.checked);
+  const bar = document.getElementById("pre-lote-bar");
+  const count = document.getElementById("pre-lote-count");
+  if (bar) bar.style.display = checked.length > 0 ? "flex" : "none";
+  if (count) count.textContent = `${checked.length} selecionado(s)`;
+};
+
+function selectedPreOrcamentosFornecedor() {
+  const ids = [...document.querySelectorAll("#tbody-preorcamentos-lista .pre-lote-check:checked")]
+    .map(cb => cb.dataset.id)
+    .filter(Boolean);
+  return ids.map(id => preOrcamentos[id]).filter(Boolean);
+}
+
+function fornecedorDocItemText(item) {
+  return item.descricaoSgdOriginal || item.descricaoFiscal || item.descricao || item.nome || "";
+}
+
+function fornecedorDocHtml(preList) {
+  const todayBr = new Date().toLocaleDateString("pt-BR");
+  const totalItens = preList.reduce((sum, pre) => sum + (pre.itens || []).length, 0);
+  const blocks = preList.map((pre, idx) => {
+    const orc = orcamentos.find(o => String(o.id) === String(pre.orcamentoId) || String(o.idBudget) === String(pre.orcamentoId));
+    const prazo = orc?.prazo ? formatDate(orc.prazo) : "";
+    const numero = pre.numeroOrcamento || orc?.numeroOrcamento || pre.orcamentoId;
+    const rows = (pre.itens || []).map((item, itemIdx) => `
+      <tr>
+        <td>${itemIdx + 1}</td>
+        <td>${escapeHtml(item.nome || item.produtoCanonico || "Item")}</td>
+        <td>${escapeHtml(fornecedorDocItemText(item))}</td>
+        <td>${escapeHtml(String(item.quantidadeSgdOriginal || item.quantidade || ""))}</td>
+        <td>${escapeHtml(item.unidadeSgdOriginal || item.unidade || "")}</td>
+        <td></td>
+        <td></td>
+      </tr>`).join("");
+    return `
+      <section class="processo">
+        <h2>${idx + 1}. Orçamento ${escapeHtml(String(numero))}</h2>
+        <p><strong>Escola:</strong> ${escapeHtml(pre.escola || "")}</p>
+        <p><strong>Município:</strong> ${escapeHtml(pre.municipio || "")}${prazo ? ` &nbsp; <strong>Prazo SGD:</strong> ${escapeHtml(prazo)}` : ""}</p>
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Item</th>
+              <th>Descrição para cotação</th>
+              <th>Qtd.</th>
+              <th>Unid.</th>
+              <th>Marca cotada</th>
+              <th>Preço unitário</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </section>`;
+  }).join("");
+
+  return `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Solicitação de cotação fornecedor</title>
+  <style>
+    body { font-family: Arial, sans-serif; color: #111827; line-height: 1.35; }
+    h1 { font-size: 22px; margin: 0 0 6px; }
+    h2 { font-size: 16px; margin: 22px 0 8px; }
+    p { margin: 3px 0; }
+    .meta { color: #4b5563; margin-bottom: 16px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 8px; page-break-inside: auto; }
+    th, td { border: 1px solid #d1d5db; padding: 6px; font-size: 11px; vertical-align: top; }
+    th { background: #f3f4f6; text-align: left; }
+    .processo { page-break-inside: avoid; margin-bottom: 18px; }
+  </style>
+</head>
+<body>
+  <h1>Solicitação de Cotação</h1>
+  <p class="meta">Gerado em ${escapeHtml(todayBr)} pelo Licit-AIX. ${preList.length} processo(s), ${totalItens} item(ns).</p>
+  <p>Favor informar disponibilidade, marca compatível/paralela ofertada, preço unitário e prazo de entrega.</p>
+  ${blocks}
+</body>
+</html>`;
+}
+
+function baixarArquivoFornecedor(filename, html) {
+  const blob = new Blob(["\uFEFF" + html], { type: "application/msword;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+window.gerarDocFornecedorSelecionados = function() {
+  const selecionados = selectedPreOrcamentosFornecedor();
+  if (selecionados.length === 0) {
+    showToast("Selecione ao menos um pré-orçamento para gerar o documento.");
+    return;
+  }
+  const html = fornecedorDocHtml(selecionados);
+  baixarArquivoFornecedor(`cotacao-fornecedor-${new Date().toISOString().slice(0, 10)}.doc`, html);
+  showToast(`Documento de cotação gerado com ${selecionados.length} pré-orçamento(s).`);
 };
 
 // Banco de Precos CRUD (openBancoModal, closeBancoModal, salvarBancoItem,
