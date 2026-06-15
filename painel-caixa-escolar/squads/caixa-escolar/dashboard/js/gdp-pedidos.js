@@ -1871,8 +1871,11 @@ function renderContasPagar() {
   if (cpCountEl) cpCountEl.textContent = filtered.length;
 
   const hoje = new Date().toISOString().slice(0, 10);
-  const totalAberto = contasPagar.filter((item) => item.status !== "paga").reduce((sum, item) => sum + Number(item.valor || 0), 0);
-  const totalPago = contasPagar.filter((item) => item.status === "paga").reduce((sum, item) => sum + Number(item.valor || 0), 0);
+  // Story 20.13: KPIs consideram pagamentos parciais — "aberto" = saldo restante, "pago" = valor efetivamente pago.
+  const _cpSaldo = (typeof cpSaldoRestante === 'function') ? cpSaldoRestante : (it) => Number(it.valor || 0);
+  const _cpPago = (typeof cpValorPago === 'function') ? cpValorPago : (it) => (it.status === 'paga' ? Number(it.valor || 0) : 0);
+  const totalAberto = contasPagar.filter((item) => item.status !== "paga").reduce((sum, item) => sum + _cpSaldo(item), 0);
+  const totalPago = contasPagar.reduce((sum, item) => sum + _cpPago(item), 0);
   const atrasadas = contasPagar.filter((item) => item.status !== "paga" && item.vencimento && item.vencimento < hoje);
   const abertoEl = document.getElementById("cp-kpi-aberto");
   const pagoEl = document.getElementById("cp-kpi-pago");
@@ -2990,6 +2993,7 @@ var CONTAS_PAGAR_STATUS_TABS = [
   { key: "todas", label: "Todas", className: "badge-gray" },
   { key: "emitida", label: "Emitidas", className: "badge-blue" },
   { key: "em_aberto", label: "Em Aberto", className: "badge-yellow" },
+  { key: "parcial", label: "Parciais", className: "badge-blue" },
   { key: "paga", label: "Pagas", className: "badge-green" },
   { key: "atrasada", label: "Atrasadas", className: "badge-red" }
 ];
@@ -2998,6 +3002,7 @@ var CONTAS_PAGAR_STATUS_COLORS = {
   todas: '#94a3b8',
   emitida: '#3b82f6',
   em_aberto: '#eab308',
+  parcial: '#0ea5e9',
   paga: '#22c55e',
   atrasada: '#ef4444'
 };

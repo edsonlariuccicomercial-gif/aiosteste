@@ -87,6 +87,8 @@ function isContaPagarAtrasada(conta) {
 function normalizeContaPagarStatus(conta) {
   const status = String(conta?.status || "").trim().toLowerCase();
   if (status === "paga") return "paga";
+  // Story 20.13: pagamento parcial — tem valor pago mas ainda há saldo
+  if (status === "parcial") return "parcial";
   if (isContaPagarAtrasada(conta)) return "atrasada";
   if (status === "emitida") return "emitida";
   return "em_aberto";

@@ -1462,6 +1462,51 @@ function saveNotasEntrada() {
   saveWrappedArray(ENTRY_INVOICES_KEY, lightItems);
 }
 function saveContasPagar() { saveWrappedArray(PAYABLES_KEY, contasPagar); }
+
+// ===== CONTAS A PAGAR: PAGAMENTOS PARCIAIS (Story 20.13 — modelo MarketUp) =====
+// pagamentos[] é a fonte da verdade; valor_pago é a soma materializada (mantida aqui).
+// Saldo a pagar = valor - valor_pago. Status: pendente (0) / parcial (0<pago<valor) / paga (pago>=valor).
+function cpValorPago(conta) {
+  if (!conta) return 0;
+  if (Array.isArray(conta.pagamentos) && conta.pagamentos.length) {
+    return Math.round(conta.pagamentos.reduce((s, p) => s + (Number(p.valorPago) || 0), 0) * 100) / 100;
+  }
+  // Reconciliação de legado (Story 20.13 AC7): conta marcada 'paga' antes do recurso de parciais.
+  if (Number(conta.valor_pago)) return Number(conta.valor_pago);
+  if (String(conta.status || '').toLowerCase() === 'paga') return Number(conta.valor) || 0;
+  return Number(conta.valor_pago) || 0;
+}
+function cpSaldoRestante(conta) {
+  if (!conta) return 0;
+  return Math.round(((Number(conta.valor) || 0) - cpValorPago(conta)) * 100) / 100;
+}
+// Recalcula valor_pago e status a partir de pagamentos[]. Chamar após incluir/remover pagamento.
+function cpRecalcular(conta) {
+  if (!conta) return;
+  const pago = cpValorPago(conta);
+  conta.valor_pago = pago;
+  const total = Number(conta.valor) || 0;
+  if (pago <= 0) conta.status = 'pendente';
+  else if (pago < total) conta.status = 'parcial';
+  else conta.status = 'paga';
+  // pagaEm: data do último pagamento quando quitada (mantém compat. com auditoria existente)
+  if (conta.status === 'paga' && Array.isArray(conta.pagamentos) && conta.pagamentos.length) {
+    const ultima = conta.pagamentos[conta.pagamentos.length - 1];
+    conta.pagaEm = (ultima && ultima.data ? ultima.data : new Date().toISOString().slice(0, 10)) + 'T12:00:00';
+  } else {
+    delete conta.pagaEm;
+  }
+}
+// Lista de contas bancárias para o dropdown "Conta Corrente" (mesma fonte da conciliação).
+function cpListaContasBancarias() {
+  let contas = [];
+  try { contas = JSON.parse(localStorage.getItem('nexedu.config.contas-bancarias') || '[]'); } catch (_) {}
+  const ativas = (Array.isArray(contas) ? contas : []).filter(c => c && c.ativa !== false).map(c => {
+    const label = ((c.banco || '') + (c.apelido ? ' (' + c.apelido + ')' : '')).trim() || 'Conta Principal';
+    return { id: c.id || label, label };
+  });
+  return ativas.length ? ativas : [{ id: 'Conta Principal', label: 'Conta Principal' }];
+}
 function saveContasReceber() { saveWrappedArray(RECEIVABLES_KEY, contasReceber); }
 function saveCaixaExtrato() { saveWrappedArray(CAIXA_STATEMENT_KEY, caixaExtratoMovimentos); }
 function saveEstoqueMovimentos() { saveWrappedArray(STOCK_KEY, estoqueMovimentos); }
