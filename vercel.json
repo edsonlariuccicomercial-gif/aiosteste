@@ -1,0 +1,23 @@
+{
+  "redirects": [
+    {
+      "source": "/",
+      "destination": "/squads/caixa-escolar/dashboard/gdp-contratos.html",
+      "permanent": false
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/squads/:path*",
+      "destination": "/painel-caixa-escolar/squads/:path*"
+    },
+    {
+      "source": "/dashboard/:path*",
+      "destination": "/painel-caixa-escolar/dashboard/:path*"
+    },
+    {
+      "source": "/:path*",
+      "destination": "/painel-caixa-escolar/:path*"
+    }
+  ]
+}

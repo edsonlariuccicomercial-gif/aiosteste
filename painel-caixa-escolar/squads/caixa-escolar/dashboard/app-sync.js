@@ -357,15 +357,52 @@ const CONFIG_SYNC_KEYS = [
   "nexedu.config.contas-bancarias", "nexedu.config.bank-api"
 ];
 
+const BOOT_MERGE_SYNC_KEYS = [
+  "caixaescolar.preorcamentos.v1",
+  "caixaescolar.orcamentos"
+];
+
+function mergeBootSyncData(key, localData, cloudData) {
+  if (key === "caixaescolar.preorcamentos.v1") {
+    const localObj = localData && typeof localData === "object" && !Array.isArray(localData) ? localData : {};
+    const cloudObj = cloudData && typeof cloudData === "object" && !Array.isArray(cloudData) ? cloudData : {};
+    return { ...cloudObj, ...localObj };
+  }
+
+  if (key === "caixaescolar.orcamentos") {
+    const byId = new Map();
+    if (Array.isArray(cloudData)) {
+      cloudData.forEach((item) => {
+        if (item && item.id != null) byId.set(String(item.id), item);
+      });
+    }
+    if (Array.isArray(localData)) {
+      localData.forEach((item) => {
+        if (item && item.id != null) byId.set(String(item.id), item);
+      });
+    }
+    return Array.from(byId.values());
+  }
+
+  return localData || cloudData;
+}
+
 async function syncConfigFromCloud() {
   const rows = await cloudLoadAll();
   if (!rows || rows.length === 0) return;
   let applied = 0;
   for (const row of rows) {
-    if (!CONFIG_SYNC_KEYS.includes(row.key) || !row.data) continue;
+    const shouldMergeAtBoot = BOOT_MERGE_SYNC_KEYS.includes(row.key);
+    if (!CONFIG_SYNC_KEYS.includes(row.key) && !shouldMergeAtBoot || !row.data) continue;
     const local = localStorage.getItem(row.key);
     let localData = null;
     try { localData = local ? JSON.parse(local) : null; } catch (_) {}
+    if (shouldMergeAtBoot) {
+      const merged = mergeBootSyncData(row.key, localData, row.data);
+      localStorage.setItem(row.key, JSON.stringify(merged));
+      applied++;
+      continue;
+    }
     const cloudTime = getDataTimestamp(row.data, row.updated_at);
     const localTime = localData ? getDataTimestamp(localData) : 0;
     if (!localData || cloudTime > localTime) {

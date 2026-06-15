@@ -2091,11 +2091,26 @@ function renderContratos() {
   const statusFiltro = document.getElementById("filtro-status-contrato").value;
 
   const pastaExata = window._pastaAberta;
-  let filtered = contratos.filter(c => {
-    if (pastaExata) {
-      return (c.escola || '') === pastaExata;
+  const pastaClienteId = window._pastaAbertaClienteId;
+  const clienteDoContrato = (contrato) => {
+    if (!contrato) return null;
+    if (contrato.escolaClienteId) {
+      const direto = usuarios.find((user) => user.id === contrato.escolaClienteId);
+      if (direto) return direto;
     }
-    const matchBusca = !busca || window.normalizeSearch(c.escola||'').includes(busca) || window.normalizeSearch(c.edital||'').includes(busca) || window.normalizeSearch(c.id||'').includes(busca) || window.normalizeSearch(c.processo||'').includes(busca) || window.normalizeSearch(c.objeto||'').includes(busca);
+    return usuarios.find((user) => (user.contratos_vinculados || []).includes(contrato.id)) || null;
+  };
+  let filtered = contratos.filter(c => {
+    const cliente = clienteDoContrato(c);
+    const clienteNome = cliente ? (cliente.nome || "") : "";
+    if (pastaExata) {
+      if (pastaClienteId) {
+        return c.escolaClienteId === pastaClienteId || (cliente && cliente.id === pastaClienteId);
+      }
+      return (c.escola || '') === pastaExata || clienteNome === pastaExata;
+    }
+    // Story 20.10: busca normalizada (sem acento/pontuação), preservando match por cliente vinculado
+    const matchBusca = !busca || window.normalizeSearch(c.escola||'').includes(busca) || window.normalizeSearch(clienteNome).includes(busca) || window.normalizeSearch(c.edital||'').includes(busca) || window.normalizeSearch(c.id||'').includes(busca) || window.normalizeSearch(c.processo||'').includes(busca) || window.normalizeSearch(c.objeto||'').includes(busca);
     const matchStatus = !statusFiltro || c.status === statusFiltro;
     return matchBusca && matchStatus;
   });
@@ -2116,9 +2131,16 @@ function renderContratos() {
   // Group by escola (pasta mãe)
   const porEscola = {};
   filtered.forEach(c => {
-    const key = c.escola || "Sem escola";
-    if (!porEscola[key]) porEscola[key] = [];
-    porEscola[key].push(c);
+    const cliente = clienteDoContrato(c);
+    const key = cliente ? `cliente:${cliente.id}` : `escola:${c.escola || "Sem escola"}`;
+    if (!porEscola[key]) {
+      porEscola[key] = {
+        label: cliente ? cliente.nome : (c.escola || "Sem escola"),
+        clienteId: cliente ? cliente.id : "",
+        contratos: [],
+      };
+    }
+    porEscola[key].contratos.push(c);
   });
 
   const escolaKeys = Object.keys(porEscola).sort();
@@ -2150,20 +2172,29 @@ function renderContratos() {
 
   // If only 1 escola in results (user clicked a folder or searched), show contracts flat
   if (escolaKeys.length === 1 && (busca || pastaExata)) {
-    const escola = escolaKeys[0];
-    const cList = porEscola[escola];
+    const pasta = porEscola[escolaKeys[0]];
+    const escola = pasta.label;
+    const cList = pasta.contratos;
+    if (pasta.clienteId) {
+      window._pastaAutoSync = window._pastaAutoSync || {};
+      if (!window._pastaAutoSync[pasta.clienteId]) {
+        window._pastaAutoSync[pasta.clienteId] = true;
+        setTimeout(() => sincronizarContratosDaPasta(pasta.clienteId), 0);
+      }
+    }
     grid.innerHTML = `<div style="grid-column:1/-1;display:flex;align-items:center;gap:.8rem;margin-bottom:.5rem">
-      <button class="btn btn-sm" onclick="window._pastaAberta=null;document.getElementById('busca-contrato').value='';renderContratos()">← Voltar</button>
+      <button class="btn btn-sm" onclick="window._pastaAberta=null;window._pastaAbertaClienteId=null;document.getElementById('busca-contrato').value='';renderContratos()">← Voltar</button>
       <span style="font-weight:700;font-size:.95rem">📁 ${esc(escola)}</span>
       <span style="color:var(--dim);font-size:.8rem">${cList.length} contrato${cList.length > 1 ? 's' : ''}</span>
     </div>` + cList.map(renderCard).join("");
-    window._pastaAberta = null;
     return;
   }
 
   // Render escola folders as cards side-by-side (same grid as contracts)
-  grid.innerHTML = escolaKeys.map(escola => {
-    const cList = porEscola[escola];
+  grid.innerHTML = escolaKeys.map(key => {
+    const pasta = porEscola[key];
+    const escola = pasta.label;
+    const cList = pasta.contratos;
     const totalValor = cList.reduce((s, c) => {
       const itens = Array.isArray(c.itens) ? c.itens : [];
       return s + ((parseFloat(c.valorTotal) || 0) > 0 ? parseFloat(c.valorTotal) : itens.reduce((t, i) => t + (parseFloat(i.precoUnitario) || 0) * (parseFloat(i.qtdContratada || i.quantidade) || 0), 0));
@@ -2174,8 +2205,10 @@ function renderContratos() {
       return s + itens.reduce((t, i) => t + (parseFloat(i.precoUnitario) || 0) * (parseFloat(i.qtdEntregue) || 0), 0);
     }, 0);
     const pctGeral = totalValor > 0 ? (totalExec / totalValor * 100) : 0;
+    const escolaArg = encodeURIComponent(escola);
+    const clienteArg = encodeURIComponent(pasta.clienteId || "");
 
-    return `<div class="contract-card" onclick="abrirPastaEscola('${esc(escola)}')" style="cursor:pointer">
+    return `<div class="contract-card" onclick="abrirPastaEscola(decodeURIComponent('${escolaArg}'), decodeURIComponent('${clienteArg}'))" style="cursor:pointer">
       <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:.5rem">
         <span style="font-size:.75rem;color:var(--dim)">📁 Escola</span>
         <span class="badge ${ativos > 0 ? 'badge-green' : 'badge-red'}">${ativos} ativo${ativos !== 1 ? 's' : ''}</span>
@@ -2194,15 +2227,71 @@ function renderContratos() {
 // Abrir pasta escola — filtra contratos pela escola selecionada (match exato)
 // Reseta filtro de status para mostrar todos os contratos da pasta
 window._pastaAberta = null;
-window.abrirPastaEscola = function(escola) {
+window._pastaAbertaClienteId = null;
+async function sincronizarContratosDaPasta(clienteId) {
+  if (!clienteId || !window.SUPABASE_URL || !window.SUPABASE_KEY) return;
+  if (window._syncPastaContratosId === clienteId) return;
+  window._syncPastaContratosId = clienteId;
+  try {
+    const resp = await fetch(`${window.SUPABASE_URL}/rest/v1/contratos?select=*&escola_cliente_id=eq.${encodeURIComponent(clienteId)}&order=updated_at.desc&limit=200`, {
+      headers: {
+        apikey: window.SUPABASE_KEY,
+        Authorization: `Bearer ${window.SUPABASE_KEY}`,
+      },
+    });
+    if (!resp.ok) return;
+    const rows = await resp.json();
+    if (!Array.isArray(rows) || rows.length === 0) return;
+    const remote = rows
+      .filter(row => !(row && row.deleted_at))
+      .map(row => ({
+        id: row.id,
+        empresa_id: row.empresa_id,
+        escola: row.escola,
+        processo: row.processo,
+        edital: row.edital,
+        objeto: row.objeto,
+        status: row.status,
+        fornecedor: row.fornecedor,
+        vigencia: row.vigencia,
+        observacoes: row.observacoes,
+        dataApuracao: row.data_apuracao,
+        itens: Array.isArray(row.itens) ? row.itens : [],
+        clienteSnapshot: row.cliente_snapshot || null,
+        escolaClienteId: row.escola_cliente_id || clienteId,
+        dadosExtras: row.dados_extras || {},
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+      }));
+    const byId = new Map((contratos || []).map(contrato => [contrato.id, contrato]));
+    remote.forEach(contrato => byId.set(contrato.id, { ...(byId.get(contrato.id) || {}), ...contrato }));
+    contratos = Array.from(byId.values());
+    const cliente = usuarios.find(user => user.id === clienteId);
+    if (cliente) {
+      const vinculados = new Set(cliente.contratos_vinculados || []);
+      remote.forEach(contrato => vinculados.add(contrato.id));
+      cliente.contratos_vinculados = Array.from(vinculados);
+      try { localStorage.setItem("gdp.usuarios.v1", JSON.stringify(usuarios)); } catch (_) {}
+    }
+    try { localStorage.setItem("gdp.contratos.v1", JSON.stringify({ _v: 1, updatedAt: new Date().toISOString(), items: contratos })); } catch (_) {}
+    renderContratos();
+  } catch (e) {
+    console.warn("[Contratos] Falha ao sincronizar pasta:", clienteId, e);
+  } finally {
+    window._syncPastaContratosId = null;
+  }
+}
+window.abrirPastaEscola = function(escola, clienteId) {
   const buscaEl = document.getElementById("busca-contrato");
   const filtroStatus = document.getElementById("filtro-status-contrato");
   if (filtroStatus) filtroStatus.value = "";
   window._pastaAberta = escola;
+  window._pastaAbertaClienteId = clienteId || null;
   if (buscaEl) {
     buscaEl.value = escola;
     renderContratos();
   }
+  sincronizarContratosDaPasta(window._pastaAbertaClienteId);
 };
 
 function getEscolasVinculadasBadges(contratoId) {

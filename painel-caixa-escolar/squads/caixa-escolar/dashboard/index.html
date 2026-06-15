@@ -443,11 +443,16 @@
           </div>
           <input type="text" id="filtro-pre-texto" placeholder="Buscar escola, objeto, item..." autocomplete="off" style="padding:0.4rem;" />
         </div>
+        <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;margin-bottom:.75rem">
+          <button class="btn btn-sm" onclick="selecionarTodosPreOrcamentosVisiveis(true)">Selecionar todos</button>
+          <button class="btn btn-sm" onclick="selecionarTodosPreOrcamentosVisiveis(false)">Limpar seleção</button>
+          <button class="btn btn-sm btn-accent" onclick="gerarDocFornecedorSelecionados()">Gerar pedido de cotação</button>
+        </div>
         <div class="table-wrap">
           <table id="tabela-preorcamentos-lista">
             <thead>
               <tr>
-                <th></th>
+                <th><input type="checkbox" id="pre-select-all" title="Selecionar todos visíveis" onchange="selecionarTodosPreOrcamentosVisiveis(this.checked)" /></th>
                 <th>ID</th>
                 <th>Escola</th>
                 <th>Município</th>
@@ -1592,7 +1597,7 @@
   <script src="auth.js"></script>
   <script src="js/banco-precos-client.js?v=1"></script>
   <script src="app-state.js?v=2"></script>
-  <script src="app-sync.js?v=4"></script>
+  <script src="app-sync.js?v=5"></script>
   <script src="gdp-api.js?v=12"></script>
   <script src="js/gdp-realtime.js?v=2"></script>
   <script src="app-sgd-client.js?v=1"></script>
@@ -1606,7 +1611,7 @@
   <script src="server-lib/product-store-core.browser.js?v=1"></script>
   <script src="product-store.js?v=1"></script>
   <script src="radar-matcher.js?v=3"></script>
-  <script src="app.js?v=33"></script>
+  <script src="app.js?v=35"></script>
   <script src="pricing-intel.js?v=4"></script>
   <script src="pricing-engine.js?v=1"></script>
 </body>
