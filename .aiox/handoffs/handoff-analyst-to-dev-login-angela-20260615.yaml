@@ -1,0 +1,62 @@
+handoff:
+  from_agent: analyst
+  to_agent: dev
+  timestamp: "2026-06-15"
+  titulo: "Bug de autenticação — usuário Operador cadastrado não consegue logar (Angela)"
+
+  investigacao:
+    metodo: "Playwright em produção, logado como lariucci (Admin), inspeção da tela Configurações → Cadastro de Usuários + localStorage + Supabase Auth."
+    sintoma_usuario: "Login angela / Alicia06@ retorna 'Invalid login credentials', mesmo a credencial estando correta no cadastro."
+
+  evidencias:
+    cadastro_usuarios:
+      fonte: "Configurações → Cadastro de Usuários (index.html) e localStorage 'nexedu.usuarios'"
+      angela: "nome 'Ângela Ribeiro', usuario 'angela', email 'angelaribeiro.lariucci@gmail.com', senha base64 'QWxpY2lhMDZA' (= 'Alicia06@'), perfil Operador, status Ativo"
+      lariucci: "Administrador, usuario 'lariucci', Admin, Ativo — ESTE loga normalmente"
+    login_real:
+      fonte: "login.html → Supabase Auth (supabase.auth.signInWithPassword)"
+      resultado: "angela/Alicia06@ → 'Invalid login credentials'. lariucci/lariucci2026 → OK."
+
+  causa_raiz: |
+    Duas camadas de identidade DESENCONTRADAS:
+    1. 'Cadastro de Usuários' grava o usuário em nexedu.usuarios (localStorage, senha base64) — é cadastro só do APP.
+    2. login.html autentica contra o SUPABASE AUTH, que não possui a conta 'angela' com essa senha.
+    => Cadastrar um usuário na engrenagem NÃO cria/atualiza a conta correspondente no Supabase Auth.
+    O usuário aparece 'Ativo' com senha correta no painel, mas nunca consegue entrar.
+    Só o 'lariucci' funciona porque ele tem conta real no Supabase Auth.
+
+  decisao_usuario:
+    auth_operador: "DECIDIDO — criar conta REAL no Supabase Auth ao cadastrar/editar usuário na engrenagem (Opção A da pergunta). Mais seguro e unificado."
+    pendente: "Confirmar se Operadores e Admin compartilham a MESMA empresa (provável que sim)."
+
+  acao_dev:
+    - "Decidir a arquitetura de auth de operadores (local vs Supabase Auth) com o usuário/@architect."
+    - "Se Supabase Auth: ao salvar usuário no cadastro, criar/atualizar a conta no Auth (provavelmente via Edge Function/service_role, pois signUp do cliente exige confirmação de email)."
+    - "Se login local: login.html passa a validar contra nexedu.usuarios (decodificando base64) quando não for Admin, OU unificar o fluxo."
+    - "Segurança: senha em base64 é reversível (NÃO é hash). Avaliar com @data-engineer hashing real se o login local for adotado."
+
+  nota_sobre_outros_sintomas:
+    notas_fiscais: |
+      ATUALIZADO: usuário reporta 108 no Edson e 109 na Angela (deu Ctrl+Shift+R, persiste 108).
+      Minha sessão (Edson/lariucci) lê 109 no memCache — 0 deletadas, 0 duplicadas.
+      => DIVERGÊNCIA REAL DE SYNC: duas sessões do MESMO usuário (Edson) mostram contagens
+      diferentes (108 na tela do usuário vs 109 no memCache da minha sessão). Padrão clássico
+      do projeto (motivou a migration 030 de soft-delete). Diferença de 1 nota.
+      Pista forte: nota #1526 (NF-20260611-06623) está SEM chave_acesso ('nota fantasma'),
+      além de outras 11 notas sem chave — candidatas a registro que aparece numa sessão e não
+      em outra. Intervalo de números: 1210–1533, total 109.
+      Recomendo: @dev investigar o realtime/sync de notas_fiscais e os registros sem chave_acesso
+      (rascunho_nf_real órfão). Pode exigir limpeza/soft-delete sincronizado dos fantasmas.
+    pedidos_entregue: |
+      11 (Angela) vs 13 (Edson). Investigado no Edson (lariucci): há DOIS conceitos de 'entregue':
+        - status do pedido == 'entregue' (aba de status) = 13
+        - calcStatusEntrega(p) (filtro de entrega) = entregue 16 / parcial 8 / pendente 95
+      O '11' da Angela NÃO foi reproduzível com os dados atuais (Edson tem 13 puro).
+      Hipótese principal: diferença de FILTRO de entrega ativo na sessão da Angela.
+      NÃO descartável: divergência momentânea de sync. IMPOSSÍVEL confirmar enquanto o
+      login da Angela não funcionar — o bug de auth bloqueia a comparação direta.
+      => Corrigir o login primeiro; depois revalidar pedidos logado como Angela.
+
+  bloqueio_investigacao: "O bug de login da Angela impede confirmar 100% os pedidos (11 vs 13). Prioridade: corrigir auth → revalidar."
+  proximo_passo: "@dev (+@architect): implementar criação de conta Supabase Auth no cadastro de usuários. Depois @analyst revalida pedidos logado como Angela."
+  consumed: false
