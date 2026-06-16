@@ -48,6 +48,11 @@ setTimeout(function() {
       })();
     }
   } catch(_) {}
+  // EPIC-20 / Auto-cura (gatilho a): varredura de boot. Cura notas autorizadas que
+  // ficaram sem numero ou sem titulo a receber por transmissoes anteriores incompletas.
+  try {
+    if (typeof autoCurarTodasNotas === 'function') autoCurarTodasNotas();
+  } catch(_) {}
 }, 5000);
 
 // --- Block 1: NF utilities, fiscal config, invoice building, SEFAZ ---
@@ -578,6 +583,109 @@ function extrairNumeroDaChaveNfe(chave) {
   var nNF = ch.slice(25, 34);
   var num = parseInt(nNF, 10);
   return (num && num > 0) ? String(num) : "";
+}
+
+// EPIC-20 / Auto-cura: a chave de acesso (44 digitos) e a autoridade maxima da SEFAZ.
+// Se existe chave valida + protocolo, a nota FOI autorizada — mesmo que a resposta HTTP
+// da transmissao tenha vindo inconsistente (sem prot/chNFe no campo esperado naquele
+// momento). Este criterio e mais robusto que a flag _isAutorizado da transmissao, que
+// exige prot+chNFe na MESMA resposta e falha com respostas eventuais/assincronas.
+function temProvaAutorizacao(nf) {
+  if (!nf) return false;
+  var chave = (nf.sefaz && nf.sefaz.chaveAcesso) || nf.chaveAcesso || "";
+  var protocolo = (nf.sefaz && nf.sefaz.protocolo) || nf.protocolo || "";
+  var chaveValida = String(chave).replace(/\D/g, "").length === 44;
+  return chaveValida && !!protocolo;
+}
+
+// EPIC-20 / Auto-cura: completa o que ficou faltando em notas autorizadas cuja
+// transmissao gravou estado incompleto. IDEMPOTENTE — so age no que falta, nunca
+// duplica numero nem titulo. Retorna {numeroCurado, tituloCriado} para log.
+// Gatilhos: boot, reconsulta (consultarSefazNotaAtual) e fim da transmissao.
+async function autoCurarNotaAutorizada(nf) {
+  var resultado = { numeroCurado: false, tituloCriado: false };
+  if (!nf || !temProvaAutorizacao(nf)) return resultado;
+  try {
+    // (a) Numero vazio/zerado -> extrair da chave (fonte da verdade SEFAZ)
+    if (!nf.numero || nf.numero === "0") {
+      var chave = (nf.sefaz && nf.sefaz.chaveAcesso) || nf.chaveAcesso || "";
+      var numeroChave = extrairNumeroDaChaveNfe(chave);
+      if (numeroChave) {
+        nf.numero = String(numeroChave);
+        resultado.numeroCurado = true;
+        console.warn("[NF-e][auto-cura] Numero preenchido da chave:", numeroChave, "| nota", nf.id);
+      }
+    }
+    // (b) Titulo a receber ausente -> criar (vencimento recalcula da emissao, Story 20.7)
+    var conta = getContaReceberByNota(nf.id);
+    if (!conta) {
+      conta = buildReceivableFromInvoice(nf);
+      // Marca de rastreabilidade: titulo gerado retroativamente pela auto-cura,
+      // para conferencia do usuario contra o controle financeiro manual.
+      conta.automacao = conta.automacao || {};
+      conta.automacao.origemAutoCura = true;
+      conta.automacao.curadaEm = new Date().toISOString();
+      contasReceber.push(conta);
+      resultado.tituloCriado = true;
+      // vincular pedido a cobranca recem-criada, se houver
+      try {
+        var ped = pedidos.find(function(p) { return p.id === nf.pedidoId; });
+        if (ped) {
+          ped.fiscal = ped.fiscal || {};
+          ped.fiscal.cobrancaId = conta.id;
+          savePedidos();
+        }
+      } catch (_) {}
+      console.warn("[NF-e][auto-cura] Titulo a receber criado para NF", nf.numero || nf.id, "| valor", nf.valor);
+    }
+    if (resultado.numeroCurado || resultado.tituloCriado) {
+      saveNotasFiscais();
+      if (resultado.tituloCriado) saveContasReceber();
+      // QA achado A+B: propagacao ao Supabase EXPLICITA e com retry, independente do
+      // timer _gdpBootInProgress (que faz saveWrappedArray pular o cloud save no boot).
+      // Garante que numero curado e titulo criado cheguem ao Supabase mesmo durante o boot,
+      // e usem fila de retry/pendentes em caso de falha de rede.
+      if (resultado.numeroCurado && typeof _saveNfToSupabaseWithRetry === 'function') {
+        _saveNfToSupabaseWithRetry({
+          id: nf.id, numero: nf.numero, serie: nf.serie, valor: nf.valor,
+          status: nf.status, pedidoId: nf.pedidoId, contratoId: nf.contratoId,
+          tipoNota: nf.tipoNota, emitidaEm: nf.emitidaEm, cliente: nf.cliente,
+          itens: nf.itens, sefaz: nf.sefaz, chaveAcesso: nf.sefaz?.chaveAcesso,
+          protocolo: nf.sefaz?.protocolo,
+          xmlAutorizado: nf.sefaz?.transmissao?.xml || nf.sefaz?.xmlAutorizado || nf.sefaz?.autorizacaoPreview || '',
+          cobranca: nf.cobranca, documentos: nf.documentos, audit: nf.audit
+        });
+      }
+      if (resultado.tituloCriado && conta && typeof gdpApi !== 'undefined' && gdpApi.contas_receber) {
+        gdpApi.contas_receber.save(conta).catch(function (e) {
+          console.warn("[NF-e][auto-cura] Titulo salvo local; cloud save com retry pendente:", e && e.message);
+        });
+      }
+    }
+  } catch (e) {
+    console.error("[NF-e][auto-cura] Falha ao curar nota", nf && nf.id, ":", e.message);
+  }
+  return resultado;
+}
+
+// EPIC-20 / Auto-cura: varre todas as notas e cura as autorizadas incompletas.
+// Chamada no boot (defesa em profundidade). Loga o resumo do que foi curado.
+async function autoCurarTodasNotas() {
+  try {
+    var lista = (typeof notasFiscais !== 'undefined' && notasFiscais) || [];
+    var numeros = 0, titulos = 0;
+    for (var i = 0; i < lista.length; i++) {
+      var r = await autoCurarNotaAutorizada(lista[i]);
+      if (r.numeroCurado) numeros++;
+      if (r.tituloCriado) titulos++;
+    }
+    if (numeros || titulos) {
+      console.warn("[NF-e][auto-cura] Boot concluido — numeros curados:", numeros, "| titulos criados:", titulos);
+      if (typeof renderAll === 'function') renderAll();
+    }
+  } catch (e) {
+    console.error("[NF-e][auto-cura] Falha na varredura de boot:", e.message);
+  }
 }
 
 // Retorna Set de números já usados por NFs AUTORIZADAS
@@ -1383,14 +1491,15 @@ async function transmitirHomologacaoNota(notaId) {
     // acesso (chNFe, posições 26-34, 9 dígitos). Quando autorizado, extrai-se o nNF
     // da chave e valida-se contra o número que foi enviado; se divergir, a chave
     // (autoridade SEFAZ) prevalece e o desvio é logado.
-    if (_isAutorizado) {
-      const _numeroChave = extrairNumeroDaChaveNfe(nf.sefaz.chaveAcesso);
-      if (_numeroChave) {
-        if (nf.numero && String(nf.numero) !== String(_numeroChave)) {
-          console.warn("[NF-e] Divergencia de numero: enviado=" + nf.numero + " | autorizado(chNFe)=" + _numeroChave + ". Usando o da chave (SEFAZ).");
-        }
-        nf.numero = String(_numeroChave);
+    // EPIC-20 FIX: a extracao do numero NAO depende mais de _isAutorizado. Sempre que
+    // houver chave de acesso valida (autoridade SEFAZ), o numero vem dela — mesmo que a
+    // resposta HTTP tenha vindo inconsistente. Isso impede o numero vazio (bug NF 1541).
+    const _numeroChave = extrairNumeroDaChaveNfe(nf.sefaz.chaveAcesso);
+    if (_numeroChave) {
+      if (nf.numero && String(nf.numero) !== String(_numeroChave)) {
+        console.warn("[NF-e] Divergencia de numero: enviado=" + nf.numero + " | autorizado(chNFe)=" + _numeroChave + ". Usando o da chave (SEFAZ).");
       }
+      nf.numero = String(_numeroChave);
     }
     nf.numero = nf.numero || result.preview?.identificacao?.numero || nf.numero;
     nf.serie = nf.serie || result.preview?.identificacao?.serie || nf.serie || "1";
@@ -1426,8 +1535,12 @@ async function transmitirHomologacaoNota(notaId) {
     // Story 16.5 FIX-4: a cobrança da NF-e real é criada SOMENTE após autorização
     // SEFAZ (não mais de forma otimista na criação do rascunho). Isso elimina
     // cobranças órfãs quando a transmissão falha (ex.: NCM inválido).
+    // EPIC-20 FIX: o gate da criacao do titulo passa de _isAutorizado para
+    // temProvaAutorizacao(nf) (chave valida + protocolo). Assim, sempre que a SEFAZ
+    // tiver de fato autorizado (prova real), o titulo e criado — mesmo com resposta
+    // HTTP inconsistente. Resolve as notas PIX que ficavam sem titulo a receber.
     let conta = getContaReceberByNota(nf.id);
-    if (_isAutorizado) {
+    if (temProvaAutorizacao(nf)) {
       if (!conta) {
         conta = buildReceivableFromInvoice(nf);
         contasReceber.push(conta);
@@ -1481,8 +1594,10 @@ async function transmitirHomologacaoNota(notaId) {
     }
 
     // Persist to Supabase with retry (prevent NF loss)
-    // Story 16.6: usar flag única _isAutorizado (exige prot+chNFe)
-    if (_isAutorizado) {
+    // EPIC-20 FIX: persistir sempre que houver prova de autorizacao (chave+protocolo),
+    // garantindo que o numero extraido da chave e o titulo cheguem ao Supabase mesmo
+    // com resposta HTTP inconsistente.
+    if (temProvaAutorizacao(nf)) {
       _saveNfToSupabaseWithRetry({
         id: nf.id, numero: nf.numero, serie: nf.serie, valor: nf.valor,
         status: nf.status, pedidoId: nf.pedidoId, contratoId: nf.contratoId,
@@ -1493,6 +1608,10 @@ async function transmitirHomologacaoNota(notaId) {
         cobranca: nf.cobranca, documentos: nf.documentos, audit: nf.audit
       });
     }
+
+    // EPIC-20 / Auto-cura (gatilho c): chamada de seguranca ao fim da transmissao.
+    // Idempotente — se numero ou titulo ficaram faltando por qualquer caminho, completa agora.
+    await autoCurarNotaAutorizada(nf);
 
     renderAll();
     showToast(`SEFAZ: ${result.parsed?.cStat || "-"} ${result.parsed?.xMotivo || ""}`.trim(), 5000);
@@ -2714,12 +2833,23 @@ function downloadXmlNotaAtual() {
   URL.revokeObjectURL(url);
 }
 
-function consultarSefazNotaAtual() {
+async function consultarSefazNotaAtual() {
   const nf = getNotaFiscalAtualMenu();
   if (!nf) return;
   fecharMenuNotaFiscal();
+  // EPIC-20 / Auto-cura (gatilho b): ao consultar a SEFAZ, completar o que faltou
+  // (numero vazio / titulo a receber ausente) caso a nota esteja autorizada.
+  const cura = await autoCurarNotaAutorizada(nf);
   verNotaFiscal(nf.id);
-  showToast("Consulta SEFAZ exibida no detalhe da nota.", 3000);
+  if (cura.numeroCurado || cura.tituloCriado) {
+    const partes = [];
+    if (cura.numeroCurado) partes.push("numero " + nf.numero + " recuperado da chave");
+    if (cura.tituloCriado) partes.push("cobranca gerada em Contas a Receber");
+    showToast("Consulta SEFAZ: " + partes.join(" e ") + ".", 4500);
+    if (typeof renderAll === 'function') renderAll();
+  } else {
+    showToast("Consulta SEFAZ exibida no detalhe da nota.", 3000);
+  }
 }
 
 function compartilharNotaAtualWhatsapp() {
