@@ -712,8 +712,8 @@ function buildNfeXml(payload) {
       <verProc>GDP-0.1</verProc>
     </ide>
     <emit>
-      <CNPJ>${xmlEscape(payload.emitente.cnpj)}</CNPJ>
-      <xNome>${xmlEscape(onlyAscii(String(payload.emitente.razaoSocial || "").toUpperCase()))}</xNome>
+      <CNPJ>${xmlEscape(sanitizeDigits(payload.emitente.cnpj))}</CNPJ>
+      <xNome>${xmlEscape(onlyAscii(String(payload.emitente.razaoSocial || "").toUpperCase())).slice(0, 60)}</xNome>
       ${optionalXml("xFant", payload.emitente.nomeFantasia || payload.emitente.razaoSocial, (value) => xmlEscape(onlyAscii(String(value || "").toUpperCase())))}
       <enderEmit>
         <xLgr>${xmlEscape(onlyAscii(payload.emitente.endereco?.logradouro || "RUA NAO CONFIGURADA"))}</xLgr>
@@ -723,7 +723,7 @@ function buildNfeXml(payload) {
         <cMun>${emitMunicipioCode}</cMun>
         <xMun>${xmlEscape(onlyAscii(emitCidade))}</xMun>
         <UF>${xmlEscape(emitUf)}</UF>
-        <CEP>${xmlEscape(payload.emitente.endereco?.cep || "30000000")}</CEP>
+        <CEP>${xmlEscape(sanitizeDigits(payload.emitente.endereco?.cep) || "30000000")}</CEP>
         <cPais>1058</cPais>
         <xPais>BRASIL</xPais>
         ${optionalXml("fone", payload.emitente.endereco?.telefone, xmlEscape)}
@@ -732,8 +732,8 @@ function buildNfeXml(payload) {
       <CRT>${xmlEscape(payload.emitente.crt || "3")}</CRT>
     </emit>
     <dest>
-      <CNPJ>${xmlEscape(payload.destinatario.cnpj)}</CNPJ>
-      <xNome>${xmlEscape(onlyAscii(payload.destinatario.nome))}</xNome>
+      <CNPJ>${xmlEscape(sanitizeDigits(payload.destinatario.cnpj))}</CNPJ>
+      <xNome>${xmlEscape(onlyAscii(payload.destinatario.nome)).slice(0, 60)}</xNome>
       <enderDest>
         <xLgr>${xmlEscape(onlyAscii(payload.destinatario.endereco.logradouro))}</xLgr>
         <nro>${xmlEscape(payload.destinatario.endereco.numero)}</nro>
@@ -742,7 +742,7 @@ function buildNfeXml(payload) {
         <cMun>${getMunicipioCode(payload.destinatario.endereco.cidade, payload.destinatario.endereco.uf)}</cMun>
         <xMun>${xmlEscape(onlyAscii(payload.destinatario.endereco.cidade || "BELO HORIZONTE"))}</xMun>
         <UF>${xmlEscape(payload.destinatario.endereco.uf || "MG")}</UF>
-        <CEP>${xmlEscape(payload.destinatario.endereco.cep || "30000000")}</CEP>
+        <CEP>${xmlEscape(sanitizeDigits(payload.destinatario.endereco.cep) || "30000000")}</CEP>
         <cPais>1058</cPais>
         <xPais>BRASIL</xPais>
       </enderDest>
