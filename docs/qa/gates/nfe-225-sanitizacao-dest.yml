@@ -1,0 +1,25 @@
+storyId: "fix-nfe-225 (hotfix sem story)"
+title: "NF-e 225 — sanitizar CNPJ/CEP + truncar xNome no <dest>/<emit>"
+reviewer: "@qa (Quinn)"
+date: "2026-06-18"
+commit: "72e2dce"
+verdict: CONCERNS
+method: "Revisão de diff + geração do XML real com dados da Santa Quiteria + teste de edge cases (CodeRabbit indisponível WSL)"
+passed:
+  - "AC1 CNPJ Santa Quiteria: 66230491000175 (14 digitos) — sanitizeDigits OK"
+  - "AC2 CEP: 36940000 (8 digitos) — sanitizeDigits OK"
+  - "AC3 xNome: 60 chars (truncado de 76) — caso real SEM & corta limpo"
+  - "AC5 nao-regressao: escola nome curto/campos limpos inalterada"
+  - "Caso REPORTADO (nota 1558 Santa Quiteria) AUTORIZA com o fix atual"
+  - "Emitente tambem sanitizado (consistencia)"
+issues:
+  - severity: medium
+    category: code
+    ac: "AC3 (edge case)"
+    description: "xNome usa `xmlEscape(...).slice(0,60)` — slice DEPOIS do escape. Se o nome tiver caractere especial (&, <, >) proximo da posicao 60, o xmlEscape o expande (& -> &amp;, 5 chars) e o slice corta no MEIO da entidade XML (ex: '...A&a'), gerando XML INVALIDO -> 225/erro de parse."
+    evidence: "Teste: nome 'AAAA...A&BB' (61 chars, & na pos 57) -> xNome no XML = '...A&a' (entidade &amp; cortada). BUG CONFIRMADO."
+    impacto: "BAIXO para a nota 1558 (Santa Quiteria nao tem &). LATENTE para qualquer escola com &/</> no nome perto do limite 60 (comum: 'Escola X & Y')."
+    recommendation: "Inverter a ordem: truncar o texto CRU, depois escapar. `xmlEscape(onlyAscii(nome).slice(0,60))` em vez de `xmlEscape(onlyAscii(nome)).slice(0,60)`. Aplicar nos 2 pontos (dest L736 e emit L716). Fix de mover o .slice para dentro."
+decision: "CONCERNS — resolve o caso reportado (nota 1558 autoriza), mas fix de ordem do slice (2 pontos) fecha edge case de XML invalido com & no nome. Aplicar antes do deploy (XML fiscal, ajuste trivial e seguro)."
+deploy_recommendation: "Aplicar o fix de ordem do slice, depois deploy. nfe-sefaz-client.js e server-side: vercel --prod --force."
+nota_final: "Confirmacao definitiva so na SEFAZ real (autorizar nota 1558 pos-deploy)."
