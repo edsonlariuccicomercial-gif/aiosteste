@@ -193,7 +193,10 @@
   </div>
 
   <script>
-    const MOBILE_AUTH_KEY = "gdp.estoque-intel.mobile.auth.v1";
+    const MOBILE_AUTH_KEY
+// ===== BUSCA: NORMALIZAÇÃO (Story 20.16) — local; remove acentos E pontuação =====
+function normalizeSearch(s){return (s||"").toString().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^\w\s]/g,"").toLowerCase().trim();}
+ = "gdp.estoque-intel.mobile.auth.v1";
     const MOBILE_LAST_SCAN_KEY = "gdp.estoque-intel.mobile.lastscan.v1";
     const ESTOQUE_INTEL_PRODUCTS_KEY = "gdp.estoque-intel.produtos.v1";
     const ESTOQUE_INTEL_PACKAGES_KEY = "gdp.estoque-intel.embalagens.v1";
@@ -491,8 +494,8 @@
     function renderMobileStock() {
       const tbody = document.getElementById("mobile-stock-tbody");
       if (!tbody) return;
-      const busca = (document.getElementById("mobile-stock-search")?.value || "").trim().toLowerCase();
-      const rows = computeResumo().filter((item) => !busca || item.produto.nome.toLowerCase().includes(busca));
+      const busca = normalizeSearch(document.getElementById("mobile-stock-search")?.value || "");
+      const rows = computeResumo().filter((item) => !busca || normalizeSearch(item.produto.nome).includes(busca));
       tbody.innerHTML = rows.length ? rows.map((item) => `
         <tr>
           <td>${item.produto.nome}<br><span class="muted">${item.produto.unidade_base}</span></td>

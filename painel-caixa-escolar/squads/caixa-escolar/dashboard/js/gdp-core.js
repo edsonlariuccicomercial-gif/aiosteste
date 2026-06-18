@@ -29,7 +29,7 @@ window.normalizeSearch = function (s) {
   return (s || '')
     .toString()
     .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '') // remove diacríticos (acentos)
+    .replace(/[\u0300-\u036f]/g, '') // remove diacríticos (acentos) — escape Unicode (robusto a encoding)
     .replace(/[^\w\s]/g, '')         // remove pontuação
     .toLowerCase()
     .trim();
@@ -2012,10 +2012,19 @@ function _formatarTelefoneWpp(tel) {
 
 function _buscarTelefoneCliente(nomeCliente) {
   if (!nomeCliente) return null;
-  const nome = nomeCliente.trim().toLowerCase();
-  const cliente = (typeof usuarios !== 'undefined' ? usuarios : []).find(u =>
-    (u.nome || '').trim().toLowerCase() === nome
-  );
+  // Story 20.16/20.19: match accent/casing/pontuação-insensitive (mesmo padrão de buscarClientePorEscola).
+  const nome = window.normalizeSearch(nomeCliente);
+  if (!nome) return null;
+  const lista = (typeof usuarios !== 'undefined' ? usuarios : []);
+  // 1) match exato normalizado ("America" === "América")
+  let cliente = lista.find(u => window.normalizeSearch(u.nome || '') === nome);
+  // 2) fallback bidirecional p/ variações tipo "Escola América" vs "America"
+  if (!cliente) {
+    cliente = lista.find(u => {
+      const un = window.normalizeSearch(u.nome || '');
+      return un && (un.includes(nome) || nome.includes(un));
+    });
+  }
   return cliente ? (cliente.telefone || '') : '';
 }
 
@@ -2710,7 +2719,7 @@ function renderConciliacao() {
           const arrow = isOpen ? '▼' : '▶';
           return '<tr style="cursor:pointer;border-bottom:1px solid rgba(51,65,85,.4);' + rowBg + '" onclick="reabrirExtrato(' + i + ')">'
             + '<td style="padding:10px 12px" onclick="event.stopPropagation()"><input type="checkbox" class="ext-check" value="' + i + '"></td>'
-            + '<td style="padding:10px 12px;color:var(--txt,#f1f5f9)">' + (ext.data || '-') + '</td>'
+            + '<td style="padding:10px 12px;color:var(--txt,#f1f5f9)">' + (fmtDate(ext.data) || '-') + '</td>'
             + '<td style="padding:10px 12px;color:var(--txt,#f1f5f9);font-weight:500">' + arrow + ' ' + (ext.arquivo || '-') + '</td>'
             + '<td style="padding:10px 12px;color:var(--txt,#f1f5f9);font-weight:700">' + (ext.contaFinanceira || '-') + '</td>'
             + '<td style="padding:10px 12px;color:var(--txt,#f1f5f9)">(' + (ext.conciliados || 0) + '/' + (ext.total || 0) + ')</td></tr>';

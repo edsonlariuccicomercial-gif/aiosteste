@@ -232,7 +232,8 @@ function genId(prefix) {
 }
 
 function formatDateTimeLocal(date = new Date()) {
-  return new Date(date).toLocaleString("pt-BR");
+  // Story 20.18: pin pt-BR + timezone para ser determinístico (dd/mm/yyyy hh:mm) em qualquer runtime.
+  return new Date(date).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
 }
 
 function fmtDate(d) {
@@ -444,7 +445,7 @@ function abrirDetalheCr(contaId) {
     <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Forma</label><div style="padding:.4rem 0;font-size:.92rem">${esc(conta.forma)}</div></div>
     <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Valor</label><div style="padding:.4rem 0;font-size:.92rem">${brl.format(conta.valor || 0)}</div></div>
     <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Data de Emissao</label><div style="padding:.4rem 0;font-size:.92rem">${esc(resolveDataEmissaoConta(conta) || "-")}</div></div>
-    <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Vencimento</label><div style="padding:.4rem 0;font-size:.92rem">${esc(conta.vencimento)}</div></div>
+    <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Vencimento</label><div style="padding:.4rem 0;font-size:.92rem">${esc(fmtDate(conta.vencimento))}</div></div>
     <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Status</label><div style="padding:.4rem 0"><span class="badge ${statusMeta.className}">${esc(statusMeta.label)}</span></div></div>
     <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Automacao</label><div style="padding:.4rem 0;font-size:.82rem">${conta.automacao?.whatsapp ? "WhatsApp" : "-"} / ${conta.automacao?.email ? "E-mail" : "-"}</div></div>
     <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Cobranca</label><div style="padding:.4rem 0;font-size:.82rem">${esc(conta.cobranca?.status || "-")}</div></div>
@@ -938,8 +939,8 @@ function abrirDetalheCp(contaId) {
     <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Categoria</label><div id="cp-det-categoria" class="cp-det-field" style="padding:.4rem 0;font-size:.92rem">${esc(formatCategoriaLabel(conta.categoria))}</div></div>
     <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Forma</label><div id="cp-det-forma" class="cp-det-field" style="padding:.4rem 0;font-size:.92rem">${esc(conta.forma)}</div></div>
     <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Valor</label><div id="cp-det-valor" class="cp-det-field" style="padding:.4rem 0;font-size:.92rem">${brl.format(conta.valor || 0)}</div></div>
-    <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Data de Emissao</label><div id="cp-det-dataEmissao" class="cp-det-field" style="padding:.4rem 0;font-size:.92rem">${esc(conta.dataEmissao || "-")}</div></div>
-    <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Vencimento</label><div id="cp-det-vencimento" class="cp-det-field" style="padding:.4rem 0;font-size:.92rem">${esc(conta.vencimento)}</div></div>
+    <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Data de Emissao</label><div id="cp-det-dataEmissao" class="cp-det-field" style="padding:.4rem 0;font-size:.92rem">${esc(fmtDate(conta.dataEmissao) || "-")}</div></div>
+    <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Vencimento</label><div id="cp-det-vencimento" class="cp-det-field" style="padding:.4rem 0;font-size:.92rem">${esc(fmtDate(conta.vencimento))}</div></div>
     <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Status</label><div style="padding:.4rem 0"><span class="badge ${statusMeta.className}">${esc(statusMeta.label)}</span></div></div>
     <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Auditoria</label><div style="padding:.4rem 0;font-size:.82rem;color:var(--mut)">${esc(formatAuditStamp(conta.audit, conta.pagaEm, conta.audit?.updatedBy))}</div></div>
     <div style="grid-column:1/-1">${renderCpPagamentoPanel(conta)}</div>

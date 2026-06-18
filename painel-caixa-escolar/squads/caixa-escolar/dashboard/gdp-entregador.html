@@ -176,6 +176,8 @@
 <script src="js/gdp-realtime.js?v=2"></script>
 <script>
 const ACCESS_CODE = "entregador2025";
+// Story 20.18: formata ISO yyyy-mm-dd -> dd/mm/yyyy (passthrough se vazio/ja-BR)
+function fmtDate(d){if(!d)return "";const x=String(d).slice(0,10);if(x.length<10||!x.includes("-"))return x;const p=x.split("-");return p[2]+"/"+p[1]+"/"+p[0];}
 const ORDERS_KEY = "gdp.pedidos.v1";
 const PROOFS_KEY = "gdp.entregas.provas.v1";
 
@@ -342,7 +344,7 @@ function renderDeliveries() {
           <h3>${p.escola.length > 35 ? p.escola.slice(0,33)+'...' : p.escola}</h3>
           <span class="badge ${p.status==='separando'?'badge-blue':'badge-yellow'}">${p.status}</span>
         </div>
-        <div class="meta">${p.id} | ${p.data} | ${p.itens.length} itens | <strong>R$ ${p.valor.toLocaleString('pt-BR',{minimumFractionDigits:2})}</strong></div>
+        <div class="meta">${p.id} | ${fmtDate(p.data)} | ${p.itens.length} itens | <strong>R$ ${p.valor.toLocaleString('pt-BR',{minimumFractionDigits:2})}</strong></div>
       </div>
     `).join('');
   }
@@ -357,7 +359,7 @@ function renderDeliveries() {
             <h3>${p.escola.length > 35 ? p.escola.slice(0,33)+'...' : p.escola}</h3>
             <span class="badge badge-green">entregue</span>
           </div>
-          <div class="meta">${p.id} | ${p.data} ${prova ? '| ✅ Comprovante registrado' : ''}</div>
+          <div class="meta">${p.id} | ${fmtDate(p.data)} ${prova ? '| ✅ Comprovante registrado' : ''}</div>
         </div>
       `;
     }).join('');
