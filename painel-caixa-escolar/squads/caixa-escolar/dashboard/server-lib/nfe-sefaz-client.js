@@ -613,6 +613,11 @@ function buildNfePayloadFromPedido(pedido, overrides = {}) {
 // emitente: objeto do emitente (crt)
 // anoRef: ano fiscal para lookup de alíquotas (default: ano corrente)
 function buildIbsCbsXml(item, emitente, anoRef) {
+  // GATE RTC — a NT 2025.002 (Grupo UB / IBS-CBS) ainda NAO foi homologada para
+  // NF-e mod 55 em producao. Emitir <IBSCBS>/<VB>/<IBSCBSTot> no XML 4.00 atual
+  // causa Rejeicao 225 (Falha no Schema XML do lote). Mantido DESLIGADO por
+  // padrao. Religar quando a NT entrar em vigor: NFE_RTC_HABILITAR=true
+  if (env("NFE_RTC_HABILITAR") !== "true") return "";
   const ano = anoRef || new Date().getFullYear();
   const aliquotas = RTC_ALIQUOTAS[ano];
   if (!aliquotas) return "";
