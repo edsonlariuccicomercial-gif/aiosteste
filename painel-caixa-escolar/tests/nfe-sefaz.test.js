@@ -94,7 +94,25 @@ describe('getSefazAutorizacaoUrl', () => {
 });
 
 describe('buildIbsCbsXml', () => {
-  it('builds XML for 2026 pilot year with CRT 3', () => {
+  // Grupo UB (NT 2025.002 / Reforma Tributária) é gated por NFE_RTC_HABILITAR.
+  // Por padrão fica DESLIGADO (commit 6baaa16) para evitar Rejeição 225 no XML 4.00.
+  // Os testes do estado "ligado" habilitam o gate explicitamente e restauram depois.
+  const _prevRtc = process.env.NFE_RTC_HABILITAR;
+  afterEach(() => {
+    if (_prevRtc === undefined) delete process.env.NFE_RTC_HABILITAR;
+    else process.env.NFE_RTC_HABILITAR = _prevRtc;
+  });
+
+  it('returns empty by default (gate NFE_RTC_HABILITAR off)', () => {
+    delete process.env.NFE_RTC_HABILITAR;
+    const item = { valorTotal: 1000, ibsCbsCST: '00', ibsCbsClassTrib: '0000000' };
+    const emitente = { crt: '3' };
+    const xml = nfe.buildIbsCbsXml(item, emitente, 2026);
+    expect(xml).toBe('');
+  });
+
+  it('builds XML for 2026 pilot year with CRT 3 when gate enabled', () => {
+    process.env.NFE_RTC_HABILITAR = 'true';
     const item = { valorTotal: 1000, ibsCbsCST: '00', ibsCbsClassTrib: '0000000' };
     const emitente = { crt: '3' };
     const xml = nfe.buildIbsCbsXml(item, emitente, 2026);
@@ -103,14 +121,16 @@ describe('buildIbsCbsXml', () => {
     expect(xml).toContain('CBS');
   });
 
-  it('returns empty for CRT 1 (Simples) without forceIbsCbs', () => {
+  it('returns empty for CRT 1 (Simples) without forceIbsCbs even when gate enabled', () => {
+    process.env.NFE_RTC_HABILITAR = 'true';
     const item = { valorTotal: 1000 };
     const emitente = { crt: '1' };
     const xml = nfe.buildIbsCbsXml(item, emitente, 2026);
     expect(xml).toBe('');
   });
 
-  it('returns empty for unknown year', () => {
+  it('returns empty for unknown year even when gate enabled', () => {
+    process.env.NFE_RTC_HABILITAR = 'true';
     const item = { valorTotal: 1000 };
     const emitente = { crt: '3' };
     const xml = nfe.buildIbsCbsXml(item, emitente, 2099);
