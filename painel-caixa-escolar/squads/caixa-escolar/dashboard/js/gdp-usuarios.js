@@ -31,9 +31,9 @@ function getPedidosDoCliente(cliente) {
 }
 
 function renderUsuarios() {
-  const busca = (document.getElementById("busca-usuario").value || "").toLowerCase();
+  const busca = window.normalizeSearch(document.getElementById("busca-usuario").value || ""); // Story 20.16
   const filtered = usuarios.filter(u => {
-    return !busca || (u.nome||'').toLowerCase().includes(busca) || (u.cnpj||'').includes(busca) || (u.email||'').toLowerCase().includes(busca) || (u.municipio||'').toLowerCase().includes(busca);
+    return !busca || window.normalizeSearch(u.nome||'').includes(busca) || window.normalizeSearch(u.cnpj||'').includes(busca) || window.normalizeSearch(u.email||'').includes(busca) || window.normalizeSearch(u.municipio||'').includes(busca);
   });
 
   // Update tab count to reflect filtered results
