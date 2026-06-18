@@ -1194,12 +1194,43 @@ async function transmitirAutorizacaoPreview(payload, options = {}) {
       cert: cfg.certificadoPem || undefined,
       key: cfg.chavePrivadaPem || undefined
     });
+
+    // Diagnostico de 404/endpoint: SEFAZ responde XML SOAP. Se vier HTML ou
+    // status >= 400 sem cStat, o endpoint/ambiente esta errado — nao adianta
+    // tentar parsear como XML de autorizacao. Devolve mensagem acionavel.
+    const contentType = String(resp.headers?.["content-type"] || "");
+    const looksLikeHtml = /<html|<!doctype/i.test(resp.body || "") || /text\/html/i.test(contentType);
+    const hasSoapPayload = /<(soap|env|nfeResultMsg|retEnviNFe|cStat)/i.test(resp.body || "");
+    if (resp.statusCode >= 400 || (looksLikeHtml && !hasSoapPayload)) {
+      return {
+        ok: false,
+        mode: "sefaz_endpoint_error",
+        httpStatus: resp.statusCode,
+        message:
+          `SEFAZ respondeu HTTP ${resp.statusCode} em ${payload.ambiente === "producao" ? "PRODUCAO" : "HOMOLOGACAO"} ` +
+          `para a UF ${payload.emitente?.uf || "MG"}. Endpoint/ambiente provavelmente incorreto.`,
+        diagnostico: {
+          urlUsada: autorizacaoPreview.url,
+          ambiente: payload.ambiente,
+          uf: payload.emitente?.uf || "MG",
+          contentType,
+          respostaInicio: String(resp.body || "").slice(0, 400)
+        },
+        autorizacaoPreview
+      };
+    }
+
     const parsed = parseSefazAutorizacaoResponse(resp.body);
     return {
-      ok: resp.statusCode >= 200 && resp.statusCode < 300,
+      ok: resp.statusCode >= 200 && resp.statusCode < 300 && !!parsed.cStat,
       mode: "sefaz_http_response",
       httpStatus: resp.statusCode,
       parsed,
+      diagnostico: {
+        urlUsada: autorizacaoPreview.url,
+        ambiente: payload.ambiente,
+        uf: payload.emitente?.uf || "MG"
+      },
       autorizacaoPreview
     };
   } catch (err) {

@@ -594,9 +594,29 @@ function schedulCloudSync() {
 }
 
 async function forcarSyncCompleto() {
-  if (!confirm('Sincronizar dados com o cloud? Dados locais nao salvos no Supabase podem ser perdidos.')) return;
+  if (!confirm('Forçar sincronização com a nuvem?\n\nAntes de baixar, suas alterações locais serão enviadas ao Supabase (nada é perdido). Em seguida a tela é atualizada com os dados mais recentes da nuvem.')) return;
   try {
     setGdpSyncState({ status: "syncing", detail: "Sincronizando com cloud..." });
+    // Story 20.15 Parte A (AC2): SUBIR o estado local atual ANTES de limpar/baixar —
+    // garante que nenhuma alteração local pendente seja perdida na reconciliação.
+    // Usa as tabelas dedicadas do Supabase (fonte primária via gdpApi).
+    if (window.gdpApi) {
+      showToast("Sync: enviando alteracoes locais...", 2000);
+      const _pushTables = { contratos: 'gdp.contratos.v1', pedidos: 'gdp.pedidos.v1', notas_fiscais: 'gdp.notas-fiscais.v1', contas_receber: 'gdp.contas-receber.v1', contas_pagar: 'gdp.contas-pagar.v1', entregas: 'gdp.entregas.provas.v1' };
+      for (const _t in _pushTables) {
+        try {
+          if (window.gdpApi[_t] && window.gdpApi[_t].saveAll) {
+            const _raw = localStorage.getItem(_pushTables[_t]);
+            const _parsed = _raw ? JSON.parse(_raw) : null;
+            const _items = _parsed?.items || (Array.isArray(_parsed) ? _parsed : []);
+            if (_items && _items.length > 0) {
+              await window.gdpApi[_t].saveAll(_items);
+              gdpLog('[ForceSync] uploaded local ' + _t + ': ' + _items.length + ' itens');
+            }
+          }
+        } catch (e) { gdpWarn('[ForceSync] upload falhou para ' + _t + ' (segue para download):', e); }
+      }
+    }
     showToast("Sync: baixando dados do cloud...", 2000);
     // Story 4.83: NÃO deletar conciliação/extratos — dados desaparecem se cloud falhar
     // Apenas notas-entrada e fornecedores são safe to clear (não são dados financeiros críticos)

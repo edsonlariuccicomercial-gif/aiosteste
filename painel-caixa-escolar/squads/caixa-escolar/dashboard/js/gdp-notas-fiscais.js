@@ -580,6 +580,19 @@ function extrairNumeroDaChaveNfe(chave) {
   return (num && num > 0) ? String(num) : "";
 }
 
+// Story 20.14 AC1: prova de autorização real da SEFAZ, mais robusta que _isAutorizado.
+// _isAutorizado exige prot + chNFe + cStat 100/150 na MESMA resposta HTTP; respostas
+// inconsistentes faziam a nota nascer sem número e sem título (cobrança). A chave de
+// acesso (44 díg.) + protocolo são a prova definitiva: se ambos existem, a SEFAZ
+// autorizou de fato, independentemente do cStat ter chegado naquele instante.
+// Aceita tanto o objeto nf (nf.sefaz.chaveAcesso/protocolo) quanto valores já extraídos.
+function temProvaAutorizacao(nf) {
+  if (!nf) return false;
+  var chave = String(nf?.sefaz?.chaveAcesso || nf?.chaveAcesso || "").replace(/\D/g, "");
+  var protocolo = String(nf?.sefaz?.protocolo || nf?.protocolo || "");
+  return chave.length === 44 && protocolo.length > 0;
+}
+
 // Retorna Set de números já usados por NFs AUTORIZADAS
 function _getNumerosAutorizados() {
   try {
@@ -1358,32 +1371,43 @@ async function transmitirHomologacaoNota(notaId) {
     // (audit, cobrança, email, banco) passam a referenciá-la para manter coerência.
     var _temProvaSefaz = !!(result.parsed?.prot) && !!(result.parsed?.chNFe);
     var _cStatSucesso = (_cStat === "100" || _cStat === "150");
-    var _isAutorizado = _temProvaSefaz && _cStatSucesso;
-    // Classificação de status (Story 16.6):
-    //  - autorizada: cStat sucesso + prova (prot+chNFe).
-    //  - transmissao_realizada: cStat sucesso SEM prova (anômalo, pendente de reconsulta)
-    //    OU sem cStat algum. NÃO autorizada e excluível (canDeleteNotaFiscal só bloqueia finais).
-    //  - rejeitada: cStat de rejeição real (≠ 100/150).
+
+    // Story 20.14: gravar protocolo/chave ANTES de classificar — assim a prova de
+    // autorização (temProvaAutorizacao) considera valores já persistidos em nf.sefaz,
+    // inclusive os herdados de reconsultas anteriores (|| nf.sefaz?.protocolo/chaveAcesso).
+    nf.sefaz.protocolo = result.parsed?.prot || nf.sefaz?.protocolo || "";
+    nf.sefaz.chaveAcesso = result.parsed?.chNFe || nf.sefaz?.chaveAcesso || "";
+
+    // Story 20.14 AC1/AC10: prova real de autorização = chave (44 díg.) + protocolo.
+    // É o critério que passa a gatear número, título (cobrança) e save, pois é robusto
+    // a respostas HTTP inconsistentes (cStat ausente no instante) que faziam a NF-e
+    // nascer sem número e sem título. _isAutorizado (cStat 100/150 + prova) continua
+    // sendo a evidência "completa", mas a prova de chave+protocolo já basta.
+    var _temProvaAut = temProvaAutorizacao(nf);
+
+    // Classificação de status (Story 16.6 + 20.14 AC10):
+    //  - autorizada: tem prova real da SEFAZ (chave+protocolo). Coerente com os gates
+    //    de número/título/save — evita estado híbrido (nota com número/título porém
+    //    status não-autorizado, que quebraria _getNumerosAutorizados/piso/canDelete).
+    //  - rejeitada: cStat de rejeição real (≠ 100/150) E sem prova.
+    //  - transmissao_realizada: sem prova e sem cStat de rejeição (pendente de reconsulta).
     var _sefazStatus;
-    if (_isAutorizado) {
+    if (_temProvaAut) {
       _sefazStatus = "autorizada";
     } else if (_cStat && !_cStatSucesso) {
       _sefazStatus = "rejeitada";
     } else {
       _sefazStatus = "transmissao_realizada";
     }
-    if (_cStatSucesso && !_temProvaSefaz) {
+    if (_cStatSucesso && !_temProvaSefaz && !_temProvaAut) {
       console.warn("[NF-e] cStat " + _cStat + " sem protocolo/chave — NAO marcada autorizada (Story 16.6). Reconsultar SEFAZ.");
     }
     nf.sefaz.status = _sefazStatus;
-    nf.sefaz.protocolo = result.parsed?.prot || nf.sefaz?.protocolo || "";
-    nf.sefaz.chaveAcesso = result.parsed?.chNFe || nf.sefaz?.chaveAcesso || "";
-    // Story 16.5 FIX-2: ancorar o número na fonte da verdade da SEFAZ. A resposta
-    // de autorização não traz nNF em campo próprio — ele está embutido na chave de
-    // acesso (chNFe, posições 26-34, 9 dígitos). Quando autorizado, extrai-se o nNF
-    // da chave e valida-se contra o número que foi enviado; se divergir, a chave
-    // (autoridade SEFAZ) prevalece e o desvio é logado.
-    if (_isAutorizado) {
+    // Story 16.5 FIX-2 + Story 20.14 AC2/AC11: ancorar o número na fonte da verdade da
+    // SEFAZ. O nNF está embutido na chave (chNFe, posições 26-34). A extração roda SEMPRE
+    // que houver chave válida (FORA do gate _isAutorizado) — antes, resposta sem cStat
+    // deixava a nota com número vazio mesmo tendo chave. Precedência: chave > preview > vazio.
+    if (nf.sefaz.chaveAcesso) {
       const _numeroChave = extrairNumeroDaChaveNfe(nf.sefaz.chaveAcesso);
       if (_numeroChave) {
         if (nf.numero && String(nf.numero) !== String(_numeroChave)) {
@@ -1399,12 +1423,12 @@ async function transmitirHomologacaoNota(notaId) {
       ...(nf.audit || {}),
       updatedAt: new Date().toISOString(),
       updatedBy: getAuditActor(),
-      // Story 16.6: usar a flag única _isAutorizado (exige prot+chNFe) para coerência
-      authorizedAt: _isAutorizado ? (result.parsed?.dhRecbto || new Date().toISOString()) : (nf.audit?.authorizedAt || ""),
-      authorizedBy: _isAutorizado ? getAuditActor() : (nf.audit?.authorizedBy || "")
+      // Story 20.14 AC10: coerência — authorizedAt acompanha a prova real (chave+protocolo)
+      authorizedAt: _temProvaAut ? (result.parsed?.dhRecbto || nf.audit?.authorizedAt || new Date().toISOString()) : (nf.audit?.authorizedAt || ""),
+      authorizedBy: _temProvaAut ? getAuditActor() : (nf.audit?.authorizedBy || "")
     };
     setIntegrationState(nf, "sefaz", {
-      status: _isAutorizado ? "autorizada" : (_cStat ? "rejeitada" : "transmissao_realizada"),
+      status: _temProvaAut ? "autorizada" : (_cStat && !_cStatSucesso ? "rejeitada" : "transmissao_realizada"),
       lastAction: "nfe_sefaz_emitir_real",
       httpStatus: result.httpStatus || "",
       cStat: result.parsed?.cStat || "",
@@ -1426,8 +1450,12 @@ async function transmitirHomologacaoNota(notaId) {
     // Story 16.5 FIX-4: a cobrança da NF-e real é criada SOMENTE após autorização
     // SEFAZ (não mais de forma otimista na criação do rascunho). Isso elimina
     // cobranças órfãs quando a transmissão falha (ex.: NCM inválido).
+    // Story 20.14 AC3/AC5/AC6/AC7: gate passa a ser temProvaAutorizacao (chave+protocolo),
+    // não _isAutorizado — resolve PIX/notas que autorizavam sem cStat e nasciam sem título.
+    // Idempotência (AC6): getContaReceberByNota(nf.id) + if(!conta) garante 1 título por nota.
+    // Nota rejeitada sem chave (AC7): temProvaAutorizacao=false → não cria título.
     let conta = getContaReceberByNota(nf.id);
-    if (_isAutorizado) {
+    if (_temProvaAut) {
       if (!conta) {
         conta = buildReceivableFromInvoice(nf);
         contasReceber.push(conta);
@@ -1451,8 +1479,8 @@ async function transmitirHomologacaoNota(notaId) {
     saveNotasFiscais();
 
     // Bridge 5: NF Saída → Banco (preço real faturado) — transmissão SEFAZ real
-    // Story 16.6: usar flag única _isAutorizado (exige prot+chNFe)
-    if (_isAutorizado && typeof bancoPrecos !== 'undefined' && bancoPrecos.itens && nf.itens) {
+    // Story 20.14: gate alinhado a temProvaAutorizacao (chave+protocolo)
+    if (_temProvaAut && typeof bancoPrecos !== 'undefined' && bancoPrecos.itens && nf.itens) {
       var nfSaidaRows = []; // Story 6.6
       nf.itens.forEach(function(item) {
         var sku = item.skuVinculado || item.sku;
@@ -1481,8 +1509,9 @@ async function transmitirHomologacaoNota(notaId) {
     }
 
     // Persist to Supabase with retry (prevent NF loss)
-    // Story 16.6: usar flag única _isAutorizado (exige prot+chNFe)
-    if (_isAutorizado) {
+    // Story 20.14 AC4: gate alinhado a temProvaAutorizacao — garante que NF com prova
+    // real (chave+protocolo) seja persistida com número/título corretos mesmo sem cStat.
+    if (_temProvaAut) {
       _saveNfToSupabaseWithRetry({
         id: nf.id, numero: nf.numero, serie: nf.serie, valor: nf.valor,
         status: nf.status, pedidoId: nf.pedidoId, contratoId: nf.contratoId,
@@ -1498,8 +1527,8 @@ async function transmitirHomologacaoNota(notaId) {
     showToast(`SEFAZ: ${result.parsed?.cStat || "-"} ${result.parsed?.xMotivo || ""}`.trim(), 5000);
 
     // Disparo automático de email quando NF autorizada pela SEFAZ
-    // Story 16.6: usar flag única _isAutorizado (exige prot+chNFe)
-    if (_isAutorizado) {
+    // Story 20.14: gate alinhado a temProvaAutorizacao (chave+protocolo)
+    if (_temProvaAut) {
       const contaEmail = getContaReceberByNota(nf.id);
       await dispararEmailNotaEBoletoAutomatico(nf.id, contaEmail?.id || null, { manual: false });
     }
