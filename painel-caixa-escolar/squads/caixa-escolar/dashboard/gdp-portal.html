@@ -506,10 +506,9 @@ if (typeof gdpWarn === 'undefined') { var gdpWarn = console.warn.bind(console, '
 <script src="gdp-api.js"></script>
 <script src="js/gdp-realtime.js?v=2"></script>
 <script>
-// ===== SUPABASE CLOUD SYNC
+// ===== SUPABASE CLOUD SYNC (uses centralized config from supabase-config.js) =====
 // ===== BUSCA: NORMALIZAÇÃO (Story 20.16) — local; remove acentos E pontuação =====
 function normalizeSearch(s){return (s||"").toString().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^\w\s]/g,"").toLowerCase().trim();}
- (uses centralized config from supabase-config.js) =====
 const SUPABASE_URL = window.SUPABASE_URL || "https://mvvsjaudhbglxttxaeop.supabase.co";
 const SUPABASE_KEY = window.SUPABASE_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im12dnNqYXVkaGJnbHh0dHhhZW9wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4MDY3OTAsImV4cCI6MjA5MDM4Mjc5MH0.jadqvmRvbZjtjATaF_4WWB6A44NF06whtEIyNNyCUGo";
 // contratos, pedidos, usuarios agora gerenciados pelo gdpApi (tabelas reais) — NÃO sync via sync_data legado
