@@ -29,7 +29,7 @@ window.normalizeSearch = function (s) {
   return (s || '')
     .toString()
     .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '') // remove diacríticos (acentos)
+    .replace(/[\u0300-\u036f]/g, '') // remove diacríticos (acentos) — escape Unicode (robusto a encoding)
     .replace(/[^\w\s]/g, '')         // remove pontuação
     .toLowerCase()
     .trim();
@@ -594,9 +594,29 @@ function schedulCloudSync() {
 }
 
 async function forcarSyncCompleto() {
-  if (!confirm('Sincronizar dados com o cloud? Dados locais nao salvos no Supabase podem ser perdidos.')) return;
+  if (!confirm('Forçar sincronização com a nuvem?\n\nAntes de baixar, suas alterações locais serão enviadas ao Supabase (nada é perdido). Em seguida a tela é atualizada com os dados mais recentes da nuvem.')) return;
   try {
     setGdpSyncState({ status: "syncing", detail: "Sincronizando com cloud..." });
+    // Story 20.15 Parte A (AC2): SUBIR o estado local atual ANTES de limpar/baixar —
+    // garante que nenhuma alteração local pendente seja perdida na reconciliação.
+    // Usa as tabelas dedicadas do Supabase (fonte primária via gdpApi).
+    if (window.gdpApi) {
+      showToast("Sync: enviando alteracoes locais...", 2000);
+      const _pushTables = { contratos: 'gdp.contratos.v1', pedidos: 'gdp.pedidos.v1', notas_fiscais: 'gdp.notas-fiscais.v1', contas_receber: 'gdp.contas-receber.v1', contas_pagar: 'gdp.contas-pagar.v1', entregas: 'gdp.entregas.provas.v1' };
+      for (const _t in _pushTables) {
+        try {
+          if (window.gdpApi[_t] && window.gdpApi[_t].saveAll) {
+            const _raw = localStorage.getItem(_pushTables[_t]);
+            const _parsed = _raw ? JSON.parse(_raw) : null;
+            const _items = _parsed?.items || (Array.isArray(_parsed) ? _parsed : []);
+            if (_items && _items.length > 0) {
+              await window.gdpApi[_t].saveAll(_items);
+              gdpLog('[ForceSync] uploaded local ' + _t + ': ' + _items.length + ' itens');
+            }
+          }
+        } catch (e) { gdpWarn('[ForceSync] upload falhou para ' + _t + ' (segue para download):', e); }
+      }
+    }
     showToast("Sync: baixando dados do cloud...", 2000);
     // Story 4.83: NÃO deletar conciliação/extratos — dados desaparecem se cloud falhar
     // Apenas notas-entrada e fornecedores são safe to clear (não são dados financeiros críticos)
@@ -1366,14 +1386,20 @@ function registrarContratoExcluido(contrato) {
   });
   saveContratosExcluidos();
 }
-function savePedidos() {
+function savePedidos(changedId) {
+  // Story 20.17: changedId opcional. Sem arg = comportamento atual (salva todos —
+  // boot, bulk, etc.). Com arg = persiste só o pedido alterado, reduzindo a rajada
+  // de upserts (antes: 145 por clique) que alimentava a race condition de realtime.
   pedidos = pedidos.map(sanitizePedidoLegacyData);
   saveWrappedArray(ORDERS_KEY, pedidos);
   _lastLocalSave[ORDERS_KEY] = Date.now();
   syncPedidosGDPToEstoqueIntel(true);
   // Persist to Supabase (async, non-blocking)
   if (window.gdpApi && window.gdpApi.pedidos) {
-    pedidos.forEach(function(p) {
+    var alvo = changedId
+      ? pedidos.filter(function(p) { return p.id === changedId; })
+      : pedidos;
+    alvo.forEach(function(p) {
       window.gdpApi.pedidos.save(p).catch(function(e) { gdpWarn('[Pedidos] Supabase save failed:', p.id, e.message); });
     });
   }
@@ -1992,10 +2018,19 @@ function _formatarTelefoneWpp(tel) {
 
 function _buscarTelefoneCliente(nomeCliente) {
   if (!nomeCliente) return null;
-  const nome = nomeCliente.trim().toLowerCase();
-  const cliente = (typeof usuarios !== 'undefined' ? usuarios : []).find(u =>
-    (u.nome || '').trim().toLowerCase() === nome
-  );
+  // Story 20.16/20.19: match accent/casing/pontuação-insensitive (mesmo padrão de buscarClientePorEscola).
+  const nome = window.normalizeSearch(nomeCliente);
+  if (!nome) return null;
+  const lista = (typeof usuarios !== 'undefined' ? usuarios : []);
+  // 1) match exato normalizado ("America" === "América")
+  let cliente = lista.find(u => window.normalizeSearch(u.nome || '') === nome);
+  // 2) fallback bidirecional p/ variações tipo "Escola América" vs "America"
+  if (!cliente) {
+    cliente = lista.find(u => {
+      const un = window.normalizeSearch(u.nome || '');
+      return un && (un.includes(nome) || nome.includes(un));
+    });
+  }
   return cliente ? (cliente.telefone || '') : '';
 }
 
@@ -2690,7 +2725,7 @@ function renderConciliacao() {
           const arrow = isOpen ? '▼' : '▶';
           return '<tr style="cursor:pointer;border-bottom:1px solid rgba(51,65,85,.4);' + rowBg + '" onclick="reabrirExtrato(' + i + ')">'
             + '<td style="padding:10px 12px" onclick="event.stopPropagation()"><input type="checkbox" class="ext-check" value="' + i + '"></td>'
-            + '<td style="padding:10px 12px;color:var(--txt,#f1f5f9)">' + (ext.data || '-') + '</td>'
+            + '<td style="padding:10px 12px;color:var(--txt,#f1f5f9)">' + (fmtDate(ext.data) || '-') + '</td>'
             + '<td style="padding:10px 12px;color:var(--txt,#f1f5f9);font-weight:500">' + arrow + ' ' + (ext.arquivo || '-') + '</td>'
             + '<td style="padding:10px 12px;color:var(--txt,#f1f5f9);font-weight:700">' + (ext.contaFinanceira || '-') + '</td>'
             + '<td style="padding:10px 12px;color:var(--txt,#f1f5f9)">(' + (ext.conciliados || 0) + '/' + (ext.total || 0) + ')</td></tr>';

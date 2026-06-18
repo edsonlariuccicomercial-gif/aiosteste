@@ -1,0 +1,18 @@
+storyId: "20.19"
+title: "Cobrança WhatsApp telefone não encontrado (Escola América)"
+reviewer: "@qa (Quinn)"
+date: "2026-06-18"
+verdict: PASS
+method: "Manual review + execução de _buscarTelefoneCliente (arquivo real) contra cenários dos ACs"
+issues:
+  - severity: low
+    category: code
+    description: "Junção cliente↔conta por nome string (não client_id) — débito técnico já registrado, fora de escopo."
+passed:
+  - "AC1: caso real America~América com telefone → encontrado (34999990000)"
+  - "AC1 variante: America~Escola América → fallback bidirecional encontra"
+  - "AC3: cliente sem telefone → '' (aviso legítimo preservado, não mascara ausência)"
+  - "AC4: formatação WhatsApp inalterada"
+  - "Sintaxe: node --check OK"
+dependency_note: "Usa window.normalizeSearch (mesmo helper da 20.16). Funciona hoje; herda o CONCERNS latente da Causa A da 20.16. Deployar junto com 20.16."
+decision: "PASS — pronto para deploy (junto com 20.16)."

@@ -613,6 +613,11 @@ function buildNfePayloadFromPedido(pedido, overrides = {}) {
 // emitente: objeto do emitente (crt)
 // anoRef: ano fiscal para lookup de alíquotas (default: ano corrente)
 function buildIbsCbsXml(item, emitente, anoRef) {
+  // GATE RTC — a NT 2025.002 (Grupo UB / IBS-CBS) ainda NAO foi homologada para
+  // NF-e mod 55 em producao. Emitir <IBSCBS>/<VB>/<IBSCBSTot> no XML 4.00 atual
+  // causa Rejeicao 225 (Falha no Schema XML do lote). Mantido DESLIGADO por
+  // padrao. Religar quando a NT entrar em vigor: NFE_RTC_HABILITAR=true
+  if (env("NFE_RTC_HABILITAR") !== "true") return "";
   const ano = anoRef || new Date().getFullYear();
   const aliquotas = RTC_ALIQUOTAS[ano];
   if (!aliquotas) return "";
@@ -707,8 +712,8 @@ function buildNfeXml(payload) {
       <verProc>GDP-0.1</verProc>
     </ide>
     <emit>
-      <CNPJ>${xmlEscape(payload.emitente.cnpj)}</CNPJ>
-      <xNome>${xmlEscape(onlyAscii(String(payload.emitente.razaoSocial || "").toUpperCase()))}</xNome>
+      <CNPJ>${xmlEscape(sanitizeDigits(payload.emitente.cnpj))}</CNPJ>
+      <xNome>${xmlEscape(onlyAscii(String(payload.emitente.razaoSocial || "").toUpperCase()).slice(0, 60))}</xNome>
       ${optionalXml("xFant", payload.emitente.nomeFantasia || payload.emitente.razaoSocial, (value) => xmlEscape(onlyAscii(String(value || "").toUpperCase())))}
       <enderEmit>
         <xLgr>${xmlEscape(onlyAscii(payload.emitente.endereco?.logradouro || "RUA NAO CONFIGURADA"))}</xLgr>
@@ -718,7 +723,7 @@ function buildNfeXml(payload) {
         <cMun>${emitMunicipioCode}</cMun>
         <xMun>${xmlEscape(onlyAscii(emitCidade))}</xMun>
         <UF>${xmlEscape(emitUf)}</UF>
-        <CEP>${xmlEscape(payload.emitente.endereco?.cep || "30000000")}</CEP>
+        <CEP>${xmlEscape(sanitizeDigits(payload.emitente.endereco?.cep) || "30000000")}</CEP>
         <cPais>1058</cPais>
         <xPais>BRASIL</xPais>
         ${optionalXml("fone", payload.emitente.endereco?.telefone, xmlEscape)}
@@ -727,8 +732,8 @@ function buildNfeXml(payload) {
       <CRT>${xmlEscape(payload.emitente.crt || "3")}</CRT>
     </emit>
     <dest>
-      <CNPJ>${xmlEscape(payload.destinatario.cnpj)}</CNPJ>
-      <xNome>${xmlEscape(onlyAscii(payload.destinatario.nome))}</xNome>
+      <CNPJ>${xmlEscape(sanitizeDigits(payload.destinatario.cnpj))}</CNPJ>
+      <xNome>${xmlEscape(onlyAscii(payload.destinatario.nome).slice(0, 60))}</xNome>
       <enderDest>
         <xLgr>${xmlEscape(onlyAscii(payload.destinatario.endereco.logradouro))}</xLgr>
         <nro>${xmlEscape(payload.destinatario.endereco.numero)}</nro>
@@ -737,7 +742,7 @@ function buildNfeXml(payload) {
         <cMun>${getMunicipioCode(payload.destinatario.endereco.cidade, payload.destinatario.endereco.uf)}</cMun>
         <xMun>${xmlEscape(onlyAscii(payload.destinatario.endereco.cidade || "BELO HORIZONTE"))}</xMun>
         <UF>${xmlEscape(payload.destinatario.endereco.uf || "MG")}</UF>
-        <CEP>${xmlEscape(payload.destinatario.endereco.cep || "30000000")}</CEP>
+        <CEP>${xmlEscape(sanitizeDigits(payload.destinatario.endereco.cep) || "30000000")}</CEP>
         <cPais>1058</cPais>
         <xPais>BRASIL</xPais>
       </enderDest>
@@ -1194,12 +1199,43 @@ async function transmitirAutorizacaoPreview(payload, options = {}) {
       cert: cfg.certificadoPem || undefined,
       key: cfg.chavePrivadaPem || undefined
     });
+
+    // Diagnostico de 404/endpoint: SEFAZ responde XML SOAP. Se vier HTML ou
+    // status >= 400 sem cStat, o endpoint/ambiente esta errado — nao adianta
+    // tentar parsear como XML de autorizacao. Devolve mensagem acionavel.
+    const contentType = String(resp.headers?.["content-type"] || "");
+    const looksLikeHtml = /<html|<!doctype/i.test(resp.body || "") || /text\/html/i.test(contentType);
+    const hasSoapPayload = /<(soap|env|nfeResultMsg|retEnviNFe|cStat)/i.test(resp.body || "");
+    if (resp.statusCode >= 400 || (looksLikeHtml && !hasSoapPayload)) {
+      return {
+        ok: false,
+        mode: "sefaz_endpoint_error",
+        httpStatus: resp.statusCode,
+        message:
+          `SEFAZ respondeu HTTP ${resp.statusCode} em ${payload.ambiente === "producao" ? "PRODUCAO" : "HOMOLOGACAO"} ` +
+          `para a UF ${payload.emitente?.uf || "MG"}. Endpoint/ambiente provavelmente incorreto.`,
+        diagnostico: {
+          urlUsada: autorizacaoPreview.url,
+          ambiente: payload.ambiente,
+          uf: payload.emitente?.uf || "MG",
+          contentType,
+          respostaInicio: String(resp.body || "").slice(0, 400)
+        },
+        autorizacaoPreview
+      };
+    }
+
     const parsed = parseSefazAutorizacaoResponse(resp.body);
     return {
-      ok: resp.statusCode >= 200 && resp.statusCode < 300,
+      ok: resp.statusCode >= 200 && resp.statusCode < 300 && !!parsed.cStat,
       mode: "sefaz_http_response",
       httpStatus: resp.statusCode,
       parsed,
+      diagnostico: {
+        urlUsada: autorizacaoPreview.url,
+        ambiente: payload.ambiente,
+        uf: payload.emitente?.uf || "MG"
+      },
       autorizacaoPreview
     };
   } catch (err) {

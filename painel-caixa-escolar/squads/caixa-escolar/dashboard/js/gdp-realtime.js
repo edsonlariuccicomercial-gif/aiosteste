@@ -185,6 +185,14 @@
       }
       if (!exists) { items.push(record); changed = true; }
     } else if (type === 'UPDATE') {
+      // Story 20.17: ignorar o eco do próprio cliente (postgres_changes do nosso
+      // próprio upsert). Sem isto, um save em voo volta como UPDATE e sobrescreve
+      // a edição manual mais recente do usuário (status revertendo sozinho).
+      // Só o NOSSO eco bate a assinatura; UPDATE legítimo de outro cliente passa.
+      if (typeof window.gdpApiIsSelfEcho === 'function' &&
+          window.gdpApiIsSelfEcho(table, record.id, record)) {
+        return false;
+      }
       if (isDirty) {
         // During dirty window, only update if the record already exists locally
         // and the Supabase record is newer. Otherwise skip to protect local data.
@@ -207,8 +215,15 @@
         var found = false;
         for (var j = 0; j < items.length; j++) {
           if (items[j].id === record.id) {
-            items[j] = record;
-            changed = true;
+            // Story 20.17: condicionar a sobrescrita ao timestamp (não wholesale cego).
+            // Protege contra eco atrasado (>5s, fora da dirty window) de um save antigo
+            // do mesmo registro, que revertia o status. Só aplica se o remoto for >= local.
+            var rTs = record.updated_at || record.updatedAt || '';
+            var lTs = items[j].updated_at || items[j].updatedAt || '';
+            if (!lTs || !rTs || rTs >= lTs) {
+              items[j] = record;
+              changed = true;
+            }
             found = true;
             break;
           }

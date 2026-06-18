@@ -221,8 +221,8 @@
       }
     })();
   </script>
-  <script src="gdp-api.js?v=15"></script>
-  <script src="js/gdp-realtime.js?v=3"></script>
+  <script src="gdp-api.js?v=16"></script>
+  <script src="js/gdp-realtime.js?v=5"></script>
 </head>
 <body>
 
@@ -281,6 +281,8 @@
     </div>
     <div class="topbar-right">
       <span id="sync-status-indicator" title="Status sync" style="font-size:1rem;cursor:help">⚪</span>
+      <!-- Story 20.15 Parte A: botão sob demanda para reconciliar divergência entre navegadores -->
+      <button id="btn-forcar-sync" class="btn btn-outline" onclick="forcarSyncCompleto()" title="Baixa os dados mais recentes da nuvem e atualiza a tela (resolve divergência entre máquinas)" style="font-size:.85rem;padding:.3rem .7rem">🔄 Forçar Sync</button>
       <a href="gdp-portal.html">Portal Escolar</a>
       <a href="gdp-entregador.html">Entregador</a>
     </div>
@@ -2634,20 +2636,20 @@ function confirmarImportProd() {
 
 <script src="./js/gdp-pagination.js?v=11"></script>
 <script src="./js/gdp-integrations-client.js?v=11"></script>
-<script src="./js/gdp-core.js?v=27"></script>
-<script src="./js/gdp-notas-fiscais.js?v=17"></script>
+<script src="./js/gdp-core.js?v=32"></script>
+<script src="./js/gdp-notas-fiscais.js?v=19"></script>
 <script src="./js/gdp-contratos-module.js?v=16"></script>
 <script src="./js/gdp-estoque-intel.js?v=14"></script>
-<script src="./js/gdp-pedidos.js?v=22"></script>
-<script src="./js/gdp-usuarios.js?v=12"></script>
+<script src="./js/gdp-pedidos.js?v=24"></script>
+<script src="./js/gdp-usuarios.js?v=14"></script>
 <!-- gdp-entregas.js removido (Épico A - FR-016) -->
 <!-- ADR-002 Fase 3: SSoT unificada de produtos (carregar ANTES de gdp-banco-produtos) -->
 <script src="./server-lib/radar-matcher-core.browser.js?v=3"></script>
 <script src="./server-lib/product-store-core.browser.js?v=1"></script>
 <script src="./product-store.js?v=1"></script>
-<script src="./js/gdp-banco-produtos.js?v=12"></script>
-<script src="./js/gdp-conta-corrente.js?v=3"></script>
-<script src="./js/gdp-init.js?v=26"></script>
+<script src="./js/gdp-banco-produtos.js?v=13"></script>
+<script src="./js/gdp-conta-corrente.js?v=6"></script>
+<script src="./js/gdp-init.js?v=28"></script>
 
 
 

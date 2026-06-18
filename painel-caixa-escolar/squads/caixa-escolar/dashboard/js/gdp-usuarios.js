@@ -31,9 +31,9 @@ function getPedidosDoCliente(cliente) {
 }
 
 function renderUsuarios() {
-  const busca = (document.getElementById("busca-usuario").value || "").toLowerCase();
+  const busca = window.normalizeSearch(document.getElementById("busca-usuario").value || ""); // Story 20.16
   const filtered = usuarios.filter(u => {
-    return !busca || (u.nome||'').toLowerCase().includes(busca) || (u.cnpj||'').includes(busca) || (u.email||'').toLowerCase().includes(busca) || (u.municipio||'').toLowerCase().includes(busca);
+    return !busca || window.normalizeSearch(u.nome||'').includes(busca) || window.normalizeSearch(u.cnpj||'').includes(busca) || window.normalizeSearch(u.email||'').includes(busca) || window.normalizeSearch(u.municipio||'').includes(busca);
   });
 
   // Update tab count to reflect filtered results
@@ -334,7 +334,7 @@ function abrirDetalheCliente(id) {
         <div style="font-size:.78rem;font-weight:700;color:var(--acc,#3b82f6)">Ultimas vendas</div>
         <button class="btn btn-outline btn-sm" onclick="consultarUltimasVendasCliente('${cliente.id}')">Ver lista completa</button>
       </div>
-      ${ultimosPedidos.length ? `<div class="table-wrap"><table><thead><tr><th>Pedido</th><th>Data</th><th>Status</th><th class="text-right">Valor</th></tr></thead><tbody>${ultimosPedidos.map((pedido) => `<tr><td><button onclick="verPedidoDetalhe('${pedido.id}')" style="background:none;border:none;padding:0;color:var(--blue);cursor:pointer;font-weight:700">${esc(pedido.id)}</button></td><td>${esc(pedido.dataEntrega || pedido.data || '-')}</td><td>${esc(pedido.status || '-')}</td><td class="text-right">${brl.format(pedido.valor || 0)}</td></tr>`).join('')}</tbody></table></div>` : '<div style="font-size:.85rem;color:var(--mut)">Nenhuma venda encontrada para este cliente.</div>'}
+      ${ultimosPedidos.length ? `<div class="table-wrap"><table><thead><tr><th>Pedido</th><th>Data</th><th>Status</th><th class="text-right">Valor</th></tr></thead><tbody>${ultimosPedidos.map((pedido) => `<tr><td><button onclick="verPedidoDetalhe('${pedido.id}')" style="background:none;border:none;padding:0;color:var(--blue);cursor:pointer;font-weight:700">${esc(pedido.id)}</button></td><td>${esc(fmtDate(pedido.dataEntrega || pedido.data) || '-')}</td><td>${esc(pedido.status || '-')}</td><td class="text-right">${brl.format(pedido.valor || 0)}</td></tr>`).join('')}</tbody></table></div>` : '<div style="font-size:.85rem;color:var(--mut)">Nenhuma venda encontrada para este cliente.</div>'}
     </div>
   `;
   // Renderizar como pagina inline (nao modal)
@@ -398,7 +398,7 @@ function consultarUltimasVendasCliente(id) {
   const vendas = getPedidosDoCliente(cliente);
   document.getElementById("modal-cliente-vendas-titulo").textContent = `Ultimas Vendas • ${cliente.nome || ''}`;
   document.getElementById("modal-cliente-vendas-body").innerHTML = vendas.length
-    ? `<div class="table-wrap"><table><thead><tr><th>Pedido</th><th>Contrato</th><th>Data</th><th>Status</th><th class="text-right">Valor</th></tr></thead><tbody>${vendas.map((pedido) => `<tr><td><button onclick="verPedidoDetalhe('${pedido.id}')" style="background:none;border:none;padding:0;color:var(--blue);cursor:pointer;font-weight:700">${esc(pedido.id)}</button></td><td>${esc(pedido.contratoId || '-')}</td><td>${esc(pedido.dataEntrega || pedido.data || '-')}</td><td>${esc(pedido.status || '-')}</td><td class="text-right">${brl.format(pedido.valor || 0)}</td></tr>`).join('')}</tbody></table></div>`
+    ? `<div class="table-wrap"><table><thead><tr><th>Pedido</th><th>Contrato</th><th>Data</th><th>Status</th><th class="text-right">Valor</th></tr></thead><tbody>${vendas.map((pedido) => `<tr><td><button onclick="verPedidoDetalhe('${pedido.id}')" style="background:none;border:none;padding:0;color:var(--blue);cursor:pointer;font-weight:700">${esc(pedido.id)}</button></td><td>${esc(pedido.contratoId || '-')}</td><td>${esc(fmtDate(pedido.dataEntrega || pedido.data) || '-')}</td><td>${esc(pedido.status || '-')}</td><td class="text-right">${brl.format(pedido.valor || 0)}</td></tr>`).join('')}</tbody></table></div>`
     : '<div style="font-size:.85rem;color:var(--mut)">Nenhuma venda encontrada para este cliente.</div>';
   fecharMenuCliente();
   document.getElementById("modal-cliente-vendas").classList.remove("hidden");

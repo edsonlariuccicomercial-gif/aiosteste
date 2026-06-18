@@ -16,6 +16,29 @@
   // Data source tracking (Story 7.22)
   var _dataSource = 'initializing'; // 'cloud' | 'cache' | 'offline'
 
+  // ── Echo suppression (Story 20.17) ──────────────────────────────────────────
+  // Registra os upserts que ESTE cliente acabou de fazer. Quando o Supabase
+  // devolve o mesmo registro via postgres_changes (eco), gdp-realtime.js consulta
+  // gdpApiIsSelfEcho() para NÃO sobrescrever a edição local com o próprio eco.
+  // A assinatura usa updated_at (único por upsert) + status — só o nosso eco bate;
+  // um UPDATE legítimo de outro cliente terá updated_at diferente e NÃO é suprimido.
+  var _selfEchoes = {}; // 'table:id' -> { sig, ts }
+  function _echoSignature(row) {
+    if (!row) return '';
+    return String(row.updated_at || row.updatedAt || '') + '|' + String(row.status == null ? '' : row.status);
+  }
+  function _markSelfEcho(table, id, row) {
+    if (!table || id == null) return;
+    _selfEchoes[table + ':' + id] = { sig: _echoSignature(row), ts: Date.now() };
+  }
+  window.gdpApiIsSelfEcho = function (table, id, record) {
+    var k = table + ':' + id;
+    var e = _selfEchoes[k];
+    if (!e) return false;
+    if (Date.now() - e.ts > 8000) { delete _selfEchoes[k]; return false; } // TTL 8s
+    return e.sig === _echoSignature(record);
+  };
+
   var ENTITIES = {
     contratos:      { lsKey: 'gdp.contratos.v1',      table: 'contratos',      wrapped: true  },
     pedidos:        { lsKey: 'gdp.pedidos.v1',         table: 'pedidos',        wrapped: true  },
@@ -280,6 +303,7 @@
         if (!item.empresa_id) item.empresa_id = getEmpresaId();
         item.updated_at = new Date().toISOString();
         var row = mapToTable(table, item);
+        _markSelfEcho(table, item.id, row); // Story 20.17: registrar p/ echo suppression
         var ok = await sbUpsert(table, row, 'id');
         if (!ok) enqueueRetry(table, row, 'id');
         // update localStorage cache

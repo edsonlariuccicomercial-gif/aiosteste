@@ -27,7 +27,7 @@
   // Detecta a unidade pelo nome do produto (mesma lógica do portal — parseUnidadeFromName).
   function _parseUnidade(nome) {
     if (!nome) return 'UN';
-    var n = nome.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+    var n = nome.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     var w = n.match(/(\d+[.,]?\d*)\s*(kg|kgs|quilo|quilos|g|gr|grs|gramas|mg)\b/);
     if (w) { var u = w[2];
       if (['kg','kgs','quilo','quilos'].indexOf(u) >= 0) return 'KG';
@@ -181,7 +181,7 @@
           + '</table></td></tr>';
       }
       return '<tr>'
-        + '<td style="white-space:nowrap">' + (l.data || '') + '</td>'
+        + '<td style="white-space:nowrap">' + fmtDate(l.data) + '</td>'
         + '<td>' + (l.descricao || (ehDebito ? 'Retirada' : 'Crédito')) + '</td>'
         + '<td class="text-right" style="font-weight:600;color:' + cor + '">' + sinal + ' ' + _brl.format(_num(l.valor)) + '</td>'
         + '<td class="text-right" style="white-space:nowrap">'
@@ -441,7 +441,7 @@
       var itens = (ehDebito && Array.isArray(l._itens)) ? l._itens.map(function (it) {
         return '<div style="padding-left:20px;font-size:11px;color:#555">• ' + it.produto + ' — ' + _num(it.quantidade) + ' ' + (it.unidade || 'UN') + ' × ' + _brl.format(_num(it.valorUnitario || it.valor_unitario)) + ' = ' + _brl.format(_num(it.subtotal)) + '</div>';
       }).join('') : '';
-      return '<tr><td>' + (l.data || '') + '</td><td>' + (l.descricao || '') + itens + '</td>'
+      return '<tr><td>' + fmtDate(l.data) + '</td><td>' + (l.descricao || '') + itens + '</td>'
         + '<td style="text-align:right;color:' + (ehDebito ? '#d33' : '#090') + '">' + (ehDebito ? '−' : '+') + ' ' + _brl.format(_num(l.valor)) + '</td></tr>';
     }).join('');
     var w = window.open('', '_blank');
@@ -515,7 +515,7 @@
               return '<div style="padding-left:1.2rem;font-size:.76rem;color:var(--mut)">• ' + it.produto + ' — ' + _num(it.quantidade) + ' ' + (it.unidade || 'UN') + ' × ' + _brl.format(_num(it.valorUnitario || it.valor_unitario)) + ' = ' + _brl.format(_num(it.subtotal)) + '</div>';
             }).join('') + '</td></tr>'
           : '';
-        return '<tr><td style="white-space:nowrap">' + (l.data || '') + '</td><td>' + (l.descricao || '') + '</td>'
+        return '<tr><td style="white-space:nowrap">' + fmtDate(l.data) + '</td><td>' + (l.descricao || '') + '</td>'
           + '<td class="text-right" style="color:' + (ehDebito ? 'var(--red,#d33)' : 'var(--green)') + '">' + (ehDebito ? '−' : '+') + ' ' + _brl.format(_num(l.valor)) + '</td></tr>' + itensHtml;
       }).join('');
       var cor = d.saldo >= 0 ? 'var(--green)' : 'var(--red, #d33)';
@@ -556,7 +556,7 @@
         var itens = (ehDebito && Array.isArray(l._itens)) ? l._itens.map(function (it) {
           return '<div style="padding-left:18px;font-size:11px;color:#555">• ' + it.produto + ' — ' + _num(it.quantidade) + ' ' + (it.unidade || 'UN') + ' × ' + _brl.format(_num(it.valorUnitario || it.valor_unitario)) + ' = ' + _brl.format(_num(it.subtotal)) + '</div>';
         }).join('') : '';
-        return '<tr><td>' + (l.data || '') + '</td><td>' + (l.descricao || '') + itens + '</td><td style="text-align:right;color:' + (ehDebito ? '#d33' : '#090') + '">' + (ehDebito ? '−' : '+') + ' ' + _brl.format(_num(l.valor)) + '</td></tr>';
+        return '<tr><td>' + fmtDate(l.data) + '</td><td>' + (l.descricao || '') + itens + '</td><td style="text-align:right;color:' + (ehDebito ? '#d33' : '#090') + '">' + (ehDebito ? '−' : '+') + ' ' + _brl.format(_num(l.valor)) + '</td></tr>';
       }).join('');
       return '<h3 style="margin:14px 0 4px">' + d.nome + ' — Saldo: ' + _brl.format(d.saldo) + '</h3>'
         + '<table><thead><tr><th>Data</th><th>Descrição</th><th style="text-align:right">Valor</th></tr></thead><tbody>' + linhas + '</tbody></table>';

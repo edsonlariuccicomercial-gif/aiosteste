@@ -521,6 +521,9 @@
 
 <script>
 // Load ARP data
+// ===== BUSCA: NORMALIZAÇÃO (Story 20.16) — local; remove acentos E pontuação =====
+function normalizeSearch(s){return (s||"").toString().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^\w\s]/g,"").toLowerCase().trim();}
+
 let arpData = null;
 let allProducts = [];
 
@@ -609,7 +612,7 @@ function switchTab(tab) {
 function renderSchools(filter = '') {
   const grid = document.getElementById('school-grid');
   const filtered = arpData.escolas.filter(e =>
-    e.nome.toLowerCase().includes(filter.toLowerCase())
+    normalizeSearch(e.nome).includes(normalizeSearch(filter))
   );
 
   grid.innerHTML = filtered.map(e => {
@@ -673,12 +676,12 @@ function renderProducts(items = null) {
 }
 
 function filterProducts() {
-  const search = document.getElementById('product-search').value.toLowerCase();
+  const search = normalizeSearch(document.getElementById('product-search').value);
   const school = document.getElementById('school-filter').value;
   const sort = document.getElementById('sort-filter').value;
 
   let filtered = allProducts.filter(p => {
-    const matchSearch = p.produto.toLowerCase().includes(search) || p.escola.toLowerCase().includes(search);
+    const matchSearch = normalizeSearch(p.produto).includes(search) || normalizeSearch(p.escola).includes(search);
     const matchSchool = !school || p.escolaId === school;
     return matchSearch && matchSchool;
   });

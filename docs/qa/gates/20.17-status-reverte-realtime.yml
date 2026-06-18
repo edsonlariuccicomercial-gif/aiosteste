@@ -1,0 +1,27 @@
+storyId: "20.17"
+title: "Pedidos: status manual reverte + faturado não troca de aba"
+reviewer: "@qa (Quinn)"
+date: "2026-06-18"
+verdict: CONCERNS
+method: "Revisão manual + simulação da race condition com funções reais extraídas (CodeRabbit indisponível WSL). Teste 2-navegadores PENDENTE (exige deploy)."
+passed:
+  - "Camada 1 (echo suppression): gdp-api.js _selfEchoes + gdpApiIsSelfEcho corretos. Assinatura updated_at|status consistente (snake_case ambos os lados, status/updated_at em TABLE_COLS.pedidos)."
+  - "AC1/AC3 caso comum: eco do próprio save suprimido (5 cenários PASS). Edição manual e correção pós-faturar preservadas."
+  - "AC4 por construção: _selfEchoes é por-cliente (dentro da IIFE) — browser B nunca tem o eco do A → update remoto legítimo NÃO é suprimido."
+  - "AC2: setPedidoStatusTab('faturado') ao faturar (guard typeof)."
+  - "Save seletivo: retrocompat OK (36 chamadas sem arg salvam todos; 2 seletivas). node --check OK."
+  - "INSERT não reverte: guard `if (!exists)` impede sobrescrita via INSERT."
+issues:
+  - severity: medium
+    category: code
+    ac: "AC1/AC5 (edge case)"
+    description: "Caminho NÃO-dirty (gdp-realtime.js:214-225) mantém substituição wholesale CEGA (items[j]=record). Simulação prova: eco atrasado >5s de um save antigo do mesmo pedido (cuja entrada de echo foi sobrescrita por save mais novo) NÃO é suprimido E sobrescreve cegamente → reverte o status. É exatamente o '...muitas vezes volta o status' intermitente do relato."
+    evidence: "Sim node: dirty window expirada + eco T1<T2 → ramo não-dirty faz items[j]=record → status volta para 'faturado'. O @architect previu isto na seção 4.2 do design como 'recomendação adicional (defensiva)' — a simulação mostra que NÃO é opcional."
+    recommendation: "Aplicar a recomendação do design (4.2): condicionar o ramo não-dirty ao timestamp, igual ao dirty. Trocar `items[j]=record; changed=true;` por `var rTs=record.updated_at||''; var lTs=items[j].updated_at||''; if(!lTs || !rTs || rTs>=lTs){ items[j]=record; changed=true; }`. Fix de ~3 linhas em gdp-realtime.js."
+  - severity: high
+    category: requirements
+    ac: "AC2, AC4"
+    description: "Validação em 2 NAVEGADORES é obrigatória e NÃO foi possível (código não deployado; realtime exige o código novo nos 2 clientes). AC4 (update remoto aplica) e AC2 (faturar→aba) precisam de teste real pós-deploy."
+    recommendation: "Gate de pós-deploy OBRIGATÓRIO: após @devops deployar, testar em 2 navegadores antes de considerar Done."
+deploy_recommendation: "Aplicar o fix do ramo não-dirty (medium) ANTES do deploy — fecha a brecha residual e alinha com o design. Depois deploy + teste 2-navegadores obrigatório."
+decision: "CONCERNS — núcleo correto (AC1/AC2/AC3 caso comum), mas (1) fix de 3 linhas no ramo não-dirty fecha o edge case que casa com o sintoma intermitente do usuário; (2) teste 2-navegadores pós-deploy obrigatório (AC4)."

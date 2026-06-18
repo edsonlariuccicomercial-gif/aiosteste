@@ -113,9 +113,9 @@ function saveBancoProdutos() {
 
 function renderBancoProdutos() {
   loadBancoProdutos();
-  const busca = (document.getElementById("busca-produto")?.value || "").toLowerCase();
+  const busca = window.normalizeSearch(document.getElementById("busca-produto")?.value || "");
   let itens = bancoProdutos.itens;
-  if (busca) itens = itens.filter(p => (p.descricao || "").toLowerCase().includes(busca) || (p.sku || "").toLowerCase().includes(busca));
+  if (busca) itens = itens.filter(p => window.normalizeSearch(p.descricao || "").includes(busca) || window.normalizeSearch(p.sku || "").includes(busca));
 
   const tbody = document.getElementById("banco-produtos-tbody");
   const empty = document.getElementById("banco-produtos-empty");

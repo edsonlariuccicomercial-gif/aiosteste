@@ -269,7 +269,7 @@ function renderPedidos() {
 async function transmitirPedido(pedidoId) {
   const p = pedidos.find(x => x.id === pedidoId);
   if (!p) return;
-  if (!confirm(`Liberar pedido ${pedidoId}?\nData entrega: ${p.dataEntrega || p.data}\nValor: R$ ${p.valor.toFixed(2).replace('.',',')}\n\nIsso mudará o status para "recebido" e manterá o fluxo interno de faturamento no GDP.`)) return;
+  if (!confirm(`Liberar pedido ${pedidoId}?\nData entrega: ${fmtDate(p.dataEntrega || p.data)}\nValor: R$ ${p.valor.toFixed(2).replace('.',',')}\n\nIsso mudará o status para "recebido" e manterá o fluxo interno de faturamento no GDP.`)) return;
 
   // Deduzir saldo do contrato
   const c = contratos.find(x => x.id === p.contratoId);
@@ -2169,7 +2169,7 @@ function imprimirRelatorioCaixa() {
   const items = _getCaixaItemsFiltrados();
   const rows = items.map((item) => {
     const conciliado = item.conciliado || item.conciliacao?.matched;
-    return `<tr><td>${esc(item.data || "-")}</td><td>${esc(item.historico || item.descricao || "-")}</td><td>${esc(item.categoriaDre || "-")}</td><td>${conciliado ? "Conciliado" : "Pendente"}</td><td class="right">${brl.format(Number(item.valor || 0))}</td></tr>`;
+    return `<tr><td>${esc(fmtDate(item.data) || "-")}</td><td>${esc(item.historico || item.descricao || "-")}</td><td>${esc(item.categoriaDre || "-")}</td><td>${conciliado ? "Conciliado" : "Pendente"}</td><td class="right">${brl.format(Number(item.valor || 0))}</td></tr>`;
   }).join("");
   if (typeof abrirJanelaRelatorioFinanceiro === "function") {
     abrirJanelaRelatorioFinanceiro("Relatorio - Caixa (Lancamentos)", ["Data", "Descricao", "Categoria", "Status", "Valor"], rows);
@@ -2236,7 +2236,7 @@ function renderCaixa() {
         const itemId = item.id || ('cx-' + idx);
         return `<tr style="${conciliado ? '' : 'opacity:.7'}">
           <td class="text-center"><input type="checkbox" class="caixa-check" value="${itemId}" data-idx="${idx}" onchange="atualizarSelecaoCaixa()"${_selectedCaixaIds.has(itemId) ? ' checked' : ''}></td>
-          <td class="nowrap">${esc(item.data || "")}</td>
+          <td class="nowrap">${esc(fmtDate(item.data) || "")}</td>
           <td>${esc(item.historico || item.descricao || "-")}</td>
           <td style="font-size:.75rem">${cat ? '<span class="badge badge-muted" style="font-size:.6rem">' + esc(cat) + '</span>' : '<span style="color:var(--mut);font-size:.7rem">Sem categoria</span>'}</td>
           <td><span class="badge ${conciliado ? "badge-green" : "badge-yellow"}">${conciliado ? "Conciliado" : "Pendente"}</span></td>
@@ -2248,7 +2248,7 @@ function renderCaixa() {
   const pendenciasEl = document.getElementById("caixa-pendencias-lista");
   if (pendenciasEl) {
     const pendencias = resumo.items.filter(item => !item.conciliado && !item.conciliacao?.matched).slice(0, 6).map(item =>
-      `<div style="padding:.75rem;border:1px solid var(--bdr);border-radius:4px;background:var(--s1)"><strong>${esc(item.historico || item.descricao || "Lancamento")}</strong><div style="font-size:.75rem;color:var(--mut);margin-top:.2rem">${esc(item.data || "")} | ${brl.format(Number(item.valor || 0))}${item.categoriaDre ? ' | ' + esc(item.categoriaDre) : ''}</div></div>`
+      `<div style="padding:.75rem;border:1px solid var(--bdr);border-radius:4px;background:var(--s1)"><strong>${esc(item.historico || item.descricao || "Lancamento")}</strong><div style="font-size:.75rem;color:var(--mut);margin-top:.2rem">${esc(fmtDate(item.data) || "")} | ${brl.format(Number(item.valor || 0))}${item.categoriaDre ? ' | ' + esc(item.categoriaDre) : ''}</div></div>`
     );
     pendenciasEl.innerHTML = pendencias.length ? pendencias.join("") : `<div style="padding:.9rem;border:1px dashed var(--bdr);border-radius:4px;color:var(--mut)">Sem pendencias. Importe extratos na aba Conciliacao Bancaria.</div>`;
   }
@@ -3201,7 +3201,7 @@ function alterarStatusPedido(pedidoId, novoStatus) {
   if (!p) return;
   p.status = novoStatus;
   if (!p.obs) p.obs = getObsContrato(p.contratoId);
-  savePedidos();
+  savePedidos(pedidoId); // Story 20.17: save seletivo (só este pedido)
   renderAll();
   fecharMenuPedido();
   showToast(`Pedido ${pedidoId} movido para ${getPedidoStatusMeta(novoStatus).label}.`, 3000);
@@ -3940,7 +3940,7 @@ function gerarRelatorioDemanda(pedidoId) {
   const doc = iframe.contentDocument || iframe.contentWindow.document;
   doc.open();
   let bodyHtml = '<h1>Relatório de Demanda</h1>';
-  bodyHtml += '<h2>Pedido: ' + p.id + ' — ' + (p.escola || "") + (cidadePedido ? ' (' + cidadePedido + ')' : '') + ' — ' + (p.dataEntrega || p.data || "") + '</h2>';
+  bodyHtml += '<h2>Pedido: ' + p.id + ' — ' + (p.escola || "") + (cidadePedido ? ' (' + cidadePedido + ')' : '') + ' — ' + (fmtDate(p.dataEntrega || p.data) || "") + '</h2>';
   _SETOR_ORDEM.forEach(setor => {
     if (porSetor[setor] && porSetor[setor].length > 0) {
       bodyHtml += _renderSetorTable(setor, porSetor[setor], temCriticos, false);

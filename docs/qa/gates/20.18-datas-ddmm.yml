@@ -1,0 +1,18 @@
+storyId: "20.18"
+title: "Datas invertidas dd/mm — root cause real: ISO cru"
+reviewer: "@qa (Quinn)"
+date: "2026-06-18"
+verdict: PASS
+method: "Manual review + eval de fmtDate/formatDateTimeLocal do arquivo real + varredura de regressão em inputs"
+issues:
+  - severity: low
+    category: code
+    description: "fmtDate('') retorna '—'; em wraps `fmtDate(x) || \"-\"` o '-' nunca dispara. Cosmético, consistente com o helper."
+passed:
+  - "Root cause real: 14 displays ISO crus → fmtDate (dd/mm/yyyy confirmado)"
+  - "AC1: formatDateTimeLocal pin pt-BR + America/Sao_Paulo (gdp-init.js:236)"
+  - "AC2: T12:00:00 deixados intactos (guards corretos contra -1 dia)"
+  - "AC4: nenhum fmtDate em <input type=date value=> (inputs seguem ISO — correto)"
+  - "Sintaxe: node --check OK nos 5 JS"
+highlight: "@dev rejeitou a premissa errada da story (T12:00:00 era proteção, não bug) e corrigiu a causa real (ISO cru). Boa engenharia."
+decision: "PASS — pronto para deploy."

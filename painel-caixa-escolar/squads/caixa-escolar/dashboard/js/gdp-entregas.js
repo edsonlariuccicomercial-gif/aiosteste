@@ -102,7 +102,7 @@ function _renderEntregasUI() {
   const tbody = document.getElementById("entregas-tbody");
   const empty = document.getElementById("entregas-empty");
   const operacionaisBox = document.getElementById("entregas-operacionais-box");
-  const busca = (document.getElementById("busca-entrega")?.value || "").toLowerCase();
+  const busca = window.normalizeSearch(document.getElementById("busca-entrega")?.value || ""); // Story 20.16
   const filtroData = document.getElementById("filtro-data-entrega")?.value || "";
   const filtroStatus = document.getElementById("filtro-status-entrega")?.value || "";
   if (operacionaisBox) {
@@ -129,9 +129,9 @@ function _renderEntregasUI() {
   let filtered = entregasOperacionais;
   if (busca) {
     filtered = filtered.filter(p =>
-      (p.pedidoId || "").toLowerCase().includes(busca) ||
-      (p.escola || "").toLowerCase().includes(busca) ||
-      (p.recebedor || "").toLowerCase().includes(busca)
+      window.normalizeSearch(p.pedidoId || "").includes(busca) ||
+      window.normalizeSearch(p.escola || "").includes(busca) ||
+      window.normalizeSearch(p.recebedor || "").includes(busca)
     );
   }
   if (filtroData) {
