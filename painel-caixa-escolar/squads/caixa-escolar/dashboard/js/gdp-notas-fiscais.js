@@ -1123,7 +1123,9 @@ async function gerarNotaFiscalPedido(pedidoId) {
     updatedBy: getAuditActor()
   };
   pedido.status = "faturado";
-  savePedidos();
+  savePedidos(pedido.id); // Story 20.17: save seletivo
+  // Story 20.17 (AC2): seguir o pedido para a aba "Faturado" em vez de deixá-lo "sumir".
+  if (typeof setPedidoStatusTab === 'function') setPedidoStatusTab('faturado');
   renderAll();
   const msgCobranca = receivable ? " registrada com conta a receber vinculada." : " registrada. Conta a receber sera criada apos autorizacao SEFAZ.";
   showToast(`${getNotaFiscalTipoLabel(invoice)} ${invoice.numero || invoice.id}${msgCobranca}`, 4500);

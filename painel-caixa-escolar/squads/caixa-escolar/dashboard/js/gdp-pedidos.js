@@ -3201,7 +3201,7 @@ function alterarStatusPedido(pedidoId, novoStatus) {
   if (!p) return;
   p.status = novoStatus;
   if (!p.obs) p.obs = getObsContrato(p.contratoId);
-  savePedidos();
+  savePedidos(pedidoId); // Story 20.17: save seletivo (só este pedido)
   renderAll();
   fecharMenuPedido();
   showToast(`Pedido ${pedidoId} movido para ${getPedidoStatusMeta(novoStatus).label}.`, 3000);

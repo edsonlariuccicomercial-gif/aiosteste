@@ -1386,14 +1386,20 @@ function registrarContratoExcluido(contrato) {
   });
   saveContratosExcluidos();
 }
-function savePedidos() {
+function savePedidos(changedId) {
+  // Story 20.17: changedId opcional. Sem arg = comportamento atual (salva todos —
+  // boot, bulk, etc.). Com arg = persiste só o pedido alterado, reduzindo a rajada
+  // de upserts (antes: 145 por clique) que alimentava a race condition de realtime.
   pedidos = pedidos.map(sanitizePedidoLegacyData);
   saveWrappedArray(ORDERS_KEY, pedidos);
   _lastLocalSave[ORDERS_KEY] = Date.now();
   syncPedidosGDPToEstoqueIntel(true);
   // Persist to Supabase (async, non-blocking)
   if (window.gdpApi && window.gdpApi.pedidos) {
-    pedidos.forEach(function(p) {
+    var alvo = changedId
+      ? pedidos.filter(function(p) { return p.id === changedId; })
+      : pedidos;
+    alvo.forEach(function(p) {
       window.gdpApi.pedidos.save(p).catch(function(e) { gdpWarn('[Pedidos] Supabase save failed:', p.id, e.message); });
     });
   }
