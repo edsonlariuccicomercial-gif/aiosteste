@@ -713,7 +713,7 @@ function buildNfeXml(payload) {
     </ide>
     <emit>
       <CNPJ>${xmlEscape(sanitizeDigits(payload.emitente.cnpj))}</CNPJ>
-      <xNome>${xmlEscape(onlyAscii(String(payload.emitente.razaoSocial || "").toUpperCase())).slice(0, 60)}</xNome>
+      <xNome>${xmlEscape(onlyAscii(String(payload.emitente.razaoSocial || "").toUpperCase()).slice(0, 60))}</xNome>
       ${optionalXml("xFant", payload.emitente.nomeFantasia || payload.emitente.razaoSocial, (value) => xmlEscape(onlyAscii(String(value || "").toUpperCase())))}
       <enderEmit>
         <xLgr>${xmlEscape(onlyAscii(payload.emitente.endereco?.logradouro || "RUA NAO CONFIGURADA"))}</xLgr>
@@ -733,7 +733,7 @@ function buildNfeXml(payload) {
     </emit>
     <dest>
       <CNPJ>${xmlEscape(sanitizeDigits(payload.destinatario.cnpj))}</CNPJ>
-      <xNome>${xmlEscape(onlyAscii(payload.destinatario.nome)).slice(0, 60)}</xNome>
+      <xNome>${xmlEscape(onlyAscii(payload.destinatario.nome).slice(0, 60))}</xNome>
       <enderDest>
         <xLgr>${xmlEscape(onlyAscii(payload.destinatario.endereco.logradouro))}</xLgr>
         <nro>${xmlEscape(payload.destinatario.endereco.numero)}</nro>
