@@ -2997,7 +2997,15 @@ async function enviarTiny(contratoId) {
   }, 200);
 
   // Story 4.83: liberar cloud sync 3s após boot (tabelas Supabase carregam em ~1-2s)
-  setTimeout(function() { if (typeof _gdpBootInProgress !== 'undefined') _gdpBootInProgress = false; }, 3000);
+  // Story 20.15b (Portão 5 / AC5): ao desligar a flag, fazer flush das alterações que
+  // foram feitas durante o boot e ficaram presas (enfileiradas em _pendingBootSaves).
+  // O flush é assíncrono e deduplicado por chave — não bloqueia o boot (AC7).
+  setTimeout(function() {
+    if (typeof _gdpBootInProgress !== 'undefined') _gdpBootInProgress = false;
+    if (typeof window._flushPendingBootSaves === 'function') {
+      try { window._flushPendingBootSaves(); } catch (_) {}
+    }
+  }, 3000);
 
   // Auto-apply pending DB migrations (one-time, background, non-blocking)
   if (!sessionStorage.getItem("gdp.db-migrate-done")) {

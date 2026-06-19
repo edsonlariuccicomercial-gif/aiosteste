@@ -1062,7 +1062,15 @@ function saveWrappedArray(key, items, origin) {
   //   direto, NÃO esta função). Default seguro continua sendo 'system' no boot.
   _lastLocalSaveOrigin[key] = origin || (_gdpBootInProgress ? 'system' : 'user');
   // Story 4.83: Skip network saves during boot (saveAll + cloudSave são ~15 POST requests bloqueantes)
-  if (_gdpBootInProgress) return;
+  // Story 20.15b (Portão 5 / AC5): em vez de DESCARTAR o save de rede, ENFILEIRAR a chave.
+  // O localStorage já foi gravado acima; só o push de rede é adiado. Ao fim do boot,
+  // _flushPendingBootSaves() reenvia (assíncrono, deduplicado por Set → AC7 preservado).
+  if (_gdpBootInProgress) { _pendingBootSaves.add(key); return; }
+  _pushNetworkSave(key, wrapped, items);
+}
+
+// Story 20.15b (Portão 5): push de rede isolado, reutilizável pelo flush pós-boot.
+function _pushNetworkSave(key, wrapped, items) {
   // Gravar no Supabase tabela real (fonte primária)
   const table = _LS_TO_TABLE[key];
   if (table && window.gdpApi && window.gdpApi[table]) {
@@ -1072,6 +1080,27 @@ function saveWrappedArray(key, items, origin) {
   cloudSave(key, wrapped).catch(() => {});
   schedulCloudSync();
 }
+
+// Story 20.15b (Portão 5 / AC5): chaves cujo save foi adiado durante o boot.
+const _pendingBootSaves = new Set();
+// Flush pós-boot: reenvia ao Supabase as alterações feitas durante o boot, lendo o
+// estado ATUAL do localStorage por chave. Assíncrono e deduplicado (AC7: nada bloqueante).
+function _flushPendingBootSaves() {
+  if (_pendingBootSaves.size === 0) return;
+  const keys = Array.from(_pendingBootSaves);
+  _pendingBootSaves.clear();
+  gdpLog('[Sync] Flush pós-boot de', keys.length, 'chave(s) adiadas:', keys.join(', '));
+  keys.forEach(function(key) {
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) return;
+      const wrapped = JSON.parse(raw);
+      const items = Array.isArray(wrapped?.items) ? wrapped.items : (Array.isArray(wrapped) ? wrapped : []);
+      _pushNetworkSave(key, wrapped, items);
+    } catch (e) { gdpWarn('[Sync] Falha no flush pós-boot de', key, e); }
+  });
+}
+if (typeof window !== 'undefined') window._flushPendingBootSaves = _flushPendingBootSaves;
 function loadData() {
   console.time('[GDP] loadData:parse');
   // Story 4.80: dirty flags removidos — save migrado para background
