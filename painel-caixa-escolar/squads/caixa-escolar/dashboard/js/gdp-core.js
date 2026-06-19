@@ -438,8 +438,12 @@ async function syncFromCloud() {
     }
 
     // Compare timestamps: prefer data's internal updatedAt, fallback to Supabase row.updated_at
+    // Story 20.15b: timestamp é o árbitro PRIMÁRIO da reconciliação. Calculado ANTES de
+    // qualquer portão (movido do meio da cadeia) para que os bloqueios por contagem possam
+    // ser condicionados a ele (nuvem comprovadamente mais nova vence).
     const cloudTime = getDataTimestamp(incomingData, row.updated_at);
     const localTime = getDataTimestamp(localData);
+    const cloudIsNewer = cloudTime > localTime; // árbitro primário
     const isSharedKey = GDP_SHARED_SYNC_KEYS.has(row.key);
 
     // Cloud wins ONLY if cloud is strictly newer AND has actual content
