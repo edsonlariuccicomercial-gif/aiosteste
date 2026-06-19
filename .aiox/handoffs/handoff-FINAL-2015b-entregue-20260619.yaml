@@ -1,0 +1,53 @@
+handoff:
+  from_agent: "devops"
+  to_agent: "next-session"
+  cc_agents: ["dev", "qa", "po", "pm"]
+  timestamp: "2026-06-19"
+  squad: "caixa-escolar"
+  title: "Story 20.15b ENTREGUE (Done + merged + em produção) — estado salvo para fechar terminal"
+  last_command: "merge-pr + follow-ups"
+  tipo: "HANDOFF DE FIM DE SESSÃO"
+
+  estado_geral: "TUDO SALVO E ENVIADO. Pode fechar o terminal com segurança. 0 commits pendentes; branch sincronizada com o remote."
+
+  story_2015b:
+    status: "DONE"
+    descricao: "Calibração das regras de resolução de sync local↔nuvem. Resolve a divergência crônica Edson vs Angela (causa-raiz)."
+    arquivos_alterados:
+      - "painel-caixa-escolar/squads/caixa-escolar/dashboard/js/gdp-core.js (portões 1-5 + guarda dura AC3 + origin do save + flush pós-boot)"
+      - "painel-caixa-escolar/squads/caixa-escolar/dashboard/js/gdp-init.js (flush de _pendingBootSaves ao desligar _gdpBootInProgress)"
+      - "painel-caixa-escolar/squads/caixa-escolar/dashboard/gdp-contratos.html (gdp-core.js?v=33, gdp-init.js?v=29)"
+    gate_qa: "PASS — docs/qa/gates/20.15b-sync-calibration.yml"
+    testes: "205/205 vitest verde + trace adversarial dos 8 ACs"
+    validacao_producao: "CONFIRMADA pelo usuário: 2 navegadores convergiram sem Forçar Sync, sem travamento, sem perda de dados (AC6/AC7/AC3)"
+
+  git:
+    branch: "feature/epic20-ajustes-financeiro-gdp"
+    remote_usado: "HTTPS — https://github.com/edsonlariuccicomercial-gif/aiosteste.git (origin SSH github-edson NÃO resolve)"
+    branch_tip: "b024ce1"
+    master_tip: "1ba7da5 (squash merge do PR #16)"
+    pr: "#16 MERGED (squash) -> master, 2026-06-19"
+    ahead_do_remote: 0
+    nao_commitado_intencional: ".claude/CLAUDE.md e .claude/settings.local.json (config local da sessão — deixados intactos de propósito)"
+
+  producao:
+    url: "https://painel-caixa-escolar.vercel.app"
+    versao_servida: "gdp-core.js?v=33, gdp-init.js?v=29"
+    deploy: "vercel --prod --force (build sem cache), 2026-06-19 — verificado via curl"
+
+  pendencias_abertas:
+    - id: "FU-2026-06-19-GIT-REMOTE-SSH"
+      prioridade: "MÉDIA"
+      acao_combinada: "@devops vai APLICAR na próxima sessão: git remote set-url origin https://github.com/edsonlariuccicomercial-gif/aiosteste.git (resolve push + gh sem flags; elimina risco de force-push por ref stale)"
+      doc: "docs/architecture/follow-ups/FU-git-remote-ssh-realinhamento-20260619.md"
+    - id: "FU-2026-06-19-SYNC-SHOULDWRITE"
+      prioridade: "BAIXA"
+      descricao: "Refinamento OBS-1/OBS-2 das cláusulas shouldWrite (pré-existentes, sem perda de dados)"
+      doc: "docs/architecture/follow-ups/FU-sync-shouldwrite-refinamento-20260619.md"
+
+  proxima_sessao_primeiros_passos:
+    - "1. @devops: aplicar set-url do remote para HTTPS (FU-GIT-REMOTE-SSH) — tarefa combinada com o usuário"
+    - "2. (opcional) priorizar FU-SYNC-SHOULDWRITE se quiser refinar OBS-1/OBS-2"
+    - "3. Continuar a Epic-20 (a branch segue padrão de PRs recorrentes; PR #16 foi o da 20.15b)"
+
+  rollback_se_necessario: "Commits isolados por passo (a9d700b..81bacf4). Reverter portão específico = git revert do commit; ou vercel redeploy da versão anterior. AC3 (guarda dura cloud-zerado) protege contra perda mesmo em rollback parcial."
