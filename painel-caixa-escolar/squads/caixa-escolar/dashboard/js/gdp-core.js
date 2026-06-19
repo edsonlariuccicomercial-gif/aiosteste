@@ -499,10 +499,14 @@ async function syncFromCloud() {
       continue;
     }
 
-    // Story 4.65: dirty window protection — skip overwrite if local was saved recently (5s)
+    // Story 4.65 + 20.15b (Portão 3 / AC4): dirty window protege APENAS edição ativa
+    // REAL do usuário. Critério objetivo: o último save local desta chave foi 'user'
+    // E ocorreu há < 5s. Saves de boot/sync/migração ('system') NÃO travam mais a
+    // sobrescrita — era isso que prendia dado antigo só porque o boot salvou há <5s.
     const msSinceLocalSave = Date.now() - getLastLocalSave(row.key);
-    if (msSinceLocalSave < 5000) {
-      gdpLog("[Sync] SKIP overwrite for", row.key, "- local save", msSinceLocalSave, "ms ago (dirty window)");
+    const recentUserEdit = msSinceLocalSave < 5000 && getLastLocalSaveOrigin(row.key) === 'user';
+    if (recentUserEdit) {
+      gdpLog("[Sync] SKIP overwrite for", row.key, "- edição ativa do usuário há", msSinceLocalSave, "ms (dirty window)");
       continue;
     }
 
@@ -1035,11 +1039,28 @@ const _LS_TO_TABLE = {
 const _lastLocalSave = {};
 function getLastLocalSave(key) { return _lastLocalSave[key] || 0; }
 
-function saveWrappedArray(key, items) {
+// Story 20.15b (AC4): registrar a ORIGEM do último save por chave.
+// 'user' = save disparado por edição ativa do usuário na UI; 'system' = boot/sync/
+// migração/bulk. Default seguro = 'system' (não trava a dirty window). A dirty window
+// só protege saves 'user' recentes (digitação real em andamento).
+const _lastLocalSaveOrigin = {};
+function getLastLocalSaveOrigin(key) { return _lastLocalSaveOrigin[key] || 'system'; }
+// Helper público: os handlers de escrita de UI chamam isto logo ANTES de salvar
+// (ou passam origin='user' ao saveWrappedArray) para marcar a edição como do usuário.
+function gdpMarkUserEdit(key) { _lastLocalSave[key] = Date.now(); _lastLocalSaveOrigin[key] = 'user'; }
+if (typeof window !== 'undefined') window.gdpMarkUserEdit = gdpMarkUserEdit;
+
+function saveWrappedArray(key, items, origin) {
   const wrapped = { _v: 1, updatedAt: new Date().toISOString(), items };
   localStorage.setItem(key, JSON.stringify(wrapped));
   // Story 4.65: registrar timestamp do save local para dirty window protection
   _lastLocalSave[key] = Date.now();
+  // Story 20.15b (AC4): classificar origem do save.
+  // - origin explícito (passado pelo chamador) tem prioridade;
+  // - senão, infere: durante o boot é sempre 'system'; pós-boot, um saveWrappedArray
+  //   parte de uma ação de UI (o caminho de sync/sanitize usa localStorage.setItem
+  //   direto, NÃO esta função). Default seguro continua sendo 'system' no boot.
+  _lastLocalSaveOrigin[key] = origin || (_gdpBootInProgress ? 'system' : 'user');
   // Story 4.83: Skip network saves during boot (saveAll + cloudSave são ~15 POST requests bloqueantes)
   if (_gdpBootInProgress) return;
   // Gravar no Supabase tabela real (fonte primária)
