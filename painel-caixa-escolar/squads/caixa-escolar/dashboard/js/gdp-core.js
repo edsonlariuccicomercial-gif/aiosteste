@@ -493,9 +493,20 @@ async function syncFromCloud() {
     // Story 4.65: conciliacao/extratos usam timestamp (nao isSharedKey) para respeitar exclusoes locais
     // (mirror of app-sync.js:150-154 protection — Story 4.64 invariant #3)
     const useTimestampOnly = row.key === 'gdp.conciliacao.v1' || row.key === 'gdp.extratos.v1';
+    // Story 20.15b (Portão 4): timestamp passa a ser a condição PRIMÁRIA.
+    // Quando a nuvem é comprovadamente mais nova E não-destrutiva (não perde itens
+    // nested), ela vence — resolve o AC1 (empate de contagem 120==120 + nuvem nova).
+    // As regras antigas (isSharedKey por contagem; cloud vazio com local sem timestamp)
+    // permanecem como guardas adicionais. Se a nuvem é mais nova mas teria MENOS .itens
+    // nested, NÃO entra aqui — cai no merge do Portão 2 (preserva — AC2).
     const shouldWrite = useTimestampOnly
       ? (cloudTime > localTime || (!localTime && cloudTime === 0))
-      : ((isSharedKey && cloudHasMoreContent && cloudHasMoreDeepContent) || (cloudTime > localTime && cloudHasMoreDeepContent) || (!localTime && cloudTime === 0));
+      : (
+          (cloudIsNewer && cloudHasMoreDeepContent)                         // NOVO: nuvem nova + não-destrutiva vence (AC1)
+          || (isSharedKey && cloudHasMoreContent && cloudHasMoreDeepContent) // regra antiga (chaves compartilhadas)
+          || (cloudTime > localTime && cloudHasMoreDeepContent)              // regra antiga (redundante c/ a nova, mantida p/ clareza)
+          || (!localTime && cloudTime === 0)                                 // regra antiga (local sem timestamp)
+        );
     if (shouldWrite) {
       // Story 8.23 AC2: Preserve produto_critico and unidade_base from local estoque-intel products
       // When cloud overwrites, merge critical fields from local products that were explicitly set
