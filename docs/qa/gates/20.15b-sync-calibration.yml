@@ -2,17 +2,19 @@ storyId: "20.15b"
 title: "Calibração das regras de resolução de sync (local vs nuvem) — Parte B"
 reviewer: "@qa (Quinn)"
 date: "2026-06-19"
-verdict: CONCERNS
-method: "Manual review (commits a9d700b→5afc6a5) + trace adversarial dos 8 ACs replicando a cadeia de syncFromCloud + suíte vitest 205/205 + análise de TDZ/ordem de declaração. CodeRabbit/WSL indisponível (fallback documentado na story)."
-condition: "Aprovado para deploy CONDICIONADO à validação manual AC6 (2 navegadores convergem sem Forçar Sync) e AC7 (carga real 120 notas/127 pedidos sem travamento) em produção, conforme handoff."
+verdict: PASS
+verdict_history:
+  - "2026-06-19 CONCERNS — aprovado condicionado à validação manual AC6/AC7 em produção"
+  - "2026-06-19 PASS — validação manual em produção confirmada pelo usuário (2 navegadores convergiram, sem travamento, sem perda de dados)"
+method: "Manual review (commits a9d700b→5afc6a5) + trace adversarial dos 8 ACs replicando a cadeia de syncFromCloud + suíte vitest 205/205 + análise de TDZ/ordem de declaração. CodeRabbit/WSL indisponível (fallback documentado na story). Validação final AC6/AC7/AC3 em produção (painel-caixa-escolar.vercel.app, gdp-core.js?v=33) confirmada pelo usuário."
 acceptance_criteria:
   AC1: PASS  # Portão 4: (cloudIsNewer && cloudHasMoreDeepContent). Trace: empate 120==120 + nuvem nova -> write
   AC2: PASS  # mergeArraysPreservingItens intacto; preserva itens locais (local mais novo E mais velho)
   AC3: PASS  # Guarda dura absoluta cloudItems===0 && localItems>0 ANTES dos portões relaxados
   AC4: PASS  # dirty window só p/ origin 'user' recente; origem inferida por _gdpBootInProgress
   AC5: PASS  # _pendingBootSaves (Set) + _flushPendingBootSaves() ao fim do boot (gdp-init.js)
-  AC6: PENDING_MANUAL  # 2 navegadores reais — exige produção + 2 máquinas
-  AC7: PENDING_MANUAL  # carga real sem travamento — revisão estática OK (flush async/dedup), confirmar em prod
+  AC6: PASS  # validado em produção: 2 navegadores divergentes convergiram após boot normal (sem Forçar Sync)
+  AC7: PASS  # validado em produção: carga real sem travamento de UI no boot/sync
   AC8: PASS  # gdp-core.js?v=33, gdp-init.js?v=29 em gdp-contratos.html
 issues:
   - severity: low
@@ -33,5 +35,9 @@ manual_validation_required:
   - "AC7: carga 120 notas / 127 pedidos -> boot sem travamento de UI"
   - "AC3 em produção: cloud-zerado não apaga local"
 highlight: "@dev seguiu os 6 passos do design em commits isolados e ANTECIPOU um risco crítico não previsto como passo: a guarda dura AC3 que impede a nuvem zerada (com timestamp novo) de apagar o local após o relaxamento dos portões. Boa engenharia defensiva."
-decision: "CONCERNS — aprovar deploy somente após a validação manual AC6/AC7 em produção (gate @qa full). Código apto; risco residual é exclusivamente o que só dados reais + 2 máquinas podem confirmar."
-next: "@devops: push (HTTPS) + deploy (vercel --prod --force) -> usuário executa validação manual AC6/AC7 -> se OK, gate vira PASS."
+decision: "PASS — todos os 8 ACs verificados. AC1-AC5/AC8 em código + trace; AC6/AC7/AC3 confirmados em produção pelo usuário (2026-06-19). Divergência crônica Edson vs Angela resolvida na causa-raiz."
+next: "Story Done. OBS-1/OBS-2 (LOW, pré-existentes) podem virar follow-up opcional — não bloqueiam."
+deployed:
+  url: "https://painel-caixa-escolar.vercel.app"
+  served_version: "gdp-core.js?v=33, gdp-init.js?v=29"
+  commit_range: "2126515..ed27ed1"
