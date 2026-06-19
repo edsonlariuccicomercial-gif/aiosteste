@@ -1,0 +1,25 @@
+storyId: "20.14"
+title: "Fix: NF-e autorizada nascendo sem número e sem cobrança (desacoplar de _isAutorizado)"
+reviewer: "@qa (Quinn)"
+date: "2026-06-19"
+verdict: PASS
+method: "Revisão de código por evidência (grep + Read no arquivo real) + verificação de produção (versão servida == GitHub). CodeRabbit indisponível (WSL)."
+verdict_history:
+  - date: "2026-06-19"
+    verdict: PASS
+    reason: >
+      Re-gate de fechamento. Story estava 'Ready for Review' com checkboxes desatualizados (11 abertos)
+      mas o código está implementado e em produção (gdp-notas-fiscais.js v19 prod==GitHub; commit e79002f).
+passed:
+  - "AC1: temProvaAutorizacao(nf) implementada (gdp-notas-fiscais.js:589) — prova robusta (chave 44 díg. + protocolo), mais ampla que _isAutorizado."
+  - "AC3: gate da criação do título em Contas a Receber usa temProvaAutorizacao (L1455-1458), não _isAutorizado — resolve PIX/notas que autorizavam sem cStat e nasciam sem título."
+  - "AC4: gate do _saveNfToSupabaseWithRetry alinhado a temProvaAutorizacao (L1514) — NF com prova persiste com número."
+  - "AC10 (CRÍTICO): coerência de status — ao autorizar, nf.status e nf.sefaz.status são cravados como 'autorizada' juntos (L1189-1190). _getNumerosAutorizados (L600) e canDeleteNotaFiscal (L253) filtram por 'autorizada' de forma consistente. Não há estado híbrido (número/título com status não-autorizado)."
+issues:
+  - severity: low
+    status: OPEN
+    category: tests
+    description: "Teste de carga real (120 notas) e teste de emissão em homologação SEFAZ não executados nesta sessão (exigem ambiente do usuário + SEFAZ; ação destrutiva). Validável no uso normal — o código de gate está revisado e em produção."
+    recommendation: "Confirmar no uso normal: ao emitir uma NF-e real, a conta a receber nasce com número e título. Não bloqueante."
+deploy_recommendation: "Já deployado (gdp-notas-fiscais.js v19 em produção == GitHub). Nada pendente."
+decision: "PASS — fix crítico (NF-e sem número/título) implementado e em produção. ACs principais verificados no código real, incluindo a coerência de status (AC10). Teste SEFAZ ao-vivo fica como verificação de uso normal (não bloqueante, ação destrutiva)."
