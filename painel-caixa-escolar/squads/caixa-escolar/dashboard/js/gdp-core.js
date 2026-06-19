@@ -438,8 +438,12 @@ async function syncFromCloud() {
     }
 
     // Compare timestamps: prefer data's internal updatedAt, fallback to Supabase row.updated_at
+    // Story 20.15b: timestamp é o árbitro PRIMÁRIO da reconciliação. Calculado ANTES de
+    // qualquer portão (movido do meio da cadeia) para que os bloqueios por contagem possam
+    // ser condicionados a ele (nuvem comprovadamente mais nova vence).
     const cloudTime = getDataTimestamp(incomingData, row.updated_at);
     const localTime = getDataTimestamp(localData);
+    const cloudIsNewer = cloudTime > localTime; // árbitro primário
     const isSharedKey = GDP_SHARED_SYNC_KEYS.has(row.key);
 
     // Cloud wins ONLY if cloud is strictly newer AND has actual content
@@ -457,8 +461,24 @@ async function syncFromCloud() {
     const cloudDeepItens = countDeepItens(cloudArr);
     const cloudHasMoreDeepContent = cloudDeepItens >= localDeepItens;
 
-    if (localHasContent && !cloudHasMoreContent) {
-      gdpLog("[Sync] Bloqueado: local tem mais entries que cloud para", row.key, "local:", localItems, "cloud:", cloudItems);
+    // Story 20.15b (AC3 — guarda DURA, absoluta): nuvem zerada NUNCA apaga local.
+    // Vem ANTES de qualquer relaxamento por timestamp: se a nuvem retorna 0 entries
+    // mas o local tem N>0, o local é preservado independentemente do timestamp.
+    // Esta é a única exceção em que a contagem ainda manda sobre o tempo — fecha o
+    // risco reaberto ao condicionar os portões 1/4 ao timestamp (incidente cloud-zerado).
+    if (cloudItems === 0 && localItems > 0) {
+      gdpLog("[Sync] AC3: cloud zerado para", row.key, "— local preservado (", localItems, "entries)");
+      continue;
+    }
+
+    // Story 20.15b (Portão 1): bloqueio por contagem deixa de ser ABSOLUTO.
+    // Só aborta se o local tem mais entries E o local NÃO é mais antigo que a nuvem
+    // (cloudTime <= localTime). Se a nuvem é comprovadamente mais nova, NÃO aborta aqui —
+    // segue para o merge do Portão 2, que preserva entries locais órfãs
+    // (mergeArraysPreservingItens) sem perder o que só existe no local. Resolve a
+    // divergência crônica em que +1 entry local travava a nuvem nova para sempre.
+    if (localHasContent && !cloudHasMoreContent && cloudTime <= localTime) {
+      gdpLog("[Sync] Bloqueado: local tem mais entries e nao e mais antigo que cloud para", row.key, "local:", localItems, "cloud:", cloudItems, "cloudTime<=localTime");
       continue;
     }
 
@@ -479,19 +499,34 @@ async function syncFromCloud() {
       continue;
     }
 
-    // Story 4.65: dirty window protection — skip overwrite if local was saved recently (5s)
+    // Story 4.65 + 20.15b (Portão 3 / AC4): dirty window protege APENAS edição ativa
+    // REAL do usuário. Critério objetivo: o último save local desta chave foi 'user'
+    // E ocorreu há < 5s. Saves de boot/sync/migração ('system') NÃO travam mais a
+    // sobrescrita — era isso que prendia dado antigo só porque o boot salvou há <5s.
     const msSinceLocalSave = Date.now() - getLastLocalSave(row.key);
-    if (msSinceLocalSave < 5000) {
-      gdpLog("[Sync] SKIP overwrite for", row.key, "- local save", msSinceLocalSave, "ms ago (dirty window)");
+    const recentUserEdit = msSinceLocalSave < 5000 && getLastLocalSaveOrigin(row.key) === 'user';
+    if (recentUserEdit) {
+      gdpLog("[Sync] SKIP overwrite for", row.key, "- edição ativa do usuário há", msSinceLocalSave, "ms (dirty window)");
       continue;
     }
 
     // Story 4.65: conciliacao/extratos usam timestamp (nao isSharedKey) para respeitar exclusoes locais
     // (mirror of app-sync.js:150-154 protection — Story 4.64 invariant #3)
     const useTimestampOnly = row.key === 'gdp.conciliacao.v1' || row.key === 'gdp.extratos.v1';
+    // Story 20.15b (Portão 4): timestamp passa a ser a condição PRIMÁRIA.
+    // Quando a nuvem é comprovadamente mais nova E não-destrutiva (não perde itens
+    // nested), ela vence — resolve o AC1 (empate de contagem 120==120 + nuvem nova).
+    // As regras antigas (isSharedKey por contagem; cloud vazio com local sem timestamp)
+    // permanecem como guardas adicionais. Se a nuvem é mais nova mas teria MENOS .itens
+    // nested, NÃO entra aqui — cai no merge do Portão 2 (preserva — AC2).
     const shouldWrite = useTimestampOnly
       ? (cloudTime > localTime || (!localTime && cloudTime === 0))
-      : ((isSharedKey && cloudHasMoreContent && cloudHasMoreDeepContent) || (cloudTime > localTime && cloudHasMoreDeepContent) || (!localTime && cloudTime === 0));
+      : (
+          (cloudIsNewer && cloudHasMoreDeepContent)                         // NOVO: nuvem nova + não-destrutiva vence (AC1)
+          || (isSharedKey && cloudHasMoreContent && cloudHasMoreDeepContent) // regra antiga (chaves compartilhadas)
+          || (cloudTime > localTime && cloudHasMoreDeepContent)              // regra antiga (redundante c/ a nova, mantida p/ clareza)
+          || (!localTime && cloudTime === 0)                                 // regra antiga (local sem timestamp)
+        );
     if (shouldWrite) {
       // Story 8.23 AC2: Preserve produto_critico and unidade_base from local estoque-intel products
       // When cloud overwrites, merge critical fields from local products that were explicitly set
@@ -1004,13 +1039,38 @@ const _LS_TO_TABLE = {
 const _lastLocalSave = {};
 function getLastLocalSave(key) { return _lastLocalSave[key] || 0; }
 
-function saveWrappedArray(key, items) {
+// Story 20.15b (AC4): registrar a ORIGEM do último save por chave.
+// 'user' = save disparado por edição ativa do usuário na UI; 'system' = boot/sync/
+// migração/bulk. Default seguro = 'system' (não trava a dirty window). A dirty window
+// só protege saves 'user' recentes (digitação real em andamento).
+const _lastLocalSaveOrigin = {};
+function getLastLocalSaveOrigin(key) { return _lastLocalSaveOrigin[key] || 'system'; }
+// Helper público: os handlers de escrita de UI chamam isto logo ANTES de salvar
+// (ou passam origin='user' ao saveWrappedArray) para marcar a edição como do usuário.
+function gdpMarkUserEdit(key) { _lastLocalSave[key] = Date.now(); _lastLocalSaveOrigin[key] = 'user'; }
+if (typeof window !== 'undefined') window.gdpMarkUserEdit = gdpMarkUserEdit;
+
+function saveWrappedArray(key, items, origin) {
   const wrapped = { _v: 1, updatedAt: new Date().toISOString(), items };
   localStorage.setItem(key, JSON.stringify(wrapped));
   // Story 4.65: registrar timestamp do save local para dirty window protection
   _lastLocalSave[key] = Date.now();
+  // Story 20.15b (AC4): classificar origem do save.
+  // - origin explícito (passado pelo chamador) tem prioridade;
+  // - senão, infere: durante o boot é sempre 'system'; pós-boot, um saveWrappedArray
+  //   parte de uma ação de UI (o caminho de sync/sanitize usa localStorage.setItem
+  //   direto, NÃO esta função). Default seguro continua sendo 'system' no boot.
+  _lastLocalSaveOrigin[key] = origin || (_gdpBootInProgress ? 'system' : 'user');
   // Story 4.83: Skip network saves during boot (saveAll + cloudSave são ~15 POST requests bloqueantes)
-  if (_gdpBootInProgress) return;
+  // Story 20.15b (Portão 5 / AC5): em vez de DESCARTAR o save de rede, ENFILEIRAR a chave.
+  // O localStorage já foi gravado acima; só o push de rede é adiado. Ao fim do boot,
+  // _flushPendingBootSaves() reenvia (assíncrono, deduplicado por Set → AC7 preservado).
+  if (_gdpBootInProgress) { _pendingBootSaves.add(key); return; }
+  _pushNetworkSave(key, wrapped, items);
+}
+
+// Story 20.15b (Portão 5): push de rede isolado, reutilizável pelo flush pós-boot.
+function _pushNetworkSave(key, wrapped, items) {
   // Gravar no Supabase tabela real (fonte primária)
   const table = _LS_TO_TABLE[key];
   if (table && window.gdpApi && window.gdpApi[table]) {
@@ -1020,6 +1080,27 @@ function saveWrappedArray(key, items) {
   cloudSave(key, wrapped).catch(() => {});
   schedulCloudSync();
 }
+
+// Story 20.15b (Portão 5 / AC5): chaves cujo save foi adiado durante o boot.
+const _pendingBootSaves = new Set();
+// Flush pós-boot: reenvia ao Supabase as alterações feitas durante o boot, lendo o
+// estado ATUAL do localStorage por chave. Assíncrono e deduplicado (AC7: nada bloqueante).
+function _flushPendingBootSaves() {
+  if (_pendingBootSaves.size === 0) return;
+  const keys = Array.from(_pendingBootSaves);
+  _pendingBootSaves.clear();
+  gdpLog('[Sync] Flush pós-boot de', keys.length, 'chave(s) adiadas:', keys.join(', '));
+  keys.forEach(function(key) {
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) return;
+      const wrapped = JSON.parse(raw);
+      const items = Array.isArray(wrapped?.items) ? wrapped.items : (Array.isArray(wrapped) ? wrapped : []);
+      _pushNetworkSave(key, wrapped, items);
+    } catch (e) { gdpWarn('[Sync] Falha no flush pós-boot de', key, e); }
+  });
+}
+if (typeof window !== 'undefined') window._flushPendingBootSaves = _flushPendingBootSaves;
 function loadData() {
   console.time('[GDP] loadData:parse');
   // Story 4.80: dirty flags removidos — save migrado para background
