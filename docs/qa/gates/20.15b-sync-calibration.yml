@@ -1,0 +1,37 @@
+storyId: "20.15b"
+title: "Calibração das regras de resolução de sync (local vs nuvem) — Parte B"
+reviewer: "@qa (Quinn)"
+date: "2026-06-19"
+verdict: CONCERNS
+method: "Manual review (commits a9d700b→5afc6a5) + trace adversarial dos 8 ACs replicando a cadeia de syncFromCloud + suíte vitest 205/205 + análise de TDZ/ordem de declaração. CodeRabbit/WSL indisponível (fallback documentado na story)."
+condition: "Aprovado para deploy CONDICIONADO à validação manual AC6 (2 navegadores convergem sem Forçar Sync) e AC7 (carga real 120 notas/127 pedidos sem travamento) em produção, conforme handoff."
+acceptance_criteria:
+  AC1: PASS  # Portão 4: (cloudIsNewer && cloudHasMoreDeepContent). Trace: empate 120==120 + nuvem nova -> write
+  AC2: PASS  # mergeArraysPreservingItens intacto; preserva itens locais (local mais novo E mais velho)
+  AC3: PASS  # Guarda dura absoluta cloudItems===0 && localItems>0 ANTES dos portões relaxados
+  AC4: PASS  # dirty window só p/ origin 'user' recente; origem inferida por _gdpBootInProgress
+  AC5: PASS  # _pendingBootSaves (Set) + _flushPendingBootSaves() ao fim do boot (gdp-init.js)
+  AC6: PENDING_MANUAL  # 2 navegadores reais — exige produção + 2 máquinas
+  AC7: PENDING_MANUAL  # carga real sem travamento — revisão estática OK (flush async/dedup), confirmar em prod
+  AC8: PASS  # gdp-core.js?v=33, gdp-init.js?v=29 em gdp-contratos.html
+issues:
+  - severity: low
+    category: code
+    description: "OBS-1 (pré-existente, NÃO regressão): em empate de contagem com localTime>=cloudTime numa chave isSharedKey, a cláusula antiga ainda permite nuvem mais velha sobrescrever local (conteúdo nested preservado). Diverge levemente do princípio 'local vence quando localTime>=cloudTime'. Follow-up sugerido."
+  - severity: low
+    category: code
+    description: "OBS-2 (pré-existente): cláusula (!localTime && cloudTime===0) grava quando ambos timestamps ausentes e contagem empata. Em dados reais (com updatedAt) não dispara. Monitorar."
+passed:
+  - "AC1-AC5/AC8 verificados em código + trace adversarial"
+  - "AC3: guarda dura cloud-zerado fecha o risco reaberto pelo relaxamento dos portões 1/4 (excelente)"
+  - "Regras antigas preservadas como guardas adicionais (zero regressão)"
+  - "Suíte completa 205/205 verde (18 arquivos), incl. app-sync.test.js"
+  - "TDZ verificado: nenhum call-site top-level de saveWrappedArray"
+  - "Commits isolados por passo (rollback cirúrgico — lição incidente 2026-06-16)"
+manual_validation_required:
+  - "AC6: 2 navegadores (Edson + Angela) divergentes -> boot normal -> contagens idênticas sem Forçar Sync"
+  - "AC7: carga 120 notas / 127 pedidos -> boot sem travamento de UI"
+  - "AC3 em produção: cloud-zerado não apaga local"
+highlight: "@dev seguiu os 6 passos do design em commits isolados e ANTECIPOU um risco crítico não previsto como passo: a guarda dura AC3 que impede a nuvem zerada (com timestamp novo) de apagar o local após o relaxamento dos portões. Boa engenharia defensiva."
+decision: "CONCERNS — aprovar deploy somente após a validação manual AC6/AC7 em produção (gate @qa full). Código apto; risco residual é exclusivamente o que só dados reais + 2 máquinas podem confirmar."
+next: "@devops: push (HTTPS) + deploy (vercel --prod --force) -> usuário executa validação manual AC6/AC7 -> se OK, gate vira PASS."
