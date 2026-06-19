@@ -461,8 +461,24 @@ async function syncFromCloud() {
     const cloudDeepItens = countDeepItens(cloudArr);
     const cloudHasMoreDeepContent = cloudDeepItens >= localDeepItens;
 
-    if (localHasContent && !cloudHasMoreContent) {
-      gdpLog("[Sync] Bloqueado: local tem mais entries que cloud para", row.key, "local:", localItems, "cloud:", cloudItems);
+    // Story 20.15b (AC3 — guarda DURA, absoluta): nuvem zerada NUNCA apaga local.
+    // Vem ANTES de qualquer relaxamento por timestamp: se a nuvem retorna 0 entries
+    // mas o local tem N>0, o local é preservado independentemente do timestamp.
+    // Esta é a única exceção em que a contagem ainda manda sobre o tempo — fecha o
+    // risco reaberto ao condicionar os portões 1/4 ao timestamp (incidente cloud-zerado).
+    if (cloudItems === 0 && localItems > 0) {
+      gdpLog("[Sync] AC3: cloud zerado para", row.key, "— local preservado (", localItems, "entries)");
+      continue;
+    }
+
+    // Story 20.15b (Portão 1): bloqueio por contagem deixa de ser ABSOLUTO.
+    // Só aborta se o local tem mais entries E o local NÃO é mais antigo que a nuvem
+    // (cloudTime <= localTime). Se a nuvem é comprovadamente mais nova, NÃO aborta aqui —
+    // segue para o merge do Portão 2, que preserva entries locais órfãs
+    // (mergeArraysPreservingItens) sem perder o que só existe no local. Resolve a
+    // divergência crônica em que +1 entry local travava a nuvem nova para sempre.
+    if (localHasContent && !cloudHasMoreContent && cloudTime <= localTime) {
+      gdpLog("[Sync] Bloqueado: local tem mais entries e nao e mais antigo que cloud para", row.key, "local:", localItems, "cloud:", cloudItems, "cloudTime<=localTime");
       continue;
     }
 
