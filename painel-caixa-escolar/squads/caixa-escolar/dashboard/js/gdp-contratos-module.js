@@ -2100,14 +2100,24 @@ function renderContratos() {
     }
     return usuarios.find((user) => (user.contratos_vinculados || []).includes(contrato.id)) || null;
   };
+  // Story 21.x (UX-F8b): chave canônica de pasta — um contrato pertence à pasta do seu
+  // CLIENTE (quando vinculado) ou à pasta da sua ESCOLA por nome NORMALIZADO. Usada tanto no
+  // agrupamento quanto na abertura, para que a contagem e o conteúdo da pasta SEMPRE coincidam
+  // (corrige o bug de "card diz N contratos mas não abre" quando nomes/vínculos divergem).
+  const pastaKeyDoContrato = (contrato) => {
+    const cli = clienteDoContrato(contrato);
+    if (cli) return `cliente:${cli.id}`;
+    return `escola:${window.normalizeSearch(contrato.escola || "Sem escola")}`;
+  };
   let filtered = contratos.filter(c => {
     const cliente = clienteDoContrato(c);
     const clienteNome = cliente ? (cliente.nome || "") : "";
     if (pastaExata) {
+      // Abertura de pasta: compara pela CHAVE canônica, não por igualdade textual frágil.
       if (pastaClienteId) {
-        return c.escolaClienteId === pastaClienteId || (cliente && cliente.id === pastaClienteId);
+        return pastaKeyDoContrato(c) === `cliente:${pastaClienteId}`;
       }
-      return (c.escola || '') === pastaExata || clienteNome === pastaExata;
+      return pastaKeyDoContrato(c) === `escola:${window.normalizeSearch(pastaExata)}`;
     }
     // Story 20.10: busca normalizada (sem acento/pontuação), preservando match por cliente vinculado
     const matchBusca = !busca || window.normalizeSearch(c.escola||'').includes(busca) || window.normalizeSearch(clienteNome).includes(busca) || window.normalizeSearch(c.edital||'').includes(busca) || window.normalizeSearch(c.id||'').includes(busca) || window.normalizeSearch(c.processo||'').includes(busca) || window.normalizeSearch(c.objeto||'').includes(busca);
@@ -2128,11 +2138,12 @@ function renderContratos() {
   }
   empty.classList.add("hidden");
 
-  // Group by escola (pasta mãe)
+  // Group by escola (pasta mãe) — usa a MESMA chave canônica da abertura (pastaKeyDoContrato),
+  // garantindo que o card-pasta conte exatamente os contratos que serão exibidos ao abrir.
   const porEscola = {};
   filtered.forEach(c => {
     const cliente = clienteDoContrato(c);
-    const key = cliente ? `cliente:${cliente.id}` : `escola:${c.escola || "Sem escola"}`;
+    const key = pastaKeyDoContrato(c);
     if (!porEscola[key]) {
       porEscola[key] = {
         label: cliente ? cliente.nome : (c.escola || "Sem escola"),
@@ -2282,15 +2293,16 @@ async function sincronizarContratosDaPasta(clienteId) {
   }
 }
 window.abrirPastaEscola = function(escola, clienteId) {
+  // Story 21.x (UX-F8b): abre a pasta pela CHAVE canônica (_pastaAberta/_pastaAbertaClienteId),
+  // SEM injetar o nome no campo de busca (o match textual quebrava quando os nomes dos contratos
+  // da mesma escola divergiam — ex.: "SÃO BENEDITO" vs "SÃO BENEDITO PROC. 004/2025").
   const buscaEl = document.getElementById("busca-contrato");
   const filtroStatus = document.getElementById("filtro-status-contrato");
   if (filtroStatus) filtroStatus.value = "";
-  window._pastaAberta = escola;
+  if (buscaEl) buscaEl.value = "";
+  window._pastaAberta = escola || "";
   window._pastaAbertaClienteId = clienteId || null;
-  if (buscaEl) {
-    buscaEl.value = escola;
-    renderContratos();
-  }
+  renderContratos();
   sincronizarContratosDaPasta(window._pastaAbertaClienteId);
 };
 
