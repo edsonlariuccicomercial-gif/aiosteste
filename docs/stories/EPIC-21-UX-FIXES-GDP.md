@@ -364,6 +364,22 @@ Status das stories: **Draft → Ready** (todas com verdito GO no checklist de 10
    `21.8` → `21.9` → `21.7`.
 3. A cada JS alterado: **bump `?v=N`** no HTML; deploy `npx vercel --prod --force`; validar em produção os itens de risco ALTO.
 
+## Dev Agent Record (Dex)
+
+### Onda 1 (commit 62e9594 — deployada e testada em produção)
+- 21.1, 21.2, 21.3, 21.4, 21.5A, 21.6 implementadas. Testes em produção via Playwright (verificação do código servido + cenários de lógica): todos verdes. Caso real dos "10 disponíveis" do portal confirmado corrigido.
+- Correção adicional na 21.2 (reforço do cliente): o bug não era só divergência catálogo×carrinho — o catálogo barrava quantidade que existe. Causa: trava financeira (saldo do contrato inteiro, arredondado) cortava 1 unidade por centavos. Fix: item com estoque próprio (qtdDisponivel>0) é limitado pelo ESTOQUE; trava financeira só no ARP, com tolerância de 1 centavo.
+
+### Onda 2
+- **21.8 (salvar sem fechar):** removido o fechamento pós-save em `registrarContaPagar`/`registrarContaReceber` (já limpavam campos), e o auto-close em `salvarEditCpDetalhe`/`salvarEditCrDetalhe`. `salvarContratoManual` agora salva + persiste Supabase + reabre form limpo (save-and-create-another).
+  - **Veredito Estoque Intel:** `registrarFornecedorEstoqueIntel`, `registrarProdutoEstoqueIntel`, `registrarProdutoUnificado`, `registrarEmbalagemEstoqueIntel`, `registrarPedidoEstoqueIntel` → **já-OK** (já faziam clear-fields + render sem fechar modal). A flag do discovery (`:1260/1689/1759/1498`) não se confirmou.
+- **21.9 (reset de filtros):** `resetTabState()` estendido para resetar selects/datas (Pedidos, NF, Estoque Intel, Integrações, Entregas) e abas de status memorizadas (CP/CR → "todas", o default original). `fecharContratoDetalhe` limpa `busca-contrato`/`filtro-status-contrato` ao voltar à listagem.
+- **21.7 (checkboxes desmarcam) — veredito por fluxo auditado (DoD FR-21.7.2):**
+  - `bulkImprimirBoletos` → **CORRIGIDO** (faltava `_selectedContaReceberIds.clear()` + `renderContasReceber()`).
+  - `bulkReceberContas`, `bulkExcluirContasReceber` → **já-OK** (referência de padrão: clear + render).
+  - `confirmarSync` (gdp-banco-produtos.js, sync em lote) → **já-OK** (chama `abrirContrato()`, que re-renderiza o detalhe do zero, descartando a seleção).
+  - `criarPedidoCatalogo` (gdp-contratos-module.js) → **já-OK / fora-de-escopo** (usa inputs de quantidade, não checkboxes; fecha o modal e `renderAll()` após criar o pedido).
+
 ## Change Log
 
 | Data | Agente | Ação |
@@ -371,6 +387,7 @@ Status das stories: **Draft → Ready** (todas com verdito GO no checklist de 10
 | 2026-06-20 | @analyst (Atlas) | Discovery das 9 frentes (F1–F9) |
 | 2026-06-20 | @pm (Morgan) | EPIC-21 criado com 9 stories |
 | 2026-06-20 | @po (Pax) | Validação 10 pontos — 9 GO; Draft → Ready; DoD de 21.5/21.7 refinado |
+| 2026-06-20 | @dev (Dex) | Onda 1 implementada/deployada/testada (62e9594); Onda 2 (21.7/21.8/21.9) implementada |
 
 ---
 

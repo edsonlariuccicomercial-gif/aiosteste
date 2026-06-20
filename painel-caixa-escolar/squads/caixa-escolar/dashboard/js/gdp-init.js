@@ -46,6 +46,28 @@ function resetTabState() {
     const el = document.getElementById(id);
     if (el) el.value = "";
   });
+  // Story 21.9 (UX-F1): tambem resetar os SELECTS e DATAS de filtro (alem da busca),
+  // para a tela sempre carregar "limpa" ao reentrar.
+  [
+    // Pedidos
+    "filtro-contrato-pedido","filtro-entrega-pedido",
+    // Notas fiscais / categoria
+    "cp-filtro-categoria",
+    // Estoque Intel
+    "ei-filtro-base","ei-filtro-categoria","ei-filtro-tipo","ei-estoque-filtro-data","ei-estoque-filtro-cliente",
+    // Integracoes
+    "int-filtro-status","int-filtro-canal",
+    // Entregas
+    "filtro-data-entrega","filtro-status-entrega"
+  ].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      if (el.tagName === "SELECT") el.selectedIndex = 0; else el.value = "";
+    }
+  });
+  // Story 21.9: resetar abas de status memorizadas (CP/CR) para o default ao reentrar.
+  if (typeof contaPagarStatusTabAtual !== "undefined") contaPagarStatusTabAtual = "todas";
+  if (typeof contaReceberStatusTabAtual !== "undefined") contaReceberStatusTabAtual = "todas";
   // AC2: Clear all selection Sets
   _selectedPedidoIds.clear();
   _selectedNotaFiscalIds.clear();
@@ -351,6 +373,9 @@ function bulkImprimirBoletos() {
   if (!selecionadas.length) { showToast("Nenhuma conta com boleto selecionada.", "warn"); return; }
   const rows = selecionadas.map(item => `<tr><td>${esc(item.id)}</td><td>${esc(item.descricao)}</td><td>${esc(item.cliente || "-")}</td><td>${fmtDate(item.vencimento)}</td><td class="right">${brl.format(item.valor || 0)}</td><td>${esc(item.cobranca?.linhaDigitavel || "-")}</td></tr>`).join("");
   abrirJanelaRelatorioFinanceiro("Boletos - Contas a Receber", ["ID", "Descricao", "Cliente", "Vencimento", "Valor", "Linha Digitavel"], rows);
+  // Story 21.7 (UX-F3): apos a acao em lote, desmarcar os checkboxes (item saiu da fila).
+  _selectedContaReceberIds.clear();
+  renderContasReceber();
 }
 
 function bulkExcluirContasReceber() {
@@ -508,8 +533,7 @@ function salvarEditCrDetalhe() {
   saveContasReceber();
   renderContasReceber();
   if (typeof atualizarResumosVencimento === "function") atualizarResumosVencimento();
-  // AC7: Auto-close after save
-  fecharDetalheCr();
+  // Story 21.8 (UX-F2): salvar mantém o modal aberto (usuário fecha via X/Cancelar).
   showToast("Conta a receber atualizada.", 3000);
 }
 
@@ -738,12 +762,14 @@ function registrarContaPagar() {
   saveContasPagar();
   renderContaCategoriaOptions();
   renderContaFormaOptions();
+  // Story 21.8 (UX-F2): salvar mantém o form aberto e limpa os campos p/ novo registro.
   ["cp-descricao", "cp-valor", "cp-data-emissao", "cp-vencimento"].forEach((id) => document.getElementById(id).value = "");
   document.getElementById("cp-categoria").value = "fornecedor";
   document.getElementById("cp-forma").value = "boleto";
-  toggleContaPagarForm(false);
   contaPagarStatusTabAtual = "emitida";
   renderContasPagar();
+  const _cpFocus = document.getElementById("cp-descricao");
+  if (_cpFocus) _cpFocus.focus();
   showToast("Conta a pagar registrada.", 3000);
 }
 
@@ -778,13 +804,15 @@ function registrarContaReceber() {
   saveContasReceber();
   renderContaCategoriaOptions();
   renderContaFormaOptions();
+  // Story 21.8 (UX-F2): salvar mantém o form aberto e limpa os campos p/ novo registro.
   ["cr-descricao", "cr-cliente", "cr-valor", "cr-data-emissao", "cr-vencimento"].forEach((id) => document.getElementById(id).value = "");
   document.getElementById("cr-categoria").value = "faturamento";
   document.getElementById("cr-forma").value = "boleto";
-  toggleContaReceberForm(false);
   contaReceberStatusTabAtual = "emitida";
   renderContasReceber();
   if (typeof atualizarResumosVencimento === "function") atualizarResumosVencimento();
+  const _crFocus = document.getElementById("cr-descricao");
+  if (_crFocus) _crFocus.focus();
   showToast("Conta a receber registrada.", 3000);
 }
 
@@ -1091,8 +1119,7 @@ function salvarEditCpDetalhe() {
   conta.audit = { ...(conta.audit || {}), updatedAt: new Date().toISOString(), updatedBy: getAuditActor() };
   saveContasPagar();
   renderContasPagar();
-  // AC7: Auto-close after save
-  fecharDetalheCp();
+  // Story 21.8 (UX-F2): salvar mantém o modal aberto (usuário fecha via X/Cancelar).
   showToast("Conta a pagar atualizada.", 3000);
 }
 

@@ -2718,10 +2718,14 @@ function salvarContratoManual() {
   contratos.push(c);
   saveContratos();
   saveUsuarios();
+  if (window.gdpApi && window.gdpApi.contratos) {
+    gdpApi.contratos.save(c).catch(e => gdpWarn('[salvarContratoManual] Supabase save failed:', e));
+  }
   pendingContratoDraft = null;
-  fecharModalContrato();
+  // Story 21.8 (UX-F2): salvar mantém o modal aberto e limpa os campos p/ novo contrato.
   renderContratos();
-  showToast("Contrato " + id + " criado com cliente vinculado. Adicione itens clicando no contrato.");
+  novoContratoManual();
+  showToast("Contrato " + id + " criado. Cadastre outro ou feche a janela.");
 }
 
 function adicionarItemContrato(contratoId) {
@@ -3079,6 +3083,13 @@ function fecharContratoDetalhe() {
     // Restaurar KPIs globais
     const kpiGrid = document.getElementById("kpi-grid");
     if (kpiGrid) kpiGrid.style.display = "";
+    // Story 21.9 (UX-F1): ao voltar para a listagem, limpar filtros de contrato
+    // para a tela carregar no estado padrao.
+    ["busca-contrato","filtro-status-contrato"].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) { if (el.tagName === "SELECT") el.selectedIndex = 0; else el.value = ""; }
+    });
+    if (typeof renderContratos === "function") renderContratos();
   }
   // Fallback: also hide modal if it was used
   document.getElementById("modal-contrato").classList.add("hidden");
