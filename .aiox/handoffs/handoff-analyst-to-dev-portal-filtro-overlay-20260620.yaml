@@ -1,0 +1,81 @@
+handoff:
+  from_agent: "analyst"
+  to_agent: "dev"
+  last_command: "*diagnose"
+  timestamp: "2026-06-20"
+  consumed: true
+
+  dev_resolution:
+    status: "Implementado por @dev (Dex) em 2026-06-20"
+    summary: >
+      Filtro de status (Ativos/Encerrados/Todos) agora também aparece no overlay
+      fullscreen do portal — a tela que a escola realmente usa. Criado helper
+      _portalFiltroStatusHtml() reutilizável; painel inline passou a usá-lo; e o
+      overlay fullscreen injeta o mesmo filtro na .contract-fullscreen-bar a cada
+      render, sincronizado com _portalContratoStatusFiltro.
+    changes:
+      - "gdp-portal.html: novo helper _portalFiltroStatusHtml() (markup único do select)"
+      - "gdp-portal.html: painel inline (#contract-selection-screen) usa o helper"
+      - "gdp-portal.html: overlay fullscreen injeta #fs-filtro-status na barra, antes do botão Fechar"
+    files_modified:
+      - "painel-caixa-escolar/squads/caixa-escolar/dashboard/gdp-portal.html"
+    validation:
+      - "node new Function() em todos os <script> inline: 2 blocos, 0 erros de sintaxe"
+      - "overlay permanece aberto ao trocar filtro (showContractSelection não toca em .active)"
+    deploy_pendente: >
+      Correção é inline no gdp-portal.html (não em gdp-api.js/gdp-realtime.js).
+      Deploy via @devops: cd painel-caixa-escolar && npx vercel --prod --force --yes.
+      Orientar Ctrl+Shift+R no navegador.
+    next_action: "@devops faz deploy --force; usuário valida no portal com Ctrl+Shift+R."
+
+  story_context:
+    story_id: "21.6 (UX-F7)"
+    story_title: "Filtro de status (Ativos/Encerrados/Todos) no portal da escola"
+    epic: "EPIC-21"
+    branch: "feature/epic20-ajustes-financeiro-gdp"
+    status: "Bug confirmado — filtro existe mas não aparece na tela que a escola usa"
+    current_task: "Adicionar o filtro de status no overlay fullscreen do portal"
+
+  problem:
+    summary: >
+      O filtro de status de contratos (Ativos/Encerrados/Todos) foi implementado na
+      Story 21.6/UX-F7, mas SÓ no painel inline (#contract-selection-screen). A tela que
+      a escola realmente vê é o overlay fullscreen (#contract-fullscreen-overlay), que
+      NÃO tem o controle visual do filtro. Usuário fotografou o portal e marcou "FILTRO?"
+      exatamente sobre o overlay onde o dropdown está ausente.
+    evidence:
+      - "Imagem do usuario: C:\\Users\\Hearthz Gaming\\Desktop\\portal.jpg (tela = overlay fullscreen)"
+      - "Logica do filtro OK: _portalContratoStatusFiltro + filter em showContractSelection()"
+      - "select do filtro existe so no painel inline, nao no overlay"
+
+  root_cause:
+    file: "painel-caixa-escolar/squads/caixa-escolar/dashboard/gdp-portal.html"
+    detail: >
+      Existem DUAS renderizacoes dos cards de contrato. O <select> de filtro foi inserido
+      apenas no container.innerHTML do painel inline (linhas ~983-992). O overlay fullscreen
+      (estrutura estatica, linhas 477-483) tem apenas <h3> + botao fechar + .contract-grid;
+      em showContractSelection() so o .contract-grid do overlay e atualizado (linha ~1001),
+      o select de filtro nunca e injetado nele.
+    key_lines:
+      - "477-483: estrutura estatica do #contract-fullscreen-overlay (contract-fullscreen-bar)"
+      - "885-903: logica _portalContratoStatusFiltro + filtro de contracts"
+      - "983-992: <select> de filtro presente SO no painel inline"
+      - "998-1003: atualizacao do overlay — so .contract-grid e .fs-school-name, sem filtro"
+
+  required_fix:
+    - "Adicionar o mesmo <select> de filtro (Ativos/Encerrados/Todos) na barra do overlay fullscreen (.contract-fullscreen-bar, ~linha 478)."
+    - "Apontar onchange para setPortalContratoStatusFiltro(this.value) reusando a logica existente."
+    - "Sincronizar o valor entre os dois selects (inline + overlay) ao trocar, refletindo _portalContratoStatusFiltro."
+    - "Garantir que setPortalContratoStatusFiltro() re-renderiza ambas as views (ja chama showContractSelection)."
+
+  scope:
+    files:
+      - "painel-caixa-escolar/squads/caixa-escolar/dashboard/gdp-portal.html"
+    note: "Correcao de UI localizada. Sem mudanca de dados/back-end. Bumpar ?v= se houver versionamento e considerar deploy --force."
+
+  deploy_reminder: >
+    Apos o fix, deploy de producao com: cd painel-caixa-escolar && npx vercel --prod --force --yes
+    e orientar Ctrl+Shift+R no navegador (cache).
+
+  blockers: []
+  next_action: "@dev implementa o filtro no overlay fullscreen do gdp-portal.html e valida visualmente."

@@ -892,6 +892,19 @@ function setPortalContratoStatusFiltro(v) {
 function _contratoStatusNorm(c) {
   return String((c && c.status) || 'ativo').trim().toLowerCase();
 }
+// Story 21.6 (UX-F7): markup reutilizável do filtro de status (usado no painel inline e no overlay fullscreen).
+function _portalFiltroStatusHtml() {
+  const sel = _portalContratoStatusFiltro;
+  return `
+    <div style="display:flex;gap:.3rem;align-items:center;">
+      <span style="font-size:.75rem;color:var(--muted);">Contratos:</span>
+      <select onchange="setPortalContratoStatusFiltro(this.value)" style="font-size:.8rem;padding:.25rem .5rem;border-radius:6px;border:1px solid var(--border,#ccc);background:var(--bg,#fff);color:inherit;">
+        <option value="ativo"${sel === 'ativo' ? ' selected' : ''}>Ativos</option>
+        <option value="encerrado"${sel === 'encerrado' ? ' selected' : ''}>Encerrados</option>
+        <option value="todos"${sel === 'todos' ? ' selected' : ''}>Todos</option>
+      </select>
+    </div>`;
+}
 
 function showContractSelection() {
   let contracts = getSchoolContracts();
@@ -982,14 +995,7 @@ function showContractSelection() {
       </div>
       <div style="margin-bottom:1rem;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.5rem;">
         <div style="font-size:0.85rem;color:var(--muted);">Selecione um contrato para fazer pedidos:</div>
-        <div style="display:flex;gap:.3rem;align-items:center;">
-          <span style="font-size:.75rem;color:var(--muted);">Contratos:</span>
-          <select onchange="setPortalContratoStatusFiltro(this.value)" style="font-size:.8rem;padding:.25rem .5rem;border-radius:6px;border:1px solid var(--border,#ccc);background:var(--bg,#fff);color:inherit;">
-            <option value="ativo"${_portalContratoStatusFiltro === 'ativo' ? ' selected' : ''}>Ativos</option>
-            <option value="encerrado"${_portalContratoStatusFiltro === 'encerrado' ? ' selected' : ''}>Encerrados</option>
-            <option value="todos"${_portalContratoStatusFiltro === 'todos' ? ' selected' : ''}>Todos</option>
-          </select>
-        </div>
+        ${_portalFiltroStatusHtml()}
       </div>
       <div class="contract-grid" id="contract-grid-main">${cardsHtml}</div>
     </div>
@@ -1000,6 +1006,20 @@ function showContractSelection() {
   if (fsOverlay) {
     fsOverlay.querySelector('.contract-grid').innerHTML = cardsHtml;
     fsOverlay.querySelector('.fs-school-name').textContent = schoolName;
+    // Story 21.6 (UX-F7): o overlay fullscreen também precisa do filtro de status (é a tela que a escola usa).
+    const fsBar = fsOverlay.querySelector('.contract-fullscreen-bar');
+    if (fsBar) {
+      let fsFiltro = fsBar.querySelector('#fs-filtro-status');
+      if (!fsFiltro) {
+        fsFiltro = document.createElement('div');
+        fsFiltro.id = 'fs-filtro-status';
+        fsFiltro.style.marginLeft = 'auto';
+        // insere antes do botão "Fechar" para não atrapalhar o layout
+        const fecharBtn = fsBar.querySelector('.btn-maximize');
+        fsBar.insertBefore(fsFiltro, fecharBtn);
+      }
+      fsFiltro.innerHTML = _portalFiltroStatusHtml();
+    }
   }
 
   // Show contract selection, hide tabs and catalog
