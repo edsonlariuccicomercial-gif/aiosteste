@@ -882,8 +882,25 @@ function getSchoolContracts() {
   return merged;
 }
 
+// Story 21.6 (UX-F7): filtro de status dos contratos no portal (Ativos/Encerrados/Todos).
+// Usa exclusivamente c.status (já vindo do módulo Contratos do GDP). Default = ativos.
+var _portalContratoStatusFiltro = (typeof _portalContratoStatusFiltro !== 'undefined') ? _portalContratoStatusFiltro : 'ativo';
+function setPortalContratoStatusFiltro(v) {
+  _portalContratoStatusFiltro = v;
+  showContractSelection();
+}
+function _contratoStatusNorm(c) {
+  return String((c && c.status) || 'ativo').trim().toLowerCase();
+}
+
 function showContractSelection() {
-  const contracts = getSchoolContracts();
+  let contracts = getSchoolContracts();
+  // Story 21.6: aplica o filtro de status (não afeta o card de catálogo ARP).
+  if (_portalContratoStatusFiltro === 'ativo') {
+    contracts = contracts.filter(c => _contratoStatusNorm(c) !== 'encerrado');
+  } else if (_portalContratoStatusFiltro === 'encerrado') {
+    contracts = contracts.filter(c => _contratoStatusNorm(c) === 'encerrado');
+  }
 
   // Also get ARP catalog as a source
   const arpEscola = arpData.escolas.find(e => e.nome === currentUser.categoria_catalogo);
@@ -963,8 +980,16 @@ function showContractSelection() {
           <div class="school-folder-meta">${currentUser.municipio || ''} · ${currentUser.sre || ''} · CNPJ: ${currentUser.cnpj || ''}</div>
         </div>
       </div>
-      <div style="margin-bottom:1rem;">
+      <div style="margin-bottom:1rem;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.5rem;">
         <div style="font-size:0.85rem;color:var(--muted);">Selecione um contrato para fazer pedidos:</div>
+        <div style="display:flex;gap:.3rem;align-items:center;">
+          <span style="font-size:.75rem;color:var(--muted);">Contratos:</span>
+          <select onchange="setPortalContratoStatusFiltro(this.value)" style="font-size:.8rem;padding:.25rem .5rem;border-radius:6px;border:1px solid var(--border,#ccc);background:var(--bg,#fff);color:inherit;">
+            <option value="ativo"${_portalContratoStatusFiltro === 'ativo' ? ' selected' : ''}>Ativos</option>
+            <option value="encerrado"${_portalContratoStatusFiltro === 'encerrado' ? ' selected' : ''}>Encerrados</option>
+            <option value="todos"${_portalContratoStatusFiltro === 'todos' ? ' selected' : ''}>Todos</option>
+          </select>
+        </div>
       </div>
       <div class="contract-grid" id="contract-grid-main">${cardsHtml}</div>
     </div>
@@ -1348,35 +1373,73 @@ function getCartTotal() {
   return Math.round(total * 100) / 100;
 }
 
-function addToCart(name, idx) {
+// Story 21.2 (UX-F6): validação ÚNICA de quantidade/saldo — single source of truth
+// usada por addToCart (catálogo) E cartQty (carrinho).
+//
+// CORREÇÃO DO BUG REAL: o catálogo barrava indevidamente uma quantidade que de fato existe
+// em estoque (ex.: 10 disponíveis, mas "ajustava" para 9). Causa: a trava financeira usava
+// saldo_disponivel (saldo do CONTRATO INTEIRO, arredondado) contra preço×qty do item — e por
+// arredondamento de centavos cortava 1 unidade. Como a quantidade disponível de um item
+// contratado (qtdDisponivel = qtdContratada − qtdEntregue) JÁ faz parte do saldo do contrato,
+// ela nunca deve ser barrada pela trava financeira.
+//
+// Regra: para itens com saldo de contrato por item (qtdDisponivel definido > 0), o teto é o
+// ESTOQUE. A trava financeira só atua como segurança quando o item NÃO tem teto de estoque
+// próprio (catálogo ARP, qtdDisponivel ausente), e com tolerância de 1 centavo p/ arredondamento.
+// Retorna { ok, qty, motivo, mensagem } — qty é a quantidade efetiva permitida.
+const _SALDO_EPS = 0.01;
+function validarQuantidade(name, qtyDesejada) {
   const max = getMaxQty(name);
-  let qty = parseInt(document.getElementById(`qty-${idx}`).value) || 1;
+  let qty = Math.max(1, Math.floor(qtyDesejada || 1));
+
+  // 1) Teto de estoque/saldo do contrato (qtdDisponivel)
+  if (max <= 0) {
+    return { ok: false, qty: 0, motivo: 'estoque', mensagem: 'Sem saldo disponível para este item. É necessário um aditivo contratual.' };
+  }
+  let ajustadoPorEstoque = false;
   if (qty > max) {
     qty = max;
-    alert(`Quantidade máxima disponível: ${max}. Para pedir mais, é necessário um aditivo contratual.`);
+    ajustadoPorEstoque = true;
   }
-  if (max <= 0) {
-    alert('Sem saldo disponível para este item. É necessário um aditivo contratual.');
-    return;
-  }
-  // Check if adding would exceed available balance
+
   const prod = schoolProducts.find(p => p.produto === name);
-  if (prod) {
+  // Item TEM teto de estoque próprio (contrato com qtdDisponivel)? Então o estoque manda;
+  // a trava financeira não corta o que o estoque já permite (evita o "ajustou para 9").
+  const temEstoqueProprio = !!(prod && Number(prod.qtdDisponivel) > 0);
+
+  // 2) Teto de saldo financeiro — só quando o item NÃO tem teto de estoque próprio (ex.: ARP)
+  let ajustadoPorSaldo = false;
+  if (prod && !temEstoqueProprio) {
     const currentTotal = getCartTotal();
-    const adding = prod.preco * qty;
     const oldInCart = cart[name] ? prod.preco * cart[name] : 0;
-    const newTotal = currentTotal - oldInCart + adding;
-    if (newTotal > currentUser.saldo_disponivel) {
-      const maxByBudget = Math.floor((currentUser.saldo_disponivel - currentTotal + oldInCart) / prod.preco);
+    const newTotal = currentTotal - oldInCart + prod.preco * qty;
+    if (newTotal > currentUser.saldo_disponivel + _SALDO_EPS) {
+      const maxByBudget = Math.floor((currentUser.saldo_disponivel + _SALDO_EPS - currentTotal + oldInCart) / prod.preco);
       if (maxByBudget <= 0) {
-        alert('Saldo insuficiente! Seu saldo disponível é R$ ' + fmt(currentUser.saldo_disponivel) + ' e o carrinho já tem R$ ' + fmt(currentTotal) + '.');
-        return;
+        return { ok: false, qty: 0, motivo: 'saldo', mensagem: 'Saldo insuficiente! Seu saldo disponível é R$ ' + fmt(currentUser.saldo_disponivel) + ' e o carrinho já tem R$ ' + fmt(currentTotal) + '.' };
       }
-      qty = Math.min(qty, maxByBudget);
-      alert('Quantidade ajustada para ' + qty + ' para não ultrapassar o saldo disponível (R$ ' + fmt(currentUser.saldo_disponivel) + ').');
+      if (qty > maxByBudget) {
+        qty = maxByBudget;
+        ajustadoPorSaldo = true;
+      }
     }
   }
-  cart[name] = qty;
+
+  if (ajustadoPorSaldo) {
+    return { ok: true, qty, motivo: 'saldo', mensagem: 'Quantidade ajustada para ' + qty + ' para não ultrapassar o saldo disponível (R$ ' + fmt(currentUser.saldo_disponivel) + ').' };
+  }
+  if (ajustadoPorEstoque) {
+    return { ok: true, qty, motivo: 'estoque', mensagem: 'Quantidade máxima disponível: ' + max + '. Para pedir mais, é necessário um aditivo contratual.' };
+  }
+  return { ok: true, qty, motivo: null, mensagem: '' };
+}
+
+function addToCart(name, idx) {
+  const qtyDesejada = parseInt(document.getElementById(`qty-${idx}`).value) || 1;
+  const v = validarQuantidade(name, qtyDesejada);
+  if (v.mensagem) alert(v.mensagem);
+  if (!v.ok) return;
+  cart[name] = v.qty;
   updateCartFloat();
   renderCatalog();
 }
@@ -1507,25 +1570,20 @@ function renderCart() {
 }
 
 function cartQty(name, delta) {
-  const max = getMaxQty(name);
-  let newQty = (cart[name]||1) + delta;
-  if (newQty > max) {
-    alert(`Limite: ${max} unidades disponíveis.`);
-    newQty = max;
+  // Story 21.2 (UX-F6): usa a MESMA validação do catálogo (validarQuantidade), evitando
+  // que o carrinho permita ultrapassar o teto que o catálogo barrou.
+  const desejada = (cart[name] || 1) + delta;
+  // Ao diminuir, não precisa alertar teto; apenas respeita o mínimo de 1.
+  if (delta < 0) {
+    cart[name] = Math.max(1, desejada);
+    renderCart();
+    updateCartFloat();
+    return;
   }
-  if (delta > 0) {
-    const prod = schoolProducts.find(p => p.produto === name);
-    if (prod) {
-      const currentTotal = getCartTotal();
-      const newItemTotal = prod.preco * newQty;
-      const oldItemTotal = prod.preco * (cart[name] || 1);
-      if (currentTotal - oldItemTotal + newItemTotal > currentUser.saldo_disponivel) {
-        alert('Saldo insuficiente! Não é possível aumentar a quantidade.');
-        return;
-      }
-    }
-  }
-  cart[name] = Math.max(1, newQty);
+  const v = validarQuantidade(name, desejada);
+  if (v.mensagem) alert(v.mensagem);
+  if (!v.ok) return;
+  cart[name] = v.qty;
   renderCart();
   updateCartFloat();
 }

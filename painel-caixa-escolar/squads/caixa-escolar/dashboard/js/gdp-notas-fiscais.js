@@ -845,13 +845,13 @@ function buildInvoiceFromOrder(pedido, tipoNota) {
 
 function buildReceivableFromInvoice(invoice) {
   const issueDate = new Date(invoice.emitidaEm || Date.now());
-  let dueDateStr = invoice.vencimento;
-  if (!dueDateStr) {
-    // Story 20.7: vencimento = emissão da NF + prazo configurado (config Finanças), não mais 28 fixo
-    const dueDate = new Date(issueDate);
-    dueDate.setDate(dueDate.getDate() + getFinancasConfig().prazoRecebimentoDias);
-    dueDateStr = dueDate.toISOString().slice(0, 10);
-  }
+  // Story 21.1 (UX-F9): o vencimento da conta a receber é SEMPRE calculado a partir da
+  // emissão da NF + prazo configurado (config Finanças). NÃO reutilizar invoice.vencimento,
+  // que é herdado da data do pedido na criação da NF (gdp-notas-fiscais.js:789) e faria o
+  // cálculo correto (Story 20.7) nunca executar.
+  const dueDate = new Date(issueDate);
+  dueDate.setDate(dueDate.getDate() + getFinancasConfig().prazoRecebimentoDias);
+  const dueDateStr = dueDate.toISOString().slice(0, 10);
   const contaPadrao = getConfiguredDefaultBankAccount();
   const bankApiConfig = getBankApiConfig();
   return {

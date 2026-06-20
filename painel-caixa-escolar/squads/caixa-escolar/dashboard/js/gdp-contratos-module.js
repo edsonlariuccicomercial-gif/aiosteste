@@ -2921,9 +2921,17 @@ function abrirContrato(id) {
 
   const totalContratado = (parseFloat(c.valorTotal) || 0) > 0 ? parseFloat(c.valorTotal) : (Array.isArray(c.itens) ? c.itens : []).reduce((s, i) => s + (parseFloat(i.precoUnitario) || 0) * (parseFloat(i.qtdContratada || i.quantidade) || 0), 0);
   const totalEntregue = c.itens.reduce((s, i) => s + (i.precoUnitario || 0) * (i.qtdEntregue || 0), 0);
-  const totalSaldo = totalContratado - totalEntregue;
+  // Story 21.5A (UX-F8): nunca exibir saldo negativo enganoso.
+  const totalSaldo = Math.max(0, totalContratado - totalEntregue);
+
+  // Story 21.5A (UX-F8): detectar itens sem quantidade contratada (ex.: contrato São Benedito).
+  const _itensSemQtd = (Array.isArray(c.itens) ? c.itens : []).filter(i => !((parseFloat(i.qtdContratada) || 0) > 0)).length;
+  const _avisoSemQtd = _itensSemQtd > 0
+    ? `<div style="background:rgba(239,68,68,.12);border:1px solid var(--red);color:var(--red);border-radius:4px;padding:.6rem .8rem;margin-bottom:1rem;font-size:.8rem">⚠ ${_itensSemQtd} item(ns) sem quantidade contratada. O total/saldo deste contrato está incompleto — informe a quantidade na coluna <strong>Contr.</strong> de cada item.</div>`
+    : '';
 
   let html = `
+    ${_avisoSemQtd}
     <div style="display:grid;grid-template-columns:repeat(3, 1fr);gap:1rem;margin-bottom:1.5rem">
       <div class="kpi" style="margin:0"><div class="kpi-label">Contratado</div><div class="kpi-value green" style="font-size:1.3rem">${brl.format(totalContratado)}</div></div>
       <div class="kpi" style="margin:0"><div class="kpi-label">Entregue</div><div class="kpi-value blue" style="font-size:1.3rem">${brl.format(totalEntregue)}</div></div>
@@ -2964,6 +2972,7 @@ function abrirContrato(id) {
         <span id="itens-selecionados-${c.id}" style="font-size:.72rem;color:var(--cyan);font-weight:600"></span>
       </div>
       <div style="display:flex;gap:.4rem;flex-wrap:wrap;align-items:center">
+        <button class="btn btn-sm btn-green" id="btn-salvar-precos-${c.id}" onclick="salvarPrecosContratoBatch('${c.id}')" title="Salvar todas as alterações de preço deste contrato" disabled style="opacity:.5">💾 Salvar preços</button>
         <button class="btn btn-sm btn-blue hidden" id="btn-editar-massa-${c.id}" onclick="editarItensMassa('${c.id}')" title="Editar itens selecionados">Editar Selecionados</button>
         <button class="btn btn-sm btn-red hidden" id="btn-excluir-massa-${c.id}" onclick="excluirItensSelecionados('${c.id}')" title="Excluir itens selecionados">Excluir Selecionados</button>
         <button class="btn btn-sm" style="background:rgba(139,92,246,.15);color:var(--purple);border:none;font-weight:700" onclick="abrirCatalogoEscolar('${c.id}')" title="Abrir catalogo da escola vinculada para pedidos internos">📋 Catalogo Escolar</button>
@@ -2977,8 +2986,12 @@ function abrirContrato(id) {
       <table style="font-size:.78rem">
         <thead><tr><th style="width:30px"><input type="checkbox" onchange="toggleSelectAllItens('${c.id}',this.checked)" title="Selecionar todos"></th><th>#</th><th>Item</th><th style="min-width:130px">Produto Vinculado</th><th style="min-width:100px">NCM</th><th style="min-width:80px">SKU</th><th>Unid</th><th class="text-right">Contr.</th><th class="text-right">Entr.</th><th class="text-right">Saldo</th><th>%</th><th class="text-right">Preco</th><th class="text-center">Acoes</th></tr></thead>
         <tbody>${c.itens.map((item, idx) => {
-          const saldo = item.qtdContratada - item.qtdEntregue;
-          const pct = item.qtdContratada > 0 ? (item.qtdEntregue / item.qtdContratada * 100) : 0;
+          // Story 21.5A (UX-F8): render defensivo p/ itens sem quantidade contratada
+          // (ex.: contrato São Benedito) — sinaliza "s/ qtd" em vez de mostrar saldo 0/negativo enganoso.
+          const _qtdContr = parseFloat(item.qtdContratada) || 0;
+          const semQtd = !(_qtdContr > 0);
+          const saldo = semQtd ? null : Math.max(0, _qtdContr - (parseFloat(item.qtdEntregue) || 0));
+          const pct = semQtd ? 0 : ((parseFloat(item.qtdEntregue) || 0) / _qtdContr * 100);
           // Priority: manual skuVinculado > equivalencia auto-match
           const equivSku = item.skuVinculado || getGdpEquivalencia(item.descricao);
           const equivProdutoIntel = equivSku ? estoqueIntelProdutos.find(p => p.sku === equivSku || p.id === equivSku) : null;
@@ -3002,9 +3015,9 @@ function abrirContrato(id) {
             <td><select onchange="salvarUnidadeItemContrato('${c.id}',${idx},this.value)" style="padding:.15rem .2rem;font-size:.75rem;background:var(--s1);border:1px solid var(--bdr);border-radius:4px;color:var(--txt)">${['UN','KG','L','CX','PCT','M','M2','FD','GL','ROL','RS','BD','SC','MT','FR'].map(u => '<option value="' + u + '"' + (item.unidade === u ? ' selected' : '') + '>' + u + '</option>').join('')}</select></td>
             <td class="text-right"><input type="number" min="0" step="1" value="${item.qtdContratada}" onchange="salvarQtdItemContrato('${c.id}',${idx},this.value)" style="width:60px;text-align:right;font-size:.8rem;font-family:monospace;padding:.15rem .3rem;background:var(--s1);border:1px solid var(--bdr);border-radius:4px;color:var(--txt)"></td>
             <td class="text-right font-mono">${item.qtdEntregue}</td>
-            <td class="text-right font-mono" style="font-weight:700;color:${saldo > 0 ? 'var(--yellow)' : 'var(--green)'}">${saldo}</td>
-            <td style="min-width:50px"><div class="progress"><div class="progress-fill ${pct >= 80 ? 'green' : pct >= 40 ? 'yellow' : 'blue'}" style="width:${pct}%"></div></div><span style="font-size:.6rem;color:var(--dim)">${pct.toFixed(0)}%</span></td>
-            <td class="text-right"><input type="number" step="0.01" min="0" value="${(item.precoUnitario || 0).toFixed(2)}" style="width:80px;text-align:right;font-size:.8rem;font-family:monospace;padding:.15rem .3rem;background:var(--s1);border:1px solid var(--bdr);border-radius:4px;color:var(--green)" onchange="salvarPrecoItemContrato('${c.id}',${idx},this.value)"></td>
+            <td class="text-right font-mono" style="font-weight:700;color:${semQtd ? 'var(--red)' : (saldo > 0 ? 'var(--yellow)' : 'var(--green)')}" title="${semQtd ? 'Item sem quantidade contratada — defina a quantidade no campo Contr.' : ''}">${semQtd ? 's/ qtd' : saldo}</td>
+            <td style="min-width:50px">${semQtd ? '<span style="font-size:.6rem;color:var(--red)">—</span>' : '<div class="progress"><div class="progress-fill ' + (pct >= 80 ? 'green' : pct >= 40 ? 'yellow' : 'blue') + '" style="width:' + pct + '%"></div></div><span style="font-size:.6rem;color:var(--dim)">' + pct.toFixed(0) + '%</span>'}</td>
+            <td class="text-right"><input type="number" step="0.01" min="0" value="${(item.precoUnitario || 0).toFixed(2)}" style="width:80px;text-align:right;font-size:.8rem;font-family:monospace;padding:.15rem .3rem;background:var(--s1);border:1px solid var(--bdr);border-radius:4px;color:var(--green)" oninput="editarPrecoItemLocal('${c.id}',${idx},this.value)"></td>
             <td class="text-center" style="white-space:nowrap">
               <button class="btn btn-sm" style="font-size:.75rem;padding:.2rem .4rem;background:rgba(59,130,246,.15);color:var(--blue);border:none;cursor:pointer" onclick="editarItemContrato('${c.id}',${idx})" title="Editar item">✏️</button>
               <button class="btn btn-sm" style="font-size:.72rem;padding:.15rem .38rem;background:rgba(239,68,68,.15);color:var(--red);border:none;cursor:pointer" onclick="excluirItemContrato('${c.id}',${idx})" title="Excluir item">🗑️</button>
@@ -3131,38 +3144,27 @@ function recalcularSaldoContrato(contratoId) {
   const c = contratos.find(x => x.id === contratoId);
   if (!c) return;
 
-  // FR-007: Saldo = total contratado - soma dos pedidos (exceto cancelados)
-  // FR-018: Pedidos cancelados não contam no saldo
-  const pedidosCtr = pedidos.filter(p => p.contratoId === contratoId && p.status !== 'cancelado');
+  // Story 21.3 (UX-F5): RESET PURO — zera as entregas e o saldo volta ao total contratado
+  // original. NÃO reconstruir qtdEntregue a partir dos pedidos (comportamento antigo fazia
+  // o saldo voltar ao mesmo valor, virando um "refresh"). Ação destrutiva → exige confirmação.
+  const totalItens = Array.isArray(c.itens) ? c.itens.length : 0;
+  if (!confirm('Recalcular saldo deste contrato?\n\nIsto ZERA as entregas registradas (' + totalItens + ' item(ns)) e faz o saldo voltar ao total contratado original.\n\nEsta ação não pode ser desfeita automaticamente.')) {
+    return;
+  }
 
-  // Reset all qtdEntregue to 0
+  // Reset puro: zera qtdEntregue de todos os itens.
   c.itens.forEach(item => { item.qtdEntregue = 0; });
 
-  // Recalculate from pedidos
-  pedidosCtr.forEach(p => {
-    (p.itens || []).forEach(pi => {
-      const normDesc = (pi.descricao || '').toUpperCase().trim();
-      const item = c.itens.find(ci => ci.num === pi.itemNum || (ci.descricao || '').toUpperCase().trim() === normDesc);
-      if (item) {
-        item.qtdEntregue += (pi.qtd || 0);
-      }
-    });
-  });
-
-  // Cap qtdEntregue to qtdContratada
-  c.itens.forEach(item => {
-    if (item.qtdEntregue > item.qtdContratada) item.qtdEntregue = item.qtdContratada;
-  });
-
   saveContratos();
+  // FR-21.3.3: persistir em Supabase (não só localStorage), seguindo o padrão de salvarDadosContrato.
+  if (window.gdpApi && window.gdpApi.contratos) {
+    gdpApi.contratos.save(c).catch(e => gdpWarn('[recalcularSaldoContrato] Supabase save failed:', e));
+  }
   renderAll();
   abrirContrato(contratoId);
 
   const totalContratado = (parseFloat(c.valorTotal) || 0) > 0 ? parseFloat(c.valorTotal) : (Array.isArray(c.itens) ? c.itens : []).reduce((s, i) => s + (parseFloat(i.precoUnitario) || 0) * (parseFloat(i.qtdContratada || i.quantidade) || 0), 0);
-  const totalEntregue = c.itens.reduce((s, i) => s + (i.precoUnitario || 0) * (i.qtdEntregue || 0), 0);
-  const _rp = pedidos.filter(p => p.contratoId === contratoId && p.status !== 'entregue' && p.status !== 'cancelado');
-  const totalPend = _rp.reduce((s, p) => s + (p.itens || []).reduce((si, pi) => si + (parseFloat(pi.precoUnitario) || 0) * (parseFloat(pi.qtd || pi.quantidade) || 0), 0), 0);
-  showToast(`Saldo recalculado! Contratado: ${brl.format(totalContratado)} | Entregue: ${brl.format(totalEntregue)} | Pendente: ${brl.format(totalPend)} | Saldo: ${brl.format(totalContratado - totalEntregue - totalPend)}`, 5000);
+  showToast(`Saldo recalculado! Entregas zeradas. Saldo = total contratado: ${brl.format(totalContratado)}`, 5000);
 }
 
 function imprimirContrato(id) {
