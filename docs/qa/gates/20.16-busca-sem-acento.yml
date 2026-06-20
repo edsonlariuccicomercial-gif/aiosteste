@@ -2,16 +2,16 @@ storyId: "20.16"
 title: "Busca accent/pontuação-insensitive definitiva"
 reviewer: "@qa (Quinn)"
 date: "2026-06-18"
-verdict: CONCERNS
+verdict: PASS
+verdict_history:
+  - date: "2026-06-18"
+    verdict: CONCERNS
+    reason: "Causa A (regex robusto) não persistira nas 2 linhas-alvo."
+  - date: "2026-06-19"
+    verdict: PASS
+    reason: "Re-gate: Causa A confirmada resolvida em produção. Codepoint check em gdp-core.js:32 e gdp-conta-corrente.js:30 = [\\u0300-\\u036f] (escape ASCII, zero literais combining frágeis). eval funcional PASS (Feijão~feijao, 12.345~12345, mantém letras). Versão em produção == GitHub == local (gdp-core v33). Único item medium fechado; restam apenas 2 LOW de follow-up documentados."
 method: "Manual review (CodeRabbit indisponível) + validação empírica por codepoint/eval"
 issues:
-  - severity: medium
-    category: code
-    ac: "AC1 / Causa A"
-    description: "Regex de normalizeSearch em gdp-core.js:32 e gdp-conta-corrente.js:30 AINDA usa literais combining (U+0300 U+002D U+036F), não o escape ASCII [\\u0300-\\u036f]. A robustez a encoding que a story pedia não foi entregue nessas 2 linhas."
-    evidence: "Codepoint check: L32/L30 = U+0300 U+002D U+036F (literal). Linhas já-corretas (L112/803/1649/1876) = U+005C U+0075... (ASCII). Fix comprovadamente viável."
-    impact: "BAIXO/LATENTE — busca funciona hoje; risco de recorrência do bug do usuário se o arquivo for reencodado (NFC)."
-    recommendation: "Trocar char-class das 2 linhas por [\\u0300-\\u036f] via fs.writeFileSync (Edit tool faz round-trip dos literais). Aplicar na mesma branch antes do push, ou follow-up imediato."
   - severity: low
     category: code
     description: "fmtDate('') retorna '—'; wraps com `|| \"-\"` nunca exibem '-' (cosmético)."
@@ -23,5 +23,5 @@ passed:
   - "AC2-AC6: busca funcional sem acento/pontuação (validado no código real)"
   - "AC7: sem regressão nas buscas existentes"
   - "Sintaxe: node --check OK"
-decision: "CONCERNS — entrega funcional (Causa B) resolve o sintoma e pode ir a deploy. Causa A é item de fechamento (fix de 2 linhas)."
-deploy_recommendation: "Deployar junto com 20.18 e 20.19 (mesmo gdp-core.js). Recomendado fechar Causa A antes do push se rápido."
+decision: "PASS — Causa A e Causa B entregues e validadas em produção. Os 2 itens LOW restantes (cosmético + autocompletes gdp-pedidos) são follow-up fora de escopo, não bloqueiam."
+deploy_recommendation: "Já deployado (gdp-core v33 em produção == GitHub). Nada pendente."

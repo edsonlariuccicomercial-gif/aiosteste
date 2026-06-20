@@ -2490,57 +2490,86 @@ function getBaseUrl() {
   return "/api";
 }
 
+// Story 21.x (UX-F4): edição em BATCH. Não persiste por campo — atualiza estado local
+// e marca o contrato como "dirty". Persistência única em salvarPrecosContratoBatch().
 function salvarNcmItem(contratoId, itemIdx, value) {
   const c = contratos.find(x => x.id === contratoId);
   if (!c || !c.itens[itemIdx]) return;
   c.itens[itemIdx].ncm = value.trim();
   enrichContratoItemMetadata(c, c.itens[itemIdx], itemIdx);
-  saveContratos();
-  syncContratoItemToPedidos(contratoId, c.itens[itemIdx]);
+  marcarContratoDirty(contratoId);
 }
 
 // Story 14.9: Editar preço do item do contrato com reflexo nos pedidos e portal
-function salvarPrecoItemContrato(contratoId, itemIdx, value) {
+// Story 21.4 (UX-F4): edição em BATCH. O onchange por campo NÃO persiste mais (sem save/sync/toast
+// por campo, que travava a digitação). Apenas atualiza o estado local e marca o contrato como "dirty".
+// A persistência (localStorage + Supabase) + sync ocorre uma única vez em salvarPrecosContratoBatch().
+window._contratoPrecosDirty = window._contratoPrecosDirty || {};
+// Story 21.x (UX-F4): marca o contrato como "dirty" e habilita o botão batch "Salvar".
+function marcarContratoDirty(contratoId) {
+  window._contratoPrecosDirty[contratoId] = true;
+  const btn = document.getElementById('btn-salvar-precos-' + contratoId);
+  if (btn) { btn.removeAttribute('disabled'); btn.style.opacity = '1'; }
+}
+function editarPrecoItemLocal(contratoId, itemIdx, value) {
   const c = contratos.find(x => x.id === contratoId);
   if (!c || !c.itens[itemIdx]) return;
   const novoPreco = Math.round((parseFloat(value) || 0) * 100) / 100;
   c.itens[itemIdx].precoUnitario = novoPreco;
+  marcarContratoDirty(contratoId);
+}
+
+// Story 21.4/21.x (UX-F4): salva TODAS as alterações dos itens de uma vez (botão "Salvar itens").
+function salvarPrecosContratoBatch(contratoId) {
+  const c = contratos.find(x => x.id === contratoId);
+  if (!c) return;
   saveContratos();
-  syncContratoItemToPedidos(contratoId, c.itens[itemIdx]);
-  if (typeof showToast === 'function') showToast('Preco atualizado: R$ ' + novoPreco.toFixed(2).replace('.', ','), 2000);
+  // Sync com pedidos uma única vez (todos os itens).
+  (c.itens || []).forEach(item => syncContratoItemToPedidos(contratoId, item));
+  // Persistência em Supabase (padrão salvarDadosContrato).
+  if (window.gdpApi && window.gdpApi.contratos) {
+    gdpApi.contratos.save(c).catch(e => (typeof gdpWarn === 'function' ? gdpWarn : console.warn)('[salvarPrecosContratoBatch] Supabase save failed:', e));
+  }
+  window._contratoPrecosDirty[contratoId] = false;
+  const btn = document.getElementById('btn-salvar-precos-' + contratoId);
+  if (btn) { btn.setAttribute('disabled', 'disabled'); btn.style.opacity = '.5'; }
+  if (typeof showToast === 'function') showToast('Alteracoes do contrato salvas.', 2500);
+}
+
+// Compat: mantém a assinatura antiga, mas agora apenas edita local (sem persistir por campo).
+function salvarPrecoItemContrato(contratoId, itemIdx, value) {
+  editarPrecoItemLocal(contratoId, itemIdx, value);
 }
 
 // Editar campos inline dos itens do contrato
+// Story 21.x (UX-F4): edição em BATCH (sem save/sync por campo) — só estado local + dirty.
 function salvarQtdItemContrato(contratoId, itemIdx, value) {
   const c = contratos.find(x => x.id === contratoId);
   if (!c || !c.itens[itemIdx]) return;
   c.itens[itemIdx].qtdContratada = parseInt(value) || 0;
   if (c.itens[itemIdx].quantidade !== undefined) c.itens[itemIdx].quantidade = c.itens[itemIdx].qtdContratada;
-  saveContratos();
-  syncContratoItemToPedidos(contratoId, c.itens[itemIdx]);
+  marcarContratoDirty(contratoId);
 }
 
 function salvarDescricaoItemContrato(contratoId, itemIdx, value) {
   const c = contratos.find(x => x.id === contratoId);
   if (!c || !c.itens[itemIdx]) return;
   c.itens[itemIdx].descricao = value.trim();
-  saveContratos();
-  syncContratoItemToPedidos(contratoId, c.itens[itemIdx]);
+  marcarContratoDirty(contratoId);
 }
 
 function salvarUnidadeItemContrato(contratoId, itemIdx, value) {
   const c = contratos.find(x => x.id === contratoId);
   if (!c || !c.itens[itemIdx]) return;
   c.itens[itemIdx].unidade = value.trim();
-  saveContratos();
-  syncContratoItemToPedidos(contratoId, c.itens[itemIdx]);
+  marcarContratoDirty(contratoId);
 }
 
 function salvarSkuItemContrato(contratoId, itemIdx, value) {
   const c = contratos.find(x => x.id === contratoId);
   if (!c || !c.itens[itemIdx]) return;
   c.itens[itemIdx].sku = value.trim();
-  saveContratos();
+  marcarContratoDirty(contratoId);
 }
 
 function buscarNcmItem(contratoId, itemIdx) {

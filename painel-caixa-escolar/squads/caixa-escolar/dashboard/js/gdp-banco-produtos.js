@@ -269,8 +269,8 @@ function _restaurarModalProduto() {
   if (listagem) listagem.classList.remove("hidden");
 }
 
-function novoProdutoManual() {
-  _editProdutoId = null;
+// Story 21.x (UX-F1): limpa os campos do formulario de produto (reuso em criacao/salvar)
+function _limparFormProduto() {
   document.getElementById("prod-descricao").value = "";
   document.getElementById("prod-sku").value = "";
   document.getElementById("prod-ncm").value = "";
@@ -283,6 +283,11 @@ function novoProdutoManual() {
   if (embSection) embSection.style.display = "none";
   const embDescEl = document.getElementById("prod-embalagem-descricao");
   if (embDescEl) embDescEl.value = "";
+}
+
+function novoProdutoManual() {
+  _editProdutoId = null;
+  _limparFormProduto();
   _abrirProdutoInline("Novo Produto");
 }
 
@@ -333,7 +338,7 @@ function salvarProduto() {
       existing.ncm = ncm;
       existing.unidade = unidade;
       saveBancoProdutos();
-      fecharModalProduto();
+      // Story 21.x (UX-F1): manter modal aberto apos salvar (edicao); fechar e do usuario
       renderBancoProdutos();
       showToast("Produto atualizado!");
       return;
@@ -360,7 +365,7 @@ function salvarProduto() {
   }
 
   saveBancoProdutos();
-  fecharModalProduto();
+  // Story 21.x (UX-F1): nao fechar o modal apos salvar (fechar e do usuario)
   renderBancoProdutos();
   showToast(_editProdutoId ? "Produto atualizado!" : "Produto adicionado!");
 
@@ -371,6 +376,16 @@ function salvarProduto() {
       selecionarBuscaSync(window._syncCriarIdx, newProd.id);
     }
     window._syncCriarIdx = undefined;
+    // Story 21.x (UX-F1): no fluxo de Sync, fechar e a conclusao natural da acao
+    fecharModalProduto();
+    return;
+  }
+
+  // Story 21.x (UX-F1): em CRIACAO, limpar campos + foco no 1o campo; em EDICAO, manter como esta
+  if (!_editProdutoId) {
+    _limparFormProduto();
+    const descEl = document.getElementById("prod-descricao");
+    if (descEl) descEl.focus();
   }
 }
 

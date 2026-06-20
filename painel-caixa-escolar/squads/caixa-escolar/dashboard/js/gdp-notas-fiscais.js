@@ -845,13 +845,13 @@ function buildInvoiceFromOrder(pedido, tipoNota) {
 
 function buildReceivableFromInvoice(invoice) {
   const issueDate = new Date(invoice.emitidaEm || Date.now());
-  let dueDateStr = invoice.vencimento;
-  if (!dueDateStr) {
-    // Story 20.7: vencimento = emissão da NF + prazo configurado (config Finanças), não mais 28 fixo
-    const dueDate = new Date(issueDate);
-    dueDate.setDate(dueDate.getDate() + getFinancasConfig().prazoRecebimentoDias);
-    dueDateStr = dueDate.toISOString().slice(0, 10);
-  }
+  // Story 21.1 (UX-F9): o vencimento da conta a receber é SEMPRE calculado a partir da
+  // emissão da NF + prazo configurado (config Finanças). NÃO reutilizar invoice.vencimento,
+  // que é herdado da data do pedido na criação da NF (gdp-notas-fiscais.js:789) e faria o
+  // cálculo correto (Story 20.7) nunca executar.
+  const dueDate = new Date(issueDate);
+  dueDate.setDate(dueDate.getDate() + getFinancasConfig().prazoRecebimentoDias);
+  const dueDateStr = dueDate.toISOString().slice(0, 10);
   const contaPadrao = getConfiguredDefaultBankAccount();
   const bankApiConfig = getBankApiConfig();
   return {
@@ -2078,15 +2078,16 @@ async function reenviarEmailNfPedido(pedidoId) {
 }
 
 // Editar NCM de item direto na tela da NF
+// Story 21.x (UX-Fy): edição inline NCM passa a ser LOCAL (estado em memória) — a
+// persistência (localStorage + Supabase + sync pedido + toast) é feita 1x pelo botão
+// "Salvar Dados/Metadados da NF" (salvarDadosNotaFiscal). Aqui só atualizamos estado.
 function salvarNcmItemNf(notaId, idx, valor) {
   const nf = notasFiscais.find(n => n.id === notaId);
   if (!nf || !nf.itens[idx]) return;
   nf.itens[idx].ncm = valor.trim();
-  saveNotasFiscais();
-  // Sync NCM de volta pro pedido vinculado
+  // Sync NCM de volta pro pedido vinculado (em memória — persiste no batch)
   const ped = pedidos.find(p => p.id === nf.pedidoId);
-  if (ped && ped.itens[idx]) { ped.itens[idx].ncm = valor.trim(); savePedidos(); }
-  showToast('NCM atualizado: ' + valor.trim(), 2000);
+  if (ped && ped.itens[idx]) ped.itens[idx].ncm = valor.trim();
 }
 
 function salvarDadosNotaFiscal(notaId) {
@@ -2115,6 +2116,9 @@ function salvarDadosNotaFiscal(notaId) {
     accessKey: nf.sefaz.chaveAcesso || ""
   });
   saveNotasFiscais();
+  // Story 21.x (UX-Fy): persiste 1x os NCMs editados inline de volta ao pedido vinculado
+  // (estado já atualizado em memória por salvarNcmItemNf) — localStorage + Supabase.
+  if (nf.pedidoId && pedidos.find(p => p.id === nf.pedidoId)) savePedidos(nf.pedidoId);
   renderNotasFiscais();
   verNotaFiscal(notaId);
   showToast(`Dados da NF ${nf.numero} atualizados.`, 3000);
