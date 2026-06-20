@@ -252,7 +252,11 @@
       descricao: document.getElementById('cc-cred-desc').value || 'Crédito',
       origem: {}
     });
-    _fecharModal();
+    // Story 21.x (UX-F1): salvar não fecha — limpa campos e mantém modal aberto p/ novo lançamento.
+    document.getElementById('cc-cred-valor').value = '';
+    document.getElementById('cc-cred-desc').value = '';
+    document.getElementById('cc-cred-data').value = _hoje();
+    document.getElementById('cc-cred-valor').focus();
     _toast('Crédito lançado.');
     await renderContaCorrente();
     await abrirExtratoCliente(clienteId);
@@ -377,7 +381,14 @@
       });
     }
     _retiradaItens = [];
-    _fecharModal();
+    // Story 21.x (UX-F2): salvar não fecha — limpa itens/campos e mantém modal aberto p/ nova retirada.
+    _renderItensRetirada();
+    document.getElementById('cc-ret-sel').value = '';
+    document.getElementById('cc-ret-avulso').value = '';
+    document.getElementById('cc-ret-qtd').value = '1';
+    document.getElementById('cc-ret-un').value = 'UN';
+    document.getElementById('cc-ret-vu').value = '';
+    document.getElementById('cc-ret-sel').focus();
     _toast('Retirada lançada.');
     await renderContaCorrente();
     await abrirExtratoCliente(clienteId);
@@ -424,7 +435,7 @@
       l.valor = nv;
     }
     await gdpApi.lancamentosCliente.save(l);
-    _fecharModal();
+    // Story 21.x (UX-F3): salvar não fecha — edição mantém valores e modal aberto.
     _toast('Lançamento atualizado.');
     await renderContaCorrente();
     await abrirExtratoCliente(clienteId);

@@ -346,8 +346,10 @@ function salvarClonePedido() {
   renderPedidos();
   const id = _pendingClone.id;
   _pendingClone = null;
-  fecharPedidoDetalhe();
+  // Story 21.x (UX-FA): salvar não fecha a tela; reabre o pedido já persistido em modo detalhe
+  // (o usuário fecha via Voltar). Antes fechava direto após salvar.
   showToast(`Pedido ${id} salvo com sucesso.`, 3000);
+  verPedidoDetalhe(id);
 }
 
 function cancelarClonePedido() {
@@ -1180,9 +1182,19 @@ function salvarPedidoManual() {
   }
 
   savePedidos();
-  fecharPedidoDetalhe();
+  // Story 21.x (UX-FA): salvar não fecha a tela. Edição mantém o formulário aberto;
+  // criação limpa os campos e mantém aberto para o próximo lançamento (X/Cancelar fecham).
   renderAll();
   showToast(editingId ? `Pedido ${editingId} atualizado.` : `Pedido ${id} registrado! Saldo do contrato atualizado.`);
+  if (!editingId) {
+    pedidoCloneDraft = null;
+    _pedidoManualItens = [];
+  }
+  novoPedidoManual();
+  if (!editingId) {
+    const primeiro = document.getElementById("pedido-cliente-busca");
+    if (primeiro) primeiro.focus();
+  }
 }
 
 /* ── Pedido: Dados de Pagamento ── */
@@ -1334,7 +1346,8 @@ function recalcSubtotalDetalhe(pedidoId, idx) {
   p.totalGeral = novoTotal;
   p.valor = novoTotal;
   p.valorTotal = novoTotal;
-  savePedidos();
+  // Story 21.x (UX-FB): recálculo local de subtotal/total apenas (UI + estado em memória).
+  // A persistência ocorre 1x no botão "Salvar" (salvarPedidoCompleto), sem savePedidos() por campo.
 }
 
 function salvarPedidoPagamento(pedidoId) {
@@ -1560,7 +1573,7 @@ function salvarPedidoCompleto(pedidoId) {
   }
   renderPedidos();
   showToast('Pedido salvo com sucesso!', 3000);
-  fecharPedidoDetalhe();
+  // Story 21.x (UX-FA): salvar não fecha a tela de detalhe; o usuário fecha via Voltar.
 }
 
 function imprimirPedido(pedidoId) {
@@ -1574,11 +1587,9 @@ function imprimirPedido(pedidoId) {
 function salvarDataPrevistaPedido(pedidoId, novaData) {
   const p = pedidos.find(x => x.id === pedidoId);
   if (!p) return;
+  // Story 21.x (UX-FB): edição local (em memória); a persistência é feita no botão "Salvar"
+  // (salvarPedidoCompleto), evitando save + toast por campo. Sem savePedidos()/toast aqui.
   p.dataPrevista = novaData;
-  savePedidos();
-  const ok = document.getElementById('detalhe-data-prevista-ok-' + pedidoId);
-  if (ok) { ok.style.display = ''; setTimeout(() => ok.style.display = 'none', 2000); }
-  showToast('Data prevista atualizada.', 2000);
 }
 
 function fecharPedidoDetalhe() {

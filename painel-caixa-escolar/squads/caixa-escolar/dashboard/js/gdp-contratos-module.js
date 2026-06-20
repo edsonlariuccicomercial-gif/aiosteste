@@ -2976,7 +2976,7 @@ function abrirContrato(id) {
         <span id="itens-selecionados-${c.id}" style="font-size:.72rem;color:var(--cyan);font-weight:600"></span>
       </div>
       <div style="display:flex;gap:.4rem;flex-wrap:wrap;align-items:center">
-        <button class="btn btn-sm btn-green" id="btn-salvar-precos-${c.id}" onclick="salvarPrecosContratoBatch('${c.id}')" title="Salvar todas as alterações de preço deste contrato" disabled style="opacity:.5">💾 Salvar preços</button>
+        <button class="btn btn-sm btn-green" id="btn-salvar-precos-${c.id}" onclick="salvarPrecosContratoBatch('${c.id}')" title="Salvar todas as alterações dos itens deste contrato (descrição, NCM, SKU, unidade, qtd e preço)" disabled style="opacity:.5">💾 Salvar itens</button>
         <button class="btn btn-sm btn-blue hidden" id="btn-editar-massa-${c.id}" onclick="editarItensMassa('${c.id}')" title="Editar itens selecionados">Editar Selecionados</button>
         <button class="btn btn-sm btn-red hidden" id="btn-excluir-massa-${c.id}" onclick="excluirItensSelecionados('${c.id}')" title="Excluir itens selecionados">Excluir Selecionados</button>
         <button class="btn btn-sm" style="background:rgba(139,92,246,.15);color:var(--purple);border:none;font-weight:700" onclick="abrirCatalogoEscolar('${c.id}')" title="Abrir catalogo da escola vinculada para pedidos internos">📋 Catalogo Escolar</button>
@@ -3286,10 +3286,10 @@ async function salvarDadosContrato(id) {
   if (_syncTimeout) { clearTimeout(_syncTimeout); _syncTimeout = null; }
   try { await syncToCloud(); } catch(_) {}
   showToast("Dados do contrato salvos!");
-  // AC5: Auto-close modal after save
-  _contratoAbertoId = null;
-  document.getElementById("modal-contrato").classList.add("hidden");
+  // Story 21.x (UX-F2): salvar NÃO fecha a tela de edição — mantém o detalhe aberto
+  // (fechar é do usuário via Voltar/Esc). Reabre o detalhe p/ refletir os dados salvos.
   renderAll();
+  abrirContrato(id);
 }
 
 function getObsContrato(contratoId) {

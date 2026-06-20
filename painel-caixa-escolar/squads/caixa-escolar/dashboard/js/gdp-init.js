@@ -3416,7 +3416,7 @@ function salvarEditarProduto(produtoId) {
     emb.preco_referencia = Number(row.querySelector(".edit-emb-preco")?.value) || 0;
   });
   saveEstoqueIntelEmbalagens();
-  fecharEditarProduto();
+  // Story 21.x (UX-Fy): salvar mantém o form de edição aberto (usuário fecha via Cancelar/Voltar).
   renderEstoque();
   showToast("Produto atualizado.", 2500);
 }
@@ -3451,7 +3451,7 @@ function toggleFormDemandaManual() {
       </div>
       <div style="display:flex;gap:.5rem;justify-content:flex-end">
         <button class="btn btn-outline" onclick="toggleFormDemandaManual()">Cancelar</button>
-        <button class="btn btn-green" onclick="registrarPedidoEstoqueIntel();toggleFormDemandaManual()">Salvar Demanda</button>
+        <button class="btn btn-green" onclick="registrarPedidoEstoqueIntel()">Salvar Demanda</button>
       </div>
     </div>
   `;
@@ -3743,9 +3743,13 @@ function salvarNovoProdutoModal() {
   });
   saveEstoqueIntelEmbalagens();
 
-  toggleFormNovoProduto();
+  const _embCount = document.querySelectorAll("#novo-embs-list [data-novo-emb]").length;
   renderEstoque();
-  showToast("Produto cadastrado com " + document.querySelectorAll("#novo-embs-list [data-novo-emb]").length + " embalagem(ns).", 3000);
+  // Story 21.x (UX-Fy): salvar mantém o form aberto e limpa os campos p/ novo cadastro
+  // (re-render reconstrói o form vazio + foco no 1º campo). Usuário fecha via Cancelar.
+  _novoProdutoEmbs = [{ id: "temp-0", descricao: "", quantidade_base: 1, preco_referencia: 0 }];
+  renderModalNovoProduto();
+  showToast("Produto cadastrado com " + _embCount + " embalagem(ns).", 3000);
 }
 
 // === Categoria Custom ===

@@ -258,24 +258,47 @@ function salvarUsuario(editId) {
     contratos_vinculados: [...document.querySelectorAll(".usr-contrato-chk:checked")].map(cb => cb.value)
   };
 
+  let savedUser = null;
   if (editId) {
     const u = usuarios.find(x => x.id === editId);
-    if (u) Object.assign(u, data);
+    if (u) { Object.assign(u, data); savedUser = u; }
   } else {
     data.id = login.replace(/[^a-z0-9]/gi, '-').toLowerCase();
     usuarios.push(data);
+    savedUser = data;
   }
 
   saveUsuarios();
-  fecharModalUsuario();
   renderUsuarios();
   if (pendingContratoDraft) {
+    // Excecao (vincular-e-concluir): fechar e seguir para o contrato e o passo natural
+    fecharModalUsuario();
     pendingContratoDraft = { ...pendingContratoDraft, escola: data.nome };
     switchTab("contratos");
     novoContratoManual();
     showToast("Cliente cadastrado. Revise e confirme o contrato.", 3500);
     return;
   }
+
+  // Story 21.x (UX-F1): salvar nao fecha a tela. Mantem o form aberto no container ativo
+  // (inline cliente-detalhe-page ou modal). Criacao: re-renderiza form vazio e foca usr-nome.
+  // Edicao: mantem o registro em edicao re-renderizando com os dados atualizados.
+  const detalhePage = document.getElementById("cliente-detalhe-page");
+  const inlineAtivo = detalhePage && !detalhePage.classList.contains("hidden");
+  if (editId) {
+    renderFormUsuario(savedUser);
+  } else {
+    clienteDetalheAtualId = null;
+    renderFormUsuario(null);
+  }
+  if (inlineAtivo) {
+    const titulo = editId ? ('Editar Cliente — ' + esc((savedUser && savedUser.nome) || '')) : 'Cadastrar Cliente';
+    const headerHtml = '<div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;padding-bottom:1rem;border-bottom:1px solid rgba(143,197,157,.25)"><button onclick="voltarListaClientes()" style="background:transparent;border:none;cursor:pointer;color:var(--mut);font-size:1.1rem;padding:4px 8px" title="Voltar">&#x2190;</button><h2 style="font-size:1.1rem;font-weight:600;margin:0;flex:1">' + titulo + '</h2></div>';
+    detalhePage.innerHTML = headerHtml + document.getElementById("modal-usuario-body").innerHTML;
+    document.getElementById("modal-usuario-body").innerHTML = '';
+  }
+  const primeiroInput = document.getElementById("usr-nome");
+  if (primeiroInput) primeiroInput.focus();
   showToast(editId ? "Cliente atualizado!" : "Cliente cadastrado!");
 }
 

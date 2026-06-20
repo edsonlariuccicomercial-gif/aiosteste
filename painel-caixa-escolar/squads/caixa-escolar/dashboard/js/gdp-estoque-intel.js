@@ -2613,6 +2613,9 @@ function aplicarEditarMassaProdutos() {
     }
   });
   saveEstoqueIntelProdutos();
+  // Story 21.x: edição EM MASSA é uma ação em lote — sua conclusão É fechar o overlay e
+  // desmarcar a seleção (item saiu da fila). O padrão "salvar mantém aberto" vale para
+  // cadastro/edição de UM registro, não para aplicar-em-lote.
   document.getElementById("bulk-edit-overlay").classList.add("hidden");
   desmarcarTodosProdutos();
   renderEstoque();
