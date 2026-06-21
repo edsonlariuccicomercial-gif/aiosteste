@@ -171,6 +171,7 @@ Status: **Draft → Ready** — Story 22.1 com verdito **GO (10/10)** no checkli
 | 2026-06-21 | @pm (Morgan) | EPIC-22 criado com Story 22.1 (Fase 1); Fase 2/3 sinalizadas como follow-up |
 | 2026-06-21 | @po (Pax) | Validação 10 pontos — 22.1 GO (10/10); Draft → Ready; 2 pontos de atenção registrados |
 | 2026-06-21 | @dev (Dex) | Story 22.1 implementada (fonte única modulos-acesso.js; switchModule + boot GDP reaplicam; qualquer módulo opcional + default seguro); node --check OK; lógica simulada; Ready for Review → handoff @devops |
+| 2026-06-21 | @devops (Gage) | Push + PR #21 + merge em master (5b87304); deploy prod `--force`; validado em produção (Playwright/fetch): modulos-acesso servido, gdp-init v33 aplica no boot, switchModule reaplica, 3 telas usam a fonte única (sem cópia divergente) — todos confirmados |
 
 ---
 
