@@ -581,6 +581,7 @@ Status: **Draft → Ready** (todas as 5 stories com verdito GO no checklist de 1
 | 2026-06-21 | @po (Pax) | Validação 10 pontos Onda 3 — 5 GO (10/10); Draft → Ready |
 | 2026-06-21 | @dev (Dex) | Onda 3 (21.10–21.14) implementada; node --check OK; versões bumpadas; commit 44f2cf9; Ready for Review → handoff @devops |
 | 2026-06-21 | @devops (Gage) | Push + PR #19 + merge em master (58c8b7b); deploy prod `--force` (painel-caixa-escolar.vercel.app); versões v32/v16/v26/v21 confirmadas servidas |
+| 2026-06-21 | @devops (Gage) | Validação em produção (Playwright/fetch do bundle servido): 21.10 (getCategoriasProduto+migração), 21.11 (+ Nova Categoria, "+" removido, ⚙ mantida), 21.12 (salvarClonePedido delega a salvarPedidoCompleto), 21.13 (voltar no header), 21.14 (CP sem btn-outline/border:none) — todos confirmados |
 
 ---
 
