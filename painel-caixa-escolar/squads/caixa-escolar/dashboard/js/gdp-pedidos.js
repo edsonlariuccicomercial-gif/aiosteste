@@ -1350,7 +1350,11 @@ function recalcSubtotalDetalhe(pedidoId, idx) {
   // A persistência ocorre 1x no botão "Salvar" (salvarPedidoCompleto), sem savePedidos() por campo.
 }
 
-function salvarPedidoPagamento(pedidoId) {
+function salvarPedidoPagamento(pedidoId, opts) {
+  // Story 21.12: opts.silent evita savePedidos/toast/verPedidoDetalhe quando chamado por
+  // salvarPedidoCompleto. O verPedidoDetalhe aqui re-renderizava o form NO MEIO do salvar,
+  // recriando os inputs de item e fazendo as edições de qty/preço/descrição serem perdidas.
+  const silent = opts && opts.silent;
   const p = pedidos.find(x => x.id === pedidoId);
   if (!p) return;
   const forma = document.getElementById("pag-forma-" + pedidoId)?.value || "boleto";
@@ -1364,6 +1368,7 @@ function salvarPedidoPagamento(pedidoId) {
     condicao,
     vencimento
   };
+  if (silent) return; // Story 21.12: persistência/toast/render ficam a cargo de salvarPedidoCompleto
   savePedidos();
   showToast("Dados de pagamento salvos para " + pedidoId + ".", 3000);
   verPedidoDetalhe(pedidoId);
@@ -1543,11 +1548,11 @@ function salvarPedidoCompleto(pedidoId) {
     p.anotacaoInterna = anotacaoEl.value;
     p.dados_extras = { ...(p.dados_extras || {}), anotacaoInterna: anotacaoEl.value };
   }
-  // Salvar dados fiscais
-  savePedidoFiscalData(pedidoId);
-  // Salvar pagamento
-  salvarPedidoPagamento(pedidoId);
-  // Ler todos os campos editáveis dos itens (descrição, qty, unidade, NCM, SKU, preço)
+  // Story 21.12: COLETAR TODOS os campos do DOM ANTES de qualquer persistência/re-render.
+  // (Bug anterior: salvarPedidoPagamento chamava verPedidoDetalhe NO MEIO, re-renderizando o
+  //  form e recriando os inputs de item — então a leitura de qty/preço/descrição pegava os
+  //  valores do objeto, não os digitados. As edições do clone se perdiam.)
+  // Ler os itens PRIMEIRO, depois fiscal/pagamento em modo silent (sem render no meio).
   (p.itens || []).forEach((item, idx) => {
     const descEl = document.getElementById('fiscal-item-desc-' + pedidoId + '-' + idx);
     const qtdEl = document.getElementById('fiscal-item-qtd-' + pedidoId + '-' + idx);
@@ -1562,6 +1567,10 @@ function salvarPedidoCompleto(pedidoId) {
     if (skuEl) item.sku = skuEl.value.trim();
     if (precoEl) item.precoUnitario = Math.round(parseFloat(precoEl.value || 0) * 100) / 100;
   });
+  // Salvar dados fiscais (silent: sem render/toast — note que isso também relê NCM/SKU/unidade dos itens)
+  savePedidoFiscalData(pedidoId, { silent: true });
+  // Salvar pagamento (silent: NÃO re-renderiza o form no meio do salvar)
+  salvarPedidoPagamento(pedidoId, { silent: true });
   const novoTotal = p.itens.reduce((sum, it) => sum + Math.round(((it.qtd || 0) * (it.precoUnitario || 0)) * 100) / 100, 0);
   p.valor = novoTotal;
   p.totalGeral = novoTotal;

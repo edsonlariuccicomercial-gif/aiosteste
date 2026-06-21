@@ -1135,7 +1135,10 @@ async function gerarNotaFiscalPedido(pedidoId) {
   }
 }
 
-function savePedidoFiscalData(pedidoId) {
+function savePedidoFiscalData(pedidoId, opts) {
+  // Story 21.12: opts.silent evita savePedidos/render/toast quando chamado por salvarPedidoCompleto
+  // (que persiste e re-renderiza uma única vez ao final, sem perder edições por re-render no meio).
+  const silent = opts && opts.silent;
   const pedido = pedidos.find((item) => item.id === pedidoId);
   if (!pedido) return;
   ensurePedidoFiscalData(pedido);
@@ -1173,6 +1176,7 @@ function savePedidoFiscalData(pedidoId) {
     fiscalUpdatedAt: new Date().toISOString(),
     fiscalUpdatedBy: getAuditActor()
   };
+  if (silent) return; // Story 21.12: persistência/render/toast ficam a cargo de salvarPedidoCompleto
   savePedidos();
   renderPedidos();
   showToast(`Dados fiscais do pedido ${pedidoId} salvos.`, 3000);
