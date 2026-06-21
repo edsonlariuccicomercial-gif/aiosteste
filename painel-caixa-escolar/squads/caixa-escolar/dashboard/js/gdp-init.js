@@ -2984,6 +2984,10 @@ async function enviarTiny(contratoId) {
   renderAll();
   console.timeEnd('[GDP] renderAll');
 
+  // Story 22.1 (FR-22.1.2): aplicar o controle de acesso por módulo na sidebar do GDP.
+  // Antes, gdp-contratos.html nunca aplicava a config — módulos ocultos sempre apareciam aqui.
+  if (typeof aplicarAcessoSidebar === "function") aplicarAcessoSidebar();
+
   // Story 4.83: Defer sanitize — build O(1) lookup caches, sanitize, persist results
   setTimeout(function() {
     console.time('[GDP] deferred-sanitize');

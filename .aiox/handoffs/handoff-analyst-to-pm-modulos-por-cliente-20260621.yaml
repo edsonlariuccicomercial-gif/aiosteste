@@ -1,0 +1,29 @@
+handoff:
+  from_agent: "analyst"
+  to_agent: "pm"
+  last_command: "document-project"
+  timestamp: "2026-06-21"
+  consumed: false
+  story_context:
+    discovery_path: "docs/stories/DISCOVERY-EPIC22-MODULOS-POR-CLIENTE.md"
+    branch: "feature/epic20-ajustes-financeiro-gdp"
+    theme: "Toggle de Módulos por cliente (Configurações) — Fase 1 da estratégia de produtos separados"
+  strategic_context:
+    - "Objetivo: vender GDP isolado em breve; Radar/Intel viram produtos separados (redesenvolver), integração futura via API."
+    - "Decisão de produto: núcleo comum (product-store + matching NCM) → serviço/API (Fase 2, @architect)."
+  decisions:
+    - "Fase 1 = consertar o toggle de Módulos existente (NÃO esconder via código, NÃO deletar nada)."
+    - "Qualquer módulo deve ser ligável/desligável por cliente (inclusive GDP), p/ vender qualquer combinação."
+    - "Aplicar a visibilidade em TODAS as telas (index, dashboard-home, gdp-contratos) — consistência."
+  root_cause:
+    - "Persistência OK (localStorage nexedu.modulos.acesso). Falha: aplicarAcessoSidebar() não é reaplicado."
+    - "Bug 1: switchModule() (app-config.js:33-91) só troca .active, não reaplica visibilidade."
+    - "Bug 2: gdp-contratos.html (gdp-init.js) nunca aplica a config de módulos no boot."
+    - "Bug 3 (menor): navegação do dashboard-home.html via onclick inline não reaplica."
+  files_modified:
+    - "docs/stories/DISCOVERY-EPIC22-MODULOS-POR-CLIENTE.md (criado)"
+  blockers: []
+  next_action: >
+    @pm: criar story de Fase 1 (corrigir o toggle de Módulos por cliente — consistente em todas as
+    telas + qualquer módulo opcional). Depois @po valida → @dev implementa → @devops deploya.
+    Sinalizar Fase 2 (@architect: separação em produtos + API do núcleo comum) como follow-up, NÃO bloqueante.
