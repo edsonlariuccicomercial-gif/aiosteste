@@ -86,6 +86,10 @@ window.switchModule = function switchModule(moduleId) {
   // Persist
   localStorage.setItem(MODULE_STORAGE_KEY, moduleId);
 
+  // Story 22.1 (FR-22.1.1): reaplicar a visibilidade de módulos a cada troca — antes o
+  // switchModule só trocava a classe .active e o módulo oculto reaparecia ao navegar.
+  if (typeof aplicarAcessoSidebar === "function") aplicarAcessoSidebar();
+
   // Close mobile sidebar
   closeSidebar();
 };

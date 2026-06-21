@@ -1,0 +1,30 @@
+handoff:
+  from_agent: "po"
+  to_agent: "dev"
+  last_command: "validate-story-draft"
+  timestamp: "2026-06-21"
+  consumed: false
+  story_context:
+    epic_id: "EPIC-22"
+    epic_path: "docs/stories/EPIC-22-MODULOS-POR-CLIENTE.md"
+    story: "22.1 — Toggle de Módulos por cliente"
+    status: "Ready"
+    branch: "feature/epic20-ajustes-financeiro-gdp"
+  validation:
+    verdict: "GO (10/10)"
+  decisions:
+    - "Qualquer módulo opcional (inclusive GDP); default seguro = sem config → tudo visível."
+    - "Aplicar visibilidade em todas as 3 telas e em switchModule."
+  attention_points:
+    - "FR-22.1.2: aplicarAcessoSidebar() vive em app-utils.js, NÃO carregado por gdp-contratos.html. Portar/disponibilizar no contexto do GDP sem duplicar shape (fonte única recomendada)."
+    - "FR-22.1.5: default seguro é crítico — sem config → tudo visível. Não travar cliente novo."
+  files_to_touch:
+    - "app-utils.js (getAcessoModulos/salvarModulos/aplicarAcessoSidebar; remover hardcode gdp=true)"
+    - "app-config.js (switchModule → reaplicar)"
+    - "dashboard-home.html (navegação reaplica)"
+    - "gdp-contratos.html + js/gdp-init.js (aplicar no boot do GDP; bump ?v=N)"
+    - "index.html (checkboxes refletem estado; permitir desmarcar GDP)"
+  blockers: []
+  next_action: >
+    @dev *develop-story 22.1. Centralizar fonte única de módulos; reaplicar em switchModule + boot das 3 telas;
+    qualquer módulo opcional + default seguro. Bump ?v=N nos JS/HTML alterados. Depois @devops deploya + push/PR/merge.

@@ -279,43 +279,25 @@ function isGrupoExcluido(grupo) {
 }
 
 // ===== CONTROLE DE ACESSO POR MÓDULO =====
+// Story 22.1 (EPIC-22): getAcessoModulos/setAcessoModulos/aplicarAcessoSidebar agora vivem na
+// fonte ÚNICA modulos-acesso.js (carregada antes deste arquivo). Aqui ficam só os bindings de UI.
 const MODULOS_KEY = "nexedu.modulos.acesso";
 
-function getAcessoModulos() {
-  try {
-    const raw = localStorage.getItem(MODULOS_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      return { radar: parsed.radar !== false, intelPrecos: parsed.intelPrecos !== false, gdp: true };
-    }
-  } catch(_) {}
-  return { radar: true, intelPrecos: true, gdp: true };
-}
-
 function salvarModulos() {
-  const acesso = {
+  // FR-22.1.4: qualquer módulo é opcional (inclusive GDP). Lê os 3 checkboxes.
+  setAcessoModulos({
     radar: document.getElementById("mod-radar")?.checked ?? true,
     intelPrecos: document.getElementById("mod-intel")?.checked ?? true,
-    gdp: true
-  };
-  localStorage.setItem(MODULOS_KEY, JSON.stringify(acesso));
+    gdp: document.getElementById("mod-gdp")?.checked ?? true
+  });
   aplicarAcessoSidebar();
   schedulCloudSync();
 }
 
 function carregarModulosConfig() {
+  // FR-22.1.7: refletir o estado real; GDP deixa de ser disabled (passa a ser desmarcável).
   const acesso = getAcessoModulos();
   const r = document.getElementById("mod-radar"); if (r) r.checked = acesso.radar;
   const i = document.getElementById("mod-intel"); if (i) i.checked = acesso.intelPrecos;
-  const g = document.getElementById("mod-gdp"); if (g) { g.checked = true; g.disabled = true; }
-}
-
-function aplicarAcessoSidebar() {
-  const acesso = getAcessoModulos();
-  document.querySelectorAll(".sidebar-item[data-module]").forEach(btn => {
-    const mod = btn.dataset.module;
-    if (mod === "radar") btn.style.display = acesso.radar ? "" : "none";
-    if (mod === "intel-precos") btn.style.display = acesso.intelPrecos ? "" : "none";
-    if (mod === "gdp") btn.style.display = acesso.gdp ? "" : "none";
-  });
+  const g = document.getElementById("mod-gdp"); if (g) { g.checked = acesso.gdp; g.disabled = false; }
 }

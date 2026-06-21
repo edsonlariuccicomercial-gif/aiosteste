@@ -1,0 +1,28 @@
+handoff:
+  from_agent: "pm"
+  to_agent: "po"
+  last_command: "create-epic"
+  timestamp: "2026-06-21"
+  consumed: false
+  story_context:
+    epic_id: "EPIC-22"
+    epic_path: "docs/stories/EPIC-22-MODULOS-POR-CLIENTE.md"
+    discovery_path: "docs/stories/DISCOVERY-EPIC22-MODULOS-POR-CLIENTE.md"
+    story: "22.1 — Toggle de Módulos por cliente: consistente em todas as telas e navegação"
+    status: "Draft"
+    branch: "feature/epic20-ajustes-financeiro-gdp"
+  strategic_context:
+    - "Fase 1 da separação de produtos: destrava venda do GDP isolado consertando o toggle de Módulos existente."
+    - "Fase 2 (@architect) = API do núcleo comum; follow-up não bloqueante."
+  decisions:
+    - "Consertar toggle existente (não esconder via código, não deletar Radar/Intel, não separar repo)."
+    - "Qualquer módulo opcional (inclusive GDP); default seguro = sem config → tudo visível."
+    - "Aplicar visibilidade em todas as 3 telas (index, dashboard-home, gdp-contratos) e em switchModule."
+  root_cause:
+    - "switchModule (app-config.js:33-91) não reaplica aplicarAcessoSidebar — bug 1."
+    - "gdp-contratos.html/gdp-init.js não aplica config no boot — bug 2."
+    - "navegação do dashboard-home via onclick inline não reaplica — bug 3 (menor)."
+  files_modified:
+    - "docs/stories/EPIC-22-MODULOS-POR-CLIENTE.md (criado)"
+  blockers: []
+  next_action: "@po *validate-story-draft 22.1 (checklist 10 pontos); marcar Draft → Ready se GO."

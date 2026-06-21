@@ -143,9 +143,10 @@
   <div class="sidebar-overlay" id="sidebar-overlay"></div>
 
   <script src="auth.js"></script>
+  <script src="modulos-acesso.js?v=1"></script>
   <script>
 // ===== CONFIG =====
-const MODULOS_KEY = "nexedu.modulos.acesso";
+// Story 22.1: MODULOS_KEY/getAcessoModulos/aplicarAcessoSidebar vêm de modulos-acesso.js (fonte única).
 // Story 8.14: Dynamic SRE_CONFIG from user's active SREs (not hardcoded)
 const SRE_COLORS = ["#3b82f6","#f59e0b","#ef4444","#22c55e","#a855f7","#06b6d4","#ec4899","#f97316","#14b8a6","#8b5cf6","#6366f1","#84cc16"];
 const SRE_CONFIG = (function() {
@@ -177,23 +178,7 @@ sidebarOverlay.addEventListener("click", () => {
 });
 
 // ===== ACCESS CONTROL =====
-function getAcessoModulos() {
-  try {
-    const raw = localStorage.getItem(MODULOS_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch(_) {}
-  return { radar: true, intelPrecos: true, gdp: true };
-}
-
-function aplicarAcessoSidebar() {
-  const acesso = getAcessoModulos();
-  document.querySelectorAll(".sidebar-item[data-module]").forEach(btn => {
-    const mod = btn.dataset.module;
-    if (mod === "radar") btn.style.display = acesso.radar ? "" : "none";
-    if (mod === "intel-precos") btn.style.display = acesso.intelPrecos ? "" : "none";
-    if (mod === "gdp") btn.style.display = acesso.gdp ? "" : "none";
-  });
-}
+// Story 22.1: getAcessoModulos/aplicarAcessoSidebar agora vêm de modulos-acesso.js (fonte única).
 
 // ===== KPIs =====
 function carregarKPIs() {
