@@ -3048,14 +3048,15 @@ function abrirContrato(id) {
   const detalhePage = document.getElementById("contrato-detalhe-page");
   const listagem = document.getElementById("contratos-listagem");
   if (detalhePage && listagem) {
-    // Story 4.51 AC-H4: header only has title, buttons moved to bottom
+    // Story 21.13: setinha "voltar" no TOPO (mesmo padrão de Pedidos), à esquerda do título.
     const headerHtml = `
       <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem">
+        <button onclick="fecharContratoDetalhe()" style="background:transparent;border:none;cursor:pointer;color:var(--mut);font-size:1.1rem;padding:4px 8px" title="Voltar">&#x2190;</button>
         <h2 style="font-size:1.1rem;font-weight:600;margin:0;flex:1">Contrato ${esc(c.id)}</h2>
       </div>`;
+    // Story 21.13: rodapé mantém apenas as ações (Excluir/Salvar); botão "Voltar" removido daqui.
     const footerHtml = `
       <div style="display:flex;align-items:center;gap:1rem;margin-top:2rem;padding-top:1rem;border-top:1px solid var(--bdr)">
-        <button onclick="fecharContratoDetalhe()" style="background:transparent;border:none;cursor:pointer;color:var(--mut);font-size:1.1rem;padding:4px 12px;display:flex;align-items:center;gap:.4rem" title="Voltar">&#x2190; Voltar</button>
         <div style="flex:1"></div>
         <button class="btn btn-sm btn-red" onclick="excluirContrato('${c.id}')">Excluir</button>
         <button class="btn btn-sm btn-blue" onclick="salvarDadosContrato('${c.id}')">Salvar</button>

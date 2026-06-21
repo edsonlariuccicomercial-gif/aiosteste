@@ -1,0 +1,33 @@
+handoff:
+  from_agent: "po"
+  to_agent: "dev"
+  last_command: "validate-story-draft"
+  timestamp: "2026-06-21"
+  consumed: false
+  story_context:
+    epic_id: "EPIC-21"
+    epic_path: "docs/stories/EPIC-21-UX-FIXES-GDP.md"
+    wave: "Onda 3 (21.10–21.14)"
+    status: "Ready"
+    branch: "feature/epic20-ajustes-financeiro-gdp"
+  validation:
+    verdict: "GO (5/5, 10/10 cada)"
+  decisions:
+    - "21.10 + 21.11 implementar em par (fonte unificada de categorias)."
+    - "21.10 AC4 (migração das categorias da chave antiga) é o maior risco — não perder categorias existentes."
+    - "21.12 P1/ALTO — reutilizar coletarPedidoDoForm(id); validar em produção com pedido real."
+    - "21.13 + 21.14 são XS (UX); podem ir no mesmo commit/deploy. 21.14: alterar só o botão, não a classe .btn-outline global."
+  files_modified:
+    - "docs/stories/EPIC-21-UX-FIXES-GDP.md (Onda 3 validada; Draft → Ready; change log)"
+  blockers: []
+  next_action: >
+    @dev *develop-story para a Onda 3, na ordem: 21.10→21.11 (par), 21.12, 21.13+21.14.
+    Bump ?v=N nos HTML dos JS alterados. Após implementar: @devops deploya (npx vercel --prod --force) e push.
+  files_to_touch:
+    - "js/gdp-estoque-intel.js (filtro de categorias)"
+    - "js/gdp-init.js (form Novo Produto: lista-base, chaves, +/⚙)"
+    - "js/gdp-banco-produtos.js (grupo: dados.categoria)"
+    - "js/gdp-core.js (referência padrão CP/CR de categoria)"
+    - "js/gdp-pedidos.js (clone: salvarClonePedido / coletarPedidoDoForm)"
+    - "js/gdp-contratos-module.js (setinha voltar para o topo)"
+    - "gdp-contratos.html (botão voltar CP: remover .btn-outline; bump ?v=N)"

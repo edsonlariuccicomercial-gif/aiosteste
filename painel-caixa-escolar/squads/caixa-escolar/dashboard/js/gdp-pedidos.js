@@ -341,14 +341,14 @@ function clonarPedido(pedidoId) {
 
 function salvarClonePedido() {
   if (!_pendingClone) return;
-  pedidos.push(_pendingClone);
-  savePedidos();
-  renderPedidos();
   const id = _pendingClone.id;
+  // Story 21.12: o clone precisa estar no array ANTES de coletar o form, porque
+  // salvarPedidoCompleto/savePedidoFiscalData/salvarPedidoPagamento buscam o pedido por id.
+  pedidos.push(_pendingClone);
   _pendingClone = null;
-  // Story 21.x (UX-FA): salvar não fecha a tela; reabre o pedido já persistido em modo detalhe
-  // (o usuário fecha via Voltar). Antes fechava direto após salvar.
-  showToast(`Pedido ${id} salvo com sucesso.`, 3000);
+  // Story 21.12: reaproveita a coleta completa do formulário (mesma de salvarPedidoCompleto),
+  // garantindo que as edições feitas antes do 1º Salvar sejam aplicadas — não mais o clone cru.
+  salvarPedidoCompleto(id);
   verPedidoDetalhe(id);
 }
 

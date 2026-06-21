@@ -1977,7 +1977,10 @@ function renderEstoque() {
   // Populate category dropdown dynamically (inclui customizadas)
   if (catSelect) {
     const currentVal = catSelect.value;
-    const allCats = [...new Set([...(_customCategorias || []), ...estoqueIntelProdutos.map(p => p.categoria || "")])].filter(Boolean).sort();
+    // Story 21.10: usa a MESMA fonte de verdade do form Novo Produto (getCategoriasProduto)
+    const allCats = (typeof getCategoriasProduto === 'function')
+      ? getCategoriasProduto()
+      : [...new Set([...(_customCategorias || []), ...estoqueIntelProdutos.map(p => p.categoria || "")])].filter(Boolean).sort();
     catSelect.innerHTML = '<option value="">Todas Categorias</option>' + allCats.map(c => '<option value="' + c + '"' + (c === currentVal ? ' selected' : '') + '>' + c + '</option>').join("");
   }
   document.querySelectorAll("[data-ei-section]").forEach((el) => {
