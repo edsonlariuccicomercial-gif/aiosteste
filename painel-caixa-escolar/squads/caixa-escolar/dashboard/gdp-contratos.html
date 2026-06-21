@@ -755,7 +755,7 @@
     <div class="hidden" id="cp-detalhe-modal" style="position:fixed;inset:0;background:rgba(8,15,31,.88);z-index:1013;padding:1.25rem;overflow-y:auto" onclick="fecharDetalheCp()">
       <div style="background:var(--bg);border:1px solid var(--bdr);border-radius:18px;max-width:640px;margin:2rem auto;display:flex;flex-direction:column" onclick="event.stopPropagation()">
         <div style="padding:1.2rem 1.5rem;border-bottom:1px solid var(--bdr);display:flex;align-items:center;gap:1rem">
-          <button class="btn btn-outline btn-sm" onclick="fecharDetalheCp()" title="Voltar (pagamentos já são salvos ao incluir)" style="display:flex;align-items:center;gap:4px"><span style="font-size:1rem">&larr;</span> Voltar</button>
+          <button onclick="fecharDetalheCp()" title="Voltar (pagamentos já são salvos ao incluir)" style="background:transparent;border:none;cursor:pointer;color:var(--mut);font-size:1.1rem;padding:4px 8px;display:flex;align-items:center;gap:.4rem">&#x2190; Voltar</button>
           <h2 style="margin:0;font-size:1.12rem;flex:1">Detalhes da Conta a Pagar</h2>
           <button class="btn btn-outline btn-sm" id="cp-detalhe-edit-btn" onclick="toggleEditCpDetalhe()">Editar</button>
         </div>
@@ -2638,9 +2638,9 @@ function confirmarImportProd() {
 <script src="./js/gdp-integrations-client.js?v=11"></script>
 <script src="./js/gdp-core.js?v=35"></script>
 <script src="./js/gdp-notas-fiscais.js?v=21"></script>
-<script src="./js/gdp-contratos-module.js?v=20"></script>
-<script src="./js/gdp-estoque-intel.js?v=15"></script>
-<script src="./js/gdp-pedidos.js?v=25"></script>
+<script src="./js/gdp-contratos-module.js?v=21"></script>
+<script src="./js/gdp-estoque-intel.js?v=16"></script>
+<script src="./js/gdp-pedidos.js?v=26"></script>
 <script src="./js/gdp-usuarios.js?v=15"></script>
 <!-- gdp-entregas.js removido (Épico A - FR-016) -->
 <!-- ADR-002 Fase 3: SSoT unificada de produtos (carregar ANTES de gdp-banco-produtos) -->
@@ -2649,7 +2649,7 @@ function confirmarImportProd() {
 <script src="./product-store.js?v=1"></script>
 <script src="./js/gdp-banco-produtos.js?v=14"></script>
 <script src="./js/gdp-conta-corrente.js?v=7"></script>
-<script src="./js/gdp-init.js?v=31"></script>
+<script src="./js/gdp-init.js?v=32"></script>
 
 
 

@@ -1,0 +1,28 @@
+handoff:
+  from_agent: "pm"
+  to_agent: "po"
+  last_command: "create-epic"
+  timestamp: "2026-06-21"
+  consumed: false
+  story_context:
+    epic_id: "EPIC-21"
+    epic_path: "docs/stories/EPIC-21-UX-FIXES-GDP.md"
+    wave: "Onda 3 (F10–F14)"
+    stories:
+      - "21.10 — Central de Produtos: unificar fonte das categorias (filtro × form Novo Produto)"
+      - "21.11 — Form Novo Produto: '+ Nova Categoria' no padrão CP/CR; remover '+' lateral, manter ⚙"
+      - "21.12 — Pedidos: clone aceita edições feitas antes do 1º Salvar"
+      - "21.13 — Contratos: mover setinha 'voltar' para o topo (padrão Pedidos)"
+      - "21.14 — Financeiro: padronizar setinha 'voltar' do card Detalhes da Conta a Pagar (remover contorno)"
+    status: "Draft"
+    branch: "feature/epic20-ajustes-financeiro-gdp"
+  decisions:
+    - "Onda 3 anexada ao EPIC-21 existente (não criar épico novo); numeração 21.10–21.14."
+    - "21.10 e 21.11 dependem entre si (fonte unificada); recomendado implementar juntas."
+    - "21.12 é P1/risco ALTO (afeta pedido real); reutilizar coletarPedidoDoForm para evitar divergência."
+    - "21.13/21.14 são XS (somente UX/posicionamento/estilo da setinha 'voltar')."
+    - "Root-cause confirmado por @analyst com file:line para todas as 5."
+  files_modified:
+    - "docs/stories/EPIC-21-UX-FIXES-GDP.md (tabela sintoma→causa, ONDA 3, DoD, change log)"
+  blockers: []
+  next_action: "@po *validate-story-draft para 21.10–21.14 (checklist 10 pontos); marcar Draft → Ready se GO."

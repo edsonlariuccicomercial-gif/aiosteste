@@ -1967,7 +1967,7 @@ function abrirCadastroProdutoViaVincular() {
   _novoProdutoEmbs = [{ id: 'temp-0', descricao: '', quantidade_base: 1, preco_referencia: 0 }];
 
   const UNIT_OPTS = '<optgroup label="Contagem"><option value="UN" selected>UN</option><option value="DZ">DZ</option></optgroup><optgroup label="Embalagem"><option value="CX">CX</option><option value="PCT">PCT</option><option value="FD">FD</option><option value="BD">BD</option><option value="SC">SC</option></optgroup><optgroup label="Peso/Volume"><option value="KG">KG</option><option value="LT">LT</option><option value="GL">GL</option></optgroup>';
-  const CAT_OPTS = ["","Hortifruti","Carnes/Proteinas","Graos/Cereais","Laticinios","Frutas","Mercearia","Padaria/Biscoitos","Ovos","Bebidas","Limpeza","Outros",..._loadCategoriasCustom()].map(c => '<option value="'+c+'">'+(c||"Sem Categoria")+'</option>').join("");
+  const CAT_OPTS = buildCategoriaProdutoOptions(""); // Story 21.10/21.11
   const ORI_OPTS = [{v:"0",l:"0 — Nacional"},{v:"1",l:"1 — Import. Direta"},{v:"2",l:"2 — Import. Merc."}].map(o => '<option value="'+o.v+'">'+o.l+'</option>').join("");
   const nomeResumido = gdpResumirDescricao(_vincularPendente.descricao) || _vincularPendente.descricao || '';
 
@@ -1980,7 +1980,7 @@ function abrirCadastroProdutoViaVincular() {
     + '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.2rem">SKU</label><input type="text" id="vc-sku" placeholder="Auto (LICT-XXXX)" style="width:100%"></div></div>'
     + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-bottom:.6rem">'
     + '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.2rem">NCM</label><input type="text" id="vc-ncm" placeholder="Ex: 10063021" style="width:100%"></div>'
-    + '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.2rem">Categoria</label><select id="vc-categoria" style="width:100%">' + CAT_OPTS + '</select></div></div>'
+    + '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.2rem">Categoria</label><select id="vc-categoria" style="width:100%" onchange="onCategoriaProdutoChange(this)">' + CAT_OPTS + '</select></div></div>'
     + '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.5rem;margin-bottom:.6rem">'
     + '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.2rem">Origem</label><select id="vc-origem" style="width:100%">' + ORI_OPTS + '</select></div>'
     + '<div><label style="font-size:.72rem;color:var(--mut);display:block;margin-bottom:.2rem">Preco Custo</label><input type="number" id="vc-custo" step="0.01" min="0" placeholder="0.00" style="width:100%"></div>'
@@ -3295,7 +3295,7 @@ function abrirEditarProduto(produtoId) {
     {v:"3",l:"3 — Nac. >40% Import."},{v:"4",l:"4 — Nac. Proc. Basicos"},{v:"5",l:"5 — Nac. <=40% Import."},
     {v:"6",l:"6 — Import. s/ Similar"},{v:"7",l:"7 — Import. MI s/ Similar"}
   ];
-  const CAT_OPTS = ["","Hortifruti","Carnes/Proteinas","Graos/Cereais","Laticinios","Frutas","Mercearia","Padaria/Biscoitos","Ovos","Bebidas","Polpas/Frutas","Limpeza","Outros",..._loadCategoriasCustom()];
+  const CAT_OPTS = buildCategoriaProdutoOptions(produto.categoria || ""); // Story 21.10/21.11
   const UNIT_OPTS = ["UN","DZ","g","KG","ml","LT","GL","CX","PCT","FD","BD","PT","SC","MÇ","RS","RL","FR","TB","GF","LA"];
 
   const detalhePage = document.getElementById("produto-detalhe-page");
@@ -3336,7 +3336,7 @@ function abrirEditarProduto(produtoId) {
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.75rem">
         <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">NCM</label><input type="text" id="edit-prod-ncm" value="${esc(produto.ncm || "")}" list="ncm-datalist" oninput="filtrarNCM(this)" autocomplete="off" style="width:100%"></div>
-        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Categoria</label><select id="edit-prod-categoria" style="width:100%">${CAT_OPTS.map(c => '<option value="' + c + '"' + ((produto.categoria||"")===c?' selected':'') + '>' + (c || "Sem Categoria") + '</option>').join("")}</select></div>
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Categoria</label><select id="edit-prod-categoria" style="width:100%" onchange="onCategoriaProdutoChange(this)">${CAT_OPTS}</select></div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.75rem;margin-bottom:.75rem">
         <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Origem NF-e</label><select id="edit-prod-origem" style="width:100%">${ORIGEM_OPTS.map(o => '<option value="' + o.v + '"' + ((produto.origem||"0")===o.v?' selected':'') + '>' + o.l + '</option>').join("")}</select></div>
@@ -3576,11 +3576,8 @@ function renderModalNovoProduto() {
   const UNIT_OPTS_COMUM = '<optgroup label="Contagem"><option value="UN" selected>UN — Unidade</option><option value="DZ">DZ — Duzia</option></optgroup><optgroup label="Embalagem"><option value="CX">CX — Caixa</option><option value="PCT">PCT — Pacote</option><option value="FD">FD — Fardo</option><option value="BD">BD — Bandeja</option><option value="PT">PT — Pote</option><option value="SC">SC — Sache/Saco</option></optgroup><optgroup label="Outros"><option value="MÇ">MÇ — Maco</option><option value="RS">RS — Resma</option><option value="RL">RL — Rolo</option><option value="FR">FR — Frasco</option><option value="TB">TB — Tubo</option><option value="GF">GF — Garrafa</option><option value="LA">LA — Lata</option><option value="KG">KG — Quilograma</option><option value="LT">LT — Litro</option><option value="GL">GL — Galao</option></optgroup>';
   const UNIT_OPTS_CRITICO = '<optgroup label="Peso (conversao gramatura)"><option value="g" selected>g — Grama</option><option value="KG">KG — Quilograma</option></optgroup><optgroup label="Volume (conversao ml)"><option value="ml">ml — Mililitro</option><option value="LT">LT — Litro</option><option value="GL">GL — Galao</option></optgroup>';
   const UNIT_OPTS = UNIT_OPTS_COMUM;
-  const _customCats = (typeof _loadCategoriasCustom === 'function') ? _loadCategoriasCustom() : [];
-  const _removedCats = (typeof _loadCategoriasRemoved === 'function') ? _loadCategoriasRemoved() : [];
-  const _prodCats = (typeof estoqueIntelProdutos !== 'undefined') ? estoqueIntelProdutos.map(p => p.categoria || "").filter(Boolean) : [];
-  const _allCatsNovoProd = [...new Set(["Hortifruti","Carnes/Proteinas","Graos/Cereais","Laticinios","Frutas","Mercearia","Padaria/Biscoitos","Ovos","Bebidas","Limpeza","Outros", ..._customCats, ..._prodCats])].filter(c => !_removedCats.includes(c)).sort();
-  const CAT_OPTS = ['<option value="">Sem Categoria</option>', ..._allCatsNovoProd.map(c => `<option value="${c}">${c}</option>`)].join("");
+  // Story 21.10/21.11: usa a fonte unificada de categorias + opção "+ Nova Categoria"
+  const CAT_OPTS = buildCategoriaProdutoOptions("");
   const ORI_OPTS = [{v:"0",l:"0 — Nacional"},{v:"1",l:"1 — Import. Direta"},{v:"2",l:"2 — Import. Merc. Interno"},{v:"3",l:"3 — Nac. >40% Import."},{v:"4",l:"4 — Nac. Proc. Basicos"},{v:"5",l:"5 — Nac. <=40% Import."},{v:"6",l:"6 — Import. s/ Similar"},{v:"7",l:"7 — Import. MI s/ Similar"}].map(o => `<option value="${o.v}">${o.l}</option>`).join("");
 
   let embsHtml = _novoProdutoEmbs.map((emb, i) => `
@@ -3619,7 +3616,7 @@ function renderModalNovoProduto() {
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.75rem">
         <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">NCM</label><input type="text" id="ei-produto-ncm" placeholder="Digite nome ou codigo..." list="ncm-datalist" oninput="filtrarNCM(this)" autocomplete="off" style="width:100%"><datalist id="ncm-datalist"></datalist></div>
-        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Categoria</label><div style="display:flex;gap:.35rem"><select id="ei-produto-categoria" style="flex:1">${CAT_OPTS}</select><button class="btn btn-outline btn-sm" onclick="adicionarCategoriaCustom()" title="Nova categoria" style="padding:.35rem .5rem">+</button><button class="btn btn-outline btn-sm" onclick="abrirGerenciadorCategorias()" title="Gerenciar categorias" style="padding:.35rem .5rem;font-size:.7rem">⚙</button></div></div>
+        <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Categoria</label><div style="display:flex;gap:.35rem"><select id="ei-produto-categoria" style="flex:1" onchange="onCategoriaProdutoChange(this)">${CAT_OPTS}</select><button class="btn btn-outline btn-sm" onclick="abrirGerenciadorCategorias()" title="Gerenciar categorias" style="padding:.35rem .5rem;font-size:.7rem">⚙</button></div></div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.75rem;margin-bottom:.75rem">
         <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Origem NF-e</label><select id="ei-produto-origem" style="width:100%">${ORI_OPTS}</select></div>
@@ -3756,6 +3753,12 @@ function salvarNovoProdutoModal() {
 // Story 4.51 AC-G2: persist custom categories to localStorage
 const CATEGORIAS_CUSTOM_KEY = "gdp.categorias-produto.custom.v1";
 const CATEGORIAS_REMOVED_KEY = "gdp.categorias-produto.removed.v1";
+// Story 21.10: chave legada do filtro de estoque (gdp-estoque-intel.js). Mantida só para migração.
+const CATEGORIAS_LEGACY_KEY = "gdp.produto-categorias-custom.v1";
+
+// Story 21.10: lista-base ÚNICA de categorias de produto (fonte de verdade compartilhada
+// pelo filtro da tela principal e por todos os forms de produto).
+const CATEGORIAS_PRODUTO_BASE = ["Hortifruti","Carnes/Proteinas","Graos/Cereais","Laticinios","Frutas","Mercearia","Padaria/Biscoitos","Ovos","Bebidas","Limpeza","Outros"];
 
 function _loadCategoriasRemoved() {
   try { return JSON.parse(localStorage.getItem(CATEGORIAS_REMOVED_KEY) || "[]"); } catch(_) { return []; }
@@ -3765,7 +3768,26 @@ function _saveCategoriasRemoved(cats) {
   if (typeof cloudSave === 'function') cloudSave(CATEGORIAS_REMOVED_KEY, cats);
 }
 
+// Story 21.10: migra (uma vez) as categorias da chave legada do filtro para a chave canônica,
+// sem perder nada já criado pelo usuário no botão "+" antigo.
+let _categoriasMigradas = false;
+function _migrarCategoriasLegado() {
+  if (_categoriasMigradas) return;
+  _categoriasMigradas = true;
+  let legacy = [];
+  try { legacy = JSON.parse(localStorage.getItem(CATEGORIAS_LEGACY_KEY) || "[]"); } catch(_) { legacy = []; }
+  if (!Array.isArray(legacy) || !legacy.length) return;
+  let custom = [];
+  try { custom = JSON.parse(localStorage.getItem(CATEGORIAS_CUSTOM_KEY) || "[]"); } catch(_) { custom = []; }
+  const merged = [...new Set([...custom, ...legacy.map(c => String(c).trim()).filter(Boolean)])];
+  if (merged.length !== custom.length) {
+    localStorage.setItem(CATEGORIAS_CUSTOM_KEY, JSON.stringify(merged));
+    if (typeof cloudSave === 'function') cloudSave(CATEGORIAS_CUSTOM_KEY, merged);
+  }
+}
+
 function _loadCategoriasCustom() {
+  _migrarCategoriasLegado();
   try { return JSON.parse(localStorage.getItem(CATEGORIAS_CUSTOM_KEY) || "[]"); } catch(_) { return []; }
 }
 
@@ -3773,24 +3795,72 @@ function _saveCategoriasCustom(cats) {
   localStorage.setItem(CATEGORIAS_CUSTOM_KEY, JSON.stringify(cats));
   // Story 4.51 AC-G2: also sync to cloud
   if (typeof cloudSave === 'function') cloudSave(CATEGORIAS_CUSTOM_KEY, cats);
+  // Story 21.10: manter a chave legada espelhada para o filtro do estoque (caso o módulo
+  // ainda leia _customCategorias do localStorage antes de re-sincronizar).
+  localStorage.setItem(CATEGORIAS_LEGACY_KEY, JSON.stringify(cats));
+  if (typeof _customCategorias !== 'undefined') { try { _customCategorias = cats.slice(); } catch(_){} }
 }
 
-function adicionarCategoriaCustom() {
+// Story 21.10: FONTE DE VERDADE — categorias de produto consumidas por TODAS as telas
+// (filtro da tela principal + selects dos forms + gerenciador). Base única + custom + em uso − removidas.
+function getCategoriasProduto() {
+  const custom = _loadCategoriasCustom();
+  const removed = _loadCategoriasRemoved();
+  const emUso = (typeof estoqueIntelProdutos !== 'undefined') ? estoqueIntelProdutos.map(p => p.categoria || "").filter(Boolean) : [];
+  return [...new Set([...CATEGORIAS_PRODUTO_BASE, ...custom, ...emUso])].filter(c => !removed.includes(c)).sort();
+}
+
+// Story 21.11: cria categoria de produto no padrão Contas a Pagar/Receber (ensureContaCategoria).
+// Retorna o nome normalizado (ou null se inválida/cancelada). Persiste na fonte unificada.
+function criarCategoriaProduto(nome) {
+  const v = (nome || "").trim();
+  if (!v) return null;
+  const custom = _loadCategoriasCustom();
+  const removed = _loadCategoriasRemoved();
+  // se estava removida, "ressuscita"
+  const ri = removed.indexOf(v);
+  if (ri >= 0) { removed.splice(ri, 1); _saveCategoriasRemoved(removed); }
+  const jaExiste = getCategoriasProduto().some(c => c.toLowerCase() === v.toLowerCase());
+  if (!custom.some(c => c.toLowerCase() === v.toLowerCase()) && !CATEGORIAS_PRODUTO_BASE.some(c => c.toLowerCase() === v.toLowerCase())) {
+    custom.push(v); _saveCategoriasCustom(custom);
+  }
+  return jaExiste ? (getCategoriasProduto().find(c => c.toLowerCase() === v.toLowerCase()) || v) : v;
+}
+
+// Story 21.10/21.11: monta as <option> do select de categoria do produto, com placeholder
+// "Sem Categoria" e a opção "+ Nova Categoria" (padrão CP/CR) ao final.
+function buildCategoriaProdutoOptions(selected) {
+  const sel = selected || "";
+  const opts = ['<option value=""' + (sel === "" ? ' selected' : '') + '>Sem Categoria</option>'];
+  getCategoriasProduto().forEach(c => {
+    opts.push('<option value="' + esc(c) + '"' + (c === sel ? ' selected' : '') + '>' + esc(c) + '</option>');
+  });
+  opts.push('<option value="__nova__">+ Nova Categoria</option>');
+  return opts.join("");
+}
+
+// Story 21.11: handler do select — ao escolher "+ Nova Categoria", abre o prompt e seleciona a nova.
+window.onCategoriaProdutoChange = function(selectEl) {
+  if (!selectEl || selectEl.value !== "__nova__") return;
   const nome = prompt("Nome da nova categoria:");
-  if (!nome || !nome.trim()) return;
+  const criada = criarCategoriaProduto(nome);
+  if (!criada) { selectEl.value = ""; return; }
+  selectEl.innerHTML = buildCategoriaProdutoOptions(criada);
+  selectEl.value = criada;
+  if (typeof showToast === 'function') showToast("Categoria adicionada: " + criada, 2500);
+  // refletir no filtro da tela principal imediatamente
+  if (typeof renderEstoque === 'function') renderEstoque();
+};
+
+// Story 21.11: substituído pelo padrão "+ Nova Categoria" (onCategoriaProdutoChange + criarCategoriaProduto).
+// Mantido como alias para compatibilidade com qualquer chamada dinâmica legada.
+function adicionarCategoriaCustom() {
+  const criada = criarCategoriaProduto(prompt("Nome da nova categoria:"));
+  if (!criada) return;
   const sel = document.getElementById("ei-produto-categoria");
-  if (!sel) return;
-  const exists = Array.from(sel.options).some(o => o.value.toLowerCase() === nome.trim().toLowerCase());
-  if (exists) { showToast("Categoria ja existe.", 2500); return; }
-  const opt = document.createElement("option");
-  opt.value = nome.trim();
-  opt.textContent = nome.trim();
-  sel.insertBefore(opt, sel.lastElementChild);
-  sel.value = nome.trim();
-  // Story 4.51 AC-G2: persist to localStorage
-  const customs = _loadCategoriasCustom();
-  if (!customs.includes(nome.trim())) { customs.push(nome.trim()); _saveCategoriasCustom(customs); }
-  showToast("Categoria adicionada: " + nome.trim(), 2500);
+  if (sel) { sel.innerHTML = buildCategoriaProdutoOptions(criada); sel.value = criada; }
+  showToast("Categoria adicionada: " + criada, 2500);
+  if (typeof renderEstoque === 'function') renderEstoque();
 }
 
 // Story 4.51 AC-G3: edit and delete categories
@@ -3830,11 +3900,8 @@ window.excluirCategoria = function(name) {
 
 // Story 4.53 AC-2: UI para gerenciar categorias (todas — padrão + custom + em uso)
 window.abrirGerenciadorCategorias = function() {
-  const customs = _loadCategoriasCustom();
-  const removed = _loadCategoriasRemoved();
-  const padrao = ["Hortifruti","Carnes/Proteinas","Graos/Cereais","Laticinios","Frutas","Mercearia","Padaria/Biscoitos","Ovos","Bebidas","Limpeza","Outros"];
-  const emUso = (typeof estoqueIntelProdutos !== 'undefined') ? estoqueIntelProdutos.map(p => p.categoria || "").filter(Boolean) : [];
-  const allCats = [...new Set([...padrao, ...customs, ...emUso])].filter(c => !removed.includes(c)).sort();
+  // Story 21.10: usa a fonte unificada de categorias
+  const allCats = (typeof getCategoriasProduto === 'function') ? getCategoriasProduto() : [];
   if (!allCats.length) { showToast("Nenhuma categoria encontrada.", 3000); return; }
   const listHtml = allCats.map(c => {
     const escaped = c.replace(/'/g, "\\'").replace(/"/g, '&quot;');

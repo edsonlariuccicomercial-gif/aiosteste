@@ -72,6 +72,11 @@ Vencimento: buildReceivableFromInvoice calcula sempre emitidaEm + prazoRecebimen
 | Checkbox em lote continua marcado após a ação | `bulkImprimirBoletos` (`gdp-init.js:349-354`) não limpa o Set nem re-renderiza | **21.7** (UX-F3) | 2 |
 | Salvar fecha a tela | 9 saves chamam `fecharModal/toggleForm(false)` (vários, ver story) | **21.8** (UX-F2) | 2 |
 | Filtros não limpam ao sair da página | `resetTabState()` (`gdp-init.js:43-81`) não cobre selects/datas nem fechamento de modais | **21.9** (UX-F1) | 2 |
+| Categorias do filtro (tela principal) ≠ categorias do form "Novo Produto" | Duas fontes e duas chaves localStorage distintas: filtro deriva de `_customCategorias` (`gdp.produto-categorias-custom.v1`, `gdp-estoque-intel.js:1980`) sem base; form usa lista **hardcoded** + `_loadCategoriasCustom()` (`gdp.categorias-produto.custom.v1`, `gdp-init.js:3579-3582`) menos removidas | **21.10** (UX-F10) | 3 |
+| Falta "+ Nova Categoria" no padrão Contas a Pagar/Receber no form Novo Produto | "+" → `adicionarCategoriaCustom()` via `prompt()` (`gdp-init.js:3622, 3778`); padrão desejado = `promptNovaCategoriaConta()` (`gdp-core.js:877-941`) | **21.11** (UX-F11) | 3 |
+| Clone de pedido salva igual ao original (ignora edições feitas antes do 1º Salvar) | `salvarClonePedido()` faz `pedidos.push(_pendingClone)` sem reler o form (`gdp-pedidos.js:342-353`) | **21.12** (UX-F12) | 3 |
+| Setinha "voltar" do Contrato fica embaixo (diferente de Pedidos) | `← Voltar` renderizado no rodapé em `abrirContrato()` (`gdp-contratos-module.js:3057-3062`) | **21.13** (UX-F13) | 3 |
+| Setinha "voltar" do card "Detalhes da Conta a Pagar" tem contorno/caixa diferente | Usa `.btn .btn-outline .btn-sm` com `border:1px solid var(--bdr)` (`gdp-contratos.html:758`) vs `border:none` inline das demais | **21.14** (UX-F14) | 3 |
 
 **Notas de priorização:** Onda 1 = bugs de maior impacto direto/financeiro e correções localizadas independentes. Onda 2 = padrões transversais (tocam muitos arquivos; maior risco de regressão, melhor consolidar regra única). Não há dependências fortes entre stories; 21.5 tem dependência externa (cliente enviar quantidades) mas a parte de render é independente.
 
@@ -319,11 +324,156 @@ Regra geral de sistemas modernos: ao sair de uma tela, os filtros de busca são 
 
 ---
 
+# ONDA 3 — Central de Produtos (categorias) + Clone de Pedido + Padronização da setinha "voltar"
+
+> Discovery por **@analyst (Atlas)** em 2026-06-21, a partir de relato do stakeholder (Edson) com evidências de tela. Root-cause confirmado por leitura de código (`file:line`).
+
+## STORY 21.10 — Central de Produtos: unificar a fonte das categorias (filtro × form Novo Produto)
+
+**Resolve:** UX-F10 · **Prioridade:** P1 · **Risco:** MÉDIO (dado/UX) · **Complexidade:** M
+
+### Descrição
+Na Central de Produtos do GDP, a lista de categorias do **filtro da tela principal** ("Todas Categorias") é diferente da lista do **`<select>` Categoria do form "Novo Produto"**. São duas fontes e duas chaves de `localStorage` distintas: o filtro deriva apenas de `_customCategorias` + categorias em uso (chave `gdp.produto-categorias-custom.v1`), sem lista-base; o form usa uma lista-base **hardcoded** + `_loadCategoriasCustom()` (chave `gdp.categorias-produto.custom.v1`) menos as removidas. Resultado: categorias aparecem em uma tela e não na outra (ex.: "Limpeza/Higiene" no filtro vs "Limpeza"/"Outros"/"Ovos"/"Sem Categoria" no form). O cliente afirma já ter pedido esse ajuste antes — houve regressão.
+
+### Requisitos Funcionais
+- **FR-21.10.1:** Definir uma **única fonte de verdade** de categorias de produto (uma função compartilhada `getCategoriasProduto()`) consumida por **ambos**: o filtro da tela principal (`gdp-estoque-intel.js:1980`) e o `<select>` do form Novo Produto (`gdp-init.js:3579-3582` e o segundo render em `:1970`/`:3298`).
+- **FR-21.10.2:** Consolidar para **uma única chave** de `localStorage` (definir a canônica — ex.: `gdp.categorias-produto.custom.v1`) e **migrar** os valores existentes da chave divergente (`gdp.produto-categorias-custom.v1`) para a canônica no boot (uma vez), sem perder categorias já criadas.
+- **FR-21.10.3:** Unificar a lista-base de categorias (uma só), eliminando a divergência (presença/ausência de "Limpeza/Higiene", "Outros", "Ovos", "Polpas/Frutas", etc.). A opção "Sem Categoria" permanece **apenas** como placeholder do `<select>` (valor vazio), não como categoria do filtro.
+- **FR-21.10.4:** Categorias removidas via engrenagem (`gdp.categorias-produto.removed.v1`) devem sumir **das duas** telas de forma consistente.
+- **FR-21.10.5:** Persistir alterações de categoria no padrão `localStorage + Supabase` (manter o `cloudSave()` já existente).
+
+### Critérios de Aceitação
+- **AC1:** *Given* a Central de Produtos, *When* abro o filtro "Todas Categorias" e o `<select>` de "Novo Produto", *Then* ambos exibem **exatamente a mesma lista** de categorias (exceto o placeholder "Sem Categoria" do form).
+- **AC2:** *Given* que crio uma categoria nova, *When* ela é salva, *Then* aparece **nas duas** telas imediatamente.
+- **AC3:** *Given* que removo uma categoria pela engrenagem, *When* confirmo, *Then* ela desaparece **das duas** telas.
+- **AC4:** *Given* categorias já existentes na chave antiga, *When* o sistema sobe após o fix, *Then* nenhuma categoria criada anteriormente é perdida (migração).
+
+### Escopo
+- **IN:** unificação da fonte/chave/lista-base de categorias de produto e consumo nas duas telas. **OUT:** categorias do Financeiro (CP/CR), que têm store próprio.
+
+### Arquivos
+- `js/gdp-estoque-intel.js:7-9, 18, 24, 1980` (fonte do filtro, chave `gdp.produto-categorias-custom.v1`)
+- `js/gdp-init.js:1970, 3298, 3579-3583, 3757-3759, 3768-3835` (lista-base hardcoded, `_loadCategoriasCustom`/`_loadCategoriasRemoved`, chaves `gdp.categorias-produto.custom.v1` / `.removed.v1`, gerenciador de categorias)
+- `js/gdp-banco-produtos.js:429` (`grupo: dados.categoria`)
+
+---
+
+## STORY 21.11 — Form Novo Produto: botão "+ Nova Categoria" no padrão Contas a Pagar/Receber
+
+**Resolve:** UX-F11 · **Prioridade:** P2 · **Risco:** BAIXO · **Complexidade:** S
+
+### Descrição
+No form "Novo Produto" da Central de Produtos, ao final da lista de categorias deve haver um botão/opção **"+ Nova Categoria"** seguindo o **mesmo padrão** já usado em Contas a Pagar e Contas a Receber (opção `+ Nova categoria` no próprio select → `promptNovaCategoriaConta()`). Hoje existe um botão "+" solto ao lado do select que abre um `prompt()` (`adicionarCategoriaCustom()`). Decisão do stakeholder: **remover** esse "+" ao lado do campo (mantendo **somente a engrenagem ⚙** para editar/excluir categorias) e mover a criação para o padrão "+ Nova Categoria" integrado, idêntico ao do Financeiro.
+
+### Requisitos Funcionais
+- **FR-21.11.1:** Adicionar a criação de categoria no padrão do Financeiro: opção `+ Nova Categoria` ao final do `<select>` de categoria (ou botão equivalente ao padrão de CP/CR), que ao ser escolhida abre o fluxo de criação e já seleciona a nova categoria. Referência: `promptNovaCategoriaConta()` / `ensureContaCategoria()` / `renderContaCategoriaOptions()` (`gdp-core.js:866-941`).
+- **FR-21.11.2:** **Remover** o botão "+" ao lado do campo de categoria (`gdp-init.js:3622`, handler `adicionarCategoriaCustom`), deixando **apenas** a engrenagem ⚙ (`abrirGerenciadorCategorias`) para edição/exclusão.
+- **FR-21.11.3:** A nova categoria criada deve persistir na **fonte unificada** definida na Story 21.10 (mesma chave canônica) e refletir nas duas telas.
+- **FR-21.11.4:** Manter validação de unicidade e o feedback (toast) já existentes.
+
+### Critérios de Aceitação
+- **AC1:** *Given* o form Novo Produto, *When* abro o campo Categoria, *Then* existe "+ Nova Categoria" ao final, no mesmo padrão visual/UX de Contas a Pagar/Receber.
+- **AC2:** *Given* que uso "+ Nova Categoria", *When* informo o nome, *Then* a categoria é criada, **já fica selecionada** e aparece nas duas telas (filtro + form).
+- **AC3:** *Given* o form Novo Produto, *When* observo o campo Categoria, *Then* **não** há mais o botão "+" ao lado — apenas a engrenagem ⚙.
+- **AC4:** *Given* a engrenagem ⚙, *When* clico, *Then* continuo conseguindo editar e excluir categorias.
+
+### Escopo
+- **IN:** padrão de criação "+ Nova Categoria" no form Novo Produto + remoção do "+" lateral. **OUT:** alterar o gerenciador (⚙), que permanece.
+
+### Dependências
+- **21.10** (fonte unificada de categorias) — recomendável implementar junto/depois para a nova categoria refletir nas duas telas.
+
+### Arquivos
+- `js/gdp-init.js:3622` (markup `<select>` + botões `+`/`⚙`), `:3778-3794` (`adicionarCategoriaCustom`, a remover), `:3832-3859` (`abrirGerenciadorCategorias`, manter)
+- Referência de padrão: `js/gdp-core.js:866-941` (`ensureContaCategoria`, `promptNovaCategoriaConta`, `renderContaCategoriaOptions`)
+
+---
+
+## STORY 21.12 — Pedidos: clone aceita edições feitas antes do primeiro "Salvar"
+
+**Resolve:** UX-F12 · **Prioridade:** P1 · **Risco:** ALTO (pedido real) · **Complexidade:** S
+
+### Descrição
+Ao "Clonar venda", o sistema mostra "Clone de PED-XXXX. Revise os dados e clique em Salvar". O usuário edita os campos do clone e clica em **Salvar** — mas o pedido é salvo **idêntico ao original**, ignorando as edições. As alterações só "pegam" se o usuário salvar o clone, fechar e reabrir para editar de novo. Causa: `salvarClonePedido()` faz `pedidos.push(_pendingClone)` empurrando o objeto capturado em `clonarPedido()`, **sem reler os campos do formulário** no momento do salvar (diferente de `salvarPedidoCompleto`, que relê o DOM).
+
+### Requisitos Funcionais
+- **FR-21.12.1:** `salvarClonePedido()` deve **reler todos os campos do formulário** (dados fiscais, itens — qtd/preço/descrição/NCM/SKU/unidade, forma/vencimento/prazo de pagamento, data prevista, observações/anotações) e aplicá-los ao `_pendingClone` **antes** de persistir — exatamente como `salvarPedidoCompleto` faz (`gdp-pedidos.js:1535-1563`).
+- **FR-21.12.2:** Preferencialmente, **reutilizar** a coleta de campos já existente em `salvarPedidoCompleto` (extrair função compartilhada `coletarPedidoDoForm(id)`), evitando divergência futura entre os dois caminhos de salvar.
+- **FR-21.12.3:** Manter a geração do novo ID, status `em_aberto`, data de hoje e a limpeza de referências de NF já feitas no clone.
+- **FR-21.12.4:** Após salvar, a mensagem de sucesso e a navegação permanecem; o pedido salvo já reflete as edições (sem necessidade de fechar/reabrir).
+
+### Critérios de Aceitação
+- **AC1:** *Given* um clone com "Revise os dados e clique em Salvar", *When* edito campos (ex.: quantidade, preço, data prevista, dados fiscais) e clico em **Salvar**, *Then* o pedido é salvo **com as edições** aplicadas.
+- **AC2:** *Given* o clone salvo, *When* o reabro, *Then* os valores exibidos são os que editei antes do salvar (não os do original).
+- **AC3:** *Given* o clone, *When* não altero nada e salvo, *Then* o pedido é um clone fiel do original (novo ID, status em aberto, data de hoje, sem NF).
+- **AC4:** Nenhuma regressão no salvar de pedido normal (`salvarPedidoCompleto`).
+
+### Escopo
+- **IN:** coleta dos campos do form no salvar do clone. **OUT:** mudar o fluxo de criação de pedido do zero.
+
+### Arquivos
+- `js/gdp-pedidos.js:326-340` (`clonarPedido`, `_pendingClone`), `:342-353` (`salvarClonePedido` — bug), `:1372-1528` (`verPedidoDetalhe` render do form do clone), `:1535-1563` (`salvarPedidoCompleto` — referência de coleta do DOM)
+
+---
+
+## STORY 21.13 — Contratos: mover a setinha "voltar" para o topo (padrão Pedidos)
+
+**Resolve:** UX-F13 · **Prioridade:** P3 · **Risco:** BAIXO · **Complexidade:** XS
+
+### Descrição
+Padronizar a posição da setinha "voltar". Em **Pedidos**, a seta "←" fica no **topo**, à esquerda do título (referência desejada). Em **Contratos**, o botão "← Voltar" hoje fica no **rodapé** do detalhe. Mover para o **topo**, no mesmo padrão de Pedidos.
+
+### Requisitos Funcionais
+- **FR-21.13.1:** Mover o botão "← Voltar" do detalhe de contrato do rodapé (`gdp-contratos-module.js:3057-3062`) para o **header** do detalhe (junto ao título), no mesmo padrão de Pedidos (`gdp-pedidos.js:1520`): seta transparente, `border:none`, à esquerda do título.
+- **FR-21.13.2:** Manter o handler `fecharContratoDetalhe()` intacto; apenas reposicionar.
+- **FR-21.13.3:** Não duplicar o botão (remover do rodapé ao adicionar no topo).
+
+### Critérios de Aceitação
+- **AC1:** *Given* o detalhe de um contrato, *When* abro, *Then* a setinha "voltar" aparece no **topo**, à esquerda do título, igual a Pedidos.
+- **AC2:** *Given* a setinha no topo, *When* clico, *Then* volto à listagem de contratos (comportamento inalterado).
+- **AC3:** *Given* o detalhe, *When* observo o rodapé, *Then* não há mais botão "voltar" duplicado embaixo.
+
+### Escopo
+- **IN:** reposicionar a setinha do detalhe de Contrato. **OUT:** demais botões do rodapé (Salvar/Excluir/etc.).
+
+### Arquivos
+- `js/gdp-contratos-module.js:2915` (`abrirContrato`), `:3050-3063` (header/footer render), `:3057-3062` (botão atual no rodapé)
+- Referência: `js/gdp-pedidos.js:1520` (seta no topo)
+
+---
+
+## STORY 21.14 — Financeiro: padronizar a setinha "voltar" do card "Detalhes da Conta a Pagar"
+
+**Resolve:** UX-F14 · **Prioridade:** P3 · **Risco:** BAIXO · **Complexidade:** XS
+
+### Descrição
+No card "Detalhes da Conta a Pagar" (Financeiro → Contas a Pagar), o botão "← Voltar" tem um **contorno/caixa** (classes `.btn .btn-outline .btn-sm`, `border:1px solid var(--bdr)`) diferente das demais setinhas do sistema, que usam seta transparente sem borda. Padronizar: **remover o contorno** do botão, deixando-o com a mesma aparência das demais (Pedidos/Contratos).
+
+### Requisitos Funcionais
+- **FR-21.14.1:** Remover o contorno/caixa do botão "← Voltar" do card "Detalhes da Conta a Pagar" (`gdp-contratos.html:758`): trocar as classes `.btn .btn-outline .btn-sm` por estilo inline transparente sem borda (`background:transparent; border:none; color:var(--mut)`), no padrão de Pedidos/Contratos.
+- **FR-21.14.2:** Manter o handler `fecharDetalheCp()` e a posição (já está no topo do card).
+- **FR-21.14.3:** Não introduzir regressão visual em outros usos de `.btn-outline` (alterar **apenas** este botão, não a classe global).
+
+### Critérios de Aceitação
+- **AC1:** *Given* o card "Detalhes da Conta a Pagar", *When* abro, *Then* a setinha "voltar" não tem mais contorno/caixa e está visualmente igual às demais do sistema.
+- **AC2:** *Given* a setinha, *When* clico, *Then* fecho o detalhe (comportamento inalterado).
+- **AC3:** *Given* outros botões `.btn-outline` no sistema, *When* renderizados, *Then* permanecem inalterados (sem regressão).
+
+### Escopo
+- **IN:** estilo do botão "voltar" do card Detalhes da Conta a Pagar. **OUT:** redefinir a classe `.btn-outline` globalmente.
+
+### Arquivos
+- `gdp-contratos.html:755-758` (modal `cp-detalhe-modal`, botão "← Voltar"), definição `.btn-outline` (inline no mesmo HTML)
+- Referência: `js/gdp-pedidos.js:1520` / `js/gdp-contratos-module.js` header (após 21.13)
+
+---
+
 ## Definition of Done (Epic)
 
-- Todas as 9 stories implementadas, com AC verificados.
-- Sem regressão nos fluxos de Caixa/CR/CP/Contratos/Portal/Estoque.
-- Persistência no padrão `localStorage + Supabase` onde aplicável (21.1, 21.3, 21.4).
+- Todas as 14 stories implementadas (9 da v1 + 5 da Onda 3), com AC verificados.
+- Sem regressão nos fluxos de Caixa/CR/CP/Contratos/Portal/Estoque/Central de Produtos.
+- Persistência no padrão `localStorage + Supabase` onde aplicável (21.1, 21.3, 21.4, 21.10, 21.11).
+- Onda 3: filtro de categorias e form Novo Produto exibem a **mesma lista** (21.10); clone de pedido salva com as edições (21.12); setinhas "voltar" padronizadas (21.13/21.14).
 - Bump de versão dos scripts no HTML (`?v=N`) para os arquivos JS alterados; deploy com `npx vercel --prod --force`.
 - QA gate PASS por story; validação em produção dos itens de risco ALTO (21.1, 21.2).
 
@@ -364,6 +514,27 @@ Status das stories: **Draft → Ready** (todas com verdito GO no checklist de 10
    `21.8` → `21.9` → `21.7`.
 3. A cada JS alterado: **bump `?v=N`** no HTML; deploy `npx vercel --prod --force`; validar em produção os itens de risco ALTO.
 
+---
+
+## Validação PO (Pax — 2026-06-21) — Onda 3
+
+Status: **Draft → Ready** (todas as 5 stories com verdito GO no checklist de 10 pontos).
+
+| Story | Score | Verdito | Observação |
+|-------|-------|---------|------------|
+| 21.10 | 10/10 | GO | AC4 (migração de categorias) é o maior risco — QA validar com dado real |
+| 21.11 | 10/10 | GO | Implementar em par com 21.10 (depende da fonte unificada) |
+| 21.12 | 10/10 | GO | P1/risco ALTO — validar em produção (pedido real) |
+| 21.13 | 10/10 | GO | XS — pode ir junto com 21.14 |
+| 21.14 | 10/10 | GO | XS — alterar só este botão, não a classe `.btn-outline` global |
+
+### Sequência de implementação recomendada (Onda 3)
+
+1. **Par categorias:** `21.10` (fonte/chave unificada + migração) → `21.11` ("+ Nova Categoria" padrão CP/CR + remover "+" lateral).
+2. **Clone (P1/ALTO):** `21.12` — reutilizar `coletarPedidoDoForm(id)`; validar em produção com pedido real.
+3. **Setinhas (XS, mesmo commit):** `21.13` + `21.14`.
+4. A cada JS alterado: **bump `?v=N`** no HTML; deploy `npx vercel --prod --force`; **Ctrl+Shift+R** no navegador.
+
 ## Dev Agent Record (Dex)
 
 ### Onda 1 (commit 62e9594 — deployada e testada em produção)
@@ -380,6 +551,23 @@ Status das stories: **Draft → Ready** (todas com verdito GO no checklist de 10
   - `confirmarSync` (gdp-banco-produtos.js, sync em lote) → **já-OK** (chama `abrirContrato()`, que re-renderiza o detalhe do zero, descartando a seleção).
   - `criarPedidoCatalogo` (gdp-contratos-module.js) → **já-OK / fora-de-escopo** (usa inputs de quantidade, não checkboxes; fecha o modal e `renderAll()` após criar o pedido).
 
+### Onda 3 (21.10–21.14) — 2026-06-21
+
+- **21.10 (unificar fonte das categorias):** criada a fonte de verdade `getCategoriasProduto()` em `gdp-init.js` (base única `CATEGORIAS_PRODUTO_BASE` + custom + em uso − removidas). Migração one-time da chave legada `gdp.produto-categorias-custom.v1` → canônica `gdp.categorias-produto.custom.v1` (`_migrarCategoriasLegado`, sem perder categorias). `_saveCategoriasCustom` agora espelha a chave legada e atualiza `_customCategorias` para o filtro. Consumidores migrados: filtro (`gdp-estoque-intel.js:1980`), form Novo Produto (`gdp-init.js`), modal "Cadastrar Produto" (vincular, `:1983`), "Editar Produto" (`:3339`) e gerenciador ⚙ (`abrirGerenciadorCategorias`). Agora todas exibem a mesma lista.
+- **21.11 (+ Nova Categoria padrão CP/CR):** adicionados `buildCategoriaProdutoOptions(selected)` (placeholder "Sem Categoria" + opção `__nova__` "+ Nova Categoria" ao final), `criarCategoriaProduto(nome)` e o handler `onCategoriaProdutoChange(selectEl)`. Os 3 selects de categoria de produto usam `onchange="onCategoriaProdutoChange(this)"`. **Removido** o botão "+" lateral do form Novo Produto (`gdp-init.js:3622`); mantida apenas a ⚙. `adicionarCategoriaCustom` virou alias fino sobre `criarCategoriaProduto`.
+- **21.12 (clone aceita edições):** `salvarClonePedido()` agora faz `pedidos.push(_pendingClone)` e delega a `salvarPedidoCompleto(id)`, que relê todo o form (FR-21.12.2: reuso da coleta existente, sem duplicar). O clone precisa estar no array antes da coleta porque os helpers buscam o pedido por id. Mantidos novo ID, status `em_aberto`, data de hoje e limpeza de NF.
+- **21.13 (setinha Contrato no topo):** botão `←` movido do rodapé para o header de `abrirContrato()` (`gdp-contratos-module.js`), no padrão de Pedidos (transparente, `border:none`); rodapé mantém só Excluir/Salvar.
+- **21.14 (setinha Conta a Pagar sem contorno):** botão "← Voltar" do modal `cp-detalhe-modal` trocou `.btn .btn-outline .btn-sm` por estilo inline transparente sem borda (`gdp-contratos.html:758`). Classe `.btn-outline` global intacta.
+- **Versões bumpadas em `gdp-contratos.html`:** gdp-init `v31→v32`, gdp-estoque-intel `v15→v16`, gdp-pedidos `v25→v26`, gdp-contratos-module `v20→v21`.
+- **Validações:** `node --check` em todos os JS alterados → OK. Sem leftovers de `CAT_OPTS.map`; `esc` disponível em gdp-init.js. Pendente: deploy `npx vercel --prod --force` (@devops) + validação em produção de 21.12 (risco ALTO) e 21.10 (migração).
+
+#### File List (Onda 3)
+- `js/gdp-init.js` (categorias: fonte única, migração, builder, handler; remoção do "+")
+- `js/gdp-estoque-intel.js` (filtro usa `getCategoriasProduto`)
+- `js/gdp-pedidos.js` (`salvarClonePedido` reusa `salvarPedidoCompleto`)
+- `js/gdp-contratos-module.js` (setinha voltar no topo)
+- `gdp-contratos.html` (setinha CP sem contorno; bump de versões)
+
 ## Change Log
 
 | Data | Agente | Ação |
@@ -388,6 +576,10 @@ Status das stories: **Draft → Ready** (todas com verdito GO no checklist de 10
 | 2026-06-20 | @pm (Morgan) | EPIC-21 criado com 9 stories |
 | 2026-06-20 | @po (Pax) | Validação 10 pontos — 9 GO; Draft → Ready; DoD de 21.5/21.7 refinado |
 | 2026-06-20 | @dev (Dex) | Onda 1 implementada/deployada/testada (62e9594); Onda 2 (21.7/21.8/21.9) implementada |
+| 2026-06-21 | @analyst (Atlas) | Discovery da Onda 3 (F10–F14): root-cause de categorias, clone de pedido e setinhas "voltar" por evidência de código |
+| 2026-06-21 | @pm (Morgan) | Onda 3 adicionada ao EPIC-21: stories 21.10–21.14 (Draft) |
+| 2026-06-21 | @po (Pax) | Validação 10 pontos Onda 3 — 5 GO (10/10); Draft → Ready |
+| 2026-06-21 | @dev (Dex) | Onda 3 (21.10–21.14) implementada; node --check OK; versões bumpadas; pronta para deploy |
 
 ---
 
