@@ -1,0 +1,38 @@
+handoff:
+  from_agent: "dev"
+  to_agent: "devops"
+  last_command: "develop-story"
+  timestamp: "2026-06-21"
+  consumed: false
+  story_context:
+    epic_id: "EPIC-22"
+    epic_path: "docs/stories/EPIC-22-MODULOS-POR-CLIENTE.md"
+    story: "22.1 — Toggle de Módulos por cliente"
+    status: "Ready for Review"
+    branch: "feature/epic20-ajustes-financeiro-gdp"
+    commit: "fb73877"
+  decisions:
+    - "Fonte única modulos-acesso.js carregada por index/dashboard-home/gdp-contratos."
+    - "switchModule + boot do GDP reaplicam aplicarAcessoSidebar."
+    - "Qualquer módulo opcional (inclusive GDP); default seguro (sem config → tudo visível)."
+  files_modified:
+    - "modulos-acesso.js (novo)"
+    - "app-config.js (v2), app-utils.js (v2)"
+    - "dashboard-home.html, index.html"
+    - "gdp-contratos.html (gdp-init v33; carrega modulos-acesso.js)"
+    - "js/gdp-init.js"
+  validations:
+    - "node --check em todos os JS: OK"
+    - "Simulação end-to-end da lógica: default seguro / desmarcar radar / desmarcar GDP / reativar / JSON corrompido → todos corretos"
+    - "CodeRabbit não executado (WSL sem distro — limitação de ambiente)"
+  blockers: []
+  next_action: >
+    @devops: push da branch + PR + merge em master + deploy prod `cd painel-caixa-escolar && npx vercel --prod --force --yes`.
+    Validar em produção (Ctrl+Shift+R).
+  prod_validation_checklist:
+    - "Config → Módulos: desmarcar Radar; navegar entre módulos → Radar permanece oculto (AC1)."
+    - "Abrir gdp-contratos.html → Radar desmarcado NÃO aparece na sidebar do GDP (AC2)."
+    - "Recarregar as 3 telas → persiste oculto (AC3)."
+    - "Desmarcar GDP é possível (AC4)."
+    - "Cliente sem config (limpar localStorage nexedu.modulos.acesso) → tudo visível (AC5)."
+    - "Marcar/desmarcar reflete imediatamente (AC6)."
