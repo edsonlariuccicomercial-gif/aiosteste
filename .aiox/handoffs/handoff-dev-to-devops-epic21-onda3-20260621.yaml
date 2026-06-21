@@ -1,0 +1,40 @@
+handoff:
+  from_agent: "dev"
+  to_agent: "devops"
+  last_command: "develop-story"
+  timestamp: "2026-06-21"
+  consumed: false
+  story_context:
+    epic_id: "EPIC-21"
+    epic_path: "docs/stories/EPIC-21-UX-FIXES-GDP.md"
+    wave: "Onda 3 (21.10–21.14)"
+    status: "Ready for Review"
+    branch: "feature/epic20-ajustes-financeiro-gdp"
+    commit: "44f2cf9"
+  decisions:
+    - "21.10: getCategoriasProduto() é a fonte única; migração one-time da chave legada gdp.produto-categorias-custom.v1."
+    - "21.11: padrão + Nova Categoria via onCategoriaProdutoChange; + lateral removido, ⚙ mantida."
+    - "21.12: salvarClonePedido delega a salvarPedidoCompleto (reuso da coleta do form)."
+    - "21.13/21.14: setinhas voltar padronizadas."
+  files_modified:
+    - "js/gdp-init.js"
+    - "js/gdp-estoque-intel.js"
+    - "js/gdp-pedidos.js"
+    - "js/gdp-contratos-module.js"
+    - "gdp-contratos.html (bump ?v=N: init v32, estoque-intel v16, pedidos v26, contratos-module v21)"
+    - "docs/stories/EPIC-21-UX-FIXES-GDP.md"
+  validations:
+    - "node --check em todos os JS alterados: OK"
+    - "CodeRabbit: não executado (WSL sem distro utilizável neste ambiente) — limitação de ambiente, não bloqueante"
+  blockers: []
+  next_action: >
+    @devops: deploy de produção forçado — `cd painel-caixa-escolar && npx vercel --prod --force --yes` —
+    e push da branch feature/epic20-ajustes-financeiro-gdp (+ PR se aplicável).
+    Após deploy: validar em produção 21.12 (clone com edições — risco ALTO) e 21.10 (migração de categorias,
+    AC4 — nenhuma categoria perdida). Orientar Ctrl+Shift+R no navegador.
+  prod_validation_checklist:
+    - "Central de Produtos: filtro 'Todas Categorias' e select 'Novo Produto' exibem a MESMA lista."
+    - "Form Novo Produto: existe '+ Nova Categoria' ao final; NÃO existe mais o '+' lateral; ⚙ funciona."
+    - "Criar categoria nova reflete nas duas telas; categorias antigas não foram perdidas (migração)."
+    - "Pedidos: clonar venda, editar campos, Salvar → salva COM as edições (sem fechar/reabrir)."
+    - "Contratos: setinha voltar no topo. Conta a Pagar: setinha voltar sem contorno."

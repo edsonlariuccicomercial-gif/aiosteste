@@ -579,7 +579,7 @@ Status: **Draft → Ready** (todas as 5 stories com verdito GO no checklist de 1
 | 2026-06-21 | @analyst (Atlas) | Discovery da Onda 3 (F10–F14): root-cause de categorias, clone de pedido e setinhas "voltar" por evidência de código |
 | 2026-06-21 | @pm (Morgan) | Onda 3 adicionada ao EPIC-21: stories 21.10–21.14 (Draft) |
 | 2026-06-21 | @po (Pax) | Validação 10 pontos Onda 3 — 5 GO (10/10); Draft → Ready |
-| 2026-06-21 | @dev (Dex) | Onda 3 (21.10–21.14) implementada; node --check OK; versões bumpadas; pronta para deploy |
+| 2026-06-21 | @dev (Dex) | Onda 3 (21.10–21.14) implementada; node --check OK; versões bumpadas; commit 44f2cf9; Ready for Review → handoff @devops |
 
 ---
 
