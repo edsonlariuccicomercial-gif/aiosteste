@@ -1,0 +1,25 @@
+handoff:
+  from_agent: "architect"
+  to_agent: "pm"
+  last_command: "create-brownfield-architecture"
+  timestamp: "2026-06-21"
+  consumed: false
+  context:
+    arch_doc: "docs/architecture/ARCH-EPIC22-FASE2-separacao-produtos.md"
+    epic: "EPIC-22 Fase 2 (separação dos 3 produtos + API do núcleo comum)"
+    branch: "feature/epic20-ajustes-financeiro-gdp"
+  key_findings:
+    - "Núcleo (radar-matcher-core + product-store-core, 633 linhas) já é lógica PURA — roda em Node hoje."
+    - "GDP nunca chama o core direto, só o wrapper RadarMatcher → troca browser→HTTP sem mexer no GDP."
+    - "Fronteiras de dados já limpas; só a tabela `produtos` é genuinamente compartilhada."
+  recommendation:
+    - "Escada evolutiva, NÃO big-bang. Degrau 1 = lib @licit/core; Degrau 2 = API HTTP (no redesenho do Radar/Intel); Degrau 3 = deploys separados (só sob demanda comercial)."
+    - "Pré-requisito transversal: consolidar auth em Supabase + centralizar empresa_id."
+  not_blocking_now:
+    - "Fase 2 só entra no roadmap quando o stakeholder decidir refazer Radar/Intel. O GDP já vende via toggle (Fase 1)."
+  decisions_deferred:
+    - "Refazer Radar/Intel do zero vs aproveitar — adiado (não bloqueia o desenho do núcleo)."
+    - "Até qual degrau subir (2 ou 3) — depende do modelo de venda."
+  next_action: >
+    Quando a Fase 2 entrar no roadmap: @pm transforma o degrau escolhido em épico/stories;
+    @data-engineer (Dara) detalha RLS de `produtos` e centralização de empresa_id.

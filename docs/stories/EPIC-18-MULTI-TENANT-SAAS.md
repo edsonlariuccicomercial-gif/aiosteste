@@ -243,7 +243,41 @@ Antes de habilitar a venda de **qualquer segundo tenant**, TODOS devem estar PRO
 
 > Guia de retomada e textos prontos para começar: `docs/stories/EPIC-18-COMO-COMECAR.md`.
 
+## ⚠️ LEMBRETE — Anexar "Entitlement de Módulos por Cliente" a este épico
+
+> Registrado por **@architect (Aria)** em 2026-06-21, a pedido do stakeholder (Edson), para não se perder ao executar o EPIC-18.
+
+**O que falta neste épico (e DEVE ser anexado):** o EPIC-18 cobre **isolamento de dados** (cada tenant só vê os SEUS dados, via Auth + RLS por `empresa_id`) — e assume que **todo tenant acessa TODOS os módulos** (ver Objetivo, "cobrindo todos os módulos"). Ele **NÃO** tem o conceito de **entitlement** ("o cliente A assinou só o GDP; o B assinou GDP+Intel"). São camadas **ortogonais** e ambas necessárias para vender assinaturas por plano:
+
+| Camada | Garante | Coberto pelo EPIC-18? |
+|--------|---------|------------------------|
+| Isolamento de dados | Cliente A não vê os DADOS do cliente B | ✅ Sim (foco do épico) |
+| **Entitlement de módulos** | Cliente A que pagou só GDP nem VÊ o Radar/Intel | ❌ **Não — anexar (abaixo)** |
+
+**Por que encaixa barato (NÃO é épico novo — ~1-2 stories):** a fundação do EPIC-18 já entrega tudo —
+- tabela `empresas` (migration 001) → **adicionar coluna `modulos_liberados`** (ex.: `["gdp","intel"]`);
+- `user_empresa` + `get_user_empresa_id()` (migration 009) → resolve o tenant do usuário logado;
+- Supabase Auth (Story 18.2) → identidade confiável.
+
+**Onde Edson libera/restringe por cliente:** editando `empresas.modulos_liberados` da linha do cliente (RLS: cliente lê o próprio, **não escreve**). O uso individual da Edson não muda (o tenant dela tem todos os módulos liberados).
+
+**Reaproveita a Fase 1 (EPIC-22 Story 22.1, já em produção):** o `getAcessoModulos()`/`aplicarAcessoSidebar()` (arquivo `modulos-acesso.js`) vira a camada de **preferência do usuário**. Com o entitlement, passa a retornar: **entitlement do tenant (servidor) ∩ preferência do usuário (local)**. Módulo não-licenciado nem aparece como opção.
+
+**Stories sugeridas a anexar (perto da 18.4/18.6, @data-engineer + @dev):**
+- **18.x-a (DDL):** coluna `empresas.modulos_liberados` (default = todos liberados, para não travar o tenant Lariucci) + RLS de leitura do próprio tenant. — @data-engineer
+- **18.x-b (frontend):** no login, carregar `modulos_liberados` do tenant; `getAcessoModulos()` intersecciona entitlement ∩ preferência (toggle Fase 1). — @dev
+- *(Opcional, futuro)* painel admin para editar planos → billing automático (Stripe/webhook).
+
+**Independência:** o entitlement NÃO depende da Fase 2 (separação de produtos / API do núcleo) — funciona no monolito atual sobre o EPIC-18.
+
+**Documentos de referência:** `docs/architecture/ARCH-EPIC22-FASE2-separacao-produtos.md` (seção 6.5 — explica isolamento vs entitlement); `docs/stories/EPIC-22-MODULOS-POR-CLIENTE.md` (Fase 1 entregue).
+
+**Ação ao retomar o EPIC-18:** @pm/@sm devem criar as stories 18.x-a/b acima e inseri-las no sequenciamento (sugestão: após 18.4, em paralelo com 18.5/18.6).
+
+---
+
 ## Change Log
 
 - 2026-06-08 — @pm Morgan — EPIC-18 criado a partir de `docs/architecture/FASE-0-MULTI-TENANT-AUTH-RLS.md` (validado por varredura + auditoria adversarial de 61 agentes). 10 stories (18.1-18.9 + 18.4b), duas trilhas (produção paralela + multi-tenant em staging), gates de segurança como critério de saída.
 - 2026-06-08 — @pm Morgan — Priorização adicionada (caminho crítico de 7 stories até o gate de venda; 3 paralelizáveis; classificação bloqueador vs. robustez). Guia de retomada `EPIC-18-COMO-COMECAR.md` criado.
+- 2026-06-21 — @architect Aria — Lembrete anexado: **Entitlement de Módulos por Cliente** (liberar/restringir módulos por plano) deve ser anexado a este épico como ~1-2 stories (coluna `empresas.modulos_liberados` + interseção no `getAcessoModulos`). Ortogonal ao isolamento (RLS); reaproveita a Fase 1 (EPIC-22 Story 22.1).

@@ -1,0 +1,27 @@
+handoff:
+  from_agent: "architect"
+  to_agent: "pm"
+  last_command: "create-brownfield-architecture"
+  timestamp: "2026-06-21"
+  consumed: false
+  context:
+    topic: "Entitlement de Módulos por Cliente (liberar/restringir módulos por plano no multi-tenant)"
+    anexado_em: "docs/stories/EPIC-18-MULTI-TENANT-SAAS.md (seção LEMBRETE + change log)"
+    arch_ref: "docs/architecture/ARCH-EPIC22-FASE2-separacao-produtos.md (seção 6.5)"
+    fase1_entregue: "docs/stories/EPIC-22-MODULOS-POR-CLIENTE.md (Story 22.1, em produção)"
+  key_clarification:
+    - "EPIC-18 = ISOLAMENTO de dados (RLS por empresa_id). Assume todos os módulos para todo tenant."
+    - "ENTITLEMENT = cada cliente vê só o que comprou. NÃO está no EPIC-18 — é extensão ortogonal."
+    - "Ambos necessários para vender assinaturas por plano."
+  recommendation:
+    - "Entitlement NÃO é épico novo: ~1-2 stories anexadas ao EPIC-18 (perto de 18.4/18.6)."
+    - "18.x-a (DDL @data-engineer): coluna empresas.modulos_liberados (default todos) + RLS leitura do próprio tenant."
+    - "18.x-b (frontend @dev): login carrega modulos_liberados; getAcessoModulos() = entitlement ∩ preferência (Fase 1)."
+    - "Independe da Fase 2 (separação de produtos) — funciona no monolito atual."
+  decisions:
+    - "Adiado junto com o EPIC-18 (não bloqueia o GDP)."
+    - "Onde Edson libera/restringe por cliente: empresas.modulos_liberados (RLS, cliente não escreve). Uso individual de Edson inalterado."
+  blockers: []
+  next_action: >
+    Ao executar o EPIC-18: @pm/@sm criam as stories 18.x-a/b de entitlement e inserem após 18.4 (paralelo a 18.5/18.6).
+    Comando de retomada do usuário: "@architect/@pm — retomar EPIC-18" (o lembrete está no próprio épico).
