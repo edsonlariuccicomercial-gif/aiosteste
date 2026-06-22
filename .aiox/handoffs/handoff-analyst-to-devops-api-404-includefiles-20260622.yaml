@@ -1,0 +1,102 @@
+handoff:
+  from_agent: analyst
+  to_agent: devops
+  timestamp: "20260622"
+  consumed: true
+  resolved: true
+  resolution: >
+    RESOLVIDO 2026-06-22 pelo @devops. Fix includeFiles commitado (455d0c1) e pushado.
+    Deploy --force aplicado. Descoberta adicional: git.deploymentEnabled.master=false do
+    vercel.json estava sendo IGNORADO — a integracao Git no painel sobrepunha e cada push
+    disparava deploy git (...-git-<hash>...) que sobrescrevia o --force sem functions.
+    Solucao final: 'vercel git disconnect' (auto-deploy desconectado na raiz). Functions
+    todas vivas (gdp-integrations 200, demais 405/400). Endpoint PDF boleto passou de
+    NOT_FOUND para 502 com erro do proprio Inter (function viva). CLAUDE.md atualizado.
+    PENDENTE STAKEHOLDER: Ctrl+Shift+R no browser + reconciliar boletos de hoje no Inter
+    (Sincronizar Provider p/ os que criaram no Inter mas nao marcaram; reemitir os que falharam).
+  title: "TODAS as functions /api/* em 404 prod — boleto Inter PDF quebrado. RESOLVIDO (includeFiles + git disconnect)."
+
+  story_context:
+    story_id: null
+    branch: master
+    severity: CRITICO
+    impacto_negocio: >
+      Emissao/sincronizacao de boletos Inter quebrada em producao. Boletos gerados
+      hoje nao vincularam providerChargeId nas contas a receber (so 2 ficaram marcadas
+      como Inter). Link/PDF do boleto abre erro 404 NOT_FOUND do Vercel.
+
+  diagnostico:
+    sintoma_usuario:
+      - "Gerou varios boletos Inter hoje, mas so 2 contas ficaram marcadas com Inter."
+      - "Clicar em 'abrir' o PDF/link do boleto leva a tela de erro: 404 NOT_FOUND, Code: NOT_FOUND, ID gru1::5j8ch-..."
+    causa_raiz: >
+      TODAS as serverless functions /api/* estao retornando 404 em producao
+      (X-Vercel-Error: NOT_FOUND). O PDF do boleto e servido VIA function
+      /api/bank-charge?action=bank-charge-pdf (gdp-notas-fiscais.js:1859), entao
+      cai no mesmo 404. As contas nao marcaram Inter porque POST /api/bank-charge
+      (bank-charge-create) retornava 404 — sem providerChargeId/nossoNumero de volta.
+    porque_caiu: >
+      api/gdp-integrations.js faz require dinamico com path.join(__dirname, "..",
+      "squads","caixa-escolar","dashboard","server-lib","nfe-sefaz-client.js") e
+      bank-provider-config.js — paths FORA de /api/. O tracer de dependencias do
+      Vercel (nft/esbuild) nao resolve require dinamico montado com path.join, nao
+      empacota server-lib, a function quebra no bundle e o Vercel derruba o conjunto
+      de functions -> todas 404. nfe-sefaz-client.js ainda faz require dinamico de
+      ibge-mg.json (mesmo problema, dep transitiva).
+    nota: >
+      vercel.json JA tinha VERCEL_FORCE_NO_BUILD_CACHE=1 e git.master=false. Logo a
+      causa NAO era so build-cache desta vez — era o require dinamico (FIX-C do CLAUDE.md).
+
+  evidencia:
+    health_check_prod: |
+      gdp-data        -> 404
+      gdp-integrations -> 404
+      bank-charge     -> 404
+      caixa-proxy     -> 404
+    header: "X-Vercel-Error: NOT_FOUND / X-Vercel-Id: gru1::... (mesma assinatura do erro do usuario)"
+
+  fix_aplicado:
+    arquivo: painel-caixa-escolar/vercel.json
+    mudanca: >
+      Adicionado includeFiles na function api/gdp-integrations.js para forcar o
+      empacotamento de toda a pasta server-lib (cobre nfe-sefaz-client.js,
+      bank-provider-config.js e ibge-mg.json transitivo).
+    trecho: |
+      "api/gdp-integrations.js": {
+        "maxDuration": 60,
+        "includeFiles": "squads/caixa-escolar/dashboard/server-lib/**"
+      }
+    validado: "node -e require('./vercel.json') -> JSON valido OK"
+    commitado: false
+
+  acoes_devops:
+    - passo: 1
+      desc: "Commitar o fix do vercel.json (conventional commit)."
+      cmd: |
+        cd "C:/Users/Hearthz Gaming/aiosteste"
+        git add painel-caixa-escolar/vercel.json
+        git commit -m "fix(infra): includeFiles server-lib em gdp-integrations p/ functions /api nao caírem (404 NOT_FOUND)"
+    - passo: 2
+      desc: "Deploy forcado de producao (reconstroi do zero, reinclui functions)."
+      cmd: |
+        cd "C:/Users/Hearthz Gaming/aiosteste/painel-caixa-escolar"
+        npx vercel --prod --force --yes
+    - passo: 3
+      desc: "Validar functions vivas (404=morta, 200/400/405=viva)."
+      cmd: |
+        for fn in gdp-data gdp-integrations bank-charge caixa-proxy; do
+          curl -s -o /dev/null -w "$fn %{http_code}\n" "https://painel-caixa-escolar.vercel.app/api/$fn"
+        done
+    - passo: 4
+      desc: "Push da master (apos validar)."
+      cmd: "git push origin master"
+
+  pos_deploy_reconciliacao:
+    responsavel: stakeholder + analyst/dev
+    passos:
+      - "Conferir no app do Inter quantos boletos foram REALMENTE criados hoje."
+      - "Boletos criados no Inter mas nao vinculados na conta -> usar 'Sincronizar Provider' (botao no detalhe da conta) p/ puxar providerChargeId/nossoNumero/PDF."
+      - "Tentativas que falharam no 404 e NAO criaram nada no Inter -> reemitir ('Cobrar Agora')."
+      - "Validar que o link 'Boleto PDF' abre o PDF (nao mais 404)."
+
+  next_action: "@devops: commitar vercel.json, rodar vercel --prod --force --yes, validar /api/* != 404, push master. Depois acionar reconciliacao dos boletos no Inter."
