@@ -1,0 +1,63 @@
+handoff:
+  from_agent: "analyst"
+  to_agent: "devops"
+  last_command: "rootcause-build-cache-404"
+  date: "2026-06-22"
+  prioridade: "ALTA (recorrente — 4x nesta sessao)"
+  branch: "master"
+
+  sintoma_imediato: "Reemitir boleto -> 'Falha ao integrar cobranca com INTER: HTTP 404'. TODAS as functions /api/* em 404."
+
+  causa_raiz_decifrada:
+    titulo: "Deploy automatico da integracao Git da Vercel reaproveita build cache e DROPA as functions"
+    evidencia:
+      - "Padrao de duracao dos deploys: 6-9s = build CACHE (functions somem); 14-18s = build COMPLETO (functions presentes)."
+      - "Apos o merge do PR #28 (master 34d313b, 11:55), surgiu um deploy de PRODUCAO de 9s que o @devops NAO fez manualmente (6m atras)."
+      - "Esse deploy automatico (Git integration Vercel -> dispara no push/merge da master) usa cache e republica SEM as functions serverless."
+      - "Por isso o padrao se repete EXATAMENTE apos cada PR/merge desta sessao (4 ocorrencias)."
+    conclusao: >
+      Ha uma CORRIDA: o @devops faz 'vercel --prod --force' (rebuild completo, functions OK), mas o
+      deploy AUTOMATICO disparado pelo merge na master sobrescreve em seguida com a versao cacheada
+      sem functions. O automatico vence. Nao e o Inter, nao e o codigo do modal.
+
+  solucoes_estruturais_para_devops:
+    - id: "FIX-A"
+      nome: "Desabilitar build cache nos deploys (recomendado)"
+      como: >
+        Adicionar ao vercel.json um override que force rebuild das functions, OU configurar no painel
+        Vercel (Settings > Git) para os deploys de produção NAO usarem cache. Alternativa: definir
+        VERCEL_FORCE_NO_BUILD_CACHE=1 nas env vars do projeto (afeta todos os builds, inclusive os automaticos).
+    - id: "FIX-B"
+      nome: "Desconectar deploy automatico do Git (so deploy manual --force)"
+      como: >
+        No painel Vercel (Settings > Git), desabilitar 'auto-deploy' da branch master. Assim so o
+        deploy manual 'vercel --prod --force' do @devops publica. Elimina a corrida.
+    - id: "FIX-C"
+      nome: "Investigar por que o cache dropa functions (mais profundo)"
+      como: >
+        O require() em api/gdp-integrations.js / bank-charge.js aponta para ../squads/.../server-lib.
+        Builds incrementais (cache) podem nao detectar mudanca nesses paths fora de /api e nao
+        recompilar/incluir as functions. Avaliar mover server-lib para dentro de /api ou ajustar includeFiles.
+
+  acao_imediata: "Redeploy --force AGORA para restaurar (4a vez). Mas sem FIX-A ou FIX-B, vai cair de novo no proximo merge."
+
+  recomendacao_analyst: "Aplicar FIX-A (VERCEL_FORCE_NO_BUILD_CACHE=1) — e a correcao de menor risco e resolve a causa raiz de uma vez. FIX-B como reforco."
+
+  consumed: true
+  consumed_by: devops
+  consumed_at: "2026-06-22"
+  resolucao:
+    o_que_deu_errado: >
+      FIX-A (VERCEL_FORCE_NO_BUILD_CACHE=1, commit f01869e) NAO bastou — o cdde78f admitiu
+      isso e aplicou o FIX-B (auto-deploy Git master=false). PORÉM o commit dc27359 (22/06 16:32)
+      REVERTEU o FIX-B (master=true) por engano, confundindo a regressao de SYNC (logica de app,
+      essa sim corrigida) com a corrida do build-cache (deploy). Resultado: a corrida voltou e o
+      stakeholder seguiu precisando de --force a cada merge.
+    acao_aplicada: >
+      FIX-B reaplicado: vercel.json git.deploymentEnabled.master = true -> false. Auto-deploy do
+      Git desligado; somente 'vercel --prod --force' publica em producao. Elimina a corrida que
+      dropa as /api/*. VERCEL_FORCE_NO_BUILD_CACHE=1 mantido como reforco.
+    pendente_follow_up: >
+      FIX-C (raiz profunda) nao aplicado: functions /api/* fazem require() de ../squads/server-lib
+      (fora de /api); build incremental nao recompila. Se um dia o auto-deploy for reativado,
+      mover server-lib para dentro de /api ou ajustar includeFiles ANTES.
