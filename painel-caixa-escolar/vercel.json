@@ -58,7 +58,10 @@
   "functions": {
     "api/caixa-proxy.js": { "maxDuration": 60 },
     "api/ai-parse-price.js": { "maxDuration": 60 },
-    "api/gdp-integrations.js": { "maxDuration": 60 },
+    "api/gdp-integrations.js": {
+      "maxDuration": 60,
+      "includeFiles": "squads/caixa-escolar/dashboard/server-lib/**"
+    },
     "api/gdp-data.js": { "maxDuration": 30 },
     "api/bank-charge.js": { "maxDuration": 60 },
     "api/send-order-email.js": { "maxDuration": 60 }
