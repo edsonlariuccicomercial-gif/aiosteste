@@ -356,6 +356,11 @@
           if (!row.id) row.id = genId();
           if (!row.empresa_id) row.empresa_id = eid;
           row.updated_at = now;
+          // Bug-fix regressão (status volta sozinho): registrar echo suppression
+          // também no caminho saveAll (bulk). Antes só o save() individual marcava,
+          // então contas_receber/contratos/NFs salvos em lote tinham seu próprio eco
+          // tratado como UPDATE de outro cliente → sobrescrita do estado recém-salvo.
+          _markSelfEcho(table, row.id, row);
           return row;
         });
         try {

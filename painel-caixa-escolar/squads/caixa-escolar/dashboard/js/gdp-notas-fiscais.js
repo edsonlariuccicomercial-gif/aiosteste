@@ -563,7 +563,7 @@ async function emitirOuSincronizarCobrancaReal(contaId, options = {}) {
   conta.audit = { ...(conta.audit || {}), updatedAt: new Date().toISOString(), updatedBy: actor };
   if (nota) nota.audit = { ...(nota.audit || {}), updatedAt: new Date().toISOString(), updatedBy: actor };
   saveContasReceber();
-  if (nota) saveNotasFiscais();
+  if (nota) saveNotasFiscais(nota.id);
   if (!options.silent) renderAll();
 
   try {
@@ -588,7 +588,7 @@ async function emitirOuSincronizarCobrancaReal(contaId, options = {}) {
 
     applyRealBankChargeResult(conta, nota, result.normalized || {}, "");
     saveContasReceber();
-    if (nota) saveNotasFiscais();
+    if (nota) saveNotasFiscais(nota.id);
 
     queueGdpIntegration("conta_receber", action === "bank-charge-create" ? "criar_titulo_provider" : "sincronizar_titulo_provider", conta.id, {
       contaReceberId: conta.id,
@@ -605,7 +605,7 @@ async function emitirOuSincronizarCobrancaReal(contaId, options = {}) {
       onSuccess: (queueData) => {
         applyRealBankChargeResult(conta, nota, result.normalized || {}, queueData.protocol || "");
         saveContasReceber();
-        if (nota) saveNotasFiscais();
+        if (nota) saveNotasFiscais(nota.id);
       },
       onError: (err) => {
         updateContaReceberIntegration(conta.id, "bancaria", {
@@ -661,7 +661,7 @@ async function emitirOuSincronizarCobrancaReal(contaId, options = {}) {
     });
     conta.audit = { ...(conta.audit || {}), updatedAt: new Date().toISOString(), updatedBy: actor };
     saveContasReceber();
-    if (nota) saveNotasFiscais();
+    if (nota) saveNotasFiscais(nota.id);
     if (!options.silent) {
       renderAll();
       showToast(`Falha ao integrar cobranca com ${String(provider || "").toUpperCase()}: ${err.message}`, 5000);

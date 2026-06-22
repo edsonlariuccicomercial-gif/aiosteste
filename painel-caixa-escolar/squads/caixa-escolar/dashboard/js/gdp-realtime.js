@@ -217,10 +217,14 @@
           if (items[j].id === record.id) {
             // Story 20.17: condicionar a sobrescrita ao timestamp (não wholesale cego).
             // Protege contra eco atrasado (>5s, fora da dirty window) de um save antigo
-            // do mesmo registro, que revertia o status. Só aplica se o remoto for >= local.
+            // do mesmo registro, que revertia o status.
+            // Bug-fix regressão: usar '>' ESTRITO (era '>='). Um eco do PRÓPRIO save
+            // tem updated_at IGUAL ao local; com '>=' o empate sobrescrevia o estado
+            // recém-editado (faturado→aberto, NF verde→amarelo). Só sobrescreve quando
+            // o remoto é estritamente mais novo — um UPDATE real de outro cliente.
             var rTs = record.updated_at || record.updatedAt || '';
             var lTs = items[j].updated_at || items[j].updatedAt || '';
-            if (!lTs || !rTs || rTs >= lTs) {
+            if (!lTs || !rTs || rTs > lTs) {
               items[j] = record;
               changed = true;
             }
