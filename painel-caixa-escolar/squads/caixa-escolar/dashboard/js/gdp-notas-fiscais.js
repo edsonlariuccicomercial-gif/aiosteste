@@ -1362,7 +1362,18 @@ async function transmitirHomologacaoNota(notaId) {
       throw new Error("Validacao estrutural falhou: " + data.validationErrors.length + " erro(s)");
     }
     const result = data.result || {};
-    if (!resp.ok || !data.ok) throw new Error(result.message || data.error || `HTTP ${resp.status}`);
+    if (!resp.ok || !data.ok) {
+      // Distinguir erro de INFRAESTRUTURA (rota /api ausente ou backend fora) de
+      // erro REAL da SEFAZ. Se nao houver payload JSON da nossa API (sem data.ok,
+      // sem data.error, sem result.message), o 404/5xx veio do roteamento da Vercel
+      // — a requisicao nunca chegou a SEFAZ. Mensagem generica "HTTP 404" mascarava
+      // isso como "Falha na transmissao SEFAZ" (handoff sefaz-404 20260622).
+      const semPayloadApi = !data.ok && !data.error && !result.message;
+      if (semPayloadApi && (resp.status === 404 || resp.status >= 500)) {
+        throw new Error(`Backend indisponivel (HTTP ${resp.status} em /api/gdp-integrations) — a nota NAO foi transmitida a SEFAZ. Verifique o deploy/conexao e tente novamente.`);
+      }
+      throw new Error(result.message || data.error || `HTTP ${resp.status}`);
+    }
 
     nf.sefaz.transmissao = result;
     // Story 4.57 AC-2: preservar preview (emitente/destinatario) após transmissão
@@ -1544,7 +1555,11 @@ async function transmitirHomologacaoNota(notaId) {
     setIntegrationState(nf, "sefaz", { status: "transmissao_falhou", lastAction: "nfe_sefaz_emitir_real", error: err.message });
     saveNotasFiscais();
     renderAll();
-    showToast(`Falha na transmissao SEFAZ: ${err.message}`, 4500);
+    // So rotular como "SEFAZ" quando o erro realmente veio da SEFAZ. Erros de
+    // backend/infra (rota /api ausente) carregam "Backend indisponivel" e nao
+    // devem ser apresentados como falha de transmissao fiscal.
+    const ehErroBackend = /Backend indisponivel/.test(err.message || "");
+    showToast(ehErroBackend ? err.message : `Falha na transmissao SEFAZ: ${err.message}`, ehErroBackend ? 6000 : 4500);
   }
   } catch(outerErr) { console.error("[NF-e] Erro inesperado em transmitirHomologacaoNota:", outerErr); showToast("Erro inesperado: " + outerErr.message, 5000); }
   finally {
