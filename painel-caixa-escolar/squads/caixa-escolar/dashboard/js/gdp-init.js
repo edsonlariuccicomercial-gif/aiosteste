@@ -187,6 +187,12 @@ function switchTab(tab) {
 
 // Financeiro sub-tab switching
 function switchFinanceiroTab(subTab) {
+  // Bug-fix regressão (filtros/checkbox não limpam): trocar de sub-aba do Financeiro
+  // (Caixa↔Contas a Pagar↔Contas a Receber↔...) é uma troca de contexto como switchTab,
+  // mas não passava por resetTabState() — então busca, filtros de status e checkboxes
+  // selecionados vazavam de uma sub-aba para a outra. resetTabState() limpa buscas,
+  // selects/datas de filtro, selection sets e desmarca todos os checkboxes com segurança.
+  if (typeof resetTabState === "function") resetTabState();
   ["caixa","contas-pagar","contas-receber","conciliacao","conta-corrente"].forEach(t => {
     const el = document.getElementById(`fin-content-${t}`);
     if (el) el.classList.toggle("hidden", t !== subTab);

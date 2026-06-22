@@ -1485,7 +1485,7 @@ function savePedidos(changedId) {
     });
   }
 }
-function saveNotasFiscais() {
+function saveNotasFiscais(changedId) {
   // Limpar dados pesados (XML, previews) de NFs autorizadas antes de salvar no localStorage
   // Esses dados já foram persistidos no Supabase — no localStorage só precisamos dos metadados
   const lightNfs = notasFiscais.map(function(nf) {
@@ -1526,8 +1526,15 @@ function saveNotasFiscais() {
     } else { throw e; }
   }
   // Persist to Supabase (async, non-blocking)
+  // Bug-fix regressão (NF pisca verde↔amarelo): com changedId, persiste só a NF
+  // alterada — não TODAS. A rajada de upserts (1 por NF a cada save) gerava uma
+  // rajada equivalente de ecos via realtime, e o pior caso (emitir 7 NFs seguidas)
+  // fazia o status/tipo_nota oscilar. Mesma otimização aplicada aos pedidos (20.17).
   if (window.gdpApi && window.gdpApi.notas_fiscais) {
-    notasFiscais.forEach(function(nf) {
+    var alvoNf = changedId
+      ? notasFiscais.filter(function(nf) { return nf.id === changedId; })
+      : notasFiscais;
+    alvoNf.forEach(function(nf) {
       window.gdpApi.notas_fiscais.save(nf).catch(function(e) { gdpWarn('[NF] Supabase save failed:', nf.id, e.message); });
     });
   }
