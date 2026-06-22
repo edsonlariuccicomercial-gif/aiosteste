@@ -474,6 +474,15 @@ function abrirDetalheCr(contaId) {
     <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Status</label><div style="padding:.4rem 0"><span class="badge ${statusMeta.className}">${esc(statusMeta.label)}</span></div></div>
     <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Automacao</label><div style="padding:.4rem 0;font-size:.82rem">${conta.automacao?.whatsapp ? "WhatsApp" : "-"} / ${conta.automacao?.email ? "E-mail" : "-"}</div></div>
     <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Cobranca</label><div style="padding:.4rem 0;font-size:.82rem">${esc(conta.cobranca?.status || "-")}</div></div>
+    ${(conta.cobranca && (conta.cobranca.providerChargeId || conta.cobranca.bankSlipUrl || conta.cobranca.linhaDigitavel || conta.integracoes?.bancaria?.providerChargeId)) ? `
+    <div style="grid-column:1/-1;border:1px solid var(--bdr);border-radius:8px;padding:.8rem 1rem;margin-top:.4rem;background:rgba(255,255,255,.02)">
+      <div style="font-weight:700;font-size:.85rem;margin-bottom:.5rem">🧾 Boleto / Cobranca bancaria</div>
+      <div style="font-size:.82rem;color:var(--mut);margin-bottom:.3rem">Linha digitavel: <span style="color:var(--txt)">${esc(conta.cobranca?.linhaDigitavel || "-")}</span></div>
+      <div style="font-size:.82rem;color:var(--mut);margin-bottom:.3rem">Boleto PDF: ${conta.cobranca?.bankSlipUrl ? '<a href="' + esc(conta.cobranca.bankSlipUrl) + '" target="_blank" rel="noreferrer" style="color:var(--blue,#3b82f6);font-weight:700">abrir boleto</a>' : '<span style="color:var(--yellow,#eab308)">em processamento — clique em Sincronizar</span>'}</div>
+      <div style="font-size:.82rem;color:var(--mut);margin-bottom:.3rem">Link de cobranca: ${conta.cobranca?.invoiceUrl ? '<a href="' + esc(conta.cobranca.invoiceUrl) + '" target="_blank" rel="noreferrer" style="color:var(--blue,#3b82f6)">abrir</a>' : "-"}</div>
+      <div style="font-size:.82rem;color:var(--mut);margin-bottom:.6rem">Nosso numero: <span style="color:var(--txt)">${esc(conta.cobranca?.nossoNumero || "-")}</span></div>
+      <button class="btn btn-sm btn-outline" onclick="sincronizarCobrancaProvider('${conta.id}')">🔄 Sincronizar boleto</button>
+    </div>` : ""}
     <div style="grid-column:1/-1"><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Auditoria</label><div style="padding:.4rem 0;font-size:.82rem;color:var(--mut)">${esc(formatAuditStamp(conta.audit, conta.recebidaEm, conta.audit?.updatedBy))}</div></div>
   `;
   modal.classList.remove("hidden");

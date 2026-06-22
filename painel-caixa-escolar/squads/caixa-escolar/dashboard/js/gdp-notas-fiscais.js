@@ -627,6 +627,22 @@ async function emitirOuSincronizarCobrancaReal(contaId, options = {}) {
       showToast(`Cobranca ${action === "bank-charge-create" ? "emitida" : "sincronizada"} no ${String(provider || "").toUpperCase()}.`, 4000);
       renderAll();
     }
+    // Auto-sync (UX): o Inter devolve o boleto 'em_processamento' com PDF/linha digitavel vazios.
+    // Apos EMITIR, se ainda nao temos o PDF, agenda uma sincronizacao automatica para puxar o link
+    // sozinho (sem o usuario precisar clicar 'Sincronizar'). So no fluxo create, sem loop.
+    if (action === "bank-charge-create" && !options._autoSynced) {
+      var _semPdf = !(conta.cobranca && conta.cobranca.bankSlipUrl);
+      var _temId = !!(conta.cobranca?.providerChargeId || conta.integracoes?.bancaria?.providerChargeId);
+      if (_semPdf && _temId) {
+        setTimeout(function () {
+          emitirOuSincronizarCobrancaReal(conta.id, { silent: true, _autoSynced: true }).then(function () {
+            // atualiza o modal/aba se estiverem abertos, para o link aparecer sozinho
+            try { if (typeof renderContasReceber === "function") renderContasReceber(); } catch (_) {}
+            try { if (typeof _crDetalheId !== "undefined" && _crDetalheId === conta.id && typeof abrirDetalheCr === "function") abrirDetalheCr(conta.id); } catch (_) {}
+          });
+        }, 8000);
+      }
+    }
     return true;
   } catch (err) {
     updateContaReceberIntegration(conta.id, "bancaria", {
