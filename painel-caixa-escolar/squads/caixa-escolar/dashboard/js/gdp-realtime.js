@@ -299,10 +299,25 @@
       }
       if (!exists) { items.push(record); changed = true; }
     } else if (type === 'UPDATE' && record) {
-      for (var j = 0; j < items.length; j++) {
-        if (items[j].id === record.id) { items[j] = record; changed = true; break; }
+      // Bug-fix regressão (mesmo padrão das entidades): suprimir o eco do próprio save
+      // e só sobrescrever quando o remoto for ESTRITAMENTE mais novo. Antes a sobrescrita
+      // era cega (items[j] = record), então um orçamento editado voltava sozinho.
+      if (typeof window.gdpApiIsSelfEcho === 'function' &&
+          window.gdpApiIsSelfEcho('resultados_orcamento', record.id, record)) {
+        return false;
       }
-      if (!changed) { items.push(record); changed = true; }
+      for (var j = 0; j < items.length; j++) {
+        if (items[j].id === record.id) {
+          var rTs = record.updated_at || record.updatedAt || '';
+          var lTs = items[j].updated_at || items[j].updatedAt || '';
+          if (!lTs || !rTs || rTs > lTs) { items[j] = record; changed = true; }
+          break;
+        }
+      }
+      if (!changed) {
+        var jaExiste = items.some(function (it) { return it.id === record.id; });
+        if (!jaExiste) { items.push(record); changed = true; }
+      }
     } else if (type === 'DELETE') {
       var delId = (oldRecord && oldRecord.id) || (record && record.id);
       if (delId) {

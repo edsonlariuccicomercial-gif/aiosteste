@@ -415,6 +415,10 @@
     },
     save: async function (item) {
       if (!item.empresa_id) item.empresa_id = getEmpresaId();
+      // Echo suppression: nf_counter usa empresa_id como chave (não id). Registrar o
+      // próprio eco evita que um UPDATE de realtime do nosso próprio incremento reverta
+      // a sequência de NF (número retrocedendo/duplicando — crítico fiscalmente).
+      _markSelfEcho('nf_counter', item.empresa_id, item);
       var ok = await sbUpsert('nf_counter', item, 'empresa_id');
       if (!ok) enqueueRetry('nf_counter', item, 'empresa_id');
       localStorage.setItem('gdp.nf-counter.v1', JSON.stringify(item));
@@ -506,6 +510,9 @@
         updatedAt: new Date().toISOString()
       });
       row.empresa_id = getEmpresaId();
+      // Echo suppression: caixa_config usa empresa_id como chave. Sem isto, o eco do
+      // próprio save do saldo inicial poderia reverter para o valor anterior via realtime.
+      _markSelfEcho('caixa_config', row.empresa_id, row);
       var ok = await sbUpsert('caixa_config', row, 'empresa_id');
       try { localStorage.setItem(CAIXA_CONFIG_LS, JSON.stringify(mapFromTable(row))); } catch (_) {}
       return ok;
