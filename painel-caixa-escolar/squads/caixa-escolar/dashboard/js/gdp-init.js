@@ -509,7 +509,17 @@ function abrirDetalheCr(contaId) {
       <div style="font-size:.82rem;color:var(--mut);margin-bottom:.3rem">Link de cobranca: ${(function(){ var _cid = conta.cobranca?.providerChargeId || conta.integracoes?.bancaria?.providerChargeId || ''; if (_cid) { return '<a href="/api/bank-charge?action=bank-charge-pdf&providerChargeId=' + encodeURIComponent(_cid) + '" target="_blank" rel="noreferrer" style="color:var(--blue,#3b82f6)">abrir</a>'; } return conta.cobranca?.invoiceUrl ? '<a href="' + esc(conta.cobranca.invoiceUrl) + '" target="_blank" rel="noreferrer" style="color:var(--blue,#3b82f6)">abrir</a>' : "-"; })()}</div>
       <div style="font-size:.82rem;color:var(--mut);margin-bottom:.6rem">Nosso numero: <span style="color:var(--txt)">${esc(conta.cobranca?.nossoNumero || "-")}</span></div>
       <button class="btn btn-sm btn-outline" onclick="sincronizarCobrancaProvider('${conta.id}')">🔄 Sincronizar boleto</button>
-    </div>` : ""}
+    </div>` : (
+      // Estado FANTASMA (incidente 2026-06-22): cobranca marcada como gerada/boleto mas SEM
+      // identificador do provider (providerChargeId). Significa que a emissao no banco NAO
+      // se concretizou (ex.: backend estava 404 na hora). Avisamos o usuario explicitamente
+      // em vez de mostrar nada — antes essas contas pareciam normais e o boleto "sumia".
+      (conta.cobranca && (conta.cobranca.forma === "boleto" || (conta.cobranca.status || "").indexOf("boleto") >= 0 || conta.cobranca.status === "gerada") && conta.status !== "recebida" && conta.status !== "cancelada") ? `
+    <div style="grid-column:1/-1;border:1px solid var(--yellow,#eab308);border-radius:8px;padding:.8rem 1rem;margin-top:.4rem;background:rgba(234,179,8,.08)">
+      <div style="font-weight:700;font-size:.85rem;margin-bottom:.4rem;color:var(--yellow,#eab308)">⚠️ Boleto não emitido no banco</div>
+      <div style="font-size:.8rem;color:var(--mut);margin-bottom:.6rem">Esta cobranca foi registrada localmente mas <strong>não possui boleto no provider</strong> (sem identificador do Inter). Provavelmente a emissao falhou. Clique para emitir agora.</div>
+      <button class="btn btn-sm btn-green" onclick="emitirOuSincronizarCobrancaReal('${conta.id}')">🏦 Emitir boleto agora</button>
+    </div>` : "")}
     <div style="grid-column:1/-1"><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Auditoria</label><div style="padding:.4rem 0;font-size:.82rem;color:var(--mut)">${esc(formatAuditStamp(conta.audit, conta.recebidaEm, conta.audit?.updatedBy))}</div></div>
   `;
   modal.classList.remove("hidden");

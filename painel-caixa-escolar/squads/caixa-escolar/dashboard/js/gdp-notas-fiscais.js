@@ -440,9 +440,41 @@ function applyRealBankChargeResult(conta, nf, normalized = {}, protocol = "") {
   }
 }
 
+// Guard de disponibilidade do backend (incidente 2026-06-22): quando as serverless
+// functions /api/* caem (404 NOT_FOUND do Vercel), o fluxo de emissao deixava o usuario
+// "gerar" boletos que NUNCA chegavam ao Inter — criando contas em estado fantasma
+// (cobranca 'boleto_gerado' sem providerChargeId). Aqui detectamos o 404 ANTES de mexer
+// no estado e bloqueamos com mensagem clara, em vez de produzir cobrancas falsas.
+async function _bankChargeBackendDisponivel() {
+  try {
+    const r = await fetch("/api/bank-charge", { method: "GET", cache: "no-store" });
+    // 404 = function dropada (Vercel NOT_FOUND). 405/400/200 = function viva.
+    if (r.status === 404) {
+      // Confirma que e o 404 do Vercel (function inexistente), nao um 404 da propria function.
+      if ((r.headers.get("x-vercel-error") || "").toUpperCase() === "NOT_FOUND") return false;
+      // Sem header explicito mas 404 puro tambem indica function ausente.
+      return false;
+    }
+    return true;
+  } catch (_) {
+    // Falha de rede: nao bloqueia (pode ser offline transitorio); deixa o fluxo normal tratar.
+    return true;
+  }
+}
+
 async function emitirOuSincronizarCobrancaReal(contaId, options = {}) {
   const conta = contasReceber.find((item) => item.id === contaId);
   if (!conta) return false;
+
+  // GUARD (incidente 2026-06-22): se o backend de cobranca estiver indisponivel (404),
+  // aborta ANTES de qualquer mutacao de estado — evita criar boleto/conta fantasma.
+  if (!(await _bankChargeBackendDisponivel())) {
+    if (!options.silent) {
+      showToast("Servico de cobranca indisponivel no momento (backend offline). Nenhum boleto foi gerado. Tente novamente em alguns minutos ou avise o suporte.", 7000);
+    }
+    if (typeof gdpWarn === "function") gdpWarn("[bank-charge] backend /api/bank-charge indisponivel (404) — emissao abortada para conta " + contaId);
+    return false;
+  }
   // Modal de vencimento manual (emissao via menu '...'): se um vencimento for passado,
   // ele substitui o vencimento da conta para esta emissao de boleto. O bank-charge usa
   // conta.vencimento como dataVencimento. O boleto AUTOMATICO da NF nao usa este override.
