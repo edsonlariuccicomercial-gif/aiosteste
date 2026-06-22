@@ -2044,7 +2044,7 @@ function renderContasReceber() {
           ${item.status === "recebida" ? `<a style="display:block;padding:.45rem 1rem;font-size:.82rem;cursor:pointer;color:var(--yellow,#eab308)" onclick="estornarContaReceber('${item.id}');closeCrMenus()">Estornar</a>` : ""}
           <a style="display:block;padding:.45rem 1rem;font-size:.82rem;cursor:pointer;color:var(--fg)" onclick="enviarLembreteConta('${item.id}','whatsapp');closeCrMenus()">📱 Cobrar WhatsApp</a>
           <a style="display:block;padding:.45rem 1rem;font-size:.82rem;cursor:pointer;color:var(--fg)" onclick="enviarLembreteConta('${item.id}','email');closeCrMenus()">📧 Cobrar Email</a>
-          <a style="display:block;padding:.45rem 1rem;font-size:.82rem;cursor:pointer;color:var(--fg)" onclick="emitirOuSincronizarCobrancaReal('${item.id}',{silent:false});closeCrMenus()">🧾 Emitir/Reemitir Boleto</a>
+          <a style="display:block;padding:.45rem 1rem;font-size:.82rem;cursor:pointer;color:var(--fg)" onclick="abrirModalReemitirBoleto('${item.id}');closeCrMenus()">🧾 Emitir/Reemitir Boleto</a>
           ${item.status === "recebida" ? `<a style="display:block;padding:.45rem 1rem;font-size:.82rem;cursor:pointer;color:var(--fg)" onclick="desvincularConciliacaoCr('${item.id}');closeCrMenus()">Desvincular conciliação</a>` : ""}
           <a style="display:block;padding:.45rem 1rem;font-size:.82rem;cursor:pointer;color:var(--fg)" onclick="clonarContaReceber('${item.id}');closeCrMenus()">Clonar</a>
           <a style="display:block;padding:.45rem 1rem;font-size:.82rem;cursor:pointer;color:var(--red,#f44)" onclick="excluirContaReceber('${item.id}');closeCrMenus()">Excluir</a>

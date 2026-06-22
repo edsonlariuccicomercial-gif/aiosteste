@@ -443,6 +443,12 @@ function applyRealBankChargeResult(conta, nf, normalized = {}, protocol = "") {
 async function emitirOuSincronizarCobrancaReal(contaId, options = {}) {
   const conta = contasReceber.find((item) => item.id === contaId);
   if (!conta) return false;
+  // Modal de vencimento manual (emissao via menu '...'): se um vencimento for passado,
+  // ele substitui o vencimento da conta para esta emissao de boleto. O bank-charge usa
+  // conta.vencimento como dataVencimento. O boleto AUTOMATICO da NF nao usa este override.
+  if (options.vencimento && /^\d{4}-\d{2}-\d{2}$/.test(options.vencimento)) {
+    conta.vencimento = options.vencimento;
+  }
   const nota = conta.notaFiscalId ? notasFiscais.find((item) => item.id === conta.notaFiscalId) || null : null;
   const provider = getEffectiveBankProvider(conta, nota);
   const ambiente = getEffectiveBankAmbiente(conta, nota);
@@ -470,7 +476,10 @@ async function emitirOuSincronizarCobrancaReal(contaId, options = {}) {
   if (!options.silent) renderAll();
 
   try {
-    const resp = await fetch("/api/gdp-integrations", {
+    // FIX (handoff cobranca-endpoint-errado): as actions bank-charge-create/sync sao
+    // tratadas em /api/bank-charge, NAO em /api/gdp-integrations (que so conhece NF-e).
+    // Chamar o endpoint errado causava 'Unknown action: bank-charge-create'.
+    const resp = await fetch("/api/bank-charge", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -2570,6 +2579,66 @@ async function dispararCobrancaAutomatica(contaId) {
   renderContasReceber();
   showToast(`Cobranca real sincronizada e disparo preparado via e-mail${usarWhatsapp ? " e WhatsApp (titulo em atraso)" : ""} para ${conta.cliente || "cliente"}.`, 4500);
 }
+
+// --- Modal de (re)emissao manual de boleto: escolhe data de vencimento ---
+// Diretriz @architect (handoff modal-vencimento-boleto): emissao MANUAL via menu '...'
+// abre modal p/ vencimento editavel. O boleto AUTOMATICO da NF nao usa este fluxo.
+// Placeholder de banco/conta preparado para o EPIC-18 (banca multi-tenant) — hoje 1 conta.
+window.abrirModalReemitirBoleto = function (contaId) {
+  const conta = contasReceber.find((item) => item.id === contaId);
+  if (!conta) { showToast("Conta nao encontrada.", 3000); return; }
+  // Default: hoje + prazo configurado (mesma regra do boleto automatico), mas editavel.
+  const hoje = new Date();
+  const prazo = (typeof getFinancasConfig === "function" ? getFinancasConfig().prazoRecebimentoDias : 5) || 5;
+  const sugestao = new Date(hoje);
+  sugestao.setDate(sugestao.getDate() + prazo);
+  const vencSugerido = sugestao.toISOString().slice(0, 10);
+  const minHoje = hoje.toISOString().slice(0, 10);
+  // Placeholder de conta bancaria (multi-tenant futuro): hoje so a conta padrao configurada.
+  const contas = (typeof getBankAccounts === "function" ? getBankAccounts() : []) || [];
+  const optsConta = contas.length
+    ? contas.map((c) => `<option value="${esc(c.id)}">${esc(c.apelido || c.banco || c.nome || c.id)}</option>`).join("")
+    : `<option value="">Conta padrao (Inter)</option>`;
+
+  let html = "";
+  html += '<div style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);z-index:2000;display:flex;align-items:center;justify-content:center" id="modal-reemitir-overlay" onclick="if(event.target===this)fecharModalReemitirBoleto()">';
+  html += '<div style="background:var(--card,#1e293b);border:1px solid var(--bdr);border-radius:12px;width:95%;max-width:440px;padding:0">';
+  html += '<div style="padding:1rem 1.2rem;border-bottom:1px solid var(--bdr);display:flex;justify-content:space-between;align-items:center">';
+  html += '<h3 style="margin:0;font-size:1rem;font-weight:700">🧾 Emitir / Reemitir Boleto</h3>';
+  html += '<button onclick="fecharModalReemitirBoleto()" style="background:none;border:none;color:var(--mut);font-size:1.3rem;cursor:pointer;padding:4px">&times;</button>';
+  html += '</div>';
+  html += '<div style="padding:1.2rem">';
+  html += '<div style="font-size:.82rem;color:var(--mut);margin-bottom:1rem">Conta: <strong style="color:var(--txt)">' + esc(conta.cliente || conta.descricao || conta.id) + '</strong> &middot; Valor: <strong style="color:var(--txt)">' + (typeof brl !== "undefined" ? brl.format(conta.valor || 0) : (conta.valor || 0)) + '</strong></div>';
+  html += '<label style="display:block;font-size:.72rem;color:var(--mut);margin-bottom:.25rem">Data de Vencimento</label>';
+  html += '<input type="date" id="reemitir-venc" value="' + vencSugerido + '" min="' + minHoje + '" style="width:100%;padding:.55rem .7rem;background:var(--bg);border:1px solid var(--bdr);border-radius:6px;color:var(--txt)">';
+  html += '<label style="display:block;font-size:.72rem;color:var(--mut);margin:.8rem 0 .25rem">Conta bancaria de cobranca</label>';
+  html += '<select id="reemitir-conta" style="width:100%;padding:.55rem .7rem;background:var(--bg);border:1px solid var(--bdr);border-radius:6px;color:var(--txt)">' + optsConta + '</select>';
+  html += '<div style="font-size:.7rem;color:var(--mut);margin-top:.3rem">Multiplas contas/bancos: disponivel no plano multi-empresa (EPIC-18).</div>';
+  html += '<div style="display:flex;justify-content:flex-end;gap:.6rem;margin-top:1.2rem">';
+  html += '<button class="btn btn-outline btn-sm" onclick="fecharModalReemitirBoleto()">Cancelar</button>';
+  html += '<button class="btn btn-sm" style="background:var(--green);color:#fff;font-weight:700" onclick="confirmarReemissaoBoleto(\'' + conta.id + '\')">Emitir Boleto</button>';
+  html += '</div></div></div></div>';
+
+  const container = document.createElement("div");
+  container.id = "modal-reemitir-container";
+  container.innerHTML = html;
+  document.body.appendChild(container);
+};
+
+window.fecharModalReemitirBoleto = function () {
+  const el = document.getElementById("modal-reemitir-container");
+  if (el) el.remove();
+};
+
+window.confirmarReemissaoBoleto = async function (contaId) {
+  const vencInput = document.getElementById("reemitir-venc");
+  const venc = vencInput ? vencInput.value : "";
+  if (!venc || !/^\d{4}-\d{2}-\d{2}$/.test(venc)) { showToast("Informe uma data de vencimento valida.", 3500); return; }
+  const hoje = new Date().toISOString().slice(0, 10);
+  if (venc < hoje) { showToast("O vencimento nao pode ser anterior a hoje.", 3500); return; }
+  fecharModalReemitirBoleto();
+  await emitirOuSincronizarCobrancaReal(contaId, { silent: false, vencimento: venc });
+};
 
 // --- Block 4: Email + boleto automation ---
 async function dispararEmailNotaEBoletoAutomatico(notaId, contaId, options = {}) {
