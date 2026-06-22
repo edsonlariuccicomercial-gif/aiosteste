@@ -211,6 +211,44 @@ async function syncInterCharge(ambiente, providerChargeId) {
   return { ok: true, provider: "inter", ambiente, normalized: normalizeCharge({ codigoSolicitacao: providerChargeId }, detail, pdfUri) };
 }
 
+// Lista cobrancas do Inter por periodo (busca paginada da API v3). Usado para
+// reconciliar boletos "orfaos" — criados no Inter mas que perderam o vinculo no
+// sistema (ex.: resposta perdida durante a janela de 404 do backend em 2026-06-22).
+// Doc Inter: GET /cobranca/v3/cobrancas?dataInicial=YYYY-MM-DD&dataFinal=YYYY-MM-DD
+async function listInterCharges(ambiente, dataInicial, dataFinal) {
+  const rt = resolveInterRuntime(ambiente);
+  if (!rt.clientId || !rt.clientSecret) throw new Error("Credenciais OAuth do Inter ausentes.");
+  const agent = buildAgent(rt);
+  const token = await interToken(rt, agent, "boleto-cobranca.read");
+  const itens = [];
+  let pagina = 0;
+  const TAM = 100;
+  // Pagina ate esgotar (guard de seguranca: max 20 paginas = 2000 cobrancas).
+  while (pagina < 20) {
+    const qs = `dataInicial=${encodeURIComponent(dataInicial)}&dataFinal=${encodeURIComponent(dataFinal)}&itensPorPagina=${TAM}&paginaAtual=${pagina}`;
+    const r = await interReq(rt, agent, token, `/cobranca/v3/cobrancas?${qs}`).catch(() => ({}));
+    const lote = (r && (r.cobrancas || r.content || r.itens)) || [];
+    if (!Array.isArray(lote) || lote.length === 0) break;
+    for (const c of lote) {
+      const cob = c.cobranca || c;
+      itens.push({
+        codigoSolicitacao: c.codigoSolicitacao || cob.codigoSolicitacao || "",
+        seuNumero: cob.seuNumero || c.seuNumero || "",
+        nossoNumero: (c.boleto && c.boleto.nossoNumero) || cob.nossoNumero || "",
+        situacao: cob.situacao || c.situacao || "",
+        valor: cob.valorNominal || cob.valor || "",
+        dataEmissao: cob.dataEmissao || c.dataEmissao || "",
+        dataVencimento: cob.dataVencimento || "",
+        pagadorNome: (cob.pagador && cob.pagador.nome) || "",
+        pagadorDoc: (cob.pagador && (cob.pagador.cpfCnpj || cob.pagador.numeroDocumento)) || ""
+      });
+    }
+    if (lote.length < TAM) break;
+    pagina++;
+  }
+  return { ok: true, provider: "inter", ambiente, total: itens.length, cobrancas: itens };
+}
+
 module.exports = async function handler(req, res) {
   corsHeaders(req, res);
   if (req.method === "OPTIONS") return res.status(204).end();
@@ -270,6 +308,14 @@ module.exports = async function handler(req, res) {
       const providerChargeId = trimStr(body.providerChargeId);
       if (!providerChargeId) return res.status(400).json({ ok: false, error: "providerChargeId obrigatorio" });
       const result = await syncInterCharge(ambiente, providerChargeId);
+      return res.status(200).json({ ok: true, action, provider, ambiente, result });
+    }
+
+    if (action === "bank-charge-list") {
+      const dataInicial = trimStr(body.dataInicial);
+      const dataFinal = trimStr(body.dataFinal);
+      if (!dataInicial || !dataFinal) return res.status(400).json({ ok: false, error: "dataInicial e dataFinal (YYYY-MM-DD) obrigatorios" });
+      const result = await listInterCharges(ambiente, dataInicial, dataFinal);
       return res.status(200).json({ ok: true, action, provider, ambiente, result });
     }
 
