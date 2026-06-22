@@ -316,7 +316,11 @@ function registrarBaixaRecebimento(contaId) {
     onSuccess: (data) => updateContaReceberIntegration(conta.id, "bancaria", { status: "recebimento_registrado", protocol: data.protocol || "", lastAction: "registrar_recebimento" }),
     onError: (err) => updateContaReceberIntegration(conta.id, "bancaria", { status: "falha_envio", error: err.message, lastAction: "registrar_recebimento" })
   });
+  // Story 21.7 (FR-21.7.4): conta processada sai da fila — remover do Set de seleção e
+  // re-renderizar; depois atualizar o rodapé/contador para refletir a seleção limpa.
+  if (_selectedContaReceberIds && _selectedContaReceberIds.delete) _selectedContaReceberIds.delete(contaId);
   renderContasReceber();
+  if (typeof atualizarSelecaoContasReceber === "function") atualizarSelecaoContasReceber();
   showToast(`Recebimento registrado para ${conta.descricao}.`, 3000);
 }
 
@@ -857,7 +861,11 @@ function registrarBaixaContaPagar(contaId) {
   conta.pagaEm = `${dataBaixa}T12:00:00`;
   conta.audit = { ...(conta.audit || {}), updatedAt: new Date().toISOString(), updatedBy: getAuditActor(), baixaManualAt: conta.pagaEm };
   saveContasPagar();
+  // Story 21.7 (FR-21.7.4): conta processada sai da fila — remover do Set de seleção e
+  // re-renderizar; depois atualizar o rodapé/contador para refletir a seleção limpa.
+  if (_selectedContaPagarIds && _selectedContaPagarIds.delete) _selectedContaPagarIds.delete(contaId);
   renderContasPagar();
+  if (typeof atualizarSelecaoContasPagar === "function") atualizarSelecaoContasPagar();
   showToast(`Conta a pagar "${conta.descricao}" baixada.`, 3000);
 }
 

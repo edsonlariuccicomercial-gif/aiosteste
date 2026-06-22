@@ -744,6 +744,10 @@ function aplicarSituacaoBulk(novoStatus) {
     if (p) { p.status = novoStatus; updated++; }
   }
   savePedidos();
+  // Story 21.7 (FR-21.7.4): limpar a seleção ANTES do render — senão o Set residual
+  // remarca os checkboxes (render usa _selectedPedidoIds.has(p.id)). Item saiu da fila.
+  _selectedPedidoIds.clear();
+  if (typeof _hideAllPageFooters === "function") _hideAllPageFooters();
   renderPedidos();
   document.getElementById("modal-alterar-situacao-bulk").classList.add("hidden");
   showToast(`${updated} pedido(s) movido(s) para "${getPedidoStatusMeta(novoStatus).label}".`, 3000);
@@ -4113,6 +4117,9 @@ window.confirmarEntrega = function(pedidoId, totalItens) {
   p.dados_extras.statusEntrega = calcStatusEntrega(p);
 
   savePedidos();
+  // Story 21.7 (FR-21.7.4): se este pedido estava selecionado por checkbox, desmarcá-lo
+  // após a ação (item processado sai da fila) — evita re-marcação no renderPedidos.
+  if (_selectedPedidoIds && _selectedPedidoIds.delete) _selectedPedidoIds.delete(pedidoId);
   fecharModalEntrega();
   verPedidoDetalhe(pedidoId);
   renderPedidos();
