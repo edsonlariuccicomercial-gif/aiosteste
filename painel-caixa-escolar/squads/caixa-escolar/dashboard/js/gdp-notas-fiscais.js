@@ -335,12 +335,17 @@ function getConfiguredDefaultBankAccount() {
     || null;
 }
 
+// BANK-2 (handoff cobranca-inter-fixes): o provider/ambiente efetivos sao decididos
+// pelo BACKEND (env GDP_BANK_PROVIDER). O frontend NAO deve forcar 'asaas'/'sandbox'
+// (fallback de localStorage vazio que causava falha na cobranca). Fallback alinhado
+// ao backend: inter/producao. A forma exibida e atualizada com o provider real
+// retornado pelo backend (applyRealBankChargeResult).
 function getEffectiveBankProvider(conta = null, nota = null) {
   const config = getBankApiConfig();
   return conta?.integracoes?.bancaria?.provider
     || nota?.integracoes?.bancaria?.provider
     || config.provider
-    || "asaas";
+    || "inter";
 }
 
 function getEffectiveBankAmbiente(conta = null, nota = null) {
@@ -348,7 +353,7 @@ function getEffectiveBankAmbiente(conta = null, nota = null) {
   return conta?.integracoes?.bancaria?.ambiente
     || nota?.integracoes?.bancaria?.ambiente
     || config.ambiente
-    || "sandbox";
+    || "producao";
 }
 
 function applyRealBankChargeResult(conta, nf, normalized = {}, protocol = "") {

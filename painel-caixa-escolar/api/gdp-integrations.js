@@ -3,6 +3,8 @@
 
 const path = require("path");
 const nfeSefaz = require(path.join(__dirname, "..", "squads", "caixa-escolar", "dashboard", "server-lib", "nfe-sefaz-client.js"));
+// BANK-3 (handoff cobranca-inter-fixes): diagnostico do provedor bancario (botao "Testar")
+const bankProviderConfig = require(path.join(__dirname, "..", "squads", "caixa-escolar", "dashboard", "server-lib", "bank-provider-config.js"));
 // Story 5.3 rev: Auth middleware REMOVED — frontend uses local login (not Supabase Auth),
 // so no JWT is available. Re-enable when frontend migrates to Supabase Auth.
 // const { requireAuth } = require("./lib/auth");
@@ -30,6 +32,20 @@ module.exports = async function handler(req, res) {
   const action = body.action || req.query?.action || "";
 
   try {
+    // BANK-3: diagnostico do provedor bancario (botao "Testar" da config bancaria).
+    // O provider/ambiente REAIS vem da env (coerente com BANK-1: backend manda),
+    // ignorando o que o front possa enviar vazio. So expoe o resultado do diagnostico.
+    if (action === "bank-api-diagnose") {
+      const envProvider = env("GDP_BANK_PROVIDER") || env("GDP_BANK_DEFAULT_PROVIDER") || "inter";
+      const envAmbiente = (env("GDP_BANK_AMBIENTE") || env("GDP_BANK_INTER_AMBIENTE") || "producao");
+      const diagnostic = bankProviderConfig.buildBankProviderDiagnostic({
+        ...(body.config || {}),
+        provider: envProvider,
+        ambiente: envAmbiente
+      });
+      return res.status(200).json({ ok: true, action, diagnostic });
+    }
+
     // Config check
     if (action === "nfe-sefaz-config" || (req.method === "GET" && !action)) {
       const config = getSefazConfig();
