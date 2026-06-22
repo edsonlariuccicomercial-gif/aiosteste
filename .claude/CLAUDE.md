@@ -392,6 +392,15 @@ cd painel-caixa-escolar && npx vercel --prod --force
 - Sempre **bumpar a versão** dos scripts no HTML (`?v=N`) ao alterar um JS, e orientar o usuário a dar **Ctrl+Shift+R** (cache do navegador é uma camada separada do cache do Vercel).
 - Histórico: incidente em 2026-06-13 (aba Conta-Corrente "sumiu" por build cache servindo `gdp-api.js?v=12` em vez de `v=14`).
 
+### 🚫 Auto-deploy do Git está DESLIGADO — deploy é SEMPRE manual (`--force`)
+- **Estado atual (`vercel.json`):** `git.deploymentEnabled.master = false`. O merge/push na master **NÃO** dispara deploy automático. Só `npx vercel --prod --force` publica em produção.
+- **NÃO reativar o auto-deploy** (`master: true`) sem antes resolver o FIX-C abaixo. Já foi reativado por engano uma vez (commit `dc27359`, revertido em `5131713`).
+- **Por que está OFF:** o auto-deploy da integração Git da Vercel reaproveitava o build cache e **dropava as serverless functions `/api/*`** (todas davam **404** após cada merge — ex.: "Falha ao integrar cobrança com INTER: HTTP 404"). Havia uma **corrida**: o `--force` manual subia com functions, mas o deploy automático do merge sobrescrevia logo depois com a versão cacheada **sem** functions (o automático vencia). Diagnóstico em `.aiox/handoffs/handoff-analyst-to-devops-buildcache-rootcause-20260622.yaml`.
+- **Sintoma de que voltou:** functions `/api/*` retornando 404 após um merge. Validar com:
+  `for fn in gdp-data gdp-integrations bank-charge caixa-proxy ai-parse-price send-order-email; do curl -s -o /dev/null -w "$fn %{http_code}\n" "https://painel-caixa-escolar.vercel.app/api/$fn"; done` — **404 = function dropada** (200/400/405 = viva).
+- **Responsabilidade:** o **@devops** roda o `--force` ao final de cada lote de mudanças (NÃO é tarefa do stakeholder). O usuário só dá Ctrl+Shift+R no navegador.
+- **FIX-C (follow-up, p/ um dia reativar auto-deploy):** as functions `api/gdp-integrations.js` / `bank-charge.js` fazem `require()` de `../squads/.../server-lib` (paths **fora de `/api/`**). O build incremental (cache) não detecta mudança nesses paths e não recompila/inclui as functions. Resolver = mover `server-lib` para dentro de `/api` **ou** declarar `includeFiles` no `vercel.json`. Só então o auto-deploy pode ser religado com segurança.
+
 ## Squad Fiscal Engine v2.0 — Reforma Tributária
 
 O módulo fiscal (`nfe-sefaz-client.js`) foi atualizado em 2026-05-18 com:
