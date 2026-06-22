@@ -455,26 +455,45 @@ async function emitirOuSincronizarCobrancaReal(contaId, options = {}) {
   // CNPJ/CPF. Contas antigas guardavam so o nome. Aqui garantimos o documento antes de emitir,
   // tentando em camadas: conta.documento -> nota local -> nota no Supabase -> cadastro de clientes.
   function _cnpjDigits(v) { return String(v || "").replace(/\D/g, ""); }
-  if (!_cnpjDigits(conta.documento)) {
-    let doc = _cnpjDigits(nota?.cliente?.cnpj);
+  // Endereco do cliente faltando? (cep/cidade/uf). O boleto Inter exige endereco completo.
+  function _temEndereco(o) { return o && o.cep && (o.municipio || o.cidade) && o.uf && o.logradouro; }
+  const _precisaHeal = !_cnpjDigits(conta.documento) || !_temEndereco(conta.clienteFiscal);
+  if (_precisaHeal) {
+    let doc = _cnpjDigits(conta.documento) || _cnpjDigits(nota?.cliente?.cnpj);
     // Camada 3: nota nao estava na lista local -> buscar no Supabase por id
     // (gdpApi expoe a entidade como 'notas_fiscais' — underscore, ver gdp-api.js:559)
-    if (!doc && conta.notaFiscalId && window.gdpApi?.notas_fiscais?.get) {
+    if (!nota && conta.notaFiscalId && window.gdpApi?.notas_fiscais?.get) {
       try {
         const notaRemota = await gdpApi.notas_fiscais.get(conta.notaFiscalId);
-        if (notaRemota) { nota = nota || notaRemota; doc = _cnpjDigits(notaRemota.cliente?.cnpj); }
+        if (notaRemota) { nota = notaRemota; doc = doc || _cnpjDigits(notaRemota.cliente?.cnpj); }
       } catch (_) {}
     }
-    // Camada 4: cadastro de clientes/usuarios por nome
-    if (!doc && typeof usuarios !== "undefined" && Array.isArray(usuarios)) {
+    // Camada 4: cadastro de clientes/usuarios por nome ou CNPJ -> CNPJ + ENDERECO completo.
+    // Le no padrao HIBRIDO (plano u.cep + aninhado u.endereco.cep), igual a NF monta (linhas 188-196).
+    if ((!doc || !_temEndereco(conta.clienteFiscal)) && typeof usuarios !== "undefined" && Array.isArray(usuarios)) {
       const nomeConta = String(conta.cliente || "").toLowerCase().trim();
-      const u = usuarios.find((x) => String(x.nome || "").toLowerCase().trim() === nomeConta && _cnpjDigits(x.cnpj));
-      if (u) doc = _cnpjDigits(u.cnpj);
+      const u = usuarios.find((x) =>
+        (doc && _cnpjDigits(x.cnpj) === doc) ||
+        String(x.nome || "").toLowerCase().trim() === nomeConta
+      );
+      if (u) {
+        const ue = u.endereco || {};
+        if (!doc) doc = _cnpjDigits(u.cnpj);
+        conta.clienteFiscal = Object.assign({}, conta.clienteFiscal, {
+          nome: conta.clienteFiscal?.nome || u.nome || "",
+          cnpj: conta.clienteFiscal?.cnpj || u.cnpj || "",
+          email: conta.clienteFiscal?.email || u.email || "",
+          cep: conta.clienteFiscal?.cep || u.cep || ue.cep || "",
+          logradouro: conta.clienteFiscal?.logradouro || u.logradouro || ue.logradouro || "",
+          numero: conta.clienteFiscal?.numero || u.numero || ue.numero || "",
+          bairro: conta.clienteFiscal?.bairro || u.bairro || ue.bairro || "",
+          municipio: conta.clienteFiscal?.municipio || u.municipio || u.cidade || ue.cidade || ue.municipio || "",
+          uf: conta.clienteFiscal?.uf || u.uf || ue.uf || ""
+        });
+      }
     }
-    if (doc) {
-      conta.documento = doc;
-      saveContasReceber(); // persiste o auto-heal para nao repetir a busca
-    }
+    if (doc) conta.documento = doc;
+    if (doc || _temEndereco(conta.clienteFiscal)) saveContasReceber(); // persiste o auto-heal
   }
 
   // Cliente fiscal consolidado para o boleto: o Inter exige nome, CNPJ, CEP, endereco, numero,
