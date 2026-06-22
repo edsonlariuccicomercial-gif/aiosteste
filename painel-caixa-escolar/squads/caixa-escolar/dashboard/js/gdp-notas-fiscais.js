@@ -1606,7 +1606,15 @@ async function transmitirHomologacaoNota(notaId) {
       updatedAt: new Date().toISOString(),
       updatedBy: getAuditActor()
     };
-    savePedidos();
+    // Story 21.15 (FR-21.15.1/3): faturar via homologação/autorização SEFAZ deve mover o
+    // pedido para "faturado" automaticamente — alinhado ao caminho de gerarNotaFiscalPedido
+    // (gdp-notas-fiscais.js:1269). Gate _temProvaAut (chave+protocolo): nota rejeitada/sem
+    // prova NÃO marca faturado (AC3). UX: seguir o pedido para a aba "Faturado".
+    if (_temProvaAut) {
+      pedido.status = "faturado";
+      if (typeof setPedidoStatusTab === 'function') setPedidoStatusTab('faturado');
+    }
+    savePedidos(pedido.id); // Story 21.15 (FR-21.15.2): save seletivo evita rajada de eco realtime
 
     // Story 16.5 FIX-4: a cobrança da NF-e real é criada SOMENTE após autorização
     // SEFAZ (não mais de forma otimista na criação do rascunho). Isso elimina
@@ -1633,11 +1641,11 @@ async function transmitirHomologacaoNota(notaId) {
         lastAction: "emitir_cobranca_nf_autorizada"
       });
       saveContasReceber();
-      savePedidos();
+      savePedidos(pedido.id); // Story 21.15 (FR-21.15.2): save seletivo
       await emitirOuSincronizarCobrancaReal(conta.id, { silent: true });
     }
 
-    saveNotasFiscais();
+    saveNotasFiscais(nf.id); // Story 21.15 (FR-21.15.2): save seletivo
 
     // Bridge 5: NF Saída → Banco (preço real faturado) — transmissão SEFAZ real
     // Story 20.14: gate alinhado a temProvaAutorizacao (chave+protocolo)
