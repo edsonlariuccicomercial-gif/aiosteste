@@ -1,0 +1,92 @@
+# HANDOFF DE CONTINUAÇÃO — sessão 2026-06-22 (UX bugs + deploy + módulos)
+# Para retomar EXATAMENTE onde paramos. Stakeholder: Edson.
+# Como usar: ativar @devops ou @pm e dizer "continuar do handoff-FINAL-sessao-ux-deploy-modulos-20260622".
+
+handoff:
+  from_agent: devops
+  to_agent: pm           # próximo passo é o Spec/implementação da Story 22.2
+  date: "2026-06-22"
+  branch: master
+  consumed: false
+  ultimo_commit: "1de4503 (docs(infra): auto-deploy Git OFF no CLAUDE.md)"
+
+  contexto_da_sessao: >
+    Stakeholder reportou 4 sintomas após limpar cache: (P1) checkboxes não desmarcam,
+    (P2) filtro não reseta ao sair, (P3) status do pedido não muda ao faturar,
+    (P4) visibilidade de módulos só vale no navegador local. Fluxo completo de agentes
+    rodado: @analyst diagnosticou → @sm criou stories → @po validou → @dev implementou →
+    @devops deployou. Também resolvido um 5º problema recorrente: auto-deploy do Git
+    derrubando as serverless functions.
+
+  CONCLUIDO_E_DEPLOYADO:
+    - id: P3
+      story: "21.15 (Done)"
+      o_que: "pedido.status='faturado' em transmitirHomologacaoNota (gate _temProvaAut) + saves seletivos"
+      arquivo: "js/gdp-notas-fiscais.js (v=35)"
+      validado_prod: "sim — pedido.status='faturado' aparece 2x no JS servido"
+    - id: P1
+      story: "21.7 ampliada (Done)"
+      o_que: "clear/delete da seleção em aplicarSituacaoBulk, confirmarEntrega, baixaCP, baixaCR; excluirItensSelecionados já-OK (DOM-only)"
+      arquivo: "js/gdp-pedidos.js (v=30), js/gdp-init.js (v=39)"
+      validado_prod: "sim"
+    - id: P2
+      story: "21.9 (já estava Done de sessão anterior)"
+      o_que: "resetTabState cobre selects/datas/abas; nenhuma ação nova necessária"
+      nota: "se o sintoma persistir em produção, reabrir como regressão da 21.9 (checar fecharDetalheCr/Cp)"
+    - id: AUTO_DEPLOY_FUNCTIONS
+      o_que: >
+        Auto-deploy do Git da Vercel reaproveitava build cache e DROPAVA as functions /api/* (404 após merge).
+        FIX-B (auto-deploy OFF) tinha resolvido mas foi revertido por engano no commit dc27359.
+        REAPLICADO: vercel.json git.deploymentEnabled.master=false (commit 5131713). Documentado no CLAUDE.md (1de4503).
+      validado_prod: "sim — 6 functions respondem 200/400/405, nenhuma 404"
+      regra_permanente: "deploy é SEMPRE manual via 'npx vercel --prod --force' pelo @devops. NÃO reativar auto-deploy sem antes o FIX-C."
+
+  PENDENTE_RETOMAR_AQUI:
+    - id: P4
+      titulo: "Visibilidade de módulos ONLINE (todos os navegadores/máquinas respeitam)"
+      story: "22.2 (Ready — NÃO implementada)"
+      story_path: "docs/stories/22.2.story.md"
+      status_atual_real: >
+        NÃO resolvido. setAcessoModulos (modulos-acesso.js:42) grava SÓ em localStorage —
+        nunca no Supabase. Por isso a config vale só no navegador local. Outros
+        navegadores/máquinas/usuários não respeitam.
+      decisao_do_stakeholder: "granularidade POR EMPRESA (empresa_id)."
+      descoberta_critica: >
+        EPIC-18 (multi-tenant) NÃO está implementado — nenhuma story 18.x criada. Hoje empresa_id
+        é HARDCODED 'LARIUCCI' (gdp-api.js:66,86) e RLS é permissiva (USING(true), migration 022;
+        034 só tornou anon read-only). Não há Supabase Auth nem isolamento por empresa.
+      caminho_recomendado: >
+        Como hoje só existe 1 cliente (LARIUCCI), DÁ para implementar a 22.2 já, single-tenant:
+        persistir a config no Supabase com empresa_id='LARIUCCI'. Resolve 100% o problema do
+        stakeholder (config online/multi-device) SEM esperar o EPIC-18. O isolamento entre
+        empresas diferentes (RLS) fica como follow-up do EPIC-18, só relevante quando houver 2º cliente.
+      proximos_passos:
+        - "1. @architect: decidir tabela nova (empresa_modulos) vs coluna JSON (empresas.modulos_liberados já existe na migration 001). Recomendado: reusar a coluna existente."
+        - "2. @data-engineer: migration + (RLS por empresa_id documentada como pendente do EPIC-18; hoje permissiva basta p/ single-tenant)."
+        - "3. @dev: em modulos-acesso.js, getAcessoModulos lê do Supabase (via gdpApi) no init com fallback localStorage; setAcessoModulos grava no Supabase (+_markSelfEcho) e atualiza cache local; gdp-realtime reaplica aplicarAcessoSidebar ao receber update."
+        - "4. @devops: bump ?v=, deploy 'npx vercel --prod --force', validar multi-device, orientar Ctrl+Shift+R."
+      arquivos_alvo:
+        - "modulos-acesso.js:10,19-44 (camada a migrar p/ Supabase + fallback)"
+        - "gdp-api.js (raiz de dashboard/, NÃO em js/) — acesso à tabela/coluna; empresa_id já é conceito de 1ª classe (51 refs)"
+        - "js/gdp-realtime.js (handler de update da config)"
+
+  FOLLOW_UPS_NAO_BLOQUEANTES:
+    - id: FIX-C
+      titulo: "Raiz profunda do drop de functions (p/ um dia reativar auto-deploy)"
+      detalhe: >
+        Functions api/gdp-integrations.js / bank-charge.js fazem require() de ../squads/.../server-lib
+        (fora de /api). Build incremental não recompila → functions somem. Resolver = mover server-lib
+        p/ dentro de /api OU declarar includeFiles no vercel.json. Só então religar auto-deploy com segurança.
+      registrado_em: ".aiox/handoffs/handoff-analyst-to-devops-buildcache-rootcause-20260622.yaml (consumed)"
+    - id: EPIC-18
+      titulo: "Multi-tenant real (Auth + RLS estrita por empresa_id)"
+      detalhe: "Roadmap não iniciado. Necessário antes de vender p/ 2º cliente. Stories 18.1–18.9 ainda não criadas. Doc: docs/stories/EPIC-18-MULTI-TENANT-SAAS.md"
+
+  como_validar_producao:
+    versoes: "curl -s 'https://painel-caixa-escolar.vercel.app/squads/caixa-escolar/dashboard/gdp-contratos.html' | grep -oE 'gdp-(notas-fiscais|pedidos|init).js?v=[0-9]+'"
+    functions: "for fn in gdp-data gdp-integrations bank-charge caixa-proxy ai-parse-price send-order-email; do curl -s -o /dev/null -w \"$fn %{http_code}\\n\" https://painel-caixa-escolar.vercel.app/api/$fn; done  (404=dropada)"
+
+  next_action: >
+    Retomar pelo P4: acionar @pm/@architect para implementar a Story 22.2 single-tenant
+    (config de módulos no Supabase, empresa_id='LARIUCCI'), depois @data-engineer, @dev e @devops.
+    Tudo o mais (P1, P2, P3, auto-deploy) está Done e validado em produção.
