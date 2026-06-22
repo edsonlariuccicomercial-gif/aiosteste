@@ -1147,6 +1147,21 @@ async function gerarNotaFiscalPedido(pedidoId) {
     // para não acumular cobranças duplicadas a cada regeração.
     const contaOrfa = getContaReceberByNota(nfExistente.id);
     if (contaOrfa) {
+      // CAUSA RAIZ (incidente 2026-06-22 — "boletos apareceram e sumiram"): esta remocao
+      // era CEGA e apagava a conta a receber mesmo quando ela JA TINHA um boleto Inter
+      // emitido (providerChargeId/nossoNumero/bankSlipUrl). Ao regerar a NF de um pedido,
+      // o usuario perdia boletos reais ja registrados no banco. GUARD: se ha cobranca real
+      // vinculada, NAO apaga — bloqueia a regeracao e orienta o usuario.
+      const _temBoletoReal = !!(contaOrfa.cobranca && (
+        contaOrfa.cobranca.providerChargeId ||
+        contaOrfa.cobranca.nossoNumero ||
+        contaOrfa.cobranca.bankSlipUrl ||
+        contaOrfa.cobranca.linhaDigitavel
+      )) || !!(contaOrfa.integracoes?.bancaria?.providerChargeId);
+      if (_temBoletoReal) {
+        showToast("Esta NF ja possui um BOLETO emitido no banco (conta " + contaOrfa.id + "). Regerar a NF apagaria esse boleto real. Operacao bloqueada — cancele o boleto no banco antes, ou use a NF existente.", 8000);
+        return;
+      }
       contasReceber = contasReceber.filter((c) => c.id !== contaOrfa.id);
       saveContasReceber();
     }
@@ -2663,7 +2678,18 @@ function excluirNotaFiscal(notaId) {
     showToast("NF-e real autorizada nao pode ser excluida no GDP. Use cancelamento fiscal proprio.", 4500);
     return;
   }
-  if (!confirm(`Excluir a nota ${nf.numero || nf.id}?\n\nEsta acao remove a nota fiscal do GDP.`)) return;
+  // Incidente 2026-06-22: excluir uma NF tambem soft-deleta a conta a receber vinculada
+  // (abaixo). Se essa conta tem BOLETO Inter emitido, o usuario perde um boleto real sem
+  // perceber. Aviso reforcado quando ha cobranca real.
+  const _contaVinc = getContaReceberByNota(notaId);
+  const _temBoletoVinc = !!(_contaVinc && _contaVinc.cobranca && (
+    _contaVinc.cobranca.providerChargeId || _contaVinc.cobranca.nossoNumero ||
+    _contaVinc.cobranca.bankSlipUrl || _contaVinc.cobranca.linhaDigitavel
+  )) || !!(_contaVinc && _contaVinc.integracoes?.bancaria?.providerChargeId);
+  const _msgConfirm = _temBoletoVinc
+    ? `ATENCAO: a nota ${nf.numero || nf.id} possui um BOLETO emitido no banco (conta ${_contaVinc.id}).\n\nExcluir a NF tambem vai REMOVER essa conta a receber e o vinculo do boleto real. Cancele o boleto no banco antes, se necessario.\n\nConfirma a exclusao mesmo assim?`
+    : `Excluir a nota ${nf.numero || nf.id}?\n\nEsta acao remove a nota fiscal do GDP.`;
+  if (!confirm(_msgConfirm)) return;
 
   // EPIC-19 (extensão): SOFT-DELETE sincronizado (substitui hard-delete via .remove()).
   // Marca deletedAt e persiste via saveNotasFiscais → gdpApi.notas_fiscais.save (UPSERT
