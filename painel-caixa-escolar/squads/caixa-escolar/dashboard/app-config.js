@@ -367,7 +367,11 @@ function getFinancasConfig() {
   return {
     prazoRecebimentoDias: prazoFinal,
     condicaoPagamentoPadrao: cfg.condicaoPagamentoPadrao || String(prazoFinal),
-    contaCobrancaPadraoId: cfg.contaCobrancaPadraoId || ""
+    contaCobrancaPadraoId: cfg.contaCobrancaPadraoId || "",
+    // Story 20.7: forma de recebimento padrao + preferencias de envio automatico por e-mail
+    formaRecebimentoPadrao: cfg.formaRecebimentoPadrao || "boleto",
+    enviarNfBoletoAuto: cfg.enviarNfBoletoAuto !== false, // default true
+    enviarBoletoNaReemissao: cfg.enviarBoletoNaReemissao !== false // default true
   };
 }
 
@@ -376,8 +380,14 @@ function loadFinancasConfig() {
   const prazoEl = document.getElementById("fin-prazo-recebimento");
   const condEl = document.getElementById("fin-condicao-pagamento");
   const contaEl = document.getElementById("fin-conta-cobranca");
+  const formaEl = document.getElementById("fin-forma-recebimento");
+  const envNfEl = document.getElementById("fin-enviar-nf-boleto-auto");
+  const envReemEl = document.getElementById("fin-enviar-boleto-reemissao");
   if (prazoEl) prazoEl.value = cfg.prazoRecebimentoDias;
   if (condEl) condEl.value = cfg.condicaoPagamentoPadrao;
+  if (formaEl) formaEl.value = cfg.formaRecebimentoPadrao;
+  if (envNfEl) envNfEl.checked = cfg.enviarNfBoletoAuto;
+  if (envReemEl) envReemEl.checked = cfg.enviarBoletoNaReemissao;
   // Popular o select com as contas bancárias cadastradas
   if (contaEl) {
     const accounts = getBankAccounts();
@@ -393,11 +403,17 @@ function saveFinancasConfig() {
   const prazoEl = document.getElementById("fin-prazo-recebimento");
   const condEl = document.getElementById("fin-condicao-pagamento");
   const contaEl = document.getElementById("fin-conta-cobranca");
+  const formaEl = document.getElementById("fin-forma-recebimento");
+  const envNfEl = document.getElementById("fin-enviar-nf-boleto-auto");
+  const envReemEl = document.getElementById("fin-enviar-boleto-reemissao");
   const prazoNum = Number(prazoEl && prazoEl.value);
   const data = {
     prazoRecebimentoDias: prazoNum > 0 ? prazoNum : FINANCAS_PRAZO_PADRAO,
     condicaoPagamentoPadrao: (condEl && condEl.value) || "",
     contaCobrancaPadraoId: (contaEl && contaEl.value) || "",
+    formaRecebimentoPadrao: (formaEl && formaEl.value) || "boleto",
+    enviarNfBoletoAuto: envNfEl ? !!envNfEl.checked : true,
+    enviarBoletoNaReemissao: envReemEl ? !!envReemEl.checked : true,
     updatedAt: new Date().toISOString()
   };
   localStorage.setItem(FINANCAS_CONFIG_STORAGE_KEY, JSON.stringify(data));

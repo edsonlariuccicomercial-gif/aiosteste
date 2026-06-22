@@ -988,6 +988,12 @@
               <label>Prazo padrão de recebimento (dias)<input type="number" id="fin-prazo-recebimento" min="0" step="1" placeholder="5" /></label>
               <label>Condição de pagamento padrão<input type="text" id="fin-condicao-pagamento" placeholder="Ex: 5 dias / à vista" /></label>
               <label>Conta bancária de cobrança padrão<select id="fin-conta-cobranca"><option value="">Selecione...</option></select></label>
+              <label>Forma de recebimento padrão<select id="fin-forma-recebimento"><option value="boleto">Boleto</option><option value="pix">PIX</option><option value="ted">TED</option><option value="manual">Manual</option></select></label>
+            </div>
+            <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--line)">
+              <p style="margin:0 0 8px;font-size:.8rem;color:var(--mut);text-transform:uppercase;font-weight:700">Envio automático por e-mail</p>
+              <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-size:.9rem;margin-bottom:.4rem"><input type="checkbox" id="fin-enviar-nf-boleto-auto" style="width:auto;height:auto" /> Ao gerar a nota fiscal, enviar NF + boleto para o e-mail da escola</label>
+              <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-size:.9rem"><input type="checkbox" id="fin-enviar-boleto-reemissao" style="width:auto;height:auto" /> Ao gerar/reemitir boleto pelo menu, enviar para o e-mail do cliente na hora</label>
             </div>
             <div class="modal-actions" style="margin-top:16px;"><button id="btn-salvar-financas" class="btn btn-accent">Salvar Preferências</button></div>
           </article>
@@ -1603,7 +1609,7 @@
   <script src="app-sgd-client.js?v=1"></script>
   <script src="modulos-acesso.js?v=1"></script>
   <script src="app-utils.js?v=2"></script>
-  <script src="app-config.js?v=2"></script>
+  <script src="app-config.js?v=3"></script>
   <script src="app-banco.js?v=1"></script>
   <script src="app-import.js?v=2"></script>
   <script src="app-sgd-integration.js?v=1"></script>

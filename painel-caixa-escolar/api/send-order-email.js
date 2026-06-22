@@ -274,7 +274,7 @@ export default async function handler(req, res) {
   const body = req.body;
   if (!body) return res.status(400).json({ error: "JSON invalido" });
 
-  const { to, schoolName, protocol, date, items, total, obs, olistId, responsible, cnpj, sre, pagamento, nfe } = body;
+  const { to, schoolName, protocol, date, items, total, obs, olistId, responsible, cnpj, sre, pagamento, nfe, boletoPdfBase64 } = body;
 
   if (!to || !protocol) {
     return res.status(400).json({ error: "Campos obrigatorios: to, protocol" });
@@ -331,10 +331,16 @@ export default async function handler(req, res) {
           </div>` : ''}
           <p style="margin:12px 0 0;font-size:11px;color:#64748b;">Consulte em: <a href="https://www.nfe.fazenda.gov.br/portal/consultaRecaptcha.aspx?tipoConsulta=resumo&tipoConteudo=7PhJ+gAVw2g=" style="color:#3b82f6;">www.nfe.fazenda.gov.br</a></p>
         </div>` : ''}
-        ${pagamento ? `
-          <div style="margin-top:16px;padding:12px;background:#f1f5f9;border-radius:8px;border:1px dashed #94a3b8;">
-            <p style="margin:0 0 6px;font-size:12px;color:#64748b;text-transform:uppercase;font-weight:700;">📲 PIX Copia e Cola</p>
-            <p style="margin:0;font-size:14px;font-weight:700;font-family:monospace;color:#1e293b;">36.802.147/0001-42</p>
+        ${pagamento && (pagamento.linhaDigitavel || pagamento.pixCopiaECola) ? `
+          <div style="margin-top:16px;padding:14px;background:#f1f5f9;border-radius:8px;border:1px dashed #94a3b8;">
+            ${pagamento.vencimento ? `<p style="margin:0 0 8px;font-size:13px;color:#334155;">Vencimento: <strong>${pagamento.vencimento}</strong>${pagamento.valor ? ' &nbsp;|&nbsp; Valor: <strong>R$ ' + (Number(pagamento.valor) || 0).toFixed(2).replace('.', ',') + '</strong>' : ''}</p>` : ''}
+            ${pagamento.linhaDigitavel ? `
+            <p style="margin:0 0 4px;font-size:12px;color:#64748b;text-transform:uppercase;font-weight:700;">🧾 Linha digitável do boleto</p>
+            <p style="margin:0 0 10px;font-size:13px;font-weight:700;font-family:monospace;color:#1e293b;word-break:break-all;">${pagamento.linhaDigitavel}</p>` : ''}
+            ${pagamento.pixCopiaECola ? `
+            <p style="margin:0 0 4px;font-size:12px;color:#64748b;text-transform:uppercase;font-weight:700;">📲 PIX Copia e Cola</p>
+            <p style="margin:0;font-size:12px;font-weight:700;font-family:monospace;color:#1e293b;word-break:break-all;">${pagamento.pixCopiaECola}</p>` : ''}
+            ${boletoPdfBase64 ? `<p style="margin:10px 0 0;font-size:12px;color:#166534;">📎 Boleto bancário em anexo (PDF).</p>` : ''}
           </div>` : ''}
         <!-- Story 4.75: DANFE HTML inline removido — vai apenas como PDF em anexo -->
         <p style="font-size:12px;color:#94a3b8;margin-top:20px;text-align:center;">Este email foi gerado automaticamente pelo sistema GDP.</p>
@@ -369,6 +375,16 @@ export default async function handler(req, res) {
         filename: `NFe_${nfe.numero || 'sem-numero'}.xml`,
         content: Buffer.from(nfe.xml, 'utf-8').toString('base64')
       });
+    }
+    // Boleto bancario (PDF do Inter) — o frontend busca via /api/bank-charge?action=bank-charge-pdf
+    // e envia o base64 aqui. So o conteudo base64 do PDF (sem o prefixo data:).
+    if (boletoPdfBase64 && String(boletoPdfBase64).length > 1000) {
+      const b64 = String(boletoPdfBase64).replace(/^data:application\/pdf;base64,/, '');
+      attachments.push({
+        filename: `Boleto_${nfe ? 'NF_' + (nfe.numero || 'sem-numero') : (protocol || 'cobranca')}.pdf`,
+        content: b64
+      });
+      console.log('[Email] Boleto PDF anexado:', Math.round(b64.length * 0.75 / 1024), 'KB');
     }
 
     const fromAddr = process.env.EMAIL_FROM || 'GDP Pedidos <onboarding@resend.dev>';
@@ -424,6 +440,10 @@ export default async function handler(req, res) {
     }
     if (nfe?.xml) {
       attachments.push({ filename: `NFe_${nfe.numero || 'sem-numero'}.xml`, content: Buffer.from(nfe.xml, 'utf-8') });
+    }
+    if (boletoPdfBase64 && String(boletoPdfBase64).length > 1000) {
+      const b64 = String(boletoPdfBase64).replace(/^data:application\/pdf;base64,/, '');
+      attachments.push({ filename: `Boleto_${nfe ? 'NF_' + (nfe.numero || 'sem-numero') : (protocol || 'cobranca')}.pdf`, content: Buffer.from(b64, 'base64') });
     }
 
     const subject = `${nfe ? 'NF-e ' + (nfe.numero || '') + ' — ' : ''}${pagamento ? 'Cobranca' : 'Pedido'} ${protocol} — ${schoolName}`;

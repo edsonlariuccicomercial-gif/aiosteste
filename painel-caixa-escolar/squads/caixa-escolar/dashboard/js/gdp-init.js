@@ -258,6 +258,23 @@ function formatDateTimeLocal(date = new Date()) {
   return new Date(date).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
 }
 
+// Story 20.7: rotulo "Ultimo envio" — le o registro REAL de envios (conta.envios) em vez do
+// flag decorativo conta.automacao.email. Retorna "DD/MM/AAAA HH:MM — E-mail (NF+Boleto)" ou "—".
+function _ultimoEnvioLabel(conta) {
+  const envios = conta && Array.isArray(conta.envios) ? conta.envios : [];
+  if (envios.length) {
+    const ult = envios[envios.length - 1];
+    const quando = ult.em ? formatDateTimeLocal(ult.em) : "";
+    const canal = ult.canal === "whatsapp" ? "WhatsApp" : "E-mail";
+    const itens = Array.isArray(ult.itens) && ult.itens.length ? " (" + ult.itens.join("+") + ")" : "";
+    return (quando ? quando + " — " : "") + canal + itens;
+  }
+  // Fallback: timestamp legado de envio de e-mail, se existir
+  const leg = conta?.cobranca?.emailEnviadoEm;
+  if (leg) return formatDateTimeLocal(leg) + " — E-mail";
+  return "—";
+}
+
 function fmtDate(d) {
   if (!d) return '—';
   const s = String(d).slice(0, 10);
@@ -472,7 +489,7 @@ function abrirDetalheCr(contaId) {
     <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Data de Emissao</label><div style="padding:.4rem 0;font-size:.92rem">${esc(resolveDataEmissaoConta(conta) || "-")}</div></div>
     <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Vencimento</label><div style="padding:.4rem 0;font-size:.92rem">${esc(fmtDate(conta.vencimento))}</div></div>
     <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Status</label><div style="padding:.4rem 0"><span class="badge ${statusMeta.className}">${esc(statusMeta.label)}</span></div></div>
-    <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Automacao</label><div style="padding:.4rem 0;font-size:.82rem">${conta.automacao?.whatsapp ? "WhatsApp" : "-"} / ${conta.automacao?.email ? "E-mail" : "-"}</div></div>
+    <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Último envio</label><div style="padding:.4rem 0;font-size:.82rem">${esc(_ultimoEnvioLabel(conta))}</div></div>
     <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Cobranca</label><div style="padding:.4rem 0;font-size:.82rem">${esc(conta.cobranca?.status || "-")}</div></div>
     ${(conta.cobranca && (conta.cobranca.providerChargeId || conta.cobranca.bankSlipUrl || conta.cobranca.linhaDigitavel || conta.integracoes?.bancaria?.providerChargeId)) ? `
     <div style="grid-column:1/-1;border:1px solid var(--bdr);border-radius:8px;padding:.8rem 1rem;margin-top:.4rem;background:rgba(255,255,255,.02)">
@@ -513,7 +530,7 @@ function toggleEditCrDetalhe() {
       <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Data de Emissao</label><input type="date" id="cr-edit-dataEmissao" value="${resolveDataEmissaoConta(conta)}"></div>
       <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Vencimento</label><input type="date" id="cr-edit-vencimento" value="${conta.vencimento || ""}"></div>
       <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Status</label><div style="padding:.4rem 0"><span class="badge ${getContaReceberStatusMeta(conta).className}">${esc(getContaReceberStatusMeta(conta).label)}</span></div></div>
-      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Automacao</label><div style="padding:.4rem 0;font-size:.82rem">${conta.automacao?.whatsapp ? "WhatsApp" : "-"} / ${conta.automacao?.email ? "E-mail" : "-"}</div></div>
+      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Último envio</label><div style="padding:.4rem 0;font-size:.82rem">${esc(_ultimoEnvioLabel(conta))}</div></div>
       <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Cobranca</label><div style="padding:.4rem 0;font-size:.82rem">${esc(conta.cobranca?.status || "-")}</div></div>
       <div style="grid-column:1/-1"><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.25rem">Auditoria</label><div style="padding:.4rem 0;font-size:.82rem;color:var(--mut)">${esc(formatAuditStamp(conta.audit, conta.recebidaEm, conta.audit?.updatedBy))}</div></div>
     `;
