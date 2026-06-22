@@ -449,7 +449,54 @@ async function emitirOuSincronizarCobrancaReal(contaId, options = {}) {
   if (options.vencimento && /^\d{4}-\d{2}-\d{2}$/.test(options.vencimento)) {
     conta.vencimento = options.vencimento;
   }
-  const nota = conta.notaFiscalId ? notasFiscais.find((item) => item.id === conta.notaFiscalId) || null : null;
+  let nota = conta.notaFiscalId ? notasFiscais.find((item) => item.id === conta.notaFiscalId) || null : null;
+
+  // Auto-heal do documento do pagador (handoff boleto-cnpj-mapeamento): o boleto Inter exige
+  // CNPJ/CPF. Contas antigas guardavam so o nome. Aqui garantimos o documento antes de emitir,
+  // tentando em camadas: conta.documento -> nota local -> nota no Supabase -> cadastro de clientes.
+  function _cnpjDigits(v) { return String(v || "").replace(/\D/g, ""); }
+  if (!_cnpjDigits(conta.documento)) {
+    let doc = _cnpjDigits(nota?.cliente?.cnpj);
+    // Camada 3: nota nao estava na lista local -> buscar no Supabase por id
+    // (gdpApi expoe a entidade como 'notas_fiscais' — underscore, ver gdp-api.js:559)
+    if (!doc && conta.notaFiscalId && window.gdpApi?.notas_fiscais?.get) {
+      try {
+        const notaRemota = await gdpApi.notas_fiscais.get(conta.notaFiscalId);
+        if (notaRemota) { nota = nota || notaRemota; doc = _cnpjDigits(notaRemota.cliente?.cnpj); }
+      } catch (_) {}
+    }
+    // Camada 4: cadastro de clientes/usuarios por nome
+    if (!doc && typeof usuarios !== "undefined" && Array.isArray(usuarios)) {
+      const nomeConta = String(conta.cliente || "").toLowerCase().trim();
+      const u = usuarios.find((x) => String(x.nome || "").toLowerCase().trim() === nomeConta && _cnpjDigits(x.cnpj));
+      if (u) doc = _cnpjDigits(u.cnpj);
+    }
+    if (doc) {
+      conta.documento = doc;
+      saveContasReceber(); // persiste o auto-heal para nao repetir a busca
+    }
+  }
+
+  // Cliente fiscal consolidado para o boleto: o Inter exige nome, CNPJ, CEP, endereco, numero,
+  // bairro, cidade, UF. O bank-charge le tudo de nota.cliente. Garantimos que esse objeto exista
+  // mesmo quando a nota nao esta carregada, usando conta.clienteFiscal (persistido na criacao) +
+  // a nota disponivel + conta.documento. Assim o endereco nao cai nos defaults ('Nao informado').
+  const _cf = conta.clienteFiscal || {};
+  const _nc = (nota && nota.cliente) || {};
+  const clienteCobranca = {
+    nome: _nc.nome || _cf.nome || conta.cliente || "",
+    cnpj: _nc.cnpj || _cf.cnpj || conta.documento || "",
+    email: _nc.email || _cf.email || conta.email || "",
+    cep: _nc.cep || _cf.cep || "",
+    logradouro: _nc.logradouro || _cf.logradouro || "",
+    numero: _nc.numero || _cf.numero || "",
+    bairro: _nc.bairro || _cf.bairro || "",
+    municipio: _nc.municipio || _nc.cidade || _cf.municipio || _cf.cidade || "",
+    uf: _nc.uf || _cf.uf || ""
+  };
+  // notaParaCobranca: a nota real (se houver) com o cliente consolidado garantido.
+  const notaParaCobranca = { ...(nota || {}), cliente: clienteCobranca };
+
   const provider = getEffectiveBankProvider(conta, nota);
   const ambiente = getEffectiveBankAmbiente(conta, nota);
   const action = conta.cobranca?.providerChargeId ? "bank-charge-sync" : "bank-charge-create";
@@ -487,7 +534,7 @@ async function emitirOuSincronizarCobrancaReal(contaId, options = {}) {
         provider,
         ambiente,
         conta,
-        nota,
+        nota: notaParaCobranca,
         providerChargeId: conta.cobranca?.providerChargeId || conta.integracoes?.bancaria?.providerChargeId || ""
       })
     });
@@ -877,6 +924,21 @@ function buildReceivableFromInvoice(invoice) {
     descricao: `Recebimento NF ${invoice.numero || invoice.id}`,
     categoria: "faturamento",
     cliente: invoice.cliente?.nome || "",
+    // Persistir o CNPJ/CPF do cliente na conta (handoff boleto-cnpj-mapeamento): o boleto Inter
+    // exige o documento do pagador. Antes a conta guardava so o nome e o boleto dependia de
+    // re-encontrar a NF na lista local (fragil). Agora o documento viaja com a conta.
+    documento: (invoice.cliente?.cnpj || invoice.cliente?.cpf || "").replace(/\D/g, ""),
+    clienteFiscal: {
+      nome: invoice.cliente?.nome || "",
+      cnpj: invoice.cliente?.cnpj || "",
+      email: invoice.cliente?.email || "",
+      cep: invoice.cliente?.cep || "",
+      logradouro: invoice.cliente?.logradouro || "",
+      numero: invoice.cliente?.numero || "",
+      bairro: invoice.cliente?.bairro || "",
+      municipio: invoice.cliente?.municipio || invoice.cliente?.cidade || "",
+      uf: invoice.cliente?.uf || ""
+    },
     forma: invoice.cobranca?.forma || "boleto",
     valor: Number(invoice.valor || 0),
     vencimento: dueDateStr,
