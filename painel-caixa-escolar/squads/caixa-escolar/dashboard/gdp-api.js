@@ -177,7 +177,38 @@
     } catch (_) { return null; }
   }
 
+  // ── Fase 1 RLS (WD-RLS-001) ─────────────────────────────────────────────────
+  // A escrita passa pelo backend (/api/gdp-data, service_role) para permitir que
+  // a anon key vire read-only (migration 034) sem quebrar a app. Fallback graceful:
+  // se o backend devolver fallback:true (service_role ausente) ou falhar a rede,
+  // cai no caminho legado (anon direto) — nada quebra durante a transição.
+  var _writeProxyDisabled = false; // vira true se /api/gdp-data sinalizar fallback
+
+  async function sbWriteViaBackend(payload) {
+    if (_writeProxyDisabled) return { handled: false };
+    try {
+      var resp = await fetch('/api/gdp-data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(15000)
+      });
+      if (resp.status === 503) {
+        // service_role nao provisionado ainda → desabilita proxy nesta sessao
+        var d = await resp.json().catch(function () { return {}; });
+        if (d && d.fallback) { _writeProxyDisabled = true; return { handled: false }; }
+      }
+      var data = await resp.json().catch(function () { return {}; });
+      return { handled: true, ok: resp.ok && data.ok === true };
+    } catch (_) {
+      return { handled: false }; // rede falhou → deixa o fallback legado decidir
+    }
+  }
+
   async function sbUpsert(table, row, conflict) {
+    var viaBackend = await sbWriteViaBackend({ action: 'upsert', table: table, rows: row, conflict: conflict || 'id' });
+    if (viaBackend.handled) return viaBackend.ok;
+    // Fallback legado: anon direto (enquanto a migration 034 nao for aplicada)
     try {
       var controller = new AbortController();
       var timer = setTimeout(function() { controller.abort(); }, 10000);
@@ -190,6 +221,9 @@
   }
 
   async function sbDelete(table, id) {
+    var viaBackend = await sbWriteViaBackend({ action: 'delete', table: table, id: id });
+    if (viaBackend.handled) return viaBackend.ok;
+    // Fallback legado: anon direto
     try {
       var controller = new AbortController();
       var timer = setTimeout(function() { controller.abort(); }, 10000);
@@ -325,13 +359,23 @@
           return row;
         });
         try {
-          var resp = await fetch(REST + '/' + table + '?on_conflict=id', {
-            method: 'POST', headers: UPSERT_HEADERS, body: JSON.stringify(mapped)
-          });
-          if (!resp.ok) {
-            var err = ''; try { err = await resp.text(); } catch(_){}
-            gdpWarn('[gdpApi] saveAll failed ' + table + ':', resp.status, err);
-            mapped.forEach(function (it) { enqueueRetry(table, it, 'id'); });
+          // Fase 1 RLS: tenta o backend (service_role) primeiro
+          var viaBackend = await sbWriteViaBackend({ action: 'upsert', table: table, rows: mapped, conflict: 'id' });
+          if (viaBackend.handled) {
+            if (!viaBackend.ok) {
+              gdpWarn('[gdpApi] saveAll backend failed ' + table);
+              mapped.forEach(function (it) { enqueueRetry(table, it, 'id'); });
+            }
+          } else {
+            // Fallback legado: anon direto
+            var resp = await fetch(REST + '/' + table + '?on_conflict=id', {
+              method: 'POST', headers: UPSERT_HEADERS, body: JSON.stringify(mapped)
+            });
+            if (!resp.ok) {
+              var err = ''; try { err = await resp.text(); } catch(_){}
+              gdpWarn('[gdpApi] saveAll failed ' + table + ':', resp.status, err);
+              mapped.forEach(function (it) { enqueueRetry(table, it, 'id'); });
+            }
           }
         } catch (e) {
           gdpWarn('[gdpApi] saveAll error ' + table + ':', e);
