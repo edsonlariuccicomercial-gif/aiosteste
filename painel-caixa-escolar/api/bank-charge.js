@@ -202,8 +202,12 @@ module.exports = async function handler(req, res) {
 
   const body = req.body || {};
   const action = body.action || "";
-  const provider = String(body.provider || "inter").trim().toLowerCase();
-  const ambiente = normalizeAmbiente(body.ambiente);
+  // BANK-1 (handoff cobranca-inter-fixes): o BACKEND manda. Provider e ambiente vem
+  // SEMPRE da env (GDP_BANK_PROVIDER / GDP_BANK_AMBIENTE), ignorando o que o frontend
+  // envia. Corrige o bug em que o front mandava 'asaas'/'sandbox' (fallback de
+  // localStorage vazio) e a cobranca falhava. Fallback final: inter/producao.
+  const provider = String(pickEnv(["GDP_BANK_PROVIDER", "GDP_BANK_DEFAULT_PROVIDER"]) || "inter").trim().toLowerCase();
+  const ambiente = normalizeAmbiente(pickEnv(["GDP_BANK_AMBIENTE", "GDP_BANK_INTER_AMBIENTE"]) || "producao");
 
   try {
     if (provider === "c6") {
