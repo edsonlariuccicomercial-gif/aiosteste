@@ -172,6 +172,9 @@ Status: **Draft → Ready** — Story 22.1 com verdito **GO (10/10)** no checkli
 | 2026-06-21 | @po (Pax) | Validação 10 pontos — 22.1 GO (10/10); Draft → Ready; 2 pontos de atenção registrados |
 | 2026-06-21 | @dev (Dex) | Story 22.1 implementada (fonte única modulos-acesso.js; switchModule + boot GDP reaplicam; qualquer módulo opcional + default seguro); node --check OK; lógica simulada; Ready for Review → handoff @devops |
 | 2026-06-21 | @devops (Gage) | Push + PR #21 + merge em master (5b87304); deploy prod `--force`; validado em produção (Playwright/fetch): modulos-acesso servido, gdp-init v33 aplica no boot, switchModule reaplica, 3 telas usam a fonte única (sem cópia divergente) — todos confirmados |
+| 2026-06-22 | @analyst (Atlas) | Stakeholder relatou que a config só vale no navegador local; root-cause confirmado: config persiste só em localStorage, nunca no Supabase (handoff P4) |
+| 2026-06-22 | @sm (River) | **Story 22.2** criada (Fase 2 — persistência ONLINE no Supabase, por empresa, com RLS + realtime + fallback). Recomendado Spec Pipeline antes do @dev. `docs/stories/22.2.story.md` |
+| 2026-06-22 | @po (Pax) | Validação 10 pontos — **22.2 GO (10/10)**; Draft → Ready (condicional ao Spec Pipeline). Confirmado: `empresa_id` já é conceito de 1ª classe no `gdp-api.js` (51 refs) + EPIC-18 multi-tenant → granularidade por empresa é coerente. Corrigida ref de arquivo. |
 
 ---
 

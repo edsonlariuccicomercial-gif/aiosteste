@@ -1,0 +1,121 @@
+# Handoff consolidado — investigação de 4 sintomas reportados pelo usuário (2026-06-22)
+# Gerado pelo @analyst (Atlas) após varredura adversarial do código real.
+# Conclusão geral: os 4 sintomas são REAIS e ainda presentes. O commit 374c92c
+# (blindagem de eco de sync) NÃO endereçou nenhum destes — são problemas distintos.
+
+handoff:
+  from_agent: analyst
+  to_agent: dev
+  date: "2026-06-22"
+  branch: master
+  consumed: true
+  consumed_by: sm
+  consumed_at: "2026-06-22"
+  resulting_stories:
+    - "21.15 (novo) — P3 status raiz do pedido ao faturar"
+    - "21.7 (ampliado) — P1: +5 handlers de checkbox (FR-21.7.4/5, AC4)"
+    - "22.2 (novo) — P4 persistência online no Supabase, por empresa"
+    - "P2 já coberto pela Story 21.9 (UX-F1) — sem story nova"
+  po_validation:
+    validated_by: po
+    validated_at: "2026-06-22"
+    results:
+      - "21.15 — GO (10/10) → Ready"
+      - "21.7 (ampliada) — GO (10/10) → Ready"
+      - "22.2 — GO (10/10) → Ready (condicional ao Spec Pipeline)"
+    next_action: "21.15 e 21.7 prontas p/ @dev *develop. 22.2 requer Spec Pipeline (@pm→@architect→@data-engineer) antes do @dev."
+  story_context:
+    story_id: null
+    story_path: docs/stories/
+    story_status: "diagnóstico concluído — aguardando criação de stories (@po/@sm) ou implementação direta (@dev)"
+    current_task: "diagnóstico das 4 regressões/gaps de UX e sync"
+  summary: >
+    Usuário relatou 4 comportamentos quebrados após limpar cache e testar produção:
+    (1) checkboxes não desmarcam após a ação; (2) filtros não resetam ao sair da
+    página/modal; (3) status do pedido não muda automaticamente ao faturar;
+    (4) visibilidade de módulos (ocultar/exibir) só persiste localmente no navegador.
+    Itens 1-3 são bugs pontuais de baixo risco. Item 4 é mudança ARQUITETURAL
+    (config local-only → persistência online no Supabase).
+
+  problems:
+    - id: P1-checkbox-nao-desmarca
+      severity: MEDIUM
+      type: bug
+      file: P1-checkbox-nao-desmarca.md
+      root_cause: >
+        Render decide marcação consultando Set de IDs (_selectedPedidoIds etc.).
+        Handlers de ação salvam e re-renderizam mas NUNCA limpam o Set → checkbox
+        é remarcado. Único reset é resetTabState() (só roda em troca de aba).
+      key_refs:
+        - "gdp-pedidos.js:251 — render usa _selectedPedidoIds.has(p.id) ? ' checked' : ''"
+        - "gdp-pedidos.js:739 — aplicarSituacaoBulk: savePedidos()+renderPedidos() sem clear"
+        - "gdp-init.js:851 — registrarBaixaContaPagar sem clear"
+        - "gdp-init.js:293 — registrarBaixaRecebimento sem clear"
+        - "gdp-pedidos.js:4073 — confirmarEntrega sem clear"
+        - "gdp-init.js:79 — resetTabState limpa, mas só em switchTab"
+      fix: "Adicionar _selected...Ids.clear() (ou .delete(id) por item processado) ANTES do render*() em cada handler de ação."
+
+    - id: P2-filtro-nao-reseta
+      severity: MEDIUM
+      type: bug
+      file: P2-filtro-nao-reseta.md
+      root_cause: >
+        resetTabState() é correto e roda em switchTab/switchFinanceiroTab, MAS o
+        fechamento de modais de detalhe (CR/CP) não o chama. Variáveis de filtro
+        são globais de módulo e persistem. Resultado: filtro/busca preso ao reabrir.
+      key_refs:
+        - "gdp-init.js:43-103 — resetTabState (definição, funciona)"
+        - "gdp-init.js:117 / :195 — chamado em switchTab/switchFinanceiroTab (OK)"
+        - "gdp-init.js:514 — fecharDetalheCr NÃO chama resetTabState"
+        - "gdp-init.js:1105 — fecharDetalheCp NÃO chama resetTabState"
+        - "gdp-pedidos.js:3004-3048 — filtros globais (pedidoStatusTabAtual etc.)"
+      fix: "Chamar resetTabState() ao fechar modais de detalhe CR/CP. MANTER exceção intencional dos overlays de CRIAÇÃO de produto/demanda (preservam filtro da tela de fundo de propósito — ver commit 374c92c)."
+
+    - id: P3-status-nao-muda-ao-faturar
+      severity: HIGH
+      type: bug
+      file: P3-status-nao-muda-ao-faturar.md
+      root_cause: >
+        Há 2 caminhos de emissão. gerarNotaFiscalPedido() faz certo
+        (pedido.status='faturado' + savePedidos(id) seletivo). Mas
+        transmitirHomologacaoNota() atualiza só pedido.fiscal.status (campo aninhado)
+        e NUNCA seta pedido.status no objeto raiz; e usa savePedidos()/saveNotasFiscais()
+        SEM changedId (save de tudo → rajada de eco realtime).
+      key_refs:
+        - "gdp-notas-fiscais.js:1269-1270 — caminho CORRETO (pedido.status='faturado' + save seletivo)"
+        - "gdp-notas-fiscais.js:1601-1609 — caminho BUG: só pedido.fiscal, sem pedido.status, savePedidos() sem id"
+        - "gdp-notas-fiscais.js:1636,1640 — savePedidos()/saveNotasFiscais() sem changedId"
+      fix: "Em transmitirHomologacaoNota: setar pedido.status='faturado' e converter saves para seletivos (savePedidos(pedido.id), saveNotasFiscais(nf.id))."
+
+    - id: P4-visibilidade-modulos-local-only
+      severity: HIGH
+      type: design-change
+      file: P4-visibilidade-modulos-online.md
+      root_cause: >
+        Config de módulos disponíveis/ocultos salva APENAS em localStorage
+        (chave nexedu.modulos.acesso). Sem nenhuma escrita no Supabase. Por design
+        (Story 22.1) — não é bug de save. Usuário exige que valha online para
+        qualquer navegador/computador/usuário.
+      key_refs:
+        - "modulos-acesso.js:10 — MODULOS_KEY = 'nexedu.modulos.acesso' (localStorage)"
+        - "modulos-acesso.js:35-44 — setAcessoModulos: localStorage.setItem apenas"
+        - "modulos-acesso.js:19-32 — getAcessoModulos: localStorage.getItem apenas"
+      fix: >
+        Persistir a config no Supabase (tabela de config por empresa/empresa_id),
+        ler no init via gdpApi, e propagar via realtime como os demais dados.
+        Requer @data-engineer (schema/RLS) + @architect (decisão de tabela vs coluna
+        em empresa_config existente). Recomenda-se SPEC PIPELINE antes do SDC.
+
+  decisions:
+    - "Itens 1-3: bugs de baixo/médio risco → fix direto via SDC (YOLO ok)."
+    - "Item 4: mudança de design → spec pipeline (gather→assess→[research]→spec→critique→plan) antes de implementar."
+    - "Bump obrigatório de ?v= dos JS alterados no HTML + deploy 'npx vercel --prod --force' (cache de build do Vercel)."
+
+  blockers:
+    - "Item 4 depende de definição de @architect/@data-engineer sobre onde persistir (tabela nova vs coluna em config existente) e granularidade (por empresa? por usuário?)."
+
+  next_action: >
+    @po/@sm: criar stories a partir destes 4 briefs. Sugerido: 1 story por P1/P2/P3
+    (SDC), e P4 entra primeiro no Spec Pipeline (@pm/@architect) por ser mudança
+    arquitetural com RLS. Após implementação: bump ?v= e deploy --force, orientar
+    Ctrl+Shift+R no navegador.

@@ -252,17 +252,26 @@ Em fluxos com seleção em lote por checkbox, após executar a ação os checkbo
 - **FR-21.7.1:** Corrigir `bulkImprimirBoletos` (`gdp-init.js:349-354`) para, no sucesso, `_selectedContaReceberIds.clear()` + `renderContasReceber()`.
 - **FR-21.7.2:** Auditar e padronizar os demais fluxos de ação em lote para o mesmo comportamento: verificar `sincronizarBancoProdutos` (`gdp-banco-produtos.js:1459`) e `adicionarSelecionadosAoCatalogo` (`gdp-contratos-module.js:2600`), além de pedidos/notas fiscais se houver bulk.
 - **FR-21.7.3:** Onde já está correto (`bulkReceberContas`, `bulkExcluirContasReceber`), usar como referência de padrão — não regredir.
+- **FR-21.7.4:** _(Ampliado 2026-06-22 — handoff P1 do @analyst)_ Corrigir também os handlers de ação que re-renderizam **sem limpar o Set**, causando re-marcação dos checkboxes:
+  - `aplicarSituacaoBulk` (`gdp-pedidos.js:739`) → `_selectedPedidoIds.clear()` antes de `renderPedidos()`
+  - `registrarBaixaContaPagar` (`gdp-init.js:851`) → limpar `_selectedContaPagarIds` (ou `.delete(contaId)`) antes de `renderContasPagar()`
+  - `registrarBaixaRecebimento` (`gdp-init.js:293`) → limpar `_selectedContaReceberIds` antes de `renderContasReceber()`
+  - `confirmarEntrega` (`gdp-pedidos.js:4073`) → limpar a seleção antes de `renderPedidos()`
+  - `excluirItensSelecionados` (`gdp-init.js:2581`) → limpar a seleção de itens de contrato antes do re-render
+- **FR-21.7.5:** Em todos os casos, resetar também o "select-all" e o estado `has-selection` do page-footer (mesma lógica já presente em `resetTabState`, `gdp-init.js:79`).
 
 ### Critérios de Aceitação
 - **AC1:** *Given* itens selecionados, *When* executo "Imprimir Boletos", *Then* após a ação os checkboxes ficam desmarcados.
 - **AC2:** *Given* qualquer ação em lote auditada, *When* concluída com sucesso, *Then* a seleção é limpa e a lista re-renderizada.
 - **AC3:** Nenhum fluxo em lote permite re-executar a ação sobre itens já processados por seleção residual.
+- **AC4:** _(Ampliado)_ *Given* seleção em `aplicarSituacaoBulk` / baixa CP / baixa CR / `confirmarEntrega` / `excluirItensSelecionados`, *When* a ação conclui com sucesso, *Then* os checkboxes envolvidos ficam desmarcados e o "select-all"/footer voltam ao estado neutro.
 
 ### Escopo
-- **IN:** limpeza de seleção pós-ação em fluxos de lote. **OUT:** mudar a lógica das ações em si.
+- **IN:** limpeza de seleção pós-ação em fluxos de lote (incl. os 5 handlers ampliados). **OUT:** mudar a lógica das ações em si.
 
 ### Arquivos
 - `js/gdp-init.js:349-354` (`bulkImprimirBoletos`), referência `:344-345` e `:382-383`; `js/gdp-banco-produtos.js:1459`; `js/gdp-contratos-module.js:2600`
+- _(Ampliado)_ `js/gdp-pedidos.js:739` (`aplicarSituacaoBulk`), `:4073` (`confirmarEntrega`); `js/gdp-init.js:851` (`registrarBaixaContaPagar`), `:293` (`registrarBaixaRecebimento`), `:2581` (`excluirItensSelecionados`); referência `:79` (`resetTabState`)
 
 ---
 
@@ -516,6 +525,27 @@ Status das stories: **Draft → Ready** (todas com verdito GO no checklist de 10
 
 ---
 
+## Validação PO (Pax — 2026-06-22) — Onda 4 (regressões reportadas pós-deploy)
+
+Origem: stakeholder (Edson) relatou que checkbox/status-faturar continuavam quebrados após limpar cache. @analyst (Atlas) re-investigou com evidência de código (handoff `.aiox/handoffs/handoff-analyst-to-dev-4-regressoes-ux-sync-20260622.yaml`). @sm (River) criou a lacuna e ampliou a 21.7.
+
+Status: **Draft → Ready** (GO no checklist de 10 pontos).
+
+| Story | Score | Verdito | Observação |
+|-------|-------|---------|------------|
+| 21.15 (nova) | 10/10 | GO | P0 do lote — status raiz do pedido ao faturar via `transmitirHomologacaoNota` (gap não coberto pela 21.1, que trata do vencimento da CR). Risco ALTO fiscal+sync — QA validar AMBOS os caminhos no banco. |
+| 21.7 (ampliada) | 10/10 | GO | A auditoria da **Onda 2** cobriu bulk de CR/banco-produtos/contratos, mas **não** os 5 handlers que o @analyst encontrou: `aplicarSituacaoBulk`, `registrarBaixaContaPagar`, `registrarBaixaRecebimento`, `confirmarEntrega`, `excluirItensSelecionados`. Escopo ampliado (FR-21.7.4/5, AC4) é legítimo — não é regressão da Onda 2, é cobertura nova. |
+
+**Nota sobre P2 (filtro ao sair):** já coberto pela **Story 21.9** (Onda 2, implementada). Sem story nova. Se o sintoma persistir em produção, reabrir como bug de regressão da 21.9 (verificar fechamento de modais de detalhe CR/CP).
+
+### Sequência de implementação recomendada (Onda 4)
+
+1. **21.15 (P0/ALTO)** primeiro — fluxo fiscal; validar no banco os dois caminhos de emissão + nota rejeitada.
+2. **21.7 (ampliada)** — aplicar o padrão `clear()`-antes-do-render nos 5 handlers; declarar veredito por handler na Dev Notes (DoD FR-21.7.2).
+3. A cada JS alterado: **bump `?v=N`** no HTML; deploy `npx vercel --prod --force`; **Ctrl+Shift+R**.
+
+---
+
 ## Validação PO (Pax — 2026-06-21) — Onda 3
 
 Status: **Draft → Ready** (todas as 5 stories com verdito GO no checklist de 10 pontos).
@@ -568,6 +598,26 @@ Status: **Draft → Ready** (todas as 5 stories com verdito GO no checklist de 1
 - `js/gdp-contratos-module.js` (setinha voltar no topo)
 - `gdp-contratos.html` (setinha CP sem contorno; bump de versões)
 
+### Onda 4 (21.15 + 21.7 ampliada) — 2026-06-22
+
+- **21.15 (status raiz do pedido ao faturar):** em `transmitirHomologacaoNota` (`gdp-notas-fiscais.js`), dentro do gate `_temProvaAut` (chave+protocolo SEFAZ), adicionado `pedido.status="faturado"` + `setPedidoStatusTab('faturado')` — espelhando o caminho correto de `gerarNotaFiscalPedido:1269`. Nota rejeitada/sem prova NÃO marca faturado (AC3). Saves convertidos para seletivos: `savePedidos(pedido.id)` (2×) e `saveNotasFiscais(nf.id)` — evita a rajada de eco realtime que revertia status. O `saveNotasFiscais()` do **catch** (erro→rejeitada) foi mantido full de propósito (não há status faturado a preservar nesse ramo).
+- **21.7 ampliada (checkboxes desmarcam) — veredito por handler (DoD FR-21.7.2/FR-21.7.4):**
+  - `aplicarSituacaoBulk` (`gdp-pedidos.js:739`) → **CORRIGIDO**: `_selectedPedidoIds.clear()` + `_hideAllPageFooters()` antes do `renderPedidos()`. Era o caso visualmente quebrado (render de pedido usa `_selectedPedidoIds.has(p.id)` em `:251`).
+  - `confirmarEntrega` (`gdp-pedidos.js:4073`) → **CORRIGIDO (defensivo)**: `_selectedPedidoIds.delete(pedidoId)` — a entrega vem do botão "Entregar" por linha (modal de quantidades), mas se o pedido estava selecionado por checkbox, agora é desmarcado.
+  - `registrarBaixaRecebimento` (`gdp-init.js:293`) → **CORRIGIDO**: `_selectedContaReceberIds.delete(contaId)` + `atualizarSelecaoContasReceber()` (atualiza rodapé/contador). Ação por linha.
+  - `registrarBaixaContaPagar` (`gdp-init.js:851`) → **CORRIGIDO**: `_selectedContaPagarIds.delete(contaId)` + `atualizarSelecaoContasPagar()`. Ação por linha.
+  - `excluirItensSelecionados` (`gdp-init.js:2581`) → **já-OK / fora-de-escopo**: itens de contrato usam checkboxes **DOM-only** (`.item-check-${id}`), sem Set persistente; após excluir, `abrirContrato()` re-renderiza o detalhe do zero (checkboxes recriados desmarcados). Sem mudança.
+  - **Nota técnica:** os checkboxes CP/CR (`gdp-pedidos.js:1922,2044`) renderizam **sem** ler o Set (sempre sem `checked`), então o sintoma visual de re-marcação era específico de **pedidos**. Ainda assim, limpar o Set nos baixa-handlers corrige seleção residual/estado do rodapé.
+- **Versões bumpadas em `gdp-contratos.html`:** gdp-notas-fiscais `v34→v35`, gdp-pedidos `v29→v30`, gdp-init `v38→v39`.
+- **Validações:** `node --check` em `gdp-notas-fiscais.js`, `gdp-pedidos.js`, `gdp-init.js` → todos OK. Pendente: deploy `npx vercel --prod --force` (@devops) + validação em produção (21.15 risco ALTO fiscal: testar ambos os caminhos de emissão + nota rejeitada; 21.7: testar `aplicarSituacaoBulk` desmarcando).
+
+#### File List (Onda 4)
+- `js/gdp-notas-fiscais.js` (21.15: status raiz + saves seletivos)
+- `js/gdp-pedidos.js` (21.7: `aplicarSituacaoBulk` clear, `confirmarEntrega` delete)
+- `js/gdp-init.js` (21.7: baixa CP/CR delete + refresh seleção)
+- `gdp-contratos.html` (bump v=35/v=30/v=39)
+- `docs/stories/21.15.story.md` (story nova)
+
 ## Change Log
 
 | Data | Agente | Ação |
@@ -582,6 +632,10 @@ Status: **Draft → Ready** (todas as 5 stories com verdito GO no checklist de 1
 | 2026-06-21 | @dev (Dex) | Onda 3 (21.10–21.14) implementada; node --check OK; versões bumpadas; commit 44f2cf9; Ready for Review → handoff @devops |
 | 2026-06-21 | @devops (Gage) | Push + PR #19 + merge em master (58c8b7b); deploy prod `--force` (painel-caixa-escolar.vercel.app); versões v32/v16/v26/v21 confirmadas servidas |
 | 2026-06-21 | @devops (Gage) | Validação em produção (Playwright/fetch do bundle servido): 21.10 (getCategoriasProduto+migração), 21.11 (+ Nova Categoria, "+" removido, ⚙ mantida), 21.12 (salvarClonePedido delega a salvarPedidoCompleto), 21.13 (voltar no header), 21.14 (CP sem btn-outline/border:none) — todos confirmados |
+| 2026-06-22 | @analyst (Atlas) | Re-investigação pós-deploy: 4 sintomas reportados ainda presentes (handoff P1–P4 com evidência de código) |
+| 2026-06-22 | @sm (River) | Onda 4: Story 21.15 criada (gap P3) + 21.7 ampliada (5 handlers, P1) |
+| 2026-06-22 | @po (Pax) | Validação 10 pontos Onda 4 — 21.15 GO (10/10), 21.7 ampliada GO (10/10); Draft → Ready |
+| 2026-06-22 | @dev (Dex) | Onda 4 implementada (branch `fix/21.15-21.7-status-faturar-checkboxes`): 21.15 status raiz+saves seletivos; 21.7 — 4 handlers corrigidos, `excluirItensSelecionados` já-OK (DOM-only). node --check OK; bump v=35/v=30/v=39. Ready for Review → handoff @devops |
 | 2026-06-21 | @dev (Dex) | **21.12 hotfix** — teste do usuário revelou que `salvarPedidoCompleto` ainda perdia as edições: `salvarPedidoPagamento` chamava `verPedidoDetalhe` NO MEIO do salvar, re-renderizando o form e recriando os inputs de item antes da leitura de qty/preço/descrição. Fix: ler todos os itens do DOM ANTES; sub-helpers (`savePedidoFiscalData`, `salvarPedidoPagamento`) ganham modo `silent` (sem save/toast/render no meio); persistência e toast únicos no fim. Bump gdp-pedidos v27, gdp-notas-fiscais v22. |
 | 2026-06-21 | @devops (Gage) | Push + PR #20 + merge (3ed8085); deploy prod `--force`; validado em produção: gdp-pedidos v27 / gdp-notas-fiscais v22 servidos com a coleta-antes-do-render e o modo silent dos sub-helpers. |
 
