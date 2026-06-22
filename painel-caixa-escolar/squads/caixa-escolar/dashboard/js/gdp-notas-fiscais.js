@@ -678,6 +678,14 @@ async function sincronizarCobrancaProvider(contaId) {
     return;
   }
   await emitirOuSincronizarCobrancaReal(contaId, { silent: false });
+  // Reabre o modal de detalhes (se aberto nesta conta) para os campos do boleto
+  // atualizarem na hora — sem precisar de F5. (handoff sync-reabrir-modal)
+  try {
+    if (typeof renderContasReceber === "function") renderContasReceber();
+    if (typeof _crDetalheId !== "undefined" && _crDetalheId === contaId && typeof abrirDetalheCr === "function") {
+      abrirDetalheCr(contaId);
+    }
+  } catch (e) { /* noop */ }
 }
 
 // ============================================================
@@ -1840,7 +1848,7 @@ function verNotaFiscal(notaId) {
     html += '<div style="margin-top:.45rem;font-size:.82rem;color:var(--mut)">Linha digitavel: ' + esc(conta.cobranca?.linhaDigitavel || '-') + '</div>';
     html += '<div style="margin-top:.35rem;font-size:.82rem;color:var(--mut)">Pix copia e cola: ' + esc(conta.cobranca?.pixCopiaECola || '-') + '</div>';
     html += '<div style="margin-top:.35rem;font-size:.82rem;color:var(--mut)">Link de cobranca: ' + (conta.cobranca?.invoiceUrl ? '<a href="' + esc(conta.cobranca.invoiceUrl) + '" target="_blank" rel="noreferrer">abrir</a>' : '-') + '</div>';
-    html += '<div style="margin-top:.35rem;font-size:.82rem;color:var(--mut)">Boleto PDF: ' + (conta.cobranca?.bankSlipUrl ? '<a href="' + esc(conta.cobranca.bankSlipUrl) + '" target="_blank" rel="noreferrer">abrir</a>' : '-') + '</div>';
+    html += '<div style="margin-top:.35rem;font-size:.82rem;color:var(--mut)">Boleto PDF: ' + (function(){ var _cid = conta.cobranca?.providerChargeId || conta.integracoes?.bancaria?.providerChargeId || ''; if (_cid) { return '<a href="/api/bank-charge?action=bank-charge-pdf&providerChargeId=' + encodeURIComponent(_cid) + '" target="_blank" rel="noreferrer">abrir</a>'; } return conta.cobranca?.bankSlipUrl ? '<a href="' + esc(conta.cobranca.bankSlipUrl) + '" target="_blank" rel="noreferrer">abrir</a>' : '-'; })() + '</div>';
     html += '<div style="margin-top:.35rem;font-size:.82rem;color:var(--mut)">Nosso numero: ' + esc(conta.cobranca?.nossoNumero || '-') + '</div>';
     html += '<div style="margin-top:.35rem;font-size:.82rem;color:var(--mut)">Pagamento confirmado em: ' + esc(conta.cobranca?.paidAt ? formatDateTimeLocal(conta.cobranca.paidAt) : '-') + '</div>';
     html += '<div style="margin-top:.35rem;font-size:.82rem;color:var(--mut)">Ultima acao financeira: ' + esc(formatAuditStamp(conta.audit, conta.recebidaEm, conta.audit?.updatedBy)) + '</div>';

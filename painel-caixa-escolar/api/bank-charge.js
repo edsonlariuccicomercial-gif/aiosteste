@@ -214,6 +214,32 @@ async function syncInterCharge(ambiente, providerChargeId) {
 module.exports = async function handler(req, res) {
   corsHeaders(req, res);
   if (req.method === "OPTIONS") return res.status(204).end();
+
+  // GET /api/bank-charge?action=bank-charge-pdf&providerChargeId=... -> devolve o PDF do boleto
+  // como ARQUIVO REAL (Content-Type application/pdf). O Chrome NAO renderiza PDF via data: URI,
+  // entao servimos o binario por aqui. (handoff boleto-pdf-proxy-route)
+  if (req.method === "GET" && (req.query?.action === "bank-charge-pdf")) {
+    try {
+      const providerChargeId = String(req.query.providerChargeId || "").trim();
+      if (!providerChargeId) return res.status(400).json({ ok: false, error: "providerChargeId obrigatorio" });
+      const ambientePdf = normalizeAmbiente(pickEnv(["GDP_BANK_AMBIENTE", "GDP_BANK_INTER_AMBIENTE"]) || "producao");
+      const rt = resolveInterRuntime(ambientePdf);
+      if (!rt.clientId || !rt.clientSecret) return res.status(500).json({ ok: false, error: "Credenciais Inter ausentes" });
+      const agent = buildAgent(rt);
+      const token = await interToken(rt, agent, "boleto-cobranca.read");
+      const r = await interReq(rt, agent, token, `/cobranca/v3/cobrancas/${encodeURIComponent(providerChargeId)}/pdf`);
+      const b64 = (r && (r.pdf || r.pdfBase64 || r.boleto)) || "";
+      if (!b64) return res.status(404).json({ ok: false, error: "PDF ainda nao disponivel" });
+      const buf = Buffer.from(b64, "base64");
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `inline; filename="boleto-${providerChargeId}.pdf"`);
+      res.setHeader("Cache-Control", "private, max-age=300");
+      return res.status(200).send(buf);
+    } catch (err) {
+      return res.status(502).json({ ok: false, error: err.message || "Falha ao obter PDF do Inter" });
+    }
+  }
+
   if (req.method !== "POST") return res.status(405).json({ ok: false, error: "Method not allowed" });
 
   const body = req.body || {};
