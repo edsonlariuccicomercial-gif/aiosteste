@@ -1,6 +1,9 @@
--- Migration 034: RLS anon → READ-ONLY (Fase 0/1 da remediação WD-RLS-001)
+-- Migration 034: RLS anon → READ-ONLY (Fase 1 da remediação WD-RLS-001)
 -- ============================================================================
--- ⚠️ BLOQUEADA — NÃO APLICAR AINDA. Pré-requisito: Fase 1 concluída.
+-- ✅ APLICADA EM PRODUÇÃO em 2026-06-22 (via supabase db push).
+--    Validada: anon UPDATE em linha real afeta 0 linhas (RLS bloqueia);
+--    anon SELECT 200 (leitura/sync OK); escrita via /api/gdp-data (service_role) OK.
+--    Pré-requisito cumprido: Fase 1 (escrita via backend) deployada antes.
 -- ============================================================================
 --
 -- CONTEXTO (handoff-architect-to-dataeng-dev-rls-remediation-20260622):
