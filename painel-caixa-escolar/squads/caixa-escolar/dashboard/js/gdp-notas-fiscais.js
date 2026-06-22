@@ -483,19 +483,44 @@ async function emitirOuSincronizarCobrancaReal(contaId, options = {}) {
   // a nota disponivel + conta.documento. Assim o endereco nao cai nos defaults ('Nao informado').
   const _cf = conta.clienteFiscal || {};
   const _nc = (nota && nota.cliente) || {};
+  // FONTE PRIORITARIA: o destinatario que foi AUTORIZADO pela SEFAZ (nf.sefaz.preview.destinatario).
+  // Tem endereco ANINHADO (destinatario.endereco.{cep,logradouro,numero,bairro,cidade,uf}) e e o
+  // dado fiscal mais confiavel — a SEFAZ nao autoriza NF sem esses campos validos. O bug era ler
+  // so de nota.cliente (plano); escolas com endereco so no preview caiam nos defaults -> Inter rejeitava.
+  const _dest = (nota && nota.sefaz && nota.sefaz.preview && nota.sefaz.preview.destinatario) || {};
+  const _de = _dest.endereco || {};
   const clienteCobranca = {
-    nome: _nc.nome || _cf.nome || conta.cliente || "",
-    cnpj: _nc.cnpj || _cf.cnpj || conta.documento || "",
-    email: _nc.email || _cf.email || conta.email || "",
-    cep: _nc.cep || _cf.cep || "",
-    logradouro: _nc.logradouro || _cf.logradouro || "",
-    numero: _nc.numero || _cf.numero || "",
-    bairro: _nc.bairro || _cf.bairro || "",
-    municipio: _nc.municipio || _nc.cidade || _cf.municipio || _cf.cidade || "",
-    uf: _nc.uf || _cf.uf || ""
+    nome: _dest.nome || _nc.nome || _cf.nome || conta.cliente || "",
+    cnpj: _dest.cnpj || _nc.cnpj || _cf.cnpj || conta.documento || "",
+    email: _dest.email || _nc.email || _cf.email || conta.email || "",
+    cep: _de.cep || _nc.cep || _cf.cep || "",
+    logradouro: _de.logradouro || _nc.logradouro || _cf.logradouro || "",
+    numero: _de.numero || _nc.numero || _cf.numero || "",
+    bairro: _de.bairro || _nc.bairro || _cf.bairro || "",
+    municipio: _de.cidade || _de.municipio || _nc.municipio || _nc.cidade || _cf.municipio || _cf.cidade || "",
+    uf: _de.uf || _nc.uf || _cf.uf || ""
   };
   // notaParaCobranca: a nota real (se houver) com o cliente consolidado garantido.
   const notaParaCobranca = { ...(nota || {}), cliente: clienteCobranca };
+
+  // Pre-validacao amigavel: o Inter exige endereco completo do pagador. Se faltar algum campo,
+  // avisamos EXATAMENTE qual (em vez do erro generico do Inter 'Verifique os dados'), apontando
+  // o cadastro a corrigir. Acao bloqueante so para o provider que exige (inter).
+  if (getEffectiveBankProvider(conta, nota) === "inter" && !conta.cobranca?.providerChargeId) {
+    const faltando = [];
+    if (!String(clienteCobranca.cnpj || "").replace(/\D/g, "")) faltando.push("CNPJ/CPF");
+    if (!String(clienteCobranca.cep || "").replace(/\D/g, "")) faltando.push("CEP");
+    if (!clienteCobranca.logradouro) faltando.push("logradouro");
+    if (!clienteCobranca.municipio) faltando.push("cidade");
+    if (!clienteCobranca.uf) faltando.push("UF");
+    if (faltando.length) {
+      const msg = "Boleto Inter: faltam dados de endereco do cliente \"" + (clienteCobranca.nome || conta.cliente || "") + "\": " + faltando.join(", ") + ". Complete o cadastro do cliente/escola e tente novamente.";
+      setIntegrationState(conta, "bancaria", { status: "transmissao_falhou", lastAction: "validacao_endereco", error: msg });
+      saveContasReceber();
+      if (!options.silent) { renderAll(); showToast(msg, 7000); }
+      return false;
+    }
+  }
 
   const provider = getEffectiveBankProvider(conta, nota);
   const ambiente = getEffectiveBankAmbiente(conta, nota);
