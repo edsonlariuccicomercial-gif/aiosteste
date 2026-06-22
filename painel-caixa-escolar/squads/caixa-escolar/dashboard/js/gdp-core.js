@@ -2273,6 +2273,120 @@ async function _enviarEmailCobranca(conta) {
   }
 }
 
+// Story 20.7: helper central de envio de cobranca por e-mail (NF + boleto Inter anexo).
+// Reutilizado pelos gatilhos automaticos (ao gerar NF, ao reemitir boleto pelo menu "...").
+// Busca o PDF do boleto via a rota de proxy (/api/bank-charge?action=bank-charge-pdf) e anexa.
+// Retorna { ok, email } e registra o envio real em conta.envios (fonte do campo "Ultimo envio").
+async function enviarCobrancaEmailComBoleto(conta, opts) {
+  opts = opts || {};
+  if (!conta) return { ok: false };
+  // E-mail do cliente: cadastro de Clientes (mesmo lookup do _enviarEmailCobranca)
+  const nomeCliente = (conta.cliente || '').trim().toLowerCase();
+  const cliente = (typeof usuarios !== 'undefined' ? usuarios : []).find(u =>
+    (u.nome || '').trim().toLowerCase() === nomeCliente
+  );
+  const emailCliente = cliente?.email || '';
+  if (!emailCliente) {
+    if (!opts.silent) showToast("Email do cliente não encontrado. Cadastre no módulo Clientes.", 4000);
+    return { ok: false, motivo: 'sem_email' };
+  }
+
+  const desc = conta.descricao || '';
+  const nfMatch = (desc.match(/(?:NF|Nota\s*Fiscal)\s*(?:n[º°]?\s*)?(\d+)/i) || [])[1] || '';
+  const nfRef = nfMatch ? 'nº ' + nfMatch : desc;
+  const venc = (typeof _formatarDataBR === 'function') ? _formatarDataBR(conta.vencimento) : (conta.vencimento || '');
+
+  // NF vinculada (por ID, número na descrição, ou cliente)
+  const notaId = conta.notaFiscalId || conta.origemId || '';
+  let nfe = notaId ? (notasFiscais || []).find(n => n.id === notaId) : null;
+  if (!nfe && nfMatch) nfe = (notasFiscais || []).find(n => String(n.numero) === nfMatch);
+  if (!nfe && conta.cliente) {
+    const _cliLower = conta.cliente.trim().toLowerCase();
+    nfe = (notasFiscais || []).find(n => (n.cliente?.nome || '').trim().toLowerCase() === _cliLower);
+  }
+
+  const providerChargeId = conta.cobranca?.providerChargeId || conta.integracoes?.bancaria?.providerChargeId || '';
+
+  // Busca o PDF do boleto via rota de proxy (server fala com o Inter; secret nao trafega no browser).
+  let boletoPdfBase64 = '';
+  if (providerChargeId) {
+    try {
+      const r = await fetch('/api/bank-charge?action=bank-charge-pdf&providerChargeId=' + encodeURIComponent(providerChargeId));
+      if (r.ok && (r.headers.get('content-type') || '').includes('application/pdf')) {
+        const buf = await r.arrayBuffer();
+        let bin = '';
+        const bytes = new Uint8Array(buf);
+        for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+        boletoPdfBase64 = btoa(bin);
+      }
+    } catch (_) { /* sem boleto anexo, segue só com a NF */ }
+  }
+
+  const payload = {
+    to: emailCliente,
+    protocol: nfRef,
+    schoolName: conta.cliente || '',
+    date: venc,
+    total: Number(conta.valor || 0),
+    items: [],
+    boletoPdfBase64: boletoPdfBase64 || undefined,
+    pagamento: {
+      forma: conta.cobranca?.forma || 'boleto',
+      vencimento: venc,
+      valor: Number(conta.valor || 0),
+      linhaDigitavel: conta.cobranca?.linhaDigitavel || undefined,
+      pixCopiaECola: conta.cobranca?.pixCopiaECola || undefined
+    }
+  };
+  if (nfe) {
+    const sefaz = nfe.sefaz || {};
+    const cobrancaNf = nfe.cobranca || {};
+    payload.nfe = {
+      numero: nfe.numero || nfe.id,
+      serie: nfe.serie || '1',
+      valor: Number(nfe.valor || conta.valor || 0),
+      chaveAcesso: sefaz.chaveAcesso || nfe.chaveAcesso || '',
+      protocolo: sefaz.protocolo || nfe.protocolo || '',
+      xml: sefaz.xmlDsigPreview?.signedXml || sefaz.xmlPreview?.xml || nfe.xml || '',
+      emitente: sefaz.preview?.emitente || nfe.emitente || {},
+      destinatario: sefaz.preview?.destinatario || nfe.cliente || {},
+      observacoes: cobrancaNf.metadata?.observacoes || nfe.observacoes || '',
+      itensNf: (nfe.itens || []).map(i => ({
+        desc: i.descricao || i.nome || '', ncm: i.ncm || '', cst: i.cst || '', cfop: i.cfop || '',
+        un: i.unidade || 'UN', qtd: Number(i.qtd || i.quantidade || 0), vUnit: Number(i.precoUnitario || i.vUnit || 0)
+      }))
+    };
+    payload.cnpj = nfe.cliente?.cnpj || '';
+    payload.responsible = nfe.cliente?.responsavel || '';
+  }
+
+  try {
+    if (!opts.silent) showToast("Enviando cobrança para " + emailCliente + "...", 2000);
+    const resp = await fetch('/api/send-order-email', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+    });
+    const text = await resp.text();
+    let data; try { data = JSON.parse(text); } catch (_) { data = { error: text.slice(0, 100) }; }
+    if (resp.ok && data.success) {
+      // Registra o envio REAL (fonte do campo "Ultimo envio")
+      conta.envios = Array.isArray(conta.envios) ? conta.envios : [];
+      const itens = [nfe ? 'NF' : null, boletoPdfBase64 ? 'Boleto' : null].filter(Boolean);
+      conta.envios.push({ canal: 'email', em: new Date().toISOString(), para: emailCliente, itens });
+      conta.cobranca = conta.cobranca || {};
+      conta.cobranca.emailEnviadoEm = new Date().toISOString();
+      if (typeof saveContasReceber === 'function') saveContasReceber();
+      const detalhe = (nfe ? 'NF' : '') + (nfe && boletoPdfBase64 ? ' + ' : '') + (boletoPdfBase64 ? 'Boleto' : '');
+      showToast("Cobrança enviada para " + emailCliente + (detalhe ? ' (' + detalhe + ')' : ''), 4000);
+      return { ok: true, email: emailCliente };
+    }
+    if (!opts.silent) showToast("Erro ao enviar e-mail: " + (data.error || 'erro no servidor'), 5000);
+    return { ok: false, motivo: 'erro_servidor' };
+  } catch (e) {
+    if (!opts.silent) showToast("Falha no envio: " + e.message, 5000);
+    return { ok: false, motivo: e.message };
+  }
+}
+
 function enviarLembreteVencendoHoje(canal) {
   const hoje = new Date().toISOString().slice(0, 10);
   const lista = contasReceber.filter(c => c.vencimento === hoje && c.status !== "recebida");

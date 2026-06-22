@@ -2768,6 +2768,21 @@ window.confirmarReemissaoBoleto = async function (contaId) {
   if (venc < hoje) { showToast("O vencimento nao pode ser anterior a hoje.", 3500); return; }
   fecharModalReemitirBoleto();
   await emitirOuSincronizarCobrancaReal(contaId, { silent: false, vencimento: venc });
+  // Story 20.7: enviar o boleto recem gerado para o e-mail do cliente na hora (se a config permitir).
+  // O boleto nasce 'em processamento'; sincronizamos 1x para puxar o PDF/linha digitavel antes do envio.
+  try {
+    const _enviar = (typeof getFinancasConfig === "function") ? getFinancasConfig().enviarBoletoNaReemissao !== false : true;
+    if (_enviar && typeof enviarCobrancaEmailComBoleto === "function") {
+      const _conta = contasReceber.find((c) => c.id === contaId);
+      if (_conta) {
+        await emitirOuSincronizarCobrancaReal(contaId, { silent: true, _autoSynced: true });
+        const _contaAtual = contasReceber.find((c) => c.id === contaId) || _conta;
+        showToast("Enviando boleto para o e-mail do cliente...", 2500);
+        await enviarCobrancaEmailComBoleto(_contaAtual, { silent: false });
+        try { if (typeof _crDetalheId !== "undefined" && _crDetalheId === contaId && typeof abrirDetalheCr === "function") abrirDetalheCr(contaId); } catch (_) {}
+      }
+    }
+  } catch (e) { gdpWarn("[Reemissao] Falha ao enviar boleto por e-mail:", e.message); }
 };
 
 // --- Block 4: Email + boleto automation ---
@@ -2777,6 +2792,12 @@ async function dispararEmailNotaEBoletoAutomatico(notaId, contaId, options = {})
   // Story 4.56 AC-3: só disparar email automaticamente se NF autorizada
   if (nf.status !== "autorizada") {
     gdpLog("[Email NF] Disparo bloqueado — NF não autorizada. Status:", nf.status);
+    return false;
+  }
+  // Story 20.7: respeitar a preferencia "enviar NF+boleto ao gerar" (config Financas).
+  // Disparos MANUAIS (options.manual) sempre passam; o guard so vale para o automatico.
+  if (!options.manual && typeof getFinancasConfig === "function" && getFinancasConfig().enviarNfBoletoAuto === false) {
+    gdpLog("[Email NF] Disparo automatico desativado nas Preferencias de Recebimento.");
     return false;
   }
   const conta = contasReceber.find((item) => item.id === contaId) || null;
@@ -2826,6 +2847,21 @@ async function dispararEmailNotaEBoletoAutomatico(notaId, contaId, options = {})
       contaNum: conta.cobranca?.conta || conta.contaBancaria?.conta || ""
     } : null
   };
+  // Story 20.7: anexar o PDF do boleto Inter (busca via rota de proxy; secret fica no server).
+  const _provChargeId = conta?.cobranca?.providerChargeId || conta?.integracoes?.bancaria?.providerChargeId || "";
+  if (_provChargeId) {
+    try {
+      const _r = await fetch("/api/bank-charge?action=bank-charge-pdf&providerChargeId=" + encodeURIComponent(_provChargeId));
+      if (_r.ok && (_r.headers.get("content-type") || "").includes("application/pdf")) {
+        const _buf = await _r.arrayBuffer();
+        const _bytes = new Uint8Array(_buf);
+        let _bin = "";
+        for (let i = 0; i < _bytes.length; i++) _bin += String.fromCharCode(_bytes[i]);
+        emailPayload.boletoPdfBase64 = btoa(_bin);
+        gdpLog("[Email NF] Boleto PDF anexado (" + Math.round(_bytes.length / 1024) + " KB).");
+      }
+    } catch (_pdfErr) { gdpWarn("[Email NF] Falha ao buscar PDF do boleto:", _pdfErr.message); }
+  }
   try {
     let successCount = 0;
     let lastId = "";
