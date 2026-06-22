@@ -404,6 +404,20 @@ cd painel-caixa-escolar && npx vercel --prod --force
 - **FIX-C ✅ APLICADO (2026-06-22, commit `455d0c1`):** `api/gdp-integrations.js` faz `require(path.join(__dirname, "..", "squads/.../server-lib/nfe-sefaz-client.js"))` (path **dinâmico, fora de `/api/`**). O tracer de dependências do Vercel (nft/esbuild) não resolve `require` dinâmico montado com `path.join` → não empacota `server-lib` → a function quebra no bundle e o Vercel derruba **TODAS** as `/api/*` (404 `NOT_FOUND`). **Solução aplicada:** `includeFiles: "squads/caixa-escolar/dashboard/server-lib/**"` na function `api/gdp-integrations.js` (cobre `nfe-sefaz-client.js`, `bank-provider-config.js` e `ibge-mg.json` transitivo). Só DEPOIS de validar isso em vários deploys o auto-deploy poderia ser religado.
 - **Histórico do incidente 2026-06-22:** usuário gerou boletos Inter mas só 2 contas marcaram Inter + PDF do boleto dava 404 (`X-Vercel-Error: NOT_FOUND`). Diagnóstico (@analyst) → fix `includeFiles` → deploy `--force` (@devops) restaurava, mas o `git push` re-disparava o deploy Git que sobrescrevia. Solução final: `vercel git disconnect`. Validação pós-fix: function do PDF passou de `NOT_FOUND` para `502 {"ok":false,"error":"Verifique os dados..."}` (resposta do próprio Inter para `providerChargeId` fake = function VIVA). Handoff: `.aiox/handoffs/handoff-analyst-to-devops-api-404-includefiles-20260622.yaml`.
 
+## Boletos "sumiram" / órfãos no Inter — CAUSA RAIZ (incidente 2026-06-22, parte 2)
+
+**Sintoma:** boletos gerados aparecem no sistema e depois "somem" da conta a receber; usuário confirma que os boletos EXISTEM no app do Inter (pegou cópias). Investigação (@analyst) cruzou Inter (`bank-charge-list`) × Supabase (`contas_receber`): **45 boletos no Inter, só 5 com `providerChargeId` vinculado no sistema → 40 órfãos**.
+
+**Causa raiz (dupla, comprovada):**
+1. **`seuNumero` truncado no INÍCIO** — `api/bank-charge.js:133` usava `slice(0,15)`. O Inter limita `seuNumero` a 15 chars; o `conta.id` (ex.: `CR-20260622-46493`, 17 chars) era cortado para `CR-20260622-464`, **perdendo o sufixo único**. Resultado: impossível re-vincular boleto↔conta por `seuNumero`. **FIX:** `slice(-15)` (preserva o sufixo). O `seuNumero` carrega o ID da conta — é a chave de reconciliação.
+2. **Emissão não-idempotente** — o boleto nasce no Inter, mas se a RESPOSTA falha (timeout/404 na volta, como na janela de instabilidade de hoje), o `catch` marcava falha SEM salvar o `providerChargeId` → boleto órfão (real no Inter, sem vínculo no sistema). **FIX:** rede de segurança no `catch` do create chama nova action `bank-charge-find-by-seu` (busca boleto por `seuNumero` no Inter e re-vincula antes de desistir).
+
+**Observação:** dos 40 órfãos, ~35 são de versões ANTIGAS do sistema (quando `seuNumero` era o nosso-número sequencial `946...`, não o `CR-id`) ou testes (`CHK-FINAL`, `TST-CNPJ`) — muitos já `RECEBIDO`/`EXPIRADO`. Só ~5 são contas legítimas recuperáveis por `seuNumero`.
+
+**Actions novas em `api/bank-charge.js`:** `bank-charge-list` (lista por período), `bank-charge-find-by-seu` (busca idempotente por seuNumero). **NÃO foi feito hard-delete de nada** — boletos órfãos antigos seguem no Inter (decisão do usuário: não recuperar).
+
+**Commits:** `93e4bde` (guard backend offline), `1da6c89` (guard regerar/excluir NF), + fix seuNumero/idempotência (este). **Pendente @devops:** commit + `vercel --prod --force` + push.
+
 ## Squad Fiscal Engine v2.0 — Reforma Tributária
 
 O módulo fiscal (`nfe-sefaz-client.js`) foi atualizado em 2026-05-18 com:

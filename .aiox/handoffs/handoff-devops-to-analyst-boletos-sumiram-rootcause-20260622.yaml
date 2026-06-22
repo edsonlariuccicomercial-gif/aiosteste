@@ -1,0 +1,57 @@
+handoff:
+  from_agent: devops
+  to_agent: analyst
+  timestamp: "20260622"
+  consumed: true
+  title: "Investigar causa raiz: boletos Inter APARECERAM e SUMIRAM da conta a receber (sem acao do usuario)."
+
+  contexto:
+    relato_usuario:
+      - "Gerou varios boletos Inter hoje; eles APARECERAM no sistema (confirmado: usuario pegou copia dos boletos no app do Inter)."
+      - "Depois SUMIRAM da conta a receber. Sobraram apenas 2 marcados com Inter."
+      - "Usuario NEGA ter clicado em 'Gerar Nota Fiscal' novamente em qualquer pedido."
+      - "Usuario NAO quer recuperar os boletos — quer ENTENDER A CAUSA e CORRIGIR para nunca mais acontecer."
+
+  o_que_ja_foi_resolvido_pelo_devops:
+    - "Infra: functions /api/* estavam em 404 (includeFiles em vercel.json, commit 455d0c1) — RESOLVIDO."
+    - "Infra: auto-deploy do Git sobrescrevia o --force (vercel git disconnect) — RESOLVIDO."
+    - "Guard anti-fantasma (backend offline bloqueia emissao) — commit 93e4bde."
+    - "Guard regerar/excluir NF nao apaga conta com boleto real — commit 1da6c89 (HIPOTESE, ver abaixo)."
+
+  hipoteses_levantadas_e_status:
+    - hipotese: "Estado fantasma (boleto nunca emitiu no Inter)"
+      status: "DESCARTADA — usuario confirmou que os boletos existem no Inter."
+    - hipotese: "Exclusao manual / soft-delete"
+      status: "DESCARTADA — nenhuma conta de hoje tem deleted_at no Supabase (verificado via REST)."
+    - hipotese: "Regeracao de NF apaga conta+boleto cegamente (gdp-notas-fiscais.js:1148)"
+      status: "ENFRAQUECIDA — usuario NEGA ter regerado. Botao 'Gerar NF' so aparece quando NAO ha NF (gdp-pedidos.js:1403). Guard aplicado mesmo assim (defensivo), mas provavelmente NAO e a causa real."
+    - hipotese: "SOBRESCRITA por realtime/sync do Supabase (self-echo failure / dirty window)"
+      status: "EM ABERTO — HIPOTESE MAIS PROVAVEL. Investigar."
+
+  dados_confirmados_supabase:
+    total_contas_receber: 187
+    boletos_inter_reais_no_banco: 5
+    ids_boletos_reais:
+      - "CR-20260619-42169 (chargeId c1364ea1..., nossoNum 90752858954, pdf SIM)"
+      - "CR-20260622-91069 (chargeId e02f6f79..., pdf SIM) — CRIADA HOJE"
+      - "CR-20260619-94240 (chargeId 899761b4..., nossoNum 90752856339, pdf SIM)"
+      - "CR-20260611-32388 (chargeId b6452b6a..., nossoNum 90752872286, pdf SIM)"
+      - "CR-20260622-00592 (chargeId 764a81f0..., nossoNum 90752606379, pdf SIM) — CRIADA HOJE"
+    contas_criadas_hoje: 8
+    observacao_chave: >
+      Os boletos reais ESTAO no Supabase (nao foram deletados do banco). Se sumiram da TELA
+      do usuario sem deleted_at, o mais provavel e SOBRESCRITA de sessao/sync (a conta voltou
+      ao estado anterior SEM o providerChargeId) e nao remocao. Investigar o caminho realtime
+      UPDATE + self-echo.
+
+  pistas_de_codigo_para_o_analyst:
+    - "gdp-api.js:25-39 — _selfEchoes / gdpApiIsSelfEcho: TTL 8s, assinatura por _echoSignature(row). Se a assinatura nao bater (ex.: campos reordenados, save em voo durante 404), o eco do proprio save NAO e suprimido e e tratado como UPDATE de outro cliente."
+    - "gdp-realtime.js:167-236 — dirty window (5s) + sobrescrita condicionada a timestamp ESTRITO (rTs > lTs). Se o boleto foi salvo e logo depois chegou um UPDATE com dado antigo (sem providerChargeId) mas updated_at maior, sobrescreveria a conta SEM o boleto."
+    - "gdp-api.js:352 saveAll faz UPSERT (nao deleta). gdp-core.js:1073 _pushNetworkSave chama saveAll(items) — envia a LISTA INTEIRA. Investigar corrida: se duas abas/saves concorrentes salvaram listas diferentes (uma com boleto, outra sem), o ultimo save vence e pode ter sobrescrito a versao com boleto."
+    - "gdp-notas-fiscais.js:633-644 — auto-sync agendado 8s apos create. Durante 404, o create podia ter salvo a conta SEM providerChargeId e o auto-sync (tambem 404) nao preencheu. Cruzar com o timing dos saves."
+
+  pergunta_aberta_ao_usuario:
+    - "Os boletos sumiram da aba Contas a Receber ou da aba Notas Fiscais?"
+    - "Houve F5 / troca de maquina / outra aba aberta entre ver os boletos e eles sumirem?"
+
+  next_action: "@analyst conduz a investigacao de causa raiz (sobrescrita por sync/realtime e' a hipotese principal). Confirmar com timestamps no Supabase (updated_at das contas vs criacao do boleto) e revisar self-echo. Quando a causa for confirmada, devolver ao @devops apenas se precisar de deploy do fix."

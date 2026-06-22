@@ -1,0 +1,40 @@
+handoff:
+  from_agent: analyst
+  to_agent: devops
+  timestamp: "20260622"
+  consumed: false
+  last_command: deploy
+  title: "CAUSA RAIZ confirmada (boletos orfaos): seuNumero truncado + emissao nao-idempotente. Fixes prontos, falta DEPLOY."
+
+  causa_raiz_confirmada:
+    metodo: "Cruzamento Inter (action bank-charge-list) x Supabase (contas_receber): 45 boletos no Inter, so 5 com providerChargeId no sistema -> 40 orfaos."
+    bug_1_seuNumero_truncado:
+      arquivo: "api/bank-charge.js:133"
+      era: 'seuNumero: ...slice(0, 15)'
+      problema: "conta.id (ex CR-20260622-46493, 17 chars) cortado para CR-20260622-464 -> perde sufixo unico -> impossivel re-vincular boleto<->conta."
+      fix: 'slice(-15) (preserva sufixo unico, que e a chave de reconciliacao).'
+    bug_2_nao_idempotente:
+      arquivo: "squads/caixa-escolar/dashboard/js/gdp-notas-fiscais.js (catch do create)"
+      problema: "boleto nasce no Inter mas se a RESPOSTA falha (404/timeout), catch marca falha SEM salvar providerChargeId -> boleto orfao."
+      fix: "no catch do bank-charge-create, chama nova action bank-charge-find-by-seu (busca boleto por seuNumero no Inter e re-vincula antes de desistir)."
+    observacao: "~35 dos 40 orfaos sao de versoes ANTIGAS (seuNumero 946... sequencial) ou testes (CHK-FINAL/TST-CNPJ), muitos ja RECEBIDO/EXPIRADO. Usuario NAO quer recuperar. NENHUM hard-delete feito."
+
+  arquivos_alterados_pelo_analyst:
+    - "api/bank-charge.js — seuNumero slice(-15) + actions bank-charge-list e bank-charge-find-by-seu (sintaxe validada com node --check)"
+    - "squads/caixa-escolar/dashboard/js/gdp-notas-fiscais.js — rede de seguranca idempotente no catch (sintaxe validada)"
+    - "squads/caixa-escolar/dashboard/gdp-contratos.html — bump gdp-notas-fiscais v37->v38"
+    - ".claude/CLAUDE.md — secao 'Boletos sumiram / orfaos no Inter — CAUSA RAIZ'"
+
+  acoes_devops:
+    - "git add nos 4 arquivos acima"
+    - "git commit -m 'fix(cobranca): seuNumero slice(-15) + emissao idempotente (recupera boleto orfao no Inter)'"
+    - "cd painel-caixa-escolar && npx vercel --prod --force --yes"
+    - "validar: curl -s -o /dev/null -w '%{http_code}' .../api/bank-charge (!=404)"
+    - "validar versao v38 servida no HTML"
+    - "git push origin master (git desconectado, nao dispara deploy)"
+
+  validacao_pos_deploy_sugerida:
+    - "Testar emitir um boleto novo e confirmar que providerChargeId e salvo na conta."
+    - "Opcional: testar bank-charge-find-by-seu com um seuNumero conhecido."
+
+  next_action: "@devops: commit + vercel --prod --force + push dos fixes seuNumero/idempotencia."

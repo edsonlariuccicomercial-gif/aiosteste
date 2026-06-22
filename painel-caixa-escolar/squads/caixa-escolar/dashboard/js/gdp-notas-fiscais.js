@@ -677,6 +677,32 @@ async function emitirOuSincronizarCobrancaReal(contaId, options = {}) {
     }
     return true;
   } catch (err) {
+    // REDE DE SEGURANCA IDEMPOTENTE (incidente 2026-06-22): um create pode ter CRIADO o
+    // boleto no Inter mas falhado na RESPOSTA (timeout / 404 na volta). Antes de marcar
+    // falha, perguntamos ao Inter se ja existe um boleto com o seuNumero desta conta
+    // (= sufixo do conta.id). Se existir, vinculamos — evita boleto orfao e duplicidade.
+    if (action === "bank-charge-create") {
+      try {
+        const _seu = String(conta.id || "").slice(-15);
+        const _hoje = new Date().toISOString().slice(0, 10);
+        const _r = await fetch("/api/bank-charge", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "bank-charge-find-by-seu", seuNumero: _seu, dataInicial: _hoje, dataFinal: _hoje })
+        });
+        const _d = await _r.json().catch(() => ({}));
+        if (_r.ok && _d.ok && _d.found && _d.result?.normalized?.providerChargeId) {
+          applyRealBankChargeResult(conta, nota, _d.result.normalized, "");
+          saveContasReceber();
+          if (nota) saveNotasFiscais(nota.id);
+          if (!options.silent) {
+            renderAll();
+            showToast("Boleto recuperado: ja havia sido criado no banco e foi re-vinculado a esta conta.", 5000);
+          }
+          return true;
+        }
+      } catch (_recErr) { /* segue para o tratamento normal de falha abaixo */ }
+    }
     updateContaReceberIntegration(conta.id, "bancaria", {
       status: "falha_provider",
       error: err.message,

@@ -129,8 +129,14 @@ function buildPayload(conta, nota) {
   if (!value) throw new Error("Valor invalido para emissao da cobranca Inter.");
   if (!dueDate) throw new Error("Vencimento obrigatorio para emissao da cobranca Inter.");
   if (!cpfCnpj) throw new Error("CPF/CNPJ do pagador obrigatorio para o boleto Inter.");
+  // seuNumero liga o boleto Inter de volta a conta a receber (reconciliacao). O Inter
+  // limita esse campo a 15 chars. CAUSA RAIZ (incidente 2026-06-22): usavamos slice(0,15),
+  // que TRUNCAVA o INICIO do id (ex.: "CR-20260622-46493" -> "CR-20260622-464"), perdendo
+  // justamente o sufixo unico que distingue contas do mesmo dia. Resultado: impossivel
+  // re-vincular boletos orfaos por seuNumero. Fix: preservar os ULTIMOS 15 chars (o sufixo
+  // unico), que sao reversiveis por "sufixo do conta.id".
   return {
-    seuNumero: trimStr((conta && conta.id) || (nota && nota.id) || "").slice(0, 15) || `GDP${Date.now()}`,
+    seuNumero: trimStr((conta && conta.id) || (nota && nota.id) || "").slice(-15) || `GDP${Date.now()}`,
     valorNominal: Number(value.toFixed(2)),
     dataVencimento: dueDate,
     numDiasAgenda: 0,
@@ -317,6 +323,25 @@ module.exports = async function handler(req, res) {
       if (!dataInicial || !dataFinal) return res.status(400).json({ ok: false, error: "dataInicial e dataFinal (YYYY-MM-DD) obrigatorios" });
       const result = await listInterCharges(ambiente, dataInicial, dataFinal);
       return res.status(200).json({ ok: true, action, provider, ambiente, result });
+    }
+
+    // Rede de seguranca idempotente (incidente 2026-06-22): busca um boleto ja existente
+    // no Inter pelo seuNumero (= sufixo do conta.id). Usado quando um create falhou na
+    // RESPOSTA mas pode ter criado o boleto no banco — evita boleto orfao e emissao duplicada.
+    if (action === "bank-charge-find-by-seu") {
+      const seuNumero = trimStr(body.seuNumero);
+      const dataInicial = trimStr(body.dataInicial) || new Date().toISOString().slice(0, 10);
+      const dataFinal = trimStr(body.dataFinal) || dataInicial;
+      if (!seuNumero) return res.status(400).json({ ok: false, error: "seuNumero obrigatorio" });
+      const lista = await listInterCharges(ambiente, dataInicial, dataFinal);
+      const seu = seuNumero.slice(-15);
+      const hit = (lista.cobrancas || []).find((c) => {
+        const s = String(c.seuNumero || "").trim();
+        return s && (s === seu || seuNumero.endsWith(s) || seuNumero.startsWith(s));
+      });
+      if (!hit || !hit.codigoSolicitacao) return res.status(200).json({ ok: true, action, found: false });
+      const result = await syncInterCharge(ambiente, hit.codigoSolicitacao);
+      return res.status(200).json({ ok: true, action, found: true, provider, ambiente, result });
     }
 
     return res.status(400).json({ ok: false, error: "Unknown action: " + action });
