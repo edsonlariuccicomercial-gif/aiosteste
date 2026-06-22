@@ -149,20 +149,22 @@ function buildPayload(conta, nota) {
   };
 }
 
-function normalizeCharge(seu, detail) {
+function normalizeCharge(seu, detail, pdfUri) {
   const boleto = (detail && detail.boleto) || {};
   const pix = (detail && detail.pix) || {};
   const situacao = String((detail && detail.cobranca && detail.cobranca.situacao) || "").toUpperCase();
   const map = { A_RECEBER: "pendente", RECEBIDO: "recebida", MARCADO_RECEBIDO: "recebida", ATRASADO: "atrasada", CANCELADO: "cancelada", EXPIRADO: "expirada" };
   const temPix = Boolean(pix.pixCopiaECola || pix.txid);
+  // PDF: prioriza o data-URI vindo do endpoint /pdf (pdfUri); fallback para pdfCobranca (geralmente vazio na v3).
+  const pdf = pdfUri || boleto.pdfCobranca || "";
   return {
     provider: "inter",
     providerChargeId: (detail && detail.cobranca && detail.cobranca.codigoSolicitacao) || seu.codigoSolicitacao || "",
     billingType: "BOLETO",
     status: map[situacao] || (situacao ? situacao.toLowerCase() : "pendente"),
     rawStatus: situacao,
-    invoiceUrl: boleto.pdfCobranca || "",
-    bankSlipUrl: boleto.pdfCobranca || "",
+    invoiceUrl: pdf,
+    bankSlipUrl: pdf,
     linhaDigitavel: boleto.linhaDigitavel || "",
     nossoNumero: boleto.nossoNumero || "",
     dueDate: (detail && detail.cobranca && detail.cobranca.dataVencimento) || "",
@@ -170,6 +172,18 @@ function normalizeCharge(seu, detail) {
     pix: temPix ? { payload: pix.pixCopiaECola || "", encodedImage: pix.imagemQrcode || "" } : null,
     externalReference: (detail && detail.cobranca && detail.cobranca.seuNumero) || seu.seuNumero || ""
   };
+}
+
+// O PDF do boleto Inter v3 NAO vem no detalhe da cobranca — vem num endpoint dedicado
+// GET /cobranca/v3/cobrancas/{id}/pdf, que retorna { pdf: '<BASE64>' }. Montamos um data-URI
+// para o frontend abrir direto no navegador. (handoff boleto-pdf-endpoint-inter)
+async function fetchInterBoletoPdf(rt, agent, token, providerChargeId) {
+  if (!providerChargeId) return "";
+  try {
+    const r = await interReq(rt, agent, token, `/cobranca/v3/cobrancas/${encodeURIComponent(providerChargeId)}/pdf`);
+    const b64 = (r && (r.pdf || r.pdfBase64 || r.boleto)) || "";
+    return b64 ? `data:application/pdf;base64,${b64}` : "";
+  } catch (_) { return ""; }
 }
 
 async function createInterCharge(ambiente, conta, nota) {
@@ -182,7 +196,8 @@ async function createInterCharge(ambiente, conta, nota) {
   const codigo = created.codigoSolicitacao || "";
   let detail = {};
   if (codigo) detail = await interReq(rt, agent, token, `/cobranca/v3/cobrancas/${encodeURIComponent(codigo)}`).catch(() => ({}));
-  return { ok: true, provider: "inter", ambiente, normalized: normalizeCharge({ ...payload, codigoSolicitacao: codigo }, detail) };
+  const pdfUri = await fetchInterBoletoPdf(rt, agent, token, codigo);
+  return { ok: true, provider: "inter", ambiente, normalized: normalizeCharge({ ...payload, codigoSolicitacao: codigo }, detail, pdfUri) };
 }
 
 async function syncInterCharge(ambiente, providerChargeId) {
@@ -192,7 +207,8 @@ async function syncInterCharge(ambiente, providerChargeId) {
   const agent = buildAgent(rt);
   const token = await interToken(rt, agent, "boleto-cobranca.read");
   const detail = await interReq(rt, agent, token, `/cobranca/v3/cobrancas/${encodeURIComponent(providerChargeId)}`);
-  return { ok: true, provider: "inter", ambiente, normalized: normalizeCharge({ codigoSolicitacao: providerChargeId }, detail) };
+  const pdfUri = await fetchInterBoletoPdf(rt, agent, token, providerChargeId);
+  return { ok: true, provider: "inter", ambiente, normalized: normalizeCharge({ codigoSolicitacao: providerChargeId }, detail, pdfUri) };
 }
 
 module.exports = async function handler(req, res) {
