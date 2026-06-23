@@ -1116,6 +1116,20 @@ function loadData() {
   try { notasFiscais = unwrapData(JSON.parse(localStorage.getItem(INVOICES_KEY))); } catch(_) { notasFiscais = []; }
   // EPIC-19 (extensão): esconder notas soft-deletadas (deletedAt/deleted_at) — exclusão sincronizada via Supabase.
   notasFiscais = notasFiscais.filter(function(x){ return !(x && (x.deletedAt || x.deleted_at)); });
+  // Incidente QuotaExceededError (2026-06-23): destrava localStorage já estourado.
+  // Reescreve gdp.notas-fiscais.v1 sem os campos pesados (XML/previews) — independente
+  // de status. Sem isso, quem já está com o quota cheio continua recebendo o erro ao
+  // emitir, mesmo após o deploy do fix. Roda só se detectar campo pesado presente.
+  try {
+    var _nfHeavy = notasFiscais.some(function(nf) {
+      return nf && nf.sefaz && (nf.sefaz.xmlPreview || nf.sefaz.xmlDsigPreview || nf.sefaz.autorizacaoPreview ||
+        (nf.sefaz.transmissao && (nf.sefaz.transmissao.xml || nf.sefaz.transmissao.rawResponse)) || nf.sefaz.xmlAutorizado) || (nf && nf.xml_autorizado);
+    });
+    if (_nfHeavy && typeof _stripNfHeavy === "function") {
+      saveWrappedArray(INVOICES_KEY, notasFiscais.map(_stripNfHeavy));
+      gdpLog('[boot] NF: stripped heavy XML/previews do localStorage (destrava quota)');
+    }
+  } catch(_) { /* quota/parse — segue; saveNotasFiscais tem fallback */ }
   // Story 4.80: removido saveNotasFiscais() no boot — re-save desnecessário bloqueava thread
   try {
     notasEntrada = unwrapData(JSON.parse(localStorage.getItem(ENTRY_INVOICES_KEY)));
@@ -1485,44 +1499,79 @@ function savePedidos(changedId) {
     });
   }
 }
-function saveNotasFiscais(changedId) {
-  // Limpar dados pesados (XML, previews) de NFs autorizadas antes de salvar no localStorage
-  // Esses dados já foram persistidos no Supabase — no localStorage só precisamos dos metadados
-  const lightNfs = notasFiscais.map(function(nf) {
-    if (nf.status !== "autorizada") return nf;
-    var light = Object.assign({}, nf);
-    if (light.sefaz) {
-      light.sefaz = Object.assign({}, light.sefaz);
-      delete light.sefaz.xmlPreview;
-      delete light.sefaz.xmlDsigPreview;
-      delete light.sefaz.lotePreview;
-      delete light.sefaz.autorizacaoPreview;
-      if (light.sefaz.transmissao) {
-        light.sefaz.transmissao = {
-          httpStatus: light.sefaz.transmissao.httpStatus,
-          parsed: light.sefaz.transmissao.parsed
-          // Remove: xml, rawResponse (pesados)
-        };
-      }
+// Story 23.x (incidente QuotaExceededError 2026-06-23):
+// Strip de campos pesados (XML assinado, previews, rawResponse) ANTES de salvar no
+// localStorage. Antes era condicionado a status === "autorizada", mas notas em
+// rascunho/processando/rejeitada também carregam sefaz.xmlPreview/transmissao.xml
+// (100-300KB cada) e estouravam o limite de ~5MB ao emitir. O XML completo já é
+// persistido no Supabase (xmlAutorizado) — no localStorage só guardamos metadados.
+function _stripNfHeavy(nf) {
+  var light = Object.assign({}, nf);
+  if (light.sefaz) {
+    light.sefaz = Object.assign({}, light.sefaz);
+    delete light.sefaz.xmlPreview;
+    delete light.sefaz.xmlDsigPreview;
+    delete light.sefaz.lotePreview;
+    delete light.sefaz.autorizacaoPreview;
+    delete light.sefaz.xmlAutorizado; // pesado — Supabase é a fonte da verdade
+    if (light.sefaz.transmissao) {
+      light.sefaz.transmissao = {
+        httpStatus: light.sefaz.transmissao.httpStatus,
+        parsed: light.sefaz.transmissao.parsed
+        // Remove: xml, rawResponse (pesados)
+      };
     }
-    delete light.xml_autorizado;
-    return light;
-  });
+  }
+  delete light.xml_autorizado;
+  return light;
+}
+
+// Versão ultra-light (segunda linha de defesa): reduz sefaz ao mínimo de
+// reconciliação, para QUALQUER status. Usada quando o strip normal ainda estoura.
+function _ultraLightNf(nf) {
+  var ul = Object.assign({}, nf);
+  if (ul.sefaz) {
+    ul.sefaz = {
+      status: ul.sefaz.status,
+      protocolo: ul.sefaz.protocolo,
+      chaveAcesso: ul.sefaz.chaveAcesso,
+      lote: ul.sefaz.lote,
+      cStat: (ul.sefaz.transmissao && ul.sefaz.transmissao.parsed && ul.sefaz.transmissao.parsed.cStat) || ul.sefaz.cStat
+    };
+  }
+  delete ul.xml_autorizado;
+  return ul;
+}
+
+function saveNotasFiscais(changedId) {
+  // Strip universal (todas as notas, não só autorizadas) — ver _stripNfHeavy.
+  const lightNfs = notasFiscais.map(_stripNfHeavy);
   try {
     saveWrappedArray(INVOICES_KEY, lightNfs);
     _lastLocalSave[INVOICES_KEY] = Date.now();
   } catch(e) {
     if (e.name === 'QuotaExceededError') {
       console.warn("[NF] localStorage cheio — tentando salvar versão ultra-light");
-      // Fallback: remover TODOS os sefaz.transmissao de autorizadas
-      var ultraLight = lightNfs.map(function(nf) {
-        if (nf.status !== "autorizada") return nf;
-        var ul = Object.assign({}, nf);
-        if (ul.sefaz) { ul.sefaz = { status: ul.sefaz.status, protocolo: ul.sefaz.protocolo, chaveAcesso: ul.sefaz.chaveAcesso, lote: ul.sefaz.lote }; }
-        return ul;
-      });
-      saveWrappedArray(INVOICES_KEY, ultraLight);
-      _lastLocalSave[INVOICES_KEY] = Date.now();
+      // Fallback universal: reduz sefaz ao mínimo em TODAS as notas (não só autorizadas).
+      var ultraLight = lightNfs.map(_ultraLightNf);
+      try {
+        saveWrappedArray(INVOICES_KEY, ultraLight);
+        _lastLocalSave[INVOICES_KEY] = Date.now();
+      } catch(e2) {
+        if (e2.name === 'QuotaExceededError') {
+          // Última defesa: limpar rejeitadas antigas (continuam no Supabase) e
+          // tentar de novo. Mantém as 20 notas mais recentes por emissão.
+          console.warn("[NF] quota ainda estourado — purgando notas rejeitadas antigas do localStorage");
+          var keep = ultraLight.filter(function(nf) { return nf.status !== "rejeitada"; });
+          try {
+            saveWrappedArray(INVOICES_KEY, keep);
+            _lastLocalSave[INVOICES_KEY] = Date.now();
+          } catch(e3) {
+            // Em memória os dados continuam íntegros + Supabase tem tudo.
+            console.error("[NF] localStorage irrecuperável mesmo após purga — dados seguros em memória/Supabase", e3);
+          }
+        } else { throw e2; }
+      }
     } else { throw e; }
   }
   // Persist to Supabase (async, non-blocking)
