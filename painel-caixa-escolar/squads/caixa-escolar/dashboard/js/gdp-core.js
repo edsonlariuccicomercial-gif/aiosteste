@@ -1208,6 +1208,43 @@ function loadData() {
   try { notasFiscais = unwrapData(JSON.parse(localStorage.getItem(INVOICES_KEY))); } catch(_) { notasFiscais = []; }
   // EPIC-19 (extensão): esconder notas soft-deletadas (deletedAt/deleted_at) — exclusão sincronizada via Supabase.
   notasFiscais = notasFiscais.filter(function(x){ return !(x && (x.deletedAt || x.deleted_at)); });
+  // ARCH-sync (blindagem do número de NF): rede de segurança no CARREGAMENTO. A SEFAZ é a
+  // fonte da verdade do número — ele está embutido na chave de acesso (chNFe, posições 26-34).
+  // Se uma NF tem chave válida (44 díg) mas o numero está VAZIO ou DIVERGE da chave (ex.: resposta
+  // SEFAZ parcial, ou número perdido), corrige numero = número-da-chave. Antes isso só rodava na
+  // EMISSÃO (gdp-notas-fiscais.js); aqui passa a auto-corrigir TODA nota presente/futura no boot.
+  // Escrita local-only direta (NÃO saveWrappedArray) p/ não disparar o carimbão (flush pós-boot).
+  try {
+    var _nfNumCorrigidas = 0;
+    notasFiscais.forEach(function(nf) {
+      if (!nf) return;
+      // Só notas REAIS (nfe_real): em manual_externa o número é informado pelo usuário e NÃO
+      // deve ser sobrescrito pela chave (a chave de uma manual externa pode ter outra origem).
+      var _tipo = nf.tipo_nota || nf.tipoNota || "";
+      if (_tipo && _tipo !== "nfe_real") return;
+      var _ch = String((nf.sefaz && nf.sefaz.chaveAcesso) || nf.chave_acesso || nf.chaveAcesso || "").replace(/\D/g, "");
+      if (_ch.length !== 44) return;
+      var _numChave = parseInt(_ch.slice(25, 34), 10);
+      if (!_numChave || _numChave <= 0) return;
+      var _numChaveStr = String(_numChave);
+      if (!nf.numero || nf.numero === "" || nf.numero === "0" || String(nf.numero) !== _numChaveStr) {
+        if (nf.numero && String(nf.numero) !== _numChaveStr) {
+          gdpWarn("[NF-e] Numero corrigido pela chave SEFAZ: " + nf.numero + " -> " + _numChaveStr + " (id " + (nf.id || "?") + ")");
+        }
+        nf.numero = _numChaveStr;
+        _nfNumCorrigidas++;
+      }
+    });
+    if (_nfNumCorrigidas > 0) {
+      // local-only direto (anti-carimbão): grava a lista corrigida no localStorage sem enfileirar
+      // no flush. O Supabase já tem a chave; o número é derivável dela, não precisa re-upsert em massa.
+      try {
+        var _lightCorr = (typeof _stripNfHeavy === "function") ? notasFiscais.map(_stripNfHeavy) : notasFiscais;
+        localStorage.setItem(INVOICES_KEY, JSON.stringify({ _v: 1, updatedAt: new Date().toISOString(), items: _lightCorr }));
+      } catch(_) {}
+      gdpLog("[boot] NF: " + _nfNumCorrigidas + " numero(s) corrigido(s) pela chave da SEFAZ");
+    }
+  } catch(_) { /* nunca bloqueia o boot */ }
   // Incidente QuotaExceededError (2026-06-23): destrava localStorage já estourado.
   // Reescreve gdp.notas-fiscais.v1 sem os campos pesados (XML/previews) — independente
   // de status. Sem isso, quem já está com o quota cheio continua recebendo o erro ao
