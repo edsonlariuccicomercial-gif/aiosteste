@@ -332,6 +332,22 @@
     _renderItensRetirada();
   }
   function ccRemoveItem(idx) { _retiradaItens.splice(idx, 1); _renderItensRetirada(); }
+  // Edita um item já adicionado: carrega seus valores de volta nos campos de entrada
+  // e remove da lista (o + Add re-insere com as alterações).
+  function ccEditItem(idx) {
+    var it = _retiradaItens[idx];
+    if (!it) return;
+    var av = document.getElementById('cc-ret-avulso');
+    var sel = document.getElementById('cc-ret-sel');
+    if (sel) sel.value = '';
+    if (av) av.value = it.produto || '';
+    var q = document.getElementById('cc-ret-qtd'); if (q) q.value = it.quantidade;
+    var u = document.getElementById('cc-ret-un'); if (u) u.value = it.unidade || 'UN';
+    var v = document.getElementById('cc-ret-vu'); if (v) v.value = it.valorUnitario;
+    _retiradaItens.splice(idx, 1);
+    _renderItensRetirada();
+    if (av) av.focus();
+  }
   function _renderItensRetirada() {
     var host = document.getElementById('cc-ret-itens');
     if (!host) return;
@@ -346,7 +362,9 @@
             + '<td>' + (it.unidade || 'UN') + '</td>'
             + '<td class="text-right">' + _brl.format(it.valorUnitario) + '</td>'
             + '<td class="text-right">' + _brl.format(it.subtotal) + '</td>'
-            + '<td class="text-right"><button class="btn btn-sm btn-outline" onclick="ccRemoveItem(' + i + ')">✕</button></td></tr>';
+            + '<td class="text-right" style="white-space:nowrap">'
+            + '<button class="btn btn-sm btn-outline" onclick="ccEditItem(' + i + ')" title="Editar item">✎</button> '
+            + '<button class="btn btn-sm btn-outline" onclick="ccRemoveItem(' + i + ')" title="Remover item">✕</button></td></tr>';
         }).join('') + '</tbody></table>';
     }
     var t = document.getElementById('cc-ret-total');
@@ -402,41 +420,137 @@
     await abrirExtratoCliente(clienteId);
   }
 
-  // ---- Editar lançamento (data, descrição; valor só para crédito) ----
+  // ---- Editar lançamento ----
+  // Crédito: edita data, descrição e valor.
+  // Débito (retirada): edita data, descrição E os itens (produto/qtd/unid/valor unit.),
+  //   reaproveitando a UI de itens da retirada. O valor do débito é recalculado da
+  //   soma dos subtotais (invariante: valor = Σ subtotais).
   async function editarLancamentoCC(lancId, clienteId) {
     var todos = await gdpApi.lancamentosCliente.list();
     var l = (todos || []).find(function (x) { return x.id === lancId; });
     if (!l) { _toast('Lançamento não encontrado.'); return; }
     var ehDebito = l.tipo === 'debito';
-    _modal('<h3 style="margin-top:0">Editar lançamento</h3>'
-      + '<p style="color:var(--mut);font-size:.82rem">' + (ehDebito ? 'Retirada (débito). O valor é definido pelos itens — para alterar itens, remova e relance.' : 'Crédito.') + '</p>'
+
+    if (!ehDebito) {
+      // Crédito: modal simples (data/descrição/valor)
+      _modal('<h3 style="margin-top:0">Editar crédito</h3>'
+        + '<label style="display:block;margin:.6rem 0 .2rem;font-size:.8rem">Data</label>'
+        + '<input id="cc-edit-data" type="date" value="' + (l.data || _hoje()) + '" style="width:100%;padding:.5rem;border:1px solid var(--bdr);border-radius:6px">'
+        + '<label style="display:block;margin:.6rem 0 .2rem;font-size:.8rem">Descrição</label>'
+        + '<input id="cc-edit-desc" type="text" value="' + String(l.descricao || '').replace(/"/g, '&quot;') + '" style="width:100%;padding:.5rem;border:1px solid var(--bdr);border-radius:6px">'
+        + '<label style="display:block;margin:.6rem 0 .2rem;font-size:.8rem">Valor (R$)</label>'
+        + '<input id="cc-edit-valor" type="number" step="0.01" min="0" value="' + _num(l.valor) + '" style="width:100%;padding:.5rem;border:1px solid var(--bdr);border-radius:6px">'
+        + '<div style="display:flex;gap:.6rem;justify-content:flex-end;margin-top:1.2rem">'
+        + '<button class="btn btn-sm btn-outline" onclick="fecharModalCC()">Cancelar</button>'
+        + '<button class="btn btn-sm btn-green" onclick="salvarEdicaoCreditoCC(\'' + lancId + '\',\'' + clienteId + '\')">Salvar</button>'
+        + '</div>');
+      return;
+    }
+
+    // Débito: carrega itens existentes na lista editável (mesma UI da retirada)
+    var todosItens = await gdpApi.lancamentosItens.list();
+    _retiradaItens = (todosItens || []).filter(function (it) {
+      return (it.lancamentoId || it.lancamento_id) === lancId;
+    }).map(function (it) {
+      return {
+        produto: it.produto,
+        quantidade: _num(it.quantidade),
+        unidade: it.unidade || 'UN',
+        valorUnitario: _num(it.valorUnitario || it.valor_unitario),
+        subtotal: _num(it.subtotal)
+      };
+    });
+
+    var cliente = await gdpApi.clientes.get(clienteId);
+    var produtos = await _produtosDaEscola(cliente && cliente.nome);
+    var opts = '<option value="">— selecione do catálogo ARP —</option>'
+      + produtos.map(function (p, i) {
+        return '<option value="' + i + '" data-preco="' + p.preco + '">' + (p.produto || '') + ' (' + _brl.format(p.preco) + ')</option>';
+      }).join('');
+    window._ccProdutosEscola = produtos;
+
+    _modal('<h3 style="margin-top:0">Editar retirada</h3>'
+      + '<p style="color:var(--mut);font-size:.82rem">Edite os itens da retirada. O valor do débito é recalculado pela soma dos subtotais.</p>'
       + '<label style="display:block;margin:.6rem 0 .2rem;font-size:.8rem">Data</label>'
-      + '<input id="cc-edit-data" type="date" value="' + (l.data || _hoje()) + '" style="width:100%;padding:.5rem;border:1px solid var(--bdr);border-radius:6px">'
+      + '<input id="cc-ret-data" type="date" value="' + (l.data || _hoje()) + '" style="width:100%;padding:.5rem;border:1px solid var(--bdr);border-radius:6px">'
       + '<label style="display:block;margin:.6rem 0 .2rem;font-size:.8rem">Descrição</label>'
       + '<input id="cc-edit-desc" type="text" value="' + String(l.descricao || '').replace(/"/g, '&quot;') + '" style="width:100%;padding:.5rem;border:1px solid var(--bdr);border-radius:6px">'
-      + (ehDebito ? ''
-        : '<label style="display:block;margin:.6rem 0 .2rem;font-size:.8rem">Valor (R$)</label>'
-          + '<input id="cc-edit-valor" type="number" step="0.01" min="0" value="' + _num(l.valor) + '" style="width:100%;padding:.5rem;border:1px solid var(--bdr);border-radius:6px">')
-      + '<div style="display:flex;gap:.6rem;justify-content:flex-end;margin-top:1.2rem">'
+      + '<div style="border:1px solid var(--bdr);border-radius:8px;padding:.8rem;margin-top:.8rem">'
+      + '<div style="display:grid;grid-template-columns:1fr 60px 60px 90px auto;gap:.4rem;align-items:end">'
+      + '<div><label style="font-size:.72rem">Produto (ARP)</label><select id="cc-ret-sel" onchange="ccPreencherPreco()" style="width:100%;padding:.4rem;border:1px solid var(--bdr);border-radius:6px">' + opts + '</select></div>'
+      + '<div><label style="font-size:.72rem">Qtd</label><input id="cc-ret-qtd" type="number" step="0.001" min="0" value="1" style="width:100%;padding:.4rem;border:1px solid var(--bdr);border-radius:6px"></div>'
+      + '<div><label style="font-size:.72rem">Unid.</label><input id="cc-ret-un" type="text" value="UN" style="width:100%;padding:.4rem;border:1px solid var(--bdr);border-radius:6px;text-transform:uppercase"></div>'
+      + '<div><label style="font-size:.72rem">Vlr unit.</label><input id="cc-ret-vu" type="number" step="0.01" min="0" style="width:100%;padding:.4rem;border:1px solid var(--bdr);border-radius:6px"></div>'
+      + '<button class="btn btn-sm btn-blue" onclick="ccAddItem()">+ Add</button>'
+      + '</div>'
+      + '<input id="cc-ret-avulso" type="text" placeholder="ou digite um item avulso (substitui o select)" style="width:100%;padding:.4rem;border:1px solid var(--bdr);border-radius:6px;margin-top:.5rem;font-size:.8rem">'
+      + '</div>'
+      + '<div id="cc-ret-itens" style="margin-top:.8rem"></div>'
+      + '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:1rem">'
+      + '<strong id="cc-ret-total">Total: ' + _brl.format(0) + '</strong>'
+      + '<div style="display:flex;gap:.6rem">'
       + '<button class="btn btn-sm btn-outline" onclick="fecharModalCC()">Cancelar</button>'
-      + '<button class="btn btn-sm btn-green" onclick="salvarEdicaoLancamentoCC(\'' + lancId + '\',\'' + clienteId + '\')">Salvar</button>'
-      + '</div>');
+      + '<button class="btn btn-sm btn-blue" onclick="salvarEdicaoRetiradaCC(\'' + lancId + '\',\'' + clienteId + '\')">Salvar alterações</button>'
+      + '</div></div>');
+    _renderItensRetirada();
   }
-  async function salvarEdicaoLancamentoCC(lancId, clienteId) {
+
+  async function salvarEdicaoCreditoCC(lancId, clienteId) {
     var todos = await gdpApi.lancamentosCliente.list();
     var l = (todos || []).find(function (x) { return x.id === lancId; });
     if (!l) { _toast('Lançamento não encontrado.'); return; }
     l.data = document.getElementById('cc-edit-data').value || l.data;
     l.descricao = document.getElementById('cc-edit-desc').value || l.descricao;
-    var ve = document.getElementById('cc-edit-valor');
-    if (ve && l.tipo !== 'debito') {
-      var nv = _num(ve.value);
-      if (nv <= 0) { _toast('Valor inválido.'); return; }
-      l.valor = nv;
-    }
+    var nv = _num(document.getElementById('cc-edit-valor').value);
+    if (nv <= 0) { _toast('Valor inválido.'); return; }
+    l.valor = nv;
     await gdpApi.lancamentosCliente.save(l);
-    // Story 21.x (UX-F3): salvar não fecha — edição mantém valores e modal aberto.
-    _toast('Lançamento atualizado.');
+    _toast('Crédito atualizado.');
+    _fecharModal();
+    await renderContaCorrente();
+    await abrirExtratoCliente(clienteId);
+  }
+
+  async function salvarEdicaoRetiradaCC(lancId, clienteId) {
+    if (!_retiradaItens.length) { _toast('A retirada precisa de ao menos um item. Para zerar, remova o lançamento.'); return; }
+    var todos = await gdpApi.lancamentosCliente.list();
+    var l = (todos || []).find(function (x) { return x.id === lancId; });
+    if (!l) { _toast('Lançamento não encontrado.'); return; }
+
+    var total = _retiradaItens.reduce(function (s, it) { return s + it.subtotal; }, 0);
+    total = Math.round(total * 100) / 100;
+
+    // 1) atualiza o lançamento de débito (data, descrição, valor = Σ subtotais)
+    l.data = document.getElementById('cc-ret-data').value || l.data;
+    l.descricao = document.getElementById('cc-edit-desc').value
+      || ('Retirada (' + _retiradaItens.length + ' ' + (_retiradaItens.length === 1 ? 'item' : 'itens') + ')');
+    l.valor = total;
+    await gdpApi.lancamentosCliente.save(l);
+
+    // 2) substitui os itens: remove os antigos e grava os atuais (replace completo)
+    var todosItens = await gdpApi.lancamentosItens.list();
+    var antigos = (todosItens || []).filter(function (it) {
+      return (it.lancamentoId || it.lancamento_id) === lancId;
+    });
+    for (var i = 0; i < antigos.length; i++) {
+      await gdpApi.lancamentosItens.remove(antigos[i].id);
+    }
+    for (var j = 0; j < _retiradaItens.length; j++) {
+      var it = _retiradaItens[j];
+      await gdpApi.lancamentosItens.save({
+        id: _genId(),
+        lancamentoId: lancId,
+        produto: it.produto,
+        quantidade: it.quantidade,
+        unidade: it.unidade || 'UN',
+        valorUnitario: it.valorUnitario,
+        subtotal: it.subtotal
+      });
+    }
+
+    _retiradaItens = [];
+    _toast('Retirada atualizada.');
+    _fecharModal();
     await renderContaCorrente();
     await abrirExtratoCliente(clienteId);
   }
@@ -599,10 +713,12 @@
   window.ccPreencherPreco = ccPreencherPreco;
   window.ccAddItem = ccAddItem;
   window.ccRemoveItem = ccRemoveItem;
+  window.ccEditItem = ccEditItem;
   window.salvarRetiradaCC = salvarRetiradaCC;
   window.removerLancamentoCC = removerLancamentoCC;
   window.editarLancamentoCC = editarLancamentoCC;
-  window.salvarEdicaoLancamentoCC = salvarEdicaoLancamentoCC;
+  window.salvarEdicaoCreditoCC = salvarEdicaoCreditoCC;
+  window.salvarEdicaoRetiradaCC = salvarEdicaoRetiradaCC;
   window.imprimirExtratoCC = imprimirExtratoCC;
   window.fecharModalCC = _fecharModal;
 })();
