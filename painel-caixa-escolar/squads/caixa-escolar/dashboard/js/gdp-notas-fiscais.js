@@ -831,27 +831,39 @@ function peekProximoNumeroNf() {
 }
 
 // CONSUMIR: retorna o número E incrementa (SOMENTE para transmissão efetiva à SEFAZ)
+// ARCH-sync Passo 3 (P0 fiscal): o número vem EXCLUSIVAMENTE da RPC atômica server-side
+// (next_nf_number, migration 036/037). SELECT FOR UPDATE serializa emissões concorrentes
+// — 2 máquinas NUNCA pegam o mesmo número.
+// DECISÃO DO STAKEHOLDER (2026-06-23, via @qa CONCERN-1): SEM fallback client-side. Se a
+// RPC falhar (offline/timeout), retorna null e o chamador BLOQUEIA a emissão. Calcular o
+// número localmente reintroduziria o risco fiscal de duplicação justamente na janela de
+// rede instável — preferimos NÃO emitir a emitir um número que pode colidir.
+// Retorna String(numero) em sucesso, ou null se a RPC não respondeu (= bloquear emissão).
 async function consumirProximoNumeroNf() {
   var empresaId = typeof gdpApi !== 'undefined' ? gdpApi.getEmpresaId() : getEmpresaId();
-  var usados = _getNumerosAutorizados();
-  var minimo = _getNumeroMinimo();
-  var num = _encontrarPrimeiroLivre(minimo, usados);
 
-  // Calcular próximo livre APÓS este (adiciona o atual como "usado" para a busca)
-  usados.add(num);
-  var proximo = _encontrarPrimeiroLivre(num + 1, usados);
+  var num = null;
+  if (typeof gdpApi !== 'undefined' && gdpApi.nf_counter && gdpApi.nf_counter.next) {
+    num = await gdpApi.nf_counter.next(empresaId);
+  }
 
-  // Salvar próximo no config
+  if (num == null) {
+    // RPC indisponível → NÃO emitir. O chamador trata o null abortando a transmissão.
+    console.warn("[NF-e] RPC next_nf_number indisponivel — emissao BLOQUEADA (sem fallback, decisao fiscal).");
+    return null;
+  }
+
+  // Sincroniza estado local (para o preview/peek continuar coerente). NÃO grava no
+  // Supabase aqui — a RPC já é a fonte da verdade do counter no servidor.
   try {
-    var nfConfig = JSON.parse(localStorage.getItem("nexedu.config.notas-fiscais") || "{}");
-    nfConfig.proximoNumero = String(proximo);
-    nfConfig.updatedAt = new Date().toISOString();
-    localStorage.setItem("nexedu.config.notas-fiscais", JSON.stringify(nfConfig));
+    var usadosSrv = _getNumerosAutorizados(); usadosSrv.add(num);
+    var proximoSrv = _encontrarPrimeiroLivre(num + 1, usadosSrv);
+    var cfgSrv = JSON.parse(localStorage.getItem("nexedu.config.notas-fiscais") || "{}");
+    cfgSrv.proximoNumero = String(proximoSrv);
+    cfgSrv.updatedAt = new Date().toISOString();
+    localStorage.setItem("nexedu.config.notas-fiscais", JSON.stringify(cfgSrv));
     localStorage.setItem("gdp.nf-counter", String(num));
-    if (typeof gdpApi !== 'undefined') {
-      gdpApi.nf_counter.save({ empresa_id: empresaId, ultimo_numero: num }).catch(function() {});
-    }
-    console.log("[NF-e] Numero CONSUMIDO:", num, "| Proximo livre:", proximo);
+    console.log("[NF-e] Numero CONSUMIDO (RPC atomica):", num, "| Proximo livre:", proximoSrv);
   } catch(_) {}
   return String(num);
 }
@@ -1528,7 +1540,17 @@ async function transmitirHomologacaoNota(notaId) {
 
   // Consumir número SOMENTE após confirmação do usuário — single point of consumption
   if (!nf.numero || nf.numero === "0") {
-    nf.numero = await consumirProximoNumeroNf();
+    const numeroAtomico = await consumirProximoNumeroNf();
+    // ARCH-sync Passo 3 (decisão fiscal): se a RPC atômica falhou (offline/timeout),
+    // consumirProximoNumeroNf() retorna null → BLOQUEAR a transmissão. NÃO seguir com
+    // número inválido nem deixar a NF em estado órfão (transmissao_em_preparo).
+    if (numeroAtomico == null) {
+      const msg = "Não foi possível obter o número da NF (servidor indisponível). " +
+                  "Verifique sua conexão e tente novamente. A nota NÃO foi transmitida.";
+      if (typeof showToast === "function") showToast(msg, 7000); else alert(msg);
+      return;
+    }
+    nf.numero = numeroAtomico;
   }
   const novoNumero = nf.numero;
   // Persistir imediatamente para não perder o número em caso de falha

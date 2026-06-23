@@ -1039,6 +1039,14 @@ const _LS_TO_TABLE = {
 const _lastLocalSave = {};
 function getLastLocalSave(key) { return _lastLocalSave[key] || 0; }
 
+// ARCH-sync Passo 1: helper de leitura da janela de BOOT. REUSA a flag _gdpBootInProgress
+// já existente (declarada acima, Story 4.80) — ligada no início do boot e desligada em
+// gdp-init.js após o boot+migrations (que também chama _flushPendingBootSaves). Durante o
+// boot, savePedidos()/saveNotasFiscais() SEM changedId NÃO reescrevem a lista inteira no
+// Supabase (era o "carimbão em massa" que sobrescrevia o estado correto de outros navegadores).
+function gdpIsBooting() { return typeof _gdpBootInProgress !== 'undefined' && _gdpBootInProgress === true; }
+if (typeof window !== 'undefined') window.gdpIsBooting = gdpIsBooting;
+
 // Story 20.15b (AC4): registrar a ORIGEM do último save por chave.
 // 'user' = save disparado por edição ativa do usuário na UI; 'system' = boot/sync/
 // migração/bulk. Default seguro = 'system' (não trava a dirty window). A dirty window
@@ -1545,6 +1553,8 @@ function loadData() {
     try { _saveLocal(RECEIVABLES_KEY, contasReceber); } catch(_) {}
   }, 3000);
   console.timeEnd('[GDP] loadData:migrations');
+  // Nota: _gdpBootInProgress é desligado em gdp-init.js (após boot+migrations) que também
+  // chama _flushPendingBootSaves(). Não desligar aqui para não duplicar o ponto de controle.
 }
 function saveContratos() {
   _contratoByIdCache = null; // invalidate lookup cache
@@ -1566,21 +1576,29 @@ function registrarContratoExcluido(contrato) {
   saveContratosExcluidos();
 }
 function savePedidos(changedId) {
-  // Story 20.17: changedId opcional. Sem arg = comportamento atual (salva todos —
-  // boot, bulk, etc.). Com arg = persiste só o pedido alterado, reduzindo a rajada
-  // de upserts (antes: 145 por clique) que alimentava a race condition de realtime.
+  // ARCH-sync Passo 1 (mata a race condition): o "carimbão em massa" — todos os pedidos
+  // reescritos com o mesmo updated_at, sobrescrevendo no servidor a edição correta de
+  // outro navegador (pedido faturado voltava p/ aberto) — vinha do boot/migrations
+  // chamando savePedidos() SEM changedId. Regra:
+  //   • changedId presente → persiste SÓ esse pedido (caminho normal de UI).
+  //   • sem changedId DURANTE o boot → só cache local (NÃO reescreve Supabase em massa).
+  //   • sem changedId FORA do boot → comportamento legado preservado (ação de usuário).
   pedidos = pedidos.map(sanitizePedidoLegacyData);
   saveWrappedArray(ORDERS_KEY, pedidos);
   _lastLocalSave[ORDERS_KEY] = Date.now();
   syncPedidosGDPToEstoqueIntel(true);
-  // Persist to Supabase (async, non-blocking)
   if (window.gdpApi && window.gdpApi.pedidos) {
-    var alvo = changedId
-      ? pedidos.filter(function(p) { return p.id === changedId; })
-      : pedidos;
-    alvo.forEach(function(p) {
-      window.gdpApi.pedidos.save(p).catch(function(e) { gdpWarn('[Pedidos] Supabase save failed:', p.id, e.message); });
-    });
+    if (changedId) {
+      pedidos.filter(function(p) { return p.id === changedId; }).forEach(function(p) {
+        window.gdpApi.pedidos.save(p).catch(function(e) { gdpWarn('[Pedidos] Supabase save failed:', p.id, e.message); });
+      });
+    } else if (gdpIsBooting()) {
+      gdpLog('[Pedidos] boot save local-only — nao reescreve Supabase em massa (anti-carimbao)');
+    } else {
+      pedidos.forEach(function(p) {
+        window.gdpApi.pedidos.save(p).catch(function(e) { gdpWarn('[Pedidos] Supabase save failed:', p.id, e.message); });
+      });
+    }
   }
 }
 // Story 23.x (incidente QuotaExceededError 2026-06-23):
@@ -1658,18 +1676,26 @@ function saveNotasFiscais(changedId) {
       }
     } else { throw e; }
   }
-  // Persist to Supabase (async, non-blocking)
-  // Bug-fix regressão (NF pisca verde↔amarelo): com changedId, persiste só a NF
-  // alterada — não TODAS. A rajada de upserts (1 por NF a cada save) gerava uma
-  // rajada equivalente de ecos via realtime, e o pior caso (emitir 7 NFs seguidas)
-  // fazia o status/tipo_nota oscilar. Mesma otimização aplicada aos pedidos (20.17).
+  // ARCH-sync Passo 1 (mata a race condition): o carimbão em massa (152 NFs reescritas
+  // só por abrir o sistema) sobrescrevia no servidor o tipo_nota/status corretos de
+  // outro navegador (NF real virava "manual externa" amarela). Vinha do boot chamando
+  // saveNotasFiscais() SEM changedId. Regra idêntica a savePedidos:
+  //   • changedId → persiste só a NF alterada (caminho normal).
+  //   • sem changedId DURANTE o boot → só cache local (anti-carimbão).
+  //   • sem changedId FORA do boot → comportamento legado preservado (ação de usuário:
+  //     emitir/transmitir/autorizar — essas DEVEM persistir).
   if (window.gdpApi && window.gdpApi.notas_fiscais) {
-    var alvoNf = changedId
-      ? notasFiscais.filter(function(nf) { return nf.id === changedId; })
-      : notasFiscais;
-    alvoNf.forEach(function(nf) {
-      window.gdpApi.notas_fiscais.save(nf).catch(function(e) { gdpWarn('[NF] Supabase save failed:', nf.id, e.message); });
-    });
+    if (changedId) {
+      notasFiscais.filter(function(nf) { return nf.id === changedId; }).forEach(function(nf) {
+        window.gdpApi.notas_fiscais.save(nf).catch(function(e) { gdpWarn('[NF] Supabase save failed:', nf.id, e.message); });
+      });
+    } else if (gdpIsBooting()) {
+      gdpLog('[NF] boot save local-only — nao reescreve Supabase em massa (anti-carimbao)');
+    } else {
+      notasFiscais.forEach(function(nf) {
+        window.gdpApi.notas_fiscais.save(nf).catch(function(e) { gdpWarn('[NF] Supabase save failed:', nf.id, e.message); });
+      });
+    }
   }
 }
 

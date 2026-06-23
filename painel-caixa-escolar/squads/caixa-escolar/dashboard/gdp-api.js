@@ -413,6 +413,28 @@
       var rows = await sbFetch('/nf_counter?empresa_id=eq.' + encodeURIComponent(eid) + '&limit=1');
       return (rows && rows.length) ? rows[0] : null;
     },
+    // ARCH-sync Passo 3 (P0 fiscal): próximo número de NF ATÔMICO via RPC server-side.
+    // A função next_nf_number() (migration 036/037) usa SELECT FOR UPDATE → serializa
+    // emissões concorrentes (2 máquinas NUNCA pegam o mesmo número). SECURITY DEFINER
+    // permite a escrita mesmo com anon read-only. Retorna o INTEGER já consumido, ou
+    // null se a RPC falhar (caller decide o fallback). NUNCA chamar em preview/loop.
+    next: async function (empresaId) {
+      var eid = empresaId || getEmpresaId();
+      try {
+        var controller = new AbortController();
+        var timer = setTimeout(function () { controller.abort(); }, 10000);
+        var resp = await fetch(REST + '/rpc/next_nf_number', {
+          method: 'POST', headers: HEADERS,
+          body: JSON.stringify({ p_empresa_id: eid }),
+          signal: controller.signal
+        });
+        clearTimeout(timer);
+        if (!resp.ok) return null;
+        var n = await resp.json(); // a função RETURNS INTEGER → corpo é o número
+        var num = parseInt(n, 10);
+        return (num && num > 0) ? num : null;
+      } catch (_) { return null; }
+    },
     save: async function (item) {
       if (!item.empresa_id) item.empresa_id = getEmpresaId();
       // Echo suppression: nf_counter usa empresa_id como chave (não id). Registrar o
