@@ -1050,9 +1050,93 @@ function getLastLocalSaveOrigin(key) { return _lastLocalSaveOrigin[key] || 'syst
 function gdpMarkUserEdit(key) { _lastLocalSave[key] = Date.now(); _lastLocalSaveOrigin[key] = 'user'; }
 if (typeof window !== 'undefined') window.gdpMarkUserEdit = gdpMarkUserEdit;
 
+// Incidente QuotaExceededError (2026-06-23, parte 2): GC global do localStorage.
+// Remove campos pesados (XML, PDF base64, danfe raw) de TODAS as entidades para
+// liberar espaco quando o quota (~5MB compartilhado) estoura. Os dados completos
+// permanecem no Supabase (fonte da verdade) e na memoria — so a copia local e enxuta.
+// Retorna true se conseguiu liberar algo.
+function _gcLocalStorage() {
+  var freed = false;
+  // 1) Notas fiscais — reaproveita _stripNfHeavy (XML/previews/transmissao).
+  try {
+    var rawNf = localStorage.getItem(INVOICES_KEY);
+    if (rawNf && typeof _stripNfHeavy === 'function') {
+      var nfArr = unwrapData(JSON.parse(rawNf));
+      if (Array.isArray(nfArr) && nfArr.length) {
+        var beforeNf = rawNf.length;
+        var lightNf = nfArr.map(_stripNfHeavy);
+        var wNf = { _v: 1, updatedAt: new Date().toISOString(), items: lightNf };
+        var strNf = JSON.stringify(wNf);
+        if (strNf.length < beforeNf) { localStorage.setItem(INVOICES_KEY, strNf); freed = true; }
+      }
+    }
+  } catch (_) {}
+  // 2) Notas de entrada — xmlRaw + danfe raw (150-300KB cada).
+  try {
+    var rawNe = localStorage.getItem(ENTRY_INVOICES_KEY);
+    if (rawNe) {
+      var neArr = unwrapData(JSON.parse(rawNe));
+      if (Array.isArray(neArr) && neArr.length) {
+        var beforeNe = rawNe.length;
+        var lightNe = neArr.map(function (ne) {
+          var l = Object.assign({}, ne);
+          delete l.xmlRaw;
+          if (l.danfe) { l.danfe = Object.assign({}, l.danfe); delete l.danfe.rawHtml; delete l.danfe.rawXml; }
+          return l;
+        });
+        var strNe = JSON.stringify({ _v: 1, updatedAt: new Date().toISOString(), items: lightNe });
+        if (strNe.length < beforeNe) { localStorage.setItem(ENTRY_INVOICES_KEY, strNe); freed = true; }
+      }
+    }
+  } catch (_) {}
+  // 3) Contas a receber / a pagar — PDF base64 do boleto.
+  [RECEIVABLES_KEY, PAYABLES_KEY].forEach(function (k) {
+    try {
+      var raw = localStorage.getItem(k);
+      if (!raw) return;
+      var arr = unwrapData(JSON.parse(raw));
+      if (!Array.isArray(arr) || !arr.length) return;
+      var before = raw.length;
+      var light = arr.map(function (c) {
+        var l = Object.assign({}, c);
+        if (l.cobranca) {
+          l.cobranca = Object.assign({}, l.cobranca);
+          delete l.cobranca.boletoPdfBase64;
+          delete l.cobranca.pdfBase64;
+        }
+        delete l.boletoPdfBase64;
+        delete l.pdfBase64;
+        return l;
+      });
+      var str = JSON.stringify({ _v: 1, updatedAt: new Date().toISOString(), items: light });
+      if (str.length < before) { localStorage.setItem(k, str); freed = true; }
+    } catch (_) {}
+  });
+  if (freed) gdpLog('[GC] localStorage: campos pesados removidos p/ liberar quota');
+  return freed;
+}
+
 function saveWrappedArray(key, items, origin) {
   const wrapped = { _v: 1, updatedAt: new Date().toISOString(), items };
-  localStorage.setItem(key, JSON.stringify(wrapped));
+  // Defesa de quota CENTRALIZADA (protege TODAS as chaves, nao so notas). Se o
+  // setItem estourar, roda o GC global e retenta uma vez; se ainda falhar, NAO
+  // propaga — os dados ja seguem p/ o Supabase via _pushNetworkSave abaixo + memoria.
+  try {
+    localStorage.setItem(key, JSON.stringify(wrapped));
+  } catch (e) {
+    if (e && e.name === 'QuotaExceededError') {
+      console.warn('[GDP] localStorage cheio ao salvar ' + key + ' — rodando GC e retentando');
+      var gained = _gcLocalStorage();
+      try {
+        localStorage.setItem(key, JSON.stringify(wrapped));
+      } catch (e2) {
+        // Ultima linha: dados intactos em memoria + Supabase. Nao quebra o fluxo (ex.: emissao de NF).
+        console.error('[GDP] localStorage irrecuperavel p/ ' + key + ' (gc=' + gained + ') — seguindo via Supabase/memoria', e2 && e2.name);
+      }
+    } else {
+      throw e;
+    }
+  }
   // Story 4.65: registrar timestamp do save local para dirty window protection
   _lastLocalSave[key] = Date.now();
   // Story 20.15b (AC4): classificar origem do save.
