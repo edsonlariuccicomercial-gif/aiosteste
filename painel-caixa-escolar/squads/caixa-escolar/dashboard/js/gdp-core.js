@@ -1218,8 +1218,14 @@ function loadData() {
         (nf.sefaz.transmissao && (nf.sefaz.transmissao.xml || nf.sefaz.transmissao.rawResponse)) || nf.sefaz.xmlAutorizado) || (nf && nf.xml_autorizado);
     });
     if (_nfHeavy && typeof _stripNfHeavy === "function") {
-      saveWrappedArray(INVOICES_KEY, notasFiscais.map(_stripNfHeavy));
-      gdpLog('[boot] NF: stripped heavy XML/previews do localStorage (destrava quota)');
+      // ARCH-sync FIX-B (re-fix QA): localStorage DIRETO, NÃO saveWrappedArray. Este GC de
+      // quota só destrava o localStorage local (stripa XML pesado) — NÃO deve ir ao Supabase.
+      // Com saveWrappedArray, a chave entraria em _pendingBootSaves e o flush pós-boot faria
+      // saveAll da lista inteira → carimbão. localStorage.setItem direto evita a fila.
+      try {
+        localStorage.setItem(INVOICES_KEY, JSON.stringify({ _v: 1, updatedAt: new Date().toISOString(), items: notasFiscais.map(_stripNfHeavy) }));
+        gdpLog('[boot] NF: stripped heavy XML/previews do localStorage (destrava quota)');
+      } catch(_) {}
     }
   } catch(_) { /* quota/parse — segue; saveNotasFiscais tem fallback */ }
   // Story 4.80: removido saveNotasFiscais() no boot — re-save desnecessário bloqueava thread

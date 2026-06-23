@@ -3038,6 +3038,20 @@ async function enviarTiny(contratoId) {
   // Antes, gdp-contratos.html nunca aplicava a config — módulos ocultos sempre apareciam aqui.
   if (typeof aplicarAcessoSidebar === "function") aplicarAcessoSidebar();
 
+  // ARCH-sync Passo 1 (FIX-A): desligamento IDEMPOTENTE da janela de boot. Chamado tanto no
+  // fim do deferred-sanitize (ponto primário) quanto pelo fallback de 8s — o guard _ended
+  // garante que só o primeiro tem efeito (flag desligada + flush executado uma única vez).
+  var _bootWindowEnded = false;
+  function _gdpEndBootWindow() {
+    if (_bootWindowEnded) return;
+    _bootWindowEnded = true;
+    if (typeof _gdpBootInProgress !== 'undefined') _gdpBootInProgress = false;
+    if (typeof window._flushPendingBootSaves === 'function') {
+      try { window._flushPendingBootSaves(); } catch (_) {}
+    }
+    gdpLog('[boot] janela de boot encerrada — saves voltam a persistir normalmente');
+  }
+
   // Story 4.83: Defer sanitize — build O(1) lookup caches, sanitize, persist results
   setTimeout(function() {
     console.time('[GDP] deferred-sanitize');
@@ -3058,35 +3072,59 @@ async function enviarTiny(contratoId) {
     delete window._fastClienteCache;
     // Story 4.83: Auto-fix notas with cStat 100/150 (autorizada pela SEFAZ) mas status errado
     // NÃO incluir 539 (duplicidade) — pode ser outra nota tentando usar mesmo número
-    var _nfFixed = 0;
+    // ARCH-sync Passo 1 (FIX-B, carimbão NF): persistir SÓ as NFs corrigidas (por id), nunca
+    // a lista inteira. Antes era saveNotasFiscais() sem arg → reescrevia TODAS as 168 NFs no
+    // Supabase em massa (carimbão). Como o deferred-sanitize (3.6s) termina DEPOIS da janela
+    // de boot (3s), esse saveAll caía fora do boot e gerava o carimbão. Save seletivo elimina
+    // o problema na raiz, independente do timing.
+    var _nfFixedIds = [];
     notasFiscais.forEach(function(nf) {
       var cStat = String((nf.integracoes && nf.integracoes.sefaz && nf.integracoes.sefaz.cStat) || '');
       if (nf.status !== 'autorizada' && (cStat === '100' || cStat === '150')) {
         nf.status = 'autorizada';
         if (nf.sefaz) nf.sefaz.status = 'autorizada';
-        _nfFixed++;
+        _nfFixedIds.push(nf.id);
         gdpLog('[GDP] Auto-fix NF ' + (nf.numero || nf.id) + ': cStat=' + cStat + ' → autorizada');
       }
     });
-    if (_nfFixed > 0) saveNotasFiscais();
+    if (_nfFixedIds.length > 0) {
+      // ARCH-sync FIX-B (re-fix QA): localStorage DIRETO (localStorage.setItem), NÃO
+      // saveWrappedArray. saveWrappedArray enfileira a chave em _pendingBootSaves, e o
+      // _flushPendingBootSaves() (chamado por _gdpEndBootWindow) faria saveAll da lista
+      // INTEIRA no Supabase → recriaria o carimbão. Escrevendo direto, a chave NÃO entra na
+      // fila do flush; só os gdpApi.notas_fiscais.save(nf) por id (abaixo) vão ao Supabase.
+      // Mesmo padrão usado para contratos/pedidos logo acima (localStorage.setItem direto).
+      try {
+        var _lightNfs = notasFiscais.map(typeof _stripNfHeavy === 'function' ? _stripNfHeavy : function(x){ return x; });
+        localStorage.setItem('gdp.notas-fiscais.v1', JSON.stringify({ _v: 1, updatedAt: new Date().toISOString(), items: _lightNfs }));
+      } catch(_) {}
+      if (window.gdpApi && window.gdpApi.notas_fiscais) {
+        _nfFixedIds.forEach(function(id) {
+          var nf = notasFiscais.filter(function(n){ return n.id === id; })[0];
+          if (nf) window.gdpApi.notas_fiscais.save(nf).catch(function(e){ gdpWarn('[NF] auto-fix save failed:', id, e.message); });
+        });
+      }
+    }
     console.timeEnd('[GDP] deferred-sanitize');
     // Persist sanitized data so next boot loads clean data (no re-sanitize needed)
     try { localStorage.setItem('gdp.contratos.v1', JSON.stringify({ _v: 1, updatedAt: new Date().toISOString(), items: contratos })); } catch(_) {}
     try { localStorage.setItem('gdp.pedidos.v1', JSON.stringify({ _v: 1, updatedAt: new Date().toISOString(), items: pedidos })); } catch(_) {}
     renderAll();
     gdpLog('[GDP] Sanitize + persist complete — next boot will be instant');
+    // ARCH-sync Passo 1 (FIX-A, carimbão NF): desligar a janela de boot SÓ AQUI, no FIM do
+    // deferred-sanitize. Antes a flag desligava num setTimeout(3000) fixo, mas o sanitize
+    // demora ~3.6s — então saves do sanitize caíam FORA do boot e geravam carimbão. Agora a
+    // flag cobre todo o sanitize. O setTimeout(8000) abaixo é só rede de segurança.
+    _gdpEndBootWindow();
   }, 200);
 
-  // Story 4.83: liberar cloud sync 3s após boot (tabelas Supabase carregam em ~1-2s)
+  // Story 4.83: liberar cloud sync após boot.
   // Story 20.15b (Portão 5 / AC5): ao desligar a flag, fazer flush das alterações que
   // foram feitas durante o boot e ficaram presas (enfileiradas em _pendingBootSaves).
-  // O flush é assíncrono e deduplicado por chave — não bloqueia o boot (AC7).
-  setTimeout(function() {
-    if (typeof _gdpBootInProgress !== 'undefined') _gdpBootInProgress = false;
-    if (typeof window._flushPendingBootSaves === 'function') {
-      try { window._flushPendingBootSaves(); } catch (_) {}
-    }
-  }, 3000);
+  // ARCH-sync FIX-A: desligamento idempotente via _gdpEndBootWindow(). O ponto PRIMÁRIO é o
+  // fim do deferred-sanitize (acima); este setTimeout é FALLBACK de segurança caso o sanitize
+  // não rode (ex: erro antes do callback) — assim a flag nunca fica presa em true.
+  setTimeout(_gdpEndBootWindow, 8000);
 
   // Auto-apply pending DB migrations (one-time, background, non-blocking)
   if (!sessionStorage.getItem("gdp.db-migrate-done")) {
