@@ -2671,14 +2671,17 @@ function downloadPedidoPDF(protocol) {
   if (!order) {
     try {
       const pv1 = unwrapData(JSON.parse(localStorage.getItem('gdp.pedidos.v1') || '{}'));
-      const cp = pv1.find(p => p.id === protocol && p.cronograma);
+      // Bug-fix (2026-06-23): removido `&& p.cronograma` — descartava pedidos do
+      // fornecedor que NAO sao de cronograma (apareciam na lista mas o PDF dava
+      // "Pedido nao encontrado"). Alinhado com verPedido, que busca so por id.
+      const cp = pv1.find(p => p.id === protocol);
       if (cp) {
         order = {
           protocol: cp.id, contratoId: cp.contratoId, school: cp.escola,
           date: cp.dataEntrega || cp.data, total: cp.valor || 0,
           items: (cp.itens || []).map(i => ({ name: i.descricao, qty: i.qtd, unit: i.unidade, unitPrice: i.precoUnitario, itemNum: i.itemNum })),
           itemCount: (cp.itens || []).length, obs: cp.obs || '', marcador: cp.marcador || '',
-          cronograma: true
+          cronograma: !!cp.cronograma
         };
       }
     } catch(_) {}
