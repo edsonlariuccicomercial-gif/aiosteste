@@ -204,6 +204,32 @@ Resolve a queixa do usuário "o sistema diz um número e na verdade é outro". O
 
 **GATE: PASS (código).** Validação de comportamento em prod após deploy (abrir o sistema → número corrige sozinho, sem recarimbar). Liberado para @devops.
 
+---
+
+## ⚠️→✅ CARIMBÃO RESIDUAL DO "FORÇAR SYNC" — FAIL pós-deploy → FIX PASS (2026-06-23 23:10)
+
+### FAIL detectado (relato do usuário + evidência):
+- Usuário: um PC atualizou certo, outro reverteu mesmo após Forçar Sync ("correções foram locais").
+- Evidência: 169/169 NFs com updated_at IDÊNTICO 21:48:59 (carimbão). 22 NFs recuperadas REVERTERAM.
+- Causa-raiz: forcarSyncCompleto() (gdp-core.js) fazia gdpApi[t].saveAll(lista_inteira) de 6 tabelas ANTES de baixar. Num navegador com cache velho, SOBRESCREVIA o Supabase com dados danificados. Era o ÚLTIMO vetor de carimbão de NF/pedidos (os fixes anteriores cobriam boot/sanitize, não este upload manual).
+
+### Fix do @dev (re-revisado):
+- REMOVIDO o bloco de upload em massa do forcarSyncCompleto. Agora SÓ BAIXA (syncFromCloud + list com proteções). Confirmado: 0 statements de upload na função.
+- Botão renomeado 'Forçar Sync' → '🔄 Atualizar da Nuvem'; mensagem corrigida (não promete subir).
+- gdp-core v43.
+
+### Varredura de cadeia (QA — não repetir erro de validar só o trecho):
+- syncToCloud (app-sync.js, chamado em visibilitychange/trocar-aba) NÃO sobe NFs/pedidos: SYNC_KEYS (app-state.js:693) EXCLUI gdp.notas-fiscais.v1 e gdp.pedidos.v1 (têm tabela dedicada). ✅
+- _pushNetworkSave (gdp-core.js:1155) saveAll é protegido pela flag de boot/fila. ✅
+- CONFIRMADO: o forcarSyncCompleto era o ÚNICO caminho de upload em massa de NF/pedidos. Eliminado.
+
+### Observação (tech debt, não-bloqueante):
+- gdp-usuarios.js:14 saveUsuarios() faz gdpApi.clientes.saveAll(usuarios) — carimbão POTENCIAL de CLIENTES (não NF). Só em ação de usuário. Avaliar em sessão futura.
+
+### Estado banco: 22 NFs RE-RECUPERADAS e validadas (0 autorizadas sem chave, 0 rascunhos).
+
+**GATE: PASS (código).** Deploy URGENTE. Pós-deploy: clicar 'Atualizar da Nuvem' NÃO deve mudar updated_at no Supabase. Usuário: Ctrl+Shift+R em todos os PCs p/ v43; aí o botão fica seguro.
+
 **Protocolo de validação pós-deploy (teste 1, o mais importante):**
 1. Anotar `updated_at` de 3-5 pedidos no Supabase.
 2. Abrir o sistema num navegador, Ctrl+Shift+R, NÃO editar nada, aguardar 10s.
