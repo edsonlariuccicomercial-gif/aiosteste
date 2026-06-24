@@ -105,8 +105,22 @@
 
   function writeLS(entity, items) {
     // Story 4.82: always keep in-memory cache (works even when localStorage fails)
-    _memCache[entity.lsKey] = items;
-    var value = entity.wrapped ? { _v: 1, updatedAt: new Date().toISOString(), items: items } : items;
+    _memCache[entity.lsKey] = items; // memória mantém TUDO (link do boleto/PDF disponível na tela atual)
+    // FIX QUOTA (2026-06-25, incidente 9.4MB): o que PERSISTE no localStorage deve ser LEVE. Os dados do
+    // servidor (list/sync/realtime) chegam aqui COM os pesados (invoiceUrl/bankSlipUrl ~54KB, xmlAutorizado
+    // ~70KB) e re-enchiam o localStorage a cada sync — desfazendo a limpeza retroativa do boot. Stripar AQUI
+    // (na ENTRADA) garante que os pesados NUNCA persistam no localStorage, venham de onde vierem. _memCache
+    // acima mantém os completos. Recuperável do provider/Supabase quando o usuário abrir o boleto/XML.
+    var toPersist = items;
+    try {
+      if (entity.table === 'notas_fiscais' && typeof window !== 'undefined' && typeof window._stripNfHeavy === 'function') {
+        toPersist = items.map(window._stripNfHeavy);
+      } else if ((entity.table === 'contas_receber' || entity.table === 'contas_pagar')
+                 && typeof window !== 'undefined' && typeof window._stripContaHeavy === 'function') {
+        toPersist = items.map(window._stripContaHeavy);
+      }
+    } catch (_) { toPersist = items; } // se o strip falhar, persiste o original (não bloqueia)
+    var value = entity.wrapped ? { _v: 1, updatedAt: new Date().toISOString(), items: toPersist } : toPersist;
     try {
       localStorage.setItem(entity.lsKey, JSON.stringify(value));
     } catch (e) {
