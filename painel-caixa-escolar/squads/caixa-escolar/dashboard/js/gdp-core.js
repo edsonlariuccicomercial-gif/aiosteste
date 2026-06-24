@@ -3353,10 +3353,19 @@ function renderConciliacao() {
 
   // Story 4.57: renderConciliacao é READ-ONLY — migração roda no boot, stats em atualizarExtratoStats()
 
+  // Fonte da verdade do "aberto" = _extratoAbertoId (estado de UI, à prova de sync/realtime).
+  // Fallback: se a var de UI está nula mas algum extrato persistido tem isOpen (1ª render pós-navegação),
+  // adota esse. Garante que um eco de realtime que zere isOpen NÃO feche o extrato aberto na tela.
+  if (!_extratoAbertoId) {
+    var _persistedOpen = extratos.find(function(e){ return e.isOpen === true; });
+    if (_persistedOpen) _extratoAbertoId = _persistedOpen.id;
+  }
+  var _abertoId = _extratoAbertoId;
+
   // Render tabela de extratos
   if (extratosEl) {
     if (extratos.length) {
-      const openIdx = extratos.findIndex(e => e.isOpen);
+      const openIdx = extratos.findIndex(e => e.id === _abertoId);
       extratosEl.innerHTML = '<table style="width:100%;font-size:.85rem;margin-bottom:.5rem;border-collapse:collapse;background:var(--s1,#1e293b);border-radius:6px;overflow:hidden">'
         + '<thead><tr style="border-bottom:1px solid var(--bdr,#334155)">'
         + '<th style="width:30px;padding:10px 12px;text-align:left;font-size:.78rem;color:var(--mut,#94a3b8);font-weight:600"><input type="checkbox" id="ext-select-all" onchange="toggleAllExtratos(this.checked)"></th>'
@@ -3366,7 +3375,7 @@ function renderConciliacao() {
         + '<th style="padding:10px 12px;text-align:left;font-size:.78rem;color:var(--mut,#94a3b8);font-weight:600">Conciliados/Total</th>'
         + '</tr></thead><tbody>'
         + extratos.map((ext, i) => {
-          const isOpen = ext.isOpen === true;
+          const isOpen = ext.id === _abertoId;
           const rowBg = isOpen ? 'background:rgba(59,130,246,.12);' : '';
           const arrow = isOpen ? '▼' : '▶';
           return '<tr style="cursor:pointer;border-bottom:1px solid rgba(51,65,85,.4);' + rowBg + '" onclick="reabrirExtrato(' + i + ')">'
@@ -3393,8 +3402,8 @@ function renderConciliacao() {
 
   if (!tbody) return;
 
-  // Story 4.55 AC-2: só mostrar detalhes se algum extrato estiver aberto
-  const openExtrato = extratos.find(e => e.isOpen === true);
+  // Story 4.55 AC-2: só mostrar detalhes se algum extrato estiver aberto (fonte = _abertoId, UI-only)
+  const openExtrato = extratos.find(e => e.id === _abertoId);
   if (!openExtrato) {
     // Nenhum extrato aberto — esconder tabela de detalhes e resumo
     tbody.innerHTML = "";
@@ -3673,17 +3682,26 @@ window.excluirExtratosSelecionados = function() {
   showToast(selected.length + ' extrato(s) excluído(s). Conciliados preservados no Caixa.');
 };
 
+// ESTADO DE UI (NÃO persistido): qual extrato está aberto na tela AGORA. É a fonte da verdade do
+// "aberto", independente do campo isOpen gravado no extrato. Motivo: um eco de realtime de OUTRA
+// tabela (ex.: contas_receber ao conciliar+baixar uma CR) re-puxava a tabela extratos do Supabase e
+// sobrescrevia isOpen=false → o extrato "fechava sozinho". Agora o aberto vive só em memória de UI e
+// NENHUM sync/reload o fecha. Só o usuário fecha (clicando de novo no extrato).
+var _extratoAbertoId = null;
+if (typeof window !== 'undefined') { window._getExtratoAbertoId = function(){ return _extratoAbertoId; }; }
+
 // Story 4.55 AC-2: toggle extrato aberto/fechado com state tracking
 window.reabrirExtrato = function(idx) {
   const extratos = loadExtratos();
   const ext = extratos[idx];
   if (!ext) return;
 
-  // Toggle: se já está aberto, fechar; senão abrir e fechar os outros
-  const wasOpen = ext.isOpen === true;
-  extratos.forEach(e => { e.isOpen = false; }); // fechar todos
+  // Toggle por ID de UI: se já está aberto, fechar; senão abrir (e fechar os outros).
+  const wasOpen = _extratoAbertoId === ext.id;
+  _extratoAbertoId = wasOpen ? null : ext.id;
+  // Espelha no campo persistido (compat com código legado que lê isOpen), mas a verdade é _extratoAbertoId.
+  extratos.forEach(e => { e.isOpen = (e.id === _extratoAbertoId); });
   if (!wasOpen) {
-    ext.isOpen = true;
     // Notificar pendentes
     const allItems = loadConciliacao();
     const extItems = allItems.filter(i => i.extratoId === ext.id);
