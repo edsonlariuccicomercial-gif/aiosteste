@@ -1117,7 +1117,9 @@ function _gcLocalStorage() {
       }
     }
   } catch (_) {}
-  // 3) Contas a receber / a pagar — PDF base64 do boleto.
+  // 3) Contas a receber / a pagar — campos pesados (PDF/URL base64 do boleto).
+  // FIX QUOTA (2026-06-25): usa _stripContaHeavy (remove invoiceUrl/bankSlipUrl além de boletoPdfBase64).
+  // Antes só removia boletoPdfBase64/pdfBase64 → invoiceUrl/bankSlipUrl (54KB cada) escapavam.
   [RECEIVABLES_KEY, PAYABLES_KEY].forEach(function (k) {
     try {
       var raw = localStorage.getItem(k);
@@ -1125,17 +1127,7 @@ function _gcLocalStorage() {
       var arr = unwrapData(JSON.parse(raw));
       if (!Array.isArray(arr) || !arr.length) return;
       var before = raw.length;
-      var light = arr.map(function (c) {
-        var l = Object.assign({}, c);
-        if (l.cobranca) {
-          l.cobranca = Object.assign({}, l.cobranca);
-          delete l.cobranca.boletoPdfBase64;
-          delete l.cobranca.pdfBase64;
-        }
-        delete l.boletoPdfBase64;
-        delete l.pdfBase64;
-        return l;
-      });
+      var light = arr.map(_stripContaHeavy);
       var str = JSON.stringify({ _v: 1, updatedAt: new Date().toISOString(), items: light });
       if (str.length < before) { localStorage.setItem(k, str); freed = true; }
     } catch (_) {}
@@ -1781,7 +1773,20 @@ function _stripNfHeavy(nf) {
       };
     }
   }
+  // FIX QUOTA (incidente 2026-06-25, 9.4MB): o strip antigo só removia xml_autorizado (snake), mas as
+  // notas guardam xmlAutorizado (camelCase, ~70KB) → escapava. E NÃO tocava em cobranca, que carrega
+  // invoiceUrl/bankSlipUrl (PDF do boleto em base64, ~54KB cada = ~490KB no total das notas). Esses são
+  // recuperáveis do Supabase/provider bancário — não precisam ficar no localStorage. Removê-los aqui.
   delete light.xml_autorizado;
+  delete light.xmlAutorizado;
+  if (light.cobranca) {
+    light.cobranca = Object.assign({}, light.cobranca);
+    delete light.cobranca.invoiceUrl;        // PDF/HTML base64 da fatura
+    delete light.cobranca.bankSlipUrl;       // PDF base64 do boleto
+    delete light.cobranca.boletoPdfBase64;
+    delete light.cobranca.pdfBase64;
+    delete light.cobranca.qrCodeImage;       // imagem base64 do QR (mantém pixCopiaECola textual)
+  }
   return light;
 }
 
@@ -1801,6 +1806,54 @@ function _ultraLightNf(nf) {
   delete ul.xml_autorizado;
   return ul;
 }
+
+// FIX QUOTA (2026-06-25): strip de campos pesados de CONTA A RECEBER/PAGAR. Espelho do _stripNfHeavy.
+// invoiceUrl/bankSlipUrl (PDF do boleto em base64, ~54KB cada) são recuperáveis do provider (Inter) —
+// o sistema re-busca via emitirOuSincronizarCobrancaReal (gdp-notas-fiscais.js:690). A detecção de
+// "tem boleto" usa providerChargeId/nossoNumero (leves, preservados). Opera em CÓPIA (não muta a RAM).
+function _stripContaHeavy(c) {
+  var l = Object.assign({}, c);
+  if (l.cobranca) {
+    l.cobranca = Object.assign({}, l.cobranca);
+    delete l.cobranca.invoiceUrl;
+    delete l.cobranca.bankSlipUrl;
+    delete l.cobranca.boletoPdfBase64;
+    delete l.cobranca.pdfBase64;
+    delete l.cobranca.qrCodeImage;
+  }
+  delete l.boletoPdfBase64;
+  delete l.pdfBase64;
+  return l;
+}
+if (typeof window !== 'undefined') window._stripContaHeavy = _stripContaHeavy;
+
+// FIX QUOTA (2026-06-25): limpeza RETROATIVA one-shot no boot. As notas/contas já salvas no localStorage
+// carregam os campos pesados antigos (o strip só age em saves NOVOS). Re-strippa o que já está gravado,
+// DIRETO no localStorage (NÃO via saveWrappedArray → zero rede, zero carimbão). Idempotente: só regrava se
+// ficou menor. A RAM mantém os pesados (strip em cópia) → nada se perde na sessão atual.
+function _stripLocalStorageRetroativo() {
+  var liberadoKb = 0;
+  function _reStrip(key, fn) {
+    try {
+      var raw = localStorage.getItem(key);
+      if (!raw) return;
+      var arr = unwrapData(JSON.parse(raw));
+      if (!Array.isArray(arr) || !arr.length) return;
+      var light = arr.map(fn);
+      var str = JSON.stringify({ _v: 1, updatedAt: new Date().toISOString(), items: light });
+      if (str.length < raw.length) {
+        localStorage.setItem(key, str);
+        liberadoKb += (raw.length - str.length) / 1024;
+      }
+    } catch (_) {}
+  }
+  _reStrip(INVOICES_KEY, _stripNfHeavy);
+  _reStrip(RECEIVABLES_KEY, _stripContaHeavy);
+  _reStrip(PAYABLES_KEY, _stripContaHeavy);
+  if (liberadoKb > 0) gdpLog('[quota] limpeza retroativa liberou ~' + Math.round(liberadoKb) + 'KB do localStorage');
+  return Math.round(liberadoKb);
+}
+if (typeof window !== 'undefined') window._stripLocalStorageRetroativo = _stripLocalStorageRetroativo;
 
 function saveNotasFiscais(changedId) {
   // Strip universal (todas as notas, não só autorizadas) — ver _stripNfHeavy.
@@ -1942,7 +1995,10 @@ function cpListaContasBancarias() {
   });
   return ativas.length ? ativas : [{ id: 'Conta Principal', label: 'Conta Principal' }];
 }
-function saveContasReceber() { saveWrappedArray(RECEIVABLES_KEY, contasReceber); }
+// FIX QUOTA (2026-06-25): strippa campos pesados (invoiceUrl/bankSlipUrl/PDF base64) ANTES de salvar no
+// localStorage — senão a conta re-infla a cada save. _stripContaHeavy opera em cópia (a RAM mantém o link
+// p/ a tela atual; pesados são recuperáveis do provider).
+function saveContasReceber() { saveWrappedArray(RECEIVABLES_KEY, contasReceber.map(_stripContaHeavy)); }
 function saveCaixaExtrato() { saveWrappedArray(CAIXA_STATEMENT_KEY, caixaExtratoMovimentos); }
 function saveEstoqueMovimentos() { saveWrappedArray(STOCK_KEY, estoqueMovimentos); }
 function saveEstoqueIntelProdutos() { saveWrappedArray(ESTOQUE_INTEL_PRODUCTS_KEY, estoqueIntelProdutos); }

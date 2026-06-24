@@ -3053,6 +3053,12 @@ async function enviarTiny(contratoId) {
     if (typeof window._flushPendingBootSaves === 'function') {
       try { window._flushPendingBootSaves(); } catch (_) {}
     }
+    // FIX QUOTA (2026-06-25): limpeza retroativa one-shot — re-strippa NF/contas já salvas com a lógica
+    // nova (remove invoiceUrl/bankSlipUrl/xmlAutorizado pesados). Roda ANTES do aviso de quota p/ que o
+    // aviso reflita o tamanho JÁ reduzido. Zero rede, idempotente.
+    if (typeof window._stripLocalStorageRetroativo === 'function') {
+      try { window._stripLocalStorageRetroativo(); } catch (_) {}
+    }
     // Pendência 1 camada D: avisa o usuário se o localStorage estiver perto do limite (~5MB).
     if (typeof window._checkQuotaWarning === 'function') {
       try { window._checkQuotaWarning(); } catch (_) {}
