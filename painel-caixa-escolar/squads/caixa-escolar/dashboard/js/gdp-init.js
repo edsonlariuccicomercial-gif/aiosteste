@@ -3057,6 +3057,15 @@ async function enviarTiny(contratoId) {
     if (typeof window._checkQuotaWarning === 'function') {
       try { window._checkQuotaWarning(); } catch (_) {}
     }
+    // Resolução definitiva: recovery no boot — destrava NFs órfãs de transmissão (frente 1) e
+    // reconcilia cobranças órfãs (frente 2). Roda 1x, após o boot, fora da janela de carimbão.
+    if (typeof window.recoverNfsTransmissaoOrfas === 'function') {
+      try { window.recoverNfsTransmissaoOrfas(); } catch (_) {}
+    }
+    if (typeof window.reconciliarCobrancasOrfas === 'function') {
+      try { window.reconciliarCobrancasOrfas(); } catch (_) {}
+    }
+    if (typeof window.renderAll === 'function') { try { window.renderAll(); } catch (_) {} }
     gdpLog('[boot] janela de boot encerrada — saves voltam a persistir normalmente');
   }
 

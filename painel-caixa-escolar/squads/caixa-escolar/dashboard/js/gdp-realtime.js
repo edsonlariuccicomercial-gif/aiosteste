@@ -50,10 +50,28 @@
 
   // Debounce renderAll (batch events within 500ms)
   var _renderTimer = null;
+  var _renderDeferCount = 0; // frente 3: teto de adiamentos p/ não congelar o realtime se a flag travar
   function scheduleRender() {
     if (_renderTimer) clearTimeout(_renderTimer);
     _renderTimer = setTimeout(function () {
       _renderTimer = null;
+      // Resolução definitiva (frente 3 — anti-eco): se há uma operação de NF EM CURSO (gerar/transmitir/
+      // autorizar), NÃO reidratar do localStorage agora. O reloadFromLocalSilent reidrata estados que
+      // podem estar ATRASADOS em relação à edição otimista em andamento → fazia a NF "voltar no tempo"
+      // (autorizada→pendente) e PISCAR entre abas, além de poder interromper a transmissão. Quando a op
+      // termina (delete _nfOpsEmAndamento[...]), o próprio fluxo da NF chama renderAll com o estado final.
+      // Reagenda um render leve para refletir o estado quando a op concluir.
+      // QA fix-1: TETO de adiamentos. Se a flag _nfOpsEmAndamento ficar presa em memória (thread morta sem
+      // reload), sem teto o realtime re-agendaria p/ sempre e NUNCA renderizaria mudanças legítimas (micro-loop
+      // / congelamento). Após 5 adiamentos (~6s), renderiza assim mesmo.
+      var opEmCurso = (typeof window._nfOpHasInFlight === 'function') && window._nfOpHasInFlight();
+      if (opEmCurso && _renderDeferCount < 5) {
+        _renderDeferCount++;
+        // adia: re-tenta em 1.2s (após a janela típica de save/echo) sem reidratar agora
+        _renderTimer = setTimeout(scheduleRender, 1200);
+        return;
+      }
+      _renderDeferCount = 0; // reset: vai renderizar agora (op concluiu ou teto atingido)
       // FIX (incidente 2026-06-24 — divergência entre máquinas): reidratar as variáveis EM MEMÓRIA
       // (notasFiscais, pedidos, etc.) a partir do localStorage que o realtime acabou de atualizar,
       // ANTES de renderizar. ATENÇÃO: NÃO chamar loadData() completo aqui — ele dispara saves

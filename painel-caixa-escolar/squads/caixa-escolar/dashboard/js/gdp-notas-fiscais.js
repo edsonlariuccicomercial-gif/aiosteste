@@ -4,6 +4,15 @@
 // Story 16.5 AC8: lock de idempotência por pedido — bloqueia clique duplo em
 // "Gerar NF" / transmissão enquanto uma operação está em andamento para o pedido.
 var _nfOpsEmAndamento = {};
+// Resolução definitiva (frente 3): expor p/ o realtime (gdp-realtime.js) ADIAR o reloadFromLocalSilent
+// enquanto há operação de NF em curso — evita o realtime sobrescrever a memória otimista (NF "voltar no
+// tempo" de autorizada→pendente durante a transmissão) e o flicker de re-render em rajada.
+if (typeof window !== 'undefined') {
+  window._nfOpHasInFlight = function () {
+    try { for (var k in _nfOpsEmAndamento) { if (_nfOpsEmAndamento[k]) return true; } } catch (_) {}
+    return false;
+  };
+}
 
 // Retry helper: salva NF no Supabase com 3 tentativas
 async function _saveNfToSupabaseWithRetry(nfData, maxRetries) {
@@ -466,6 +475,17 @@ async function emitirOuSincronizarCobrancaReal(contaId, options = {}) {
   const conta = contasReceber.find((item) => item.id === contaId);
   if (!conta) return false;
 
+  // Resolução definitiva (frente 2): NÃO emitir boleto p/ cobrança ÓRFÃ (NF sem prova de autorização).
+  // A conta foi marcada _orfa pelo reconciliarCobrancasOrfas. Quando a NF for autorizada de fato, a
+  // reconciliação reverte _orfa=false e a cobrança volta a poder ser emitida.
+  if (conta._orfa === true) {
+    if (!options.silent) {
+      showToast("Esta cobrança está aguardando a autorização da NF na SEFAZ. Nenhum boleto foi gerado.", 6000);
+    }
+    if (typeof gdpWarn === "function") gdpWarn("[bank-charge] cobrança órfã (NF sem prova) — emissão bloqueada p/ conta " + contaId);
+    return false;
+  }
+
   // GUARD (incidente 2026-06-22): se o backend de cobranca estiver indisponivel (404),
   // aborta ANTES de qualquer mutacao de estado — evita criar boleto/conta fantasma.
   if (!(await _bankChargeBackendDisponivel())) {
@@ -779,6 +799,79 @@ function temProvaAutorizacao(nf) {
   var protocolo = String(nf?.sefaz?.protocolo || nf?.protocolo || "");
   return chave.length === 44 && protocolo.length > 0;
 }
+
+// ===== RESOLUÇÃO DEFINITIVA (frentes 1 e 2) — recovery no boot =====
+// FRENTE 1: NF presa em estado intermediário de transmissão (transmissao_em_preparo) sem prova de
+// autorização é ÓRFÃ — a transmissão foi interrompida (reload/aba fechada/thread morta) entre gravar
+// 'em_preparo' e receber a resposta da SEFAZ. Sem recovery, a nota fica presa p/ sempre (não cai no
+// catch que marcaria 'rejeitada'). Regra conservadora: se NÃO tem chave (44 díg), reverter a rascunho
+// limpo p/ permitir re-transmissão. Se TEM chave mas falta protocolo, NÃO mexer (pode estar aguardando
+// reconsulta legítima) — apenas registrar. Roda 1x no boot.
+function recoverNfsTransmissaoOrfas() {
+  var revertidas = 0, comChaveAguardando = 0;
+  try {
+    (notasFiscais || []).forEach(function (nf) {
+      if (!nf || !isNotaFiscalReal(nf)) return;
+      var integ = (nf.integracoes && nf.integracoes.sefaz && nf.integracoes.sefaz.status) || "";
+      var presaEmPreparo = (integ === "transmissao_em_preparo");
+      if (!presaEmPreparo) return;
+      if (temProvaAutorizacao(nf)) return; // tem prova → já está autorizada de fato, não é órfã
+      var chave = String((nf.sefaz && nf.sefaz.chaveAcesso) || nf.chaveAcesso || "").replace(/\D/g, "");
+      if (chave.length === 44) {
+        // tem chave mas sem protocolo: aguardando — não reverter (evita perder uma autorização real)
+        comChaveAguardando++;
+        return;
+      }
+      // sem chave: transmissão nunca completou → reverter a rascunho limpo (libera re-transmissão)
+      nf.status = "rascunho_nf_real";
+      setIntegrationState(nf, "sefaz", { status: "validacao_pendente", lastAction: "recovery_reverteu_transmissao_orfa" });
+      nf.sefaz = nf.sefaz || {};
+      nf.sefaz.status = "validacao_pendente";
+      revertidas++;
+      // persiste só esta NF (anti-carimbão)
+      try { saveNotasFiscais(nf.id); } catch (_) {}
+    });
+    if (revertidas || comChaveAguardando) {
+      gdpWarn("[recovery] NF transmissão órfã: " + revertidas + " revertidas a rascunho, " + comChaveAguardando + " com chave aguardando reconsulta");
+    }
+  } catch (e) { gdpWarn("[recovery] falha em recoverNfsTransmissaoOrfas", e && e.message); }
+  return { revertidas: revertidas, comChaveAguardando: comChaveAguardando };
+}
+if (typeof window !== "undefined") window.recoverNfsTransmissaoOrfas = recoverNfsTransmissaoOrfas;
+
+// FRENTE 2: detector de COBRANÇA ÓRFÃ. Conta a receber de NF cuja NF não tem prova de autorização é
+// órfã (cobra por nota não autorizada). Marca _orfa=true + status='aguardando_nf' e impede disparo de
+// boleto. NÃO exclui (decisão financeira). Quando a NF ganha prova, reverte a conta p/ 'pendente'. Boot 1x.
+function reconciliarCobrancasOrfas() {
+  var marcadas = 0, revertidas = 0;
+  try {
+    (contasReceber || []).forEach(function (conta) {
+      if (!conta || conta.origemTipo !== "nota_fiscal" || !conta.origemId) return;
+      if (conta.status === "recebida" || conta.status === "cancelada") return;
+      var nf = (notasFiscais || []).find(function (n) { return n.id === conta.origemId; });
+      var temProva = nf && temProvaAutorizacao(nf);
+      if (!temProva && conta._orfa !== true) {
+        conta._orfa = true;
+        conta.status = "aguardando_nf";
+        conta.audit = Object.assign({}, conta.audit, {
+          orfaMotivo: "nf_sem_prova_autorizacao",
+          orfaDetectadaEm: new Date().toISOString()
+        });
+        marcadas++;
+      } else if (temProva && conta._orfa === true) {
+        conta._orfa = false;
+        conta.status = "pendente";
+        revertidas++; // QA fix-2: contabiliza reversão em var separada (não decrementar 'marcadas')
+      }
+    });
+    if (marcadas > 0 || revertidas > 0) {
+      try { saveContasReceber(); } catch (_) {}
+      gdpWarn("[recovery] cobrança órfã: " + marcadas + " marcadas aguardando_nf, " + revertidas + " revertidas a pendente");
+    }
+  } catch (e) { gdpWarn("[recovery] falha em reconciliarCobrancasOrfas", e && e.message); }
+  return { marcadas: marcadas, revertidas: revertidas };
+}
+if (typeof window !== "undefined") window.reconciliarCobrancasOrfas = reconciliarCobrancasOrfas;
 
 // Retorna Set de números já usados por NFs AUTORIZADAS
 function _getNumerosAutorizados() {
