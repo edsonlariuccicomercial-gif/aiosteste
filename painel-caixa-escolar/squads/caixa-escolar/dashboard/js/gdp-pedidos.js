@@ -2556,6 +2556,11 @@ var _relHtmlParaImprimir = '';
 var _relDreImpressaoLandscape = false;
 
 function renderRelatorios() {
+  // Se há um relatório ABERTO (_relAtivo), NÃO fechar o viewer. Um re-render disparado pelo realtime
+  // (_renderAllImmediate → scheduleRender) chama renderRelatorios() a cada poucos segundos; sem este
+  // guard, ele resetava para o menu e a tela do relatório "fechava sozinha" enquanto o usuário olhava.
+  // O reset só deve ocorrer na ENTRADA manual da aba (switchTab chama fecharRelatorio/abrirRelatorio).
+  if (_relAtivo) return;
   // Mostra menu, esconde viewer
   var menu = document.getElementById('rel-menu');
   var viewer = document.getElementById('rel-viewer');

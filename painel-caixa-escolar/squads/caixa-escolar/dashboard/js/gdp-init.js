@@ -180,7 +180,9 @@ function switchTab(tab) {
   // Story 4.52: render functions now call footer updates internally with filtered data
   if (tab === "pedidos") { renderPedidos(); _showPageFooter("pedidos-page-footer"); }
   if (tab === "notas-fiscais") { renderNotasFiscais(); _showPageFooter("nf-page-footer"); }
-  if (tab === "relatorios") renderRelatorios();
+  // Entrada MANUAL na aba Relatórios: força o reset ao menu (limpa _relAtivo antes do guard de
+  // renderRelatorios). O guard só protege contra re-renders do realtime, não contra a navegação do usuário.
+  if (tab === "relatorios") { if (typeof _relAtivo !== "undefined") { try { _relAtivo = null; } catch (_) {} } renderRelatorios(); }
   if (tab === "usuarios") { renderUsuarios(); _showPageFooter("clientes-page-footer"); _updateClientesFooterTotals(); }
   if (tab === "financeiro" && typeof atualizarResumosVencimento === "function") atualizarResumosVencimento();
 }
