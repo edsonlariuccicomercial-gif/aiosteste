@@ -1,0 +1,49 @@
+storyId: "INCIDENTE-carimbao-saveNotasFiscais"
+title: "Fix do carimbão de NF — saveNotasFiscais sem changedId reescrevia a lista inteira"
+gateDate: "2026-06-24"
+reviewer: "@qa (Quinn)"
+verdict: CONCERNS
+
+summary: >
+  Fix sólido e definitivo. PASS com CONCERNS: o código fecha a classe inteira do carimbão (Fix B
+  na função + Fix A em 15 call sites de mudança real). A única ressalva é a validação RUNTIME
+  (criar 1 NF e confirmar que só ela muda no banco), que só é possível em produção pós-deploy.
+
+sevenChecks:
+  code_review: PASS        # Fix B remove forEach-save fora do boot; 15 sites passam id; regerar usa remove por id
+  unit_tests: CONCERNS     # 203/205; 2 falhas PRÉ-EXISTENTES (empresa_id resolution), não-regressão (gdp-api.js não tocado)
+  acceptance_criteria: PASS # carimbão eliminado; mudanças reais persistem por id
+  no_regressions: PASS     # transmitir/autorizar/cancelar/inutilizar/excluir todos passam nf.id → persistência preservada
+  performance: PASS        # menos tráfego de rede (1 save por mudança vs 171); sem N+1
+  security: PASS           # sem mudança de auth/RLS; remove por id é seguro
+  documentation: PASS      # comentários anti-carimbão inline; handoffs completos
+
+verificacoes_independentes_qa:
+  - "Diff gdp-core.js: ramo 'else { forEach(save) }' REMOVIDO. Sem changedId = local-only sempre. ✅"
+  - "25 chamadas saveNotasFiscais(<id>) (mudança real persiste por id)."
+  - "Apenas 3 chamadas sem id: 1739 (nuclear reset), 3233 (auto-fix boot), 1208 (regerar c/ remove). Todas intencionais."
+  - "Regerar (1207): gdpApi.notas_fiscais.remove(_idNfRemovida) por id ✅."
+  - "Transmitir/autorizar/cancelar/inutilizar/carta-correção/excluir: todos saveNotasFiscais(nf.id) ✅."
+  - "Banco: 175 NFs todas nfe_real, 0 manual_externa (íntegro, não tocado pelo fix)."
+
+issues:
+  - severity: medium
+    category: tests
+    description: "2 testes 'empresa_id resolution' falham no mock. PRÉ-EXISTENTES (gdp-api.js não foi tocado neste fix)."
+    recommendation: "Débito técnico separado (já registrado). NÃO bloqueia."
+  - severity: low
+    category: requirements
+    description: "Validação definitiva (criar 1 NF → só 1 updated_at novo no banco) é runtime, só em prod pós-deploy."
+    recommendation: "@devops valida em produção: criar/editar 1 NF e confirmar via curl que SÓ ela mudou updated_at (não as 171)."
+  - severity: low
+    category: code
+    description: "gdp-init.js:3233 (auto-fix boot) mantém saveNotasFiscais() sem id — local-only via Fix B."
+    recommendation: "Aceitável: o auto-fix já persiste por id via notas_fiscais.save(nf) no próprio loop. Sem ação."
+
+decision_rationale: >
+  Nenhum issue CRITICAL/HIGH. O Fix B elimina o carimbão na raiz (a função nunca mais reescreve a
+  lista inteira no servidor) e o Fix A garante que mudanças reais continuem persistindo por id —
+  verifiquei os 15 sites críticos um a um. Sem regressão de persistência. Aprovado para deploy com
+  validação runtime a cargo do @devops.
+
+next_action: "@devops (..\\codex\\.codex\\agents\\devops.md): commit + push + deploy --force; validar em prod que criar/editar 1 NF muda só 1 updated_at no banco (não 171); orientar Ctrl+Shift+R + 'Atualizar da Nuvem'."

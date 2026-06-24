@@ -634,7 +634,7 @@ function excluirContaReceber(contaId) {
     if (nf?.cobranca) {
       nf.cobranca.status = "removida";
       nf.audit = { ...(nf.audit || {}), updatedAt: new Date().toISOString(), updatedBy: getAuditActor() };
-      saveNotasFiscais();
+      saveNotasFiscais(nf.id); // anti-carimbão: persiste só esta NF (não a lista inteira)
     }
   }
 

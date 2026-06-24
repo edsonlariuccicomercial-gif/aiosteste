@@ -32,7 +32,7 @@ function updateNotaFiscalIntegration(notaId, channel, patch = {}) {
   const nf = notasFiscais.find((item) => item.id === notaId);
   if (!nf) return;
   setIntegrationState(nf, channel, patch);
-  saveNotasFiscais();
+  saveNotasFiscais(nf.id); // anti-carimbão: persiste só a NF da integração (não a lista inteira)
 }
 
 function updateContaReceberIntegration(contaId, channel, patch = {}) {

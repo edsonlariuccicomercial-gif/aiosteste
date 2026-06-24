@@ -1,0 +1,50 @@
+handoff:
+  from_agent: qa
+  to_agent: devops
+  timestamp: "2026-06-24T14:20:00Z"
+  consumed: false
+  last_command: "*gate (fix carimbão saveNotasFiscais)"
+  prioridade: URGENTE
+  devops_path: "..\\codex\\.codex\\agents\\devops.md"
+
+  story_context:
+    story_id: "INCIDENTE — carimbão de NF (saveNotasFiscais sem changedId)"
+    story_status: "GATE CONCERNS (PASS com ressalva runtime). Aprovado para deploy."
+    branch: master
+
+  gate_decision: CONCERNS
+  gate_doc: "docs/qa/gates/carimbao-saveNotasFiscais-20260624.yml"
+  significado: "PASS com ressalva. Nenhum CRITICAL/HIGH. Código fecha o carimbão na raiz. Ressalva = validação runtime só em prod."
+
+  verificacoes_qa_independentes:
+    - "Fix B confirmado no diff: forEach-save REMOVIDO; sem changedId = local-only sempre."
+    - "25 saveNotasFiscais(<id>) (mudança real persiste); só 3 sem id (todos intencionais local-only)."
+    - "Regressão checada: transmitir/autorizar/cancelar/inutilizar/excluir/criar TODOS passam nf.id/invoice.id."
+    - "Regerar usa gdpApi.notas_fiscais.remove(id)."
+    - "Banco: 175 NFs nfe_real, 0 manual_externa."
+    - "npm test 203/205 (2 pré-existentes, não-regressão)."
+
+  arquivos_a_commitar:
+    - "painel-caixa-escolar/squads/caixa-escolar/dashboard/js/gdp-core.js (Fix B)"
+    - "painel-caixa-escolar/squads/caixa-escolar/dashboard/js/gdp-notas-fiscais.js (15 call sites + regerar remove)"
+    - "painel-caixa-escolar/squads/caixa-escolar/dashboard/js/gdp-integrations-client.js (updateNotaFiscalIntegration)"
+    - "painel-caixa-escolar/squads/caixa-escolar/dashboard/js/gdp-init.js (cobrança removida)"
+    - "painel-caixa-escolar/squads/caixa-escolar/dashboard/gdp-contratos.html (bump v44/v41/v12/v43)"
+    - "docs/qa/gates/carimbao-saveNotasFiscais-20260624.yml"
+    - ".aiox/handoffs/handoff-*carimbao*-20260624.yaml (4 handoffs desta cadeia)"
+    - "NÃO commitar arquivos ?? fora de escopo (PDFs, nfe-modelo.xml, deno.lock)."
+
+  ACAO_DEVOPS:
+    commit: "Commitar os arquivos acima (mensagem: fix(sync): carimbão de NF — saveNotasFiscais só persiste por-id [ARCH-sync])."
+    push: "git push origin master (token tem workflow scope; vai disparar deploy.yml com --force)."
+    deploy: "cd painel-caixa-escolar && npx vercel --prod --force --yes."
+    gate_de_saida:
+      versoes: "curl gdp-contratos.html → gdp-core v44, gdp-notas-fiscais v41, gdp-integrations-client v12, gdp-init v43."
+      functions: "for fn in gdp-data gdp-integrations bank-charge caixa-proxy; curl → nenhum 404."
+      teste_carimbao_RUNTIME: |
+        No navegador logado: editar/criar 1 NF. Depois:
+        curl "$SB_URL/rest/v1/notas_fiscais?select=updated_at&updated_at=gte.<timestamp do teste>"
+        → deve retornar SÓ 1 NF (a editada), NÃO 171. Isso confirma o fim do carimbão em runtime.
+    orientar_usuario: "Ctrl+Shift+R + clicar 'Atualizar da Nuvem' (baixa o estado correto nfe_real do servidor)."
+
+  next_action: "@devops (..\\codex\\.codex\\agents\\devops.md): commit + push + deploy --force + validar carimbão em runtime (1 NF editada = 1 updated_at, não 171)."

@@ -1718,12 +1718,15 @@ function saveNotasFiscais(changedId) {
       notasFiscais.filter(function(nf) { return nf.id === changedId; }).forEach(function(nf) {
         window.gdpApi.notas_fiscais.save(nf).catch(function(e) { gdpWarn('[NF] Supabase save failed:', nf.id, e.message); });
       });
-    } else if (gdpIsBooting()) {
-      gdpLog('[NF] boot save local-only — nao reescreve Supabase em massa (anti-carimbao)');
     } else {
-      notasFiscais.forEach(function(nf) {
-        window.gdpApi.notas_fiscais.save(nf).catch(function(e) { gdpWarn('[NF] Supabase save failed:', nf.id, e.message); });
-      });
+      // ANTI-CARIMBÃO DEFINITIVO (incidente 2026-06-24): saveNotasFiscais() SEM changedId NUNCA
+      // reescreve a lista inteira no servidor — nem no boot, nem fora dele. Antes, fora do boot
+      // o else fazia notasFiscais.forEach(save) → re-gravava as 171 NFs em massa (carimbão), e o
+      // updated_at server-side sobrescrevia o estado correto de outro navegador (NF real virava
+      // "manual externa" amarela). O cache LOCAL já foi gravado acima (saveWrappedArray); só o
+      // push em massa de rede é eliminado. Mudanças REAIS de NF DEVEM chamar saveNotasFiscais(id),
+      // que persiste só a NF alterada (caminho changedId acima). O servidor é a fonte da verdade.
+      gdpLog('[NF] save sem changedId → local-only (anti-carimbão; servidor só recebe save por-id)');
     }
   }
 }

@@ -1,0 +1,52 @@
+handoff:
+  from_agent: analyst
+  to_agent: architect
+  timestamp: "2026-06-24T13:35:00Z"
+  consumed: false
+  last_command: "*investigate (carimbão de NF ativo — 'notas reais viraram manual externa')"
+  prioridade: URGENTE
+
+  story_context:
+    story_id: "INCIDENTE — carimbão de NF ativo (saveNotasFiscais sem changedId fora do boot)"
+    story_status: "DIAGNOSTICADO. Vetor de carimbão residual confirmado. Banco íntegro (tipo_nota preservado)."
+    branch: master
+
+  sintoma_usuario: "'Todas as notas reais viraram manual externa de novo, o sistema regrediu.'"
+
+  diagnostico_honesto: |
+    NÃO é a regressão de deploy (essa foi blindada com --force e está OK: prod serve v43).
+    É o CARIMBÃO DE NF — um vetor residual que NÃO foi tocado nesta sessão (eu foquei na Story 22.2).
+    Falha de processo: não revalidei o carimbão após a sessão de ontem. Os itens pendentes
+    mencionavam 'saveAll de clientes' mas o vetor real ativo é o saveNotasFiscais SEM changedId.
+
+  causa_raiz_CONFIRMADA:
+    arquivo: "gdp-core.js:1677 saveNotasFiscais(changedId)"
+    mecanismo: |
+      Linhas 1716-1728: se chamada SEM changedId E fora do boot → notasFiscais.forEach(nf => gdpApi.notas_fiscais.save(nf))
+      = re-grava a LISTA INTEIRA (171 NFs) no Supabase. É o carimbão.
+      A blindagem de ontem (cd05222b) cobriu só o BOOT (gdpIsBooting() → local-only). Fora do boot,
+      o 'comportamento legado' reescreve tudo.
+    gatilho_real: |
+      gdp-notas-fiscais.js:1207 e :1233 chamam saveNotasFiscais() SEM changedId ao CRIAR/REGERAR NF.
+      - 1207: ao regerar (remove a NF existente e re-salva a lista)
+      - 1233: ao criar nova NF (notasFiscais.push(invoice); saveNotasFiscais())
+      O usuário criou/regerou UMA nota → carimbou as 171.
+    evidencia_banco: |
+      171 NFs com updated_at agrupado em 2026-06-24 13:26 (x60) e 13:27 (x111) = re-gravação em massa.
+      MAS tipo_nota de TODAS = nfe_real (a blindagem do CAMPO de ontem segurou). 0 manual_externa no banco.
+      O usuário vê 'manual externa' por CACHE LOCAL velho do navegador, não por dano no servidor.
+
+  impacto:
+    banco: "ÍNTEGRO. 175 NFs todas nfe_real. Nenhuma corrompida no servidor."
+    usuario: "Vê amarelo (manual externa) por cache local. Recuperável com 'Atualizar da Nuvem'."
+    risco: "ALTO se o carimbão sobrescrever o estado de OUTRO navegador que tenha dado diferente (a race condition original)."
+
+  fix_proposto_alto_nivel: |
+    saveNotasFiscais() SEM changedId fora do boot NÃO deve reescrever a lista inteira. Opções p/ @architect:
+    A) Os call sites 1207/1233 devem passar o changedId da NF criada/regerada (save por-registro).
+       - 1233: invoice tem id → saveNotasFiscais(invoice.id).
+       - 1207: é uma REMOÇÃO (filter) → usar o caminho de delete (gdpApi.notas_fiscais.remove) em vez de re-salvar a lista.
+    B) Reforçar saveNotasFiscais: sem changedId NUNCA fazer forEach-save (só local + o save por-id de quem mudou).
+    RECOMENDA-SE A (corrige a origem) + B como defesa (rede de segurança).
+
+  next_action: "@architect: validar a causa-raiz, decidir entre fix A (call sites passam changedId) + B (blindar saveNotasFiscais). Depois @data-engineer (se precisar tocar banco/recuperar), @dev implementa, @qa revalida carimbão, @devops deploy."

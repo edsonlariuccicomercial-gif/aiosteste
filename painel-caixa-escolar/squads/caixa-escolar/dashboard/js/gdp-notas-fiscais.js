@@ -1203,8 +1203,13 @@ async function gerarNotaFiscalPedido(pedidoId) {
       contasReceber = contasReceber.filter((c) => c.id !== contaOrfa.id);
       saveContasReceber();
     }
-    notasFiscais = notasFiscais.filter(n => n.id !== nfExistente.id);
-    saveNotasFiscais();
+    const _idNfRemovida = nfExistente.id;
+    notasFiscais = notasFiscais.filter(n => n.id !== _idNfRemovida);
+    saveNotasFiscais(); // local-only (atualiza cache; anti-carimbão não reescreve a lista no servidor)
+    // anti-carimbão: remove a NF antiga do servidor POR ID (não re-salva a lista inteira)
+    if (window.gdpApi && window.gdpApi.notas_fiscais && window.gdpApi.notas_fiscais.remove) {
+      window.gdpApi.notas_fiscais.remove(_idNfRemovida).catch(e => gdpWarn('[NF] remove (regerar) falhou:', _idNfRemovida, e?.message));
+    }
   }
 
   const tipoNota = askInvoiceMode();
@@ -1230,7 +1235,7 @@ async function gerarNotaFiscalPedido(pedidoId) {
   // NF-e real é consumido UMA única vez na transmissão (transmitirHomologacaoNota),
   // ancorado na autorização da SEFAZ. Notas manuais externas já trazem invoice.numero.
   notasFiscais.push(invoice);
-  saveNotasFiscais();
+  saveNotasFiscais(invoice.id); // anti-carimbão: persiste só a NOVA nota no servidor (não a lista inteira)
 
   // Story 16.5 FIX-4: a cobrança (receivable) NÃO é mais criada de forma otimista
   // aqui para NF-e real — ela é criada SOMENTE após autorização da SEFAZ
@@ -1310,14 +1315,14 @@ async function gerarNotaFiscalPedido(pedidoId) {
         loteId: data.lotePreview?.loteId || "",
         endpoint: data.autorizacaoPreview?.url || ""
       });
-      saveNotasFiscais();
+      saveNotasFiscais(invoice.id);
     } catch (err) {
       setIntegrationState(invoice, "sefaz", {
         status: "preview_falhou",
         lastAction: "nfe_sefaz_preview",
         error: err.message
       });
-      saveNotasFiscais();
+      saveNotasFiscais(invoice.id);
     }
   }
 
@@ -1430,7 +1435,7 @@ async function autorizarNotaFiscal(notaId) {
     authorizedAt: new Date().toISOString(),
     authorizedBy: actor
   };
-  saveNotasFiscais();
+  saveNotasFiscais(nf.id);
 
   // Persist to Supabase with retry (prevent NF loss like 1475/1476)
   _saveNfToSupabaseWithRetry({
@@ -1554,7 +1559,7 @@ async function transmitirHomologacaoNota(notaId) {
   }
   const novoNumero = nf.numero;
   // Persistir imediatamente para não perder o número em caso de falha
-  saveNotasFiscais();
+  saveNotasFiscais(nf.id);
 
   const nfObs = nf.documentos?.observacao || "";
 
@@ -1569,7 +1574,7 @@ async function transmitirHomologacaoNota(notaId) {
   delete nf.sefaz.autorizacaoPreview;
 
   setIntegrationState(nf, "sefaz", { status: "transmissao_em_preparo", lastAction: "nfe_sefaz_transmitir" });
-  saveNotasFiscais();
+  saveNotasFiscais(nf.id);
   showToast("Transmitindo NF " + novoNumero + " para SEFAZ...", 8000);
   renderAll();
 
@@ -1800,7 +1805,7 @@ async function transmitirHomologacaoNota(notaId) {
     nf.status = "rejeitada";
     nf.audit = { ...(nf.audit || {}), updatedAt: new Date().toISOString(), updatedBy: getAuditActor() };
     setIntegrationState(nf, "sefaz", { status: "transmissao_falhou", lastAction: "nfe_sefaz_emitir_real", error: err.message });
-    saveNotasFiscais();
+    saveNotasFiscais(nf.id);
     renderAll();
     // So rotular como "SEFAZ" quando o erro realmente veio da SEFAZ. Erros de
     // backend/infra (rota /api ausente) carregam "Backend indisponivel" e nao
@@ -1830,7 +1835,7 @@ function atualizarFormaCobrancaNota(notaId, forma) {
         : { observacao: "definir instrumento manualmente", tipo: "manual" };
   setIntegrationState(nf, "bancaria", { status: "forma_atualizada", lastAction: "atualizar_forma_cobranca", forma: nf.cobranca.forma });
   nf.audit = { ...(nf.audit || {}), updatedAt: new Date().toISOString(), updatedBy: getAuditActor() };
-  saveNotasFiscais();
+  saveNotasFiscais(nf.id);
 
   const conta = getContaReceberByNota(notaId);
   if (conta) {
@@ -2381,7 +2386,7 @@ function salvarDadosNotaFiscal(notaId) {
     lastAction: isReal ? "metadados_nf_real_atualizados" : "dados_nf_atualizados",
     accessKey: nf.sefaz.chaveAcesso || ""
   });
-  saveNotasFiscais();
+  saveNotasFiscais(nf.id);
   // Story 21.x (UX-Fy): persiste 1x os NCMs editados inline de volta ao pedido vinculado
   // (estado já atualizado em memória por salvarNcmItemNf) — localStorage + Supabase.
   if (nf.pedidoId && pedidos.find(p => p.id === nf.pedidoId)) savePedidos(nf.pedidoId);
@@ -2622,7 +2627,7 @@ function solicitarCancelamentoNotaFiscal(notaId) {
     setIntegrationState(contaCanc, "bancaria", { status: "cancelamento_fiscal_iniciado", lastAction: "vincular_cancelamento_nf" });
     saveContasReceber();
   }
-  saveNotasFiscais();
+  saveNotasFiscais(nf.id);
   renderNotasFiscais();
   renderPedidos();
   verNotaFiscal(notaId);
@@ -2696,7 +2701,7 @@ function solicitarCancelamentoNotaFiscal(notaId) {
         saveContasReceber();
       }
     }
-    saveNotasFiscais();
+    saveNotasFiscais(nf.id);
     renderNotasFiscais();
     verNotaFiscal(notaId);
     showToast(`Cancelamento: ${result.parsed?.cStat || "-"} ${result.parsed?.xMotivo || "enviado ao backend fiscal"}`.trim(), 5000);
@@ -2712,7 +2717,7 @@ function solicitarCancelamentoNotaFiscal(notaId) {
       error: err.message,
       lastAction: "solicitar_cancelamento_nf"
     });
-    saveNotasFiscais();
+    saveNotasFiscais(nf.id);
     renderNotasFiscais();
     verNotaFiscal(notaId);
     showToast(`Falha ao enviar cancelamento: ${err.message}`, 5000);
@@ -2745,7 +2750,7 @@ function excluirNotaFiscal(notaId) {
   const nowIsoNf = new Date().toISOString();
   nf.deletedAt = nowIsoNf;
   nf.audit = { ...(nf.audit || {}), updatedAt: nowIsoNf, updatedBy: getAuditActor() };
-  saveNotasFiscais(); // persiste a NF COM deletedAt (Supabase recebe o UPDATE)
+  saveNotasFiscais(nf.id); // persiste a NF COM deletedAt (Supabase recebe o UPDATE por id)
   notasFiscais = notasFiscais.filter((item) => item.id !== notaId); // some da UI imediatamente
 
   // Compat: mantém o tombstone local (inofensivo; aposentado no reset). Não é mais o principal.
@@ -3090,7 +3095,7 @@ function inutilizarNumeracaoNotaAtual() {
   nf.status = "inutilizada";
   nf.inutilizacao = { justificativa, at: new Date().toISOString(), by: getAuditActor() };
   updateNotaFiscalIntegration(nf.id, "sefaz", { status: "numeracao_inutilizada", lastAction: "inutilizar_numeracao" });
-  saveNotasFiscais();
+  saveNotasFiscais(nf.id);
   renderNotasFiscais();
   fecharMenuNotaFiscal();
   showToast("Numeracao inutilizada no controle do GDP.", 3500);
@@ -3104,7 +3109,7 @@ function emitirCartaCorrecaoNotaAtual() {
   nf.cartaCorrecao = nf.cartaCorrecao || [];
   nf.cartaCorrecao.push({ texto, at: new Date().toISOString(), by: getAuditActor() });
   updateNotaFiscalIntegration(nf.id, "sefaz", { status: "carta_correcao_registrada", lastAction: "carta_correcao" });
-  saveNotasFiscais();
+  saveNotasFiscais(nf.id);
   fecharMenuNotaFiscal();
   showToast("Carta de correcao registrada.", 3000);
 }

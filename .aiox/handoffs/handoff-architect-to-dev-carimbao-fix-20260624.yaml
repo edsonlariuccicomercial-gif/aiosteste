@@ -1,0 +1,78 @@
+handoff:
+  from_agent: architect
+  to_agent: dev
+  timestamp: "2026-06-24T13:45:00Z"
+  consumed: false
+  last_command: "*analyze-impact (carimbão saveNotasFiscais)"
+  prioridade: URGENTE
+
+  story_context:
+    story_id: "INCIDENTE — carimbão de NF (saveNotasFiscais sem changedId fora do boot)"
+    story_status: "DESIGN FECHADO. Fix B (blindar a função) + Fix A (2 call sites do usuário). Banco íntegro."
+    branch: master
+
+  veredito_arquitetural:
+    causa_raiz_confirmada: |
+      saveNotasFiscais(changedId) em gdp-core.js:1677. Sem changedId E fora do boot (linha 1723-1727)
+      faz notasFiscais.forEach(nf => gdpApi.notas_fiscais.save(nf)) = carimbão das 171 NFs.
+      Há ~16 call sites SEM changedId (1207,1233,1313,1320,1433,1557,1572,1803,1833,2384,2625,2699,
+      2715,3093,3107...). QUALQUER um deles, fora do boot, carimba tudo. Fix por-site é frágil.
+    banco: "ÍNTEGRO — 175 NFs todas nfe_real. Carimbão re-gravou mas não corrompeu tipo (blindagem do campo de ontem segurou). Usuário vê amarelo por cache local."
+
+  DECISAO_FIX:
+    fix_B_PRINCIPAL:
+      o_que: "Blindar saveNotasFiscais(): SEM changedId → SEMPRE persistência LOCAL-ONLY (não só no boot)."
+      onde: "gdp-core.js:1721-1727 — trocar a condição 'else if (gdpIsBooting())' por 'sem changedId → SEMPRE local-only'."
+      racional: |
+        O navegador NUNCA deve empurrar a lista inteira de NFs ao servidor. Cada mudança REAL de NF
+        já é persistida por id (os 6 sites com changedId: emitir/transmitir/autorizar/cancelar usam
+        save por id, OU devem passar a usar). Estender a regra do boot para SEMPRE elimina a classe
+        inteira de carimbão, presente e futura. Princípio: 'fonte única de verdade = servidor; cliente
+        só faz save por-registro do que mudou'.
+      codigo_alvo: |
+        // ATUAL (1716-1728):
+        if (window.gdpApi && window.gdpApi.notas_fiscais) {
+          if (changedId) { ...save só a changedId... }
+          else if (gdpIsBooting()) { ...local-only... }
+          else { notasFiscais.forEach(nf => save(nf)); }   // <-- CARIMBÃO
+        }
+        // NOVO:
+        if (window.gdpApi && window.gdpApi.notas_fiscais) {
+          if (changedId) {
+            notasFiscais.filter(nf => nf.id === changedId).forEach(nf => gdpApi.notas_fiscais.save(nf)...);
+          } else {
+            // ANTI-CARIMBÃO (incidente 2026-06-24): sem changedId NUNCA reescreve a lista inteira
+            // no servidor — nem no boot, nem fora dele. O cache local já foi gravado acima
+            // (saveWrappedArray). Mudanças reais DEVEM chamar saveNotasFiscais(id).
+            gdpLog('[NF] save sem changedId → local-only (anti-carimbão; servidor só recebe save por-id)');
+          }
+        }
+    fix_A_COMPLEMENTAR:
+      o_que: "Os 2 call sites que o usuário aciona devem passar o id (mudança real precisa persistir no servidor)."
+      site_1233_criar: |
+        gdp-notas-fiscais.js:1232-1233: notasFiscais.push(invoice); saveNotasFiscais();
+        → trocar para: saveNotasFiscais(invoice.id);  (persiste a NOVA nota no servidor por id)
+      site_1207_regerar: |
+        gdp-notas-fiscais.js:1206-1207: notasFiscais = notasFiscais.filter(n => n.id !== nfExistente.id); saveNotasFiscais();
+        → é uma REMOÇÃO. Trocar para:
+          var _idRemovida = nfExistente.id;
+          notasFiscais = notasFiscais.filter(n => n.id !== _idRemovida);
+          saveNotasFiscais();                              // local-only (atualiza cache)
+          if (window.gdpApi && window.gdpApi.notas_fiscais && window.gdpApi.notas_fiscais.remove)
+            window.gdpApi.notas_fiscais.remove(_idRemovida).catch(...);  // remove a NF antiga do servidor por id
+      outros_sites: |
+        Os demais ~14 sites sem changedId (1313,1320,1433,etc.) ficam SEGUROS automaticamente pelo Fix B
+        (local-only). Se algum deles representar uma mudança REAL que precise ir ao servidor, deve passar
+        o id — mas o @dev deve avaliar caso a caso APENAS se QA detectar perda de persistência. Por ora,
+        Fix B torna todos inofensivos quanto ao carimbão.
+
+  verificacao_nao_regressao:
+    - "Os 6 sites COM changedId (598,623,640,697,722,1743) seguem persistindo por id — OK."
+    - "Emitir/transmitir/autorizar NF: confirmar que persistem por id (changedId) OU via save direto. Se algum dependia do forEach, passar o id (Fix A pontual)."
+    - "@dev: após o fix, criar 1 NF e confirmar no banco que SÓ ela teve updated_at novo (não as 171)."
+
+  recuperacao_usuario: "Imediata: clicar 'Atualizar da Nuvem' (baixa do servidor, onde tudo é nfe_real). Cache local volta ao correto."
+
+  bump_versao: "gdp-core.js (v43→v44) e gdp-notas-fiscais.js (v40→v41) nos HTML que os carregam."
+
+  next_action: "@dev: aplicar Fix B (gdp-core.js saveNotasFiscais) + Fix A (sites 1207/1233). Bump versões. node --check + npm test. Teste de carimbão: criar 1 NF e validar no banco que só 1 updated_at muda. Depois @qa revalida."

@@ -1,0 +1,45 @@
+handoff:
+  from_agent: dev
+  to_agent: qa
+  timestamp: "2026-06-24T14:05:00Z"
+  consumed: false
+  last_command: "*develop (fix carimbão saveNotasFiscais)"
+  prioridade: URGENTE
+
+  story_context:
+    story_id: "INCIDENTE — carimbão de NF (saveNotasFiscais sem changedId)"
+    story_status: "Fix implementado. Ready for Review. Banco íntegro (não tocado)."
+    branch: master
+
+  fluxo_seguido: "@analyst → @architect → [data-engineer PULADO: fix client-side, banco íntegro] → @dev (aqui) → @qa → @devops (..\\codex\\.codex\\agents\\devops.md)"
+
+  o_que_foi_implementado:
+    fix_B_principal:
+      arquivo: "js/gdp-core.js — função saveNotasFiscais()"
+      mudanca: |
+        Removido o ramo 'else { notasFiscais.forEach(nf => save(nf)) }' que rodava fora do boot.
+        Agora: SEM changedId → SEMPRE local-only (cache via saveWrappedArray já gravado acima);
+        servidor só recebe save por-id (ramo changedId). Elimina a classe inteira de carimbão.
+    fix_A_call_sites:
+      total: "15 call sites de mudança REAL de NF agora passam nf.id/invoice.id:"
+      lista: "1233 (criar→invoice.id), 1318/1325 (sefaz preview→invoice.id), 1438 (autorizar→nf.id), 1562/1577 (transmitir→nf.id), 1808 (rejeitar→nf.id), 1838 (forma cobrança→nf.id), 2389 (metadados→nf.id), 2630/2704/2720 (cancelar→nf.id), 2753 (excluir/deletedAt→nf.id), 3098/3112 (inutilizar/carta correção→nf.id); gdp-integrations-client.js updateNotaFiscalIntegration→nf.id; gdp-init.js:637 (cobrança removida→nf.id)."
+      regerar_1207: "Site de REGERAR: remove a NF antiga via gdpApi.notas_fiscais.remove(id) (não re-save da lista)."
+    local_only_intencionais_OK:
+      - "gdp-core.js:1739 limparNotasRejeitadas (nuclear reset, lista vazia)."
+      - "gdp-init.js:3233 auto-fix no boot (local-only via Fix B; save individual já ocorre no auto-fix)."
+      - "gdp-notas-fiscais.js:1208 regerar (tem remove por id)."
+    bump_versao: "gdp-core v43→v44, gdp-notas-fiscais v40→v41, gdp-integrations-client v11→v12, gdp-init v42→v43 (gdp-contratos.html)."
+
+  validacoes_dev:
+    syntax: "node --check PASS em gdp-core.js, gdp-notas-fiscais.js, gdp-integrations-client.js, gdp-init.js."
+    testes: "npm test 203/205. Os 2 falhos = 'empresa_id resolution' PRÉ-EXISTENTES (não toquei gdp-api.js; não-regressão)."
+    auditoria_final: "Confirmado: só 3 saveNotasFiscais() sem id restantes, TODOS intencionalmente local-only."
+
+  banco: "ÍNTEGRO. 175 NFs todas nfe_real. 0 manual_externa no servidor. O carimbão de hoje (171 updates 13:26-13:27) NÃO corrompeu tipo."
+
+  pontos_de_atencao_para_qa:
+    - "AC chave: criar 1 NF e confirmar no banco que SÓ ela teve updated_at novo (não as 171). Validação RUNTIME pós-deploy."
+    - "Regressão a checar: emitir/transmitir/autorizar/cancelar/inutilizar NF DEVE persistir no servidor (agora via save por-id). Confirmar que a mudança real chega ao Supabase."
+    - "Recuperação do usuário: 'Atualizar da Nuvem' baixa o estado correto (servidor nfe_real)."
+
+  next_action: "@qa: gate do fix de carimbão. Revisar os 15 call sites (mudança real persiste por id?), regressão (2 falhas pré-existentes), e definir validação runtime. Depois @devops (..\\codex\\.codex\\agents\\devops.md) faz commit+push+deploy --force + valida carimbão em prod."
