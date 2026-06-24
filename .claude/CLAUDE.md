@@ -2,6 +2,14 @@
 
 You are working with Synkra AIOX, an AI-Orchestrated System for Full Stack Development.
 
+## ✅ Conciliação bancária "extrato 0/0" + Módulos remarcam — RESOLVIDO (2026-06-24, ADR-003)
+
+**P4 — Conciliação fechava com "0/0":** ao conciliar 1 lançamento, o extrato fechava sozinho mostrando "0/0" e não reabria. **Causa raiz (race de dupla fonte):** o caixa tem 2 fontes cloud — (A) tabela Supabase `conciliacoes` via `gdpApi` (íntegra, tem `extrato_id`) e (B) blob `sync_data` legado `gdp.conciliacao.v1` (SEM `extratoId`). Um echo de `syncFromCloud` trazia o blob (B) e sobrescrevia o local bom → `extratoId` ia a vazio → `atualizarExtratoStats` calculava `total=0` → `renderConciliacao` escondia o detalhe ("0/0"). O `_GDPAPI_KEYS` (guard do `syncFromCloud`) **não incluía** conciliacao/extratos, apesar de `_SUPABASE_TABLE_KEYS` (intenção) incluir. **Fix (commit `4a179ba8`, gdp-core v49):** (1) `_GDPAPI_KEYS` agora inclui `gdp.conciliacao.v1`+`gdp.extratos.v1` → `syncFromCloud` ignora o blob legado; (2) `syncToCloud` pula `_SUPABASE_TABLE_KEYS` → não re-gera o blob stale; (3) `_autoCurarExtratoIdConciliacao()` re-vincula `extratoId` da tabela após conciliar (rede de segurança), chamada em `conciliarLancamento`/`conciliarComBaixa`/`toggleConciliado`. **Caixa = fonte única = tabela Supabase.** Validado via Playwright: `syncFromCloud` não zera mais `extratoId` (346/346 sobrevivem). Detalhe em `docs/architecture/ADR-003-conciliacao-fonte-unica-aposentar-blob-syncdata.md`.
+
+**P2 — Módulos (radar/intel) remarcavam sozinhos:** `index.html` (`app.js` boot) não chamava `hidratarAcessoModulosOnline()` → mostrava cache local stale em multi-device. **Fix (app v36, modulos-acesso v3):** `app.js boot()` agora hidrata online + re-sincroniza checkboxes; `hidratarAcessoModulosOnline()` retorna Promise.
+
+**Follow-ups (BAIXA prioridade):** limpar extrato `ext-recovered-*` legado (tabela tem 2, tela mostra 1); após N dias estáveis, remover `gdp.conciliacao.v1`/`gdp.extratos.v1` de `GDP_SYNC_KEYS` (aposentar blob de vez). Handoff: `.aiox/handoffs/handoff-FINAL-P4-conciliacao-P2-modulos-RESOLVIDO-20260624.yaml`.
+
 <!-- AIOX-MANAGED-START: core-framework -->
 ## Core Framework Understanding
 

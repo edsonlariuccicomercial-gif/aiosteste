@@ -1,0 +1,45 @@
+schema: 1
+story: "P4 (ADR-003) Conciliação 0/0 + P2 Módulos remarcam"
+gate: PASS
+status_reason: "Ambos os fixes validados na TELA via Playwright em produção (v49/v36/v3). P4: bug corrigido na raiz (blob legado não zera mais extratoId) + auto-cura como rede de segurança. P2: hidratação online corrige cache stale."
+reviewed_by: "Quinn (@qa)"
+updated: "2026-06-24T22:35:00Z"
+commit: "4a179ba8"
+deploy: "produção --force, gdp-core v49 / app v36 / modulos-acesso v3 (confirmado servido)"
+
+validacoes_na_tela:
+  P4_conciliacao:
+    fix_raiz:
+      teste: "syncFromCloud() completo (caminho do blob legado que ANTES zerava extratoId)"
+      antes_v48: "346 itens → extratoId zerado → extrato 0/0"
+      depois_v49: "346/346 extratoId SOBREVIVEM. Blob legado não é mais consumido (conciliacao/extratos em _GDPAPI_KEYS)."
+      resultado: PASS
+    fix_upload:
+      teste: "syncToCloud() — não re-gera o blob stale (guard _SUPABASE_TABLE_KEYS)"
+      resultado: "PASS — 346/346 mantidos, sem erro"
+    auto_cura:
+      teste: "wipe extratoId (reproduz bug: 0/346, total=0, 0 linhas) → _autoCurarExtratoIdConciliacao() (v49 real)"
+      resultado: "PASS — restaurou 346/346, 346 linhas renderizadas, resumo CONCILIADOS 329/346"
+  P2_modulos:
+    teste: "cache local stale (radar:true,intel:true) vs online (false) → reload index.html v36"
+    resultado: "PASS — local corrigido p/ radar:false,intel:false; checkboxes desmarcados; sidebar oculta radar+intel-precos"
+
+top_issues: []
+
+regressao:
+  vitest: "app-sync.test.js PASS (18), product-store-*.test.js PASS (15). gdp-api.test.js: 2 falhas 'empresa_id resolution' = PRÉ-EXISTENTES (mock), não-regressão (MESTRE)."
+  node_check: "gdp-core.js, app.js, modulos-acesso.js — syntax OK"
+  apis: "gdp-data 405, gdp-integrations 200, bank-charge 405 — vivas (não 404)"
+
+nfr_validation:
+  reliability: { status: PASS, notes: "Fonte única (tabela) elimina race; auto-cura é rede redundante; ambos à prova de falha (try/catch)" }
+  maintainability: { status: PASS, notes: "ADR-003 documenta a decisão; guards reutilizam Sets existentes; auto-cura reutiliza padrão do recovery de boot" }
+
+recommendations:
+  immediate: []
+  future:
+    - action: "Avaliar limpeza do extrato ext-recovered-* legado (tabela tem 2 extratos, tela mostra 1)"
+      refs: ["js/gdp-core.js:1455 recovery boot"]
+    - action: "Após N dias estáveis, considerar remover gdp.conciliacao.v1/gdp.extratos.v1 de GDP_SYNC_KEYS de vez (blob totalmente aposentado)"
+
+waiver: { active: false }
