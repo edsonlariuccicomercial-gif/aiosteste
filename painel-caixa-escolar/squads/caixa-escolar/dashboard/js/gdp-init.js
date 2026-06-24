@@ -3053,6 +3053,10 @@ async function enviarTiny(contratoId) {
     if (typeof window._flushPendingBootSaves === 'function') {
       try { window._flushPendingBootSaves(); } catch (_) {}
     }
+    // Pendência 1 camada D: avisa o usuário se o localStorage estiver perto do limite (~5MB).
+    if (typeof window._checkQuotaWarning === 'function') {
+      try { window._checkQuotaWarning(); } catch (_) {}
+    }
     gdpLog('[boot] janela de boot encerrada — saves voltam a persistir normalmente');
   }
 

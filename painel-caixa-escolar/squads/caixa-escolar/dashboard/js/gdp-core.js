@@ -1143,6 +1143,48 @@ function _gcLocalStorage() {
   if (freed) gdpLog('[GC] localStorage: campos pesados removidos p/ liberar quota');
   return freed;
 }
+// Pendência 1 camada C: expor o GC p/ o writeLS do gdpApi (gdp-api.js) retentar após liberar quota.
+if (typeof window !== 'undefined') window._gcLocalStorage = _gcLocalStorage;
+
+// ===== AVISO DE QUOTA (Pendência 1, camada D) =====
+// Mede o uso aproximado do localStorage; perto do limite (~5MB), avisa o usuário ANTES de a tela
+// zerar, com a opção de limpar o cache de forma segura (remove só chaves pesadas + re-sync do
+// servidor — equivalente ao localStorage.clear()+reload que hoje o usuário faz manualmente no F12).
+function _localStorageUsageBytes() {
+  var total = 0;
+  try {
+    for (var i = 0; i < localStorage.length; i++) {
+      var k = localStorage.key(i);
+      var v = localStorage.getItem(k);
+      if (k) total += k.length;
+      if (v) total += v.length;
+    }
+  } catch (_) {}
+  return total * 2; // UTF-16: ~2 bytes por char (estimativa conservadora)
+}
+// Limpeza segura: GC dos campos pesados + re-sync. NÃO apaga dados financeiros (servidor é a fonte).
+window.gdpLimparCacheSeguro = function() {
+  try { if (typeof _gcLocalStorage === 'function') _gcLocalStorage(); } catch (_) {}
+  // notas-entrada e fornecedores são os maiores ofensores e re-sincronizáveis do servidor.
+  try { localStorage.removeItem('gdp.notas-entrada.v1'); } catch (_) {}
+  showToast('Cache liberado. Recarregando para baixar os dados do servidor...', 3000);
+  setTimeout(function(){ location.reload(); }, 1200);
+};
+function _checkQuotaWarning() {
+  try {
+    var bytes = _localStorageUsageBytes();
+    var mb = bytes / (1024 * 1024);
+    if (mb > 4.5) {
+      gdpWarn('[quota-guard] localStorage em ' + mb.toFixed(2) + 'MB (perto do limite de ~5MB)');
+      if (typeof showToast === 'function') {
+        showToast('⚠️ Memória local quase cheia (' + mb.toFixed(1) + 'MB). Se as notas sumirem, clique aqui ou use "limpar cache". ', 8000);
+      }
+      // Botão programático seguro (sem depender de UI específica): expõe a ação no console e no toast.
+      gdpLog('[quota-guard] Para liberar: window.gdpLimparCacheSeguro()');
+    }
+  } catch (_) {}
+}
+if (typeof window !== 'undefined') window._checkQuotaWarning = _checkQuotaWarning;
 
 function saveWrappedArray(key, items, origin) {
   const wrapped = { _v: 1, updatedAt: new Date().toISOString(), items };
@@ -1213,19 +1255,44 @@ function _flushPendingBootSaves() {
   });
 }
 if (typeof window !== 'undefined') window._flushPendingBootSaves = _flushPendingBootSaves;
+// ===== BLINDAGEM QUOTA LOCAL (Pendência 1, camada A) =====
+// CAUSA-RAIZ: quando o localStorage estoura a quota, o list() do gdpApi traz os dados do servidor
+// e popula gdpApi._memCache (SEMPRE — gdp-api.js:108), mas o localStorage.setItem falha em silêncio
+// (gdp-api.js:112). loadData()/reloadFromLocalSilent() liam SÓ o localStorage (vazio) → array vazio
+// → tela "Nenhuma nota fiscal", mesmo com os dados íntegros em memória e no servidor.
+// FIX: hidratar do localStorage; se vier vazio/[], cair no _memCache (array cru já baixado pelo list()).
+// Nunca zera a tela se há dados em memória. LEITURA-ONLY (não dispara save → não realimenta realtime).
+function _hydrateWithMemFallback(lsKey) {
+  try {
+    var arr = unwrapData(JSON.parse(localStorage.getItem(lsKey) || 'null'));
+    if (Array.isArray(arr) && arr.length) return arr; // localStorage tem dados → usa
+  } catch (_) {}
+  // localStorage vazio/corrompido (provável quota): usa o _memCache do gdpApi.
+  try {
+    var mem = window.gdpApi && window.gdpApi._memCache && window.gdpApi._memCache[lsKey];
+    if (Array.isArray(mem) && mem.length) {
+      gdpWarn('[quota-guard] ' + lsKey + ' vazio no localStorage — usando _memCache (' + mem.length + ' itens)');
+      return mem.slice();
+    }
+  } catch (_) {}
+  return [];
+}
+if (typeof window !== 'undefined') window._hydrateWithMemFallback = _hydrateWithMemFallback;
+
 function loadData() {
   console.time('[GDP] loadData:parse');
   // Story 4.80: dirty flags removidos — save migrado para background
   try { contratosExcluidos = unwrapData(JSON.parse(localStorage.getItem(CONTRACTS_DELETED_KEY))); } catch(_) { contratosExcluidos = []; }
   // Story 4.83: defer sanitize pesado para depois do render (era 22s bloqueante por buscas O(n²))
+  // Pendência 1 camada A: _hydrateWithMemFallback cai no gdpApi._memCache se o localStorage zerar por quota.
   try {
-    contratos = applyDeletedContractsFilter(unwrapData(JSON.parse(localStorage.getItem(CONTRACTS_KEY))));
+    contratos = applyDeletedContractsFilter(_hydrateWithMemFallback(CONTRACTS_KEY));
   } catch(_) { contratos = []; }
   try {
-    pedidos = unwrapData(JSON.parse(localStorage.getItem(ORDERS_KEY)));
+    pedidos = _hydrateWithMemFallback(ORDERS_KEY);
   } catch(_) { pedidos = []; }
   try { provasEntrega = JSON.parse(localStorage.getItem(PROOFS_KEY)) || []; } catch(_) { provasEntrega = []; }
-  try { notasFiscais = unwrapData(JSON.parse(localStorage.getItem(INVOICES_KEY))); } catch(_) { notasFiscais = []; }
+  try { notasFiscais = _hydrateWithMemFallback(INVOICES_KEY); } catch(_) { notasFiscais = []; }
   // EPIC-19 (extensão): esconder notas soft-deletadas (deletedAt/deleted_at) — exclusão sincronizada via Supabase.
   notasFiscais = notasFiscais.filter(function(x){ return !(x && (x.deletedAt || x.deleted_at)); });
   // ARCH-sync (blindagem do número de NF): rede de segurança no CARREGAMENTO. A SEFAZ é a
@@ -1297,8 +1364,8 @@ function loadData() {
     });
     if (_neCleaned > 0) { saveNotasEntrada(); gdpLog('[boot] Cleaned ' + _neCleaned + ' heavy fields from notas de entrada'); }
   } catch(_) { notasEntrada = []; }
-  try { contasPagar = unwrapData(JSON.parse(localStorage.getItem(PAYABLES_KEY))); } catch(_) { contasPagar = []; }
-  try { contasReceber = unwrapData(JSON.parse(localStorage.getItem(RECEIVABLES_KEY))); } catch(_) { contasReceber = []; }
+  try { contasPagar = _hydrateWithMemFallback(PAYABLES_KEY); } catch(_) { contasPagar = []; }
+  try { contasReceber = _hydrateWithMemFallback(RECEIVABLES_KEY); } catch(_) { contasReceber = []; }
   // EPIC-19 Story 19.3: esconder soft-deletados (deletedAt/deleted_at) — exclusão sincronizada via Supabase.
   contasReceber = contasReceber.filter(function(x){ return !(x && (x.deletedAt || x.deleted_at)); });
   contasPagar = contasPagar.filter(function(x){ return !(x && (x.deletedAt || x.deleted_at)); });
@@ -1626,19 +1693,21 @@ function loadData() {
 // Usado pelo gdp-realtime.js scheduleRender() para a máquina B refletir o que o realtime gravou
 // no localStorage, sem efeito colateral de escrita. Só LEITURA + filtro de soft-delete.
 function reloadFromLocalSilent() {
+  // Pendência 1 camada A: _hydrateWithMemFallback cai no gdpApi._memCache se o localStorage zerar por
+  // quota. Continua LEITURA-ONLY (não dispara save → não realimenta realtime → não reintroduz loop).
   try { contratosExcluidos = unwrapData(JSON.parse(localStorage.getItem(CONTRACTS_DELETED_KEY))); } catch(_) {}
-  try { contratos = applyDeletedContractsFilter(unwrapData(JSON.parse(localStorage.getItem(CONTRACTS_KEY)))); } catch(_) {}
-  try { pedidos = unwrapData(JSON.parse(localStorage.getItem(ORDERS_KEY))); } catch(_) {}
+  try { contratos = applyDeletedContractsFilter(_hydrateWithMemFallback(CONTRACTS_KEY)); } catch(_) {}
+  try { pedidos = _hydrateWithMemFallback(ORDERS_KEY); } catch(_) {}
   try {
-    notasFiscais = unwrapData(JSON.parse(localStorage.getItem(INVOICES_KEY)));
+    notasFiscais = _hydrateWithMemFallback(INVOICES_KEY);
     notasFiscais = notasFiscais.filter(function(x){ return !(x && (x.deletedAt || x.deleted_at)); });
   } catch(_) {}
   try {
-    contasReceber = unwrapData(JSON.parse(localStorage.getItem(RECEIVABLES_KEY)));
+    contasReceber = _hydrateWithMemFallback(RECEIVABLES_KEY);
     contasReceber = contasReceber.filter(function(x){ return !(x && (x.deletedAt || x.deleted_at)); });
   } catch(_) {}
   try {
-    contasPagar = unwrapData(JSON.parse(localStorage.getItem(PAYABLES_KEY)));
+    contasPagar = _hydrateWithMemFallback(PAYABLES_KEY);
     contasPagar = contasPagar.filter(function(x){ return !(x && (x.deletedAt || x.deleted_at)); });
   } catch(_) {}
 }

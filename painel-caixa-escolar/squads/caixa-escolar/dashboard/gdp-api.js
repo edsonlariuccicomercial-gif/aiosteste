@@ -106,10 +106,22 @@
   function writeLS(entity, items) {
     // Story 4.82: always keep in-memory cache (works even when localStorage fails)
     _memCache[entity.lsKey] = items;
+    var value = entity.wrapped ? { _v: 1, updatedAt: new Date().toISOString(), items: items } : items;
     try {
-      var value = entity.wrapped ? { _v: 1, updatedAt: new Date().toISOString(), items: items } : items;
       localStorage.setItem(entity.lsKey, JSON.stringify(value));
-    } catch (_) { /* Safari private mode / quota exceeded — in-memory cache still available */ }
+    } catch (e) {
+      // Pendência 1 camada C: alinhar à defesa de quota já existente em saveWrappedArray (gdp-core.js).
+      // Em vez de só engolir o QuotaExceededError, roda o GC global (remove XML/PDF/danfe pesados) e
+      // retenta 1x. Se ainda falhar, o _memCache acima + o Supabase seguram (nada se perde).
+      if (e && (e.name === 'QuotaExceededError' || e.code === 22 || e.code === 1014)
+          && typeof window !== 'undefined' && typeof window._gcLocalStorage === 'function') {
+        try {
+          window._gcLocalStorage();
+          localStorage.setItem(entity.lsKey, JSON.stringify(value));
+        } catch (_) { /* irrecuperável: _memCache + Supabase são a fonte da verdade */ }
+      }
+      /* outros erros (ex.: Safari private mode) — in-memory cache still available */
+    }
   }
 
   // Map localStorage camelCase items to Supabase snake_case columns
