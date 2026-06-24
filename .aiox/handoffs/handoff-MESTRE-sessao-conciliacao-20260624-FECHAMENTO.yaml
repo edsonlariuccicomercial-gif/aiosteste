@@ -1,0 +1,64 @@
+handoff:
+  tipo: MESTRE — fechamento de sessão (conciliação bancária + relatórios)
+  data: "2026-06-24"
+  empresa: LARIUCCI (validado logado como lariucci, gdp-contratos.html → Caixa → Conciliação)
+  url: "https://painel-caixa-escolar.vercel.app"
+  metodo_validacao: "Playwright logado + inspecionar localStorage/Supabase. Banco SEMPRE íntegro — validar TELA. Deploy SEMPRE `cd painel-caixa-escolar && npx vercel --prod --force --yes`. Ctrl+Shift+R após cada deploy."
+
+  ESTADO_PRODUCAO_FINAL:
+    versoes_no_ar:
+      gdp-core: v52
+      gdp-api: v24
+      gdp-realtime: v13
+      gdp-pedidos: v31
+      gdp-init: v51
+      app: v36
+      modulos-acesso: v3
+    banco_conciliacao: "346 lançamentos íntegros, distribuídos em 8 extratos de junho (re-separados por período de importação). Total/conciliados por extrato recalculados e persistidos."
+
+  RESOLVIDO_NESTA_SESSAO_E_NO_AR:
+    - "[71818341] BUG '0/0 ao conciliar': o realtime do Supabase entregava a linha CRUA snake_case (extrato_id) e a tela lia camelCase (extratoId) → vínculo perdido. Fix: handleEntityChange (gdp-realtime.js) converte com gdpApi.mapFromTable (exposto em gdp-api.js). gdp-api v24, gdp-realtime v13."
+    - "[baa14c98] BUG '1º falou, 2º fechou': conciliar usava ÍNDICE do array; o realtime reordenava gdp.conciliacao.v1 entre render e clique → item errado. Fix: conciliar por ID (t.id no onclick; _resolveConcIdx nos handlers conciliarLancamento/conciliarComBaixa/toggleConciliado/atualizarHistorico/atualizarCategoriaDre). gdp-core v50."
+    - "[81940a6e] BUG 'botões somem / 0/0 ao baixar CR': saveConciliacao gravava os 346 itens no Supabase a CADA clique → 346 ecos de realtime → caos. Fix: saveConciliacao(items, changedIds) salva SÓ o item alterado. gdp-core v51."
+    - "[a9319aa4] BUG 'extrato fecha sozinho': eco de realtime de contas_receber (ao baixar CR) re-puxava a tabela extratos com is_open=false → fechava. Fix DEFINITIVO: estado 'aberto' agora vive em _extratoAbertoId (variável de UI em memória, NÃO persistida). renderConciliacao usa _abertoId como fonte da verdade; NENHUM sync/realtime/baixa fecha o extrato — só o usuário clicando. gdp-core v52. VALIDADO: zerar isOpen na tabela + syncFromCloud completo NÃO fecha mais."
+    - "[1f1a51fe] BUG 'relatórios GDP fecham sozinhos': _renderAllImmediate (realtime) chamava renderRelatorios() que resetava ao menu. Fix: guard `if (_relAtivo) return` em renderRelatorios; entrada manual na aba (switchTab) limpa _relAtivo antes. gdp-pedidos v31, gdp-init v51. VALIDADO: relatório DRE aberto sobrevive a 5 re-renders seguidos."
+    - "[4a179ba8] P2 módulos remarcavam: app.js boot() de index.html não chamava hidratarAcessoModulosOnline(). Fix: hidrata online + re-sync checkboxes. app v36, modulos-acesso v3. VALIDADO."
+    - "[ADR-003] docs/architecture/ADR-003-conciliacao-fonte-unica-aposentar-blob-syncdata.md: caixa = fonte única = tabela Supabase. _GDPAPI_KEYS (syncFromCloud) + _SUPABASE_TABLE_KEYS (syncToCloud) agora incluem conciliacao/extratos → blob sync_data legado aposentado."
+
+  OPERACOES_DE_DADOS_FEITAS_NO_SUPABASE (via gdpApi, reversíveis):
+    - "Re-separação dos 346 itens: o recovery de boot tinha grudado 8 importações de junho num extrato só (ext-1782304058288). Re-vinculados em 8 extratos por período: 03-08/jun(53), 09-11(62), 12-14(24), 14(1), 15-17(75), 18(22), 19-22(86), 23/06(23). Extrato velho contaminado + ext-recovered fantasma soft-deletados."
+    - "INCIDENTE corrigido: revertí 252 falso-conciliados por engano (interpretei '65' literalmente; usuário corrigiu p/ '5'). DESFEITO 100% via re-conciliação por cutoff de updated_at. Estado restaurado: 340 conciliados / 6 pendentes (era o correto). NENHUM dado perdido."
+    - "Durante os testes Playwright, conciliei alguns lançamentos REAIS do extrato 23/06 (com baixa de CR real, ex.: vínculo CR-20260619-19525). Ao fim da sessão o extrato 23/06 estava com 0 pendentes."
+
+  PENDENCIAS_ABERTAS:
+    P1_validacao_usuario_final:
+      prioridade: ALTA (só confirmação)
+      titulo: "Usuário validar na TELA real (Ctrl+Shift+R) que conciliar não fecha mais o extrato nem os relatórios"
+      detalhe: "Todos os fixes validados via Playwright na sessão. Falta o usuário confirmar no uso real após Ctrl+Shift+R. Se ainda fechar algum extrato/relatório sozinho, é vetor novo — instrumentar com trace (snapshot por etapa) ao conciliar."
+    P2_limpeza_falso_conciliados_historicos:
+      prioridade: MEDIA
+      titulo: "252 lançamentos de junho estavam 'falso-conciliados' (conciliado=true SEM vinculadoA.contaId)"
+      detalhe: "Foram marcados conciliados em massa na importação/recovery, sem baixa real de conta. NÃO foram revertidos (a reversão de teste foi desfeita). DECISÃO DO USUÁRIO PENDENTE: manter como conciliados (junho fechado) OU reverter os sem-vínculo p/ conciliar de verdade. Critério seguro p/ reverter: conciliado:true E (!vinculadoA || !vinculadoA.contaId). Recalcular extrato stats após."
+    P3_aposentar_blob_definitivo:
+      prioridade: BAIXA
+      titulo: "Após N dias estáveis, remover gdp.conciliacao.v1 e gdp.extratos.v1 de GDP_SYNC_KEYS (gdp-core.js)"
+      detalhe: "O blob sync_data legado já é ignorado (guards _GDPAPI_KEYS/_SUPABASE_TABLE_KEYS), mas as keys ainda estão em GDP_SYNC_KEYS. Remover de vez quando comprovadamente estável."
+    P4_extrato_recovered_legado:
+      prioridade: BAIXA
+      titulo: "Monitorar se o recovery de boot (gdp-core.js:1455) re-cria extratos fantasma"
+      detalhe: "Com o fix snake→camel, itens não parecem mais órfãos, então o recovery não deve re-carimbar. Validar que não reaparece extrato 'ext-recovered-*' com total mentiroso."
+
+  PENDENCIAS_ANTERIORES_NAO_TOCADAS_HOJE (do MESTRE 20260625):
+    - "P5 rodapé Pedidos: RESOLVIDO (anti-eco), já validado em sessão anterior."
+    - "P3 Central de Produtos: Fases 0-3 do ADR-002 prontas (SSoT=457). Falta Fase 4 (aposentar sync_data legado de produtos). BAIXA prioridade."
+    - "Ajuste fino quota boot: não-crítico (writeLS segura)."
+    - "notas_entrada no gdpApi: despriorizado (0.108MB)."
+
+  GIT:
+    commits_de_hoje: "a9319aa4, 81940a6e, baa14c98, 1f1a51fe, 71818341 (+ 4a179ba8, 5bd006ef de antes). Push feito ao fim da sessão."
+    nao_commitado: "Só .claude/ config + backups (não-projeto). Código todo commitado."
+
+  RECOMENDACAO_PROXIMA_SESSAO:
+    - "1º) Usuário confirma na tela (Ctrl+Shift+R) que conciliação e relatórios estão OK no uso real."
+    - "2º) Decidir P2 (falso-conciliados): manter ou reverter os 252 sem-vínculo."
+    - "3º) Se tudo estável por alguns dias: P3 (remover keys do GDP_SYNC_KEYS)."

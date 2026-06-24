@@ -1,0 +1,87 @@
+handoff:
+  tipo: MESTRE — pendências COMPLETAS consolidadas (todas as frentes, varredura de handoffs)
+  gerado_por: analyst (Atlas)
+  data: "2026-06-24 (noite)"
+  empresa: LARIUCCI (single-tenant)
+  url: "https://painel-caixa-escolar.vercel.app"
+  credenciais_teste: { lariucci: "lariucci2026", angela: "Alicia06@" }
+  protocolo: "Playwright logado + inspecionar localStorage/Supabase. Banco SEMPRE íntegro — validar TELA, nunca anunciar resolvido sem ver na tela. Deploy SEMPRE `cd painel-caixa-escolar && npx vercel --prod --force --yes`. Ctrl+Shift+R após deploy. Fluxo: @analyst → @architect → @data-engineer → @dev → @qa → @devops."
+
+  ESTADO_PRODUCAO_ATUAL:
+    versoes_no_ar: { gdp-core: v52, gdp-api: v24, gdp-realtime: v13, gdp-pedidos: v31, gdp-init: v51, app: v36, modulos-acesso: v3 }
+    git: "tudo commitado e pushado (HEAD a9319aa4). 0 commits pendentes."
+    banco: "conciliação: 346 lançamentos em 8 extratos de junho, íntegros. NFs: 175 nfe_real, 0 manual_externa. Produtos SSoT: 457."
+
+  # =====================================================================
+  # PENDÊNCIAS ABERTAS — priorizadas (NADA aqui está corrigido)
+  # =====================================================================
+  PENDENCIAS_ABERTAS:
+
+    P1_carimbao_clientes:
+      prioridade: ALTA
+      status: "CAUSA-RAIZ ISOLADA (investigado 2x hoje: 12:00 como 'item 4' + à noite com detalhe). NÃO corrigido."
+      titulo: "Carimbão de CLIENTES — salvar 1 cliente re-grava TODOS no servidor"
+      causa_raiz: "gdp-usuarios.js:10 saveUsuarios() → gdpApi.clientes.saveAll(usuarios). saveAll (gdp-api.js:380) seta row.updated_at=now em TODOS os clientes + upsert em massa + _markSelfEcho em cada. A cada edição de 1 cliente, TODOS recebem updated_at=agora (carimbão) → destrói histórico + N ecos de realtime."
+      call_sites: "gdp-usuarios.js linhas 95, 271, 308, 702 (4 chamadas de saveUsuarios)."
+      fix_proposto: "Padrão por-id (idêntico ao já aplicado em NF [carimbão RESOLVIDO] e conciliação [v51]). Trocar saveAll(usuarios) por gdpApi.clientes.save(clienteAlterado). Cada call site sabe qual cliente mudou. Deleção → gdpApi.clientes.remove(id). NÃO remover saveAll global (usado em lotes legítimos de importação)."
+      complexidade: "P (pequeno). Risco MÉDIO."
+      validacao: "Playwright: editar 1 cliente → SÓ ele muda updated_at na tabela 'clientes' do Supabase."
+      ref_handoff: "handoff-analyst-to-architect-pendencias-4itens-20260624.yaml (item 4)."
+
+    P2_confirmar_conciliacao_relatorios_tela:
+      prioridade: ALTA (só confirmação do usuário)
+      status: "Fixes no ar e validados via Playwright. Falta confirmação no uso real."
+      detalhe: "Usuário deve dar Ctrl+Shift+R e conciliar de verdade: extrato não fecha sozinho, concilia o item certo, baixa CR funciona, relatórios não fecham. Se algo fechar sozinho ainda, é vetor novo — instrumentar trace por etapa."
+
+    P3_falso_conciliados_junho:
+      prioridade: MEDIA
+      status: "Identificado. DECISÃO DO USUÁRIO pendente."
+      detalhe: "252 lançamentos de junho estão conciliado:true SEM vinculadoA.contaId (marcados em massa na importação/recovery, sem baixa real de conta). Opções: (a) manter (junho fechado) OU (b) reverter os sem-vínculo p/ conciliar de verdade. Critério seguro de reversão: conciliado:true && (!vinculadoA || !vinculadoA.contaId). Recalcular extrato stats após. Já houve 1 reversão de teste que foi DESFEITA — estado atual = 340 conciliados / 6 pendentes."
+
+    P4_central_produtos:
+      prioridade: BAIXA (grande, mas SUBSTANCIALMENTE resolvido)
+      status: "Bug original (número de produtos VARIA: 270/386/256/201) RESOLVIDO NA ORIGEM. Falta só Fase 4 do ADR-002 (faxina)."
+      bug_original: "QUATRO bases de produtos paralelas e editáveis, divergentes (2+ caminhos de sync competindo): gdp.produtos.v1(270), intel.central-produtos.v2(386), caixaescolar.banco.v1(256), gdp.estoque-intel.produtos.v1(201). Por isso o número 'pulava'."
+      o_que_ja_foi_feito: "ADR-002 Fases 0-3 CONCLUÍDAS: product-store (SSoT) implementado + testado; migração consolidadora rodou (flag gdp.produtos.migrado-ssot.v1 = 2026-06-16); SSoT tem 457 produtos (absorveu os órfãos); Central renderiza da SSoT. Divergência ELIMINADA na tela."
+      o_que_falta_fase4: "Aposentar as 3 bases legadas das SYNC_KEYS (intel.central-produtos.v2=241, caixaescolar.banco.v1=256, gdp.estoque-intel.produtos.v1=202 ainda sincronizam em paralelo, mas NÃO são mais donas da verdade). Gate: confirmar que TODAS as telas (GDP, IntelPreços/Radar, Estoque) leem do product-store antes de cortar. 'Após N dias estáveis'."
+      ref: "docs/architecture/ADR-002-unificacao-central-produtos.md (APROVADO 2026-06-06) + handoff-analyst-P3-central-produtos-fase4-pendente-20260624.yaml. SEGUIR o ADR, NÃO redesenhar."
+
+    P5_sync_data_legado:
+      prioridade: BAIXA
+      status: "Acopla ao P4 (é a Fase 4 do ADR-002)."
+      detalhe: "sync_data já desabilitado no boot (Story 4.83, gdp-init.js:3250). Ainda usado p/ keys auxiliares (radar/intel/estoque/config) e produtos via GDP_SYNC_KEYS. Aposentar JUNTO da unificação de produtos (P4). Para conciliação/extratos, blobs já ignorados (ADR-003) mas ainda em GDP_SYNC_KEYS — remover de vez após estabilidade."
+
+    P6_extrato_recovered_legado:
+      prioridade: BAIXA
+      detalhe: "Monitorar se o recovery de boot (gdp-core.js:1455) re-cria extrato fantasma ext-recovered-*. Com o fix snake→camel não deve mais (itens não parecem órfãos). Validar nas próximas sessões."
+
+    P7_carimbao_nf_confirmar:
+      prioridade: BAIXA (resolvido, falta confirmar)
+      detalhe: "Carimbão de NF RESOLVIDO (saveNotasFiscais por-id, commit 2d8c08f9). Confirmar no próximo uso: editar 1 NF → só ela muda updated_at no servidor (não as 175)."
+
+  # =====================================================================
+  # RESOLVIDO HOJE (no ar — contexto)
+  # =====================================================================
+  RESOLVIDO_HOJE_NO_AR:
+    - "[71818341] Conciliação '0/0': realtime snake→camel (extrato_id→extratoId). gdp-api v24, gdp-realtime v13. VALIDADO."
+    - "[baa14c98] Conciliar por ID, não índice (realtime reordenava array → item errado). gdp-core v50. VALIDADO."
+    - "[81940a6e] saveConciliacao salva SÓ o item alterado (era 346 saves/clique → 346 ecos). gdp-core v51. VALIDADO."
+    - "[a9319aa4] Extrato NUNCA fecha sozinho: estado 'aberto' em _extratoAbertoId (UI-only, à prova de sync/realtime). gdp-core v52. VALIDADO."
+    - "[1f1a51fe] Relatórios não fecham sozinhos: guard if(_relAtivo) return. gdp-pedidos v31, gdp-init v51. VALIDADO."
+    - "[4a179ba8] Módulos não remarcam: index.html hidrata online no boot. app v36, modulos-acesso v3. VALIDADO."
+    - "Re-separação: 346 itens colapsados em 1 extrato → re-separados em 8 extratos de junho por período. Fantasma soft-deletado."
+  NOTA_VOLUME: "Foram muitos problemas porque todos eram a MESMA FAMÍLIA (realtime/sync re-renderizando ou re-gravando em massa → carimbão / tela piscando / estado perdido). Resolvidos um a um na ponta. O carimbão de CLIENTES (P1) é o último vetor conhecido dessa família ainda aberto."
+
+  PENDENCIAS_ANTERIORES_NAO_REGRESSIVAS:
+    - "P5 rodapé Pedidos: RESOLVIDO (anti-eco)."
+    - "Quota localStorage: controlada (writeLS strippa na entrada)."
+    - "notas_entrada no gdpApi: despriorizado (0.108MB)."
+    - "2 testes 'empresa_id resolution' no mock (gdp-api.test.js) = PRÉ-EXISTENTES, não-regressão."
+    - "Story 22.2 (módulos online por empresa): havia design pendente (tabela empresa_modulos vs coluna JSON). O fix do índex (P2 resolvido hoje) cobriu o sintoma de remarcar; a persistência online completa por empresa segue como melhoria futura se necessário."
+
+  RECOMENDACAO_ORDEM_PROXIMA_SESSAO:
+    - "1º) P1 Carimbão de CLIENTES — causa-raiz pronta, fix localizado (padrão conciliação/NF). @architect→@dev→@qa→@devops."
+    - "2º) P2 Usuário confirma conciliação/relatórios na tela (Ctrl+Shift+R)."
+    - "3º) P3 Decidir falso-conciliados de junho (manter ou reverter)."
+    - "4º) P4/P5 Central Produtos Fase 4 + aposentar sync_data (faseado via ADR-002, após estabilidade)."
+    - "5º) P6/P7 monitorar (recovery extrato + confirmar carimbão NF)."
