@@ -240,7 +240,11 @@ function askInvoiceMode() {
 }
 
 function isNotaFiscalReal(nf) {
-  return (nf?.tipoNota || "manual_externa") === "nfe_real";
+  // FIX (incidente 2026-06-25 — "tudo amarelo que vira verde"): os dados do Supabase chegam em
+  // snake_case (tipo_nota); a normalização snake→camel roda alguns segundos APÓS o 1º render. Lendo
+  // só nf.tipoNota (camel), TODAS as notas reais retornavam manual_externa (amarelo) no boot até a
+  // normalização. Ler AMBOS os formatos elimina o flicker de cor de vez (e cobre registros não-normalizados).
+  return (nf?.tipoNota || nf?.tipo_nota || "manual_externa") === "nfe_real";
 }
 
 function getNotaFiscalTipoLabel(nf) {
