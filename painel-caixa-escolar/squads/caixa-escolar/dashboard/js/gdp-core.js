@@ -20,6 +20,24 @@ const _GDP_DEBUG = localStorage.getItem('gdp.debug') === 'true';
 const gdpLog = _GDP_DEBUG ? console.log.bind(console, '[GDP]') : function() {};
 const gdpWarn = _GDP_DEBUG ? console.warn.bind(console, '[GDP]') : function() {};
 
+// ANTI-QUOTA (incidente 2026-06-24): setItem tolerante a QuotaExceededError. Usado pelo sync_data
+// legado (syncFromCloud), que grava várias chaves auxiliares cruas. Se UMA estoura a quota (ex.:
+// gdp.notas-entrada.v1 gigante), antes a exceção borbulhava e ABORTAVA o sync inteiro — as NFs
+// (tabelas dedicadas) nunca eram baixadas. Agora: chave que não cabe é PULADA (warning), o loop
+// segue. Retorna true se gravou, false se pulou por quota. Outros erros ainda lançam.
+function _safeSetItemSync(key, value) {
+  try {
+    localStorage.setItem(key, value);
+    return true;
+  } catch (e) {
+    if (e && (e.name === 'QuotaExceededError' || e.code === 22 || e.code === 1014)) {
+      gdpWarn('[sync] QuotaExceededError em ' + key + ' — chave PULADA (não aborta o sync)');
+      return false;
+    }
+    throw e;
+  }
+}
+
 // ===== BUSCA: NORMALIZAÇÃO (Story 20.10) =====
 // Helper global de normalização de busca: remove acentos E pontuação, aplica lowercase + trim.
 // Carregado em gdp-core.js (primeiro script), disponível para todos os módulos via window.
@@ -366,7 +384,7 @@ async function syncFromCloud() {
           let localDel;
           try { localDel = JSON.parse(localStorage.getItem(row.key) || '[]'); } catch(_) { localDel = []; }
           const merged = [...new Set([...localDel, ...cloudDeleted])];
-          localStorage.setItem(row.key, JSON.stringify(merged));
+          _safeSetItemSync(row.key, JSON.stringify(merged));
           _cloudDeletedCache[row.key] = new Set(merged);
           gdpLog('[Sync] Pre-loaded deleted IDs from cloud:', row.key, merged.length, 'ids');
         }
@@ -432,7 +450,7 @@ async function syncFromCloud() {
 
     // Cloud wins ONLY if local is empty OR cloud data is newer
     if (!localData) {
-      localStorage.setItem(row.key, JSON.stringify(incomingData));
+      _safeSetItemSync(row.key, JSON.stringify(incomingData));
       synced++;
       continue;
     }
@@ -492,7 +510,7 @@ async function syncFromCloud() {
         const _mDelKey = _delKeyMap[row.key];
         if (_mDelKey) { try { const _mDel = new Set(JSON.parse(localStorage.getItem(_mDelKey) || '[]')); if (_mDel.size > 0) merged = merged.filter(it => !_mDel.has(it.id)); } catch(_) {} }
         const mergedData = { ...incomingData, items: merged, updatedAt: new Date().toISOString() };
-        localStorage.setItem(row.key, JSON.stringify(mergedData));
+        _safeSetItemSync(row.key, JSON.stringify(mergedData));
         gdpLog("[Sync] Merge concluído para", row.key, "— preservou itens locais mais completos");
         synced++;
       }
@@ -555,7 +573,7 @@ async function syncFromCloud() {
         if (incomingData && incomingData.items) incomingData = { ...incomingData, items: finalItems };
         else incomingData = { _v: 1, updatedAt: new Date().toISOString(), items: finalItems };
       }
-      localStorage.setItem(row.key, JSON.stringify(incomingData));
+      _safeSetItemSync(row.key, JSON.stringify(incomingData));
       synced++;
     }
   }
@@ -643,6 +661,12 @@ async function forcarSyncCompleto() {
     // Apenas notas-entrada e fornecedores são safe to clear (não são dados financeiros críticos)
     localStorage.removeItem("gdp.notas-entrada.v1");
     localStorage.removeItem("gdp.estoque-intel.fornecedores.v1");
+    // ANTI-QUOTA (incidente 2026-06-24): GC preventivo de chaves PESADAS e recriáveis antes do
+    // download. No PC do usuário o localStorage estourou (~5MB) e o setItem do sync_data legado
+    // lançava QuotaExceededError, ABORTANDO todo o forcarSyncCompleto antes de baixar as NFs.
+    // Estas chaves são backups/efêmeras (recriáveis) — liberá-las dá espaço para o download.
+    ["gdp.produtos.backup-pre-ssot.v1", "gdp.estoque-intel.previews.v1", "caixaescolar.b2b-scrape-cache.v1"]
+      .forEach(function(k){ try { localStorage.removeItem(k); } catch(_){} });
     // Fix (Central de Produtos zerada): NÃO deletar produtos cegamente antes do download.
     // O sync key-value não tem a proteção "cloud 0 → restaura local" das tabelas dedicadas,
     // então um cloud vazio/identidade errada (casing user_id) zerava a Central de vez.
@@ -651,7 +675,17 @@ async function forcarSyncCompleto() {
     let _produtosCountBefore = 0;
     try { const p = JSON.parse(_produtosBefore || 'null'); _produtosCountBefore = (p?.itens || p?.items || (Array.isArray(p) ? p : [])).length || 0; } catch (_) {}
     localStorage.removeItem("gdp.produtos.v1");
-    const result = await syncFromCloud({ force: true });
+    // ANTI-QUOTA (incidente 2026-06-24): o syncFromCloud é o sync_data LEGADO e faz setItem cru de
+    // várias chaves auxiliares. Se UMA estourar a quota (ex.: gdp.notas-entrada.v1 gigante), a exceção
+    // borbulhava e ABORTAVA todo o forcarSyncCompleto — as NFs (tabelas dedicadas, abaixo) nunca eram
+    // baixadas. Agora o sync legado é tolerante a falha: se quebrar, logamos e SEGUIMOS para o full
+    // load das tabelas dedicadas (gdpApi), que é a fonte de verdade e o que realmente importa p/ NF.
+    let result = { restored: false, rowCount: 0 };
+    try {
+      result = await syncFromCloud({ force: true });
+    } catch (eSync) {
+      gdpWarn('[ForceSync] sync_data legado falhou (segue para tabelas dedicadas):', eSync && eSync.message);
+    }
     // SAFETY: se o cloud não trouxe produtos mas o local tinha, restaura o snapshot.
     try {
       const after = JSON.parse(localStorage.getItem("gdp.produtos.v1") || 'null');
@@ -722,13 +756,13 @@ async function syncConfigFromCloud() {
     var cloudTime = getDataTimestamp(row.data, row.updated_at);
     var localTime = localData ? getDataTimestamp(localData) : 0;
     if (!localData || cloudTime > localTime) {
-      localStorage.setItem(row.key, JSON.stringify(row.data));
+      _safeSetItemSync(row.key, JSON.stringify(row.data));
       applied++;
     } else if (localData && row.key === "nexedu.config.notas-fiscais") {
       // Merge: preserve logomarcaBase64 from cloud if missing locally
       if (row.data.logomarcaBase64 && !localData.logomarcaBase64) {
         localData.logomarcaBase64 = row.data.logomarcaBase64;
-        localStorage.setItem(row.key, JSON.stringify(localData));
+        _safeSetItemSync(row.key, JSON.stringify(localData));
         applied++;
         gdpLog("[Sync] Logomarca restored from cloud (merge)");
       }

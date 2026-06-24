@@ -1,0 +1,54 @@
+handoff:
+  from_agent: analyst
+  to_agent: architect
+  timestamp: "2026-06-24T14:50:00Z"
+  consumed: false
+  last_command: "*investigate (Atualizar da Nuvem falha — QuotaExceededError)"
+  prioridade: ALTA
+
+  story_context:
+    story_id: "INCIDENTE — QuotaExceededError trava o sync (NFs não atualizam na tela do usuário)"
+    story_status: "DIAGNOSTICADO COM PROVA (login real). Banco íntegro; problema é localStorage cheio no PC do usuário."
+    branch: master
+
+  sintoma_usuario: |
+    Notas reais aparecem 'manual externa' no PC do usuário. 'Atualizar da Nuvem' não corrige e mostra:
+    'Erro no sync: Failed to execute setItem on Storage: Setting the value of gdp.notas-entrada.v1 exceeded the quota'
+
+  causa_raiz_PROVADA:
+    metodo: "Login real (conta angela) via Playwright + inspeção do localStorage e da memória."
+    descobertas:
+      - "Servidor: 175 NFs, todas tipo_nota=nfe_real. ÍNTEGRO."
+      - "Conta angela (logada agora, gdp-core v44): 171 NFs na tela, TODAS nfe_real, ZERO manual externa. Fix funciona."
+      - "localStorage da angela = 3.84 MB (não estoura). Top: gdp.notas-fiscais.v1 1040KB, contas-receber 475KB, contratos 448KB, pedidos 358KB."
+      - "No PC do USUÁRIO o localStorage ESTOUROU (~5MB limite). gdp.notas-entrada.v1 está gigante lá (aqui é só 55KB) — provável acúmulo de XML/PDF de notas de entrada."
+    mecanismo: |
+      forcarSyncCompleto() baixa as NFs do servidor (corretas) mas, ao gravar no localStorage cheio,
+      o setItem lança QuotaExceededError e o sync ABORTA no meio (catch genérico) → a tela continua
+      com o estado local velho/danificado (NFs antigas amarelas). Por isso 'não muda nada'.
+    por_que_o_que_o_usuario_ve_e_manual_externa: |
+      O localStorage velho do PC dele tem NFs de uma versão anterior (pré-blindagem) onde tipoNota
+      estava ausente/errado → isNfReal() cai no fallback 'manual_externa'. O download que corrigiria
+      isso nunca completa por causa da quota.
+
+  recuperacao_imediata_usuario: |
+    Console (F12) no PC do usuário:
+      ['gdp.notas-entrada.v1','gdp.estoque-intel.fornecedores.v1','gdp.produtos.backup-pre-ssot.v1','gdp.notas-fiscais.v1'].forEach(k=>localStorage.removeItem(k)); location.reload();
+    Libera espaço + força redownload limpo. NÃO toca o servidor.
+
+  fix_estrutural_proposto:
+    problema_de_design: |
+      O sistema não deveria deixar o localStorage estourar e ABORTAR o sync. Há 2 frentes:
+      1. forcarSyncCompleto(): se o setItem estourar, hoje o catch genérico aborta TUDO. Deveria:
+         (a) limpar chaves pesadas não-críticas ANTES (notas-entrada já é removida no início, mas há
+             mais: backups, previews, estoque-intel pesados), e
+         (b) continuar o sync das tabelas dedicadas mesmo se uma chave auxiliar estourar (resiliência).
+      2. gdp.notas-entrada.v1: investigar por que cresce tanto (XML/PDF embutido?). Aplicar strip
+         de payload pesado (já existe _stripNfHeavy para NF; notas-entrada precisa de algo similar)
+         OU migrar notas-entrada para tabela dedicada no Supabase em vez de localStorage.
+    perguntas_para_architect:
+      - "forcarSyncCompleto deve ser resiliente a QuotaExceededError (try/catch por-chave + GC de chaves pesadas antes)?"
+      - "gdp.notas-entrada.v1 deve ter strip de XML/PDF (como NF) ou migrar para tabela dedicada?"
+      - "Vale uma defesa global de quota no saveWrappedArray (já existe parcial) que rode ANTES do sync baixar?"
+
+  next_action: "@architect: validar a causa (quota estoura → sync aborta) e desenhar o fix de resiliência (GC de quota + sync por-chave tolerante a falha) + decisão sobre notas-entrada (strip vs tabela). Depois @dev implementa, @qa valida, @devops deploy."

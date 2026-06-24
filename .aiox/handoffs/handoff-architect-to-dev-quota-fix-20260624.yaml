@@ -1,0 +1,64 @@
+handoff:
+  from_agent: architect
+  to_agent: dev
+  timestamp: "2026-06-24T15:05:00Z"
+  consumed: false
+  last_command: "*analyze-impact (QuotaExceededError no sync)"
+  prioridade: ALTA
+
+  story_context:
+    story_id: "INCIDENTE — QuotaExceededError aborta forcarSyncCompleto (NFs não atualizam)"
+    story_status: "DESIGN FECHADO. Fix de resiliência a quota em 3 camadas. Banco íntegro."
+    branch: master
+
+  causa_raiz_confirmada: |
+    forcarSyncCompleto() (gdp-core.js:654) chama syncFromCloud({force}) — o sync_data LEGADO.
+    Esse faz localStorage.setItem(row.key, ...) CRU (gdp-core.js:435, 495, 558), sem try/catch de
+    quota. Quando row.key = 'gdp.notas-entrada.v1' (gigante no PC do usuário, ~5MB), o setItem lança
+    QuotaExceededError, a exceção borbulha até o catch do forcarSyncCompleto → o sync ABORTA antes de
+    chegar no gdpApi.notas_fiscais.list() (linha 678) → NFs nunca atualizam na tela.
+
+  DESIGN_FIX_3_CAMADAS:
+    camada_1_setItem_resiliente:
+      o_que: "Os setItem do sync_data legado (gdp-core.js:435,495,558) NÃO devem derrubar o sync."
+      como: |
+        Envolver cada localStorage.setItem(row.key, ...) do syncFromCloud em try/catch que, em
+        QuotaExceededError: (a) pula a chave (não aborta o loop), (b) loga gdpWarn, (c) continua para
+        as próximas chaves. Uma chave auxiliar pesada não pode matar o sync inteiro.
+    camada_2_forcarSync_resiliente:
+      o_que: "forcarSyncCompleto deve GARANTIR que o gdpApi.notas_fiscais.list() rode mesmo se syncFromCloud falhar."
+      como: |
+        Hoje: const result = await syncFromCloud({force}) — se lançar, pula o resto.
+        Novo: envolver o syncFromCloud em try/catch próprio; se falhar (quota), logar e SEGUIR para o
+        full load das tabelas dedicadas (notas_fiscais.list etc.), que é o que realmente importa p/ NF.
+        As tabelas dedicadas (gdpApi) são a fonte de verdade; o sync_data legado é secundário.
+    camada_3_GC_de_quota_preventivo:
+      o_que: "Antes de baixar, liberar espaço de chaves pesadas não-críticas (GC)."
+      como: |
+        No início do forcarSyncCompleto, além de notas-entrada e fornecedores (já removidas), remover
+        também chaves de BACKUP/efêmeras que ocupam espaço e são recriáveis:
+          - 'gdp.produtos.backup-pre-ssot.v1' (backup, 103KB+)
+          - previews/temporários de estoque-intel se houver
+        E após o full load, se ainda houver pressão, o saveWrappedArray já tem GC (Story 9b97ee05).
+    notas_entrada_strip:
+      o_que: "gdp.notas-entrada.v1 cresce demais (XML/PDF embutido). Reduzir o payload."
+      como: |
+        Avaliar um _stripNotaEntradaHeavy (análogo a _stripNfHeavy): remover xmlRaw/danfe/base64 das
+        notas de entrada antes de gravar no localStorage (manter só metadados). Os arquivos pesados
+        ficam no Supabase/storage, não no localStorage. (Pode ser fase 2 se o fix 1-3 já destravar.)
+    recomendacao_minima_para_destravar_JA: "Camadas 1 + 2 (resiliência) destravam o sync imediatamente. Camada 3 (GC) previne recorrência. notas_entrada_strip é a cura de longo prazo."
+
+  arquivos_alvo:
+    - "js/gdp-core.js — syncFromCloud (setItem resiliente, camada 1) + forcarSyncCompleto (try/catch do syncFromCloud + GC, camadas 2/3)."
+  bump_versao: "gdp-core.js v44→v45 (gdp-contratos.html); checar se index.html também usa gdp-core (carrega o sync)."
+
+  validacao_esperada:
+    - "Com localStorage cheio simulado, forcarSyncCompleto NÃO deve abortar — deve baixar as NFs (notas_fiscais.list) e renderizar."
+    - "QuotaExceededError numa chave auxiliar = warning no log, não erro fatal."
+    - "Teste no navegador logado (angela): rodar forcarSyncCompleto e confirmar que NFs aparecem mesmo com chave pesada presente."
+
+  recuperacao_usuario_imediata: |
+    Independente do fix, o usuário pode rodar no Console (F12):
+    ['gdp.notas-entrada.v1','gdp.estoque-intel.fornecedores.v1','gdp.produtos.backup-pre-ssot.v1','gdp.notas-fiscais.v1'].forEach(k=>localStorage.removeItem(k)); location.reload();
+
+  next_action: "@dev: implementar camadas 1+2+3 em gdp-core.js (resiliência a quota + GC). Bump v45. Testar no navegador logado que o sync não aborta com chave pesada. Depois @qa valida, @devops deploy."

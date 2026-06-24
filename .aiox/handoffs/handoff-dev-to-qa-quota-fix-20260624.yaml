@@ -1,0 +1,48 @@
+handoff:
+  from_agent: dev
+  to_agent: qa
+  timestamp: "2026-06-24T15:25:00Z"
+  consumed: false
+  last_command: "*develop (fix resiliência a quota no sync)"
+  prioridade: ALTA
+
+  story_context:
+    story_id: "INCIDENTE — QuotaExceededError aborta forcarSyncCompleto"
+    story_status: "Fix implementado e validado no navegador real. Ready for Review."
+    branch: master
+
+  fluxo_seguido: "@analyst → @architect → [data-engineer PULADO: client-side, banco íntegro] → @dev (aqui) → @qa → @devops (codex/.codex/agents/devops.md)"
+
+  o_que_foi_implementado_3_camadas:
+    camada_1_setItem_resiliente:
+      arquivo: "js/gdp-core.js"
+      mudanca: "Novo helper _safeSetItemSync(key,value): engole QuotaExceededError (name/code 22/1014) com warning e retorna false; outros erros ainda lançam. As 6 chamadas localStorage.setItem(row.key,...) do syncFromCloud (sync_data legado) trocadas por _safeSetItemSync. Uma chave que estoura é PULADA, não aborta o loop."
+    camada_2_forcarSync_resiliente:
+      mudanca: "syncFromCloud({force}) agora envolto em try/catch próprio no forcarSyncCompleto. Se falhar (quota/qualquer), loga gdpWarn e SEGUE para o full load das tabelas dedicadas (gdpApi.notas_fiscais.list etc.). result inicializado como {restored:false,rowCount:0}."
+    camada_3_GC_preventivo:
+      mudanca: "No início do forcarSyncCompleto, além de notas-entrada e fornecedores, remove chaves pesadas recriáveis: gdp.produtos.backup-pre-ssot.v1, gdp.estoque-intel.previews.v1, caixaescolar.b2b-scrape-cache.v1. Libera espaço antes do download."
+    bump: "gdp-core.js v44→v45 (gdp-contratos.html)."
+
+  validacoes_dev:
+    syntax: "node --check gdp-core.js OK."
+    substituicoes: "6 _safeSetItemSync(row.key) confirmados; 0 setItem(row.key) cru restante."
+    testes: "npm test 203/205 (2 pré-existentes empresa_id, não-regressão; gdp-api.js não tocado)."
+    teste_comportamento_NAVEGADOR_REAL: |
+      Logado (conta angela) via Playwright, simulei o cenário do incidente:
+      1. _safeSetItemSync com chave de 6MB (estoura quota) → retornou false SEM LANÇAR ✅
+      2. Após o 'estouro', gdpApi.notas_fiscais.list() → 171 NFs baixadas, todas nfe_real ✅
+      PROVA: a quota estourar numa chave auxiliar NÃO impede mais o download das NFs.
+
+  banco: "ÍNTEGRO. 175 NFs nfe_real, 0 manual_externa. Fix é 100% client-side."
+
+  pontos_para_qa:
+    - "Confirmar no diff que os 6 setItem(row.key) viraram _safeSetItemSync."
+    - "Confirmar que forcarSyncCompleto tem try/catch no syncFromCloud + GC das chaves pesadas."
+    - "Regressão: o sync normal (sem quota) deve continuar funcionando — _safeSetItemSync grava normal quando há espaço."
+    - "Validação runtime pós-deploy: no PC do usuário com localStorage cheio, 'Atualizar da Nuvem' deve baixar NFs sem abortar."
+
+  recuperacao_usuario_imediata: |
+    Console F12 no PC do usuário (enquanto o deploy não chega):
+    ['gdp.notas-entrada.v1','gdp.estoque-intel.fornecedores.v1','gdp.produtos.backup-pre-ssot.v1','gdp.notas-fiscais.v1'].forEach(k=>localStorage.removeItem(k)); location.reload();
+
+  next_action: "@qa: gate do fix de quota. Revisar 3 camadas + regressão. Depois @devops (codex/.codex/agents/devops.md) commit+push+deploy --force + validar em prod."

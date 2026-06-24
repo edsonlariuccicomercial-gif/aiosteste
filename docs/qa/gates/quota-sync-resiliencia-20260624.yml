@@ -1,0 +1,48 @@
+storyId: "INCIDENTE-quota-sync-resiliencia"
+title: "Resiliência a QuotaExceededError no forcarSyncCompleto"
+gateDate: "2026-06-24"
+reviewer: "@qa (Quinn)"
+verdict: CONCERNS
+
+summary: >
+  Fix sólido e validado end-to-end no navegador. PASS com CONCERNS: a resiliência a quota funciona
+  (chave que estoura é pulada, NFs baixam mesmo assim) e o sync normal não regrediu. A ressalva é
+  a validação no PC específico do usuário (localStorage cheio) pós-deploy.
+
+sevenChecks:
+  code_review: PASS        # _safeSetItemSync só engole QuotaExceededError (relança o resto); 3 camadas bem desenhadas
+  unit_tests: CONCERNS     # 203/205; 2 falhas PRÉ-EXISTENTES (empresa_id), gdp-core.js não afeta gdp-api.test
+  acceptance_criteria: PASS # quota não aborta mais o sync; NFs baixam; validado no browser
+  no_regressions: PASS     # sync normal grava OK (_safeSetItemSync retorna true com espaço); result inicializado evita undefined
+  performance: PASS        # GC preventivo libera espaço; menos risco de estouro
+  security: PASS           # sem mudança de auth/dados; helper não mascara erros não-quota
+  documentation: PASS      # comentários anti-quota inline; handoffs completos
+
+verificacoes_independentes_qa:
+  - "Diff: _safeSetItemSync engole APENAS QuotaExceededError (name/code 22/1014), throw e no resto. ✅"
+  - "Camada 2: syncFromCloud em try/catch (eSync) → segue para tabelas dedicadas. ✅"
+  - "Camada 3: GC de 3 chaves pesadas recriáveis antes do download. ✅"
+  - "6 setItem(row.key) → _safeSetItemSync; 0 cru restante. ✅"
+  - "result inicializado {restored:false,rowCount:0} → toast não quebra se sync falhar. ✅"
+  - "Teste browser (angela): normal=true (grava), quota=false (pula 7MB sem lançar), nf=171, manual_externa=0. ✅"
+
+issues:
+  - severity: medium
+    category: tests
+    description: "2 testes 'empresa_id resolution' falham no mock. PRÉ-EXISTENTES (gdp-core.js não impacta gdp-api.test)."
+    recommendation: "Débito técnico separado (já registrado). NÃO bloqueia."
+  - severity: low
+    category: requirements
+    description: "Validação no PC do usuário (localStorage cheio real) só é possível pós-deploy."
+    recommendation: "@devops valida em prod OU usuário roda o limpa-cache do Console. Após deploy, 'Atualizar da Nuvem' deve baixar NFs sem abortar."
+  - severity: low
+    category: design
+    description: "notas-entrada.v1 ainda pode crescer (XML/PDF embutido). Fix atual trata o sintoma (resiliência); a cura (strip) ficou para fase 2."
+    recommendation: "Backlog: _stripNotaEntradaHeavy OU migrar notas-entrada para tabela dedicada. Não-bloqueante."
+
+decision_rationale: >
+  Nenhum issue CRITICAL/HIGH. As 3 camadas resolvem a causa (quota não aborta mais o sync) e a
+  validação end-to-end no navegador confirma: chave que estoura é pulada, NFs baixam corretas, sync
+  normal preservado. Aprovado para deploy. Strip do notas-entrada fica como melhoria de longo prazo.
+
+next_action: "@devops (codex/.codex/agents/devops.md): commit + push + deploy --force; validar em prod (ou orientar usuário) que 'Atualizar da Nuvem' baixa NFs mesmo com localStorage cheio."

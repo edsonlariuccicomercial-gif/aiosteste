@@ -1,0 +1,47 @@
+handoff:
+  from_agent: qa
+  to_agent: devops
+  timestamp: "2026-06-24T15:40:00Z"
+  consumed: false
+  last_command: "*gate (fix resiliência a quota)"
+  prioridade: ALTA
+  devops_path: "codex/.codex/agents/devops.md"
+
+  story_context:
+    story_id: "INCIDENTE — QuotaExceededError aborta sync (NFs não atualizam)"
+    story_status: "GATE CONCERNS (PASS). Resiliência validada end-to-end no navegador. Aprovado para deploy."
+    branch: master
+
+  gate_decision: CONCERNS
+  gate_doc: "docs/qa/gates/quota-sync-resiliencia-20260624.yml"
+  significado: "PASS com ressalva. Nenhum CRITICAL/HIGH. Ressalva = validação no PC do usuário pós-deploy + strip notas-entrada (fase 2)."
+
+  verificacoes_qa_independentes:
+    - "_safeSetItemSync engole SÓ QuotaExceededError (throw e no resto) — não mascara bugs."
+    - "Camadas 2+3 confirmadas no diff (try/catch syncFromCloud + GC)."
+    - "6 setItem migrados; result inicializado evita undefined no toast."
+    - "Teste browser logado: normal=grava, 7MB=pula sem lançar, NFs=171 nfe_real, 0 manual_externa."
+    - "npm test 203/205 (2 pré-existentes, não-regressão)."
+
+  arquivos_a_commitar:
+    - "painel-caixa-escolar/squads/caixa-escolar/dashboard/js/gdp-core.js (3 camadas anti-quota)"
+    - "painel-caixa-escolar/squads/caixa-escolar/dashboard/gdp-contratos.html (bump gdp-core v45)"
+    - "docs/qa/gates/quota-sync-resiliencia-20260624.yml"
+    - ".aiox/handoffs/handoff-*quota*-20260624.yaml (3 handoffs desta cadeia)"
+    - "NÃO commitar ?? fora de escopo (PDFs, nfe-modelo.xml, deno.lock)."
+
+  ACAO_DEVOPS:
+    commit: "fix(sync): resiliência a QuotaExceededError — sync não aborta + GC preventivo [ARCH-sync]"
+    push: "git push origin master (dispara deploy.yml --force)."
+    deploy: "cd painel-caixa-escolar && npx vercel --prod --force --yes."
+    gate_de_saida:
+      versao: "curl gdp-contratos.html → gdp-core.js?v=45."
+      functions: "for fn in gdp-data gdp-integrations bank-charge caixa-proxy; curl → nenhum 404."
+    orientar_usuario: |
+      Após deploy + Ctrl+Shift+R, clicar 'Atualizar da Nuvem' deve baixar as NFs SEM o erro de quota.
+      Se o localStorage do PC ainda estiver muito cheio, rodar uma vez no Console (F12):
+      ['gdp.notas-entrada.v1','gdp.estoque-intel.fornecedores.v1','gdp.produtos.backup-pre-ssot.v1','gdp.notas-fiscais.v1'].forEach(k=>localStorage.removeItem(k)); location.reload();
+
+  debito_fase_2: "Strip de XML/PDF do gdp.notas-entrada.v1 (ou migrar p/ tabela dedicada) — cura de longo prazo do crescimento. Não-bloqueante."
+
+  next_action: "@devops (codex/.codex/agents/devops.md): commit + push + deploy --force + gate de saída (v45 + functions)."
