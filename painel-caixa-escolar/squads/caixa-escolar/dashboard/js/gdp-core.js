@@ -3414,11 +3414,10 @@ function renderConciliacao() {
     `;
   }
 
-  // Mapear indices globais para o conciliarLancamento funcionar
-  const globalIndices = allItems.map((item, gi) => items.includes(item) ? gi : -1).filter(gi => gi >= 0);
-
   tbody.innerHTML = items.map((t, localIdx) => {
-    const gi = globalIndices[localIdx];
+    // Conciliar por ID (não por índice global): o realtime pode reordenar gdp.conciliacao.v1 entre
+    // o render e o clique, e o índice apontaria para o item ERRADO. O id é estável. esc() protege o onclick.
+    const rid = esc(String(t.id || ''));
     const val = parseFloat(t.valor) || 0;
     const cor = val >= 0 ? "var(--green,#22c55e)" : "var(--red,#ef4444)";
     const isPendente = !t.conciliado;
@@ -3436,9 +3435,9 @@ function renderConciliacao() {
         const descShort = (s.descricao || '').slice(0, 25) + ((s.descricao || '').length > 25 ? '...' : '');
         const vencFmt = s.vencimento ? fmtDate(s.vencimento) : '';
         statusLabel = '<div style="font-size:.72rem;line-height:1.3">'
-          + '<button class="btn btn-sm btn-green" style="font-size:.68rem;padding:.15rem .5rem;margin-bottom:.2rem" onclick="conciliarComBaixa(' + gi + ',\'' + s.contaId + '\',\'' + s.tipo + '\')">' + tipoLabel + ': ' + esc(descShort) + '</button>'
+          + '<button class="btn btn-sm btn-green" style="font-size:.68rem;padding:.15rem .5rem;margin-bottom:.2rem" onclick="conciliarComBaixa(\'' + rid + '\',\'' + s.contaId + '\',\'' + s.tipo + '\')">' + tipoLabel + ': ' + esc(descShort) + '</button>'
           + '<div style="color:var(--mut);font-size:.65rem">' + esc(vencFmt) + ' | ' + brl.format(s.valor) + '</div>'
-          + '<button class="btn btn-sm btn-blue" style="font-size:.65rem;padding:.1rem .4rem;margin-top:.3rem;opacity:.8" onclick="conciliarLancamento(' + gi + ')">Conciliar manual</button>'
+          + '<button class="btn btn-sm btn-blue" style="font-size:.65rem;padding:.1rem .4rem;margin-top:.3rem;opacity:.8" onclick="conciliarLancamento(\'' + rid + '\')">Conciliar manual</button>'
           + '</div>';
       } else if (sugestoes.length > 1) {
         // Story 20.4: múltiplos candidatos com mesmo valor — operador escolhe (CR e CP)
@@ -3447,7 +3446,7 @@ function renderConciliacao() {
           const descShort = (s.descricao || s.cliente || '').slice(0, 22) + ((s.descricao || s.cliente || '').length > 22 ? '...' : '');
           const vencFmt = s.vencimento ? fmtDate(s.vencimento) : '';
           return '<button class="btn btn-sm btn-green" style="display:block;width:100%;text-align:left;font-size:.66rem;padding:.18rem .4rem;margin-bottom:.18rem;white-space:normal" '
-            + 'onclick="conciliarComBaixa(' + gi + ',\'' + s.contaId + '\',\'' + s.tipo + '\')" '
+            + 'onclick="conciliarComBaixa(\'' + rid + '\',\'' + s.contaId + '\',\'' + s.tipo + '\')" '
             + 'title="' + esc((s.descricao || '') + ' ' + (s.cliente || '')) + '">'
             + tipoLabel + ': ' + esc(descShort) + ' <span style="color:var(--mut)">' + esc(vencFmt) + ' · ' + brl.format(s.valor) + '</span>'
             + '</button>';
@@ -3455,17 +3454,17 @@ function renderConciliacao() {
         statusLabel = '<div style="font-size:.72rem;line-height:1.3">'
           + '<div style="color:var(--yellow,#f59e0b);font-weight:700;font-size:.65rem;margin-bottom:.2rem">' + sugestoes.length + ' candidatos — escolha:</div>'
           + candidatos
-          + '<button class="btn btn-sm btn-blue" style="font-size:.65rem;padding:.1rem .4rem;margin-top:.2rem;opacity:.8" onclick="conciliarLancamento(' + gi + ')">Conciliar manual</button>'
+          + '<button class="btn btn-sm btn-blue" style="font-size:.65rem;padding:.1rem .4rem;margin-top:.2rem;opacity:.8" onclick="conciliarLancamento(\'' + rid + '\')">Conciliar manual</button>'
           + '</div>';
       } else {
-        statusLabel = '<button class="btn btn-sm btn-blue" style="font-size:.7rem;padding:.15rem .5rem" onclick="conciliarLancamento(' + gi + ')">Conciliar</button>';
+        statusLabel = '<button class="btn btn-sm btn-blue" style="font-size:.7rem;padding:.15rem .5rem" onclick="conciliarLancamento(\'' + rid + '\')">Conciliar</button>';
       }
     }
     return `<tr style="${pendenteMark}">
       <td>${t.data || "-"}</td>
       <td style="font-size:.8rem;max-width:200px;overflow:hidden;text-overflow:ellipsis" title="${esc(t.descricao || '')}">${esc(t.descricao || "")}</td>
-      <td><input type="text" value="${esc(t.historico || '')}" placeholder="Complemento..." style="width:100%;padding:.25rem .4rem;font-size:.8rem;background:var(--bg,#0f172a);border:1px solid var(--bdr,#334155);border-radius:4px;color:var(--txt,#f1f5f9)" onchange="atualizarHistorico(${gi},this.value)"></td>
-      <td><select style="width:100%;padding:.25rem;font-size:.75rem;background:var(--bg,#0f172a);border:1px solid var(--bdr,#334155);border-radius:4px;color:var(--txt,#f1f5f9)" onchange="atualizarCategoriaDre(${gi},this.value)">${_buildDreOptions(t.categoriaDre || '')}</select></td>
+      <td><input type="text" value="${esc(t.historico || '')}" placeholder="Complemento..." style="width:100%;padding:.25rem .4rem;font-size:.8rem;background:var(--bg,#0f172a);border:1px solid var(--bdr,#334155);border-radius:4px;color:var(--txt,#f1f5f9)" onchange="atualizarHistorico('${rid}',this.value)"></td>
+      <td><select style="width:100%;padding:.25rem;font-size:.75rem;background:var(--bg,#0f172a);border:1px solid var(--bdr,#334155);border-radius:4px;color:var(--txt,#f1f5f9)" onchange="atualizarCategoriaDre('${rid}',this.value)">${_buildDreOptions(t.categoriaDre || '')}</select></td>
       <td class="text-right font-mono" style="color:${cor};font-weight:600;white-space:nowrap">${brl.format(val)}</td>
       <td style="font-size:.75rem">${val >= 0 ? "Crédito" : "Débito"}</td>
       <td>${statusLabel}</td>
@@ -3528,10 +3527,23 @@ function buscarSugestoesConciliacao(transacao) {
   return sugestoes;
 }
 
+// Resolve um item de conciliação por ID (string) OU índice (number, legado). Conciliar por ÍNDICE
+// era frágil: o realtime reescreve gdp.conciliacao.v1 e pode reordenar o array entre o render e o
+// clique → o índice apontava para o item ERRADO (sintoma: "1º lançamento continua pendente, 2º fecha
+// o extrato" porque mexia num item de outro extrato). Buscar por id elimina a dessincronia.
+function _resolveConcIdx(items, ref) {
+  if (typeof ref === 'string') {
+    for (var i = 0; i < items.length; i++) { if (items[i].id === ref) return i; }
+    return -1;
+  }
+  return ref; // legado: índice numérico
+}
+
 // === Auto-conciliacao: conciliar extrato + baixar CP/CR automaticamente ===
-window.conciliarComBaixa = function(idx, contaId, tipo) {
+window.conciliarComBaixa = function(ref, contaId, tipo) {
   const items = loadConciliacao();
-  if (!items[idx]) return;
+  const idx = _resolveConcIdx(items, ref);
+  if (idx < 0 || !items[idx]) return;
 
   // 1. Marcar lancamento como conciliado e vincular a conta
   items[idx].conciliado = true;
@@ -3563,29 +3575,27 @@ window.conciliarComBaixa = function(idx, contaId, tipo) {
 
   atualizarExtratoStats();
   renderConciliacao();
-  // ADR-003: rede de segurança — re-vincula extratoId se um echo de sync zerou o vínculo, e re-renderiza.
-  _autoCurarExtratoIdConciliacao().then(function () { if (typeof renderConciliacao === 'function') renderConciliacao(); });
   const label = tipo === 'cp' ? 'Conta a Pagar' : 'Conta a Receber';
   showToast('Conciliado e baixado: ' + label + ' vinculada automaticamente.', 4000);
 };
 
-window.conciliarLancamento = function(idx) {
+window.conciliarLancamento = function(ref) {
   const items = loadConciliacao();
-  if (items[idx]) {
+  const idx = _resolveConcIdx(items, ref);
+  if (idx >= 0 && items[idx]) {
     items[idx].conciliado = true;
     items[idx].conciliadoEm = new Date().toISOString().slice(0, 10);
     saveConciliacao(items);
     atualizarExtratoStats();
     renderConciliacao();
-    // ADR-003: rede de segurança — re-vincula extratoId se um echo de sync zerou o vínculo, e re-renderiza.
-    _autoCurarExtratoIdConciliacao().then(function () { if (typeof renderConciliacao === 'function') renderConciliacao(); });
     showToast("Lançamento conciliado.");
   }
 };
 
-window.toggleConciliado = function(idx) {
+window.toggleConciliado = function(ref) {
   const items = loadConciliacao();
-  if (items[idx]) { items[idx].conciliado = !items[idx].conciliado; saveConciliacao(items); atualizarExtratoStats(); renderConciliacao(); _autoCurarExtratoIdConciliacao().then(function () { if (typeof renderConciliacao === 'function') renderConciliacao(); }); }
+  const idx = _resolveConcIdx(items, ref);
+  if (idx >= 0 && items[idx]) { items[idx].conciliado = !items[idx].conciliado; saveConciliacao(items); atualizarExtratoStats(); renderConciliacao(); }
 };
 
 // Story 4.51 AC-C2: delete selected extratos
@@ -3679,14 +3689,16 @@ window.reabrirExtrato = function(idx) {
   renderConciliacao();
 };
 
-window.atualizarHistorico = function(idx, valor) {
+window.atualizarHistorico = function(ref, valor) {
   const items = loadConciliacao();
-  if (items[idx]) { items[idx].historico = valor; saveConciliacao(items); }
+  const idx = _resolveConcIdx(items, ref);
+  if (idx >= 0 && items[idx]) { items[idx].historico = valor; saveConciliacao(items); }
 };
 
-window.atualizarCategoriaDre = function(idx, valor) {
+window.atualizarCategoriaDre = function(ref, valor) {
   const items = loadConciliacao();
-  if (items[idx]) { items[idx].categoriaDre = valor; saveConciliacao(items); }
+  const idx = _resolveConcIdx(items, ref);
+  if (idx >= 0 && items[idx]) { items[idx].categoriaDre = valor; saveConciliacao(items); }
 };
 
 window.importarExtratoBancario = async function(file, tipo) {
