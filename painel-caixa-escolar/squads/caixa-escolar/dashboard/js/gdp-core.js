@@ -3212,15 +3212,24 @@ function loadConciliacaoRaw() {
   } catch(_) { return []; }
 }
 
-function saveConciliacao(items) {
+// changedIds (opcional): array de ids que realmente mudaram. Se informado, SÓ esses vão ao Supabase
+// — evita re-gravar os 346 itens a cada conciliação (que disparava 346 ecos de realtime → tela "0/0",
+// botões somindo, lentidão). Sem changedIds (chamadas legadas/bulk), mantém o comportamento antigo.
+function saveConciliacao(items, changedIds) {
   var arr = items || [];
   arr.forEach(function(it) { if (!it.id) it.id = 'conc-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8); });
   var wrapped = { _v: 1, updatedAt: new Date().toISOString(), items: arr };
   localStorage.setItem(CONCILIACAO_KEY, JSON.stringify(wrapped));
   _lastLocalSave[CONCILIACAO_KEY] = Date.now();
-  // Persistir cada item no Supabase (tabela dedicada)
+  // Persistir no Supabase (tabela dedicada). Seletivo quando changedIds é informado.
   if (window.gdpApi && window.gdpApi.conciliacoes) {
-    arr.forEach(function(it) {
+    var toSave = arr;
+    if (changedIds && changedIds.length) {
+      var idSet = {};
+      changedIds.forEach(function (id) { idSet[id] = true; });
+      toSave = arr.filter(function (it) { return idSet[it.id]; });
+    }
+    toSave.forEach(function(it) {
       window.gdpApi.conciliacoes.save(it).catch(function(e) { gdpWarn('[Conciliacao] Supabase save failed:', it.id, e.message); });
     });
   }
@@ -3549,7 +3558,7 @@ window.conciliarComBaixa = function(ref, contaId, tipo) {
   items[idx].conciliado = true;
   items[idx].conciliadoEm = new Date().toISOString().slice(0, 10);
   items[idx].vinculadoA = { tipo: tipo, contaId: contaId };
-  saveConciliacao(items);
+  saveConciliacao(items, [items[idx].id]);
 
   // 2. Baixar a conta automaticamente
   const dataBaixa = items[idx].data || new Date().toISOString().slice(0, 10);
@@ -3585,7 +3594,7 @@ window.conciliarLancamento = function(ref) {
   if (idx >= 0 && items[idx]) {
     items[idx].conciliado = true;
     items[idx].conciliadoEm = new Date().toISOString().slice(0, 10);
-    saveConciliacao(items);
+    saveConciliacao(items, [items[idx].id]);
     atualizarExtratoStats();
     renderConciliacao();
     showToast("Lançamento conciliado.");
@@ -3595,7 +3604,7 @@ window.conciliarLancamento = function(ref) {
 window.toggleConciliado = function(ref) {
   const items = loadConciliacao();
   const idx = _resolveConcIdx(items, ref);
-  if (idx >= 0 && items[idx]) { items[idx].conciliado = !items[idx].conciliado; saveConciliacao(items); atualizarExtratoStats(); renderConciliacao(); }
+  if (idx >= 0 && items[idx]) { items[idx].conciliado = !items[idx].conciliado; saveConciliacao(items, [items[idx].id]); atualizarExtratoStats(); renderConciliacao(); }
 };
 
 // Story 4.51 AC-C2: delete selected extratos
@@ -3692,13 +3701,13 @@ window.reabrirExtrato = function(idx) {
 window.atualizarHistorico = function(ref, valor) {
   const items = loadConciliacao();
   const idx = _resolveConcIdx(items, ref);
-  if (idx >= 0 && items[idx]) { items[idx].historico = valor; saveConciliacao(items); }
+  if (idx >= 0 && items[idx]) { items[idx].historico = valor; saveConciliacao(items, [items[idx].id]); }
 };
 
 window.atualizarCategoriaDre = function(ref, valor) {
   const items = loadConciliacao();
   const idx = _resolveConcIdx(items, ref);
-  if (idx >= 0 && items[idx]) { items[idx].categoriaDre = valor; saveConciliacao(items); }
+  if (idx >= 0 && items[idx]) { items[idx].categoriaDre = valor; saveConciliacao(items, [items[idx].id]); }
 };
 
 window.importarExtratoBancario = async function(file, tipo) {
