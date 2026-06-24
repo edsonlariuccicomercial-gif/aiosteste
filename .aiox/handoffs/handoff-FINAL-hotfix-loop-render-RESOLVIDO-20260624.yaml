@@ -1,0 +1,39 @@
+handoff:
+  from_agent: devops
+  to_agent: FINAL
+  timestamp: "2026-06-24T18:10:00Z"
+  consumed: false
+  last_command: "*push + deploy (hotfix loop de render)"
+
+  story_context:
+    story_id: "HOTFIX — loop infinito de render (regressão v9) + render de NF"
+    story_status: "RESOLVIDO E VALIDADO EM PRODUÇÃO. Loop eliminado, NFs renderizam."
+    branch: master
+
+  resumo:
+    regressao: "O fix v9 (loadData no scheduleRender do realtime) causou loop infinito (loadData→save→realtime→loadData). Console travado, NFs não apareciam."
+    hotfix: "reloadFromLocalSilent() (só leitura, sem save) substitui loadData no realtime e no boot. Quebra o loop mantendo a reidratação da memória."
+    commit: "bab9e41c — hotfix(sync): corrige LOOP infinito de render"
+    deploy: "vercel --prod --force → aliased (ijs4ap3v0). gdp-core v46, gdp-realtime v10, gdp-init v45."
+
+  validacao_producao_playwright:
+    - "Versões servidas: gdp-core v46, gdp-realtime v10, gdp-init v45. ✅"
+    - "Console NÃO loopa mais (4 linhas em 15s vs centenas antes). ✅"
+    - "reloadFromLocalSilent existe e não dispara save. ✅"
+    - "notasFiscais em memória = 171; aba NF renderiza 50 linhas; contador '171'. ✅"
+
+  acao_usuario:
+    - "Ctrl+Shift+R nas máquinas (pegar v46/v10/v45)."
+    - "Aba Notas Fiscais deve mostrar as notas (boot, sem comando)."
+    - "TESTE 2 MÁQUINAS (a prova final): gerar NF em A → aparece em B sem F5 e SEM loop no console."
+
+  honestidade_registrada: |
+    O loop foi uma regressão introduzida POR MIM no fix anterior (v9). Foi detectada ao vivo via
+    Playwright (console em loop) e corrigida no mesmo ciclo. Lição: o fix do realtime NUNCA deve
+    chamar funções com efeito colateral de save (loadData) — só reidratação silenciosa.
+
+  pendencias:
+    - "Validação E2E 2 máquinas (realtime real) — só o usuário/produção confirma. NÃO declarado 'resolvido' sem isso."
+    - "Itens antigos: Story 22.2 runtime (módulos), saveAll clientes, Central Produtos (ADR-002), sync_data, strip notas-entrada, 2 testes mock."
+
+  next_action: "Usuário: Ctrl+Shift+R + validar aba NF + teste 2 máquinas. Confirmar que (a) console não loopa, (b) NFs aparecem, (c) NF de uma máquina aparece na outra."

@@ -1,0 +1,85 @@
+handoff:
+  tipo: MESTRE — retomada de sessão nova
+  from_session: "2026-06-24 (sessão longa: deploy/carimbão/quota/loop/render/quota-local)"
+  to_session: "PRÓXIMA (reiniciar terminal)"
+  timestamp: "2026-06-24T18:45:00Z"
+  empresa: LARIUCCI (usuários: angela, lariucci — MESMA empresa; dados de NF são por empresa_id)
+  credenciais_teste:
+    angela: "senha Alicia06@"
+    lariucci: "senha lariucci2026"
+  validacao_via_playwright: "Logar e inspecionar localStorage/memória é o método mais confiável. Banco sempre íntegro — validar tela, não dados."
+
+  ESTADO_ATUAL_PRODUCAO:
+    versoes_no_ar: "gdp-core v46, gdp-realtime v10, gdp-init v45, gdp-notas-fiscais v41, gdp-integrations-client v12"
+    deploy: "vercel --prod --force (alias painel-caixa-escolar.vercel.app). Git push dispara deploy.yml com --force (corrigido nesta sessão)."
+    banco: "175 NFs todas nfe_real, 0 manual_externa. ÍNTEGRO."
+    funcionando: "angela (2 PCs) e lariucci mostram as NFs corretas após limpar localStorage cheio."
+
+  JA_RESOLVIDO_NESTA_SESSAO:
+    - "Blindagem deploy --force no Actions (commit 53277f4c) — fim das regressões de build-cache."
+    - "Story 22.2 módulos online (Supabase) — DONE (migration 039 + modulosApi)."
+    - "Carimbão de NF: saveNotasFiscais só persiste por-id (commit 2d8c08f9)."
+    - "Resiliência a QuotaExceededError no forcarSyncCompleto (commit 49aec875): _safeSetItemSync + GC."
+    - "Loop infinito de render (regressão que EU introduzi no v9): reloadFromLocalSilent (commit bab9e41c)."
+    - "Render de NF / divergência entre máquinas (realtime reidrata memória) — commit 82e214eb."
+
+  PENDENCIA_1_BLINDAGEM_QUOTA_LOCAL_PRIORIDADE_ALTA:
+    titulo: "localStorage cheio ZERA a tela (mem:0) em vez de usar memória — bug raiz confirmado"
+    diagnostico_confirmado: |
+      No PC do usuário (angela computador A), o localStorage estava CHEIO (estourou quota ~5MB).
+      Sintoma: list() baixa 171 NFs mas setItem falha por quota → loadData lê localStorage vazio →
+      notasFiscais=0 em memória → tela 'Nenhuma nota fiscal'. Confirmado: mem:0, ls:0, emp:LARIUCCI, v46.
+      localStorage.clear() + reload RESOLVEU (rebaixou tudo limpo do servidor; nem deslogou).
+      Outro PC da mesma angela funcionava (localStorage saudável). PROVA que é quota local, não dados.
+    fix_proposto:
+      camada_A: "gdpApi já tem _memCache. Garantir que loadData()/renderNotasFiscais usem o _memCache quando o localStorage está vazio MAS o list() trouxe dados — nunca zerar a tela se há dados em memória/servidor."
+      camada_B: "_stripNotaEntradaHeavy: remover XML/PDF embutido de gdp.notas-entrada.v1 (causa principal do entupimento) OU migrar notas-entrada para tabela Supabase dedicada."
+      camada_C: "Quando setItem falhar por quota, fazer GC automático de chaves pesadas e RETENTAR, em vez de só pular (já há _safeSetItemSync que pula; falta o retry pós-GC)."
+      camada_D: "Aviso ao usuário quando localStorage > 4.5MB (perto do limite) com botão 'limpar cache' seguro."
+    arquivos: "gdp-core.js (loadData/_memCache/saveWrappedArray), gdp-api.js (_memCache), gdp-notas-fiscais.js (notas-entrada strip)."
+    fluxo: "@analyst (confirmar _memCache atual) → @architect (desenhar fallback memória + strip) → @dev → @qa → @devops."
+
+  PENDENCIA_2_MODULOS_STORY_22_2_RUNTIME:
+    titulo: "Módulos: 'desmarca e remarca ao sair' — bug runtime NÃO resolvido"
+    diagnostico_parcial: |
+      Story 22.2 (persistência online) foi DEPLOYADA, mas o bug de RUNTIME que o usuário relatou
+      ('desmarco radar/intel e ao sair remarca') NÃO foi concluído. Causa parcial identificada:
+      index.html (onde fica a UI de config de módulos) NÃO chama hidratarAcessoModulosOnline() no boot.
+      A config salva online (empresa_modulos no Supabase, validado) mas o index não hidrata.
+    proximos_passos: "Verificar salvarModulos() em app-utils.js:286 (chama setAcessoModulos → gdpApi.modulos.save). Adicionar hidratarAcessoModulosOnline() no boot do index.html. Validar multi-device."
+    fluxo: "@analyst → @architect → @dev → @qa → @devops."
+
+  PENDENCIA_3_CENTRAL_DE_PRODUTOS_e_SYNC_DATA:
+    titulo: "Central de Produtos (número varia) + aposentar sync_data legado"
+    estado: "ADR-002 APROVADO existe (docs/architecture/ADR-002-unificacao-central-produtos.md). 4 bases de produtos divergentes (270/386/256/201). 5 fases: F0 backup → F4 aposentar legadas. NÃO iniciado."
+    nota: "Trabalho GRANDE. sync_data legado é a Fase 4 (depende da unificação). Seguir o ADR, não redesenhar."
+
+  PENDENCIA_4_BUG_NOVO_CONCILIACAO_BANCARIA_INVESTIGAR:
+    titulo: "Financeiro > Conciliação bancária: extrato fecha sozinho ao conciliar 1º lançamento + trava ao reabrir"
+    relato_usuario: |
+      Ao clicar 'conciliar' no PRIMEIRO lançamento de um extrato: o extrato FECHA sozinho, aparece
+      mensagem 'extrato conciliado' e mostra '1/63 conciliados/total'. Ao tentar reabrir o extrato:
+      TRAVA, depois volta a abrir. Comportamento errático.
+    hipotese_inicial: "Possível: conciliar 1 lançamento dispara um save/render que fecha o modal do extrato indevidamente, ou um estado de 'extrato conciliado' marcado cedo demais (1 de 63 já marca como concluído?). Investigar fluxo de conciliarLancamento + estado is_open do extrato."
+    arquivos_provaveis: "gdp-init.js / gdp-core.js (caixa/conciliação), funções conciliar*, renderConciliacao, extrato is_open."
+    fluxo: "@analyst (reproduzir via Playwright + ler fluxo) → @architect → @dev → @qa → @devops."
+
+  PENDENCIA_5_BUG_NOVO_RODAPE_PEDIDOS:
+    titulo: "Aba Pedidos: rodapé some e reaparece sozinho"
+    relato_usuario: "O rodapé (footer) da aba Pedidos fica sumindo e reaparecendo sozinho."
+    hipotese_inicial: "Possível: re-render repetido da aba Pedidos (paginação/footer) sendo redesenhado por eventos de sync/realtime, causando flicker. Pode ter relação com o renderAll seletivo + scheduleRender do realtime. Investigar renderPedidos / gdpRenderPageControls / footer de pedidos."
+    fluxo: "@analyst (reproduzir flicker via Playwright) → @architect → @dev → @qa → @devops."
+
+  DEBITO_TECNICO:
+    - "2 testes 'empresa_id resolution' falham no mock (gdp-api.test.js) — PRÉ-EXISTENTES, não-regressão. Corrigir o mock."
+
+  RECOMENDACAO_PROXIMA_SESSAO:
+    ordem_sugerida: |
+      1º) PENDENCIA_1 (blindagem quota local) — é a RAIZ do sofrimento desta sessão. Prioridade máxima.
+      2º) PENDENCIA_4 (conciliação) e PENDENCIA_5 (rodapé pedidos) — bugs novos relatados, investigar com Playwright.
+      3º) PENDENCIA_2 (módulos runtime) — bug conhecido, fix localizado.
+      4º) PENDENCIA_3 (Central Produtos/sync_data) — grande, faseado via ADR-002.
+    metodo: "SEMPRE validar via Playwright logado (angela/lariucci) ANTES de declarar resolvido. NÃO anunciar 'resolvido' sem ver na tela. Banco é íntegro — o problema é sempre tela/cache/render."
+    licao_da_sessao: "Sessão ficou longa demais; fixes de render/realtime são sensíveis (um loop foi introduzido). Trabalhar em incrementos pequenos, validar cada um na produção real antes do próximo."
+
+  dica_usuario_imediata: "Se um PC 'zerar' as notas: localStorage.clear() no console (F12) + relogar resolve na hora. Dados sempre seguros no servidor."
