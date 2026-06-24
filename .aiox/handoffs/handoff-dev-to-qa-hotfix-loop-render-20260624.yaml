@@ -1,0 +1,45 @@
+handoff:
+  from_agent: dev
+  to_agent: qa
+  timestamp: "2026-06-24T17:55:00Z"
+  consumed: false
+  last_command: "*develop (HOTFIX loop de render introduzido pelo fix v9)"
+  prioridade: URGENTE
+
+  story_context:
+    story_id: "HOTFIX — loop infinito de render (regressão do fix v9/scheduleRender)"
+    story_status: "Corrigido. Ready for Review. URGENTE — v9 em produção está em LOOP."
+    branch: master
+
+  regressao_que_eu_causei: |
+    O fix anterior (commit 82e214eb, gdp-realtime v9) adicionou window.loadData() dentro do
+    scheduleRender() do realtime. PROBLEMA: loadData() dispara saves condicionais (saveNotasEntrada,
+    saveConciliacao, saveExtratos) → cada save realimenta o realtime → scheduleRender → loadData →
+    LOOP INFINITO. Observado ao vivo via Playwright: console com loadData:parse/syncPedidos/migrations
+    repetindo dezenas de vezes sem parar. Trava o render → NFs não aparecem.
+
+  hotfix_implementado:
+    fix_1_reload_silencioso:
+      arquivo: "js/gdp-core.js — nova função reloadFromLocalSilent()"
+      o_que: "Reidrata as variáveis em memória (contratos, pedidos, notasFiscais, contasReceber, contasPagar) a partir do localStorage, SÓ LEITURA + filtro soft-delete, SEM NENHUM save. Exposta em window."
+    fix_2_realtime_usa_silencioso:
+      arquivo: "js/gdp-realtime.js — scheduleRender()"
+      o_que: "Trocado window.loadData() por window.reloadFromLocalSilent(). Mantém o benefício (reidrata memória p/ refletir o que o realtime gravou) SEM o efeito colateral de save → SEM LOOP."
+    fix_3_boot_usa_silencioso:
+      arquivo: "js/gdp-init.js — fim do boot Supabase-First"
+      o_que: "Troca loadData() por reloadFromLocalSilent() (fallback loadData se ausente)."
+    bump: "gdp-core v45→v46, gdp-realtime v9→v10 (contratos/index/portal/entregador), gdp-init v44→v45."
+
+  validacao_dev:
+    syntax: "node --check OK em gdp-core, gdp-realtime, gdp-init."
+    teste_navegador: "reloadFromLocalSilent() reidrata memória (171) e saveNotasEntrada_chamado=FALSE → confirma SEM loop."
+    testes: "npm test 203/205 (2 pré-existentes empresa_id)."
+
+  validacao_OBRIGATORIA_qa_e_pos_deploy:
+    - "Após deploy v10/v46: abrir o sistema e confirmar que o console NÃO entra em loop (loadData não repete)."
+    - "Aba NF mostra as notas (boot)."
+    - "2 máquinas: NF gerada em A aparece em B sem F5 (e SEM loop)."
+
+  banco: "ÍNTEGRO (175 NFs nfe_real). Tudo client-side."
+
+  next_action: "@qa: gate rápido do hotfix (confirmar que reloadFromLocalSilent não salva = sem loop). URGENTE — produção em loop. Depois @devops (codex/.codex/agents/devops.md) deploy --force imediato."

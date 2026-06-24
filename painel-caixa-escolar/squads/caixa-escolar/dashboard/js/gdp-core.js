@@ -1619,6 +1619,31 @@ function loadData() {
   // Nota: _gdpBootInProgress é desligado em gdp-init.js (após boot+migrations) que também
   // chama _flushPendingBootSaves(). Não desligar aqui para não duplicar o ponto de controle.
 }
+
+// ANTI-LOOP (incidente 2026-06-24): reidrata as variáveis EM MEMÓRIA a partir do localStorage,
+// SEM disparar NENHUM save (ao contrário de loadData(), que faz saveNotasEntrada/saveConciliacao/
+// saveExtratos condicionais — esses realimentam o realtime e causam LOOP INFINITO de render).
+// Usado pelo gdp-realtime.js scheduleRender() para a máquina B refletir o que o realtime gravou
+// no localStorage, sem efeito colateral de escrita. Só LEITURA + filtro de soft-delete.
+function reloadFromLocalSilent() {
+  try { contratosExcluidos = unwrapData(JSON.parse(localStorage.getItem(CONTRACTS_DELETED_KEY))); } catch(_) {}
+  try { contratos = applyDeletedContractsFilter(unwrapData(JSON.parse(localStorage.getItem(CONTRACTS_KEY)))); } catch(_) {}
+  try { pedidos = unwrapData(JSON.parse(localStorage.getItem(ORDERS_KEY))); } catch(_) {}
+  try {
+    notasFiscais = unwrapData(JSON.parse(localStorage.getItem(INVOICES_KEY)));
+    notasFiscais = notasFiscais.filter(function(x){ return !(x && (x.deletedAt || x.deleted_at)); });
+  } catch(_) {}
+  try {
+    contasReceber = unwrapData(JSON.parse(localStorage.getItem(RECEIVABLES_KEY)));
+    contasReceber = contasReceber.filter(function(x){ return !(x && (x.deletedAt || x.deleted_at)); });
+  } catch(_) {}
+  try {
+    contasPagar = unwrapData(JSON.parse(localStorage.getItem(PAYABLES_KEY)));
+    contasPagar = contasPagar.filter(function(x){ return !(x && (x.deletedAt || x.deleted_at)); });
+  } catch(_) {}
+}
+if (typeof window !== 'undefined') window.reloadFromLocalSilent = reloadFromLocalSilent;
+
 function saveContratos() {
   _contratoByIdCache = null; // invalidate lookup cache
   _enrichedContratos.clear(); // allow re-enrichment

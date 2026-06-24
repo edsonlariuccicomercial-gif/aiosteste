@@ -54,12 +54,15 @@
     if (_renderTimer) clearTimeout(_renderTimer);
     _renderTimer = setTimeout(function () {
       _renderTimer = null;
-      // FIX (incidente 2026-06-24 — divergência entre máquinas): o realtime grava no localStorage
-      // (writeLocalItems), mas as variáveis EM MEMÓRIA (notasFiscais, pedidos, etc.) NÃO eram
-      // recarregadas antes do render → a máquina B recebia a NF nova no localStorage mas a tela
-      // continuava lendo a lista velha da memória. loadData() reidrata a memória a partir do
-      // localStorage atualizado ANTES de renderizar. Sem isto, dado novo chega mas não aparece.
-      if (typeof window.loadData === 'function') { try { window.loadData(); } catch (_) {} }
+      // FIX (incidente 2026-06-24 — divergência entre máquinas): reidratar as variáveis EM MEMÓRIA
+      // (notasFiscais, pedidos, etc.) a partir do localStorage que o realtime acabou de atualizar,
+      // ANTES de renderizar. ATENÇÃO: NÃO chamar loadData() completo aqui — ele dispara saves
+      // (saveNotasEntrada/saveConciliacao/...) que realimentam o realtime → LOOP INFINITO de render
+      // (regressão observada em 2026-06-24). Usar reload SEM efeitos colaterais: reloadFromLocalSilent()
+      // se disponível; senão, render direto (o handler de realtime já atualiza o cache em memória).
+      if (typeof window.reloadFromLocalSilent === 'function') {
+        try { window.reloadFromLocalSilent(); } catch (_) {}
+      }
       if (typeof window.renderAll === 'function') window.renderAll();
     }, 500);
   }
