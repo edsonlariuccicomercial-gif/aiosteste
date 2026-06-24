@@ -3234,6 +3234,12 @@ async function enviarTiny(contratoId) {
           renderAll();
           gdpLog("[GDP] Re-render com dados Supabase concluído" + (_nfFixed > 0 ? " (" + _nfFixed + " NFs corrigidas)" : ""));
         }
+        // FIX (incidente 2026-06-24 — NFs não renderizam no boot): mesmo que anyUpdated seja
+        // falso por timing, garantir UM loadData()+renderAll() ao final do boot Supabase-First.
+        // Antes, se o render do boot rodava ANTES das tabelas dedicadas popularem notasFiscais
+        // (ou anyUpdated não capturava), a aba NF ficava presa em 'Nenhuma nota' / contador 0
+        // com 171 NFs já em memória. loadData reidrata + renderAll atualiza contador e aba ativa.
+        try { if (typeof loadData === 'function') loadData(); renderAll(); } catch (_) {}
       } catch(e) {
         gdpWarn("[GDP] Supabase-First falhou, fallback localStorage:", e);
       }

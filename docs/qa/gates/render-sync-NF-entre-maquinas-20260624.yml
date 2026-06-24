@@ -1,0 +1,49 @@
+storyId: "INCIDENTE-render-sync-NF-entre-maquinas"
+title: "NFs não renderizam (boot/realtime) + divergência entre máquinas"
+gateDate: "2026-06-24"
+reviewer: "@qa (Quinn)"
+verdict: CONCERNS
+
+summary: >
+  Fix ataca a causa raiz REAL (realtime não reidratava a memória antes de renderizar). Núcleo
+  validado no navegador: loadData() reidrata a memória do localStorage atualizado pelo realtime.
+  PASS com CONCERNS porque a validação E2E definitiva (2 máquinas físicas com realtime real em
+  produção) só pode ser feita pós-deploy — e o histórico exige essa prova antes de 'resolvido'.
+
+sevenChecks:
+  code_review: PASS        # Fix 1 (loadData no scheduleRender) + Fix 2 (boot render garantido) corretos e mínimos
+  unit_tests: CONCERNS     # 203/205; 2 falhas PRÉ-EXISTENTES (empresa_id), gdp-api.js não tocado
+  acceptance_criteria: PASS # núcleo do fix validado: memória reidrata do LS (resolve divergência)
+  no_regressions: PASS     # loadData/renderAll já eram chamados; fix só garante ordem/timing. Sync normal preservado.
+  performance: PASS        # loadData no realtime é debounced (500ms); custo aceitável
+  security: PASS           # sem mudança de auth/dados
+  documentation: PASS      # comentários inline explicando o bug; handoffs completos
+
+verificacoes_independentes_qa:
+  - "Diff Fix 1: scheduleRender() chama window.loadData() antes de renderAll(). ✅"
+  - "Diff Fix 2: boot Supabase-First com loadData()+renderAll() incondicional ao final. ✅"
+  - "TESTE NÚCLEO (navegador real): localStorage modificado p/ 170, memória presa em 171 (= bug), após loadData() memória=170 → fix_funciona=true. Prova que o realtime corrigido reidrata a memória. ✅"
+  - "Boot/aba NF: loadData()+renderAll() com aba ativa → 50 linhas, contador 171, 'Nenhuma nota' some. ✅"
+  - "npm test 203/205 (pré-existentes)."
+
+issues:
+  - severity: medium
+    category: tests
+    description: "2 testes 'empresa_id resolution' falham no mock. PRÉ-EXISTENTES (gdp-api.js não tocado)."
+    recommendation: "Débito técnico separado. NÃO bloqueia."
+  - severity: high
+    category: requirements
+    description: "Validação E2E entre 2 MÁQUINAS FÍSICAS com realtime real só é possível em produção pós-deploy. O bug original (NF numa máquina e não na outra) precisa dessa prova."
+    recommendation: "@devops + usuário: após deploy, gerar/alterar NF na máquina A e confirmar que aparece na máquina B SEM F5/comando. SÓ declarar resolvido após isso."
+  - severity: low
+    category: design
+    description: "renderAll continua seletivo (perf). Se a aba ativa não for NF na máquina B, a lista NF não pinta até abrir a aba (contador atualiza via renderKPIs)."
+    recommendation: "Aceitável. Fase 2: avaliar re-render da aba NF ao abrir sempre busca dados frescos."
+
+decision_rationale: >
+  Nenhum CRITICAL. O fix ataca a causa raiz comprovada (memória não reidratada no realtime) e o
+  núcleo foi validado no navegador. O issue HIGH não é do código — é a NATUREZA da validação
+  (precisa de 2 máquinas reais), que fica a cargo do @devops/usuário pós-deploy. Aprovado para
+  deploy COM a condição explícita de validação E2E antes de declarar 'resolvido'.
+
+next_action: "@devops (codex/.codex/agents/devops.md): deploy --force; ENTÃO validação E2E em 2 máquinas (gerar NF em A → aparece em B sem F5). NÃO anunciar resolvido sem essa prova."

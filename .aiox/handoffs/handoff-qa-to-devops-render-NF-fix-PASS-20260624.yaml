@@ -1,0 +1,51 @@
+handoff:
+  from_agent: qa
+  to_agent: devops
+  timestamp: "2026-06-24T17:25:00Z"
+  consumed: false
+  last_command: "*gate (fix render/sync NF entre máquinas)"
+  prioridade: ALTA
+  devops_path: "codex/.codex/agents/devops.md"
+
+  story_context:
+    story_id: "INCIDENTE — NFs não renderizam / divergência entre máquinas"
+    story_status: "GATE CONCERNS (PASS). Núcleo validado. Aprovado para deploy COM validação E2E obrigatória pós-deploy."
+    branch: master
+
+  gate_decision: CONCERNS
+  gate_doc: "docs/qa/gates/render-sync-NF-entre-maquinas-20260624.yml"
+
+  verificacoes_qa:
+    - "Fix 1 (realtime loadData antes de renderAll) e Fix 2 (boot render garantido) confirmados no diff."
+    - "TESTE NÚCLEO no navegador: memória presa desatualizada (bug) → após loadData() reidrata do localStorage → fix_funciona=true. Prova a correção da divergência entre máquinas."
+    - "Boot/aba NF: 50 linhas, contador 171, 'Nenhuma nota' some."
+    - "npm test 203/205 (pré-existentes, não-regressão)."
+
+  arquivos_a_commitar:
+    - "painel-caixa-escolar/squads/caixa-escolar/dashboard/js/gdp-realtime.js (loadData no scheduleRender)"
+    - "painel-caixa-escolar/squads/caixa-escolar/dashboard/js/gdp-init.js (boot render garantido)"
+    - "painel-caixa-escolar/squads/caixa-escolar/dashboard/gdp-contratos.html (bump gdp-realtime v9, gdp-init v44)"
+    - "painel-caixa-escolar/squads/caixa-escolar/dashboard/index.html (bump gdp-realtime v9)"
+    - "painel-caixa-escolar/squads/caixa-escolar/dashboard/gdp-portal.html (bump gdp-realtime v9)"
+    - "painel-caixa-escolar/squads/caixa-escolar/dashboard/gdp-entregador.html (bump gdp-realtime v9)"
+    - "docs/qa/gates/render-sync-NF-entre-maquinas-20260624.yml"
+    - ".aiox/handoffs/handoff-*render-NF*-20260624.yaml + handoff-analyst-to-architect-render-aba-NF + architect-to-dev-render-NF (4 desta cadeia)"
+    - "NÃO commitar ?? fora de escopo."
+
+  ACAO_DEVOPS:
+    commit: "fix(sync): realtime reidrata memória antes de renderizar — NF reflete entre máquinas [ARCH-sync]"
+    push: "git push origin master."
+    deploy: "cd painel-caixa-escolar && npx vercel --prod --force --yes."
+    gate_de_saida:
+      versoes: "curl gdp-contratos.html → gdp-realtime v9, gdp-init v44."
+      functions: "for fn in gdp-data gdp-integrations bank-charge caixa-proxy; curl → nenhum 404."
+    VALIDACAO_E2E_OBRIGATORIA: |
+      ANTES de declarar resolvido (exigência do usuário cético + @architect):
+      1. Máquina A (ou navegador A): gerar/alterar uma NF.
+      2. Máquina B (outro navegador/PC, mesma empresa LARIUCCI): SEM F5 nem comando, a NF deve
+         aparecer/atualizar em até ~1-2s (realtime + loadData + renderAll).
+      3. Boot do zero numa máquina: aba Notas Fiscais mostra as NFs sozinha, contador correto.
+      Se (1)(2)(3) passarem → resolvido. Se não → reabrir com @analyst.
+    orientar_usuario: "Ctrl+Shift+R nas duas máquinas para pegar gdp-realtime v9 / gdp-init v44."
+
+  next_action: "@devops: deploy --force + gate de saída + conduzir/instruir a validação E2E em 2 máquinas. NÃO anunciar resolvido sem a prova das 2 máquinas."

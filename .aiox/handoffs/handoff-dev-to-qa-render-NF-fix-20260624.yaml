@@ -1,0 +1,52 @@
+handoff:
+  from_agent: dev
+  to_agent: qa
+  timestamp: "2026-06-24T17:05:00Z"
+  consumed: false
+  last_command: "*develop (fix render NF / sync entre máquinas)"
+  prioridade: ALTA
+
+  story_context:
+    story_id: "INCIDENTE — NFs não renderizam (boot/realtime); divergência entre máquinas; contador 0"
+    story_status: "Fix implementado e validado no navegador. Ready for Review."
+    branch: master
+
+  fluxo: "@analyst → @architect → [data-engineer PULADO: frontend, banco íntegro] → @dev (aqui) → @qa → @devops (codex/.codex/agents/devops.md)"
+
+  causa_raiz: |
+    1. (PRINCIPAL) gdp-realtime.js scheduleRender() chamava renderAll() SEM recarregar a memória.
+       O realtime grava no localStorage (writeLocalItems), mas as variáveis em memória (notasFiscais)
+       NÃO eram reidratadas → máquina B recebia a NF nova no localStorage mas a tela lia a lista velha
+       da memória → divergência entre máquinas.
+    2. Boot: re-render só ocorria 'if (anyUpdated)' e via renderAll seletivo; por timing, a aba NF
+       podia ficar presa vazia / contador 0 com 171 em memória.
+
+  fixes_implementados:
+    fix_1_realtime_reidrata_memoria:
+      arquivo: "js/gdp-realtime.js — scheduleRender()"
+      mudanca: "Antes de renderAll(), chama window.loadData() para reidratar notasFiscais/pedidos/etc. a partir do localStorage atualizado pelo realtime. RESOLVE a divergência entre máquinas."
+    fix_2_boot_render_garantido:
+      arquivo: "js/gdp-init.js — fim do bloco Supabase-First"
+      mudanca: "Após o re-render condicional (anyUpdated), adicionado try { loadData(); renderAll(); } INCONDICIONAL ao final do boot, para garantir que a aba reflita os dados baixados mesmo se anyUpdated não capturou (timing)."
+    bump: "gdp-realtime v8→v9 (gdp-contratos, index, portal, entregador), gdp-init v43→v44 (gdp-contratos)."
+
+  validacao_dev_navegador_real:
+    - "loadData()+renderAll() com aba NF ativa: linhas_visiveis=50, contador_menu='171', ainda_vazio=false. ✅"
+    - "mem após loadData = 171 (reidrata corretamente)."
+    - "node --check OK em gdp-realtime.js e gdp-init.js."
+    - "npm test 203/205 (2 pré-existentes empresa_id, não-regressão; não toquei gdp-api.js)."
+
+  banco: "ÍNTEGRO. 175 NFs nfe_real, 0 manual_externa. Fix 100% frontend/render."
+
+  VALIDACAO_OBRIGATORIA_QA_2_MAQUINAS: |
+    Conforme exigência do @architect (e do usuário cético):
+    (a) boot do zero → aba NF mostra as NFs SEM comando manual;
+    (b) gerar/alterar NF na máquina A → aparece na máquina B (mesma empresa) via realtime SEM F5;
+    (c) contador do menu reflete o número correto.
+    NÃO aprovar como 'resolvido' sem (a)+(b)+(c). Idealmente validar em 2 navegadores simultâneos.
+
+  pontos_de_atencao:
+    - "O renderAll continua seletivo (perf) — o fix garante que loadData roda antes, e a aba ativa renderiza. Se a aba ativa não for NF, a aba NF não pinta até ser aberta (comportamento aceitável: ao abrir, o switchTab renderiza)."
+    - "Fase 2 (não neste fix): considerar atualizar contadores de TODAS as abas no realtime mesmo sem render da lista (já em renderKPIs, que renderAll chama)."
+
+  next_action: "@qa: validar o fix em 2 navegadores (realtime entre máquinas) + boot limpo. Confirmar (a)(b)(c). Depois @devops (codex/.codex/agents/devops.md) deploy."

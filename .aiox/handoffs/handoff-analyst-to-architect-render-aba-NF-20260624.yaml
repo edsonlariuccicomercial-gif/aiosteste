@@ -1,0 +1,62 @@
+handoff:
+  from_agent: analyst
+  to_agent: architect
+  timestamp: "2026-06-24T16:15:00Z"
+  consumed: false
+  last_command: "*investigate (NFs não renderizam / divergência entre máquinas)"
+  prioridade: ALTA
+
+  story_context:
+    story_id: "INCIDENTE — NFs em memória mas não renderizam na aba; divergência entre máquinas"
+    story_status: "CAUSA RAIZ ARQUITETURAL CONFIRMADA (login real). NÃO é cache nem dado — é RENDER seletivo + realtime."
+    branch: master
+
+  contexto_usuario: |
+    - angela e lariucci são 2 usuários da MESMA empresa (LARIUCCI). Comportamento esperado.
+    - Usuário CÉTICO (com razão): já dissemos 'sync resolvido na raiz' várias vezes e o problema voltou.
+      Estávamos corrigindo sintomas (carimbão, quota, deploy) sem atacar a raiz do RENDER/sync entre máquinas.
+    - PC do usuário está com gdp-core v=45 (confirmado por ele) → NÃO é cache velho. É bug do código atual.
+
+  sintomas:
+    - "Aba Notas Fiscais mostra 'Nenhuma nota fiscal gerada' e contador 0, MESMO com notasFiscais.length=171 em memória."
+    - "NF gerada hoje (1606/1607) aparece numa máquina e não em outra (mesmo usuário lariucci)."
+    - "'Atualizar da Nuvem' não traz / renderNotasFiscais() manual às vezes não resolve no PC do usuário."
+
+  dados_servidor: "175 NFs, todas LARIUCCI. 1606 e 1607 (hoje) PRESENTES, autorizadas, sem deleted_at. list() retorna 171 (4 deletadas filtradas). DADOS ÍNTEGROS."
+
+  CAUSA_RAIZ_CONFIRMADA:
+    o_problema: |
+      renderAll() → _renderAllImmediate() faz RENDER SELETIVO só da ABA ATIVA:
+        const activeBtn = document.querySelector('.sidebar-subitem.active[data-gdp-tab]');
+        const activeTab = activeBtn ? activeBtn.dataset.gdpTab : 'contratos';  // DEFAULT contratos!
+        switch (activeTab) { case 'notas-fiscais': renderNotasFiscais(); break; ... }
+      Logo, renderNotasFiscais() SÓ é chamado se a aba NF estiver ativa NAQUELE instante.
+    consequencia_boot: |
+      No boot, loadData() popula notasFiscais (171), mas o renderAll roda com activeTab='contratos'
+      (default) → renderNotasFiscais() NUNCA é chamado → a aba NF, se aberta depois, pode ficar presa
+      no estado vazio inicial ('Nenhuma nota fiscal gerada') porque o render dela não rodou com os dados.
+    consequencia_realtime_entre_maquinas: |
+      gdp-realtime.js scheduleRender() (linha 57) chama window.renderAll() (o SELETIVO). Quando a
+      máquina B recebe via realtime a NF nova criada pela máquina A, o renderAll só atualiza a aba
+      ATIVA da máquina B. Se a aba ativa não for notas-fiscais (ou a detecção falhar no timing), a NF
+      nova NÃO aparece na máquina B → divergência entre máquinas que o usuário relata.
+    por_que_renderNotasFiscais_manual_as_vezes_falha_no_PC_do_usuario: |
+      A INVESTIGAR pelo @architect: na sessão de teste (angela) renderNotasFiscais() mostra 50 linhas;
+      no PC do usuário ele relatou que não apareceu. Possível: a aba não estava com o painel visível
+      (display:none) no momento, ou paginação/filtro 'Todas' não estava ativo. O render precisa também
+      GARANTIR que o painel da aba esteja visível, não só preencher o tbody.
+
+  fix_proposto_alto_nivel:
+    1: "Boot: após loadData(), chamar renderNotasFiscais() (e os demais renders de lista) EXPLICITAMENTE uma vez, não depender do render seletivo da aba ativa. OU popular o estado de TODAS as abas no boot."
+    2: "Realtime: quando o evento é de notas_fiscais, re-renderizar a aba NF MESMO que não seja a ativa (atualizar o estado/contador), para não divergir entre máquinas. Pelo menos atualizar o contador do menu + re-render se a aba estiver aberta."
+    3: "renderNotasFiscais(): garantir que torna o painel visível e respeita o filtro ativo (Todas), para que o chamada manual/boot sempre pinte as linhas."
+    4: "Contador do menu (Notas Fiscais N) deve refletir notasFiscais.length sempre que muda — hoje mostra 0 com 171 em memória (dessincronizado)."
+
+  perguntas_para_architect:
+    - "O render seletivo por aba ativa é intencional (perf) — como reconciliar com a necessidade de a aba NF refletir dados sem estar ativa? Re-render no clique da aba já existe; o gap é boot + realtime."
+    - "Vale um renderActiveTab() robusto + um 'invalidar e re-render ao abrir aba' garantido?"
+    - "O contador do menu deve ser atualizado sempre (independente da aba ativa)?"
+
+  NOTA_HONESTIDADE: "Documentar no fix que ESTE é o vetor de sync/render entre máquinas que faltava — os fixes anteriores (carimbão/quota/deploy) eram outros vetores. Não anunciar 'resolvido' até validar nas DUAS máquinas sem comando manual."
+
+  next_action: "@architect: validar a causa (render seletivo + realtime renderAll seletivo) e desenhar fix que garanta: (a) boot renderiza NF, (b) realtime atualiza NF entre máquinas mesmo sem aba ativa, (c) contador do menu sempre correto. Depois @dev implementa, @qa valida nas 2 máquinas, @devops deploy."

@@ -1,0 +1,56 @@
+handoff:
+  from_agent: architect
+  to_agent: dev
+  timestamp: "2026-06-24T16:35:00Z"
+  consumed: false
+  last_command: "*analyze-impact (render NF / sync entre máquinas)"
+  prioridade: ALTA
+
+  story_context:
+    story_id: "INCIDENTE — NFs não renderizam (boot/realtime); contador 0 com 171 em memória; divergência entre máquinas"
+    story_status: "DESIGN FECHADO. Causa = render seletivo + falta de re-render quando o dado chega. Banco íntegro."
+    branch: master
+
+  causa_raiz_refinada_confirmada:
+    arquivo: "js/gdp-init.js"
+    mecanismo: |
+      1. renderKPIs() (linha ~1816-1834) JÁ atualiza TODOS os contadores incl. tab-count-notas-fiscais = notasFiscais.length.
+      2. _renderAllImmediate() (1845) chama renderKPIs() + renderiza SÓ A ABA ATIVA (switch activeTab, default 'contratos').
+      PROBLEMA REAL é de TIMING/ORDEM + RENDER SELETIVO:
+      - No boot, renderAll roda ANTES do sync trazer as NFs (notasFiscais=0 naquele instante) → contador 0,
+        aba NF vazia. Quando o sync/list traz as 171 DEPOIS, NÃO há re-render → contador fica 0, aba presa vazia.
+      - Realtime (gdp-realtime.js scheduleRender → renderAll) é seletivo: se a aba ativa da máquina B não for
+        notas-fiscais, a NF nova criada pela máquina A não pinta na B → DIVERGÊNCIA entre máquinas.
+    prova: "Login real: notasFiscais.length=171 em memória, list()=171 (inclui 1606/1607 de hoje), mas aba mostrava 0/'Nenhuma nota'. renderNotasFiscais() manual pintou 50 linhas. Confirma: dado existe, falta o render disparar quando o dado chega."
+
+  DESIGN_FIX:
+    fix_1_re_render_apos_sync:
+      o_que: "Quando o sync/list traz dados novos (boot OU forcarSyncCompleto OU realtime), DISPARAR renderAll() DEPOIS de popular notasFiscais — para atualizar contador + aba ativa."
+      onde: |
+        - forcarSyncCompleto (gdp-core.js) JÁ chama loadData()+renderAll() ao final — confirmar que roda após o list das tabelas dedicadas (sim, linha ~692-693). Garantir que renderAll é chamado APÓS notasFiscais estar populado.
+        - Boot (gdp-init.js): após o full load das tabelas dedicadas no boot, chamar renderAll() (ou renderKPIs()+render da aba ativa) UMA vez com os dados já em memória.
+    fix_2_contadores_sempre:
+      o_que: "renderKPIs() já cobre todos os contadores; garantir que renderKPIs() seja chamado SEMPRE que notasFiscais muda (sync/realtime/CRUD), independente da aba ativa."
+      racional: "O contador do menu é barato de atualizar; não deve depender da aba ativa. Já está em renderKPIs — basta garantir que renderKPIs roda nos eventos de dados."
+    fix_3_realtime_entre_maquinas:
+      o_que: "No handler de notas_fiscais do gdp-realtime.js (handleEntityChange), além do scheduleRender (renderAll seletivo), garantir renderKPIs() (contador) e, se a aba NF estiver ativa, renderNotasFiscais()."
+      racional: "Assim a máquina B reflete a NF nova da máquina A: contador sempre, e a lista se estiver olhando a aba NF. Resolve a divergência relatada."
+    fix_4_render_robusto_aba_NF:
+      o_que: "renderNotasFiscais() deve GARANTIR que o painel da aba está visível e respeitar o filtro 'Todas' por padrão, para que boot/realtime/clique sempre pintem as linhas (o usuário relatou render manual falhando — investigar se o painel estava display:none ou filtro != Todas)."
+      nota: "@dev: verificar se renderNotasFiscais depende de algum estado de filtro/aba que pode estar zerado no boot."
+
+  recomendacao_minima: "Fix 1 + Fix 2 resolvem o caso do usuário (boot e forcarSync re-renderizam com os dados). Fix 3 resolve a divergência entre máquinas (realtime). Fix 4 é robustez do render."
+
+  validacao_OBRIGATORIA_2_maquinas: |
+    NÃO declarar resolvido sem: (a) boot do zero → aba NF mostra as 171 SEM comando manual;
+    (b) gerar NF na máquina A → aparece na máquina B (mesma empresa) sem F5/comando, via realtime;
+    (c) contador do menu reflete o número correto sempre.
+
+  arquivos_alvo:
+    - "js/gdp-init.js (boot re-render + renderKPIs nos eventos)"
+    - "js/gdp-core.js (forcarSyncCompleto — confirmar renderAll após dados)"
+    - "js/gdp-realtime.js (handler NF: renderKPIs + renderNotasFiscais se aba ativa)"
+    - "js/gdp-notas-fiscais.js (renderNotasFiscais robusto — visibilidade/filtro)"
+  bump: "gdp-init, gdp-core, gdp-realtime, gdp-notas-fiscais conforme alterados."
+
+  next_action: "@dev: implementar Fix 1+2 (re-render após sync + contadores sempre) e Fix 3 (realtime NF). Testar no navegador logado: boot mostra NF sem comando; simular realtime; contador correto. Depois @qa valida nas 2 máquinas, @devops deploy."
