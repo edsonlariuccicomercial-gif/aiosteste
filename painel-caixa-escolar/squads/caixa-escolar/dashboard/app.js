@@ -74,6 +74,16 @@ async function boot() {
   loadListaCompras();
   carregarModulosConfig();
   aplicarAcessoSidebar();
+  // Story 22.2 (P2): hidrata a config de módulos do Supabase (verdade online) e re-aplica a sidebar.
+  // Mesmo padrão de gdp-init.js e dashboard-home.html. index.html não chamava → módulos "remarcavam"
+  // sozinhos em multi-device (mostrava o cache local stale). Idempotente e à prova de falha.
+  // gdpApi.modulos.get() já regrava o cache local; após hidratar, re-sincroniza também os checkboxes
+  // do painel de módulos (carregarModulosConfig lê o cache atualizado).
+  if (typeof hidratarAcessoModulosOnline === "function") {
+    Promise.resolve(hidratarAcessoModulosOnline()).then(function () {
+      if (typeof carregarModulosConfig === "function") carregarModulosConfig();
+    });
+  }
 
   // Data version check
   const DATA_VERSION = "v5";

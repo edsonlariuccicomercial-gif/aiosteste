@@ -368,8 +368,11 @@ async function syncFromCloud() {
   if (!rows || rows.length === 0) return { restored: false, rowCount: 0, source: "local_cache", lastSyncAt: "" };
   let synced = 0;
   let newest = "";
-  // Keys gerenciadas pelo gdpApi (tabelas reais) — ignorar no sync legado
-  const _GDPAPI_KEYS = new Set(['gdp.contratos.v1','gdp.pedidos.v1','gdp.notas-fiscais.v1','gdp.contas-receber.v1','gdp.contas-pagar.v1','gdp.entregas.provas.v1','gdp.usuarios.v1']);
+  // Keys gerenciadas pelo gdpApi (tabelas reais) — ignorar no sync legado.
+  // ADR-003: conciliacao/extratos entram aqui — o blob sync_data legado NÃO carrega extratoId
+  // e sobrescrevia a tabela íntegra (gdpApi), zerando o vínculo extratoId → extrato "0/0".
+  // A verdade do caixa vem SÓ da tabela (carregada em gdp-init.js Supabase-First).
+  const _GDPAPI_KEYS = new Set(['gdp.contratos.v1','gdp.pedidos.v1','gdp.notas-fiscais.v1','gdp.contas-receber.v1','gdp.contas-pagar.v1','gdp.entregas.provas.v1','gdp.usuarios.v1','gdp.conciliacao.v1','gdp.extratos.v1']);
 
   // Story 4.83-fix: Pré-carregar TODAS as chaves .deleted.v1 do cloud ANTES do loop principal.
   // Em browser novo, localStorage não tem deleted.v1 — sem isso, o filtro na passada principal
@@ -587,6 +590,10 @@ async function syncToCloud(signal) {
     if (!raw) return;
     try {
       const data = JSON.parse(raw);
+      // ADR-003: caixa = fonte única = tabela Supabase (gdpApi). NÃO publicar o blob sync_data
+      // legado de conciliacao/extratos — ele não carrega extratoId e re-gerava o blob stale que
+      // sobrescrevia a tabela íntegra (bug do extrato "0/0"). gdpApi já persiste cada item na tabela.
+      if (_SUPABASE_TABLE_KEYS.has(key)) return;
       // Story 4.64: never upload conciliacao/extratos in legacy array format
       if ((key === 'gdp.conciliacao.v1' || key === 'gdp.extratos.v1') && Array.isArray(data)) return;
       // Story 4.83-fix: Proteger conciliação — nunca publicar listas corrompidas
@@ -3219,6 +3226,30 @@ function saveConciliacao(items) {
   }
 }
 
+// ADR-003: rede de segurança. Re-hidrata extratoId dos itens de conciliação a partir da tabela
+// Supabase (gdpApi.conciliacoes, fonte da verdade — sempre tem extrato_id) por id. Cobre qualquer
+// item órfão remanescente (blob legado) durante a transição. Idempotente: só grava se mudou.
+// Reutiliza o padrão do recovery de boot (ver loadData ~linha 1455). Chamada ANTES de renderConciliacao
+// nos handlers de conciliar, para que o extrato não apareça "0/0".
+async function _autoCurarExtratoIdConciliacao() {
+  try {
+    if (!window.gdpApi || !window.gdpApi.conciliacoes || !window.gdpApi.conciliacoes.list) return;
+    var rows = await window.gdpApi.conciliacoes.list();
+    if (!Array.isArray(rows) || !rows.length) return;
+    var byId = {};
+    rows.forEach(function (r) { if (r && r.id && r.extratoId) byId[r.id] = r.extratoId; });
+    var local = loadConciliacao();
+    var changed = false;
+    local.forEach(function (i) { if (i && !i.extratoId && byId[i.id]) { i.extratoId = byId[i.id]; changed = true; } });
+    if (changed) {
+      saveConciliacao(local);
+      if (typeof atualizarExtratoStats === 'function') atualizarExtratoStats();
+      gdpLog('[ADR-003] auto-cura re-vinculou extratoId de itens de conciliação órfãos');
+    }
+  } catch (_) { /* fallback gracioso: mantém o estado atual */ }
+}
+if (typeof window !== 'undefined') window._autoCurarExtratoIdConciliacao = _autoCurarExtratoIdConciliacao;
+
 // Story 4.51 AC-C1/C2/C3: extrato management
 function loadExtratos() {
   try {
@@ -3532,6 +3563,8 @@ window.conciliarComBaixa = function(idx, contaId, tipo) {
 
   atualizarExtratoStats();
   renderConciliacao();
+  // ADR-003: rede de segurança — re-vincula extratoId se um echo de sync zerou o vínculo, e re-renderiza.
+  _autoCurarExtratoIdConciliacao().then(function () { if (typeof renderConciliacao === 'function') renderConciliacao(); });
   const label = tipo === 'cp' ? 'Conta a Pagar' : 'Conta a Receber';
   showToast('Conciliado e baixado: ' + label + ' vinculada automaticamente.', 4000);
 };
@@ -3544,13 +3577,15 @@ window.conciliarLancamento = function(idx) {
     saveConciliacao(items);
     atualizarExtratoStats();
     renderConciliacao();
+    // ADR-003: rede de segurança — re-vincula extratoId se um echo de sync zerou o vínculo, e re-renderiza.
+    _autoCurarExtratoIdConciliacao().then(function () { if (typeof renderConciliacao === 'function') renderConciliacao(); });
     showToast("Lançamento conciliado.");
   }
 };
 
 window.toggleConciliado = function(idx) {
   const items = loadConciliacao();
-  if (items[idx]) { items[idx].conciliado = !items[idx].conciliado; saveConciliacao(items); atualizarExtratoStats(); renderConciliacao(); }
+  if (items[idx]) { items[idx].conciliado = !items[idx].conciliado; saveConciliacao(items); atualizarExtratoStats(); renderConciliacao(); _autoCurarExtratoIdConciliacao().then(function () { if (typeof renderConciliacao === 'function') renderConciliacao(); }); }
 };
 
 // Story 4.51 AC-C2: delete selected extratos
