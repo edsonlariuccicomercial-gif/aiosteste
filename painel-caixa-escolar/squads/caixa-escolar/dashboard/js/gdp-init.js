@@ -3059,13 +3059,22 @@ async function enviarTiny(contratoId) {
     }
     // Resolução definitiva: recovery no boot — destrava NFs órfãs de transmissão (frente 1) e
     // reconcilia cobranças órfãs (frente 2). Roda 1x, após o boot, fora da janela de carimbão.
-    if (typeof window.recoverNfsTransmissaoOrfas === 'function') {
-      try { window.recoverNfsTransmissaoOrfas(); } catch (_) {}
+    // FIX (validação 2026-06-25): re-executar ~4s depois também. No boot, o realtime pode trazer um
+    // estado ANTIGO (NF em_preparo) DEPOIS do recovery inicial, e a memória pode não estar 100% populada
+    // no instante do _gdpEndBootWindow. A 2ª passada garante que NF/cobrança órfãs sejam reconciliadas
+    // mesmo após a estabilização do realtime. Idempotente (não re-marca o que já está correto).
+    function _runOrphanRecovery() {
+      var revNf = 0, recCob = 0;
+      if (typeof window.recoverNfsTransmissaoOrfas === 'function') {
+        try { revNf = (window.recoverNfsTransmissaoOrfas() || {}).revertidas || 0; } catch (_) {}
+      }
+      if (typeof window.reconciliarCobrancasOrfas === 'function') {
+        try { var r = window.reconciliarCobrancasOrfas() || {}; recCob = (r.marcadas || 0) + (r.revertidas || 0); } catch (_) {}
+      }
+      if ((revNf || recCob) && typeof window.renderAll === 'function') { try { window.renderAll(); } catch (_) {} }
     }
-    if (typeof window.reconciliarCobrancasOrfas === 'function') {
-      try { window.reconciliarCobrancasOrfas(); } catch (_) {}
-    }
-    if (typeof window.renderAll === 'function') { try { window.renderAll(); } catch (_) {} }
+    _runOrphanRecovery();                       // 1ª passada (pós-boot imediato)
+    setTimeout(_runOrphanRecovery, 4000);       // 2ª passada (após estabilização do realtime)
     gdpLog('[boot] janela de boot encerrada — saves voltam a persistir normalmente');
   }
 

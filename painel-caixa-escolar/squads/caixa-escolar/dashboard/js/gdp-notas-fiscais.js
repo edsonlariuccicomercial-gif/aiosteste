@@ -846,12 +846,19 @@ function reconciliarCobrancasOrfas() {
   var marcadas = 0, revertidas = 0;
   try {
     (contasReceber || []).forEach(function (conta) {
-      if (!conta || conta.origemTipo !== "nota_fiscal" || !conta.origemId) return;
+      if (!conta) return;
+      // FIX (validação 2026-06-25): contas LEGADAS de NF não tinham origemTipo='nota_fiscal' (a CR órfã da
+      // 1608 não tinha o campo). Reconhecer conta de NF de forma robusta: origemTipo explícito OU origemId/
+      // notaFiscalId que aponta p/ uma NF existente. Sem isso, contas antigas escapavam do detector.
+      var idNf = conta.origemId || conta.notaFiscalId;
+      var nf = idNf ? (notasFiscais || []).find(function (n) { return n.id === idNf; }) : null;
+      var ehDeNf = conta.origemTipo === "nota_fiscal" || !!nf || !!conta.notaFiscalId;
+      if (!ehDeNf || !idNf) return;
       if (conta.status === "recebida" || conta.status === "cancelada") return;
-      var nf = (notasFiscais || []).find(function (n) { return n.id === conta.origemId; });
       var temProva = nf && temProvaAutorizacao(nf);
       if (!temProva && conta._orfa !== true) {
         conta._orfa = true;
+        conta.origemTipo = conta.origemTipo || "nota_fiscal"; // backfill do campo legado
         conta.status = "aguardando_nf";
         conta.audit = Object.assign({}, conta.audit, {
           orfaMotivo: "nf_sem_prova_autorizacao",
