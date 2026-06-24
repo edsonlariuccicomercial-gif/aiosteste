@@ -3037,6 +3037,10 @@ async function enviarTiny(contratoId) {
   // Story 22.1 (FR-22.1.2): aplicar o controle de acesso por módulo na sidebar do GDP.
   // Antes, gdp-contratos.html nunca aplicava a config — módulos ocultos sempre apareciam aqui.
   if (typeof aplicarAcessoSidebar === "function") aplicarAcessoSidebar();
+  // Story 22.2 (FR-22.2.2): hidrata a config a partir do Supabase (fonte da verdade online) e
+  // re-aplica a sidebar. O aplicarAcessoSidebar() acima usa o cache local (resposta instantânea);
+  // esta chamada corrige se outra máquina alterou a config. Fallback gracioso se offline.
+  if (typeof hidratarAcessoModulosOnline === "function") hidratarAcessoModulosOnline();
 
   // ARCH-sync Passo 1 (FIX-A): desligamento IDEMPOTENTE da janela de boot. Chamado tanto no
   // fim do deferred-sanitize (ponto primário) quanto pelo fallback de 8s — o guard _ended

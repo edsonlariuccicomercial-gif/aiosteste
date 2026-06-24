@@ -1,0 +1,46 @@
+handoff:
+  from_agent: data-engineer
+  to_agent: dev
+  timestamp: "2026-06-24T12:35:00Z"
+  consumed: false
+  last_command: "*apply-migration (039_empresa_modulos_epic22.sql)"
+
+  story_context:
+    story_id: "22.2 — Persistência ONLINE da visibilidade de módulos (Supabase)"
+    story_status: "BANCO PRONTO E VALIDADO. Migration 039 aplicada em produção. Pronto p/ @dev implementar a camada de código."
+    branch: master
+
+  o_que_foi_feito:
+    migration: "painel-caixa-escolar/supabase/migrations/039_empresa_modulos_epic22.sql — CRIADA e APLICADA (supabase db push)."
+    tabela: "empresa_modulos (PK empresa_id, BOOLEAN radar/intel_precos/gdp default true, metadata JSONB, created_at, updated_at)."
+    padrao: "Espelha caixa_config (028): singleton por empresa_id, trigger updated_at, RLS anon, realtime."
+
+  validacoes_executadas_PASS:
+    v1_tabela_e_seed: "GET retorna linha LARIUCCI com radar/intel_precos/gdp=true (default seguro). RLS anon READ OK."
+    v2_filtro_empresa: "empresa_id=eq.LARIUCCI&limit=1 retorna a linha. Padrão de leitura do front OK."
+    v3_rls_write: "Upsert anon (POST on_conflict=empresa_id, Prefer merge-duplicates) funcionou — alterou radar=false e voltou. RLS WRITE OK."
+    v4_trigger_updated_at: "updated_at avançou no UPDATE (12:33:17 → 12:33:55), created_at preservado. Trigger OK."
+    v5_upsert_idempotente: "on_conflict=empresa_id mesclou sem duplicar linha. OK."
+    limpeza: "Estado restaurado para default seguro (tudo true) — sem efeito colateral no sistema."
+
+  contrato_para_o_dev:
+    tabela: "empresa_modulos"
+    colunas_snake: "empresa_id, radar, intel_precos, gdp, metadata, created_at, updated_at"
+    mapeamento_camel: "intelPrecos → intel_precos (registrar em CAMEL_TO_SNAKE do gdp-api.js). radar/gdp iguais."
+    leitura: "GET /rest/v1/empresa_modulos?empresa_id=eq.{emp}&limit=1"
+    escrita: "POST /rest/v1/empresa_modulos?on_conflict=empresa_id com Prefer: resolution=merge-duplicates"
+    default_seguro: "Sem linha no banco OU campo ausente → tratar como true (visível). NUNCA travar (AC3)."
+
+  tarefas_do_dev:
+    1: "gdp-api.js: registrar entidade/acesso 'modulos' — TABLE_COLS['empresa_modulos'] = ['empresa_id','radar','intel_precos','gdp','metadata','created_at','updated_at']; CAMEL_TO_SNAKE: intelPrecos→intel_precos."
+    2: "gdp-api.js: criar modulosApi espelhando caixaConfigApi (gdp-api.js:512) — get() lê via sbFetch + cache local fallback; save(cfg) faz mapToTable + _markSelfEcho('empresa_modulos', empresa_id, row) + sbUpsert(...,'empresa_id') + cache local. Expor como gdpApi.modulos."
+    3: "modulos-acesso.js: getAcessoModulos() passa a hidratar do gdpApi.modulos.get() no init (mantendo leitura síncrona do cache p/ não quebrar chamadas existentes); setAcessoModulos() → gdpApi.modulos.save(). Manter default seguro (tudo true)."
+    4: "gdp-realtime.js: handler para empresa_modulos → ao receber update, re-executar aplicarAcessoSidebar()."
+    5: "Bump ?v= de modulos-acesso.js, gdp-api.js, gdp-realtime.js nos HTML que os carregam (index.html, dashboard-home.html, gdp-contratos.html)."
+    6: "Migração localStorage: SEMEAR na 1ª escrita (não migrar em massa no boot — anti-carimbão). Banco vence na leitura."
+
+  rollback_disponivel: |
+    Se necessário reverter: DROP TABLE IF EXISTS empresa_modulos CASCADE; (remove trigger/policies junto).
+    A config volta a viver só em localStorage (comportamento atual pré-22.2). Sem perda de dados de negócio.
+
+  next_action: "@dev: implementar modulosApi + wiring (tarefas 1-6). Banco PASS, contrato definido. Depois → @qa valida AC1-AC5."

@@ -1,0 +1,61 @@
+handoff:
+  from_agent: qa
+  to_agent: devops
+  timestamp: "2026-06-24T13:05:00Z"
+  consumed: false
+  last_command: "*gate 22.2"
+
+  story_context:
+    story_id: "22.2 — Persistência ONLINE da visibilidade de módulos (Supabase)"
+    story_status: "GATE CONCERNS (PASS com ressalvas não-bloqueantes). Aprovado para deploy."
+    branch: master
+
+  gate_decision: CONCERNS
+  gate_doc: "docs/qa/gates/22.2-modulos-online.yml"
+  significado: "PASS com ressalvas. Nenhum CRITICAL/HIGH. CONCERNS são runtime (multi-device/offline) + débito pré-existente. Libera deploy."
+
+  validacoes_qa_independentes:
+    - "tests/ NÃO foi alterado (git diff vazio) → falhas pré-existentes confirmadas."
+    - "git stash do gdp-api.js → mesmos 2 testes falham (203/2) = NÃO é regressão da 22.2."
+    - "Os 2 testes falhos são 'empresa_id resolution' (mock syncUserId) — sem relação com módulos."
+    - "Banco: empresa_modulos LARIUCCI tudo-true (default seguro AC3) ✅."
+    - "Segurança: GET sem apikey → 401 (RLS/auth ativo) ✅."
+    - "_markSelfEcho('empresa_modulos') no save (AC5) ✅; handler realtime re-aplica sidebar (AC1) ✅."
+    - "node --check PASS nos 4 JS alterados."
+
+  ACAO_DEVOPS:
+    commit: |
+      Commitar os arquivos da Story 22.2:
+      - painel-caixa-escolar/supabase/migrations/039_empresa_modulos_epic22.sql
+      - painel-caixa-escolar/squads/caixa-escolar/dashboard/gdp-api.js
+      - painel-caixa-escolar/squads/caixa-escolar/dashboard/modulos-acesso.js
+      - painel-caixa-escolar/squads/caixa-escolar/dashboard/js/gdp-realtime.js
+      - painel-caixa-escolar/squads/caixa-escolar/dashboard/js/gdp-init.js
+      - painel-caixa-escolar/squads/caixa-escolar/dashboard/gdp-contratos.html
+      - painel-caixa-escolar/squads/caixa-escolar/dashboard/index.html
+      - painel-caixa-escolar/squads/caixa-escolar/dashboard/dashboard-home.html
+      - docs/stories/22.2.story.md
+      - docs/qa/gates/22.2-modulos-online.yml
+      - .aiox/handoffs/* (desta sessão)
+      NÃO commitar os ?? não relacionados (PDFs, nfe-modelo.xml, deno.lock, etc.) — fora de escopo.
+    migration: "Já aplicada em prod (@data-engineer via supabase db push). Só versionar o .sql no git."
+    push: "git push origin master."
+    deploy: "cd painel-caixa-escolar && npx vercel --prod --force --yes (build do zero)."
+    nota_deploy: |
+      O push deste lote TOCA painel-caixa-escolar/** → vai DISPARAR o deploy.yml automático (agora
+      com --force, corrigido nesta sessão). Mesmo assim, rodar o --force manual como reforço/imediato.
+
+  gate_de_saida_devops:
+    versoes: |
+      curl da gdp-contratos.html deve servir: gdp-api.js?v=21, gdp-realtime.js?v=8, modulos-acesso.js?v=2.
+      curl do index.html: gdp-api.js?v=20, gdp-realtime.js?v=8, modulos-acesso.js?v=2.
+    functions: "for fn in gdp-data gdp-integrations bank-charge caixa-proxy ai-parse-price send-order-email; curl → nenhum 404."
+    validacao_runtime_AC1: "Abrir gdp-contratos.html em 2 navegadores; ocultar um módulo num; recarregar/aguardar realtime no outro → módulo some. (AC1)"
+    validacao_runtime_AC4: "Simular offline (devtools) e recarregar → não quebra, usa cache local. (AC4)"
+    ctrl_shift_r: "Orientar usuário: Ctrl+Shift+R em cada PC."
+
+  debitos_para_proxima_sessao:
+    - "2 testes pré-existentes 'empresa_id resolution' no mock (não-regressão) — corrigir mock."
+    - "Item 4 (saveAll clientes), Item 2 (Central Produtos ADR-002), Item 3 (sync_data) — próximas rodadas."
+
+  next_action: "@devops: commit (só arquivos da 22.2) + push + deploy --force + gate de saída (versões/functions/multi-device)."

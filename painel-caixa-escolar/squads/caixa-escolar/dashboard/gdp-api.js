@@ -124,6 +124,7 @@
     extratos: ['id','empresa_id','data','arquivo','conta_financeira','conciliados','total','is_open','criado_em','deleted_at','created_at','updated_at'],
     conciliacoes: ['id','empresa_id','extrato_id','data','descricao','valor','tipo','conciliado','conciliado_em','vinculado_a','historico','categoria_dre','metadata','deleted_at','created_at','updated_at'],
     caixa_config: ['empresa_id','saldo_inicial','saldo_inicial_data','metadata','created_at','updated_at'],
+    empresa_modulos: ['empresa_id','radar','intel_precos','gdp','metadata','created_at','updated_at'],
     produtos: ['id','empresa_id','descricao','sku','ncm','unidade','marca','grupo','produto_critico','unidade_base','embalagens','custo_base','preco_referencia','margem_alvo','fonte','created_at','updated_at'],
     lancamentos_cliente: ['id','empresa_id','cliente_id','data','tipo','valor','descricao','origem','deleted_at','created_at','updated_at'],
     lancamentos_itens: ['id','empresa_id','lancamento_id','produto','quantidade','unidade','valor_unitario','subtotal','created_at','updated_at']
@@ -136,6 +137,7 @@
     contaFinanceira:'conta_financeira', isOpen:'is_open', criadoEm:'criado_em',
     extratoId:'extrato_id', conciliadoEm:'conciliado_em', vinculadoA:'vinculado_a', categoriaDre:'categoria_dre', deletedAt:'deleted_at',
     saldoInicial:'saldo_inicial', saldoInicialData:'saldo_inicial_data',
+    intelPrecos:'intel_precos',
     nomeFantasia:'nome_fantasia', razaoSocial:'razao_social',
     categoriaCatalogo:'categoria_catalogo', arpVinculada:'arp_vinculada',
     saldoTotal:'saldo_total', saldoDisponivel:'saldo_disponivel', contribuinteIcms:'contribuinte_icms',
@@ -551,6 +553,56 @@
     }
   };
 
+  // Story 22.2 (EPIC-22) — empresa_modulos: visibilidade de módulos por empresa (1 linha por empresa_id).
+  // PK = empresa_id (não 'id'), então usa helper dedicado em vez da factory CRUD (espelha caixaConfigApi).
+  // Default SEGURO: sem linha/campo no banco → módulo VISÍVEL (nunca travar cliente — AC3).
+  var MODULOS_LS = (typeof window !== 'undefined' && window.MODULOS_ACESSO_KEY) || 'nexedu.modulos.acesso';
+  var modulosApi = {
+    // Lê do Supabase; cai no cache local; nunca lança. Retorna {radar,intelPrecos,gdp} (camelCase).
+    get: async function () {
+      var emp = getEmpresaId();
+      try {
+        var rows = await sbFetch('/empresa_modulos?empresa_id=eq.' + encodeURIComponent(emp) + '&limit=1');
+        if (rows && Array.isArray(rows) && rows.length > 0) {
+          var r = rows[0];
+          // Default seguro: campo ausente/null → true (visível).
+          var cfg = {
+            radar:       r.radar !== false,
+            intelPrecos: r.intel_precos !== false,
+            gdp:         r.gdp !== false
+          };
+          try { localStorage.setItem(MODULOS_LS, JSON.stringify(cfg)); } catch (_) {}
+          return cfg;
+        }
+      } catch (_) { /* offline/tabela ausente → fallback abaixo */ }
+      // Fallback: cache local. Se nem isso → default seguro (tudo visível).
+      try {
+        var raw = JSON.parse(localStorage.getItem(MODULOS_LS) || 'null');
+        if (raw) return { radar: raw.radar !== false, intelPrecos: raw.intelPrecos !== false, gdp: raw.gdp !== false };
+      } catch (_) {}
+      return { radar: true, intelPrecos: true, gdp: true };
+    },
+    // Grava a config no Supabase + cache local. Aceita {radar,intelPrecos,gdp} (booleans).
+    save: async function (cfg) {
+      cfg = cfg || {};
+      var row = {
+        empresa_id:   getEmpresaId(),
+        radar:        cfg.radar !== false,
+        intel_precos: cfg.intelPrecos !== false,
+        gdp:          cfg.gdp !== false,
+        updated_at:   new Date().toISOString()
+      };
+      // Echo suppression: empresa_modulos usa empresa_id como chave. Sem isto, o eco do próprio
+      // save poderia reverter a config via realtime na mesma sessão (AC5).
+      _markSelfEcho('empresa_modulos', row.empresa_id, row);
+      var ok = await sbUpsert('empresa_modulos', row, 'empresa_id');
+      try {
+        localStorage.setItem(MODULOS_LS, JSON.stringify({ radar: row.radar, intelPrecos: row.intel_precos, gdp: row.gdp }));
+      } catch (_) {}
+      return ok;
+    }
+  };
+
   // EPIC-20 Story 20.9.1 — Conta-Corrente do Cliente
   // Saldo SEMPRE recalculado dos lançamentos (princípio P3 do PRD): nunca materializado.
   // saldo = Σ(valor WHERE tipo=credito) − Σ(valor WHERE tipo=debito), ativos (deleted_at IS NULL).
@@ -606,6 +658,7 @@
     contaCorrente:  contaCorrenteApi,
     nf_counter:     nfCounterApi,
     caixaConfig:    caixaConfigApi,
+    modulos:        modulosApi,
     getEmpresaId:        getEmpresaId,
     setEmpresaContext:   setEmpresaContext,
     isReady:             isReady,

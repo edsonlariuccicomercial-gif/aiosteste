@@ -1,0 +1,56 @@
+storyId: "22.2"
+title: "Persistência ONLINE da visibilidade de módulos (Supabase, por empresa)"
+gateDate: "2026-06-24"
+reviewer: "@qa (Quinn)"
+verdict: CONCERNS
+
+summary: >
+  Implementação sólida, baixo risco, clone do padrão caixa_config validado em produção.
+  PASS com CONCERNS: o código atende AC1-AC5 e a segurança RLS está correta; os CONCERNS são
+  itens de validação runtime (multi-device/offline) que só podem ser confirmados em produção
+  pós-deploy, mais o débito de 2 testes pré-existentes (não-regressão).
+
+sevenChecks:
+  code_review: PASS        # modulosApi espelha caixaConfigApi; default seguro + echo suppression corretos
+  unit_tests: CONCERNS     # 203/205 passam; 2 falhas PRÉ-EXISTENTES (empresa_id resolution), não-regressão
+  acceptance_criteria: PASS # AC1-AC5 mapeados a evidência de código + validação de banco
+  no_regressions: PASS     # tests/ não tocado; 2 falhas idênticas com/sem a mudança (git stash confirmou)
+  performance: PASS        # save não-bloqueante; leitura com cache; sem N+1
+  security: PASS           # RLS ativa (401 sem apikey); RLS por empresa_id; sem segredos
+  documentation: PASS      # story Dev Agent Record completo; migration comentada
+
+acceptance_traceability:
+  AC1_reflete_outro_navegador: "handler realtime empresa_modulos → hidratarAcessoModulosOnline → aplicarAcessoSidebar. CÓDIGO OK; validar multi-device em prod."
+  AC2_isolamento_empresa: "RLS por empresa_id + filtro server-side da subscription. OK (single-tenant LARIUCCI hoje)."
+  AC3_default_seguro: "schema DEFAULT true + fallback código (radar!==false) + banco validado (tudo true). PASS."
+  AC4_fallback_offline: "try/catch em modulosApi.get + cache local + hidratar à prova de falha. CÓDIGO OK; validar offline em prod."
+  AC5_sem_auto_reversao: "_markSelfEcho('empresa_modulos', empresa_id, row) no save. PASS."
+
+evidence:
+  - "QA CHECK independente: tests/ não foi alterado (git diff vazio) — falhas pré-existentes confirmadas."
+  - "git stash do gdp-api.js → mesmos 2 testes falham (203/2) = não é regressão."
+  - "Banco: GET empresa_modulos retorna LARIUCCI tudo-true (default seguro)."
+  - "Segurança: GET sem apikey → 401 (RLS/auth ativo)."
+  - "node --check PASS em gdp-api.js, modulos-acesso.js, gdp-realtime.js, gdp-init.js."
+
+issues:
+  - severity: medium
+    category: tests
+    description: "2 testes 'empresa_id resolution' falham no mock environment. PRÉ-EXISTENTES (não introduzidos pela 22.2)."
+    recommendation: "Abrir débito técnico separado p/ corrigir o mock da suíte. NÃO bloqueia esta story."
+  - severity: low
+    category: requirements
+    description: "AC1 (multi-device) e AC4 (offline) só validáveis em runtime pós-deploy."
+    recommendation: "@devops valida em produção após deploy: alterar config num navegador e confirmar em outro + testar offline."
+  - severity: low
+    category: code
+    description: "dashboard-home.html carrega modulos-acesso mas não gdp-api.js → hidratação online cai no fallback local."
+    recommendation: "Aceitável (home sem sync). Avaliar incluir gdp-api.js na home se quiser hidratação online lá também."
+
+decision_rationale: >
+  Nenhum issue CRITICAL ou HIGH. A implementação é um clone fiel de um padrão já em produção
+  (caixa_config), com defense-in-depth (RLS, default seguro, echo suppression, fallback). Os
+  CONCERNS são de natureza runtime/débito pré-existente, não bloqueantes. Aprovado para deploy
+  com validação multi-device/offline a cargo do @devops em produção.
+
+next_action: "@devops: commit + push + deploy --force; validar multi-device (AC1) e offline (AC4) em prod; rodar gate de saída."

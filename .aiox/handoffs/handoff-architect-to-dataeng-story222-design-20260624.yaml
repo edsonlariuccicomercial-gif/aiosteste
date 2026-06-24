@@ -1,0 +1,95 @@
+handoff:
+  from_agent: architect
+  to_agent: data-engineer
+  timestamp: "2026-06-24T12:30:00Z"
+  consumed: false
+  last_command: "*assess-complexity + design (Story 22.2 schema)"
+
+  story_context:
+    story_id: "22.2 — Persistência ONLINE da visibilidade de módulos (Supabase, por empresa)"
+    story_status: "DESIGN FECHADO pelo @architect. Baixo risco: clone do padrão caixa_config em produção."
+    branch: master
+
+  decisao_de_priorizacao:
+    confirmada: "SIM — ordem do @analyst aprovada."
+    escopo_desta_rodada: "APENAS Story 22.2 (item 1). É a entrega completa até deploy desta execução."
+    itens_2_3_4: |
+      - Item 4 (saveAll clientes): fix pontual, registrado como follow-up. Pode virar story curta depois.
+      - Itens 2 (Central Produtos) e 3 (sync_data): seguem o ADR-002 já aprovado, faseado e GRANDE.
+        NÃO entram nesta rodada — exigem stories próprias por fase (F0→F4). Acoplar agora seria
+        violar 'Progressive Complexity' e arriscar a entrega da 22.2. Documentados para próxima sessão.
+
+  DECISAO_ARQUITETURAL_STORY_222:
+    schema: "Tabela NOVA 'empresa_modulos' (singleton por empresa_id), NÃO coluna JSON em tabela existente."
+    justificativa: |
+      O projeto JÁ TEM o padrão exato: 'caixa_config' (migration 028) — tabela config singleton com
+      empresa_id como PK. Reusar esse padrão (boring technology) em vez de inventar. Tabela dedicada
+      > coluna JSON porque: (a) RLS própria por empresa_id, (b) realtime granular, (c) não polui
+      tabela de empresa existente, (d) espelha 1:1 o caixaConfigApi que já funciona.
+    modelo_de_referencia:
+      ddl: "painel-caixa-escolar/supabase/migrations/028_caixa_persistence_epic17.sql (caixa_config)"
+      codigo: "gdp-api.js:512 caixaConfigApi (get/save com _markSelfEcho + fallback local + cache sync)"
+    proxima_migration: "039 (última é 038)."
+
+  ESPECIFICACAO_DDL_PARA_DATAENG:
+    arquivo: "painel-caixa-escolar/supabase/migrations/039_empresa_modulos_epic22.sql"
+    tabela: |
+      CREATE TABLE IF NOT EXISTS empresa_modulos (
+        empresa_id  TEXT PRIMARY KEY DEFAULT 'LARIUCCI',
+        radar        BOOLEAN NOT NULL DEFAULT true,
+        intel_precos BOOLEAN NOT NULL DEFAULT true,
+        gdp          BOOLEAN NOT NULL DEFAULT true,
+        metadata     JSONB DEFAULT '{}',
+        created_at   TIMESTAMPTZ DEFAULT NOW(),
+        updated_at   TIMESTAMPTZ DEFAULT NOW()
+      );
+    decisao_colunas_vs_json: |
+      RECOMENDO 3 colunas BOOLEAN (radar, intel_precos, gdp) — são os 3 módulos fixos conhecidos
+      (modulos-acesso.js:12-16). Mais simples que JSON, tipado, default seguro (true=visível) embutido
+      no schema. O 'metadata JSONB' fica como extensão futura. (Se @data-engineer preferir 1 coluna
+      JSONB 'modulos', aceito — mas BOOLEAN é mais limpo p/ 3 flags estáveis.)
+    trigger: "trg_empresa_modulos_updated_at reusando função update_updated_at() (igual 028)."
+    rls: |
+      ENABLE ROW LEVEL SECURITY + 2 policies anon (read USING true, write FOR ALL USING/CHECK true),
+      EXATAMENTE como caixa_config (migration 028 linhas 44-55). Mantém consistência com todas as
+      tabelas GDP (RLS permissiva anon — o backend usa service_role; anon é read-mostly).
+    seed: |
+      INSERT INTO empresa_modulos (empresa_id) VALUES ('LARIUCCI') ON CONFLICT DO NOTHING;
+      Default seguro: todos os módulos true (visíveis). NUNCA travar cliente. (AC3 da story)
+    realtime: "Adicionar empresa_modulos à publicação realtime (ver migration 026_enable_realtime_all_tables)."
+    idempotencia: "Tudo IF NOT EXISTS / ON CONFLICT DO NOTHING — seguro re-rodar."
+
+  ESTRATEGIA_MIGRACAO_LOCALSTORAGE:
+    decisao: "SEMEAR na 1ª escrita, banco vence na leitura."
+    detalhe: |
+      - Leitura (getAcessoModulos): banco é a verdade. Se banco tem linha → usa. Se não → default
+        seguro (tudo true) + fallback cache local se offline (AC4).
+      - 1ª escrita (setAcessoModulos): grava o estado atual no banco (semeia). A config local
+        existente NÃO é migrada automaticamente em massa (evita carimbão) — só quando o usuário
+        de fato alterar algo. Default seguro cobre o intervalo.
+    racional: "Mesmo princípio anti-carimbão da sessão anterior: nunca empurrar lista/estado em massa no boot."
+
+  CAMADA_DE_CODIGO_PARA_DEV:
+    nota_para_dev: "Esta parte é do @dev — registrada aqui só para o @data-engineer entender o consumo."
+    modulosApi: |
+      Adicionar 'modulosApi' em gdp-api.js espelhando caixaConfigApi (get/save):
+      - get(): sbFetch('/empresa_modulos?empresa_id=eq.'+emp+'&limit=1') → mapFromTable → cache local;
+        fallback localStorage (MODULOS_KEY) se offline.
+      - save(cfg): mapToTable('empresa_modulos', {empresaId, radar, intelPrecos, gdp, updatedAt}) +
+        _markSelfEcho('empresa_modulos', empresa_id, row) + sbUpsert(...,'empresa_id') + cache local.
+      - Registrar 'empresa_modulos' em TABLE_COLS + CAMEL_TO_SNAKE (intelPrecos→intel_precos).
+    modulos_acesso_js: |
+      getAcessoModulos() async-aware: lê via gdpApi.modulos.get() no init, aplica via aplicarAcessoSidebar;
+      mantém versão síncrona do cache p/ não quebrar chamadas existentes. setAcessoModulos() → gdpApi.modulos.save().
+    realtime_handler: "gdp-realtime.js: ao receber update de empresa_modulos → re-executar aplicarAcessoSidebar()."
+    bump_versao: "?v= dos JS alterados (modulos-acesso.js, gdp-api.js, gdp-realtime.js) no(s) HTML que os carregam."
+
+  complexidade_assessment:
+    scope: 2     # poucos arquivos (migration + gdp-api + modulos-acesso + realtime)
+    integration: 2  # Supabase REST já existente, sem API externa nova
+    infra: 2     # 1 migration nova, padrão conhecido
+    knowledge: 1 # padrão caixa_config já dominado pelo time
+    risk: 3      # RLS + realtime, mas mitigado por clone de padrão em produção
+    total: 10    # STANDARD — baixo p/ médio. Sem revision cycle.
+
+  next_action: "@data-engineer: criar migration 039_empresa_modulos_epic22.sql (DDL+trigger+RLS+seed+realtime) espelhando a 028. Aplicar via supabase (ou deixar pronta p/ @devops). Depois → @dev implementa modulosApi + wiring."

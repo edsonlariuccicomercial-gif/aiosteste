@@ -33,7 +33,9 @@
   };
 
   // ─── GENERIC TABLES (sync_data, resultados, radar) ───
-  var GENERIC_TABLES = ['sync_data', 'resultados_orcamento', 'radar_equivalencias'];
+  // Story 22.2: empresa_modulos é uma config singleton (não entidade-lista) — entra aqui para
+  // ser subscrita, e tem handler dedicado no router que só re-aplica a visibilidade da sidebar.
+  var GENERIC_TABLES = ['sync_data', 'resultados_orcamento', 'radar_equivalencias', 'empresa_modulos'];
 
   // All tables to subscribe
   var ALL_TABLES = ENTITY_TABLES.concat(GENERIC_TABLES);
@@ -364,6 +366,19 @@
     } else if (table === 'radar_equivalencias') {
       // Radar equivalencias are loaded on-demand, just trigger re-render
       changed = true;
+    } else if (table === 'empresa_modulos') {
+      // Story 22.2: config de módulos mudou em outra máquina/usuário da empresa.
+      // Re-hidrata do Supabase (atualiza cache local) e re-aplica a sidebar (FR-22.2.4).
+      // Não entra no scheduleRender de listas — é uma mudança de visibilidade de UI.
+      try {
+        if (typeof window.hidratarAcessoModulosOnline === 'function') {
+          window.hidratarAcessoModulosOnline();
+        } else if (typeof window.aplicarAcessoSidebar === 'function') {
+          window.aplicarAcessoSidebar();
+        }
+      } catch (_) {}
+      log(type + ' on empresa_modulos → sidebar re-aplicada');
+      return; // tratado; não cai no fluxo de render de listas
     }
 
     if (changed) {

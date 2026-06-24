@@ -1,0 +1,83 @@
+handoff:
+  from_agent: analyst
+  to_agent: architect
+  timestamp: "2026-06-24T12:00:00Z"
+  consumed: false
+  last_command: "*investigate (4 pendências de retomada)"
+
+  story_context:
+    story_id: "RETOMADA — 4 pendências (22.2 módulos online + Central Produtos + sync_data + saveAll clientes)"
+    story_status: "INVESTIGADO. Evidência de código coletada para os 4. Priorização proposta."
+    branch: master
+
+  objetivo_usuario: |
+    Executar até o fim, pelo fluxo @analyst→@architect→@data-engineer→@dev→@qa→@devops, os 4 itens
+    pendentes. Item principal: Story 22.2 (módulos online, single-tenant 'LARIUCCI', factível agora).
+
+  os_4_itens_com_evidencia:
+    item_1_story_22_2:
+      titulo: "Persistência ONLINE da visibilidade de módulos (Supabase, por empresa)"
+      story: "docs/stories/22.2.story.md — Status: Ready (GO 10/10 do @po)"
+      estado_real: |
+        modulos-acesso.js (em dashboard/, NÃO em js/) está 100% localStorage:
+        - L10: MODULOS_KEY = 'nexedu.modulos.acesso'
+        - L22: getAcessoModulos() lê só localStorage.getItem
+        - L42: setAcessoModulos() grava só localStorage.setItem
+        - L47: aplicarAcessoSidebar() aplica via data-module
+        Módulos: radar, intelPrecos, gdp. Default seguro: tudo visível.
+      facilitadores_ja_existentes: |
+        - gdp-api.js:63 getEmpresaId() JÁ EXISTE e resolve 'LARIUCCI' (single-tenant). REUSAR.
+        - gdp-api.js:42 ENTITIES já tem 13 entidades com padrão wrapped/_selfEcho/retry. Adicionar
+          a config de módulos segue padrão consolidado.
+        - gdp-realtime.js já assina tabelas + sync_data (handler de realtime reusável).
+      complexidade: "M — schema novo (tabela empresa_modulos OU coluna JSON) + RLS + realtime."
+      risco: "ALTO (schema + RLS + sync), mas mitigado pela infra madura e single-tenant."
+      recomendacao: "ITEM MAIS PRONTO. Começar por ele. Story já passou @sm+@po."
+
+    item_4_saveall_clientes:
+      titulo: "saveAll de clientes (carimbão potencial menor)"
+      estado_real: "js/gdp-usuarios.js:14 → saveUsuarios() faz gdpApi.clientes.saveAll(usuarios) em massa a cada chamada."
+      risco: "MÉDIO — mesma classe do carimbão de NF/pedidos já resolvido, mas para CLIENTES. Menor impacto (clientes mudam pouco)."
+      complexidade: "P — trocar saveAll(lista) por save por-registro no momento da edição (padrão já aplicado em NF/pedidos)."
+      recomendacao: "Fix pontual, rápido. Pode ir logo após a 22.2 ou em paralelo (arquivos diferentes)."
+
+    item_2_central_produtos:
+      titulo: "Central de Produtos — número de produtos que varia"
+      causa_raiz_CONFIRMADA: |
+        QUATRO bases de produtos paralelas e editáveis, divergentes:
+        - gdp.produtos.v1 (270, GDP, via sync_data legado + GDP_SYNC_KEYS)
+        - intel.central-produtos.v2 (386, entidade 'produtos' do gdpApi, tabela dedicada)
+        - caixaescolar.banco.v1 (256, RadarMatcher)
+        - gdp.estoque-intel.produtos.v1 (201, Estoque)
+        O número 'varia' porque há 2+ caminhos de sync competindo pela mesma entidade.
+      ja_tem_ADR: "docs/architecture/ADR-002-unificacao-central-produtos.md — APROVADO pelo usuário (2026-06-06)."
+      plano_existente: "ADR-002 define 5 fases: F0 backup/auditoria, F1 product-store, F2 migração consolidadora, F3 telas consomem, F4 aposentar legadas."
+      complexidade: "G — refatorar 2 SPAs (Fase 3 é a mais arriscada). Trabalho substancial."
+      recomendacao: "Seguir o ADR-002 já aprovado. NÃO redesenhar. Quebrar em stories por fase."
+
+    item_3_sync_data_legado:
+      titulo: "Aposentar sync_data legado + unificar fontes de produto"
+      estado_real: |
+        sync_data já foi DESABILITADO no boot (Story 4.83, gdp-init.js:3250). Ainda usado para keys
+        auxiliares (radar/intel/estoque/config) e produtos via GDP_SYNC_KEYS (gdp-core.js:144).
+      dependencia: "É essencialmente a FASE 4 do ADR-002 (aposentar bases legadas APÓS unificar produtos)."
+      recomendacao: "NÃO é item independente — acopla ao item 2. Fazer por último, após a unificação de produtos estabilizar."
+
+  priorizacao_proposta_analyst:
+    ordem: |
+      1º) Item 1 (Story 22.2) — mais pronto, story validada, infra existe. ALTO valor, risco controlado.
+      2º) Item 4 (saveAll clientes) — fix pontual rápido, fecha o último vetor de carimbão conhecido.
+      3º) Item 2 (Central Produtos) — seguir ADR-002 faseado. Trabalho grande, fazer com calma.
+      4º) Item 3 (sync_data) — é a Fase 4 do item 2. Fazer junto/depois do item 2.
+    racional: "Entregar valor cedo (22.2) + fechar risco barato (clientes) antes de encarar o item grande (produtos/sync_data, que já tem ADR e é faseado)."
+
+  perguntas_para_architect:
+    - "Story 22.2: tabela nova 'empresa_modulos' vs coluna JSON em config de empresa existente? (FR-22.2.1 deixa a cargo do @architect/@data-engineer)"
+    - "Estratégia de migração do localStorage atual da config de módulos (semear no Supabase na 1ª escrita vs ignorar em favor do banco)?"
+    - "Confirmar a ordem de execução proposta (22.2 → clientes → produtos → sync_data) ou reordenar?"
+    - "Item 2/3: retomar o ADR-002 do ponto onde parou (qual fase já foi feita, se alguma)?"
+
+  next_action: |
+    @architect: validar a priorização, decidir o schema da Story 22.2 (tabela vs coluna JSON) + estratégia
+    de migração, e produzir o design técnico do item 1 para o @data-engineer implementar DDL+RLS.
+    Tratar itens 2/3 como execução do ADR-002 já aprovado (faseado).

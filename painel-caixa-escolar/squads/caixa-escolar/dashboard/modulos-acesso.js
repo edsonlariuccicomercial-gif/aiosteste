@@ -32,6 +32,9 @@
   }
 
   // Persiste a config (qualquer módulo opcional). Aceita objeto parcial; mescla com o atual.
+  // Story 22.2: além do cache local, persiste ONLINE no Supabase (via gdpApi.modulos) para
+  // valer em qualquer navegador/máquina/usuário da empresa. Grava local primeiro (resposta
+  // imediata da UI) e dispara o save remoto sem bloquear (com supressão de eco no gdpApi).
   function setAcessoModulos(parcial) {
     var atual = getAcessoModulos();
     var novo = {
@@ -40,7 +43,29 @@
       gdp: parcial && "gdp" in parcial ? !!parcial.gdp : atual.gdp
     };
     try { localStorage.setItem(MODULOS_KEY, JSON.stringify(novo)); } catch (_) {}
+    // Persistência online (FR-22.2.3) — semeia/atualiza a linha da empresa. Não bloqueia a UI.
+    try {
+      if (global.gdpApi && global.gdpApi.modulos && global.gdpApi.modulos.save) {
+        global.gdpApi.modulos.save(novo).catch(function (e) {
+          if (typeof gdpWarn === "function") gdpWarn("[modulos] save online falhou (mantém local):", e);
+        });
+      }
+    } catch (_) { /* sem gdpApi: segue só local (fallback gracioso) */ }
     return novo;
+  }
+
+  // Story 22.2: hidrata a config a partir do Supabase (fonte da verdade online) e re-aplica a
+  // sidebar. Idempotente e à prova de falha: se offline/sem gdpApi, mantém o cache local (AC4).
+  // Default seguro preservado: sem config no banco → tudo visível.
+  function hidratarAcessoModulosOnline() {
+    try {
+      if (!global.gdpApi || !global.gdpApi.modulos || !global.gdpApi.modulos.get) return;
+      global.gdpApi.modulos.get().then(function (cfg) {
+        if (!cfg) return;
+        // gdpApi.modulos.get() já grava o cache local; só re-aplica a sidebar com a verdade online.
+        aplicarAcessoSidebar();
+      }).catch(function () { /* fallback gracioso: mantém o que já está aplicado do cache */ });
+    } catch (_) { /* sem gdpApi: nada a fazer, cache local já vale */ }
   }
 
   // Aplica a visibilidade aos itens de sidebar (data-module) em QUALQUER página.
@@ -59,4 +84,5 @@
   global.getAcessoModulos = getAcessoModulos;
   global.setAcessoModulos = setAcessoModulos;
   global.aplicarAcessoSidebar = aplicarAcessoSidebar;
+  global.hidratarAcessoModulosOnline = hidratarAcessoModulosOnline; // Story 22.2
 })(typeof window !== "undefined" ? window : this);

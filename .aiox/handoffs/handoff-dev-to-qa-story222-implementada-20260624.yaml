@@ -1,0 +1,41 @@
+handoff:
+  from_agent: dev
+  to_agent: qa
+  timestamp: "2026-06-24T12:50:00Z"
+  consumed: false
+  last_command: "*develop 22.2"
+
+  story_context:
+    story_id: "22.2 — Persistência ONLINE da visibilidade de módulos (Supabase)"
+    story_status: "Ready for Review. Implementação completa. Banco + código prontos."
+    branch: master
+
+  o_que_foi_implementado:
+    banco: "migration 039_empresa_modulos_epic22.sql aplicada+validada (via @data-engineer)."
+    gdp_api_js: "modulosApi (get/save) espelhando caixaConfigApi; _markSelfEcho; fallback local; default seguro; exposto gdpApi.modulos. TABLE_COLS+CAMEL_TO_SNAKE (intelPrecos→intel_precos)."
+    modulos_acesso_js: "setAcessoModulos() persiste online (não-bloqueante); hidratarAcessoModulosOnline() lê do Supabase + re-aplica sidebar; API síncrona preservada."
+    gdp_realtime_js: "empresa_modulos subscrita + handler dedicado re-aplica sidebar no update (AC1, FR-22.2.4)."
+    boot: "gdp-init.js + dashboard-home.html chamam hidratarAcessoModulosOnline() após aplicarAcessoSidebar()."
+    bump_versao: "gdp-api.js v21(contratos)/v20(index), gdp-realtime.js v8, modulos-acesso.js v2."
+
+  validacoes_dev:
+    syntax: "node --check PASS em gdp-api.js, modulos-acesso.js, gdp-realtime.js, gdp-init.js."
+    testes: "npm test = 203 passed / 2 failed."
+    falhas_pre_existentes: |
+      Os 2 testes que falham ('empresa_id resolution > uses syncUserId' e '> falls back to LARIUCCI')
+      JÁ FALHAVAM antes desta story. CONFIRMADO via git stash do gdp-api.js: com a minha mudança
+      removida, os MESMOS 2 testes falham (203/2). Logo NÃO é regressão da 22.2 — é débito pré-existente
+      do mock environment da suíte. Registrar como débito técnico separado.
+
+  mapeamento_AC_para_validacao_qa:
+    AC1: "Alterar config num navegador reflete em outro (reload/realtime) → testar multi-device em prod após deploy."
+    AC2: "Isolamento por empresa_id → single-tenant LARIUCCI hoje; RLS por empresa_id já no schema."
+    AC3: "Sem config no banco → tudo visível → default BOOLEAN true no schema + fallback no código. VALIDADO no banco (@data-engineer)."
+    AC4: "Supabase indisponível → cache local sem quebrar → fallback gracioso no modulosApi.get e em hidratar. Testar offline."
+    AC5: "Mudança não revertida por eco na própria sessão → _markSelfEcho('empresa_modulos',...) no save. VALIDAR no realtime."
+
+  pendencia_nao_bloqueante:
+    debito_tecnico: "2 testes pré-existentes de empresa_id resolution falhando no mock. Abrir item separado."
+    dashboard_home: "dashboard-home.html carrega modulos-acesso mas NÃO gdp-api.js → hidratação online cai no fallback local (aceitável; a home não tem sync). Avaliar se vale incluir gdp-api lá."
+
+  next_action: "@qa: revisar a Story 22.2 (gate). Verificar AC1-AC5, regressão (2 falhas pré-existentes documentadas), segurança RLS. Depois @devops faz commit+push+deploy --force e valida multi-device."
