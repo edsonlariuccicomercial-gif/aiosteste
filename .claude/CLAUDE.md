@@ -392,7 +392,15 @@ cd painel-caixa-escolar && npx vercel --prod --force
 - Sempre **bumpar a versão** dos scripts no HTML (`?v=N`) ao alterar um JS, e orientar o usuário a dar **Ctrl+Shift+R** (cache do navegador é uma camada separada do cache do Vercel).
 - Histórico: incidente em 2026-06-13 (aba Conta-Corrente "sumiu" por build cache servindo `gdp-api.js?v=12` em vez de `v=14`).
 
-### 🚫 Auto-deploy do Git DESCONECTADO na raiz (Vercel) — deploy é SEMPRE manual (`--force`)
+### ✅ 2º VETOR DE REGRESSÃO RESOLVIDO (2026-06-24): GitHub Actions `deploy.yml` deployava SEM `--force`
+- **CAUSA RAIZ FINAL das regressões recorrentes (incidente 2026-06-24, @analyst):** além da integração Git da Vercel (já desconectada em 22/jun), havia um **SEGUNDO vetor invisível**: o workflow `.github/workflows/deploy.yml` (existe desde 02/jun, commit `a35297bd`). Ele dispara em **TODO push no master** que toque `painel-caixa-escolar/**` e rodava `npx vercel --prod` **SEM `--force`** → reaproveitava o build-cache e **republicava a versão ANTIGA** por cima do `--force` manual.
+- **Por que o `git disconnect` não resolveu:** o GitHub Actions usa `VERCEL_TOKEN` e deploya **por fora** da integração Git da Vercel. Desconectar o Git NÃO afeta o Actions. Eram DOIS vetores; só um tinha sido tratado.
+- **Incidente concreto:** em 23/jun o usuário fez 8 pushes; cada um disparou o Actions cacheado, que reverteu prod de `gdp-core v43` → `v24` (build de 15/jun) + **todas as `/api/*` em 404**. O botão "Atualizar da Nuvem" "sumiu" porque a v24 não o tinha.
+- **✅ FIX APLICADO (2026-06-24):** `deploy.yml` linha do deploy agora usa `npx vercel --prod --force --token=...` (build do zero, sem cache). **NÃO REMOVER o `--force`.** Com isso o auto-deploy no push voltou a ser SEGURO — sempre publica a versão nova.
+- **Estado atual (2026-06-24):** auto-deploy via Actions REATIVADO e SEGURO (com `--force`). Cada push no master que toque `painel-caixa-escolar/**` republica a versão correta automaticamente. Deploy manual `npx vercel --prod --force` segue válido como reforço/correção imediata.
+- **Diagnóstico completo:** `.aiox/handoffs/handoff-FINAL-analyst-causaraiz-regressao-deployyml-20260624.yaml` + `handoff-FINAL-prod-regrediu-RESOLVIDO-20260624.yaml`.
+
+### 🚫 Auto-deploy do Git DESCONECTADO na raiz (Vercel) — histórico (1º vetor, resolvido em 22/jun)
 - **✅ RESOLVIDO EM 2026-06-22 (sessão @devops):** a integração Git da Vercel foi **DESCONECTADA** via `vercel git disconnect` (projeto `painel-caixa-escolar`). Antes, o `git.deploymentEnabled.master = false` do `vercel.json` **estava sendo IGNORADO** — a conexão Git no painel da Vercel sobrepunha o arquivo, e cada `git push` disparava um deploy `...-git-<hash>-...` que sobrescrevia o `--force` manual com a versão sem functions. Agora nenhum push dispara deploy; **só `npx vercel --prod --force` publica**.
 - **✅ FIX-C APLICADO (commit `455d0c1`):** `includeFiles` declarado em `api/gdp-integrations.js` no `vercel.json` (`squads/caixa-escolar/dashboard/server-lib/**`). Isso impede as functions de caírem por causa do `require()` dinâmico de `server-lib`.
 - **Estado atual:** Git desconectado + `git.deploymentEnabled.master = false` (redundância). O merge/push na master **NÃO** dispara deploy automático. Só `npx vercel --prod --force` publica em produção.
