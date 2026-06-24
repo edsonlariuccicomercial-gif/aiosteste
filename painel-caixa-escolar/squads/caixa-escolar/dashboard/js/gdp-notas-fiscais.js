@@ -804,6 +804,44 @@ function temProvaAutorizacao(nf) {
   return chave.length === 44 && protocolo.length > 0;
 }
 
+// ===== AUTOCURA 539 (duplicidade) =====
+// Quando a SEFAZ rejeita com cStat 539 (Duplicidade de NF-e), a nota JÁ ESTÁ autorizada lá — a chave
+// vem embutida na mensagem (xMotivo: "...[chNFe: <44 díg>]"). Em vez de marcar 'rejeitada' e travar a
+// nota, extraímos a chave e CONSULTAMOS o protocolo na SEFAZ (action nfe-sefaz-consulta, que já existe
+// no backend). Se a consulta confirmar autorizada (cStat 100), preenchemos chave+protocolo reais → a
+// nota vira autorizada legítima (mesma recuperação feita manualmente na NF 1608 em 2026-06-25).
+// Retorna { recuperada, chave, protocolo } ou { recuperada:false }.
+async function _recuperarPorDuplicidade539(xMotivo) {
+  try {
+    var m = String(xMotivo || "").match(/chNFe:?\s*([0-9]{44})/i);
+    var chave = m && m[1];
+    if (!chave) {
+      // fallback: qualquer sequência de 44 dígitos na mensagem
+      var m2 = String(xMotivo || "").replace(/\D/g, " ").match(/\b(\d{44})\b/);
+      chave = m2 && m2[1];
+    }
+    if (!chave) return { recuperada: false, motivo: "chave nao encontrada na mensagem 539" };
+    var resp = await fetch("/api/gdp-integrations", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "nfe-sefaz-consulta", chaveAcesso: chave }),
+      signal: AbortSignal.timeout(30000)
+    });
+    var data = await resp.json().catch(function () { return {}; });
+    var p = (data && data.result && data.result.parsed) || {};
+    var cStat = String(p.cStat || "");
+    var protocolo = p.nProt || p.prot || "";
+    // cStat 100/150 = autorizada/registrada. Só recupera com prova real (chave + protocolo).
+    if ((cStat === "100" || cStat === "150") && String(protocolo).length > 0) {
+      return { recuperada: true, chave: chave, protocolo: String(protocolo), cStat: cStat, dhRecbto: p.dhRecbto || "" };
+    }
+    return { recuperada: false, motivo: "consulta SEFAZ cStat=" + cStat + " sem protocolo", chave: chave };
+  } catch (e) {
+    return { recuperada: false, motivo: "erro na consulta: " + (e && e.message) };
+  }
+}
+if (typeof window !== "undefined") window._recuperarPorDuplicidade539 = _recuperarPorDuplicidade539;
+
 // ===== RESOLUÇÃO DEFINITIVA (frentes 1 e 2) — recovery no boot =====
 // FRENTE 1: NF presa em estado intermediário de transmissão (transmissao_em_preparo) sem prova de
 // autorização é ÓRFÃ — a transmissão foi interrompida (reload/aba fechada/thread morta) entre gravar
@@ -811,20 +849,42 @@ function temProvaAutorizacao(nf) {
 // catch que marcaria 'rejeitada'). Regra conservadora: se NÃO tem chave (44 díg), reverter a rascunho
 // limpo p/ permitir re-transmissão. Se TEM chave mas falta protocolo, NÃO mexer (pode estar aguardando
 // reconsulta legítima) — apenas registrar. Roda 1x no boot.
-function recoverNfsTransmissaoOrfas() {
-  var revertidas = 0, comChaveAguardando = 0;
+async function recoverNfsTransmissaoOrfas() {
+  var revertidas = 0, comChaveAguardando = 0, completadasPorConsulta = 0;
   try {
-    (notasFiscais || []).forEach(function (nf) {
-      if (!nf || !isNotaFiscalReal(nf)) return;
+    var orfas = (notasFiscais || []).filter(function (nf) {
+      if (!nf || !isNotaFiscalReal(nf)) return false;
       var integ = (nf.integracoes && nf.integracoes.sefaz && nf.integracoes.sefaz.status) || "";
-      var presaEmPreparo = (integ === "transmissao_em_preparo");
-      if (!presaEmPreparo) return;
-      if (temProvaAutorizacao(nf)) return; // tem prova → já está autorizada de fato, não é órfã
+      if (integ !== "transmissao_em_preparo") return false;
+      return !temProvaAutorizacao(nf);
+    });
+    for (var i = 0; i < orfas.length; i++) {
+      var nf = orfas[i];
       var chave = String((nf.sefaz && nf.sefaz.chaveAcesso) || nf.chaveAcesso || "").replace(/\D/g, "");
       if (chave.length === 44) {
-        // tem chave mas sem protocolo: aguardando — não reverter (evita perder uma autorização real)
+        // tem chave: CONSULTAR a SEFAZ pelo protocolo. Se autorizada (cStat 100/150 + protocolo) → completa.
+        try {
+          var resp = await fetch("/api/gdp-integrations", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "nfe-sefaz-consulta", chaveAcesso: chave }),
+            signal: AbortSignal.timeout(25000)
+          });
+          var data = await resp.json().catch(function () { return {}; });
+          var p = (data && data.result && data.result.parsed) || {};
+          var cStat = String(p.cStat || ""); var prot = p.nProt || p.prot || "";
+          if ((cStat === "100" || cStat === "150") && String(prot).length > 0) {
+            nf.sefaz = nf.sefaz || {};
+            nf.sefaz.chaveAcesso = chave; nf.sefaz.protocolo = String(prot); nf.sefaz.status = "autorizada";
+            nf.status = "autorizada";
+            setIntegrationState(nf, "sefaz", { status: "autorizada", lastAction: "recovery_consulta_protocolo", accessKey: chave, protocol: String(prot), cStat: cStat });
+            try { saveNotasFiscais(nf.id); } catch (_) {}
+            try { if (window.gdpApi && window.gdpApi.notas_fiscais) window.gdpApi.notas_fiscais.save(nf); } catch (_) {}
+            completadasPorConsulta++;
+            continue;
+          }
+        } catch (_) { /* consulta falhou → trata como aguardando */ }
         comChaveAguardando++;
-        return;
+        continue;
       }
       // sem chave: transmissão nunca completou → reverter a rascunho limpo (libera re-transmissão)
       nf.status = "rascunho_nf_real";
@@ -832,14 +892,13 @@ function recoverNfsTransmissaoOrfas() {
       nf.sefaz = nf.sefaz || {};
       nf.sefaz.status = "validacao_pendente";
       revertidas++;
-      // persiste só esta NF (anti-carimbão)
       try { saveNotasFiscais(nf.id); } catch (_) {}
-    });
-    if (revertidas || comChaveAguardando) {
-      gdpWarn("[recovery] NF transmissão órfã: " + revertidas + " revertidas a rascunho, " + comChaveAguardando + " com chave aguardando reconsulta");
+    }
+    if (revertidas || comChaveAguardando || completadasPorConsulta) {
+      gdpWarn("[recovery] NF transmissão órfã: " + revertidas + " revertidas, " + completadasPorConsulta + " completadas por consulta SEFAZ, " + comChaveAguardando + " ainda aguardando");
     }
   } catch (e) { gdpWarn("[recovery] falha em recoverNfsTransmissaoOrfas", e && e.message); }
-  return { revertidas: revertidas, comChaveAguardando: comChaveAguardando };
+  return { revertidas: revertidas, completadasPorConsulta: completadasPorConsulta, comChaveAguardando: comChaveAguardando };
 }
 if (typeof window !== "undefined") window.recoverNfsTransmissaoOrfas = recoverNfsTransmissaoOrfas;
 
@@ -1736,6 +1795,26 @@ async function transmitirHomologacaoNota(notaId) {
     // (audit, cobrança, email, banco) passam a referenciá-la para manter coerência.
     var _temProvaSefaz = !!(result.parsed?.prot) && !!(result.parsed?.chNFe);
     var _cStatSucesso = (_cStat === "100" || _cStat === "150");
+
+    // AUTOCURA 539 (duplicidade): a SEFAZ diz que a NF JÁ existe autorizada. Em vez de travar a nota,
+    // extrai a chave da mensagem e consulta o protocolo real. Se confirmado, preenche prova de autorização
+    // ANTES de classificar o status — a nota vira autorizada legítima (não 'rejeitada' fantasma).
+    if (_cStat === "539" && !result.parsed?.prot) {
+      try {
+        var _rec539 = await _recuperarPorDuplicidade539(result.parsed?.xMotivo || "");
+        if (_rec539 && _rec539.recuperada) {
+          result.parsed = result.parsed || {};
+          result.parsed.chNFe = _rec539.chave;
+          result.parsed.prot = _rec539.protocolo;
+          result.parsed.cStat = _rec539.cStat || "100";
+          result.parsed.xMotivo = "Autorizado o uso da NF-e (recuperado de duplicidade 539)";
+          _cStat = String(result.parsed.cStat);
+          _temProvaSefaz = true;
+          _cStatSucesso = true;
+          if (typeof gdpLog === "function") gdpLog("[NF-e] 539 autocura: chave " + _rec539.chave + " protocolo " + _rec539.protocolo);
+        }
+      } catch (_) { /* se a autocura falhar, segue o fluxo normal (marca rejeitada) */ }
+    }
 
     // Story 20.14: gravar protocolo/chave ANTES de classificar — assim a prova de
     // autorização (temProvaAutorizacao) considera valores já persistidos em nf.sefaz,

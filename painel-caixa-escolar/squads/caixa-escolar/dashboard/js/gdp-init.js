@@ -3063,15 +3063,16 @@ async function enviarTiny(contratoId) {
     // estado ANTIGO (NF em_preparo) DEPOIS do recovery inicial, e a memória pode não estar 100% populada
     // no instante do _gdpEndBootWindow. A 2ª passada garante que NF/cobrança órfãs sejam reconciliadas
     // mesmo após a estabilização do realtime. Idempotente (não re-marca o que já está correto).
-    function _runOrphanRecovery() {
-      var revNf = 0, recCob = 0;
+    async function _runOrphanRecovery() {
+      var mudou = 0;
       if (typeof window.recoverNfsTransmissaoOrfas === 'function') {
-        try { revNf = (window.recoverNfsTransmissaoOrfas() || {}).revertidas || 0; } catch (_) {}
+        // agora é async (consulta SEFAZ p/ notas com chave). Aguarda p/ renderizar com o estado final.
+        try { var rNf = (await window.recoverNfsTransmissaoOrfas()) || {}; mudou += (rNf.revertidas || 0) + (rNf.completadasPorConsulta || 0); } catch (_) {}
       }
       if (typeof window.reconciliarCobrancasOrfas === 'function') {
-        try { var r = window.reconciliarCobrancasOrfas() || {}; recCob = (r.marcadas || 0) + (r.revertidas || 0); } catch (_) {}
+        try { var r = window.reconciliarCobrancasOrfas() || {}; mudou += (r.marcadas || 0) + (r.revertidas || 0); } catch (_) {}
       }
-      if ((revNf || recCob) && typeof window.renderAll === 'function') { try { window.renderAll(); } catch (_) {} }
+      if (mudou && typeof window.renderAll === 'function') { try { window.renderAll(); } catch (_) {} }
     }
     _runOrphanRecovery();                       // 1ª passada (pós-boot imediato)
     setTimeout(_runOrphanRecovery, 4000);       // 2ª passada (após estabilização do realtime)
