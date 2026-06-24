@@ -693,6 +693,10 @@
     _retryQueue: _retryQueue,
     _ENTITIES:   ENTITIES,
     _memCache:   _memCache,
+    // Exposto p/ o gdp-realtime.js converter as linhas CRUAS do Supabase (snake_case) em camelCase
+    // antes de gravar no localStorage. Sem isto, eventos realtime de conciliacoes/extratos gravavam
+    // extrato_id (snake) e a tela lia extratoId (camel) → undefined → extrato "0/0" ao conciliar.
+    mapFromTable: mapFromTable,
     getDataSource: function () { return _dataSource; }
   };
 

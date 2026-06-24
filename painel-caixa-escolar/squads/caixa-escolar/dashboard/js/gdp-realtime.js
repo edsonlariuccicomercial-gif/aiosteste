@@ -193,6 +193,14 @@
         if (String(record.empresa_id) !== String(getEmpresaId())) return false;
       } catch (_) {}
     }
+    // CAUSA-RAIZ extrato "0/0": o realtime do Supabase entrega a linha CRUA do banco (snake_case,
+    // ex.: extrato_id, conciliado_em, vinculado_a). O resto da app lê camelCase (extratoId...). Sem
+    // converter aqui, gravávamos snake no localStorage e a tela lia extratoId → undefined → ao conciliar
+    // o item recém-tocado perdia o vínculo → atualizarExtratoStats dava total=0 → extrato "fechava 0/0".
+    // Converter para camelCase com o MESMO mapper do gdpApi (list()) torna realtime e leitura consistentes.
+    if (record && window.gdpApi && typeof window.gdpApi.mapFromTable === 'function') {
+      try { record = window.gdpApi.mapFromTable(record); } catch (_) {}
+    }
     // Dirty window protection: if local save happened in last 5s, only accept
     // INSERT and DELETE events — skip UPDATE to prevent overwriting in-flight data.
     // This prevents the race condition where Supabase sends stale data before
