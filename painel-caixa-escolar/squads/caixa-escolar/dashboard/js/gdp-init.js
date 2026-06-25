@@ -2503,7 +2503,7 @@ async function enviarPedidoOlist(pedidoId) {
 
   // Buscar SKU com fallback em cadeia: Contrato (enriquecido) > Pedido > Banco de Produtos
   const ctr = contratos.find(x => x.id === p.contratoId);
-  const bpItens = (() => { try { return (JSON.parse(localStorage.getItem('gdp.produtos.v1')) || {}).itens || []; } catch(_) { return []; } })();
+  const bpItens = (() => { try { const _r = JSON.parse(localStorage.getItem('gdp.produtos.v1')) || {}; return _r.itens || _r.items || []; } catch(_) { return []; } })(); // 2026-06-25: aceita 'items' (boot Supabase-First grava em inglês)
   const items = p.itens.map(i => {
     const ctrItem = ctr ? ctr.itens.find(ci => ci.num === i.itemNum || ci.descricao === i.descricao) : null;
     let sku = (ctrItem && ctrItem.sku) || i.sku || '';

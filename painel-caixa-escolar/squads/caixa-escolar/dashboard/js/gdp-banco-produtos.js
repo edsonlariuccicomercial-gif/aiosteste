@@ -62,6 +62,11 @@ var _centralLoaded = false;
 function loadBancoProdutos() {
   let dirty = false;
   try { bancoProdutos = JSON.parse(localStorage.getItem(PRODUTOS_KEY)) || { updatedAt: "", itens: [] }; } catch(_) { bancoProdutos = { updatedAt: "", itens: [] }; }
+  // FIX (2026-06-25 — Central mostrava 3/0 produtos com 671 no banco): o boot Supabase-First
+  // grava gdp.produtos.v1 no formato { items: [...] } (inglês, padrão das tabelas via _mergeTable),
+  // mas a Central historicamente lê .itens (português). Sem aceitar 'items', a Central via undefined
+  // → 0 produtos na tela mesmo com 671 persistidos. Aceita ambos os campos (igual ao ProductStore).
+  if (!bancoProdutos.itens && Array.isArray(bancoProdutos.items)) bancoProdutos.itens = bancoProdutos.items;
   if (!bancoProdutos.itens) bancoProdutos.itens = [];
   bancoProdutos.itens = bancoProdutos.itens.map((item, idx) => {
     const before = JSON.stringify(item);

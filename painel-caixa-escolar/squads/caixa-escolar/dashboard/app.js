@@ -3327,7 +3327,7 @@ window.renderCentralPrecos = function () {
   if (!produtos.length) {
     try {
       const raw = JSON.parse(localStorage.getItem('gdp.produtos.v1') || '{}');
-      produtos = Array.isArray(raw.itens) ? raw.itens : (Array.isArray(raw) ? raw : []);
+      produtos = Array.isArray(raw.itens) ? raw.itens : (Array.isArray(raw.items) ? raw.items : (Array.isArray(raw) ? raw : [])); // 2026-06-25: aceita 'items' (boot Supabase-First grava em inglês)
     } catch(_) {}
   }
   const busca = (document.getElementById("filtro-central-texto") || {}).value || "";
