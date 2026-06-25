@@ -854,6 +854,16 @@ async function recoverNfsTransmissaoOrfas() {
   try {
     var orfas = (notasFiscais || []).filter(function (nf) {
       if (!nf || !isNotaFiscalReal(nf)) return false;
+      // GUARD (2026-06-25): NUNCA rebaixar NF já autorizada. A 1608 foi revertida a rascunho
+      // repetidamente porque o recovery rodava numa cópia antiga (corrida de boot/sync) e caía
+      // no ramo "sem chave". Se a NF está autorizada OU tem chave de 44 dígitos OU tem protocolo,
+      // ela JÁ passou pela SEFAZ — não é órfã. Protege contra rebaixamento por corrida.
+      var jaAutorizada = nf.status === "autorizada"
+        || (nf.integracoes && nf.integracoes.sefaz && nf.integracoes.sefaz.status === "autorizada")
+        || (nf.sefaz && nf.sefaz.status === "autorizada")
+        || String((nf.sefaz && nf.sefaz.chaveAcesso) || nf.chaveAcesso || "").replace(/\D/g, "").length === 44
+        || String((nf.sefaz && nf.sefaz.protocolo) || nf.protocolo || "").length > 0;
+      if (jaAutorizada) return false;
       var integ = (nf.integracoes && nf.integracoes.sefaz && nf.integracoes.sefaz.status) || "";
       if (integ !== "transmissao_em_preparo") return false;
       return !temProvaAutorizacao(nf);
