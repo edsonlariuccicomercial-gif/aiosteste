@@ -3326,12 +3326,19 @@ async function enviarTiny(contratoId) {
         // garantir que toda a hidratação assentou — apagar antes disso esvaziaria a tela.
         setTimeout(function() {
           try {
+            // FIX DEFINITIVO DE MEMÓRIA (2026-06-25): comprimir SEMPRE as bases pesadas (remove
+            // XML/PDF/previews recuperáveis do servidor, MANTÉM os registros) — não só quando alta.
+            // Causa-raiz do "memória cheia" recorrente em todas as máquinas: o navegador guardava
+            // dados COMPLETOS quando só precisa do essencial para a tela. Roda 1x por boot, após a
+            // hidratação assentar. Os campos pesados voltam do servidor quando você abre um item.
+            if (typeof window._comprimirBasesPesadas === 'function') {
+              var rc = window._comprimirBasesPesadas();
+              if (rc > 0.05) gdpLog('[GDP] Memória comprimida no boot: ' + rc.toFixed(2) + 'MB liberados (campos pesados recuperáveis do servidor).');
+            }
+            // Rede de segurança: se ainda estiver alto, libera bases redundantes.
             if (typeof window._autoLimparMemoriaSeAlta === 'function') {
               var r = window._autoLimparMemoriaSeAlta();
-              if (r && r.cleaned && typeof renderAll === 'function') {
-                // após limpar, a memória está leve; os dados seguem em memória (já renderizados).
-                gdpLog('[GDP] Memória auto-liberada no boot: ' + (r.liberado||0).toFixed(2) + 'MB. Tela mantida.');
-              }
+              if (r && r.cleaned) gdpLog('[GDP] Memória auto-liberada (alta): ' + (r.liberado||0).toFixed(2) + 'MB.');
             }
           } catch (_) {}
         }, 3000);

@@ -1212,6 +1212,47 @@ function _liberarMemoriaRecuperavel() {
 }
 if (typeof window !== 'undefined') window._liberarMemoriaRecuperavel = _liberarMemoriaRecuperavel;
 
+// FIX DEFINITIVO DE MEMÓRIA (2026-06-25): comprime as bases pesadas no localStorage mantendo
+// os REGISTROS (a tela continua mostrando tudo) mas removendo CAMPOS pesados recuperáveis do
+// servidor (XML, PDFs base64, previews, rawResponse). Roda SEMPRE no boot — não depende de
+// limiar. Causa-raiz da "memória cheia" recorrente: o navegador guardava dados COMPLETOS quando
+// só precisa do essencial para a tela. Aplica strip universal em NFs/contas e comprime wrappers.
+function _comprimirBasesPesadas() {
+  var antes = _localStorageUsageBytes();
+  // 1. Notas fiscais — strip universal (remove XML/PDF/previews; mantém metadados + status)
+  try {
+    var nfRaw = JSON.parse(localStorage.getItem(INVOICES_KEY) || 'null');
+    if (nfRaw) {
+      var nfArr = nfRaw.items || nfRaw.itens || (Array.isArray(nfRaw) ? nfRaw : []);
+      if (nfArr.length && typeof _stripNfHeavy === 'function') {
+        var light = nfArr.map(_stripNfHeavy);
+        localStorage.setItem(INVOICES_KEY, JSON.stringify({ _v: 1, updatedAt: new Date().toISOString(), items: light }));
+      }
+    }
+  } catch (_) {}
+  // 2. Contas a receber/pagar — strip de cobrança pesada (boleto PDF/QR base64)
+  try {
+    [RECEIVABLES_KEY, PAYABLES_KEY].forEach(function (key) {
+      if (typeof _stripContaHeavy !== 'function') return;
+      var raw = JSON.parse(localStorage.getItem(key) || 'null');
+      if (!raw) return;
+      var arr = raw.items || raw.itens || (Array.isArray(raw) ? raw : []);
+      if (arr.length) {
+        var lt = arr.map(_stripContaHeavy);
+        localStorage.setItem(key, JSON.stringify({ _v: 1, updatedAt: new Date().toISOString(), items: lt }));
+      }
+    });
+  } catch (_) {}
+  // 3. Bases legadas REDUNDANTES de produtos (a verdade vive em gdp.produtos.v1 / tabela).
+  ['intel.central-produtos.v2', 'gdp.estoque-intel.produtos.v1', 'caixaescolar.banco.v1'].forEach(function (k) {
+    try { if (localStorage.getItem(k)) localStorage.removeItem(k); } catch (_) {}
+  });
+  var liberado = (antes - _localStorageUsageBytes()) / (1024 * 1024);
+  if (liberado > 0.01) gdpLog('[quota-guard] Compressão de bases pesadas: liberados ' + liberado.toFixed(2) + 'MB.');
+  return liberado;
+}
+if (typeof window !== 'undefined') window._comprimirBasesPesadas = _comprimirBasesPesadas;
+
 // Limpeza segura: agora apaga TODAS as bases recuperáveis (servidor é a fonte). NÃO perde nada.
 window.gdpLimparCacheSeguro = function() {
   try { if (typeof _gcLocalStorage === 'function') _gcLocalStorage(); } catch (_) {}
@@ -1869,6 +1910,32 @@ function _stripNfHeavy(nf) {
     delete light.cobranca.boletoPdfBase64;
     delete light.cobranca.pdfBase64;
     delete light.cobranca.qrCodeImage;       // imagem base64 do QR (mantém pixCopiaECola textual)
+  }
+  // FIX DEFINITIVO DE MEMÓRIA (2026-06-25): o maior ofensor restante é 'integracoes' (332KB) — guarda
+  // o HISTÓRICO de cada ação de integração (lastAction acumulado, payloads de resposta). A tela só
+  // precisa do STATUS ATUAL de cada canal. Enxuga integracoes mantendo só os campos de reconciliação.
+  // NÃO removemos 'documentos' (o email usa documentos.observacao) nem 'parametros' (config de emissão)
+  // — só limpamos campos base64 pesados dentro deles, preservando o texto essencial.
+  if (light.integracoes && typeof light.integracoes === 'object') {
+    var _integLeve = {};
+    Object.keys(light.integracoes).forEach(function (canal) {
+      var v = light.integracoes[canal];
+      if (v && typeof v === 'object') {
+        _integLeve[canal] = {
+          status: v.status, cStat: v.cStat, accessKey: v.accessKey || v.chaveAcesso,
+          protocol: v.protocol || v.protocolo, lastAction: v.lastAction, xMotivo: v.xMotivo
+        };
+      } else { _integLeve[canal] = v; }
+    });
+    light.integracoes = _integLeve;
+  }
+  // documentos: preserva observacao (email precisa), remove só base64 pesados (XML/DANFE/PDF).
+  if (light.documentos && typeof light.documentos === 'object') {
+    light.documentos = Object.assign({}, light.documentos);
+    delete light.documentos.xmlBase64;
+    delete light.documentos.danfeBase64;
+    delete light.documentos.pdfBase64;
+    delete light.documentos.xml;
   }
   return light;
 }

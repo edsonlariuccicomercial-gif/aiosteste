@@ -889,6 +889,18 @@ async function recoverNfsTransmissaoOrfas() {
             setIntegrationState(nf, "sefaz", { status: "autorizada", lastAction: "recovery_consulta_protocolo", accessKey: chave, protocol: String(prot), cStat: cStat });
             try { saveNotasFiscais(nf.id); } catch (_) {}
             try { if (window.gdpApi && window.gdpApi.notas_fiscais) window.gdpApi.notas_fiscais.save(nf); } catch (_) {}
+            // FIX (2026-06-25 — usuário: "ontem autorizou uma e NÃO emitiu email"): quando o recovery
+            // completa uma nota para autorizada (transmissão tinha perdido a resposta), o email do
+            // fluxo normal NÃO chegou a disparar. Dispara aqui se ainda não foi enviado (idempotente:
+            // o guard de comunicacao já enviada impede duplicidade). Garante que o cliente RECEBE a NF.
+            try {
+              var _jaEnviou = nf.integracoes && nf.integracoes.comunicacao && /enviado|email_enviado|sucesso/i.test(nf.integracoes.comunicacao.status || "");
+              if (!_jaEnviou && typeof dispararEmailNotaEBoletoAutomatico === "function") {
+                var _contaNf = (typeof getContaReceberByNota === "function") ? getContaReceberByNota(nf.id) : null;
+                await dispararEmailNotaEBoletoAutomatico(nf.id, _contaNf ? _contaNf.id : null, { manual: false });
+                if (typeof gdpLog === "function") gdpLog("[NF-e] email disparado no recovery para nota " + (nf.numero || nf.id) + " (não havia sido enviado na emissão).");
+              }
+            } catch (_) { /* falha no email não bloqueia a autorização */ }
             completadasPorConsulta++;
             continue;
           }
@@ -1859,6 +1871,51 @@ async function transmitirHomologacaoNota(notaId) {
     if (_cStatSucesso && !_temProvaSefaz && !_temProvaAut) {
       console.warn("[NF-e] cStat " + _cStat + " sem protocolo/chave — NAO marcada autorizada (Story 16.6). Reconsultar SEFAZ.");
     }
+
+    // FIX DEFINITIVO (2026-06-25 — notas viravam falsa-pendente quando a transmissão perdia a
+    // resposta): se NÃO há prova de autorização (timeout/resposta truncada/cStat ausente), NÃO
+    // deixar a nota pendente sem ANTES reconsultar a SEFAZ. A nota PODE ter autorizado na SEFAZ
+    // mesmo sem o sistema ter capturado a resposta (foi o caso das NF 1608/1609/1614/1615). Aqui:
+    // (a) se já temos uma chave (de tentativa anterior), consulta o protocolo; (b) se a mensagem
+    // sugere duplicidade, tenta a autocura 539. Só fica pendente se a SEFAZ confirmar não-autorizada.
+    if (!_temProvaAut && _sefazStatus !== "rejeitada") {
+      try {
+        var _chaveTent = String(nf.sefaz.chaveAcesso || nf.chaveAcesso || "").replace(/\D/g, "");
+        var _recAuto = null;
+        if (_chaveTent.length === 44) {
+          var _rc = await fetch("/api/gdp-integrations", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "nfe-sefaz-consulta", chaveAcesso: _chaveTent }),
+            signal: AbortSignal.timeout(30000)
+          });
+          var _rd = await _rc.json().catch(function () { return {}; });
+          var _rp = (_rd && _rd.result && _rd.result.parsed) || {};
+          if ((String(_rp.cStat) === "100" || String(_rp.cStat) === "150") && (_rp.nProt || _rp.prot)) {
+            _recAuto = { chave: _chaveTent, protocolo: String(_rp.nProt || _rp.prot), cStat: String(_rp.cStat) };
+          }
+        }
+        // duplicidade (a nota já existe na SEFAZ): tenta extrair a chave da mensagem
+        if (!_recAuto && result.parsed && /duplicid|j[áa] existe|consta/i.test(result.parsed.xMotivo || "")) {
+          var _r539 = await _recuperarPorDuplicidade539(result.parsed.xMotivo || "");
+          if (_r539 && _r539.recuperada) _recAuto = { chave: _r539.chave, protocolo: _r539.protocolo, cStat: _r539.cStat || "100" };
+        }
+        if (_recAuto) {
+          nf.sefaz.chaveAcesso = _recAuto.chave;
+          nf.sefaz.protocolo = _recAuto.protocolo;
+          result.parsed = result.parsed || {};
+          result.parsed.chNFe = _recAuto.chave;
+          result.parsed.prot = _recAuto.protocolo;
+          result.parsed.cStat = _recAuto.cStat;
+          _cStat = _recAuto.cStat;
+          _temProvaSefaz = true;
+          _cStatSucesso = true;
+          _temProvaAut = temProvaAutorizacao(nf);
+          _sefazStatus = _temProvaAut ? "autorizada" : _sefazStatus;
+          if (typeof gdpLog === "function") gdpLog("[NF-e] reconsulta automática no timeout: nota " + (nf.numero || nf.id) + " autorizada (chave " + _recAuto.chave + ").");
+        }
+      } catch (_) { /* reconsulta falhou → segue pendente (não rebaixa nada) */ }
+    }
+
     nf.sefaz.status = _sefazStatus;
     // Story 16.5 FIX-2 + Story 20.14 AC2/AC11: ancorar o número na fonte da verdade da
     // SEFAZ. O nNF está embutido na chave (chNFe, posições 26-34). A extração roda SEMPRE
