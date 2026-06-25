@@ -32,6 +32,11 @@ const SVAN_EVT = { homologacao: "https://hom.sefazvirtual.fazenda.gov.br/NFeRece
 const SVRS_EVT = { homologacao: "https://nfe-homologacao.svrs.rs.gov.br/ws/NfeRecepcaoEvento/NFeRecepcaoEvento4.asmx", producao: "https://nfe.svrs.rs.gov.br/ws/NfeRecepcaoEvento/NFeRecepcaoEvento4.asmx" };
 const SVAN_CONS = { homologacao: "https://hom.sefazvirtual.fazenda.gov.br/NFeConsultaProtocolo4/NFeConsultaProtocolo4.asmx", producao: "https://www.sefazvirtual.fazenda.gov.br/NFeConsultaProtocolo4/NFeConsultaProtocolo4.asmx" };
 const SVRS_CONS = { homologacao: "https://nfe-homologacao.svrs.rs.gov.br/ws/NfeConsulta/NFeConsultaProtocolo4.asmx", producao: "https://nfe.svrs.rs.gov.br/ws/NfeConsulta/NFeConsultaProtocolo4.asmx" };
+// NFeDistribuicaoDFe — webservice NACIONAL (nao por UF). Lista TODAS as NF-e autorizadas de um CNPJ,
+// inclusive as que o emitente nao capturou (ex.: autorizou mas perdeu a resposta). Ref: MOC NF-e 4.00,
+// schema distDFeInt v1.01. Producao = Ambiente Nacional (AN). E o webservice usado para AUTOCURA de
+// notas falsa-pendentes (handoff P0_NF_DISTRIBUICAO_DFE_FIX_DEFINITIVO).
+const AN_DIST_DFE = { homologacao: "https://hom1.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx", producao: "https://www1.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx" };
 
 const SEFAZ_AUTORIZACAO = {
   // Estados com webservice próprio
@@ -1569,6 +1574,146 @@ async function consultarProtocolo(chaveAcesso, options = {}) {
   }
 }
 
+// ===== NFeDistribuicaoDFe — autocura de notas falsa-pendentes (P0) =====
+// Faz um POST SOAP que COLETA BYTES BRUTOS (Buffer), pois os documentos vem em gzip+base64 (docZip).
+// O postSoapXml compartilhado forca utf8 (corromperia o gzip) — por isso esta funcao tem seu proprio
+// https.request binario.
+function postSoapXmlBinary(url, options) {
+  return new Promise((resolve, reject) => {
+    const body = String(options.body || "");
+    const headers = {
+      "Content-Length": Buffer.byteLength(body),
+      ...options.headers
+    };
+    const req = https.request(url, {
+      method: "POST",
+      headers,
+      pfx: options.pfx,
+      passphrase: options.passphrase,
+      cert: options.cert,
+      key: options.key,
+      minVersion: "TLSv1.2",
+      rejectUnauthorized: true
+    }, (res) => {
+      const chunks = [];
+      res.on("data", (chunk) => chunks.push(chunk));
+      res.on("end", () => {
+        resolve({ statusCode: res.statusCode || 0, headers: res.headers, body: Buffer.concat(chunks).toString("utf8") });
+      });
+    });
+    req.on("error", reject);
+    req.write(body);
+    req.end();
+  });
+}
+
+// Descompacta um docZip (gzip+base64) e devolve o XML interno (string) ou "" em falha.
+function gunzipDocZip(b64) {
+  try {
+    const zlib = require("zlib");
+    const gz = Buffer.from(String(b64 || "").replace(/\s+/g, ""), "base64");
+    return zlib.gunzipSync(gz).toString("utf8");
+  } catch (_) { return ""; }
+}
+
+// Extrai, de um XML de documento da DFe (resNFe resumo OU procNFe completo), os campos que permitem
+// re-vincular a nota local: chave, numero (nNF), valor (vNF), protocolo (nProt) e situacao (cSitNFe).
+function parseDfeDoc(docXml) {
+  const xml = String(docXml || "");
+  const tag = (t) => { const m = xml.match(new RegExp(`<${t}[^>]*>([\\s\\S]*?)<\\/${t}>`)); return m ? m[1].trim() : ""; };
+  // chave: pode vir como <chNFe> (resNFe) ou no atributo Id="NFe<44>" (procNFe), ou <infNFe Id="NFe...">
+  let chave = tag("chNFe").replace(/\D/g, "");
+  if (chave.length !== 44) {
+    const idm = xml.match(/Id="NFe(\d{44})"/);
+    if (idm) chave = idm[1];
+  }
+  const nProt = tag("nProt");
+  const cSitNFe = tag("cSitNFe");            // 1 = autorizada (no resumo resNFe)
+  const cStat = tag("cStat");                // 100 = autorizada (no procNFe/protNFe)
+  const vNF = tag("vNF");
+  const nNF = tag("nNF");
+  // autorizada se resumo cSitNFe=1 OU protocolo cStat 100/150
+  const autorizada = cSitNFe === "1" || cStat === "100" || cStat === "150";
+  return { chave, nProt, cSitNFe, cStat, vNF, nNF, autorizada };
+}
+
+function parseDistDFeResponse(xmlText) {
+  const xml = String(xmlText || "");
+  const findTag = (t) => { const m = xml.match(new RegExp(`<${t}>([\\s\\S]*?)<\\/${t}>`)); return m ? m[1].trim() : ""; };
+  const cStat = findTag("cStat");
+  const xMotivo = findTag("xMotivo");
+  const ultNSU = findTag("ultNSU");
+  const maxNSU = findTag("maxNSU");
+  // cada documento vem em <docZip NSU="..." schema="...">BASE64GZIP</docZip>
+  const docs = [];
+  const re = /<docZip[^>]*NSU="(\d+)"[^>]*>([\s\S]*?)<\/docZip>/g;
+  let m;
+  while ((m = re.exec(xml)) !== null) {
+    const nsu = m[1];
+    const inner = gunzipDocZip(m[2]);
+    if (!inner) continue;
+    const parsed = parseDfeDoc(inner);
+    docs.push({ nsu, ...parsed });
+  }
+  return { cStat, xMotivo, ultNSU, maxNSU, docs, temMais: cStat === "138" };
+}
+
+// distribuicaoDFe(ultNSU, options): consulta a DFe a partir do ultimo NSU conhecido (incremental).
+// ultNSU = "0" na primeira chamada. Retorna os documentos autorizados do CNPJ emitente.
+// cStat: 137 = nenhum documento novo; 138 = documentos localizados; 656 = consumo indevido (throttle).
+async function distribuicaoDFe(ultNSU, options = {}) {
+  const cfg = getSefazConfig();
+  const ambiente = options.ambiente || cfg.ambiente;
+  const tpAmb = ambiente === "producao" ? "1" : "2";
+  const cnpj = sanitizeDigits(cfg.cnpjEmitente || "");
+  if (cnpj.length !== 14) {
+    return { ok: false, mode: "invalid_cnpj", message: "CNPJ do emitente invalido (deve ter 14 digitos) — recebido: " + cnpj.length };
+  }
+  const cUF = UF_CODE[(cfg.uf || "MG").toUpperCase()] || "31";
+  const nsu = String(ultNSU == null ? "0" : ultNSU).replace(/\D/g, "").padStart(15, "0");
+  const url = AN_DIST_DFE[ambiente] || AN_DIST_DFE.producao;
+
+  // distDFeInt — consulta por ultNSU (distribuicao incremental). versao 1.01.
+  const distMsg = `<distDFeInt xmlns="http://www.portalfiscal.inf.br/nfe" versao="1.01"><tpAmb>${tpAmb}</tpAmb><cUFAutor>${cUF}</cUFAutor><CNPJ>${cnpj}</CNPJ><distNSU><ultNSU>${nsu}</ultNSU></distNSU></distDFeInt>`;
+  const soapEnvelope = `<?xml version="1.0" encoding="utf-8"?><soap12:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap12="http://www.w3.org/2003/05/soap-envelope"><soap12:Body><nfeDistDFeInteresse xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe"><nfeDadosMsg>${distMsg}</nfeDadosMsg></nfeDistDFeInteresse></soap12:Body></soap12:Envelope>`;
+
+  const certificateBuffer = getCertificateBuffer(cfg.certificadoBase64);
+  try {
+    const resp = await postSoapXmlBinary(url, {
+      headers: {
+        "Content-Type": "application/soap+xml; charset=utf-8; action=\"http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe/nfeDistDFeInteresse\"",
+        SOAPAction: "http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe/nfeDistDFeInteresse"
+      },
+      body: soapEnvelope,
+      pfx: certificateBuffer.length ? certificateBuffer : undefined,
+      passphrase: cfg.certificadoSenha || undefined,
+      cert: cfg.certificadoPem || undefined,
+      key: cfg.chavePrivadaPem || undefined
+    });
+    const parsed = parseDistDFeResponse(resp.body);
+    return {
+      ok: resp.statusCode >= 200 && resp.statusCode < 300,
+      mode: "sefaz_distdfe_response",
+      httpStatus: resp.statusCode,
+      parsed,
+      cnpj,
+      cUF,
+      ambiente
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      mode: "sefaz_distdfe_fetch_error",
+      message: err?.message || "Falha ao conectar com a SEFAZ (Distribuicao DFe).",
+      errorName: err?.name || "",
+      cause: err?.cause ? { message: err.cause.message || "", code: err.cause.code || "", name: err.cause.name || "" } : null,
+      cnpj,
+      cUF,
+      ambiente
+    };
+  }
+}
+
 module.exports = {
   getSefazConfig,
   validateSefazConfig,
@@ -1597,6 +1742,8 @@ module.exports = {
   transmitirCancelamentoEvento,
   inutilizarFaixa,
   consultarProtocolo,
+  distribuicaoDFe,
+  parseDistDFeResponse,
   validateNfePayload,
   validateCrt,
   buildIbsCbsXml,

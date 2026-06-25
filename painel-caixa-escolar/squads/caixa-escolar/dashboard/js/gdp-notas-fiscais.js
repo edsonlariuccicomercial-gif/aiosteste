@@ -842,6 +842,112 @@ async function _recuperarPorDuplicidade539(xMotivo) {
 }
 if (typeof window !== "undefined") window._recuperarPorDuplicidade539 = _recuperarPorDuplicidade539;
 
+// ===== AUTOCURA DEFINITIVA P0 — DISTRIBUIÇÃO DFe =====
+// O buraco que sobrava: quando a nota AUTORIZA na SEFAZ mas o sistema NUNCA capturou a chave (timeout na
+// volta), a reconsulta por chave (nfe-sefaz-consulta) não tem o que consultar. A Distribuição DFe lista
+// TODAS as NF-e autorizadas do CNPJ a partir do último NSU — RETORNANDO as chaves — sem precisar da chave
+// antes. Cruzamos cada documento autorizado (por NÚMERO nNF + VALOR vNF) com as notas locais pendentes
+// sem chave e completamos para autorizada com chave+protocolo REAIS. O sistema se cura SOZINHO no boot.
+// Throttle: a DFe tem limite de consumo (cStat 656 = consumo indevido). Roda no máx. 1x/hora e guarda o
+// ultNSU para consultas incrementais. NUNCA marca autorizada sem cSitNFe=1 / cStat 100/150 da própria SEFAZ.
+var _DFE_ULTNSU_KEY = "gdp.nfe.ultNSU.v1";
+var _DFE_LASTRUN_KEY = "gdp.nfe.dfe.lastRun.v1";
+var _DFE_THROTTLE_MS = 60 * 60 * 1000; // 1 hora
+
+function _dfeMatchNota(nf, doc) {
+  // cruza por NÚMERO (nNF) e VALOR (vNF) com tolerância de centavos. Número é a âncora; valor confirma.
+  var nNF = parseInt(String(doc.nNF || "").replace(/\D/g, ""), 10) || 0;
+  var nfNum = parseInt(String(nf.numero || "").replace(/\D/g, ""), 10) || 0;
+  if (!nNF || !nfNum || nNF !== nfNum) return false;
+  var vDoc = Math.round((parseFloat(doc.vNF) || 0) * 100);
+  var vNf = Math.round((parseFloat(nf.valor) || 0) * 100);
+  // se a nota local tem valor, exige bater (±2 centavos por arredondamento); se não tem valor, número basta.
+  if (vNf > 0 && vDoc > 0 && Math.abs(vDoc - vNf) > 2) return false;
+  return true;
+}
+
+async function _recuperarViaDistribuicaoDFe(opts) {
+  opts = opts || {};
+  var completadas = 0;
+  try {
+    // só roda se houver nota pendente/sem-chave que valha a pena recuperar
+    var candidatas = (notasFiscais || []).filter(function (nf) {
+      if (!nf || !isNotaFiscalReal(nf)) return false;
+      var jaAut = nf.status === "autorizada"
+        || String((nf.sefaz && nf.sefaz.chaveAcesso) || nf.chaveAcesso || "").replace(/\D/g, "").length === 44;
+      if (jaAut) return false;
+      // pendentes: em_preparo, rascunho, rejeitada (falsa) — qualquer não-autorizada sem chave
+      return !temProvaAutorizacao(nf);
+    });
+    if (!candidatas.length && !opts.force) return { completadas: 0, motivo: "sem candidatas" };
+
+    // Throttle: respeita 1x/hora (a menos que forçado pela tela)
+    var lastRun = parseInt(localStorage.getItem(_DFE_LASTRUN_KEY) || "0", 10) || 0;
+    var agora = Date.now();
+    if (!opts.force && lastRun && (agora - lastRun) < _DFE_THROTTLE_MS) {
+      return { completadas: 0, motivo: "throttle (1x/hora)" };
+    }
+
+    var ultNSU = localStorage.getItem(_DFE_ULTNSU_KEY) || "0";
+    // até 5 páginas por execução (cStat 138 = há mais documentos)
+    var paginas = 0, docsAutorizados = [];
+    while (paginas < 5) {
+      paginas++;
+      var resp = await fetch("/api/gdp-integrations", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "nfe-sefaz-distribuicao-dfe", ultNSU: ultNSU }),
+        signal: AbortSignal.timeout(30000)
+      });
+      var data = await resp.json().catch(function () { return {}; });
+      var parsed = (data && data.result && data.result.parsed) || {};
+      var cStat = String(parsed.cStat || "");
+      // 137 = nenhum doc novo; 138 = documentos localizados. 656 = consumo indevido (parar e respeitar).
+      if (cStat === "656" || cStat === "108" || cStat === "109") {
+        gdpWarn("[DFe] SEFAZ cStat " + cStat + " (" + (parsed.xMotivo || "") + ") — abortando, respeita throttle.");
+        break;
+      }
+      if (parsed.ultNSU) ultNSU = parsed.ultNSU;
+      (parsed.docs || []).forEach(function (d) { if (d && d.autorizada && String(d.chave || "").length === 44) docsAutorizados.push(d); });
+      // grava o avanço do NSU sempre (incremental)
+      try { localStorage.setItem(_DFE_ULTNSU_KEY, ultNSU); } catch (_) {}
+      if (cStat !== "138") break; // 138 = pode haver mais; só continua paginando nesse caso
+    }
+    // marca o run mesmo sem match (throttle conta a chamada à SEFAZ)
+    try { localStorage.setItem(_DFE_LASTRUN_KEY, String(agora)); } catch (_) {}
+
+    if (!docsAutorizados.length) return { completadas: 0, motivo: "DFe sem documentos autorizados novos" };
+
+    // cruza documentos autorizados x notas candidatas (por número+valor) e completa
+    for (var i = 0; i < candidatas.length; i++) {
+      var nf = candidatas[i];
+      var doc = docsAutorizados.find(function (d) { return _dfeMatchNota(nf, d); });
+      if (!doc) continue;
+      if (!doc.nProt || String(doc.nProt).length === 0) continue; // sem protocolo não completa
+      nf.sefaz = nf.sefaz || {};
+      nf.sefaz.chaveAcesso = doc.chave; nf.sefaz.protocolo = String(doc.nProt); nf.sefaz.status = "autorizada";
+      nf.status = "autorizada";
+      if (typeof setIntegrationState === "function") {
+        setIntegrationState(nf, "sefaz", { status: "autorizada", lastAction: "recovery_distribuicao_dfe", accessKey: doc.chave, protocol: String(doc.nProt), cStat: doc.cStat || (doc.cSitNFe === "1" ? "100" : "") });
+      }
+      try { saveNotasFiscais(nf.id); } catch (_) {}
+      try { if (window.gdpApi && window.gdpApi.notas_fiscais) window.gdpApi.notas_fiscais.save(nf); } catch (_) {}
+      // dispara email se ainda não enviado (idempotente — guard de comunicação já enviada)
+      try {
+        var _jaEnviou = nf.integracoes && nf.integracoes.comunicacao && /enviado|email_enviado|sucesso/i.test(nf.integracoes.comunicacao.status || "");
+        if (!_jaEnviou && typeof dispararEmailNotaEBoletoAutomatico === "function") {
+          var _conta = (typeof getContaReceberByNota === "function") ? getContaReceberByNota(nf.id) : null;
+          await dispararEmailNotaEBoletoAutomatico(nf.id, _conta ? _conta.id : null, { manual: false });
+          if (typeof gdpLog === "function") gdpLog("[DFe] email disparado p/ nota " + (nf.numero || nf.id) + " recuperada via Distribuição DFe.");
+        }
+      } catch (_) {}
+      completadas++;
+      if (typeof gdpLog === "function") gdpLog("[DFe] nota " + (nf.numero || nf.id) + " AUTOCURADA via Distribuição DFe (chave " + doc.chave + ").");
+    }
+  } catch (e) { gdpWarn("[DFe] falha em _recuperarViaDistribuicaoDFe", e && e.message); }
+  return { completadas: completadas };
+}
+if (typeof window !== "undefined") window._recuperarViaDistribuicaoDFe = _recuperarViaDistribuicaoDFe;
+
 // ===== RESOLUÇÃO DEFINITIVA (frentes 1 e 2) — recovery no boot =====
 // FRENTE 1: NF presa em estado intermediário de transmissão (transmissao_em_preparo) sem prova de
 // autorização é ÓRFÃ — a transmissão foi interrompida (reload/aba fechada/thread morta) entre gravar
@@ -850,7 +956,7 @@ if (typeof window !== "undefined") window._recuperarPorDuplicidade539 = _recuper
 // limpo p/ permitir re-transmissão. Se TEM chave mas falta protocolo, NÃO mexer (pode estar aguardando
 // reconsulta legítima) — apenas registrar. Roda 1x no boot.
 async function recoverNfsTransmissaoOrfas() {
-  var revertidas = 0, comChaveAguardando = 0, completadasPorConsulta = 0;
+  var revertidas = 0, comChaveAguardando = 0, completadasPorConsulta = 0, completadasPorDFe = 0;
   try {
     var orfas = (notasFiscais || []).filter(function (nf) {
       if (!nf || !isNotaFiscalReal(nf)) return false;
@@ -922,8 +1028,14 @@ async function recoverNfsTransmissaoOrfas() {
     if (revertidas || comChaveAguardando || completadasPorConsulta) {
       gdpWarn("[recovery] NF transmissão órfã: " + revertidas + " revertidas, " + completadasPorConsulta + " completadas por consulta SEFAZ, " + comChaveAguardando + " ainda aguardando");
     }
+    // AUTOCURA DEFINITIVA (P0): para as notas que sobraram pendentes/sem-chave (não dava para consultar
+    // por chave), aciona a Distribuição DFe — lista as autorizadas do CNPJ e completa por número+valor.
+    // Throttled (1x/hora). É o fechamento do buraco "autorizou mas perdeu a resposta E nunca capturou a chave".
+    if (typeof _recuperarViaDistribuicaoDFe === "function") {
+      try { var rDfe = (await _recuperarViaDistribuicaoDFe()) || {}; completadasPorDFe = rDfe.completadas || 0; } catch (_) {}
+    }
   } catch (e) { gdpWarn("[recovery] falha em recoverNfsTransmissaoOrfas", e && e.message); }
-  return { revertidas: revertidas, completadasPorConsulta: completadasPorConsulta, comChaveAguardando: comChaveAguardando };
+  return { revertidas: revertidas, completadasPorConsulta: completadasPorConsulta, comChaveAguardando: comChaveAguardando, completadasPorDFe: completadasPorDFe };
 }
 if (typeof window !== "undefined") window.recoverNfsTransmissaoOrfas = recoverNfsTransmissaoOrfas;
 

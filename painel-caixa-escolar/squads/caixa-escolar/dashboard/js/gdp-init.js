@@ -3087,7 +3087,7 @@ async function enviarTiny(contratoId) {
       var mudou = 0;
       if (typeof window.recoverNfsTransmissaoOrfas === 'function') {
         // agora é async (consulta SEFAZ p/ notas com chave). Aguarda p/ renderizar com o estado final.
-        try { var rNf = (await window.recoverNfsTransmissaoOrfas()) || {}; mudou += (rNf.revertidas || 0) + (rNf.completadasPorConsulta || 0); } catch (_) {}
+        try { var rNf = (await window.recoverNfsTransmissaoOrfas()) || {}; mudou += (rNf.revertidas || 0) + (rNf.completadasPorConsulta || 0) + (rNf.completadasPorDFe || 0); } catch (_) {}
       }
       if (typeof window.reconciliarCobrancasOrfas === 'function') {
         try { var r = window.reconciliarCobrancasOrfas() || {}; mudou += (r.marcadas || 0) + (r.revertidas || 0); } catch (_) {}

@@ -139,6 +139,19 @@ module.exports = async function handler(req, res) {
       return res.status(result.ok ? 200 : 502).json({ ok: result.ok, action, result });
     }
 
+    // Distribuição DFe — autocura de notas falsa-pendentes (P0).
+    // Lista TODAS as NF-e autorizadas do CNPJ emitente a partir de ultNSU (incremental), inclusive as
+    // que o sistema nunca capturou (autorizou mas perdeu a resposta). O frontend cruza por numero+valor
+    // e completa as notas locais pendentes para autorizada. NAO precisa de chave previa.
+    if (action === "nfe-sefaz-distribuicao-dfe" && nfeSefaz.distribuicaoDFe) {
+      const ultNSU = body.ultNSU != null ? body.ultNSU : "0";
+      const result = await nfeSefaz.distribuicaoDFe(ultNSU);
+      // cStat 137 (nada novo) e 138 (documentos localizados) sao respostas OK da SEFAZ.
+      const cStat = result?.parsed?.cStat || "";
+      const sefazOk = cStat === "137" || cStat === "138";
+      return res.status(result.ok ? 200 : 502).json({ ok: result.ok, sefazOk, action, result });
+    }
+
     // Inutilização de faixa
     if (action === "nfe-sefaz-inutilizar" && nfeSefaz.inutilizarFaixa) {
       const { ano, serie, nfInicio, nfFim, justificativa } = body;
