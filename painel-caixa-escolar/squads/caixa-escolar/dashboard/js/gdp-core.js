@@ -1250,11 +1250,41 @@ function _comprimirBasesPesadas() {
   ['intel.central-produtos.v2', 'gdp.estoque-intel.produtos.v1', 'caixaescolar.banco.v1'].forEach(function (k) {
     try { if (localStorage.getItem(k)) localStorage.removeItem(k); } catch (_) {}
   });
+  // 4. Produtos / contratos / pedidos — remover campos PESADOS recuperáveis do servidor, SEM mexer
+  //    nos campos que as telas leem. NÃO usa versão "leve-de-lista" (que exigiria hidratação e seria
+  //    arriscado p/ essas telas) — só tira gordura (históricos longos, payloads, base64, propostas
+  //    acumuladas). Seguro: as telas continuam funcionando, só ocupa menos.
+  try {
+    _enxugarBaseGenerica('gdp.produtos.v1', ['concorrentes', 'propostas', 'custosFornecedor', 'historico', 'historicoPrecos', '_raw', 'rawData']);
+    _enxugarBaseGenerica(CONTRACTS_KEY, ['historico', 'auditTrail', '_raw', 'rawData', 'anexos', 'documentosBase64']);
+    _enxugarBaseGenerica(ORDERS_KEY, ['historico', 'auditTrail', '_raw', 'rawData', 'snapshotItens']);
+  } catch (_) {}
   var liberado = (antes - _localStorageUsageBytes()) / (1024 * 1024);
   if (liberado > 0.01) gdpLog('[quota-guard] Compressão de bases pesadas: liberados ' + liberado.toFixed(2) + 'MB.');
   return liberado;
 }
 if (typeof window !== 'undefined') window._comprimirBasesPesadas = _comprimirBasesPesadas;
+
+// Remove campos pesados (recuperáveis do servidor) de uma base no localStorage, preservando
+// todos os outros campos que as telas usam. Opera no cache em disco; NÃO toca na RAM.
+function _enxugarBaseGenerica(key, camposPesados) {
+  try {
+    var raw = JSON.parse(localStorage.getItem(key) || 'null');
+    if (!raw) return;
+    var wrapped = !Array.isArray(raw);
+    var arr = wrapped ? (raw.items || raw.itens || []) : raw;
+    if (!arr.length) return;
+    var enxuto = arr.map(function (item) {
+      if (!item || typeof item !== 'object') return item;
+      var copy = Object.assign({}, item);
+      camposPesados.forEach(function (c) { delete copy[c]; });
+      return copy;
+    });
+    var out = wrapped ? Object.assign({}, raw, (raw.items ? { items: enxuto } : { itens: enxuto })) : enxuto;
+    localStorage.setItem(key, JSON.stringify(out));
+  } catch (_) {}
+}
+if (typeof window !== 'undefined') window._enxugarBaseGenerica = _enxugarBaseGenerica;
 
 // Limpeza segura: agora apaga TODAS as bases recuperáveis (servidor é a fonte). NÃO perde nada.
 window.gdpLimparCacheSeguro = function() {
@@ -1293,13 +1323,26 @@ function _checkQuotaWarning() {
   try {
     var bytes = _localStorageUsageBytes();
     var mb = bytes / (1024 * 1024);
-    if (mb > 4.5) {
-      gdpWarn('[quota-guard] localStorage em ' + mb.toFixed(2) + 'MB (perto do limite de ~5MB)');
-      if (typeof showToast === 'function') {
-        showToast('⚠️ Memória local quase cheia (' + mb.toFixed(1) + 'MB). Se as notas sumirem, clique aqui ou use "limpar cache". ', 8000);
+    // FIX (2026-06-25 — aviso "memória cheia" aparecia em uso NORMAL): o limite estava em 4.5MB com
+    // premissa ERRADA de que o localStorage suporta ~5MB. Na verdade o Chrome/Edge suportam ~10MB por
+    // origem. Um sistema com 4-5MB de dados REAIS (notas+produtos+contratos+pedidos) é NORMAL e não
+    // está perto de estourar. O aviso a 4.5MB assustava o usuário sem necessidade ("começou a aparecer
+    // ontem" = foi quando o aviso foi adicionado, commit c940c8dd — não foi a memória que cresceu).
+    // Novo limite: 8.5MB (perto do limite real). E ANTES de avisar, tenta comprimir/liberar sozinho —
+    // só mostra o aviso se MESMO assim seguir alto (emergência real de perda iminente).
+    if (mb > 8.5) {
+      // tenta resolver sozinho antes de incomodar o usuário
+      try { if (typeof _comprimirBasesPesadas === 'function') _comprimirBasesPesadas(); } catch (_) {}
+      var mbDepois = _localStorageUsageBytes() / (1024 * 1024);
+      if (mbDepois > 8.5) {
+        gdpWarn('[quota-guard] localStorage em ' + mbDepois.toFixed(2) + 'MB (perto do limite real de ~10MB)');
+        if (typeof showToast === 'function') {
+          showToast('⚠️ Memória local quase cheia (' + mbDepois.toFixed(1) + 'MB). Clique aqui ou use "limpar cache". Seus dados estão seguros no servidor.', 8000);
+        }
+        gdpLog('[quota-guard] Para liberar: window.gdpLimparCacheSeguro()');
+      } else {
+        gdpLog('[quota-guard] Memória auto-comprimida de ' + mb.toFixed(2) + 'MB para ' + mbDepois.toFixed(2) + 'MB — sem necessidade de aviso.');
       }
-      // Botão programático seguro (sem depender de UI específica): expõe a ação no console e no toast.
-      gdpLog('[quota-guard] Para liberar: window.gdpLimparCacheSeguro()');
     }
   } catch (_) {}
 }
