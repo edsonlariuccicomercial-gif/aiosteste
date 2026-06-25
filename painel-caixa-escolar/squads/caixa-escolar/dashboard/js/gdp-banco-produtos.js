@@ -121,6 +121,10 @@ function renderBancoProdutos() {
   const busca = window.normalizeSearch(document.getElementById("busca-produto")?.value || "");
   let itens = bancoProdutos.itens;
   if (busca) itens = itens.filter(p => window.normalizeSearch(p.descricao || "").includes(busca) || window.normalizeSearch(p.sku || "").includes(busca));
+  // Ordenação ALFABÉTICA por descrição (pedido do usuário 2026-06-25). Só apresentação — NÃO altera
+  // id/sku nem vínculos. localeCompare pt-BR + sensitivity:base ignora acento/maiúscula.
+  itens = itens.slice().sort((a, b) =>
+    String(a.descricao || "").localeCompare(String(b.descricao || ""), "pt-BR", { sensitivity: "base", numeric: true }));
 
   const tbody = document.getElementById("banco-produtos-tbody");
   const empty = document.getElementById("banco-produtos-empty");

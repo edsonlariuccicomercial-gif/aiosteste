@@ -2199,7 +2199,10 @@ function renderEstoque() {
     return matchBusca && matchBase;
   });
 
-  const produtosVisiveis = produtosFiltrados;
+  // Ordenação ALFABÉTICA por descrição/nome (pedido do usuário 2026-06-25). Só apresentação — NÃO mexe
+  // em id/sku nem em vínculos. localeCompare pt-BR + sensitivity:base ignora acento/maiúscula.
+  const produtosVisiveis = produtosFiltrados.slice().sort((a, b) =>
+    String(a.nome || a.descricao || "").localeCompare(String(b.nome || b.descricao || ""), "pt-BR", { sensitivity: "base", numeric: true }));
   // Story 4.52 AC-5: update footer with filtered product count
   if (typeof _updateProdutosFooterTotals === 'function') _updateProdutosFooterTotals(produtosFiltrados);
   const pedidosVisiveis = pedidosFiltrados;
