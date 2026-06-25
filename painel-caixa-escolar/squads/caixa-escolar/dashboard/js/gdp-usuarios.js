@@ -7,11 +7,23 @@ let clienteDetalheAtualId = null;
 function loadUsuarios() {
   try { usuarios = JSON.parse(localStorage.getItem(USUARIOS_KEY)) || []; } catch(_) { usuarios = []; }
 }
-function saveUsuarios() {
+// FIX CARIMBÃO DE CLIENTES (2026-06-25): antes, saveUsuarios SEMPRE chamava gdpApi.clientes.saveAll(usuarios)
+// — re-gravava TODOS os 76 clientes ao editar 1, causando conflito multi-device (mesmo padrão de carimbão
+// já corrigido em NF e conciliação). Agora aceita um changedId: se fornecido, persiste SÓ aquele cliente
+// (gdpApi.clientes.save). Sem changedId (ex.: boot/migração), mantém saveAll. O localStorage continua
+// gravando a lista local (fonte de tela); o que muda é o que vai ao SERVIDOR (1 registro, não 76).
+function saveUsuarios(changedId) {
   localStorage.setItem(USUARIOS_KEY, JSON.stringify(usuarios));
   // Sync para Supabase via gdpApi (tabela clientes)
   if (window.gdpApi && window.gdpApi.clientes) {
-    gdpApi.clientes.saveAll(usuarios).catch(e => gdpWarn('[saveUsuarios] Supabase sync failed:', e));
+    if (changedId) {
+      const _cli = usuarios.find(u => u && u.id === changedId);
+      if (_cli) {
+        gdpApi.clientes.save(_cli).catch(e => gdpWarn('[saveUsuarios] Supabase save (por-id) failed:', e));
+      }
+    } else {
+      gdpApi.clientes.saveAll(usuarios).catch(e => gdpWarn('[saveUsuarios] Supabase saveAll failed:', e));
+    }
   }
   schedulCloudSync();
 }
@@ -268,7 +280,8 @@ function salvarUsuario(editId) {
     savedUser = data;
   }
 
-  saveUsuarios();
+  // FIX CARIMBÃO: persiste SÓ o cliente editado/criado no servidor (não os 76)
+  saveUsuarios(savedUser && savedUser.id);
   renderUsuarios();
   if (pendingContratoDraft) {
     // Excecao (vincular-e-concluir): fechar e seguir para o contrato e o passo natural
