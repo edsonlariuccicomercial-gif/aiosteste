@@ -711,8 +711,13 @@ async function forcarSyncCompleto() {
     // Também fazer full load das tabelas dedicadas do Supabase (pedidos, contratos, etc.)
     // PROTEÇÃO: se Supabase retornar 0 rows mas localStorage tinha dados, NÃO zerar
     if (window.gdpApi) {
-      const tables = ['contratos', 'pedidos', 'notas_fiscais', 'contas_receber', 'contas_pagar', 'entregas', 'extratos', 'conciliacoes'];
-      const lsKeys = { contratos: 'gdp.contratos.v1', pedidos: 'gdp.pedidos.v1', notas_fiscais: 'gdp.notas-fiscais.v1', contas_receber: 'gdp.contas-receber.v1', contas_pagar: 'gdp.contas-pagar.v1', entregas: 'gdp.entregas.provas.v1', extratos: 'gdp.extratos.v1', conciliacoes: 'gdp.conciliacao.v1' };
+      // FIX (2026-06-25 — "Atualizar da Nuvem" nunca trazia os produtos): 'produtos' FALTAVA
+      // nesta lista. O botao apagava gdp.produtos.v1 (linha ~689), o sync legado nao traz produtos
+      // (estao na TABELA, nao no blob), o full-load pulava produtos, e a PROTECAO restaurava os 3
+      // antigos locais. Por isso a maquina do usuario ficava ETERNAMENTE em 3 produtos enquanto o
+      // servidor tinha 671. Adicionando 'produtos' aqui, o botao finalmente baixa os 671 da tabela.
+      const tables = ['contratos', 'pedidos', 'notas_fiscais', 'contas_receber', 'contas_pagar', 'entregas', 'extratos', 'conciliacoes', 'produtos'];
+      const lsKeys = { contratos: 'gdp.contratos.v1', pedidos: 'gdp.pedidos.v1', notas_fiscais: 'gdp.notas-fiscais.v1', contas_receber: 'gdp.contas-receber.v1', contas_pagar: 'gdp.contas-pagar.v1', entregas: 'gdp.entregas.provas.v1', extratos: 'gdp.extratos.v1', conciliacoes: 'gdp.conciliacao.v1', produtos: 'gdp.produtos.v1' };
       for (const table of tables) {
         try {
           if (window.gdpApi[table] && window.gdpApi[table].list) {
@@ -729,6 +734,28 @@ async function forcarSyncCompleto() {
             if (countAfter === 0 && countBefore > 0 && lsBefore) {
               localStorage.setItem(lsKeys[table], lsBefore);
               gdpWarn('[ForceSync] PROTECAO: ' + table + ' retornou 0 do cloud mas tinha ' + countBefore + ' local — mantido localStorage');
+            } else if (countAfter > 0) {
+              // 2026-06-25: GRAVAR explicitamente os dados baixados no formato wrapped que a tela lê.
+              // Antes o list() nao persistia garantidamente -> "Atualizar da Nuvem" baixava mas a tela
+              // nao via. Agora grava { _v, items } com fallback de quota (libera memoria + retry).
+              try {
+                const wrapped = { _v: 1, updatedAt: new Date().toISOString(), items: rows };
+                try {
+                  localStorage.setItem(lsKeys[table], JSON.stringify(wrapped));
+                } catch (eq) {
+                  if (typeof window._liberarMemoriaRecuperavel === 'function') window._liberarMemoriaRecuperavel();
+                  try { localStorage.setItem(lsKeys[table], JSON.stringify(wrapped)); }
+                  catch (eq2) {
+                    let light = rows;
+                    if (table === 'notas_fiscais' && typeof window._stripNfHeavy === 'function') light = rows.map(window._stripNfHeavy);
+                    localStorage.setItem(lsKeys[table], JSON.stringify({ _v: 1, updatedAt: new Date().toISOString(), items: light }));
+                  }
+                }
+                // produtos: re-hidratar a Central a partir do que foi baixado
+                if (table === 'produtos' && window.ProductStore && window.ProductStore.reload) {
+                  try { window.ProductStore.reload(); } catch (_) {}
+                }
+              } catch (_) {}
             }
           }
         } catch(_) {}
