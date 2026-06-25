@@ -2,6 +2,17 @@
 
 You are working with Synkra AIOX, an AI-Orchestrated System for Full Stack Development.
 
+## ✅ NF "pisca" entre abas + cobrança SOME das contas a receber — RESOLVIDO (2026-06-25, forward-only)
+
+**Sintomas (relatados após emitir notas pós-autocura DFe):** (1) nota autorizava → ia p/ aba **Emitidas**, voltava p/ **Pendentes** por segundos, voltava p/ **Emitidas** (PISCAR); (2) cobrança vinculada à NF (com boleto Inter real) **SUMIA** das contas a receber (ex.: escola Ivan 1618/1619 — uma gerou boleto, registrou cobrança, depois a cobrança sumiu); (3) NF autorizada via autocura que **nunca gerou cobrança** (resultado: "11 notas, 9 cobranças"). **Causa raiz (race no boot, tripla):** `_recuperarViaDistribuicaoDFe` (autocura), `reloadFromLocalSilent` (realtime) e `reconciliarCobrancasOrfas` competiam pela lista de notas SEM coordenação. Quando o realtime reidratava a cópia ATRASADA do localStorage no meio da autocura, a NF caía a "pendente" por milissegundos → perdia `temProvaAutorizacao` → `reconciliarCobrancasOrfas` marcava a cobrança `_orfa=true`/`status="aguardando_nf"` (some da tela). Pior: a autocura DFe **marcava a nota autorizada mas NUNCA criava a cobrança** (`buildReceivableFromInvoice` só rodava no fluxo de transmissão normal).
+
+**Fix (forward-only, NÃO recupera dados antigos — decisão do usuário; `gdp-notas-fiscais.js v53`):**
+1. **Blindagem por boleto real** (`reconciliarCobrancasOrfas`): cobrança com boleto Inter (`providerChargeId`/`nossoNumero`/`bankSlipUrl`/`linhaDigitavel` ou `integracoes.bancaria.providerChargeId`) NUNCA é rebaixada a `aguardando_nf`. **Boleto real = prova durável > nf.status volátil na RAM.** O boleto só existe se a SEFAZ autorizou.
+2. **Autocura cria cobrança faltante** (`_recuperarViaDistribuicaoDFe`): após marcar a NF autorizada, se `getContaReceberByNota(nf.id)` é null, cria via `buildReceivableFromInvoice` (idempotente — 1 título por nota). Fecha o "11 notas, 9 cobranças".
+3. **Coordenação com realtime** (frente 3): a autocura seta `_nfOpsEmAndamento.__dfe_recovery=true` no início e libera no `finally`. O realtime já consulta `window._nfOpHasInFlight()` (gdp-realtime.js:67) e ADIA `reloadFromLocalSilent` enquanto true → elimina o piscar E a janela de corrida.
+
+**REGRA INEGOCIÁVEL:** o gate de criação de cobrança segue exigindo prova SEFAZ (chave+protocolo) — NUNCA cria título por nota não autorizada. **Validar na tela (Playwright logado):** emitir NF, ver que não pisca e que a cobrança aparece e PERMANECE nas contas a receber.
+
 ## ✅ Central de Produtos: SKU aparecia BANK-* em vez do real (LICT-*) — RESOLVIDO (2026-06-25)
 
 **Sintoma:** após limpar produtos, a Central mostrava SKUs `BANK-*` (ex.: `BANK-001-FEIJ-PRET-TIPO`) em vez do SKU real `LICT-*` (ex.: `LICT-0065`), mesmo a tabela Supabase `produtos` tendo os `LICT-*` corretos. **Causa raiz (commit `481508a1`):** `sanitizeBancoProduto` (gdp-banco-produtos.js:54) chamava `normalizeInternalSku("BANK", item, idx)` que **SEMPRE** regenerava o SKU como `BANK-<idx>` via `buildAutoSku`, **DESTRUINDO o SKU real** a CADA `loadBancoProdutos` (todo boot). Os "457 produtos BANK" eram duplicatas geradas por esse mesmo mecanismo. **Fix:** preservar o SKU existente quando válido (não-vazio e não-`isLegacyExternalSku`); só gerar SKU automático quando NÃO há SKU. Protege os 690 vínculos de contratos (`skuVinculado===produto.sku`) e mantém a tabela `produtos` como fonte de verdade. **Validado na tela:** após boot completo, Central mostra `LICT-*`, BANK não volta. HTML: `gdp-banco-produtos v17`.

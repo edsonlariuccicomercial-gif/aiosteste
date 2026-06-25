@@ -888,6 +888,13 @@ async function _recuperarViaDistribuicaoDFe(opts) {
       return { completadas: 0, motivo: "throttle (1x/hora)" };
     }
 
+    // FIX (race/flicker 2026-06-25): sinaliza operação de NF em curso ANTES de mexer nas notas. O realtime
+    // (gdp-realtime.js) consulta window._nfOpHasInFlight() e ADIA reloadFromLocalSilent enquanto true —
+    // assim ele não sobrescreve a memória com a cópia antiga do localStorage (NF autorizada→pendente) no
+    // meio da autocura. Isso elimina o 'piscar' emitidas→pendentes→emitidas E fecha a janela de corrida
+    // em que reconciliarCobrancasOrfas via a nota sem prova e marcava a cobrança 'aguardando_nf'.
+    _nfOpsEmAndamento.__dfe_recovery = true;
+
     var ultNSU = localStorage.getItem(_DFE_ULTNSU_KEY) || "0";
     // até 5 páginas por execução (cStat 138 = há mais documentos)
     var paginas = 0, docsAutorizados = [];
@@ -931,11 +938,27 @@ async function _recuperarViaDistribuicaoDFe(opts) {
       }
       try { saveNotasFiscais(nf.id); } catch (_) {}
       try { if (window.gdpApi && window.gdpApi.notas_fiscais) window.gdpApi.notas_fiscais.save(nf); } catch (_) {}
+      // FIX (cobrança faltante 2026-06-25): a autocura DFe autoriza notas cuja RESPOSTA da SEFAZ se perdeu
+      // na emissão original — por isso a cobrança NUNCA foi criada (buildReceivableFromInvoice só roda no
+      // fluxo de transmissão normal). Resultado real: '11 notas, 9 cobranças'. Aqui criamos o título
+      // faltante de forma IDEMPOTENTE: getContaReceberByNota(nf.id) garante 1 cobrança por nota.
+      var _contaDfe = (typeof getContaReceberByNota === "function") ? getContaReceberByNota(nf.id) : null;
+      if (!_contaDfe && typeof buildReceivableFromInvoice === "function") {
+        try {
+          _contaDfe = buildReceivableFromInvoice(nf);
+          contasReceber.push(_contaDfe);
+          if (typeof setIntegrationState === "function") {
+            setIntegrationState(_contaDfe, "bancaria", { status: "autorizada_pronta_para_cobranca", lastAction: "recovery_distribuicao_dfe" });
+          }
+          if (typeof saveContasReceber === "function") saveContasReceber();
+          if (typeof gdpLog === "function") gdpLog("[DFe] cobrança faltante CRIADA p/ nota " + (nf.numero || nf.id) + " recuperada via Distribuição DFe.");
+        } catch (eCr) { gdpWarn("[DFe] falha ao criar cobrança faltante p/ nota " + (nf.numero || nf.id), eCr && eCr.message); }
+      }
       // dispara email se ainda não enviado (idempotente — guard de comunicação já enviada)
       try {
         var _jaEnviou = nf.integracoes && nf.integracoes.comunicacao && /enviado|email_enviado|sucesso/i.test(nf.integracoes.comunicacao.status || "");
         if (!_jaEnviou && typeof dispararEmailNotaEBoletoAutomatico === "function") {
-          var _conta = (typeof getContaReceberByNota === "function") ? getContaReceberByNota(nf.id) : null;
+          var _conta = _contaDfe || ((typeof getContaReceberByNota === "function") ? getContaReceberByNota(nf.id) : null);
           await dispararEmailNotaEBoletoAutomatico(nf.id, _conta ? _conta.id : null, { manual: false });
           if (typeof gdpLog === "function") gdpLog("[DFe] email disparado p/ nota " + (nf.numero || nf.id) + " recuperada via Distribuição DFe.");
         }
@@ -944,6 +967,12 @@ async function _recuperarViaDistribuicaoDFe(opts) {
       if (typeof gdpLog === "function") gdpLog("[DFe] nota " + (nf.numero || nf.id) + " AUTOCURADA via Distribuição DFe (chave " + doc.chave + ").");
     }
   } catch (e) { gdpWarn("[DFe] falha em _recuperarViaDistribuicaoDFe", e && e.message); }
+  finally {
+    // FIX (race/flicker 2026-06-25): libera a flag SEMPRE (mesmo em erro) — o realtime volta a poder
+    // reidratar. Como o estado final na RAM já é o correto (autorizada + cobrança), um re-render agora
+    // garante que a tela reflita o estado definitivo sem mais oscilação.
+    try { _nfOpsEmAndamento.__dfe_recovery = false; } catch (_) {}
+  }
   return { completadas: completadas };
 }
 if (typeof window !== "undefined") window._recuperarViaDistribuicaoDFe = _recuperarViaDistribuicaoDFe;
@@ -1056,7 +1085,16 @@ function reconciliarCobrancasOrfas() {
       if (!ehDeNf || !idNf) return;
       if (conta.status === "recebida" || conta.status === "cancelada") return;
       var temProva = nf && temProvaAutorizacao(nf);
-      if (!temProva && conta._orfa !== true) {
+      // FIX (race NF↔cobrança 2026-06-25): BLINDAGEM por boleto real. Se a cobrança JÁ tem boleto Inter
+      // emitido (providerChargeId/nossoNumero/bankSlipUrl/linhaDigitavel), o boleto SÓ existe porque a
+      // SEFAZ autorizou — é prova DURÁVEL, mais forte que nf.status volátil na RAM. Durante o flicker de
+      // boot (realtime rebaixa a NF a 'pendente' por milissegundos), temProva fica false e a conta era
+      // marcada 'aguardando_nf' → SUMIA da tela de contas a receber. Boleto real NUNCA rebaixa.
+      var temBoletoReal = !!(conta.cobranca && (
+        conta.cobranca.providerChargeId || conta.cobranca.nossoNumero ||
+        conta.cobranca.bankSlipUrl || conta.cobranca.linhaDigitavel
+      )) || !!(conta.integracoes && conta.integracoes.bancaria && conta.integracoes.bancaria.providerChargeId);
+      if (!temProva && conta._orfa !== true && !temBoletoReal) {
         conta._orfa = true;
         conta.origemTipo = conta.origemTipo || "nota_fiscal"; // backfill do campo legado
         conta.status = "aguardando_nf";
@@ -1065,7 +1103,10 @@ function reconciliarCobrancasOrfas() {
           orfaDetectadaEm: new Date().toISOString()
         });
         marcadas++;
-      } else if (temProva && conta._orfa === true) {
+      } else if ((temProva || temBoletoReal) && conta._orfa === true) {
+        // QA fix (race NF↔cobrança 2026-06-25): reverte se ganhou prova OU se tem boleto real. Sem o
+        // '|| temBoletoReal', uma cobrança com boleto que tivesse sido marcada órfã num boot anterior
+        // ficaria PRESA em aguardando_nf para sempre (a reversão exigia temProva, que oscila no flicker).
         conta._orfa = false;
         conta.status = "pendente";
         revertidas++; // QA fix-2: contabiliza reversão em var separada (não decrementar 'marcadas')
