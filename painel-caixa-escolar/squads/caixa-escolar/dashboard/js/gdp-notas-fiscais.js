@@ -896,13 +896,16 @@ async function recoverNfsTransmissaoOrfas() {
         comChaveAguardando++;
         continue;
       }
-      // sem chave: transmissão nunca completou → reverter a rascunho limpo (libera re-transmissão)
-      nf.status = "rascunho_nf_real";
-      setIntegrationState(nf, "sefaz", { status: "validacao_pendente", lastAction: "recovery_reverteu_transmissao_orfa" });
-      nf.sefaz = nf.sefaz || {};
-      nf.sefaz.status = "validacao_pendente";
-      revertidas++;
-      try { saveNotasFiscais(nf.id); } catch (_) {}
+      // sem chave: transmissão pode ter ficado incompleta.
+      // 2026-06-25 (CAUSA-RAIZ RECORRENTE — NF 1608 voltava a rascunho todo boot):
+      // NÃO reverter status nem persistir automaticamente. Este ramo rodava no boot sobre uma
+      // cópia do localStorage que chegava ANTES do Supabase-First hidratar — então uma NF
+      // autorizada (mas ainda "em_preparo" + chave não-carregada naquele instante) era rebaixada
+      // a rascunho E tinha a chave apagada, e isso era SALVO no Supabase, destruindo a nota.
+      // Reverter status fiscal é decisão MANUAL do usuário (re-emitir), nunca automática no boot.
+      // Aqui apenas REGISTRAMOS o estado para diagnóstico — SEM mexer no status, SEM salvar.
+      comChaveAguardando++;
+      gdpWarn("[recovery] NF " + (nf.numero || nf.id) + " em_preparo sem chave — NÃO revertida (decisão manual). Reconsulte a SEFAZ ou re-emita se necessário.");
     }
     if (revertidas || comChaveAguardando || completadasPorConsulta) {
       gdpWarn("[recovery] NF transmissão órfã: " + revertidas + " revertidas, " + completadasPorConsulta + " completadas por consulta SEFAZ, " + comChaveAguardando + " ainda aguardando");
