@@ -1166,14 +1166,58 @@ function _localStorageUsageBytes() {
   } catch (_) {}
   return total * 2; // UTF-16: ~2 bytes por char (estimativa conservadora)
 }
-// Limpeza segura: GC dos campos pesados + re-sync. NÃO apaga dados financeiros (servidor é a fonte).
+// Bases com tabela própria no Supabase — recuperáveis no boot (Supabase-First).
+// Apagar estas do localStorage é SEGURO: voltam do servidor leves no próximo carregamento.
+var _RECUPERAVEIS_SUPABASE = ['gdp.produtos.v1','gdp.notas-fiscais.v1','gdp.contratos.v1','gdp.pedidos.v1','gdp.contas-receber.v1','gdp.contas-pagar.v1','gdp.extratos.v1','gdp.conciliacao.v1','gdp.notas-entrada.v1','intel.central-produtos.v2','gdp.estoque-intel.produtos.v1','caixaescolar.banco.v1'];
+
+// Libera memória apagando SÓ bases recuperáveis do servidor. Retorna MB liberados.
+// 2026-06-25: substitui a versão antiga que só removia notas-entrada (0.1MB = placebo).
+function _liberarMemoriaRecuperavel() {
+  var liberado = 0;
+  for (var i = 0; i < _RECUPERAVEIS_SUPABASE.length; i++) {
+    var k = _RECUPERAVEIS_SUPABASE[i];
+    try {
+      var v = localStorage.getItem(k);
+      if (v) { liberado += (k.length + v.length) * 2; localStorage.removeItem(k); }
+    } catch (_) {}
+  }
+  return liberado / (1024 * 1024);
+}
+if (typeof window !== 'undefined') window._liberarMemoriaRecuperavel = _liberarMemoriaRecuperavel;
+
+// Limpeza segura: agora apaga TODAS as bases recuperáveis (servidor é a fonte). NÃO perde nada.
 window.gdpLimparCacheSeguro = function() {
   try { if (typeof _gcLocalStorage === 'function') _gcLocalStorage(); } catch (_) {}
-  // notas-entrada e fornecedores são os maiores ofensores e re-sincronizáveis do servidor.
-  try { localStorage.removeItem('gdp.notas-entrada.v1'); } catch (_) {}
-  showToast('Cache liberado. Recarregando para baixar os dados do servidor...', 3000);
+  var mb = _liberarMemoriaRecuperavel();
+  showToast('Cache liberado (' + mb.toFixed(1) + 'MB). Recarregando para baixar os dados do servidor...', 3000);
   setTimeout(function(){ location.reload(); }, 1200);
 };
+
+// AUTO-LIMPEZA no boot: se a memória passou do limite APÓS o Supabase-First hidratar,
+// remove os CAMPOS PESADOS das bases (não os registros) — preserva a estrutura que a tela lê,
+// mas tira o peso (PDFs, XML, previews). Assim a Central/abas continuam mostrando os dados,
+// só que leves. Roda 1x no fim do boot. Evita "memória cheia" e travamento sem esvaziar a tela.
+function _autoLimparMemoriaSeAlta() {
+  try {
+    var mb = _localStorageUsageBytes() / (1024 * 1024);
+    if (mb <= 6) return { skipped: true, mb: mb };
+    // Estratégia segura: rodar o strip retroativo (remove campos pesados, MANTÉM os registros).
+    // NÃO apaga gdp.produtos.v1 inteiro (a Central lê de lá) — só tira o peso de NFs/contas.
+    var liberado = 0;
+    try {
+      var antesBytes = _localStorageUsageBytes();
+      if (typeof _stripLocalStorageRetroativo === 'function') _stripLocalStorageRetroativo();
+      // notas-entrada e bases legadas REDUNDANTES (produtos já vive em gdp.produtos.v1) podem sair inteiras.
+      ['gdp.notas-entrada.v1','intel.central-produtos.v2','gdp.estoque-intel.produtos.v1','caixaescolar.banco.v1'].forEach(function(k){
+        try { if (localStorage.getItem(k)) localStorage.removeItem(k); } catch(_) {}
+      });
+      liberado = (antesBytes - _localStorageUsageBytes()) / (1024 * 1024);
+    } catch (_) {}
+    gdpLog('[quota-guard] Auto-limpeza no boot: memória estava em ' + mb.toFixed(2) + 'MB, liberados ' + liberado.toFixed(2) + 'MB (campos pesados + bases redundantes).');
+    return { cleaned: true, antes: mb, liberado: liberado };
+  } catch (e) { return { erro: e && e.message }; }
+}
+if (typeof window !== 'undefined') window._autoLimparMemoriaSeAlta = _autoLimparMemoriaSeAlta;
 function _checkQuotaWarning() {
   try {
     var bytes = _localStorageUsageBytes();

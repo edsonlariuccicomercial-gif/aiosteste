@@ -3280,6 +3280,22 @@ async function enviarTiny(contratoId) {
           else if (typeof loadData === 'function') loadData();
           renderAll();
         } catch (_) {}
+        // AUTO-LIMPEZA DE MEMÓRIA (2026-06-25): agora que o Supabase-First JÁ hidratou e
+        // renderizou, se o localStorage estiver alto, apaga as bases recuperáveis do servidor
+        // SEM recarregar. Resolve o "memória cheia" que travava a tela e impedia gravações
+        // (causa de dados não salvarem / correções não grudarem). Roda com delay extra para
+        // garantir que toda a hidratação assentou — apagar antes disso esvaziaria a tela.
+        setTimeout(function() {
+          try {
+            if (typeof window._autoLimparMemoriaSeAlta === 'function') {
+              var r = window._autoLimparMemoriaSeAlta();
+              if (r && r.cleaned && typeof renderAll === 'function') {
+                // após limpar, a memória está leve; os dados seguem em memória (já renderizados).
+                gdpLog('[GDP] Memória auto-liberada no boot: ' + (r.liberado||0).toFixed(2) + 'MB. Tela mantida.');
+              }
+            }
+          } catch (_) {}
+        }, 3000);
       } catch(e) {
         gdpWarn("[GDP] Supabase-First falhou, fallback localStorage:", e);
       }
