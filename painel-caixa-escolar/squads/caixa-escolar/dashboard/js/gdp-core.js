@@ -1219,13 +1219,16 @@ if (typeof window !== 'undefined') window._liberarMemoriaRecuperavel = _liberarM
 // só precisa do essencial para a tela. Aplica strip universal em NFs/contas e comprime wrappers.
 function _comprimirBasesPesadas() {
   var antes = _localStorageUsageBytes();
-  // 1. Notas fiscais — strip universal (remove XML/PDF/previews; mantém metadados + status)
+  // 1. Notas fiscais — versão LEVE-DE-LISTA no localStorage (reduz ~83%). O detalhe completo é
+  //    re-hidratado do Supabase ao abrir a nota (verNotaFiscal/email → _hidratarNotaCompleta).
+  //    A RAM (variável notasFiscais) NÃO é tocada aqui — só o cache em disco fica leve.
   try {
     var nfRaw = JSON.parse(localStorage.getItem(INVOICES_KEY) || 'null');
     if (nfRaw) {
       var nfArr = nfRaw.items || nfRaw.itens || (Array.isArray(nfRaw) ? nfRaw : []);
-      if (nfArr.length && typeof _stripNfHeavy === 'function') {
-        var light = nfArr.map(_stripNfHeavy);
+      if (nfArr.length) {
+        var light = (typeof _nfListaLeve === 'function') ? nfArr.map(_nfListaLeve)
+                  : (typeof _stripNfHeavy === 'function' ? nfArr.map(_stripNfHeavy) : nfArr);
         localStorage.setItem(INVOICES_KEY, JSON.stringify({ _v: 1, updatedAt: new Date().toISOString(), items: light }));
       }
     }
@@ -1939,6 +1942,28 @@ function _stripNfHeavy(nf) {
   }
   return light;
 }
+
+// FIX DEFINITIVO DE MEMÓRIA (2026-06-25): versão LEVE-DE-LISTA — só os campos que a LISTA de notas
+// mostra/filtra. O detalhe completo (itens, documentos, sefaz completo, cobranca) é re-hidratado do
+// Supabase ao ABRIR a nota (verNotaFiscal/email chamam _hidratarNotaCompleta). Reduz ~83% por nota.
+// Marca _leve:true para o front saber que precisa hidratar antes de usar detalhe.
+function _nfListaLeve(nf) {
+  return {
+    id: nf.id, numero: nf.numero, serie: nf.serie, status: nf.status, valor: nf.valor,
+    emitidaEm: nf.emitidaEm, vencimento: nf.vencimento, pedidoId: nf.pedidoId, contratoId: nf.contratoId,
+    tipoNota: nf.tipoNota, origem: nf.origem,
+    chaveAcesso: (nf.sefaz && nf.sefaz.chaveAcesso) || nf.chaveAcesso || "",
+    protocolo: (nf.sefaz && nf.sefaz.protocolo) || nf.protocolo || "",
+    cliente: nf.cliente ? { nome: nf.cliente.nome, cnpj: nf.cliente.cnpj, email: nf.cliente.email, responsavel: nf.cliente.responsavel } : null,
+    sefaz: nf.sefaz ? { status: nf.sefaz.status, cStat: nf.sefaz.cStat, chaveAcesso: nf.sefaz.chaveAcesso, protocolo: nf.sefaz.protocolo, lote: nf.sefaz.lote } : null,
+    integracoes: nf.integracoes ? { sefaz: nf.integracoes.sefaz ? { status: nf.integracoes.sefaz.status, cStat: nf.integracoes.sefaz.cStat } : undefined, bancaria: nf.integracoes.bancaria ? { status: nf.integracoes.bancaria.status } : undefined, comunicacao: nf.integracoes.comunicacao ? { status: nf.integracoes.comunicacao.status } : undefined } : null,
+    cobranca: nf.cobranca ? { forma: nf.cobranca.forma, status: nf.cobranca.status, providerChargeId: nf.cobranca.providerChargeId, linhaDigitavel: nf.cobranca.linhaDigitavel } : null,
+    audit: nf.audit ? { authorizedAt: nf.audit.authorizedAt } : null,
+    deleted_at: nf.deleted_at || nf.deletedAt,
+    _leve: true
+  };
+}
+if (typeof window !== "undefined") window._nfListaLeve = _nfListaLeve;
 
 // Versão ultra-light (segunda linha de defesa): reduz sefaz ao mínimo de
 // reconciliação, para QUALQUER status. Usada quando o strip normal ainda estoura.

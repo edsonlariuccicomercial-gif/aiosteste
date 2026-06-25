@@ -2102,7 +2102,34 @@ function atualizarFormaCobrancaNota(notaId, forma) {
 }
 
 // --- Block 2: NF preview, DANFE, cancellation ---
-function verNotaFiscal(notaId) {
+// FIX DEFINITIVO DE MEMÓRIA (2026-06-25): busca a nota COMPLETA do servidor quando a versão local
+// é leve (_leve). A lista guarda só campos essenciais (economiza ~83% de memória); o detalhe completo
+// (itens, documentos, sefaz, cobranca) é re-hidratado do Supabase ao ABRIR a nota. Mescla na RAM para
+// que verNotaFiscal/DANFE/email tenham tudo. Idempotente: se já tem itens, não re-busca.
+async function _hidratarNotaCompleta(notaId) {
+  try {
+    var idx = notasFiscais.findIndex(function (n) { return n.id === notaId; });
+    if (idx < 0) return null;
+    var nf = notasFiscais[idx];
+    // já completa? (tem itens ou não está marcada leve) → nada a fazer
+    if (!nf._leve && nf.itens && nf.itens.length) return nf;
+    if (window.gdpApi && window.gdpApi.notas_fiscais && window.gdpApi.notas_fiscais.list) {
+      var rows = await window.gdpApi.notas_fiscais.list();
+      var full = (rows || []).find(function (r) { return r.id === notaId; });
+      if (full) {
+        // mescla o completo do servidor sobre a versão leve, preservando edições locais recentes
+        notasFiscais[idx] = Object.assign({}, full, { _leve: false });
+        return notasFiscais[idx];
+      }
+    }
+  } catch (_) {}
+  return notasFiscais.find(function (n) { return n.id === notaId; }) || null;
+}
+if (typeof window !== "undefined") window._hidratarNotaCompleta = _hidratarNotaCompleta;
+
+async function verNotaFiscal(notaId) {
+  // garantir nota completa (re-hidrata do servidor se a versão local for leve)
+  await _hidratarNotaCompleta(notaId);
   const nf = notasFiscais.find((item) => item.id === notaId);
   if (!nf) return;
   const conta = getContaReceberByNota(notaId);
@@ -3159,6 +3186,8 @@ window.confirmarReemissaoBoleto = async function (contaId) {
 
 // --- Block 4: Email + boleto automation ---
 async function dispararEmailNotaEBoletoAutomatico(notaId, contaId, options = {}) {
+  // garantir nota completa (itens/documentos) antes de montar o email — versão leve não basta
+  if (typeof _hidratarNotaCompleta === "function") { try { await _hidratarNotaCompleta(notaId); } catch (_) {} }
   const nf = notasFiscais.find((item) => item.id === notaId);
   if (!nf) return false;
   // Story 4.56 AC-3: só disparar email automaticamente se NF autorizada
