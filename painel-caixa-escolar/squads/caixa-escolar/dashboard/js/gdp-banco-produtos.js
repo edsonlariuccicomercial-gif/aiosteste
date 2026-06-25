@@ -51,7 +51,15 @@ function sanitizeBancoProduto(item, idx) {
   const cleaned = stripLegacyErpFields(item || {});
   cleaned.descricao = cleaned.descricao || cleaned.nome || cleaned.item || `Produto ${idx + 1}`;
   cleaned.unidade = cleaned.unidade || "UN";
-  cleaned.sku = normalizeInternalSku("BANK", cleaned, idx);
+  // FIX RAIZ (2026-06-25 — Central mostrava SKU BANK-* em vez de LICT-*): antes, esta linha SEMPRE
+  // regenerava o SKU como BANK-<idx> via normalizeInternalSku, DESTRUINDO o SKU real (ex.: LICT-0065)
+  // que vem do Supabase a CADA boot. Agora PRESERVA o SKU existente quando ele é válido (não-vazio e
+  // não-legado-externo, ex.: LICT-*). Só gera SKU automático quando NÃO há SKU. Isso protege os
+  // vínculos dos contratos (skuVinculado===produto.sku) e mantém a fonte de verdade (tabela produtos).
+  const skuAtual = String(cleaned.sku || "").trim();
+  if (!skuAtual || isLegacyExternalSku(skuAtual)) {
+    cleaned.sku = normalizeInternalSku("BANK", cleaned, idx);
+  }
   // Migrar campo 'item' do Banco de Preços para 'descricao'
   if (!cleaned.descricao && cleaned.item) cleaned.descricao = cleaned.item;
   return getProdutoComDefaults(cleaned);
