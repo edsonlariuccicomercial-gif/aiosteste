@@ -117,6 +117,13 @@ function getDataTimestamp(data, fallback = "") {
   return (Number.isFinite(time) && time > 0) ? time : 0;
 }
 
+// 2026-06-25 (causa-raiz divergência entre máquinas — 2º vetor): este syncFromCloud (app-sync.js)
+// é SEPARADO do de gdp-core.js e NÃO tinha o guard _GDPAPI_KEYS. Para keys com tabela própria no
+// Supabase (gdpApi), o blob sync_data legado NÃO pode sobrescrever o localStorage — senão um echo
+// com poucos itens esvazia a SSoT (ex.: produtos 671 → 3). A verdade dessas entidades vem SÓ da
+// tabela (boot Supabase-First). Espelha _GDPAPI_KEYS de gdp-core.js:380.
+var _GDPAPI_TABLE_KEYS = new Set(['gdp.contratos.v1','gdp.pedidos.v1','gdp.notas-fiscais.v1','gdp.contas-receber.v1','gdp.contas-pagar.v1','gdp.entregas.provas.v1','gdp.usuarios.v1','gdp.conciliacao.v1','gdp.extratos.v1','gdp.produtos.v1']);
+
 async function syncFromCloud(options) {
   var force = options && options.force;
   const rows = await cloudLoadAll();
@@ -124,6 +131,8 @@ async function syncFromCloud(options) {
   let synced = 0;
 
   for (const row of rows) {
+    // Guard: keys gerenciadas por tabela (gdpApi) NÃO são sincronizadas pelo blob legado.
+    if (_GDPAPI_TABLE_KEYS.has(row.key)) continue;
     const local = localStorage.getItem(row.key);
     let localData = null;
     try {
@@ -224,6 +233,9 @@ async function syncToCloud(signal) {
   const batch = [];
 
   for (const key of SYNC_KEYS) {
+    // 2026-06-25: keys com tabela própria (gdpApi) NÃO são re-gravadas no blob legado —
+    // senão o blob volta a existir e reabre o vetor de sobrescrita (produtos 671 → 3).
+    if (_GDPAPI_TABLE_KEYS.has(key)) continue;
     const raw = localStorage.getItem(key);
     if (!raw) continue;
     if (raw.length > SYNC_MAX_BYTES) {
