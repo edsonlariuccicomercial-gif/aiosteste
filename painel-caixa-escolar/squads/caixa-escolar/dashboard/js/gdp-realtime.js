@@ -26,7 +26,7 @@
     extratos:       { lsKey: 'gdp.extratos.v1',          wrapped: true  },
     conciliacoes:   { lsKey: 'gdp.conciliacao.v1',       wrapped: true  },
     clientes:       { lsKey: 'gdp.usuarios.v1',          wrapped: false },
-    produtos:       { lsKey: 'intel.central-produtos.v2', wrapped: true  },
+    produtos:       { lsKey: 'gdp.produtos.v1',          wrapped: true  }, // 2026-06-25: alinhado à SSoT (era 'intel.central-produtos.v2')
     // EPIC-20 Story 20.9.1 — conta-corrente do cliente
     lancamentos_cliente: { lsKey: 'gdp.lancamentos-cliente.v1', wrapped: true },
     lancamentos_itens:   { lsKey: 'gdp.lancamentos-itens.v1',   wrapped: true }

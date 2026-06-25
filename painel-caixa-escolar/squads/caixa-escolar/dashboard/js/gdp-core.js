@@ -158,7 +158,7 @@ function scheduleGdpCloudSync() { if (typeof schedulCloudSync === "function") sc
 const SUPABASE_URL = window.SUPABASE_URL || "https://mvvsjaudhbglxttxaeop.supabase.co";
 const SUPABASE_KEY = window.SUPABASE_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im12dnNqYXVkaGJnbHh0dHhhZW9wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4MDY3OTAsImV4cCI6MjA5MDM4Mjc5MH0.jadqvmRvbZjtjATaF_4WWB6A44NF06whtEIyNNyCUGo";
 // Entidades com tabela Supabase real — NÃO sincronizar via sync_data (gdpApi cuida)
-const _SUPABASE_TABLE_KEYS = new Set([CONTRACTS_KEY, ORDERS_KEY, INVOICES_KEY, RECEIVABLES_KEY, PAYABLES_KEY, PROOFS_KEY, "gdp.usuarios.v1", "gdp.extratos.v1", "gdp.conciliacao.v1"]);
+const _SUPABASE_TABLE_KEYS = new Set([CONTRACTS_KEY, ORDERS_KEY, INVOICES_KEY, RECEIVABLES_KEY, PAYABLES_KEY, PROOFS_KEY, "gdp.usuarios.v1", "gdp.extratos.v1", "gdp.conciliacao.v1", "gdp.produtos.v1"]);
 const GDP_SYNC_KEYS = [CONTRACTS_DELETED_KEY, ENTRY_INVOICES_KEY, PAYABLE_CATEGORIES_KEY, RECEIVABLE_CATEGORIES_KEY, PAYABLE_METHODS_KEY, RECEIVABLE_METHODS_KEY, CAIXA_STATEMENT_KEY, STOCK_KEY, ESTOQUE_INTEL_PRODUCTS_KEY, ESTOQUE_INTEL_PACKAGES_KEY, ESTOQUE_INTEL_ORDERS_KEY, ESTOQUE_INTEL_ORDER_ITEMS_KEY, ESTOQUE_INTEL_MOVES_KEY, ESTOQUE_INTEL_SUPPLIERS_KEY, ESTOQUE_INTEL_PURCHASES_KEY, INTEGRATIONS_KEY, "caixaescolar.banco.v1", GDP_EQUIV_KEY, GDP_CONVERSOES_KEY, GDP_DEMANDAS_KEY, GDP_ESTOQUE_SIMPLES_KEY, GDP_COMPRAS_KEY, "nexedu.config.contas-bancarias", "nexedu.config.notas-fiscais", "nexedu.config.bank-api", "nexedu.usuarios", "nexedu.empresa", "gdp.produtos.v1", "gdp.extratos.deleted.v1", "gdp.conciliacao.deleted.v1", "gdp.estoque-intel.movimentacoes.deleted.v1"];
 const GDP_SHARED_SYNC_KEYS = new Set(GDP_SYNC_KEYS);
 const GDP_SYNC_USER_KEY = "gdp.sync.user_id.v1";
@@ -372,7 +372,12 @@ async function syncFromCloud() {
   // ADR-003: conciliacao/extratos entram aqui — o blob sync_data legado NÃO carrega extratoId
   // e sobrescrevia a tabela íntegra (gdpApi), zerando o vínculo extratoId → extrato "0/0".
   // A verdade do caixa vem SÓ da tabela (carregada em gdp-init.js Supabase-First).
-  const _GDPAPI_KEYS = new Set(['gdp.contratos.v1','gdp.pedidos.v1','gdp.notas-fiscais.v1','gdp.contas-receber.v1','gdp.contas-pagar.v1','gdp.entregas.provas.v1','gdp.usuarios.v1','gdp.conciliacao.v1','gdp.extratos.v1']);
+  // 2026-06-25 (causa-raiz divergência entre máquinas): 'gdp.produtos.v1' (SSoT de 457 produtos
+  // operacionais) entra aqui. Antes NÃO estava → syncFromCloud sobrescrevia a SSoT com o blob
+  // legado (last-write-wins), esvaziando o catálogo numa máquina ("Central mostra 3") e
+  // divergindo na outra ("202/457"). Os 457 foram migrados para a tabela 'produtos' (Supabase
+  // = fonte única). Agora o blob legado NÃO toca mais a SSoT.
+  const _GDPAPI_KEYS = new Set(['gdp.contratos.v1','gdp.pedidos.v1','gdp.notas-fiscais.v1','gdp.contas-receber.v1','gdp.contas-pagar.v1','gdp.entregas.provas.v1','gdp.usuarios.v1','gdp.conciliacao.v1','gdp.extratos.v1','gdp.produtos.v1']);
 
   // Story 4.83-fix: Pré-carregar TODAS as chaves .deleted.v1 do cloud ANTES do loop principal.
   // Em browser novo, localStorage não tem deleted.v1 — sem isso, o filtro na passada principal

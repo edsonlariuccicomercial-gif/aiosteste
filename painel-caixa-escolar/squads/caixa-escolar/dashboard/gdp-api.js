@@ -50,7 +50,7 @@
     nf_counter:     { lsKey: 'gdp.nf-counter.v1',      table: 'nf_counter',     wrapped: false },
     extratos:       { lsKey: 'gdp.extratos.v1',         table: 'extratos',       wrapped: true  },
     conciliacoes:   { lsKey: 'gdp.conciliacao.v1',      table: 'conciliacoes',   wrapped: true  },
-    produtos:       { lsKey: 'intel.central-produtos.v2', table: 'produtos',     wrapped: true  },
+    produtos:       { lsKey: 'gdp.produtos.v1',          table: 'produtos',     wrapped: true  }, // 2026-06-25: alinhado à SSoT (era 'intel.central-produtos.v2' — descasava da Central/ProductStore e causava divergência entre máquinas)
     // EPIC-20 Story 20.9.1 — Conta-Corrente do Cliente (crédito/débito rotativo)
     lancamentos_cliente: { lsKey: 'gdp.lancamentos-cliente.v1', table: 'lancamentos_cliente', wrapped: true },
     lancamentos_itens:   { lsKey: 'gdp.lancamentos-itens.v1',   table: 'lancamentos_itens',   wrapped: true }

@@ -3185,9 +3185,13 @@ async function enviarTiny(contratoId) {
           'gdp.entregas.provas.v1': 'entregas',
           'gdp.extratos.v1': 'extratos',
           'gdp.conciliacao.v1': 'conciliacoes',
-          'intel.central-produtos.v2': 'produtos'
+          // 2026-06-25 (causa-raiz divergência produtos): a SSoT que a Central/Radar/ProductStore
+          // lê é 'gdp.produtos.v1' — NÃO 'intel.central-produtos.v2'. O boot Supabase-First antes
+          // hidratava a key errada, deixando a SSoT órfã (só blob). Os 457 produtos operacionais
+          // foram migrados para a tabela 'produtos'; agora a SSoT é hidratada do Supabase (fonte única).
+          'gdp.produtos.v1': 'produtos'
         };
-        const _wrapKeys = new Set(['gdp.contratos.v1','gdp.pedidos.v1','gdp.notas-fiscais.v1','gdp.contas-receber.v1','gdp.contas-pagar.v1','gdp.extratos.v1','gdp.conciliacao.v1','intel.central-produtos.v2']);
+        const _wrapKeys = new Set(['gdp.contratos.v1','gdp.pedidos.v1','gdp.notas-fiscais.v1','gdp.contas-receber.v1','gdp.contas-pagar.v1','gdp.extratos.v1','gdp.conciliacao.v1','gdp.produtos.v1']);
         let anyUpdated = false;
         // Story 4.80: Paralelizar todas as chamadas Supabase (Promise.all em vez de for sequencial)
         const _mergeTable = (lsKey, rows) => {
