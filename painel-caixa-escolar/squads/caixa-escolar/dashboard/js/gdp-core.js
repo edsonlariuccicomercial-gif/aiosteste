@@ -2031,8 +2031,14 @@ function _stripLocalStorageRetroativo() {
 if (typeof window !== 'undefined') window._stripLocalStorageRetroativo = _stripLocalStorageRetroativo;
 
 function saveNotasFiscais(changedId) {
-  // Strip universal (todas as notas, não só autorizadas) — ver _stripNfHeavy.
-  const lightNfs = notasFiscais.map(_stripNfHeavy);
+  // FIX DEFINITIVO DE MEMÓRIA (2026-06-25): grava a versão LEVE-DE-LISTA no localStorage (reduz ~83%).
+  // ANTES usava _stripNfHeavy (mantinha itens/documentos/sefaz = ~1.2MB) → o save RE-ENCHIA o
+  // localStorage que a compressão do boot tinha deixado leve, e o aviso de memória voltava. Agora o
+  // cache em disco fica SEMPRE leve; a RAM (notasFiscais) segue completa na sessão; o detalhe é
+  // re-hidratado do Supabase ao abrir a nota (_hidratarNotaCompleta). NÃO muta a RAM (map em cópia).
+  const lightNfs = notasFiscais.map(function (nf) {
+    return (typeof _nfListaLeve === 'function') ? _nfListaLeve(nf) : _stripNfHeavy(nf);
+  });
   try {
     saveWrappedArray(INVOICES_KEY, lightNfs);
     _lastLocalSave[INVOICES_KEY] = Date.now();
