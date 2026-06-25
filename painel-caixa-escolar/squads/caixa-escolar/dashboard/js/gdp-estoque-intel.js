@@ -1968,6 +1968,37 @@ function renderEstoque() {
   // Guard: só abortar se elementos essenciais não existem (compras/pedidos removidos no Épico A)
   if (!produtosTbody || !estoqueTbody || !movTbody) return;
 
+  // FIX DE RAIZ (2026-06-25 — usuário via 3 produtos na Central nas 3 máquinas): a "Central de
+  // Produtos" que o usuário VÊ é esta (estoque-intel), que lia 'estoqueIntelProdutos' (3 produtos
+  // de teste: Arroz/Bolacha/Suco) de uma base SEPARADA, NÃO dos 671 do catálogo real (ProductStore
+  // / tabela 'produtos'). Por isso nada que mexia em gdp.produtos.v1 mudava a tela do usuário.
+  // Agora: se o ProductStore (SSoT, 671) tem MUITO mais produtos que a base estoque-intel, a Central
+  // adota o catálogo real (mapeando para o formato que a tela espera). Os 671 são a fonte de verdade.
+  try {
+    if (window.ProductStore && typeof window.ProductStore.list === 'function') {
+      var _ssot = window.ProductStore.list();
+      if (_ssot && _ssot.length > (estoqueIntelProdutos ? estoqueIntelProdutos.length : 0) + 5) {
+        estoqueIntelProdutos = _ssot.map(function (p) {
+          return {
+            id: p.id,
+            nome: p.descricao || p.nome || p.item || '',
+            descricao: p.descricao || '',
+            sku: p.sku || '',
+            ncm: p.ncm || '',
+            unidade_base: p.unidade || p.unidadeBase || 'UN',
+            categoria: p.grupo || p.categoria || '',
+            grupo: p.grupo || '',
+            produto_critico: !!p.produtoCritico,
+            preco_referencia: p.precoReferencia || 0,
+            custo_base: p.custoBase || 0,
+            origem: p.origem || '0',
+            embalagens: p.embalagens || []
+          };
+        });
+      }
+    }
+  } catch (_) {}
+
   const busca = window.normalizeSearch(document.getElementById("ei-busca")?.value || ""); // Story 20.10
   const filtroBase = document.getElementById("ei-filtro-base")?.value || "";
   // Story 4.51 AC-G1: category and type filters

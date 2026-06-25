@@ -1873,6 +1873,18 @@ function _renderAllImmediate() {
     default: renderContratos(); break;
   }
 
+  // FIX DE RAIZ (2026-06-25 — "3 produtos" em TODAS as máquinas): o botão "Central de Produtos"
+  // tem data-gdp-tab="estoque" (gdp-contratos.html:256), então o switch acima cai em renderEstoque
+  // e NUNCA redesenha a tabela de produtos. Os 671 carregavam no localStorage (loadBancoProdutos
+  // acima) mas a tela ficava congelada em 0/3 porque renderBancoProdutos não era chamado no boot/
+  // refresh. Agora, se a aba "Central de Produtos" (#tab-banco-produtos) estiver VISÍVEL, redesenha.
+  try {
+    var _bancoTab = document.getElementById('tab-banco-produtos');
+    if (_bancoTab && !_bancoTab.classList.contains('hidden') && typeof renderBancoProdutos === 'function') {
+      renderBancoProdutos();
+    }
+  } catch (_) {}
+
   // Update banco tab count even when not on banco tab
   const bpCount = document.getElementById("tab-count-banco-produtos");
   if (bpCount) bpCount.textContent = bancoProdutos.itens.length;
