@@ -99,6 +99,25 @@ Este documento registra **cada bug** tratado nesta sessão: sintoma, causa-raiz,
 
 ---
 
+## BUG 7 — Carimbão de CLIENTES (editar 1 re-gravava os 76)
+
+**Sintoma:** ao editar 1 cliente, o sistema re-gravava TODOS os clientes no servidor (carimbão), causando conflito multi-device — mesmo padrão já corrigido em NF e conciliação.
+
+**Causa-raiz:** `saveUsuarios()` (`gdp-usuarios.js:10`) sempre chamava `gdpApi.clientes.saveAll(usuarios)`.
+
+**Correção (commit `7592d824`):** `saveUsuarios(changedId)` — se recebe um id, persiste SÓ aquele cliente via `gdpApi.clientes.save()`. `salvarUsuario` passa `savedUser.id`. Operações bulk (exclusão/importação) mantêm `saveAll`. `gdp-usuarios v16`.
+
+**Validação:** função `saveUsuarios(changedId)` confirmada ativa em produção (v16).
+
+---
+
+## P1/P6 (re-vínculo + fornecedores) — tratados nesta sessão
+
+- **P1 (vínculos de contrato):** +15 itens re-vinculados com matcher medida-validada (cobertura por SKU 438→453/690). Os 237 restantes são decisões de negócio (embalagem/marca diferente, produtos de outras licitações) — listados em `docs/architecture/data-snapshots/vinculos-pendentes-revisao-manual-20260625.json` para revisão manual via UI existente. NÃO auto-vinculados (risco de embalagem errada na NF).
+- **P6 (fornecedores):** decisão arquitetural — NÃO unificar `gdp.estoque-intel.fornecedores.v1` (GDP) com `intel.custos-fornecedores.v1` (IntelPreços, outra SPA). Manter desacoplado, consistente com vender módulos separados.
+- **P3 (SKU/ID):** o SKU já está padronizado (`LICT-*`, 0 duplicados) após BUG 3+4. Mudar o ID (cosmético, chave primária no Supabase, alto risco em cascata) NÃO recomendado. Atendido no essencial.
+- **P5 (baixa automática conciliação):** diagnosticado — `buscarSugestoesConciliacao` só sugere com valor IDÊNTICO (±1 centavo). Se o extrato tem taxa/diferença, não sugere e o usuário concilia manual. Comportamento conservador; validar caso real antes de afrouxar.
+
 ## Pendências conhecidas (registradas, não resolvidas nesta sessão)
 
 - **252 itens de contrato** ainda não resolvem por SKU (36 ambíguos + 216 com nome divergente). Revisão manual ou matching mais inteligente numa próxima etapa. Relatórios em `docs/architecture/data-snapshots/`.
