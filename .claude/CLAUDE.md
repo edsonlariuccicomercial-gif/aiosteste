@@ -2,6 +2,20 @@
 
 You are working with Synkra AIOX, an AI-Orchestrated System for Full Stack Development.
 
+## ✅ CAUSA RAIZ das "falsa-pendentes": modo ASSÍNCRONO da SEFAZ não tratado — CURA DEFINITIVA (2026-06-25)
+
+**Pergunta do usuário que destravou o diagnóstico:** "por que MUITAS notas precisam de autocura se minha internet não falha e não fecho a aba?" — estava certíssimo: NÃO era rede, era bug estrutural. **Causa raiz:** a emissão (`emitirNfeDireta` → `transmitirAutorizacaoPreview`, `nfe-sefaz-client.js`) só tratava resposta SÍNCRONA (cStat 100 + chave+protocolo na hora). Mas a SEFAZ frequentemente responde em **modo ASSÍNCRONO**: devolve `cStat 103` (Lote Recebido) + um **recibo (nRec)** SEM chave/protocolo — a autorização fica pronta segundos depois e exige uma SEGUNDA chamada (`NFeRetAutorizacao4`/`consReciNFe`) consultando o recibo. **Essa segunda chamada NÃO existia.** O parser até extraía o `nRec` e jogava fora. Resultado: toda vez que a SEFAZ ia assíncrona (depende de UF/horário/carga, não da internet do usuário), a nota nascia "transmissao_realizada" (pendente) apesar de autorizada → dependia da autocura DFe. Por isso era "muitas" e sistemático, não aleatório.
+
+**Cura definitiva (backend `nfe-sefaz-client.js` + `api/gdp-integrations.js` + front; `gdp-notas-fiscais v54`):**
+1. **Endpoints `SEFAZ_RET_AUTORIZACAO`** (NFeRetAutorizacao4, todas as UFs + SVAN/SVRS) + `getSefazRetAutorizacaoUrl()`. MG produção: `https://nfe.fazenda.mg.gov.br/nfe2/services/NFeRetAutorizacao4`.
+2. **`consultarRecibo(nRec)`**: monta SOAP `consReciNFe` v4.00, POST via `postSoapXml`, parseia com `parseSefazAutorizacaoResponse` (retConsReciNFe traz protNFe compatível: chNFe+nProt+cStat).
+3. **Polling em `emitirNfeDireta`**: se `parsed.cStat` ∈ {103,104,105} + `nRec` SEM chave → aguarda 2s e consulta o recibo com backoff (até 5×: 2s,2s,3s,4s,5s ≈ 16s), funde chave+protocolo+cStat 100 no `parsed`. A nota nasce autorizada NA EMISSÃO.
+4. **Timeout no `postSoapXml`**: antes não tinha (socket pendurava a function); agora 20s por chamada SOAP.
+5. **Front:** `AbortSignal.timeout` da emissão 30s→60s (acomoda transmissão+polling). `vercel.json` já tinha `maxDuration: 60` em `gdp-integrations` — OK.
+6. **Action diagnóstico:** `nfe-sefaz-consulta-recibo` (recuperação manual por nRec).
+
+**Preservado:** gate de prova (chave+protocolo) inalterado — nunca marca autorizada sem prova SEFAZ. **A autocura DFe vira EXCEÇÃO (rede de segurança), não rotina.** Validar: emitir NF e ver que nasce autorizada direto, sem cair em pendente.
+
 ## ✅ NF "pisca" entre abas + cobrança SOME das contas a receber — RESOLVIDO (2026-06-25, forward-only)
 
 **Sintomas (relatados após emitir notas pós-autocura DFe):** (1) nota autorizava → ia p/ aba **Emitidas**, voltava p/ **Pendentes** por segundos, voltava p/ **Emitidas** (PISCAR); (2) cobrança vinculada à NF (com boleto Inter real) **SUMIA** das contas a receber (ex.: escola Ivan 1618/1619 — uma gerou boleto, registrou cobrança, depois a cobrança sumiu); (3) NF autorizada via autocura que **nunca gerou cobrança** (resultado: "11 notas, 9 cobranças"). **Causa raiz (race no boot, tripla):** `_recuperarViaDistribuicaoDFe` (autocura), `reloadFromLocalSilent` (realtime) e `reconciliarCobrancasOrfas` competiam pela lista de notas SEM coordenação. Quando o realtime reidratava a cópia ATRASADA do localStorage no meio da autocura, a NF caía a "pendente" por milissegundos → perdia `temProvaAutorizacao` → `reconciliarCobrancasOrfas` marcava a cobrança `_orfa=true`/`status="aguardando_nf"` (some da tela). Pior: a autocura DFe **marcava a nota autorizada mas NUNCA criava a cobrança** (`buildReceivableFromInvoice` só rodava no fluxo de transmissão normal).

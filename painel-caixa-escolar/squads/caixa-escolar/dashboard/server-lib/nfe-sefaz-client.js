@@ -37,6 +37,28 @@ const SVRS_CONS = { homologacao: "https://nfe-homologacao.svrs.rs.gov.br/ws/NfeC
 // schema distDFeInt v1.01. Producao = Ambiente Nacional (AN). E o webservice usado para AUTOCURA de
 // notas falsa-pendentes (handoff P0_NF_DISTRIBUICAO_DFE_FIX_DEFINITIVO).
 const AN_DIST_DFE = { homologacao: "https://hom1.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx", producao: "https://www1.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx" };
+// NFeRetAutorizacao4 — consulta do RECIBO no modo ASSÍNCRONO. Quando o lote é aceito (cStat 103),
+// a SEFAZ devolve um recibo (nRec) e a autorização só fica pronta segundos depois. Este webservice
+// recebe o nRec e devolve o protNFe (chave + protocolo + cStat 100). SEM ele, notas autorizadas em
+// modo assíncrono ficavam "falsa-pendentes" e dependiam da autocura DFe. Ref: NT 2019.001, MOC 4.00.
+const SVAN_RET = { homologacao: "https://hom.sefazvirtual.fazenda.gov.br/NFeRetAutorizacao4/NFeRetAutorizacao4.asmx", producao: "https://www.sefazvirtual.fazenda.gov.br/NFeRetAutorizacao4/NFeRetAutorizacao4.asmx" };
+const SVRS_RET = { homologacao: "https://nfe-homologacao.svrs.rs.gov.br/ws/NfeRetAutorizacao/NFeRetAutorizacao4.asmx", producao: "https://nfe.svrs.rs.gov.br/ws/NfeRetAutorizacao/NFeRetAutorizacao4.asmx" };
+const SEFAZ_RET_AUTORIZACAO = {
+  AM: { homologacao: "https://homnfe.sefaz.am.gov.br/services2/services/NfeRetAutorizacao4", producao: "https://nfe.sefaz.am.gov.br/services2/services/NfeRetAutorizacao4" },
+  BA: { homologacao: "https://hnfe.sefaz.ba.gov.br/webservices/NFeRetAutorizacao4/NFeRetAutorizacao4.asmx", producao: "https://nfe.sefaz.ba.gov.br/webservices/NFeRetAutorizacao4/NFeRetAutorizacao4.asmx" },
+  GO: { homologacao: "https://homolog.sefaz.go.gov.br/nfe/services/NFeRetAutorizacao4", producao: "https://nfe.sefaz.go.gov.br/nfe/services/NFeRetAutorizacao4" },
+  MG: { homologacao: "https://hnfe.fazenda.mg.gov.br/nfe2/services/NFeRetAutorizacao4", producao: "https://nfe.fazenda.mg.gov.br/nfe2/services/NFeRetAutorizacao4" },
+  MS: { homologacao: "https://hom.nfe.sefaz.ms.gov.br/ws/NFeRetAutorizacao4", producao: "https://nfe.sefaz.ms.gov.br/ws/NFeRetAutorizacao4" },
+  MT: { homologacao: "https://homologacao.sefaz.mt.gov.br/nfews/v2/services/NfeRetAutorizacao4", producao: "https://nfe.sefaz.mt.gov.br/nfews/v2/services/NfeRetAutorizacao4" },
+  PE: { homologacao: "https://nfehomolog.sefaz.pe.gov.br/nfe-service/services/NFeRetAutorizacao4", producao: "https://nfe.sefaz.pe.gov.br/nfe-service/services/NFeRetAutorizacao4" },
+  PR: { homologacao: "https://homologacao.nfe.sefa.pr.gov.br/nfe/NFeRetAutorizacao4", producao: "https://nfe.sefa.pr.gov.br/nfe/NFeRetAutorizacao4" },
+  RS: { homologacao: "https://nfe-homologacao.sefazrs.rs.gov.br/ws/NfeRetAutorizacao/NFeRetAutorizacao4.asmx", producao: "https://nfe.sefazrs.rs.gov.br/ws/NfeRetAutorizacao/NFeRetAutorizacao4.asmx" },
+  SP: { homologacao: "https://homologacao.nfe.fazenda.sp.gov.br/ws/nferetautorizacao4.asmx", producao: "https://nfe.fazenda.sp.gov.br/ws/nferetautorizacao4.asmx" },
+  MA: SVAN_RET, PA: SVAN_RET, PI: SVAN_RET,
+  AC: SVRS_RET, AL: SVRS_RET, AP: SVRS_RET, CE: SVRS_RET, DF: SVRS_RET,
+  ES: SVRS_RET, PB: SVRS_RET, RJ: SVRS_RET, RN: SVRS_RET, RO: SVRS_RET,
+  RR: SVRS_RET, SC: SVRS_RET, SE: SVRS_RET, TO: SVRS_RET
+};
 
 const SEFAZ_AUTORIZACAO = {
   // Estados com webservice próprio
@@ -347,6 +369,14 @@ function postSoapXml(url, options) {
           body: raw
         });
       });
+    });
+
+    // FIX (assíncrono SEFAZ 2026-06-25): timeout explícito. Antes o socket podia ficar aberto
+    // indefinidamente — uma SEFAZ lenta pendurava a function serverless até o limite da Vercel.
+    // Default 20s por chamada SOAP (sobrescrevível via options.timeoutMs).
+    var _soapTimeout = Number(options.timeoutMs) || 20000;
+    req.setTimeout(_soapTimeout, function () {
+      req.destroy(new Error("SOAP timeout após " + _soapTimeout + "ms"));
     });
 
     req.on("error", reject);
@@ -999,6 +1029,12 @@ function getSefazAutorizacaoUrl(uf, ambiente) {
   return byUf[ambiente === "producao" ? "producao" : "homologacao"] || "";
 }
 
+function getSefazRetAutorizacaoUrl(uf, ambiente) {
+  const byUf = SEFAZ_RET_AUTORIZACAO[String(uf || "MG").toUpperCase()];
+  if (!byUf) return "";
+  return byUf[ambiente === "producao" ? "producao" : "homologacao"] || "";
+}
+
 function getSefazEventoUrl(uf, ambiente) {
   const byUf = SEFAZ_EVENTO[String(uf || "MG").toUpperCase()];
   if (!byUf) return "";
@@ -1292,6 +1328,52 @@ async function emitirNfeDireta(payload) {
   const autorizacaoPreview = buildAutorizacaoRequestPreview(payload, lotePreview);
 
   const transmitResult = await transmitirAutorizacaoPreview(payload, { force: true });
+
+  // FIX DEFINITIVO (assíncrono SEFAZ 2026-06-25 — causa raiz das "falsa-pendentes"): se a SEFAZ
+  // aceitou o lote em MODO ASSÍNCRONO (cStat 103/105 + recibo, SEM chave/protocolo na resposta),
+  // a autorização real fica pronta segundos depois. Aqui consultamos o RECIBO (NFeRetAutorizacao4)
+  // com backoff curto e FUNDIMOS chave+protocolo+cStat no parsed — assim a nota nasce autorizada na
+  // própria emissão, sem depender da autocura DFe (que vira exceção, não rotina).
+  try {
+    const _p = transmitResult && transmitResult.parsed;
+    const _cStat = String((_p && _p.cStat) || "");
+    const _temChave = !!(_p && _p.chNFe) && !!(_p && _p.prot);
+    const _nRec = sanitizeDigits((_p && _p.nRec) || "");
+    const _assincrono = (_cStat === "103" || _cStat === "104" || _cStat === "105") && !!_nRec;
+    if (_assincrono && !_temChave) {
+      const _uf = payload.emitente?.uf || cfg.uf || "MG";
+      // backoff: aguarda antes da 1ª consulta (SEFAZ pede um tempo), depois re-tenta crescente.
+      const _delays = [2000, 2000, 3000, 4000, 5000]; // ~16s no pior caso
+      for (let _i = 0; _i < _delays.length; _i++) {
+        await new Promise((r) => setTimeout(r, _delays[_i]));
+        const _ret = await consultarRecibo(_nRec, { ambiente: cfg.ambiente, uf: _uf });
+        const _rp = _ret && _ret.parsed;
+        const _rcStat = String((_rp && _rp.cStat) || "");
+        if (_rp && _rp.chNFe && _rp.prot) {
+          // autorização pronta — funde no resultado da emissão
+          transmitResult.parsed = Object.assign({}, _p, {
+            cStat: _rp.cStat || "100",
+            xMotivo: _rp.xMotivo || "Autorizado o uso da NF-e (recibo)",
+            chNFe: _rp.chNFe,
+            prot: _rp.prot,
+            autorizado: true,
+            reciboConsultado: _nRec
+          });
+          transmitResult.ok = true;
+          break;
+        }
+        // 105 = lote ainda em processamento → continua o backoff. Qualquer rejeição real (≠103/104/105)
+        // encerra: a nota foi efetivamente rejeitada e o front classificará como rejeitada.
+        if (_rcStat && _rcStat !== "103" && _rcStat !== "104" && _rcStat !== "105") {
+          transmitResult.parsed = Object.assign({}, _p, {
+            cStat: _rp.cStat, xMotivo: _rp.xMotivo || "", reciboConsultado: _nRec
+          });
+          break;
+        }
+      }
+    }
+  } catch (_eRec) { /* polling é best-effort: se falhar, a autocura DFe cobre no boot */ }
+
   return {
     ...transmitResult,
     ambiente: cfg.ambiente,
@@ -1574,6 +1656,63 @@ async function consultarProtocolo(chaveAcesso, options = {}) {
   }
 }
 
+// ===== NFeRetAutorizacao4 — consulta do RECIBO (modo assíncrono) =====
+// Quando o lote é aceito em modo assíncrono, a SEFAZ devolve cStat 103 + nRec (recibo). A autorização
+// real (chave+protocolo) só fica pronta segundos depois. Esta função consulta o recibo e devolve o
+// protNFe parseado. A resposta (retConsReciNFe) traz <protNFe> com <cStat>100</cStat>, <chNFe>, <nProt>
+// — compatível com parseSefazAutorizacaoResponse (que já extrai chNFe/nProt/cStat).
+async function consultarRecibo(nRec, options = {}) {
+  const cfg = getSefazConfig();
+  const recibo = sanitizeDigits(nRec);
+  if (!recibo) {
+    return { ok: false, mode: "invalid_recibo", message: "Recibo (nRec) ausente ou inválido." };
+  }
+  const ambiente = options.ambiente || cfg.ambiente;
+  const tpAmb = ambiente === "producao" ? "1" : "2";
+  const uf = String(options.uf || cfg.uf || "MG").toUpperCase();
+  const url = getSefazRetAutorizacaoUrl(uf, ambiente);
+  if (!url) {
+    return { ok: false, mode: "endpoint_missing", message: "Endpoint RetAutorizacao não mapeado para " + uf + "/" + ambiente };
+  }
+
+  const soapEnvelope = `<?xml version="1.0" encoding="utf-8"?><soap12:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap12="http://www.w3.org/2003/05/soap-envelope"><soap12:Body><nfeDadosMsg xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeRetAutorizacao4"><consReciNFe versao="4.00" xmlns="http://www.portalfiscal.inf.br/nfe"><tpAmb>${tpAmb}</tpAmb><nRec>${recibo}</nRec></consReciNFe></nfeDadosMsg></soap12:Body></soap12:Envelope>`;
+
+  const certificateBuffer = getCertificateBuffer(cfg.certificadoBase64);
+  try {
+    const resp = await postSoapXml(url, {
+      headers: {
+        "Content-Type": "application/soap+xml; charset=utf-8; action=\"http://www.portalfiscal.inf.br/nfe/wsdl/NFeRetAutorizacao4/nfeRetAutorizacaoLote\"",
+        SOAPAction: "http://www.portalfiscal.inf.br/nfe/wsdl/NFeRetAutorizacao4/nfeRetAutorizacaoLote"
+      },
+      body: soapEnvelope,
+      pfx: certificateBuffer.length ? certificateBuffer : undefined,
+      passphrase: cfg.certificadoSenha || undefined,
+      cert: cfg.certificadoPem || undefined,
+      key: cfg.chavePrivadaPem || undefined
+    });
+    const parsed = parseSefazAutorizacaoResponse(resp.body);
+    return {
+      ok: resp.statusCode >= 200 && resp.statusCode < 300,
+      mode: "sefaz_ret_autorizacao_response",
+      httpStatus: resp.statusCode,
+      parsed,
+      nRec: recibo,
+      uf,
+      ambiente
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      mode: "sefaz_ret_autorizacao_fetch_error",
+      message: err?.message || "Falha ao consultar recibo na SEFAZ.",
+      errorName: err?.name || "",
+      nRec: recibo,
+      uf,
+      ambiente
+    };
+  }
+}
+
 // ===== NFeDistribuicaoDFe — autocura de notas falsa-pendentes (P0) =====
 // Faz um POST SOAP que COLETA BYTES BRUTOS (Buffer), pois os documentos vem em gzip+base64 (docZip).
 // O postSoapXml compartilhado forca utf8 (corromperia o gzip) — por isso esta funcao tem seu proprio
@@ -1742,6 +1881,8 @@ module.exports = {
   transmitirCancelamentoEvento,
   inutilizarFaixa,
   consultarProtocolo,
+  consultarRecibo,
+  getSefazRetAutorizacaoUrl,
   distribuicaoDFe,
   parseDistDFeResponse,
   validateNfePayload,

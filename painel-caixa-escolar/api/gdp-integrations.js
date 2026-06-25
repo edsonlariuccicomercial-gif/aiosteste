@@ -119,6 +119,14 @@ module.exports = async function handler(req, res) {
       return res.status(result.ok ? 200 : 502).json({ ok: result.ok, action, result });
     }
 
+    // Consulta de RECIBO (modo assíncrono) — diagnóstico/recuperação manual por nRec
+    if (action === "nfe-sefaz-consulta-recibo" && nfeSefaz.consultarRecibo) {
+      const { nRec, ambiente, uf } = body;
+      if (!nRec) return res.status(400).json({ ok: false, error: "nRec (recibo) obrigatorio" });
+      const result = await nfeSefaz.consultarRecibo(nRec, { ambiente, uf });
+      return res.status(result.ok ? 200 : 502).json({ ok: result.ok, action, result });
+    }
+
     // NF-e cancelamento
     if (action === "nfe-sefaz-cancelar" && nfeSefaz.transmitirCancelamentoEvento) {
       const { chaveAcesso, protocolo, justificativa } = body;

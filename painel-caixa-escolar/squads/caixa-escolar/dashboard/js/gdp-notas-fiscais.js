@@ -1947,7 +1947,10 @@ async function transmitirHomologacaoNota(notaId) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "nfe-sefaz-emitir", pedido, overrides: { numero: novoNumero, observacao: nfObs } }),
-        signal: AbortSignal.timeout(30000),
+        // FIX (assíncrono SEFAZ 2026-06-25): 30s→60s. O backend agora faz polling do recibo
+        // (NFeRetAutorizacao4) quando a SEFAZ responde em modo assíncrono (cStat 103) — isso soma
+        // alguns segundos à emissão. 60s dá folga para transmissão + polling sem abortar o fetch.
+        signal: AbortSignal.timeout(60000),
       });
     } catch (localErr) {
       gdpWarn("[NF-e] Vercel indisponível, tentando servidor local...");
@@ -1955,7 +1958,7 @@ async function transmitirHomologacaoNota(notaId) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pedido, overrides: { numero: novoNumero, observacao: nfObs } }),
-        signal: AbortSignal.timeout(30000),
+        signal: AbortSignal.timeout(60000),
       });
     }
     const data = await resp.json().catch(() => ({}));
