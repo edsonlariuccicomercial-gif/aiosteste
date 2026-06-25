@@ -1,0 +1,1045 @@
+{
+  "resumo": {
+    "jaOk": 323,
+    "paraRevincular": 115,
+    "ambiguo": 36,
+    "semMatch": 216
+  },
+  "dePara": [
+    {
+      "contratoId": "CTR-20260330-0017",
+      "itemIdx": 0,
+      "skuAntigo": "LICT-0016",
+      "skuNovo": "LICT-0360",
+      "via": "core",
+      "prodDesc": "Açafrão (Kg)",
+      "itemDesc": "Açafrao 500 gr - Pachá"
+    },
+    {
+      "contratoId": "CTR-20260330-0017",
+      "itemIdx": 3,
+      "skuAntigo": "LICT-0014",
+      "skuNovo": "LICT-0307",
+      "via": "full",
+      "prodDesc": "aveia",
+      "itemDesc": "Aveia 500gr"
+    },
+    {
+      "contratoId": "CTR-20260330-0017",
+      "itemIdx": 6,
+      "skuAntigo": "LICT-0051",
+      "skuNovo": "LICT-0301",
+      "via": "full",
+      "prodDesc": "colorau",
+      "itemDesc": "Colorau 500gr - Pachá"
+    },
+    {
+      "contratoId": "CTR-20260330-0017",
+      "itemIdx": 9,
+      "skuAntigo": "LICT-0069",
+      "skuNovo": "LICT-0215",
+      "via": "core",
+      "prodDesc": "fermento em pó",
+      "itemDesc": "Fermento em pó 100 gr"
+    },
+    {
+      "contratoId": "CTR-20260330-0017",
+      "itemIdx": 12,
+      "skuAntigo": "LICT-0102",
+      "skuNovo": "LICT-0256",
+      "via": "full",
+      "prodDesc": "mussarela",
+      "itemDesc": "Mussarela"
+    },
+    {
+      "contratoId": "CTR-20260330-0017",
+      "itemIdx": 15,
+      "skuAntigo": "LICT-0137",
+      "skuNovo": "LICT-0391",
+      "via": "full",
+      "prodDesc": "Queijo Meia Cura",
+      "itemDesc": "Queijo Meia Cura Ralado - Caxambu"
+    },
+    {
+      "contratoId": "CTR-20260330-0022",
+      "itemIdx": 0,
+      "skuAntigo": "LICT-0014",
+      "skuNovo": "LICT-0307",
+      "via": "full",
+      "prodDesc": "aveia",
+      "itemDesc": "Aveia 500 gr"
+    },
+    {
+      "contratoId": "CTR-20260330-0022",
+      "itemIdx": 2,
+      "skuAntigo": "LICT-0119",
+      "skuNovo": "LICT-0368",
+      "via": "full",
+      "prodDesc": "Polpa de frutas Frutpress",
+      "itemDesc": "Polpa de Frutas Frutpress"
+    },
+    {
+      "contratoId": "CTR-MNDG8NET",
+      "itemIdx": 4,
+      "skuAntigo": "LICT-0071",
+      "skuNovo": "LICT-0072",
+      "via": "core",
+      "prodDesc": "Filé de Tilápia",
+      "itemDesc": "File de Tilapia 800 gr"
+    },
+    {
+      "contratoId": "CTR-20260330-0031",
+      "itemIdx": 0,
+      "skuAntigo": "LICT-0001",
+      "skuNovo": "LICT-0325",
+      "via": "full",
+      "prodDesc": "abacaxi",
+      "itemDesc": "Abacaxi"
+    },
+    {
+      "contratoId": "CTR-20260330-0031",
+      "itemIdx": 1,
+      "skuAntigo": "LICT-0016",
+      "skuNovo": "LICT-0360",
+      "via": "core",
+      "prodDesc": "Açafrão (Kg)",
+      "itemDesc": "Açafrão 500 gr"
+    },
+    {
+      "contratoId": "CTR-20260330-0031",
+      "itemIdx": 7,
+      "skuAntigo": "LICT-0051",
+      "skuNovo": "LICT-0301",
+      "via": "full",
+      "prodDesc": "colorau",
+      "itemDesc": "Colorau 500 gr"
+    },
+    {
+      "contratoId": "CTR-20260330-0031",
+      "itemIdx": 13,
+      "skuAntigo": "LICT-0138",
+      "skuNovo": "LICT-0391",
+      "via": "full",
+      "prodDesc": "Queijo Meia Cura",
+      "itemDesc": "Queijo Meia Cura"
+    },
+    {
+      "contratoId": "CTR-20260330-0019",
+      "itemIdx": 4,
+      "skuAntigo": "LICT-0240",
+      "skuNovo": "LICT-0072",
+      "via": "full",
+      "prodDesc": "Filé de Tilápia",
+      "itemDesc": "Filé de tilápia"
+    },
+    {
+      "contratoId": "CTR-20260330-0019",
+      "itemIdx": 7,
+      "skuAntigo": "LICT-0151",
+      "skuNovo": "LICT-0225",
+      "via": "full",
+      "prodDesc": "Óleo de Soja – 900 ml",
+      "itemDesc": "Óleo de soja 900 ml"
+    },
+    {
+      "contratoId": "CTR-PJD-20260512-1288",
+      "itemIdx": 0,
+      "skuAntigo": "LICT-0067",
+      "skuNovo": "LICT-0365",
+      "via": "full",
+      "prodDesc": "Feijao Carioca",
+      "itemDesc": "Feijão Carioca"
+    },
+    {
+      "contratoId": "CTR-MPH6YIB5",
+      "itemIdx": 1,
+      "skuAntigo": "LICT-0039",
+      "skuNovo": "LICT-0303",
+      "via": "full",
+      "prodDesc": "canela em pó",
+      "itemDesc": "Canela em pó/pau 40 gr"
+    },
+    {
+      "contratoId": "CTR-MPH6YIB5",
+      "itemIdx": 2,
+      "skuAntigo": "LICT-0050",
+      "skuNovo": "LICT-0049",
+      "via": "full",
+      "prodDesc": "Coco Ralado",
+      "itemDesc": "Coco ralado"
+    },
+    {
+      "contratoId": "CTR-MPH6YIB5",
+      "itemIdx": 3,
+      "skuAntigo": "LICT-0068",
+      "skuNovo": "LICT-0215",
+      "via": "full",
+      "prodDesc": "fermento em pó",
+      "itemDesc": "Fermento em pó 250 gr"
+    },
+    {
+      "contratoId": "CTR-MOOE8859",
+      "itemIdx": 0,
+      "skuAntigo": "LICT-0154",
+      "skuNovo": "LICT-0342",
+      "via": "full",
+      "prodDesc": "Feijao 500 gr",
+      "itemDesc": "Feijao 500 gr"
+    },
+    {
+      "contratoId": "CTR-MOOE8859",
+      "itemIdx": 1,
+      "skuAntigo": "LICT-0024",
+      "skuNovo": "LICT-0337",
+      "via": "core",
+      "prodDesc": "Biscoito Água e Sal - Pacote de 170 Gramas",
+      "itemDesc": "Biscoito de agua e sal 170 gr"
+    },
+    {
+      "contratoId": "CTR-20260330-0020",
+      "itemIdx": 0,
+      "skuAntigo": "LICT-0016",
+      "skuNovo": "LICT-0360",
+      "via": "core",
+      "prodDesc": "Açafrão (Kg)",
+      "itemDesc": "Açafrão 500 gr - Pachá"
+    },
+    {
+      "contratoId": "CTR-20260330-0020",
+      "itemIdx": 2,
+      "skuAntigo": "LICT-0014",
+      "skuNovo": "LICT-0307",
+      "via": "full",
+      "prodDesc": "aveia",
+      "itemDesc": "Aveia 500 gr - Pachá"
+    },
+    {
+      "contratoId": "CTR-20260330-0020",
+      "itemIdx": 4,
+      "skuAntigo": "LICT-0050",
+      "skuNovo": "LICT-0049",
+      "via": "full",
+      "prodDesc": "Coco Ralado",
+      "itemDesc": "Coco ralado 500 gr - Pachá"
+    },
+    {
+      "contratoId": "CTR-20260330-0020",
+      "itemIdx": 7,
+      "skuAntigo": "LICT-0090",
+      "skuNovo": "LICT-0241",
+      "via": "full",
+      "prodDesc": "Manteiga de leite 500 gr",
+      "itemDesc": "Manteiga de leite 500 gr"
+    },
+    {
+      "contratoId": "CTR-20260330-0020",
+      "itemIdx": 9,
+      "skuAntigo": "LICT-0151",
+      "skuNovo": "LICT-0334",
+      "via": "full",
+      "prodDesc": "óleo de soja",
+      "itemDesc": "Óleo de soja 900 ml - ABC"
+    },
+    {
+      "contratoId": "CTR-20260330-0016",
+      "itemIdx": 4,
+      "skuAntigo": "LICT-0137",
+      "skuNovo": "LICT-0391",
+      "via": "full",
+      "prodDesc": "Queijo Meia Cura",
+      "itemDesc": "Queijo Tipo Minas/Frescal"
+    },
+    {
+      "contratoId": "CTR-20260330-0016",
+      "itemIdx": 5,
+      "skuAntigo": "LICT-0145",
+      "skuNovo": "LICT-0370",
+      "via": "core",
+      "prodDesc": "Sal refinado - Pirâmide",
+      "itemDesc": "Sal refinado"
+    },
+    {
+      "contratoId": "CTR-20260330-0021",
+      "itemIdx": 1,
+      "skuAntigo": "LICT-0028",
+      "skuNovo": "LICT-0244",
+      "via": "core",
+      "prodDesc": "Cacau em Pó 100% - Pacote de 200 G",
+      "itemDesc": "Cacau em pó 100% 500 gr"
+    },
+    {
+      "contratoId": "CTR-20260330-0021",
+      "itemIdx": 2,
+      "skuAntigo": "LICT-0067",
+      "skuNovo": "LICT-0365",
+      "via": "full",
+      "prodDesc": "Feijao Carioca",
+      "itemDesc": "Feijão Carioca"
+    },
+    {
+      "contratoId": "CTR-MPH6NIBL",
+      "itemIdx": 0,
+      "skuAntigo": "LICT-0067",
+      "skuNovo": "LICT-0365",
+      "via": "full",
+      "prodDesc": "Feijao Carioca",
+      "itemDesc": "Feijão Carioca"
+    },
+    {
+      "contratoId": "CTR-MPH6NIBL",
+      "itemIdx": 3,
+      "skuAntigo": "LICT-0151",
+      "skuNovo": "LICT-0334",
+      "via": "full",
+      "prodDesc": "óleo de soja",
+      "itemDesc": "Óleo de soja 900 ml"
+    },
+    {
+      "contratoId": "CTR-MPMNGZWT-QX1",
+      "itemIdx": 1,
+      "skuAntigo": "LICT-0014",
+      "skuNovo": "LICT-0307",
+      "via": "core",
+      "prodDesc": "aveia",
+      "itemDesc": "Aveia 500gr"
+    },
+    {
+      "contratoId": "CTR-MPMNGZWT-QX1",
+      "itemIdx": 7,
+      "skuAntigo": "LICT-0067",
+      "skuNovo": "LICT-0365",
+      "via": "full",
+      "prodDesc": "Feijao Carioca",
+      "itemDesc": "Feijão Carioca"
+    },
+    {
+      "contratoId": "CTR-MPMNGZWT-QX1",
+      "itemIdx": 8,
+      "skuAntigo": "LICT-0187",
+      "skuNovo": "LICT-0215",
+      "via": "core",
+      "prodDesc": "fermento em pó",
+      "itemDesc": "Fermento em pó 250gr"
+    },
+    {
+      "contratoId": "CTR-MPMNGZWT-QX1",
+      "itemIdx": 14,
+      "skuAntigo": "LICT-0145",
+      "skuNovo": "LICT-0370",
+      "via": "core",
+      "prodDesc": "Sal refinado - Pirâmide",
+      "itemDesc": "Sal refinado"
+    },
+    {
+      "contratoId": "CTR-MPMNGZWT-QX1",
+      "itemIdx": 15,
+      "skuAntigo": "LICT-0150",
+      "skuNovo": "LICT-0306",
+      "via": "full",
+      "prodDesc": "vinagre",
+      "itemDesc": "Vinagre 750 ml"
+    },
+    {
+      "contratoId": "CTR-20260610-4255",
+      "itemIdx": 1,
+      "skuAntigo": "LICT-0118",
+      "skuNovo": "LICT-0247",
+      "via": "core",
+      "prodDesc": "Polpa de Fruta Abacaxi - Pacote de 100 Gramas",
+      "itemDesc": "polpa de fruta abacaxi"
+    },
+    {
+      "contratoId": "CTR-20260330-0023",
+      "itemIdx": 2,
+      "skuAntigo": "LICT-0051",
+      "skuNovo": "LICT-0301",
+      "via": "full",
+      "prodDesc": "colorau",
+      "itemDesc": "Colorau 500 gr"
+    },
+    {
+      "contratoId": "CTR-20260330-0023",
+      "itemIdx": 5,
+      "skuAntigo": "LICT-0137",
+      "skuNovo": "LICT-0391",
+      "via": "full",
+      "prodDesc": "Queijo Meia Cura",
+      "itemDesc": "Queijo Minas"
+    },
+    {
+      "contratoId": "CTR-MQH1LVPJ",
+      "itemIdx": 0,
+      "skuAntigo": "LICT-0001",
+      "skuNovo": "LICT-0072",
+      "via": "full",
+      "prodDesc": "Filé de Tilápia",
+      "itemDesc": "Filé de Tilápia"
+    },
+    {
+      "contratoId": "CTR-20260601-5949",
+      "itemIdx": 0,
+      "skuAntigo": "LICT-0067",
+      "skuNovo": "LICT-0365",
+      "via": "full",
+      "prodDesc": "Feijao Carioca",
+      "itemDesc": "Feijão carioca/carioquinha, tipo 1, safra nova. Grãos inteiros e sãos, isento de outros tipos de feijões e grãos, de material terroso e sujidades. Embalagem plástica, atóxica, transparente, não violada, contendo dados do produto: identificação, procedência, ingredientes, informações nutricionais, lote, gramatura, datas de fabricação e vencimento. Validade mínima de 6 meses a contar da data de entrega do produto. Pacote com 1kg. Marcas: João Pedro, Codil ou Vasconcelos. Média de preço R$ 9,64"
+    },
+    {
+      "contratoId": "CTR-20260330-0008",
+      "itemIdx": 0,
+      "skuAntigo": "LICT-0001",
+      "skuNovo": "LICT-0325",
+      "via": "full",
+      "prodDesc": "abacaxi",
+      "itemDesc": "Abacaxi"
+    },
+    {
+      "contratoId": "CTR-20260330-0008",
+      "itemIdx": 3,
+      "skuAntigo": "LICT-0009",
+      "skuNovo": "LICT-0362",
+      "via": "core",
+      "prodDesc": "Arroz 5kg - Litoral",
+      "itemDesc": "Arroz 5 kg"
+    },
+    {
+      "contratoId": "CTR-20260330-0008",
+      "itemIdx": 16,
+      "skuAntigo": "LICT-0061",
+      "skuNovo": "LICT-0152",
+      "via": "core",
+      "prodDesc": "Farinha de Milho",
+      "itemDesc": "Farinha de milho - Milharina"
+    },
+    {
+      "contratoId": "CTR-20260330-0008",
+      "itemIdx": 18,
+      "skuAntigo": "LICT-0067",
+      "skuNovo": "LICT-0365",
+      "via": "full",
+      "prodDesc": "Feijao Carioca",
+      "itemDesc": "Feijão carioca"
+    },
+    {
+      "contratoId": "CTR-20260330-0008",
+      "itemIdx": 21,
+      "skuAntigo": "LICT-0090",
+      "skuNovo": "LICT-0241",
+      "via": "full",
+      "prodDesc": "Manteiga de leite 500 gr",
+      "itemDesc": "Manteiga de leite 500 gr"
+    },
+    {
+      "contratoId": "CTR-20260330-0008",
+      "itemIdx": 22,
+      "skuAntigo": "LICT-0151",
+      "skuNovo": "LICT-0334",
+      "via": "full",
+      "prodDesc": "óleo de soja",
+      "itemDesc": "Óleo de soja 900 ml"
+    },
+    {
+      "contratoId": "CTR-20260330-0008",
+      "itemIdx": 25,
+      "skuAntigo": "LICT-0137",
+      "skuNovo": "LICT-0391",
+      "via": "full",
+      "prodDesc": "Queijo Meia Cura",
+      "itemDesc": "Queijo meia cura"
+    },
+    {
+      "contratoId": "CTR-20260330-0007",
+      "itemIdx": 2,
+      "skuAntigo": "LICT-0064",
+      "skuNovo": "LICT-0152",
+      "via": "full",
+      "prodDesc": "Farinha de Milho",
+      "itemDesc": "Farinha de Milho 500gr - Pachá"
+    },
+    {
+      "contratoId": "CTR-20260330-0007",
+      "itemIdx": 4,
+      "skuAntigo": "LICT-0067",
+      "skuNovo": "LICT-0365",
+      "via": "full",
+      "prodDesc": "Feijao Carioca",
+      "itemDesc": "Feijao Carioca Da Casa"
+    },
+    {
+      "contratoId": "CTR-20260330-0007",
+      "itemIdx": 8,
+      "skuAntigo": "LICT-0119",
+      "skuNovo": "LICT-0368",
+      "via": "full",
+      "prodDesc": "Polpa de frutas Frutpress",
+      "itemDesc": "Polpa de frutas Frutpress"
+    },
+    {
+      "contratoId": "CTR-20260330-0007",
+      "itemIdx": 10,
+      "skuAntigo": "LICT-0145",
+      "skuNovo": "LICT-0370",
+      "via": "full",
+      "prodDesc": "Sal refinado - Pirâmide",
+      "itemDesc": "Sal refinado - Pirâmide"
+    },
+    {
+      "contratoId": "gdp-mnoq8gbv-vhc",
+      "itemIdx": 4,
+      "skuAntigo": "LICT-0158",
+      "skuNovo": "LICT-0201",
+      "via": "core",
+      "prodDesc": "Sabão em Pó 1,6 kg",
+      "itemDesc": "Sabão em pó"
+    },
+    {
+      "contratoId": "CTR-20260426-2702",
+      "itemIdx": 0,
+      "skuAntigo": "LICT-0001",
+      "skuNovo": "LICT-0325",
+      "via": "full",
+      "prodDesc": "abacaxi",
+      "itemDesc": "açafrão em pó"
+    },
+    {
+      "contratoId": "CTR-20260426-2702",
+      "itemIdx": 2,
+      "skuAntigo": "LICT-0017",
+      "skuNovo": "LICT-0336",
+      "via": "core",
+      "prodDesc": "açúcar Cristal - Pacote 5 kg açúcar Tipo Cristal. Textura em Grânulos Finos e",
+      "itemDesc": "acúcar cristal"
+    },
+    {
+      "contratoId": "CTR-20260426-2702",
+      "itemIdx": 4,
+      "skuAntigo": "LICT-0014",
+      "skuNovo": "LICT-0307",
+      "via": "full",
+      "prodDesc": "aveia",
+      "itemDesc": "aveia"
+    },
+    {
+      "contratoId": "CTR-20260426-2702",
+      "itemIdx": 6,
+      "skuAntigo": "LICT-0050",
+      "skuNovo": "LICT-0049",
+      "via": "full",
+      "prodDesc": "Coco Ralado",
+      "itemDesc": "coco ralado sem açúcar"
+    },
+    {
+      "contratoId": "CTR-20260426-2702",
+      "itemIdx": 7,
+      "skuAntigo": "LICT-0051",
+      "skuNovo": "LICT-0301",
+      "via": "full",
+      "prodDesc": "colorau",
+      "itemDesc": "colorau"
+    },
+    {
+      "contratoId": "CTR-20260426-2702",
+      "itemIdx": 9,
+      "skuAntigo": "LICT-0145",
+      "skuNovo": "LICT-0370",
+      "via": "core",
+      "prodDesc": "Sal refinado - Pirâmide",
+      "itemDesc": "sal"
+    },
+    {
+      "contratoId": "CTR-20260330-0028",
+      "itemIdx": 0,
+      "skuAntigo": "LICT-0017",
+      "skuNovo": "LICT-0336",
+      "via": "core",
+      "prodDesc": "açúcar Cristal - Pacote 5 kg açúcar Tipo Cristal. Textura em Grânulos Finos e",
+      "itemDesc": "Açucar Cristal 5 kg"
+    },
+    {
+      "contratoId": "CTR-20260330-0028",
+      "itemIdx": 1,
+      "skuAntigo": "LICT-0009",
+      "skuNovo": "LICT-0362",
+      "via": "core",
+      "prodDesc": "Arroz 5kg - Litoral",
+      "itemDesc": "Arroz tipo I - 5 kg"
+    },
+    {
+      "contratoId": "CTR-20260330-0028",
+      "itemIdx": 2,
+      "skuAntigo": "LICT-0013",
+      "skuNovo": "LICT-0307",
+      "via": "core",
+      "prodDesc": "aveia",
+      "itemDesc": "Aveia 500 gr"
+    },
+    {
+      "contratoId": "CTR-20260330-0028",
+      "itemIdx": 3,
+      "skuAntigo": "LICT-0051",
+      "skuNovo": "LICT-0301",
+      "via": "full",
+      "prodDesc": "colorau",
+      "itemDesc": "Colorau"
+    },
+    {
+      "contratoId": "CTR-20260330-0028",
+      "itemIdx": 4,
+      "skuAntigo": "LICT-0151",
+      "skuNovo": "LICT-0334",
+      "via": "full",
+      "prodDesc": "óleo de soja",
+      "itemDesc": "Óleo de Soja 900 ml"
+    },
+    {
+      "contratoId": "CTR-MQGJWLMV",
+      "itemIdx": 0,
+      "skuAntigo": "LICT-0102",
+      "skuNovo": "LICT-0256",
+      "via": "full",
+      "prodDesc": "mussarela",
+      "itemDesc": "Mussarela"
+    },
+    {
+      "contratoId": "CTR-MNNL5WLE",
+      "itemIdx": 1,
+      "skuAntigo": "LICT-0130",
+      "skuNovo": "LICT-0129",
+      "via": "core",
+      "prodDesc": "Polpa de Maracujá 100 gr",
+      "itemDesc": "Polpa de maracujá"
+    },
+    {
+      "contratoId": "CTR-MNNL5WLE",
+      "itemIdx": 3,
+      "skuAntigo": "LICT-0124",
+      "skuNovo": "LICT-0121",
+      "via": "core",
+      "prodDesc": "Polpa De Manga 100 gr",
+      "itemDesc": "Polpa de manga"
+    },
+    {
+      "contratoId": "CTR-MPLOC4U8",
+      "itemIdx": 0,
+      "skuAntigo": "LICT-0182",
+      "skuNovo": "LICT-0360",
+      "via": "core",
+      "prodDesc": "Açafrão (Kg)",
+      "itemDesc": "Afração"
+    },
+    {
+      "contratoId": "CTR-MPLOC4U8",
+      "itemIdx": 1,
+      "skuAntigo": "LICT-0183",
+      "skuNovo": "LICT-0343",
+      "via": "full",
+      "prodDesc": "Farinha de trigo 500 gr",
+      "itemDesc": "Farinha de trigo 500 gr"
+    },
+    {
+      "contratoId": "CTR-20260406-4636",
+      "itemIdx": 7,
+      "skuAntigo": "LICT-0009",
+      "skuNovo": "LICT-0362",
+      "via": "core",
+      "prodDesc": "Arroz 5kg - Litoral",
+      "itemDesc": "ARROZ"
+    },
+    {
+      "contratoId": "CTR-20260406-4636",
+      "itemIdx": 10,
+      "skuAntigo": "LICT-0067",
+      "skuNovo": "LICT-0365",
+      "via": "full",
+      "prodDesc": "Feijao Carioca",
+      "itemDesc": "FEIJÃO CARIOCA"
+    },
+    {
+      "contratoId": "CTR-20260406-4636",
+      "itemIdx": 12,
+      "skuAntigo": "LICT-0151",
+      "skuNovo": "LICT-0334",
+      "via": "full",
+      "prodDesc": "óleo de soja",
+      "itemDesc": "ÓLEO DE SOJA"
+    },
+    {
+      "contratoId": "CTR-20260406-4636",
+      "itemIdx": 15,
+      "skuAntigo": "LICT-0071",
+      "skuNovo": "LICT-0072",
+      "via": "full",
+      "prodDesc": "Filé de Tilápia",
+      "itemDesc": "PEIXE FILETADO TILÁPIA"
+    },
+    {
+      "contratoId": "CTR-20260610-5380",
+      "itemIdx": 0,
+      "skuAntigo": "LICT-0067",
+      "skuNovo": "LICT-0365",
+      "via": "full",
+      "prodDesc": "Feijao Carioca",
+      "itemDesc": "Feijão carioca tipo 01"
+    },
+    {
+      "contratoId": "CTR-20260610-3172",
+      "itemIdx": 0,
+      "skuAntigo": "LICT-0009",
+      "skuNovo": "LICT-0362",
+      "via": "core",
+      "prodDesc": "Arroz 5kg - Litoral",
+      "itemDesc": "ARROZ: beneficiado, parabolizado, longo fino, tipo I. Coloração perolada e translúcida, não necessitando escolher e lavar. Rendimento após cozimento de no mínimo 2,5 vezes a mais o peso antes da cocção. Embalagem plástica, atóxica transparente, não violada, contendo dados do produto, identificação, procedência, ingredientes, informações nutricionais, lote, gramatura, datas de fabricação e vencimento. Validade mínima de 6 (seis) meses a contar da data de entrega do produto. Pacote com 5 KG"
+    },
+    {
+      "contratoId": "CTR-20260610-3172",
+      "itemIdx": 2,
+      "skuAntigo": "LICT-0145",
+      "skuNovo": "LICT-0370",
+      "via": "core",
+      "prodDesc": "Sal refinado - Pirâmide",
+      "itemDesc": "SAL refinado iodado. Isento de sujidades e mofos. Certificação pelo ministério da saúde quanto a suplementação de iodo. Embalagem plástica, atóxica, transparente, não violada, contendo dados do produto: identificação, procedência, ingredientes, informações nutricionais, lote, gramatura, datas de fabricação e vencimento. Validade mínima de 6 (seis) meses a contar da data de entrega do produto. Pacote de 1 kg."
+    },
+    {
+      "contratoId": "CTR-SGD-2026009209",
+      "itemIdx": 0,
+      "skuAntigo": "LICT-0182",
+      "skuNovo": "LICT-0360",
+      "via": "core",
+      "prodDesc": "Açafrão (Kg)",
+      "itemDesc": "açafrão"
+    },
+    {
+      "contratoId": "CTR-20260330-0029",
+      "itemIdx": 2,
+      "skuAntigo": "LICT-0009",
+      "skuNovo": "LICT-0362",
+      "via": "core",
+      "prodDesc": "Arroz 5kg - Litoral",
+      "itemDesc": "Arroz 5 kg"
+    },
+    {
+      "contratoId": "CTR-20260330-0029",
+      "itemIdx": 3,
+      "skuAntigo": "LICT-0014",
+      "skuNovo": "LICT-0307",
+      "via": "full",
+      "prodDesc": "aveia",
+      "itemDesc": "Aveia 500 gr"
+    },
+    {
+      "contratoId": "CTR-20260330-0029",
+      "itemIdx": 5,
+      "skuAntigo": "LICT-0051",
+      "skuNovo": "LICT-0301",
+      "via": "full",
+      "prodDesc": "colorau",
+      "itemDesc": "Colorau"
+    },
+    {
+      "contratoId": "CTR-20260330-0029",
+      "itemIdx": 6,
+      "skuAntigo": "LICT-0067",
+      "skuNovo": "LICT-0365",
+      "via": "full",
+      "prodDesc": "Feijao Carioca",
+      "itemDesc": "Feijão Carioca"
+    },
+    {
+      "contratoId": "CTR-20260330-0029",
+      "itemIdx": 7,
+      "skuAntigo": "LICT-0071",
+      "skuNovo": "LICT-0072",
+      "via": "full",
+      "prodDesc": "Filé de Tilápia",
+      "itemDesc": "Filé de Tilápia"
+    },
+    {
+      "contratoId": "CTR-20260330-0029",
+      "itemIdx": 8,
+      "skuAntigo": "LICT-0151",
+      "skuNovo": "LICT-0334",
+      "via": "full",
+      "prodDesc": "óleo de soja",
+      "itemDesc": "Óleo de Soja"
+    },
+    {
+      "contratoId": "CTR-20260406-9006",
+      "itemIdx": 7,
+      "skuAntigo": "LICT-0009",
+      "skuNovo": "LICT-0362",
+      "via": "core",
+      "prodDesc": "Arroz 5kg - Litoral",
+      "itemDesc": "ARROZ"
+    },
+    {
+      "contratoId": "CTR-20260406-9006",
+      "itemIdx": 10,
+      "skuAntigo": "LICT-0067",
+      "skuNovo": "LICT-0365",
+      "via": "full",
+      "prodDesc": "Feijao Carioca",
+      "itemDesc": "FEIJÃO CARIOCA"
+    },
+    {
+      "contratoId": "CTR-20260406-9006",
+      "itemIdx": 12,
+      "skuAntigo": "LICT-0151",
+      "skuNovo": "LICT-0334",
+      "via": "full",
+      "prodDesc": "óleo de soja",
+      "itemDesc": "ÓLEO DE SOJA"
+    },
+    {
+      "contratoId": "CTR-20260406-9006",
+      "itemIdx": 15,
+      "skuAntigo": "LICT-0071",
+      "skuNovo": "LICT-0072",
+      "via": "full",
+      "prodDesc": "Filé de Tilápia",
+      "itemDesc": "PEIXE FILETADO TILÁPIA"
+    },
+    {
+      "contratoId": "CTR-SGD-2026131515",
+      "itemIdx": 0,
+      "skuAntigo": "LICT-0001",
+      "skuNovo": "LICT-0362",
+      "via": "core",
+      "prodDesc": "Arroz 5kg - Litoral",
+      "itemDesc": "Arroz - tipo 1"
+    },
+    {
+      "contratoId": "CTR-SGD-2026131515",
+      "itemIdx": 1,
+      "skuAntigo": "LICT-0002",
+      "skuNovo": "LICT-0259",
+      "via": "full",
+      "prodDesc": "Feijão",
+      "itemDesc": "Feijao"
+    },
+    {
+      "contratoId": "CTR-SGD-2026131448",
+      "itemIdx": 0,
+      "skuAntigo": "LICT-0001",
+      "skuNovo": "LICT-0362",
+      "via": "core",
+      "prodDesc": "Arroz 5kg - Litoral",
+      "itemDesc": "Arroz - tipo 1"
+    },
+    {
+      "contratoId": "CTR-SGD-2026131448",
+      "itemIdx": 1,
+      "skuAntigo": "LICT-0002",
+      "skuNovo": "LICT-0259",
+      "via": "full",
+      "prodDesc": "Feijão",
+      "itemDesc": "Feijao"
+    },
+    {
+      "contratoId": "CTR-20260330-0027",
+      "itemIdx": 1,
+      "skuAntigo": "LICT-0130",
+      "skuNovo": "LICT-0129",
+      "via": "core",
+      "prodDesc": "Polpa de Maracujá 100 gr",
+      "itemDesc": "Polpa de Frutas Maracujá 100 gr"
+    },
+    {
+      "contratoId": "CTR-20260330-0032",
+      "itemIdx": 5,
+      "skuAntigo": "LICT-0090",
+      "skuNovo": "LICT-0241",
+      "via": "full",
+      "prodDesc": "Manteiga de leite 500 gr",
+      "itemDesc": "Manteiga de leite 500 gr"
+    },
+    {
+      "contratoId": "CTR-20260330-0032",
+      "itemIdx": 6,
+      "skuAntigo": "LICT-0105",
+      "skuNovo": "LICT-0318",
+      "via": "core",
+      "prodDesc": "Ovos",
+      "itemDesc": "Ovos - Cartela c/ 20 und"
+    },
+    {
+      "contratoId": "gdp-mpb9izdm-0ha",
+      "itemIdx": 10,
+      "skuAntigo": "LICT-0158",
+      "skuNovo": "LICT-0201",
+      "via": "core",
+      "prodDesc": "Sabão em Pó 1,6 kg",
+      "itemDesc": "Sabão em pó"
+    },
+    {
+      "contratoId": "CTR-MNNL65R8",
+      "itemIdx": 0,
+      "skuAntigo": "LICT-0016",
+      "skuNovo": "LICT-0360",
+      "via": "core",
+      "prodDesc": "Açafrão (Kg)",
+      "itemDesc": "Açafrão 500 gr"
+    },
+    {
+      "contratoId": "CTR-MNNL65R8",
+      "itemIdx": 2,
+      "skuAntigo": "LICT-0014",
+      "skuNovo": "LICT-0307",
+      "via": "full",
+      "prodDesc": "aveia",
+      "itemDesc": "Aveia em flocos 500 gr"
+    },
+    {
+      "contratoId": "CTR-MNNL65R8",
+      "itemIdx": 4,
+      "skuAntigo": "LICT-0024",
+      "skuNovo": "LICT-0337",
+      "via": "core",
+      "prodDesc": "Biscoito Água e Sal - Pacote de 170 Gramas",
+      "itemDesc": "Biscoito de água e sal 170 gr"
+    },
+    {
+      "contratoId": "CTR-MNNL65R8",
+      "itemIdx": 5,
+      "skuAntigo": "LICT-0051",
+      "skuNovo": "LICT-0301",
+      "via": "full",
+      "prodDesc": "colorau",
+      "itemDesc": "Colorau 500 gr"
+    },
+    {
+      "contratoId": "CTR-MNNL65R8",
+      "itemIdx": 11,
+      "skuAntigo": "LICT-0137",
+      "skuNovo": "LICT-0391",
+      "via": "full",
+      "prodDesc": "Queijo Meia Cura",
+      "itemDesc": "Queijo minas meia cura"
+    },
+    {
+      "contratoId": "CTR-MNNL65R8",
+      "itemIdx": 12,
+      "skuAntigo": "LICT-0145",
+      "skuNovo": "LICT-0370",
+      "via": "core",
+      "prodDesc": "Sal refinado - Pirâmide",
+      "itemDesc": "Sal refinado"
+    },
+    {
+      "contratoId": "CTR-MPOD8T3H",
+      "itemIdx": 2,
+      "skuAntigo": "LICT-0182",
+      "skuNovo": "LICT-0306",
+      "via": "core",
+      "prodDesc": "vinagre",
+      "itemDesc": "Vinagre 750 ml"
+    },
+    {
+      "contratoId": "CTR-20260330-0030",
+      "itemIdx": 9,
+      "skuAntigo": "LICT-0240",
+      "skuNovo": "LICT-0072",
+      "via": "full",
+      "prodDesc": "Filé de Tilápia",
+      "itemDesc": "Filé de Tilápia"
+    },
+    {
+      "contratoId": "CTR-20260330-0030",
+      "itemIdx": 12,
+      "skuAntigo": "LICT-0094",
+      "skuNovo": "LICT-0316",
+      "via": "full",
+      "prodDesc": "Margarina sem Sal",
+      "itemDesc": "Margarina (sem sal)"
+    },
+    {
+      "contratoId": "CTR-20260330-0001",
+      "itemIdx": 10,
+      "skuAntigo": "LICT-0024",
+      "skuNovo": "LICT-0337",
+      "via": "core",
+      "prodDesc": "Biscoito Água e Sal - Pacote de 170 Gramas",
+      "itemDesc": "Bolacha Cream Cracker 350gr"
+    },
+    {
+      "contratoId": "CTR-20260330-0001",
+      "itemIdx": 13,
+      "skuAntigo": "LICT-0113",
+      "skuNovo": "LICT-0363",
+      "via": "full",
+      "prodDesc": "Carne Pernil",
+      "itemDesc": "Carne Pernil"
+    },
+    {
+      "contratoId": "CTR-20260330-0001",
+      "itemIdx": 16,
+      "skuAntigo": "LICT-0050",
+      "skuNovo": "LICT-0049",
+      "via": "full",
+      "prodDesc": "Coco Ralado",
+      "itemDesc": "Coco ralado"
+    },
+    {
+      "contratoId": "CTR-20260330-0001",
+      "itemIdx": 17,
+      "skuAntigo": "LICT-0051",
+      "skuNovo": "LICT-0301",
+      "via": "full",
+      "prodDesc": "colorau",
+      "itemDesc": "Colorau"
+    },
+    {
+      "contratoId": "CTR-20260330-0001",
+      "itemIdx": 19,
+      "skuAntigo": "LICT-0057",
+      "skuNovo": "LICT-0304",
+      "via": "full",
+      "prodDesc": "extrato de tomate",
+      "itemDesc": "Extrato de tomate 350 gr - QUERO"
+    },
+    {
+      "contratoId": "CTR-20260330-0001",
+      "itemIdx": 20,
+      "skuAntigo": "LICT-0060",
+      "skuNovo": "LICT-0331",
+      "via": "core",
+      "prodDesc": "farinha de mandioca",
+      "itemDesc": "Farinha de mandioca 500 gr - Amafil"
+    },
+    {
+      "contratoId": "CTR-20260330-0001",
+      "itemIdx": 22,
+      "skuAntigo": "LICT-0067",
+      "skuNovo": "LICT-0365",
+      "via": "full",
+      "prodDesc": "Feijao Carioca",
+      "itemDesc": "Feijão carioca Cocal"
+    },
+    {
+      "contratoId": "CTR-20260330-0001",
+      "itemIdx": 33,
+      "skuAntigo": "LICT-0151",
+      "skuNovo": "LICT-0334",
+      "via": "full",
+      "prodDesc": "óleo de soja",
+      "itemDesc": "Oleo de soja"
+    },
+    {
+      "contratoId": "CTR-20260330-0001",
+      "itemIdx": 40,
+      "skuAntigo": "LICT-0145",
+      "skuNovo": "LICT-0370",
+      "via": "core",
+      "prodDesc": "Sal refinado - Pirâmide",
+      "itemDesc": "Sal refinado"
+    },
+    {
+      "contratoId": "CTR-20260330-0001",
+      "itemIdx": 42,
+      "skuAntigo": "LICT-0150",
+      "skuNovo": "LICT-0306",
+      "via": "full",
+      "prodDesc": "vinagre",
+      "itemDesc": "Vinagre Vinho Branco 750 ml"
+    }
+  ]
+}
