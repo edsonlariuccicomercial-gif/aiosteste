@@ -921,19 +921,57 @@ function buscarProdutoPedido(idx) {
   container.classList.remove("hidden");
 }
 
+// REQUISITO DO USUÁRIO (2026-06-25): "ao associar com um produto cadastrado na central de produtos tem
+// de puxar TODOS os dados do produto vinculado" + "os produtos têm de sair na nota como estão na Central
+// (descrição, SKU e unidade), não no contrato". Este helper resolve o item de contrato para o PRODUTO da
+// Central (fonte oficial) e devolve descricao/unidade/sku/ncm DELE. Quantidade e preço da VENDA continuam
+// vindo do contrato/pedido (só os dados do PRODUTO vêm da Central). Se o item não tem vínculo resolvível,
+// devolve null (mantém o texto do contrato — não há de onde puxar).
+function _resolverProdutoCentralParaItem(item) {
+  if (!item) return null;
+  var lista = (typeof estoqueIntelProdutos !== 'undefined' && estoqueIntelProdutos && estoqueIntelProdutos.length)
+    ? estoqueIntelProdutos
+    : ((typeof window !== 'undefined' && window.ProductStore && window.ProductStore.list) ? window.ProductStore.list() : []);
+  if (!lista || !lista.length) return null;
+  var _desc = function (p) { return p.descricao || p.nome || p.item || ''; };
+  var _un = function (p) { return p.unidade || p.unidade_base || 'UN'; };
+  var stripAcc = function (s) { return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, ''); };
+  var norm = function (s) { return stripAcc(s).toUpperCase().replace(/[^A-Z0-9]/g, ' ').replace(/\s+/g, ' ').trim(); };
+  // 1) por SKU vinculado (match exato — o caminho canônico)
+  var skuVinc = String(item.skuVinculado || item.sku || '').toUpperCase();
+  var prod = null;
+  if (skuVinc) prod = lista.find(function (p) { return p.sku && p.sku.toUpperCase() === skuVinc; });
+  // 2) por nome do produto vinculado (produtoVinculado), match exato normalizado
+  if (!prod && item.produtoVinculado) {
+    var pv = norm(item.produtoVinculado);
+    var byPv = lista.filter(function (p) { return norm(_desc(p)) === pv; });
+    if (byPv.length === 1) prod = byPv[0];
+  }
+  // 3) por descrição do item, match exato normalizado
+  if (!prod && item.descricao) {
+    var dn = norm(item.descricao);
+    var byDesc = lista.filter(function (p) { return norm(_desc(p)) === dn; });
+    if (byDesc.length === 1) prod = byDesc[0];
+  }
+  if (!prod) return null;
+  return { descricao: _desc(prod), sku: prod.sku || '', unidade: _un(prod), ncm: prod.ncm || '', _produtoId: prod.id };
+}
+
 function selecionarProdutoContratoParaPedido(idx, itemIdx) {
   const ctrId = pedidoCloneDraft?.contratoId || (pedidoEditId ? pedidos.find(x => x.id === pedidoEditId)?.contratoId : null);
   const ctr = ctrId ? contratos.find(c => c.id === ctrId) : null;
   if (!ctr || !ctr.itens[itemIdx]) return;
   const item = ctr.itens[itemIdx];
+  // puxa os dados do PRODUTO da Central (oficial); se não resolver, cai no texto do contrato
+  const central = _resolverProdutoCentralParaItem(item);
   _pedidoManualItens[idx] = {
-    descricao: item.descricao,
-    sku: item.skuVinculado || item.sku || '',
-    unidade: item.unidade || 'UN',
+    descricao: central ? central.descricao : item.descricao,
+    sku: central ? central.sku : (item.skuVinculado || item.sku || ''),
+    unidade: central ? central.unidade : (item.unidade || 'UN'),
     qtd: _pedidoManualItens[idx]?.qtd || 1,
     precoUnitario: item.precoUnitario || 0,
     valorTotal: null,
-    ncm: item.ncm || '',
+    ncm: central && central.ncm ? central.ncm : (item.ncm || ''),
     itemNum: item.num
   };
   renderPedidoItensManual();
@@ -1300,7 +1338,17 @@ function adicionarProdutoDetalhe(pedidoId, fonte, ref) {
     const ctr = contratos.find(c => c.id === p.contratoId);
     if (ctr && ctr.itens[ref]) {
       const ci = ctr.itens[ref];
-      novoItem = { descricao: ci.descricao, unidade: ci.unidade || 'UN', qtd: 1, precoUnitario: ci.precoUnitario || 0, sku: ci.skuVinculado || ci.sku || '', ncm: ci.ncm || '', itemNum: ci.num };
+      // puxa os dados do PRODUTO da Central (oficial); preço/qtd da venda; fallback no texto do contrato
+      const central = _resolverProdutoCentralParaItem(ci);
+      novoItem = {
+        descricao: central ? central.descricao : ci.descricao,
+        unidade: central ? central.unidade : (ci.unidade || 'UN'),
+        qtd: 1,
+        precoUnitario: ci.precoUnitario || 0,
+        sku: central ? central.sku : (ci.skuVinculado || ci.sku || ''),
+        ncm: central && central.ncm ? central.ncm : (ci.ncm || ''),
+        itemNum: ci.num
+      };
     }
   } else if (fonte === 'intel') {
     const prod = estoqueIntelProdutos.find(pr => pr.id === ref);

@@ -1878,6 +1878,26 @@ async function transmitirHomologacaoNota(notaId) {
   showToast("Transmitindo NF " + novoNumero + " para SEFAZ...", 8000);
   renderAll();
 
+  // REQUISITO DO USUÁRIO (2026-06-25): "os produtos têm de sair na nota como estão na Central de Produtos
+  // (descrição, SKU e unidade, inclusive) — ao associar com um produto da Central tem de puxar TODOS os
+  // dados do produto vinculado". REDE DE SEGURANÇA FINAL: logo antes de transmitir, reescreve cada item
+  // do pedido com descrição/unidade/SKU/NCM do PRODUTO da Central (fonte oficial). Cobre pedidos antigos
+  // criados antes do fix no fluxo de criação. Quantidade e preço da venda são preservados.
+  try {
+    if (typeof _resolverProdutoCentralParaItem === "function" && pedido && Array.isArray(pedido.itens)) {
+      pedido.itens = pedido.itens.map(function (it) {
+        var central = _resolverProdutoCentralParaItem({ skuVinculado: it.sku, sku: it.sku, descricao: it.descricao, produtoVinculado: it.produtoVinculado });
+        if (!central) return it;
+        return Object.assign({}, it, {
+          descricao: central.descricao || it.descricao,
+          unidade: central.unidade || it.unidade,
+          sku: central.sku || it.sku,
+          ncm: central.ncm || it.ncm
+        });
+      });
+    }
+  } catch (_) { /* resolução é best-effort; não bloqueia a emissão */ }
+
   try {
     // Tentar API Vercel primeiro, fallback para servidor local
     let resp;
