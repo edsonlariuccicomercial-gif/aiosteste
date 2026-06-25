@@ -3221,7 +3221,34 @@ async function enviarTiny(contratoId) {
           const mergedRemote = filteredRows.map(r => (preferLocal && localById[r.id]) ? localById[r.id] : r);
           const merged = [...mergedRemote, ...localOnly];
           const data = _wrapKeys.has(lsKey) ? { _v: 1, updatedAt: new Date().toISOString(), items: merged } : merged;
-          localStorage.setItem(lsKey, JSON.stringify(data));
+          // FIX DE RAIZ (2026-06-25 — "3 produtos" na máquina do usuário): o setItem abaixo
+          // FALHAVA silenciosamente com QuotaExceededError quando a memória estava cheia → os
+          // dados do servidor (671) NÃO eram gravados → a tela continuava com os 3 antigos.
+          // Na máquina de teste (com espaço) gravava 671; na do usuário (cheia) ficava 3.
+          // Agora: tenta gravar; se estourar a quota, LIBERA memória (bases recuperáveis) e
+          // RETENTA; se ainda estourar, grava uma versão LEVE (sem campos pesados) para caber.
+          // Garante que os dados do servidor SEMPRE chegam à tela, mesmo com memória cheia.
+          try {
+            localStorage.setItem(lsKey, JSON.stringify(data));
+          } catch (errQuota) {
+            try {
+              if (typeof window._liberarMemoriaRecuperavel === 'function') window._liberarMemoriaRecuperavel();
+              localStorage.setItem(lsKey, JSON.stringify(data)); // retry após liberar
+            } catch (err2) {
+              // último recurso: gravar versão leve (strip dos campos pesados) para caber
+              try {
+                let lightItems = merged;
+                if (lsKey === 'gdp.notas-fiscais.v1' && typeof window._stripNfHeavy === 'function') lightItems = merged.map(window._stripNfHeavy);
+                else if ((lsKey === 'gdp.contas-receber.v1' || lsKey === 'gdp.contas-pagar.v1') && typeof window._stripContaHeavy === 'function') lightItems = merged.map(window._stripContaHeavy);
+                const lightData = _wrapKeys.has(lsKey) ? { _v: 1, updatedAt: new Date().toISOString(), items: lightItems } : lightItems;
+                localStorage.setItem(lsKey, JSON.stringify(lightData));
+                gdpWarn('[GDP] ' + lsKey + ': gravado em versão LEVE (memória cheia) — ' + merged.length + ' registros preservados.');
+              } catch (err3) {
+                gdpWarn('[GDP] ' + lsKey + ': memória cheia, não foi possível gravar nem versão leve. Dados seguem no servidor.');
+                return false;
+              }
+            }
+          }
           return true;
         };
         const fetchPromises = Object.entries(_tableMap).map(([lsKey, table]) =>
