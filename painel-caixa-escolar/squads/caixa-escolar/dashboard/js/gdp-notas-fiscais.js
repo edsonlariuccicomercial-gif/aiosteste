@@ -620,8 +620,26 @@ async function _emitirOuSincronizarCobrancaRealImpl(contaId, options = {}) {
 
   const provider = getEffectiveBankProvider(conta, nota);
   const ambiente = getEffectiveBankAmbiente(conta, nota);
-  let action = conta.cobranca?.providerChargeId ? "bank-charge-sync" : "bank-charge-create";
+  // REEMISSÃO EXPLÍCITA (2026-06-26 — boleto vencido): options.vencimento só vem do modal "Emitir/
+  // Reemitir Boleto" (o boleto automático da NF não passa). Informar um vencimento novo = intenção
+  // CLARA de gerar um boleto NOVO (ex.: o anterior venceu). Nesse caso forçamos CREATE (novo boleto
+  // com a nova data) e PULAMOS a recuperação-antes-de-criar — senão re-vincularíamos o boleto antigo/
+  // vencido e o usuário ficaria preso nele. Decisão do usuário: reemitir pelo modal SEMPRE gera novo.
+  const _reemissaoManual = !!(options.vencimento && /^\d{4}-\d{2}-\d{2}$/.test(options.vencimento));
+  let action = (conta.cobranca?.providerChargeId && !_reemissaoManual) ? "bank-charge-sync" : "bank-charge-create";
   const actor = getAuditActor();
+
+  // seuNumero ÚNICO p/ reemissão (boleto vencido → boleto novo): a conta tem o MESMO id, então o
+  // seuNumero padrão (id.slice(-15)) colidiria com o boleto antigo e o Inter recusaria por duplicidade.
+  // Aqui geramos um seuNumero único de ≤15 chars: núcleo numérico da conta (preserva rastreabilidade)
+  // + 'R' + carimbo curto (minutos do dia + segundos), recortado p/ caber no limite do Inter.
+  let _seuReemissao = "";
+  if (_reemissaoManual && conta.cobranca?.providerChargeId) {
+    var _nucleo = String(conta.id || "").replace(/\D/g, "").slice(-7); // 7 díg da conta
+    var _d = new Date();
+    var _carimbo = String(_d.getHours()) + String(_d.getMinutes()).padStart(2, "0") + String(_d.getSeconds()).padStart(2, "0");
+    _seuReemissao = (_nucleo + "R" + _carimbo).slice(-15); // ex.: "2609372R143052"
+  }
 
   // RECUPERAR-ANTES-DE-CRIAR (2026-06-26 — fecha o loop "Boleto não emitido no banco"): quando NÃO há
   // providerChargeId local (action seria CREATE), o boleto PODE já existir no Inter (criado antes e o
@@ -630,7 +648,8 @@ async function _emitirOuSincronizarCobrancaRealImpl(contaId, options = {}) {
   // se já existe um boleto com o seuNumero desta conta. Se existe e está vinculável, re-vinculamos e
   // saímos — sem duplicar. Só cria de verdade se realmente não existir. Rede de segurança proativa
   // (antes a busca só rodava no catch de falha; agora roda ANTES de qualquer create).
-  if (action === "bank-charge-create" && getEffectiveBankProvider(conta, nota) === "inter") {
+  // EXCEÇÃO: reemissão manual (vencimento novo) NUNCA recupera — quer um boleto NOVO, não o antigo.
+  if (action === "bank-charge-create" && !_reemissaoManual && getEffectiveBankProvider(conta, nota) === "inter") {
     try {
       const _seu = String(conta.id || "").slice(-15);
       const _r = await fetch("/api/bank-charge", {
@@ -686,7 +705,9 @@ async function _emitirOuSincronizarCobrancaRealImpl(contaId, options = {}) {
         ambiente,
         conta,
         nota: notaParaCobranca,
-        providerChargeId: conta.cobranca?.providerChargeId || conta.integracoes?.bancaria?.providerChargeId || ""
+        providerChargeId: conta.cobranca?.providerChargeId || conta.integracoes?.bancaria?.providerChargeId || "",
+        // reemissão (boleto novo): seuNumero único p/ não colidir com o boleto antigo no Inter
+        seuNumero: _seuReemissao || undefined
       })
     });
     const data = await resp.json().catch(() => ({}));

@@ -121,7 +121,7 @@ async function interReq(rt, agent, token, path, { method = "GET", body } = {}) {
   return resp.data;
 }
 
-function buildPayload(conta, nota) {
+function buildPayload(conta, nota, seuNumeroOverride) {
   const cli = (nota && nota.cliente) || {};
   const value = Number((conta && conta.valor) || (nota && nota.valor) || 0);
   const dueDate = String((conta && conta.vencimento) || "").slice(0, 10);
@@ -135,8 +135,12 @@ function buildPayload(conta, nota) {
   // justamente o sufixo unico que distingue contas do mesmo dia. Resultado: impossivel
   // re-vincular boletos orfaos por seuNumero. Fix: preservar os ULTIMOS 15 chars (o sufixo
   // unico), que sao reversiveis por "sufixo do conta.id".
+  // REEMISSAO (2026-06-26): o front pode passar seuNumeroOverride (ex.: boleto vencido -> novo boleto
+  // precisa de seuNumero UNICO, senao o Inter recusa por duplicidade). O override preserva o nucleo
+  // numerico da conta para a reconciliacao por endsWith/startsWith continuar funcionando.
+  const _seu = trimStr(seuNumeroOverride || "").slice(-15);
   return {
-    seuNumero: trimStr((conta && conta.id) || (nota && nota.id) || "").slice(-15) || `GDP${Date.now()}`,
+    seuNumero: _seu || trimStr((conta && conta.id) || (nota && nota.id) || "").slice(-15) || `GDP${Date.now()}`,
     valorNominal: Number(value.toFixed(2)),
     dataVencimento: dueDate,
     numDiasAgenda: 0,
@@ -192,12 +196,12 @@ async function fetchInterBoletoPdf(rt, agent, token, providerChargeId) {
   } catch (_) { return ""; }
 }
 
-async function createInterCharge(ambiente, conta, nota) {
+async function createInterCharge(ambiente, conta, nota, seuNumeroOverride) {
   const rt = resolveInterRuntime(ambiente);
   if (!rt.clientId || !rt.clientSecret) throw new Error("Credenciais OAuth do Inter ausentes (GDP_BANK_INTER_CLIENT_ID / _CLIENT_SECRET).");
   const agent = buildAgent(rt);
   const token = await interToken(rt, agent, "boleto-cobranca.write boleto-cobranca.read");
-  const payload = buildPayload(conta, nota);
+  const payload = buildPayload(conta, nota, seuNumeroOverride);
   const created = await interReq(rt, agent, token, "/cobranca/v3/cobrancas", { method: "POST", body: payload });
   const codigo = created.codigoSolicitacao || "";
   let detail = {};
@@ -306,7 +310,8 @@ module.exports = async function handler(req, res) {
     if (action === "bank-charge-create") {
       const conta = body.conta || null;
       if (!conta || !conta.id) return res.status(400).json({ ok: false, error: "conta.id obrigatorio" });
-      const result = await createInterCharge(ambiente, conta, body.nota || null);
+      // body.seuNumero: override opcional p/ reemissao (boleto novo precisa de seuNumero unico)
+      const result = await createInterCharge(ambiente, conta, body.nota || null, trimStr(body.seuNumero || ""));
       return res.status(200).json({ ok: true, action, provider, ambiente, result });
     }
 
