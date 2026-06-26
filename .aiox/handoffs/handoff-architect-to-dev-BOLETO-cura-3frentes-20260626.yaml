@@ -1,0 +1,82 @@
+handoff:
+  from_agent: architect
+  to_agent: data-engineer   # passa por @data-engineer (validar persistência) e depois @dev
+  timestamp: "2026-06-26T NOITE"
+  titulo: "DESENHO — boleto Inter nunca some: guarda contas_receber + lock + recuperar-antes-de-criar"
+  empresa: LARIUCCI
+  prioridade: P0_CRITICO
+  status_desenho: PRONTO
+
+  CONTEXTO (do @analyst): "Boleto gera no Inter mas providerChargeId não persiste/é apagado → 'Boleto não emitido no banco' → reemitir recria → Inter recusa duplicidade → loop. Mesma raiz da regressão da NF; contas_receber ficou sem a guarda."
+
+  # ════════════════════════════════════════════════════════════════════════════════
+  DESENHO_3_FRENTES:
+
+    P1_CRITICO_guarda_contas_receber (gdp-realtime.js):
+      objetivo: "Eco do realtime NUNCA apaga um boleto real (providerChargeId) de uma conta."
+      implementacao:
+        - "Generalizar a guarda existente. Adicionar helpers inline perto de _podeSobrescreverNf (~linha 211):"
+        - |
+          // PROVA DURÁVEL de cobrança: boleto real no provider. Espelha temBoletoReal de
+          // reconciliarCobrancasOrfas (gdp-notas-fiscais.js). Conta com boleto é estado com prova.
+          function _contaTemProva(rec) {
+            if (!rec) return false;
+            var cob = rec.cobranca || {};
+            var ban = (rec.integracoes && rec.integracoes.bancaria) || {};
+            return !!(cob.providerChargeId || cob.nossoNumero || cob.bankSlipUrl || cob.linhaDigitavel || ban.providerChargeId);
+          }
+          // Guarda genérica por tabela: decide se a entrante pode sobrescrever a local.
+          function _podeSobrescreverRegistro(table, localRec, entranteRec) {
+            if (table === 'notas_fiscais') {
+              if (_nfEhTerminal(localRec) && !_nfEhTerminal(entranteRec)) return false;
+            } else if (table === 'contas_receber') {
+              // conta com boleto real não é rebaixada por eco sem boleto (perderia o providerChargeId)
+              if (_contaTemProva(localRec) && !_contaTemProva(entranteRec)) return false;
+            }
+            return true;
+          }
+        - "Trocar as DUAS chamadas atuais 'table===notas_fiscais && !_podeSobrescreverNf(...)' (dirty window ~275 e normal ~303) por: '!_podeSobrescreverRegistro(table, items[idx], record)'. Assim a mesma guarda cobre notas_fiscais E contas_receber (e é extensível)."
+      racional: "Boleto real = prova durável (o boleto só existe se o Inter criou). Já é o critério usado em reconciliarCobrancasOrfas (blindagem por boleto real). Aqui aplicamos no merge do realtime."
+
+    P2_ALTA_lock_idempotente (gdp-notas-fiscais.js, emitirOuSincronizarCobrancaReal):
+      objetivo: "Dois cliques (ou clique + auto-sync) não disparam 2 CREATE simultâneos → não gera 2 boletos."
+      implementacao:
+        - "Adicionar um mapa de lock por conta no topo do módulo (espelho de _nfOpsEmAndamento): var _crOpsEmAndamento = {};"
+        - "No início de emitirOuSincronizarCobrancaReal (após achar a conta ~480), antes das validações de rede: if (_crOpsEmAndamento[contaId]) { if(!options.silent) showToast('Emissão de boleto já em andamento para esta cobrança. Aguarde.', 3500); return false; } _crOpsEmAndamento[contaId] = true;"
+        - "Envolver o corpo restante em try/finally; no finally: delete _crOpsEmAndamento[contaId]. (Cuidado: o auto-sync agendado em setTimeout 8s chama a função de novo com _autoSynced — ele roda DEPOIS do finally do 1º, então não colide; mas garantir que options.silent/_autoSynced não fiquem presos no lock.)"
+      racional: "Espelha o _nfOpsEmAndamento que já protege a emissão de NF. Sem isso, o fetch de 2-3s é janela para clique duplo."
+
+    P3_ALTA_recuperar_antes_de_criar (gdp-notas-fiscais.js + api/bank-charge.js):
+      objetivo: "Fechar o loop: ao emitir e não haver providerChargeId local, PROCURAR o boleto no Inter ANTES de criar um novo. Só cria se realmente não existe."
+      frente_front:
+        - "Em emitirOuSincronizarCobrancaReal, quando action seria 'bank-charge-create' (sem providerChargeId local): ANTES do fetch de create, chamar bank-charge-find-by-seu (seuNumero = conta.id.slice(-15), período amplo). Se found + providerChargeId → applyRealBankChargeResult + save + return true (re-vincula, não cria 2º). Só se NÃO achar → segue para o create."
+        - "Isto transforma a 'rede de segurança no catch' (que só roda em falha) numa verificação PROATIVA (roda sempre antes de criar). Resolve o caso em que o create 'tem sucesso' criando duplicado."
+      frente_backend (api/bank-charge.js, action bank-charge-find-by-seu):
+        - "Período: default atual é só 'hoje'. Ampliar para os últimos 30 dias quando dataInicial não for passada (boleto criado ontem deve ser achado). Manter override por dataInicial/dataFinal."
+        - "Multi-hit: hoje pega o primeiro match. Manter o primeiro com codigoSolicitacao válido (suficiente para re-vincular), mas se houver vários, preferir o de situação ativa (A_RECEBER/EM_PROCESSAMENTO) sobre CANCELADO/EXPIRADO."
+      racional: "O seuNumero (conta.id.slice(-15)) é a chave de reconciliação determinística. Buscar antes de criar elimina a duplicidade e o 'criou mas não vinculou'."
+
+    NAO_FAZER:
+      - "NÃO criar boleto novo quando já existe um ativo no Inter para o mesmo seuNumero."
+      - "NÃO remover a rede de segurança do catch (mantém cobertura para falha de resposta) — P3 a complementa, não a substitui."
+      - "NÃO mexer no fluxo de NF (já corrigido)."
+
+  # ════════════════════════════════════════════════════════════════════════════════
+  PARA_DATA_ENGINEER (validar antes do @dev):
+    - "Confirmar que o upsert de contas_receber (gdp-api.js mapToTable / coluna cobranca jsonb) PERSISTE cobranca.providerChargeId no Supabase e que mapFromTable o devolve. Conferir a lista de colunas de contas_receber (gdp-api.js ~147) — 'cobranca' deve estar lá (está)."
+    - "Confirmar idempotência do upsert por id (PK) — reemitir não cria linha duplicada."
+    - "Não há schema novo necessário; é validação de que o campo jsonb sobrevive ida/volta. Se sobrevive, liberar p/ @dev."
+
+  arquivos:
+    - "squads/caixa-escolar/dashboard/js/gdp-realtime.js (P1 — guarda genérica). Bump gdp-realtime v15→v16."
+    - "squads/caixa-escolar/dashboard/js/gdp-notas-fiscais.js (P2 lock + P3 recuperar-antes). Bump gdp-notas-fiscais v57→v58."
+    - "api/bank-charge.js (P3 backend — período/multi-hit). Backend, sem bump de ?v=."
+
+  VALIDACAO_ESPERADA (@qa via Playwright logado):
+    - "Eco-regressão contas_receber: conta com providerChargeId recebe eco sem o ID → guarda preserva (providerChargeId permanece). [P1]"
+    - "Clique duplo em emitir boleto → só 1 CREATE; 2º clique barrado pelo lock. [P2]"
+    - "Reemitir cobrança cujo boleto já existe no Inter mas sem ID local → find-by-seu re-vincula, NÃO cria 2º boleto, e a tela passa a mostrar o boleto. [P3 — fecha o loop do usuário]"
+    - "Boleto criado ontem → find-by-seu (30d) acha e re-vincula. [P3 backend]"
+    - "Regressão: emissão normal de boleto novo (conta sem boleto e sem existente no Inter) continua criando. Sync de boleto existente continua. NF intacta."
+
+  proximo: "@data-engineer valida persistência → @dev implementa P1/P2/P3 → @qa valida loop fechado → @devops deploy --force."

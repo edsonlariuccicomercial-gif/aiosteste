@@ -1,0 +1,55 @@
+handoff:
+  from_agent: analyst
+  to_agent: architect
+  timestamp: "2026-06-26T NOITE"
+  titulo: "CAUSA RAIZ — boleto Inter 'some' (providerChargeId não persiste): MESMA regressão da NF, agora em contas_receber"
+  empresa: LARIUCCI
+  prioridade: P0_CRITICO
+
+  CONFIRMACAO_DA_INTUICAO_DO_USUARIO: "O usuário disse 'acho que é a mesma coisa' — CORRETO. A guarda anti-regressão criada hoje (_podeSobrescreverNf) cobre SÓ notas_fiscais; contas_receber ficou desprotegida contra o mesmo padrão de eco-rebaixamento."
+
+  SINTOMA_RELATADO (reemissão de boleto):
+    - "Clica emitir/reemitir boleto → toast 'cobrança gerada' no canto sup. direito, mas boleto Inter NÃO aparece."
+    - "Detalhe da cobrança mostra: 'Boleto não emitido no banco / sem identificador do Inter. Clique para emitir agora.'"
+    - "Clica 'Emitir boleto agora' → diz que NÃO emite porque acabou de emitir (Inter recusa duplicidade)."
+    - "Passa tempo → toast diz que emitiu de novo, mas boleto continua não aparecendo. LOOP."
+
+  # ════════════════════════════════════════════════════════════════════════════════
+  CAUSA_RAIZ (3 vulnerabilidades, A/E é a principal):
+    A_E_CRITICA_falta_guarda_em_contas_receber:
+      arquivo: "squads/caixa-escolar/dashboard/js/gdp-realtime.js"
+      funcao: "handleEntityChange (UPDATE, ambos sub-ramos dirty window + normal)"
+      fato: "A guarda _podeSobrescreverNf só dispara quando table==='notas_fiscais'. Para contas_receber NÃO há guarda → um eco UPDATE antigo SEM providerChargeId sobrescreve a conta que JÁ tem o boleto vinculado → providerChargeId vira vazio → 'Boleto não emitido no banco'."
+      onde_o_id_e_gravado:
+        - "applyRealBankChargeResult (gdp-notas-fiscais.js ~372-454): grava conta.cobranca.providerChargeId E conta.integracoes.bancaria.providerChargeId."
+        - "saveContasReceber persiste (providerChargeId NÃO é removido por _stripContaHeavy — sobrevive)."
+      evidencia: "Comprovado hoje na conta CR-20260626-09372 (NF 1624): por ~minutos apareceu sem providerChargeId (status pendente), depois consolidou com providerChargeId 5e6078ce... — flicker de propagação. Mesma assinatura do bug da NF."
+
+    B_ALTA_sem_lock_idempotente_na_emissao:
+      arquivo: "squads/caixa-escolar/dashboard/js/gdp-notas-fiscais.js"
+      funcao: "emitirOuSincronizarCobrancaReal (~478-753)"
+      fato: "NÃO há lock de operação por conta (como _nfOpsEmAndamento existe p/ NF). action escolhida na linha ~602: se conta.cobranca.providerChargeId existe → 'bank-charge-sync', senão → 'bank-charge-create'. Dois cliques durante o fetch (2-3s) → dois CREATE simultâneos → 2 boletos no Inter; só 1 providerChargeId é persistido. O 2º vira órfão."
+      rede_de_seguranca_existente: "Há recuperação idempotente no catch do create (linhas ~708-729): bank-charge-find-by-seu por seuNumero=conta.id.slice(-15). MAS limitada (ver C)."
+
+    C_MEDIA_recuperacao_limitada:
+      arquivo: "api/bank-charge.js (action bank-charge-find-by-seu ~328-345)"
+      fato: "Busca SÓ no período de 1 dia (hoje) e retorna SÓ o primeiro hit. Boleto criado ontem, ou 2º boleto duplicado, não é re-vinculado. seuNumero montado igual na criação e busca (slice(-15)) — consistente, sem descasamento."
+
+    D_consequencia_UI:
+      fato: "A mensagem 'Boleto não emitido no banco' é exibida quando !conta.cobranca.providerChargeId && !conta.integracoes.bancaria.providerChargeId. Correta — o problema é o ID ter sido APAGADO (A) ou nunca persistido (B). O botão 'Emitir boleto agora' chama emitirOuSincronizarCobrancaReal → como o ID sumiu, faz CREATE de novo → duplicidade."
+
+  # ════════════════════════════════════════════════════════════════════════════════
+  DIRECAO_DE_CURA (para @architect desenhar — pontos):
+    P1_CRITICO_guarda_contas_receber: "Espelhar a guarda anti-regressão para contas_receber no handleEntityChange. 'Prova de cobrança' = providerChargeId (ou nossoNumero/bankSlipUrl/linhaDigitavel) presente. Conta com prova NUNCA é rebaixada por eco sem prova. Reusar o padrão _podeSobrescreverNf — generalizar para uma guarda por-tabela."
+    P2_ALTA_lock_idempotente: "Lock por contaId na emitirOuSincronizarCobrancaReal (espelho de _nfOpsEmAndamento) — bloquear 2º clique enquanto o 1º fetch está em voo. Liberar no finally."
+    P3_MEDIA_recuperacao_robusta: "Estender bank-charge-find-by-seu: período (ex.: últimos 30 dias, não só hoje) e considerar todos os hits. E SEMPRE rodar a recuperação por seuNumero ANTES de um novo create na reemissão (se o usuário pede 'emitir agora' e não há ID local, primeiro PROCURAR no Inter; só criar se realmente não existe) — fecha o loop."
+    regra_inegociavel: "providerChargeId real é PROVA DURÁVEL (o boleto só existe se foi criado no Inter). Nunca apagar por eco. Nunca criar 2º boleto sem antes procurar o existente."
+
+  arquivos:
+    - "squads/caixa-escolar/dashboard/js/gdp-realtime.js (guarda contas_receber)"
+    - "squads/caixa-escolar/dashboard/js/gdp-notas-fiscais.js (lock + recuperar-antes-de-criar)"
+    - "api/bank-charge.js (find-by-seu período/multi-hit)"
+
+  toque_de_dados (@data-engineer): "Mínimo. Confirmar que a tabela contas_receber no Supabase persiste cobranca.providerChargeId no upsert (mapToTable) e que não há trigger/normalização que o derrube. Validar idempotência de upsert por id."
+
+  proximo: "@architect desenha P1/P2/P3 → @data-engineer valida persistência → @dev implementa → @qa valida loop → @devops deploy."

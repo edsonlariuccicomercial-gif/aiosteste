@@ -1,0 +1,78 @@
+handoff:
+  from_agent: analyst
+  to_agent: architect
+  timestamp: "2026-06-26T NOITE"
+  titulo: "CAUSA RAIZ PROVADA — REGRESSÃO: NF autorizada VOLTA a pendente minutos depois (o bug que o usuário reporta há DIAS)"
+  empresa: LARIUCCI
+  prioridade: P0_CRITICO
+
+  REENQUADRAMENTO_DO_BUG (o usuário corrigiu nosso entendimento — estávamos no alvo errado):
+    sintoma_REAL: "A nota NASCE pendente → AUTORIZA → vai para EMITIDAS (correto) → e DEPOIS DE MINUTOS REGRIDE sozinha para PENDENTE de novo. O problema é a REGRESSÃO de uma nota que já estava autorizada e correta."
+    o_que_NAO_e: "NÃO é 'nasce pendente e fica' (isso foi o foco errado de dias). As correções parser (c7617f59) e Caso 4 (79b1cb62) atacam o NASCIMENTO — NÃO tocam a regressão. Insuficientes para este bug."
+
+  # ════════════════════════════════════════════════════════════════════════════════
+  CAUSA_RAIZ_PROVADA (evidência concreta capturada em produção via Playwright logado):
+    arquivo: "squads/caixa-escolar/dashboard/js/gdp-realtime.js"
+    funcao: "handleEntityChange (UPDATE, fora da dirty window — o caminho 'minutos depois')"
+    linha_do_bug: 264
+    codigo: |
+      var rTs = record.updated_at || record.updatedAt || '';   // remoto (eco do realtime)
+      var lTs = items[j].updated_at || items[j].updatedAt || ''; // LOCAL
+      if (!lTs || !rTs || rTs > lTs) {   // <-- BURACO: !lTs é TRUE quando local não tem updated_at
+        items[j] = record;               // sobrescreve a nota local (autorizada) pela do eco (velha)
+        changed = true;
+      }
+    o_defeito: |
+      A nota local (em notasFiscais[] na RAM e no localStorage) NÃO tem 'updated_at' NA RAIZ — o timestamp
+      mora em nf.audit.updatedAt (lugar diferente). Então items[j].updated_at é VAZIO → lTs = '' → a condição
+      '!lTs' é TRUE → a guarda de timestamp ('rTs > lTs') É IGNORADA → o eco SOBRESCREVE A NOTA SEMPRE,
+      mesmo que a local esteja autorizada com chave+protocolo e o eco traga uma versão ANTIGA sem chave.
+    evidencia_capturada (NF 1623, em produção AGORA):
+      local_RAM:
+        status: autorizada
+        temChave: true
+        updated_at_raiz: "AUSENTE"     # <-- AQUI: a nota viva não tem updated_at na raiz
+        audit_updatedAt: "ausente"
+      cloud_supabase:
+        status: autorizada
+        chave: "31260636802147000142550010000016231928822922"
+        updated_at_raiz: "2026-06-26T21:33:31.799899+00:00"   # cloud TEM; RAM NÃO
+    por_que_o_save_nao_protege:
+      - "gdp-api.js:366 — no save, 'item.updated_at = new Date().toISOString()' é setado no objeto que vai pro SUPABASE (mapToTable), NÃO no objeto da RAM (notasFiscais[]). Por isso o cloud tem updated_at e a RAM não."
+      - "Resultado: a própria nota autorizada é ESTRUTURALMENTE INDEFESA — como lTs fica vazio, ela nunca 'vence' um eco; qualquer UPDATE entrante a derruba."
+
+  SEQUENCIA_QUE_CAUSA_A_REGRESSAO:
+    - "T+0: nota autoriza (chave+protocolo) → status 'autorizada' na RAM e salva no Supabase → aparece em Emitidas."
+    - "T+minutos: chega um eco UPDATE do realtime para a tabela notas_fiscais — vindo de outra aba/PC, OU de um save de entidade ligada (pedido/cobrança) que reescreve a nota, OU de um echo atrasado de um save ANTERIOR à autorização (versão sem chave)."
+    - "handleEntityChange (fora da dirty window de 5s): lTs da nota local = VAZIO → '!lTs' true → items[j] = record (versão velha SEM chave) → nota REBAIXADA a pendente."
+    - "scheduleRender → renderAll → a nota SOME de Emitidas e REAPARECE em Pendentes. É o que o usuário vê 'minutos depois'."
+
+  PROTECOES_EXISTENTES_QUE_FALHAM:
+    - "Dirty window 5s (linha 233): só cobre os primeiros 5s após um save local. A regressão acontece MINUTOS depois → fora da janela."
+    - "gdpApiIsSelfEcho (linha 229): suprime só o eco do PRÓPRIO upsert (assinatura updated_at+status). Um eco com updated_at diferente (versão antiga, ou de outra origem) PASSA."
+    - "Guarda de timestamp (linha 264): INOPERANTE para notas, porque lTs (local) é sempre vazio."
+    - "Nenhuma proteção olha a PROVA (chave+protocolo). A decisão é 100% por timestamp — e o timestamp local nem existe."
+
+  # ════════════════════════════════════════════════════════════════════════════════
+  DIRECAO_DE_CURA (para o @architect desenhar — NÃO implementar aqui):
+    principio_inegociavel: "PROVA DURÁVEL > TIMESTAMP. Uma NF local com chave 44 díg + protocolo (autorizada) NUNCA pode ser rebaixada por um eco que NÃO traz a mesma prova (ou prova superior), independente de updated_at. Aplicar no handleEntityChange, ESCOPO notas_fiscais (e, por simetria, estado terminal 'cancelada')."
+    pontos_a_desenhar:
+      - "A. Guarda de prova no merge de notas_fiscais (gdp-realtime.js handleEntityChange): antes de 'items[j] = record', se o LOCAL tem prova de autorização (chave 44 díg + protocolo) E o RECORD entrante NÃO tem (ou tem chave/status inferior) → NÃO sobrescrever (preservar o local). Idem para 'cancelada' (estado terminal)."
+      - "B. Corrigir a raiz do timestamp: garantir que a nota na RAM/localStorage carregue updated_at na RAIZ (não só em audit) — assim a guarda de timestamp existente volta a funcionar como segunda linha. (O save em gdp-api.js seta no cloud; precisa refletir na RAM também, ou o realtime precisa derivar lTs de audit.updatedAt como fallback.)"
+      - "C. NÃO usar merge wholesale 'prova durável' que já quebrou cancelamento antes (commits 80cfef85/c41a872c/802bc229 revertidos). Guarda campo-a-campo, escopo mínimo, só notas_fiscais + cancelada."
+    validacao_esperada:
+      - "Reproduzir o eco: forçar um UPDATE entrante no realtime com versão sem-chave de uma nota autorizada → com a guarda, a nota PERMANECE autorizada (não regride)."
+      - "Multi-aba: abrir 2 abas, autorizar numa, confirmar que a outra NÃO rebaixa a nota."
+      - "Regressão: cancelamento entrante legítimo ainda aplica (não bloquear); notas normais ainda sincronizam."
+
+  arquivos_envolvidos:
+    - "squads/caixa-escolar/dashboard/js/gdp-realtime.js (handleEntityChange ~186-287, foco linha 264)"
+    - "squads/caixa-escolar/dashboard/gdp-api.js (save ~366 / mapToTable ~176 / mapFromTable ~187 — para o ponto B)"
+    - "squads/caixa-escolar/dashboard/js/gdp-notas-fiscais.js (temProvaAutorizacao ~800 — reusar como critério de prova)"
+
+  acesso:
+    producao_url: "https://painel-caixa-escolar.vercel.app/squads/caixa-escolar/dashboard/gdp-contratos.html"
+    login: "angela / Alicia06@"
+    nota_referencia: "1623 (Caixa Escolar Vasco Santos) — autorizada/estável agora; usada como evidência."
+
+  proximo_passo: "@architect desenha a guarda 'prova durável > timestamp' (pontos A/B/C) → @dev implementa → @devops deploy → @analyst valida o eco que não rebaixa."

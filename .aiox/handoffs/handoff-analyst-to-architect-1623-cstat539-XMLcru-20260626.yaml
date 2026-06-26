@@ -1,0 +1,61 @@
+handoff:
+  from_agent: analyst
+  to_agent: architect
+  timestamp: "2026-06-26T NOITE"
+  titulo: "1623 voltou pra pendente — XML CRU capturado: causa é cStat 539 (duplicidade), NÃO parser"
+  empresa: LARIUCCI
+
+  RESUMO_DE_UMA_FRASE: |
+    A correção do parser (commit c7617f59) está CORRETA e CONFIRMADA com XML real, mas a 1623 cai
+    pendente por OUTRA causa: a SEFAZ devolve cStat 539 (Duplicidade — a NF já existe autorizada com
+    chave diferente) e a emissão trava em 'transmissao_em_preparo' ANTES de a autocura 539 do front rodar.
+
+  EVIDENCIA_CRUA (capturada em produção via Playwright logado angela, action nfe-sefaz-transmitir force):
+    xml_real_da_sefaz_MG: |
+      <retEnviNFe versao="4.00">
+        <tpAmb>1</tpAmb><verAplic>W-3.4.6</verAplic>
+        <cStat>104</cStat><xMotivo>Lote processado</xMotivo><cUF>31</cUF>
+        <protNFe versao="4.00"><infProt>
+          <chNFe>31260636802147000142550010000016231744500590</chNFe>
+          <cStat>539</cStat>
+          <xMotivo>Rejeicao: Duplicidade de NF-e, com diferenca na Chave de Acesso[chNFe: 31260636802147000142550010000016231928822922]</xMotivo>
+        </infProt></protNFe>
+      </retEnviNFe>
+    leitura_do_parser_corrigido:
+      - "parsed.cStat = 539 (extraído de DENTRO de <protNFe versao=\"4.00\"> — tag COM atributo)."
+      - "parsed.chNFe = 31260636802147000142550010000016231744500590 (44 díg, PREENCHIDO)."
+      - "==> O FIX DO PARSER FUNCIONA. Com o parser antigo, chNFe/cStat sairiam vazios. Manter c7617f59."
+
+  CAUSA_RAIZ_REAL_DA_1623 (≠ parser):
+    fato_1: "cStat 539 = Duplicidade. A SEFAZ afirma que a NF nº 1623 JÁ está autorizada — com a chave ...16231928822922 (vem citada no xMotivo)."
+    fato_2: "Há DUAS chaves no jogo: (a) a autorizada de verdade na SEFAZ = ...1928822922 (no xMotivo); (b) a recalculada agora = ...1744500590 (no chNFe do protNFe). São diferentes porque buildAccessKey NÃO é determinística (new Date() + cNF aleatório) — confirma o aviso do architect na sessão anterior."
+    fato_3: "A nota 1623 no storage está em integracoes.sefaz.status = 'transmissao_em_preparo' (setado em gdp-notas-fiscais.js:1961) e nf.status='rascunho_nf_real'. Ou seja: a emissão ORIGINAL travou ANTES da linha 2030 (nf.sefaz.transmissao = result) — a classificação de status e a autocura 539 (linhas 2047-2062) NUNCA rodaram nessa emissão."
+    hipotese_do_travamento: "A emissão original provavelmente deu timeout/erro na volta (ver handoff causaraiz-FINAL-resposta-vazia-backend-20260626h) OU a 1ª transmissão autorizou mas a resposta não chegou ao front → 2ª tentativa pega 539. A re-transmissão de teste AGORA respondeu em 1.3s com 539 (rápido), então o backend está saudável; o travamento foi na emissão original."
+
+  O_QUE_FUNCIONA_VS_O_QUE_FALTA:
+    funciona:
+      - "Parser robusto (c7617f59 deployado, gdp-integrations HTTP 200)."
+      - "Backend transmite e responde rápido (1.3s)."
+      - "Autocura 539 EXISTE no front (gdp-notas-fiscais.js:2047 _recuperarPorDuplicidade539) — extrai a chave do xMotivo e consulta protocolo."
+    falta_desenho_architect:
+      - "PONTO A — A autocura 539 do front só roda DENTRO do fluxo de emissão (após a resposta chegar à linha 2035). Se a emissão trava em 'transmissao_em_preparo', ela nunca dispara. PRECISA: um caminho de RECUPERAÇÃO para notas presas em 'transmissao_em_preparo' que re-consulte a SEFAZ e, se vier 539, extraia a chave do xMotivo (...1928822922) e busque o protocolo real (consultarProtocolo por chave)."
+      - "PONTO B — A chave citada no 539 (...1928822922) é a chave REAL autorizada. O caminho de cura é: pegar essa chave do xMotivo → consultarProtocolo(chave) → se cStat 100/150 + protocolo → marcar 1623 autorizada com a chave+protocolo REAIS. NÃO usar a chave recalculada (...1744500590)."
+      - "PONTO C — decidir se a recuperação de 'transmissao_em_preparo' entra no boot (_recuperarViaDistribuicaoDFe já cobre via DFe?) ou num botão/auto-fix. A DFe lista autorizadas do CNPJ por NSU e cruza nNF+vNF — pode já curar a 1623 no próximo boot se a ...1928822922 estiver na faixa NSU consultada."
+
+  REGRA_INEGOCIAVEL: "Nunca marcar autorizada sem cStat 100/150 + chave 44 díg + protocolo REAIS da SEFAZ. A chave válida é a do xMotivo do 539 (...1928822922), confirmada via consultarProtocolo — não a recalculada."
+
+  ESTADO_PRODUCAO:
+    parser_fix: "commit c7617f59 — DEPLOYADO e validado (gdp-integrations 200)."
+    nota_1623: "presa em transmissao_em_preparo / rascunho_nf_real. NÃO foi alterada nesta investigação (só consultas read-only + 1 transmissão de teste que retornou 539 sem persistir)."
+    chave_real_autorizada_1623: "31260636802147000142550010000016231928822922 (do xMotivo 539 — a confirmar via consultarProtocolo)."
+
+  PROXIMO_PASSO (fluxo formal):
+    - "@architect: desenhar a cura dos PONTOS A/B/C (recuperação de notas presas em transmissao_em_preparo via 539→xMotivo→consultarProtocolo). Escopo mínimo, um vetor, sem merge wholesale."
+    - "@dev: implementar conforme desenho."
+    - "@devops: deploy --force."
+    - "RECUPERAÇÃO IMEDIATA da 1623 (manual, enquanto a cura não sai): consultarProtocolo da chave ...1928822922; se autorizada, gravar na 1623. (procedimento validado antes p/ 1621/622)."
+
+  acesso:
+    producao_url: "https://painel-caixa-escolar.vercel.app/squads/caixa-escolar/dashboard/gdp-contratos.html"
+    login: "angela / Alicia06@"
+    pedido_1623: "PED-PORTAL-VASCO-CONTRAPARTIDA-20260626 (Caixa Escolar Vasco Santos, R$717,64, 5 itens)"

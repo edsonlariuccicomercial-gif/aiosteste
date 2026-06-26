@@ -1,0 +1,95 @@
+handoff:
+  from_agent: architect
+  to_agent: dev
+  timestamp: "2026-06-26T NOITE"
+  titulo: "DESENHO — guarda 'PROVA DURÁVEL > timestamp' no realtime: NF autorizada NUNCA regride por eco"
+  empresa: LARIUCCI
+  prioridade: P0_CRITICO
+  status_desenho: PRONTO_PARA_DEV
+
+  CONTEXTO (do @analyst, causa raiz PROVADA):
+    - "BUG: NF autoriza → vai p/ Emitidas → REGRIDE p/ pendente minutos depois. É o bug do usuário há DIAS."
+    - "CAUSA: gdp-realtime.js handleEntityChange linha 264 — a nota local na RAM NÃO tem updated_at na raiz (mora em audit.updatedAt). lTs vazio → '!lTs' true → guarda de timestamp INOPERANTE → qualquer eco (versão velha sem-chave) SOBRESCREVE a nota autorizada."
+    - "Evidência: NF 1623 local.updated_at_raiz=AUSENTE, cloud=presente. gdp-api.js:366 seta updated_at só no objeto que vai pro Supabase, não na RAM."
+    - "temProvaAutorizacao (gdp-notas-fiscais.js:800) NÃO está exposta em window → o realtime NÃO pode chamá-la. Usar checagem INLINE."
+
+  # ════════════════════════════════════════════════════════════════════════════════
+  DESENHO (dupla camada de defesa, escopo mínimo = só notas_fiscais):
+    arquivo_alvo: "squads/caixa-escolar/dashboard/js/gdp-realtime.js"
+    funcao: "handleEntityChange"
+
+    helper_inline (adicionar no topo do módulo realtime, perto de isOurRecord ~linha 180):
+      codigo: |
+        // PROVA DURÁVEL de NF: chave de acesso 44 díg + protocolo. Espelha temProvaAutorizacao
+        // (gdp-notas-fiscais.js:800), mas INLINE porque aquela não está exposta em window e o
+        // realtime pode carregar antes. Aceita nf.sefaz.* e nf.* (raiz).
+        function _nfTemProva(rec) {
+          if (!rec) return false;
+          var s = rec.sefaz || {};
+          var ch = String(s.chaveAcesso || rec.chaveAcesso || '').replace(/\D/g, '');
+          var pr = String(s.protocolo || rec.protocolo || '');
+          return ch.length === 44 && pr.length > 0;
+        }
+        // Estado TERMINAL de NF que não pode regredir por eco sem prova igual/superior:
+        // autorizada (tem prova) OU cancelada (cStat 101/151 — decisão fiscal final).
+        function _nfEhTerminal(rec) {
+          if (!rec) return false;
+          var st = String(rec.status || (rec.sefaz && rec.sefaz.status) || '');
+          return _nfTemProva(rec) || st === 'cancelada' || (rec.sefaz && rec.sefaz.status === 'cancelada');
+        }
+
+    CAMADA_A_guarda_de_prova (o fix principal — aplicar SÓ quando table === 'notas_fiscais'):
+      onde: "Em handleEntityChange, no ramo UPDATE. Vale para AMBOS os sub-ramos (dirty window ~240-248 E o normal ~252-272), ANTES de 'items[localIdx] = record' / 'items[j] = record'."
+      regra: |
+        Antes de sobrescrever a nota local pela entrante:
+          if (table === 'notas_fiscais') {
+            var _local = items[<idx>];        // a nota que JÁ está local
+            var _entrante = record;           // a que veio do eco
+            // Se a LOCAL é terminal (autorizada/cancelada) e a ENTRANTE NÃO tem prova igual/superior,
+            // NÃO sobrescrever — a prova durável vence o timestamp. Preserva o estado bom.
+            if (_nfEhTerminal(_local) && !_nfEhTerminal(_entrante)) {
+              // a entrante é uma versão velha/sem prova → IGNORAR (não rebaixa)
+              // (não setar changed=true; manter items[idx] como está)
+            } else {
+              items[<idx>] = record;          // caminho normal (entrante tem prova igual/superior ou local não é terminal)
+              changed = true;
+            }
+          } else {
+            // comportamento atual inalterado para as demais tabelas
+            items[<idx>] = record; changed = true;
+          }
+      racional: |
+        Uma NF autorizada (chave+protocolo) ou cancelada é ESTADO TERMINAL fiscal. Um eco que traz a mesma
+        nota SEM prova só pode ser uma versão ANTERIOR (a SEFAZ nunca 'desautoriza'). Logo, prova durável >
+        timestamp: nunca rebaixar terminal por não-terminal. Se a entrante TAMBÉM é terminal (ex.: cancelamento
+        legítimo chegando, ou re-autorização), o caminho normal aplica — não bloqueia sync legítimo.
+
+    CAMADA_B_fallback_de_timestamp (corrige a raiz do lTs vazio — defesa secundária):
+      onde: "Nas DUAS comparações de timestamp (linha ~243 dirty window e ~264 normal)."
+      mudanca: |
+        Derivar o timestamp local TAMBÉM de audit.updatedAt quando updated_at raiz estiver ausente:
+          var lTs = items[<idx>].updated_at || items[<idx>].updatedAt || (items[<idx>].audit && items[<idx>].audit.updatedAt) || '';
+          var rTs = record.updated_at || record.updatedAt || (record.audit && record.audit.updatedAt) || '';
+        Assim a guarda de timestamp volta a funcionar mesmo para registros sem updated_at na raiz (segunda
+        linha de defesa; a Camada A já cobre o caso terminal independentemente do timestamp).
+      observacao: "Aplicar a derivação de lTs/rTs de forma GERAL (todas as tabelas) é seguro e corrige a fragilidade do '!lTs' para todos os registros — mas a guarda de PROVA (Camada A) é só para notas_fiscais."
+
+    nao_fazer:
+      - "NÃO merge wholesale 'prova durável' que reescreve a nota inteira em outros pontos (reload/boot) — já quebrou cancelamento (commits 80cfef85/c41a872c/802bc229, revertidos). A guarda é SÓ no ponto de sobrescrita do handleEntityChange."
+      - "NÃO bloquear cancelamento entrante: por isso _nfEhTerminal inclui 'cancelada' como terminal — uma entrante cancelada É terminal e passa pelo caminho normal (não é barrada)."
+      - "NÃO depender de window.temProvaAutorizacao (não existe) — usar o helper inline."
+      - "NÃO tocar INSERT/DELETE — só o UPDATE rebaixa."
+
+  # ════════════════════════════════════════════════════════════════════════════════
+  ARQUIVOS_E_VERSAO:
+    - "squads/caixa-escolar/dashboard/js/gdp-realtime.js (handleEntityChange + helper inline). Bump gdp-realtime ?v= no gdp-contratos.html (atual v14 → v15)."
+    - "Nenhuma mudança de backend. Nenhuma mudança em gdp-notas-fiscais.js (a menos que o @dev queira também expor temProvaAutorizacao em window por higiene — opcional, não requerido)."
+
+  VALIDACAO_ESPERADA (@analyst via Playwright logado angela):
+    - "TESTE DO ECO: numa aba, pegar uma NF autorizada (1623). Simular um eco UPDATE entrante com a MESMA nota porém SEM chave (versão velha) chamando o handler do realtime → com a guarda, a nota PERMANECE autorizada (items não é sobrescrito). Capturar antes/depois."
+    - "MULTI-ABA: abrir 2 abas logadas; numa autorizar/abrir a nota; confirmar que a outra NÃO rebaixa após o eco (esperar > 5s p/ sair da dirty window)."
+    - "REGRESSÃO CANCELAMENTO: um eco entrante 'cancelada' legítimo AINDA aplica (não barrado) — _nfEhTerminal(entrante) true → caminho normal."
+    - "REGRESSÃO SYNC NORMAL: NF rascunho/pendente (não-terminal) ainda sincroniza normalmente entre abas."
+    - "Estável após 2 reloads; não pisca."
+
+  proximo_passo: "@dev implementa Camadas A+B em gdp-realtime.js + bump v15 → @devops deploy --force → @analyst valida o eco que não rebaixa."

@@ -1,0 +1,91 @@
+handoff:
+  from_agent: architect
+  to_agent: dev
+  timestamp: "2026-06-26T NOITE"
+  titulo: "DESENHO APROVÁVEL — cura estrutural: notas presas em 'transmissao_em_preparo' SEM chave/recibo (caso 539)"
+  empresa: LARIUCCI
+  status_desenho: PRONTO_PARA_DEV
+
+  # ════════════════════════════════════════════════════════════════════════════════
+  CONTEXTO_RECEBIDO_DO_ANALYST:
+    - "Parser SEFAZ corrigido (commit c7617f59, no ar) — tolera namespace+atributos. NÃO regredir."
+    - "1623 recuperada MANUALMENTE (cStat 100, prot 131267670645895). Estável. Foi prova de conceito do fluxo de cura."
+    - "Causa da 1623: cStat 539 (Duplicidade) — a nota já estava autorizada na SEFAZ; a chave real (...1928822922) veio no xMotivo do 539."
+
+  # ════════════════════════════════════════════════════════════════════════════════
+  CAUSA_RAIZ_ARQUITETURAL (confirmada lendo o código real):
+    janela_de_vulnerabilidade: |
+      gdp-notas-fiscais.js: a transmissão marca 'transmissao_em_preparo' na LINHA 1961 (antes do fetch) e só
+      grava o resultado na LINHA 2169 (ou no catch 2308). Entre 1961 e 2169 há uma cadeia LONGA de awaits
+      (fetch 60s + reconsulta 30s + cobrança + email). Se o runtime morre nesse intervalo (aba fechada, reload,
+      navegador mata a thread, rede cai), a nota NÃO passa pelo catch (que marcaria 'rejeitada') e fica PRESA
+      em 'transmissao_em_preparo' PARA SEMPRE. O catch JS não captura "usuário fechou a aba".
+    por_que_o_recovery_atual_NAO_pega_a_1623: |
+      recoverNfsTransmissaoOrfas (boot, linha 987) trata 'transmissao_em_preparo' em 3 estratégias em ordem:
+        Caso 1 (linha 1015): TEM chave 44 díg → consultarProtocolo → completa.  ✅
+        Caso 2 (linha 1058): TEM nRec → consultarRecibo → completa.             ✅
+        Caso 3 (linha 1090): SEM chave E SEM nRec → NÃO FAZ NADA (só registra). ⚠️ BURACO
+      A 1623 cai no Caso 3: a chave foi LIMPA antes de transmitir (linha 1953-1954: 'if (!nf.sefaz.protocolo)
+      nf.sefaz.chaveAcesso=""') e a resposta foi SÍNCRONA 539 (sem nRec). Logo: sem chave, sem recibo → buraco.
+    por_que_o_caso_3_e_conservador_de_proposito: |
+      O Caso 3 foi deixado passivo de PROPÓSITO (comentário linha 1091-1096): no passado ele rebaixava a 1608
+      a rascunho numa cópia stale do localStorage (corrida de boot) e APAGAVA a chave, salvando no Supabase e
+      DESTRUINDO a nota. Por isso a regra: "reverter status é decisão manual, nunca automática no boot".
+      ==> A cura NÃO pode reintroduzir rebaixamento. Tem de ser ADITIVA (só completa com prova, nunca rebaixa).
+
+  # ════════════════════════════════════════════════════════════════════════════════
+  DESENHO_DA_CURA (escopo mínimo, aditivo, gate de prova preservado):
+    principio: |
+      Para uma nota presa em 'transmissao_em_preparo' SEM chave e SEM nRec, a ÚNICA forma de obter a chave real
+      é perguntar à SEFAZ "esta nota nº N já foi autorizada?". A SEFAZ responde isso via cStat 539 quando a gente
+      RE-TRANSMITE a mesma nota (mesma numeração) — e devolve a chave real no xMotivo. Já temos a peça que extrai
+      essa chave e confirma o protocolo: _recuperarPorDuplicidade539(xMotivo) (linha 814). Reutilizar.
+
+    passo_unico_para_dev (NOVO Caso 4 dentro de recoverNfsTransmissaoOrfas, ANTES do fallback DFe):
+      onde: "gdp-notas-fiscais.js, função recoverNfsTransmissaoOrfas, no ramo do Caso 3 (linha ~1090-1099) — ANTES de só registrar 'comChaveAguardando++'."
+      logica: |
+        Para a nota órfã sem chave e sem nRec:
+          (a) RE-TRANSMITIR a nota (action 'nfe-sefaz-transmitir', force:true, overrides.numero = nf.numero)
+              reconstruindo o pedido a partir de nf.pedidoId (mesmo lookup que a emissão usa).
+              -> Comprovado em produção: essa re-transmissão da 1623 devolveu cStat 539 em 1.3s com a chave real.
+          (b) Se a resposta vier com cStat === '539' (duplicidade): chamar _recuperarPorDuplicidade539(xMotivo).
+              Se { recuperada:true } → preencher nf.sefaz.chaveAcesso + protocolo + status 'autorizada',
+              nf.status='autorizada', extrair número da chave, setIntegrationState 'autorizada'
+              (lastAction:'recovery_retransmit_539'), saveNotasFiscais + gdpApi.notas_fiscais.save,
+              criar cobrança faltante idempotente (getContaReceberByNota → buildReceivableFromInvoice),
+              disparar email idempotente. EXATAMENTE como os Casos 1/2 já fazem.
+          (c) Se a resposta vier AUTORIZADA direto (cStat 100/150 + chNFe + prot) — caso a 1ª transmissão real
+              tivesse falhado por outro motivo e a re-transmissão agora autorize — completar igual (prova real).
+          (d) Qualquer outra resposta (rejeição real ≠ 539/100/150, ou erro): NÃO rebaixar, só registrar
+              'comChaveAguardando++' (mantém o comportamento conservador atual). DFe ainda roda como rede final.
+      gates_inegociaveis:
+        - "NUNCA marcar autorizada sem cStat 100/150 + chave 44 díg + protocolo REAIS (via _recuperarPorDuplicidade539, que já consulta a SEFAZ pela chave do xMotivo — dupla prova)."
+        - "NUNCA rebaixar/limpar chave de nota já autorizada (o guard jaAutorizada na linha 996-1001 já protege a entrada; manter)."
+        - "Idempotência: re-transmitir só notas que AINDA estão órfãs (sem prova). O guard temProvaAutorizacao(nf) na linha 1010 garante isso."
+        - "Reutilizar _recuperarPorDuplicidade539 — NÃO duplicar lógica de extração de chave."
+
+    seguranca_da_retransmissao:
+      - "Re-transmitir a MESMA numeração é seguro: se a nota já existe autorizada, a SEFAZ responde 539 (não cria 2ª nota). Se NÃO existe, a SEFAZ autoriza (e aí a nota órfã vira autorizada legitimamente). Em nenhum cenário gera duplicidade fiscal real."
+      - "buildAccessKey é não-determinística (new Date()+cNF aleatório) — a chave RECALCULADA na re-transmissão é DESCARTADA; usa-se SEMPRE a chave do xMotivo do 539 (a real). Confirmado pelo analyst: recalc ...1744500590 ≠ real ...1928822922."
+      - "Throttle: o recovery já roda 1x no boot. Limitar a re-transmissão a no máximo N notas órfãs por boot (ex.: 5) para não martelar a SEFAZ (evita cStat 656 consumo indevido). Logar se truncar."
+
+    nao_fazer:
+      - "NÃO mexer no fluxo de emissão normal (linha 1986-2318) — ele já tem a autocura 539 inline (linha 2148). O gap é SÓ no recovery de boot para notas que perderam a thread."
+      - "NÃO encurtar a janela 1961→2169 agora (refactor maior, risco alto). A cura de recovery cobre o sintoma com segurança. Anotar como follow-up de baixa prioridade: persistir nRec/chave o quanto antes e mover awaits não-críticos (email/banco) para depois do save de prova."
+      - "NÃO fazer merge wholesale 'prova durável' no realtime/reload (quebrou canceladas antes)."
+
+  # ════════════════════════════════════════════════════════════════════════════════
+  VALIDACAO_ESPERADA (para o @dev / @analyst após implementar):
+    - "Forçar uma nota a 'transmissao_em_preparo' sem chave (ou usar uma órfã real) → reload → recoverNfsTransmissaoOrfas roda → a nota vira 'autorizada' com chave+protocolo reais, NÃO pisca, persiste após 2º reload."
+    - "Nota realmente rejeitada (ex.: NCM inválido) → re-transmissão NÃO retorna 539 nem 100 → permanece órfã/registrada, NÃO é marcada autorizada (gate)."
+    - "Regression: notas já autorizadas (1618-1623) intactas após boot — guard jaAutorizada barra a entrada."
+    - "Playwright logado angela em produção, como o analyst fez."
+
+  arquivos_a_tocar:
+    - "squads/caixa-escolar/dashboard/js/gdp-notas-fiscais.js (recoverNfsTransmissaoOrfas, ramo Caso 3). Bump ?v= no gdp-contratos.html."
+  reuso:
+    - "_recuperarPorDuplicidade539 (linha 814) — extração de chave do 539 + consulta protocolo. NÃO reimplementar."
+    - "buildReceivableFromInvoice, getContaReceberByNota, dispararEmailNotaEBoletoAutomatico, extrairNumeroDaChaveNfe, setIntegrationState — já usados nos Casos 1/2."
+    - "action backend 'nfe-sefaz-transmitir' (force:true) — já existe (api/gdp-integrations.js:114). Nenhuma mudança de backend necessária."
+
+  proximo_passo: "@dev implementa o Caso 4 conforme acima → @devops deploy --force → @analyst valida via Playwright."
