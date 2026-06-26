@@ -1854,22 +1854,58 @@ function loadData() {
 // saveExtratos condicionais — esses realimentam o realtime e causam LOOP INFINITO de render).
 // Usado pelo gdp-realtime.js scheduleRender() para a máquina B refletir o que o realtime gravou
 // no localStorage, sem efeito colateral de escrita. Só LEITURA + filtro de soft-delete.
+// CAMADA B (cura estrutural 2026-06-26): merge protegido na reidratação do realtime. O reloadFromLocalSilent
+// substituía a lista inteira EM MEMÓRIA pela cópia do localStorage. Quando o realtime estoura o teto de
+// adiamento NO MEIO de uma emissão assíncrona (16-60s), o LS pode estar ATRASADO em relação à memória
+// otimista (ex.: cobrança recém-criada com contasReceber.push() ainda não persistida) → a substituição cega
+// APAGAVA a cobrança da memória (some da tela) e revertia nf.status (NF volta p/ Pendente).
+// _mergeReloadProtegido: FORA da dirty window (>=5s desde o último save local) o LS é a verdade (comportamento
+// antigo). DENTRO da dirty window (<5s) faz merge por id: LS é a base; reaplica entradas da memória que (a) o
+// LS não tem (recém-criadas) ou (b) têm timestamp ESTRITAMENTE mais novo. Empate ou LS-mais-novo → mantém LS.
+function _mergeReloadProtegido(memList, lsList, lsKey) {
+  memList = Array.isArray(memList) ? memList : [];
+  lsList = Array.isArray(lsList) ? lsList : [];
+  var msSinceSave = Date.now() - getLastLocalSave(lsKey);
+  if (msSinceSave >= 5000) return lsList; // fora da dirty window: LS é a verdade
+  var _ts = function(o) {
+    var t = o && (o.updated_at || o.updatedAt || (o.audit && o.audit.updatedAt));
+    var n = t ? Date.parse(t) : NaN;
+    return isNaN(n) ? 0 : n;
+  };
+  var byId = {}, out = [], order = [];
+  lsList.forEach(function(o) {
+    var id = o && o.id != null ? String(o.id) : null;
+    if (id == null) { out.push(o); return; } // sem id: não há como casar, mantém do LS
+    byId[id] = o; order.push(id);
+  });
+  // reaplica entradas da memória mais novas ou ausentes no LS
+  memList.forEach(function(m) {
+    var id = m && m.id != null ? String(m.id) : null;
+    if (id == null) return;
+    if (!(id in byId)) { byId[id] = m; order.push(id); return; } // LS não tem → mantém da memória
+    if (_ts(m) > _ts(byId[id])) byId[id] = m; // memória estritamente mais nova vence
+  });
+  order.forEach(function(id) { out.push(byId[id]); });
+  return out;
+}
 function reloadFromLocalSilent() {
   // Pendência 1 camada A: _hydrateWithMemFallback cai no gdpApi._memCache se o localStorage zerar por
   // quota. Continua LEITURA-ONLY (não dispara save → não realimenta realtime → não reintroduz loop).
+  // CAMADA B: pedidos/notasFiscais/contasReceber/contasPagar passam por _mergeReloadProtegido p/ não perder
+  // edições otimistas dentro da dirty window. contratos mantém applyDeletedContractsFilter (lógica própria).
   try { contratosExcluidos = unwrapData(JSON.parse(localStorage.getItem(CONTRACTS_DELETED_KEY))); } catch(_) {}
   try { contratos = applyDeletedContractsFilter(_hydrateWithMemFallback(CONTRACTS_KEY)); } catch(_) {}
-  try { pedidos = _hydrateWithMemFallback(ORDERS_KEY); } catch(_) {}
+  try { pedidos = _mergeReloadProtegido(pedidos, _hydrateWithMemFallback(ORDERS_KEY), ORDERS_KEY); } catch(_) {}
   try {
-    notasFiscais = _hydrateWithMemFallback(INVOICES_KEY);
+    notasFiscais = _mergeReloadProtegido(notasFiscais, _hydrateWithMemFallback(INVOICES_KEY), INVOICES_KEY);
     notasFiscais = notasFiscais.filter(function(x){ return !(x && (x.deletedAt || x.deleted_at)); });
   } catch(_) {}
   try {
-    contasReceber = _hydrateWithMemFallback(RECEIVABLES_KEY);
+    contasReceber = _mergeReloadProtegido(contasReceber, _hydrateWithMemFallback(RECEIVABLES_KEY), RECEIVABLES_KEY);
     contasReceber = contasReceber.filter(function(x){ return !(x && (x.deletedAt || x.deleted_at)); });
   } catch(_) {}
   try {
-    contasPagar = _hydrateWithMemFallback(PAYABLES_KEY);
+    contasPagar = _mergeReloadProtegido(contasPagar, _hydrateWithMemFallback(PAYABLES_KEY), PAYABLES_KEY);
     contasPagar = contasPagar.filter(function(x){ return !(x && (x.deletedAt || x.deleted_at)); });
   } catch(_) {}
 }

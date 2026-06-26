@@ -4,12 +4,40 @@
 // Story 16.5 AC8: lock de idempotência por pedido — bloqueia clique duplo em
 // "Gerar NF" / transmissão enquanto uma operação está em andamento para o pedido.
 var _nfOpsEmAndamento = {};
+// CAMADA A (cura race 2026-06-26): a emissão assíncrona da SEFAZ (polling do recibo NFeRetAutorizacao4 +
+// AbortSignal.timeout(60000)) dura 16-60s. O lock _nfOpsEmAndamento faz o realtime ADIAR o reload enquanto
+// roda. Mas se uma thread morre sem limpar o lock (lock vazado), o _nfOpHasInFlight ficaria true PARA SEMPRE
+// e congelaria o realtime. Solução: lock AUTO-EXPIRÁVEL — registramos quando cada lock começou e ignoramos
+// (auto-limpando) entradas mais velhas que _NF_OP_TTL_MS (70s, > teto de emissão de 60s).
+var _nfOpStartedAt = {};
+var _NF_OP_TTL_MS = 70000;
+// _nfOpMark: ponto único de set/clear do lock. on=true marca + carimba o início; on=false limpa ambos.
+function _nfOpMark(pedidoId, on) {
+  try {
+    _nfOpsEmAndamento = _nfOpsEmAndamento || {};
+    if (on) {
+      _nfOpsEmAndamento[pedidoId] = true;
+      _nfOpStartedAt[pedidoId] = Date.now();
+    } else {
+      delete _nfOpsEmAndamento[pedidoId];
+      delete _nfOpStartedAt[pedidoId];
+    }
+  } catch (_) {}
+}
 // Resolução definitiva (frente 3): expor p/ o realtime (gdp-realtime.js) ADIAR o reloadFromLocalSilent
 // enquanto há operação de NF em curso — evita o realtime sobrescrever a memória otimista (NF "voltar no
 // tempo" de autorizada→pendente durante a transmissão) e o flicker de re-render em rajada.
 if (typeof window !== 'undefined') {
   window._nfOpHasInFlight = function () {
-    try { for (var k in _nfOpsEmAndamento) { if (_nfOpsEmAndamento[k]) return true; } } catch (_) {}
+    try {
+      var now = Date.now();
+      for (var k in _nfOpsEmAndamento) {
+        if (!_nfOpsEmAndamento[k]) continue;
+        // CAMADA A: lock vazado (mais velho que o TTL) → auto-limpa e IGNORA, não congela o realtime.
+        if ((now - (_nfOpStartedAt[k] || 0)) > _NF_OP_TTL_MS) { _nfOpMark(k, false); continue; }
+        return true;
+      }
+    } catch (_) {}
     return false;
   };
 }
@@ -893,7 +921,7 @@ async function _recuperarViaDistribuicaoDFe(opts) {
     // assim ele não sobrescreve a memória com a cópia antiga do localStorage (NF autorizada→pendente) no
     // meio da autocura. Isso elimina o 'piscar' emitidas→pendentes→emitidas E fecha a janela de corrida
     // em que reconciliarCobrancasOrfas via a nota sem prova e marcava a cobrança 'aguardando_nf'.
-    _nfOpsEmAndamento.__dfe_recovery = true;
+    _nfOpMark('__dfe_recovery', true);
 
     var ultNSU = localStorage.getItem(_DFE_ULTNSU_KEY) || "0";
     // até 5 páginas por execução (cStat 138 = há mais documentos)
@@ -971,7 +999,7 @@ async function _recuperarViaDistribuicaoDFe(opts) {
     // FIX (race/flicker 2026-06-25): libera a flag SEMPRE (mesmo em erro) — o realtime volta a poder
     // reidratar. Como o estado final na RAM já é o correto (autorizada + cobrança), um re-render agora
     // garante que a tela reflita o estado definitivo sem mais oscilação.
-    try { _nfOpsEmAndamento.__dfe_recovery = false; } catch (_) {}
+    try { _nfOpMark('__dfe_recovery', false); } catch (_) {}
   }
   return { completadas: completadas };
 }
@@ -1513,7 +1541,7 @@ async function gerarNotaFiscalPedido(pedidoId) {
     showToast(`Geracao de NF ja em andamento para o pedido ${pedidoId}. Aguarde.`, 3500);
     return;
   }
-  _nfOpsEmAndamento[pedidoId] = true;
+  _nfOpMark(pedidoId, true);
   try {
   const nfExistente = getNotaFiscalByPedido(pedidoId);
   if (nfExistente && nfExistente.status === "autorizada") {
@@ -1706,7 +1734,7 @@ async function gerarNotaFiscalPedido(pedidoId) {
   showToast(`${getNotaFiscalTipoLabel(invoice)} ${invoice.numero || invoice.id}${msgCobranca}`, 4500);
   } finally {
     // Story 16.5 AC8: liberar o lock de idempotência ao concluir.
-    if (_nfOpsEmAndamento) delete _nfOpsEmAndamento[pedidoId];
+    _nfOpMark(pedidoId, false);
   }
 }
 
@@ -1864,7 +1892,7 @@ async function transmitirHomologacaoNota(notaId) {
     showToast(`Transmissao ja em andamento para o pedido ${nf.pedidoId}. Aguarde.`, 3500);
     return;
   }
-  _nfOpsEmAndamento[nf.pedidoId] = true;
+  _nfOpMark(nf.pedidoId, true);
   _lockPedidoId = nf.pedidoId;
 
   // Sincronizar itens do pedido para a NF (pega NCM/descrição atualizados)
@@ -2157,6 +2185,11 @@ async function transmitirHomologacaoNota(notaId) {
       if (!conta) {
         conta = buildReceivableFromInvoice(nf);
         contasReceber.push(conta);
+        // CAMADA C (cura race 2026-06-26): persistir a cobrança IMEDIATAMENTE após o push. Isso ativa a
+        // dirty window (_lastLocalSave[RECEIVABLES_KEY]=now) e garante que o localStorage NÃO fique atrás
+        // da memória — se o realtime estourar o teto de adiamento e chamar reloadFromLocalSilent no meio
+        // da emissão, o merge protegido (CAMADA B) encontra a cobrança já no LS e NÃO a apaga da tela.
+        if (typeof saveContasReceber === "function") saveContasReceber();
         // vincular pedido à cobrança recém-criada
         if (pedido.fiscal) pedido.fiscal.cobrancaId = conta.id;
       }
@@ -2245,7 +2278,7 @@ async function transmitirHomologacaoNota(notaId) {
   } catch(outerErr) { console.error("[NF-e] Erro inesperado em transmitirHomologacaoNota:", outerErr); showToast("Erro inesperado: " + outerErr.message, 5000); }
   finally {
     // Story 16.5 AC8: liberar o lock de idempotência ao concluir a transmissão.
-    if (_lockPedidoId && _nfOpsEmAndamento) delete _nfOpsEmAndamento[_lockPedidoId];
+    if (_lockPedidoId) _nfOpMark(_lockPedidoId, false);
   }
 }
 
