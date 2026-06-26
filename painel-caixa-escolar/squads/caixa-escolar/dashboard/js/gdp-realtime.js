@@ -61,15 +61,11 @@
       // (autorizada→pendente) e PISCAR entre abas, além de poder interromper a transmissão. Quando a op
       // termina (delete _nfOpsEmAndamento[...]), o próprio fluxo da NF chama renderAll com o estado final.
       // Reagenda um render leve para refletir o estado quando a op concluir.
-      // CAMADA A (cura race 2026-06-26): TETO de adiamentos elevado. A emissão assíncrona da SEFAZ (polling do
-      // recibo NFeRetAutorizacao4 + AbortSignal.timeout(60000)) dura 16-60s — o teto antigo de 5 adiamentos
-      // (~6s) estourava NO MEIO da emissão e disparava reloadFromLocalSilent, que reidratava a cópia atrasada
-      // do localStorage e apagava a cobrança recém-criada da memória (some da tela) + revertia a NF p/ pendente.
-      // Teto agora 60 adiamentos × 1200ms ≈ 72s, cobrindo a emissão inteira. A segurança contra lock PRESO não
-      // vem mais deste teto baixo, e sim do AUTO-EXPIRAR de window._nfOpHasInFlight (_NF_OP_TTL_MS=70s em
-      // gdp-notas-fiscais.js): um lock vazado é ignorado/limpo e _nfOpHasInFlight volta a false sozinho.
+      // QA fix-1: TETO de adiamentos. Se a flag _nfOpsEmAndamento ficar presa em memória (thread morta sem
+      // reload), sem teto o realtime re-agendaria p/ sempre e NUNCA renderizaria mudanças legítimas (micro-loop
+      // / congelamento). Após 5 adiamentos (~6s), renderiza assim mesmo.
       var opEmCurso = (typeof window._nfOpHasInFlight === 'function') && window._nfOpHasInFlight();
-      if (opEmCurso && _renderDeferCount < 60) {
+      if (opEmCurso && _renderDeferCount < 5) {
         _renderDeferCount++;
         // adia: re-tenta em 1.2s (após a janela típica de save/echo) sem reidratar agora
         _renderTimer = setTimeout(scheduleRender, 1200);
