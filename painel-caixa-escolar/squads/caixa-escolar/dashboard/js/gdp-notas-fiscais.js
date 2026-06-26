@@ -3048,7 +3048,11 @@ function solicitarCancelamentoNotaFiscal(notaId) {
     solicitadoEm: new Date().toISOString(),
     solicitadoPor: getAuditActor()
   };
-  nf.status = "cancelada";
+  // CURA (2026-06-26 — BUG 1506 "cancelada-fantasma"): NÃO marcar nf.status='cancelada' OTIMISTICAMENTE
+  // aqui. Antes a nota virava 'cancelada' ANTES de a SEFAZ confirmar; se a SEFAZ REJEITAVA, o status ficava
+  // preso em 'cancelada' (a integração virava 'cancelamento_falhou' mas o status topo não revertia) → a nota
+  // aparecia na aba Canceladas SEM ter sido cancelada de fato (caso 1506). CANCELADA só com PROVA SEFAZ
+  // (eventoRegistrado / cStat 101/135), no .then abaixo. Aqui apenas sinalizamos 'cancelamento_pendente'.
   nf.audit = {
     ...(nf.audit || {}),
     updatedAt: new Date().toISOString(),
@@ -3061,28 +3065,6 @@ function solicitarCancelamentoNotaFiscal(notaId) {
     accessKey: nf.sefaz?.chaveAcesso || "",
     protocol: nf.sefaz?.protocolo || ""
   });
-  // Cancelar pedido vinculado imediatamente
-  const pedidoCanc = pedidos.find((item) => item.id === nf.pedidoId);
-  if (pedidoCanc) {
-    pedidoCanc.fiscal = {
-      ...(pedidoCanc.fiscal || {}),
-      notaFiscalId: nf.id,
-      tipoNota: "nfe_real",
-      status: "cancelada",
-      updatedAt: new Date().toISOString(),
-      updatedBy: getAuditActor()
-    };
-    savePedidos();
-  }
-  // Cancelar conta a receber vinculada imediatamente
-  const contaCanc = getContaReceberByNota(nf.id);
-  if (contaCanc) {
-    contaCanc.status = "cancelada";
-    contaCanc.cobranca = { ...(contaCanc.cobranca || {}), status: "cancelada" };
-    contaCanc.audit = { ...(contaCanc.audit || {}), updatedAt: new Date().toISOString(), updatedBy: getAuditActor() };
-    setIntegrationState(contaCanc, "bancaria", { status: "cancelamento_fiscal_iniciado", lastAction: "vincular_cancelamento_nf" });
-    saveContasReceber();
-  }
   saveNotasFiscais(nf.id);
   renderNotasFiscais();
   renderPedidos();
@@ -3101,7 +3083,11 @@ function solicitarCancelamentoNotaFiscal(notaId) {
     if (sefazRejeitou) {
       const cStat = result.parsed?.cStat || result.parsed?.eventoCStat || "";
       const xMotivo = result.parsed?.xMotivo || result.parsed?.eventoXMotivo || "";
-      showToast(`SEFAZ rejeitou cancelamento: ${cStat} — ${xMotivo}`, 6000);
+      // CURA (BUG 1506): a SEFAZ recusou o cancelamento → a nota CONTINUA autorizada. Garantir
+      // explicitamente que o status NÃO fica preso em 'cancelada' (com o gate otimista removido acima,
+      // o status já permanece autorizada; este reforço cobre notas que entraram com resíduo).
+      if (nf.status === "cancelada") { nf.status = "autorizada"; if (nf.sefaz) nf.sefaz.status = "autorizada"; }
+      showToast(`SEFAZ rejeitou cancelamento: ${cStat} — ${xMotivo}. A nota CONTINUA autorizada.`, 6000);
     }
     const eventoRegistrado = !!result.parsed?.eventoRegistrado;
     nf.cancelamento = {
@@ -3113,14 +3099,20 @@ function solicitarCancelamentoNotaFiscal(notaId) {
       atualizadoEm: new Date().toISOString()
     };
     setIntegrationState(nf, "sefaz", {
-      status: eventoRegistrado ? "cancelamento_evento_registrado" : "cancelamento_em_fila",
+      status: eventoRegistrado ? "cancelada" : "cancelamento_em_fila",
+      // CURA: quando o evento foi homologado, gravar o cStat REAL de cancelamento (101 = Cancelamento de
+      // NF-e homologado / 135 = Evento registrado e vinculado). Isso torna o cancelamento TERMINAL e impede
+      // o auto-fix do boot (gdp-init) de reverter a nota p/ autorizada (ele só promove em cStat 100/150).
+      cStat: eventoRegistrado ? (result.parsed?.cStat || "101") : (result.parsed?.cStat || ""),
       protocol: result.parsed?.prot || result.protocol || "",
-      cStat: result.parsed?.cStat || "",
       xMotivo: result.parsed?.xMotivo || "",
       lastAction: "solicitar_cancelamento_nf"
     });
     if (eventoRegistrado) {
+      // CANCELADA com PROVA SEFAZ (evento registrado) — agora sim marca o status terminal.
       nf.status = "cancelada";
+      if (nf.sefaz) nf.sefaz.status = "cancelada";
+      nf.canceladaEm = new Date().toISOString();
       nf.audit = {
         ...(nf.audit || {}),
         updatedAt: new Date().toISOString(),

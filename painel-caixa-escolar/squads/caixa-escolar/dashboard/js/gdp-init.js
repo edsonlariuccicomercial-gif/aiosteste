@@ -3127,6 +3127,18 @@ async function enviarTiny(contratoId) {
     var _nfFixedIds = [];
     notasFiscais.forEach(function(nf) {
       var cStat = String((nf.integracoes && nf.integracoes.sefaz && nf.integracoes.sefaz.cStat) || '');
+      // CURA (2026-06-26): o auto-fix re-promovia QUALQUER nota com cStat 100/150 p/ 'autorizada' —
+      // inclusive notas CANCELADAS (que tinham cStat 100 da autorização anterior), revertendo o
+      // cancelamento todo boot (caso real: NF 1211/1213/1210 canceladas na SEFAZ voltavam a autorizada).
+      // CANCELAMENTO é estado TERMINAL: o auto-fix NUNCA pode revertê-lo. Guarda: pular notas canceladas
+      // por status, por integração sefaz, ou por cStat de cancelamento homologado (101) / evento (135).
+      var _integSefaz = String((nf.integracoes && nf.integracoes.sefaz && nf.integracoes.sefaz.status) || '');
+      var _ehCancelada = nf.status === 'cancelada'
+        || (nf.sefaz && nf.sefaz.status === 'cancelada')
+        || _integSefaz === 'cancelada'
+        || cStat === '101' || cStat === '135'
+        || !!nf.canceladaEm;
+      if (_ehCancelada) return; // estado terminal — não tocar
       if (nf.status !== 'autorizada' && (cStat === '100' || cStat === '150')) {
         nf.status = 'autorizada';
         if (nf.sefaz) nf.sefaz.status = 'autorizada';
