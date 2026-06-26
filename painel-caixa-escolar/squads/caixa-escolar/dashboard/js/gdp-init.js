@@ -3089,12 +3089,6 @@ async function enviarTiny(contratoId) {
         // agora é async (consulta SEFAZ p/ notas com chave). Aguarda p/ renderizar com o estado final.
         try { var rNf = (await window.recoverNfsTransmissaoOrfas()) || {}; mudou += (rNf.revertidas || 0) + (rNf.completadasPorConsulta || 0) + (rNf.completadasPorDFe || 0); } catch (_) {}
       }
-      // CURA DEFINITIVA AUTOMÁTICA (2026-06-26): ANTES de reconciliar cobranças, sincroniza o status
-      // das NFs que têm PROVA (chave+protocolo) mas mostram pendente. Roda primeiro p/ que a
-      // reconciliação de cobrança já enxergue a nota como autorizada. Sem botão, sem throttle.
-      if (typeof window.autoCurarStatusPorProva === 'function') {
-        try { var rAc = window.autoCurarStatusPorProva() || {}; mudou += (rAc.curadas || 0); } catch (_) {}
-      }
       if (typeof window.reconciliarCobrancasOrfas === 'function') {
         try { var r = window.reconciliarCobrancasOrfas() || {}; mudou += (r.marcadas || 0) + (r.revertidas || 0); } catch (_) {}
       }
@@ -3133,17 +3127,11 @@ async function enviarTiny(contratoId) {
     var _nfFixedIds = [];
     notasFiscais.forEach(function(nf) {
       var cStat = String((nf.integracoes && nf.integracoes.sefaz && nf.integracoes.sefaz.cStat) || '');
-      // CURA DEFINITIVA (2026-06-26): o auto-fix antigo só olhava cStat (campo VOLÁTIL que o eco zera) →
-      // a NF 1621 (chave+protocolo presentes, mas cStat zerado pelo eco) escapava e ficava 'pendente'.
-      // Agora também corrige pela PROVA DURÁVEL: chave 44 díg + protocolo. Se há prova, o status segue.
-      var _chave = String((nf.sefaz && nf.sefaz.chaveAcesso) || nf.chaveAcesso || '').replace(/\D/g, '');
-      var _prot = String((nf.sefaz && nf.sefaz.protocolo) || nf.protocolo || '');
-      var _temProva = _chave.length === 44 && _prot.length > 0;
-      if (nf.status !== 'autorizada' && ((cStat === '100' || cStat === '150') || _temProva)) {
+      if (nf.status !== 'autorizada' && (cStat === '100' || cStat === '150')) {
         nf.status = 'autorizada';
         if (nf.sefaz) nf.sefaz.status = 'autorizada';
         _nfFixedIds.push(nf.id);
-        gdpLog('[GDP] Auto-fix NF ' + (nf.numero || nf.id) + ': ' + (_temProva ? 'prova(chave+protocolo)' : ('cStat=' + cStat)) + ' → autorizada');
+        gdpLog('[GDP] Auto-fix NF ' + (nf.numero || nf.id) + ': cStat=' + cStat + ' → autorizada');
       }
     });
     if (_nfFixedIds.length > 0) {
