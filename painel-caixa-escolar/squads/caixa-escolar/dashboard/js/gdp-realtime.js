@@ -183,6 +183,38 @@
     return record.empresa_id === getEmpresaId();
   }
 
+  // ─── GUARDA ANTI-REGRESSÃO DE NF (2026-06-26) ───
+  // CAUSA RAIZ (provada): uma NF autoriza, vai p/ Emitidas, e REGRIDE p/ pendente minutos depois.
+  // Um eco UPDATE do realtime traz uma versão ANTIGA da nota (sem chave) e sobrescreve a autorizada —
+  // a guarda de timestamp falhava porque a nota local não tem updated_at na raiz (lTs vazio → '!lTs' true).
+  // PRINCÍPIO: PROVA DURÁVEL > TIMESTAMP. Uma NF autorizada (chave 44 díg + protocolo) ou cancelada é
+  // estado TERMINAL fiscal — a SEFAZ nunca "desautoriza". Nunca rebaixar terminal por um eco sem prova
+  // igual/superior. Espelha temProvaAutorizacao (gdp-notas-fiscais.js) INLINE, pois ela não está em window.
+  function _nfTemProva(rec) {
+    if (!rec) return false;
+    var s = rec.sefaz || {};
+    var ch = String(s.chaveAcesso || rec.chaveAcesso || '').replace(/\D/g, '');
+    var pr = String(s.protocolo || rec.protocolo || '');
+    return ch.length === 44 && pr.length > 0;
+  }
+  function _nfEhTerminal(rec) {
+    if (!rec) return false;
+    var st = String(rec.status || '');
+    var sefStatus = String((rec.sefaz && rec.sefaz.status) || '');
+    return _nfTemProva(rec) || st === 'cancelada' || sefStatus === 'cancelada';
+  }
+  // Decide se a entrante (record) pode sobrescrever a local em notas_fiscais.
+  // Bloqueia SÓ quando a local é terminal e a entrante NÃO é (eco velho sem prova).
+  function _podeSobrescreverNf(localRec, entranteRec) {
+    if (_nfEhTerminal(localRec) && !_nfEhTerminal(entranteRec)) return false;
+    return true;
+  }
+  // Timestamp robusto: cai p/ audit.updatedAt quando updated_at na raiz está ausente (corrige o lTs vazio).
+  function _tsRobusto(rec) {
+    if (!rec) return '';
+    return rec.updated_at || rec.updatedAt || (rec.audit && rec.audit.updatedAt) || '';
+  }
+
   function handleEntityChange(table, type, record, oldRecord) {
     // Story 17.3 (defensivo): descartar eventos de realtime de OUTRO empresa_id.
     // Hoje o banco é unificado (tudo LARIUCCI), mas isto previne regressão futura:
@@ -238,13 +270,19 @@
           if (items[k].id === record.id) { localIdx = k; break; }
         }
         if (localIdx >= 0) {
-          var localTs = items[localIdx].updated_at || items[localIdx].updatedAt || '';
-          var remoteTs = record.updated_at || record.updatedAt || '';
-          if (remoteTs && localTs && remoteTs > localTs) {
-            items[localIdx] = record;
-            changed = true;
+          // GUARDA ANTI-REGRESSÃO (Camada A): NF terminal (autorizada/cancelada) nunca é rebaixada
+          // por um eco sem prova igual/superior — prova durável > timestamp.
+          if (table === 'notas_fiscais' && !_podeSobrescreverNf(items[localIdx], record)) {
+            // eco velho/sem prova durante a dirty window → ignorar (preserva a nota boa)
+          } else {
+            var localTs = _tsRobusto(items[localIdx]);   // Camada B: fallback p/ audit.updatedAt
+            var remoteTs = _tsRobusto(record);
+            if (remoteTs && localTs && remoteTs > localTs) {
+              items[localIdx] = record;
+              changed = true;
+            }
+            // else: local is newer or same — skip overwrite
           }
-          // else: local is newer or same — skip overwrite
         }
         // If record not found locally during dirty window, add it (new from another machine)
         if (localIdx < 0) { items.push(record); changed = true; }
@@ -259,11 +297,18 @@
             // tem updated_at IGUAL ao local; com '>=' o empate sobrescrevia o estado
             // recém-editado (faturado→aberto, NF verde→amarelo). Só sobrescreve quando
             // o remoto é estritamente mais novo — um UPDATE real de outro cliente.
-            var rTs = record.updated_at || record.updatedAt || '';
-            var lTs = items[j].updated_at || items[j].updatedAt || '';
-            if (!lTs || !rTs || rTs > lTs) {
-              items[j] = record;
-              changed = true;
+            // GUARDA ANTI-REGRESSÃO (Camada A): NF terminal (autorizada/cancelada) NUNCA é rebaixada
+            // por um eco sem prova igual/superior. Este é o caminho do "minutos depois" (fora da dirty
+            // window) onde a regressão acontecia. Prova durável > timestamp.
+            if (table === 'notas_fiscais' && !_podeSobrescreverNf(items[j], record)) {
+              // eco velho/sem prova → IGNORAR. A nota autorizada permanece. (não seta changed)
+            } else {
+              var rTs = _tsRobusto(record);              // Camada B: fallback p/ audit.updatedAt
+              var lTs = _tsRobusto(items[j]);
+              if (!lTs || !rTs || rTs > lTs) {
+                items[j] = record;
+                changed = true;
+              }
             }
             found = true;
             break;
