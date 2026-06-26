@@ -1859,53 +1859,19 @@ function loadData() {
 // adiamento NO MEIO de uma emissão assíncrona (16-60s), o LS pode estar ATRASADO em relação à memória
 // otimista (ex.: cobrança recém-criada com contasReceber.push() ainda não persistida) → a substituição cega
 // APAGAVA a cobrança da memória (some da tela) e revertia nf.status (NF volta p/ Pendente).
-// PROVA DURÁVEL NUNCA REGRIDE (2ª rodada): merge campo-a-campo por prova, não objeto-por-timestamp.
-// A NF e a cobrança são salvas 2x (rascunho → autorizada/com-boleto). Um eco/reload ATRASADO da versão
-// antiga não pode rebaixar a versão com prova. _versaoComProvaVence decide qual versão prevalece aplicando
-// a regra de prova ANTES do timestamp.
-function _temProvaNf(o){
-  // NF tem prova durável da SEFAZ?
-  if(!o) return false;
-  var st = String(o.status||'');
-  var sefaz = o.sefaz||{};
-  var chave = String(sefaz.chaveAcesso||o.chaveAcesso||'').replace(/\D/g,'');
-  var prot = String(sefaz.protocolo||o.protocolo||'');
-  return (st==='autorizada') || (chave.length===44 && !!prot);
-}
-function _temProvaCobranca(o){
-  if(!o) return false;
-  var c = o.cobranca||{};
-  var b = (o.integracoes&&o.integracoes.bancaria)||{};
-  return !!(c.providerChargeId||c.nossoNumero||c.bankSlipUrl||c.linhaDigitavel||b.providerChargeId);
-}
-// retorna 'local' ou 'remoto' (qual vence). tipo: 'nf' | 'cobranca' | outro
-function _versaoComProvaVence(local, remoto, tipo){
-  var provaFn = tipo==='nf' ? _temProvaNf : (tipo==='cobranca' ? _temProvaCobranca : null);
-  if(provaFn){
-    var pl = provaFn(local), pr = provaFn(remoto);
-    if(pl && !pr) return 'local';   // prova durável local nunca regride p/ versão sem prova
-    if(pr && !pl) return 'remoto';
-    // ambos têm prova (ou nenhum): desempata por timestamp abaixo
-  }
-  var _ts=function(o){var t=o&&(o.updated_at||o.updatedAt||(o.audit&&o.audit.updatedAt));var n=t?Date.parse(t):NaN;return isNaN(n)?0:n;};
-  return _ts(remoto) > _ts(local) ? 'remoto' : 'local';
-}
-if (typeof window !== 'undefined') {
-  window._versaoComProvaVence = _versaoComProvaVence;
-  window._temProvaNf = _temProvaNf;
-  window._temProvaCobranca = _temProvaCobranca;
-}
-
 // _mergeReloadProtegido: FORA da dirty window (>=5s desde o último save local) o LS é a verdade (comportamento
 // antigo). DENTRO da dirty window (<5s) faz merge por id: LS é a base; reaplica entradas da memória que (a) o
-// LS não tem (recém-criadas) ou (b) vencem pela regra de PROVA DURÁVEL (prova vence; senão timestamp estrito).
-// tipo: derivado do lsKey (RECEIVABLES_KEY→'cobranca'; INVOICES_KEY→'nf'; senão null/timestamp puro).
+// LS não tem (recém-criadas) ou (b) têm timestamp ESTRITAMENTE mais novo. Empate ou LS-mais-novo → mantém LS.
 function _mergeReloadProtegido(memList, lsList, lsKey) {
-  var _tipo = (lsKey === RECEIVABLES_KEY) ? 'cobranca' : (lsKey === INVOICES_KEY ? 'nf' : null);
   memList = Array.isArray(memList) ? memList : [];
   lsList = Array.isArray(lsList) ? lsList : [];
   var msSinceSave = Date.now() - getLastLocalSave(lsKey);
   if (msSinceSave >= 5000) return lsList; // fora da dirty window: LS é a verdade
+  var _ts = function(o) {
+    var t = o && (o.updated_at || o.updatedAt || (o.audit && o.audit.updatedAt));
+    var n = t ? Date.parse(t) : NaN;
+    return isNaN(n) ? 0 : n;
+  };
   var byId = {}, out = [], order = [];
   lsList.forEach(function(o) {
     var id = o && o.id != null ? String(o.id) : null;
@@ -1917,8 +1883,7 @@ function _mergeReloadProtegido(memList, lsList, lsKey) {
     var id = m && m.id != null ? String(m.id) : null;
     if (id == null) return;
     if (!(id in byId)) { byId[id] = m; order.push(id); return; } // LS não tem → mantém da memória
-    // local=LS (byId[id]), remoto=memória (m). 'remoto' = memória vence. Prova durável não regride.
-    if (_versaoComProvaVence(byId[id], m, _tipo) === 'remoto') byId[id] = m;
+    if (_ts(m) > _ts(byId[id])) byId[id] = m; // memória estritamente mais nova vence
   });
   order.forEach(function(id) { out.push(byId[id]); });
   return out;
