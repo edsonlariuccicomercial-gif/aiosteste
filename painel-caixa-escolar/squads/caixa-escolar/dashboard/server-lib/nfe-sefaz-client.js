@@ -1137,11 +1137,18 @@ function buildCancelamentoRequestPreview(payload, xmlPreview) {
 
 function parseSefazAutorizacaoResponse(xmlText) {
   const xml = String(xmlText || "");
+  // CURA DEFINITIVA (2026-06-26): a SEFAZ pode devolver a tag com PREFIXO DE NAMESPACE
+  // (<ns2:chNFe>) e/ou com ATRIBUTOS (<chNFe foo="x">). O parser antigo casava só <tag>...</tag>
+  // PURA → quando a chave vinha aninhada/prefixada, chNFe saía VAZIO e a nota nascia "pendente"
+  // apesar de AUTORIZADA. Aqui tolera-se prefixo opcional (?:\w+:)? e atributos [^>]* — exatamente
+  // como o parser da Distribuição DFe (parseDfeDoc), que funciona em produção. Sem isso, a cura
+  // do "assíncrono"/recibo também falhava silenciosamente.
+  const tagRe = (tag, flags) => new RegExp(`<(?:\\w+:)?${tag}(?:\\s[^>]*)?>([\\s\\S]*?)<\\/(?:\\w+:)?${tag}>`, flags);
   const findTag = (tag) => {
-    const match = xml.match(new RegExp(`<${tag}>([\\s\\S]*?)<\\/${tag}>`));
+    const match = xml.match(tagRe(tag));
     return match ? match[1].trim() : "";
   };
-  const findTags = (tag) => [...xml.matchAll(new RegExp(`<${tag}>([\\s\\S]*?)<\\/${tag}>`, "g"))].map((match) => match[1].trim());
+  const findTags = (tag) => [...xml.matchAll(tagRe(tag, "g"))].map((match) => match[1].trim());
   const cStats = findTags("cStat");
   const motivos = findTags("xMotivo");
   const protocolos = findTags("nProt");
