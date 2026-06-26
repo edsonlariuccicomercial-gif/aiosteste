@@ -1000,7 +1000,13 @@ async function recoverNfsTransmissaoOrfas() {
         || String((nf.sefaz && nf.sefaz.protocolo) || nf.protocolo || "").length > 0;
       if (jaAutorizada) return false;
       var integ = (nf.integracoes && nf.integracoes.sefaz && nf.integracoes.sefaz.status) || "";
-      if (integ !== "transmissao_em_preparo") return false;
+      // VETOR 2 BLINDAGEM (2026-06-26): além de 'transmissao_em_preparo', incluir notas presas em
+      // 'autorizacao_preview_pronta'/'transmissao_realizada' QUE TÊM nRec salvo — elas transmitiram em
+      // modo assíncrono e podem ser recuperadas pelo recibo (caso real NF 1621). Sem isto, o recovery
+      // só olhava 'transmissao_em_preparo' e ignorava a 1621 (que ficou em 'autorizacao_preview_pronta').
+      var _temNrec = !!(nf.sefaz && String(nf.sefaz.nRec || "").replace(/\D/g, "").length);
+      var _estadoRecuperavel = (integ === "transmissao_em_preparo") || (_temNrec && (integ === "autorizacao_preview_pronta" || integ === "transmissao_realizada" || nf.status === "transmissao_realizada" || nf.status === "rascunho_nf_real"));
+      if (!_estadoRecuperavel) return false;
       return !temProvaAutorizacao(nf);
     });
     for (var i = 0; i < orfas.length; i++) {
@@ -1043,7 +1049,45 @@ async function recoverNfsTransmissaoOrfas() {
         comChaveAguardando++;
         continue;
       }
-      // sem chave: transmissão pode ter ficado incompleta.
+      // VETOR 2 BLINDAGEM (2026-06-26 — recupera a NF presa SEM chave via RECIBO, caso 1621): se a nota
+      // tem nRec salvo (do Vetor 1, gravado na emissão quando a SEFAZ respondeu assíncrono mas a chave não
+      // veio), consultamos o RECIBO (nfe-sefaz-consulta-recibo / NFeRetAutorizacao4). Se a SEFAZ devolver
+      // chave+protocolo + cStat 100, a autorização ficou pronta — completamos a nota com PROVA REAL. Isso
+      // fecha o buraco "transmitiu em modo assíncrono, perdeu a resposta, travou sem chave". SÓ marca
+      // autorizada com prova SEFAZ (chave 44 díg + protocolo) — nunca inventa nada.
+      var _nRecNf = String((nf.sefaz && nf.sefaz.nRec) || "").replace(/\D/g, "");
+      if (_nRecNf) {
+        try {
+          var _rr = await fetch("/api/gdp-integrations", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "nfe-sefaz-consulta-recibo", nRec: _nRecNf }),
+            signal: AbortSignal.timeout(30000)
+          });
+          var _rrd = await _rr.json().catch(function () { return {}; });
+          var _rrp = (_rrd && _rrd.result && _rrd.result.parsed) || {};
+          var _rrChave = String(_rrp.chNFe || "").replace(/\D/g, "");
+          var _rrProt = String(_rrp.nProt || _rrp.prot || "");
+          if (_rrChave.length === 44 && _rrProt && (String(_rrp.cStat) === "100" || String(_rrp.cStat) === "150")) {
+            nf.sefaz = nf.sefaz || {};
+            nf.sefaz.chaveAcesso = _rrChave; nf.sefaz.protocolo = _rrProt; nf.sefaz.status = "autorizada";
+            nf.status = "autorizada";
+            var _numChave = (typeof extrairNumeroDaChaveNfe === "function") ? extrairNumeroDaChaveNfe(_rrChave) : "";
+            if (_numChave) nf.numero = String(_numChave);
+            if (typeof setIntegrationState === "function") setIntegrationState(nf, "sefaz", { status: "autorizada", lastAction: "recovery_consulta_recibo", accessKey: _rrChave, protocol: _rrProt, cStat: String(_rrp.cStat) });
+            try { saveNotasFiscais(nf.id); } catch (_) {}
+            try { if (window.gdpApi && window.gdpApi.notas_fiscais) window.gdpApi.notas_fiscais.save(nf); } catch (_) {}
+            // cobrança faltante idempotente
+            try {
+              var _cR = (typeof getContaReceberByNota === "function") ? getContaReceberByNota(nf.id) : null;
+              if (!_cR && typeof buildReceivableFromInvoice === "function") { var _nc = buildReceivableFromInvoice(nf); contasReceber.push(_nc); if (typeof saveContasReceber === "function") saveContasReceber(); }
+            } catch (_) {}
+            completadasPorConsulta++;
+            if (typeof gdpLog === "function") gdpLog("[recovery] NF " + (nf.numero || nf.id) + " recuperada via RECIBO (nRec " + _nRecNf + " → chave " + _rrChave + ").");
+            continue;
+          }
+        } catch (_) { /* consulta de recibo falhou → segue como aguardando, sem rebaixar */ }
+      }
+      // sem chave e sem recibo recuperável: transmissão pode ter ficado incompleta.
       // 2026-06-25 (CAUSA-RAIZ RECORRENTE — NF 1608 voltava a rascunho todo boot):
       // NÃO reverter status nem persistir automaticamente. Este ramo rodava no boot sobre uma
       // cópia do localStorage que chegava ANTES do Supabase-First hidratar — então uma NF
@@ -2022,6 +2066,36 @@ async function transmitirHomologacaoNota(notaId) {
     // inclusive os herdados de reconsultas anteriores (|| nf.sefaz?.protocolo/chaveAcesso).
     nf.sefaz.protocolo = result.parsed?.prot || nf.sefaz?.protocolo || "";
     nf.sefaz.chaveAcesso = result.parsed?.chNFe || nf.sefaz?.chaveAcesso || "";
+
+    // ╔═══════════════════════════════════════════════════════════════════════════════════════════════╗
+    // ║ CURA DEFINITIVA — PROVA AUTORIZADA NUNCA SE PERDE (2026-06-26, requisito do usuário):           ║
+    // ║ "uma vez que a SEFAZ autoriza e vai pra Emitidas, NUNCA mais pode se perder. o sistema é online"║
+    // ║ CAUSA da NF 1621: a chave chegava aqui (2024) mas o status só era setado e a nota só era SALVA  ║
+    // ║ DEPOIS de await(s) de reconsulta que levam até 30s ou matam a thread (aba fecha/rede cai) →     ║
+    // ║ a chave recebida se perdia. AQUI, no INSTANTE em que a prova chega (chave 44 díg + protocolo):  ║
+    // ║   1) marca AUTORIZADA + número da chave;                                                        ║
+    // ║   2) grava localStorage SÍNCRONO (durável no ato, antes de qualquer await);                     ║
+    // ║   3) PERSISTE NO SUPABASE com retry (3x + backoff) e, se a rede falhar, cai na FILA PENDENTE    ║
+    // ║      (gdp.nf-pending-save.v1) que é re-enviada no próximo boot → a NUVEM recebe garantidamente. ║
+    // ║ Online de verdade: a prova vai pro Supabase agora (await com retry) ou pela fila depois.        ║
+    // ╚═══════════════════════════════════════════════════════════════════════════════════════════════╝
+    var _chaveJa = String(nf.sefaz.chaveAcesso || "").replace(/\D/g, "");
+    if (_chaveJa.length === 44 && String(nf.sefaz.protocolo || "").length > 0) {
+      nf.sefaz.status = "autorizada";
+      nf.status = "autorizada";
+      var _numJa = (typeof extrairNumeroDaChaveNfe === "function") ? extrairNumeroDaChaveNfe(_chaveJa) : "";
+      if (_numJa) nf.numero = String(_numJa);
+      try { saveNotasFiscais(nf.id); } catch (_) {}                 // (2) local síncrono imediato
+      try { await _saveNfToSupabaseWithRetry(nf); } catch (_) {}    // (3) NUVEM garantida (retry + fila pendente)
+    } else {
+      // modo ASSÍNCRONO sem chave ainda: persistir o nRec (recibo) na NUVEM p/ o recovery consultar depois.
+      var _nRecResp = String(result.parsed?.nRec || result.parsed?.reciboConsultado || "").replace(/\D/g, "");
+      if (_nRecResp) {
+        nf.sefaz.nRec = _nRecResp;
+        try { saveNotasFiscais(nf.id); } catch (_) {}
+        try { await _saveNfToSupabaseWithRetry(nf); } catch (_) {}  // recibo também vai pra nuvem garantido
+      }
+    }
 
     // Story 20.14 AC1/AC10: prova real de autorização = chave (44 díg.) + protocolo.
     // É o critério que passa a gatear número, título (cobrança) e save, pois é robusto
