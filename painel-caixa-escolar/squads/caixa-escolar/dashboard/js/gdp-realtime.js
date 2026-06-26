@@ -242,13 +242,26 @@
           if (items[k].id === record.id) { localIdx = k; break; }
         }
         if (localIdx >= 0) {
-          var localTs = items[localIdx].updated_at || items[localIdx].updatedAt || '';
-          var remoteTs = record.updated_at || record.updatedAt || '';
-          if (remoteTs && localTs && remoteTs > localTs) {
+          // PROVA DURÁVEL NUNCA REGRIDE: impede a NF autorizada de voltar a rascunho e o boleto
+          // de ser apagado por eco atrasado da versão antiga. Decide por prova ANTES do timestamp.
+          var _tipo = (table === 'notas_fiscais') ? 'nf' : (table === 'contas_receber' ? 'cobranca' : null);
+          var _vence = (typeof window._versaoComProvaVence === 'function')
+            ? window._versaoComProvaVence(items[localIdx], record, _tipo) : null;
+          if (_vence === 'remoto') {
             items[localIdx] = record;
             changed = true;
+          } else if (_vence === 'local') {
+            // mantém local — prova durável não regride
+          } else {
+            // fallback: comportamento antigo por timestamp
+            var localTs = items[localIdx].updated_at || items[localIdx].updatedAt || '';
+            var remoteTs = record.updated_at || record.updatedAt || '';
+            if (remoteTs && localTs && remoteTs > localTs) {
+              items[localIdx] = record;
+              changed = true;
+            }
+            // else: local is newer or same — skip overwrite
           }
-          // else: local is newer or same — skip overwrite
         }
         // If record not found locally during dirty window, add it (new from another machine)
         if (localIdx < 0) { items.push(record); changed = true; }
@@ -263,11 +276,24 @@
             // tem updated_at IGUAL ao local; com '>=' o empate sobrescrevia o estado
             // recém-editado (faturado→aberto, NF verde→amarelo). Só sobrescreve quando
             // o remoto é estritamente mais novo — um UPDATE real de outro cliente.
-            var rTs = record.updated_at || record.updatedAt || '';
-            var lTs = items[j].updated_at || items[j].updatedAt || '';
-            if (!lTs || !rTs || rTs > lTs) {
+            // PROVA DURÁVEL NUNCA REGRIDE: vetor principal. Impede a NF autorizada de voltar a
+            // rascunho e o boleto de ser apagado por eco atrasado (>5s) da versão antiga.
+            var _tipo = (table === 'notas_fiscais') ? 'nf' : (table === 'contas_receber' ? 'cobranca' : null);
+            var _vence = (typeof window._versaoComProvaVence === 'function')
+              ? window._versaoComProvaVence(items[j], record, _tipo) : null;
+            if (_vence === 'remoto') {
               items[j] = record;
               changed = true;
+            } else if (_vence === 'local') {
+              // mantém local — prova durável não regride
+            } else {
+              // fallback: comportamento antigo por timestamp estrito
+              var rTs = record.updated_at || record.updatedAt || '';
+              var lTs = items[j].updated_at || items[j].updatedAt || '';
+              if (!lTs || !rTs || rTs > lTs) {
+                items[j] = record;
+                changed = true;
+              }
             }
             found = true;
             break;
