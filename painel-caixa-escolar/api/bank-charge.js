@@ -330,18 +330,25 @@ module.exports = async function handler(req, res) {
     // RESPOSTA mas pode ter criado o boleto no banco — evita boleto orfao e emissao duplicada.
     if (action === "bank-charge-find-by-seu") {
       const seuNumero = trimStr(body.seuNumero);
-      const dataInicial = trimStr(body.dataInicial) || new Date().toISOString().slice(0, 10);
-      const dataFinal = trimStr(body.dataFinal) || dataInicial;
+      // Janela padrao AMPLIADA p/ 30 dias (2026-06-26): antes buscava so HOJE, entao um boleto criado
+      // ONTEM nao era re-vinculado e o usuario ficava preso no loop "Boleto nao emitido". Override por
+      // dataInicial/dataFinal continua valido.
+      const dataFinal = trimStr(body.dataFinal) || new Date().toISOString().slice(0, 10);
+      const dataInicial = trimStr(body.dataInicial) || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
       if (!seuNumero) return res.status(400).json({ ok: false, error: "seuNumero obrigatorio" });
       const lista = await listInterCharges(ambiente, dataInicial, dataFinal);
       const seu = seuNumero.slice(-15);
-      const hit = (lista.cobrancas || []).find((c) => {
+      const matches = (lista.cobrancas || []).filter((c) => {
         const s = String(c.seuNumero || "").trim();
-        return s && (s === seu || seuNumero.endsWith(s) || seuNumero.startsWith(s));
+        return s && c.codigoSolicitacao && (s === seu || seuNumero.endsWith(s) || seuNumero.startsWith(s));
       });
+      // Multi-hit: se houver mais de um boleto p/ o mesmo seuNumero (ex.: duplicata por clique duplo
+      // antigo), preferir o ATIVO (A_RECEBER/EM_PROCESSAMENTO/RECEBIDO) sobre CANCELADO/EXPIRADO.
+      const _ativo = (c) => /A_RECEBER|EM_PROCESSAMENTO|RECEBIDO|PAGO/i.test(String(c.situacao || ""));
+      const hit = matches.find(_ativo) || matches[0];
       if (!hit || !hit.codigoSolicitacao) return res.status(200).json({ ok: true, action, found: false });
       const result = await syncInterCharge(ambiente, hit.codigoSolicitacao);
-      return res.status(200).json({ ok: true, action, found: true, provider, ambiente, result });
+      return res.status(200).json({ ok: true, action, found: true, provider, ambiente, result, matchCount: matches.length });
     }
 
     return res.status(400).json({ ok: false, error: "Unknown action: " + action });

@@ -209,6 +209,28 @@
     if (_nfEhTerminal(localRec) && !_nfEhTerminal(entranteRec)) return false;
     return true;
   }
+  // ─── GUARDA ANTI-REGRESSÃO DE COBRANÇA (2026-06-26) ───
+  // MESMA causa da regressão da NF, agora em contas_receber: um eco UPDATE antigo SEM o boleto
+  // (providerChargeId) sobrescrevia a conta que JÁ tinha boleto real → "Boleto não emitido no banco"
+  // → reemitir recriava → loop. PROVA DURÁVEL = boleto real no provider (o boleto só existe se o Inter
+  // criou). Espelha a blindagem 'temBoletoReal' de reconciliarCobrancasOrfas. Conta com boleto NUNCA é
+  // rebaixada por eco sem boleto.
+  function _contaTemProva(rec) {
+    if (!rec) return false;
+    var cob = rec.cobranca || {};
+    var ban = (rec.integracoes && rec.integracoes.bancaria) || {};
+    return !!(cob.providerChargeId || cob.nossoNumero || cob.bankSlipUrl || cob.linhaDigitavel || ban.providerChargeId);
+  }
+  // Guarda GENÉRICA por tabela: decide se a entrante pode sobrescrever a local. Extensível.
+  function _podeSobrescreverRegistro(table, localRec, entranteRec) {
+    if (table === 'notas_fiscais') {
+      if (_nfEhTerminal(localRec) && !_nfEhTerminal(entranteRec)) return false;
+    } else if (table === 'contas_receber') {
+      // conta com boleto real não é rebaixada por eco sem boleto (perderia o providerChargeId)
+      if (_contaTemProva(localRec) && !_contaTemProva(entranteRec)) return false;
+    }
+    return true;
+  }
   // Timestamp robusto: cai p/ audit.updatedAt quando updated_at na raiz está ausente (corrige o lTs vazio).
   function _tsRobusto(rec) {
     if (!rec) return '';
@@ -270,10 +292,10 @@
           if (items[k].id === record.id) { localIdx = k; break; }
         }
         if (localIdx >= 0) {
-          // GUARDA ANTI-REGRESSÃO (Camada A): NF terminal (autorizada/cancelada) nunca é rebaixada
-          // por um eco sem prova igual/superior — prova durável > timestamp.
-          if (table === 'notas_fiscais' && !_podeSobrescreverNf(items[localIdx], record)) {
-            // eco velho/sem prova durante a dirty window → ignorar (preserva a nota boa)
+          // GUARDA ANTI-REGRESSÃO (Camada A): registro terminal (NF autorizada/cancelada OU conta com
+          // boleto real) nunca é rebaixado por um eco sem prova igual/superior — prova durável > timestamp.
+          if (!_podeSobrescreverRegistro(table, items[localIdx], record)) {
+            // eco velho/sem prova durante a dirty window → ignorar (preserva o registro bom)
           } else {
             var localTs = _tsRobusto(items[localIdx]);   // Camada B: fallback p/ audit.updatedAt
             var remoteTs = _tsRobusto(record);
@@ -297,11 +319,11 @@
             // tem updated_at IGUAL ao local; com '>=' o empate sobrescrevia o estado
             // recém-editado (faturado→aberto, NF verde→amarelo). Só sobrescreve quando
             // o remoto é estritamente mais novo — um UPDATE real de outro cliente.
-            // GUARDA ANTI-REGRESSÃO (Camada A): NF terminal (autorizada/cancelada) NUNCA é rebaixada
-            // por um eco sem prova igual/superior. Este é o caminho do "minutos depois" (fora da dirty
-            // window) onde a regressão acontecia. Prova durável > timestamp.
-            if (table === 'notas_fiscais' && !_podeSobrescreverNf(items[j], record)) {
-              // eco velho/sem prova → IGNORAR. A nota autorizada permanece. (não seta changed)
+            // GUARDA ANTI-REGRESSÃO (Camada A): registro terminal (NF autorizada/cancelada OU conta com
+            // boleto real) NUNCA é rebaixado por um eco sem prova. Este é o caminho do "minutos depois"
+            // (fora da dirty window) onde a regressão acontecia. Prova durável > timestamp.
+            if (!_podeSobrescreverRegistro(table, items[j], record)) {
+              // eco velho/sem prova → IGNORAR. O registro com prova permanece. (não seta changed)
             } else {
               var rTs = _tsRobusto(record);              // Camada B: fallback p/ audit.updatedAt
               var lTs = _tsRobusto(items[j]);

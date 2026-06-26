@@ -4,6 +4,9 @@
 // Story 16.5 AC8: lock de idempotência por pedido — bloqueia clique duplo em
 // "Gerar NF" / transmissão enquanto uma operação está em andamento para o pedido.
 var _nfOpsEmAndamento = {};
+// Lock de emissão de BOLETO por conta (2026-06-26): impede 2 cliques (ou clique + auto-sync)
+// de disparar 2 CREATE simultâneos no Inter → evita boleto duplicado/órfão. Espelha _nfOpsEmAndamento.
+var _crOpsEmAndamento = {};
 // Resolução definitiva (frente 3): expor p/ o realtime (gdp-realtime.js) ADIAR o reloadFromLocalSilent
 // enquanto há operação de NF em curso — evita o realtime sobrescrever a memória otimista (NF "voltar no
 // tempo" de autorizada→pendente durante a transmissão) e o flicker de re-render em rajada.
@@ -475,7 +478,25 @@ async function _bankChargeBackendDisponivel() {
   }
 }
 
+// LOCK IDEMPOTENTE (2026-06-26): wrapper fino que impede 2 emissões/sincronizações simultâneas de
+// boleto para a MESMA conta (clique duplo → 2 CREATE no Inter → boleto duplicado/órfão). Garante a
+// liberação do lock em QUALQUER saída (return OU throw) via finally, sem reindentar o corpo original.
+// O auto-sync agendado (setTimeout 8s, _autoSynced) roda depois deste finally → não colide.
 async function emitirOuSincronizarCobrancaReal(contaId, options = {}) {
+  _crOpsEmAndamento = _crOpsEmAndamento || {};
+  if (_crOpsEmAndamento[contaId]) {
+    if (!options.silent && typeof showToast === "function") showToast("Emissão de boleto já em andamento para esta cobrança. Aguarde.", 3500);
+    return false;
+  }
+  _crOpsEmAndamento[contaId] = true;
+  try {
+    return await _emitirOuSincronizarCobrancaRealImpl(contaId, options);
+  } finally {
+    delete _crOpsEmAndamento[contaId];
+  }
+}
+
+async function _emitirOuSincronizarCobrancaRealImpl(contaId, options = {}) {
   const conta = contasReceber.find((item) => item.id === contaId);
   if (!conta) return false;
 
@@ -599,8 +620,38 @@ async function emitirOuSincronizarCobrancaReal(contaId, options = {}) {
 
   const provider = getEffectiveBankProvider(conta, nota);
   const ambiente = getEffectiveBankAmbiente(conta, nota);
-  const action = conta.cobranca?.providerChargeId ? "bank-charge-sync" : "bank-charge-create";
+  let action = conta.cobranca?.providerChargeId ? "bank-charge-sync" : "bank-charge-create";
   const actor = getAuditActor();
+
+  // RECUPERAR-ANTES-DE-CRIAR (2026-06-26 — fecha o loop "Boleto não emitido no banco"): quando NÃO há
+  // providerChargeId local (action seria CREATE), o boleto PODE já existir no Inter (criado antes e o
+  // vínculo se perdeu — por eco do realtime, timeout na volta, ou clique anterior). Antes de criar um
+  // 2º boleto (que o Inter recusaria por duplicidade, deixando o usuário preso), PERGUNTAMOS ao Inter
+  // se já existe um boleto com o seuNumero desta conta. Se existe e está vinculável, re-vinculamos e
+  // saímos — sem duplicar. Só cria de verdade se realmente não existir. Rede de segurança proativa
+  // (antes a busca só rodava no catch de falha; agora roda ANTES de qualquer create).
+  if (action === "bank-charge-create" && getEffectiveBankProvider(conta, nota) === "inter") {
+    try {
+      const _seu = String(conta.id || "").slice(-15);
+      const _r = await fetch("/api/bank-charge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        // sem dataInicial/dataFinal → backend amplia a janela (30d) — pega boleto criado ontem também
+        body: JSON.stringify({ action: "bank-charge-find-by-seu", seuNumero: _seu })
+      });
+      const _d = await _r.json().catch(() => ({}));
+      if (_r.ok && _d.ok && _d.found && _d.result?.normalized?.providerChargeId) {
+        applyRealBankChargeResult(conta, nota, _d.result.normalized, "");
+        saveContasReceber();
+        if (nota) saveNotasFiscais(nota.id);
+        if (!options.silent) {
+          renderAll();
+          showToast("Boleto recuperado: já existia no banco e foi re-vinculado a esta cobrança.", 5000);
+        }
+        return true;
+      }
+    } catch (_preErr) { /* busca proativa best-effort: se falhar, segue para o create normal */ }
+  }
 
   setIntegrationState(conta, "bancaria", {
     status: "solicitada_provider",
