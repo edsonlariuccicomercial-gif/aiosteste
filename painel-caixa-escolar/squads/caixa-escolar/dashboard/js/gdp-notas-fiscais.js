@@ -986,6 +986,9 @@ if (typeof window !== "undefined") window._recuperarViaDistribuicaoDFe = _recupe
 // reconsulta legítima) — apenas registrar. Roda 1x no boot.
 async function recoverNfsTransmissaoOrfas() {
   var revertidas = 0, comChaveAguardando = 0, completadasPorConsulta = 0, completadasPorDFe = 0;
+  // Throttle do Caso 4 (re-transmissão p/ provocar 539): no máx. 5 notas órfãs por boot, para não
+  // martelar a SEFAZ (evita cStat 656 — Consumo Indevido). Reinicia a cada boot (escopo da função).
+  var _RETRANSMIT_539_BUDGET = 5;
   try {
     var orfas = (notasFiscais || []).filter(function (nf) {
       if (!nf || !isNotaFiscalReal(nf)) return false;
@@ -1086,6 +1089,70 @@ async function recoverNfsTransmissaoOrfas() {
             continue;
           }
         } catch (_) { /* consulta de recibo falhou → segue como aguardando, sem rebaixar */ }
+      }
+      // CASO 4 — CURA ESTRUTURAL (2026-06-26, desenho @architect): nota presa em 'transmissao_em_preparo'
+      // SEM chave E SEM nRec. A thread morreu (aba fechada/reload) entre marcar 'em_preparo' (linha ~1961) e
+      // gravar o resultado (linha ~2169), sem passar pelo catch. Os Casos 1/2 não a alcançam (sem chave, sem
+      // recibo). A ÚNICA forma de obter a chave real é perguntar à SEFAZ "esta nota nº N já foi autorizada?":
+      // RE-TRANSMITIR a MESMA numeração provoca cStat 539 (Duplicidade) e a SEFAZ devolve a chave real no
+      // xMotivo → _recuperarPorDuplicidade539 confirma o protocolo e completa. Se a nota NUNCA foi autorizada,
+      // a re-transmissão a AUTORIZA legitimamente (não há duplicidade fiscal em nenhum cenário). A chave
+      // RECALCULADA é descartada (buildAccessKey é não-determinística) — usa-se SÓ a real (do 539 ou do 100).
+      // GATE preservado: só marca autorizada com cStat 100/150 + chave 44 díg + protocolo REAIS. NUNCA rebaixa.
+      var _retransmitiu539 = false;
+      if (_RETRANSMIT_539_BUDGET > 0) {
+        var _ped539 = nf.pedidoId ? (pedidos || []).find(function (p) { return p && p.id === nf.pedidoId; }) : null;
+        if (_ped539 && nf.numero) {
+          _RETRANSMIT_539_BUDGET--;
+          try {
+            var _tx = await fetch("/api/gdp-integrations", {
+              method: "POST", headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ action: "nfe-sefaz-transmitir", pedido: _ped539, force: true, overrides: { numero: nf.numero } }),
+              signal: AbortSignal.timeout(40000)
+            });
+            var _txd = await _tx.json().catch(function () { return {}; });
+            var _txp = (_txd && _txd.result && _txd.result.parsed) || {};
+            var _txStat = String(_txp.cStat || "");
+            var _rec4 = null;
+            if (_txStat === "539") {
+              // duplicidade: chave real vem no xMotivo → _recuperarPorDuplicidade539 extrai + confirma protocolo
+              var _r4 = await _recuperarPorDuplicidade539(_txp.xMotivo || "");
+              if (_r4 && _r4.recuperada) _rec4 = { chave: _r4.chave, protocolo: _r4.protocolo, cStat: _r4.cStat || "100" };
+            } else if ((_txStat === "100" || _txStat === "150") && String(_txp.chNFe || "").replace(/\D/g, "").length === 44 && (_txp.nProt || _txp.prot)) {
+              // a re-transmissão AUTORIZOU agora (a 1ª tinha perdido a resposta) → prova real direta
+              _rec4 = { chave: String(_txp.chNFe).replace(/\D/g, ""), protocolo: String(_txp.nProt || _txp.prot), cStat: _txStat };
+            }
+            if (_rec4 && _rec4.chave && String(_rec4.chave).replace(/\D/g, "").length === 44 && _rec4.protocolo) {
+              nf.sefaz = nf.sefaz || {};
+              nf.sefaz.chaveAcesso = String(_rec4.chave).replace(/\D/g, "");
+              nf.sefaz.protocolo = String(_rec4.protocolo);
+              nf.sefaz.status = "autorizada";
+              nf.status = "autorizada";
+              var _num4 = (typeof extrairNumeroDaChaveNfe === "function") ? extrairNumeroDaChaveNfe(nf.sefaz.chaveAcesso) : "";
+              if (_num4) nf.numero = String(_num4);
+              if (typeof setIntegrationState === "function") setIntegrationState(nf, "sefaz", { status: "autorizada", lastAction: "recovery_retransmit_539", accessKey: nf.sefaz.chaveAcesso, protocol: nf.sefaz.protocolo, cStat: String(_rec4.cStat) });
+              try { saveNotasFiscais(nf.id); } catch (_) {}
+              try { if (window.gdpApi && window.gdpApi.notas_fiscais) window.gdpApi.notas_fiscais.save(nf); } catch (_) {}
+              // cobrança faltante idempotente (1 título por nota)
+              try {
+                var _cR4 = (typeof getContaReceberByNota === "function") ? getContaReceberByNota(nf.id) : null;
+                if (!_cR4 && typeof buildReceivableFromInvoice === "function") { var _nc4 = buildReceivableFromInvoice(nf); contasReceber.push(_nc4); if (typeof saveContasReceber === "function") saveContasReceber(); }
+              } catch (_) {}
+              // email idempotente (guard de comunicação já enviada impede duplicidade)
+              try {
+                var _jaEnv4 = nf.integracoes && nf.integracoes.comunicacao && /enviado|email_enviado|sucesso/i.test(nf.integracoes.comunicacao.status || "");
+                if (!_jaEnv4 && typeof dispararEmailNotaEBoletoAutomatico === "function") {
+                  var _cN4 = (typeof getContaReceberByNota === "function") ? getContaReceberByNota(nf.id) : null;
+                  await dispararEmailNotaEBoletoAutomatico(nf.id, _cN4 ? _cN4.id : null, { manual: false });
+                }
+              } catch (_) {}
+              completadasPorConsulta++;
+              _retransmitiu539 = true;
+              if (typeof gdpLog === "function") gdpLog("[recovery] NF " + (nf.numero || nf.id) + " recuperada via RE-TRANSMISSÃO 539 (chave " + nf.sefaz.chaveAcesso + ").");
+              continue;
+            }
+          } catch (_) { /* re-transmissão/consulta falhou → cai no registro conservador abaixo, sem rebaixar */ }
+        }
       }
       // sem chave e sem recibo recuperável: transmissão pode ter ficado incompleta.
       // 2026-06-25 (CAUSA-RAIZ RECORRENTE — NF 1608 voltava a rascunho todo boot):
