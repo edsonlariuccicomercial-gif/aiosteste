@@ -2016,18 +2016,36 @@ if (typeof window !== "undefined") window._nfListaLeve = _nfListaLeve;
 
 // Versão ultra-light (segunda linha de defesa): reduz sefaz ao mínimo de
 // reconciliação, para QUALQUER status. Usada quando o strip normal ainda estoura.
+// BLINDAGEM BL-2 (2026-06-30): PRESERVA explicitamente a PROVA (chave+protocolo+sefaz.status), a FORMA
+// (cobranca.forma) e o RELOGIO (updated_at/updatedAt). Object.assign ja mantem os campos de topo
+// (numero/status/cobranca/integracoes/updated_at); aqui so reduzimos sefaz e removemos base64 pesado —
+// SEM jamais descartar prova/forma/relogio. Antes havia risco de perder forma/relogio nesse fallback.
 function _ultraLightNf(nf) {
   var ul = Object.assign({}, nf);
   if (ul.sefaz) {
     ul.sefaz = {
-      status: ul.sefaz.status,
-      protocolo: ul.sefaz.protocolo,
-      chaveAcesso: ul.sefaz.chaveAcesso,
+      status: ul.sefaz.status,            // PROVA (status fiscal)
+      protocolo: ul.sefaz.protocolo,      // PROVA
+      chaveAcesso: ul.sefaz.chaveAcesso,  // PROVA
       lote: ul.sefaz.lote,
       cStat: (ul.sefaz.transmissao && ul.sefaz.transmissao.parsed && ul.sefaz.transmissao.parsed.cStat) || ul.sefaz.cStat
     };
   }
+  // Relogio: garantir que nunca saia sem updated_at (causa-raiz da regressao do realtime).
+  var _ts = ul.updated_at || ul.updatedAt || ul.emitidaEm || (ul.audit && (ul.audit.updatedAt || ul.audit.authorizedAt));
+  if (_ts) { ul.updated_at = _ts; ul.updatedAt = _ts; }
+  // Cobranca: preservar forma + prova de boleto; remover so base64 pesado.
+  if (ul.cobranca) {
+    ul.cobranca = Object.assign({}, ul.cobranca);
+    delete ul.cobranca.invoiceUrl;
+    delete ul.cobranca.bankSlipUrl;
+    delete ul.cobranca.boletoPdfBase64;
+    delete ul.cobranca.pdfBase64;
+    delete ul.cobranca.qrCodeImage;
+    // PRESERVA: forma, providerChargeId, nossoNumero, linhaDigitavel, status
+  }
   delete ul.xml_autorizado;
+  delete ul.xmlAutorizado;
   return ul;
 }
 

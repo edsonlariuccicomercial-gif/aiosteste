@@ -236,6 +236,24 @@
     if (!rec) return '';
     return rec.updated_at || rec.updatedAt || (rec.audit && rec.audit.updatedAt) || '';
   }
+  // BLINDAGEM BL-4 (2026-06-30): prova DURAVEL por id, lida do localStorage (nao da RAM volatil).
+  // Usada nos guards de INSERT/DELETE para nao re-inserir/remover versao sem prova quando ha prova em disco.
+  function _temProvaDuravelRT(table, id) {
+    if (!id) return false;
+    try {
+      if (table === 'notas_fiscais') {
+        if (typeof window !== 'undefined' && typeof window._nfProvaDuravel === 'function') return window._nfProvaDuravel(id);
+      }
+      // fallback generico: ler do localStorage da tabela e checar prova do registro correspondente
+      var lsKey = (TABLE_TO_ENTITY[table] && TABLE_TO_ENTITY[table].lsKey) || null;
+      if (!lsKey) return false;
+      var raw = JSON.parse(localStorage.getItem(lsKey) || '{}');
+      var arr = Array.isArray(raw) ? raw : (Array.isArray(raw.items) ? raw.items : (Array.isArray(raw.data) ? raw.data : []));
+      var rec = arr.filter(function (x) { return x && x.id === id; })[0];
+      if (!rec) return false;
+      return (table === 'notas_fiscais') ? _nfTemProva(rec) : (table === 'contas_receber') ? _contaTemProva(rec) : false;
+    } catch (_) { return false; }
+  }
 
   function handleEntityChange(table, type, record, oldRecord) {
     // Story 17.3 (defensivo): descartar eventos de realtime de OUTRO empresa_id.
@@ -274,7 +292,14 @@
       for (var i = 0; i < items.length; i++) {
         if (items[i].id === record.id) { exists = true; break; }
       }
-      if (!exists) { items.push(record); changed = true; }
+      // BLINDAGEM BL-4 (2026-06-30): nao re-inserir uma versao SEM prova quando ja existe prova DURAVEL
+      // para esse id (caso DELETE remoto + re-INSERT de eco atrasado sem chave). Imutabilidade-para-baixo.
+      var _bloqueiaInsert = false;
+      if (!exists && (table === 'notas_fiscais' || table === 'contas_receber')) {
+        var _entranteProvaIns = (table === 'notas_fiscais') ? _nfTemProva(record) : _contaTemProva(record);
+        if (!_entranteProvaIns && _temProvaDuravelRT(table, record.id)) _bloqueiaInsert = true;
+      }
+      if (!exists && !_bloqueiaInsert) { items.push(record); changed = true; }
     } else if (type === 'UPDATE') {
       // Story 20.17: ignorar o eco do próprio cliente (postgres_changes do nosso
       // próprio upsert). Sem isto, um save em voo volta como UPDATE e sobrescreve
@@ -353,9 +378,21 @@
     } else if (type === 'DELETE') {
       var delId = (oldRecord && oldRecord.id) || (record && record.id);
       if (delId) {
-        var before = items.length;
-        items = items.filter(function (it) { return it.id !== delId; });
-        changed = items.length !== before;
+        // BLINDAGEM BL-4 (2026-06-30): so remover por soft-delete REAL (deleted_at no payload). Um DELETE
+        // de eco SEM deleted_at sobre registro com prova (NF autorizada / conta com boleto) NAO some com
+        // o dado provado. Cancelamento/delete explicito carrega deleted_at. Imutabilidade-para-baixo.
+        var _delRec = oldRecord || record || {};
+        var _temSoftDelete = !!(_delRec.deleted_at || _delRec.deletedAt);
+        var _localDel = null;
+        for (var _di = 0; _di < items.length; _di++) { if (items[_di].id === delId) { _localDel = items[_di]; break; } }
+        var _localProvado = _localDel && ((table === 'notas_fiscais') ? _nfTemProva(_localDel) : (table === 'contas_receber') ? _contaTemProva(_localDel) : false);
+        if (_localProvado && !_temSoftDelete) {
+          // dado provado + DELETE sem soft-delete real -> IGNORA (preserva).
+        } else {
+          var before = items.length;
+          items = items.filter(function (it) { return it.id !== delId; });
+          changed = items.length !== before;
+        }
       }
     }
 
@@ -661,7 +698,25 @@
       }
       return window.gdpApi[t].list().then(function (rows) {
         if (rows && rows.length > 0) {
-          writeLocalItems(t, rows);
+          // BLINDAGEM BL-4 (2026-06-30): no reconcile, NAO sobrescrever um registro local PROVADO por uma
+          // row do servidor que venha SEM prova (serializacao parcial / lag). Faz merge preservando o
+          // local terminal quando a entrante e inferior. So p/ tabelas com prova; demais passam direto.
+          if ((t === 'notas_fiscais' || t === 'contas_receber')) {
+            try {
+              var locais = readLocalItems(t);
+              var porId = {};
+              locais.forEach(function (it) { if (it && it.id) porId[it.id] = it; });
+              var temProva = (t === 'notas_fiscais') ? _nfTemProva : _contaTemProva;
+              var merged = rows.map(function (row) {
+                var loc = row && porId[row.id];
+                if (loc && temProva(loc) && !temProva(row)) return loc; // preserva local provado
+                return row;
+              });
+              writeLocalItems(t, merged);
+            } catch (_) { writeLocalItems(t, rows); }
+          } else {
+            writeLocalItems(t, rows);
+          }
         }
       }).catch(function () {});
     });

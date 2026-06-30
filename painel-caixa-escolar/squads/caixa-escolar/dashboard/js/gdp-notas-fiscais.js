@@ -378,7 +378,12 @@ function getEffectiveBankAmbiente(conta = null, nota = null) {
 
 function applyRealBankChargeResult(conta, nf, normalized = {}, protocol = "") {
   const actor = getAuditActor();
-  const forma = String((normalized.billingType || conta?.forma || nf?.cobranca?.forma || "")).toLowerCase() === "pix" ? "pix" : "boleto";
+  // BL-3: nao re-derivar com ternario estrito (perdia ted/dinheiro e forcava boleto). Preferir o que o
+  // banco efetivamente emitiu (normalized.billingType); se ausente, respeitar a forma soberana ja escolhida.
+  const _bankForma = String(normalized.billingType || "").trim().toLowerCase();
+  const forma = (["pix","boleto","ted","dinheiro"].indexOf(_bankForma) >= 0)
+    ? _bankForma
+    : _formaCobrancaSoberana(null, nf, conta);
   const providerStatus = normalized.status || "pendente";
   const integrationStatus = providerStatus === "recebida"
     ? "recebida_provider"
@@ -883,6 +888,39 @@ function temProvaAutorizacao(nf) {
 // gdp-realtime.js guarda). FIX 2026-06-30: a label/aba nao podem mais decidir por substring de status.
 if (typeof window !== "undefined") window.temProvaAutorizacao = temProvaAutorizacao;
 
+// ===== BLINDAGEM (PRIMITIVA 1): PROVA DURAVEL — 2026-06-30 =====
+// CAUSA-RAIZ comum a varios bugs de "some e volta": as decisoes de rebaixamento liam a prova da nota
+// na RAM (notasFiscais[]), que OSCILA no flicker de boot/realtime. A prova REAL (chave 44 + protocolo)
+// esta gravada no localStorage (gdp.notas-fiscais.v1) e NAO oscila. Esta funcao le a prova da fonte
+// DURAVEL por id de nota. Cache leve invalidado a cada ~2s (cobre um ciclo de reconciliacao sem reler
+// o localStorage N vezes). Se a NF tem prova gravada em disco, ela TEM prova — mesmo que a RAM minta.
+var _provaDuravelCache = null;
+var _provaDuravelCacheTs = 0;
+function _carregarProvaDuravelMap() {
+  var agora = (function(){ try { return Date.now(); } catch(_) { return 0; } })();
+  if (_provaDuravelCache && (agora - _provaDuravelCacheTs) < 2000) return _provaDuravelCache;
+  var map = {};
+  try {
+    var raw = JSON.parse(localStorage.getItem("gdp.notas-fiscais.v1") || "{}");
+    var arr = Array.isArray(raw) ? raw : (Array.isArray(raw.items) ? raw.items : (Array.isArray(raw.data) ? raw.data : []));
+    arr.forEach(function (nf) {
+      if (!nf || !nf.id) return;
+      var ch = String((nf.sefaz && nf.sefaz.chaveAcesso) || nf.chaveAcesso || "").replace(/\D/g, "");
+      var pr = String((nf.sefaz && nf.sefaz.protocolo) || nf.protocolo || "");
+      if (ch.length === 44 && pr.length > 0) map[nf.id] = true;
+    });
+  } catch (_) {}
+  _provaDuravelCache = map;
+  _provaDuravelCacheTs = agora;
+  return map;
+}
+// Retorna true se a NF (por id) tem prova de autorizacao gravada na fonte DURAVEL (disco).
+function _nfProvaDuravel(idNf) {
+  if (!idNf) return false;
+  try { return _carregarProvaDuravelMap()[idNf] === true; } catch (_) { return false; }
+}
+if (typeof window !== "undefined") window._nfProvaDuravel = _nfProvaDuravel;
+
 // ===== AUTOCURA 539 (duplicidade) =====
 // Quando a SEFAZ rejeita com cStat 539 (Duplicidade de NF-e), a nota JÁ ESTÁ autorizada lá — a chave
 // vem embutida na mensagem (xMotivo: "...[chNFe: <44 díg>]"). Em vez de marcar 'rejeitada' e travar a
@@ -1282,12 +1320,13 @@ function reconciliarCobrancasOrfas() {
       var ehDeNf = conta.origemTipo === "nota_fiscal" || !!nf || !!conta.notaFiscalId;
       if (!ehDeNf || !idNf) return;
       if (conta.status === "recebida" || conta.status === "cancelada") return;
-      var temProva = nf && temProvaAutorizacao(nf);
-      // FIX (race NF↔cobrança 2026-06-25): BLINDAGEM por boleto real. Se a cobrança JÁ tem boleto Inter
-      // emitido (providerChargeId/nossoNumero/bankSlipUrl/linhaDigitavel), o boleto SÓ existe porque a
-      // SEFAZ autorizou — é prova DURÁVEL, mais forte que nf.status volátil na RAM. Durante o flicker de
-      // boot (realtime rebaixa a NF a 'pendente' por milissegundos), temProva fica false e a conta era
-      // marcada 'aguardando_nf' → SUMIA da tela de contas a receber. Boleto real NUNCA rebaixa.
+      // BLINDAGEM BL-1 (2026-06-30): a prova agora vem da fonte DURAVEL (disco), nao so da RAM volatil.
+      // Causa-raiz do "cobranca PIX some": no flicker de boot a nf em RAM perde a chave por ms -> temProva
+      // ficava false -> conta marcada 'aguardando_nf' -> SUMIA. _nfProvaDuravel le a chave+protocolo
+      // gravados no localStorage, que NAO oscilam. Cobre PIX (que nao tem boleto Inter p/ se blindar).
+      var temProva = (nf && temProvaAutorizacao(nf)) || _nfProvaDuravel(idNf);
+      // BLINDAGEM por boleto real (mantida): boleto Inter (providerChargeId/nossoNumero/bankSlipUrl/
+      // linhaDigitavel) e prova DURAVEL — o boleto so existe porque a SEFAZ autorizou. Nunca rebaixa.
       var temBoletoReal = !!(conta.cobranca && (
         conta.cobranca.providerChargeId || conta.cobranca.nossoNumero ||
         conta.cobranca.bankSlipUrl || conta.cobranca.linhaDigitavel
@@ -1526,8 +1565,8 @@ function buildInvoiceFromOrder(pedido, tipoNota) {
     },
     vencimento: pedido.pagamento?.vencimento || calcularVencimentoPagamento(pedido.data || pedido.dataEntrega, pedido.pagamento?.condicao || "28"),
     cobranca: {
-      status: (pedido.pagamento?.forma || (contaPadrao?.pix && fiscalConfig.destacarPix ? "pix" : "boleto")) === "pix" ? "pix_pronto" : "gerada",
-      forma: pedido.pagamento?.forma || (contaPadrao?.pix && fiscalConfig.destacarPix ? "pix" : "boleto"),
+      status: _formaCobrancaSoberana(pedido, null, null) === "pix" ? "pix_pronto" : "gerada", // BL-3
+      forma: _formaCobrancaSoberana(pedido, null, null), // BL-3: respeita a escolha do pedido; nao forca boleto
       referencia: genId("COB"),
       geradaEm: now.toISOString(),
       contaBancariaId: pedido.pagamento?.contaBancaria?.id || contaPadrao?.id || "",
@@ -1581,6 +1620,30 @@ function buildInvoiceFromOrder(pedido, tipoNota) {
   };
 }
 
+// ===== BLINDAGEM (PRIMITIVA 3): FORMA SOBERANA — 2026-06-30 =====
+// CAUSA-RAIZ do "gera boleto mesmo escolhendo PIX": ternarios estritos "=== 'pix' ? 'pix' : 'boleto'"
+// espalhados (linhas 381, 1529-1530, 1653, 1680). Quando pedido.pagamento vem {} vazio, cai no default
+// 'boleto' e ATROPELA a escolha do usuario. Esta funcao resolve a forma UMA vez, com precedencia clara,
+// e NUNCA deixa um default sobrescrever uma escolha previa. So cai na config quando NENHUMA fonte tem forma.
+function _formaCobrancaSoberana(pedido, nf, conta) {
+  var FORMAS = ["pix", "boleto", "ted", "dinheiro"];
+  function norm(v) { var s = String(v == null ? "" : v).trim().toLowerCase(); return FORMAS.indexOf(s) >= 0 ? s : ""; }
+  // precedencia: escolha do pedido > forma da nf > forma da conta
+  var f = norm(pedido && pedido.pagamento && pedido.pagamento.forma)
+       || norm(nf && nf.cobranca && nf.cobranca.forma)
+       || norm(conta && conta.forma)
+       || norm(conta && conta.cobranca && conta.cobranca.forma);
+  if (f) return f;
+  // nenhuma fonte tem forma -> default da config (destacarPix => pix), senao boleto.
+  try {
+    var cfg = (typeof getFiscalConfig === "function") ? getFiscalConfig() : (JSON.parse(localStorage.getItem("nexedu.config.notas-fiscais") || "{}"));
+    var contaPadrao = (typeof getConfiguredDefaultBankAccount === "function") ? getConfiguredDefaultBankAccount() : null;
+    if (cfg && cfg.destacarPix && contaPadrao && contaPadrao.pix) return "pix";
+  } catch (_) {}
+  return "boleto";
+}
+if (typeof window !== "undefined") window._formaCobrancaSoberana = _formaCobrancaSoberana;
+
 function buildReceivableFromInvoice(invoice) {
   const issueDate = new Date(invoice.emitidaEm || Date.now());
   // Story 21.1 (UX-F9): o vencimento da conta a receber é SEMPRE calculado a partir da
@@ -1592,6 +1655,7 @@ function buildReceivableFromInvoice(invoice) {
   const dueDateStr = dueDate.toISOString().slice(0, 10);
   const contaPadrao = getConfiguredDefaultBankAccount();
   const bankApiConfig = getBankApiConfig();
+  const _formaCR = _formaCobrancaSoberana(null, invoice, null); // BL-3: forma unica, soberana
   return {
     id: genId("CR"),
     origemTipo: "nota_fiscal",
@@ -1616,7 +1680,7 @@ function buildReceivableFromInvoice(invoice) {
       municipio: invoice.cliente?.municipio || invoice.cliente?.cidade || "",
       uf: invoice.cliente?.uf || ""
     },
-    forma: invoice.cobranca?.forma || "boleto",
+    forma: _formaCR, // BL-3: respeita a forma da NF; nao forca boleto
     valor: Number(invoice.valor || 0),
     vencimento: dueDateStr,
     dataEmissao: issueDate.toISOString().split("T")[0],
@@ -1643,7 +1707,8 @@ function buildReceivableFromInvoice(invoice) {
       }
     },
     cobranca: {
-      status: invoice.cobranca?.forma === "pix" ? "pix_pronto" : "boleto_gerado",
+      status: _formaCR === "pix" ? "pix_pronto" : "boleto_gerado", // BL-3: deriva da forma soberana
+      forma: _formaCR, // BL-3: persiste a forma tambem no bloco cobranca (fonte p/ emitirOuSincronizar)
       pixCopiaECola: contaPadrao?.pix ? contaPadrao.pix : '',
       contaBancariaId: contaPadrao?.id || "",
       banco: contaPadrao?.banco || "",
