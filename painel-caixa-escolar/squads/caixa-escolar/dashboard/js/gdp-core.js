@@ -2003,6 +2003,12 @@ function _nfListaLeve(nf) {
     cobranca: nf.cobranca ? { forma: nf.cobranca.forma, status: nf.cobranca.status, providerChargeId: nf.cobranca.providerChargeId, linhaDigitavel: nf.cobranca.linhaDigitavel } : null,
     audit: nf.audit ? { authorizedAt: nf.audit.authorizedAt } : null,
     deleted_at: nf.deleted_at || nf.deletedAt,
+    // FIX 2026-06-30 (DEVOPS-1): preservar o RELOGIO. A whitelist de _nfListaLeve descartava
+    // updated_at -> todo save no localStorage apagava o campo -> o realtime caia em lTs vazio e
+    // regredia a nota (Emitida->Pendente). Sem isto, DATA-FIX-B/C nao persistem. Deriva de campos
+    // confiaveis quando ausente para nunca gravar uma NF sem relogio.
+    updated_at: nf.updated_at || nf.updatedAt || nf.emitidaEm || (nf.audit && (nf.audit.updatedAt || nf.audit.authorizedAt)) || nf.createdAt || nf.created_at,
+    updatedAt: nf.updated_at || nf.updatedAt || nf.emitidaEm || (nf.audit && (nf.audit.updatedAt || nf.audit.authorizedAt)) || nf.createdAt || nf.created_at,
     _leve: true
   };
 }
