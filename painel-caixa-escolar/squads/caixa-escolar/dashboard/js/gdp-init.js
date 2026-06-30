@@ -3284,6 +3284,29 @@ async function enviarTiny(contratoId) {
           }).catch(e => gdpWarn("[GDP] Falha " + table + ":", e))
         );
         await Promise.all(fetchPromises);
+
+        // ADR-004 — BACKFILL one-shot de produtos: se a tabela 'produtos' veio VAZIA mas o
+        // localStorage tem N>0 (maquina que so tinha a SSoT local, nunca escreveu na tabela),
+        // empurra os produtos locais para a tabela (upsert idempotente por id). Sem isto, a
+        // primeira carga apos o deploy nao teria o que ler e a Central ficaria orfa. Respeita
+        // o tombstone (nao re-sobe produtos deletados). Roda UMA vez por boot, fail-soft.
+        try {
+          if (gdpApi.produtos && typeof gdpApi.produtos.saveAll === 'function') {
+            const _remoteProd = await gdpApi.produtos.list();
+            const _remoteCount = Array.isArray(_remoteProd) ? _remoteProd.length : 0;
+            let _localProd = [];
+            try { const _r = JSON.parse(localStorage.getItem('gdp.produtos.v1') || '{}'); _localProd = _r.itens || _r.items || []; } catch (_) {}
+            let _delSet = new Set();
+            try { _delSet = new Set(JSON.parse(localStorage.getItem('gdp.produtos.deleted.v1') || '[]')); } catch (_) {}
+            const _toBackfill = (_localProd || []).filter(p => p && p.id && !_delSet.has(p.id));
+            if (_remoteCount === 0 && _toBackfill.length > 0) {
+              await gdpApi.produtos.saveAll(_toBackfill);
+              gdpLog('[GDP] ADR-004 backfill produtos: ' + _toBackfill.length + ' enviados para a tabela (estava vazia).');
+              anyUpdated = true;
+            }
+          }
+        } catch (e) { gdpWarn('[GDP] backfill produtos falhou (segue local):', e && e.message); }
+
         try {
           const clientes = await gdpApi.clientes.list();
           if (clientes && clientes.length > 0) {

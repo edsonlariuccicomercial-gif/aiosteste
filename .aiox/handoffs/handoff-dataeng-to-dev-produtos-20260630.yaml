@@ -1,0 +1,31 @@
+handoff:
+  from_agent: data-engineer
+  to_agent: dev
+  created_at: "2026-06-30"
+  adr: docs/architecture/ADR-004-central-produtos-escrita-tabela-supabase.md
+  contrato_mapeamento: docs/architecture/ADR-004-mapeamento-produtos-dataeng.md
+  story_context:
+    feature: "Central de Produtos — escrita na tabela Supabase (fonte unica)"
+    branch: master
+    status: "schema + migration + contrato PRONTOS; aguardando implementacao @dev"
+  entregue_pelo_data_engineer:
+    migration: "painel-caixa-escolar/supabase/migrations/041_produtos_dados_extras.sql (ADITIVA, idempotente: ADD COLUMN IF NOT EXISTS dados_extras jsonb)"
+    rollback: "painel-caixa-escolar/supabase/rollbacks/041_rollback.sql"
+    confirmacoes:
+      - "Tabela produtos (migration 014) tem 17 colunas que batem 1:1 com TABLE_COLS.produtos (gdp-api.js:154) — CONFIRMADO"
+      - "RLS: produtos ja em anon read-only (034) + escrita service_role via /api/gdp-data — NADA a fazer no RLS"
+      - "produtos esta em ALLOWED_TABLES do backend (api/gdp-data.js:21) — escrita OK"
+      - "ATENCAO: estoque_simples.produto_id REFERENCES produtos(id) ON DELETE CASCADE — hard delete cascateia (aceitavel; tombstone client-side protege ressurreicao)"
+    decisao_wrap_unwrap: "dados_extras tratado em mapToTable/mapFromTable (gdp-api.js), isolado p/ table==='produtos'. NAO no product-store. Detalhes exatos no contrato §3."
+  tarefas_dev:
+    - "gdp-api.js: adicionar mapeamentos camel->snake (contrato §2); add 'dados_extras' em TABLE_COLS.produtos (§3.2); wrap §3.3 + unwrap §3.4; add produtos em _DELETE_KEYS (§5)"
+    - "gdp-core.js: add 'gdp.produtos.deleted.v1' em GDP_SYNC_KEYS"
+    - "gdp-banco-produtos.js: salvarProduto/excluirProduto/excluirProdutosSelecionados/criarProdutoRapido/confirmarImportacaoTiny/limparTodoBancoProdutos -> chamar gdpApi.produtos.save/.remove + gdpMarkUserEdit('gdp.produtos.v1') (ADR D-1,D-2)"
+    - "product-store.js: save/remove delegam a gdpApi.produtos; bancoProdutos vira view do ProductStore (ADR D-5)"
+    - "SKU estavel: nunca regenerar SKU de produto vinculado (ADR D-6, reforcar sanitizeBancoProduto:54-62)"
+    - "Backfill one-shot no boot: se tabela produtos vier vazia mas localStorage tiver N>0, gdpApi.produtos.saveAll (upsert idempotente por id)"
+    - "Bump versao dos scripts no HTML (?v=N) p/ gdp-banco-produtos, gdp-api, gdp-core, product-store"
+  dependencia_devops:
+    - "Migration 041 deve ser aplicada por @devops ANTES do deploy do front (a coluna dados_extras precisa existir, senao PostgREST rejeita a row)"
+  next_action: "@dev implementar; depois @qa validar na tela logado; @devops aplica migration 041 + deploy --force"
+  consumed: true

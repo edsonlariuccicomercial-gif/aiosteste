@@ -1,0 +1,50 @@
+handoff:
+  from_agent: dev
+  to_agent: qa
+  created_at: "2026-06-30"
+  adr: docs/architecture/ADR-004-central-produtos-escrita-tabela-supabase.md
+  contrato: docs/architecture/ADR-004-mapeamento-produtos-dataeng.md
+  story_context:
+    feature: "Central de Produtos — escrita na tabela Supabase (fonte unica)"
+    branch: master
+    status: "IMPLEMENTADO; aguardando validacao QA na tela logado"
+  implementado:
+    gdp-api.js (v26):
+      - "CAMEL_TO_SNAKE += custoBase/precoReferencia/margemAlvo/produtoCritico/unidadeBase/dadosExtras"
+      - "TABLE_COLS.produtos += 'dados_extras'"
+      - "mapToTable: wrap dos campos ricos (custosFornecedor,concorrentes,propostas,historicoResultados,precoReferenciaHistorico,taxaConversao,embalagem_descricao,criadoEm) em dados_extras — isolado p/ table==='produtos'"
+      - "mapFromTable: unwrap de dados_extras de volta ao nivel raiz"
+      - "_DELETE_KEYS += produtos:'gdp.produtos.deleted.v1' (tombstone)"
+    gdp-core.js (v61):
+      - "GDP_SYNC_KEYS += 'gdp.produtos.deleted.v1'"
+    gdp-banco-produtos.js (v18):
+      - "saveBancoProdutos: delega a ProductStore.save por item (-> gdpApi.produtos.save tabela + markUserEdit). Fallback setItem+markUserEdit se store ausente. NAO chama schedulCloudSync p/ produtos."
+      - "excluirProduto/excluirProdutosSelecionados/limparTodoBancoProdutos: delegam a ProductStore.remove (-> gdpApi.produtos.remove tabela + tombstone). Antes zeravam so o localStorage (causa do 'volta no boot')."
+      - "salvarProduto/criarProdutoRapido/confirmarImportacaoTiny: cobertos via saveBancoProdutos"
+      - "sanitizeBancoProduto: comentario D-6 reforcado (SKU estavel; LICT-*/BANK-* preservados)"
+    product-store.js (v2):
+      - "save -> _pushToTable (gdpApi.produtos.save); remove -> _removeFromTable (gdpApi.produtos.remove)"
+      - "persist() registra gdpMarkUserEdit('gdp.produtos.v1')"
+      - "toCanonical confirmado: preserva sku e id (nao quebra vinculo)"
+    gdp-init.js (v60):
+      - "Backfill one-shot: se tabela produtos vazia mas local N>0, gdpApi.produtos.saveAll (respeita tombstone). Fail-soft."
+    HTML:
+      - "gdp-contratos.html: gdp-api v26, gdp-core v61, product-store v2, gdp-banco-produtos v18, gdp-init v60"
+      - "index.html: gdp-api v26, product-store v2"
+  validacoes_feitas:
+    - "node --check OK nos 5 JS (sem erro de sintaxe)"
+    - "Self-review: toCanonical preserva sku/id; embalagens(coluna) != embalagem_descricao(rich); wrap nao vaza campo rico p/ coluna inexistente"
+  NAO_feito:
+    - "git push (delegado @devops)"
+    - "migration 041 nao aplicada (responsabilidade @devops — aplicar ANTES do deploy do front)"
+    - "CodeRabbit pulado (sera validado na tela pelo @qa; syntax clean)"
+  roteiro_qa_na_tela:
+    - "PRE-REQ: @devops aplica migration 041 + deploy --force; usuario Ctrl+Shift+R"
+    - "1. Cadastrar produto novo -> reload (F5) -> produto PERMANECE"
+    - "2. Excluir produto -> reload -> NAO volta"
+    - "3. Editar produto (custo/preco/NCM) -> reload -> alteracoes persistem (incl. campos ricos em dados_extras)"
+    - "4. Vincular item de contrato a produto (skuVinculado) -> reload -> vinculo intacto; SKU nao muda"
+    - "5. Multi-sessao: cadastrar na sessao A, abrir sessao B (outra maquina/aba anonima) -> produto aparece"
+    - "6. Conferir no Supabase: SELECT count(*) FROM produtos; bate com a tela"
+  next_action: "@qa validar roteiro na tela (Playwright logado); se PASS -> @devops aplica migration 041 + deploy --force + push"
+  consumed: true

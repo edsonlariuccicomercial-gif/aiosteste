@@ -1,0 +1,31 @@
+handoff:
+  from_agent: qa
+  to_agent: devops
+  created_at: "2026-06-30"
+  gate: docs/qa/gates/ADR-004-central-produtos-gate.yaml
+  veredito: "CONCERNS — codigo OK na revisao estatica; bloqueado para tela ate deploy+migration"
+  story_context:
+    feature: "Central de Produtos — escrita na tabela Supabase (fonte unica, ADR-004)"
+    branch: master
+    status: "implementado + revisado estaticamente; aguardando deploy do @devops"
+  estado_producao_confirmado:
+    - "Served: gdp-api v25, gdp-core v60, product-store v1, gdp-banco-produtos v17, gdp-init v59 (ANTIGO)"
+    - "Coluna produtos.dados_extras: HTTP 400 (NAO existe — migration 041 nao aplicada)"
+  tarefas_devops_ORDEM_OBRIGATORIA:
+    - "1. APLICAR migration PRIMEIRO: painel-caixa-escolar/supabase/migrations/041_produtos_dados_extras.sql (dry-run -> apply). Rollback: rollbacks/041_rollback.sql"
+    - "2. SO ENTAO commit + deploy: cd painel-caixa-escolar && npx vercel --prod --force --yes"
+    - "3. git push da master (origem do auto-deploy Actions ja usa --force)"
+  por_que_a_ordem: >
+    mapToTable envia sempre row.dados_extras p/ produtos. Deploy do front ANTES da migration
+    causa HTTP 400 no upsert -> gravacao falha silenciosa -> bug persiste. Migration primeiro elimina isso.
+  validacao_pos_deploy_devops:
+    - "curl served gdp-api deve mostrar v26"
+    - "curl https://mvvsjaudhbglxttxaeop.supabase.co/rest/v1/produtos?select=dados_extras&limit=1 (apikey anon) deve dar HTTP 200"
+    - "Functions /api/gdp-data viva (200/400/405, nao 404)"
+  apos_devops: "Devolver ao @qa para re-validar o roteiro na tela (Playwright logado). So entao PASS."
+  arquivos_modificados:
+    - "gdp-api.js, js/gdp-core.js, js/gdp-banco-produtos.js, product-store.js, js/gdp-init.js"
+    - "gdp-contratos.html, index.html (bump ?v=)"
+    - "supabase/migrations/041_produtos_dados_extras.sql + rollbacks/041_rollback.sql"
+    - "docs/architecture/ADR-004-*.md"
+  consumed: false

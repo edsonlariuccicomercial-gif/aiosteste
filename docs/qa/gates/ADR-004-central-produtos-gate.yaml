@@ -1,0 +1,47 @@
+gate: CONCERNS
+adr: ADR-004 — Central de Produtos escrita na tabela Supabase
+reviewer: "@qa (Quinn)"
+date: "2026-06-30"
+veredito_resumo: >
+  Codigo revisado estaticamente e APROVADO na logica. NAO validavel na tela ainda:
+  producao serve versoes ANTIGAS e a coluna dados_extras nao existe (migration 041 nao aplicada).
+  Liberar PASS apos @devops aplicar migration 041 + deploy --force, e re-validar o roteiro na tela.
+
+revisao_estatica:
+  PASS:
+    - "node --check OK nos 5 JS (confirmado pelo @dev)"
+    - "mapToTable: campos ricos nao viram coluna inexistente (continue no loop) + wrap em dados_extras — correto"
+    - "mapFromTable: unwrap idempotente de dados_extras p/ raiz — correto"
+    - "_DELETE_KEYS += produtos:'gdp.produtos.deleted.v1' — tombstone correto; list()/_mergeTable ja consomem"
+    - "GDP_SYNC_KEYS += gdp.produtos.deleted.v1 — propaga tombstone no sync legado"
+    - "ProductStore.save->toCanonical PRESERVA campos ricos (custoBase,precoReferencia,margemAlvo,concorrentes,propostas,custosFornecedor,precoReferenciaHistorico,taxaConversao,embalagem_descricao,criadoEm) + sku + id — vinculo do contrato seguro"
+    - "excluirProduto/excluirProdutosSelecionados/limparTodoBancoProdutos -> ProductStore.remove (tabela+tombstone) — fecha o 'volta no boot'"
+    - "backfill one-shot respeita tombstone e so roda se tabela vazia + local>0 — seguro"
+    - "fail-soft: se gdpApi indisponivel, segue local sem quebrar"
+
+  CONCERNS:
+    - id: ORDEM-DEPLOY
+      severity: HIGH
+      issue: >
+        mapToTable SEMPRE envia row.dados_extras para produtos. Se o codigo novo (v26) for
+        deployado ANTES da migration 041, todo upsert de produto recebe HTTP 400 (coluna
+        inexistente) -> sbUpsert=false -> enqueueRetry -> gravacao na tabela FALHA SILENCIOSA.
+        Resultado: o bug PERSISTE ate a migration entrar.
+      mitigacao: "ORDEM OBRIGATORIA: (1) aplicar migration 041 PRIMEIRO; (2) SO ENTAO deploy --force do front."
+    - id: ESTADO-PROD
+      severity: HIGH (bloqueia validacao na tela)
+      issue: "Producao serve v25/v60/v1/v17/v59 (antigo). Coluna dados_extras: HTTP 400 (nao existe)."
+      mitigacao: "@devops aplica migration 041 + deploy --force. Depois @qa re-valida na tela."
+
+  observacoes:
+    - "Nenhum git push feito pelo @dev (correto)."
+    - "CodeRabbit nao executado nesta rodada (mudanca focada, syntax limpa, validacao na tela e o gate real)."
+
+roteiro_revalidacao_pos_deploy:
+  - "Pre: confirmar served gdp-api v26 + dados_extras select HTTP 200"
+  - "1. Cadastrar produto -> F5 -> permanece"
+  - "2. Excluir -> F5 -> nao volta"
+  - "3. Editar custo/preco/NCM -> F5 -> persiste (dados_extras)"
+  - "4. Vincular item de contrato -> F5 -> vinculo intacto + SKU inalterado"
+  - "5. Multi-sessao: cadastra A, abre aba anonima -> aparece"
+  - "6. SELECT count(*) FROM produtos == contador da tela"

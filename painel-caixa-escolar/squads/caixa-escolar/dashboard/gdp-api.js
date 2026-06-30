@@ -151,7 +151,7 @@
     conciliacoes: ['id','empresa_id','extrato_id','data','descricao','valor','tipo','conciliado','conciliado_em','vinculado_a','historico','categoria_dre','metadata','deleted_at','created_at','updated_at'],
     caixa_config: ['empresa_id','saldo_inicial','saldo_inicial_data','metadata','created_at','updated_at'],
     empresa_modulos: ['empresa_id','radar','intel_precos','gdp','metadata','created_at','updated_at'],
-    produtos: ['id','empresa_id','descricao','sku','ncm','unidade','marca','grupo','produto_critico','unidade_base','embalagens','custo_base','preco_referencia','margem_alvo','fonte','created_at','updated_at'],
+    produtos: ['id','empresa_id','descricao','sku','ncm','unidade','marca','grupo','produto_critico','unidade_base','embalagens','custo_base','preco_referencia','margem_alvo','fonte','dados_extras','created_at','updated_at'], // ADR-004: + dados_extras (cauda JSONB p/ campos ricos)
     lancamentos_cliente: ['id','empresa_id','cliente_id','data','tipo','valor','descricao','origem','deleted_at','created_at','updated_at'],
     lancamentos_itens: ['id','empresa_id','lancamento_id','produto','quantidade','unidade','valor_unitario','subtotal','created_at','updated_at']
   };
@@ -168,10 +168,20 @@
     categoriaCatalogo:'categoria_catalogo', arpVinculada:'arp_vinculada',
     saldoTotal:'saldo_total', saldoDisponivel:'saldo_disponivel', contribuinteIcms:'contribuinte_icms',
     // EPIC-20 Story 20.9.1 — conta-corrente
-    clienteId:'cliente_id', lancamentoId:'lancamento_id', valorUnitario:'valor_unitario', contaCorrenteAtiva:'conta_corrente_ativa'
+    clienteId:'cliente_id', lancamentoId:'lancamento_id', valorUnitario:'valor_unitario', contaCorrenteAtiva:'conta_corrente_ativa',
+    // ADR-004 — Central de Produtos (tabela produtos como fonte unica)
+    custoBase:'custo_base', precoReferencia:'preco_referencia', margemAlvo:'margem_alvo',
+    produtoCritico:'produto_critico', unidadeBase:'unidade_base', dadosExtras:'dados_extras'
+    // NOTA: embalagemDescricao e criadoEm NAO sao colunas — vao p/ dados_extras no wrap (ver mapToTable).
   };
   var SNAKE_TO_CAMEL = {};
   for (var _k in CAMEL_TO_SNAKE) SNAKE_TO_CAMEL[CAMEL_TO_SNAKE[_k]] = _k;
+
+  // ADR-004 — campos ricos da Central de Produtos que NAO tem coluna propria.
+  // Empacotados na cauda JSONB produtos.dados_extras (migration 041). Isolado p/ a
+  // tabela produtos no wrap/unwrap abaixo (mantem o product-store agnostico de schema).
+  var PRODUTO_RICH_FIELDS = ['custosFornecedor','concorrentes','propostas','historicoResultados',
+    'precoReferenciaHistorico','taxaConversao','embalagem_descricao','criadoEm'];
 
   function mapToTable(table, item) {
     var cols = TABLE_COLS[table];
@@ -179,7 +189,18 @@
     var row = {};
     for (var key in item) {
       var mapped = CAMEL_TO_SNAKE[key] || key;
+      // ADR-004: nao deixar campos ricos virarem coluna inexistente (serao re-empacotados abaixo)
+      if (table === 'produtos' && PRODUTO_RICH_FIELDS.indexOf(key) >= 0) continue;
       if (cols.indexOf(mapped) >= 0) row[mapped] = item[key];
+    }
+    // ADR-004 §3.3 — wrap dos campos ricos em dados_extras (so para produtos)
+    if (table === 'produtos') {
+      var extras = (item.dados_extras || item.dadosExtras) ? Object.assign({}, item.dados_extras || item.dadosExtras) : {};
+      PRODUTO_RICH_FIELDS.forEach(function (k) {
+        if (item[k] !== undefined) extras[k] = item[k];
+      });
+      if (item.embalagemDescricao !== undefined) extras.embalagem_descricao = item.embalagemDescricao;
+      row.dados_extras = extras;
     }
     return row;
   }
@@ -189,6 +210,16 @@
     var obj = {};
     for (var key in item) {
       obj[SNAKE_TO_CAMEL[key] || key] = item[key];
+    }
+    // ADR-004 §3.4 — unwrap: espalhar campos ricos de dados_extras de volta ao nivel raiz
+    // (o PRODUTO_DEFAULTS espera embalagem_descricao/criadoEm/etc. na raiz). Idempotente.
+    if (obj.dados_extras && typeof obj.dados_extras === 'object') {
+      var ex = obj.dados_extras;
+      ['custosFornecedor','concorrentes','propostas','historicoResultados',
+       'precoReferenciaHistorico','taxaConversao','embalagem_descricao','criadoEm']
+        .forEach(function (k) { if (obj[k] === undefined && ex[k] !== undefined) obj[k] = ex[k]; });
+      delete obj.dados_extras;
+      delete obj.dadosExtras;
     }
     return obj;
   }
@@ -280,7 +311,8 @@
     contas_receber: 'gdp.contas-receber.deleted.v1',
     contas_pagar: 'gdp.contas-pagar.deleted.v1',
     entregas: 'gdp.entregas.deleted.v1',
-    conciliacao: 'gdp.conciliacao.deleted.v1'
+    conciliacao: 'gdp.conciliacao.deleted.v1',
+    produtos: 'gdp.produtos.deleted.v1' // ADR-004: tombstone p/ exclusao nao ressuscitar (list/merge/realtime)
   };
 
   function _trackDeletedId(entityName, id) {

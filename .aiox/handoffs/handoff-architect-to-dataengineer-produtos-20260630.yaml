@@ -1,0 +1,28 @@
+handoff:
+  from_agent: architect
+  to_agent: data-engineer
+  created_at: "2026-06-30"
+  adr: docs/architecture/ADR-004-central-produtos-escrita-tabela-supabase.md
+  story_context:
+    feature: "Central de Produtos — escrita na tabela Supabase (fechar SSoT do ADR-002)"
+    branch: master
+    status: "ADR-004 aceito; aguardando schema/migration do data-engineer"
+  decisao_arquitetural:
+    - "Tabela Supabase 'produtos' = fonte unica; localStorage gdp.produtos.v1 = cache espelho"
+    - "Infra de transporte JA EXISTE (createEntityApi save/remove, RLS backend, echo-suppress, retry, tombstone) — so ligar"
+  tarefas_data_engineer:
+    D4_schema:
+      - "Migration ADITIVA idempotente: ALTER TABLE produtos ADD COLUMN IF NOT EXISTS dados_extras jsonb"
+      - "Confirmar colunas atuais batem com TABLE_COLS.produtos (gdp-api.js:154): id,empresa_id,descricao,sku,ncm,unidade,marca,grupo,produto_critico,unidade_base,embalagens,custo_base,preco_referencia,margem_alvo,fonte,created_at,updated_at"
+      - "Campos ricos a guardar em dados_extras (perdidos hoje por mapToTable): custosFornecedor,concorrentes,propostas,historicoResultados,precoReferenciaHistorico,taxaConversao,embalagem_descricao,criadoEm"
+      - "Entregar mapeamento camel->snake EXATO p/ o @dev: custoBase->custo_base, precoReferencia->preco_referencia, margemAlvo->margem_alvo, produtoCritico->produto_critico, unidadeBase->unidade_base, embalagemDescricao->embalagem_descricao"
+      - "Decidir onde fazer wrap/unwrap de dados_extras: em mapToTable/mapFromTable (so p/ produtos) OU no product-store antes de chamar gdpApi"
+      - "Validar RLS: escrita ja passa por /api/gdp-data (service_role); anon read-only (migration 034). Confirmar produtos coberto."
+    contexto:
+      - "mapToTable (gdp-api.js:176) DESCARTA campos fora de TABLE_COLS — por isso o dados_extras"
+      - "_DELETE_KEYS (gdp-api.js:276) NAO tem produtos — @dev vai adicionar 'produtos':'gdp.produtos.deleted.v1' (tombstone)"
+  nao_fazer:
+    - "NAO colunizar cada campo rico (preferir dados_extras jsonb, consistente com dados_extras/metadata do resto do schema)"
+    - "NAO fazer migration destrutiva (sem DROP/RENAME que perca dado)"
+  next_action: "@data-engineer entregar migration + contrato de mapeamento; depois @dev implementa escrita UI (D1,D2,D3,D5,D6) e backfill"
+  consumed: true

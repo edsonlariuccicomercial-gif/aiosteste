@@ -56,6 +56,11 @@ function sanitizeBancoProduto(item, idx) {
   // que vem do Supabase a CADA boot. Agora PRESERVA o SKU existente quando ele é válido (não-vazio e
   // não-legado-externo, ex.: LICT-*). Só gera SKU automático quando NÃO há SKU. Isso protege os
   // vínculos dos contratos (skuVinculado===produto.sku) e mantém a fonte de verdade (tabela produtos).
+  // ADR-004 D-6 (SKU estavel): NUNCA regenerar um SKU valido — o vinculo do contrato e
+  // skuVinculado===produto.sku; regenerar quebra pedido/NF. isLegacyExternalSku so marca
+  // numerico puro (8+ digitos), TINY* ou ERP* — LICT-*/BANK-* sao preservados. Gera SKU
+  // automatico APENAS quando nao ha SKU (ou e legado externo), e isso persiste na tabela
+  // (gdpApi.produtos.save), nao se repete a cada boot.
   const skuAtual = String(cleaned.sku || "").trim();
   if (!skuAtual || isLegacyExternalSku(skuAtual)) {
     cleaned.sku = normalizeInternalSku("BANK", cleaned, idx);
@@ -110,18 +115,30 @@ function saveBancoProdutos() {
   bancoProdutos.itens = (bancoProdutos.itens || []).map(sanitizeBancoProduto);
   bancoProdutos.updatedAt = new Date().toISOString();
   try {
-    // ADR-002 Fase 3/4: grava na SSoT via ProductStore quando disponível (mesma chave
-    // gdp.produtos.v1). Mantém o setItem direto como fallback se o store não carregou.
-    localStorage.setItem(PRODUTOS_KEY, JSON.stringify(bancoProdutos));
-    if (typeof window !== 'undefined' && window.ProductStore && window.ProductStore.reload) {
-      try { window.ProductStore.reload(); } catch (_) {}
+    // ADR-004 D-1/D-5: a verdade e a TABELA Supabase (gdp.produtos.v1 = cache espelho).
+    // Quando o ProductStore esta disponivel ele e o DONO unico: cada item passa por
+    // ProductStore.save -> gdpApi.produtos.save (tabela) + localStorage + markUserEdit.
+    // Mantem o setItem direto como FALLBACK so quando o store nao carregou.
+    if (typeof window !== 'undefined' && window.ProductStore && window.ProductStore.save) {
+      (bancoProdutos.itens || []).forEach(function (p) {
+        try { window.ProductStore.save(p); } catch (e) { if (typeof gdpWarn === 'function') gdpWarn('[Central] ProductStore.save falhou', e && e.message); }
+      });
+      // re-sincroniza o cache local da Central a partir da SSoT (dono unico em RAM)
+      try { bancoProdutos = { updatedAt: new Date().toISOString(), itens: window.ProductStore.list() }; } catch (_) {}
+    } else {
+      localStorage.setItem(PRODUTOS_KEY, JSON.stringify(bancoProdutos));
+      // ADR-004 D-2: marcar edicao do usuario (fallback sem ProductStore) p/ o merge do boot respeitar
+      if (typeof window !== 'undefined' && typeof window.gdpMarkUserEdit === 'function') {
+        try { window.gdpMarkUserEdit(PRODUTOS_KEY); } catch (_) {}
+      }
     }
   } catch (e) {
     console.error("[GDP] Falha ao salvar Banco de Produtos:", e);
     showToast("Erro ao salvar produto — localStorage cheio?", 4000);
     return;
   }
-  if (typeof schedulCloudSync === 'function') schedulCloudSync();
+  // NOTA ADR-004: NAO chamar schedulCloudSync para produtos — syncToCloud pula
+  // gdp.produtos.v1 (_SUPABASE_TABLE_KEYS). A persistencia ja foi feita acima via gdpApi.produtos.
 }
 
 function renderBancoProdutos() {
@@ -207,8 +224,15 @@ function excluirProdutosSelecionados() {
   if (sel.length === 0) { showToast("Selecione produtos para excluir.", 3000); return; }
   if (!confirm(`Excluir ${sel.length} produto(s) selecionado(s)?`)) return;
   loadBancoProdutos();
-  bancoProdutos.itens = bancoProdutos.itens.filter(p => !sel.includes(p.id));
-  saveBancoProdutos();
+  // ADR-004 D-1/D-3: exclusao passa pelo ProductStore.remove -> gdpApi.produtos.remove
+  // (apaga na tabela + tombstone gdp.produtos.deleted.v1 p/ nao ressuscitar no merge).
+  if (typeof window !== 'undefined' && window.ProductStore && window.ProductStore.remove) {
+    sel.forEach(function (id) { try { window.ProductStore.remove(id); } catch (_) {} });
+    try { bancoProdutos = { updatedAt: new Date().toISOString(), itens: window.ProductStore.list() }; } catch (_) {}
+  } else {
+    bancoProdutos.itens = bancoProdutos.itens.filter(p => !sel.includes(p.id));
+    saveBancoProdutos();
+  }
   renderBancoProdutos();
   showToast(`${sel.length} produto(s) excluído(s).`);
 }
@@ -411,9 +435,14 @@ function excluirProduto(id) {
   const p = bancoProdutos.itens.find(x => x.id === id);
   if (!p) return;
   if (!confirm(`Excluir produto "${p.descricao}"?`)) return;
-  bancoProdutos.itens = bancoProdutos.itens.filter(x => x.id !== id);
-  saveBancoProdutos();
-  if (typeof schedulCloudSync === 'function') schedulCloudSync();
+  // ADR-004 D-1/D-3: exclusao via ProductStore.remove -> gdpApi.produtos.remove (tabela + tombstone)
+  if (typeof window !== 'undefined' && window.ProductStore && window.ProductStore.remove) {
+    try { window.ProductStore.remove(id); } catch (_) {}
+    try { bancoProdutos = { updatedAt: new Date().toISOString(), itens: window.ProductStore.list() }; } catch (_) {}
+  } else {
+    bancoProdutos.itens = bancoProdutos.itens.filter(x => x.id !== id);
+    saveBancoProdutos();
+  }
   renderBancoProdutos();
   showToast("Produto excluido.");
 }
@@ -567,8 +596,16 @@ function limparTodoBancoProdutos() {
   if (total === 0) { showToast('Banco ja esta vazio.'); return; }
   if (!confirm(`Tem certeza que deseja excluir TODOS os ${total} produtos do banco?`)) return;
   if (!confirm('CONFIRMACAO FINAL: Esta acao nao pode ser desfeita. Continuar?')) return;
-  bancoProdutos = { updatedAt: new Date().toISOString(), itens: [] };
-  saveBancoProdutos();
+  // ADR-004 D-1/D-3: cada produto precisa ser removido da TABELA + tombstone, senao o
+  // boot Supabase-First traz todos de volta. Zerar so o localStorage NAO basta.
+  if (typeof window !== 'undefined' && window.ProductStore && window.ProductStore.remove) {
+    const _ids = (bancoProdutos.itens || []).map(p => p.id).filter(Boolean);
+    _ids.forEach(function (id) { try { window.ProductStore.remove(id); } catch (_) {} });
+    try { bancoProdutos = { updatedAt: new Date().toISOString(), itens: window.ProductStore.list() }; } catch (_) { bancoProdutos = { updatedAt: new Date().toISOString(), itens: [] }; }
+  } else {
+    bancoProdutos = { updatedAt: new Date().toISOString(), itens: [] };
+    saveBancoProdutos();
+  }
   renderBancoProdutos();
   showToast('Banco de produtos limpo com sucesso!');
 }

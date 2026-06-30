@@ -59,7 +59,13 @@
       warn('[ProductStore] falha ao salvar SSoT', e.message);
       return false;
     }
-    if (typeof schedulCloudSync === 'function') schedulCloudSync();
+    // ADR-004 D-2: marcar edicao do usuario para o merge do boot Supabase-First respeitar
+    // a alteracao recente (preferLocal na janela de 5s) e nao deixar o servidor vencer.
+    if (typeof window !== 'undefined' && typeof window.gdpMarkUserEdit === 'function') {
+      try { window.gdpMarkUserEdit(SSOT_KEY); } catch (_) {}
+    }
+    // NOTA ADR-004: a verdade vai para a TABELA via gdpApi.produtos (save/remove abaixo),
+    // NAO via schedulCloudSync (syncToCloud pula gdp.produtos.v1 — _SUPABASE_TABLE_KEYS).
     return true;
   }
 
@@ -99,6 +105,9 @@
       items.push(canon);
     }
     persist();
+    // ADR-004 D-1: persistir na TABELA Supabase (fonte unica). Idempotente (upsert por id).
+    // gdpApi.produtos.save tambem espelha no localStorage e registra echo-suppression.
+    _pushToTable(canon);
     return canon;
   }
 
@@ -106,8 +115,29 @@
     var items = load();
     var before = items.length;
     _itens = items.filter(function (p) { return p.id !== id; });
-    if (_itens.length !== before) persist();
+    if (_itens.length !== before) {
+      persist();
+      // ADR-004 D-1/D-3: remover da tabela + tombstone (gdpApi.produtos.remove trata _DELETE_KEYS)
+      _removeFromTable(id);
+    }
     return before - _itens.length;
+  }
+
+  // ADR-004 — ponte para a tabela Supabase. Fail-soft: se gdpApi indisponivel, segue
+  // local (a SSoT em localStorage ja foi gravada por persist()).
+  function _pushToTable(produto) {
+    try {
+      if (typeof window !== 'undefined' && window.gdpApi && window.gdpApi.produtos) {
+        window.gdpApi.produtos.save(produto).catch(function (e) { warn('[ProductStore] gdpApi.save falhou', e && e.message); });
+      }
+    } catch (e) { warn('[ProductStore] _pushToTable erro', e && e.message); }
+  }
+  function _removeFromTable(id) {
+    try {
+      if (typeof window !== 'undefined' && window.gdpApi && window.gdpApi.produtos) {
+        window.gdpApi.produtos.remove(id).catch(function (e) { warn('[ProductStore] gdpApi.remove falhou', e && e.message); });
+      }
+    } catch (e) { warn('[ProductStore] _removeFromTable erro', e && e.message); }
   }
 
   // searchCatalog: produtos para o matcher N3 (forma compatível com centralProdutos)

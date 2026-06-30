@@ -1,0 +1,41 @@
+handoff:
+  from_agent: analyst
+  to_agent: architect
+  created_at: "2026-06-30"
+  story_context:
+    feature: "Central de Produtos — fonte de verdade quebrada"
+    branch: master
+    status: "causa-raiz CONFIRMADA, aguardando decisao arquitetural"
+  problema_relatado:
+    - "Cadastra produto novo e ele desaparece"
+    - "Exclui produto e ele reaparece"
+    - "Vinculos item-do-contrato <-> Central nao persistem"
+    - "Quebra confiabilidade de pedidos e NF (skuVinculado===produto.sku)"
+  causa_raiz:
+    titulo: "UI grava SO no localStorage; fonte de verdade do boot e a tabela Supabase 'produtos', que a UI NUNCA escreve"
+    evidencias:
+      - "gdpApi.produtos existe (gdp-api.js:678, table 'produtos') mas ZERO chamadas a .save()/.remove() em todo o codigo"
+      - "saveBancoProdutos() usa localStorage.setItem CRU (gdp-banco-produtos.js:115); chama schedulCloudSync mas syncToCloud PULA gdp.produtos.v1 (esta em _SUPABASE_TABLE_KEYS, gdp-core.js:601)"
+      - "Boot Supabase-First hidrata gdp.produtos.v1 da tabela 'produtos' a cada boot (gdp-init.js:3216)"
+      - "Merge so preserva local se msSinceLocalSave<5000 (gdp-init.js:3243-3246), MAS saveBancoProdutos nunca registra _lastLocalSave (nao passa por saveWrappedArray) -> preferLocal=false -> servidor sempre vence"
+      - "Dois caches RAM do mesmo gdp.produtos.v1: bancoProdutos (gdp-banco-produtos.js) e _itens (product-store.js) — nao sincronizam"
+      - "Realtime da tabela produtos (gdp-realtime.js:29) reidrata via reloadFromLocalSilent — amplia o piscar"
+    resultado: "Produto cadastrado some (nunca foi a tabela); excluido volta (ainda esta na tabela); SKU regenerado quebra vinculo do contrato"
+  correcao_de_rota:
+    - "handoff-FINAL-limpeza-BANK-produtos-20260625 tratou SINTOMA (SKU BANK vs LICT), NAO a causa raiz (escrita na tabela nunca foi implementada). Por isso regrediu."
+  arquivos_chave:
+    - "squads/caixa-escolar/dashboard/js/gdp-banco-produtos.js (salvarProduto, excluirProduto, saveBancoProdutos:109-125)"
+    - "squads/caixa-escolar/dashboard/product-store.js (save/remove/persist — segundo cache RAM)"
+    - "squads/caixa-escolar/dashboard/gdp-api.js (createEntityApi('produtos'):678; colunas:154)"
+    - "squads/caixa-escolar/dashboard/js/gdp-init.js (_mergeTable + Supabase-First:3196-3360)"
+    - "squads/caixa-escolar/dashboard/js/gdp-core.js (_SUPABASE_TABLE_KEYS:161; syncToCloud:591; saveWrappedArray:1373)"
+    - "squads/caixa-escolar/dashboard/js/gdp-realtime.js (produtos table:29)"
+  decisao_necessaria_architect:
+    - "Tabela 'produtos' Supabase como fonte unica: confirmar esquema (colunas em gdp-api.js:154 batem com PRODUTO_DEFAULTS?)"
+    - "Unificar os DOIS caches RAM (bancoProdutos vs ProductStore._itens) — um dono so"
+    - "salvarProduto/excluirProduto/criarProdutoRapido devem chamar gdpApi.produtos.save/.remove (como contratos/pedidos)"
+    - "Registrar gdpMarkUserEdit('gdp.produtos.v1') no save para o merge do boot respeitar (dirty window)"
+    - "Deletados: precisa de gdp.produtos.deleted.v1 (tombstone) para a exclusao nao reviver no merge"
+    - "Vinculos contrato: garantir SKU estavel (nao regenerar) — ja parcialmente tratado em sanitizeBancoProduto:54-62"
+  next_action: "@architect avaliar arquitetura de fonte unica + ADR; depois @data-engineer (tabela/RLS/tombstone), @dev (escrita UI+gdpApi), @qa (validar na tela logado), @devops (deploy --force)"
+  consumed: true
