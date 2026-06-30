@@ -1,0 +1,48 @@
+handoff:
+  from_agent: dev
+  to_agent: qa
+  last_command: develop
+  data: "2026-06-30"
+  titulo: "Blindagem imutavel-para-baixo implementada (BL-1..BL-4) — validar perda de dados + forma PIX"
+  commit: "bb0e7ddc"
+  baseado_em: ".aiox/handoffs/handoff-architect-BLINDAGEM-to-dev-20260630.yaml"
+
+  arquivos:
+    - "gdp-notas-fiscais.js: PRIMITIVA 1 (_nfProvaDuravel), PRIMITIVA 3 (_formaCobrancaSoberana), BL-1, BL-3"
+    - "gdp-core.js: BL-2 (_ultraLightNf preserva prova+forma+relogio)"
+    - "gdp-realtime.js: BL-4 (_temProvaDuravelRT + guards INSERT/DELETE/forceReconcile)"
+    - "gdp-contratos.html: bump realtime18, core63, nf63"
+
+  o_que_validar (Playwright logado, usuario angela; APOS deploy do @devops):
+    - id: V1
+      titulo: "Cobranca PIX de NF autorizada NAO some (BL-1)"
+      passos: "NF 1637 (1997,90, PIX). Recarregar varias vezes. Conferir que a conta a receber permanece e NUNCA vira aguardando_nf, mesmo no flicker de boot."
+      esperado: "Conta presente sempre. reconciliarCobrancasOrfas usa _nfProvaDuravel."
+    - id: V2
+      titulo: "Forma PIX respeitada (BL-3)"
+      passos: "Emitir NF de um pedido com forma PIX. Conferir nf.cobranca.forma==='pix' e conta.forma==='pix'. Confirmar que NAO gera boleto. Testar tambem pedido com pagamento vazio: deve herdar config (destacarPix), nao forcar boleto cego."
+      esperado: "PIX escolhido nunca vira boleto."
+    - id: V3
+      titulo: "ultraLight preserva prova+forma+relogio (BL-2)"
+      passos: "Simular quota (dificil na tela) OU revisar que _ultraLightNf mantem chaveAcesso/protocolo/cobranca.forma/updated_at. Validacao estatica aceitavel."
+      esperado: "Nenhum campo de prova/forma/relogio perdido no fallback."
+    - id: V4
+      titulo: "Dado provado nao some por DELETE/reconcile (BL-4)"
+      passos: "Notas autorizadas (1635/1636) permanecem apos reload + realtime. Conferir que um DELETE sem deleted_at nao removeria nota provada (revisar guard)."
+      esperado: "Imutabilidade-para-baixo: provado so sai por cancelamento explicito."
+    - id: V5
+      titulo: "Nao quebrou o que funcionava"
+      passos: "Notas que ja estavam emitidas continuam emitidas; abas (Pendentes/Transmitidas/Emitidas) batem; cobrancas 1615/1609 (recuperadas hoje) seguem visiveis."
+      esperado: "Sem regressao."
+
+  validacoes_dev: "node --check OK nos 3 JS. Commit local (sem push). Gate de prova intacto."
+
+  observacao_risco:
+    - "BL-4 reconcile faz merge extra so p/ notas_fiscais/contas_receber (le readLocalItems + compara prova). Custo O(n) por reconcile — aceitavel (reconcile e raro, cooldown). Validar que nao atrasa o boot."
+    - "BL-3 _formaCobrancaSoberana cai na config (getFiscalConfig/getConfiguredDefaultBankAccount) quando sem forma — confirmar que essas funcoes existem no escopo de gdp-notas-fiscais (sao usadas em buildInvoiceFromOrder, entao sim)."
+
+  proximo_passo:
+    qa: "Rodar V1..V5 (a maioria so apos deploy). Veredito. Como o codigo nao esta em producao ainda, validacao estatica + plano de validacao pos-deploy."
+    devops: "Deploy --force + push. Re-validar V1/V2 na tela."
+
+  consumed: false

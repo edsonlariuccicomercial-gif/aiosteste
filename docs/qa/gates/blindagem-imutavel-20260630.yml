@@ -1,9 +1,21 @@
 gate: blindagem-imutavel-perda-dados
 data: "2026-06-30"
-commit: "bb0e7ddc"
+commit: "bb0e7ddc -> 1c4a2361 (fix QA-B3)"
 revisor: "@qa (Quinn)"
 tipo: "revisao estatica cetica (codigo nao deployado ainda)"
-decisao: CONCERNS
+decisao: PASS
+
+reverificacao_qa_b3:
+  commit_fix: "1c4a2361"
+  veredito: RESOLVIDO
+  analise: |
+    O @dev resolveu o QA-B3 com a abordagem (a) preferida: gdpApi.sbDelete (choke point UNICO de
+    hard-delete) registra window._gdpDeletesIntencionais[id] ANTES do DELETE REST. O guard de DELETE do
+    realtime so bloqueia se: provado E sem soft-delete E sem intencao nossa (3 criterios). Ordem correta
+    (intencao registrada antes do eco voltar). ALEM DISSO confirmei: canDeleteNotaFiscal (linha 273)
+    retorna false p/ NF real autorizada -> o cenario pior (excluir nota provada) ja era impossivel; o fix
+    e blindagem defensiva extra p/ caminhos hard-delete (regerar NF). Sem efeito colateral. node --check OK.
+  intencao_expira: "60s no guard (limpa entrada velha). Evita vazamento de memoria e falso-positivo tardio."
 
 resumo: |
   A blindagem BL-1, BL-2, BL-3 esta CORRETA e resolve as causas-raiz (cobranca PIX some, ultraLight
@@ -65,7 +77,11 @@ aprovados:
 sintaxe: "node --check OK nos 3 JS (confirmado pelo @dev)."
 
 decisao_final: |
-  CONCERNS. Retornar ao @dev SO para o QA-B3 (BL-4 DELETE). Os demais fixes estao aprovados. Apos o
-  @dev confirmar o mecanismo de exclusao de NF (soft vs hard) e ajustar o guard de DELETE para nao
-  bloquear exclusao legitima, segue para @devops deploy. NAO deployar com o QA-B3 em aberto — trocaria
-  um bug por outro (nota nao-excluivel).
+  PASS (apos fix 1c4a2361). Todos os achados resolvidos: BL-1/2/3 aprovados na 1a rodada; QA-B3
+  (BL-4 DELETE) resolvido na 2a rodada com registro de intencao. Revisao estatica completa, sem issues
+  de seguranca (e logica de merge — sem credenciais/SQL/XSS). LIBERADO PARA @devops DEPLOY.
+  VALIDACAO FINAL OBRIGATORIA pos-deploy (na tela, Playwright logado):
+    - V1: cobranca PIX da NF 1637 nao some no flicker/reload.
+    - V2: emitir NF PIX nasce PIX (nao boleto); pedido sem forma herda config.
+    - V4: notas autorizadas (1635/1636) nao regridem; exclusao legitima de NF nao-autorizada funciona.
+    - V5: sem regressao nas abas e nas cobrancas recuperadas (1615/1609).

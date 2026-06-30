@@ -1,0 +1,148 @@
+handoff:
+  from_agent: architect
+  to_agent: dev
+  last_command: create-plan
+  data: "2026-06-30"
+  titulo: "Plano de correcao DEFINITIVA — perda de prova de NF-e (3 estados fiscais + guard de prova + NSU no 656)"
+  baseado_em: ".aiox/handoffs/handoff-analyst-CAUSARAIZ-nf-3bugs-20260630.yaml"
+
+  diagnostico_refinado_pelo_architect: |
+    Li o codigo real. A 'cura' de 26/06 JA implementou _podeSobrescreverRegistro (gdp-realtime.js:225-233)
+    e a aplica nos DOIS caminhos (dirty window linha 297 + fora dela linha 325). O relatorio do analyst
+    (via Explore) estava parcialmente desatualizado nesse ponto. A raiz REAL da regressao e mais sutil:
+    a guarda so bloqueia quando o LOCAL ja e terminal (_nfEhTerminal). Existem janelas em que o local em
+    RAM ainda NAO e terminal (prova gravada em etapas, ou ja rebaixado por eco anterior) e cai no
+    if (!lTs || !rTs || rTs > lTs) da linha 330 — com lTs vazio, sobrescreve cego.
+    Decisao arquitetural: a PROVA SEFAZ (chave 44 + protocolo) e a unica fonte de verdade do status fiscal.
+    Centralizar 3 decisoes hoje frageis (substring de status, timestamp ausente) em temProvaAutorizacao().
+    Modelo de 3 estados fiscais: PENDENTE (sem envio) -> TRANSMITIDA (enviada, sem prova ainda) -> EMITIDA (prova real).
+
+  princípio_inegociavel:
+    - "NUNCA marcar emitida/autorizada sem prova real (chave 44 + protocolo). Mantido."
+    - "Estado TRANSMITIDA e azul/neutro — nem emitida nem rejeitada. So vira EMITIDA com prova."
+
+  fixes:
+    - id: FIX-1
+      prioridade: P0
+      titulo: "Gravar ultNSU no cStat 656 (destrava autocura)"
+      arquivo: "painel-caixa-escolar/squads/caixa-escolar/dashboard/js/gdp-notas-fiscais.js"
+      linhas: "983-992"
+      problema: |
+        No ramo cStat 656/108/109 o 'break' (linha 986) ocorre ANTES de gravar o ultNSU (so gravado
+        na linha 991, depois do break). A SEFAZ devolve o ultNSU correto na propria rejeicao 656
+        (comprovado ao vivo: devolveu 000000000001775). Com o break antes, gdp.nfe.ultNSU.v1 fica
+        preso em '0' -> toda chamada parte do 0 -> SEFAZ rejeita como varredura -> loop 656 perpetuo.
+      correcao: |
+        ANTES do break do 656, persistir o ponteiro que a SEFAZ devolveu:
+          if (cStat === "656" || cStat === "108" || cStat === "109") {
+            if (parsed.ultNSU) { ultNSU = parsed.ultNSU; try { localStorage.setItem(_DFE_ULTNSU_KEY, ultNSU); } catch(_){} }
+            gdpWarn("[DFe] SEFAZ cStat " + cStat + " ... — abortando, respeita throttle.");
+            break;
+          }
+        Tambem: tornar falha de rede visivel — hoje await resp.json().catch(()=>({})) engole erro.
+        Logar gdpWarn quando resp.ok === false ou parsed vazio (sem mudar fluxo).
+      teste: "Apos boot, com NSU preso, a proxima DFe parte do NSU devolvido pela SEFAZ (nao do 0) e nao repete 656 indefinidamente."
+
+    - id: FIX-2
+      prioridade: P0
+      titulo: "Label fiscal por prova real + 3o estado Transmitida"
+      arquivo: "painel-caixa-escolar/squads/caixa-escolar/dashboard/js/gdp-pedidos.js"
+      funcao: "getNotaFiscalOperationalFiscal"
+      linhas: "1679-1698"
+      problema: "Linha 1690 usa sefazStatus.includes('autoriz') -> pega 'autorizada_backend' e qualquer rascunho com substring. Nota nao-transmitida aparece 'liberada pela SEFAZ' (badge verde)."
+      correcao: |
+        Reordenar e basear na prova. Pseudocodigo (expor temProvaAutorizacao no escopo — ver NOTA-IMPORT):
+          if (!isNotaFiscalReal(nf)) return Controle manual;
+          if (nf.status === "cancelada") return Cancelada;
+          var prova = temProvaAutorizacao(nf);
+          if (prova) return { label:"Fiscal ok", detail:"Nota liberada pela SEFAZ", badgeClass:"badge-green" };
+          // sem prova: rejeitada e falha real
+          if (nf.status === "rejeitada" || sefazStatus.includes("falha") || sefazStatus.includes("reje"))
+              return { label:"Falha fiscal", detail:"Revise a transmissao da nota", badgeClass:"badge-red" };
+          // enviada, aguardando retorno assincrono da SEFAZ (NAO e emitida, NAO e falha)
+          if (nf.status === "transmitida" || sefazStatus.includes("transmit") || sefazStatus.includes("lote") || (nf.sefaz && nf.sefaz.nRec))
+              return { label:"Transmitida", detail:"Enviada para SEFAZ — aguardando autorizacao", badgeClass:"badge-blue" };
+          return { label:"Pendente fiscal", detail:"Aguardando transmissao ou autorizacao", badgeClass:"badge-yellow" };
+        REGRA: 'autoriz' como substring NUNCA mais liga o verde. So temProvaAutorizacao(nf)===true liga.
+
+    - id: FIX-3
+      prioridade: P0
+      titulo: "Classificacao Emitida/Pendente/Transmitida por prova real"
+      arquivo: "painel-caixa-escolar/squads/caixa-escolar/dashboard/js/gdp-pedidos.js"
+      funcao: "normalizeNotaFiscalStatus (recebe status string) + getNotaFiscalStatusMeta (recebe nf)"
+      linhas: "1742-1757"
+      problema: "Linha 1748 classifica 'autorizada' como emitida sem checar prova. E recebe so a string status, nao a nf — nao consegue ver chave/protocolo."
+      correcao: |
+        Opcao A (preferida): criar normalizeNotaFiscalStatusNf(nf) que recebe a NF inteira:
+          if (cancelada) -> cancelada; if (inutilizada) -> inutilizada;
+          if (temProvaAutorizacao(nf)) -> 'emitida';
+          if (status === 'transmitida' || sefazStatus transmit/lote || nf.sefaz.nRec) -> 'transmitida' (nova aba/contagem) ;
+          else -> 'pendente'.
+        Adicionar a aba/contador 'Transmitida' em NOTA_FISCAL_STATUS_TABS (azul), entre Pendentes e Emitidas.
+        Manter normalizeNotaFiscalStatus(string) como wrapper compativel (sem prova disponivel -> heuristica antiga) para nao quebrar chamadas legadas, mas migrar a tela para a versao -Nf.
+      nota: "Se preferir nao criar nova aba agora, 'transmitida' pode contar junto de 'pendente' visualmente mas com badge azul na linha (decisao do usuario foi: criar faixa Transmitida separada -> implementar a aba)."
+
+    - id: FIX-4
+      prioridade: P0
+      titulo: "Realtime: prova local sempre vence eco sem prova (independe de timestamp)"
+      arquivo: "painel-caixa-escolar/squads/caixa-escolar/dashboard/js/gdp-realtime.js"
+      linhas: "300-334 (Camada B), funcao handleEntityChange"
+      problema: |
+        _podeSobrescreverRegistro (Camada A) so bloqueia quando o LOCAL ja e terminal. Quando o local em
+        RAM nao esta terminal por uma janela, cai na Camada B linha 330: if (!lTs || !rTs || rTs > lTs)
+        e o '!lTs' (updated_at ausente) libera sobrescrita cega — apagando chave/protocolo de uma nota
+        que LOCALMENTE ja tinha prova mas cujo _nfEhTerminal nao pegou (ex.: prova em campo raiz vs sefaz).
+      correcao: |
+        1) Reforcar _nfTemProva para olhar TODOS os locais de chave/protocolo (raiz E sefaz) — ja faz, manter.
+        2) Endurecer a Camada B: NUNCA sobrescrever quando o LOCAL tem prova e a ENTRANTE nao tem,
+           mesmo fora da checagem de terminal. Trocar o bloco da linha 325-334 por:
+             var localTemProva = (table === 'notas_fiscais') ? _nfTemProva(items[j]) : (table==='contas_receber'? _contaTemProva(items[j]) : false);
+             var entranteTemProva = (table === 'notas_fiscais') ? _nfTemProva(record) : (table==='contas_receber'? _contaTemProva(record) : false);
+             if (localTemProva && !entranteTemProva) {
+               // prova duravel local vence eco sem prova — IGNORA, independe de timestamp
+             } else {
+               var rTs = _tsRobusto(record), lTs = _tsRobusto(items[j]);
+               // so sobrescreve quando AMBOS timestamps existem e remoto e estritamente mais novo;
+               // se lTs vazio, NAO sobrescrever cego (preserva local) a menos que entrante tenha prova >= local
+               if (rTs && lTs && rTs > lTs) { items[j] = record; changed = true; }
+               else if (!lTs && entranteTemProva && !localTemProva) { items[j] = record; changed = true; }
+             }
+        3) Aplicar a MESMA logica no caminho da dirty window (linhas 297-307).
+      teste: "Emitir NF -> autorizar -> forcar eco antigo sem chave: a nota NAO regride. Reload + realtime: permanece emitida."
+
+    - id: FIX-5
+      prioridade: P1
+      titulo: "Carimbar updated_at em toda NF no boot (fecha a porta do lTs vazio na origem)"
+      arquivo: "gdp-init.js (pos-loadData) ou gdp-core saveNotasFiscais"
+      problema: "Notas antigas sem updated_at na raiz produzem lTs vazio — a causa proxima do FIX-4."
+      correcao: |
+        No boot, apos carregar notas: para cada nf sem updated_at/updatedAt, setar a partir de
+        audit.updatedAt || audit.authorizedAt || emitidaEm || now. Idempotente. Garante lTs sempre presente.
+      teste: "Apos boot, nenhuma nota tem _tsRobusto vazio."
+
+  nao_fazer:
+    - "NAO remover a funcao autorizarNotaFiscal sem confirmar que nao ha botao/fluxo que a use (o relatorio do analyst notou que ela gera chave ficticia — mas confirmar uso antes de mexer)."
+    - "NAO assumir ambiente homologacao: 195/198 notas tem protocolo real. Confirmar onde o backend le tpAmb (nfe-sefaz-client.js) antes de qualquer conclusao sobre ambiente."
+
+  incidente_ja_resolvido_pelo_analyst: |
+    O analyst ja restaurou (via Playwright, das DANFEs de producao) as 2 notas reais:
+    NF 1635 (1741,40, chave ...365284521, prot 131267678344325) e NF 1636 (2234,80, chave ...181185889,
+    prot 131267678366929) — ambas marcadas autorizada, persistidas no Supabase, cobrancas geradas.
+    Backup em localStorage 'gdp.nf-restauracao-backup.20260630'. NSU corrigido para 1775.
+    A 3a nota (1997,90) NAO foi transmitida — segue pendente corretamente (sem DANFE).
+
+  versionamento:
+    - "Bumpar ?v=N no HTML para gdp-pedidos.js, gdp-realtime.js, gdp-notas-fiscais.js, gdp-init.js."
+    - "Orientar Ctrl+Shift+R."
+
+  proximo_passo:
+    dev: "Implementar FIX-1..5; manter gate de prova; rodar coderabbit; commit (NAO push)."
+    qa: "Validar na tela (Playwright logado): (a) emitir NF nasce emitida sem piscar; (b) nota transmitida mostra badge azul; (c) rascunho NUNCA mostra 'liberada SEFAZ'; (d) cobranca permanece; (e) reload nao regride."
+    devops: "Deploy 'npx vercel --prod --force'."
+
+  NOTA-IMPORT: |
+    temProvaAutorizacao esta em gdp-notas-fiscais.js. Confirmar se esta exposta em window/escopo acessivel
+    a gdp-pedidos.js. Se NAO, @dev deve: ou expor window.temProvaAutorizacao, ou replicar a funcao inline
+    em gdp-pedidos.js (4 linhas: chave 44 + protocolo) — mesma assinatura, fonte unica de verdade.
+
+  consumed: false

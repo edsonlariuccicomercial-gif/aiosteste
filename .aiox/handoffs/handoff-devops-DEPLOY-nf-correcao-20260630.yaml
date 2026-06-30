@@ -1,0 +1,62 @@
+handoff:
+  from_agent: devops
+  to_agent: dev
+  last_command: push
+  data: "2026-06-30"
+  titulo: "Deploy NF-e correcao CONCLUIDO + follow-up: _nfListaLeve descarta updated_at (DATA-FIX-B ineficaz)"
+  commit_deployado: "8dbaa26c"
+
+  deploy_executado:
+    - "Migration 042 aplicada no Supabase producao (Licit-AIX / mvvsjaudhbglxttxaeop). Trigger trg_notas_fiscais_updated_at criado. NOTICE confirmou coluna ja existia (idempotente)."
+    - "Frontend: npx vercel --prod --force (build do zero). Versoes servidas confirmadas: realtime17, nf62, pedidos33, init61."
+    - "Functions /api/* vivas: gdp-data 405, gdp-integrations 200, bank-charge 405 (nenhuma dropada)."
+    - "git push origin master: 9262059b..8dbaa26c, 0 commits pendentes."
+
+  validado_em_producao_PASS:
+    - "Notas 1635 (1741,40) e 1636 (2234,80): autorizada, chave 44 + protocolo, NAO regrediram."
+    - "FIX-2 label: getNotaFiscalOperationalFiscal(1635) -> 'Fiscal ok / Nota liberada pela SEFAZ / verde' por PROVA REAL (temProvaAutorizacao). Funciona."
+    - "window.temProvaAutorizacao exposto e operante (prova1635=true)."
+    - "FIX-4 protecao por prova ATIVA — notas com prova nao sao rebaixadas por eco sem prova."
+
+  FOLLOW_UP_CRITICO_para_dev:
+    id: DEVOPS-1
+    severidade: HIGH
+    titulo: "_nfListaLeve (gdp-core.js:1993-2008) descarta updated_at -> DATA-FIX-B/C ineficazes"
+    evidencia_producao: |
+      Apos deploy, em producao: notasFiscais (RAM) 0/198 com updated_at; carimbei 198 manualmente +
+      saveNotasFiscais(); reli o localStorage -> AINDA 0/198. O campo nao persiste.
+    causa_raiz: |
+      saveNotasFiscais (gdp-core.js:2082-2083) usa _nfListaLeve(nf), NAO _stripNfHeavy. _nfListaLeve
+      (linhas 1993-2008) reconstroi o objeto com WHITELIST explicita de campos e NAO inclui
+      updated_at/updatedAt. Logo todo save no localStorage descarta o relogio. O carimbo de boot
+      (DATA-FIX-B) e apagado no primeiro save; o loadData seguinte le sem o campo -> RAM nasce sem
+      relogio de novo. Loop. A revisao estatica (@qa QA-5) olhou _stripNfHeavy, mas o save real usa
+      _nfListaLeve — ponto cego que so a validacao na tela pegou.
+    fix_proposto: |
+      Em _nfListaLeve (gdp-core.js:1994), adicionar ao objeto retornado:
+        updated_at: nf.updated_at || nf.updatedAt || nf.emitidaEm || (nf.audit && nf.audit.authorizedAt),
+        updatedAt: nf.updated_at || nf.updatedAt || nf.emitidaEm || (nf.audit && nf.audit.authorizedAt),
+      (1-2 linhas). Tambem conferir _ultraLightNf (faz Object.assign — provavelmente preserva, validar).
+      Bumpar gdp-core.js ?v no HTML. Redeploy.
+    impacto_atual: |
+      BAIXO-MEDIO no curto prazo: a protecao PRINCIPAL contra perda de dados e o FIX-4 por PROVA
+      (chave+protocolo), que NAO depende do updated_at e ESTA funcionando. O updated_at e a 2a linha
+      de defesa (desempate temporal entre dois registros AMBOS com prova, ou tabelas sem prova).
+      Enquanto o ralo do _nfListaLeve nao for tampado, o desempate por relogio das NFs fica degradado,
+      mas notas autorizadas nao regridem (prova as protege). Tampar fecha 100%.
+
+  veredito_deploy: |
+    DEPLOY BEM-SUCEDIDO e ESTAVEL. As 3 causas-raiz principais estao corrigidas e no ar:
+    (1) label por prova (nao mais 'pisca'), (2) merge por prova (nao regride), (3) autocura 656 (NSU
+    gravado). O DATA-FIX-B (relogio no localStorage) precisa do follow-up DEVOPS-1 (_nfListaLeve) para
+    eficacia total — mas NAO bloqueia, pois a protecao por prova ja cobre o cenario critico.
+
+  pendente_validacao_usuario:
+    - "Usuario: dar Ctrl+Shift+R no navegador real e confirmar que 1635/1636 estao em Emitidas e nao piscam."
+    - "Observar nas proximas emissoes se nota nasce emitida direto (sem cair em pendente) e se boleto permanece."
+
+  proximo_passo:
+    dev: "Aplicar fix DEVOPS-1 (_nfListaLeve preservar updated_at) + bump gdp-core.js. Devolver p/ @devops redeploy."
+    devops: "Apos fix: npx vercel --prod --force + push. Re-validar updated_at persiste (>0/198)."
+
+  consumed: false

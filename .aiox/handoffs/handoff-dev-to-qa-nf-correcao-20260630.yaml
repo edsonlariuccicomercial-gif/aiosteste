@@ -1,0 +1,64 @@
+handoff:
+  from_agent: dev
+  to_agent: qa
+  last_command: develop
+  data: "2026-06-30"
+  titulo: "Correcao NF-e implementada — validar regressao Emitida->Pendente, label, autocura 656, 3o estado"
+  commit: "8dbaa26c"
+  branch: master
+
+  arquivos_modificados:
+    - "painel-caixa-escolar/squads/caixa-escolar/dashboard/js/gdp-realtime.js (FIX-4)"
+    - "painel-caixa-escolar/squads/caixa-escolar/dashboard/js/gdp-pedidos.js (FIX-2, FIX-3)"
+    - "painel-caixa-escolar/squads/caixa-escolar/dashboard/js/gdp-notas-fiscais.js (FIX-1, expose temProva, DATA-FIX-C)"
+    - "painel-caixa-escolar/squads/caixa-escolar/dashboard/js/gdp-init.js (DATA-FIX-B + filtro rodape)"
+    - "painel-caixa-escolar/squads/caixa-escolar/dashboard/gdp-contratos.html (bump ?v: realtime17, nf62, pedidos33, init61)"
+    - "painel-caixa-escolar/supabase/migrations/042_notas_fiscais_updated_at_trigger.sql (DATA-FIX-A)"
+    - "painel-caixa-escolar/supabase/migrations/rollbacks/042_rollback.sql"
+
+  validacoes_feitas_pelo_dev:
+    - "node --check nos 5 JS: todos OK (sem erro de sintaxe)."
+    - "migration 042: BEGIN/COMMIT balanceados; colunas referenciadas (created_at, emitida_em, sefaz, audit) confirmadas na migration 001."
+    - "Commit local feito (NAO push — aguarda @devops)."
+
+  o_que_validar_na_tela (Playwright logado, usuario angela):
+    - id: V1
+      titulo: "Nota com prova NAO regride"
+      passos: "Abrir Notas Fiscais. Conferir que 1635 (1741,40) e 1636 (2234,80) seguem em EMITIDAS. Recarregar a pagina (boot + realtime). Confirmar que NAO voltam a Pendentes."
+      esperado: "Permanecem Emitidas. provaOk=true. updated_at carimbado (ver console: 'updated_at carimbado em N nota(s)')."
+    - id: V2
+      titulo: "Rascunho NAO mostra 'liberada SEFAZ'"
+      passos: "Localizar a nota 1997,90 (rascunho, sem transmissao). Conferir o badge/label fiscal."
+      esperado: "NAO mostra verde 'Nota liberada pela SEFAZ'. Mostra Pendente fiscal (amarelo). Status correto."
+    - id: V3
+      titulo: "3o estado Transmitida"
+      passos: "Conferir que existe a aba/contador 'Transmitidas' (azul) entre Pendentes e Emitidas. Uma nota enviada sem prova (status transmitida / sefaz lote / nRec) deve cair nela, NAO em Emitidas."
+      esperado: "Aba Transmitidas presente; classificacao por prova funciona (emitida so com chave 44 + protocolo)."
+    - id: V4
+      titulo: "Contagens das abas batem"
+      passos: "Somar Pendentes + Transmitidas + Emitidas + Canceladas. Conferir vs Todas."
+      esperado: "Sem nota some/dupla. Emitidas so conta notas com prova real."
+    - id: V5
+      titulo: "Autocura 656 destravada"
+      passos: "No console: localStorage.getItem('gdp.nfe.ultNSU.v1') deve ser != '0' (esta 1775). Apos a janela de 1h da SEFAZ, forcar _recuperarViaDistribuicaoDFe({force:true}) e confirmar que parte do NSU correto e NAO repete 656 em loop (grava o ultNSU devolvido)."
+      esperado: "ultNSU avanca; falha de rede agora loga gdpWarn (nao engole 500/timeout)."
+    - id: V6
+      titulo: "Cobranca permanece"
+      passos: "Conferir contas a receber das 1635/1636: cobranca presente e PERMANECE apos reload (nao vira aguardando_nf/orfa)."
+      esperado: "Cobranca duravel (a guarda _contaTemProva tambem reforcada no FIX-4)."
+
+  migration_aplicar (responsabilidade @data-engineer/@devops em producao):
+    - "*dry-run 042 -> *apply-migration 042 no Supabase de producao."
+    - "Rodar bloco VALIDACAO da migration: SELECT count FILTER (updated_at IS NULL) deve = 0."
+    - "Testar trigger: UPDATE simples retorna updated_at = agora."
+
+  risco_conhecido_para_revisar:
+    - "FIX-4 muda o merge tambem para tabelas != notas_fiscais/contas_receber: timestamp ausente nao libera mais sobrescrita cega (passa a exigir rTs>lTs estrito). Isso ALINHA o caminho fora-da-dirty-window com o de dentro (que ja era estrito). Validar que pedidos/clientes/etc ainda sincronizam updates legitimos entre maquinas."
+
+  regra_inegociavel_preservada: "Gate de prova intacto — nunca marca emitida sem chave 44 + protocolo reais."
+
+  proximo_passo:
+    qa: "Rodar V1..V6 na tela. Veredito PASS/CONCERNS/FAIL. Se PASS, handoff p/ @devops (deploy --force + aplicar migration 042)."
+    devops: "npx vercel --prod --force; aplicar migration 042 em producao; confirmar ?v servidos (realtime17/nf62/pedidos33/init61)."
+
+  consumed: false

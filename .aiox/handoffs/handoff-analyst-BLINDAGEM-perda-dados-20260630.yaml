@@ -1,0 +1,96 @@
+handoff:
+  from_agent: analyst
+  to_agent: architect
+  last_command: research
+  data: "2026-06-30"
+  titulo: "Blindagem DEFINITIVA contra perda de dados (NF/boleto somem e voltam) — mapa completo de vetores"
+  objetivo_usuario: "NAO passar mais por isso: nota/boleto provados que somem e precisam ser recuperados. Quer imutabilidade-para-baixo do dado provado."
+
+  metodo: "4 investigadores paralelos (realtime, reconciliacao, save-leve, forma-pagamento) + verificacao no codigo real dos furos criticos."
+
+  PRINCIPIO_UNIFICADOR: |
+    A causa-raiz comum a quase todos os furos: as decisoes de rebaixamento usam a PROVA VOLATIL DA RAM
+    (notasFiscais[] em memoria, que oscila no flicker de boot/realtime) em vez da PROVA DURAVEL
+    (chave+protocolo gravados no localStorage/Supabase, que NAO oscilam). A blindagem definitiva e:
+    "um dado PROVADO e imutavel-para-baixo — nenhum caminho pode rebaixa-lo; e a prova deve ser lida
+    da fonte DURAVEL, nao da RAM volatil."
+
+  furos_confirmados:
+    - id: FURO-1
+      vetor: reconciliacao-cobrancas
+      severidade: CRITICA
+      local: "gdp-notas-fiscais.js:1285 e :1295 (reconciliarCobrancasOrfas)"
+      confirmado: true
+      descricao: |
+        A reconciliacao marca conta _orfa/aguardando_nf (= SOME da tela) quando temProva=false.
+        temProva = temProvaAutorizacao(nf) le a nf em RAM (volatil). A blindagem temBoletoReal SO
+        cobre BOLETO Inter (providerChargeId/nossoNumero/bankSlipUrl/linhaDigitavel). Uma cobranca
+        PIX (sem boleto Inter) cuja NF esta autorizada no banco fica DESPROTEGIDA: no flicker, temProva
+        oscila false, temBoletoReal=false -> conta vira aguardando_nf e some. ESTE e o caso da NF 1637.
+      fix: |
+        (a) temProva deve ler a prova DURAVEL: alem da nf em RAM, checar a chave+protocolo da NF no
+            localStorage (gdp.notas-fiscais.v1) — se a NF tem prova gravada, NUNCA marcar orfa.
+        (b) Estender a blindagem para cobranca PIX legitima: se a NF vinculada tem prova (duravel),
+            a cobranca PIX e tao protegida quanto uma com boleto. Boleto real OU NF-provada-duravel = nao rebaixa.
+
+    - id: FURO-2
+      vetor: save-leve
+      severidade: CRITICA
+      local: "gdp-core.js:2019-2032 (_ultraLightNf)"
+      confirmado: true
+      descricao: |
+        _ultraLightNf (fallback de quota, 2o nivel) reconstroi a NF removendo sefaz para 5 campos e
+        NAO preserva: updated_at/updatedAt (relogio), cobranca INTEIRO (forma + providerChargeId).
+        Quando o localStorage estoura e cai nesse fallback, a NF perde RELOGIO e FORMA -> reabre a
+        regressao e a forma vira boleto por default depois.
+      fix: |
+        _ultraLightNf deve espelhar _stripNfHeavy (que e seguro): remover so base64 pesado, PRESERVAR
+        updated_at, numero, status, cobranca.forma, cobranca.providerChargeId, sefaz.chave/protocolo.
+
+    - id: FURO-3
+      vetor: forma-pagamento
+      severidade: CRITICA
+      local: "gdp-notas-fiscais.js:1529-1530 (buildInvoiceFromOrder), :1619 e :1646 (buildReceivableFromInvoice), :381 (applyRealBankChargeResult)"
+      confirmado: true
+      descricao: |
+        O usuario escolhe PIX (gdp-pedidos.js:799/1159, persiste em pedido.pagamento.forma), mas ao
+        gerar a NF, pedido.pagamento chega VAZIO ({}) -> pedido.pagamento?.forma undefined -> cascata
+        de defaults 'boleto' (linhas 1529-1530, 1619, 1646, 381 com ternario estrito "=== pix ? pix : boleto").
+        Resultado: sistema gera BOLETO mesmo com PIX escolhido. CONFIRMADO ao vivo: a NF 1637 tinha
+        pedido.pagamento={} e nfForma='boleto'.
+      fix: |
+        (a) Investigar/garantir que pedido.pagamento (e .forma) sobreviva ao load do Supabase e ao
+            realtime (campo pode estar sendo limpo no merge ou nao mapeado em CAMEL_TO_SNAKE/mapFromTable).
+        (b) Quando pedido.pagamento.forma ausente, herdar da config (destacarPix) de forma consistente,
+            e nunca sobrescrever uma forma ja escolhida com 'boleto' default.
+
+    - id: FURO-4
+      vetor: realtime-merge
+      severidade: ALTA
+      local: "gdp-realtime.js: INSERT :277/:310/:351, DELETE :357, forceReconcile :664"
+      confirmado: parcial
+      descricao: |
+        Os caminhos INSERT (push cego) e DELETE (filter sem guarda de prova) NAO aplicam
+        _podeSobrescreverRegistro. Cenario: DELETE remoto tira a NF/conta do array; um eco INSERT/UPDATE
+        atrasado de OUTRO cliente re-adiciona SEM prova. forceReconcile (:664) escreve rows do servidor
+        sem guarda de prova. Varios sao timing/teoricos, mas o DELETE+re-INSERT e plausivel em multi-maquina.
+      fix: |
+        (a) No INSERT: se o registro entrante NAO tem prova mas existe (ou existiu) um com prova, nao rebaixar.
+        (b) No DELETE: so remover por soft-delete real (deleted_at), nunca por eco; nota com prova so sai por cancelamento/delete explicito.
+        (c) forceReconcile: aplicar _podeSobrescreverRegistro / preferir o registro com prova ao escrever.
+
+  furos_menores:
+    - "gdp-pedidos.js normalizeContaReceberStatus: status 'aguardando_nf' nao tem aba propria -> cai em em_aberto (some se filtro != todas). Considerar tornar 'aguardando_nf' visivel ou eliminar o estado."
+    - "Ternario inline localProva/entranteProva (gdp-realtime.js:336-337) nao escala p/ novas tabelas — refatorar p/ _temProvaParaTabela(table, rec)."
+
+  ja_recuperado_hoje_pelo_analyst_na_tela:
+    - "NF 1637 (1997,90): conta a receber recriada (CR-20260630-17962). Boleto reapareceu sozinho (usuario confirmou)."
+    - "Cobrancas 1615 (436,00) e 1609 (4779,30): estavam aguardando_nf indevidamente (tinham boleto real + NF provada) -> revertidas a pendente, persistidas na nuvem."
+
+  proximo_passo:
+    architect: "Desenhar a blindagem imutavel-para-baixo: (1) prova lida da fonte DURAVEL nao da RAM; (2) cobranca PIX de NF provada protegida; (3) _ultraLightNf preserva prova+forma+relogio; (4) forma de pagamento do pedido sobrevive; (5) INSERT/DELETE/reconcile com guarda de prova. Priorizar FURO-1 e FURO-3 (impacto direto no usuario)."
+    dev: "Implementar apos design."
+    qa: "Validar na tela: emitir NF PIX -> nasce PIX (nao boleto), nao pisca, cobranca permanece; forcar flicker e confirmar que cobranca PIX nao some."
+    devops: "Deploy --force."
+
+  consumed: false

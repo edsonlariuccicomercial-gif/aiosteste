@@ -1,0 +1,115 @@
+handoff:
+  from_agent: architect
+  to_agent: dev
+  last_command: create-plan
+  data: "2026-06-30"
+  titulo: "Arquitetura da blindagem definitiva — Prova Duravel + Imutabilidade-para-baixo (4 furos)"
+  baseado_em: ".aiox/handoffs/handoff-analyst-BLINDAGEM-perda-dados-20260630.yaml"
+
+  principio_arquitetural: |
+    Adoto o principio do @analyst e o formalizo em 3 PRIMITIVAS reutilizaveis. Em vez de remendar 4
+    lugares, criar 3 funcoes-fonte-da-verdade e fazer TODOS os pontos de decisao consumirem elas.
+
+    PRIMITIVA 1 — PROVA DURAVEL (nao volatil):
+      _nfProvaDuravel(idOrNf): le a prova da nota da FONTE DURAVEL (localStorage gdp.notas-fiscais.v1),
+      nao so da RAM. Retorna true se a NF (por id) tem chave 44 + protocolo gravados em disco, mesmo
+      que a copia em RAM esteja oscilando. Fecha a causa-raiz comum (decisao por RAM volatil).
+
+    PRIMITIVA 2 — IMUTABILIDADE-PARA-BAIXO:
+      _ehTerminalDuravel(rec, table): um registro PROVADO (NF: prova duravel; conta: boleto real OU
+      NF-vinculada-com-prova-duravel) e TERMINAL. Terminal nunca e rebaixado por nenhum caminho
+      (merge, reconciliacao, insert, delete-nao-explicito, reconcile).
+
+    PRIMITIVA 3 — FORMA SOBERANA:
+      _formaCobrancaSoberana(pedido, nf, conta): resolve a forma UMA vez, com precedencia clara, e
+      NUNCA deixa um default 'boleto' sobrescrever uma escolha previa. Default so quando NENHUMA
+      fonte tem forma.
+
+  fixes:
+    - id: BL-1
+      furo: FURO-1
+      prioridade: P0
+      titulo: "Reconciliacao usa PROVA DURAVEL + protege cobranca PIX"
+      arquivo: "gdp-notas-fiscais.js:1272-1319 (reconciliarCobrancasOrfas) + nova primitiva"
+      design: |
+        1. Criar _nfProvaDuravel(idNf): le gdp.notas-fiscais.v1 do localStorage, acha a NF por id,
+           retorna temProvaAutorizacao(nfDuravel). Cache leve (1 leitura por ciclo de reconciliacao).
+        2. Em reconciliarCobrancasOrfas, trocar:
+             var temProva = nf && temProvaAutorizacao(nf);
+           por:
+             var temProva = (nf && temProvaAutorizacao(nf)) || _nfProvaDuravel(idNf);
+           (prova da RAM OU prova duravel — a duravel nao oscila no flicker).
+        3. Estender a blindagem para PIX: a condicao de NAO-rebaixar deve ser
+             (temProva || temBoletoReal)
+           e como temProva agora e duravel, uma cobranca PIX de NF provada NUNCA e marcada aguardando_nf.
+        4. REGRA: so marca _orfa/aguardando_nf se a NF realmente NAO existe com prova em lugar nenhum
+           (nem RAM nem duravel) E nao tem boleto real. Caso contrario, manter/ reverter a pendente.
+      criterio_aceite: "Cobranca PIX de NF 1637 (autorizada) nunca vira aguardando_nf, mesmo durante boot/flicker."
+
+    - id: BL-2
+      furo: FURO-2
+      prioridade: P0
+      titulo: "_ultraLightNf preserva prova + forma + relogio (espelhar _stripNfHeavy)"
+      arquivo: "gdp-core.js:2019-2032 (_ultraLightNf)"
+      design: |
+        Reescrever _ultraLightNf para PARTIR de Object.assign({}, nf) (mantem tudo) e remover SO base64
+        pesado — igual _stripNfHeavy. PRESERVAR explicitamente: updated_at, updatedAt, numero, status,
+        sefaz.chaveAcesso, sefaz.protocolo, sefaz.status, cobranca.forma, cobranca.providerChargeId,
+        cobranca.nossoNumero, cobranca.linhaDigitavel, cobranca.status, integracoes (leve).
+        Remover apenas: xml_autorizado/xmlAutorizado, *Preview, documentos.*Base64, cobranca.*Url/base64/qrCodeImage.
+      criterio_aceite: "Apos fallback de quota (ultraLight), a NF mantem chave+protocolo+forma+updated_at."
+
+    - id: BL-3
+      furo: FURO-3
+      prioridade: P0
+      titulo: "Forma de pagamento soberana — PIX escolhido nunca vira boleto"
+      arquivo: "gdp-notas-fiscais.js:381, :1529-1530, :1619, :1646 + nova primitiva"
+      design: |
+        1. Criar _formaCobrancaSoberana(pedido, nf, conta) com precedencia:
+             pedido.pagamento.forma > nf.cobranca.forma > conta.forma > config(destacarPix?'pix':'boleto')
+           Normaliza case (toLowerCase) e aceita pix/boleto/ted/dinheiro. So cai no default de config
+           quando NENHUMA fonte tem valor.
+        2. Substituir os ternarios estritos:
+           - linha 381 (applyRealBankChargeResult): usar a forma ja resolvida na conta/nf, NAO re-derivar
+             com "=== 'pix' ? 'pix' : 'boleto'". Se a conta tem forma, RESPEITAR.
+           - linhas 1529-1530 (buildInvoiceFromOrder): forma = _formaCobrancaSoberana(pedido, null, null).
+           - linhas 1619/1646 (buildReceivableFromInvoice): forma = _formaCobrancaSoberana(null, invoice, null).
+        3. REGRA: uma forma ja escolhida (pix) NUNCA e sobrescrita por default boleto em nenhum ponto.
+        4. Investigar e logar quando pedido.pagamento vier {} (gdpWarn) para rastrear pedidos sem forma —
+           mas o fix nao depende disso: a precedencia ja resolve herdando da nf/config.
+      criterio_aceite: "Emitir NF de pedido com pagamento.forma='pix' -> nf.cobranca.forma='pix', conta.forma='pix', e o sistema NAO gera boleto. Pedido com pagamento={} herda a config, nao forca boleto cego."
+
+    - id: BL-4
+      furo: FURO-4
+      prioridade: P1
+      titulo: "Realtime: guarda de prova em INSERT, DELETE e forceReconcile"
+      arquivo: "gdp-realtime.js: INSERT ~277, DELETE ~357, forceReconcile ~664"
+      design: |
+        1. INSERT (~277): antes de items.push(record), se ja existe (ou existiu) versao com prova e a
+           entrante NAO tem prova, nao adicionar versao inferior. (Reusar _podeSobrescreverRegistro logica.)
+        2. DELETE (~357): so remover se for soft-delete REAL (record/oldRecord.deleted_at presente) OU
+           cancelamento explicito. Um DELETE de eco sem deleted_at sobre registro terminal -> IGNORAR.
+        3. forceReconcile (~664): antes de writeLocalItems(t, rows), para notas_fiscais/contas_receber,
+           fazer merge que PRESERVA o registro local terminal quando a row do servidor vier sem prova
+           (nao sobrescrever cego). Reusar _podeSobrescreverRegistro por item.
+        4. Refatorar o ternario inline localProva/entranteProva (gdp-realtime.js:336-337) para uma
+           funcao _temProvaParaTabela(table, rec) — extensivel e sem repeticao.
+      criterio_aceite: "DELETE/echo de outra maquina nao remove NF/conta provada; reconcile nao rebaixa."
+
+  nao_fazer:
+    - "NAO criar estado terminal que impeca CANCELAMENTO legitimo (cancelar NF/conta pelo usuario deve funcionar — terminal e contra rebaixamento AUTOMATICO, nao contra acao explicita)."
+    - "NAO duplicar boleto: a primitiva de forma nao emite cobranca, so resolve a forma."
+
+  delegacao_data_engineer: |
+    Esta blindagem e 100% logica de aplicacao (JS). Sem schema novo. O @data-engineer ja entregou o
+    trigger updated_at (migration 042, aplicada). A coluna pedidos.pagamento JA EXISTE (gdp-api.js:144)
+    — o FURO-3 NAO e de schema, e de logica de precedencia. Nenhuma migration nova necessaria.
+
+  versionamento: "Bumpar ?v: gdp-core.js, gdp-notas-fiscais.js, gdp-realtime.js (e pedidos se tocar)."
+
+  proximo_passo:
+    dev: "Implementar BL-1..BL-4 com as 3 primitivas. Manter gate de prova. node --check. commit (sem push)."
+    qa: "Validar na tela: (1) emitir NF PIX nasce PIX; (2) cobranca PIX nao some no flicker; (3) ultraLight preserva prova; (4) reload/multi-maquina nao rebaixa."
+    devops: "Deploy --force."
+
+  consumed: false

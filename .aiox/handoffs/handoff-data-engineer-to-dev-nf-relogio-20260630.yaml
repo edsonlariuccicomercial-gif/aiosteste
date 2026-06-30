@@ -1,0 +1,68 @@
+handoff:
+  from_agent: data-engineer
+  to_agent: dev
+  last_command: apply-migration
+  data: "2026-06-30"
+  titulo: "Camada de dados — relogio duravel (updated_at) e a causa-raiz da regressao NF-e"
+  complementa: ".aiox/handoffs/handoff-architect-to-dev-nf-correcao-definitiva-20260630.yaml"
+
+  achado_empirico: |
+    Via Playwright (logado), inspecionei as 198 notas em produção: 198/198 estao SEM updated_at
+    legivel no cliente (updated_at, updatedAt e audit.updatedAt todos vazios). _tsRobusto() retorna
+    '' para 100% das notas -> a guarda de timestamp do realtime (gdp-realtime.js:330, '!lTs') sempre
+    dispara -> eco atrasado sem chave sobrescreve a nota autorizada. Esta e a causa-raiz de DADOS da
+    regressao Emitida->Pendente (e do boleto orfao por consequencia).
+
+  diagnostico_schema: |
+    A coluna notas_fiscais.updated_at JA EXISTE com DEFAULT now() desde a migration 001 (linha 117).
+    POReM:
+      (a) NAO ha trigger BEFORE UPDATE — o DEFAULT now() so roda no INSERT, nunca no UPDATE.
+          Logo updated_at nao reflete edicoes; fica estagnado/antigo.
+      (b) O cliente le updated_at VAZIO em 100% das notas mesmo a coluna existindo no banco —
+          forte indicio de que gdpApi.mapFromTable (snake->camel) NAO preserva updated_at ao
+          montar o objeto que o realtime e a tela consomem. (Confirmar no codigo do gdpApi.)
+
+  entrega_data_engineer:
+    migration: "painel-caixa-escolar/supabase/migrations/042_notas_fiscais_updated_at_trigger.sql"
+    rollback: "painel-caixa-escolar/supabase/migrations/rollbacks/042_rollback.sql"
+    conteudo_migration: |
+      1) ALTER TABLE ... ADD COLUMN IF NOT EXISTS updated_at (idempotente; ja existe, no-op).
+      2) FUNCTION set_updated_at_notas_fiscais() + TRIGGER trg_notas_fiscais_updated_at
+         BEFORE UPDATE FOR EACH ROW -> carimba updated_at = now() em TODO update. (era o que faltava)
+      3) BACKFILL idempotente: updated_at = COALESCE(created_at, emitida_em, sefaz->>'authorizedAt',
+         audit->>'updatedAt', now()) WHERE updated_at IS NULL. Cobre as linhas legadas sem relogio.
+    seguranca:
+      - "Idempotente (IF NOT EXISTS / CREATE OR REPLACE / DROP TRIGGER IF EXISTS). Seguro re-rodar."
+      - "Nao-destrutiva: nenhum dado apagado; backfill so toca updated_at NULL."
+      - "Colunas referenciadas confirmadas em 001: created_at(116), emitida_em(103), sefaz(107), audit(115)."
+      - "Reversivel: rollback dropa trigger+function, preserva coluna e backfill."
+    aplicar: "@dev ou @data-engineer: snapshot antes; *dry-run 042; *apply-migration 042; rodar bloco de VALIDACAO (sem_relogio deve = 0). NAO e push de codigo — e operacao de banco."
+
+  acao_obrigatoria_no_codigo_para_o_dev:
+    - id: DATA-FIX-A
+      prioridade: P0
+      titulo: "mapFromTable deve PRESERVAR updated_at (snake->camel)"
+      arquivo: "gdpApi (gdp-api.js ou equivalente) — funcao mapFromTable / mapper de notas_fiscais"
+      problema: "A coluna updated_at existe no banco mas chega vazia no cliente -> o mapper a descarta. Sem ela, o trigger conserta o banco mas o realtime/tela continuam cegos (lTs vazio)."
+      correcao: "Garantir que o objeto mapeado inclua updated_at (e updatedAt) a partir de record.updated_at. Aplicar no list() E no mapFromTable usado pelo realtime (gdp-realtime.js:255)."
+      teste: "Apos fix + reload: _tsRobusto(nf) NAO vazio para as 198 notas."
+    - id: DATA-FIX-B
+      prioridade: P0
+      titulo: "Carimbar updated_at no boot (rede de seguranca imediata) = FIX-5 do architect, PROMOVIDO a P0"
+      motivo: "O trigger so afeta UPDATEs futuros no banco; o mapper so resolve apos deploy. Carimbar no boot garante relogio JA na proxima sessao do cliente, antes do deploy do mapper propagar."
+    - id: DATA-FIX-C
+      prioridade: P1
+      titulo: "No _saveNfToSupabaseWithRetry, enviar updated_at=now() no payload"
+      motivo: "Defesa em profundidade: mesmo que o trigger falhe/seja revertido, o cliente envia relogio. Idempotente com o trigger (trigger sobrescreve com now() server-side, o que e o correto)."
+
+  veredito_alcada: |
+    Os FIX-1, FIX-2, FIX-3, FIX-4 do handoff do architect sao 100% logica de aplicacao (JS) — sem
+    impacto de schema/RLS/indice/query. NADA a fazer de DDL para eles. A unica peca de DADOS e o
+    relogio (esta migration 042 + DATA-FIX-A/B/C). RLS por empresa_id ja existe e nao muda.
+
+  proximo_passo:
+    dev: "Aplicar migration 042 (banco) + implementar DATA-FIX-A/B/C + FIX-1..4 do architect. Rodar coderabbit. Commit (NAO push)."
+    qa: "Validar: (1) sem_relogio=0 no banco; (2) _tsRobusto nao vazio no cliente; (3) emitir NF nao pisca; (4) reload nao regride; (5) cobranca permanece."
+    devops: "Deploy --force + confirmar migration aplicada em producao."
+
+  consumed: false

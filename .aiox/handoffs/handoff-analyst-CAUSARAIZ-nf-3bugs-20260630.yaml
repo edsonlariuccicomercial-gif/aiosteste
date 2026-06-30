@@ -1,0 +1,135 @@
+handoff:
+  from_agent: analyst
+  to_agent: architect
+  data: "2026-06-30"
+  titulo: "Causa raiz DEFINITIVA — NF-e pisca/regride + boleto some + autocura travada (3 bugs + 1 incidente de dados)"
+  metodo: "Investigacao ao vivo via Playwright (logado como angela) + leitura de codigo-fonte. NADA de codigo foi alterado. Apenas o ponteiro localStorage gdp.nfe.ultNSU.v1 foi corrigido de '0' para '000000000001775' (valor que a propria SEFAZ devolveu) e o throttle local liberado — para destravar a autocura."
+
+  resumo_executivo: |
+    O usuario relatou (com razao) que os bugs de NF-e "resolvidos em definitivo" voltaram:
+    notas autorizadas piscam entre Emitidas/Pendentes, boletos do Inter somem, e a autocura
+    "nem recupera mais". A investigacao provou que:
+
+    1. A MAIORIA do sistema esta CORRETA: 195 de 198 notas tem prova completa (chave 44 + protocolo)
+       e status 'autorizada'. O sistema NAO esta todo quebrado.
+    2. O problema real e CIRURGICO: exatamente 3 notas de hoje (todas Caixa Escolar Vicente Macedo)
+       com defeito de dados, AGRAVADAS por 3 furos de codigo que criam a ILUSAO de regressao.
+    3. As correcoes anteriores trataram SINTOMAS e fecharam UM caminho, deixando outro aberto.
+       Por isso o problema "volta".
+
+  estado_real_das_3_notas:
+    - id: "NF-20260630-30942"
+      valor: 1741.40
+      numero: "1635"
+      status: "rejeitada"
+      chave_44: true
+      protocolo: VAZIO
+      verdade: "Transmitiu e gerou chave, mas SEFAZ REJEITOU (ou protocolo se perdeu). NAO esta autorizada."
+    - id: "NF-20260630-21008"
+      valor: 2234.80
+      numero: null
+      status: "rascunho_nf_real / validacao_pendente"
+      chave_44: false
+      protocolo: VAZIO
+      verdade: "NUNCA transmitida com sucesso. E rascunho puro."
+    - id: "NF-20260630-80553"
+      valor: 1997.90
+      numero: null
+      status: "rascunho_nf_real / validacao_pendente"
+      chave_44: false
+      protocolo: VAZIO
+      verdade: "NUNCA transmitida (usuario confirmou que nao transmitiu). E rascunho puro."
+    nota_critica: "NENHUMA das 3 tem prova completa (chave 44 + protocolo). Marcar qualquer uma como emitida agora seria INVENTAR autorizacao — VIOLA a regra inegociavel. Caminho seguro: descobrir na SEFAZ se existem como autorizadas (DFe/consulta por chave) OU re-transmitir as rascunho."
+
+  bugs_confirmados:
+    - id: BUG-1
+      titulo: "Status fiscal e classificacao Emitida/Pendente NAO checam prova real (label mente 'liberada SEFAZ')"
+      arquivo: "painel-caixa-escolar/squads/caixa-escolar/dashboard/js/gdp-pedidos.js"
+      linhas: "1690 (label) e 1748 (classificacao normalizeNotaFiscalStatus)"
+      causa: |
+        getNotaFiscalOperationalFiscal() decide o texto verde 'Nota liberada pela SEFAZ' com
+        sefazStatus.includes('autoriz') — qualquer status contendo a substring liga o verde,
+        inclusive 'autorizada_backend' setado por callback otimista (gdp-notas-fiscais.js:1995)
+        ANTES de existir chave+protocolo. A funcao CORRETA temProvaAutorizacao()
+        (gdp-notas-fiscais.js:866, exige chave 44 + protocolo) EXISTE mas NAO e usada na label
+        nem na classificacao. Criterios divergentes para a mesma decisao.
+      sintoma_usuario: "Nota rascunho aparece 'liberada pela SEFAZ'; texto oscila Emitida<->Pendente conforme status volatil bate ou nao na substring."
+      fix_proposto: |
+        gdp-pedidos.js:1690 -> trocar (nf.status==='autorizada' || sefazStatus.includes('autoriz'))
+        por: temProvaAutorizacao(nf) === true (importar/expor a funcao).
+        gdp-pedidos.js:1748 -> so classificar 'emitida' se temProvaAutorizacao(nf); senao 'pendente'.
+
+    - id: BUG-2
+      titulo: "Emitida regride para Pendente — merge realtime atropela prova quando updated_at local esta vazio"
+      arquivo: "painel-caixa-escolar/squads/caixa-escolar/dashboard/js/gdp-realtime.js"
+      linha: "330"
+      causa: |
+        Fora da 'dirty window', o merge decide com: if (!lTs || !rTs || rTs > lTs) { items[j]=record }.
+        Quando a nota local NAO tem updated_at (comum em notas antigas), lTs fica vazio -> !lTs e true
+        -> SOBRESCREVE cegamente com o eco atrasado do Supabase (que ainda vem SEM a chave). A nota
+        perde a prova e volta a pendente. O guard da Camada A (_podeSobrescreverNf, linha ~205) protege
+        corretamente MAS so dentro da dirty window; fora dela a Camada B atropela.
+      efeito_dominio: |
+        Ao perder a prova, reconciliarCobrancasOrfas (gdp-notas-fiscais.js:1270) marca a cobranca como
+        'aguardando_nf' / _orfa=true -> o boleto SOME das contas a receber. E o 'boleto que some'.
+      fix_proposto: |
+        gdp-realtime.js:330 -> antes de sobrescrever, aplicar _podeSobrescreverNf tambem fora da dirty
+        window E nunca deixar lTs vazio liberar a sobrescrita quando o LOCAL tem prova
+        (_nfTemProva(local) === true vence timestamp ausente). Robustez extra: preencher updated_at
+        em todas as notas no boot (fallback para audit.updatedAt) para nunca ter lTs vazio.
+
+    - id: BUG-3
+      titulo: "Autocura DFe travada em loop de cStat 656 — NSU nunca avanca"
+      arquivo: "painel-caixa-escolar/squads/caixa-escolar/dashboard/js/gdp-notas-fiscais.js"
+      linha: "984 (e contexto 956-995)"
+      causa: |
+        No tratamento de cStat 656/108/109 ha um 'break' que sai do loop ANTES de gravar o ultNSU
+        que a SEFAZ devolve. Resultado: gdp.nfe.ultNSU.v1 fica preso em '0' -> toda chamada DFe comeca
+        do NSU 0 -> a SEFAZ trata como varredura/abuso -> rejeita com 656 'tente apos 1 hora' ->
+        loop de rejeicao perpetuo -> autocura NUNCA recupera nada.
+      prova_ao_vivo: |
+        Forcei a DFe via fetch no console. Resposta real da SEFAZ:
+          cStat 656, xMotivo 'Consumo Indevido (Deve ser utilizado o ultNSU... Tente apos 1 hora)',
+          ultNSU devolvido = '000000000001775', maxNSU 0, numDocs 0.
+        Ou seja: a SEFAZ DEU o NSU correto (1775) na propria rejeicao, e o codigo jogava fora.
+      acao_paliativa_ja_feita: |
+        Gravei manualmente gdp.nfe.ultNSU.v1 = '000000000001775' e removi gdp.nfe.dfe.lastRun.v1
+        no localStorage do navegador da usuaria. Quando a janela de 1h da SEFAZ expirar, a DFe
+        rodara a partir do NSU correto (nao mais do 0) e deve parar de levar 656.
+        ATENCAO: enquanto a penalidade de 1h estiver ativa, NAO martelar — cada tentativa renova a penalidade.
+      fix_proposto: |
+        gdp-notas-fiscais.js — no ramo de cStat 656/108/109: GRAVAR parsed.ultNSU em
+        gdp.nfe.ultNSU.v1 ANTES do break (a SEFAZ devolve o ponteiro correto mesmo na rejeicao).
+        Tambem: nunca enviar ultNSU '0' apos a primeira sincronizacao bem-sucedida; e tornar
+        falha de rede/backend VISIVEL (hoje await resp.json().catch(()=>({})) engole erro 500/timeout).
+
+  numeracao_1637:
+    titulo: "'-> 1637 (proximo)' em duas notas NAO e colisao de numeracao real"
+    causa: |
+      As 2 notas rascunho (2234,80 e 1997,90) nao tem numero gravado, entao ambas chamam
+      peekProximoNumeroNf() (gdp-notas-fiscais.js:2595) que calcula o mesmo 'proximo livre' = 1637
+      (config.proximoNumero='1637', gdp.nf-counter=null). E colisao de DISPLAY, nao de alocacao.
+      A alocacao real e atomica server-side (RPC next_nf_number) na transmissao. Resolve-se sozinho
+      quando as notas forem transmitidas de verdade (cada uma recebe numero unico) OU descartadas.
+
+  ambiente_observacao:
+    config_local: "nexedu.config.notas-fiscais.ambiente = 'homologacao'"
+    avaliacao: |
+      ATENCAO ao avaliar: apesar da config dizer 'homologacao', 195/198 notas tem protocolo REAL
+      (incompativel com homologacao pura). Forte indicio de que esse campo de config e apenas o
+      DEFAULT do template e NAO e o tpAmb efetivo que o backend usa na transmissao. @dev/@architect:
+      CONFIRMAR onde o backend (nfe-sefaz-client.js / api/gdp-integrations.js) le o tpAmb de verdade
+      antes de concluir qualquer coisa sobre ambiente. NAO assumir que esta tudo em homologacao —
+      os dados provam que producao funciona para a maioria.
+
+  regra_inegociavel:
+    - "NUNCA marcar nota autorizada/emitida sem prova SEFAZ real (chave 44 + protocolo)."
+    - "As 3 notas defeituosas NAO podem ser marcadas emitidas sem antes confirmar autorizacao na SEFAZ."
+
+  proximo_passo:
+    architect: "Desenhar correcao estrutural dos 3 furos (label/classificacao por prova; merge realtime respeitando prova mesmo sem timestamp; gravar ultNSU no 656 + tornar erros visiveis). Confirmar tpAmb real no backend."
+    dev: "Implementar os fixes; bumpar versao dos JS no HTML (?v=N); manter gate de prova intacto."
+    qa: "Validar na tela (Playwright logado): emitir NF e confirmar que nasce emitida e NAO pisca; cobranca permanece; rascunho NAO mostra 'liberada SEFAZ'."
+    devops: "Deploy com 'npx vercel --prod --force' (cache do Vercel)."
+
+  consumed: false
