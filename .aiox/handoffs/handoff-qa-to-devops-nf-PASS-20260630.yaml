@@ -1,0 +1,22 @@
+handoff:
+  from_agent: qa
+  to_agent: devops
+  created_at: "2026-06-30"
+  gate: docs/qa/gates/nf-itens-undefined-gate.yaml
+  veredito: PASS_CONDICIONAL (revisao estatica PASS; aguarda deploy + tela)
+  bug: "Emissao NF — Cannot read properties of undefined (reading 0) (gdp-notas-fiscais.js:2056)"
+  pronto_para_deploy:
+    - "gdp-notas-fiscais.js: anti-crash (nf.itens normalizado) + recuperacao do pedido (qtd: pi.qtd CORRETO) + abort com toast se sem itens + salvarNcmItemNf guardado"
+    - "gdp-contratos.html: gdp-notas-fiscais.js v59 -> v60 (ja bumpado)"
+    - "Sem migration — SO FRONTEND"
+    - "node --check OK"
+  tarefas_devops:
+    - "1. commit dos 2 arquivos (gdp-notas-fiscais.js, gdp-contratos.html) + gate + handoffs. Conventional: 'fix(nf): emissao nao quebra com nf.itens undefined + recupera itens do pedido (reading 0)'"
+    - "2. cd painel-caixa-escolar && npx vercel --prod --force --yes"
+    - "3. git push origin master"
+  validacao_pos_deploy_devops:
+    - "curl served gdp-notas-fiscais.js deve mostrar v60"
+    - "functions /api/gdp-integrations viva (200/400/405, nao 404)"
+  apos_devops: "Devolver ao @qa OU pedir ao usuario p/ emitir a NF que dava erro (F12 sem 'reading 0'; transmite com qtd correta)."
+  estado_prod_atual: "served v59 (antigo) — deploy traz v60"
+  consumed: false

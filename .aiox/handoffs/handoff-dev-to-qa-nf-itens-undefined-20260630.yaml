@@ -1,0 +1,25 @@
+handoff:
+  from_agent: dev
+  to_agent: qa
+  created_at: "2026-06-30"
+  bug: "Emissao NF: 'Cannot read properties of undefined (reading 0)' (gdp-notas-fiscais.js:2056)"
+  status: "CORRIGIDO localmente; aguardando validacao + deploy"
+  causa_raiz: "nf.itens UNDEFINED em RAM -> nf.itens[0] no loop de sincronizacao do pedido derrubava a emissao (catch externo). Stack do usuario: 2056:19."
+  implementado:
+    - "gdp-notas-fiscais.js transmitirHomologacaoNota: (a) normaliza nf.itens=[] se nao-array ANTES de qualquer acesso por indice; (b) RECUPERACAO: se nf.itens vazio mas pedido.itens tem, reconstroi nf.itens do pedido (desc/ncm/unidade/sku/qtd/preco); (c) ABORT com toast se ainda assim ficar sem itens (NF sem itens e invalida p/ SEFAZ) — libera o lock _nfOpsEmAndamento antes do return."
+    - "gdp-notas-fiscais.js salvarNcmItemNf (3026/3030): guarda Array.isArray(nf.itens) e Array.isArray(ped.itens) antes do acesso por indice (mesmo padrao de bug)."
+    - "Bump gdp-contratos.html: gdp-notas-fiscais.js v59 -> v60 (index.html nao referencia este script)."
+  validacoes:
+    - "node --check OK (gdp-notas-fiscais.js)"
+    - "Self-review do diff: abort libera lock; recuperacao preserva qtd/preco; guardas corretas"
+  NAO_feito: ["git push (delegado @devops)", "CodeRabbit (mudanca pontual, syntax OK; validacao na tela e o gate)"]
+  roteiro_qa:
+    - "PRE: @devops deploy --force; usuario Ctrl+Shift+R"
+    - "1. Emitir a MESMA NF que dava erro -> NAO deve mais aparecer 'Erro inesperado (reading 0)'"
+    - "2. Se o pedido tem itens: a NF deve transmitir normalmente (itens reconstruidos)"
+    - "3. Caso de borda: NF cujo pedido tambem nao tem itens -> toast 'Esta NF nao possui itens...' e NAO transmite (sem crash)"
+    - "4. Regressao: emitir uma NF normal (com itens) -> continua funcionando igual"
+    - "5. Editar NCM de item na tela (salvarNcmItemNf) -> sem erro mesmo em nota sem itens"
+  dependencia: "Sem migration. So front. @devops: commit + deploy --force + push."
+  next_action: "@qa validar na tela apos deploy; @devops deploy --force"
+  consumed: true

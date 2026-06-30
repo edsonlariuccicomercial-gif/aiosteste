@@ -1,0 +1,54 @@
+gate: CONCERNS
+bug: "Emissao NF — Cannot read properties of undefined (reading 0) (gdp-notas-fiscais.js:2056)"
+reviewer: "@qa (Quinn)"
+date: "2026-06-30"
+revisao: estatica (prod ainda em v59; fix em v60 nao deployado)
+
+aprovado:
+  - "Anti-crash CORRETO: 'if (!Array.isArray(nf.itens)) nf.itens = []' antes de qualquer acesso por indice — elimina a causa raiz (stack 2056:19)."
+  - "Abort sem itens libera o lock _nfOpsEmAndamento[nf.pedidoId]=false ANTES do return — nao trava transmissoes futuras."
+  - "Caminho normal (NF com itens) cai no else e preserva comportamento original — sem regressao."
+  - "salvarNcmItemNf (3051-3060): guardas Array.isArray para nf.itens e ped.itens corretas."
+
+issue_obrigatorio:
+  - id: RECUPERACAO-CAMPO-QTD
+    severity: HIGH
+    local: "gdp-notas-fiscais.js — bloco de RECUPERACAO (nf.itens = pedido.itens.map(...)), campo 'quantidade: pi.quantidade'"
+    problema: >
+      A NF reconstruida usa a chave 'quantidade' com valor 'pi.quantidade', MAS:
+      (1) o item do PEDIDO usa 'qtd' (NAO 'quantidade') — confirmado: 19 ocorrencias de qtd:, zero de quantidade: em gdp-pedidos.js. Logo pi.quantidade e UNDEFINED.
+      (2) os itens da NF (nf.itens) sao lidos como 'i.qtd' em TODO o codigo (linhas 2681, 2702, 2710, 2726, 2857, 3112 — DANFE, totais, payload email/SEFAZ).
+      Resultado: a NF recuperada nasce com qtd=undefined -> DANFE/total com quantidade vazia e a SEFAZ REJEITA (backend exige quantidade > 0, nfe-sefaz-client.js:1557).
+    fix_exato: >
+      Trocar na reconstrucao: usar a chave 'qtd' (nao 'quantidade') e ler de pi.qtd.
+      Ex.: { descricao:..., ncm:..., unidade:..., sku:..., qtd: pi.qtd, precoUnitario: (pi.precoUnitario != null ? pi.precoUnitario : pi.valorUnitario) }.
+      Conferir tambem se algum consumidor precisa de itemNum (pedido tem itemNum) — opcional incluir itemNum: pi.itemNum.
+
+veredito: >
+  CONCERNS. O anti-crash esta correto e pode ir para producao (resolve o erro do usuario). POReM o
+  caminho de RECUPERACAO produz NF com quantidade invalida (campo errado). Como a recuperacao e
+  justamente o cenario do usuario (NF sem itens, pedido com itens), o fix do campo qtd e OBRIGATORIO
+  antes do deploy — senao o erro de crash vira erro de rejeicao SEFAZ. Voltar ao @dev.
+
+next_action: "@dev corrigir RECUPERACAO-CAMPO-QTD (quantidade->qtd, pi.quantidade->pi.qtd); re-validar; @devops deploy --force"
+
+# ============================================================================
+# RE-REVISAO 2026-06-30 (apos fix do @dev) — @qa Quinn
+# ============================================================================
+gate_pos_fix: PASS_CONDICIONAL
+concern_resolvido:
+  id: RECUPERACAO-CAMPO-QTD
+  status: CORRIGIDO
+  verificado:
+    - "gdp-notas-fiscais.js:2074 agora usa 'qtd: pi.qtd' (grep confirma: nenhum 'quantidade: pi' restante)"
+    - "Adicionado itemNum: pi.itemNum (2066) — alinhado ao schema do pedido"
+    - "Anti-crash, recuperacao, abort+lock e caminho normal (else) intactos — sem regressao"
+veredito: >
+  PASS na revisao estatica. A correcao do crash + recuperacao com qtd correto esta pronta.
+  PASS FUNCIONAL fica condicional ao deploy (@devops) + validacao na tela. Sem migration (so frontend).
+roteiro_revalidacao_pos_deploy:
+  - "PRE: confirmar served gdp-notas-fiscais.js v60 + Ctrl+Shift+R"
+  - "1. Emitir a MESMA NF que dava 'reading 0' -> NAO crasha + transmite com quantidade correta"
+  - "2. NF normal (com itens) -> regressao OK, emite igual"
+  - "3. NF cujo pedido tambem nao tem itens -> toast 'Esta NF nao possui itens...' sem crash"
+  - "4. Conferir DANFE/total da NF recuperada -> quantidades batem com o pedido"

@@ -1,0 +1,15 @@
+handoff:
+  from_agent: dev
+  to_agent: qa
+  created_at: "2026-06-30"
+  gate_origem: docs/qa/gates/nf-itens-undefined-gate.yaml
+  status: "CONCERN RECUPERACAO-CAMPO-QTD CORRIGIDO; aguardando re-revisao"
+  corrigido:
+    - "gdp-notas-fiscais.js (bloco RECUPERACAO ~2065): 'quantidade: pi.quantidade' -> 'qtd: pi.qtd'"
+    - "Adicionado 'itemNum: pi.itemNum' (opcional sugerido pelo QA — pedido tem itemNum, backend usa)"
+    - "Mantido precoUnitario com fallback valorUnitario (inalterado)"
+  nao_mudou: "anti-crash, abort+lock, salvarNcmItemNf, bump v60 — tudo como aprovado"
+  validacao: "node --check OK; gdp-contratos.html segue em gdp-notas-fiscais.js?v=60 (sem novo bump)"
+  diff_chave: "nf.itens = pedido.itens.map(pi => ({ itemNum: pi.itemNum, descricao, ncm, unidade, sku, qtd: pi.qtd, precoUnitario: pi.precoUnitario ?? pi.valorUnitario }))"
+  next_action: "@qa re-revisar (rapido) -> se PASS, @devops commit + deploy --force + push"
+  consumed: true

@@ -2050,16 +2050,48 @@ async function transmitirHomologacaoNota(notaId) {
   _nfOpsEmAndamento[nf.pedidoId] = true;
   _lockPedidoId = nf.pedidoId;
 
-  // Sincronizar itens do pedido para a NF (pega NCM/descrição atualizados)
+  // FIX (2026-06-30 — crash "Cannot read properties of undefined (reading '0')" em produção,
+  // stack: gdp-notas-fiscais.js:2056): nf.itens podia chegar UNDEFINED (NF montada sem itens
+  // em RAM) e o acesso nf.itens[idx] no idx=0 derrubava a emissão (catch externo "Erro
+  // inesperado"). Normaliza para array ANTES de qualquer acesso por índice.
+  if (!Array.isArray(nf.itens)) nf.itens = [];
+
+  // Sincronizar itens do pedido para a NF (pega NCM/descrição atualizados).
+  // RECUPERAÇÃO: se a NF está sem itens mas o pedido tem, reconstrói nf.itens a partir do
+  // pedido (melhor que abortar — a nota nasceu sem a cópia dos itens). Quantidade/preço do
+  // pedido são preservados; NCM/descrição/unidade/SKU vêm do pedido (fonte do faturamento).
   if (pedido.itens && pedido.itens.length) {
-    pedido.itens.forEach((pi, idx) => {
-      if (nf.itens[idx]) {
-        if (pi.ncm) nf.itens[idx].ncm = pi.ncm;
-        if (pi.descricao) nf.itens[idx].descricao = pi.descricao;
-        if (pi.unidade) nf.itens[idx].unidade = pi.unidade;
-        if (pi.sku) nf.itens[idx].sku = pi.sku;
-      }
-    });
+    if (nf.itens.length === 0) {
+      nf.itens = pedido.itens.map((pi) => ({
+        itemNum: pi.itemNum,
+        descricao: pi.descricao || "",
+        ncm: pi.ncm || "",
+        unidade: pi.unidade || "UN",
+        sku: pi.sku || pi.skuVinculado || "",
+        // FIX QA (2026-06-30): o schema de item usa 'qtd' (NAO 'quantidade') tanto no pedido
+        // quanto na NF (lido como i.qtd em DANFE/totais/payload SEFAZ). Usar 'quantidade'
+        // deixava qtd vazia -> SEFAZ rejeitava (backend exige quantidade>0).
+        qtd: pi.qtd,
+        precoUnitario: pi.precoUnitario != null ? pi.precoUnitario : pi.valorUnitario
+      }));
+    } else {
+      pedido.itens.forEach((pi, idx) => {
+        if (nf.itens[idx]) {
+          if (pi.ncm) nf.itens[idx].ncm = pi.ncm;
+          if (pi.descricao) nf.itens[idx].descricao = pi.descricao;
+          if (pi.unidade) nf.itens[idx].unidade = pi.unidade;
+          if (pi.sku) nf.itens[idx].sku = pi.sku;
+        }
+      });
+    }
+  }
+
+  // ABORT (decisão de produto): NF sem itens é fiscalmente inválida — a SEFAZ rejeitaria.
+  // Se nem a NF nem o pedido têm itens, não seguir para a transmissão; orientar o usuário.
+  if (nf.itens.length === 0) {
+    _nfOpsEmAndamento[nf.pedidoId] = false;
+    showToast("Esta NF não possui itens. Gere a nota a partir do pedido (com itens) antes de transmitir.", 6000);
+    return;
   }
 
   // Pré-conferência ANTES de consumir — mostra preview do número que SAIRÁ
@@ -3023,11 +3055,12 @@ async function reenviarEmailNfPedido(pedidoId) {
 // "Salvar Dados/Metadados da NF" (salvarDadosNotaFiscal). Aqui só atualizamos estado.
 function salvarNcmItemNf(notaId, idx, valor) {
   const nf = notasFiscais.find(n => n.id === notaId);
-  if (!nf || !nf.itens[idx]) return;
+  // FIX (2026-06-30): guardar nf.itens/ped.itens (podem ser undefined em RAM) antes do acesso por índice
+  if (!nf || !Array.isArray(nf.itens) || !nf.itens[idx]) return;
   nf.itens[idx].ncm = valor.trim();
   // Sync NCM de volta pro pedido vinculado (em memória — persiste no batch)
   const ped = pedidos.find(p => p.id === nf.pedidoId);
-  if (ped && ped.itens[idx]) ped.itens[idx].ncm = valor.trim();
+  if (ped && Array.isArray(ped.itens) && ped.itens[idx]) ped.itens[idx].ncm = valor.trim();
 }
 
 function salvarDadosNotaFiscal(notaId) {

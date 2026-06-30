@@ -1,0 +1,14 @@
+handoff:
+  from_agent: qa
+  to_agent: dev
+  created_at: "2026-06-30"
+  gate: docs/qa/gates/nf-itens-undefined-gate.yaml
+  veredito: CONCERNS
+  resumo: "Anti-crash OK. Mas a RECUPERACAO usa campo errado e geraria NF rejeitada pela SEFAZ."
+  fix_obrigatorio:
+    local: "gdp-notas-fiscais.js — bloco RECUPERACAO 'nf.itens = pedido.itens.map(pi => ({...}))'"
+    erro: "Usa 'quantidade: pi.quantidade'. O pedido usa 'qtd' (pi.quantidade e undefined) e a NF e lida como 'i.qtd' em todo o codigo (2681/2702/2710/2726/2857/3112). NF nasceria com qtd vazia -> SEFAZ rejeita (backend exige quantidade>0)."
+    correcao: "Trocar para 'qtd: pi.qtd' (e manter precoUnitario com fallback valorUnitario). Opcional: incluir itemNum: pi.itemNum."
+  resto_OK: "anti-crash, abort+lock, salvarNcmItemNf, sem regressao — tudo aprovado."
+  next_action: "@dev aplicar o fix de campo; depois @qa re-revisa (rapido) e libera p/ @devops deploy --force"
+  consumed: true

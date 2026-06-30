@@ -1,0 +1,26 @@
+handoff:
+  from_agent: analyst
+  to_agent: dev
+  created_at: "2026-06-30"
+  bug: "Emissao de NF: 'Erro inesperado: Cannot read properties of undefined (reading 0)'"
+  causa_raiz_PROVADA:
+    stack_trace_usuario: "at gdp-notas-fiscais.js?v=59:2056:19  <- if (nf.itens[idx])  | at Array.forEach | at transmitirHomologacaoNota (2055:18) | at HTMLButtonElement.onclick"
+    explicacao: >
+      transmitirHomologacaoNota, fase de PREPARACAO (fora do try interno -> cai no catch externo
+      'Erro inesperado'). Linha 2056 'if (nf.itens[idx])' acessa nf.itens[0] quando nf.itens e
+      UNDEFINED -> lanca '(reading 0)'. Assinatura do bug: as linhas vizinhas 2067/2068 JA usam
+      (nf.itens || []) — o autor sabia que pode faltar, mas esqueceu de guardar a 2056.
+    evidencia_complementar: "Tabela notas_fiscais nao tem itens IS NULL -> o undefined vem do objeto em RAM (NF montada sem itens), nao do banco."
+  pontos_a_corrigir:
+    - "gdp-notas-fiscais.js:2054-2063 — guardar nf.itens antes do loop. Ex.: if (pedido.itens && pedido.itens.length && Array.isArray(nf.itens)) { ... }  OU normalizar nf.itens = nf.itens || [] no inicio da funcao (apos achar a nf, ~linha 2030)."
+    - "gdp-notas-fiscais.js:3026 — salvarNcmItemNf: 'if (!nf || !nf.itens[idx]) return;' tem o MESMO bug (nf.itens pode ser undefined). Trocar por 'if (!nf || !Array.isArray(nf.itens) || !nf.itens[idx]) return;'"
+    - "gdp-notas-fiscais.js:3030 — 'if (ped && ped.itens[idx])' idem para ped.itens (guardar Array.isArray(ped.itens))."
+  decisao_de_produto_NAO_so_silenciar:
+    - "ATENCAO: blindar evita o crash, mas uma NF-e sem itens nao deve ser TRANSMITIDA (SEFAZ rejeita / nota invalida)."
+    - "Recomendo: alem de guardar o acesso, se nf.itens estiver vazio/undefined na transmissao, ABORTAR com toast claro: 'Esta NF nao possui itens. Gere a nota a partir do pedido antes de transmitir.' (nao deixar seguir para a SEFAZ)."
+    - "Investigar de onde veio uma NF sem itens (provavel: rascunho/registro criado sem gerarNotaFiscalPedido, ou nota antiga). Opcional: na criacao, garantir nf.itens = [] sempre."
+  arquivos: ["squads/caixa-escolar/dashboard/js/gdp-notas-fiscais.js"]
+  versao_atual: "gdp-notas-fiscais.js v59 (servida em prod = local)"
+  risco: BAIXO (guarda defensiva + abort claro). Bump para v60 + deploy --force (@devops).
+  next_action: "@dev corrige 2056/3026/3030 + abort se nota sem itens; depois @qa valida na tela; @devops deploy --force"
+  consumed: true
