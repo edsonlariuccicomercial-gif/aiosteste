@@ -226,7 +226,7 @@ function _updatePedidosFooterTotals(items) {
 function _updateNfFooterTotals(items) {
   const qtdEl = document.getElementById("nf-footer-qtd");
   const valEl = document.getElementById("nf-footer-valor");
-  const filtered = items || ((() => { const tab = typeof notaFiscalStatusTabAtual !== 'undefined' ? notaFiscalStatusTabAtual : 'todas'; return tab === 'todas' ? notasFiscais : notasFiscais.filter(nf => normalizeNotaFiscalStatus(nf.status) === tab); })());
+  const filtered = items || ((() => { const tab = typeof notaFiscalStatusTabAtual !== 'undefined' ? notaFiscalStatusTabAtual : 'todas'; const _clsf = (typeof normalizeNotaFiscalStatusNf === 'function') ? normalizeNotaFiscalStatusNf : (nf => normalizeNotaFiscalStatus(nf.status)); return tab === 'todas' ? notasFiscais : notasFiscais.filter(nf => _clsf(nf) === tab); })());
   if (qtdEl) qtdEl.textContent = String(filtered.length).padStart(2, '0');
   if (valEl) valEl.textContent = brl.format(filtered.reduce((s, nf) => s + (parseFloat(nf.valor) || 0), 0));
 }
@@ -3041,6 +3041,29 @@ async function enviarTiny(contratoId) {
   console.time('[GDP] loadData');
   loadData();
   console.timeEnd('[GDP] loadData');
+
+  // FIX 2026-06-30 (DATA-FIX-B): carimbar updated_at em toda NF sem relógio. Causa-raiz comprovada:
+  // 198/198 notas estavam SEM updated_at → _tsRobusto vazio → a guarda de timestamp do realtime
+  // (gdp-realtime.js) caía em '!lTs' e deixava um eco antigo sem chave sobrescrever a nota autorizada
+  // (regressão Emitida→Pendente + cobrança órfã). A migration 042 conserta o banco; isto garante o
+  // relógio JÁ nesta sessão (antes do deploy propagar). Deriva de campos confiáveis. Idempotente.
+  try {
+    if (typeof notasFiscais !== "undefined" && Array.isArray(notasFiscais)) {
+      var _carimbadas = 0;
+      notasFiscais.forEach(function (nf) {
+        if (nf && !nf.updated_at && !nf.updatedAt) {
+          var ts = (nf.audit && nf.audit.updatedAt) || (nf.audit && nf.audit.authorizedAt) ||
+                   nf.emitidaEm || nf.emitida_em || nf.createdAt || nf.created_at || new Date().toISOString();
+          nf.updated_at = ts; nf.updatedAt = ts;
+          _carimbadas++;
+        }
+      });
+      if (_carimbadas > 0) {
+        try { if (typeof saveNotasFiscais === "function") saveNotasFiscais(); } catch (_) {}
+        console.log("[GDP] updated_at carimbado em " + _carimbadas + " nota(s) sem relógio (anti-regressão).");
+      }
+    }
+  } catch (e) { gdpWarn && gdpWarn("[GDP] carimbo updated_at falhou:", e); }
   console.time('[GDP] loadUsuarios');
   loadUsuarios();
   console.timeEnd('[GDP] loadUsuarios');

@@ -1676,6 +1676,23 @@ function voltarListaPedidos() {
   }
 }
 
+// Helper local de prova (fonte unica: window.temProvaAutorizacao de gdp-notas-fiscais.js).
+// Fallback inline identico caso a ordem de carregamento ainda nao tenha exposto a global.
+function _nfTemProvaLocal(nf) {
+  if (typeof window !== "undefined" && typeof window.temProvaAutorizacao === "function") {
+    return window.temProvaAutorizacao(nf);
+  }
+  if (!nf) return false;
+  const chave = String(nf?.sefaz?.chaveAcesso || nf?.chaveAcesso || "").replace(/\D/g, "");
+  const protocolo = String(nf?.sefaz?.protocolo || nf?.protocolo || "");
+  return chave.length === 44 && protocolo.length > 0;
+}
+
+// FIX 2026-06-30: status fiscal decidido pela PROVA REAL (chave 44 + protocolo), NUNCA por substring
+// de status. Antes, sefazStatus.includes("autoriz") ligava o verde "liberada pela SEFAZ" para qualquer
+// status contendo "autoriz" (ex.: "autorizada_backend") ou ate rascunho — fazendo nota nao-transmitida
+// aparecer como emitida e oscilar (o "pisca"). 3 estados: PENDENTE -> TRANSMITIDA (azul, enviada sem
+// prova) -> EMITIDA (verde, com prova). So a prova liga o verde.
 function getNotaFiscalOperationalFiscal(nf) {
   const sefazStatus = String(nf.integracoes?.sefaz?.status || nf.status || "");
   if (!isNotaFiscalReal(nf)) {
@@ -1684,15 +1701,17 @@ function getNotaFiscalOperationalFiscal(nf) {
   if (nf.status === "cancelada") {
     return { label: "Cancelada", detail: "Fluxo fiscal encerrado", badgeClass: "badge-red" };
   }
+  // PROVA REAL primeiro: chave 44 + protocolo = autorizada de fato (independe de status volatil).
+  if (_nfTemProvaLocal(nf)) {
+    return { label: "Fiscal ok", detail: "Nota liberada pela SEFAZ", badgeClass: "badge-green" };
+  }
+  // Sem prova: rejeicao/falha real.
   if (nf.status === "rejeitada" || sefazStatus.includes("falha") || sefazStatus.includes("reje")) {
     return { label: "Falha fiscal", detail: "Revise a transmissao da nota", badgeClass: "badge-red" };
   }
-  if (nf.status === "autorizada" || sefazStatus.includes("autoriz")) {
-    return { label: "Fiscal ok", detail: "Nota liberada pela SEFAZ", badgeClass: "badge-green" };
-  }
-  // Story 4.83: transmitida = enviada com sucesso para SEFAZ, aguardando confirmação
-  if (nf.status === "transmitida" || sefazStatus.includes("transmit")) {
-    return { label: "Transmitida", detail: "Enviada para SEFAZ — aguardando confirmacao", badgeClass: "badge-blue" };
+  // Sem prova mas enviada: estado intermediario legitimo (aguardando retorno assincrono da SEFAZ).
+  if (nf.status === "transmitida" || sefazStatus.includes("transmit") || sefazStatus.includes("lote") || nf?.sefaz?.nRec) {
+    return { label: "Transmitida", detail: "Enviada para SEFAZ — aguardando autorizacao", badgeClass: "badge-blue" };
   }
   return { label: "Pendente fiscal", detail: "Aguardando transmissao ou autorizacao", badgeClass: "badge-yellow" };
 }
@@ -1739,20 +1758,39 @@ function getContaReceberOperationalBank(item) {
   return { label: "Nao enviada", detail: "Conta ainda sem cobranca externa", badgeClass: "badge-yellow" };
 }
 
+// Wrapper legado (recebe so a string status). Mantido p/ compatibilidade de chamadas antigas.
+// NAO consegue ver a prova (chave/protocolo) — por isso preferir normalizeNotaFiscalStatusNf(nf).
 function normalizeNotaFiscalStatus(status) {
   const normalized = String(status || "").trim().toLowerCase();
   if (!normalized || normalized === "rascunho" || normalized === "rascunho_nf_real" || normalized === "pendente_autorizacao") return "pendente";
-  // Story 4.83: "transmitida" = enviada com sucesso para SEFAZ → vai para Emitidas (não é mais pendente)
-  // "rejeitada" = SEFAZ rejeitou → pendente (precisa corrigir e reenviar)
   if (normalized === "rejeitada") return "pendente";
-  if (normalized === "autorizada" || normalized === "emitida" || normalized === "faturada" || normalized === "transmitida") return "emitida";
+  if (normalized === "transmitida") return "transmitida";
+  if (normalized === "autorizada" || normalized === "emitida" || normalized === "faturada") return "emitida";
   if (normalized === "cancelada") return "cancelada";
   if (normalized === "inutilizada") return "inutilizada";
   return "pendente";
 }
 
-function getNotaFiscalStatusMeta(status) {
-  const normalized = normalizeNotaFiscalStatus(status);
+// FIX 2026-06-30: classificacao por PROVA REAL. Recebe a NF inteira p/ ver chave+protocolo.
+// 3 estados: emitida (prova) / transmitida (enviada, sem prova) / pendente. So a prova classifica emitida.
+function normalizeNotaFiscalStatusNf(nf) {
+  if (!nf) return "pendente";
+  const s = String(nf.status || "").trim().toLowerCase();
+  const sefazStatus = String(nf.integracoes?.sefaz?.status || nf.sefaz?.status || "");
+  if (s === "cancelada") return "cancelada";
+  if (s === "inutilizada") return "inutilizada";
+  // EMITIDA somente com prova SEFAZ real (chave 44 + protocolo). Regra inegociavel.
+  if (_nfTemProvaLocal(nf)) return "emitida";
+  // Sem prova mas enviada -> TRANSMITIDA (intermediario legitimo, nao e emitida nem pendente).
+  if (s === "transmitida" || sefazStatus.includes("transmit") || sefazStatus.includes("lote") || nf?.sefaz?.nRec) return "transmitida";
+  // rejeitada / rascunho / sem envio -> pendente.
+  return "pendente";
+}
+
+function getNotaFiscalStatusMeta(statusOrNf) {
+  const normalized = (statusOrNf && typeof statusOrNf === "object")
+    ? normalizeNotaFiscalStatusNf(statusOrNf)
+    : normalizeNotaFiscalStatus(statusOrNf);
   return NOTA_FISCAL_STATUS_TABS.find((item) => item.key === normalized) || NOTA_FISCAL_STATUS_TABS[1];
 }
 
@@ -1767,7 +1805,7 @@ function renderNotasFiscaisStatusTabs(items = notasFiscais) {
   if (!container) return;
   const safeItems = Array.isArray(items) ? items : [];
   container.innerHTML = NOTA_FISCAL_STATUS_TABS.map((tab) => {
-    const count = tab.key === "todas" ? safeItems.length : safeItems.filter((item) => normalizeNotaFiscalStatus(item.status) === tab.key).length;
+    const count = tab.key === "todas" ? safeItems.length : safeItems.filter((item) => normalizeNotaFiscalStatusNf(item) === tab.key).length;
     const cor = NOTA_FISCAL_STATUS_COLORS[tab.key] || '#94a3b8';
     const active = notaFiscalStatusTabAtual === tab.key;
     return `<button onclick="setNotaFiscalStatusTab('${tab.key}')" style="display:inline-flex;align-items:center;gap:6px;padding:10px 16px;background:transparent;border:none;border-bottom:2px solid ${active ? 'var(--green)' : 'transparent'};cursor:pointer;transition:all .2s;opacity:${active ? '1' : '.7'};white-space:nowrap">
@@ -1857,7 +1895,7 @@ function renderNotasFiscais() {
   filtered = filtered.slice().sort((a, b) => (parseInt(b.numero) || 0) - (parseInt(a.numero) || 0));
   renderNotasFiscaisStatusTabs(filtered);
   if (notaFiscalStatusTabAtual !== "todas") {
-    filtered = filtered.filter((nf) => normalizeNotaFiscalStatus(nf.status) === notaFiscalStatusTabAtual);
+    filtered = filtered.filter((nf) => normalizeNotaFiscalStatusNf(nf) === notaFiscalStatusTabAtual);
   }
 
   const tbody = document.getElementById("notas-fiscais-tbody");
@@ -1905,7 +1943,7 @@ function renderNotasFiscais() {
       <td class="text-right font-mono">${brl.format(nf.valor || 0)}</td>
       <td>${(() => {
         const fiscal = getNotaFiscalOperationalFiscal(nf);
-        const meta = getNotaFiscalStatusMeta(nf.status);
+        const meta = getNotaFiscalStatusMeta(nf);
         return `<span class="badge ${meta.className}">${esc(meta.label)}</span><div style="font-size:.72rem;color:var(--mut);margin-top:.2rem">${esc(fiscal.detail)}</div>`;
       })()}</td>
       <td>${getNotaFiscalIntegracoesResumo(nf)}</td>
@@ -3065,6 +3103,8 @@ var pedidoEditId = null;
 var NOTA_FISCAL_STATUS_TABS = [
   { key: "todas", label: "Todas", className: "badge-blue" },
   { key: "pendente", label: "Pendentes", className: "badge-yellow" },
+  // FIX 2026-06-30: faixa intermediaria — enviada a SEFAZ, aguardando autorizacao (sem prova ainda).
+  { key: "transmitida", label: "Transmitidas", className: "badge-blue" },
   { key: "emitida", label: "Emitidas", className: "badge-green" },
   { key: "cancelada", label: "Canceladas", className: "badge-red" },
   { key: "inutilizada", label: "Inutilizadas", className: "badge-blue" }
@@ -3072,6 +3112,7 @@ var NOTA_FISCAL_STATUS_TABS = [
 var NOTA_FISCAL_STATUS_COLORS = {
   todas: '#3b82f6',
   pendente: '#f59e0b',
+  transmitida: '#0ea5e9',
   emitida: '#22c55e',
   cancelada: '#ef4444',
   inutilizada: '#94a3b8'

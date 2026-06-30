@@ -325,12 +325,24 @@
             if (!_podeSobrescreverRegistro(table, items[j], record)) {
               // eco velho/sem prova → IGNORAR. O registro com prova permanece. (não seta changed)
             } else {
+              // FIX 2026-06-30 (causa-raiz comprovada: 198/198 notas SEM updated_at → lTs vazio).
+              // Antes: 'if (!lTs || ...)' deixava o '!lTs' liberar sobrescrita CEGA — um eco antigo sem
+              // chave apagava a nota autorizada (regressão Emitida→Pendente + cobrança órfã).
+              // Agora: prova durável LOCAL vence eco sem prova MESMO sem timestamp; e timestamp ausente
+              // NÃO libera mais sobrescrita cega — só sobrescreve quando o remoto é provadamente mais novo
+              // OU quando o entrante tem prova e o local não.
               var rTs = _tsRobusto(record);              // Camada B: fallback p/ audit.updatedAt
               var lTs = _tsRobusto(items[j]);
-              if (!lTs || !rTs || rTs > lTs) {
-                items[j] = record;
-                changed = true;
+              var localProva = (table === 'notas_fiscais') ? _nfTemProva(items[j]) : (table === 'contas_receber' ? _contaTemProva(items[j]) : false);
+              var entranteProva = (table === 'notas_fiscais') ? _nfTemProva(record) : (table === 'contas_receber' ? _contaTemProva(record) : false);
+              if (localProva && !entranteProva) {
+                // prova durável local vence eco sem prova — IGNORA (independe de timestamp)
+              } else if (rTs && lTs && rTs > lTs) {
+                items[j] = record; changed = true;            // remoto provadamente mais novo
+              } else if (entranteProva && !localProva) {
+                items[j] = record; changed = true;            // entrante traz prova que o local não tem
               }
+              // demais casos (lTs/rTs vazios, sem diferença de prova) → preserva local (não sobrescreve cego)
             }
             found = true;
             break;

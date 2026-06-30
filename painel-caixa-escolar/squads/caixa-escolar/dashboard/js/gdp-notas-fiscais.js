@@ -19,6 +19,10 @@ if (typeof window !== 'undefined') {
 
 // Retry helper: salva NF no Supabase com 3 tentativas
 async function _saveNfToSupabaseWithRetry(nfData, maxRetries) {
+  // FIX 2026-06-30 (DATA-FIX-C): garantir relógio no payload. Defesa em profundidade — mesmo que o
+  // trigger 042 do banco falhe/seja revertido, a NF carrega updated_at. O trigger sobrescreve com
+  // now() server-side (correto). Sem isto, uma NF salva sem relógio reabre a regressão do merge.
+  try { if (nfData && typeof nfData === "object") { var _now = new Date().toISOString(); nfData.updated_at = _now; nfData.updatedAt = _now; } } catch (_) {}
   var retries = maxRetries || 3;
   for (var attempt = 1; attempt <= retries; attempt++) {
     try {
@@ -875,6 +879,9 @@ function temProvaAutorizacao(nf) {
   var protocolo = String(nf?.sefaz?.protocolo || nf?.protocolo || "");
   return chave.length === 44 && protocolo.length > 0;
 }
+// Expor como fonte UNICA de verdade do status fiscal (gdp-pedidos.js label/classificacao,
+// gdp-realtime.js guarda). FIX 2026-06-30: a label/aba nao podem mais decidir por substring de status.
+if (typeof window !== "undefined") window.temProvaAutorizacao = temProvaAutorizacao;
 
 // ===== AUTOCURA 539 (duplicidade) =====
 // Quando a SEFAZ rejeita com cStat 539 (Duplicidade de NF-e), a nota JÁ ESTÁ autorizada lá — a chave
@@ -977,12 +984,20 @@ async function _recuperarViaDistribuicaoDFe(opts) {
         body: JSON.stringify({ action: "nfe-sefaz-distribuicao-dfe", ultNSU: ultNSU }),
         signal: AbortSignal.timeout(30000)
       });
+      // FIX (2026-06-30): tornar falha de rede/backend VISIVEL — antes o .catch(()=>({})) engolia
+      // erro 500/timeout e a autocura retornava "0 recuperadas" como se estivesse tudo bem.
+      if (!resp.ok) { gdpWarn("[DFe] backend HTTP " + resp.status + " — abortando pagina."); break; }
       var data = await resp.json().catch(function () { return {}; });
       var parsed = (data && data.result && data.result.parsed) || {};
       var cStat = String(parsed.cStat || "");
       // 137 = nenhum doc novo; 138 = documentos localizados. 656 = consumo indevido (parar e respeitar).
       if (cStat === "656" || cStat === "108" || cStat === "109") {
-        gdpWarn("[DFe] SEFAZ cStat " + cStat + " (" + (parsed.xMotivo || "") + ") — abortando, respeita throttle.");
+        // FIX CRITICO (2026-06-30): a SEFAZ DEVOLVE o ultNSU correto na propria rejeicao 656.
+        // Antes o 'break' ocorria ANTES da gravacao do NSU (so na linha abaixo do loop), deixando
+        // gdp.nfe.ultNSU.v1 preso em "0" -> toda chamada partia do 0 -> SEFAZ tratava como varredura
+        // -> 656 perpetuo -> autocura nunca recuperava. Persistir o ponteiro ANTES de abortar quebra o loop.
+        if (parsed.ultNSU) { ultNSU = parsed.ultNSU; try { localStorage.setItem(_DFE_ULTNSU_KEY, ultNSU); } catch (_) {} }
+        gdpWarn("[DFe] SEFAZ cStat " + cStat + " (" + (parsed.xMotivo || "") + ") — ultNSU=" + ultNSU + " salvo, abortando, respeita throttle.");
         break;
       }
       if (parsed.ultNSU) ultNSU = parsed.ultNSU;
