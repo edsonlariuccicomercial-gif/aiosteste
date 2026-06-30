@@ -280,6 +280,16 @@
   }
 
   async function sbDelete(table, id) {
+    // BLINDAGEM BL-4 / QA-B3 (2026-06-30): registrar a INTENCAO de exclusao deste cliente. O guard de
+    // DELETE do realtime (gdp-realtime.js) so bloqueia a remocao de um registro PROVADO quando o DELETE
+    // NAO foi pedido por nos (eco/race de outra maquina). Marcando a intencao aqui (choke point unico de
+    // hard-delete), toda exclusao LEGITIMA originada neste cliente passa; so o eco fantasma e barrado.
+    try {
+      if (typeof window !== 'undefined') {
+        window._gdpDeletesIntencionais = window._gdpDeletesIntencionais || {};
+        window._gdpDeletesIntencionais[id] = (function(){ try { return Date.now(); } catch(_) { return 1; } })();
+      }
+    } catch (_) {}
     var viaBackend = await sbWriteViaBackend({ action: 'delete', table: table, id: id });
     if (viaBackend.handled) return viaBackend.ok;
     // Fallback legado: anon direto

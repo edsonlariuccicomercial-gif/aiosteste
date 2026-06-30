@@ -378,16 +378,28 @@
     } else if (type === 'DELETE') {
       var delId = (oldRecord && oldRecord.id) || (record && record.id);
       if (delId) {
-        // BLINDAGEM BL-4 (2026-06-30): so remover por soft-delete REAL (deleted_at no payload). Um DELETE
-        // de eco SEM deleted_at sobre registro com prova (NF autorizada / conta com boleto) NAO some com
-        // o dado provado. Cancelamento/delete explicito carrega deleted_at. Imutabilidade-para-baixo.
+        // BLINDAGEM BL-4 + QA-B3 (2026-06-30): so bloquear a remocao de um registro PROVADO quando o
+        // DELETE NAO foi pedido por nos (eco/race de outra maquina) E nao carrega soft-delete real.
+        // Exclusao LEGITIMA deste cliente registra a intencao em window._gdpDeletesIntencionais (gdp-api
+        // sbDelete) -> passa normalmente. Soft-delete (UPDATE deleted_at) e o caminho real de excluir NF
+        // autorizada (que ademais nem e excluivel). Assim nao trocamos "some sozinha" por "nao exclui".
         var _delRec = oldRecord || record || {};
         var _temSoftDelete = !!(_delRec.deleted_at || _delRec.deletedAt);
         var _localDel = null;
         for (var _di = 0; _di < items.length; _di++) { if (items[_di].id === delId) { _localDel = items[_di]; break; } }
         var _localProvado = _localDel && ((table === 'notas_fiscais') ? _nfTemProva(_localDel) : (table === 'contas_receber') ? _contaTemProva(_localDel) : false);
-        if (_localProvado && !_temSoftDelete) {
-          // dado provado + DELETE sem soft-delete real -> IGNORA (preserva).
+        // intencao explicita de exclusao originada neste cliente (expira em 60s)
+        var _intencional = false;
+        try {
+          var _intMap = (typeof window !== 'undefined') && window._gdpDeletesIntencionais;
+          if (_intMap && _intMap[delId]) {
+            var _idade = (function(){ try { return Date.now() - _intMap[delId]; } catch(_) { return 0; } })();
+            if (_idade >= 0 && _idade < 60000) _intencional = true;
+            else { try { delete _intMap[delId]; } catch(_) {} } // limpa entrada velha
+          }
+        } catch (_) {}
+        if (_localProvado && !_temSoftDelete && !_intencional) {
+          // dado provado + DELETE sem soft-delete real + sem intencao nossa -> IGNORA (preserva). Eco/race.
         } else {
           var before = items.length;
           items = items.filter(function (it) { return it.id !== delId; });

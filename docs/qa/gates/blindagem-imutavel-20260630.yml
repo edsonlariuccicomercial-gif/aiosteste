@@ -1,0 +1,71 @@
+gate: blindagem-imutavel-perda-dados
+data: "2026-06-30"
+commit: "bb0e7ddc"
+revisor: "@qa (Quinn)"
+tipo: "revisao estatica cetica (codigo nao deployado ainda)"
+decisao: CONCERNS
+
+resumo: |
+  A blindagem BL-1, BL-2, BL-3 esta CORRETA e resolve as causas-raiz (cobranca PIX some, ultraLight
+  perde forma/relogio, PIX vira boleto). MAS o BL-4 (guard de DELETE no realtime) introduz um EFEITO
+  COLATERAL HIGH: pode impedir a exclusao LEGITIMA de uma NF autorizada (hard-delete emite DELETE sem
+  deleted_at -> guard bloqueia -> nota excluida reaparece). Retornar ao @dev para refinar o BL-4 DELETE
+  antes do deploy. BL-1/2/3 estao aprovados.
+
+achados:
+  - id: QA-B1
+    severidade: LOW
+    status: RESOLVIDO
+    titulo: "Conta cancelada/recebida nao e tocada pela reconciliacao"
+    analise: "O guard 'if status recebida/cancelada return' (linha anterior) protege. _nfProvaDuravel nao causa falso-positivo em conta finalizada. OK."
+
+  - id: QA-B2
+    severidade: MEDIUM
+    status: RESOLVIDO
+    titulo: "_formaCobrancaSoberana depende de getFiscalConfig/getConfiguredDefaultBankAccount"
+    analise: "Ambas existem em gdp-notas-fiscais.js (linhas 312 e 350), definidas antes do uso, com typeof guard + fallback localStorage. Sem risco de cair sempre em 'boleto'. OK."
+
+  - id: QA-B3
+    severidade: HIGH
+    status: PRECISA_FIX
+    titulo: "BL-4 DELETE guard bloqueia exclusao legitima de NF autorizada (hard-delete)"
+    evidencia: |
+      gdp-api.js:289 faz DELETE REST real (hard-delete). O Supabase emite evento DELETE com APENAS a PK
+      no oldRecord (sem deleted_at). O guard BL-4 (gdp-realtime.js handleEntityChange DELETE) exige
+      deleted_at para permitir remover uma NF/conta provada. Logo: ao excluir LEGITIMAMENTE uma NF
+      autorizada, o DELETE vem sem deleted_at -> _localProvado && !_temSoftDelete -> guard IGNORA a
+      remocao -> a nota excluida REAPARECE no array local. Troca o bug antigo por um novo (nao consigo
+      excluir nota autorizada).
+    fix_proposto: |
+      Distinguir DELETE legitimo (originado pelo proprio cliente) de eco/race. Opcoes:
+      (a) PREFERIDA: o caminho de exclusao (gdpApi.notas_fiscais.remove / a UI de excluir) registra a
+          intencao numa lista efêmera window._gdpDeletesIntencionais[id] = Date.now() ANTES do DELETE REST.
+          O guard BL-4 so bloqueia DELETE de registro provado se o id NAO estiver nessa lista (e a entrada
+          expira em ~30s). Assim: exclusao do usuario passa; eco/race de outra maquina sem intencao e barrado.
+      (b) ALTERNATIVA: reutilizar gdpApiIsSelfEcho para DELETE — se o DELETE casa a assinatura do nosso
+          proprio remove recente, permitir; senao, se provado e sem deleted_at, ignorar.
+      (c) Se a exclusao de NF no sistema for SEMPRE soft-delete (UPDATE deleted_at) e o hard-delete :289
+          NUNCA for usado para notas_fiscais/contas_receber -> entao o guard atual e seguro e basta
+          DOCUMENTAR/confirmar isso. @dev: confirmar qual mecanismo a UI de excluir NF usa de fato.
+
+  - id: QA-B4
+    severidade: LOW
+    status: OK
+    titulo: "BL-4 reconcile faz merge O(n) extra"
+    analise: "Custo aceitavel (reconcile e raro, tem cooldown). readLocalItems + map por id. Nao bloqueia."
+
+aprovados:
+  BL-1: "PIX protegido por prova duravel — CORRETO. Resolve a causa do 1637."
+  BL-2: "_ultraLightNf preserva prova+forma+relogio — CORRETO."
+  BL-3: "Forma soberana respeita PIX — CORRETO. Dependencias confirmadas (QA-B2)."
+  BL-4_INSERT: "Guard de re-insert sem prova quando ha prova duravel — CORRETO."
+  BL-4_RECONCILE: "Preserva local provado vs row sem prova — CORRETO."
+  BL-4_DELETE: "PRECISA FIX (QA-B3) — agressivo demais p/ exclusao legitima."
+
+sintaxe: "node --check OK nos 3 JS (confirmado pelo @dev)."
+
+decisao_final: |
+  CONCERNS. Retornar ao @dev SO para o QA-B3 (BL-4 DELETE). Os demais fixes estao aprovados. Apos o
+  @dev confirmar o mecanismo de exclusao de NF (soft vs hard) e ajustar o guard de DELETE para nao
+  bloquear exclusao legitima, segue para @devops deploy. NAO deployar com o QA-B3 em aberto — trocaria
+  um bug por outro (nota nao-excluivel).
