@@ -1,0 +1,33 @@
+handoff:
+  from_agent: analyst
+  to_agent: dev
+  created_at: "2026-06-30"
+  pedido_usuario: >
+    Quer poder editar o NCM (e afins) DIRETO NA NOTA e que isso valha na emissao (override pontual),
+    arrumando a Central depois. Disse que "funcionava assim antes" — e regressao.
+  causa_raiz:
+    regressao_commit: "06b94de6 (2026-06-25) feat(nf): produto sai na nota com dados da Central (desc+SKU+unidade+NCM)"
+    local: "gdp-notas-fiscais.js transmitirHomologacaoNota, bloco ~2142-2156"
+    problema: >
+      Antes de transmitir, o codigo reescreve pedido.itens com dados do produto da Central:
+      'ncm: central.ncm || it.ncm' (e idem descricao/unidade/sku). Isso SOBRESCREVE qualquer
+      NCM editado manualmente -> a edicao na tela da nota e ignorada. Foi o que causou o
+      'Rejeicao 778 NCM inexistente' no cheiro verde (Central tinha NCM errado 8536.69.90).
+    confirmacao: "Usuario corrigiu na Central e a nota emitiu. Mas quer o override manual de volta."
+  comportamento_desejado:
+    - "Regra geral mantida: item sem dado proprio puxa da Central (consistencia — requisito de 25/06)."
+    - "NOVO/RESTAURADO: se o item da NOTA tem NCM (ou desc/unidade/sku) editado manualmente, a EDICAO MANUAL VENCE — Central NAO sobrescreve."
+  sutileza_tecnica_IMPORTANTE:
+    - "A sobrescrita opera em pedido.itens, mas a edicao manual do usuario fica em nf.itens (salvarNcmItemNf grava nf.itens[idx].ncm e tenta sync ped.itens[idx].ncm)."
+    - "O backend monta o XML a partir de pedido.itens (nfe-sefaz-client.js:627 ncm: sanitizeDigits(item.ncm)). Entao o NCM efetivo e o de pedido.itens."
+    - "Antes desse bloco (linha ~2054-2085) ja ha sincronizacao nf.itens<->pedido.itens por indice. Garantir que o NCM manual da nota seja propagado ao pedido.itens E que a Central NAO o sobrescreva."
+  fix_sugerido:
+    - "No map da Central (linha ~2147): so aplicar central.ncm quando o item NAO tem ncm proprio/valido. Trocar 'ncm: central.ncm || it.ncm' por 'ncm: (it.ncm && String(it.ncm).trim()) ? it.ncm : (central.ncm || it.ncm)'. Mesma logica defensiva pode valer p/ unidade/desc/sku SE o usuario tambem edita esses na nota (NCM e o caso confirmado; confirmar escopo)."
+    - "Garantir que o valor editado na nota (nf.itens[idx].ncm) esteja em pedido.itens[idx].ncm ANTES desse bloco rodar (a sync de 2054 cobre quando ha match por indice; validar)."
+    - "NAO remover a regra da Central inteira (o requisito de 25/06 e legitimo) — apenas dar precedencia a edicao manual."
+  decisao_de_escopo_p_dev:
+    - "Confirmar se o override manual vale SO p/ NCM (caso reportado) ou tambem desc/unidade/sku. Recomendo: precedencia manual p/ todos os campos editaveis na nota, Central preenche o que estiver vazio."
+  validar: "Editar NCM na nota (produto vinculado a Central com NCM diferente) -> transmitir -> XML/SEFAZ recebe o NCM da NOTA, nao o da Central. E produto sem edicao continua puxando da Central."
+  arquivos: ["squads/caixa-escolar/dashboard/js/gdp-notas-fiscais.js"]
+  next_action: "@dev implementar precedencia da edicao manual; bump versao; @qa valida; @devops deploy --force"
+  consumed: true

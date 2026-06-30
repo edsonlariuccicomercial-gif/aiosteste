@@ -1,0 +1,22 @@
+handoff:
+  from_agent: dev
+  to_agent: qa
+  created_at: "2026-06-30"
+  feature: "NCM editado na nota tem precedencia na emissao (override manual) — SO NCM"
+  status: "IMPLEMENTADO; aguardando revisao + deploy"
+  regressao_corrigida: "commit 06b94de6 sobrescrevia NCM manual com o da Central (Rejeicao 778)"
+  escopo_confirmado_usuario: "Precedencia manual vale SO para NCM. descricao/unidade/sku seguem da Central."
+  implementado_gdp-notas-fiscais.js:
+    - "Bloco Central (~2151): 'ncm: central.ncm || it.ncm' -> 'ncm: (it.ncm && String(it.ncm).trim()) ? it.ncm : (central.ncm || it.ncm)'. descricao/unidade/sku INALTERADOS (central.X || it.X)."
+    - "Bloco sync nota<->pedido (~2078 else): NCM bidirecional com precedencia da NOTA — se nf.itens[idx].ncm existe, propaga p/ pedido.itens[idx].ncm (fonte do XML); senao herda do pedido. Garante que o NCM manual chega ao backend ANTES do map da Central."
+  por_que_robusto: "salvarNcmItemNf ja grava nf.itens[idx].ncm + tenta sync ped.itens. O reforco no bloco de sync cobre o caso de a propagacao nao ter ocorrido — a edicao manual sempre chega a pedido.itens (XML)."
+  versao: "bump gdp-notas-fiscais.js v60 -> v61 (gdp-contratos.html). node --check OK."
+  NAO_feito: ["git push (delegado @devops)"]
+  roteiro_qa:
+    - "PRE: @devops deploy --force; usuario Ctrl+Shift+R"
+    - "1. Produto vinculado a Central com NCM X. Na NOTA, editar NCM para Y (diferente). Transmitir -> SEFAZ/XML recebe Y (nota), NAO X (Central)."
+    - "2. Produto vinculado SEM editar NCM na nota -> continua puxando o NCM da Central (consistencia mantida)."
+    - "3. descricao/unidade/sku continuam vindo da Central (escopo nao mudou)."
+    - "4. Caso cheiro verde: editar NCM correto na nota (ex.: 0709.99.90) e emitir, mesmo com a Central errada -> autoriza."
+  next_action: "@qa revisar (estatico — prod ainda v60) -> @devops commit + deploy --force + push"
+  consumed: true

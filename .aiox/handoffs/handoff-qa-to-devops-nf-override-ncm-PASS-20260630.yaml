@@ -1,0 +1,21 @@
+handoff:
+  from_agent: qa
+  to_agent: devops
+  created_at: "2026-06-30"
+  gate: docs/qa/gates/nf-override-ncm-manual-gate.yaml
+  veredito: PASS_CONDICIONAL (revisao estatica PASS; aguarda deploy + tela)
+  feature: "NCM editado na nota prevalece na emissao (override manual, SO NCM)"
+  pronto_para_deploy:
+    - "gdp-notas-fiscais.js: bloco Central da precedencia ao NCM do item; bloco sync propaga NCM da nota -> pedido. desc/unidade/sku inalterados. Anti-crash/recuperacao/abort intactos."
+    - "gdp-contratos.html: gdp-notas-fiscais.js v60 -> v61"
+    - "Sem migration — SO FRONTEND. node --check OK."
+  tarefas_devops:
+    - "1. commit conventional: 'fix(nf): NCM editado na nota prevalece na emissao (override manual) [regressao 06b94de6]'"
+    - "2. cd painel-caixa-escolar && npx vercel --prod --force --yes"
+    - "3. git push origin master"
+  validacao_pos_deploy_devops:
+    - "curl served gdp-notas-fiscais.js deve mostrar v61"
+    - "functions /api/gdp-integrations viva (nao 404)"
+  apos_devops: "Usuario valida: editar NCM na nota -> emite com o NCM da nota; produto sem edicao -> NCM da Central."
+  estado_prod_atual: "served v60 -> deploy traz v61"
+  consumed: false

@@ -2077,7 +2077,11 @@ async function transmitirHomologacaoNota(notaId) {
     } else {
       pedido.itens.forEach((pi, idx) => {
         if (nf.itens[idx]) {
-          if (pi.ncm) nf.itens[idx].ncm = pi.ncm;
+          // NCM: a edicao MANUAL na nota tem precedencia (override pontual). Se a nota tem
+          // NCM proprio, propaga p/ o pedido (fonte do XML); senao herda o NCM do pedido.
+          var _ncmNota = nf.itens[idx].ncm && String(nf.itens[idx].ncm).trim();
+          if (_ncmNota) { pi.ncm = nf.itens[idx].ncm; }
+          else if (pi.ncm) { nf.itens[idx].ncm = pi.ncm; }
           if (pi.descricao) nf.itens[idx].descricao = pi.descricao;
           if (pi.unidade) nf.itens[idx].unidade = pi.unidade;
           if (pi.sku) nf.itens[idx].sku = pi.sku;
@@ -2148,7 +2152,13 @@ async function transmitirHomologacaoNota(notaId) {
           descricao: central.descricao || it.descricao,
           unidade: central.unidade || it.unidade,
           sku: central.sku || it.sku,
-          ncm: central.ncm || it.ncm
+          // FIX (2026-06-30 — regressao do commit 06b94de6): a edicao MANUAL de NCM na nota
+          // deve PREVALECER (override pontual p/ emitir e arrumar a Central depois). Antes,
+          // 'central.ncm || it.ncm' sobrescrevia o NCM digitado na nota (causou Rejeicao 778
+          // no cheiro verde, cuja Central tinha NCM errado). Agora: se o item ja tem NCM
+          // proprio (vindo de salvarNcmItemNf -> ped.itens), ele vence; senao puxa da Central.
+          // Escopo: SO o NCM tem precedencia manual; descricao/unidade/sku seguem da Central.
+          ncm: (it.ncm && String(it.ncm).trim()) ? it.ncm : (central.ncm || it.ncm)
         });
       });
     }

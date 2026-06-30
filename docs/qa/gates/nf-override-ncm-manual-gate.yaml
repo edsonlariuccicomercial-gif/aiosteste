@@ -1,0 +1,29 @@
+gate: PASS_CONDICIONAL
+feature: "NCM editado na nota tem precedencia na emissao (override manual) — SO NCM"
+reviewer: "@qa (Quinn)"
+date: "2026-06-30"
+revisao: estatica (prod ainda v60; fix em v61 nao deployado)
+escopo_usuario: "Precedencia manual SO para NCM. descricao/unidade/sku seguem da Central."
+regressao_corrigida: "commit 06b94de6 (2026-06-25) sobrescrevia NCM manual com o da Central -> Rejeicao 778 (cheiro verde)."
+
+aprovado:
+  - "(a) SO o NCM ganhou precedencia: linhas descricao/unidade/sku do bloco da Central INALTERADAS (central.X || it.X) — confirmado: nao aparecem no diff."
+  - "(b) NCM manual chega a pedido.itens (fonte do XML, nfe-sefaz-client.js:627): bloco sync propaga 'if(_ncmNota) pi.ncm = nf.itens[idx].ncm'."
+  - "(c) Produto SEM edicao manual continua puxando da Central: ternario cai em (central.ncm || it.ncm); sync mantem 'else if(pi.ncm) nf.itens[idx].ncm=pi.ncm'."
+  - "(d) Sem regressao: anti-crash (2057), recuperacao qtd (2074), abort (2097) INTACTOS. Apenas 2 hunks no JS (sync + Central) + bump HTML."
+  - "node --check OK (confirmado pelo @dev). Bump v60 -> v61."
+
+nota_nao_bloqueante:
+  - "Precedencia usa it.ncm truthy. NCM vazio na nota cai no fallback da Central — comportamento desejado (vazio = 'use a Central'). OK."
+
+veredito: >
+  PASS na revisao estatica. Override manual de NCM correto, escopo respeitado, sem regressao
+  nos fixes anteriores (v60). PASS FUNCIONAL condicional ao deploy + validacao na tela.
+  Sem migration (so frontend).
+
+roteiro_revalidacao_pos_deploy:
+  - "PRE: served gdp-notas-fiscais.js v61 + Ctrl+Shift+R"
+  - "1. Produto vinculado a Central (NCM X). Editar NCM na NOTA p/ Y. Transmitir -> SEFAZ recebe Y (nota)."
+  - "2. Produto vinculado SEM editar NCM na nota -> recebe NCM da Central (consistencia)."
+  - "3. descricao/unidade/sku continuam vindo da Central."
+  - "4. Cheiro verde: NCM correto na nota (ex.: 0709.99.90) emite mesmo com Central errada."
