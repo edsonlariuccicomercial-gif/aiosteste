@@ -422,7 +422,13 @@
     'gdp.contas-receber.v1': true, 'gdp.contas-pagar.v1': true,
     'gdp.entregas.provas.v1': true, 'gdp.usuarios.v1': true,
     'gdp.extratos.v1': true, 'gdp.conciliacao.v1': true,
-    'gdp.lancamentos-cliente.v1': true, 'gdp.lancamentos-itens.v1': true
+    'gdp.lancamentos-cliente.v1': true, 'gdp.lancamentos-itens.v1': true,
+    // ADR-005 (2026-06-30): produtos ganhou tabela dedicada no ADR-004, mas faltava aqui.
+    // CAUSA-RAIZ da regressão multi-máquina "volta aos 214 horas depois": uma máquina com
+    // código antigo (pré-ADR-004) ainda subia gdp.produtos.v1 como blob sync_data; o evento
+    // realtime chegava em TODAS as máquinas e, sem este guard, handleSyncDataChange sobrescrevia
+    // a Central com os 214 antigos. Mesma doença do ADR-003 (conciliação). Tabela = fonte única.
+    'gdp.produtos.v1': true
   };
 
   function handleSyncDataChange(type, record) {
