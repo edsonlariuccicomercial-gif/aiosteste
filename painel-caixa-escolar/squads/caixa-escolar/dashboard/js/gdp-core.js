@@ -263,6 +263,14 @@ function renderGdpSyncIndicator() {
 
 async function cloudSave(key, data, signal) {
   if (_gdpBootInProgress) return; // Block cloud saves during boot
+  // ESTABILIZAÇÃO RAIZ (2026-07-01): fecha a torneira do blob sync_data legado.
+  // Entidades com tabela dedicada NUNCA mais sobem como blob KV — era a causa raiz
+  // do "some/volta" (multi-fonte oscilando). Guard definitivo no lado da escrita:
+  // mesmo código antigo/outra aba não consegue re-encher o sync_data com essas chaves.
+  // O purge do blob no servidor (scripts/estabilizacao-sync/) + este guard = cura completa.
+  if (_SUPABASE_TABLE_KEYS.has(key)) {
+    return; // gerido por gdpApi (tabela dedicada) — não publicar blob legado
+  }
   const userId = getSyncUserId();
   try {
     // FIX Story 4.17: UPSERT via Supabase on_conflict
