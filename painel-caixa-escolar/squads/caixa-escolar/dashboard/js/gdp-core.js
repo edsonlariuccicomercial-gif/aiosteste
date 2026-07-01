@@ -1352,6 +1352,29 @@ function _checkQuotaWarning() {
 }
 if (typeof window !== 'undefined') window._checkQuotaWarning = _checkQuotaWarning;
 
+// ===== ADR-006 (I1 — ESCRITA POR-ITEM) =====
+// CAUSA-RAIZ da classe "carimbão local": saveNotasFiscais/savePedidos gravavam a LISTA INTEIRA da RAM
+// no localStorage a cada save por-id. Se OUTRO registro na RAM estava stale (rebaixado por eco/reload
+// parcial), esse stale era carimbado por cima da prova durável no disco → reload rebaixava a nota
+// autorizada e a cobrança sumia. saveWrappedById NÃO reescreve a lista: lê o blob durável, substitui/insere
+// APENAS o item alterado (por id) e regrava. Os demais registros no disco ficam INTACTOS.
+// `item` já deve vir na forma leve (o chamador passa a projeção, ex.: _nfListaLeve(nf)).
+function saveWrappedById(key, item, origin) {
+  if (!item || item.id == null) return;
+  let items = [];
+  try {
+    const raw = JSON.parse(localStorage.getItem(key) || 'null');
+    items = Array.isArray(raw) ? raw : (raw && Array.isArray(raw.items) ? raw.items : []);
+  } catch (_) { items = []; }
+  let found = false;
+  for (let i = 0; i < items.length; i++) {
+    if (items[i] && items[i].id === item.id) { items[i] = item; found = true; break; }
+  }
+  if (!found) items.push(item);
+  saveWrappedArray(key, items, origin);
+}
+if (typeof window !== 'undefined') window.saveWrappedById = saveWrappedById;
+
 function saveWrappedArray(key, items, origin) {
   const wrapped = { _v: 1, updatedAt: new Date().toISOString(), items };
   // Defesa de quota CENTRALIZADA (protege TODAS as chaves, nao so notas). Se o
@@ -2107,9 +2130,45 @@ function saveNotasFiscais(changedId) {
   // localStorage que a compressão do boot tinha deixado leve, e o aviso de memória voltava. Agora o
   // cache em disco fica SEMPRE leve; a RAM (notasFiscais) segue completa na sessão; o detalhe é
   // re-hidratado do Supabase ao abrir a nota (_hidratarNotaCompleta). NÃO muta a RAM (map em cópia).
-  const lightNfs = notasFiscais.map(function (nf) {
+  const _leve = function (nf) {
     return (typeof _nfListaLeve === 'function') ? _nfListaLeve(nf) : _stripNfHeavy(nf);
-  });
+  };
+  // ADR-006 (I1): com changedId, gravar SÓ a nota alterada por MERGE por-id — nunca reescrever a
+  // lista inteira da RAM por cima do disco (era o "carimbão local" que rebaixava outra nota
+  // autorizada stale na RAM). O merge é inline (lê o blob durável, substitui/insere só o item,
+  // regrava via saveWrappedArray) para não depender de globais externos. Sem changedId (boot/bulk)
+  // mantém o snapshot completo abaixo.
+  if (changedId != null) {
+    var _nfAlterada = notasFiscais.filter(function (nf) { return nf && nf.id === changedId; })[0];
+    if (_nfAlterada) {
+      var _leveNf = _leve(_nfAlterada);
+      var _discoItens = [];
+      try {
+        var _raw = JSON.parse(localStorage.getItem(INVOICES_KEY) || 'null');
+        _discoItens = Array.isArray(_raw) ? _raw : (_raw && Array.isArray(_raw.items) ? _raw.items : []);
+      } catch (_) { _discoItens = []; }
+      var _achou = false;
+      for (var _di = 0; _di < _discoItens.length; _di++) {
+        if (_discoItens[_di] && _discoItens[_di].id === changedId) { _discoItens[_di] = _leveNf; _achou = true; break; }
+      }
+      if (!_achou) _discoItens.push(_leveNf);
+      try {
+        saveWrappedArray(INVOICES_KEY, _discoItens);
+        _lastLocalSave[INVOICES_KEY] = Date.now();
+      } catch (eById) {
+        if (eById && eById.name === 'QuotaExceededError') console.warn('[NF] quota no save por-id — dados seguem em memória/Supabase');
+      }
+      // push por-id ao Supabase (mesma regra de sempre) e retorna — não toca as demais notas no disco.
+      if (window.gdpApi && window.gdpApi.notas_fiscais) {
+        notasFiscais.filter(function (nf) { return nf.id === changedId; }).forEach(function (nf) {
+          window.gdpApi.notas_fiscais.save(nf).catch(function (e) { gdpWarn('[NF] Supabase save failed:', nf.id, e.message); });
+        });
+      }
+      return;
+    }
+    // se não achou a nota por id, cai no caminho legado (defensivo).
+  }
+  const lightNfs = notasFiscais.map(_leve);
   try {
     saveWrappedArray(INVOICES_KEY, lightNfs);
     _lastLocalSave[INVOICES_KEY] = Date.now();

@@ -337,6 +337,16 @@
         var found = false;
         for (var j = 0; j < items.length; j++) {
           if (items[j].id === record.id) {
+            // ADR-006 (I3 — EXCLUSÃO É ESTADO TERMINAL): decidir deleted_at ANTES de prova/timestamp.
+            // CAUSA-RAIZ do "excluí e não sumiu nas outras máquinas": o soft-delete chega como UPDATE
+            // com deleted_at setado, mas o registro AINDA carrega o boleto (prova). O guard de prova/
+            // timestamp exigia rTs > lTs (estrito) → no empate de relógio o delete era IGNORADO. Agora:
+            //   • entrante COM deleted_at e local SEM → APLICA a exclusão SEMPRE (vence prova e empate).
+            //   • local COM deleted_at e entrante SEM → IGNORA (não revive um registro já excluído).
+            var _recDel = !!(record.deleted_at || record.deletedAt);
+            var _locDel = !!(items[j].deleted_at || items[j].deletedAt);
+            if (_recDel && !_locDel) { items[j] = record; changed = true; found = true; break; }
+            if (_locDel && !_recDel) { found = true; break; } // não ressuscita
             // Story 20.17: condicionar a sobrescrita ao timestamp (não wholesale cego).
             // Protege contra eco atrasado (>5s, fora da dirty window) de um save antigo
             // do mesmo registro, que revertia o status.

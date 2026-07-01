@@ -61,9 +61,25 @@ function sanitizeBancoProduto(item, idx) {
   // numerico puro (8+ digitos), TINY* ou ERP* — LICT-*/BANK-* sao preservados. Gera SKU
   // automatico APENAS quando nao ha SKU (ou e legado externo), e isso persiste na tabela
   // (gdpApi.produtos.save), nao se repete a cada boot.
+  // ADR-006 (I4 — SKU NUNCA INVENTADO COMO FONTE DE VÍNCULO): o sanitize NÃO pode mais materializar
+  // um BANK-<idx> persistível a partir de SKU ausente. Antes, um produto que chegava com sku vazio
+  // (ex.: echo do realtime via writeLocalItems, que não sanitiza; ou linha da tabela sem sku) ganhava
+  // um BANK-* aqui, e saveBancoProdutos propagava esse SKU inventado para a tabela → repoluía TODAS as
+  // máquinas com BANK-* (regressão recorrente). Agora:
+  //   • SKU válido (LICT-* etc.) → PRESERVA (inalterado).
+  //   • SKU legado-externo (numérico 8+, TINY*, ERP*) → aí SIM regenera (comportamento legado correto,
+  //     é uma migração determinística de id externo p/ interno).
+  //   • SKU AUSENTE (vazio/null) → NÃO inventa. Mantém sku:"" e marca _skuPendente para resolução na
+  //     ORIGEM (tabela produtos), sem propagar um SKU novo por máquina.
   const skuAtual = String(cleaned.sku || "").trim();
-  if (!skuAtual || isLegacyExternalSku(skuAtual)) {
+  if (skuAtual && isLegacyExternalSku(skuAtual)) {
     cleaned.sku = normalizeInternalSku("BANK", cleaned, idx);
+    delete cleaned._skuPendente;
+  } else if (!skuAtual) {
+    cleaned.sku = "";
+    cleaned._skuPendente = true;
+  } else {
+    delete cleaned._skuPendente;
   }
   // Migrar campo 'item' do Banco de Preços para 'descricao'
   if (!cleaned.descricao && cleaned.item) cleaned.descricao = cleaned.item;
