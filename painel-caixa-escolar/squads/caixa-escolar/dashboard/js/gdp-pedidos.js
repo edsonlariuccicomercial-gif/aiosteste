@@ -2038,10 +2038,26 @@ function renderContasPagar() {
   if (typeof _updateCpFooterTotals === 'function') _updateCpFooterTotals(filtered);
 }
 
+// ALTO-F (2026-07-01 — contas fantasma no filtro por data): base ÚNICA de contas a receber
+// VISÍVEIS. Suprime, na RAIZ (antes de qualquer filtro de busca/data/status), o que nunca deve
+// aparecer na tela: (1) soft-deletadas (deletedAt/deleted_at), (2) órfãs (_orfa===true — cobrança
+// de NF sem prova) e (3) aguardando_nf (status transitório de órfã). Antes a supressão só rodava
+// na aba de status, DEPOIS do filtro por data → filtrar por período fazia contas excluídas/órfãs
+// "vazarem" como atrasadas inexistentes. Agora TODO caminho de listagem parte desta base.
+function _contasReceberVisiveis() {
+  return (contasReceber || []).filter(function (item) {
+    if (!item) return false;
+    if (item.deletedAt || item.deleted_at) return false;
+    if (item._orfa === true) return false;
+    if (item.status === "aguardando_nf") return false;
+    return true;
+  });
+}
+
 // Story 20.2: filtragem reutilizável (busca + data emissão/vencimento) — usada por render e por imprimir
 function _getContasReceberFiltradasBase() {
   const busca = _normBusca(document.getElementById("cr-busca")?.value || "");
-  let filtered = contasReceber;
+  let filtered = _contasReceberVisiveis();
   // Busca por descricao + cliente + valor (sem acentos)
   if (busca) filtered = filtered.filter((item) => {
     const valFmt = typeof item.valor === 'number' ? item.valor.toFixed(2).replace('.', ',') : String(item.valor || '');
@@ -2091,13 +2107,16 @@ function renderContasReceber() {
   if (crCountEl) crCountEl.textContent = filtered.length;
 
   const hojeCr = new Date().toISOString().slice(0, 10);
-  const totalAberto = contasReceber.filter((item) => item.status !== "recebida").reduce((sum, item) => sum + Number(item.valor || 0), 0);
-  const totalRecebido = contasReceber.filter((item) => item.status === "recebida").reduce((sum, item) => sum + Number(item.valor || 0), 0);
-  const pendentesConc = contasReceber.filter((item) => item.conciliacao?.status === "pendente_api_bancaria").length;
-  const atrasadasCr = contasReceber.filter((item) => item.status !== "recebida" && item.vencimento && item.vencimento < hojeCr);
-  // KPI: Faturamento do Mês (todas as contas do mês atual)
+  // ALTO-F: KPIs também partem da base VISÍVEL — contas excluídas/órfãs não podem inflar
+  // total em aberto, recebido nem "atrasadas" (era o vazamento das contas fantasma).
+  const _crVisiveis = _contasReceberVisiveis();
+  const totalAberto = _crVisiveis.filter((item) => item.status !== "recebida").reduce((sum, item) => sum + Number(item.valor || 0), 0);
+  const totalRecebido = _crVisiveis.filter((item) => item.status === "recebida").reduce((sum, item) => sum + Number(item.valor || 0), 0);
+  const pendentesConc = _crVisiveis.filter((item) => item.conciliacao?.status === "pendente_api_bancaria").length;
+  const atrasadasCr = _crVisiveis.filter((item) => item.status !== "recebida" && item.vencimento && item.vencimento < hojeCr);
+  // KPI: Faturamento do Mês (todas as contas VISÍVEIS do mês atual)
   const _mesAtual = hojeCr.slice(0, 7);
-  const totalMes = contasReceber.filter(c => (c.vencimento || '').startsWith(_mesAtual)).reduce((s, c) => s + Number(c.valor || 0), 0);
+  const totalMes = _crVisiveis.filter(c => (c.vencimento || '').startsWith(_mesAtual)).reduce((s, c) => s + Number(c.valor || 0), 0);
   const mesEl = document.getElementById("cr-kpi-mes");
   if (mesEl) mesEl.textContent = brl.format(totalMes);
 
