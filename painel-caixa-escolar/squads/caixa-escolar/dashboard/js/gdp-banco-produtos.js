@@ -88,6 +88,17 @@ function sanitizeBancoProduto(item, idx) {
 
 var _centralLoaded = false;
 
+// CRIT-B (2026-07-01): persistir gdp.produtos.v1 SEMPRE no formato canônico wrapped que os
+// leitores quentes esperam — { _v, updatedAt, items } (readLS de gdp-api.js e _mergeTable de
+// gdp-core.js só reconhecem .items). Antes gravávamos { itens } (português), que readLS/merge
+// viam como vazio → truncavam o mirror e o merge do boot derrubava a SSoT (produtos "somem").
+// Mantém .itens em espelho para compat de leitores legados. Único ponto de serialização.
+function _persistBancoProdutosLS() {
+  var itens = (bancoProdutos && bancoProdutos.itens) || [];
+  var payload = { _v: 1, updatedAt: bancoProdutos.updatedAt || new Date().toISOString(), items: itens, itens: itens };
+  localStorage.setItem(PRODUTOS_KEY, JSON.stringify(payload));
+}
+
 function loadBancoProdutos() {
   let dirty = false;
   try { bancoProdutos = JSON.parse(localStorage.getItem(PRODUTOS_KEY)) || { updatedAt: "", itens: [] }; } catch(_) { bancoProdutos = { updatedAt: "", itens: [] }; }
@@ -105,7 +116,7 @@ function loadBancoProdutos() {
   });
   if (dirty) {
     bancoProdutos.updatedAt = new Date().toISOString();
-    try { localStorage.setItem(PRODUTOS_KEY, JSON.stringify(bancoProdutos)); } catch (_) {}
+    try { _persistBancoProdutosLS(); } catch (_) {}
   }
   // Story 8.2: Auto-migrar Banco de Preços na primeira carga
   if (!_centralLoaded) {
@@ -142,7 +153,7 @@ function saveBancoProdutos() {
       // re-sincroniza o cache local da Central a partir da SSoT (dono unico em RAM)
       try { bancoProdutos = { updatedAt: new Date().toISOString(), itens: window.ProductStore.list() }; } catch (_) {}
     } else {
-      localStorage.setItem(PRODUTOS_KEY, JSON.stringify(bancoProdutos));
+      _persistBancoProdutosLS(); // CRIT-B: formato canônico wrapped (items) mesmo no fallback
       // ADR-004 D-2: marcar edicao do usuario (fallback sem ProductStore) p/ o merge do boot respeitar
       if (typeof window !== 'undefined' && typeof window.gdpMarkUserEdit === 'function') {
         try { window.gdpMarkUserEdit(PRODUTOS_KEY); } catch (_) {}

@@ -54,7 +54,16 @@
   }
 
   function persist() {
-    var payload = { updatedAt: nowIso(), itens: _itens || [] };
+    // CRIT-B (2026-07-01 — "produtos somem/voltam"): gravar no MESMO formato que os
+    // leitores quentes de gdp.produtos.v1 esperam. A entidade produtos em gdp-api.js é
+    // wrapped:true — readLS() só reconhece raw.items (inglês) e _mergeTable (gdp-core.js)
+    // lê localData.items/incomingData.items. Antes o ProductStore gravava só { itens }
+    // (português): readLS via undefined → truncava o mirror ao 1 item recém-salvo, e o
+    // merge do boot via localItems=0 → derrubava toda a SSoT (todas as guardas de
+    // preservação local dependem de localData.items). Resultado: cadastro sumia no boot.
+    // Agora grava items (canônico) + itens (compat legada, leitores que ainda usam .itens).
+    var itens = _itens || [];
+    var payload = { _v: 1, updatedAt: nowIso(), items: itens, itens: itens };
     try { localStorage.setItem(SSOT_KEY, JSON.stringify(payload)); } catch (e) {
       warn('[ProductStore] falha ao salvar SSoT', e.message);
       return false;
