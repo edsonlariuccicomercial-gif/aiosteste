@@ -2020,87 +2020,12 @@ function savePedidoFiscalData(pedidoId, opts) {
   showToast(`Dados fiscais do pedido ${pedidoId} salvos.`, 3000);
 }
 
-async function autorizarNotaFiscal(notaId) {
-  const nf = notasFiscais.find((item) => item.id === notaId);
-  if (!nf) return;
-  if (!isNotaFiscalReal(nf)) {
-    showToast("Nota manual externa nao pode ser autorizada pela SEFAZ dentro do GDP.", 4000);
-    return;
-  }
-  const actor = getAuditActor();
-  nf.status = "autorizada";
-  nf.sefaz.status = "autorizada";
-  nf.sefaz.protocolo = genId("SEFAZ");
-  nf.sefaz.chaveAcesso = `${Math.floor(10000000000000000000000000000000000000000000 + Math.random() * 89999999999999999999999999999999999999999999)}`;
-  nf.audit = {
-    ...(nf.audit || {}),
-    updatedAt: new Date().toISOString(),
-    updatedBy: actor,
-    authorizedAt: new Date().toISOString(),
-    authorizedBy: actor
-  };
-  saveNotasFiscais(nf.id);
-
-  // Persist to Supabase with retry (prevent NF loss like 1475/1476)
-  _saveNfToSupabaseWithRetry({
-    id: nf.id, numero: nf.numero, serie: nf.serie, valor: nf.valor,
-    status: nf.status, pedidoId: nf.pedidoId, contratoId: nf.contratoId,
-    tipoNota: nf.tipoNota, emitidaEm: nf.emitidaEm, cliente: nf.cliente,
-    itens: nf.itens, sefaz: nf.sefaz, chaveAcesso: nf.sefaz?.chaveAcesso,
-    protocolo: nf.sefaz?.protocolo,
-    xmlAutorizado: nf.sefaz?.xmlAutorizado || nf.sefaz?.autorizacaoPreview || '',
-    cobranca: nf.cobranca, documentos: nf.documentos, audit: nf.audit
-  });
-
-  const pedido = pedidos.find((item) => item.id === nf.pedidoId);
-  if (pedido) {
-    pedido.fiscal = { ...(pedido.fiscal || {}), notaFiscalId: nf.id, status: "autorizada", updatedAt: new Date().toISOString(), updatedBy: actor };
-    savePedidos();
-  }
-
-  const conta = getContaReceberByNota(nf.id);
-  if (conta) {
-    setIntegrationState(conta, "bancaria", { status: "autorizada_pronta_para_cobranca", lastAction: "autorizar_nota_fiscal" });
-    saveContasReceber();
-  }
-
-  queueGdpIntegration("nota_fiscal", "autorizar_sefaz", nf.id, {
-    notaFiscalId: nf.id,
-    numero: nf.numero,
-    chaveAcesso: nf.sefaz.chaveAcesso,
-    protocolo: nf.sefaz.protocolo,
-    valor: nf.valor
-  }, {
-    channel: "sefaz",
-    onSuccess: (data) => updateNotaFiscalIntegration(nf.id, "sefaz", { status: "autorizada_backend", protocol: data.protocol || "", lastAction: "autorizar_sefaz" }),
-    onError: (err) => updateNotaFiscalIntegration(nf.id, "sefaz", { status: "falha_envio", error: err.message, lastAction: "autorizar_sefaz" })
-  });
-
-  if (conta) {
-    await emitirOuSincronizarCobrancaReal(conta.id, { silent: true });
-  }
-
-  // Bridge 5: NF Saída → Banco (preço real faturado)
-  if (typeof bancoPrecos !== 'undefined' && bancoPrecos.itens && nf.itens) {
-    nf.itens.forEach(function(item) {
-      var sku = item.skuVinculado || item.sku;
-      if (!sku) return;
-      var bp = bancoPrecos.itens.find(function(b) { return b.sku === sku; });
-      if (bp) {
-        if (!bp.propostas) bp.propostas = [];
-        bp.propostas.push({ escola: nf.cliente?.nome || '', preco: item.precoUnitario, data: new Date().toISOString().slice(0,10), tipo: 'nf_saida', nfNumero: nf.numero });
-        bp.margemReal = bp.custoBase > 0 ? ((item.precoUnitario - bp.custoBase) / bp.custoBase) : null;
-      }
-    });
-    saveBancoLocal();
-  }
-
-  renderAll();
-  showToast(`NF ${nf.numero} autorizada. ${conta ? "Cobranca real enviada ao provider." : "Sem conta a receber vinculada."}`, 4000);
-
-  // Disparo automático de email ao autorizar NF
-  await dispararEmailNotaEBoletoAutomatico(nf.id, conta?.id || null, { manual: false });
-}
+// CRIT-E (2026-07-01 — ONDA 1): função autorizarNotaFiscal REMOVIDA (dead code perigoso).
+// Gerava protocolo FAKE (genId("SEFAZ")) + chave de acesso RANDÔMICA e marcava status="autorizada"
+// SEM qualquer prova da SEFAZ — violando a regra inegociável (NF só é autorizada com chave(44)+
+// protocolo REAIS). Confirmado 0 chamadas em todo o dashboard (grep). A autorização real acontece
+// exclusivamente via emissão SEFAZ (emitirNfeDireta → transmitirAutorizacaoPreview) e autocura DFe,
+// que só marcam autorizada com cStat 100/150 + protocolo presente. Nada substitui esta função.
 
 async function transmitirHomologacaoNota(notaId) {
   // Story 16.5 AC8: lock de idempotência por pedido (definido após resolver a NF).
