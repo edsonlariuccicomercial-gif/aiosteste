@@ -129,7 +129,12 @@ function buildCobrancaPayload(conta = {}, nota = null) {
 
   const pessoa = cpfCnpj.length > 11 ? "JURIDICA" : "FISICA";
   return {
-    seuNumero: trimString(conta.id || nota?.id || "").slice(0, 15) || `GDP${Date.now()}`,
+    // CRIT-D (2026-07-01): slice(-15), NAO slice(0,15). O Inter limita seuNumero a 15 chars; o
+    // conta.id (ex.: "CR-20260622-46493", 17 chars) truncado pelo INICIO perdia o sufixo UNICO
+    // (virava "CR-20260622-464") e impossibilitava re-vincular boleto<->conta por seuNumero →
+    // boleto orfao. slice(-15) preserva o sufixo (a chave de reconciliacao). Alinha ao caminho
+    // real ja corrigido em api/bank-charge.js:141 (_seu = ...slice(-15)).
+    seuNumero: trimString(conta.id || nota?.id || "").slice(-15) || `GDP${Date.now()}`,
     valorNominal: Number(value.toFixed(2)),
     dataVencimento: dueDate,
     numDiasAgenda: 0,
