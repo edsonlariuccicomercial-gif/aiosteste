@@ -2743,7 +2743,9 @@ async function enviarEmailNotaFiscal(notaId) {
       protocolo: nf.sefaz?.protocolo || '',
       valor: nf.valor || totalProd,
       chaveAcesso: nf.sefaz?.chaveAcesso || '',
-      emitente: nf.sefaz?.preview?.emitente || {},
+      // DANFE única (2026-07-02, FASE A): emitente resolvido (preview → nexedu.empresa c/ IE →
+      // fallback). Resolve o remetente VAZIO no e-mail sem tocar na função serverless (jsPDF segue).
+      emitente: (typeof window.resolveEmitente === 'function') ? window.resolveEmitente(nf) : (nf.sefaz?.preview?.emitente || {}),
       destinatario: nf.sefaz?.preview?.destinatario || nf.cliente || {},
       observacoes: nf.documentos?.observacao || '',
       pedidoId: nf.pedidoId || '',
@@ -2838,229 +2840,7 @@ async function gerarDanfePdfBase64(nf) {
 }
 
 // Story 14.6: DANFE fiel ao modelo PDF (NF 001.426) com logomarca dedicada
-function gerarDanfeHtmlCompleto(nf) {
-  if (!nf) return "";
-  // Story 4.58 AC-2: DANFE usa preview, fallback para nexedu.empresa + nf.cliente
-  const sefazData = nf.sefaz || {};
-  const previewData = sefazData.preview || {};
-  // Emitente: preview > fallback nexedu.empresa (localStorage)
-  let emit = previewData.emitente || {};
-  if (!emit.razaoSocial) {
-    try {
-      const empresa = JSON.parse(localStorage.getItem('nexedu.empresa') || '{}');
-      if (empresa.razaoSocial || empresa.nome) {
-        emit = {
-          razaoSocial: empresa.razaoSocial || empresa.nome || '',
-          cnpj: empresa.cnpj || '',
-          ie: empresa.ie || '',
-          email: empresa.email || '',
-          endereco: {
-            logradouro: empresa.logradouro || empresa.endereco || '',
-            numero: empresa.numero || '',
-            bairro: empresa.bairro || '',
-            complemento: empresa.complemento || '',
-            cidade: empresa.cidade || empresa.municipio || '',
-            uf: empresa.uf || '',
-            cep: empresa.cep || '',
-            telefone: empresa.telefone || empresa.fone || ''
-          }
-        };
-      }
-    } catch(_) {}
-  }
-  const emEnd = emit.endereco || {};
-  // Destinatário: preview > nf.cliente
-  const dest = previewData.destinatario || nf.cliente || {};
-  const dEnd = dest.endereco || {};
-  const chave = sefazData.chaveAcesso || "";
-  const chaveFormatada = chave.replace(/(.{4})/g, "$1 ").trim();
-  const prot = sefazData.protocolo || "";
-  const protDt = sefazData.transmissao?.parsed?.dhRecbto || nf.audit?.authorizedAt || "";
-  const protFormatado = prot ? prot + (protDt ? " - " + protDt : "") : "-";
-  const isCancelada = nf.status === "cancelada";
-  const cancelStamp = nf.cancelamento?.retornoEvento?.dhRegEvento || nf.cancelamento?.atualizadoEm || "";
-  const totalProd = (nf.itens || []).reduce((s, i) => s + (Number(i.qtd || 0) * Number(i.precoUnitario || 0)), 0);
-  const totalNota = nf.valor || totalProd;
-  const dtEmissao = formatDateTimeLocal(nf.emitidaEm);
-  const dtParts = dtEmissao.split(" ");
-  const f2 = (v) => Number(v || 0).toFixed(2).replace(".", ",");
-  const numNf = String(nf.numero || "0").padStart(6, "0");
-  const numFmt = numNf.replace(/^(\d{3})(\d{3})$/, "$1.$2");
-  const destNome = dest.nome || dest.razaoSocial || nf.cliente?.nome || "-";
-  const destEnd = [dEnd.logradouro, dEnd.numero].filter(Boolean).join(", ");
-  const destCidade = dEnd.cidade || dEnd.municipio || "";
-  const emEndLine1 = [emEnd.logradouro, emEnd.numero].filter(Boolean).join(", ");
-  const emEndLine2 = [emEnd.bairro, emEnd.complemento].filter(Boolean).join(", ");
-  const emEndLine3 = [emEnd.cidade, emEnd.uf].filter(Boolean).join(" - ") + (emEnd.cep ? " - " + emEnd.cep : "");
-  const destEmail = dest.email || nf.cliente?.email || "";
-  let logoImg = "";
-  try { const cfg = JSON.parse(localStorage.getItem("nexedu.config.notas-fiscais") || "{}"); if (cfg.logomarcaBase64) logoImg = cfg.logomarcaBase64; } catch(_) {}
-  const infCplParts = [];
-  if (nf.pedidoId) infCplParts.push("Inf. Contribuinte: Pedido GDP " + nf.pedidoId);
-  if (destEmail) infCplParts.push("Email do Destinatário: " + destEmail);
-  if (nf.documentos?.observacao) infCplParts.push(esc(nf.documentos.observacao).replace(/\|/g, "<br>"));
-  infCplParts.push("Valor Aproximado dos Tributos : R$ 0,00");
-  const rows = (nf.itens || []).map((item, idx) => {
-    const vt = Number(item.qtd || 0) * Number(item.precoUnitario || 0);
-    return `<tr><td class="c">${esc(item.sku || String(idx+1).padStart(3,"0"))}</td><td>${esc(item.descricao || "")}</td><td class="c">${esc(item.ncm || "")}</td><td class="c">${esc(item.cst || "0102")}</td><td class="c">${esc(item.cfop || "5.102")}</td><td class="c">${esc(item.unidade || "UN")}</td><td class="r">${f2(item.qtd)}</td><td class="r">${f2(item.precoUnitario)}</td><td class="r">${f2(vt)}</td><td class="r">0,00</td><td class="r">0,00</td><td class="r">0,00</td><td class="r">0,00</td><td class="r">0,00</td></tr>`;
-  }).join("");
-  return `<style>
-*{margin:0;padding:0;box-sizing:border-box}
-body,div,table{font-family:Arial,sans-serif;font-size:7.5pt;color:#000}
-.danfe-wrap{max-width:210mm}
-.bx{border:1px solid #000}
-.row{display:flex;border-bottom:1px solid #000;page-break-inside:avoid}
-.cell{border-right:1px solid #000;padding:3px 5px;flex:1;min-height:24px;overflow:hidden}
-.cell:last-child{border-right:none}
-.cell label{font-size:6pt;text-transform:uppercase;display:block;color:#000;line-height:1.3;margin-bottom:1px}
-.cell .v{font-size:9pt;font-weight:700}
-.cell .v-sm{font-size:8pt;font-weight:700}
-.stit{font-weight:700;font-size:6.5pt;padding:2px 5px;text-transform:uppercase;border-bottom:1px solid #000;background:#eee}
-table.it{width:100%;border-collapse:collapse}
-table.it th{border:1px solid #000;padding:2px 4px;font-size:6pt;text-transform:uppercase;font-weight:700;background:#eee}
-table.it td{border:1px solid #999;padding:2px 4px;font-size:7.5pt;page-break-inside:avoid}
-.c{text-align:center}.r{text-align:right}
-/* Recibo */
-.rec{border:1px solid #000;display:flex;margin-bottom:3px}
-.rec-txt{flex:3;border-right:1px solid #000;display:flex;flex-direction:column}
-.rec-txt-top{padding:4px 6px;font-size:6.5pt;line-height:1.4;flex:1}
-.rec-fields{display:flex;border-top:1px solid #000}
-.rec-fields .rf{flex:1;padding:2px 4px;border-right:1px solid #000;min-height:22px}
-.rec-fields .rf:last-child{border-right:none}
-.rec-fields .rf label{font-size:5pt;text-transform:uppercase}
-.rec-nfe{width:110px;text-align:center;padding:6px 4px}
-/* Header 3 colunas: logo+emit | danfe | chave */
-.hdr{display:flex;border-bottom:1px solid #000}
-.hdr-logo{width:140px;border-right:1px solid #000;display:flex;align-items:center;justify-content:center;padding:2px;min-height:85px}
-.hdr-logo img{max-height:82px;max-width:136px;object-fit:contain}
-.hdr-emit{flex:3;border-right:1px solid #000;padding:4px 8px;display:flex;flex-direction:column;justify-content:center}
-.hdr-emit .nome{font-size:10pt;font-weight:700;white-space:nowrap}
-.hdr-emit .end{font-size:7pt;line-height:1.4;white-space:nowrap}
-.hdr-danfe{width:120px;text-align:center;padding:4px;border-right:1px solid #000}
-.hdr-chave{flex:2;padding:4px 6px;overflow:hidden;text-align:center}
-</style>
-<div class="danfe-wrap">
-<!-- RECIBO DE ENTREGA -->
-<div class="rec">
-  <div class="rec-txt">
-    <div class="rec-txt-top">RECEBEMOS DE <strong>${esc(emit.razaoSocial || "-")}</strong> OS PRODUTOS CONSTANTES DA NOTA FISCAL INDICADA AO LADO</div>
-    <div class="rec-fields">
-      <div class="rf"><label>DATA DE RECEBIMENTO</label></div>
-      <div class="rf" style="flex:2"><label>IDENTIFICAÇÃO E ASSINATURA DO RECEBEDOR</label></div>
-    </div>
-  </div>
-  <div class="rec-nfe">
-    <div style="font-size:12pt;font-weight:900">NF-e</div>
-    <div style="font-size:10pt;font-weight:900">N° ${esc(numFmt)}</div>
-    <div style="font-size:7pt">Série ${String(nf.serie||"1")}</div>
-  </div>
-</div>
-<!-- CORPO DA DANFE -->
-<div class="bx">
-  <!-- CABEÇALHO: LOGO | EMITENTE | DANFE | CHAVE -->
-  <div class="hdr">
-    <div class="hdr-logo">${logoImg ? '<img src="' + logoImg + '" />' : ''}</div>
-    <div class="hdr-emit">
-      <div class="nome">${esc(emit.razaoSocial || "-")}</div>
-      <div class="end">${esc(emEndLine1)}${emEnd.complemento ? ", " + esc(emEnd.complemento) : ""}</div>
-      <div class="end">${esc(emEndLine2)}</div>
-      <div class="end">${esc(emEndLine3)} Fone ${esc(emEnd.telefone || "")}</div>
-      <div class="end">${esc(emit.email || "")}</div>
-    </div>
-    <div class="hdr-danfe">
-      <div style="font-size:16pt;font-weight:900;letter-spacing:1px">DANFE</div>
-      <div style="font-size:6pt;line-height:1.3">Documento Auxiliar<br>da Nota Fiscal<br>Eletrônica</div>
-      <div style="font-size:7pt;margin-top:4px">0-Entrada &nbsp; 1-Saída</div>
-      <div style="display:inline-block;border:1.5px solid #000;padding:1px 8px;font-size:12pt;font-weight:900;margin:3px 0">1</div>
-      <div style="font-size:10pt;font-weight:900;margin-top:3px">N° ${esc(numFmt)}</div>
-      <div style="font-size:7pt">SÉRIE: ${String(nf.serie||"1")} &nbsp; FOLHA: 1</div>
-    </div>
-    <div class="hdr-chave">
-      <div style="font-size:5.5pt;text-align:center;text-transform:uppercase;font-weight:700">CHAVE DE ACESSO</div>
-      <div style="font-size:7pt;font-weight:700;text-align:center;word-break:break-all;margin:4px 0;line-height:1.4">${esc(chaveFormatada || "-")}</div>
-      <div style="font-size:5pt;text-align:center;line-height:1.3">Consulta de autenticidade no portal nacional da NF-e<br>www.nfe.fazenda.gov.br/portal<br>ou no site da Sefaz autorizadora</div>
-    </div>
-  </div>
-  <!-- NATUREZA + IE -->
-  <div class="row">
-    <div class="cell" style="flex:3"><label>NATUREZA DA OPERAÇÃO</label><div class="v">Venda de mercadorias</div></div>
-    <div class="cell"><label>INSCRIÇÃO ESTADUAL</label><div class="v-sm">${esc(emit.ie || "")}</div></div>
-  </div>
-  <div class="row">
-    <div class="cell"><label>INSCR. ESTADUAL DO SUBST. TRIB.</label><div class="v-sm"></div></div>
-    <div class="cell" style="flex:2"><label>PROTOCOLO DE AUTORIZAÇÃO DE USO</label><div class="v-sm">${esc(protFormatado)}</div></div>
-    <div class="cell"><label>CNPJ</label><div class="v">${esc(emit.cnpj || "")}</div></div>
-  </div>
-  <!-- DESTINATÁRIO -->
-  <div class="stit">DESTINATÁRIO / REMETENTE</div>
-  <div class="row">
-    <div class="cell" style="flex:3"><label>NOME / RAZÃO SOCIAL</label><div class="v">${esc(destNome)}</div></div>
-    <div class="cell"><label>CNPJ/CPF</label><div class="v-sm">${esc(dest.cnpj || "")}</div></div>
-    <div class="cell"><label>DATA EMISSÃO</label><div class="v-sm">${dtParts[0] || "-"}</div></div>
-  </div>
-  <div class="row">
-    <div class="cell" style="flex:2"><label>ENDEREÇO</label><div class="v-sm">${esc(destEnd)}</div></div>
-    <div class="cell"><label>BAIRRO</label><div class="v-sm">${esc(dEnd.bairro || "")}</div></div>
-    <div class="cell"><label>FONE/FAX</label><div class="v-sm">${esc(dest.telefone || "")}</div></div>
-    <div class="cell" style="width:30px;flex:none"><label>UF</label><div class="v-sm">${esc(dEnd.uf || "")}</div></div>
-  </div>
-  <div class="row">
-    <div class="cell" style="flex:2"><label>MUNICÍPIO</label><div class="v-sm">${esc(destCidade)}</div></div>
-    <div class="cell"><label>CEP</label><div class="v-sm">${esc(dEnd.cep || "")}</div></div>
-    <div class="cell"><label>INSCR. ESTADUAL</label><div class="v-sm">${esc(dest.ie || "")}</div></div>
-    <div class="cell"><label>DATA SAÍDA</label><div class="v-sm">${dtParts[0] || "-"}</div></div>
-    <div class="cell"><label>HORA SAÍDA</label><div class="v-sm">${dtParts[1] || ""}</div></div>
-  </div>
-  <!-- FATURA -->
-  <div class="stit">FATURA / DUPLICATA</div>
-  <div class="row">
-    <div class="cell"><label>NÚMERO</label><div class="v-sm"></div></div>
-    <div class="cell"><label>VENCIMENTO</label><div class="v-sm"></div></div>
-    <div class="cell"><label>VALOR</label><div class="v-sm"></div></div>
-    <div class="cell"><label>NÚMERO</label><div class="v-sm"></div></div>
-    <div class="cell"><label>VENCIMENTO</label><div class="v-sm"></div></div>
-    <div class="cell"><label>VALOR</label><div class="v-sm"></div></div>
-  </div>
-  <!-- CÁLCULO DO IMPOSTO -->
-  <div class="stit">CÁLCULO DO IMPOSTO</div>
-  <div class="row">
-    <div class="cell"><label>BASE CÁLC. ICMS</label><div class="v-sm">0,00</div></div>
-    <div class="cell"><label>VALOR ICMS</label><div class="v-sm">0,00</div></div>
-    <div class="cell"><label>BASE ICMS S.T.</label><div class="v-sm">0,00</div></div>
-    <div class="cell"><label>VALOR ICMS SUBST.</label><div class="v-sm">0,00</div></div>
-    <div class="cell"><label>V. IMP. IMPORT.</label><div class="v-sm">0,00</div></div>
-    <div class="cell"><label>V. TOTAL PRODUTOS</label><div class="v">${f2(totalProd)}</div></div>
-  </div>
-  <div class="row">
-    <div class="cell"><label>FRETE</label><div class="v-sm">0,00</div></div>
-    <div class="cell"><label>SEGURO</label><div class="v-sm">0,00</div></div>
-    <div class="cell"><label>DESCONTO</label><div class="v-sm">0,00</div></div>
-    <div class="cell"><label>OUTRAS</label><div class="v-sm">0,00</div></div>
-    <div class="cell"><label>VALOR IPI</label><div class="v-sm">0,00</div></div>
-    <div class="cell"><label>V. TOTAL DA NOTA</label><div class="v">${f2(totalNota)}</div></div>
-  </div>
-  <!-- TRANSPORTADOR -->
-  <div class="stit">TRANSPORTADOR / VOLUMES TRANSPORTADOS</div>
-  <div class="row">
-    <div class="cell" style="flex:2"><label>NOME / RAZÃO SOCIAL</label><div class="v-sm"></div></div>
-    <div class="cell"><label>FRETE</label><div class="v-sm">9-Sem Transporte</div></div>
-    <div class="cell"><label>PLACA</label><div class="v-sm"></div></div>
-    <div class="cell" style="width:30px;flex:none"><label>UF</label><div class="v-sm"></div></div>
-    <div class="cell"><label>CNPJ / CPF</label><div class="v-sm"></div></div>
-  </div>
-  <!-- PRODUTOS -->
-  <div class="stit">DADOS DOS PRODUTOS / SERVIÇOS</div>
-  <table class="it"><thead><tr><th>CÓDIGO</th><th style="min-width:120px">DESCRIÇÃO DOS PRODUTOS / SERVIÇOS</th><th>NCM/SH</th><th>CST</th><th>CFOP</th><th>UNID.</th><th>QUANT.</th><th>VLR. UNIT.</th><th>VLR. TOTAL</th><th>BC ICMS</th><th>VLR.ICMS</th><th>VLR.IPI</th><th>%ICMS</th><th>%IPI</th></tr></thead><tbody>${rows}</tbody></table>
-  <!-- DADOS ADICIONAIS -->
-  <div class="stit">DADOS ADICIONAIS</div>
-  <div class="row" style="min-height:90px;border-bottom:none">
-    <div class="cell" style="flex:2"><label>INFORMAÇÕES COMPLEMENTARES</label><div style="font-size:6.5pt;padding-top:2px;line-height:1.5;white-space:pre-wrap">${isCancelada ? '<strong style="color:red">CANCELADA</strong> ' + esc(cancelStamp) + "\n" : ""}${infCplParts.join("\n")}</div></div>
-    <div class="cell"><label>RESERVADO AO FISCO</label></div>
-  </div>
-</div>
-<div style="font-size:5.5pt;margin-top:3px">Impresso em ${new Date().toLocaleDateString("pt-BR")} as ${new Date().toLocaleTimeString("pt-BR")}</div>
-</div>`;
-}
+// DANFE única (2026-07-02, T5): gerarDanfeHtmlCompleto REMOVIDA (dead code, 0 chamadas). O gerador único é js/danfe-render.js (renderDanfeHTML). gerarDanfeHtmlParaPdf permanece como fallback legado.
 
 async function reenviarEmailNfPedido(pedidoId) {
   const nf = notasFiscais.find(n => n.pedidoId === pedidoId);
@@ -3259,8 +3039,18 @@ function abrirDanfeNotaFiscal(notaId) {
   if (nf.documentos?.danfeUrl) { window.open(nf.documentos.danfeUrl, "_blank"); return; }
   const win = window.open("", "_blank");
   if (!win) { showToast("Nao foi possivel abrir o DANFE.", 3500); return; }
-  // Story 4.75: usa gerarDanfeHtmlParaPdf() com barcode + autoPrint
-  win.document.write(gerarDanfeHtmlParaPdf(nf, { includeBarcode: true, autoPrint: true }));
+  // DANFE única (2026-07-02, T4): gerador ÚNICO renderDanfeHTML + resolveEmitente (fallback
+  // permanente nexedu.empresa → emitente COMPLETO mesmo sem preview / nota da autocura).
+  let logoBase64 = "";
+  try { const _cfg = JSON.parse(localStorage.getItem("nexedu.config.notas-fiscais") || "{}"); logoBase64 = _cfg.logomarcaBase64 || ""; } catch (_) {}
+  let html;
+  if (typeof window.renderDanfeHTML === "function" && typeof window.resolveEmitente === "function") {
+    html = window.renderDanfeHTML(nf, window.resolveEmitente(nf), { includeBarcode: true, autoPrint: true, logoBase64 });
+  } else {
+    // Fallback legado (se o módulo não carregou): mantém o comportamento anterior.
+    html = gerarDanfeHtmlParaPdf(nf, { includeBarcode: true, autoPrint: true });
+  }
+  win.document.write(html);
   win.document.close();
 }
 
@@ -3268,32 +3058,7 @@ function imprimirDanfe(notaId) {
   abrirDanfeNotaFiscal(notaId);
 }
 
-function gerarDanfeHtml(nf) {
-  if (!nf) return '';
-  const emit = nf.sefaz?.preview?.emitente || {};
-  const emEnd = emit.endereco || {};
-  const dest = nf.sefaz?.preview?.destinatario || {};
-  const dEnd = dest.endereco || {};
-  const chave = nf.sefaz?.chaveAcesso || "";
-  const chaveFormatada = chave.replace(/(.{4})/g, "$1 ").trim();
-  const prot = nf.sefaz?.protocolo || "";
-  const isCancelada = nf.status === "cancelada";
-  const totalProd = (nf.itens || []).reduce((s, i) => s + (Number(i.qtd || 0) * Number(i.precoUnitario || 0)), 0);
-  const rows = (nf.itens || []).map((item, idx) => {
-    const vt = (Number(item.qtd || 0) * Number(item.precoUnitario || 0));
-    return `<tr><td style="text-align:center;border:1px solid #000;padding:2px 4px;font-size:8pt">${item.sku || ("ITEM-"+(idx+1))}</td><td style="border:1px solid #000;padding:2px 4px;font-size:8pt">${item.descricao || ""}</td><td style="text-align:center;border:1px solid #000;padding:2px 4px;font-size:8pt">${item.unidade || "UN"}</td><td style="text-align:right;border:1px solid #000;padding:2px 4px;font-size:8pt">${Number(item.qtd||0).toFixed(2)}</td><td style="text-align:right;border:1px solid #000;padding:2px 4px;font-size:8pt">${Number(item.precoUnitario||0).toFixed(2)}</td><td style="text-align:right;border:1px solid #000;padding:2px 4px;font-size:8pt;font-weight:700">${vt.toFixed(2)}</td></tr>`;
-  }).join("");
-  return `<div style="border:2px solid #000;padding:8px;margin-bottom:12px;font-family:Arial,sans-serif;font-size:9pt;color:#000;${isCancelada ? 'opacity:.6' : ''}">
-    <div style="display:flex;justify-content:space-between;border-bottom:1px solid #000;padding-bottom:6px;margin-bottom:6px">
-      <div><strong style="font-size:11pt">${emit.razaoSocial || "Emitente"}</strong><br><span style="font-size:8pt">${emit.cnpj ? 'CNPJ: '+emit.cnpj : ''} ${emit.ie ? '| IE: '+emit.ie : ''}</span><br><span style="font-size:7pt">${[emEnd.logradouro, emEnd.numero, emEnd.bairro, emEnd.municipio, emEnd.uf].filter(Boolean).join(', ')}</span></div>
-      <div style="text-align:right"><strong style="font-size:14pt">DANFE</strong><br><span style="font-size:8pt">NF-e Nº ${nf.numero || "-"}</span><br><span style="font-size:7pt">Chave: ${chaveFormatada || "-"}</span>${prot ? '<br><span style="font-size:7pt">Prot: '+prot+'</span>' : ''}</div>
-    </div>
-    <div style="border-bottom:1px solid #000;padding-bottom:4px;margin-bottom:6px;font-size:8pt"><strong>Destinatário:</strong> ${dest.razaoSocial || "-"} | CNPJ: ${dest.cnpj || "-"} | ${[dEnd.logradouro, dEnd.numero, dEnd.bairro, dEnd.municipio, dEnd.uf].filter(Boolean).join(', ')}</div>
-    <table style="width:100%;border-collapse:collapse;margin-bottom:6px"><thead><tr style="background:#eee"><th style="border:1px solid #000;padding:2px 4px;font-size:7pt">Código</th><th style="border:1px solid #000;padding:2px 4px;font-size:7pt">Descrição</th><th style="border:1px solid #000;padding:2px 4px;font-size:7pt">UN</th><th style="border:1px solid #000;padding:2px 4px;font-size:7pt;text-align:right">Qtd</th><th style="border:1px solid #000;padding:2px 4px;font-size:7pt;text-align:right">Vl.Unit</th><th style="border:1px solid #000;padding:2px 4px;font-size:7pt;text-align:right">Vl.Total</th></tr></thead><tbody>${rows}</tbody></table>
-    <div style="text-align:right;font-size:10pt;font-weight:700">Total: R$ ${totalProd.toFixed(2)}</div>
-    ${isCancelada ? '<div style="text-align:center;color:red;font-size:14pt;font-weight:900;margin-top:4px">CANCELADA</div>' : ''}
-  </div>`;
-}
+// DANFE única (2026-07-02, T5): gerarDanfeHtml REMOVIDA (dead code, 0 chamadas). O gerador único é js/danfe-render.js (renderDanfeHTML). gerarDanfeHtmlParaPdf permanece como fallback legado.
 
 function solicitarCancelamentoNotaFiscal(notaId) {
   const nf = notasFiscais.find((item) => item.id === notaId);

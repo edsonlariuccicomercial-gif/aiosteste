@@ -1234,6 +1234,49 @@ async function carregarConfigSefaz() {
   return sefazConfigSnapshot;
 }
 
+// DANFE única (2026-07-02, T3): SEMEIA/completa nexedu.empresa com o emitente REAL (fonte canonica
+// = env vars via /api/gdp-integrations?action=nfe-emitente-config). Preenche a IE (que faltava) e
+// valida razao/endereco. NAO sobrescreve valor ja preenchido pelo usuario — so completa o que falta.
+// Isso garante que resolveEmitente (danfe-render.js) tenha SEMPRE um fallback COMPLETO, mesmo para
+// notas da autocura (sem preview). Rodar no boot; falha e silenciosa (nunca bloqueia).
+async function semearEmitenteEmpresa() {
+  try {
+    const resp = await fetch("/api/gdp-integrations?action=nfe-emitente-config");
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok || !data.ok || !data.emitente) return;
+    const e = data.emitente;
+    const end = e.endereco || {};
+    let emp = {};
+    try { emp = JSON.parse(localStorage.getItem("nexedu.empresa") || "{}"); } catch (_) { emp = {}; }
+    let changed = false;
+    // Completa SO o que falta (nao sobrescreve o que o usuario ja definiu).
+    const setIfEmpty = (campo, valor) => {
+      if (valor && !emp[campo]) { emp[campo] = valor; changed = true; }
+    };
+    setIfEmpty("razaoSocial", e.razaoSocial);
+    setIfEmpty("nome", e.nomeFantasia || e.razaoSocial);
+    setIfEmpty("nomeFantasia", e.nomeFantasia);
+    setIfEmpty("cnpj", e.cnpj);
+    setIfEmpty("ie", e.ie);            // ← o campo que faltava (CRITICO p/ a DANFE)
+    setIfEmpty("crt", e.crt);
+    setIfEmpty("logradouro", end.logradouro);
+    setIfEmpty("numero", end.numero);
+    setIfEmpty("complemento", end.complemento);
+    setIfEmpty("bairro", end.bairro);
+    setIfEmpty("cidade", end.cidade);
+    setIfEmpty("municipio", end.cidade);
+    setIfEmpty("uf", end.uf || e.uf);
+    setIfEmpty("cep", end.cep);
+    setIfEmpty("telefone", end.telefone);
+    setIfEmpty("email", end.email);
+    if (changed) {
+      try { localStorage.setItem("nexedu.empresa", JSON.stringify(emp)); } catch (_) {}
+      if (typeof gdpLog === "function") gdpLog("[DANFE] nexedu.empresa semeado/completado com emitente canonico (IE incl.)");
+    }
+  } catch (_) { /* boot nunca bloqueia por isto */ }
+}
+if (typeof window !== "undefined") window.semearEmitenteEmpresa = semearEmitenteEmpresa;
+
 function renderIntegracoes() {
   const tbody = document.getElementById("integracoes-tbody");
   const empty = document.getElementById("integracoes-empty");
@@ -3078,6 +3121,10 @@ async function enviarTiny(contratoId) {
   // re-aplica a sidebar. O aplicarAcessoSidebar() acima usa o cache local (resposta instantânea);
   // esta chamada corrige se outra máquina alterou a config. Fallback gracioso se offline.
   if (typeof hidratarAcessoModulosOnline === "function") hidratarAcessoModulosOnline();
+
+  // DANFE única (T3): semeia a IE (e campos fiscais) do emitente no nexedu.empresa a partir da
+  // fonte canonica (env vars). Non-blocking; garante que resolveEmitente tenha fallback COMPLETO.
+  if (typeof semearEmitenteEmpresa === "function") { try { semearEmitenteEmpresa(); } catch (_) {} }
 
   // ARCH-sync Passo 1 (FIX-A): desligamento IDEMPOTENTE da janela de boot. Chamado tanto no
   // fim do deferred-sanitize (ponto primário) quanto pelo fallback de 8s — o guard _ended
