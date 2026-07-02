@@ -1922,37 +1922,12 @@ function imprimirListaFornecedoresEstoqueIntel() {
   imprimirTabelaEstoqueIntel("Lista de Fornecedores do Estoque Intel", `Gerado em ${formatDateTimeLocal(new Date().toISOString())}`, ["ID", "Fornecedor", "Documento", "Telefone", "E-mail", "Status", "Ofertas"], rows);
 }
 
-async function syncEstoqueIntelApi() {
-  const statusEl = document.getElementById("ei-api-status");
-  if (statusEl) statusEl.textContent = "Consultando API do Estoque Intel...";
-  try {
-    const [produtosResp, embalagensResp, estoqueResp] = await Promise.all([
-      fetch("/api/produtos"),
-      fetch("/api/embalagens"),
-      fetch("/api/estoque")
-    ]);
-    const produtosData = await produtosResp.json().catch(() => ({}));
-    const embalagensData = await embalagensResp.json().catch(() => ({}));
-    const estoqueData = await estoqueResp.json().catch(() => ({}));
-    if (!produtosResp.ok || !produtosData.ok) throw new Error(produtosData.error || `Produtos HTTP ${produtosResp.status}`);
-    if (!embalagensResp.ok || !embalagensData.ok) throw new Error(embalagensData.error || `Embalagens HTTP ${embalagensResp.status}`);
-    if (!estoqueResp.ok || !estoqueData.ok) throw new Error(estoqueData.error || `Estoque HTTP ${estoqueResp.status}`);
-    if (!estoqueIntelProdutos.length && Array.isArray(produtosData.items)) {
-      estoqueIntelProdutos = produtosData.items;
-      saveEstoqueIntelProdutos();
-    }
-    if (!estoqueIntelEmbalagens.length && Array.isArray(embalagensData.items)) {
-      estoqueIntelEmbalagens = embalagensData.items;
-      saveEstoqueIntelEmbalagens();
-    }
-    if (statusEl) statusEl.innerHTML = `API consultada com sucesso. Produtos: <strong>${(produtosData.items || []).length}</strong> | Embalagens: <strong>${(embalagensData.items || []).length}</strong> | Itens de estoque: <strong>${(estoqueData.items || []).length}</strong>`;
-    renderEstoque();
-    showToast("API do Estoque Intel consultada.", 3000);
-  } catch (err) {
-    if (statusEl) statusEl.textContent = `Falha ao consultar API: ${err.message}`;
-    showToast(`Falha ao consultar API: ${err.message}`, 4000);
-  }
-}
+// ALTO-G (2026-07-01 — ONDA 1): syncEstoqueIntelApi REMOVIDA. Consultava /api/produtos,
+// /api/embalagens e /api/estoque — endpoints do Estoque Intel legado (descontinuado no Épico A):
+// as 3 estavam mortas (produtos.js/estoque.js faziam require("./lib/estoque-intel-data")
+// inexistente → 500; /api/embalagens nunca existiu → 404). O botão "Sincronizar API" que a
+// chamava foi removido do gdp-contratos.html. A tela do Estoque Intel segue funcionando com os
+// dados locais (renderEstoque). Nenhuma outra função chamava estes endpoints.
 // ===== STOCK INTELLIGENCE — RENDER FUNCTIONS =====
 function renderEstoque() {
   const produtosTbody = document.getElementById("ei-produtos-tbody");

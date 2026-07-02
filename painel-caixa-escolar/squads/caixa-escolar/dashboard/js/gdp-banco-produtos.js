@@ -640,100 +640,11 @@ function limparTodoBancoProdutos() {
 // ===== Story 4.15: Importar Produtos do Tiny (AC-2) =====
 let _importTinyBuffer = [];
 
-async function importarProdutosTiny(apenasNovos) {
-  notifyErpSyncDisabled("Banco de produtos");
-  return;
-  const modal = document.getElementById("modal-import-tiny");
-  if (!modal) { showToast("Modal de importacao nao encontrado.", 3000); return; }
-  const tbody = document.getElementById("import-tiny-tbody");
-  const info = document.getElementById("import-tiny-info");
-  const actions = document.getElementById("import-tiny-actions");
-  tbody.innerHTML = "";
-  info.textContent = "Buscando produtos do Tiny ERP...";
-  actions.classList.add("hidden");
-  modal.classList.remove("hidden");
-  _importTinyBuffer = [];
-
-  // Load banco to check existing SKUs
-  loadBancoProdutos();
-  const skusExistentes = new Set(bancoProdutos.itens.map(p => (p.sku || "").toUpperCase()).filter(Boolean));
-
-  try {
-    let pagina = 1;
-    let totalPaginas = 1;
-    while (pagina <= totalPaginas) {
-      info.textContent = `Carregando pagina ${pagina}... ${_importTinyBuffer.length} produtos encontrados`;
-      const resp = await fetch("/api/tiny-produtos", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "listar", pesquisa: "", pagina })
-      });
-      const json = await resp.json();
-      if (!json.success) { showToast("Erro ao buscar produtos: " + (json.error || "desconhecido"), 4000); break; }
-      const ret = json.data?.retorno || {};
-      totalPaginas = parseInt(ret.numero_paginas || "1");
-      const produtos = ret.produtos || [];
-      if (produtos.length === 0) break;
-      for (const p of produtos) {
-        const prod = p.produto || p;
-        const codigo = (prod.codigo || "").toUpperCase();
-        // Se "apenas novos", pular produtos que ja estao no banco
-        if (apenasNovos && skusExistentes.has(codigo)) continue;
-        _importTinyBuffer.push({
-          nome: prod.nome || "",
-          codigo: prod.codigo || "",
-          ncm: prod.ncm || "",
-          unidade: prod.unidade || "",
-          id_tiny: prod.id || ""
-        });
-      }
-      pagina++;
-      if (pagina <= totalPaginas) await new Promise(r => setTimeout(r, 1500));
-    }
-  } catch (err) {
-    showToast("Erro de conexao ao buscar produtos: " + err.message, 4000);
-  }
-
-  if (_importTinyBuffer.length === 0) {
-    info.textContent = apenasNovos ? "Nenhum produto novo encontrado no Tiny." : "Nenhum produto encontrado no Tiny.";
-    return;
-  }
-
-  // Buscar NCM via produto.obter.php para produtos sem NCM
-  const semNcm = _importTinyBuffer.filter(p => !p.ncm && p.id_tiny);
-  if (semNcm.length > 0) {
-    info.textContent = `Buscando NCM de ${semNcm.length} produtos...`;
-    let fetched = 0;
-    for (const p of semNcm) {
-      try {
-        fetched++;
-        info.textContent = `Buscando NCM... ${fetched}/${semNcm.length}`;
-        const resp = await fetch("/api/tiny-produtos", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "obter", id: p.id_tiny })
-        });
-        const json = await resp.json();
-        if (json.success) {
-          const fullProd = json.data?.retorno?.produto || {};
-          if (fullProd.ncm) p.ncm = fullProd.ncm;
-          if (fullProd.unidade && !p.unidade) p.unidade = fullProd.unidade;
-        }
-      } catch (_) { /* best-effort */ }
-      if (fetched < semNcm.length) await new Promise(r => setTimeout(r, 1500));
-    }
-  }
-
-  info.textContent = `${_importTinyBuffer.length} produtos${apenasNovos ? ' novos' : ''} encontrados. Selecione os que deseja importar:`;
-  tbody.innerHTML = _importTinyBuffer.map((p, i) => `<tr>
-    <td class="text-center"><input type="checkbox" class="import-tiny-chk" data-idx="${i}" checked></td>
-    <td>${esc(p.nome)}</td>
-    <td class="font-mono">${esc(p.codigo || '-')}</td>
-    <td class="font-mono" style="font-size:.78rem">${esc(p.ncm || '-')}</td>
-    <td class="text-center">${esc(p.unidade || '-')}</td>
-  </tr>`).join("");
-  actions.classList.remove("hidden");
-}
+// ALTO-G (2026-07-01 — ONDA 1): importarProdutosTiny REMOVIDA (dead code). Começava com
+// notifyErpSyncDisabled + return (integração Tiny/ERP desabilitada) — corpo real inalcançável.
+// Os botões "Importar do Tiny"/"Importar Novos" foram removidos do HTML. O modal #modal-import-tiny
+// e as funções confirmarImportacaoTiny/fecharImportTiny/toggleSelectAllImportTiny ficaram órfãos
+// (inacessíveis sem os botões) — limpeza total do modal registrada como débito p/ Onda 2.
 
 function confirmarImportacaoTiny() {
   const checks = document.querySelectorAll('.import-tiny-chk:checked');
@@ -1105,74 +1016,9 @@ async function classificarNcmBancoProdutos() {
 }
 
 // ===== Story 4.15: Enviar Produto ao ERP (AC-3) =====
-async function enviarProdutoERP() {
-  notifyErpSyncDisabled("Produto");
-  return;
-  const descricao = (document.getElementById("prod-descricao").value || "").trim();
-  const sku = (document.getElementById("prod-sku").value || "").trim();
-  const ncm = (document.getElementById("prod-ncm").value || "").trim();
-  const unidade = document.getElementById("prod-unidade").value;
-
-  if (!descricao) { showToast("Descricao e obrigatoria.", 3000); return; }
-  if (!unidade) { showToast("Unidade e obrigatoria.", 3000); return; }
-
-  const btn = document.getElementById("btn-enviar-erp");
-  const btnText = btn.textContent;
-  btn.disabled = true;
-  btn.textContent = "⏳ Enviando...";
-
-  try {
-    // 1. Save locally first
-    salvarProduto();
-
-    // 2. Send to Tiny ERP
-    const resp = await fetch("/api/tiny-produtos", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action: "cadastrar",
-        itens: [{
-          num: 1,
-          descricao: descricao,
-          unidade: unidade,
-          ncm: ncm,
-          codigo: sku || "",
-          precoUnitario: 0
-        }]
-      })
-    });
-    const json = await resp.json();
-
-    if (json.success && json.results && json.results.length > 0) {
-      const result = json.results[0];
-      if (result.status === "ok" || result.status === "existente") {
-        // Update SKU in banco if Tiny returned one
-        if (result.sku) {
-          loadBancoProdutos();
-          const prod = bancoProdutos.itens.find(p => p.descricao === descricao);
-          if (prod && !prod.sku) {
-            prod.sku = result.sku;
-            saveBancoProdutos();
-            renderBancoProdutos();
-          }
-        }
-        const msg = result.status === "existente"
-          ? `Produto ja existe no Tiny (SKU: ${result.sku}). Banco local atualizado.`
-          : `Produto cadastrado no Tiny! SKU: ${result.sku}`;
-        showToast(msg, 5000);
-      } else {
-        showToast(`Erro ao cadastrar no Tiny: ${result.error || "desconhecido"}`, 5000);
-      }
-    } else {
-      showToast("Erro ao enviar ao Tiny: " + (json.error || "resposta inesperada"), 5000);
-    }
-  } catch (err) {
-    showToast("Erro de conexao ao enviar ao Tiny: " + err.message, 5000);
-  } finally {
-    btn.disabled = false;
-    btn.textContent = btnText;
-  }
-}
+// ALTO-G (2026-07-01 — ONDA 1): enviarProdutoERP REMOVIDA (dead code). O corpo real (cadastro
+// via /api/tiny-produtos) já era inalcançável — a função começava com notifyErpSyncDisabled + return
+// (integração Tiny/ERP desabilitada). O botão "Enviar ao ERP" (#btn-enviar-erp) foi removido do HTML.
 
 function exportarProdutosCSV() {
   loadBancoProdutos();

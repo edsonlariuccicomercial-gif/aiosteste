@@ -1076,9 +1076,9 @@
           <h2 id="ei-section-title">Central de Produtos</h2>
           <div style="font-size:.82rem;color:var(--mut)">Gerencie produtos, fornecedores, notas de entrada e estoque.</div>
         </div>
-        <div style="display:flex;gap:.5rem;flex-wrap:wrap">
-          <button class="btn btn-outline btn-sm" onclick="syncEstoqueIntelApi()">Sincronizar API</button>
-        </div>
+        <!-- ALTO-G (2026-07-01): botão "Sincronizar API" removido — chamava syncEstoqueIntelApi(),
+             que consultava endpoints do Estoque Intel legado (mortos: 500/404). Função removida. -->
+        <div style="display:flex;gap:.5rem;flex-wrap:wrap"></div>
       </div>
       <div class="estoque-intel-nav" style="margin-top:1rem;display:none">
         <button class="btn btn-green btn-sm" id="ei-view-btn-produtos" onclick="setEstoqueIntelView('produtos')">Produtos</button>
@@ -1381,8 +1381,7 @@
         <button class="btn btn-outline" onclick="editarProdutoSelecionado()" title="Editar produto selecionado">✏️ Editar</button>
         <button class="btn btn-red" onclick="excluirProdutosSelecionados()" title="Excluir produtos selecionados">🗑️ Excluir</button>
         <button class="btn btn-red" onclick="limparTodoBancoProdutos()" title="Excluir TODOS os produtos" style="margin-left:.5rem">🧹 Limpar Tudo</button>
-        <button class="btn btn-blue" onclick="importarProdutosTiny(false)" title="Importar TODOS os produtos do Tiny ERP">📥 Importar do Tiny</button>
-        <button class="btn btn-blue" onclick="importarProdutosTiny(true)" title="Importar somente produtos NOVOS do Tiny (ignora os ja importados)">📥 Importar Novos</button>
+        <!-- ALTO-G (2026-07-01): botões "Importar do Tiny"/"Importar Novos" removidos — importarProdutosTiny era dead code (integração Tiny/ERP desabilitada). -->
         <button class="btn" style="background:rgba(168,85,247,.15);color:#a855f7;border:none;font-weight:700" onclick="classificarNcmBancoProdutos()" title="Preencher NCM dos produtos sem codigo usando IA">🤖 NCM IA</button>
       </div>
     </div>
@@ -1461,7 +1460,7 @@
       <div style="margin-top:1.5rem;display:flex;justify-content:flex-end;gap:.8rem">
         <button class="btn btn-outline" onclick="fecharModalProduto()">Cancelar</button>
         <button class="btn btn-green" onclick="salvarProduto()">Salvar</button>
-        <button class="btn btn-blue" id="btn-enviar-erp" onclick="enviarProdutoERP()">📤 Enviar ao ERP</button>
+        <!-- ALTO-G (2026-07-01): botão "Enviar ao ERP" removido — enviarProdutoERP era dead code (integração Tiny/ERP desabilitada). -->
       </div>
     </div>
   </div>
@@ -2639,7 +2638,7 @@ function confirmarImportProd() {
 <script src="./js/gdp-core.js?v=66"></script>
 <script src="./js/gdp-notas-fiscais.js?v=64"></script>
 <script src="./js/gdp-contratos-module.js?v=21"></script>
-<script src="./js/gdp-estoque-intel.js?v=18"></script>
+<script src="./js/gdp-estoque-intel.js?v=19"></script>
 <script src="./js/gdp-pedidos.js?v=34"></script>
 <script src="./js/gdp-usuarios.js?v=16"></script>
 <!-- gdp-entregas.js removido (Épico A - FR-016) -->
