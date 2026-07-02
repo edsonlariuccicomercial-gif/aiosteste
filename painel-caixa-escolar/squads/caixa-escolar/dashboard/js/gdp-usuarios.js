@@ -215,7 +215,14 @@ function renderFormUsuario(u, draft = {}) {
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:1rem">
       <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Login</label><input type="text" id="usr-login" value="${esc(dataBase?.login||'')}" style="width:100%"></div>
-      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Senha</label><input type="text" id="usr-senha" value="${esc(dataBase?.senha||'escola2025')}" style="width:100%"></div>
+      <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">Senha</label>
+        <div style="display:flex;gap:.4rem;align-items:center">
+          <input type="password" id="usr-senha" value="${esc(dataBase?.senha||'')}" placeholder="${dataBase?.senha ? 'Deixe em branco p/ manter a atual' : 'Defina ou gere uma senha'}" autocomplete="new-password" style="flex:1">
+          <button type="button" onclick="(function(){var i=document.getElementById('usr-senha');i.type=i.type==='password'?'text':'password';this.textContent=i.type==='password'?'👁':'🙈';}).call(this)" title="Mostrar/ocultar senha" style="padding:.4rem .6rem;background:var(--bg);border:1px solid var(--bdr);border-radius:4px;cursor:pointer">👁</button>
+          <button type="button" onclick="(function(){var s=(typeof _gerarSenhaAleatoria==='function')?_gerarSenhaAleatoria():'';var i=document.getElementById('usr-senha');i.value=s;i.type='text';if(typeof showToast==='function')showToast('Senha gerada: '+s+' (anote — some ao fechar).',8000);})()" title="Gerar senha aleatoria" style="padding:.4rem .6rem;background:var(--bg);border:1px solid var(--bdr);border-radius:4px;cursor:pointer">🎲</button>
+        </div>
+        <div style="font-size:.68rem;color:var(--mut);margin-top:.25rem">Em branco: mantém a atual (edição) ou gera automática (novo). Clique em 👁 para conferir.</div>
+      </div>
       <div><label style="font-size:.75rem;color:var(--mut);display:block;margin-bottom:.3rem">ARP Vinculada</label><input type="text" id="usr-arp" value="${esc(dataBase?.arp_vinculada||'ARP-LARIUCCI-2025')}" style="width:100%"></div>
       <div style="display:flex;align-items:flex-end"><label style="font-size:.8rem;display:flex;align-items:center;gap:.4rem;cursor:pointer"><input type="checkbox" id="usr-conta-corrente" ${(dataBase?.conta_corrente_ativa||dataBase?.contaCorrenteAtiva)?'checked':''}> Conta-Corrente (crédito/débito rotativo)</label></div>
     </div>
@@ -230,10 +237,35 @@ function renderFormUsuario(u, draft = {}) {
   `;
 }
 
+// MED-K v1 (2026-07-02): gera uma senha aleatoria (nao previsivel) quando nenhuma e informada na
+// CRIACAO. Elimina o default publico 'escola2025' (que qualquer um sabia). ~10 chars alfanumericos.
+function _gerarSenhaAleatoria() {
+  var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+  var out = '';
+  try {
+    if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+      var arr = new Uint32Array(10); crypto.getRandomValues(arr);
+      for (var i = 0; i < 10; i++) out += chars[arr[i] % chars.length];
+      return out;
+    }
+  } catch (_) {}
+  // Fallback autocontido (sem crypto): timestamp-derivado, ainda melhor que um default publico fixo.
+  var seed = (typeof Date !== 'undefined' ? Date.now() : 12345);
+  for (var j = 0; j < 10; j++) { seed = (seed * 31 + 7) % 2147483647; out += chars[seed % chars.length]; }
+  return out || 'trocar-senha';
+}
+
 function salvarUsuario(editId) {
   const nome = document.getElementById("usr-nome").value.trim();
   const login = document.getElementById("usr-login").value.trim();
   if (!nome || !login) { showToast("Nome e Login sao obrigatorios.", 3000); return; }
+  // MED-K v1: senha em branco → ao EDITAR mantem a atual; ao CRIAR gera aleatoria (nao usa default publico).
+  const _senhaAtualEdit = editId ? (usuarios.find(x => x.id === editId)?.senha || '') : '';
+  const _senhaInput = document.getElementById("usr-senha").value.trim();
+  const _senhaFinal = _senhaInput || _senhaAtualEdit || _gerarSenhaAleatoria();
+  // Flag: a senha foi GERADA automaticamente agora? (branco + sem senha anterior). Se sim, mostramos
+  // a senha ao final para o operador anotar/repassar — senao ela ficaria mascarada e inacessivel.
+  const _senhaGerada = !_senhaInput && !_senhaAtualEdit;
 
   const _logr = document.getElementById("usr-logradouro").value.trim();
   const _num = document.getElementById("usr-numero").value.trim();
@@ -261,7 +293,7 @@ function salvarUsuario(editId) {
     endereco: { logradouro: _logr, numero: _num, complemento: _compl, bairro: _bairro, cep: _cep, cidade: _mun, uf: _uf },
     ie: document.getElementById("usr-ie").value.trim() || "ISENTO",
     login: login,
-    senha: document.getElementById("usr-senha").value.trim() || 'escola2025',
+    senha: _senhaFinal, // MED-K v1: nunca cai em default publico ('escola2025' removido)
     categoria_catalogo: document.getElementById("usr-catalogo").value.trim(),
     arp_vinculada: document.getElementById("usr-arp").value.trim(),
     saldo_total: parseFloat(document.getElementById("usr-saldo-total").value) || 0,
@@ -312,7 +344,13 @@ function salvarUsuario(editId) {
   }
   const primeiroInput = document.getElementById("usr-nome");
   if (primeiroInput) primeiroInput.focus();
-  showToast(editId ? "Cliente atualizado!" : "Cliente cadastrado!");
+  // MED-K v1: se a senha foi gerada automaticamente, revela-la para o operador anotar/repassar
+  // (senao ficaria mascarada e inacessivel). Login + senha juntos p/ facilitar o repasse a escola.
+  if (_senhaGerada) {
+    showToast('Cliente cadastrado! Login: ' + login + ' | Senha gerada: ' + _senhaFinal + ' — ANOTE (some ao fechar).', 12000);
+  } else {
+    showToast(editId ? "Cliente atualizado!" : "Cliente cadastrado!");
+  }
 }
 
 function excluirUsuario(id) {
@@ -699,7 +737,7 @@ function confirmarImportClientes() {
       uf: r.uf || 'MG',
       ie: r.ie || 'ISENTO',
       login: login,
-      senha: 'escola2025',
+      senha: _gerarSenhaAleatoria(), // MED-K v1: senha aleatoria por cliente (default publico 'escola2025' removido)
       cargo: 'Presidente da Caixa Escolar',
       categoria_catalogo: '',
       arp_vinculada: 'ARP-LARIUCCI-2025',
@@ -715,5 +753,7 @@ function confirmarImportClientes() {
   saveUsuarios();
   renderUsuarios();
   toggleImportClientesModal(false);
-  showToast(`${imported} cliente(s) importado(s) com sucesso!`, 3000);
+  // MED-K v1: cada importado recebeu uma senha ALEATORIA (nao mais o default publico 'escola2025').
+  // Para ver/repassar a senha de cada um: abrir o cliente na lista e clicar em 👁 no campo Senha.
+  showToast(`${imported} cliente(s) importado(s)! Senhas geradas automaticamente — abra cada cliente e clique em 👁 para ver a senha.`, 8000);
 }

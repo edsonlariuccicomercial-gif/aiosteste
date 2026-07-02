@@ -5,7 +5,9 @@
 
 const AUTH_CONFIG = {
   user: "lariucci",
-  passHash: "b01b3ce6c2432fe67e535235bd985a787557c9584b56c70e855abad11d0bd871", // sha256("lariucci2026")
+  // MED-K v1 (2026-07-02): removido o comentario que expunha a senha em claro no fonte servido.
+  // (Reescrita completa de auth — Supabase Auth + RLS por identidade — fica p/ v2.)
+  passHash: "b01b3ce6c2432fe67e535235bd985a787557c9584b56c70e855abad11d0bd871",
   sessionKey: "ce.auth",
 };
 
