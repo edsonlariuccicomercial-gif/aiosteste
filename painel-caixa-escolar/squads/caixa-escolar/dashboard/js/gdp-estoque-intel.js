@@ -2634,16 +2634,15 @@ function aplicarEditarMassaProdutos() {
   showToast(alterados + " produto(s) atualizado(s).", 4000);
 }
 
-function excluirProdutosSelecionados() {
-  const ids = getSelectedProdutoIds();
-  if (!ids.length) { showToast("Nenhum produto selecionado.", 3000); return; }
-  if (!confirm("Excluir " + ids.length + " produto(s) selecionado(s)? Esta acao nao pode ser desfeita.")) return;
-  estoqueIntelProdutos = estoqueIntelProdutos.filter(p => !ids.includes(p.id));
-  saveEstoqueIntelProdutos();
-  desmarcarTodosProdutos();
-  renderEstoque();
-  showToast(ids.length + " produto(s) excluido(s).", 3500);
-}
+// ALTO-H (2026-07-01 — ONDA 2): excluirProdutosSelecionados DUPLICADA removida daqui.
+// Existiam DUAS implementações: esta (Estoque Intel, SEM tombstone — filtrava estoqueIntelProdutos
+// em RAM e salvava, deixando o registro ressuscitar no boot/multi-máquina) e a de
+// gdp-banco-produtos.js:249 (Central de Produtos, COM tombstone via ProductStore.remove →
+// gdpApi.produtos.remove → deleted_at + gdp.produtos.deleted.v1, agora reforçado pelo trigger
+// deleted_at-terminal da migration 043). Qual vencia dependia da ORDEM de carga (frágil). Consolidado
+// na versão COM tombstone (fonte única = tabela produtos). Os botões da Central já a alvejam.
+// Os helpers getSelectedProdutoIds/desmarcarTodosProdutos PERMANECEM — usados por outras funções
+// do Estoque Intel (editar em massa etc.) e pelo botão "Limpar Seleção".
 
 function toggleSelectAllMovimentacoes(checked) {
   document.querySelectorAll(".mov-chk").forEach(cb => { cb.checked = checked; });

@@ -39,10 +39,17 @@
     return text ? JSON.parse(text) : null;
   }
 
-  async function sbUpsert(rows) {
+  // ALTO-J (2026-07-01 — ONDA 2): opção ignoreDuplicates. O SEED (seedFromContratos) NUNCA pode
+  // sobrescrever uma equivalência já existente — sobretudo uma confirmado:true do usuário. Com
+  // resolution=merge-duplicates o seed (confirmado:false) clobberava a confirmação no banco. Passando
+  // ignoreDuplicates=true usamos resolution=ignore-duplicates → o Postgres PULA linhas cujo conflito
+  // (chave única) já existe (equivalente ao ON CONFLICT DO NOTHING). Fluxos de CONFIRMAÇÃO explícita
+  // seguem usando merge (default) para gravar a mudança.
+  async function sbUpsert(rows, opts) {
+    var resolution = (opts && opts.ignoreDuplicates) ? 'ignore-duplicates' : 'merge-duplicates';
     var res = await fetch(REST + '/radar_equivalencias', {
       method: 'POST',
-      headers: Object.assign({}, HEADERS, { Prefer: 'return=minimal,resolution=merge-duplicates' }),
+      headers: Object.assign({}, HEADERS, { Prefer: 'return=minimal,resolution=' + resolution }),
       body: JSON.stringify(rows)
     });
     if (!res.ok) throw new Error('Supabase upsert ' + res.status);
@@ -104,6 +111,9 @@
         if (!sku) return;
         var key = normalizeProductName(item.descricao || item.nome || '');
         if (!key) return;
+        // ALTO-J: NUNCA rebaixar uma equivalência já confirmada pelo usuário. Se a chave já existe
+        // no cache como confirmado:true, o seed a preserva (não regrava confirmado:false por cima).
+        if (_cache[key] && _cache[key].confirmado === true) return;
         // Find banco item to enrich
         var bp = (typeof bancoPrecos !== 'undefined' && bancoPrecos && Array.isArray(bancoPrecos.itens))
           ? bancoPrecos.itens.find(function (b) { return b.id === sku || b.sku === sku; })
@@ -125,9 +135,10 @@
     });
     if (count > 0) {
       saveLS();
-      // Persist to Supabase in background
-      try { await sbUpsert(Object.values(_cache)); } catch (_) { /* retry later */ }
-      gdpLog('[RadarMatcher] seeded', count, 'entries from contratos');
+      // ALTO-J: persistir com ignore-duplicates — o seed só INSERE equivalências novas, nunca
+      // sobrescreve as existentes no banco (protege confirmado:true de outra máquina/sessão).
+      try { await sbUpsert(Object.values(_cache), { ignoreDuplicates: true }); } catch (_) { /* retry later */ }
+      gdpLog('[RadarMatcher] seeded', count, 'entries from contratos (ignore-duplicates)');
     }
   }
 
