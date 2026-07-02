@@ -159,12 +159,21 @@ describe('gdp-api module', () => {
   });
 
   describe('empresa_id resolution', () => {
+    // RLS Fase 1 (WD-RLS-001): a escrita passa PRIMEIRO por sbWriteViaBackend (POST /api/gdp-data),
+    // cujo body é um ENVELOPE { action:'upsert', table, rows:{...row com empresa_id...}, conflict }.
+    // Antes o teste assumia a row na RAIZ do body (POST REST direto), que só ocorre no fallback anon.
+    // Helper aceita as DUAS formas: envelope backend (callBody.rows) OU row crua (callBody).
+    const _rowFromCall = (call) => {
+      const body = JSON.parse(call?.[1]?.body || '{}');
+      const rows = body.rows != null ? body.rows : body; // envelope backend vs REST direto
+      return Array.isArray(rows) ? rows[0] : rows;        // upsert unitario vs saveAll (lote)
+    };
+
     it('uses syncUserId from localStorage', async () => {
       env.fetch.mockResolvedValueOnce({ ok: true });
       await gdpApi.contratos.save({ id: 'x', escola: 'Test' });
-      // The item should have empresa_id = TEST-EMPRESA (from seeded storage)
-      const callBody = JSON.parse(env.fetch.mock.calls[0]?.[1]?.body || '{}');
-      expect(callBody.empresa_id).toBe('TEST-EMPRESA');
+      // A row enviada deve ter empresa_id = TEST-EMPRESA (do storage semeado)
+      expect(_rowFromCall(env.fetch.mock.calls[0]).empresa_id).toBe('TEST-EMPRESA');
     });
 
     it('falls back to LARIUCCI if no empresa context', async () => {
@@ -176,8 +185,7 @@ describe('gdp-api module', () => {
 
       result2.env.fetch.mockResolvedValueOnce({ ok: true });
       await api2.contratos.save({ id: 'y', escola: 'Test2' });
-      const callBody = JSON.parse(result2.env.fetch.mock.calls[0]?.[1]?.body || '{}');
-      expect(callBody.empresa_id).toBe('LARIUCCI');
+      expect(_rowFromCall(result2.env.fetch.mock.calls[0]).empresa_id).toBe('LARIUCCI');
     });
   });
 });
