@@ -4046,7 +4046,29 @@ window.importarExtratoBancario = async function(file, tipo) {
   if (status) status.textContent = "Processando " + file.name + "...";
 
   try {
-    const text = await file.text();
+    // MED-O (2026-07-01 — ONDA 1): PDF NÃO pode ser lido com file.text() (binário → texto
+    // corrompido → 0 transações silencioso). Extraímos o texto real via pdf.js (pdfjsLib), o mesmo
+    // parser já usado em importarProdutosPDF (extractPdfLines). Se a lib não estiver carregada,
+    // avisamos claramente em vez de silenciar. Os demais formatos (ofx/csv) seguem via file.text().
+    let text = "";
+    if (tipo === "pdf") {
+      if (!window.pdfjsLib) {
+        if (status) status.textContent = "Biblioteca PDF não carregada. Recarregue a página e tente novamente.";
+        showToast("Biblioteca PDF não carregada. Recarregue a página e tente novamente.", 5000);
+        return;
+      }
+      const data = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data }).promise;
+      let _linhas = [];
+      for (let pg = 1; pg <= pdf.numPages; pg++) {
+        const page = await pdf.getPage(pg);
+        const content = await page.getTextContent();
+        _linhas = _linhas.concat(typeof extractPdfLines === "function" ? extractPdfLines(content) : content.items.map(function (i) { return i.str; }));
+      }
+      text = _linhas.join("\n");
+    } else {
+      text = await file.text();
+    }
     let transacoes = [];
 
     if (tipo === "ofx") {
@@ -4099,8 +4121,13 @@ window.importarExtratoBancario = async function(file, tipo) {
     }
 
     if (transacoes.length === 0) {
-      if (status) status.textContent = "Nenhuma transacao encontrada no arquivo.";
-      showToast("Nenhuma transacao encontrada.");
+      // MED-O: mensagem clara por formato — nunca silenciar. PDF de banco costuma ter layout
+      // que o parser de linhas não reconhece; orientamos o usuário ao formato confiável (OFX/CSV).
+      const _msg = tipo === "pdf"
+        ? "Nenhuma transação reconhecida neste PDF (layout do banco não suportado). Exporte o extrato em OFX ou CSV pelo internet banking e importe esse arquivo."
+        : "Nenhuma transação encontrada no arquivo.";
+      if (status) status.textContent = _msg;
+      showToast(_msg, 6000);
       return;
     }
 

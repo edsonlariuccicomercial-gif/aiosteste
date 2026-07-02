@@ -570,6 +570,9 @@
         + '<td style="text-align:right;color:' + (ehDebito ? '#d33' : '#090') + '">' + (ehDebito ? '−' : '+') + ' ' + _brl.format(_num(l.valor)) + '</td></tr>';
     }).join('');
     var w = window.open('', '_blank');
+    // MED-O (2026-07-01): popup pode ser bloqueado pelo navegador → window.open retorna null.
+    // Sem guard, w.document.write crashava silenciosamente. Avisamos o usuário para liberar popups.
+    if (!w) { if (typeof showToast === 'function') showToast('Não foi possível abrir a janela de impressão. Libere os popups deste site e tente novamente.', 6000); return; }
     w.document.write('<html><head><title>Extrato — ' + nome + '</title>'
       + '<style>body{font-family:Arial,sans-serif;padding:24px;color:#111}h2{margin:0 0 4px}table{width:100%;border-collapse:collapse;margin-top:12px}th,td{border-bottom:1px solid #ddd;padding:6px;text-align:left;font-size:13px}.saldo{font-size:18px;font-weight:bold;margin-top:16px;text-align:right}</style>'
       + '</head><body>'
@@ -687,6 +690,8 @@
         + '<table><thead><tr><th>Data</th><th>Descrição</th><th style="text-align:right">Valor</th></tr></thead><tbody>' + linhas + '</tbody></table>';
     }).join('');
     var w = window.open('', '_blank');
+    // MED-O (2026-07-01): guard de popup bloqueado (window.open null) — avisa em vez de crashar.
+    if (!w) { if (typeof showToast === 'function') showToast('Não foi possível abrir a janela de impressão. Libere os popups deste site e tente novamente.', 6000); return; }
     w.document.write('<html><head><title>Relatório Geral — Conta-Corrente</title>'
       + '<style>body{font-family:Arial,sans-serif;padding:24px;color:#111}h2{margin:0 0 8px}table{width:100%;border-collapse:collapse;margin-top:8px}th,td{border-bottom:1px solid #ddd;padding:5px;text-align:left;font-size:12px}.tot{font-weight:bold;border-top:2px solid #333}</style>'
       + '</head><body>'
