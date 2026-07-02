@@ -182,8 +182,12 @@ const ORDERS_KEY = "gdp.pedidos.v1";
 const PROOFS_KEY = "gdp.entregas.provas.v1";
 
 // ===== SUPABASE CLOUD SYNC (uses centralized config from supabase-config.js) =====
-const SUPABASE_URL = window.SUPABASE_URL || "https://mvvsjaudhbglxttxaeop.supabase.co";
-const SUPABASE_KEY = window.SUPABASE_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im12dnNqYXVkaGJnbHh0dHhhZW9wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4MDY3OTAsImV4cCI6MjA5MDM4Mjc5MH0.jadqvmRvbZjtjATaF_4WWB6A44NF06whtEIyNNyCUGo";
+// MED-K (2026-07-01 — ONDA 1): removida a anon key JWT legada hardcoded. A fonte única é
+// js/supabase-config.js (carregado ANTES, na linha 175 → window.SUPABASE_URL/KEY). O fallback
+// legado só expunha uma chave antiga no código-fonte sem nunca ser usado. Sem config → aborta
+// gracioso (SUPABASE_KEY vazio → cloudSave/cloudLoad falham em silêncio, app segue offline-local).
+const SUPABASE_URL = window.SUPABASE_URL || "";
+const SUPABASE_KEY = window.SUPABASE_KEY || "";
 
 function getSyncUserId() {
   const emp = JSON.parse(localStorage.getItem("nexedu.empresa") || "{}");
