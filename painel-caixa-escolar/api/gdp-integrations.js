@@ -66,6 +66,36 @@ module.exports = async function handler(req, res) {
       });
     }
 
+    // DANFE única (2026-07-02, T3): emitente REAL COMPLETO (com endereco) p/ o front SEMEAR
+    // nexedu.empresa (principalmente a IE, que faltava). NAO expoe segredos (cert/senha/chave).
+    // CNPJ/IE/endereco ja saem impressos em toda DANFE — nao sao sigilosos.
+    if (action === "nfe-emitente-config") {
+      const config = getSefazConfig();
+      const end = config.emitenteEndereco || {};
+      return res.status(200).json({
+        ok: true,
+        emitente: {
+          razaoSocial: config.razaoSocial || "",
+          nomeFantasia: config.nomeFantasia || "",
+          cnpj: config.cnpjEmitente || "",
+          ie: config.ie || "",
+          crt: config.crt || "",
+          uf: config.uf || end.uf || "",
+          endereco: {
+            logradouro: end.logradouro || "",
+            numero: end.numero || "",
+            complemento: end.complemento || "",
+            bairro: end.bairro || "",
+            cidade: end.cidade || "",
+            uf: end.uf || "",
+            cep: end.cep || "",
+            telefone: end.telefone || "",
+            email: end.email || ""
+          }
+        }
+      });
+    }
+
     // NF-e preview (gera XML assinado sem transmitir)
     if (action === "nfe-sefaz-preview") {
       const pedido = body.pedido;
