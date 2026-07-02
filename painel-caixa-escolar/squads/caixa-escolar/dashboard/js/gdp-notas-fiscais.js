@@ -745,18 +745,24 @@ async function _emitirOuSincronizarCobrancaRealImpl(contaId, options = {}) {
         if (nota) saveNotasFiscais(nota.id);
       },
       onError: (err) => {
-        updateContaReceberIntegration(conta.id, "bancaria", {
-          status: "falha_auditoria_provider",
-          error: err.message,
-          lastAction: action === "bank-charge-create" ? "criar_titulo_provider" : "sincronizar_titulo_provider",
-          provider
-        });
-        if (nota) updateNotaFiscalIntegration(nota.id, "bancaria", {
-          status: "falha_auditoria_provider",
-          error: err.message,
-          lastAction: action === "bank-charge-create" ? "criar_titulo_provider" : "sincronizar_titulo_provider",
-          provider
-        });
+        // MED-P (2026-07-01 — ONDA 1): a EMISSÃO REAL já foi OK (applyRealBankChargeResult acima,
+        // via /api/bank-charge). Este queue é só uma AUDITORIA secundária em /api/gdp-integrations,
+        // que responde "Unknown action" para criar_titulo_provider (só conhece NF-e) → o onError
+        // disparava SEMPRE e rebaixava a cobrança emitida a status="falha_auditoria_provider",
+        // MASCARANDO o sucesso. NUNCA sobrescrever o status bancário da conta/NF por falha da
+        // auditoria: registramos o erro só como metadado informativo (auditoriaSecundaria), sem
+        // tocar em `status` (o gate de prova — providerChargeId — permanece a fonte de verdade).
+        const _auditPatch = {
+          auditoriaSecundaria: "falha_registro_evento",
+          auditoriaSecundariaErro: err.message,
+          auditoriaSecundariaEm: new Date().toISOString()
+        };
+        const _c = contasReceber.find((item) => item.id === conta.id);
+        if (_c) { setIntegrationState(_c, "bancaria", _auditPatch); saveContasReceber(); }
+        if (nota) {
+          const _n = notasFiscais.find((item) => item.id === nota.id);
+          if (_n) { setIntegrationState(_n, "bancaria", _auditPatch); saveNotasFiscais(_n.id); }
+        }
       }
     });
 
