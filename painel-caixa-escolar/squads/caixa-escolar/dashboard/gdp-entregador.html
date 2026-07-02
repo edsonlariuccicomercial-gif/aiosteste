@@ -300,30 +300,14 @@ async function loadDeliveries() {
     // Offline — usa dados locais
   }
 
-  // Seed demo data if empty
-  if (pedidos.length === 0) {
-    pedidos = [
-      { id: 'PED-20260306-0001', contratoId: 'CTR-DEMO', escola: 'Escola Estadual Maestro Villa Lobos', data: '2026-03-06', itens: [
-        { itemNum: 1, descricao: 'Arroz Casa Grande 5kg', qtd: 10, precoUnitario: 19.70 },
-        { itemNum: 2, descricao: 'Feijao Carioca 1kg', qtd: 15, precoUnitario: 8.50 },
-        { itemNum: 3, descricao: 'Oleo de Soja 900ml', qtd: 8, precoUnitario: 8.37 }
-      ], valor: 391.46, status: 'separando' },
-      { id: 'PED-20260306-0002', contratoId: 'CTR-DEMO', escola: 'Escola Estadual Alceu Novaes', data: '2026-03-06', itens: [
-        { itemNum: 1, descricao: 'Acafrao 500gr Pacha', qtd: 5, precoUnitario: 10.36 },
-        { itemNum: 2, descricao: 'Queijo Mussarela kg', qtd: 3, precoUnitario: 50.14 },
-        { itemNum: 3, descricao: 'Polpa de Morango kg', qtd: 6, precoUnitario: 23.86 }
-      ], valor: 345.38, status: 'separando' },
-      { id: 'PED-20260305-0003', contratoId: 'CTR-DEMO', escola: 'E.E. Bernardo Vasconcelos', data: '2026-03-05', itens: [
-        { itemNum: 1, descricao: 'Manteiga de Leite 500gr', qtd: 4, precoUnitario: 30.67 },
-        { itemNum: 2, descricao: 'Farinha de Trigo Sol 1kg', qtd: 20, precoUnitario: 4.62 }
-      ], valor: 215.08, status: 'recebido' }
-    ];
-    localStorage.setItem(ORDERS_KEY, JSON.stringify(pedidos));
-  }
+  // MED-M (2026-07-01 — ONDA 1): seed de 3 pedidos FAKE (CTR-DEMO) REMOVIDO. Injetava entregas
+  // inexistentes quando a lista estava vazia, persistia no localStorage E empurrava os fakes p/ a
+  // nuvem via syncToCloud (poluindo o Supabase). Agora, agenda vazia → renderDeliveries mostra o
+  // empty state ("Nenhuma entrega pendente no momento.") — sem inventar dado.
 
   renderDeliveries();
-  // Push local data to cloud (populates Supabase with existing data)
-  try { await syncToCloud(); } catch(_) {}
+  // Push local data to cloud SOMENTE se houver dados reais (nunca empurra vazio/seed).
+  if (pedidos.length > 0) { try { await syncToCloud(); } catch(_) {} }
 }
 
 function renderDeliveries() {
