@@ -697,6 +697,11 @@ let _syncBancoContratoId = null;
 let _syncBancoMatches = [];
 
 function calcularSimilaridade(a, b) {
+  // MED-N (2026-07-02): matcher canônico movido para js/gdp-utils.js (window.gdpUtils.calcularSimilaridade).
+  // Passthrough para a fonte única; o corpo abaixo é fallback inline caso o util não tenha carregado.
+  if (typeof window !== 'undefined' && window.gdpUtils && window.gdpUtils.calcularSimilaridade) {
+    return window.gdpUtils.calcularSimilaridade(a, b);
+  }
   const normalize = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/[^A-Z0-9\s]/g, '').trim();
   // FIX: palavras >= 3 chars para evitar match em "IN", "DE", "DO", "COM"
   const keywords = s => normalize(s).split(/\s+/).filter(w => w.length >= 3);

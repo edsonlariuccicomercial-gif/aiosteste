@@ -128,21 +128,16 @@ function interpretMapa(parsed) {
     itemNum++;
 
     const unidade = row[colUnd] || "";
-    const quantidade = parseFloat(String(row[colQtd] || "0").replace(/\./g, "").replace(",", ".")) || 0;
+    // MED-N (2026-07-02): parser BR canônico compartilhado (window.parseNumeroBR / gdp-utils.js).
+    const _parseBR = (typeof window !== "undefined" && window.parseNumeroBR)
+      ? window.parseNumeroBR
+      : function (v) { var s = String(v||"").replace(/[^\d,.\-]/g,""); if(!s||s==="-")return 0; var dc=s.includes(".")&&s.includes(","); if(dc)return parseFloat(s.replace(/\./g,"").replace(",","."))||0; if(s.includes(","))return parseFloat(s.replace(",","."))||0; return parseFloat(s)||0; };
+    const quantidade = _parseBR(row[colQtd]);
 
     const precos = {};
     const precosTotal = {};
     for (let s = 0; s < supplierNames.length; s++) {
-      const raw = String(row[firstSupplierCol + s] || "");
-      const cleaned = raw.replace(/[^\d,\.]/g, "");
-      // Handle Brazilian format: "1.234,56" → 1234.56
-      let price = 0;
-      if (cleaned) {
-        const hasDotAndComma = cleaned.includes(".") && cleaned.includes(",");
-        if (hasDotAndComma) price = parseFloat(cleaned.replace(/\./g, "").replace(",", ".")) || 0;
-        else if (cleaned.includes(",")) price = parseFloat(cleaned.replace(",", ".")) || 0;
-        else price = parseFloat(cleaned) || 0;
-      }
+      const price = _parseBR(row[firstSupplierCol + s]);
       precosTotal[supplierNames[s]] = price;
       // Convert to unit price: total / quantity
       precos[supplierNames[s]] = (price > 0 && quantidade > 0) ? Math.round((price / quantidade) * 100) / 100 : price;

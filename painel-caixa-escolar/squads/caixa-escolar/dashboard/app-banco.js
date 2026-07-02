@@ -1,3 +1,6 @@
+// MED-N (2026-07-02): usa o calculo canonico compartilhado (window.precoComMargem / gdp-utils.js).
+// Fallback inline identico caso o util nao tenha carregado. custo<=0 => 0 (mesma semantica dos call-sites).
+function _pcm(custo, margem){ if(typeof window!=='undefined'&&window.precoComMargem) return window.precoComMargem(custo,margem); var c=Number(custo)||0,m=Number(margem)||0; return c>0?Math.round(c*(1+m)*100)/100:0; }
 // ===== BANCO DE PREÇOS =====
 let editingBancoId = null;
 
@@ -703,7 +706,7 @@ function salvarBancoItem() {
   if (precoFornecedor > 0) custo = precoFornecedor;
 
   const margem = Math.max(0, Math.min(100, parseFloat(el.modalMargem.value) || 30)) / 100;
-  const preco = Math.round(custo * (1 + margem) * 100) / 100;
+  const preco = _pcm(custo, margem);
   const todayStr = new Date().toISOString().slice(0, 10);
 
   if (editingBancoId) {

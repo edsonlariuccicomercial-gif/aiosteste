@@ -1,3 +1,6 @@
+// MED-N (2026-07-02): usa o calculo canonico compartilhado (window.precoComMargem / gdp-utils.js).
+// Fallback inline identico caso o util nao tenha carregado. custo<=0 => 0 (mesma semantica dos call-sites).
+function _pcm(custo, margem){ if(typeof window!=='undefined'&&window.precoComMargem) return window.precoComMargem(custo,margem); var c=Number(custo)||0,m=Number(margem)||0; return c>0?Math.round(c*(1+m)*100)/100:0; }
 // ===== UNIT CONVERSION INTELLIGENCE =====
 const UNIT_CONVERSIONS = {
   "caixa": { aliases: ["cx", "cxa", "caixa"], defaultQty: 12 },
@@ -769,14 +772,18 @@ function closeImportModal() {
 }
 
 // --- Parse price from string ---
+// MED-N (2026-07-02): delega ao parser canônico compartilhado (js/gdp-utils.js → parseNumeroBR).
+// Mantido o nome parsePriceValue por compat com os call-sites deste importador. Fallback inline
+// idêntico caso o util não tenha carregado (ordem de script), para nunca quebrar o import.
 function parsePriceValue(val) {
+  if (typeof window !== "undefined" && typeof window.parseNumeroBR === "function") {
+    return window.parseNumeroBR(val);
+  }
   if (!val && val !== 0) return 0;
   const s = String(val).replace(/[^\d,.\-]/g, "");
   if (!s || s === "-") return 0;
-  // Handle "1.234,56" format (Brazilian) — remove dots, replace comma with dot
   const hasDotAndComma = s.includes(".") && s.includes(",");
   if (hasDotAndComma) return parseFloat(s.replace(/\./g, "").replace(",", ".")) || 0;
-  // Handle "1234,56" (comma as decimal)
   if (s.includes(",")) return parseFloat(s.replace(",", ".")) || 0;
   return parseFloat(s) || 0;
 }
@@ -920,7 +927,7 @@ function mergeImportIntoBanco() {
       const newId = "bp-" + String(Date.now()).slice(-6) + String(Math.random()).slice(2, 5);
       const newItem = {
         id: newId, item: itemName, grupo: "Importado", unidade: unidade || "Unidade",
-        custoBase: preco, margemPadrao, precoReferencia: Math.round(preco * (1 + margemPadrao) * 100) / 100,
+        custoBase: preco, margemPadrao, precoReferencia: _pcm(preco, margemPadrao),
         ultimaCotacao: todayStr, fonte: fornecedor, propostas: [], concorrentes: [],
         custosFornecedor: fornecedor && preco > 0 ? [{ fornecedor, preco, data: todayStr, arquivoId: currentArquivoId, descricaoOriginal: itemName, confianca: sourceConfidence }] : [],
       };
@@ -1074,7 +1081,7 @@ function mergeMapaIntoBanco() {
         .map((p) => ({ nome: p.nome, preco: p.preco, data: todayStr, edital: "Mapa Import" }));
       const newItem = {
         id: newId, item: itemName, grupo: "Mapa Apuracao", unidade: unidade || "Unidade",
-        custoBase, margemPadrao, precoReferencia: Math.round(custoBase * (1 + margemPadrao) * 100) / 100,
+        custoBase, margemPadrao, precoReferencia: _pcm(custoBase, margemPadrao),
         ultimaCotacao: todayStr, fonte: "Mapa de Apuracao",
         propostas: [], concorrentes: competitorPrices,
         custosFornecedor: myPrice > 0 ? [{ fornecedor: "Meu preco (mapa)", preco: myPrice, data: todayStr, arquivoId: currentArquivoId, descricaoOriginal: itemName, confianca: sourceConfidence }] : [],

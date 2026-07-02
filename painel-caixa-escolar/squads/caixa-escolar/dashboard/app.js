@@ -1,3 +1,6 @@
+// MED-N (2026-07-02): usa o calculo canonico compartilhado (window.precoComMargem / gdp-utils.js).
+// Fallback inline identico caso o util nao tenha carregado. custo<=0 => 0 (mesma semantica dos call-sites).
+function _pcm(custo, margem){ if(typeof window!=='undefined'&&window.precoComMargem) return window.precoComMargem(custo,margem); var c=Number(custo)||0,m=Number(margem)||0; return c>0?Math.round(c*(1+m)*100)/100:0; }
 // ===== DATA LOADING =====
 async function fetchJson(path) {
   try {
@@ -629,7 +632,7 @@ function _promptCriarProdutoBatch(itemNome, unidade, categoria) {
         criadoEm: new Date().toISOString(),
         custoBase: custo,
         margemPadrao: margem,
-        precoReferencia: custo > 0 ? Math.round(custo * (1 + margem) * 100) / 100 : 0,
+        precoReferencia: custo > 0 ? _pcm(custo, margem) : 0,
         custosFornecedor: fornecedor && custo > 0 ? [{
           fornecedor: fornecedor,
           preco: custo,
@@ -749,7 +752,7 @@ async function batchPreOrcar() {
         custoUnit = bp.custosFornecedor[bp.custosFornecedor.length - 1].preco;
       }
       const margem = bp.margemPadrao || margemPadrao;
-      const precoUnit = custoUnit > 0 ? Math.round(custoUnit * (1 + margem) * 100) / 100 : 0;
+      const precoUnit = custoUnit > 0 ? _pcm(custoUnit, margem) : 0;
       const concorrentes = bp.concorrentes || [];
       const menorConc = concorrentes.length > 0 ? Math.min(...concorrentes.map((c) => c.preco)) : 0;
 
@@ -867,7 +870,7 @@ function _criarPreOrcamentoRascunho(orc) {
       custoUnit = bp.custosFornecedor[bp.custosFornecedor.length - 1].preco;
     }
     const margem = bp ? (bp.margemPadrao || margemPadrao) : margemPadrao;
-    const precoUnit = custoUnit > 0 ? Math.round(custoUnit * (1 + margem) * 100) / 100 : 0;
+    const precoUnit = custoUnit > 0 ? _pcm(custoUnit, margem) : 0;
 
     // Extrai do edital o preço de referência (teto) e as marcas exigidas.
     // Cotação acima do teto OU com marca fora da lista → INABILITA. Guardamos para
@@ -1090,7 +1093,7 @@ window.confirmarAssociacao = function () {
       custoUnit = bp.custosFornecedor[bp.custosFornecedor.length - 1].preco;
     }
     const margem = bp.margemPadrao || margemPadrao;
-    const precoUnit = custoUnit > 0 ? Math.round(custoUnit * (1 + margem) * 100) / 100 : 0;
+    const precoUnit = custoUnit > 0 ? _pcm(custoUnit, margem) : 0;
     const concorrentes = bp.concorrentes || [];
     const menorConc = concorrentes.length > 0 ? Math.min(...concorrentes.map(c => c.preco)) : 0;
 
@@ -1335,7 +1338,7 @@ function renderPreOrcamentoItens() {
         if (item.custoUnitario === 0 && ultimoForn.preco > 0) {
           // Auto-fill custo from supplier if empty
           item.custoUnitario = ultimoForn.preco;
-          item.precoUnitario = Math.round(item.custoUnitario * (1 + item.margem) * 100) / 100;
+          item.precoUnitario = _pcm(item.custoUnitario, item.margem);
           item.precoTotal = Math.round(item.precoUnitario * item.quantidade * 100) / 100;
         }
       }
@@ -1459,10 +1462,10 @@ window.updatePreItem = function (idx, field, value) {
 
   if (field === "custoUnitario") {
     item.custoUnitario = Math.max(0, parseFloat(value) || 0);
-    item.precoUnitario = Math.round(item.custoUnitario * (1 + item.margem) * 100) / 100;
+    item.precoUnitario = _pcm(item.custoUnitario, item.margem);
   } else if (field === "margem") {
     item.margem = Math.max(0, Math.min(1, (parseFloat(value) || 0) / 100));
-    item.precoUnitario = Math.round(item.custoUnitario * (1 + item.margem) * 100) / 100;
+    item.precoUnitario = _pcm(item.custoUnitario, item.margem);
   } else if (field === "precoUnitario") {
     item.precoUnitario = Math.max(0, parseFloat(value) || 0);
     // Recalcular margem com base no preco manual
@@ -1496,7 +1499,7 @@ window.updatePreItem = function (idx, field, value) {
       bancoPrecos.itens.push(bp);
     }
     bp.custoBase = item.custoUnitario;
-    bp.precoReferencia = Math.round(bp.custoBase * (1 + bp.margemPadrao) * 100) / 100;
+    bp.precoReferencia = _pcm(bp.custoBase, bp.margemPadrao);
     bp.ultimaCotacao = new Date().toISOString().slice(0, 10);
     saveBancoLocal();
   }
@@ -2494,7 +2497,7 @@ window.pesquisarPrecoPNCP = async function(idx) {
     const usar = confirm(`PNCP encontrou: ${brl.format(resultado.min)}\nOrgao: ${orgao}\nAmostras: ${resultado.amostras}\n\nUsar como preco de custo?`);
     if (usar) {
       item.custoUnitario = resultado.min;
-      item.precoUnitario = Math.round(item.custoUnitario * (1 + item.margem) * 100) / 100;
+      item.precoUnitario = _pcm(item.custoUnitario, item.margem);
       item.precoTotal = Math.round(item.precoUnitario * item.quantidade * 100) / 100;
       recalcPreOrcamento(pre);
       savePreOrcamentos();
@@ -2546,7 +2549,7 @@ window.pesquisarPrecoBanco = function(idx) {
     if (confirm(msg)) {
       item.custoUnitario = bp.custoBase;
       if (bp.marca && !item.marca) item.marca = bp.marca;
-      item.precoUnitario = Math.round(item.custoUnitario * (1 + item.margem) * 100) / 100;
+      item.precoUnitario = _pcm(item.custoUnitario, item.margem);
       item.precoTotal = Math.round(item.precoUnitario * item.quantidade * 100) / 100;
       recalcPreOrcamento(pre);
       savePreOrcamentos();
@@ -3290,7 +3293,7 @@ window.aplicarMargemGlobal = function () {
   pre.itens.forEach((item, idx) => {
     if (item.custoUnitario <= 0) return;
     item.margem = margem;
-    item.precoUnitario = Math.round(item.custoUnitario * (1 + margem) * 100) / 100;
+    item.precoUnitario = _pcm(item.custoUnitario, margem);
     item.precoTotal = Math.round(item.precoUnitario * item.quantidade * 100) / 100;
     // Alerta: margem < 10%
     if (margem < 0.10) {
